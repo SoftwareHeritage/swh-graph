@@ -8,7 +8,7 @@ public class App
 {
     public static void main(String[] args)
     {
-        GraphAPI graph = new GraphAPI();
+        GraphAPI graph = new GraphAPI("/path/to/graph");
 
         Javalin app = Javalin.create().start(5010);
         app.get("/nb_nodes", ctx -> {
