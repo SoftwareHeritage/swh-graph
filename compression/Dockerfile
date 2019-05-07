@@ -15,5 +15,9 @@ RUN curl -O http://law.di.unimi.it/software/download/law-2.5-bin.tar.gz
 RUN tar xvfz law-2.5-bin.tar.gz
 RUN cp law-2.5/law-2.5.jar .
 
+# Monitoring
+RUN apt-get update
+RUN apt-get install -y time
+
 WORKDIR /graph
 COPY compress_graph.sh .
