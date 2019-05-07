@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<ivy-module version="2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://ant.apache.org/ivy/schemas/ivy.xsd">
+	<info organisation="it.unimi.dsi.law" module="law-library"/>
+
+	<configurations defaultconf="runtime" defaultconfmapping="*->default,javadoc">
+		<conf name="runtime"/>
+		<conf name="compile" extends="runtime"/>
+		<conf name="test" extends="compile"/>
+	</configurations>
+
+	<publications>
+		<artifact name="law-library" type="jar"/>
+		<artifact name="law-library" type="pom"/>
+	</publications>
+
+	<dependencies>
+		<dependency org="org.slf4j" name="slf4j-api" rev="latest.release"/>
+		<dependency org="org.slf4j" name="log4j-over-slf4j" rev="latest.release"/>
+		<dependency org="org.slf4j" name="jcl-over-slf4j" rev="latest.release"/>
+		<dependency org="ch.qos.logback" name="logback-classic" rev="latest.release" conf="runtime"/>
+
+      <dependency org="it.unimi.di.law" name="jericho-html-dev" rev="20131217" conf="runtime->default"/>
+
+		<dependency org="it.unimi.dsi" name="fastutil" rev="latest.release" conf="runtime->default"/>
+		<dependency org="it.unimi.dsi" name="dsiutils" rev="latest.release" conf="runtime->default"/>
+
+		<dependency org="it.unimi.di" name="mg4j" rev="latest.release" />
+		<dependency org="it.unimi.di" name="mg4j-big" rev="latest.release" />
+
+		<dependency org="it.unimi.dsi" name="sux4j" rev="latest.release" />
+		<dependency org="it.unimi.dsi" name="webgraph" rev="latest.release" />
+		<dependency org="it.unimi.dsi" name="webgraph-big" rev="latest.release" />
+
+		<dependency org="dnsjava" name="dnsjava" rev="latest.release" conf="runtime->default"/>
+
+		<dependency org="org.eclipse.jetty.aggregate" name="jetty-all" rev="9.4.10.RC0"/>
+
+		<dependency org="org.apache.commons" name="commons-math3" rev="latest.release"/>
+		<dependency org="org.apache.httpcomponents" name="httpclient" rev="4.2.3"/>
+		<dependency org="org.apache.httpcomponents" name="httpasyncclient" rev="latest.release"/>
+		<dependency org="com.martiansoftware" name="jsap" rev="latest.release"/>
+		<dependency org="net.sf.jung" name="jung-api" rev="latest.release"/>
+		<dependency org="net.sf.jung" name="jung-algorithms" rev="latest.release"/>
+		<dependency org="mx4j" name="mx4j" rev="latest.release"/>
+		<dependency org="mx4j" name="mx4j-tools" rev="latest.release"/>
+		<dependency org="org.softee" name="pojo-mbean" rev="latest.release"/>
+		<dependency org="gnu.getopt" name="java-getopt" rev="latest.release"/>
+
+		<dependency org="com.google.guava" name="guava" rev="latest.release"/>
+		<dependency org="info.bliki.wiki" name="bliki-core" rev="3.1.0"/>
+
+		<dependency org="org.wikidata.wdtk" name="wdtk-dumpfiles" rev="latest.release"/>
+
+		<dependency org="net.java.dev.javacc" name="javacc" rev="5.0" conf="compile"/>
+
+		<dependency org="org.apache.commons" name="commons-math" rev="latest.release" conf="test"/>
+		<dependency org="junit" name="junit" rev="latest.release" conf="test"/>
+		<dependency org="org.jacoco" name="org.jacoco.ant" rev="latest.release" conf="test"/>
+
+		<exclude org="org.slf4j" module="slf4j-log4j12"/>
+		<exclude org="log4j" module="log4j"/>
+		<exclude org="com.sun.jdmk"/>
+		<exclude org="com.sun.jmx"/>
+		<exclude org="javax.jms"/>
+
+		<!-- These dependency are missing in 9.1.1.v20140108 -->
+		<exclude org="org.eclipse.jetty" module="test-jetty-webapp"/>
+		<exclude org="org.eclipse.jetty" module="test-proxy-webapp"/>
+		<exclude org="org.eclipse.jetty.orbit"/>
+		<exclude org="org.eclipse.jetty.tests"/>
+	</dependencies>
+</ivy-module>
