@@ -1,0 +1,202 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[english]{babel}
+\usepackage[a4paper,left=2cm,right=2cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{minted}
+\usepackage{parskip}
+\usepackage{siunitx}
+
+\title{Google Summer of Code 2019}
+\author{Thibault Allançon}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+Early experiments running WebGraph framework on the Software Heritage datasets.
+
+\section{Environment}
+
+\subsection{Dockerfile}
+
+\begin{small}
+\begin{minted}{docker}
+FROM maven:3.6.0-jdk-11
+WORKDIR /app
+
+# Download webgraph binary
+RUN curl -O http://webgraph.di.unimi.it/webgraph-3.6.1-bin.tar.gz
+RUN tar xvfz webgraph-3.6.1-bin.tar.gz
+RUN cp webgraph-3.6.1/webgraph-3.6.1.jar .
+
+# Download webgraph dependencies
+RUN curl -O http://webgraph.di.unimi.it/webgraph-deps.tar.gz
+RUN tar xvfz webgraph-deps.tar.gz
+
+# Download LAW (for LLP ordering)
+RUN curl -O http://law.di.unimi.it/software/download/law-2.5.1-bin.tar.gz
+RUN tar xvfz law-2.5.1-bin.tar.gz
+RUN cp law-2.5.1/law-2.5.1.jar .
+
+# Monitoring
+RUN apt-get update
+RUN apt-get install -y time
+
+WORKDIR /graph
+COPY compress_graph.sh .
+\end{minted}
+\end{small}
+
+\subsection{Bash compression script}
+
+\begin{footnotesize}
+\begin{minted}[samepage]{bash}
+#!/bin/bash
+
+DATASET=release_to_obj
+
+java_cmd () {
+    /usr/bin/time -v java -Xmx256G -cp /app/'*' $*
+}
+
+mkdir -p bv bv_llp bv_sym
+
+# Build a function (MPH) that maps node names to node numbers in lexicographic order (output: $DATASET.mph)
+java_cmd it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction $DATASET.mph /graph/$DATASET.nodes
+
+# Build the graph in BVGraph format (output: $DATASET.{graph,offsets,properties})
+java_cmd it.unimi.dsi.webgraph.ScatteredArcsASCIIGraph -f $DATASET.mph bv/$DATASET < /graph/$DATASET.edges
+
+# Create a symmetrized version of the graph (output: $DATASET.{graph,offsets,properties})
+java_cmd it.unimi.dsi.webgraph.Transform symmetrizeOffline bv/$DATASET bv_sym/$DATASET
+
+# Find a better permutation through Layered LPA (output: $DATASET.llpa)
+java_cmd it.unimi.dsi.law.graph.LayeredLabelPropagation bv_sym/$DATASET $DATASET.llpa
+
+# Permute the graph accordingly (output: $DATASET.{graph,offsets,properties})
+java_cmd it.unimi.dsi.webgraph.Transform mapOffline bv/$DATASET bv_llp/$DATASET $DATASET.llpa
+\end{minted}
+\end{footnotesize}
+
+\section{Datasets analysis}
+
+\begin{center}
+    \begin{tabular}{@{} l *4r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{node list} & \textbf{edge list} &
+            \textbf{\# of nodes} & \textbf{\# of edges} \\
+        \midrule
+        \texttt{release\_to\_obj}
+            & 635M & 775M & \num{16222788} & \num{9907464} \\
+        \texttt{origin\_to\_snapshot}
+            & 2.7G & 9.1G & \num{112564374} & \num{194970670} \\
+        \texttt{dir\_to\_rev}
+            & 1.4G & 37G & \num{35399184} & \num{481829426} \\
+        \texttt{snapshot\_to\_obj}
+            & 6.6G & 64G & \num{170999796} & \num{831089515} \\
+        \texttt{rev\_to\_rev}
+            & 43G & 90G & \num{1117498391} & \num{1165813689} \\
+        \texttt{rev\_to\_dir}
+            & 79G & 86G & \num{2047888941} & \num{1125083793} \\
+        \texttt{dir\_to\_dir}
+            & & 3.7T & \num{4805057515} & \num{48341950425} \\
+        \texttt{dir\_to\_file}
+            & & & \num{9231457233} & \num{112363058067} \\
+        \midrule
+        Entire graph & & & \num{17537088222} & \num{164513703049} \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\section{Results}
+
+\begin{itemize}
+    \item The VM used had 2TB RAM with 128vCPU.
+    \item The results may vary because random permutations are used in the graph
+        compression process.
+    \item The size of \mintinline{bash}{*-compr} is calculated as: size of
+        \mintinline{bash}{*-compr.graph} + size of
+        \mintinline{bash}{*-compr.offsets}
+\end{itemize}
+
+\begin{center}
+    \begin{tabular}{@{} l *6r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{.nodes.csv.gz} & \textbf{.edges.csv.gz} &
+            \textbf{compr ratio} & \textbf{bit/edge} & \textbf{compr size} \\
+        \midrule
+        \texttt{release\_to\_obj} & 344M & 382M & 0.367 & 9.573 & 23M \\
+        \texttt{origin\_to\_snapshot} & 1.3G & 3.7G & 0.291 & 8.384 & 140M \\
+        \texttt{dir\_to\_rev} & 745M & 12G & 0.07 & 1.595 & 120M & \\
+        \texttt{snapshot\_to\_obj} & 3.5G & 21G & 0.067 & 1.798 & 253M \\
+        \texttt{rev\_to\_rev} & 22G & 33G & 0.288 & 9.063 & 2.2G \\
+        \texttt{rev\_to\_dir} & 41G & 48G & 0.291 & 9.668 & 2.6G \\
+        \texttt{dir\_to\_dir} & 95G & 1.3T & & & \\
+        \texttt{dir\_to\_file} & 180G & 3T & & & \\
+        \midrule
+        Entire graph & ~340G & ~4.5T & \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\section{Timing}
+
+\begin{center}
+    \begin{tabular}{@{} l *6r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{MPH} &
+            \textbf{BVGraph} &
+            \textbf{Symmetrized} &
+            \textbf{LLP} &
+            \textbf{Permutation} &
+            \textbf{Total} \\
+        \midrule
+        \texttt{release\_to\_obj}
+            & 14s & 25s & 18s & 8min & 10s & \textbf{9min} \\
+        \texttt{origin\_to\_snapshot}
+            & 1min & 5min & 3min & 1h30 & 1min & \textbf{1h40} \\
+        \texttt{dir\_to\_rev}
+            & 56s & 22min & 6min & 41min & 2min & \textbf{1h13} \\
+        \texttt{snapshot\_to\_obj}
+            & 3min & 22min & 8min & 2h50 & 5min & \textbf{3h30} \\
+        \texttt{rev\_to\_rev}
+            & 11min & 56min & 24min & 31h52 & 20min & \textbf{33h42} \\
+        \texttt{rev\_to\_dir}
+            & 20min & 1h & 30min & 52h45 & 23min & \textbf{55h} \\
+        \texttt{dir\_to\_dir}
+            & & & & & & \\
+        \texttt{dir\_to\_file}
+            & & & & & & \\
+        \midrule
+        Entire graph & & & & & & \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\section{Memory monitoring}
+
+\begin{center}
+    \begin{tabular}{@{} l c @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{Maximum resident set size} \\
+        \midrule
+        \texttt{release\_to\_obj} & 10.5G \\
+        \texttt{origin\_to\_snapshot} & 15.4G \\
+        \texttt{dir\_to\_rev} & 21.6G \\
+        \texttt{snapshot\_to\_obj} & 23.2G \\
+        \texttt{rev\_to\_rev} & 86.3G \\
+        \texttt{rev\_to\_dir} & 154.4G \\
+        \texttt{dir\_to\_dir} & \\
+        \texttt{dir\_to\_file} & \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\end{document}
