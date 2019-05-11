@@ -11,7 +11,11 @@ DATASET=$(basename $INPUT_GRAPH)
 COMPR_GRAPH="$OUTPUT_DIR/$DATASET"
 
 java_cmd () {
-    /usr/bin/time -v java -Xmx1024G -cp /app/'*' $*
+    /usr/bin/time -v java                                                   \
+        -Xmx1024G -server -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G \
+        -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA        \
+        -XX:+UseTLAB -XX:+ResizeTLAB                                        \
+        -cp /app/'*' $*
 }
 
 llp_ordering () {
