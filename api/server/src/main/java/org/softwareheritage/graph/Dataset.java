@@ -103,6 +103,16 @@ public class Dataset
         return nodeToHash.get(node);
     }
 
+    public long getNbNodes()
+    {
+        return graph.numNodes();
+    }
+
+    public long getNbEdges()
+    {
+        return graph.numArcs();
+    }
+
     public LazyLongIterator successors(long node)
     {
         return graph.successors(node);
