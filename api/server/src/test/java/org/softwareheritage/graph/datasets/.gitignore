@@ -1,0 +1,12 @@
+dockerfiles/
+*.nodes.csv
+*.csv.gz
+
+dir_to_dir/
+dir_to_file/
+dir_to_rev/
+origin_to_snapshot/
+release_to_obj/
+rev_to_dir/
+rev_to_rev/
+snapshot_to_obj/
