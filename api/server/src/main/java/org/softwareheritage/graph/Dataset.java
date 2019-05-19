@@ -53,6 +53,7 @@ public class Dataset
 
         // First mapping: SWH hexhash (strings) <=> WebGraph MPH (longs)
         HashMap<Long, String> mphToHash = new HashMap<Long, String>();
+        @SuppressWarnings("unchecked")
         Object2LongFunction<String> mphMap =
             (Object2LongFunction<String>) BinIO.loadObject(path + ".mph");
 
