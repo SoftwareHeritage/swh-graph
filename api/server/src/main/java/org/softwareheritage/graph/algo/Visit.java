@@ -8,66 +8,61 @@ import it.unimi.dsi.bits.LongArrayBitVector;
 
 import org.softwareheritage.graph.Graph;
 
-public class Visit
-{
-    public class Path extends ArrayList<String> {}
+public class Visit {
+  public class Path extends ArrayList<String> {}
 
-    Graph graphFwd;
-    Graph graphBwd;
+  Graph graphFwd;
+  Graph graphBwd;
 
-    private Graph graph;
-    private LongArrayBitVector visited;
-    private ArrayList<String> extraEdges;
-    private Stack<Long> currentPath;
-    private ArrayList<Path> paths;
+  private Graph graph;
+  private LongArrayBitVector visited;
+  private ArrayList<String> extraEdges;
+  private Stack<Long> currentPath;
+  private ArrayList<Path> paths;
 
-    public Visit(Graph graph, Graph graphSym)
-    {
-        this.graphFwd = graph;
-        this.graphBwd = graphSym;
+  public Visit(Graph graph, Graph graphSym) {
+    this.graphFwd = graph;
+    this.graphBwd = graphSym;
+  }
+
+  public ArrayList<Path> visit(String start, ArrayList<String> extraEdges, boolean backward) {
+    this.graph = (backward) ? this.graphBwd : this.graphFwd;
+    this.visited = LongArrayBitVector.ofLength(graph.getNbNodes());
+    this.extraEdges = extraEdges;
+    this.paths = new ArrayList<Path>();
+    this.currentPath = new Stack<Long>();
+
+    recursiveVisit(graph.getNode(start));
+
+    return paths;
+  }
+
+  private void recursiveVisit(long current) {
+    visited.set(current);
+    currentPath.push(current);
+
+    long degree = graph.outdegree(current);
+    if (degree == 0) {
+      Path path = new Path();
+      for (long node : currentPath) {
+        path.add(graph.getHash(node));
+      }
+      paths.add(path);
     }
 
-    public ArrayList<Path> visit(String start, ArrayList<String> extraEdges, boolean backward)
-    {
-        this.graph = (backward) ? this.graphBwd : this.graphFwd;
-        this.visited = LongArrayBitVector.ofLength(graph.getNbNodes());
-        this.extraEdges = extraEdges;
-        this.paths = new ArrayList<Path>();
-        this.currentPath = new Stack<Long>();
-
-        _recursiveVisit(graph.getNode(start));
-
-        return paths;
+    LazyLongIterator successors = graph.successors(current);
+    while (degree-- > 0) {
+      long next = successors.nextLong();
+      if (traversalAllowed(current, next) && !visited.getBoolean(next)) {
+        recursiveVisit(next);
+      }
     }
 
-    private void _recursiveVisit(long current)
-    {
-        visited.set(current);
-        currentPath.push(current);
+    currentPath.pop();
+  }
 
-        long degree = graph.outdegree(current);
-        if (degree == 0)
-        {
-            Path path = new Path();
-            for (long node : currentPath)
-                path.add(graph.getHash(node));
-            paths.add(path);
-        }
-
-        LazyLongIterator successors = graph.successors(current);
-        while (degree-- > 0)
-        {
-            long next = successors.nextLong();
-            if (_traversalAllowed(current, next) && !visited.getBoolean(next))
-                _recursiveVisit(next);
-        }
-
-        currentPath.pop();
-    }
-
-    private boolean _traversalAllowed(long current, long next)
-    {
-        // TODO
-        return true;
-    }
+  private boolean traversalAllowed(long current, long next) {
+    // TODO
+    return true;
+  }
 }
