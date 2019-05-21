@@ -7,26 +7,23 @@ import java.nio.file.Paths;
 
 import io.javalin.Javalin;
 
-import org.softwareheritage.graph.Dataset;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.algo.Stats;
 
 public class App
 {
-    public static void main(String[] args)
+    public static void main(String[] args) throws IOException, Exception
     {
         Path path = Paths.get(args[0]);
         Graph graph = new Graph(path.toString());
-
         Stats stats = new Stats(graph);
 
         Javalin app = Javalin.create().start(5010);
 
-        app.get("/stats/:dataset", ctx -> {
+        app.get("/stats/", ctx -> {
             try {
-                String dataset = ctx.pathParam("dataset").toUpperCase();
-                ctx.json(stats.getStats(Dataset.Name.valueOf(dataset)));
-            } catch (IllegalArgumentException | IOException e) {
+                ctx.json(stats);
+            } catch (IllegalArgumentException e) {
                 ctx.status(404);
             } catch (Exception e) {
                 ctx.status(400);
