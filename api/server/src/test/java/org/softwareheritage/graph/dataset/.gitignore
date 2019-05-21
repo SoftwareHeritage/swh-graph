@@ -1,0 +1,16 @@
+dockerfiles/
+
+# Generated input files
+*.csv.gz
+*.nodes.csv
+
+# Generated WebGraph files
+*.graph
+*.indegree
+*.mph
+*.obl
+*.offsets
+*.order
+*.outdegree
+*.properties
+*.stats
