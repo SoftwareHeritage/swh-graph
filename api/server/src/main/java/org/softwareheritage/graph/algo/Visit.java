@@ -11,29 +11,24 @@ import org.softwareheritage.graph.Graph;
 public class Visit {
   public class Path extends ArrayList<String> {}
 
-  Graph graphFwd;
-  Graph graphBwd;
+  Graph graph;
+  LongArrayBitVector visited;
+  ArrayList<String> extraEdges;
+  Stack<Long> currentPath;
+  ArrayList<Path> paths;
 
-  private Graph graph;
-  private LongArrayBitVector visited;
-  private ArrayList<String> extraEdges;
-  private Stack<Long> currentPath;
-  private ArrayList<Path> paths;
-
-  public Visit(Graph graph, Graph graphSym) {
-    this.graphFwd = graph;
-    this.graphBwd = graphSym;
-  }
-
-  public ArrayList<Path> visit(String start, ArrayList<String> extraEdges, boolean backward) {
-    this.graph = (backward) ? this.graphBwd : this.graphFwd;
+  public Visit(Graph graph, String start, ArrayList<String> extraEdges) {
+    this.graph = graph;
     this.visited = LongArrayBitVector.ofLength(graph.getNbNodes());
     this.extraEdges = extraEdges;
     this.paths = new ArrayList<Path>();
     this.currentPath = new Stack<Long>();
 
     recursiveVisit(graph.getNode(start));
+  }
 
+  // Allow Jackson JSON to only serialize the 'paths' field
+  public ArrayList<Path> getPaths() {
     return paths;
   }
 
