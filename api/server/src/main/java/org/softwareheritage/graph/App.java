@@ -2,8 +2,6 @@ package org.softwareheritage.graph;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import io.javalin.Javalin;
 
@@ -12,8 +10,8 @@ import org.softwareheritage.graph.algo.Stats;
 
 public class App {
   public static void main(String[] args) throws IOException, Exception {
-    Path path = Paths.get(args[0]);
-    Graph graph = new Graph(path.toString());
+    String path = args[0];
+    Graph graph = new Graph(path);
     Stats stats = new Stats(graph);
 
     Javalin app = Javalin.create().start(5010);
