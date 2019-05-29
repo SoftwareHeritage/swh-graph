@@ -9,6 +9,12 @@ import java.util.List;
 
 import org.softwareheritage.graph.Graph;
 
+/*
+  TODO:
+    - add check for srcType_to_dstType
+    - merge the two stats files (.properties and .stats) into one
+*/
+
 public class Stats {
   public long nbNodes;
   public long nbEdges;
@@ -23,12 +29,13 @@ public class Stats {
   public long maxOutdegree;
   public double avgOutdegree;
 
-  public Stats(Graph graph) throws IOException {
+  public Stats(String srcType, String dstType) throws IOException {
     HashMap<String, String> statsMap = new HashMap<>();
 
     // Parse statistics from generated files
-    Path dotProperties = Paths.get(graph.getPath() + ".properties");
-    Path dotStats = Paths.get(graph.getPath() + ".stats");
+    Path statsPath = Paths.get("stats", srcType + "_to_" + dstType);
+    Path dotProperties = Paths.get(statsPath + ".properties");
+    Path dotStats = Paths.get(statsPath + ".stats");
     List<String> lines = Files.readAllLines(dotProperties);
     lines.addAll(Files.readAllLines(dotStats));
     for (String line : lines) {

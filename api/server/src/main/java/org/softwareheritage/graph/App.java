@@ -13,13 +13,14 @@ public class App {
   public static void main(String[] args) throws IOException, Exception {
     String path = args[0];
     Graph graph = new Graph(path);
-    Stats stats = new Stats(graph);
 
     Javalin app = Javalin.create().start(5010);
 
-    app.get("/stats/", ctx -> {
+    app.get("/stats/:src_type/:dst_type", ctx -> {
       try {
-        ctx.json(stats);
+        String srcType = ctx.pathParam("src_type");
+        String dstType = ctx.pathParam("dst_type");
+        ctx.json(new Stats(srcType, dstType));
       } catch (IllegalArgumentException e) {
         ctx.status(404);
       } catch (Exception e) {
