@@ -12,19 +12,21 @@ public class Visit {
   public class Path extends ArrayList<String> {}
 
   Graph graph;
-  LongArrayBitVector visited;
-  ArrayList<String> extraEdges;
+  String allowedEdges;
   Stack<Long> currentPath;
   ArrayList<Path> paths;
+  LongArrayBitVector visited;
 
-  public Visit(Graph graph, String start, ArrayList<String> extraEdges) {
+  public Visit(Graph graph, String start, String allowedEdges, String algorithm) {
     this.graph = graph;
-    this.visited = LongArrayBitVector.ofLength(graph.getNbNodes());
-    this.extraEdges = extraEdges;
+    this.allowedEdges = allowedEdges;
     this.paths = new ArrayList<Path>();
     this.currentPath = new Stack<Long>();
+    this.visited = LongArrayBitVector.ofLength(graph.getNbNodes());
 
-    recursiveVisit(graph.getNode(start));
+    if (algorithm == "dfs") {
+      dfs(graph.getNode(start));
+    }
   }
 
   // Allow Jackson JSON to only serialize the 'paths' field
@@ -32,7 +34,7 @@ public class Visit {
     return paths;
   }
 
-  private void recursiveVisit(long current) {
+  private void dfs(long current) {
     visited.set(current);
     currentPath.push(current);
 
@@ -48,15 +50,15 @@ public class Visit {
     LazyLongIterator successors = graph.successors(current);
     while (degree-- > 0) {
       long next = successors.nextLong();
-      if (traversalAllowed(current, next) && !visited.getBoolean(next)) {
-        recursiveVisit(next);
+      if (isEdgeAllowed(current, next) && !visited.getBoolean(next)) {
+        dfs(next);
       }
     }
 
     currentPath.pop();
   }
 
-  private boolean traversalAllowed(long current, long next) {
+  private boolean isEdgeAllowed(long current, long next) {
     // TODO
     return true;
   }
