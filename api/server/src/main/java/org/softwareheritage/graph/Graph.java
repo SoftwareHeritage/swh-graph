@@ -4,6 +4,7 @@ import it.unimi.dsi.big.webgraph.BVGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
 import org.softwareheritage.graph.NodeIdMap;
+import org.softwareheritage.graph.SwhId;
 
 public class Graph {
   BVGraph graph;
@@ -20,12 +21,12 @@ public class Graph {
     return path;
   }
 
-  public long getNode(String hash) {
-    return nodeIdMap.getNode(hash);
+  public long getNode(SwhId swhId) {
+    return nodeIdMap.getNode(swhId);
   }
 
-  public String getHash(long node) {
-    return nodeIdMap.getHash(node);
+  public SwhId getSwhId(long node) {
+    return nodeIdMap.getSwhId(node);
   }
 
   public long getNbNodes() {

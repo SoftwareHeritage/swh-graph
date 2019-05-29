@@ -6,6 +6,7 @@ import java.util.Optional;
 import io.javalin.Javalin;
 
 import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.algo.Stats;
 import org.softwareheritage.graph.algo.Visit;
 
@@ -30,15 +31,20 @@ public class App {
     });
 
     app.get("/visit/:swh_id", ctx -> {
-      String start = ctx.pathParam("swh_id");
+      try {
+        SwhId start = new SwhId(ctx.pathParam("swh_id"));
 
-      // By default, traversal is a forward DFS using all edges
-      String algorithm = Optional.ofNullable(ctx.queryParam("traversal")).orElse("dfs");
-      String direction = Optional.ofNullable(ctx.queryParam("direction")).orElse("forward");
-      String edges = Optional.ofNullable(ctx.queryParam("edges")).orElse("cnt:dir:rel:rev:snp");
+        // By default, traversal is a forward DFS using all edges
+        String algorithm = Optional.ofNullable(ctx.queryParam("traversal")).orElse("dfs");
+        String direction = Optional.ofNullable(ctx.queryParam("direction")).orElse("forward");
+        String edges = Optional.ofNullable(ctx.queryParam("edges")).orElse("cnt:dir:rel:rev:snp");
 
-      // TODO: Use transposed graph depending on 'direction'
-      ctx.json(new Visit(graph, start, edges, algorithm));
+        // TODO: Use transposed graph depending on 'direction'
+        ctx.json(new Visit(graph, start, edges, algorithm));
+      } catch (IllegalArgumentException e) {
+        ctx.status(400);
+        ctx.result(e.toString());
+      }
     });
 
     app.error(404, ctx -> { ctx.result("Not found"); });

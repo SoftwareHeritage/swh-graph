@@ -7,9 +7,10 @@ import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.bits.LongArrayBitVector;
 
 import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhId;
 
 public class Visit {
-  public class Path extends ArrayList<String> {}
+  public class Path extends ArrayList<SwhId> {}
 
   Graph graph;
   String allowedEdges;
@@ -17,7 +18,7 @@ public class Visit {
   ArrayList<Path> paths;
   LongArrayBitVector visited;
 
-  public Visit(Graph graph, String start, String allowedEdges, String algorithm) {
+  public Visit(Graph graph, SwhId start, String allowedEdges, String algorithm) {
     this.graph = graph;
     this.allowedEdges = allowedEdges;
     this.paths = new ArrayList<Path>();
@@ -42,7 +43,7 @@ public class Visit {
     if (degree == 0) {
       Path path = new Path();
       for (long node : currentPath) {
-        path.add(graph.getHash(node));
+        path.add(graph.getSwhId(node));
       }
       paths.add(path);
     }
