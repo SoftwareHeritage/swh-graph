@@ -39,8 +39,7 @@ public class App {
         String direction = Optional.ofNullable(ctx.queryParam("direction")).orElse("forward");
         String edges = Optional.ofNullable(ctx.queryParam("edges")).orElse("cnt:dir:rel:rev:snp");
 
-        // TODO: Use transposed graph depending on 'direction'
-        ctx.json(new Visit(graph, start, edges, algorithm));
+        ctx.json(new Visit(graph, start, edges, algorithm, direction));
       } catch (IllegalArgumentException e) {
         ctx.status(400);
         ctx.result(e.toString());

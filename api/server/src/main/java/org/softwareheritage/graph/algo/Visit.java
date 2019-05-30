@@ -13,13 +13,15 @@ public class Visit {
   public class Path extends ArrayList<SwhId> {}
 
   Graph graph;
+  boolean isTransposed;
   String allowedEdges;
   Stack<Long> currentPath;
   ArrayList<Path> paths;
   LongArrayBitVector visited;
 
-  public Visit(Graph graph, SwhId start, String allowedEdges, String algorithm) {
+  public Visit(Graph graph, SwhId start, String allowedEdges, String algorithm, String direction) {
     this.graph = graph;
+    this.isTransposed = (direction == "backward");
     this.allowedEdges = allowedEdges;
     this.paths = new ArrayList<Path>();
     this.currentPath = new Stack<Long>();
@@ -35,11 +37,13 @@ public class Visit {
     return paths;
   }
 
-  private void dfs(long current) {
-    visited.set(current);
-    currentPath.push(current);
+  private void dfs(long currentNode) {
+    visited.set(currentNode);
+    currentPath.push(currentNode);
 
-    long degree = graph.outdegree(current);
+    long degree = graph.degree(currentNode, isTransposed);
+    LazyLongIterator neighbors = graph.neighbors(currentNode, isTransposed);
+
     if (degree == 0) {
       Path path = new Path();
       for (long node : currentPath) {
@@ -48,18 +52,17 @@ public class Visit {
       paths.add(path);
     }
 
-    LazyLongIterator successors = graph.successors(current);
     while (degree-- > 0) {
-      long next = successors.nextLong();
-      if (isEdgeAllowed(current, next) && !visited.getBoolean(next)) {
-        dfs(next);
+      long nextNode = neighbors.nextLong();
+      if (isEdgeAllowed(currentNode, nextNode) && !visited.getBoolean(nextNode)) {
+        dfs(nextNode);
       }
     }
 
     currentPath.pop();
   }
 
-  private boolean isEdgeAllowed(long current, long next) {
+  private boolean isEdgeAllowed(long currentNode, long nextNode) {
     // TODO
     return true;
   }

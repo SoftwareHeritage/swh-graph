@@ -8,11 +8,13 @@ import org.softwareheritage.graph.SwhId;
 
 public class Graph {
   BVGraph graph;
+  BVGraph graphTransposed;
   String path;
   NodeIdMap nodeIdMap;
 
   public Graph(String graphPath) throws Exception {
     this.graph = BVGraph.load(graphPath);
+    this.graphTransposed = BVGraph.load(graphPath + "-transposed");
     this.path = graphPath;
     this.nodeIdMap = new NodeIdMap(graphPath);
   }
@@ -43,5 +45,29 @@ public class Graph {
 
   public long outdegree(long node) {
     return graph.outdegree(node);
+  }
+
+  public LazyLongIterator predecessors(long node) {
+    return graphTransposed.successors(node);
+  }
+
+  public long indegree(long node) {
+    return graphTransposed.outdegree(node);
+  }
+
+  public long degree(long node, boolean isTransposed) {
+    if (isTransposed) {
+      return indegree(node);
+    } else {
+      return outdegree(node);
+    }
+  }
+
+  public LazyLongIterator neighbors(long node, boolean isTransposed) {
+    if (isTransposed) {
+      return predecessors(node);
+    } else {
+      return successors(node);
+    }
   }
 }
