@@ -1,0 +1,61 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[english]{babel}
+\usepackage[a4paper,left=2cm,right=2cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{minted}
+
+\title{Google Summer of Code 2019}
+\author{Thibault Allançon}
+
+\begin{document}
+
+\maketitle
+
+Experiment to test edge access time on the compressed graph. The goal was to do
+the equivalent of a \mintinline{text}{git log} operation with a Linux commit on
+the \mintinline{text}{rev_to_rev} compressed dataset.
+
+\section{Environment}
+
+\begin{footnotesize}
+\inputminted{java}{LinuxLog.java}
+\end{footnotesize}
+
+\section{Results}
+
+\begin{small}
+\begin{minted}{text}
+    $ java -cp swh-graph-compression.jar org.softwareheritage.graph.LinuxLog /graph/rev_to_rev
+
+git log f39d7d78b70e0f39facb1e4fab77ad3df5c52a35
+Expecting 723640 commits
+Visit done in: 0.422884286 seconds
+
+    User time (seconds): 123.26
+    System time (seconds): 13.20
+    Percent of CPU this job got: 103%
+    Elapsed (wall clock) time (h:mm:ss or m:ss): 2:11.92
+    Average shared text size (kbytes): 0
+    Average unshared data size (kbytes): 0
+    Average stack size (kbytes): 0
+    Average total size (kbytes): 0
+    Maximum resident set size (kbytes): 15228424
+    Average resident set size (kbytes): 0
+    Major (requiring I/O) page faults: 0
+    Minor (reclaiming a frame) page faults: 46461
+    Voluntary context switches: 13557
+    Involuntary context switches: 574
+    Swaps: 0
+    File system inputs: 0
+    File system outputs: 0
+    Socket messages sent: 0
+    Socket messages received: 0
+    Signals delivered: 0
+    Page size (bytes): 4096
+    Exit status: 0
+\end{minted}
+\end{small}
+
+Edge access time is around 5 $\mu$s.
+
+\end{document}
