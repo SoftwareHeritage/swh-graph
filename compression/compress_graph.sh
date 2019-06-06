@@ -9,6 +9,7 @@ INPUT_GRAPH=$1
 OUTPUT_DIR=$2
 DATASET=$(basename $INPUT_GRAPH)
 COMPR_GRAPH="$OUTPUT_DIR/$DATASET"
+TEMP_DIR="$OUTPUT_DIR/tmp"
 
 java_cmd () {
     /usr/bin/time -v java                                                   \
@@ -32,19 +33,21 @@ llp_ordering () {
 }
 
 bfs_ordering () {
-    java_cmd it.unimi.dsi.law.graph.BFS $COMPR_GRAPH-bv $COMPR_GRAPH.order
+    java_cmd it.unimi.dsi.law.graph.BFSBig $COMPR_GRAPH-bv $COMPR_GRAPH.order
 }
 
 mkdir -p $OUTPUT_DIR
+mkdir -p $TEMP_DIR
 
 # Build a function (MPH) that maps node names to node numbers in lexicographic
 # order (output: .mph)
-java_cmd it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction \
-    --zipped $COMPR_GRAPH.mph $INPUT_GRAPH.nodes.csv.gz
+java_cmd it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction   \
+    --zipped $COMPR_GRAPH.mph --temp-dir $TEMP_DIR              \
+    $INPUT_GRAPH.nodes.csv.gz
 
 # Build the graph in BVGraph format (output: .{graph,offsets,properties})
 java_cmd it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph  \
-    --function $COMPR_GRAPH.mph                         \
+    --function $COMPR_GRAPH.mph --temp-dir $TEMP_DIR        \
     --zipped $COMPR_GRAPH-bv < $INPUT_GRAPH.edges.csv.gz
 # Build the offset big-list file to load the graph faster (output: .obl)
 java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $COMPR_GRAPH-bv
@@ -53,8 +56,9 @@ java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $COMPR_GRAPH-bv
 bfs_ordering
 
 # Permute the graph accordingly
+BATCH_SIZE=1000000000
 java_cmd it.unimi.dsi.big.webgraph.Transform mapOffline \
-    $COMPR_GRAPH-bv $COMPR_GRAPH $COMPR_GRAPH.order
+    $COMPR_GRAPH-bv $COMPR_GRAPH $COMPR_GRAPH.order $BATCH_SIZE
 java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $COMPR_GRAPH
 
 # Compute graph statistics (output: .{indegree,outdegree,stats})
