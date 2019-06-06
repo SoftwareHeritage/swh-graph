@@ -16,7 +16,11 @@ public class Graph {
     this.graph = BVGraph.load(graphPath);
     this.graphTransposed = BVGraph.load(graphPath + "-transposed");
     this.path = graphPath;
-    this.nodeIdMap = new NodeIdMap(graphPath);
+    this.nodeIdMap = new NodeIdMap(graphPath, getNbNodes());
+  }
+
+  public void cleanUp() {
+    nodeIdMap.close();
   }
 
   public String getPath() {

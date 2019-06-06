@@ -15,6 +15,12 @@ public class App {
     String path = args[0];
     Graph graph = new Graph(path);
 
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      public void run() {
+        graph.cleanUp();
+      }
+    });
+
     Javalin app = Javalin.create().start(5010);
 
     app.get("/stats/:src_type/:dst_type", ctx -> {
