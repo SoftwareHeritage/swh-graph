@@ -20,66 +20,8 @@ Early experiments running WebGraph framework on the Software Heritage datasets.
 
 \section{Environment}
 
-\subsection{Dockerfile}
-
-\begin{small}
-\begin{minted}{docker}
-FROM maven:3.6.0-jdk-11
-WORKDIR /app
-
-# Download webgraph binary
-RUN curl -O http://webgraph.di.unimi.it/webgraph-3.6.1-bin.tar.gz
-RUN tar xvfz webgraph-3.6.1-bin.tar.gz
-RUN cp webgraph-3.6.1/webgraph-3.6.1.jar .
-
-# Download webgraph dependencies
-RUN curl -O http://webgraph.di.unimi.it/webgraph-deps.tar.gz
-RUN tar xvfz webgraph-deps.tar.gz
-
-# Download LAW (for LLP ordering)
-RUN curl -O http://law.di.unimi.it/software/download/law-2.5.1-bin.tar.gz
-RUN tar xvfz law-2.5.1-bin.tar.gz
-RUN cp law-2.5.1/law-2.5.1.jar .
-
-# Monitoring
-RUN apt-get update
-RUN apt-get install -y time
-
-WORKDIR /graph
-COPY compress_graph.sh .
-\end{minted}
-\end{small}
-
-\subsection{Bash compression script}
-
-\begin{footnotesize}
-\begin{minted}[samepage]{bash}
-#!/bin/bash
-
-DATASET=release_to_obj
-
-java_cmd () {
-    /usr/bin/time -v java -Xmx256G -cp /app/'*' $*
-}
-
-mkdir -p bv bv_llp bv_sym
-
-# Build a function (MPH) that maps node names to node numbers in lexicographic order (output: $DATASET.mph)
-java_cmd it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction $DATASET.mph /graph/$DATASET.nodes
-
-# Build the graph in BVGraph format (output: $DATASET.{graph,offsets,properties})
-java_cmd it.unimi.dsi.webgraph.ScatteredArcsASCIIGraph -f $DATASET.mph bv/$DATASET < /graph/$DATASET.edges
-
-# Create a symmetrized version of the graph (output: $DATASET.{graph,offsets,properties})
-java_cmd it.unimi.dsi.webgraph.Transform symmetrizeOffline bv/$DATASET bv_sym/$DATASET
-
-# Find a better permutation through Layered LPA (output: $DATASET.llpa)
-java_cmd it.unimi.dsi.law.graph.LayeredLabelPropagation bv_sym/$DATASET $DATASET.llpa
-
-# Permute the graph accordingly (output: $DATASET.{graph,offsets,properties})
-java_cmd it.unimi.dsi.webgraph.Transform mapOffline bv/$DATASET bv_llp/$DATASET $DATASET.llpa
-\end{minted}
-\end{footnotesize}
+Compression script and Dockerfile can be found here:
+\url{https://forge.softwareheritage.org/source/graph-compression/browse/master/compression/}.
 
 \section{Datasets analysis}
 
@@ -87,64 +29,70 @@ java_cmd it.unimi.dsi.webgraph.Transform mapOffline bv/$DATASET bv_llp/$DATASET 
     \begin{tabular}{@{} l *4r @{}}
         \toprule
         \multicolumn{1}{c}{} &
-            \textbf{node list} & \textbf{edge list} &
+            \textbf{\mintinline{text}{.nodes.csv.gz}} &
+            \textbf{\mintinline{text}{.edges.csv.gz}} &
             \textbf{\# of nodes} & \textbf{\# of edges} \\
         \midrule
         \texttt{release\_to\_obj}
-            & 635M & 775M & \num{16222788} & \num{9907464} \\
+            & 344M & 382M & \num{16222788} & \num{9907464} \\
         \texttt{origin\_to\_snapshot}
-            & 2.7G & 9.1G & \num{112564374} & \num{194970670} \\
+            & 1.3G & 3.7G & \num{112564374} & \num{194970670} \\
         \texttt{dir\_to\_rev}
-            & 1.4G & 37G & \num{35399184} & \num{481829426} \\
+            & 745M & 12G & \num{35399184} & \num{481829426} \\
         \texttt{snapshot\_to\_obj}
-            & 6.6G & 64G & \num{170999796} & \num{831089515} \\
+            & 3.5G & 21G & \num{170999796} & \num{831089515} \\
         \texttt{rev\_to\_rev}
-            & 43G & 90G & \num{1117498391} & \num{1165813689} \\
+            & 22G & 33G & \num{1117498391} & \num{1165813689} \\
         \texttt{rev\_to\_dir}
-            & 79G & 86G & \num{2047888941} & \num{1125083793} \\
+            & 41G & 48G & \num{2047888941} & \num{1125083793} \\
         \texttt{dir\_to\_dir}
-            & & 3.7T & \num{4805057515} & \num{48341950415} \\
+            & 95G & 1.3T & \num{4805057515} & \num{48341950415} \\
         \texttt{dir\_to\_file}
-            & & & \num{9231457233} & \num{112363058067} \\
+            & 180G & 3T & \num{9231457233} & \num{112363058067} \\
         \midrule
-        Entire graph & & & \num{17537088222} & \num{164513703039} \\
+        Entire graph & 340G & 4.5T & \num{17537088222} & \num{164513703039} \\
         \bottomrule
     \end{tabular}
 \end{center}
 
 \section{Results}
 
+Datasets were compressed on different VM (depending on availability):
+
 \begin{itemize}
-    \item The VM used had 2TB RAM with 128vCPU.
-    \item The results may vary because random permutations are used in the graph
-        compression process.
-    \item The size of \mintinline{bash}{*-compr} is calculated as: size of
-        \mintinline{bash}{*-compr.graph} + size of
-        \mintinline{bash}{*-compr.offsets}
+    \item 1TB of RAM and 40vCPU: \mintinline{text}{dir_to_dir}
+    \item 700GB of RAM and 72vCPU: \mintinline{text}{dir_to_file}
+    \item 2TB of RAM and 128vCPU: all the others datasets
 \end{itemize}
 
+Note: the results may vary because random permutations are used in the graph
+compression process.
+
 \begin{center}
-    \begin{tabular}{@{} l *6r @{}}
+    \begin{tabular}{@{} l *4r @{}}
         \toprule
         \multicolumn{1}{c}{} &
-            \textbf{.nodes.csv.gz} & \textbf{.edges.csv.gz} &
-            \textbf{compr ratio} & \textbf{bit/edge} & \textbf{compr size} \\
+            \textbf{compr ratio} & \textbf{bit/edge} & \textbf{compr
+            size\footnotemark} \\
         \midrule
-        \texttt{release\_to\_obj} & 344M & 382M & 0.367 & 9.573 & 23M \\
-        \texttt{origin\_to\_snapshot} & 1.3G & 3.7G & 0.291 & 8.384 & 140M \\
-        \texttt{dir\_to\_rev} & 745M & 12G & 0.07 & 1.595 & 120M & \\
-        \texttt{snapshot\_to\_obj} & 3.5G & 21G & 0.067 & 1.798 & 253M \\
-        \texttt{rev\_to\_rev} & 22G & 33G & 0.288 & 9.063 & 2.2G \\
-        \texttt{rev\_to\_dir} & 41G & 48G & 0.291 & 9.668 & 2.6G \\
-        \texttt{dir\_to\_dir} & 95G & 1.3T & & & \\
-        \texttt{dir\_to\_file} & 180G & 3T & & & \\
+        \texttt{release\_to\_obj} & 0.367 & 9.573 & 23M \\
+        \texttt{origin\_to\_snapshot} & 0.291 & 8.384 & 140M \\
+        \texttt{dir\_to\_rev} & 0.07 & 1.595 & 120M & \\
+        \texttt{snapshot\_to\_obj} & 0.067 & 1.798 & 253M \\
+        \texttt{rev\_to\_rev} & 0.288 & 9.063 & 2.2G \\
+        \texttt{rev\_to\_dir} & 0.291 & 9.668 & 2.6G \\
+        \texttt{dir\_to\_dir} & 0.336 & 10.178 & 61G \\
+        \texttt{dir\_to\_file} & 0.228 & 7.054 & 97G \\
         \midrule
-        Entire graph & ~340G & ~4.5T & \\
+        Entire graph (estimated) & & & 163G \\
         \bottomrule
     \end{tabular}
 \end{center}
 
-\section{Timing}
+\footnotetext{calculated as: size of \mintinline{bash}{*.graph} + size of
+\mintinline{bash}{*.offsets}}
+
+\section{Timings}
 
 \begin{center}
     \begin{tabular}{@{} l *6r @{}}
@@ -169,17 +117,38 @@ java_cmd it.unimi.dsi.webgraph.Transform mapOffline bv/$DATASET bv_llp/$DATASET 
             & 11min & 56min & 24min & 31h52 & 20min & \textbf{33h42} \\
         \texttt{rev\_to\_dir}
             & 20min & 1h & 30min & 52h45 & 23min & \textbf{55h} \\
-        \texttt{dir\_to\_dir}
-            & & & & & & \\
-        \texttt{dir\_to\_file}
-            & & & & & & \\
-        \midrule
-        Entire graph & & & & & & \\
         \bottomrule
     \end{tabular}
 \end{center}
 
-\section{Memory monitoring}
+\vspace{0.5cm}
+
+For the \mintinline{text}{dir_to_*} datasets we decided not use LLP algorithm
+because it would take too long, and instead used a BFS traversal order for the
+node re-ordering. This allows \textbf{much} faster computation and yields
+similar results (thanks to our graph topology).
+
+\vspace{0.5cm}
+
+\begin{center}
+    \begin{tabular}{@{} l *5r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{MPH} &
+            \textbf{BVGraph} &
+            \textbf{BFS} &
+            \textbf{Permutation} &
+            \textbf{Total} \\
+        \midrule
+        \texttt{dir\_to\_dir}
+            & 4h36 & 50h & 4h44 & 12h38 & \textbf{72h} \\
+        \texttt{dir\_to\_file}
+            & 3h07 & 101h & 17h18 & 20h38 & \textbf{142h} \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\section{Memory usage}
 
 \begin{center}
     \begin{tabular}{@{} l c @{}}
@@ -187,14 +156,16 @@ java_cmd it.unimi.dsi.webgraph.Transform mapOffline bv/$DATASET bv_llp/$DATASET 
         \multicolumn{1}{c}{} &
             \textbf{Maximum resident set size} \\
         \midrule
-        \texttt{release\_to\_obj} & 10.5G \\
-        \texttt{origin\_to\_snapshot} & 15.4G \\
-        \texttt{dir\_to\_rev} & 21.6G \\
-        \texttt{snapshot\_to\_obj} & 23.2G \\
-        \texttt{rev\_to\_rev} & 86.3G \\
-        \texttt{rev\_to\_dir} & 154.4G \\
-        \texttt{dir\_to\_dir} & \\
-        \texttt{dir\_to\_file} & \\
+        \texttt{release\_to\_obj} & 11G \\
+        \texttt{origin\_to\_snapshot} & 15G \\
+        \texttt{dir\_to\_rev} & 22G \\
+        \texttt{snapshot\_to\_obj} & 23G \\
+        \texttt{rev\_to\_rev} & 86G \\
+        \texttt{rev\_to\_dir} & 154G \\
+        \texttt{dir\_to\_dir} & 345G \\
+        \texttt{dir\_to\_file} & 764G \\
+        \midrule
+        Entire graph (estimated) & 1.4T \\
         \bottomrule
     \end{tabular}
 \end{center}
