@@ -1,5 +1,7 @@
 package org.softwareheritage.graph;
 
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public class SwhId {
   String swhId;
   String type;
@@ -15,6 +17,11 @@ public class SwhId {
     // SWH ID format: 'swh:1:type:hash'
     this.type = parts[2];
     this.hash = parts[3];
+  }
+
+  @JsonValue
+  public String getSwhId() {
+    return swhId;
   }
 
   public String getType() {
