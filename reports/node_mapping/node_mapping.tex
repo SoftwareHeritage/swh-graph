@@ -1,0 +1,155 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,left=2cm,right=2cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage[english]{babel}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{minted}
+\usepackage{parskip}
+\usepackage{siunitx}
+\usepackage{tikz}
+
+\title{Google Summer of Code 2019}
+\author{Thibault Allançon}
+\date{June 6, 2019}
+
+\newcommand{\mmap}{\mintinline{text}{mmap}}
+
+\begin{document}
+
+\maketitle
+
+Software Heritage refers to its graph nodes using string persistent
+identifiers\footnote{\url{https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html}}.
+During the compression, WebGraph maps those labels to long identifiers. We need
+an efficient way to have a bidirectional map between the labels and internal
+node ids.
+
+\section{Additional informations}
+
+Example of a SWH string identifier:
+
+\begin{minted}{text}
+    swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2
+\end{minted}
+
+The first step of the compression process is to map the input strings to long
+identifiers using the \mintinline{text}{GOVMinimalPerfectHashFunction} from the
+Sux4J\footnote{\url{http://sux4j.di.unimi.it/}} framework. The
+\mintinline{text}{.mph} function generated is a \textbf{minimal perfect hash
+function} (mapping with no collisions $n$ keys to $n$ consecutive integers).
+
+Later during the compression process, the nodes are re-ordered in a certain way
+(to be precise: in the order of a BFS traversal), so the MPH mapping is
+shuffled.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[auto, node distance=6cm]
+        \node[label=below:{(string)}] (input) {\mintinline{text}{.nodes.csv}};
+        \node[right of=input, label=below:{(long)}] (mph) {\mintinline{text}{.mph}};
+        \node[right of=mph, label=below:{(long)}] (bfs) {\mintinline{text}{.order}};
+
+        \draw[->] (input) edge node{MPH function} (mph);
+        \draw[->] (mph) edge node{BFS ordering} (bfs);
+    \end{tikzpicture}
+    \caption{End-to-end node mapping}
+\end{figure}
+
+We want to create a bidirectional map to retrieve efficiently the corresponding
+strings or longs. Using naive hash maps is not possible due to memory usage (we
+have around 20B nodes), hence we must use a disk-based solution.
+
+\section{Solution 1: \mmap{}}
+
+Idea: dump the two mappings into huge files and load them using \mmap{} system
+call to avoid storing them into memory.
+
+Map from long to string only needs to store the SWH id because the MPH is a
+perfect mapping, so we can store on line $i$ the SWH persistent identifier of
+node $i$, and simply read the $i$-th line to retrieve it.
+
+Map from string to long needs to store both the SWH id and the node id on the
+same line. To efficiently get the corresponding node id we can store the lines
+ordered by SWH id, and binary search to get the mapping.
+
+The main problem with this solution is technical since Java has a maximum size
+on \mmap{}-ed files of ~2GB. To overcome the limitation and \mmap{} very large
+files, there is the \mintinline{text}{ByteBufferInputStream} class from the
+dsiutils\footnote{\url{http://dsiutils.di.unimi.it/}} package. But this only
+applies to read from files, not to write to them. I had to create the
+\mintinline{text}{ByteBufferOutputStream} to allow writing on huge \mmap{}-ed
+files.
+
+Note: I first started with the \mmap{} solution and got early results that
+allowed me to compare with the DB-based solution, before going full in with the
+\mmap{} one and coding the \mintinline{text}{ByteBufferOutputStream}.
+
+\section{Solution 2: Databases}
+
+Another approach would be to simply use a disk-based database, two were
+considered in my tests: RocksDB, and HaloDB. In both cases, I tried optimizing
+the database options to fit our needs and get the best timings.
+
+On the technical side, the code needed is simpler and more generic than the
+custom \mmap{} solution.  However, this can only be a feasible solution if map
+retrieval/building time overhead are small enough to scale to the entire graph.
+
+\subsection{RocksDB}
+
+RocksDB is a popular and mature persistent key-value database developed by
+Facebook. It is coded in C++ but provides a Java API.
+
+The code used to dump and load the mappings can be found in
+\mintinline{text}{NodeIdMapRocksDB.java} file.
+
+RocksDB has \textbf{many} parameters to tune (see their tuning
+guide\footnote{\url{https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide}}),
+I tried the most obvious ones but being completely new to this software, the
+benchmarks are not be the best possible.
+
+\subsection{HaloDB}
+
+HaloDB is a relatively new database scheme developed by Yahoo. It got my
+attention because it is written in Java and leaves out features of RocksDB we
+don't need (like range scans) in order to have better performance.
+
+The code used to dump and load the mappings can be found in
+\mintinline{text}{NodeIdMapHaloDB.java} file.
+
+\newpage
+
+\section{Results}
+
+Experiments were done on a VM with 700GB of RAM and 72 vCPUs using the
+\mintinline{text}{rev_to_rev} dataset (1B nodes and 1B edges).
+
+\begin{center}
+    \begin{tabular}{@{} l *3r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{\mmap{}} & \textbf{RocksDB} &
+            \textbf{HaloDB} \\
+        \midrule
+        \texttt{dump}
+            & 1h24min & estimated 4h & estimated 8h \\
+        \texttt{load}
+            & 0.003s & & \\
+        \texttt{get node id}
+            & ~900µs & & \\
+        \texttt{get swh id}
+            & ~50µs & & \\
+        \texttt{RAM usage (dump)}
+            & 130GB & & \\
+        \texttt{RAM usage (load)}
+            & 5GB & & \\
+        \texttt{Disk space}
+            & 108GB & & \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+Note: \texttt{RAM usage} includes in-memory compressed graph.
+
+\end{document}
