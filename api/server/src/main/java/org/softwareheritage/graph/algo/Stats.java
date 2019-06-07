@@ -11,7 +11,6 @@ import org.softwareheritage.graph.Graph;
 
 /*
   TODO:
-    - add check for srcType_to_dstType
     - merge the two stats files (.properties and .stats) into one
 */
 
@@ -29,13 +28,12 @@ public class Stats {
   public long maxOutdegree;
   public double avgOutdegree;
 
-  public Stats(String srcType, String dstType) throws IOException {
+  public Stats(String graphPath) throws IOException {
     HashMap<String, String> statsMap = new HashMap<>();
 
     // Parse statistics from generated files
-    Path statsPath = Paths.get("stats", srcType + "_to_" + dstType);
-    Path dotProperties = Paths.get(statsPath + ".properties");
-    Path dotStats = Paths.get(statsPath + ".stats");
+    Path dotProperties = Paths.get(graphPath + ".properties");
+    Path dotStats = Paths.get(graphPath + ".stats");
     List<String> lines = Files.readAllLines(dotProperties);
     lines.addAll(Files.readAllLines(dotStats));
     for (String line : lines) {

@@ -14,6 +14,7 @@ public class App {
   public static void main(String[] args) throws IOException, Exception {
     String path = args[0];
     Graph graph = new Graph(path);
+    Stats stats = new Stats(path);
 
     Runtime.getRuntime().addShutdownHook(new Thread() {
       public void run() {
@@ -23,13 +24,9 @@ public class App {
 
     Javalin app = Javalin.create().start(5010);
 
-    app.get("/stats/:src_type/:dst_type", ctx -> {
+    app.get("/stats", ctx -> {
       try {
-        String srcType = ctx.pathParam("src_type");
-        String dstType = ctx.pathParam("dst_type");
-        ctx.json(new Stats(srcType, dstType));
-      } catch (IllegalArgumentException e) {
-        ctx.status(404);
+        ctx.json(stats);
       } catch (Exception e) {
         ctx.status(400);
         ctx.result(e.toString());

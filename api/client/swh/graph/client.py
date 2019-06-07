@@ -30,5 +30,5 @@ class RemoteGraphClient(SWHRemoteAPI):
                             'direction': direction
                         })
 
-    def stats(self, src_type, dst_type):
-        return self.get('stats/{}/{}'.format(src_type, dst_type))
+    def stats(self):
+        return self.get('stats')

@@ -46,17 +46,11 @@ Visit
 Stats
 -----
 
-.. http:get:: /graph/stats/:src_type/:dst_type
+.. http:get:: /graph/stats
 
     Returns statistics on the compressed graph.
 
-    :param string src_type: can either be ``dir``, ``ori``, ``rel``, ``rev``, or
-    ``snp``
-    :param string dst_type: can either be ``cnt``, ``dir``, ``obj``, ``rev``, or
-    ``snp``
-
     :statuscode 200: no error
-    :statuscode 404: requested subgraph cannot be found
 
     .. sourcecode:: http
 
