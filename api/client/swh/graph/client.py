@@ -22,5 +22,13 @@ class RemoteGraphClient(SWHRemoteAPI):
 
     # Web API endpoints
 
-    def get_nb_nodes(self):
-        return self.get('nb_nodes')
+    def visit(self, swh_id, edges=None, traversal="dfs", direction="forward"):
+        return self.get('visit/{}'.format(swh_id),
+                        params={
+                            'edges': edges,
+                            'traversal': traversal,
+                            'direction': direction
+                        })
+
+    def stats(self, src_type, dst_type):
+        return self.get('stats/{}/{}'.format(src_type, dst_type))
