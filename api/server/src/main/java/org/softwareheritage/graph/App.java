@@ -3,7 +3,10 @@ package org.softwareheritage.graph;
 import java.io.IOException;
 import java.util.Optional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import io.javalin.Javalin;
+import io.javalin.json.JavalinJackson;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
@@ -21,6 +24,11 @@ public class App {
         graph.cleanUp();
       }
     });
+
+    // Configure Jackson JSON properties
+    ObjectMapper objectMapper = JavalinJackson.getObjectMapper();
+    objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
+    JavalinJackson.configure(objectMapper);
 
     Javalin app = Javalin.create().start(5010);
 
