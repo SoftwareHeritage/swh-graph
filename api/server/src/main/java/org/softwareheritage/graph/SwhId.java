@@ -15,6 +15,7 @@ public class SwhId {
     }
 
     // SWH ID format: 'swh:1:type:hash'
+    // https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html
     this.type = parts[2];
     this.hash = parts[3];
   }

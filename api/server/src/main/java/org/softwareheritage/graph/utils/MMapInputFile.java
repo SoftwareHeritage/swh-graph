@@ -11,19 +11,17 @@ public class MMapInputFile {
   ByteBufferInputStream bufferMap;
   int lineLength;
 
-  public MMapInputFile(String path, int lineLength) {
+  public MMapInputFile(String path, int lineLength) throws IOException {
     this.bufferMap = null;
     this.lineLength = lineLength;
 
     try (RandomAccessFile mapFile = new RandomAccessFile(new File(path), "r")) {
       FileChannel fileChannel = mapFile.getChannel();
       bufferMap = ByteBufferInputStream.map(fileChannel, FileChannel.MapMode.READ_ONLY);
-    } catch (IOException e) {
-      System.out.println("Could not load MMapInputFile " + path + ": " + e);
     }
   }
 
-  public String readLine(long lineIndex) {
+  public String readAtLine(long lineIndex) {
     byte[] buffer = new byte[lineLength];
     long position = lineIndex * (long) lineLength;
     bufferMap.position(position);
@@ -32,11 +30,7 @@ public class MMapInputFile {
     return line.trim();
   }
 
-  public void close() {
-    try {
-      bufferMap.close();
-    } catch (IOException e) {
-      System.out.println("Could not close MMapInputFile: " + e);
-    }
+  public void close() throws IOException {
+    bufferMap.close();
   }
 }

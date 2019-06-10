@@ -14,14 +14,19 @@ import org.softwareheritage.graph.algo.Stats;
 import org.softwareheritage.graph.algo.Visit;
 
 public class App {
-  public static void main(String[] args) throws IOException, Exception {
+  public static void main(String[] args) throws IOException {
     String path = args[0];
     Graph graph = new Graph(path);
     Stats stats = new Stats(path);
 
+    // Clean up on exit
     Runtime.getRuntime().addShutdownHook(new Thread() {
       public void run() {
-        graph.cleanUp();
+        try {
+          graph.cleanUp();
+        } catch (IOException e) {
+          System.out.println("Could not clean up graph on exit: " + e);
+        }
       }
     });
 
@@ -33,12 +38,7 @@ public class App {
     Javalin app = Javalin.create().start(5010);
 
     app.get("/stats", ctx -> {
-      try {
-        ctx.json(stats);
-      } catch (Exception e) {
-        ctx.status(400);
-        ctx.result(e.toString());
-      }
+      ctx.json(stats);
     });
 
     app.get("/visit/:swh_id", ctx -> {
@@ -48,12 +48,12 @@ public class App {
         // By default, traversal is a forward DFS using all edges
         String algorithm = Optional.ofNullable(ctx.queryParam("traversal")).orElse("dfs");
         String direction = Optional.ofNullable(ctx.queryParam("direction")).orElse("forward");
-        String edges = Optional.ofNullable(ctx.queryParam("edges")).orElse("cnt:dir:rel:rev:snp");
+        String edges = Optional.ofNullable(ctx.queryParam("edges")).orElse("all");
 
         ctx.json(new Visit(graph, start, edges, algorithm, direction));
       } catch (IllegalArgumentException e) {
         ctx.status(400);
-        ctx.result(e.toString());
+        ctx.result(e.getMessage());
       }
     });
 

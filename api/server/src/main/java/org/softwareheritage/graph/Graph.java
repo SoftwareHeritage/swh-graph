@@ -1,5 +1,7 @@
 package org.softwareheritage.graph;
 
+import java.io.IOException;
+
 import it.unimi.dsi.big.webgraph.BVGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
@@ -12,14 +14,14 @@ public class Graph {
   String path;
   NodeIdMap nodeIdMap;
 
-  public Graph(String graphPath) throws Exception {
+  public Graph(String graphPath) throws IOException {
     this.graph = BVGraph.load(graphPath);
     this.graphTransposed = BVGraph.load(graphPath + "-transposed");
     this.path = graphPath;
     this.nodeIdMap = new NodeIdMap(graphPath, getNbNodes());
   }
 
-  public void cleanUp() {
+  public void cleanUp() throws IOException {
     nodeIdMap.close();
   }
 

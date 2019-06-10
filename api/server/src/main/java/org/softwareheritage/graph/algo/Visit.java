@@ -19,14 +19,23 @@ public class Visit {
   LongArrayBitVector visited;
 
   public Visit(Graph graph, SwhId start, String allowedEdges, String algorithm, String direction) {
+    if (!algorithm.matches("dfs|bfs")) {
+      throw new IllegalArgumentException(
+          "Unknown traversal algorithm: " + algorithm + " (should be 'dfs' or 'bfs')");
+    }
+    if (!direction.matches("forward|backward")) {
+      throw new IllegalArgumentException(
+          "Unknown direction: " + direction + " (should be 'forward' or 'backward')");
+    }
+
     this.graph = graph;
-    this.isTransposed = (direction == "backward");
+    this.isTransposed = (direction.equals("backward"));
     this.allowedEdges = allowedEdges;
     this.paths = new ArrayList<SwhPath>();
     this.currentPath = new Stack<Long>();
     this.visited = LongArrayBitVector.ofLength(graph.getNbNodes());
 
-    if (algorithm == "dfs") {
+    if (algorithm.equals("dfs")) {
       dfs(graph.getNode(start));
     }
   }

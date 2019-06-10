@@ -19,7 +19,6 @@ import org.softwareheritage.graph.utils.MMapOutputFile;
 
 // TODO:
 //  - Add option to dump or not the mapping
-//  - Add error handling when node/swh ids not found
 
 public class NodeIdMap {
   private static final int SWH_ID_SIZE = 50;
@@ -33,15 +32,11 @@ public class NodeIdMap {
   MMapInputFile swhToNodeMap;
   MMapInputFile nodeToSwhMap;
 
-  public NodeIdMap(String graphPath, long nbNodes) {
+  public NodeIdMap(String graphPath, long nbNodes) throws IOException {
     this.graphPath = graphPath;
     this.nbIds = nbNodes;
 
-    try {
-      dump();
-    } catch (Exception e) {
-      System.out.println("Could not dump mapping: " + e);
-    }
+    dump();
 
     this.swhToNodeMap = new MMapInputFile(graphPath + ".swhToNodeMap.csv", SWH_TO_NODE_LINE_LENGTH);
     this.nodeToSwhMap = new MMapInputFile(graphPath + ".nodeToSwhMap.csv", NODE_TO_SWH_LINE_LENGTH);
@@ -52,11 +47,15 @@ public class NodeIdMap {
   // The file is sorted by swhId, hence we can binary search on swhId to get corresponding nodeId
   public long getNode(SwhId swhId) {
     long start = 0;
-    long end = nbIds;
+    long end = nbIds - 1;
 
     while (start <= end) {
       long lineNumber = (start + end) / 2L;
-      String[] parts = swhToNodeMap.readLine(lineNumber).split(" ");
+      String[] parts = swhToNodeMap.readAtLine(lineNumber).split(" ");
+      if (parts.length != 2) {
+        break;
+      }
+
       String currentSwhId = parts[0];
       long currentNodeId = Long.parseLong(parts[1]);
 
@@ -70,7 +69,7 @@ public class NodeIdMap {
       }
     }
 
-    return -1;
+    throw new IllegalArgumentException("Unknown SWH id: " + swhId);
   }
 
   // WebGraph node id (long) -> SWH id (string)
@@ -78,15 +77,23 @@ public class NodeIdMap {
   // The file is ordered by nodeId, meaning node0's swhId is at line 0, hence we can read the
   // nodeId-th line to get corresponding swhId
   public SwhId getSwhId(long node) {
-    String swhId = nodeToSwhMap.readLine(node);
+    if (node < 0 || node >= nbIds) {
+      throw new IllegalArgumentException("Node id " + node + " should be between 0 and " + nbIds);
+    }
+
+    String swhId = nodeToSwhMap.readAtLine(node);
     return new SwhId(swhId);
   }
 
-  void dump() throws ClassNotFoundException, IOException {
+  @SuppressWarnings("unchecked")
+  void dump() throws IOException {
     // First internal mapping: SWH id (string) -> WebGraph MPH (long)
-    @SuppressWarnings("unchecked")
-    Object2LongFunction<String> mphMap =
-      (Object2LongFunction<String>) BinIO.loadObject(graphPath + ".mph");
+    Object2LongFunction<String> mphMap = null;
+    try {
+      mphMap = (Object2LongFunction<String>) BinIO.loadObject(graphPath + ".mph");
+    } catch (ClassNotFoundException e) {
+      throw new IllegalArgumentException("The .mph file contains unknown class object: " + e);
+    }
 
     // Second internal mapping: WebGraph MPH (long) -> BFS ordering (long)
     long[][] bfsMap = LongBigArrays.newBigArray(nbIds);
@@ -114,13 +121,13 @@ public class NodeIdMap {
         String paddedNodeId = String.format("%0" + NODE_ID_SIZE + "d", nodeId);
         String line = swhId + " " + paddedNodeId + "\n";
         long lineIndex = iNode;
-        swhToNodeMapOut.writeLine(line, lineIndex);
+        swhToNodeMapOut.writeAtLine(line, lineIndex);
       }
 
       {
         String line = swhId + "\n";
         long lineIndex = nodeId;
-        nodeToSwhMapOut.writeLine(line, lineIndex);
+        nodeToSwhMapOut.writeAtLine(line, lineIndex);
       }
     }
 
@@ -128,7 +135,7 @@ public class NodeIdMap {
     nodeToSwhMapOut.close();
   }
 
-  public void close() {
+  public void close() throws IOException {
     swhToNodeMap.close();
     nodeToSwhMap.close();
   }
