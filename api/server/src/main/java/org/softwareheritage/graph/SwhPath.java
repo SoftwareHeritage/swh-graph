@@ -2,6 +2,8 @@ package org.softwareheritage.graph;
 
 import java.util.ArrayList;
 
+import com.fasterxml.jackson.annotation.JsonValue;
+
 import org.softwareheritage.graph.SwhId;
 
 public class SwhPath {
@@ -23,6 +25,11 @@ public class SwhPath {
     for (SwhId swhId : swhIds) {
       add(swhId);
     }
+  }
+
+  @JsonValue
+  public ArrayList<SwhId> getPath() {
+    return path;
   }
 
   public void add(SwhId swhId) {
