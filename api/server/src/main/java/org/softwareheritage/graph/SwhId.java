@@ -19,6 +19,20 @@ public class SwhId {
     this.hash = parts[3];
   }
 
+  @Override
+  public boolean equals(Object otherObj) {
+    if (otherObj == this) return true;
+    if (! (otherObj instanceof SwhId)) return false;
+
+    SwhId other = (SwhId) otherObj;
+    return swhId.equals(other.getSwhId());
+  }
+
+  @Override
+  public String toString() {
+    return swhId;
+  }
+
   @JsonValue
   public String getSwhId() {
     return swhId;
@@ -30,9 +44,5 @@ public class SwhId {
 
   public String getHash() {
     return hash;
-  }
-
-  public String toString() {
-    return swhId;
   }
 }
