@@ -63,3 +63,8 @@ java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $COMPR_GRAPH
 
 # Compute graph statistics (output: .{indegree,outdegree,stats})
 java_cmd it.unimi.dsi.big.webgraph.Stats $COMPR_GRAPH
+
+# Create transposed graph (to allow backward traversal)
+java_cmd it.unimi.dsi.big.webgraph.Transform transposeOffline \
+    $COMPR_GRAPH $COMPR_GRAPH-transposed $BATCH_SIZE
+java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $COMPR_GRAPH-transposed
