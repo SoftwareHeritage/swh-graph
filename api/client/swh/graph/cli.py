@@ -17,7 +17,7 @@ def cli(ctx, host, port):
     url = 'http://' + host + ':' + port
     app = client.RemoteGraphClient(url)
 
-    print(app.get_nb_nodes())
+    # TODO: run web app
 
 
 def main():
