@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import org.junit.Assert;
 import org.junit.Test;
+import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.GraphTest;
@@ -12,6 +13,10 @@ import org.softwareheritage.graph.SwhPath;
 import org.softwareheritage.graph.algo.Visit;
 
 public class VisitTest extends GraphTest {
+  void assertEqualPaths(ArrayList<SwhPath> expecteds, ArrayList<SwhPath> actuals) {
+    Assert.assertThat(expecteds, containsInAnyOrder(actuals.toArray()));
+  }
+
   @Test
   public void dfsForwardFromRoot() {
     Graph graph = getGraph();
@@ -52,7 +57,7 @@ public class VisitTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000004"
         ));
 
-    Assert.assertEquals(expectedPaths, paths);
+    assertEqualPaths(expectedPaths, paths);
   }
 
   @Test
@@ -81,7 +86,7 @@ public class VisitTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000004"
         ));
 
-    Assert.assertEquals(expectedPaths, paths);
+    assertEqualPaths(expectedPaths, paths);
   }
 
   @Test
@@ -97,7 +102,7 @@ public class VisitTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000006"
         ));
 
-    Assert.assertEquals(expectedPaths, paths);
+    assertEqualPaths(expectedPaths, paths);
   }
 
   @Test
@@ -113,7 +118,7 @@ public class VisitTest extends GraphTest {
           "swh:1:dir:0000000000000000000000000000000000000001"
         ));
 
-    Assert.assertEquals(expectedPaths, paths);
+    assertEqualPaths(expectedPaths, paths);
   }
 
   @Test
@@ -130,7 +135,7 @@ public class VisitTest extends GraphTest {
           "swh:1:dir:0000000000000000000000000000000000000001"
         ));
 
-    Assert.assertEquals(expectedPaths, paths);
+    assertEqualPaths(expectedPaths, paths);
   }
 
   @Test
@@ -149,6 +154,6 @@ public class VisitTest extends GraphTest {
           "swh:1:dir:0000000000000000000000000000000000000001"
         ));
 
-    Assert.assertEquals(expectedPaths, paths);
+    assertEqualPaths(expectedPaths, paths);
   }
 }
