@@ -5,8 +5,8 @@ import java.io.IOException;
 import it.unimi.dsi.big.webgraph.BVGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
-import org.softwareheritage.graph.NodeIdMap;
 import org.softwareheritage.graph.SwhId;
+import org.softwareheritage.graph.backend.NodeIdMap;
 
 public class Graph {
   BVGraph graph;

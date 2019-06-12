@@ -1,4 +1,4 @@
-package org.softwareheritage.graph.utils;
+package org.softwareheritage.graph.backend.utils;
 
 import java.io.File;
 import java.io.IOException;
