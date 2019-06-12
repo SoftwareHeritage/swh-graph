@@ -1,6 +1,8 @@
 package org.softwareheritage.graph;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.junit.BeforeClass;
 
@@ -11,8 +13,8 @@ public class GraphTest {
 
   @BeforeClass
   public static void setUp() throws IOException {
-    String graphPath = System.getProperty("graphPath");
-    graph = new Graph(graphPath);
+    Path graphPath = Paths.get("src", "test", "dataset", "graph");
+    graph = new Graph(graphPath.toString());
   }
 
   public Graph getGraph() {
