@@ -13,15 +13,15 @@ import org.softwareheritage.graph.SwhPath;
 import org.softwareheritage.graph.algo.Visit;
 
 public class VisitTest extends GraphTest {
-  void assertEqualPaths(ArrayList<SwhPath> expecteds, ArrayList<SwhPath> actuals) {
+  void assertEqualSwhPaths(ArrayList<SwhPath> expecteds, ArrayList<SwhPath> actuals) {
     Assert.assertThat(expecteds, containsInAnyOrder(actuals.toArray()));
   }
 
   @Test
   public void dfsForwardFromRoot() {
     Graph graph = getGraph();
-    SwhId start = new SwhId("swh:1:dir:0000000000000000000000000000000000000001");
-    Visit visit = new Visit(graph, start, "all", "dfs", "forward");
+    SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000001");
+    Visit visit = new Visit(graph, swhId, "all", "dfs", "forward");
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -57,14 +57,14 @@ public class VisitTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000004"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    assertEqualSwhPaths(expectedPaths, paths);
   }
 
   @Test
   public void dfsForwardFromMiddle() {
     Graph graph = getGraph();
-    SwhId start = new SwhId("swh:1:dir:0000000000000000000000000000000000000002");
-    Visit visit = new Visit(graph, start, "all", "dfs", "forward");
+    SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000002");
+    Visit visit = new Visit(graph, swhId, "all", "dfs", "forward");
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -86,14 +86,14 @@ public class VisitTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000004"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    assertEqualSwhPaths(expectedPaths, paths);
   }
 
   @Test
   public void dfsForwardFromLeaf() {
     Graph graph = getGraph();
-    SwhId start = new SwhId("swh:1:cnt:0000000000000000000000000000000000000006");
-    Visit visit = new Visit(graph, start, "all", "dfs", "forward");
+    SwhId swhId = new SwhId("swh:1:cnt:0000000000000000000000000000000000000006");
+    Visit visit = new Visit(graph, swhId, "all", "dfs", "forward");
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -102,14 +102,14 @@ public class VisitTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000006"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    assertEqualSwhPaths(expectedPaths, paths);
   }
 
   @Test
   public void dfsBackwardFromRoot() {
     Graph graph = getGraph();
-    SwhId start = new SwhId("swh:1:dir:0000000000000000000000000000000000000001");
-    Visit visit = new Visit(graph, start, "all", "dfs", "backward");
+    SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000001");
+    Visit visit = new Visit(graph, swhId, "all", "dfs", "backward");
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -118,14 +118,14 @@ public class VisitTest extends GraphTest {
           "swh:1:dir:0000000000000000000000000000000000000001"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    assertEqualSwhPaths(expectedPaths, paths);
   }
 
   @Test
   public void dfsBackwardFromMiddle() {
     Graph graph = getGraph();
-    SwhId start = new SwhId("swh:1:dir:0000000000000000000000000000000000000008");
-    Visit visit = new Visit(graph, start, "all", "dfs", "backward");
+    SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000008");
+    Visit visit = new Visit(graph, swhId, "all", "dfs", "backward");
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -135,14 +135,14 @@ public class VisitTest extends GraphTest {
           "swh:1:dir:0000000000000000000000000000000000000001"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    assertEqualSwhPaths(expectedPaths, paths);
   }
 
   @Test
   public void dfsBackwardFromLeaf() {
     Graph graph = getGraph();
-    SwhId start = new SwhId("swh:1:cnt:0000000000000000000000000000000000000006");
-    Visit visit = new Visit(graph, start, "all", "dfs", "backward");
+    SwhId swhId = new SwhId("swh:1:cnt:0000000000000000000000000000000000000006");
+    Visit visit = new Visit(graph, swhId, "all", "dfs", "backward");
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -154,6 +154,6 @@ public class VisitTest extends GraphTest {
           "swh:1:dir:0000000000000000000000000000000000000001"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    assertEqualSwhPaths(expectedPaths, paths);
   }
 }

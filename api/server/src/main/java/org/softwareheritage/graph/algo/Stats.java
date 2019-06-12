@@ -1,18 +1,8 @@
 package org.softwareheritage.graph.algo;
 
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.List;
-
-import org.softwareheritage.graph.Graph;
-
-/*
-  TODO:
-    - merge the two stats files (.properties and .stats) into one
-*/
+import java.util.Properties;
 
 public class Stats {
   public class Counts {
@@ -39,36 +29,26 @@ public class Stats {
   public Degree outdegree;
 
   public Stats(String graphPath) throws IOException {
-    HashMap<String, String> statsMap = new HashMap<>();
-
-    // Parse statistics from generated files
-    Path dotProperties = Paths.get(graphPath + ".properties");
-    Path dotStats = Paths.get(graphPath + ".stats");
-    List<String> lines = Files.readAllLines(dotProperties);
-    lines.addAll(Files.readAllLines(dotStats));
-    for (String line : lines) {
-      String[] parts = line.split("=");
-      if (parts.length == 2) {
-        statsMap.put(parts[0], parts[1]);
-      }
-    }
+    Properties properties = new Properties();
+    properties.load(new FileInputStream(graphPath + ".properties"));
+    properties.load(new FileInputStream(graphPath + ".stats"));
 
     this.counts = new Counts();
     this.ratios = new Ratios();
     this.indegree = new Degree();
     this.outdegree = new Degree();
 
-    this.counts.nodes = Long.parseLong(statsMap.get("nodes"));
-    this.counts.edges = Long.parseLong(statsMap.get("arcs"));
-    this.ratios.compression = Double.parseDouble(statsMap.get("compratio"));
-    this.ratios.bitsPerNode = Double.parseDouble(statsMap.get("bitspernode"));
-    this.ratios.bitsPerEdge = Double.parseDouble(statsMap.get("bitsperlink"));
-    this.ratios.avgLocality = Double.parseDouble(statsMap.get("avglocality"));
-    this.indegree.min = Long.parseLong(statsMap.get("minindegree"));
-    this.indegree.max = Long.parseLong(statsMap.get("maxindegree"));
-    this.indegree.avg = Double.parseDouble(statsMap.get("avgindegree"));
-    this.outdegree.min = Long.parseLong(statsMap.get("minoutdegree"));
-    this.outdegree.max = Long.parseLong(statsMap.get("maxoutdegree"));
-    this.outdegree.avg = Double.parseDouble(statsMap.get("avgoutdegree"));
+    this.counts.nodes = Long.parseLong(properties.getProperty("nodes"));
+    this.counts.edges = Long.parseLong(properties.getProperty("arcs"));
+    this.ratios.compression = Double.parseDouble(properties.getProperty("compratio"));
+    this.ratios.bitsPerNode = Double.parseDouble(properties.getProperty("bitspernode"));
+    this.ratios.bitsPerEdge = Double.parseDouble(properties.getProperty("bitsperlink"));
+    this.ratios.avgLocality = Double.parseDouble(properties.getProperty("avglocality"));
+    this.indegree.min = Long.parseLong(properties.getProperty("minindegree"));
+    this.indegree.max = Long.parseLong(properties.getProperty("maxindegree"));
+    this.indegree.avg = Double.parseDouble(properties.getProperty("avgindegree"));
+    this.outdegree.min = Long.parseLong(properties.getProperty("minoutdegree"));
+    this.outdegree.max = Long.parseLong(properties.getProperty("maxoutdegree"));
+    this.outdegree.avg = Double.parseDouble(properties.getProperty("avgoutdegree"));
   }
 }

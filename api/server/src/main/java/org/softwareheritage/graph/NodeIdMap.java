@@ -45,7 +45,7 @@ public class NodeIdMap {
   // SWH id (string) -> WebGraph node id (long)
   // Each line in .swhToNode.csv is formatted as: swhId nodeId
   // The file is sorted by swhId, hence we can binary search on swhId to get corresponding nodeId
-  public long getNode(SwhId swhId) {
+  public long getNodeId(SwhId swhId) {
     long start = 0;
     long end = nbIds - 1;
 
@@ -76,12 +76,12 @@ public class NodeIdMap {
   // Each line in .nodeToSwh.csv is formatted as: swhId
   // The file is ordered by nodeId, meaning node0's swhId is at line 0, hence we can read the
   // nodeId-th line to get corresponding swhId
-  public SwhId getSwhId(long node) {
-    if (node < 0 || node >= nbIds) {
-      throw new IllegalArgumentException("Node id " + node + " should be between 0 and " + nbIds);
+  public SwhId getSwhId(long nodeId) {
+    if (nodeId < 0 || nodeId >= nbIds) {
+      throw new IllegalArgumentException("Node id " + nodeId + " should be between 0 and " + nbIds);
     }
 
-    String swhId = nodeToSwhMap.readAtLine(node);
+    String swhId = nodeToSwhMap.readAtLine(nodeId);
     return new SwhId(swhId);
   }
 

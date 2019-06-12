@@ -47,7 +47,7 @@ public class SwhPath {
   @Override
   public boolean equals(Object otherObj) {
     if (otherObj == this) return true;
-    if (! (otherObj instanceof SwhPath)) return false;
+    if (!(otherObj instanceof SwhPath)) return false;
 
     SwhPath other = (SwhPath) otherObj;
     if (size() != other.size()) {
@@ -55,9 +55,9 @@ public class SwhPath {
     }
 
     for (int i = 0; i < size(); i++) {
-      SwhId thisId = get(i);
-      SwhId otherId = other.get(i);
-      if (! thisId.equals(otherId)) {
+      SwhId thisSwhId = get(i);
+      SwhId otherSwhId = other.get(i);
+      if (!thisSwhId.equals(otherSwhId)) {
         return false;
       }
     }

@@ -30,7 +30,7 @@ public class App {
       }
     });
 
-    // Configure Jackson JSON properties
+    // Configure Jackson JSON to use snake case naming style
     ObjectMapper objectMapper = JavalinJackson.getObjectMapper();
     objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
     JavalinJackson.configure(objectMapper);
@@ -43,14 +43,14 @@ public class App {
 
     app.get("/visit/:swh_id", ctx -> {
       try {
-        SwhId start = new SwhId(ctx.pathParam("swh_id"));
+        SwhId swhId = new SwhId(ctx.pathParam("swh_id"));
 
         // By default, traversal is a forward DFS using all edges
         String algorithm = Optional.ofNullable(ctx.queryParam("traversal")).orElse("dfs");
         String direction = Optional.ofNullable(ctx.queryParam("direction")).orElse("forward");
         String edges = Optional.ofNullable(ctx.queryParam("edges")).orElse("all");
 
-        ctx.json(new Visit(graph, start, edges, algorithm, direction));
+        ctx.json(new Visit(graph, swhId, edges, algorithm, direction));
       } catch (IllegalArgumentException e) {
         ctx.status(400);
         ctx.result(e.getMessage());

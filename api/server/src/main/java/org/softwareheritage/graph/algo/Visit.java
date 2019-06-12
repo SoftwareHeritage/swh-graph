@@ -18,14 +18,12 @@ public class Visit {
   ArrayList<SwhPath> paths;
   LongArrayBitVector visited;
 
-  public Visit(Graph graph, SwhId start, String allowedEdges, String algorithm, String direction) {
+  public Visit(Graph graph, SwhId swhId, String allowedEdges, String algorithm, String direction) {
     if (!algorithm.matches("dfs|bfs")) {
-      throw new IllegalArgumentException(
-          "Unknown traversal algorithm: " + algorithm + " (should be 'dfs' or 'bfs')");
+      throw new IllegalArgumentException("Unknown traversal algorithm: " + algorithm);
     }
     if (!direction.matches("forward|backward")) {
-      throw new IllegalArgumentException(
-          "Unknown direction: " + direction + " (should be 'forward' or 'backward')");
+      throw new IllegalArgumentException("Unknown traversal direction: " + direction);
     }
 
     this.graph = graph;
@@ -36,7 +34,7 @@ public class Visit {
     this.visited = LongArrayBitVector.ofLength(graph.getNbNodes());
 
     if (algorithm.equals("dfs")) {
-      dfs(graph.getNode(start));
+      dfs(graph.getNodeId(swhId));
     }
   }
 
@@ -45,32 +43,32 @@ public class Visit {
     return paths;
   }
 
-  private void dfs(long currentNode) {
-    visited.set(currentNode);
-    currentPath.push(currentNode);
+  private void dfs(long currentNodeId) {
+    visited.set(currentNodeId);
+    currentPath.push(currentNodeId);
 
-    long degree = graph.degree(currentNode, isTransposed);
-    LazyLongIterator neighbors = graph.neighbors(currentNode, isTransposed);
+    long degree = graph.degree(currentNodeId, isTransposed);
+    LazyLongIterator neighbors = graph.neighbors(currentNodeId, isTransposed);
 
     if (degree == 0) {
       SwhPath path = new SwhPath();
-      for (long node : currentPath) {
-        path.add(graph.getSwhId(node));
+      for (long nodeId : currentPath) {
+        path.add(graph.getSwhId(nodeId));
       }
       paths.add(path);
     }
 
     while (degree-- > 0) {
-      long nextNode = neighbors.nextLong();
-      if (isEdgeAllowed(currentNode, nextNode) && !visited.getBoolean(nextNode)) {
-        dfs(nextNode);
+      long nextNodeId = neighbors.nextLong();
+      if (isEdgeAllowed(currentNodeId, nextNodeId) && !visited.getBoolean(nextNodeId)) {
+        dfs(nextNodeId);
       }
     }
 
     currentPath.pop();
   }
 
-  private boolean isEdgeAllowed(long currentNode, long nextNode) {
+  private boolean isEdgeAllowed(long currentNodeId, long nextNodeId) {
     // TODO
     return true;
   }

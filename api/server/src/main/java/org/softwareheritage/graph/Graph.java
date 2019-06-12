@@ -14,11 +14,11 @@ public class Graph {
   String path;
   NodeIdMap nodeIdMap;
 
-  public Graph(String graphPath) throws IOException {
-    this.graph = BVGraph.load(graphPath);
-    this.graphTransposed = BVGraph.load(graphPath + "-transposed");
-    this.path = graphPath;
-    this.nodeIdMap = new NodeIdMap(graphPath, getNbNodes());
+  public Graph(String path) throws IOException {
+    this.graph = BVGraph.load(path);
+    this.graphTransposed = BVGraph.load(path + "-transposed");
+    this.path = path;
+    this.nodeIdMap = new NodeIdMap(path, getNbNodes());
   }
 
   public void cleanUp() throws IOException {
@@ -29,12 +29,12 @@ public class Graph {
     return path;
   }
 
-  public long getNode(SwhId swhId) {
-    return nodeIdMap.getNode(swhId);
+  public long getNodeId(SwhId swhId) {
+    return nodeIdMap.getNodeId(swhId);
   }
 
-  public SwhId getSwhId(long node) {
-    return nodeIdMap.getSwhId(node);
+  public SwhId getSwhId(long nodeId) {
+    return nodeIdMap.getSwhId(nodeId);
   }
 
   public long getNbNodes() {
@@ -45,35 +45,27 @@ public class Graph {
     return graph.numArcs();
   }
 
-  public LazyLongIterator successors(long node) {
-    return graph.successors(node);
+  public LazyLongIterator successors(long nodeId) {
+    return graph.successors(nodeId);
   }
 
-  public long outdegree(long node) {
-    return graph.outdegree(node);
+  public long outdegree(long nodeId) {
+    return graph.outdegree(nodeId);
   }
 
-  public LazyLongIterator predecessors(long node) {
-    return graphTransposed.successors(node);
+  public LazyLongIterator predecessors(long nodeId) {
+    return graphTransposed.successors(nodeId);
   }
 
-  public long indegree(long node) {
-    return graphTransposed.outdegree(node);
+  public long indegree(long nodeId) {
+    return graphTransposed.outdegree(nodeId);
   }
 
-  public long degree(long node, boolean isTransposed) {
-    if (isTransposed) {
-      return indegree(node);
-    } else {
-      return outdegree(node);
-    }
+  public long degree(long nodeId, boolean isTransposed) {
+    return (isTransposed) ? indegree(nodeId) : outdegree(nodeId);
   }
 
-  public LazyLongIterator neighbors(long node, boolean isTransposed) {
-    if (isTransposed) {
-      return predecessors(node);
-    } else {
-      return successors(node);
-    }
+  public LazyLongIterator neighbors(long nodeId, boolean isTransposed) {
+    return (isTransposed) ? predecessors(nodeId) : successors(nodeId);
   }
 }
