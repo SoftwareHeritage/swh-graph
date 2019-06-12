@@ -61,11 +61,11 @@ public class Graph {
     return graphTransposed.outdegree(nodeId);
   }
 
-  public long degree(long nodeId, boolean isTransposed) {
-    return (isTransposed) ? indegree(nodeId) : outdegree(nodeId);
+  public long degree(long nodeId, boolean useTransposed) {
+    return (useTransposed) ? indegree(nodeId) : outdegree(nodeId);
   }
 
-  public LazyLongIterator neighbors(long nodeId, boolean isTransposed) {
-    return (isTransposed) ? predecessors(nodeId) : successors(nodeId);
+  public LazyLongIterator neighbors(long nodeId, boolean useTransposed) {
+    return (useTransposed) ? predecessors(nodeId) : successors(nodeId);
   }
 }

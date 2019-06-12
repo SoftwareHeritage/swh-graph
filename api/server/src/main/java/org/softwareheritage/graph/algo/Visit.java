@@ -12,7 +12,7 @@ import org.softwareheritage.graph.SwhPath;
 
 public class Visit {
   Graph graph;
-  boolean isTransposed;
+  boolean useTransposed;
   String allowedEdges;
   Stack<Long> currentPath;
   ArrayList<SwhPath> paths;
@@ -27,7 +27,7 @@ public class Visit {
     }
 
     this.graph = graph;
-    this.isTransposed = (direction.equals("backward"));
+    this.useTransposed = (direction.equals("backward"));
     this.allowedEdges = allowedEdges;
     this.paths = new ArrayList<SwhPath>();
     this.currentPath = new Stack<Long>();
@@ -47,8 +47,8 @@ public class Visit {
     visited.set(currentNodeId);
     currentPath.push(currentNodeId);
 
-    long degree = graph.degree(currentNodeId, isTransposed);
-    LazyLongIterator neighbors = graph.neighbors(currentNodeId, isTransposed);
+    long degree = graph.degree(currentNodeId, useTransposed);
+    LazyLongIterator neighbors = graph.neighbors(currentNodeId, useTransposed);
 
     if (degree == 0) {
       SwhPath path = new SwhPath();
