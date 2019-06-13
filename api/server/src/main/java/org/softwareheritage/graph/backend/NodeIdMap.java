@@ -6,7 +6,7 @@ import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.backend.utils.MMapInputFile;
 
 public class NodeIdMap {
-  public static final int SWH_ID_LENGTH = 40;
+  public static final int SWH_ID_LENGTH = 50;
   public static final int NODE_ID_LENGTH = 20;
   // +1 are for spaces and end of lines
   public static final int SWH_TO_NODE_LINE_LENGTH = SWH_ID_LENGTH + 1 + NODE_ID_LENGTH + 1;
