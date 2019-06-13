@@ -49,8 +49,17 @@ public class Visit {
 
     long degree = graph.degree(currentNodeId, useTransposed);
     LazyLongIterator neighbors = graph.neighbors(currentNodeId, useTransposed);
+    long visitedNeighbors = 0;
 
-    if (degree == 0) {
+    while (degree-- > 0) {
+      long neighborNodeId = neighbors.nextLong();
+      if (!visited.getBoolean(neighborNodeId) && isEdgeAllowed(currentNodeId, neighborNodeId)) {
+        dfs(neighborNodeId);
+        visitedNeighbors++;
+      }
+    }
+
+    if (visitedNeighbors == 0) {
       SwhPath path = new SwhPath();
       for (long nodeId : currentPath) {
         path.add(graph.getSwhId(nodeId));
@@ -58,18 +67,18 @@ public class Visit {
       paths.add(path);
     }
 
-    while (degree-- > 0) {
-      long nextNodeId = neighbors.nextLong();
-      if (isEdgeAllowed(currentNodeId, nextNodeId) && !visited.getBoolean(nextNodeId)) {
-        dfs(nextNodeId);
-      }
-    }
-
     currentPath.pop();
   }
 
-  private boolean isEdgeAllowed(long currentNodeId, long nextNodeId) {
-    // TODO
-    return true;
+  private boolean isEdgeAllowed(long currentNodeId, long neighborNodeId) {
+    if (allowedEdges.equals("all")) {
+      return true;
+    }
+
+    String currentType = graph.getSwhId(currentNodeId).getType();
+    String neighborType = graph.getSwhId(neighborNodeId).getType();
+    String edgeType = currentType + ":" + neighborType;
+    String edgeTypeRev = neighborType + ":" + currentType;
+    return allowedEdges.contains(edgeType) || allowedEdges.contains(edgeTypeRev);
   }
 }
