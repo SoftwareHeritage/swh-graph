@@ -37,7 +37,7 @@ java_cmd () {
         -Xmx1024G -server -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G \
         -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA        \
         -XX:+UseTLAB -XX:+ResizeTLAB                                        \
-        -cp /app/'*' $*
+        -cp $lib_path/'*' $*
 }
 
 # Build a function (MPH) that maps node names to node numbers in lexicographic

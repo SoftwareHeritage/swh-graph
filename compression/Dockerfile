@@ -1,5 +1,5 @@
 FROM maven:3.6.0-jdk-11
-WORKDIR /app
+WORKDIR /graph-lib
 
 # Download webgraph binary
 RUN curl -O http://webgraph.di.unimi.it/webgraph-big-3.5.0-bin.tar.gz
