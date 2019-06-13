@@ -1,7 +1,8 @@
 package org.softwareheritage.graph;
 
 import java.io.IOException;
-import java.util.Optional;
+import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
@@ -43,14 +44,21 @@ public class App {
 
     app.get("/visit/:swh_id", ctx -> {
       try {
+        Map<String, List<String>> queryParamMap = ctx.queryParamMap();
+        for (String key : queryParamMap.keySet()) {
+          if (!key.matches("direction|edges|traversal")) {
+            throw new IllegalArgumentException("Unknown query string: " + key);
+          }
+        }
+
         SwhId swhId = new SwhId(ctx.pathParam("swh_id"));
 
         // By default, traversal is a forward DFS using all edges
-        String algorithm = Optional.ofNullable(ctx.queryParam("traversal")).orElse("dfs");
-        String direction = Optional.ofNullable(ctx.queryParam("direction")).orElse("forward");
-        String edges = Optional.ofNullable(ctx.queryParam("edges")).orElse("all");
+        String traversal = ctx.queryParam("traversal", "dfs");
+        String direction = ctx.queryParam("direction", "forward");
+        String edges = ctx.queryParam("edges", "all");
 
-        ctx.json(new Visit(graph, swhId, edges, algorithm, direction));
+        ctx.json(new Visit(graph, swhId, edges, traversal, direction));
       } catch (IllegalArgumentException e) {
         ctx.status(400);
         ctx.result(e.getMessage());
