@@ -1,15 +1,36 @@
 #!/bin/bash
 
-if [ "$#" -ne 2 ]; then
-    echo "Expected two arguments: <input graph> <output dir>"
-    exit -1
+usage() {
+    echo "Usage: --input <graph path> --output <out dir> --lib <graph lib path>"
+    echo "  options:"
+    echo "    -t, --tmp <temporary dir> (default to /tmp/)"
+    exit 1
+}
+
+graph_path=""
+out_dir=""
+lib_path=""
+tmp_dir="/tmp/"
+while (( "$#" )); do
+    case "$1" in
+        -i|--input) shift; graph_path=$1;;
+        -o|--output) shift; out_dir=$1;;
+        -l|--lib) shift; lib_path=$1;;
+        -t|--tmp) shift; tmp_dir=$1;;
+        *) usage;;
+    esac
+    shift
+done
+
+if [[ -z $graph_path || -z $out_dir || -z $lib_path ]]; then
+    usage
 fi
 
-INPUT_GRAPH=$1
-OUTPUT_DIR=$2
-DATASET=$(basename $INPUT_GRAPH)
-COMPR_GRAPH="$OUTPUT_DIR/$DATASET"
-TEMP_DIR="$OUTPUT_DIR/tmp"
+dataset=$(basename $graph_path)
+compr_graph_path="$out_dir/$dataset"
+
+mkdir -p $out_dir
+mkdir -p $tmp_dir
 
 java_cmd () {
     /usr/bin/time -v java                                                   \
@@ -23,48 +44,46 @@ llp_ordering () {
     # Create a symmetrized version of the graph
     # (output: .{graph,offsets,properties})
     java_cmd it.unimi.dsi.big.webgraph.Transform symmetrizeOffline \
-        $COMPR_GRAPH-bv $COMPR_GRAPH-bv-sym
-    java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $COMPR_GRAPH-bv-sym
+        $compr_graph_path-bv $compr_graph_path-bv-sym
+    java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $compr_graph_path-bv-sym
 
     # Find a better permutation through Layered LPA
     # WARNING: no 64-bit version of LLP
     java_cmd it.unimi.dsi.law.graph.LayeredLabelPropagation \
-        --longs $COMPR_GRAPH-bv-sym $COMPR_GRAPH.order
+        --longs $compr_graph_path-bv-sym $compr_graph_path.order
 }
 
 bfs_ordering () {
-    java_cmd it.unimi.dsi.law.graph.BFSBig $COMPR_GRAPH-bv $COMPR_GRAPH.order
+    java_cmd it.unimi.dsi.law.graph.BFSBig \
+        $compr_graph_path-bv $compr_graph_path.order
 }
-
-mkdir -p $OUTPUT_DIR
-mkdir -p $TEMP_DIR
 
 # Build a function (MPH) that maps node names to node numbers in lexicographic
 # order (output: .mph)
 java_cmd it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction   \
-    --zipped $COMPR_GRAPH.mph --temp-dir $TEMP_DIR              \
-    $INPUT_GRAPH.nodes.csv.gz
+    --zipped $compr_graph_path.mph --temp-dir $tmp_dir          \
+    $graph_path.nodes.csv.gz
 
 # Build the graph in BVGraph format (output: .{graph,offsets,properties})
-java_cmd it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph  \
-    --function $COMPR_GRAPH.mph --temp-dir $TEMP_DIR        \
-    --zipped $COMPR_GRAPH-bv < $INPUT_GRAPH.edges.csv.gz
+java_cmd it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph      \
+    --function $compr_graph_path.mph --temp-dir $tmp_dir        \
+    --zipped $compr_graph_path-bv < $graph_path.edges.csv.gz
 # Build the offset big-list file to load the graph faster (output: .obl)
-java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $COMPR_GRAPH-bv
+java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $compr_graph_path-bv
 
 # Find a better permutation
 bfs_ordering
 
 # Permute the graph accordingly
-BATCH_SIZE=1000000000
+batch_size=1000000000
 java_cmd it.unimi.dsi.big.webgraph.Transform mapOffline \
-    $COMPR_GRAPH-bv $COMPR_GRAPH $COMPR_GRAPH.order $BATCH_SIZE
-java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $COMPR_GRAPH
+    $compr_graph_path-bv $compr_graph_path $compr_graph_path.order $batch_size
+java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $compr_graph_path
 
 # Compute graph statistics (output: .{indegree,outdegree,stats})
-java_cmd it.unimi.dsi.big.webgraph.Stats $COMPR_GRAPH
+java_cmd it.unimi.dsi.big.webgraph.Stats $compr_graph_path
 
 # Create transposed graph (to allow backward traversal)
 java_cmd it.unimi.dsi.big.webgraph.Transform transposeOffline \
-    $COMPR_GRAPH $COMPR_GRAPH-transposed $BATCH_SIZE
-java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $COMPR_GRAPH-transposed
+    $compr_graph_path $compr_graph_path-transposed $batch_size
+java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $compr_graph_path-transposed
