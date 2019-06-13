@@ -40,24 +40,6 @@ java_cmd () {
         -cp /app/'*' $*
 }
 
-llp_ordering () {
-    # Create a symmetrized version of the graph
-    # (output: .{graph,offsets,properties})
-    java_cmd it.unimi.dsi.big.webgraph.Transform symmetrizeOffline \
-        $compr_graph_path-bv $compr_graph_path-bv-sym
-    java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $compr_graph_path-bv-sym
-
-    # Find a better permutation through Layered LPA
-    # WARNING: no 64-bit version of LLP
-    java_cmd it.unimi.dsi.law.graph.LayeredLabelPropagation \
-        --longs $compr_graph_path-bv-sym $compr_graph_path.order
-}
-
-bfs_ordering () {
-    java_cmd it.unimi.dsi.law.graph.BFSBig \
-        $compr_graph_path-bv $compr_graph_path.order
-}
-
 # Build a function (MPH) that maps node names to node numbers in lexicographic
 # order (output: .mph)
 java_cmd it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction   \
@@ -71,8 +53,9 @@ java_cmd it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph      \
 # Build the offset big-list file to load the graph faster (output: .obl)
 java_cmd it.unimi.dsi.big.webgraph.BVGraph --list $compr_graph_path-bv
 
-# Find a better permutation
-bfs_ordering
+# Find a better permutation using a BFS traversal order (output: .order)
+java_cmd it.unimi.dsi.law.graph.BFSBig \
+    $compr_graph_path-bv $compr_graph_path.order
 
 # Permute the graph accordingly
 batch_size=1000000000
