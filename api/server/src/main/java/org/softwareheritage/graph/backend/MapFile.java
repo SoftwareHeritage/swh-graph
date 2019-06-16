@@ -1,4 +1,4 @@
-package org.softwareheritage.graph.backend.utils;
+package org.softwareheritage.graph.backend;
 
 import java.io.File;
 import java.io.IOException;
@@ -7,11 +7,11 @@ import java.nio.channels.FileChannel;
 
 import it.unimi.dsi.io.ByteBufferInputStream;
 
-public class MMapInputFile {
+public class MapFile {
   ByteBufferInputStream bufferMap;
   int lineLength;
 
-  public MMapInputFile(String path, int lineLength) throws IOException {
+  public MapFile(String path, int lineLength) throws IOException {
     this.bufferMap = null;
     this.lineLength = lineLength;
 

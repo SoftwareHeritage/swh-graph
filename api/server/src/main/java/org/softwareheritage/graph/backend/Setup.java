@@ -1,19 +1,22 @@
 package org.softwareheritage.graph.backend;
 
+import java.io.BufferedWriter;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Writer;
 import java.util.zip.GZIPInputStream;
 
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
+import it.unimi.dsi.fastutil.objects.ObjectBigArrays;
 import it.unimi.dsi.io.FastBufferedReader;
 import it.unimi.dsi.io.LineIterator;
 
 import org.softwareheritage.graph.backend.NodeIdMap;
-import org.softwareheritage.graph.backend.utils.MMapOutputFile;
 
 public class Setup {
   public static void main(String[] args) throws IOException {
@@ -47,36 +50,33 @@ public class Setup {
     }
 
     // Dump complete mapping for all nodes: SWH id (string) <=> WebGraph node id (long)
-    MMapOutputFile swhToNodeMap = new MMapOutputFile(
-        graphPath + ".swhToNodeMap.csv", NodeIdMap.SWH_TO_NODE_LINE_LENGTH, nbIds);
-    MMapOutputFile nodeToSwhMap = new MMapOutputFile(
-        graphPath + ".nodeToSwhMap.csv", NodeIdMap.NODE_TO_SWH_LINE_LENGTH, nbIds);
 
     InputStream nodeFile = new GZIPInputStream(new FileInputStream(graphPath + ".nodes.csv.gz"));
-    FastBufferedReader fileBuffer =
-        new FastBufferedReader(new InputStreamReader(nodeFile, "UTF-8"));
-    LineIterator lineIterator = new LineIterator(fileBuffer);
+    FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(nodeFile, "UTF-8"));
+    LineIterator swhIdIterator = new LineIterator(buffer);
 
-    for (long iNode = 0; iNode < nbIds && lineIterator.hasNext(); iNode++) {
-      String swhId = lineIterator.next().toString();
-      long mphId = mphMap.getLong(swhId);
-      long nodeId = LongBigArrays.get(bfsMap, mphId);
+    try (
+        Writer swhToNodeMap = new BufferedWriter(new FileWriter(graphPath + ".swhToNodeMap.csv"));
+        Writer nodeToSwhMap = new BufferedWriter(new FileWriter(graphPath + ".nodeToSwhMap.csv"))) {
+      // nodeToSwhMap needs to write SWH id in order of node id, so use a temporary array
+      Object[][] nodeToSwhId = ObjectBigArrays.newBigArray(nbIds);
 
-      {
+      for (long iNode = 0; iNode < nbIds && swhIdIterator.hasNext(); iNode++) {
+        String swhId = swhIdIterator.next().toString();
+        long mphId = mphMap.getLong(swhId);
+        long nodeId = LongBigArrays.get(bfsMap, mphId);
+
         String paddedNodeId = String.format("%0" + NodeIdMap.NODE_ID_LENGTH + "d", nodeId);
         String line = swhId + " " + paddedNodeId + "\n";
-        long lineIndex = iNode;
-        swhToNodeMap.writeAtLine(line, lineIndex);
+        swhToNodeMap.write(line);
+
+        ObjectBigArrays.set(nodeToSwhId, nodeId, swhId);
       }
 
-      {
-        String line = swhId + "\n";
-        long lineIndex = nodeId;
-        nodeToSwhMap.writeAtLine(line, lineIndex);
+      for (long iNode = 0; iNode < nbIds; iNode++) {
+        String line = ObjectBigArrays.get(nodeToSwhId, iNode).toString() + "\n";
+        nodeToSwhMap.write(line);
       }
     }
-
-    swhToNodeMap.close();
-    nodeToSwhMap.close();
   }
 }

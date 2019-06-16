@@ -3,25 +3,26 @@ package org.softwareheritage.graph.backend;
 import java.io.IOException;
 
 import org.softwareheritage.graph.SwhId;
-import org.softwareheritage.graph.backend.utils.MMapInputFile;
+import org.softwareheritage.graph.backend.MapFile;
 
 public class NodeIdMap {
   public static final int SWH_ID_LENGTH = 50;
   public static final int NODE_ID_LENGTH = 20;
-  // +1 are for spaces and end of lines
-  public static final int SWH_TO_NODE_LINE_LENGTH = SWH_ID_LENGTH + 1 + NODE_ID_LENGTH + 1;
-  public static final int NODE_TO_SWH_LINE_LENGTH = SWH_ID_LENGTH + 1;
 
   String graphPath;
   long nbIds;
-  MMapInputFile swhToNodeMap;
-  MMapInputFile nodeToSwhMap;
+  MapFile swhToNodeMap;
+  MapFile nodeToSwhMap;
 
   public NodeIdMap(String graphPath, long nbNodes) throws IOException {
     this.graphPath = graphPath;
     this.nbIds = nbNodes;
-    this.swhToNodeMap = new MMapInputFile(graphPath + ".swhToNodeMap.csv", SWH_TO_NODE_LINE_LENGTH);
-    this.nodeToSwhMap = new MMapInputFile(graphPath + ".nodeToSwhMap.csv", NODE_TO_SWH_LINE_LENGTH);
+
+    // +1 are for spaces and end of lines
+    int swhToNodeLineLength = SWH_ID_LENGTH + 1 + NODE_ID_LENGTH + 1;
+    int nodeToSwhLineLength = SWH_ID_LENGTH + 1;
+    this.swhToNodeMap = new MapFile(graphPath + ".swhToNodeMap.csv", swhToNodeLineLength);
+    this.nodeToSwhMap = new MapFile(graphPath + ".nodeToSwhMap.csv", nodeToSwhLineLength);
   }
 
   // SWH id (string) -> WebGraph node id (long)
