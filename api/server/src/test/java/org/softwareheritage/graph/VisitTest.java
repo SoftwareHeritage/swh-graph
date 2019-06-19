@@ -20,41 +20,91 @@ public class VisitTest extends GraphTest {
   @Test
   public void dfsForwardFromRoot() {
     Graph graph = getGraph();
-    SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000001");
+    SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
     Visit visit = new Visit(graph, swhId, "all", "dfs", "forward");
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
         new SwhPath(
-          "swh:1:dir:0000000000000000000000000000000000000001",
+          "swh:1:snp:0000000000000000000000000000000000000020",
+          "swh:1:rev:0000000000000000000000000000000000000009",
           "swh:1:dir:0000000000000000000000000000000000000008",
-          "swh:1:cnt:0000000000000000000000000000000000000009"
-        ));
-    expectedPaths.add(
-        new SwhPath(
-          "swh:1:dir:0000000000000000000000000000000000000001",
-          "swh:1:cnt:0000000000000000000000000000000000000010"
-        ));
-    expectedPaths.add(
-        new SwhPath(
-          "swh:1:dir:0000000000000000000000000000000000000001",
-          "swh:1:dir:0000000000000000000000000000000000000002",
-          "swh:1:dir:0000000000000000000000000000000000000005",
-          "swh:1:cnt:0000000000000000000000000000000000000006"
-        ));
-    expectedPaths.add(
-        new SwhPath(
-          "swh:1:dir:0000000000000000000000000000000000000001",
-          "swh:1:dir:0000000000000000000000000000000000000002",
           "swh:1:cnt:0000000000000000000000000000000000000007"
         ));
     expectedPaths.add(
         new SwhPath(
-          "swh:1:dir:0000000000000000000000000000000000000001",
-          "swh:1:dir:0000000000000000000000000000000000000002",
-          "swh:1:dir:0000000000000000000000000000000000000003",
+          "swh:1:snp:0000000000000000000000000000000000000020",
+          "swh:1:rev:0000000000000000000000000000000000000009",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:cnt:0000000000000000000000000000000000000001"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:snp:0000000000000000000000000000000000000020",
+          "swh:1:rev:0000000000000000000000000000000000000009",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:dir:0000000000000000000000000000000000000006",
           "swh:1:cnt:0000000000000000000000000000000000000004"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:snp:0000000000000000000000000000000000000020",
+          "swh:1:rev:0000000000000000000000000000000000000009",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:dir:0000000000000000000000000000000000000006",
+          "swh:1:cnt:0000000000000000000000000000000000000005"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:snp:0000000000000000000000000000000000000020",
+          "swh:1:rev:0000000000000000000000000000000000000009",
+          "swh:1:rev:0000000000000000000000000000000000000003",
+          "swh:1:dir:0000000000000000000000000000000000000002",
+          "swh:1:cnt:0000000000000000000000000000000000000001"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:snp:0000000000000000000000000000000000000020",
+          "swh:1:rel:0000000000000000000000000000000000000010",
+          "swh:1:rev:0000000000000000000000000000000000000009",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:cnt:0000000000000000000000000000000000000007"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:snp:0000000000000000000000000000000000000020",
+          "swh:1:rel:0000000000000000000000000000000000000010",
+          "swh:1:rev:0000000000000000000000000000000000000009",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:cnt:0000000000000000000000000000000000000001"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:snp:0000000000000000000000000000000000000020",
+          "swh:1:rel:0000000000000000000000000000000000000010",
+          "swh:1:rev:0000000000000000000000000000000000000009",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:dir:0000000000000000000000000000000000000006",
+          "swh:1:cnt:0000000000000000000000000000000000000004"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:snp:0000000000000000000000000000000000000020",
+          "swh:1:rel:0000000000000000000000000000000000000010",
+          "swh:1:rev:0000000000000000000000000000000000000009",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:dir:0000000000000000000000000000000000000006",
+          "swh:1:cnt:0000000000000000000000000000000000000005"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:snp:0000000000000000000000000000000000000020",
+          "swh:1:rel:0000000000000000000000000000000000000010",
+          "swh:1:rev:0000000000000000000000000000000000000009",
+          "swh:1:rev:0000000000000000000000000000000000000003",
+          "swh:1:dir:0000000000000000000000000000000000000002",
+          "swh:1:cnt:0000000000000000000000000000000000000001"
         ));
 
     assertEqualSwhPaths(expectedPaths, paths);
@@ -63,27 +113,41 @@ public class VisitTest extends GraphTest {
   @Test
   public void dfsForwardFromMiddle() {
     Graph graph = getGraph();
-    SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000002");
+    SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000012");
     Visit visit = new Visit(graph, swhId, "all", "dfs", "forward");
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
         new SwhPath(
-          "swh:1:dir:0000000000000000000000000000000000000002",
-          "swh:1:dir:0000000000000000000000000000000000000005",
-          "swh:1:cnt:0000000000000000000000000000000000000006"
-        ));
-    expectedPaths.add(
-        new SwhPath(
-          "swh:1:dir:0000000000000000000000000000000000000002",
+          "swh:1:dir:0000000000000000000000000000000000000012",
+          "swh:1:dir:0000000000000000000000000000000000000008",
           "swh:1:cnt:0000000000000000000000000000000000000007"
         ));
     expectedPaths.add(
         new SwhPath(
-          "swh:1:dir:0000000000000000000000000000000000000002",
-          "swh:1:dir:0000000000000000000000000000000000000003",
+          "swh:1:dir:0000000000000000000000000000000000000012",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:cnt:0000000000000000000000000000000000000001"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:dir:0000000000000000000000000000000000000012",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:dir:0000000000000000000000000000000000000006",
           "swh:1:cnt:0000000000000000000000000000000000000004"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:dir:0000000000000000000000000000000000000012",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:dir:0000000000000000000000000000000000000006",
+          "swh:1:cnt:0000000000000000000000000000000000000005"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:dir:0000000000000000000000000000000000000012",
+          "swh:1:cnt:0000000000000000000000000000000000000011"
         ));
 
     assertEqualSwhPaths(expectedPaths, paths);
@@ -92,14 +156,14 @@ public class VisitTest extends GraphTest {
   @Test
   public void dfsForwardFromLeaf() {
     Graph graph = getGraph();
-    SwhId swhId = new SwhId("swh:1:cnt:0000000000000000000000000000000000000006");
+    SwhId swhId = new SwhId("swh:1:cnt:0000000000000000000000000000000000000004");
     Visit visit = new Visit(graph, swhId, "all", "dfs", "forward");
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
         new SwhPath(
-          "swh:1:cnt:0000000000000000000000000000000000000006"
+          "swh:1:cnt:0000000000000000000000000000000000000004"
         ));
 
     assertEqualSwhPaths(expectedPaths, paths);
@@ -108,14 +172,14 @@ public class VisitTest extends GraphTest {
   @Test
   public void dfsBackwardFromRoot() {
     Graph graph = getGraph();
-    SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000001");
+    SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
     Visit visit = new Visit(graph, swhId, "all", "dfs", "backward");
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
         new SwhPath(
-          "swh:1:dir:0000000000000000000000000000000000000001"
+          "swh:1:snp:0000000000000000000000000000000000000020"
         ));
 
     assertEqualSwhPaths(expectedPaths, paths);
@@ -124,15 +188,17 @@ public class VisitTest extends GraphTest {
   @Test
   public void dfsBackwardFromMiddle() {
     Graph graph = getGraph();
-    SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000008");
+    SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000012");
     Visit visit = new Visit(graph, swhId, "all", "dfs", "backward");
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
         new SwhPath(
-          "swh:1:dir:0000000000000000000000000000000000000008",
-          "swh:1:dir:0000000000000000000000000000000000000001"
+          "swh:1:dir:0000000000000000000000000000000000000012",
+          "swh:1:rev:0000000000000000000000000000000000000013",
+          "swh:1:rev:0000000000000000000000000000000000000018",
+          "swh:1:rel:0000000000000000000000000000000000000019"
         ));
 
     assertEqualSwhPaths(expectedPaths, paths);
@@ -141,17 +207,47 @@ public class VisitTest extends GraphTest {
   @Test
   public void dfsBackwardFromLeaf() {
     Graph graph = getGraph();
-    SwhId swhId = new SwhId("swh:1:cnt:0000000000000000000000000000000000000006");
+    SwhId swhId = new SwhId("swh:1:cnt:0000000000000000000000000000000000000004");
     Visit visit = new Visit(graph, swhId, "all", "dfs", "backward");
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
         new SwhPath(
-          "swh:1:cnt:0000000000000000000000000000000000000006",
-          "swh:1:dir:0000000000000000000000000000000000000005",
-          "swh:1:dir:0000000000000000000000000000000000000002",
-          "swh:1:dir:0000000000000000000000000000000000000001"
+          "swh:1:cnt:0000000000000000000000000000000000000004",
+          "swh:1:dir:0000000000000000000000000000000000000006",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:dir:0000000000000000000000000000000000000012",
+          "swh:1:rev:0000000000000000000000000000000000000013",
+          "swh:1:rev:0000000000000000000000000000000000000018",
+          "swh:1:rel:0000000000000000000000000000000000000019"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:cnt:0000000000000000000000000000000000000004",
+          "swh:1:dir:0000000000000000000000000000000000000006",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:rev:0000000000000000000000000000000000000009",
+          "swh:1:rev:0000000000000000000000000000000000000013",
+          "swh:1:rev:0000000000000000000000000000000000000018",
+          "swh:1:rel:0000000000000000000000000000000000000019"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:cnt:0000000000000000000000000000000000000004",
+          "swh:1:dir:0000000000000000000000000000000000000006",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:rev:0000000000000000000000000000000000000009",
+          "swh:1:snp:0000000000000000000000000000000000000020"
+        ));
+    expectedPaths.add(
+        new SwhPath(
+          "swh:1:cnt:0000000000000000000000000000000000000004",
+          "swh:1:dir:0000000000000000000000000000000000000006",
+          "swh:1:dir:0000000000000000000000000000000000000008",
+          "swh:1:rev:0000000000000000000000000000000000000009",
+          "swh:1:rel:0000000000000000000000000000000000000010",
+          "swh:1:snp:0000000000000000000000000000000000000020"
         ));
 
     assertEqualSwhPaths(expectedPaths, paths);
