@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Stack;
 
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
-import it.unimi.dsi.bits.LongArrayBitVector;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
@@ -16,7 +15,6 @@ public class Visit {
   String allowedEdges;
   Stack<Long> currentPath;
   ArrayList<SwhPath> paths;
-  LongArrayBitVector visited;
 
   public Visit(Graph graph, SwhId swhId, String allowedEdges, String algorithm, String direction) {
     if (!algorithm.matches("dfs|bfs")) {
@@ -31,7 +29,6 @@ public class Visit {
     this.allowedEdges = allowedEdges;
     this.paths = new ArrayList<SwhPath>();
     this.currentPath = new Stack<Long>();
-    this.visited = LongArrayBitVector.ofLength(graph.getNbNodes());
 
     if (algorithm.equals("dfs")) {
       dfs(graph.getNodeId(swhId));
@@ -44,7 +41,6 @@ public class Visit {
   }
 
   private void dfs(long currentNodeId) {
-    visited.set(currentNodeId);
     currentPath.push(currentNodeId);
 
     long degree = graph.degree(currentNodeId, useTransposed);
@@ -53,7 +49,7 @@ public class Visit {
 
     while (degree-- > 0) {
       long neighborNodeId = neighbors.nextLong();
-      if (!visited.getBoolean(neighborNodeId) && isEdgeAllowed(currentNodeId, neighborNodeId)) {
+      if (isEdgeAllowed(currentNodeId, neighborNodeId)) {
         dfs(neighborNodeId);
         visitedNeighbors++;
       }
