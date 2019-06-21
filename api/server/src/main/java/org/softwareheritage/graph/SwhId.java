@@ -26,7 +26,7 @@ public class SwhId {
 
     this.hash = parts[3];
     if (!hash.matches("[0-9a-f]{" + HASH_LENGTH + "}")) {
-      throw new IllegalArgumentException("Unknown SWH ID hash in: " + swhId);
+      throw new IllegalArgumentException("Wrong SWH ID hash format in: " + swhId);
     }
   }
 
