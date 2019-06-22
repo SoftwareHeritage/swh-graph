@@ -59,9 +59,11 @@ shuffled.
 
 We want to create a bidirectional map to retrieve efficiently the corresponding
 strings or longs. Using naive hash maps is not possible due to memory usage (we
-have around 20B nodes), hence we must use a disk-based solution.
+have around 10B nodes), hence we must use a disk-based solution.
 
-\section{Solution 1: \mmap{}}
+\newpage
+
+\section{Solution 1: Simple file}
 
 Idea: dump the two mappings into huge files and load them using \mmap{} system
 call to avoid storing them into memory.
@@ -74,17 +76,65 @@ Map from string to long needs to store both the SWH id and the node id on the
 same line. To efficiently get the corresponding node id we can store the lines
 ordered by SWH id, and binary search to get the mapping.
 
-The main problem with this solution is technical since Java has a maximum size
-on \mmap{}-ed files of ~2GB. To overcome the limitation and \mmap{} very large
-files, there is the \mintinline{text}{ByteBufferInputStream} class from the
+
+\subsection{Java I/O API}
+
+Java offers many ways to write to a file, three were considered and timed:
+
+\begin{small}
+\begin{minted}{java}
+// Version 1
+try (Writer writer = new BufferedWriter(new OutputStreamWriter(
+         new FileOutputStream("output.txt"), "utf-8"))) {
+  writer.write("test");
+}
+
+// Version 2
+try (Writer writer = new BufferedWriter(new FileWriter("output.txt"))) {
+  writer.write("test");
+}
+
+// Version 3
+try (FileWriter writer = new FileWriter("output.txt")) {
+  writer.write("test");
+}
+\end{minted}
+\end{small}
+
+String ids are sorted in alphabetical order. When reading them, the long to
+string map needs to write data in random places in the output file. One way to
+transform it into a sequential write is to put the data into an array, and dump
+the array sequentially into the file once the reading process is done.
+
+\subsection{\mmap{}}
+
+Java has a maximum size on \mmap{}-ed files of 2GB. To overcome the limitation
+and \mmap{} very large files, there is the
+\mintinline{text}{ByteBufferInputStream} class from the
 dsiutils\footnote{\url{http://dsiutils.di.unimi.it/}} package. But this only
 applies to read from files, not to write to them. I had to create the
-\mintinline{text}{ByteBufferOutputStream} to allow writing on huge \mmap{}-ed
-files.
+\mintinline{text}{ByteBufferOutputStream} class to allow writing on huge
+\mmap{}-ed files.
 
-Note: I first started with the \mmap{} solution and got early results that
-allowed me to compare with the DB-based solution, before going full in with the
-\mmap{} one and coding the \mintinline{text}{ByteBufferOutputStream}.
+\subsection{Timings}
+
+Experiments on single file were done on a VM with 1TB of RAM and 40 vCPUs using
+the \mintinline{text}{rev_to_rev} dataset (1B nodes and 1B edges).
+
+\begin{center}
+    \begin{tabular}{@{} l *5r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{I/O v1} & \textbf{I/O v2} &
+            \textbf{I/O v3} &
+            \textbf{random \mmap{}} & \textbf{sequential \mmap{}} \\
+        \midrule
+        \texttt{Dump time}
+            & 4990s & \textbf{4890s} & 5350s & 9290s & 5240s \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
 
 \section{Solution 2: Databases}
 
@@ -93,7 +143,7 @@ considered in my tests: RocksDB, and HaloDB. In both cases, I tried optimizing
 the database options to fit our needs and get the best timings.
 
 On the technical side, the code needed is simpler and more generic than the
-custom \mmap{} solution.  However, this can only be a feasible solution if map
+custom file solution. However, this can only be a feasible solution if map
 retrieval/building time overhead are small enough to scale to the entire graph.
 
 \subsection{RocksDB}
@@ -118,8 +168,6 @@ don't need (like range scans) in order to have better performance.
 The code used to dump and load the mappings can be found in
 \mintinline{text}{NodeIdMapHaloDB.java} file.
 
-\newpage
-
 \section{Results}
 
 Experiments were done on a VM with 700GB of RAM and 72 vCPUs using the
@@ -129,11 +177,11 @@ Experiments were done on a VM with 700GB of RAM and 72 vCPUs using the
     \begin{tabular}{@{} l *3r @{}}
         \toprule
         \multicolumn{1}{c}{} &
-            \textbf{\mmap{}} & \textbf{RocksDB} &
+            \textbf{file solution} & \textbf{RocksDB} &
             \textbf{HaloDB} \\
         \midrule
         \texttt{dump}
-            & 1h24min & estimated 4h & estimated 8h \\
+            & < 1h & estimated 4h & estimated 8h \\
         \texttt{load}
             & 0.003s & & \\
         \texttt{get node id}
