@@ -39,12 +39,7 @@ if [[ -f "$stdout_file" || -f "$stderr_file" ]]; then
 fi
 
 java_cmd () {
-    /usr/bin/time -v java                                               \
-        -server -Xmx1024G -XX:PretenureSizeThreshold=512M               \
-        -XX:MaxNewSize=4G -XX:+UseLargePages -XX:+UseNUMA               \
-        -XX:+UseTransparentHugePages -XX:+UseTLAB -XX:+ResizeTLAB       \
-        -Dlogback.configurationFile=configuration/logback.xml           \
-        -cp $lib_path/'*' $*
+    /usr/bin/time -v java -cp $lib_path/'*' $*
 }
 
 {

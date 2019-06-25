@@ -14,8 +14,8 @@ gzip --force --keep graph.nodes.csv
 # Setup output
 rm -f stderr stdout
 
-docker run                                                  \
-    --name swh-graph-test --rm --tty --interactive          \
-    --volume $(pwd):/data swh-graph-test:latest             \
-    ./scripts/compress_graph.sh                             \
-    --input /data/graph --output /data/ --lib /graph-lib/
+docker run                                                      \
+    --name swh-graph-test --rm --tty --interactive              \
+    --volume $(pwd):/data swh-graph-test:latest                 \
+    ./scripts/compress_graph.sh                                 \
+    --input /data/graph --output /data --lib /swh/graph-lib
