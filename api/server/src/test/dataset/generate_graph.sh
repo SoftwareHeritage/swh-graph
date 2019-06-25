@@ -18,4 +18,5 @@ docker run                                                      \
     --name swh-graph-test --rm --tty --interactive              \
     --volume $(pwd):/data swh-graph-test:latest                 \
     ./scripts/compress_graph.sh                                 \
-    --input /data/graph --output /data --lib /swh/graph-lib
+    --input /data/graph --output /data --lib /swh/graph-lib     \
+    --stdout /data/stdout --stderr /data/stderr

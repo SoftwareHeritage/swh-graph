@@ -1,45 +1,50 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: --input <graph path> --output <out dir> --lib <graph lib path>"
+    echo "Usage: --input <graph path> --output <out dir> --lib <graph lib dir>"
     echo "  options:"
     echo "    -t, --tmp <temporary dir> (default to /tmp/)"
+    echo "    --stdout  <stdout file> (default to ./stdout)"
+    echo "    --stderr  <stderr file> (default to ./stderr)"
     exit 1
 }
 
 graph_path=""
 out_dir=""
-lib_path=""
+lib_dir=""
 tmp_dir="/tmp/"
+stdout_file="stdout"
+stderr_file="stderr"
 while (( "$#" )); do
     case "$1" in
         -i|--input) shift; graph_path=$1;;
         -o|--output) shift; out_dir=$1;;
-        -l|--lib) shift; lib_path=$1;;
+        -l|--lib) shift; lib_dir=$1;;
         -t|--tmp) shift; tmp_dir=$1;;
+        --stdout) shift; stdout_file=$1;;
+        --stderr) shift; stderr_file=$1;;
         *) usage;;
     esac
     shift
 done
 
-if [[ -z $graph_path || -z $out_dir || -z $lib_path ]]; then
+if [[ -z $graph_path || -z $out_dir || -z $lib_dir ]]; then
     usage
+fi
+
+if [[ -f "$stdout_file" || -f "$stderr_file" ]]; then
+    echo "Cannot overwrite previous compression stdout/stderr files"
+    exit 1
 fi
 
 dataset=$(basename $graph_path)
 compr_graph_path="$out_dir/$dataset"
-stdout_file="$out_dir/stdout"
-stderr_file="$out_dir/stderr"
 
 mkdir -p $out_dir
 mkdir -p $tmp_dir
-if [[ -f "$stdout_file" || -f "$stderr_file" ]]; then
-    echo "Cannot overwrite compression stdout/stderr files"
-    exit 1
-fi
 
 java_cmd () {
-    /usr/bin/time -v java -cp $lib_path/'*' $*
+    /usr/bin/time -v java -cp $lib_dir/'*' $*
 }
 
 {
