@@ -15,4 +15,5 @@ RUN apt-get update
 RUN apt-get install -y time
 
 WORKDIR /graph
+COPY configuration configuration/
 COPY scripts scripts/

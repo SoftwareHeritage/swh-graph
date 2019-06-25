@@ -43,6 +43,7 @@ java_cmd () {
         -server -Xmx1024G -XX:PretenureSizeThreshold=512M               \
         -XX:MaxNewSize=4G -XX:+UseLargePages -XX:+UseNUMA               \
         -XX:+UseTransparentHugePages -XX:+UseTLAB -XX:+ResizeTLAB       \
+        -Dlogback.configurationFile=configuration/logback.xml           \
         -cp $lib_path/'*' $*
 }
 
