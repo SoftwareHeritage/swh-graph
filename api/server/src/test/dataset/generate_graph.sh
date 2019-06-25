@@ -11,6 +11,9 @@ tr ' ' '\n' < graph.edges.csv | sort -u > graph.nodes.csv
 gzip --force --keep graph.edges.csv
 gzip --force --keep graph.nodes.csv
 
+# Setup output
+rm -f stderr stdout
+
 docker run                                          \
     --name swh-graph-test --rm --tty --interactive  \
     --volume $(pwd):/data swh-graph-test:latest     \
