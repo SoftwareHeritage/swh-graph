@@ -15,4 +15,4 @@ RUN apt-get update
 RUN apt-get install -y time
 
 WORKDIR /graph
-COPY compress_graph.sh .
+COPY scripts scripts/
