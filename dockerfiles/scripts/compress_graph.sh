@@ -70,7 +70,7 @@ java_cmd () {
     batch_size=1000000000                                               &&
     java_cmd it.unimi.dsi.big.webgraph.Transform mapOffline             \
         $compr_graph_path-bv $compr_graph_path                          \
-        $compr_graph_path.order $batch_size                             &&
+        $compr_graph_path.order $batch_size $tmp_dir                    &&
     java_cmd it.unimi.dsi.big.webgraph.BVGraph                          \
         --list $compr_graph_path                                        &&
 
@@ -79,7 +79,8 @@ java_cmd () {
 
     # Create transposed graph (to allow backward traversal)
     java_cmd it.unimi.dsi.big.webgraph.Transform transposeOffline       \
-        $compr_graph_path $compr_graph_path-transposed $batch_size      &&
+        $compr_graph_path $compr_graph_path-transposed                  \
+        $batch_size $tmp_dir                                            &&
     java_cmd it.unimi.dsi.big.webgraph.BVGraph                          \
         --list $compr_graph_path-transposed
 } >> $stdout_file 2>> $stderr_file
