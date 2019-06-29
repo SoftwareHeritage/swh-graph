@@ -56,7 +56,7 @@ public class App {
         // By default, traversal is a forward DFS using all edges
         String traversal = ctx.queryParam("traversal", "dfs");
         String direction = ctx.queryParam("direction", "forward");
-        String edges = ctx.queryParam("edges", "all");
+        String edges = ctx.queryParam("edges", "*");
 
         ctx.json(new Visit(graph, swhId, edges, traversal, direction));
       } catch (IllegalArgumentException e) {

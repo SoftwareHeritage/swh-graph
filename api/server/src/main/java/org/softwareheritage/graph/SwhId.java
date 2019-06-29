@@ -2,11 +2,13 @@ package org.softwareheritage.graph;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import org.softwareheritage.graph.Node;
+
 public class SwhId {
   public static final int HASH_LENGTH = 40;
 
   String swhId;
-  String type;
+  Node.Type type;
   String hash;
 
   // SWH ID format: 'swh:1:type:hash'
@@ -19,10 +21,11 @@ public class SwhId {
       throw new IllegalArgumentException("Expected SWH ID format to be 'swh:1:type:hash', got: " + swhId);
     }
 
-    this.type = parts[2];
+    String type = parts[2];
     if (!type.matches("cnt|dir|rel|rev|snp")) {
       throw new IllegalArgumentException("Unknown SWH ID type in: " + swhId);
     }
+    this.type = Node.Type.fromStr(type);
 
     this.hash = parts[3];
     if (!hash.matches("[0-9a-f]{" + HASH_LENGTH + "}")) {
@@ -49,7 +52,7 @@ public class SwhId {
     return swhId;
   }
 
-  public String getType() {
+  public Node.Type getType() {
     return type;
   }
 

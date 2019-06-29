@@ -5,14 +5,16 @@ import java.util.Stack;
 
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
+import org.softwareheritage.graph.Edges;
 import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.SwhPath;
 
 public class Visit {
   Graph graph;
   boolean useTransposed;
-  String allowedEdges;
+  Edges edges;
   Stack<Long> currentPath;
   ArrayList<SwhPath> paths;
 
@@ -26,7 +28,7 @@ public class Visit {
 
     this.graph = graph;
     this.useTransposed = (direction.equals("backward"));
-    this.allowedEdges = allowedEdges;
+    this.edges = new Edges(allowedEdges);
     this.paths = new ArrayList<SwhPath>();
     this.currentPath = new Stack<Long>();
 
@@ -49,7 +51,9 @@ public class Visit {
 
     while (degree-- > 0) {
       long neighborNodeId = neighbors.nextLong();
-      if (isEdgeAllowed(currentNodeId, neighborNodeId)) {
+      Node.Type currentNodeType = graph.getSwhId(currentNodeId).getType();
+      Node.Type neighborNodeType = graph.getSwhId(neighborNodeId).getType();
+      if (edges.isAllowed(currentNodeType, neighborNodeType)) {
         dfs(neighborNodeId);
         visitedNeighbors++;
       }
@@ -64,17 +68,5 @@ public class Visit {
     }
 
     currentPath.pop();
-  }
-
-  private boolean isEdgeAllowed(long currentNodeId, long neighborNodeId) {
-    if (allowedEdges.equals("all")) {
-      return true;
-    }
-
-    String currentType = graph.getSwhId(currentNodeId).getType();
-    String neighborType = graph.getSwhId(neighborNodeId).getType();
-    String edgeType = currentType + ":" + neighborType;
-    String edgeTypeRev = neighborType + ":" + currentType;
-    return allowedEdges.contains(edgeType) || allowedEdges.contains(edgeTypeRev);
   }
 }
