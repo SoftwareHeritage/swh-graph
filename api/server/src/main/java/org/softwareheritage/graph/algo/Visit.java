@@ -18,19 +18,20 @@ public class Visit {
   Graph graph;
   boolean useTransposed;
   Edges edges;
+
   // LinkedHashSet is necessary to preserve insertion order
   LinkedHashSet<SwhId> nodes;
   ArrayList<SwhPath> paths;
   Stack<Long> currentPath;
 
-  public Visit(Graph graph, SwhId src, String edges, String direction, OutputFmt output) {
+  public Visit(Graph graph, SwhId src, String edgesFmt, String direction, OutputFmt output) {
     if (!direction.matches("forward|backward")) {
       throw new IllegalArgumentException("Unknown traversal direction: " + direction);
     }
 
     this.graph = graph;
     this.useTransposed = (direction.equals("backward"));
-    this.edges = new Edges(edges);
+    this.edges = new Edges(edgesFmt);
     this.nodes = new LinkedHashSet<SwhId>();
     this.paths = new ArrayList<SwhPath>();
     this.currentPath = new Stack<Long>();

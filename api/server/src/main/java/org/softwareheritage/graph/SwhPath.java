@@ -1,6 +1,7 @@
 package org.softwareheritage.graph;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -42,6 +43,10 @@ public class SwhPath {
 
   public int size() {
     return path.size();
+  }
+
+  public void reverse() {
+    Collections.reverse(path);
   }
 
   @Override
