@@ -17,11 +17,13 @@ public class VisitTest extends GraphTest {
     Assert.assertThat(expecteds, containsInAnyOrder(actuals.toArray()));
   }
 
+  Visit.OutputFmt outputFmt = Visit.OutputFmt.NODES_AND_PATHS;
+
   @Test
   public void dfsForwardFromRoot() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Visit visit = new Visit(graph, swhId, "*", "dfs", "forward");
+    Visit visit = new Visit(graph, swhId, "*", "forward", outputFmt);
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -114,7 +116,7 @@ public class VisitTest extends GraphTest {
   public void dfsForwardFromMiddle() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000012");
-    Visit visit = new Visit(graph, swhId, "*", "dfs", "forward");
+    Visit visit = new Visit(graph, swhId, "*", "forward", outputFmt);
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -157,7 +159,7 @@ public class VisitTest extends GraphTest {
   public void dfsForwardFromLeaf() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:cnt:0000000000000000000000000000000000000004");
-    Visit visit = new Visit(graph, swhId, "*", "dfs", "forward");
+    Visit visit = new Visit(graph, swhId, "*", "forward", outputFmt);
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -173,7 +175,7 @@ public class VisitTest extends GraphTest {
   public void dfsBackwardFromRoot() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Visit visit = new Visit(graph, swhId, "*", "dfs", "backward");
+    Visit visit = new Visit(graph, swhId, "*", "backward", outputFmt);
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -189,7 +191,7 @@ public class VisitTest extends GraphTest {
   public void dfsBackwardFromMiddle() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000012");
-    Visit visit = new Visit(graph, swhId, "*", "dfs", "backward");
+    Visit visit = new Visit(graph, swhId, "*", "backward", outputFmt);
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -208,7 +210,7 @@ public class VisitTest extends GraphTest {
   public void dfsBackwardFromLeaf() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:cnt:0000000000000000000000000000000000000004");
-    Visit visit = new Visit(graph, swhId, "*", "dfs", "backward");
+    Visit visit = new Visit(graph, swhId, "*", "backward", outputFmt);
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -257,7 +259,7 @@ public class VisitTest extends GraphTest {
   public void dfsForwardSnpToRev() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Visit visit = new Visit(graph, swhId, "snp:rev", "dfs", "forward");
+    Visit visit = new Visit(graph, swhId, "snp:rev", "forward", outputFmt);
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -274,7 +276,7 @@ public class VisitTest extends GraphTest {
   public void dfsForwardRelToRevRevToRev() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:rel:0000000000000000000000000000000000000010");
-    Visit visit = new Visit(graph, swhId, "rel:rev,rev:rev", "dfs", "forward");
+    Visit visit = new Visit(graph, swhId, "rel:rev,rev:rev", "forward", outputFmt);
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -292,7 +294,7 @@ public class VisitTest extends GraphTest {
   public void dfsForwardRevToAllDirToAll() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:rev:0000000000000000000000000000000000000013");
-    Visit visit = new Visit(graph, swhId, "rev:*,dir:*", "dfs", "forward");
+    Visit visit = new Visit(graph, swhId, "rev:*,dir:*", "forward", outputFmt);
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -378,7 +380,7 @@ public class VisitTest extends GraphTest {
   public void dfsForwardSnpToAllRevToAll() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Visit visit = new Visit(graph, swhId, "snp:*,rev:*", "dfs", "forward");
+    Visit visit = new Visit(graph, swhId, "snp:*,rev:*", "forward", outputFmt);
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -408,7 +410,7 @@ public class VisitTest extends GraphTest {
   public void dfsForwardNoEdges() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Visit visit = new Visit(graph, swhId, "", "dfs", "forward");
+    Visit visit = new Visit(graph, swhId, "", "forward", outputFmt);
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
@@ -424,7 +426,7 @@ public class VisitTest extends GraphTest {
   public void dfsBackwardRevToRevRevToRel() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:rev:0000000000000000000000000000000000000003");
-    Visit visit = new Visit(graph, swhId, "rev:rev,rev:rel", "dfs", "backward");
+    Visit visit = new Visit(graph, swhId, "rev:rev,rev:rel", "backward", outputFmt);
     ArrayList<SwhPath> paths = visit.getPaths();
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();

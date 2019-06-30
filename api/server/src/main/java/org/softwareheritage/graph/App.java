@@ -38,33 +38,51 @@ public class App {
 
     Javalin app = Javalin.create().start(5009);
 
-    app.get("/stats", ctx -> {
-      ctx.json(stats);
-    });
-
-    app.get("/visit/:swh_id", ctx -> {
-      try {
-        Map<String, List<String>> queryParamMap = ctx.queryParamMap();
-        for (String key : queryParamMap.keySet()) {
-          if (!key.matches("direction|edges|traversal")) {
-            throw new IllegalArgumentException("Unknown query string: " + key);
-          }
+    // Check query strings on API endpoints
+    app.before("/visit/*", ctx -> {
+      Map<String, List<String>> queryParamMap = ctx.queryParamMap();
+      for (String key : queryParamMap.keySet()) {
+        if (!key.matches("direction|edges")) {
+          throw new IllegalArgumentException("Unknown query string: " + key);
         }
-
-        SwhId swhId = new SwhId(ctx.pathParam("swh_id"));
-
-        // By default, traversal is a forward DFS using all edges
-        String traversal = ctx.queryParam("traversal", "dfs");
-        String direction = ctx.queryParam("direction", "forward");
-        String edges = ctx.queryParam("edges", "*");
-
-        ctx.json(new Visit(graph, swhId, edges, traversal, direction));
-      } catch (IllegalArgumentException e) {
-        ctx.status(400);
-        ctx.result(e.getMessage());
       }
     });
 
-    app.error(404, ctx -> { ctx.result("Not found"); });
+    app.get("/stats/", ctx -> { ctx.json(stats); });
+
+    // Graph traversal endpoints
+    // By default the traversal is a forward DFS using all edges
+
+    app.get("/visit/:src", ctx -> {
+      SwhId src = new SwhId(ctx.pathParam("src"));
+      String direction = ctx.queryParam("direction", "forward");
+      String edges = ctx.queryParam("edges", "*");
+
+      Visit visit = new Visit(graph, src, edges, direction, Visit.OutputFmt.NODES_AND_PATHS);
+      ctx.json(visit);
+    });
+
+    app.get("/visit/nodes/:src", ctx -> {
+      SwhId src = new SwhId(ctx.pathParam("src"));
+      String direction = ctx.queryParam("direction", "forward");
+      String edges = ctx.queryParam("edges", "*");
+
+      Visit visit = new Visit(graph, src, edges, direction, Visit.OutputFmt.ONLY_NODES);
+      ctx.json(visit.getNodes());
+    });
+
+    app.get("/visit/paths/:src", ctx -> {
+      SwhId src = new SwhId(ctx.pathParam("src"));
+      String direction = ctx.queryParam("direction", "forward");
+      String edges = ctx.queryParam("edges", "*");
+
+      Visit visit = new Visit(graph, src, edges, direction, Visit.OutputFmt.ONLY_PATHS);
+      ctx.json(visit.getPaths());
+    });
+
+    app.exception(IllegalArgumentException.class, (e, ctx) -> {
+      ctx.status(400);
+      ctx.result(e.getMessage());
+    });
   }
 }

@@ -43,6 +43,11 @@ public class SwhId {
   }
 
   @Override
+  public int hashCode() {
+    return swhId.hashCode();
+  }
+
+  @Override
   public String toString() {
     return swhId;
   }
