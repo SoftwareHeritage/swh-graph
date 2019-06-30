@@ -36,7 +36,7 @@ public class App {
     objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
     JavalinJackson.configure(objectMapper);
 
-    Javalin app = Javalin.create().start(5010);
+    Javalin app = Javalin.create().start(5009);
 
     app.get("/stats", ctx -> {
       ctx.json(stats);
