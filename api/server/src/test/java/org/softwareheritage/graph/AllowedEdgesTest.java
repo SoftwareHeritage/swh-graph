@@ -8,7 +8,7 @@ import static org.junit.Assert.assertTrue;
 import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Node;
 
-public class EdgesTest {
+public class AllowedEdgesTest {
   class EdgeType {
     Node.Type src;
     Node.Type dst;
