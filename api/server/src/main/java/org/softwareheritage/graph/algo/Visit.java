@@ -6,7 +6,7 @@ import java.util.Stack;
 
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
-import org.softwareheritage.graph.Edges;
+import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SwhId;
@@ -17,7 +17,7 @@ public class Visit {
 
   Graph graph;
   boolean useTransposed;
-  Edges edges;
+  AllowedEdges edges;
 
   // LinkedHashSet is necessary to preserve insertion order
   LinkedHashSet<SwhId> nodes;
@@ -31,7 +31,7 @@ public class Visit {
 
     this.graph = graph;
     this.useTransposed = (direction.equals("backward"));
-    this.edges = new Edges(edgesFmt);
+    this.edges = new AllowedEdges(edgesFmt);
     this.nodes = new LinkedHashSet<SwhId>();
     this.paths = new ArrayList<SwhPath>();
     this.currentPath = new Stack<Long>();

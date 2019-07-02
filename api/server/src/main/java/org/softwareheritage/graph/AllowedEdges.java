@@ -4,10 +4,11 @@ import java.util.ArrayList;
 
 import org.softwareheritage.graph.Node;
 
-public class Edges {
+public class AllowedEdges {
+  // First dimension is source node type, second dimension is destination node type
   boolean[][] allowed;
 
-  public Edges(String edgesFmt) {
+  public AllowedEdges(String edgesFmt) {
     int nbNodeTypes = Node.Type.values().length;
     this.allowed = new boolean[nbNodeTypes][nbNodeTypes];
     // Special values (null, empty, "*")

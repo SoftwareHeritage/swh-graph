@@ -8,7 +8,7 @@ import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
 
-import org.softwareheritage.graph.Edges;
+import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SwhId;
@@ -17,7 +17,7 @@ import org.softwareheritage.graph.SwhPath;
 public class Walk {
   Graph graph;
   boolean useTransposed;
-  Edges edges;
+  AllowedEdges edges;
 
   SwhPath path;
   long[][] nodeParent;
@@ -33,7 +33,7 @@ public class Walk {
 
     this.graph = graph;
     this.useTransposed = (direction.equals("backward"));
-    this.edges = new Edges(edgesFmt);
+    this.edges = new AllowedEdges(edgesFmt);
     this.path = new SwhPath();
     this.nodeParent = LongBigArrays.newBigArray(graph.getNbNodes());
     LongBigArrays.fill(nodeParent, -1);
