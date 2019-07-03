@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.io.Writer;
 import java.util.zip.GZIPInputStream;
 
+import it.unimi.dsi.fastutil.Size64;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
@@ -40,7 +41,7 @@ public class Setup {
     } catch (ClassNotFoundException e) {
       throw new IllegalArgumentException("The .mph file contains unknown class object: " + e);
     }
-    long nbIds = mphMap.size();
+    long nbIds = (mphMap instanceof Size64) ? ((Size64) mphMap).size64() : mphMap.size();
 
     // Second internal mapping: WebGraph MPH (long) -> BFS ordering (long)
     long[][] bfsMap = LongBigArrays.newBigArray(nbIds);
