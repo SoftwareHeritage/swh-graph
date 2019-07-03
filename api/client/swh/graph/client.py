@@ -3,6 +3,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from enum import Enum
+
 from swh.core.api import SWHRemoteAPI
 
 
@@ -11,6 +13,12 @@ class GraphAPIError(Exception):
     def __str__(self):
         return ('An unexpected error occurred in the Graph backend: {}'
                 .format(self.args))
+
+
+class OutputFmt(Enum):
+    ONLY_NODES = 1
+    ONLY_PATHS = 2
+    NODES_AND_PATHS = 3
 
 
 class RemoteGraphClient(SWHRemoteAPI):
@@ -22,13 +30,27 @@ class RemoteGraphClient(SWHRemoteAPI):
 
     # Web API endpoints
 
-    def visit(self, swh_id, edges=None, traversal="dfs", direction="forward"):
-        return self.get('visit/{}'.format(swh_id),
+    def stats(self):
+        return self.get('stats')
+
+    def visit(self, src, edges="*", direction="forward",
+              output_fmt=OutputFmt.NODES_AND_PATHS):
+        subendpoint = ""
+        if output_fmt is OutputFmt.ONLY_NODES:
+            subendpoint = "/nodes"
+        elif output_fmt is OutputFmt.ONLY_PATHS:
+            subendpoint = "/paths"
+
+        return self.get('visit{}/{}'.format(subendpoint, src),
+                        params={
+                            'edges': edges,
+                            'direction': direction
+                        })
+
+    def walk(self, src, dst, edges="*", traversal="dfs", direction="forward"):
+        return self.get('walk/{}/{}'.format(src, dst),
                         params={
                             'edges': edges,
                             'traversal': traversal,
                             'direction': direction
                         })
-
-    def stats(self):
-        return self.get('stats')
