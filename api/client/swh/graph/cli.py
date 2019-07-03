@@ -8,7 +8,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option('--host', default='0.0.0.0', help="Host where runs the server")
-@click.option('--port', default='5010', help="Binding port of the server")
+@click.option('--port', default='5009', help="Binding port of the server")
 @click.pass_context
 def cli(ctx, host, port):
     """Software Heritage Graph API
