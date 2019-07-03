@@ -20,8 +20,8 @@ Early experiments running WebGraph framework on the Software Heritage datasets.
 
 \section{Environment}
 
-Compression script and Dockerfile can be found here:
-\url{https://forge.softwareheritage.org/source/graph-compression/browse/master/compression/}.
+Docker environment and compression script can be found here:
+\url{https://forge.softwareheritage.org/source/swh-graph/browse/master/dockerfiles/}.
 
 \section{Datasets analysis}
 
@@ -50,19 +50,25 @@ Compression script and Dockerfile can be found here:
         \texttt{dir\_to\_file}
             & 180G & 3T & \num{9231457233} & \num{112363058067} \\
         \midrule
-        Entire graph & 340G & 4.5T & \num{11595403407} & \num{164513703039} \\
+        Entire graph (\texttt{all})
+            & 340G & 4.5T & \num{11595403407} & \num{164513703039} \\
         \bottomrule
     \end{tabular}
 \end{center}
 
-\section{Results}
+\section{Individual datasets compression}
+
+The first experiments were done on individual datasets.
+
+\subsection{Results}
 
 Datasets were compressed on different VM (depending on availability):
 
 \begin{itemize}
-    \item 1TB of RAM and 40vCPU: \mintinline{text}{dir_to_dir}
-    \item 700GB of RAM and 72vCPU: \mintinline{text}{dir_to_file}
-    \item 2TB of RAM and 128vCPU: all the others datasets
+    \item \textit{(sexus)} 1TB of RAM and 40vCPU: \mintinline{text}{dir_to_dir}
+    \item \textit{(monster)} 700GB of RAM and 72vCPU:
+        \mintinline{text}{dir_to_file}
+    \item \textit{(chub)} 2TB of RAM and 128vCPU: all the others datasets
 \end{itemize}
 
 Note: the results may vary because random permutations are used in the graph
@@ -92,7 +98,7 @@ compression process.
 \footnotetext{calculated as: size of \mintinline{bash}{*.graph} + size of
 \mintinline{bash}{*.offsets}}
 
-\section{Timings}
+\subsection{Timings}
 
 \begin{center}
     \begin{tabular}{@{} l *6r @{}}
@@ -148,7 +154,7 @@ similar results (thanks to our graph topology).
     \end{tabular}
 \end{center}
 
-\section{Memory usage}
+\subsection{Memory usage}
 
 Memory usage monitoring during the compression process:
 
@@ -168,6 +174,82 @@ Memory usage monitoring during the compression process:
         \texttt{dir\_to\_file} & 764G \\
         \midrule
         Entire graph (estimated) & 1.4T \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\section{Entire graph compression}
+
+After studying feasibility on the individual datasets and estimating the final
+results, we assembled the entire graph into a single dataset and launched the
+compression process on it.
+
+\subsection{Results}
+
+Two different VM where used depending on the compression step:
+
+\begin{itemize}
+    \item \textit{(monster)} 700GB of RAM and 72vCPU: for the BVGraph step.
+    \item \textit{(rioc)} 3TB of RAM and 48vCPU: all the other steps.
+\end{itemize}
+
+The reason to use monster instead of rioc for the BVGraph step was because the
+I/O on rioc was too slow for the job to complete within the time limit allowed
+on the cluster.
+
+\begin{center}
+    \begin{tabular}{@{} l *3r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{compr ratio} & \textbf{bit/edge} & \textbf{compr size} \\
+        \midrule
+        \texttt{all} & 0.158 & 4.913 & 101G \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\subsection{Timings}
+
+\begin{center}
+    \begin{tabular}{@{} l *5r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{MPH} &
+            \textbf{BVGraph} &
+            \textbf{BFS} &
+            \textbf{Permutation} &
+            \textbf{Total} \\
+        \midrule
+        \texttt{all}
+            & 3h30 & 103h & 9h52 & 24h39 & \textbf{141h} \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+Extra steps (more specific to our needs):
+
+\begin{center}
+    \begin{tabular}{@{} l *2r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{Stats} &
+            \textbf{Transpose} \\
+        \midrule
+        \texttt{all}
+            & 3h58 & 21h33 \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\subsection{Memory usage}
+
+\begin{center}
+    \begin{tabular}{@{} l c @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{Maximum resident set size} \\
+        \midrule
+        \texttt{all} & 1057G \\
         \bottomrule
     \end{tabular}
 \end{center}
