@@ -1,0 +1,51 @@
+digraph "Compression steps" {
+    // Horizontal graph
+    rankdir=LR;
+
+    subgraph {
+        input_edges [label="swh.edges.csv.gz", fontsize=9, shape=none];
+        input_nodes [label="swh.nodes.csv.gz", fontsize=9, shape=none];
+        {rank=same; input_edges; input_nodes;}
+    }
+
+    mph [label="MPH", shape=box];
+    mph_out [label="swh.mph", fontsize=9, shape=none];
+
+    bv_compress [label="BV compress", shape=box];
+    bv_compress_out
+        [label="swh-bv.graph\lswh-bv.offsets\lswh-bv.obl\lswh-bv.properties",
+        fontsize=9, shape=none];
+
+    bfs [label="BFS", shape=box];
+    bfs_out [label="swh.order", fontsize=9, shape=none];
+
+    permute [label="Permute", shape=box];
+    permute_out
+        [label="swh.graph\lswh.offsets\lswh.obl\lswh.properties",
+        fontsize=9, shape=none];
+
+    stats [label="Stats", shape=box];
+    stats_out
+        [label="swh.stats\lswh.indegree\lswh.outdegree",
+        fontsize=9, shape=none];
+
+    transpose [label="Transpose", shape=box];
+    transpose_out
+        [label="swh-transposed.graph\lswh-transposed.offsets\lswh-transposed.obl\lswh-transposed.properties",
+        fontsize=9, shape=none];
+
+    input_nodes -> mph;
+    input_edges -> bv_compress;
+    mph -> mph_out;
+    mph_out -> bv_compress;
+    bv_compress -> bv_compress_out;
+    bv_compress_out-> bfs;
+    bv_compress_out-> permute;
+    bfs -> bfs_out;
+    bfs_out -> permute;
+    permute -> permute_out;
+    permute_out -> stats;
+    permute_out -> transpose;
+    stats -> stats_out;
+    transpose -> transpose_out;
+}
