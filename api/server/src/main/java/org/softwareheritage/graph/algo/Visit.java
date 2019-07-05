@@ -5,6 +5,7 @@ import java.util.LinkedHashSet;
 import java.util.Stack;
 
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
+import it.unimi.dsi.bits.LongArrayBitVector;
 
 import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Graph;
@@ -23,6 +24,7 @@ public class Visit {
   LinkedHashSet<SwhId> nodes;
   ArrayList<SwhPath> paths;
   Stack<Long> currentPath;
+  LongArrayBitVector visited;
 
   public Visit(Graph graph, SwhId src, String edgesFmt, String direction, OutputFmt output) {
     if (!direction.matches("forward|backward")) {
@@ -35,6 +37,7 @@ public class Visit {
     this.nodes = new LinkedHashSet<SwhId>();
     this.paths = new ArrayList<SwhPath>();
     this.currentPath = new Stack<Long>();
+    this.visited = LongArrayBitVector.ofLength(graph.getNbNodes());
 
     long nodeId = graph.getNodeId(src);
     if (output == OutputFmt.ONLY_NODES) {
@@ -83,6 +86,8 @@ public class Visit {
 
   private void dfsOutputOnlyNodes(long currentNodeId) {
     nodes.add(graph.getSwhId(currentNodeId));
+    visited.set(currentNodeId);
+
     long degree = graph.degree(currentNodeId, useTransposed);
     LazyLongIterator neighbors = graph.neighbors(currentNodeId, useTransposed);
 
@@ -90,7 +95,8 @@ public class Visit {
       long neighborNodeId = neighbors.nextLong();
       Node.Type currentNodeType = graph.getSwhId(currentNodeId).getType();
       Node.Type neighborNodeType = graph.getSwhId(neighborNodeId).getType();
-      if (edges.isAllowed(currentNodeType, neighborNodeType)) {
+      if (!visited.getBoolean(neighborNodeId)
+          && edges.isAllowed(currentNodeType, neighborNodeType)) {
         dfsOutputOnlyNodes(neighborNodeId);
       }
     }
