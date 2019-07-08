@@ -30,6 +30,35 @@ Examples
   nodes, or from directories nodes.
 - ``"*:rel"`` node types allowing all edges to releases.
 
+Neighbors
+---------
+
+.. http:get:: /graph/neighbors/:src
+
+    Returns node direct neighbors (linked with exactly one edge) in the graph.
+
+    :param string src: source node specified as a SWH PID
+
+    :query string edges: edges types allowed to be listed as neighbors; default
+    to ``"*"``
+    :query string direction: direction in which graph edges will be followed;
+    can be either ``forward`` or ``backward``, default to ``forward``
+
+    :statuscode 200: success
+    :statuscode 400: invalid query string provided
+    :statuscode 404: starting node cannot be found
+
+    .. sourcecode:: http
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [
+        "swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2",
+        "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+        ...
+    ]
+
 Walk
 ----
 

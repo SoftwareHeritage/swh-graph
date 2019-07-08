@@ -30,6 +30,13 @@ class RemoteGraphClient(SWHRemoteAPI):
 
     # Web API endpoints
 
+    def neighbors(self, src, edges="*", direction="forward"):
+        return self.get('neighbors/{}'.format(src),
+                        params={
+                            'edges': edges,
+                            'direction': direction
+                        })
+
     def stats(self):
         return self.get('stats')
 
