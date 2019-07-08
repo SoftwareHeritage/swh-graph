@@ -12,6 +12,7 @@ import io.javalin.plugin.json.JavalinJackson;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
+import org.softwareheritage.graph.algo.Leaves;
 import org.softwareheritage.graph.algo.Stats;
 import org.softwareheritage.graph.algo.Visit;
 import org.softwareheritage.graph.algo.Walk;
@@ -41,6 +42,7 @@ public class App {
     Javalin app = Javalin.create().start(5009);
 
     app.before("/stats/*", ctx -> { checkQueryStrings(ctx, ""); });
+    app.before("/leaves/*", ctx -> { checkQueryStrings(ctx, "direction|edges"); });
     app.before("/visit/*", ctx -> { checkQueryStrings(ctx, "direction|edges"); });
     app.before("/walk/*", ctx -> { checkQueryStrings(ctx, "direction|edges|traversal"); });
 
@@ -48,6 +50,15 @@ public class App {
 
     // Graph traversal endpoints
     // By default the traversal is a forward DFS using all edges
+
+    app.get("/leaves/:src", ctx -> {
+      SwhId src = new SwhId(ctx.pathParam("src"));
+      String direction = ctx.queryParam("direction", "forward");
+      String edgesFmt = ctx.queryParam("edges", "*");
+
+      Leaves leaves = new Leaves(graph, src, edgesFmt, direction);
+      ctx.json(leaves.getLeaves());
+    });
 
     app.get("/visit/:src", ctx -> {
       SwhId src = new SwhId(ctx.pathParam("src"));
