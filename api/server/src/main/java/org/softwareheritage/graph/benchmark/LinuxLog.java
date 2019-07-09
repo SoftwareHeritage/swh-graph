@@ -4,7 +4,7 @@ import java.io.IOException;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
-import org.softwareheritage.graph.algo.Visit;
+import org.softwareheritage.graph.algo.Traversal;
 
 public class LinuxLog {
   public static void main(String[] args) throws IOException {
@@ -18,14 +18,14 @@ public class LinuxLog {
     System.out.println("Expecting " + expectedCount + " commits");
 
     long startTime = System.nanoTime();
-    Visit visit = new Visit(graph, commit, "rev:rev", "forward", Visit.OutputFmt.ONLY_NODES);
+    Traversal traversal = new Traversal(graph, "forward", "rev:rev");
+    long count = traversal.visitNodesEndpoint(commit).size();
+    if (count != expectedCount) {
+      throw new IllegalArgumentException("Counted " + count + " commits");
+    }
     long endTime = System.nanoTime();
     double duration = (double) (endTime - startTime) / 1_000_000_000;
     System.out.println("Visit operation done in: " + duration + " seconds");
 
-    long count = visit.getNodes().size();
-    if (count != expectedCount) {
-      throw new IllegalArgumentException("Counted " + count + " commits");
-    }
   }
 }

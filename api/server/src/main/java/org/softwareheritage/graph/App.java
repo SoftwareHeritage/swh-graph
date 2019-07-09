@@ -12,11 +12,8 @@ import io.javalin.plugin.json.JavalinJackson;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
-import org.softwareheritage.graph.algo.Leaves;
-import org.softwareheritage.graph.algo.Neighbors;
 import org.softwareheritage.graph.algo.Stats;
-import org.softwareheritage.graph.algo.Visit;
-import org.softwareheritage.graph.algo.Walk;
+import org.softwareheritage.graph.algo.Traversal;
 
 public class App {
   public static void main(String[] args) throws IOException {
@@ -58,8 +55,8 @@ public class App {
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
-      Leaves leaves = new Leaves(graph, src, edgesFmt, direction);
-      ctx.json(leaves.getLeaves());
+      Traversal traversal = new Traversal(graph, direction, edgesFmt);
+      ctx.json(traversal.leavesEndpoint(src));
     });
 
     app.get("/neighbors/:src", ctx -> {
@@ -67,26 +64,27 @@ public class App {
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
-      Neighbors neighbors = new Neighbors(graph, src, edgesFmt, direction);
-      ctx.json(neighbors.getNeighbors());
+      Traversal traversal = new Traversal(graph, direction, edgesFmt);
+      ctx.json(traversal.neighborsEndpoint(src));
     });
 
-    app.get("/visit/:src", ctx -> {
+    // TODO: anonymous class to return both nodes/paths? (waiting on node types map merged/refactor)
+    /*app.get("/visit/:src", ctx -> {
       SwhId src = new SwhId(ctx.pathParam("src"));
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
       Visit visit = new Visit(graph, src, edgesFmt, direction, Visit.OutputFmt.NODES_AND_PATHS);
       ctx.json(visit);
-    });
+    });*/
 
     app.get("/visit/nodes/:src", ctx -> {
       SwhId src = new SwhId(ctx.pathParam("src"));
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
-      Visit visit = new Visit(graph, src, edgesFmt, direction, Visit.OutputFmt.ONLY_NODES);
-      ctx.json(visit.getNodes());
+      Traversal traversal = new Traversal(graph, direction, edgesFmt);
+      ctx.json(traversal.visitNodesEndpoint(src));
     });
 
     app.get("/visit/paths/:src", ctx -> {
@@ -94,8 +92,8 @@ public class App {
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
-      Visit visit = new Visit(graph, src, edgesFmt, direction, Visit.OutputFmt.ONLY_PATHS);
-      ctx.json(visit.getPaths());
+      Traversal traversal = new Traversal(graph, direction, edgesFmt);
+      ctx.json(traversal.visitPathsEndpoint(src));
     });
 
     app.get("/walk/:src/:dst", ctx -> {
@@ -103,10 +101,10 @@ public class App {
       String dstFmt = ctx.pathParam("dst");
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
-      String traversal = ctx.queryParam("traversal", "dfs");
+      String algorithm = ctx.queryParam("traversal", "dfs");
 
-      Walk walk = new Walk(graph, src, dstFmt, edgesFmt, direction, traversal);
-      ctx.json(walk.getPath());
+      Traversal traversal = new Traversal(graph, direction, edgesFmt);
+      ctx.json(traversal.walkEndpoint(src, dstFmt, algorithm));
     });
 
     app.exception(IllegalArgumentException.class, (e, ctx) -> {

@@ -7,7 +7,7 @@ import org.junit.Test;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.GraphTest;
 import org.softwareheritage.graph.SwhId;
-import org.softwareheritage.graph.algo.Neighbors;
+import org.softwareheritage.graph.algo.Traversal;
 
 public class NeighborsTest extends GraphTest {
   @Test
@@ -16,24 +16,24 @@ public class NeighborsTest extends GraphTest {
     ArrayList<SwhId> expectedNodes = new ArrayList<>();
 
     SwhId src1 = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Neighbors neighbors1 = new Neighbors(graph, src1, "*", "backward");
-    GraphTest.assertEqualsAnyOrder(expectedNodes, neighbors1.getNeighbors());
+    Traversal traversal1 = new Traversal(graph, "backward", "*");
+    GraphTest.assertEqualsAnyOrder(expectedNodes, traversal1.neighborsEndpoint(src1));
 
     SwhId src2 = new SwhId("swh:1:cnt:0000000000000000000000000000000000000004");
-    Neighbors neighbors2 = new Neighbors(graph, src2, "*", "forward");
-    GraphTest.assertEqualsAnyOrder(expectedNodes, neighbors2.getNeighbors());
+    Traversal traversal2 = new Traversal(graph, "forward", "*");
+    GraphTest.assertEqualsAnyOrder(expectedNodes, traversal2.neighborsEndpoint(src2));
 
     SwhId src3 = new SwhId("swh:1:cnt:0000000000000000000000000000000000000015");
-    Neighbors neighbors3 = new Neighbors(graph, src3, "*", "forward");
-    GraphTest.assertEqualsAnyOrder(expectedNodes, neighbors3.getNeighbors());
+    Traversal traversal3 = new Traversal(graph, "forward", "*");
+    GraphTest.assertEqualsAnyOrder(expectedNodes, traversal3.neighborsEndpoint(src3));
 
     SwhId src4 = new SwhId("swh:1:rel:0000000000000000000000000000000000000019");
-    Neighbors neighbors4 = new Neighbors(graph, src4, "*", "backward");
-    GraphTest.assertEqualsAnyOrder(expectedNodes, neighbors4.getNeighbors());
+    Traversal traversal4 = new Traversal(graph, "backward", "*");
+    GraphTest.assertEqualsAnyOrder(expectedNodes, traversal4.neighborsEndpoint(src4));
 
     SwhId src5 = new SwhId("swh:1:dir:0000000000000000000000000000000000000008");
-    Neighbors neighbors5 = new Neighbors(graph, src5, "snp:*,rev:*,rel:*", "forward");
-    GraphTest.assertEqualsAnyOrder(expectedNodes, neighbors5.getNeighbors());
+    Traversal traversal5 = new Traversal(graph, "forward", "snp:*,rev:*,rel:*");
+    GraphTest.assertEqualsAnyOrder(expectedNodes, traversal5.neighborsEndpoint(src5));
   }
 
   @Test
@@ -41,28 +41,28 @@ public class NeighborsTest extends GraphTest {
     Graph graph = getGraph();
 
     SwhId src1 = new SwhId("swh:1:rev:0000000000000000000000000000000000000003");
-    Neighbors neighbors1 = new Neighbors(graph, src1, "*", "forward");
+    Traversal traversal1 = new Traversal(graph, "forward", "*");
     ArrayList<SwhId> expectedNodes1 = new ArrayList<>();
     expectedNodes1.add(new SwhId("swh:1:dir:0000000000000000000000000000000000000002"));
-    GraphTest.assertEqualsAnyOrder(expectedNodes1, neighbors1.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes1, traversal1.neighborsEndpoint(src1));
 
     SwhId src2 = new SwhId("swh:1:dir:0000000000000000000000000000000000000017");
-    Neighbors neighbors2 = new Neighbors(graph, src2, "dir:cnt", "forward");
+    Traversal traversal2 = new Traversal(graph, "forward", "dir:cnt");
     ArrayList<SwhId> expectedNodes2 = new ArrayList<>();
     expectedNodes2.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000014"));
-    GraphTest.assertEqualsAnyOrder(expectedNodes2, neighbors2.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes2, traversal2.neighborsEndpoint(src2));
 
     SwhId src3 = new SwhId("swh:1:dir:0000000000000000000000000000000000000012");
-    Neighbors neighbors3 = new Neighbors(graph, src3, "*", "backward");
+    Traversal traversal3 = new Traversal(graph, "backward", "*");
     ArrayList<SwhId> expectedNodes3 = new ArrayList<>();
     expectedNodes3.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000013"));
-    GraphTest.assertEqualsAnyOrder(expectedNodes3, neighbors3.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes3, traversal3.neighborsEndpoint(src3));
 
     SwhId src4 = new SwhId("swh:1:rev:0000000000000000000000000000000000000009");
-    Neighbors neighbors4 = new Neighbors(graph, src4, "rev:rev", "backward");
+    Traversal traversal4 = new Traversal(graph, "backward", "rev:rev");
     ArrayList<SwhId> expectedNodes4 = new ArrayList<>();
     expectedNodes4.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000013"));
-    GraphTest.assertEqualsAnyOrder(expectedNodes4, neighbors4.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes4, traversal4.neighborsEndpoint(src4));
   }
 
   @Test
@@ -70,32 +70,32 @@ public class NeighborsTest extends GraphTest {
     Graph graph = getGraph();
 
     SwhId src1 = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Neighbors neighbors1 = new Neighbors(graph, src1, "*", "forward");
+    Traversal traversal1 = new Traversal(graph, "forward", "*");
     ArrayList<SwhId> expectedNodes1 = new ArrayList<>();
     expectedNodes1.add(new SwhId("swh:1:rel:0000000000000000000000000000000000000010"));
     expectedNodes1.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000009"));
-    GraphTest.assertEqualsAnyOrder(expectedNodes1, neighbors1.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes1, traversal1.neighborsEndpoint(src1));
 
     SwhId src2 = new SwhId("swh:1:dir:0000000000000000000000000000000000000008");
-    Neighbors neighbors2 = new Neighbors(graph, src2, "dir:cnt", "forward");
+    Traversal traversal2 = new Traversal(graph, "forward", "dir:cnt");
     ArrayList<SwhId> expectedNodes2 = new ArrayList<>();
     expectedNodes2.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000001"));
     expectedNodes2.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000007"));
-    GraphTest.assertEqualsAnyOrder(expectedNodes2, neighbors2.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes2, traversal2.neighborsEndpoint(src2));
 
     SwhId src3 = new SwhId("swh:1:cnt:0000000000000000000000000000000000000001");
-    Neighbors neighbors3 = new Neighbors(graph, src3, "*", "backward");
+    Traversal traversal3 = new Traversal(graph, "backward", "*");
     ArrayList<SwhId> expectedNodes3 = new ArrayList<>();
     expectedNodes3.add(new SwhId("swh:1:dir:0000000000000000000000000000000000000008"));
     expectedNodes3.add(new SwhId("swh:1:dir:0000000000000000000000000000000000000002"));
-    GraphTest.assertEqualsAnyOrder(expectedNodes3, neighbors3.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes3, traversal3.neighborsEndpoint(src3));
 
     SwhId src4 = new SwhId("swh:1:rev:0000000000000000000000000000000000000009");
-    Neighbors neighbors4 = new Neighbors(graph, src4, "rev:snp,rev:rel", "backward");
+    Traversal traversal4 = new Traversal(graph, "backward", "rev:snp,rev:rel");
     ArrayList<SwhId> expectedNodes4 = new ArrayList<>();
     expectedNodes4.add(new SwhId("swh:1:snp:0000000000000000000000000000000000000020"));
     expectedNodes4.add(new SwhId("swh:1:rel:0000000000000000000000000000000000000010"));
-    GraphTest.assertEqualsAnyOrder(expectedNodes4, neighbors4.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes4, traversal4.neighborsEndpoint(src4));
   }
 
   @Test
@@ -103,19 +103,19 @@ public class NeighborsTest extends GraphTest {
     Graph graph = getGraph();
 
     SwhId src1 = new SwhId("swh:1:dir:0000000000000000000000000000000000000008");
-    Neighbors neighbors1 = new Neighbors(graph, src1, "*", "forward");
+    Traversal traversal1 = new Traversal(graph, "forward", "*");
     ArrayList<SwhId> expectedNodes1 = new ArrayList<>();
     expectedNodes1.add(new SwhId("swh:1:dir:0000000000000000000000000000000000000006"));
     expectedNodes1.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000001"));
     expectedNodes1.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000007"));
-    GraphTest.assertEqualsAnyOrder(expectedNodes1, neighbors1.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes1, traversal1.neighborsEndpoint(src1));
 
     SwhId src2 = new SwhId("swh:1:rev:0000000000000000000000000000000000000009");
-    Neighbors neighbors2 = new Neighbors(graph, src2, "*", "backward");
+    Traversal traversal2 = new Traversal(graph, "backward", "*");
     ArrayList<SwhId> expectedNodes2 = new ArrayList<>();
     expectedNodes2.add(new SwhId("swh:1:snp:0000000000000000000000000000000000000020"));
     expectedNodes2.add(new SwhId("swh:1:rel:0000000000000000000000000000000000000010"));
     expectedNodes2.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000013"));
-    GraphTest.assertEqualsAnyOrder(expectedNodes2, neighbors2.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes2, traversal2.neighborsEndpoint(src2));
   }
 }

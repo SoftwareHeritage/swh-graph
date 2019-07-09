@@ -9,11 +9,9 @@ import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.GraphTest;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.SwhPath;
-import org.softwareheritage.graph.algo.Visit;
+import org.softwareheritage.graph.algo.Traversal;
 
 public class VisitTest extends GraphTest {
-  Visit.OutputFmt outputFmt = Visit.OutputFmt.NODES_AND_PATHS;
-
   private void assertSameNodesFromPaths(ArrayList<SwhPath> paths, LinkedHashSet<SwhId> nodes) {
     LinkedHashSet<SwhId> expectedNodes = new LinkedHashSet<SwhId>();
     for (SwhPath path : paths) {
@@ -28,9 +26,9 @@ public class VisitTest extends GraphTest {
   public void forwardFromRoot() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Visit visit = new Visit(graph, swhId, "*", "forward", outputFmt);
-    ArrayList<SwhPath> paths = visit.getPaths();
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "forward", "*");
+    ArrayList<SwhPath> paths = traversal.visitPathsEndpoint(swhId);
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -123,9 +121,9 @@ public class VisitTest extends GraphTest {
   public void forwardFromMiddle() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000012");
-    Visit visit = new Visit(graph, swhId, "*", "forward", outputFmt);
-    ArrayList<SwhPath> paths = visit.getPaths();
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "forward", "*");
+    ArrayList<SwhPath> paths = traversal.visitPathsEndpoint(swhId);
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -168,9 +166,9 @@ public class VisitTest extends GraphTest {
   public void forwardFromLeaf() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:cnt:0000000000000000000000000000000000000004");
-    Visit visit = new Visit(graph, swhId, "*", "forward", outputFmt);
-    ArrayList<SwhPath> paths = visit.getPaths();
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "forward", "*");
+    ArrayList<SwhPath> paths = traversal.visitPathsEndpoint(swhId);
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -186,9 +184,9 @@ public class VisitTest extends GraphTest {
   public void backwardFromRoot() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Visit visit = new Visit(graph, swhId, "*", "backward", outputFmt);
-    ArrayList<SwhPath> paths = visit.getPaths();
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "backward", "*");
+    ArrayList<SwhPath> paths = traversal.visitPathsEndpoint(swhId);
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -204,9 +202,9 @@ public class VisitTest extends GraphTest {
   public void backwardFromMiddle() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:dir:0000000000000000000000000000000000000012");
-    Visit visit = new Visit(graph, swhId, "*", "backward", outputFmt);
-    ArrayList<SwhPath> paths = visit.getPaths();
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "backward", "*");
+    ArrayList<SwhPath> paths = traversal.visitPathsEndpoint(swhId);
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -225,9 +223,9 @@ public class VisitTest extends GraphTest {
   public void backwardFromLeaf() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:cnt:0000000000000000000000000000000000000004");
-    Visit visit = new Visit(graph, swhId, "*", "backward", outputFmt);
-    ArrayList<SwhPath> paths = visit.getPaths();
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "backward", "*");
+    ArrayList<SwhPath> paths = traversal.visitPathsEndpoint(swhId);
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -276,9 +274,9 @@ public class VisitTest extends GraphTest {
   public void forwardSnpToRev() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Visit visit = new Visit(graph, swhId, "snp:rev", "forward", outputFmt);
-    ArrayList<SwhPath> paths = visit.getPaths();
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "forward", "snp:rev");
+    ArrayList<SwhPath> paths = traversal.visitPathsEndpoint(swhId);
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -295,9 +293,9 @@ public class VisitTest extends GraphTest {
   public void forwardRelToRevRevToRev() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:rel:0000000000000000000000000000000000000010");
-    Visit visit = new Visit(graph, swhId, "rel:rev,rev:rev", "forward", outputFmt);
-    ArrayList<SwhPath> paths = visit.getPaths();
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "forward", "rel:rev,rev:rev");
+    ArrayList<SwhPath> paths = traversal.visitPathsEndpoint(swhId);
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -315,9 +313,9 @@ public class VisitTest extends GraphTest {
   public void forwardRevToAllDirToAll() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:rev:0000000000000000000000000000000000000013");
-    Visit visit = new Visit(graph, swhId, "rev:*,dir:*", "forward", outputFmt);
-    ArrayList<SwhPath> paths = visit.getPaths();
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "forward", "rev:*,dir:*");
+    ArrayList<SwhPath> paths = traversal.visitPathsEndpoint(swhId);
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -403,9 +401,9 @@ public class VisitTest extends GraphTest {
   public void forwardSnpToAllRevToAll() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Visit visit = new Visit(graph, swhId, "snp:*,rev:*", "forward", outputFmt);
-    ArrayList<SwhPath> paths = visit.getPaths();
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "forward", "snp:*,rev:*");
+    ArrayList<SwhPath> paths = traversal.visitPathsEndpoint(swhId);
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -435,9 +433,9 @@ public class VisitTest extends GraphTest {
   public void forwardNoEdges() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Visit visit = new Visit(graph, swhId, "", "forward", outputFmt);
-    ArrayList<SwhPath> paths = visit.getPaths();
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "forward", "");
+    ArrayList<SwhPath> paths = traversal.visitPathsEndpoint(swhId);
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -453,9 +451,9 @@ public class VisitTest extends GraphTest {
   public void backwardRevToRevRevToRel() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:rev:0000000000000000000000000000000000000003");
-    Visit visit = new Visit(graph, swhId, "rev:rev,rev:rel", "backward", outputFmt);
-    ArrayList<SwhPath> paths = visit.getPaths();
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "backward", "rev:rev,rev:rel");
+    ArrayList<SwhPath> paths = traversal.visitPathsEndpoint(swhId);
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -481,10 +479,10 @@ public class VisitTest extends GraphTest {
   public void forwardFromRootNodesOnly() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
-    Visit visit = new Visit(graph, swhId, "*", "forward", Visit.OutputFmt.ONLY_NODES);
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "forward", "*");
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
-    LinkedHashSet<SwhId> expectedNodes = new LinkedHashSet<SwhId>();
+    ArrayList<SwhId> expectedNodes = new ArrayList<SwhId>();
     expectedNodes.add(new SwhId("swh:1:snp:0000000000000000000000000000000000000020"));
     expectedNodes.add(new SwhId("swh:1:rel:0000000000000000000000000000000000000010"));
     expectedNodes.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000009"));
@@ -504,10 +502,10 @@ public class VisitTest extends GraphTest {
   public void backwardRevToAllNodesOnly() {
     Graph graph = getGraph();
     SwhId swhId = new SwhId("swh:1:rev:0000000000000000000000000000000000000003");
-    Visit visit = new Visit(graph, swhId, "rev:*", "backward", Visit.OutputFmt.ONLY_NODES);
-    LinkedHashSet<SwhId> nodes = visit.getNodes();
+    Traversal traversal = new Traversal(graph, "backward", "rev:*");
+    ArrayList<SwhId> nodes = traversal.visitNodesEndpoint(swhId);
 
-    LinkedHashSet<SwhId> expectedNodes = new LinkedHashSet<SwhId>();
+    ArrayList<SwhId> expectedNodes = new ArrayList<SwhId>();
     expectedNodes.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000003"));
     expectedNodes.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000009"));
     expectedNodes.add(new SwhId("swh:1:snp:0000000000000000000000000000000000000020"));
