@@ -1,4 +1,4 @@
-FROM maven:3.6.0-jdk-11
+FROM openjdk:11
 
 # Java global config
 ARG MAX_RAM=2800G
