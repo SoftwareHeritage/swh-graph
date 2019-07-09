@@ -49,6 +49,10 @@ To start graph compression:
         --stdout /graph/compressed/stdout   \
         --stderr /graph/compressed/stderr
 
+Warning: very large graphs may need a bigger batch size parameter for WebGraph
+internals (you can specify a value when running the compression script using:
+``--batch-size 1000000000``).
+
 Node ids mapping
 ~~~~~~~~~~~~~~~~
 

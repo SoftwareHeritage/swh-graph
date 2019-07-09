@@ -6,6 +6,7 @@ usage() {
     echo "    -t, --tmp <temporary dir> (default to /tmp/)"
     echo "    --stdout  <stdout file> (default to ./stdout)"
     echo "    --stderr  <stderr file> (default to ./stderr)"
+    echo "    --batch-size <batch size> (default to 10^6): WebGraph internals"
     exit 1
 }
 
@@ -15,6 +16,7 @@ lib_dir=""
 tmp_dir="/tmp/"
 stdout_file="stdout"
 stderr_file="stderr"
+batch_size=1000000
 while (( "$#" )); do
     case "$1" in
         -i|--input) shift; graph_path=$1;;
@@ -23,6 +25,7 @@ while (( "$#" )); do
         -t|--tmp) shift; tmp_dir=$1;;
         --stdout) shift; stdout_file=$1;;
         --stderr) shift; stderr_file=$1;;
+        --batch-size) shift; batch_size=$1;;
         *) usage;;
     esac
     shift
@@ -67,7 +70,6 @@ java_cmd () {
         $compr_graph_path-bv $compr_graph_path.order                    &&
 
     # Permute the graph accordingly
-    batch_size=1000000000                                               &&
     java_cmd it.unimi.dsi.big.webgraph.Transform mapOffline             \
         $compr_graph_path-bv $compr_graph_path                          \
         $compr_graph_path.order $batch_size $tmp_dir                    &&

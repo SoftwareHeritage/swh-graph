@@ -30,4 +30,3 @@ RUN curl -o law-2.5.1.jar https://forge.softwareheritage.org/file/download/jizfo
 WORKDIR /swh/app
 COPY configuration configuration/
 COPY scripts scripts/
-
