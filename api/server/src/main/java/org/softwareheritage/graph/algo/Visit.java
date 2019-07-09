@@ -4,12 +4,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Stack;
 
-import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.bits.LongArrayBitVector;
 
 import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.Neighbors;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.SwhPath;
 
@@ -56,21 +55,14 @@ public class Visit {
   }
 
   private void dfs(long currentNodeId) {
-    nodes.add(graph.getSwhId(currentNodeId));
+    SwhId currentSwhId = graph.getSwhId(currentNodeId);
+    nodes.add(currentSwhId);
     currentPath.push(currentNodeId);
 
-    long degree = graph.degree(currentNodeId, useTransposed);
-    LazyLongIterator neighbors = graph.neighbors(currentNodeId, useTransposed);
     long visitedNeighbors = 0;
-
-    while (degree-- > 0) {
-      long neighborNodeId = neighbors.nextLong();
-      Node.Type currentNodeType = graph.getSwhId(currentNodeId).getType();
-      Node.Type neighborNodeType = graph.getSwhId(neighborNodeId).getType();
-      if (edges.isAllowed(currentNodeType, neighborNodeType)) {
+    for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentSwhId)) {
         dfs(neighborNodeId);
         visitedNeighbors++;
-      }
     }
 
     if (visitedNeighbors == 0) {
@@ -85,18 +77,12 @@ public class Visit {
   }
 
   private void dfsOutputOnlyNodes(long currentNodeId) {
-    nodes.add(graph.getSwhId(currentNodeId));
+    SwhId currentSwhId = graph.getSwhId(currentNodeId);
+    nodes.add(currentSwhId);
     visited.set(currentNodeId);
 
-    long degree = graph.degree(currentNodeId, useTransposed);
-    LazyLongIterator neighbors = graph.neighbors(currentNodeId, useTransposed);
-
-    while (degree-- > 0) {
-      long neighborNodeId = neighbors.nextLong();
-      Node.Type currentNodeType = graph.getSwhId(currentNodeId).getType();
-      Node.Type neighborNodeType = graph.getSwhId(neighborNodeId).getType();
-      if (!visited.getBoolean(neighborNodeId)
-          && edges.isAllowed(currentNodeType, neighborNodeType)) {
+    for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentSwhId)) {
+      if (!visited.getBoolean(neighborNodeId)) {
         dfsOutputOnlyNodes(neighborNodeId);
       }
     }

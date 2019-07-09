@@ -3,7 +3,6 @@ package org.softwareheritage.graph;
 import java.io.IOException;
 
 import it.unimi.dsi.big.webgraph.BVGraph;
-import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.backend.NodeIdMap;
@@ -45,16 +44,16 @@ public class Graph {
     return graph.numArcs();
   }
 
-  public LazyLongIterator successors(long nodeId) {
-    return graph.successors(nodeId);
+  public long[][] successors(long nodeId) {
+    return graph.successorBigArray(nodeId);
   }
 
   public long outdegree(long nodeId) {
     return graph.outdegree(nodeId);
   }
 
-  public LazyLongIterator predecessors(long nodeId) {
-    return graphTransposed.successors(nodeId);
+  public long[][] predecessors(long nodeId) {
+    return graphTransposed.successorBigArray(nodeId);
   }
 
   public long indegree(long nodeId) {
@@ -65,7 +64,7 @@ public class Graph {
     return (useTransposed) ? indegree(nodeId) : outdegree(nodeId);
   }
 
-  public LazyLongIterator neighbors(long nodeId, boolean useTransposed) {
+  public long[][] neighbors(long nodeId, boolean useTransposed) {
     return (useTransposed) ? predecessors(nodeId) : successors(nodeId);
   }
 }

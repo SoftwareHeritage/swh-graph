@@ -2,12 +2,11 @@ package org.softwareheritage.graph.algo;
 
 import java.util.ArrayList;
 
-import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.bits.LongArrayBitVector;
 
 import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.Neighbors;
 import org.softwareheritage.graph.SwhId;
 
 public class Leaves {
@@ -41,19 +40,11 @@ public class Leaves {
     visited.set(currentNodeId);
     SwhId currentSwhId = graph.getSwhId(currentNodeId);
 
-    long degree = graph.degree(currentNodeId, useTransposed);
-    LazyLongIterator neighbors = graph.neighbors(currentNodeId, useTransposed);
     long neighborsCnt = 0;
-
-    while (degree-- > 0) {
-      long neighborNodeId = neighbors.nextLong();
-      Node.Type currentNodeType = currentSwhId.getType();
-      Node.Type neighborNodeType = graph.getSwhId(neighborNodeId).getType();
-      if (edges.isAllowed(currentNodeType, neighborNodeType)) {
-        neighborsCnt++;
-        if (!visited.getBoolean(neighborNodeId)) {
-          dfs(neighborNodeId);
-        }
+    for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentSwhId)) {
+      neighborsCnt++;
+      if (!visited.getBoolean(neighborNodeId)) {
+        dfs(neighborNodeId);
       }
     }
 

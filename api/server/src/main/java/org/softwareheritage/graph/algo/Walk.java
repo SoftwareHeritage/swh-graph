@@ -4,12 +4,12 @@ import java.util.Stack;
 import java.util.Queue;
 import java.util.LinkedList;
 
-import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
 
 import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.Neighbors;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.SwhPath;
@@ -81,14 +81,8 @@ public class Walk {
         return currentNodeId;
       }
 
-      long degree = graph.degree(currentNodeId, useTransposed);
-      LazyLongIterator neighbors = graph.neighbors(currentNodeId, useTransposed);
-
-      while (degree-- > 0) {
-        long neighborNodeId = neighbors.nextLong();
-        SwhId neighborSwhId = graph.getSwhId(neighborNodeId);
-        if (!visited.getBoolean(neighborNodeId)
-            && edges.isAllowed(currentSwhId.getType(), neighborSwhId.getType())) {
+      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentSwhId)) {
+        if (!visited.getBoolean(neighborNodeId)) {
           stack.push(neighborNodeId);
           visited.set(neighborNodeId);
           LongBigArrays.set(nodeParent, neighborNodeId, currentNodeId);
@@ -113,14 +107,8 @@ public class Walk {
         return currentNodeId;
       }
 
-      long degree = graph.degree(currentNodeId, useTransposed);
-      LazyLongIterator neighbors = graph.neighbors(currentNodeId, useTransposed);
-
-      while (degree-- > 0) {
-        long neighborNodeId = neighbors.nextLong();
-        SwhId neighborSwhId = graph.getSwhId(neighborNodeId);
-        if (!visited.getBoolean(neighborNodeId)
-            && edges.isAllowed(currentSwhId.getType(), neighborSwhId.getType())) {
+      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentSwhId)) {
+        if (!visited.getBoolean(neighborNodeId)) {
           queue.add(neighborNodeId);
           visited.set(neighborNodeId);
           LongBigArrays.set(nodeParent, neighborNodeId, currentNodeId);

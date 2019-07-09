@@ -2,8 +2,6 @@ package org.softwareheritage.graph.algo;
 
 import java.util.ArrayList;
 
-import it.unimi.dsi.big.webgraph.LazyLongIterator;
-
 import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
@@ -33,17 +31,9 @@ public class Neighbors {
   }
 
   private void iterateNeighbors(SwhId swhId) {
-    long nodeId = graph.getNodeId(swhId);
-    long degree = graph.degree(nodeId, useTransposed);
-    LazyLongIterator neighborsNodeIds = graph.neighbors(nodeId, useTransposed);
-
-    while (degree-- > 0) {
-      long neighborNodeId = neighborsNodeIds.nextLong();
-      SwhId neighborSwhId = graph.getSwhId(neighborNodeId);
-      if (edges.isAllowed(swhId.getType(), neighborSwhId.getType())) {
-        neighbors.add(neighborSwhId);
-      }
+    // TEMPORARY FIX: Avoid import naming problem with Neighbors
+    for (long neighborNodeId : new org.softwareheritage.graph.Neighbors(graph, useTransposed, edges, swhId)) {
+      neighbors.add(graph.getSwhId(neighborNodeId));
     }
   }
 }
-
