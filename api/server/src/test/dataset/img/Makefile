@@ -1,4 +1,4 @@
-all: graph.png
+all: example.png
 
 %.png: %.dot
 	dot -Gdpi=300 -Tpng $< -o $@
@@ -6,4 +6,4 @@ all: graph.png
 .PHONY: clean
 
 clean:
-	rm graph.png
+	rm example.png
