@@ -22,9 +22,9 @@ RUN cp webgraph-big-3.5.1/webgraph-big-3.5.1.jar .
 RUN curl -O http://webgraph.di.unimi.it/webgraph-big-deps.tar.gz
 RUN tar xvfz webgraph-big-deps.tar.gz
 
-RUN curl -O http://law.di.unimi.it/software/download/law-2.5.1-bin.tar.gz
-RUN tar xvfz law-2.5.1-bin.tar.gz
-RUN cp law-2.5.1/law-2.5.1.jar .
+# temporary, SWH-specific version of law, waiting for changes to be integrated
+# upstream
+RUN curl -o law-2.5.1.jar https://forge.softwareheritage.org/file/download/jizfo55fndw54iwr645c/PHID-FILE-kjtrkzrwotlkh6mtkazj/law-2.5.1_swh1.jar
 
 # Add user files
 WORKDIR /swh/app
