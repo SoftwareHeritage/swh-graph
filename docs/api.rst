@@ -30,6 +30,36 @@ Examples
   nodes, or from directories nodes.
 - ``"*:rel"`` node types allowing all edges to releases.
 
+Leaves
+------
+
+.. http:get:: /graph/leaves/:src
+
+    Performs a graph traversal and returns the leaves of the subgraph rooted at
+    the specified source node.
+
+    :param string src: source node specified as a SWH PID
+
+    :query string edges: edges types the traversal can follow; default to
+    ``"*"``
+    :query string direction: direction in which graph edges will be followed;
+    can be either ``forward`` or ``backward``, default to ``forward``
+
+    :statuscode 200: success
+    :statuscode 400: invalid query string provided
+    :statuscode 404: starting node cannot be found
+
+    .. sourcecode:: http
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [
+        "swh:1:cnt:669ac7c32292798644b21dbb5a0dc657125f444d",
+        "swh:1:cnt:da4cb28febe66172a9fdf1a235525ae6c00cde1d",
+        ...
+    ]
+
 Neighbors
 ---------
 
