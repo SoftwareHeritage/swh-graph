@@ -66,7 +66,7 @@ java_cmd () {
         --list $compr_graph_path-bv                                     &&
 
     # Find a better permutation using a BFS traversal order (output: .order)
-    java_cmd it.unimi.dsi.law.graph.BFSBig                              \
+    java_cmd it.unimi.dsi.law.big.graph.BFS                             \
         $compr_graph_path-bv $compr_graph_path.order                    &&
 
     # Permute the graph accordingly
