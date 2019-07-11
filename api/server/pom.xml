@@ -5,10 +5,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.softwareheritage.graph</groupId>
-    <artifactId>graph</artifactId>
-    <version>1.0-ALPHA</version>
+    <artifactId>swh-graph</artifactId>
+    <version>1.0</version>
 
-    <name>graph</name>
+    <name>swh-graph</name>
     <url>https://www.softwareheritage.org/</url>
 
     <properties>
