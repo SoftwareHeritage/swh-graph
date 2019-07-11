@@ -9,15 +9,18 @@ import java.io.InputStreamReader;
 import java.io.Writer;
 import java.util.zip.GZIPInputStream;
 
+import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.Size64;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
+import it.unimi.dsi.fastutil.longs.LongBigList;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.fastutil.objects.ObjectBigArrays;
 import it.unimi.dsi.io.FastBufferedReader;
 import it.unimi.dsi.io.LineIterator;
 
-import org.softwareheritage.graph.backend.NodeIdMap;
+import org.softwareheritage.graph.SwhId;
+import org.softwareheritage.graph.backend.NodeTypesMap;
 
 public class Setup {
   public static void main(String[] args) throws IOException {
@@ -68,17 +71,28 @@ public class Setup {
       // nodeToSwhMap needs to write SWH id in order of node id, so use a temporary array
       Object[][] nodeToSwhId = ObjectBigArrays.newBigArray(nbIds);
 
+      // To effectively run edge restriction during graph traversals, we store node id (long) -> SWH
+      // type map. This is represented as a bitmap where each Node.Type uses 3 bits.
+      final int nbBitsPerNodeType = 3;
+      LongArrayBitVector nodeTypesBitVector = LongArrayBitVector.ofLength(nbBitsPerNodeType * nbIds);
+      LongBigList nodeTypesMap = nodeTypesBitVector.asLongBigList(nbBitsPerNodeType);
+
       for (long iNode = 0; iNode < nbIds && swhIdIterator.hasNext(); iNode++) {
-        String swhId = swhIdIterator.next().toString();
-        long mphId = mphMap.getLong(swhId);
+        String strSwhId = swhIdIterator.next().toString();
+        long mphId = mphMap.getLong(strSwhId);
         long nodeId = LongBigArrays.get(bfsMap, mphId);
 
         String paddedNodeId = String.format("%0" + NodeIdMap.NODE_ID_LENGTH + "d", nodeId);
-        String line = swhId + " " + paddedNodeId + "\n";
+        String line = strSwhId + " " + paddedNodeId + "\n";
         swhToNodeMap.write(line);
 
-        ObjectBigArrays.set(nodeToSwhId, nodeId, swhId);
+        ObjectBigArrays.set(nodeToSwhId, nodeId, strSwhId);
+
+        SwhId swhId = new SwhId(strSwhId);
+        nodeTypesMap.set(nodeId, swhId.getType().ordinal());
       }
+
+      BinIO.storeObject(nodeTypesMap, graphPath + ".nodeTypesMap");
 
       for (long iNode = 0; iNode < nbIds; iNode++) {
         String line = ObjectBigArrays.get(nodeToSwhId, iNode).toString() + "\n";
