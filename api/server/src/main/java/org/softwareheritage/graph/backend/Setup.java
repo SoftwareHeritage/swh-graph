@@ -21,11 +21,17 @@ import org.softwareheritage.graph.backend.NodeIdMap;
 
 public class Setup {
   public static void main(String[] args) throws IOException {
-    String graphPath = args[0];
+    if (args.length != 2) {
+      System.err.println("Expected parameters: <nodes.csv.gz path> <compressed graph path>");
+      System.exit(1);
+    }
+
+    String nodesPath = args[0];
+    String graphPath = args[1];
 
     System.out.println("Pre-computing node id maps...");
     long startTime = System.nanoTime();
-    precomputeNodeIdMap(graphPath);
+    precomputeNodeIdMap(nodesPath, graphPath);
     long endTime = System.nanoTime();
     double duration = (double) (endTime - startTime) / 1_000_000_000;
     System.out.println("Done in: " + duration + " seconds");
@@ -33,7 +39,7 @@ public class Setup {
 
   // Suppress warning for Object2LongFunction cast
   @SuppressWarnings("unchecked")
-  static void precomputeNodeIdMap(String graphPath) throws IOException {
+  static void precomputeNodeIdMap(String nodesPath, String graphPath) throws IOException {
     // First internal mapping: SWH id (string) -> WebGraph MPH (long)
     Object2LongFunction<String> mphMap = null;
     try {
@@ -52,8 +58,8 @@ public class Setup {
 
     // Dump complete mapping for all nodes: SWH id (string) <=> WebGraph node id (long)
 
-    InputStream nodeFile = new GZIPInputStream(new FileInputStream(graphPath + ".nodes.csv.gz"));
-    FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(nodeFile, "UTF-8"));
+    InputStream nodesStream = new GZIPInputStream(new FileInputStream(nodesPath));
+    FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(nodesStream, "UTF-8"));
     LineIterator swhIdIterator = new LineIterator(buffer);
 
     try (
