@@ -1,24 +1,5 @@
 dockerfiles/
+output/
 
-# Generated input files
 *.csv.gz
 *.nodes.csv
-
-# Generated WebGraph files
-*.graph
-*.indegree
-*.mph
-*.obl
-*.offsets
-*.order
-*.outdegree
-*.properties
-*.stats
-
-# Generated node ids mapping
-*.nodeToSwhMap.csv
-*.swhToNodeMap.csv
-
-# Logs
-stdout
-stderr
