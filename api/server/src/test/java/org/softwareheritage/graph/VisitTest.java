@@ -3,9 +3,7 @@ package org.softwareheritage.graph;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 
-import org.junit.Assert;
 import org.junit.Test;
-import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.GraphTest;
@@ -16,14 +14,6 @@ import org.softwareheritage.graph.algo.Visit;
 public class VisitTest extends GraphTest {
   Visit.OutputFmt outputFmt = Visit.OutputFmt.NODES_AND_PATHS;
 
-  private void assertEqualPaths(ArrayList<SwhPath> expecteds, ArrayList<SwhPath> actuals) {
-    Assert.assertThat(expecteds, containsInAnyOrder(actuals.toArray()));
-  }
-
-  private void assertEqualNodes(LinkedHashSet<SwhId> expecteds, LinkedHashSet<SwhId> actuals) {
-    Assert.assertThat(expecteds, containsInAnyOrder(actuals.toArray()));
-  }
-
   private void assertSameNodesFromPaths(ArrayList<SwhPath> paths, LinkedHashSet<SwhId> nodes) {
     LinkedHashSet<SwhId> expectedNodes = new LinkedHashSet<SwhId>();
     for (SwhPath path : paths) {
@@ -31,7 +21,7 @@ public class VisitTest extends GraphTest {
         expectedNodes.add(node);
       }
     }
-    assertEqualNodes(expectedNodes, nodes);
+    GraphTest.assertEqualsAnyOrder(expectedNodes, nodes);
   }
 
   @Test
@@ -125,7 +115,7 @@ public class VisitTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000001"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
     assertSameNodesFromPaths(expectedPaths, nodes);
   }
 
@@ -170,7 +160,7 @@ public class VisitTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000011"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
     assertSameNodesFromPaths(expectedPaths, nodes);
   }
 
@@ -188,7 +178,7 @@ public class VisitTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000004"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
     assertSameNodesFromPaths(expectedPaths, nodes);
   }
 
@@ -206,7 +196,7 @@ public class VisitTest extends GraphTest {
           "swh:1:snp:0000000000000000000000000000000000000020"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
     assertSameNodesFromPaths(expectedPaths, nodes);
   }
 
@@ -227,7 +217,7 @@ public class VisitTest extends GraphTest {
           "swh:1:rel:0000000000000000000000000000000000000019"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
     assertSameNodesFromPaths(expectedPaths, nodes);
   }
 
@@ -278,7 +268,7 @@ public class VisitTest extends GraphTest {
           "swh:1:snp:0000000000000000000000000000000000000020"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
     assertSameNodesFromPaths(expectedPaths, nodes);
   }
 
@@ -297,7 +287,7 @@ public class VisitTest extends GraphTest {
           "swh:1:rev:0000000000000000000000000000000000000009"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
     assertSameNodesFromPaths(expectedPaths, nodes);
   }
 
@@ -317,7 +307,7 @@ public class VisitTest extends GraphTest {
           "swh:1:rev:0000000000000000000000000000000000000003"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
     assertSameNodesFromPaths(expectedPaths, nodes);
   }
 
@@ -405,7 +395,7 @@ public class VisitTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000001"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
     assertSameNodesFromPaths(expectedPaths, nodes);
   }
 
@@ -437,7 +427,7 @@ public class VisitTest extends GraphTest {
           "swh:1:rel:0000000000000000000000000000000000000010"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
     assertSameNodesFromPaths(expectedPaths, nodes);
   }
 
@@ -455,7 +445,7 @@ public class VisitTest extends GraphTest {
           "swh:1:snp:0000000000000000000000000000000000000020"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
     assertSameNodesFromPaths(expectedPaths, nodes);
   }
 
@@ -483,7 +473,7 @@ public class VisitTest extends GraphTest {
           "swh:1:rel:0000000000000000000000000000000000000010"
         ));
 
-    assertEqualPaths(expectedPaths, paths);
+    GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
     assertSameNodesFromPaths(expectedPaths, nodes);
   }
 
@@ -507,7 +497,7 @@ public class VisitTest extends GraphTest {
     expectedNodes.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000005"));
     expectedNodes.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000007"));
 
-    assertEqualNodes(expectedNodes, nodes);
+    GraphTest.assertEqualsAnyOrder(expectedNodes, nodes);
   }
 
   @Test
@@ -526,6 +516,6 @@ public class VisitTest extends GraphTest {
     expectedNodes.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000018"));
     expectedNodes.add(new SwhId("swh:1:rel:0000000000000000000000000000000000000019"));
 
-    assertEqualNodes(expectedNodes, nodes);
+    GraphTest.assertEqualsAnyOrder(expectedNodes, nodes);
   }
 }

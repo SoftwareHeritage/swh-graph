@@ -3,7 +3,6 @@ package org.softwareheritage.graph;
 import java.util.ArrayList;
 
 import org.junit.Test;
-import static org.junit.Assert.assertEquals;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.GraphTest;
@@ -23,7 +22,7 @@ public class LeavesTest extends GraphTest {
     expectedLeaves.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000005"));
     expectedLeaves.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000007"));
 
-    assertEquals(expectedLeaves, leaves.getLeaves());
+    GraphTest.assertEqualsAnyOrder(expectedLeaves, leaves.getLeaves());
   }
 
   @Test
@@ -41,7 +40,7 @@ public class LeavesTest extends GraphTest {
     expectedLeaves.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000007"));
     expectedLeaves.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000011"));
 
-    assertEquals(expectedLeaves, leaves.getLeaves());
+    GraphTest.assertEqualsAnyOrder(expectedLeaves, leaves.getLeaves());
   }
 
   @Test
@@ -52,14 +51,14 @@ public class LeavesTest extends GraphTest {
     Leaves leaves1 = new Leaves(graph, src1, "*", "backward");
     ArrayList<SwhId> expectedLeaves1 = new ArrayList<>();
     expectedLeaves1.add(new SwhId("swh:1:rel:0000000000000000000000000000000000000019"));
-    assertEquals(expectedLeaves1, leaves1.getLeaves());
+    GraphTest.assertEqualsAnyOrder(expectedLeaves1, leaves1.getLeaves());
 
     SwhId src2 = new SwhId("swh:1:cnt:0000000000000000000000000000000000000004");
     Leaves leaves2 = new Leaves(graph, src2, "*", "backward");
     ArrayList<SwhId> expectedLeaves2 = new ArrayList<>();
     expectedLeaves2.add(new SwhId("swh:1:snp:0000000000000000000000000000000000000020"));
     expectedLeaves2.add(new SwhId("swh:1:rel:0000000000000000000000000000000000000019"));
-    assertEquals(expectedLeaves2, leaves2.getLeaves());
+    GraphTest.assertEqualsAnyOrder(expectedLeaves2, leaves2.getLeaves());
   }
 
   @Test
@@ -71,7 +70,7 @@ public class LeavesTest extends GraphTest {
     ArrayList<SwhId> expectedLeaves = new ArrayList<>();
     expectedLeaves.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000003"));
 
-    assertEquals(expectedLeaves, leaves.getLeaves());
+    GraphTest.assertEqualsAnyOrder(expectedLeaves, leaves.getLeaves());
   }
 
   @Test
@@ -86,7 +85,7 @@ public class LeavesTest extends GraphTest {
     expectedLeaves.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000001"));
     expectedLeaves.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000007"));
 
-    assertEquals(expectedLeaves, leaves.getLeaves());
+    GraphTest.assertEqualsAnyOrder(expectedLeaves, leaves.getLeaves());
   }
 
   @Test
@@ -98,6 +97,6 @@ public class LeavesTest extends GraphTest {
     ArrayList<SwhId> expectedLeaves = new ArrayList<>();
     expectedLeaves.add(new SwhId("swh:1:dir:0000000000000000000000000000000000000012"));
 
-    assertEquals(expectedLeaves, leaves.getLeaves());
+    GraphTest.assertEqualsAnyOrder(expectedLeaves, leaves.getLeaves());
   }
 }

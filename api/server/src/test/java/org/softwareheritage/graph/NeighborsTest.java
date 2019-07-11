@@ -3,7 +3,6 @@ package org.softwareheritage.graph;
 import java.util.ArrayList;
 
 import org.junit.Test;
-import static org.junit.Assert.assertEquals;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.GraphTest;
@@ -18,23 +17,23 @@ public class NeighborsTest extends GraphTest {
 
     SwhId src1 = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
     Neighbors neighbors1 = new Neighbors(graph, src1, "*", "backward");
-    assertEquals(expectedNodes, neighbors1.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes, neighbors1.getNeighbors());
 
     SwhId src2 = new SwhId("swh:1:cnt:0000000000000000000000000000000000000004");
     Neighbors neighbors2 = new Neighbors(graph, src2, "*", "forward");
-    assertEquals(expectedNodes, neighbors2.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes, neighbors2.getNeighbors());
 
     SwhId src3 = new SwhId("swh:1:cnt:0000000000000000000000000000000000000015");
     Neighbors neighbors3 = new Neighbors(graph, src3, "*", "forward");
-    assertEquals(expectedNodes, neighbors3.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes, neighbors3.getNeighbors());
 
     SwhId src4 = new SwhId("swh:1:rel:0000000000000000000000000000000000000019");
     Neighbors neighbors4 = new Neighbors(graph, src4, "*", "backward");
-    assertEquals(expectedNodes, neighbors4.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes, neighbors4.getNeighbors());
 
     SwhId src5 = new SwhId("swh:1:dir:0000000000000000000000000000000000000008");
     Neighbors neighbors5 = new Neighbors(graph, src5, "snp:*,rev:*,rel:*", "forward");
-    assertEquals(expectedNodes, neighbors5.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes, neighbors5.getNeighbors());
   }
 
   @Test
@@ -45,25 +44,25 @@ public class NeighborsTest extends GraphTest {
     Neighbors neighbors1 = new Neighbors(graph, src1, "*", "forward");
     ArrayList<SwhId> expectedNodes1 = new ArrayList<>();
     expectedNodes1.add(new SwhId("swh:1:dir:0000000000000000000000000000000000000002"));
-    assertEquals(expectedNodes1, neighbors1.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes1, neighbors1.getNeighbors());
 
     SwhId src2 = new SwhId("swh:1:dir:0000000000000000000000000000000000000017");
     Neighbors neighbors2 = new Neighbors(graph, src2, "dir:cnt", "forward");
     ArrayList<SwhId> expectedNodes2 = new ArrayList<>();
     expectedNodes2.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000014"));
-    assertEquals(expectedNodes2, neighbors2.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes2, neighbors2.getNeighbors());
 
     SwhId src3 = new SwhId("swh:1:dir:0000000000000000000000000000000000000012");
     Neighbors neighbors3 = new Neighbors(graph, src3, "*", "backward");
     ArrayList<SwhId> expectedNodes3 = new ArrayList<>();
     expectedNodes3.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000013"));
-    assertEquals(expectedNodes3, neighbors3.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes3, neighbors3.getNeighbors());
 
     SwhId src4 = new SwhId("swh:1:rev:0000000000000000000000000000000000000009");
     Neighbors neighbors4 = new Neighbors(graph, src4, "rev:rev", "backward");
     ArrayList<SwhId> expectedNodes4 = new ArrayList<>();
     expectedNodes4.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000013"));
-    assertEquals(expectedNodes4, neighbors4.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes4, neighbors4.getNeighbors());
   }
 
   @Test
@@ -75,28 +74,28 @@ public class NeighborsTest extends GraphTest {
     ArrayList<SwhId> expectedNodes1 = new ArrayList<>();
     expectedNodes1.add(new SwhId("swh:1:rel:0000000000000000000000000000000000000010"));
     expectedNodes1.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000009"));
-    assertEquals(expectedNodes1, neighbors1.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes1, neighbors1.getNeighbors());
 
     SwhId src2 = new SwhId("swh:1:dir:0000000000000000000000000000000000000008");
     Neighbors neighbors2 = new Neighbors(graph, src2, "dir:cnt", "forward");
     ArrayList<SwhId> expectedNodes2 = new ArrayList<>();
     expectedNodes2.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000001"));
     expectedNodes2.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000007"));
-    assertEquals(expectedNodes2, neighbors2.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes2, neighbors2.getNeighbors());
 
     SwhId src3 = new SwhId("swh:1:cnt:0000000000000000000000000000000000000001");
     Neighbors neighbors3 = new Neighbors(graph, src3, "*", "backward");
     ArrayList<SwhId> expectedNodes3 = new ArrayList<>();
     expectedNodes3.add(new SwhId("swh:1:dir:0000000000000000000000000000000000000008"));
     expectedNodes3.add(new SwhId("swh:1:dir:0000000000000000000000000000000000000002"));
-    assertEquals(expectedNodes3, neighbors3.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes3, neighbors3.getNeighbors());
 
     SwhId src4 = new SwhId("swh:1:rev:0000000000000000000000000000000000000009");
     Neighbors neighbors4 = new Neighbors(graph, src4, "rev:snp,rev:rel", "backward");
     ArrayList<SwhId> expectedNodes4 = new ArrayList<>();
     expectedNodes4.add(new SwhId("swh:1:snp:0000000000000000000000000000000000000020"));
     expectedNodes4.add(new SwhId("swh:1:rel:0000000000000000000000000000000000000010"));
-    assertEquals(expectedNodes4, neighbors4.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes4, neighbors4.getNeighbors());
   }
 
   @Test
@@ -109,7 +108,7 @@ public class NeighborsTest extends GraphTest {
     expectedNodes1.add(new SwhId("swh:1:dir:0000000000000000000000000000000000000006"));
     expectedNodes1.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000001"));
     expectedNodes1.add(new SwhId("swh:1:cnt:0000000000000000000000000000000000000007"));
-    assertEquals(expectedNodes1, neighbors1.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes1, neighbors1.getNeighbors());
 
     SwhId src2 = new SwhId("swh:1:rev:0000000000000000000000000000000000000009");
     Neighbors neighbors2 = new Neighbors(graph, src2, "*", "backward");
@@ -117,6 +116,6 @@ public class NeighborsTest extends GraphTest {
     expectedNodes2.add(new SwhId("swh:1:snp:0000000000000000000000000000000000000020"));
     expectedNodes2.add(new SwhId("swh:1:rel:0000000000000000000000000000000000000010"));
     expectedNodes2.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000013"));
-    assertEquals(expectedNodes2, neighbors2.getNeighbors());
+    GraphTest.assertEqualsAnyOrder(expectedNodes2, neighbors2.getNeighbors());
   }
 }
