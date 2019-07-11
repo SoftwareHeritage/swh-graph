@@ -13,7 +13,7 @@ public class GraphTest {
 
   @BeforeClass
   public static void setUp() throws IOException {
-    Path graphPath = Paths.get("src", "test", "dataset", "graph");
+    Path graphPath = Paths.get("src", "test", "dataset", "output", "example");
     graph = new Graph(graphPath.toString());
   }
 
