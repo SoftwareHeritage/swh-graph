@@ -2,6 +2,7 @@ package org.softwareheritage.graph.backend;
 
 import java.io.IOException;
 
+import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.backend.MapFile;
 
@@ -21,12 +22,12 @@ public class NodeIdMap {
     // +1 are for spaces and end of lines
     int swhToNodeLineLength = SWH_ID_LENGTH + 1 + NODE_ID_LENGTH + 1;
     int nodeToSwhLineLength = SWH_ID_LENGTH + 1;
-    this.swhToNodeMap = new MapFile(graphPath + ".swhToNodeMap.csv", swhToNodeLineLength);
-    this.nodeToSwhMap = new MapFile(graphPath + ".nodeToSwhMap.csv", nodeToSwhLineLength);
+    this.swhToNodeMap = new MapFile(graphPath + Graph.PID_TO_NODE, swhToNodeLineLength);
+    this.nodeToSwhMap = new MapFile(graphPath + Graph.NODE_TO_PID, nodeToSwhLineLength);
   }
 
   // SWH id (string) -> WebGraph node id (long)
-  // Each line in .swhToNode.csv is formatted as: swhId nodeId
+  // Each line in PID_TO_NODE is formatted as: swhId nodeId
   // The file is sorted by swhId, hence we can binary search on swhId to get corresponding nodeId
   public long getNodeId(SwhId swhId) {
     long start = 0;
@@ -56,7 +57,7 @@ public class NodeIdMap {
   }
 
   // WebGraph node id (long) -> SWH id (string)
-  // Each line in .nodeToSwh.csv is formatted as: swhId
+  // Each line in NODE_TO_PID is formatted as: swhId
   // The file is ordered by nodeId, meaning node0's swhId is at line 0, hence we can read the
   // nodeId-th line to get corresponding swhId
   public SwhId getSwhId(long nodeId) {

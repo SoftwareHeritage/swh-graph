@@ -16,8 +16,9 @@ dockerfiles/
 *.stats
 
 # Generated node ids mapping
-*.nodeToSwhMap.csv
-*.swhToNodeMap.csv
+*.node2pid.csv
+*.pid2node.csv
+*.node2type.csv
 
 # Logs
 stdout

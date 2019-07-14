@@ -19,6 +19,7 @@ import it.unimi.dsi.fastutil.objects.ObjectBigArrays;
 import it.unimi.dsi.io.FastBufferedReader;
 import it.unimi.dsi.io.LineIterator;
 
+import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.backend.NodeTypesMap;
 
@@ -66,8 +67,8 @@ public class Setup {
     LineIterator swhIdIterator = new LineIterator(buffer);
 
     try (
-        Writer swhToNodeMap = new BufferedWriter(new FileWriter(graphPath + ".swhToNodeMap.csv"));
-        Writer nodeToSwhMap = new BufferedWriter(new FileWriter(graphPath + ".nodeToSwhMap.csv"))) {
+        Writer swhToNodeMap = new BufferedWriter(new FileWriter(graphPath + Graph.PID_TO_NODE));
+        Writer nodeToSwhMap = new BufferedWriter(new FileWriter(graphPath + Graph.NODE_TO_PID))) {
       // nodeToSwhMap needs to write SWH id in order of node id, so use a temporary array
       Object[][] nodeToSwhId = ObjectBigArrays.newBigArray(nbIds);
 
@@ -92,7 +93,7 @@ public class Setup {
         nodeTypesMap.set(nodeId, swhId.getType().ordinal());
       }
 
-      BinIO.storeObject(nodeTypesMap, graphPath + ".nodeTypesMap");
+      BinIO.storeObject(nodeTypesMap, graphPath + Graph.NODE_TO_TYPE);
 
       for (long iNode = 0; iNode < nbIds; iNode++) {
         String line = ObjectBigArrays.get(nodeToSwhId, iNode).toString() + "\n";

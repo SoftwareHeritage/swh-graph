@@ -11,6 +11,10 @@ import org.softwareheritage.graph.backend.NodeIdMap;
 import org.softwareheritage.graph.backend.NodeTypesMap;
 
 public class Graph {
+  public static final String PID_TO_NODE = ".pid2node.csv";
+  public static final String NODE_TO_PID = ".node2pid.csv";
+  public static final String NODE_TO_TYPE = ".node2type.map";
+
   BVGraph graph;
   BVGraph graphTransposed;
   String path;
