@@ -20,6 +20,7 @@ import it.unimi.dsi.io.FastBufferedReader;
 import it.unimi.dsi.io.LineIterator;
 
 import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.backend.NodeTypesMap;
 
@@ -73,8 +74,9 @@ public class Setup {
       Object[][] nodeToSwhId = ObjectBigArrays.newBigArray(nbIds);
 
       // To effectively run edge restriction during graph traversals, we store node id (long) -> SWH
-      // type map. This is represented as a bitmap where each Node.Type uses 3 bits.
-      final int nbBitsPerNodeType = 3;
+      // type map. This is represented as a bitmap using minimum number of bits per Node.Type.
+      final int log2NbTypes = (int) Math.ceil(Math.log(Node.Type.values().length) / Math.log(2));
+      final int nbBitsPerNodeType = log2NbTypes;
       LongArrayBitVector nodeTypesBitVector = LongArrayBitVector.ofLength(nbBitsPerNodeType * nbIds);
       LongBigList nodeTypesMap = nodeTypesBitVector.asLongBigList(nbBitsPerNodeType);
 
