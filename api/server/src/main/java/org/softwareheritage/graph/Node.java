@@ -12,6 +12,22 @@ public class Node {
     REV,
     SNP;
 
+    public static Node.Type fromInt(int intType) {
+      switch (intType) {
+        case 0:
+          return CNT;
+        case 1:
+          return DIR;
+        case 2:
+          return REL;
+        case 3:
+          return REV;
+        case 4:
+          return SNP;
+      }
+      return null;
+    }
+
     public static Node.Type fromStr(String strType) {
       return Node.Type.valueOf(strType.toUpperCase());
     }

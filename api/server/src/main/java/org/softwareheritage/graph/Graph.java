@@ -4,20 +4,28 @@ import java.io.IOException;
 
 import it.unimi.dsi.big.webgraph.BVGraph;
 
+import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.backend.NodeIdMap;
+import org.softwareheritage.graph.backend.NodeTypesMap;
 
 public class Graph {
+  public static final String PID_TO_NODE = ".pid2node.csv";
+  public static final String NODE_TO_PID = ".node2pid.csv";
+  public static final String NODE_TO_TYPE = ".node2type.map";
+
   BVGraph graph;
   BVGraph graphTransposed;
   String path;
   NodeIdMap nodeIdMap;
+  NodeTypesMap nodeTypesMap;
 
   public Graph(String path) throws IOException {
     this.graph = BVGraph.load(path);
     this.graphTransposed = BVGraph.load(path + "-transposed");
     this.path = path;
     this.nodeIdMap = new NodeIdMap(path, getNbNodes());
+    this.nodeTypesMap = new NodeTypesMap(path);
   }
 
   public void cleanUp() throws IOException {
@@ -34,6 +42,10 @@ public class Graph {
 
   public SwhId getSwhId(long nodeId) {
     return nodeIdMap.getSwhId(nodeId);
+  }
+
+  public Node.Type getNodeType(long nodeId) {
+    return nodeTypesMap.getType(nodeId);
   }
 
   public long getNbNodes() {
