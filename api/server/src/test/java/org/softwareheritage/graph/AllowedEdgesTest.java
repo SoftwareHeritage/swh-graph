@@ -6,9 +6,10 @@ import org.junit.Test;
 import static org.junit.Assert.assertTrue;
 
 import org.softwareheritage.graph.AllowedEdges;
+import org.softwareheritage.graph.GraphTest;
 import org.softwareheritage.graph.Node;
 
-public class AllowedEdgesTest {
+public class AllowedEdgesTest extends GraphTest {
   class EdgeType {
     Node.Type src;
     Node.Type dst;
@@ -49,7 +50,8 @@ public class AllowedEdgesTest {
 
   @Test
   public void dirToDirDirToCntEdges() {
-    AllowedEdges edges = new AllowedEdges("dir:dir,dir:cnt");
+    Graph graph = getGraph();
+    AllowedEdges edges = new AllowedEdges(graph, "dir:dir,dir:cnt");
     ArrayList<EdgeType> expected = new ArrayList<>();
     expected.add(new EdgeType(Node.Type.DIR, Node.Type.DIR));
     expected.add(new EdgeType(Node.Type.DIR, Node.Type.CNT));
@@ -58,7 +60,8 @@ public class AllowedEdgesTest {
 
   @Test
   public void relToRevRevToRevRevToDirEdges() {
-    AllowedEdges edges = new AllowedEdges("rel:rev,rev:rev,rev:dir");
+    Graph graph = getGraph();
+    AllowedEdges edges = new AllowedEdges(graph, "rel:rev,rev:rev,rev:dir");
     ArrayList<EdgeType> expected = new ArrayList<>();
     expected.add(new EdgeType(Node.Type.REL, Node.Type.REV));
     expected.add(new EdgeType(Node.Type.REV, Node.Type.REV));
@@ -68,7 +71,8 @@ public class AllowedEdgesTest {
 
   @Test
   public void revToAllDirToDirEdges() {
-    AllowedEdges edges = new AllowedEdges("rev:*,dir:dir");
+    Graph graph = getGraph();
+    AllowedEdges edges = new AllowedEdges(graph, "rev:*,dir:dir");
     ArrayList<EdgeType> expected = new ArrayList<>();
     for (Node.Type dst : Node.Type.values()) {
       expected.add(new EdgeType(Node.Type.REV, dst));
@@ -79,7 +83,8 @@ public class AllowedEdgesTest {
 
   @Test
   public void allToCntEdges() {
-    AllowedEdges edges = new AllowedEdges("*:cnt");
+    Graph graph = getGraph();
+    AllowedEdges edges = new AllowedEdges(graph, "*:cnt");
     ArrayList<EdgeType> expected = new ArrayList<>();
     for (Node.Type src : Node.Type.values()) {
       expected.add(new EdgeType(src, Node.Type.CNT));
@@ -89,8 +94,9 @@ public class AllowedEdgesTest {
 
   @Test
   public void allEdges() {
-    AllowedEdges edges = new AllowedEdges("*:*");
-    AllowedEdges edges2 = new AllowedEdges("*");
+    Graph graph = getGraph();
+    AllowedEdges edges = new AllowedEdges(graph, "*:*");
+    AllowedEdges edges2 = new AllowedEdges(graph, "*");
     ArrayList<EdgeType> expected = new ArrayList<>();
     for (Node.Type src : Node.Type.values()) {
       for (Node.Type dst : Node.Type.values()) {
@@ -103,8 +109,9 @@ public class AllowedEdgesTest {
 
   @Test
   public void noEdges() {
-    AllowedEdges edges = new AllowedEdges("");
-    AllowedEdges edges2 = new AllowedEdges(null);
+    Graph graph = getGraph();
+    AllowedEdges edges = new AllowedEdges(graph, "");
+    AllowedEdges edges2 = new AllowedEdges(graph, null);
     ArrayList<EdgeType> expected = new ArrayList<>();
     assertEdgeRestriction(edges, expected);
     assertEdgeRestriction(edges2, expected);

@@ -2,13 +2,17 @@ package org.softwareheritage.graph;
 
 import java.util.ArrayList;
 
+import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
 
 public class AllowedEdges {
+  Graph graph;
   // First dimension is source node type, second dimension is destination node type
   boolean[][] allowed;
 
-  public AllowedEdges(String edgesFmt) {
+  public AllowedEdges(Graph graph, String edgesFmt) {
+    this.graph = graph;
+
     int nbNodeTypes = Node.Type.values().length;
     this.allowed = new boolean[nbNodeTypes][nbNodeTypes];
     // Special values (null, empty, "*")
@@ -42,7 +46,13 @@ public class AllowedEdges {
     }
   }
 
-  public boolean isAllowed(Node.Type currentType, Node.Type neighborType) {
-    return allowed[currentType.ordinal()][neighborType.ordinal()];
+  public boolean isAllowed(long srcNodeId, long dstNodeId) {
+    Node.Type srcType = graph.getNodeType(srcNodeId);
+    Node.Type dstType = graph.getNodeType(dstNodeId);
+    return isAllowed(srcType, dstType);
+  }
+
+  public boolean isAllowed(Node.Type srcType, Node.Type dstType) {
+    return allowed[srcType.ordinal()][dstType.ordinal()];
   }
 }

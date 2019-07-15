@@ -67,9 +67,8 @@ public class Setup {
     FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(nodesStream, "UTF-8"));
     LineIterator swhIdIterator = new LineIterator(buffer);
 
-    try (
-        Writer swhToNodeMap = new BufferedWriter(new FileWriter(graphPath + Graph.PID_TO_NODE));
-        Writer nodeToSwhMap = new BufferedWriter(new FileWriter(graphPath + Graph.NODE_TO_PID))) {
+    try (Writer swhToNodeMap = new BufferedWriter(new FileWriter(graphPath + Graph.PID_TO_NODE));
+         Writer nodeToSwhMap = new BufferedWriter(new FileWriter(graphPath + Graph.NODE_TO_PID))) {
       // nodeToSwhMap needs to write SWH id in order of node id, so use a temporary array
       Object[][] nodeToSwhId = ObjectBigArrays.newBigArray(nbIds);
 
@@ -77,7 +76,8 @@ public class Setup {
       // type map. This is represented as a bitmap using minimum number of bits per Node.Type.
       final int log2NbTypes = (int) Math.ceil(Math.log(Node.Type.values().length) / Math.log(2));
       final int nbBitsPerNodeType = log2NbTypes;
-      LongArrayBitVector nodeTypesBitVector = LongArrayBitVector.ofLength(nbBitsPerNodeType * nbIds);
+      LongArrayBitVector nodeTypesBitVector =
+          LongArrayBitVector.ofLength(nbBitsPerNodeType * nbIds);
       LongBigList nodeTypesMap = nodeTypesBitVector.asLongBigList(nbBitsPerNodeType);
 
       for (long iNode = 0; iNode < nbIds && swhIdIterator.hasNext(); iNode++) {

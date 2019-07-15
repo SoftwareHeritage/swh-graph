@@ -13,7 +13,6 @@ import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Neighbors;
 import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.SwhId;
 
 public class Traversal {
   Graph graph;
@@ -32,82 +31,26 @@ public class Traversal {
 
     this.graph = graph;
     this.useTransposed = (direction.equals("backward"));
-    this.edges = new AllowedEdges(edgesFmt);
+    this.edges = new AllowedEdges(graph, edgesFmt);
 
     long nbNodes = graph.getNbNodes();
     this.visited = LongArrayBitVector.ofLength(nbNodes);
     this.nodeParent = LongBigArrays.newBigArray(nbNodes);
   }
 
-  // TODO: better separation between internal/external ids (waiting on node types map to be merged)
-  private ArrayList<SwhId> convertToSwhIds(ArrayList<Long> nodeIds) {
-    ArrayList<SwhId> swhIds = new ArrayList<SwhId>();
-    for (long nodeId : nodeIds) {
-      swhIds.add(graph.getSwhId(nodeId));
-    }
-    return swhIds;
-  }
-
-  public ArrayList<SwhId> leavesEndpoint(SwhId src) {
-    long nodeId = graph.getNodeId(src);
-    ArrayList<Long> leavesNodeIds = leavesInternalEndpoint(nodeId);
-    return convertToSwhIds(leavesNodeIds);
-  }
-
-  public ArrayList<SwhId> neighborsEndpoint(SwhId src) {
-    long nodeId = graph.getNodeId(src);
-    ArrayList<Long> neighborsNodeIds = neighborsInternalEndpoint(nodeId);
-    return convertToSwhIds(neighborsNodeIds);
-  }
-
-  public ArrayList<SwhId> walkEndpoint(SwhId src, String dstFmt, String traversal) {
-    if (!traversal.matches("dfs|bfs")) {
-      throw new IllegalArgumentException("Unknown traversal algorithm: " + traversal);
-    }
-
-    long srcNodeId = graph.getNodeId(src);
-    long dstNodeId = (traversal.equals("dfs")) ? dfs(srcNodeId, dstFmt) : bfs(srcNodeId, dstFmt);
-    if (dstNodeId == -1) {
-      throw new IllegalArgumentException("Unable to find destination point: " + dstFmt);
-    }
-
-    ArrayList<Long> path = backtracking(srcNodeId, dstNodeId);
-    return convertToSwhIds(path);
-  }
-
-  public ArrayList<SwhId> visitNodesEndpoint(SwhId src) {
-    long nodeId = graph.getNodeId(src);
-    ArrayList<Long> nodes = visitNodesInternalEndpoint(nodeId);
-    return convertToSwhIds(nodes);
-  }
-
-  public ArrayList<ArrayList<SwhId>> visitPathsEndpoint(SwhId src) {
-    long nodeId = graph.getNodeId(src);
-    ArrayList<ArrayList<Long>> pathNodeIds = new ArrayList<>();
-    Stack<Long> currentPath = new Stack<Long>();
-    visitPathsInternalEndpoint(nodeId, pathNodeIds, currentPath);
-
-    ArrayList<ArrayList<SwhId>> paths = new ArrayList<>();
-    for (ArrayList<Long> nodeIds : pathNodeIds) {
-      paths.add(convertToSwhIds(nodeIds));
-    }
-    return paths;
-  }
-
-  private ArrayList<Long> leavesInternalEndpoint(long srcNodeId) {
-    ArrayList<Long> leaves = new ArrayList<Long>();
+  public ArrayList<Long> leaves(long srcNodeId) {
+    ArrayList<Long> nodeIds = new ArrayList<Long>();
     Stack<Long> stack = new Stack<Long>();
-    this.visited.clear();
+    this.visited.fill(false);
 
     stack.push(srcNodeId);
     visited.set(srcNodeId);
 
     while (!stack.isEmpty()) {
       long currentNodeId = stack.pop();
-      SwhId currentSwhId = graph.getSwhId(currentNodeId);
 
       long neighborsCnt = 0;
-      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentSwhId)) {
+      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
         neighborsCnt++;
         if (!visited.getBoolean(neighborNodeId)) {
           stack.push(neighborNodeId);
@@ -116,44 +59,58 @@ public class Traversal {
       }
 
       if (neighborsCnt == 0) {
-        leaves.add(currentNodeId);
+        nodeIds.add(currentNodeId);
       }
     }
 
-    return leaves;
+    return nodeIds;
   }
 
-  private ArrayList<Long> neighborsInternalEndpoint(long srcNodeId) {
-    SwhId srcSwhId = graph.getSwhId(srcNodeId);
-    ArrayList<Long> neighbors = new ArrayList<Long>();
-    for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, srcSwhId)) {
-      neighbors.add(neighborNodeId);
+  public ArrayList<Long> neighbors(long srcNodeId) {
+    ArrayList<Long> nodeIds = new ArrayList<Long>();
+    for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, srcNodeId)) {
+      nodeIds.add(neighborNodeId);
     }
-    return neighbors;
+    return nodeIds;
   }
 
-  private ArrayList<Long> visitNodesInternalEndpoint(long srcNodeId) {
-    // No specific destination point
-    String dstFmt = null;
-    dfs(srcNodeId, dstFmt);
+  public ArrayList<Long> visitNodes(long srcNodeId) {
+    ArrayList<Long> nodeIds = new ArrayList<Long>();
+    Stack<Long> stack = new Stack<Long>();
+    this.visited.fill(false);
 
-    ArrayList<Long> nodes = new ArrayList<Long>();
-    for (long nodeId = 0; nodeId < graph.getNbNodes(); nodeId++) {
-      if (this.visited.getBoolean(nodeId)) {
-        nodes.add(nodeId);
+    stack.push(srcNodeId);
+    visited.set(srcNodeId);
+
+    while (!stack.isEmpty()) {
+      long currentNodeId = stack.pop();
+      nodeIds.add(currentNodeId);
+
+      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+        if (!visited.getBoolean(neighborNodeId)) {
+          stack.push(neighborNodeId);
+          visited.set(neighborNodeId);
+        }
       }
     }
-    return nodes;
+
+    return nodeIds;
   }
 
-  private void visitPathsInternalEndpoint(
+  public ArrayList<ArrayList<Long>> visitPaths(long srcNodeId) {
+    ArrayList<ArrayList<Long>> paths = new ArrayList<>();
+    Stack<Long> currentPath = new Stack<Long>();
+    visitPathsInternal(srcNodeId, paths, currentPath);
+    return paths;
+  }
+
+  private void visitPathsInternal(
       long currentNodeId, ArrayList<ArrayList<Long>> paths, Stack<Long> currentPath) {
-    SwhId currentSwhId = graph.getSwhId(currentNodeId);
     currentPath.push(currentNodeId);
 
     long visitedNeighbors = 0;
-    for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentSwhId)) {
-      visitPathsInternalEndpoint(neighborNodeId, paths, currentPath);
+    for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+      visitPathsInternal(neighborNodeId, paths, currentPath);
       visitedNeighbors++;
     }
 
@@ -168,33 +125,38 @@ public class Traversal {
     currentPath.pop();
   }
 
-  private ArrayList<Long> backtracking(long srcNodeId, long dstNodeId) {
-    ArrayList<Long> path = new ArrayList<Long>();
-    long currentNodeId = dstNodeId;
-    while (currentNodeId != srcNodeId) {
-      path.add(currentNodeId);
-      currentNodeId = LongBigArrays.get(nodeParent, currentNodeId);
+  public <T> ArrayList<Long> walk(long srcNodeId, T dst, String algorithm) {
+    long dstNodeId = -1;
+    if (algorithm.equals("dfs")) {
+      dstNodeId = walkInternalDfs(srcNodeId, dst);
+    } else if (algorithm.equals("bfs")) {
+      dstNodeId = walkInternalBfs(srcNodeId, dst);
+    } else {
+      throw new IllegalArgumentException("Unknown traversal algorithm: " + algorithm);
     }
-    path.add(srcNodeId);
-    Collections.reverse(path);
-    return path;
+
+    if (dstNodeId == -1) {
+      throw new IllegalArgumentException("Unable to find destination point: " + dst);
+    }
+
+    ArrayList<Long> nodeIds = backtracking(srcNodeId, dstNodeId);
+    return nodeIds;
   }
 
-  private long dfs(long srcNodeId, String dstFmt) {
+  private <T> long walkInternalDfs(long srcNodeId, T dst) {
     Stack<Long> stack = new Stack<Long>();
-    this.visited.clear();
+    this.visited.fill(false);
 
     stack.push(srcNodeId);
     visited.set(srcNodeId);
 
     while (!stack.isEmpty()) {
       long currentNodeId = stack.pop();
-      SwhId currentSwhId = graph.getSwhId(currentNodeId);
-      if (isDestinationNode(currentSwhId, dstFmt)) {
+      if (isDstNode(currentNodeId, dst)) {
         return currentNodeId;
       }
 
-      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentSwhId)) {
+      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
         if (!visited.getBoolean(neighborNodeId)) {
           stack.push(neighborNodeId);
           visited.set(neighborNodeId);
@@ -206,21 +168,20 @@ public class Traversal {
     return -1;
   }
 
-  private long bfs(long srcNodeId, String dstFmt) {
+  private <T> long walkInternalBfs(long srcNodeId, T dst) {
     Queue<Long> queue = new LinkedList<Long>();
-    this.visited.clear();
+    this.visited.fill(false);
 
     queue.add(srcNodeId);
     visited.set(srcNodeId);
 
     while (!queue.isEmpty()) {
       long currentNodeId = queue.poll();
-      SwhId currentSwhId = graph.getSwhId(currentNodeId);
-      if (isDestinationNode(currentSwhId, dstFmt)) {
+      if (isDstNode(currentNodeId, dst)) {
         return currentNodeId;
       }
 
-      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentSwhId)) {
+      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
         if (!visited.getBoolean(neighborNodeId)) {
           queue.add(neighborNodeId);
           visited.set(neighborNodeId);
@@ -232,23 +193,27 @@ public class Traversal {
     return -1;
   }
 
-  private boolean isDestinationNode(SwhId swhId, String dstFmt) {
-    // No destination node, early exit
-    if (dstFmt == null) {
+  private <T> boolean isDstNode(long nodeId, T dst) {
+    if (dst instanceof Long) {
+      long dstNodeId = (Long) dst;
+      return nodeId == dstNodeId;
+    } else if (dst instanceof Node.Type) {
+      Node.Type dstType = (Node.Type) dst;
+      return graph.getNodeType(nodeId) == dstType;
+    } else {
       return false;
     }
+  }
 
-    // SwhId as destination node
-    if (swhId.toString().equals(dstFmt)) {
-      return true;
+  private ArrayList<Long> backtracking(long srcNodeId, long dstNodeId) {
+    ArrayList<Long> path = new ArrayList<Long>();
+    long currentNodeId = dstNodeId;
+    while (currentNodeId != srcNodeId) {
+      path.add(currentNodeId);
+      currentNodeId = LongBigArrays.get(nodeParent, currentNodeId);
     }
-
-    // Node.Type as destination node
-    try {
-      Node.Type dstType = Node.Type.fromStr(dstFmt);
-      return (swhId.getType().equals(dstType));
-    } catch (IllegalArgumentException e) {
-      return false;
-    }
+    path.add(srcNodeId);
+    Collections.reverse(path);
+    return path;
   }
 }

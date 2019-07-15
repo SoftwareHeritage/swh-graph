@@ -2,9 +2,9 @@ package org.softwareheritage.graph.benchmark;
 
 import java.io.IOException;
 
+import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
-import org.softwareheritage.graph.algo.Traversal;
 
 public class LinuxLog {
   public static void main(String[] args) throws IOException {
@@ -18,8 +18,8 @@ public class LinuxLog {
     System.out.println("Expecting " + expectedCount + " commits");
 
     long startTime = System.nanoTime();
-    Traversal traversal = new Traversal(graph, "forward", "rev:rev");
-    long count = traversal.visitNodesEndpoint(commit).size();
+    Endpoint endpoint = new Endpoint(graph, "forward", "rev:rev");
+    long count = endpoint.visitNodes(commit).size();
     if (count != expectedCount) {
       throw new IllegalArgumentException("Counted " + count + " commits");
     }

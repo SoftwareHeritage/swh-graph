@@ -10,10 +10,10 @@ import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.plugin.json.JavalinJackson;
 
+import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.algo.Stats;
-import org.softwareheritage.graph.algo.Traversal;
 
 public class App {
   public static void main(String[] args) throws IOException {
@@ -55,8 +55,8 @@ public class App {
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
-      Traversal traversal = new Traversal(graph, direction, edgesFmt);
-      ctx.json(traversal.leavesEndpoint(src));
+      Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
+      ctx.json(endpoint.leaves(src));
     });
 
     app.get("/neighbors/:src", ctx -> {
@@ -64,8 +64,8 @@ public class App {
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
-      Traversal traversal = new Traversal(graph, direction, edgesFmt);
-      ctx.json(traversal.neighborsEndpoint(src));
+      Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
+      ctx.json(endpoint.neighbors(src));
     });
 
     // TODO: anonymous class to return both nodes/paths? (waiting on node types map merged/refactor)
@@ -83,8 +83,8 @@ public class App {
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
-      Traversal traversal = new Traversal(graph, direction, edgesFmt);
-      ctx.json(traversal.visitNodesEndpoint(src));
+      Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
+      ctx.json(endpoint.visitNodes(src));
     });
 
     app.get("/visit/paths/:src", ctx -> {
@@ -92,8 +92,8 @@ public class App {
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
-      Traversal traversal = new Traversal(graph, direction, edgesFmt);
-      ctx.json(traversal.visitPathsEndpoint(src));
+      Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
+      ctx.json(endpoint.visitPaths(src));
     });
 
     app.get("/walk/:src/:dst", ctx -> {
@@ -103,8 +103,8 @@ public class App {
       String edgesFmt = ctx.queryParam("edges", "*");
       String algorithm = ctx.queryParam("traversal", "dfs");
 
-      Traversal traversal = new Traversal(graph, direction, edgesFmt);
-      ctx.json(traversal.walkEndpoint(src, dstFmt, algorithm));
+      Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
+      ctx.json(endpoint.walk(src, dstFmt, algorithm));
     });
 
     app.exception(IllegalArgumentException.class, (e, ctx) -> {

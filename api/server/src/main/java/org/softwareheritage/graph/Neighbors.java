@@ -6,19 +6,18 @@ import it.unimi.dsi.fastutil.longs.LongBigArrays;
 
 import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.SwhId;
 
 public class Neighbors implements Iterable<Long> {
   Graph graph;
   boolean useTransposed;
   AllowedEdges edges;
-  SwhId src;
+  long srcNodeId;
 
-  public Neighbors(Graph graph, boolean useTransposed, AllowedEdges edges, SwhId src) {
+  public Neighbors(Graph graph, boolean useTransposed, AllowedEdges edges, long srcNodeId) {
     this.graph = graph;
     this.useTransposed = useTransposed;
     this.edges = edges;
-    this.src = src;
+    this.srcNodeId = srcNodeId;
   }
 
   @Override
@@ -32,8 +31,6 @@ public class Neighbors implements Iterable<Long> {
     long[][] neighbors;
 
     public NeighborsIterator() {
-      long srcNodeId = graph.getNodeId(src);
-
       this.nextNeighborIdx = -1;
       this.nbNeighbors = graph.degree(srcNodeId, useTransposed);
       this.neighbors = graph.neighbors(srcNodeId, useTransposed);
@@ -43,8 +40,7 @@ public class Neighbors implements Iterable<Long> {
     public boolean hasNext() {
       for (long lookAheadIdx = nextNeighborIdx + 1; lookAheadIdx < nbNeighbors; lookAheadIdx++) {
         long nextNodeId = LongBigArrays.get(neighbors, lookAheadIdx);
-        SwhId nextSwhId = graph.getSwhId(nextNodeId);
-        if (edges.isAllowed(src.getType(), nextSwhId.getType())) {
+        if (edges.isAllowed(srcNodeId, nextNodeId)) {
           nextNeighborIdx = lookAheadIdx;
           return true;
         }
