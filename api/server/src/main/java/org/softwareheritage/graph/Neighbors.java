@@ -7,12 +7,32 @@ import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Graph;
 
+/**
+ * Iterator class to go over a node neighbors in the graph.
+ *
+ * @author Thibault Allançon
+ * @version 1.0
+ * @since 1.0
+ */
+
 public class Neighbors implements Iterable<Long> {
+  /** Graph used to explore neighbors */
   Graph graph;
+  /** Boolean to specify the use of the transposed graph */
   boolean useTransposed;
+  /** Graph edge restriction */
   AllowedEdges edges;
+  /** Source node from which neighbors will be listed */
   long srcNodeId;
 
+  /**
+   * Constructor.
+   *
+   * @param graph graph used to explore neighbors
+   * @param useTransposed boolean value to use transposed graph
+   * @param edges edges allowed to be used in the graph
+   * @param srcNodeId source node from where to list neighbors
+   */
   public Neighbors(Graph graph, boolean useTransposed, AllowedEdges edges, long srcNodeId) {
     this.graph = graph;
     this.useTransposed = useTransposed;
@@ -24,6 +44,14 @@ public class Neighbors implements Iterable<Long> {
   public Iterator<Long> iterator() {
     return new NeighborsIterator();
   }
+
+  /**
+  * Inner class for {@link Neighbors} iterator.
+  *
+  * @author Thibault Allançon
+  * @version 1.0
+  * @since 1.0
+  */
 
   public class NeighborsIterator implements Iterator<Long> {
     long nextNeighborIdx;

@@ -4,6 +4,14 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
 
+/**
+ * Statistics on the compressed graph.
+ *
+ * @author Thibault Allançon
+ * @version 1.0
+ * @since 1.0
+ */
+
 public class Stats {
   public class Counts {
     public long nodes;
@@ -28,6 +36,11 @@ public class Stats {
   public Degree indegree;
   public Degree outdegree;
 
+  /**
+   * Constructor.
+   *
+   * @param graphPath full path of compressed graph
+   */
   public Stats(String graphPath) throws IOException {
     Properties properties = new Properties();
     properties.load(new FileInputStream(graphPath + ".properties"));

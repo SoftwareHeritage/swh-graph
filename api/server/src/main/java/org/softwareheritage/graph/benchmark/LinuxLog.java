@@ -6,6 +6,14 @@ import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
 
+/**
+ * Linux git log experiment to benchmark graph traversal.
+ *
+ * @author Thibault Allançon
+ * @version 1.0
+ * @since 1.0
+ */
+
 public class LinuxLog {
   public static void main(String[] args) throws IOException {
     String path = args[0];

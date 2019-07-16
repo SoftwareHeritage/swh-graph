@@ -5,11 +5,29 @@ import java.util.ArrayList;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
 
+/**
+ * Edge restriction based on node types, used when visiting the graph.
+ *
+ * @author Thibault Allançon
+ * @version 1.0
+ * @since 1.0
+ */
+
 public class AllowedEdges {
+  /** Graph on which edge restriction is performed */
   Graph graph;
-  // First dimension is source node type, second dimension is destination node type
+  /**
+   * 2D boolean matrix storing access rights for all combination of src/dst node types (first
+   * dimension is source, second dimension is destination)
+   */
   boolean[][] allowed;
 
+  /**
+   * Constructor.
+   *
+   * @param graph the graph on which to perform edge restriction
+   * @param edgesFmt a formatted string describing allowed edges (TODO: link API doc)
+   */
   public AllowedEdges(Graph graph, String edgesFmt) {
     this.graph = graph;
 
@@ -29,6 +47,7 @@ public class AllowedEdges {
     }
 
     // Format: "src1:dst1,src2:dst2,[...]"
+    // TODO: link API doc
     String[] edgeTypes = edgesFmt.split(",");
     for (String edgeType : edgeTypes) {
       String[] nodeTypes = edgeType.split(":");
@@ -46,12 +65,25 @@ public class AllowedEdges {
     }
   }
 
+  /**
+   * Checks if a given edge can be followed during graph traversal.
+   *
+   * @param srcNodeId edge source node
+   * @param dstNodeId edge destination node
+   * @return true if allowed and false otherwise
+   */
   public boolean isAllowed(long srcNodeId, long dstNodeId) {
     Node.Type srcType = graph.getNodeType(srcNodeId);
     Node.Type dstType = graph.getNodeType(dstNodeId);
     return isAllowed(srcType, dstType);
   }
 
+  /**
+   * Works like {@link AllowedEdges#isAllowed(long, long)} but with node types directly instead of
+   * node ids.
+   *
+   * @see AllowedEdges#isAllowed(long, long)
+   */
   public boolean isAllowed(Node.Type srcType, Node.Type dstType) {
     return allowed[srcType.ordinal()][dstType.ordinal()];
   }

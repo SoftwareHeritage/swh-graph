@@ -7,10 +7,29 @@ import java.nio.channels.FileChannel;
 
 import it.unimi.dsi.io.ByteBufferInputStream;
 
+/**
+ * Wrapper class around very big mmap()-ed file.
+ *
+ * @author Thibault Allançon
+ * @version 1.0
+ * @since 1.0
+ */
+
 public class MapFile {
+  /**
+   * Memory-mapped file buffer
+   * @see it.unimi.dsi.io.ByteBufferInputStream
+   */
   ByteBufferInputStream bufferMap;
+  /** Fixed line length of the mmap()-ed file */
   int lineLength;
 
+  /**
+   * Constructor.
+   *
+   * @param path file path to mmap()
+   * @param lineLength fixed length of a line in the file
+   */
   public MapFile(String path, int lineLength) throws IOException {
     this.bufferMap = null;
     this.lineLength = lineLength;
@@ -21,6 +40,12 @@ public class MapFile {
     }
   }
 
+  /**
+   * Returns a specific line in the file.
+   *
+   * @param lineIndex line number in the file
+   * @return the line at the specified position
+   */
   public String readAtLine(long lineIndex) {
     byte[] buffer = new byte[lineLength];
     long position = lineIndex * (long) lineLength;
@@ -30,6 +55,9 @@ public class MapFile {
     return line.trim();
   }
 
+  /**
+   * Closes the mmap()-ed file.
+   */
   public void close() throws IOException {
     bufferMap.close();
   }

@@ -14,16 +14,40 @@ import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Neighbors;
 import org.softwareheritage.graph.Node;
 
+/**
+ * Traversal algorithms on the compressed graph.
+ *
+ * @author Thibault Allançon
+ * @version 1.0
+ * @since 1.0
+ */
+
 public class Traversal {
+  /** Graph used in the traversal */
   Graph graph;
+  /** Boolean to specify the use of the transposed graph */
   boolean useTransposed;
+  /** Graph edge restriction */
   AllowedEdges edges;
 
-  // Big array storing if we have visited a node
+  /**
+   * Bit array storing if we have visited a node
+   * @see it.unimi.dsi.bits.LongArrayBitVector
+   */
   LongArrayBitVector visited;
-  // Big array storing parents to retrieve the path when backtracking
+  /**
+   * Array storing parent node id for each nodes during a traversal
+   * @see it.unimi.dsi.fastutil.longs.LongBigArrays
+   */
   long[][] nodeParent;
 
+  /**
+   * Constructor.
+   *
+   * @param graph graph used in the traversal
+   * @param direction a string (either "forward" or "backward") specifying edge orientation
+   * @param edgesFmt a formatted string describing allowed edges (TODO: link API doc)
+   */
   public Traversal(Graph graph, String direction, String edgesFmt) {
     if (!direction.matches("forward|backward")) {
       throw new IllegalArgumentException("Unknown traversal direction: " + direction);
@@ -38,6 +62,12 @@ public class Traversal {
     this.nodeParent = LongBigArrays.newBigArray(nbNodes);
   }
 
+  /**
+   * Returns the leaves of a subgraph rooted at the specified source node.
+   *
+   * @param srcNodeId source node
+   * @return list of node ids corresponding to the leaves
+   */
   public ArrayList<Long> leaves(long srcNodeId) {
     ArrayList<Long> nodeIds = new ArrayList<Long>();
     Stack<Long> stack = new Stack<Long>();
@@ -66,6 +96,12 @@ public class Traversal {
     return nodeIds;
   }
 
+  /**
+   * Returns node direct neighbors (linked with exactly one edge).
+   *
+   * @param srcNodeId source node
+   * @return list of node ids corresponding to the neighbors
+   */
   public ArrayList<Long> neighbors(long srcNodeId) {
     ArrayList<Long> nodeIds = new ArrayList<Long>();
     for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, srcNodeId)) {
@@ -74,6 +110,12 @@ public class Traversal {
     return nodeIds;
   }
 
+  /**
+   * Performs a graph traversal and returns explored nodes.
+   *
+   * @param srcNodeId source node
+   * @return list of explored node ids
+   */
   public ArrayList<Long> visitNodes(long srcNodeId) {
     ArrayList<Long> nodeIds = new ArrayList<Long>();
     Stack<Long> stack = new Stack<Long>();
@@ -97,6 +139,12 @@ public class Traversal {
     return nodeIds;
   }
 
+  /**
+   * Performs a graph traversal and returns explored paths.
+   *
+   * @param srcNodeId source node
+   * @return list of explored paths (represented as a list of node ids)
+   */
   public ArrayList<ArrayList<Long>> visitPaths(long srcNodeId) {
     ArrayList<ArrayList<Long>> paths = new ArrayList<>();
     Stack<Long> currentPath = new Stack<Long>();
@@ -104,6 +152,13 @@ public class Traversal {
     return paths;
   }
 
+  /**
+   * Internal recursive function of {@link #visitPaths}.
+   *
+   * @param currentNodeId current node
+   * @param paths list of currently stored paths
+   * @param currentPath current path as node ids
+   */
   private void visitPathsInternal(
       long currentNodeId, ArrayList<ArrayList<Long>> paths, Stack<Long> currentPath) {
     currentPath.push(currentNodeId);
@@ -125,6 +180,13 @@ public class Traversal {
     currentPath.pop();
   }
 
+  /**
+   * Performs a graph traversal and returns the first found path from source to destination.
+   *
+   * @param srcNodeId source node
+   * @param dst destination (either a node or a node type)
+   * @return found path as a list of node ids
+   */
   public <T> ArrayList<Long> walk(long srcNodeId, T dst, String algorithm) {
     long dstNodeId = -1;
     if (algorithm.equals("dfs")) {
@@ -143,6 +205,13 @@ public class Traversal {
     return nodeIds;
   }
 
+  /**
+   * Internal DFS function of {@link #walk}.
+   *
+   * @param srcNodeId source node
+   * @param dst destination (either a node or a node type)
+   * @return final destination node or -1 if no path found
+   */
   private <T> long walkInternalDfs(long srcNodeId, T dst) {
     Stack<Long> stack = new Stack<Long>();
     this.visited.fill(false);
@@ -168,6 +237,13 @@ public class Traversal {
     return -1;
   }
 
+  /**
+   * Internal BFS function of {@link #walk}.
+   *
+   * @param srcNodeId source node
+   * @param dst destination (either a node or a node type)
+   * @return final destination node or -1 if no path found
+   */
   private <T> long walkInternalBfs(long srcNodeId, T dst) {
     Queue<Long> queue = new LinkedList<Long>();
     this.visited.fill(false);
@@ -193,6 +269,13 @@ public class Traversal {
     return -1;
   }
 
+  /**
+   * Internal function of {@link #walk} to check if a node corresponds to the destination.
+   *
+   * @param nodeId current node
+   * @param dst destination (either a node or a node type)
+   * @return true if the node is a destination, or false otherwise
+   */
   private <T> boolean isDstNode(long nodeId, T dst) {
     if (dst instanceof Long) {
       long dstNodeId = (Long) dst;
@@ -205,6 +288,13 @@ public class Traversal {
     }
   }
 
+  /**
+   * Internal backtracking function of {@link #walk}.
+   *
+   * @param srcNodeId source node
+   * @param dstNodeId destination node
+   * @return the found path, as a list of node ids
+   */
   private ArrayList<Long> backtracking(long srcNodeId, long dstNodeId) {
     ArrayList<Long> path = new ArrayList<Long>();
     long currentNodeId = dstNodeId;

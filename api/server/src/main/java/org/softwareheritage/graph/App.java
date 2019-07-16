@@ -15,6 +15,14 @@ import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.algo.Stats;
 
+/**
+ * Entrypoint of the swh-graph server REST API.
+ *
+ * @author Thibault Allançon
+ * @version 1.0
+ * @since 1.0
+ */
+
 public class App {
   public static void main(String[] args) throws IOException {
     String path = args[0];

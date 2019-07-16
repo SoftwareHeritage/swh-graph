@@ -24,6 +24,14 @@ import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.backend.NodeTypesMap;
 
+/**
+ * Pre-processing steps (such as dumping mapping files on disk) before running the graph service.
+ *
+ * @author Thibault Allançon
+ * @version 1.0
+ * @since 1.0
+ */
+
 public class Setup {
   public static void main(String[] args) throws IOException {
     if (args.length != 2) {
@@ -42,6 +50,12 @@ public class Setup {
     System.out.println("Done in: " + duration + " seconds");
   }
 
+  /**
+   * Computes and dumps on disk mapping files.
+   *
+   * @param nodesPath path of the compressed csv nodes file
+   * @param graphPath path of the compressed graph
+   */
   // Suppress warning for Object2LongFunction cast
   @SuppressWarnings("unchecked")
   static void precomputeNodeIdMap(String nodesPath, String graphPath) throws IOException {

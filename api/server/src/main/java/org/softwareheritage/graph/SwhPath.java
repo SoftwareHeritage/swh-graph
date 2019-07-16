@@ -6,13 +6,30 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 import org.softwareheritage.graph.SwhId;
 
+/**
+ * Wrapper class to store a list of {@link SwhId}.
+ *
+ * @author Thibault Allançon
+ * @version 1.0
+ * @since 1.0
+ * @see org.softwareheritage.graph.SwhId
+ */
+
 public class SwhPath {
   ArrayList<SwhId> path;
 
+  /**
+   * Constructor.
+   */
   public SwhPath() {
     this.path = new ArrayList<SwhId>();
   }
 
+  /**
+   * Constructor.
+   *
+   * @param swhIds variable number of string PIDs to initialize this path with
+   */
   public SwhPath(String ...swhIds) {
     this();
     for (String swhId : swhIds) {
@@ -20,6 +37,12 @@ public class SwhPath {
     }
   }
 
+  /**
+   * Constructor.
+   *
+   * @param swhIds variable number of @{link SwhId} to initialize this path with
+   * @see org.softwareheritage.graph.SwhId
+   */
   public SwhPath(SwhId ...swhIds) {
     this();
     for (SwhId swhId : swhIds) {
@@ -27,19 +50,43 @@ public class SwhPath {
     }
   }
 
+  /**
+   * Returns this path as a list of {@link SwhId}.
+   *
+   * @return list of {@link SwhId} constituting the path
+   * @see org.softwareheritage.graph.SwhId
+   */
   @JsonValue
   public ArrayList<SwhId> getPath() {
     return path;
   }
 
+  /**
+   * Adds a {@link SwhId} to this path.
+   *
+   * @param {@link SwhId} to add to this path
+   * @see org.softwareheritage.graph.SwhId
+   */
   public void add(SwhId swhId) {
     path.add(swhId);
   }
 
+  /**
+   * Returns the {@link SwhId} at the specified position in this path.
+   *
+   * @param index position of the {@link SwhId} to return
+   * @return {@link SwhId} at the specified position
+   * @see org.softwareheritage.graph.SwhId
+   */
   public SwhId get(int index) {
     return path.get(index);
   }
 
+  /**
+   * Returns the number of elements in this path.
+   *
+   * @return number of elements in this path
+   */
   public int size() {
     return path.size();
   }
