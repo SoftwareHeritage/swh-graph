@@ -65,7 +65,7 @@ graph*.
 
   Implementation::
 
-    /graph/walk/:NODE_ID/rev?direction=backward
+    /graph/walk/:NODE_ID/rev?direction=backward&edges=dir:dir,cnt:dir,dir:rev
 
 - **complete commit provenance**: given a content or directory node, return
   *all* commits whose directory (recursively) contains it
