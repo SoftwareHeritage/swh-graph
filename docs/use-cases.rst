@@ -23,21 +23,21 @@ The following use cases require traversing the *forward graph*.
 
   Implementation::
 
-    /graph/neighbors/:NODE_ID?edges=dir:cnt,dir:dir
+    /graph/neighbors/:DIR_ID?edges=dir:cnt,dir:dir
 
 - **ls -R**: given a directory node, recursively list all linked nodes of type
   directory and content
 
   Implementation::
 
-    /graph/visit/paths/:NODE_ID?edges=dir:cnt,dir:dir
+    /graph/visit/paths/:DIR_ID?edges=dir:cnt,dir:dir
 
 - **git log**: given a revision node, recursively list all linked nodes of type
   revision
 
   Implementation::
 
-    /graph/visit/nodes/:NODE_ID?edges=rev:rev
+    /graph/visit/nodes/:REV_ID?edges=rev:rev
 
 
 Vault
