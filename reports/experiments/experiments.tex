@@ -33,13 +33,13 @@ Docker environment and compression script can be found here:
             \textbf{\mintinline{text}{.edges.csv.gz}} &
             \textbf{\# of nodes} & \textbf{\# of edges} \\
         \midrule
-        \texttt{release\_to\_obj}
+        \texttt{rel\_to\_obj}
             & 344M & 382M & \num{16222788} & \num{9907464} \\
-        \texttt{origin\_to\_snapshot}
+        \texttt{ori\_to\_snp}
             & 1.3G & 3.7G & \num{112564374} & \num{194970670} \\
         \texttt{dir\_to\_rev}
             & 745M & 12G & \num{35399184} & \num{481829426} \\
-        \texttt{snapshot\_to\_obj}
+        \texttt{snp\_to\_obj}
             & 3.5G & 21G & \num{170999796} & \num{831089515} \\
         \texttt{rev\_to\_rev}
             & 22G & 33G & \num{1117498391} & \num{1165813689} \\
@@ -47,7 +47,7 @@ Docker environment and compression script can be found here:
             & 41G & 48G & \num{2047888941} & \num{1125083793} \\
         \texttt{dir\_to\_dir}
             & 95G & 1.3T & \num{4805057515} & \num{48341950415} \\
-        \texttt{dir\_to\_file}
+        \texttt{dir\_to\_cnt}
             & 180G & 3T & \num{9231457233} & \num{112363058067} \\
         \midrule
         Entire graph (\texttt{all})
@@ -81,14 +81,14 @@ compression process.
             \textbf{compr ratio} & \textbf{bit/edge} & \textbf{compr
             size\footnotemark} \\
         \midrule
-        \texttt{release\_to\_obj} & 0.367 & 9.573 & 23M \\
-        \texttt{origin\_to\_snapshot} & 0.291 & 8.384 & 140M \\
+        \texttt{rel\_to\_obj} & 0.367 & 9.573 & 23M \\
+        \texttt{ori\_to\_snp} & 0.291 & 8.384 & 140M \\
         \texttt{dir\_to\_rev} & 0.07 & 1.595 & 120M & \\
-        \texttt{snapshot\_to\_obj} & 0.067 & 1.798 & 253M \\
+        \texttt{snp\_to\_obj} & 0.067 & 1.798 & 253M \\
         \texttt{rev\_to\_rev} & 0.288 & 9.063 & 2.2G \\
         \texttt{rev\_to\_dir} & 0.291 & 9.668 & 2.6G \\
         \texttt{dir\_to\_dir} & 0.336 & 10.178 & 61G \\
-        \texttt{dir\_to\_file} & 0.228 & 7.054 & 97G \\
+        \texttt{dir\_to\_cnt} & 0.228 & 7.054 & 97G \\
         \midrule
         Entire graph (estimated) & & & 163G \\
         \bottomrule
@@ -111,13 +111,13 @@ compression process.
             \textbf{Permutation} &
             \textbf{Total} \\
         \midrule
-        \texttt{release\_to\_obj}
+        \texttt{rel\_to\_obj}
             & 14s & 25s & 18s & 8min & 10s & \textbf{9min} \\
-        \texttt{origin\_to\_snapshot}
+        \texttt{ori\_to\_snp}
             & 1min & 5min & 3min & 1h30 & 1min & \textbf{1h40} \\
         \texttt{dir\_to\_rev}
             & 56s & 22min & 6min & 41min & 2min & \textbf{1h13} \\
-        \texttt{snapshot\_to\_obj}
+        \texttt{snp\_to\_obj}
             & 3min & 22min & 8min & 2h50 & 5min & \textbf{3h30} \\
         \texttt{rev\_to\_rev}
             & 11min & 56min & 24min & 31h52 & 20min & \textbf{33h42} \\
@@ -148,7 +148,7 @@ similar results (thanks to our graph topology).
         \midrule
         \texttt{dir\_to\_dir}
             & 4h36 & 50h & 4h44 & 12h38 & \textbf{72h} \\
-        \texttt{dir\_to\_file}
+        \texttt{dir\_to\_cnt}
             & 3h07 & 101h & 17h18 & 20h38 & \textbf{142h} \\
         \bottomrule
     \end{tabular}
@@ -164,14 +164,14 @@ Memory usage monitoring during the compression process:
         \multicolumn{1}{c}{} &
             \textbf{Maximum resident set size} \\
         \midrule
-        \texttt{release\_to\_obj} & 11G \\
-        \texttt{origin\_to\_snapshot} & 15G \\
+        \texttt{rel\_to\_obj} & 11G \\
+        \texttt{ori\_to\_snp} & 15G \\
         \texttt{dir\_to\_rev} & 22G \\
-        \texttt{snapshot\_to\_obj} & 23G \\
+        \texttt{snp\_to\_obj} & 23G \\
         \texttt{rev\_to\_rev} & 86G \\
         \texttt{rev\_to\_dir} & 154G \\
         \texttt{dir\_to\_dir} & 345G \\
-        \texttt{dir\_to\_file} & 764G \\
+        \texttt{dir\_to\_cnt} & 764G \\
         \midrule
         Entire graph (estimated) & 1.4T \\
         \bottomrule
