@@ -104,10 +104,10 @@ compression process.
         \toprule
         \multicolumn{1}{c}{} &
             \textbf{MPH} &
-            \textbf{BVGraph} &
+            \textbf{BV Compress} &
             \textbf{Symmetrized} &
             \textbf{LLP} &
-            \textbf{Permutation} &
+            \textbf{Permute} &
             \textbf{Total} \\
         \midrule
         \texttt{rel\_to\_obj}
@@ -140,9 +140,9 @@ similar results (thanks to our graph topology).
         \toprule
         \multicolumn{1}{c}{} &
             \textbf{MPH} &
-            \textbf{BVGraph} &
+            \textbf{BV Compress} &
             \textbf{BFS} &
-            \textbf{Permutation} &
+            \textbf{Permute} &
             \textbf{Total} \\
         \midrule
         \texttt{dir\_to\_dir}
@@ -188,13 +188,13 @@ compression process on it.
 Two different VM where used depending on the compression step:
 
 \begin{itemize}
-    \item \textit{(monster)} 700GB of RAM and 72vCPU: for the BVGraph step.
+    \item \textit{(monster)} 700GB of RAM and 72vCPU: for the BV compress step.
     \item \textit{(rioc)} 3TB of RAM and 48vCPU: all the other steps.
 \end{itemize}
 
-The reason to use monster instead of rioc for the BVGraph step was because the
-I/O on rioc was too slow for the job to complete within the time limit allowed
-on the cluster.
+The reason to use monster instead of rioc for the BV compress step was because
+the I/O on rioc was too slow for the job to complete within the time limit
+allowed on the cluster.
 
 \begin{center}
     \begin{tabular}{@{} l *3r @{}}
@@ -214,9 +214,9 @@ on the cluster.
         \toprule
         \multicolumn{1}{c}{} &
             \textbf{MPH} &
-            \textbf{BVGraph} &
+            \textbf{BV Compress} &
             \textbf{BFS} &
-            \textbf{Permutation} &
+            \textbf{Permute} &
             \textbf{Total} \\
         \midrule
         \texttt{all}
