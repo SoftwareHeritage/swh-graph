@@ -1,16 +1,15 @@
 \documentclass[11pt,a4paper]{article}
 
 \usepackage[english]{babel}
-\usepackage[a4paper,left=2cm,right=2cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{a4wide}
 \usepackage{booktabs}
-\usepackage{hyperref}
 \usepackage{minted}
-\usepackage{parskip}
 \usepackage{siunitx}
+\usepackage[colorlinks,urlcolor=blue,linkcolor=magenta,citecolor=red,linktocpage=true]{hyperref}
 
 \title{Google Summer of Code 2019}
 \author{Thibault Allançon}
-\date{April 8, 2019}
+\date{8 April 2019}
 
 \begin{document}
 
@@ -67,7 +66,7 @@ Datasets were compressed on different VM (depending on availability):
 \begin{itemize}
     \item \textit{(sexus)} 1TB of RAM and 40vCPU: \mintinline{text}{dir_to_dir}
     \item \textit{(monster)} 700GB of RAM and 72vCPU:
-        \mintinline{text}{dir_to_file}
+        \mintinline{text}{dir_to_cnt}
     \item \textit{(chub)} 2TB of RAM and 128vCPU: all the others datasets
 \end{itemize}
 
