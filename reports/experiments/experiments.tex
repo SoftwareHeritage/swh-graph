@@ -203,52 +203,29 @@ allowed on the cluster.
             \textbf{compr ratio} & \textbf{bit/edge} & \textbf{compr size} \\
         \midrule
         \texttt{all} & 0.158 & 4.913 & 101G \\
+        \texttt{all-transposed} & 0.144 & 4.481 & 94G \\
         \bottomrule
     \end{tabular}
 \end{center}
 
-\subsection{Timings}
+\subsection{Timings and max memory usage}
 
 \begin{center}
-    \begin{tabular}{@{} l *5r @{}}
+    \begin{tabular}{@{} r *2r @{}}
         \toprule
         \multicolumn{1}{c}{} &
-            \textbf{MPH} &
-            \textbf{BV Compress} &
-            \textbf{BFS} &
-            \textbf{Permute} &
-            \textbf{Total} \\
+            \textbf{Timings} & \textbf{Max mem usage} \\
         \midrule
-        \texttt{all}
-            & 3h30 & 103h & 9h52 & 24h39 & \textbf{141h} \\
-        \bottomrule
-    \end{tabular}
-\end{center}
-
-Extra steps (more specific to our needs):
-
-\begin{center}
-    \begin{tabular}{@{} l *2r @{}}
-        \toprule
-        \multicolumn{1}{c}{} &
-            \textbf{Stats} &
-            \textbf{Transpose} \\
+        \texttt{MPH} & 3h30 & 10GB \\
+        \texttt{BV Compress} & 103h & 16GB \\
+        \texttt{BFS} & 10h & 1057GB \\
+        \texttt{Permute} & 25h & 115GB \\
+        \texttt{Stats} & 4h & 102GB \\
+        \texttt{Transpose} & 22h & 19GB \\
         \midrule
-        \texttt{all}
-            & 3h58 & 21h33 \\
-        \bottomrule
-    \end{tabular}
-\end{center}
-
-\subsection{Memory usage}
-
-\begin{center}
-    \begin{tabular}{@{} l c @{}}
-        \toprule
-        \multicolumn{1}{c}{} &
-            \textbf{Maximum resident set size} \\
-        \midrule
-        \texttt{all} & 1057G \\
+        Total &
+            \begin{tabular}{@{}r@{}}\textbf{168h} \\
+            \scriptsize{(7 days)}\end{tabular} & \textbf{1TB} \\
         \bottomrule
     \end{tabular}
 \end{center}
