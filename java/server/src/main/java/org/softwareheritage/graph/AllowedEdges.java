@@ -18,9 +18,10 @@ public class AllowedEdges {
   Graph graph;
   /**
    * 2D boolean matrix storing access rights for all combination of src/dst node types (first
-   * dimension is source, second dimension is destination)
+   * dimension is source, second dimension is destination), when edge restriction is not enforced
+   * this array is set to null for early bypass.
    */
-  boolean[][] allowed;
+  public boolean[][] restrictedTo;
 
   /**
    * Constructor.
@@ -32,17 +33,14 @@ public class AllowedEdges {
     this.graph = graph;
 
     int nbNodeTypes = Node.Type.values().length;
-    this.allowed = new boolean[nbNodeTypes][nbNodeTypes];
+    this.restrictedTo = new boolean[nbNodeTypes][nbNodeTypes];
     // Special values (null, empty, "*")
     if (edgesFmt == null || edgesFmt.isEmpty()) {
       return;
     }
     if (edgesFmt.equals("*")) {
-      for (int i = 0; i < nbNodeTypes; i++) {
-        for (int j = 0; j < nbNodeTypes; j++) {
-          allowed[i][j] = true;
-        }
-      }
+      // Allows for quick bypass (with simple null check) when no edge restriction
+      restrictedTo = null;
       return;
     }
 
@@ -59,7 +57,7 @@ public class AllowedEdges {
       ArrayList<Node.Type> dstTypes = Node.Type.parse(nodeTypes[1]);
       for (Node.Type srcType : srcTypes) {
         for (Node.Type dstType : dstTypes) {
-          allowed[srcType.ordinal()][dstType.ordinal()] = true;
+          restrictedTo[srcType.ordinal()][dstType.ordinal()] = true;
         }
       }
     }
@@ -75,7 +73,7 @@ public class AllowedEdges {
   public boolean isAllowed(long srcNodeId, long dstNodeId) {
     Node.Type srcType = graph.getNodeType(srcNodeId);
     Node.Type dstType = graph.getNodeType(dstNodeId);
-    return isAllowed(srcType, dstType);
+    return restrictedTo[srcType.ordinal()][dstType.ordinal()];
   }
 
   /**
@@ -85,6 +83,6 @@ public class AllowedEdges {
    * @see AllowedEdges#isAllowed(long, long)
    */
   public boolean isAllowed(Node.Type srcType, Node.Type dstType) {
-    return allowed[srcType.ordinal()][dstType.ordinal()];
+    return restrictedTo[srcType.ordinal()][dstType.ordinal()];
   }
 }

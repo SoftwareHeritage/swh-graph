@@ -64,8 +64,18 @@ public class Neighbors implements Iterable<Long> {
       this.neighbors = graph.neighbors(srcNodeId, useTransposed);
     }
 
-    // Look ahead because with edge restriction not all neighbors are considered
     public boolean hasNext() {
+      // No edge restriction case: bypass type checks and skip to next neighbor
+      if (edges.restrictedTo == null) {
+        if (nextNeighborIdx + 1 < nbNeighbors) {
+          nextNeighborIdx++;
+          return true;
+        } else {
+          return false;
+        }
+      }
+
+      // Edge restriction case: look ahead for next neighbor
       for (long lookAheadIdx = nextNeighborIdx + 1; lookAheadIdx < nbNeighbors; lookAheadIdx++) {
         long nextNodeId = LongBigArrays.get(neighbors, lookAheadIdx);
         if (edges.isAllowed(srcNodeId, nextNodeId)) {

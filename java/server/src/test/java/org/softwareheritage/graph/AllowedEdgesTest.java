@@ -3,7 +3,7 @@ package org.softwareheritage.graph;
 import java.util.ArrayList;
 
 import org.junit.Test;
-import static org.junit.Assert.assertTrue;
+import org.junit.Assert;
 
 import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.GraphTest;
@@ -43,7 +43,7 @@ public class AllowedEdgesTest extends GraphTest {
           }
         }
 
-        assertTrue("Edge type: " + src + " -> " + dst, isAllowed == isExpected);
+        Assert.assertTrue("Edge type: " + src + " -> " + dst, isAllowed == isExpected);
       }
     }
   }
@@ -96,7 +96,6 @@ public class AllowedEdgesTest extends GraphTest {
   public void allEdges() {
     Graph graph = getGraph();
     AllowedEdges edges = new AllowedEdges(graph, "*:*");
-    AllowedEdges edges2 = new AllowedEdges(graph, "*");
     ArrayList<EdgeType> expected = new ArrayList<>();
     for (Node.Type src : Node.Type.values()) {
       for (Node.Type dst : Node.Type.values()) {
@@ -104,7 +103,10 @@ public class AllowedEdgesTest extends GraphTest {
       }
     }
     assertEdgeRestriction(edges, expected);
-    assertEdgeRestriction(edges2, expected);
+
+    // Special null value used to quickly bypass edge check when no restriction
+    AllowedEdges edges2 = new AllowedEdges(graph, "*");
+    Assert.assertNull(edges2.restrictedTo);
   }
 
   @Test
