@@ -1,53 +1,60 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: --input <graph path> --output <out dir> --lib <graph lib dir>"
-    echo "  options:"
-    echo "    -t, --tmp <temporary dir> (default to /tmp/)"
-    echo "    --stdout  <stdout file> (default to ./stdout)"
-    echo "    --stderr  <stderr file> (default to ./stderr)"
-    echo "    --batch-size <batch size> (default to 10^6): WebGraph internals"
+    echo "Usage: compress_graph.sh --lib <LIB_DIR> --input <GRAPH_BASEPATH>"
+    echo "Options:"
+    echo "  -o, --outdir <OUT_DIR>    (Default: GRAPH_DIR/compressed)"
+    echo "  -t, --tmp <TMP_DIR>       (Default: OUT_DIR/tmp)"
+    echo "  --stdout  <STDOUT_LOG>    (Default: OUT_DIR/stdout)"
+    echo "  --stderr  <STDERR_LOG>    (Default: OUT_DIR/stderr)"
+    echo "  --batch-size <BATCH_SIZE> (Default: 10^6): WebGraph internals"
     exit 1
 }
 
 graph_path=""
 out_dir=""
 lib_dir=""
-tmp_dir="/tmp/"
-stdout_file="stdout"
-stderr_file="stderr"
+stdout_file=""
+stderr_file=""
 batch_size=1000000
 while (( "$#" )); do
     case "$1" in
-        -i|--input) shift; graph_path=$1;;
-        -o|--output) shift; out_dir=$1;;
-        -l|--lib) shift; lib_dir=$1;;
-        -t|--tmp) shift; tmp_dir=$1;;
-        --stdout) shift; stdout_file=$1;;
-        --stderr) shift; stderr_file=$1;;
-        --batch-size) shift; batch_size=$1;;
-        *) usage;;
+        -i|--input)   shift; graph_path=$1 ;;
+        -o|--outdir)  shift; out_dir=$1 ;;
+        -l|--lib)     shift; lib_dir=$1 ;;
+        -t|--tmp)     shift; tmp_dir=$1 ;;
+        --stdout)     shift; stdout_file=$1 ;;
+        --stderr)     shift; stderr_file=$1 ;;
+        --batch-size) shift; batch_size=$1 ;;
+        *) usage ;;
     esac
     shift
 done
 
-if [[ -z $graph_path || -z $out_dir || -z $lib_dir ]]; then
+if [[ -z "$graph_path" || ! -d "$lib_dir" ]]; then
     usage
 fi
-
-if [[ -f "$stdout_file" || -f "$stderr_file" ]]; then
-    echo "Cannot overwrite previous compression stdout/stderr files"
-    exit 1
+if [ -z "$out_dir" ] ; then
+    out_dir="$(dirname $graph_path)/compressed"
+fi
+if [ -z "$tmp_dir" ] ; then
+    tmp_dir="${out_dir}/tmp"
+fi
+if [ -z "$stdout_file" ] ; then
+    stdout_file="${out_dir}/stdout"
+fi
+if [ -z "$stderr_file" ] ; then
+    stderr_file="${out_dir}/stderr"
 fi
 
 dataset=$(basename $graph_path)
-compr_graph_path="$out_dir/$dataset"
+compr_graph_path="${out_dir}/${dataset}"
 
-mkdir -p $out_dir
-mkdir -p $tmp_dir
+test -d "$out_dir" || mkdir -p "$out_dir"
+test -d "$tmp_dir" || mkdir -p "$tmp_dir"
 
 java_cmd () {
-    /usr/bin/time -v java -cp $lib_dir/'*' $*
+    java -cp $lib_dir/'*' $*
 }
 
 {
@@ -85,7 +92,7 @@ java_cmd () {
         $batch_size $tmp_dir                                            &&
     java_cmd it.unimi.dsi.big.webgraph.BVGraph                          \
         --list $compr_graph_path-transposed
-} >> $stdout_file 2>> $stderr_file
+} > $stdout_file 2> $stderr_file
 
 if [[ $? -eq 0 ]]; then
     echo "Graph compression done."

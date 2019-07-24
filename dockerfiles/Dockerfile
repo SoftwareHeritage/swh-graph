@@ -8,11 +8,8 @@ ENV JAVA_TOOL_OPTIONS                                                   \
     -XX:+UseTLAB -XX:+ResizeTLAB                                        \
     -Dlogback.configurationFile=configuration/logback.xml
 
-# Monitoring
-RUN yum install -y time
-
 # Download third party binaries and dependencies
-WORKDIR /swh/graph-lib
+WORKDIR /srv/softwareheritage/graph/lib
 
 RUN curl -O http://webgraph.di.unimi.it/webgraph-big-3.5.1-bin.tar.gz
 RUN tar xvfz webgraph-big-3.5.1-bin.tar.gz
@@ -26,6 +23,9 @@ RUN tar xvfz law-2.5.2-bin.tar.gz
 RUN cp law-2.5.2/law-2.5.2.jar .
 
 # Add user files
-WORKDIR /swh/app
+WORKDIR /srv/softwareheritage/graph/app
 COPY configuration configuration/
 COPY scripts scripts/
+
+# Default dir
+WORKDIR /srv/softwareheritage/graph
