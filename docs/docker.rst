@@ -65,8 +65,8 @@ To dump the mapping files:
 
 This command outputs:
 
-- ``g.nodeToSwhMap.csv``: long node id to string persistent identifier.
-- ``g.swhToNodeMap.csv``: string persistent identifier to long node id.
+- ``g.node2pid.csv``: long node id to string persistent identifier.
+- ``g.pid2node.csv``: string persistent identifier to long node id.
 
 REST API
 ~~~~~~~~
