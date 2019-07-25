@@ -32,7 +32,9 @@ Given a graph ``g`` specified by:
 	bash
 
 Where ``/PATH/TO/GRAPH`` is a directory containing the ``g.edges.csv.gz`` and
-``g.nodes.csv.gz`` files.
+``g.nodes.csv.gz`` files.  By default, when entering the container the current
+working directory will be ``/srv/softwareheritage/graph``; all relative paths
+found below are intended to be relative to that dir.
 
 
 Graph compression
@@ -56,8 +58,8 @@ To dump the mapping files:
 
 .. code:: bash
 
-    $ java -cp /srv/softwareheritage/graph/app/swh-graph.jar \
-        org.softwareheritage.graph.backend.Setup /graph/data/compressed/g
+    $ java -cp app/swh-graph.jar \
+        org.softwareheritage.graph.backend.Setup data/compressed/g
 
 This command outputs:
 
@@ -72,5 +74,5 @@ To start the swh-graph server:
 
 .. code:: bash
 
-    $ java -cp /srv/softwareheritage/graph/app/swh-graph.jar \
-        org.softwareheritage.graph.App /graph/data/compressed/g
+    $ java -cp app/swh-graph.jar \
+        org.softwareheritage.graph.App data/compressed/g
