@@ -28,6 +28,7 @@ Given a graph ``g`` specified by:
 
     $ docker run -ti \
         --volume /PATH/TO/GRAPH/:/srv/softwareheritage/graph/data \
+        --publish 127.0.0.1:5009:5009 \
         swh-graph:latest \
 	bash
 
