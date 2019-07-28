@@ -54,17 +54,13 @@ internals (you can specify a value when running the compression script using:
 Node identifier mappings
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-To dump the mapping files:
+To dump the mapping files (i.e., various node id <-> other info mapping files,
+in either ``.csv.gz`` or ad-hoc ``.map`` format):
 
 .. code:: bash
 
     $ java -cp app/swh-graph.jar \
         org.softwareheritage.graph.backend.Setup data/compressed/g
-
-This command outputs:
-
-- ``g.node2pid.csv``: long node id to string persistent identifier.
-- ``g.pid2node.csv``: string persistent identifier to long node id.
 
 
 Graph server
