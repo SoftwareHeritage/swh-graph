@@ -39,11 +39,7 @@ public class SwhId {
       throw new IllegalArgumentException("Expected SWH ID format to be 'swh:1:type:hash', got: " + swhId);
     }
 
-    String type = parts[2];
-    if (!type.matches("cnt|dir|rel|rev|snp")) {
-      throw new IllegalArgumentException("Unknown SWH ID type in: " + swhId);
-    }
-    this.type = Node.Type.fromStr(type);
+    this.type = Node.Type.fromStr(parts[2]);
 
     this.hash = parts[3];
     if (!hash.matches("[0-9a-f]{" + HASH_LENGTH + "}")) {

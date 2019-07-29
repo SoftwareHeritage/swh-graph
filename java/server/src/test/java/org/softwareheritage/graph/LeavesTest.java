@@ -55,7 +55,7 @@ public class LeavesTest extends GraphTest {
 
     SwhId src2 = new SwhId("swh:1:cnt:0000000000000000000000000000000000000004");
     ArrayList<SwhId> expectedLeaves2 = new ArrayList<>();
-    expectedLeaves2.add(new SwhId("swh:1:snp:0000000000000000000000000000000000000020"));
+    expectedLeaves2.add(new SwhId("swh:1:ori:0000000000000000000000000000000000000021"));
     expectedLeaves2.add(new SwhId("swh:1:rel:0000000000000000000000000000000000000019"));
     GraphTest.assertEqualsAnyOrder(expectedLeaves2, endpoint.leaves(src2));
   }

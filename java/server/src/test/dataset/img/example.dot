@@ -71,4 +71,12 @@ digraph "Software Heritage mini DAG" {
         20 -> 09;
         20 -> 10;
     }
+
+    subgraph cluster_ori {
+        label="Origins";
+        node [shape=egg];
+        21 [label="ori:0x21"];
+
+        21 -> 20;
+    }
 }

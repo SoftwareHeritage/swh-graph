@@ -22,6 +22,8 @@ public class Node {
     CNT,
     /** Directory node */
     DIR,
+    /** Origin node */
+    ORI,
     /** Release node */
     REL,
     /** Revision node */
@@ -43,10 +45,12 @@ public class Node {
         case 1:
           return DIR;
         case 2:
-          return REL;
+          return ORI;
         case 3:
-          return REV;
+          return REL;
         case 4:
+          return REV;
+        case 5:
           return SNP;
       }
       return null;
@@ -60,6 +64,9 @@ public class Node {
      * @see org.softwareheritage.graph.Node.Type
      */
     public static Node.Type fromStr(String strType) {
+      if (!strType.matches("cnt|dir|ori|rel|rev|snp")) {
+        throw new IllegalArgumentException("Unknown node type: " + strType);
+      }
       return Node.Type.valueOf(strType.toUpperCase());
     }
 

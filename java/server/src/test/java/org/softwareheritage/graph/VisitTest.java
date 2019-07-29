@@ -26,7 +26,7 @@ public class VisitTest extends GraphTest {
   @Test
   public void forwardFromRoot() {
     Graph graph = getGraph();
-    SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
+    SwhId swhId = new SwhId("swh:1:ori:0000000000000000000000000000000000000021");
     Endpoint endpoint = new Endpoint(graph, "forward", "*");
     ArrayList<SwhPath> paths = endpoint.visitPaths(swhId);
     ArrayList<SwhId> nodes = endpoint.visitNodes(swhId);
@@ -34,6 +34,7 @@ public class VisitTest extends GraphTest {
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
         new SwhPath(
+          "swh:1:ori:0000000000000000000000000000000000000021",
           "swh:1:snp:0000000000000000000000000000000000000020",
           "swh:1:rev:0000000000000000000000000000000000000009",
           "swh:1:dir:0000000000000000000000000000000000000008",
@@ -41,6 +42,7 @@ public class VisitTest extends GraphTest {
         ));
     expectedPaths.add(
         new SwhPath(
+          "swh:1:ori:0000000000000000000000000000000000000021",
           "swh:1:snp:0000000000000000000000000000000000000020",
           "swh:1:rev:0000000000000000000000000000000000000009",
           "swh:1:dir:0000000000000000000000000000000000000008",
@@ -48,6 +50,7 @@ public class VisitTest extends GraphTest {
         ));
     expectedPaths.add(
         new SwhPath(
+          "swh:1:ori:0000000000000000000000000000000000000021",
           "swh:1:snp:0000000000000000000000000000000000000020",
           "swh:1:rev:0000000000000000000000000000000000000009",
           "swh:1:dir:0000000000000000000000000000000000000008",
@@ -56,6 +59,7 @@ public class VisitTest extends GraphTest {
         ));
     expectedPaths.add(
         new SwhPath(
+          "swh:1:ori:0000000000000000000000000000000000000021",
           "swh:1:snp:0000000000000000000000000000000000000020",
           "swh:1:rev:0000000000000000000000000000000000000009",
           "swh:1:dir:0000000000000000000000000000000000000008",
@@ -64,6 +68,7 @@ public class VisitTest extends GraphTest {
         ));
     expectedPaths.add(
         new SwhPath(
+          "swh:1:ori:0000000000000000000000000000000000000021",
           "swh:1:snp:0000000000000000000000000000000000000020",
           "swh:1:rev:0000000000000000000000000000000000000009",
           "swh:1:rev:0000000000000000000000000000000000000003",
@@ -72,6 +77,7 @@ public class VisitTest extends GraphTest {
         ));
     expectedPaths.add(
         new SwhPath(
+          "swh:1:ori:0000000000000000000000000000000000000021",
           "swh:1:snp:0000000000000000000000000000000000000020",
           "swh:1:rel:0000000000000000000000000000000000000010",
           "swh:1:rev:0000000000000000000000000000000000000009",
@@ -80,6 +86,7 @@ public class VisitTest extends GraphTest {
         ));
     expectedPaths.add(
         new SwhPath(
+          "swh:1:ori:0000000000000000000000000000000000000021",
           "swh:1:snp:0000000000000000000000000000000000000020",
           "swh:1:rel:0000000000000000000000000000000000000010",
           "swh:1:rev:0000000000000000000000000000000000000009",
@@ -88,6 +95,7 @@ public class VisitTest extends GraphTest {
         ));
     expectedPaths.add(
         new SwhPath(
+          "swh:1:ori:0000000000000000000000000000000000000021",
           "swh:1:snp:0000000000000000000000000000000000000020",
           "swh:1:rel:0000000000000000000000000000000000000010",
           "swh:1:rev:0000000000000000000000000000000000000009",
@@ -97,6 +105,7 @@ public class VisitTest extends GraphTest {
         ));
     expectedPaths.add(
         new SwhPath(
+          "swh:1:ori:0000000000000000000000000000000000000021",
           "swh:1:snp:0000000000000000000000000000000000000020",
           "swh:1:rel:0000000000000000000000000000000000000010",
           "swh:1:rev:0000000000000000000000000000000000000009",
@@ -106,6 +115,7 @@ public class VisitTest extends GraphTest {
         ));
     expectedPaths.add(
         new SwhPath(
+          "swh:1:ori:0000000000000000000000000000000000000021",
           "swh:1:snp:0000000000000000000000000000000000000020",
           "swh:1:rel:0000000000000000000000000000000000000010",
           "swh:1:rev:0000000000000000000000000000000000000009",
@@ -184,7 +194,7 @@ public class VisitTest extends GraphTest {
   @Test
   public void backwardFromRoot() {
     Graph graph = getGraph();
-    SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
+    SwhId swhId = new SwhId("swh:1:ori:0000000000000000000000000000000000000021");
     Endpoint endpoint = new Endpoint(graph, "backward", "*");
     ArrayList<SwhPath> paths = endpoint.visitPaths(swhId);
     ArrayList<SwhId> nodes = endpoint.visitNodes(swhId);
@@ -192,7 +202,7 @@ public class VisitTest extends GraphTest {
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
         new SwhPath(
-          "swh:1:snp:0000000000000000000000000000000000000020"
+          "swh:1:ori:0000000000000000000000000000000000000021"
         ));
 
     GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
@@ -255,7 +265,8 @@ public class VisitTest extends GraphTest {
           "swh:1:dir:0000000000000000000000000000000000000006",
           "swh:1:dir:0000000000000000000000000000000000000008",
           "swh:1:rev:0000000000000000000000000000000000000009",
-          "swh:1:snp:0000000000000000000000000000000000000020"
+          "swh:1:snp:0000000000000000000000000000000000000020",
+          "swh:1:ori:0000000000000000000000000000000000000021"
         ));
     expectedPaths.add(
         new SwhPath(
@@ -264,7 +275,8 @@ public class VisitTest extends GraphTest {
           "swh:1:dir:0000000000000000000000000000000000000008",
           "swh:1:rev:0000000000000000000000000000000000000009",
           "swh:1:rel:0000000000000000000000000000000000000010",
-          "swh:1:snp:0000000000000000000000000000000000000020"
+          "swh:1:snp:0000000000000000000000000000000000000020",
+          "swh:1:ori:0000000000000000000000000000000000000021"
         ));
 
     GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
@@ -479,11 +491,12 @@ public class VisitTest extends GraphTest {
   @Test
   public void forwardFromRootNodesOnly() {
     Graph graph = getGraph();
-    SwhId swhId = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
+    SwhId swhId = new SwhId("swh:1:ori:0000000000000000000000000000000000000021");
     Endpoint endpoint = new Endpoint(graph, "forward", "*");
     ArrayList<SwhId> nodes = endpoint.visitNodes(swhId);
 
     ArrayList<SwhId> expectedNodes = new ArrayList<SwhId>();
+    expectedNodes.add(new SwhId("swh:1:ori:0000000000000000000000000000000000000021"));
     expectedNodes.add(new SwhId("swh:1:snp:0000000000000000000000000000000000000020"));
     expectedNodes.add(new SwhId("swh:1:rel:0000000000000000000000000000000000000010"));
     expectedNodes.add(new SwhId("swh:1:rev:0000000000000000000000000000000000000009"));
