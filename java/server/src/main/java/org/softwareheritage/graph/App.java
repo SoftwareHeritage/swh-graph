@@ -76,16 +76,6 @@ public class App {
       ctx.json(endpoint.neighbors(src));
     });
 
-    // TODO: anonymous class to return both nodes/paths? (waiting on node types map merged/refactor)
-    /*app.get("/visit/:src", ctx -> {
-      SwhId src = new SwhId(ctx.pathParam("src"));
-      String direction = ctx.queryParam("direction", "forward");
-      String edgesFmt = ctx.queryParam("edges", "*");
-
-      Visit visit = new Visit(graph, src, edgesFmt, direction, Visit.OutputFmt.NODES_AND_PATHS);
-      ctx.json(visit);
-    });*/
-
     app.get("/visit/nodes/:src", ctx -> {
       SwhId src = new SwhId(ctx.pathParam("src"));
       String direction = ctx.queryParam("direction", "forward");

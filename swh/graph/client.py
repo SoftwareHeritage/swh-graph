@@ -15,12 +15,6 @@ class GraphAPIError(Exception):
                 .format(self.args))
 
 
-class OutputFmt(Enum):
-    ONLY_NODES = 1
-    ONLY_PATHS = 2
-    NODES_AND_PATHS = 3
-
-
 class RemoteGraphClient(SWHRemoteAPI):
     """Client to the Software Heritage Graph."""
 
@@ -47,15 +41,15 @@ class RemoteGraphClient(SWHRemoteAPI):
     def stats(self):
         return self.get('stats')
 
-    def visit(self, src, edges="*", direction="forward",
-              output_fmt=OutputFmt.NODES_AND_PATHS):
-        subendpoint = ""
-        if output_fmt is OutputFmt.ONLY_NODES:
-            subendpoint = "/nodes"
-        elif output_fmt is OutputFmt.ONLY_PATHS:
-            subendpoint = "/paths"
+    def visit_nodes(self, src, edges="*", direction="forward"):
+        return self.get('visit/nodes/{}'.format(src),
+                        params={
+                            'edges': edges,
+                            'direction': direction
+                        })
 
-        return self.get('visit{}/{}'.format(subendpoint, src),
+    def visit_paths(self, src, edges="*", direction="forward"):
+        return self.get('visit/paths/{}'.format(src),
                         params={
                             'edges': edges,
                             'direction': direction

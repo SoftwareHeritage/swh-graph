@@ -129,12 +129,11 @@ Walk
 Visit
 -----
 
-.. http:get:: /graph/visit/:src
 .. http:get:: /graph/visit/nodes/:src
 .. http:get:: /graph/visit/paths/:src
 
-    Performs a graph traversal and returns explored nodes and/or paths (in the
-    order of the traversal).
+    Performs a graph traversal and returns explored nodes or paths (in the order
+    of the traversal).
 
     :param string src: starting node specified as a SWH PID
 
@@ -146,35 +145,6 @@ Visit
     :statuscode 200: success
     :statuscode 400: invalid query string provided
     :statuscode 404: starting node cannot be found
-
-    .. sourcecode:: http
-
-    GET /graph/visit/
-    HTTP/1.1 200 OK
-    Content-Type: application/json
-
-    {
-        "paths": [
-            [
-                "swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35",
-                "swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd",
-                ...
-            ],
-            [
-                "swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35",
-                "swh:1:rev:a31e58e129f73ab5b04016330b13ed51fde7a961",
-                ...
-            ],
-            ...
-        ],
-        "nodes": [
-            "swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35",
-            "swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd",
-            ...
-            "swh:1:rev:a31e58e129f73ab5b04016330b13ed51fde7a961",
-            ...
-        ]
-    }
 
     .. sourcecode:: http
 
