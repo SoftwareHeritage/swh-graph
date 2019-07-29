@@ -164,7 +164,7 @@ public class Endpoint {
    */
   public SwhPath walk(SwhId src, String dstFmt, String algorithm) {
     long srcNodeId = graph.getNodeId(src);
-    ArrayList<Long> nodeIds = null;
+    ArrayList<Long> nodeIds = new ArrayList<Long>();
 
     // Destination is either a SWH ID or a node type
     try {
