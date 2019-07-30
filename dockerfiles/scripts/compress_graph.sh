@@ -54,7 +54,7 @@ test -d "$out_dir" || mkdir -p "$out_dir"
 test -d "$tmp_dir" || mkdir -p "$tmp_dir"
 
 java_cmd () {
-    java -cp $lib_dir/'*' $*
+    /usr/bin/time -v java -cp $lib_dir/'*' $*
 }
 
 {

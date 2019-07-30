@@ -8,6 +8,9 @@ ENV JAVA_TOOL_OPTIONS                                                   \
     -XX:+UseTLAB -XX:+ResizeTLAB                                        \
     -Dlogback.configurationFile=configuration/logback.xml
 
+# Monitoring
+RUN yum install -y time
+
 # Download third party binaries and dependencies
 WORKDIR /srv/softwareheritage/graph/lib
 
