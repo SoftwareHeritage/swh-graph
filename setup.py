@@ -37,12 +37,12 @@ def parse_requirements(name=None):
 
 setup(
     name='swh.graph',
-    description='Software Heritage Graph API',
+    description='Software Heritage graph service',
     long_description=long_description,
     long_description_content_type='text/markdown',
     author='Software Heritage developers',
     author_email='swh-devel@inria.fr',
-    url='https://forge.softwareheritage.org/diffusion/DGRAPH',
+    url='https://forge.softwareheritage.org/diffusion/DGRPH',
     packages=find_packages(),
     install_requires=parse_requirements() + parse_requirements('swh'),
     tests_require=parse_requirements('test'),
@@ -64,7 +64,6 @@ setup(
     project_urls={
         'Bug Reports': 'https://forge.softwareheritage.org/maniphest',
         'Funding': 'https://www.softwareheritage.org/donate',
-        'Source':
-        'https://forge.softwareheritage.org/source/swh-graph-compression',
+        'Source': 'https://forge.softwareheritage.org/source/swh-graph',
     },
 )
