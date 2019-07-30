@@ -15,13 +15,13 @@ tr ' ' '\n' < example.edges.csv | sort -u > example.nodes.csv
 gzip --force --keep example.edges.csv
 gzip --force --keep example.nodes.csv
 
-docker run                                                      \
-    --user $(id -u):$(id -g)                                    \
-    --name swh-graph-test --rm --tty --interactive              \
-    --volume $(pwd):/input                                      \
-    --volume $(pwd)/output:/output                              \
-    swh-graph-test:latest                                       \
-    ./scripts/compress_graph.sh                                 \
-    --input /input/example --output /output                     \
-    --lib /swh/graph-lib --tmp /output/tmp                      \
-    --stdout /output/stdout --stderr /output/stderr
+docker run                                          \
+    --user $(id -u):$(id -g)                        \
+    --name swh-graph-test --rm --tty --interactive  \
+    --volume $(pwd):/input                          \
+    --volume $(pwd)/output:/output                  \
+    swh-graph-test:latest                           \
+    app/scripts/compress_graph.sh                   \
+      --lib lib/                                    \
+      --input /input/example                        \
+      --outdir /output
