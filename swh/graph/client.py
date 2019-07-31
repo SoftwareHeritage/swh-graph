@@ -3,9 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from enum import Enum
-
-from swh.core.api import SWHRemoteAPI
+from swh.core.api import RPCClient
 
 
 class GraphAPIError(Exception):
@@ -15,7 +13,7 @@ class GraphAPIError(Exception):
                 .format(self.args))
 
 
-class RemoteGraphClient(SWHRemoteAPI):
+class RemoteGraphClient(RPCClient):
     """Client to the Software Heritage Graph."""
 
     def __init__(self, url, timeout=None):
