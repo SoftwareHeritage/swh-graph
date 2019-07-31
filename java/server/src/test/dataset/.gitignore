@@ -1,5 +1,7 @@
 dockerfiles/
-output/
+output/*-bv.*
+output/stderr
+output/stdout
 
 *.csv.gz
 *.nodes.csv
