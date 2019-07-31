@@ -11,10 +11,10 @@ representation of the Software Heritage Merkle DAG (see :ref:`data-model`).
 Overview
 --------
 
-* :doc:`graph compression <compression>`
-* :doc:`graph service REST API <api>`
-* :doc:`use cases <use-cases>`
-* :doc:`docker environment <docker>` (for development purposes)
+* :doc:`Graph compression <compression>`
+* :doc:`Graph service REST API <api>`
+* :doc:`Use cases <use-cases>`
+* :doc:`Docker environment <docker>` (for development purposes)
 
 
 Reference Documentation

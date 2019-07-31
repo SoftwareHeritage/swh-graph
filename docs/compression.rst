@@ -34,7 +34,7 @@ Mapping between the strings and longs ids is needed before compressing the
 graph. From the `Sux4J <http://sux.di.unimi.it/>`_ utility tool, we use the
 `GOVMinimalPerfectHashFunction
 <http://sux.di.unimi.it/docs/it/unimi/dsi/sux4j/mph/GOVMinimalPerfectHashFunction.html>`_
-class, mapping with no collisions $n$ keys to $n$ consecutive integers.
+class, mapping with no collisions N keys to N consecutive integers.
 
 The step produces a ``.mph`` file (MPH stands for *Minimal Perfect
 Hash-function*) storing the hash function taking as input a string and returning
@@ -65,7 +65,9 @@ that vertices from the same host are close to one another.
 
 Building on this insight, the previous compression results in the BV compress
 step are improved by re-ordering nodes ids using a BFS traversal order. We use
-the `BFSBig <>`_ class from the `LAW <http://law.di.unimi.it/>`_ library.
+the `BFS
+<http://law.di.unimi.it/software/law-docs/it/unimi/dsi/law/big/graph/BFS.html>`_
+class from the `LAW <http://law.di.unimi.it/>`_ library.
 
 The resulting ordering is stored in the ``.order`` file, listing nodes ids in
 order of traversal.
