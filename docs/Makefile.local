@@ -1,0 +1,15 @@
+sphinx/html: images
+sphinx/clean: clean-images
+assets: images
+
+images:
+	make -C images/
+clean-images:
+	make -C images/ clean
+
+.PHONY: images clean-images
+
+
+# Local Variables:
+# mode: makefile
+# End:

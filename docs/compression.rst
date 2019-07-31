@@ -1,3 +1,5 @@
+:orphan:
+
 Graph compression
 =================
 
@@ -16,6 +18,7 @@ References used:
   2009, 2(3), 1031-1044. `mdpi <https://www.mdpi.com/1999-4893/2/3/1031/pdf>`_
 
 .. figure:: images/compression_steps.png
+    :align: center
     :alt: Compression steps
 
     Compression steps
