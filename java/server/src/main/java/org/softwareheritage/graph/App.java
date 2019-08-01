@@ -6,6 +6,13 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.martiansoftware.jsap.FlaggedOption;
+import com.martiansoftware.jsap.JSAP;
+import com.martiansoftware.jsap.JSAPException;
+import com.martiansoftware.jsap.JSAPResult;
+import com.martiansoftware.jsap.Parameter;
+import com.martiansoftware.jsap.SimpleJSAP;
+import com.martiansoftware.jsap.UnflaggedOption;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.plugin.json.JavalinJackson;
@@ -24,10 +31,32 @@ import org.softwareheritage.graph.algo.Stats;
  */
 
 public class App {
-  public static void main(String[] args) throws IOException {
-    String path = args[0];
-    Graph graph = new Graph(path);
-    Stats stats = new Stats(path);
+  public static void main(String[] args) throws IOException, JSAPException {
+    SimpleJSAP jsap = new SimpleJSAP(
+        App.class.getName(),
+        "Server to load and query a compressed graph representation of Software Heritage archive.",
+        new Parameter[] {
+          new FlaggedOption("port", JSAP.INTEGER_PARSER, "5009", JSAP.NOT_REQUIRED, 'p', "port",
+              "Binding port of the server."),
+          new UnflaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+              JSAP.NOT_GREEDY, "The basename of the compressed graph."),
+        }
+    );
+
+    JSAPResult config = jsap.parse(args);
+    if (jsap.messagePrinted()) {
+      System.exit(1);
+    }
+
+    String graphPath = config.getString("graphPath");
+    int port = config.getInt("port");
+
+    startServer(graphPath, port);
+  }
+
+  private static void startServer(String graphPath, int port) throws IOException {
+    Graph graph = new Graph(graphPath);
+    Stats stats = new Stats(graphPath);
 
     // Clean up on exit
     Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -45,7 +74,7 @@ public class App {
     objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
     JavalinJackson.configure(objectMapper);
 
-    Javalin app = Javalin.create().start(5009);
+    Javalin app = Javalin.create().start(port);
 
     app.before("/stats/*", ctx -> { checkQueryStrings(ctx, ""); });
     app.before("/leaves/*", ctx -> { checkQueryStrings(ctx, "direction|edges"); });

@@ -73,3 +73,6 @@ To start the swh-graph server:
 
     $ java -cp app/swh-graph.jar \
         org.softwareheritage.graph.App data/compressed/g
+
+To specify the port on which the server will run, use the `--port` or `-p` flag
+(default is 5009).
