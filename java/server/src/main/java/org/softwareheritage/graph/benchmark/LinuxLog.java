@@ -10,8 +10,8 @@ import org.softwareheritage.graph.SwhId;
  * Linux git log experiment to benchmark graph traversal.
  *
  * @author Thibault Allançon
- * @version 1.0
- * @since 1.0
+ * @version 0.0.1
+ * @since 0.0.1
  */
 
 public class LinuxLog {

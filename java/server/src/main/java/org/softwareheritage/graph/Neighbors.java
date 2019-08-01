@@ -11,8 +11,8 @@ import org.softwareheritage.graph.Graph;
  * Iterator class to go over a node neighbors in the graph.
  *
  * @author Thibault Allançon
- * @version 1.0
- * @since 1.0
+ * @version 0.0.1
+ * @since 0.0.1
  */
 
 public class Neighbors implements Iterable<Long> {
@@ -49,8 +49,8 @@ public class Neighbors implements Iterable<Long> {
   * Inner class for {@link Neighbors} iterator.
   *
   * @author Thibault Allançon
-  * @version 1.0
-  * @since 1.0
+  * @version 0.0.1
+  * @since 0.0.1
   */
 
   public class NeighborsIterator implements Iterator<Long> {

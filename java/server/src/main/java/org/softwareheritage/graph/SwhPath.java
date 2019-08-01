@@ -10,8 +10,8 @@ import org.softwareheritage.graph.SwhId;
  * Wrapper class to store a list of {@link SwhId}.
  *
  * @author Thibault Allançon
- * @version 1.0
- * @since 1.0
+ * @version 0.0.1
+ * @since 0.0.1
  * @see org.softwareheritage.graph.SwhId
  */
 

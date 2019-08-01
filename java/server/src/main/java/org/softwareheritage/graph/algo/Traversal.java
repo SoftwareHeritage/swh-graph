@@ -18,8 +18,8 @@ import org.softwareheritage.graph.Node;
  * Traversal algorithms on the compressed graph.
  *
  * @author Thibault Allançon
- * @version 1.0
- * @since 1.0
+ * @version 0.0.1
+ * @since 0.0.1
  */
 
 public class Traversal {

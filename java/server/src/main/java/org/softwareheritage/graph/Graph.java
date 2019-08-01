@@ -13,8 +13,8 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
  * Main class storing the compressed graph and node id mappings.
  *
  * @author Thibault Allançon
- * @version 1.0
- * @since 1.0
+ * @version 0.0.1
+ * @since 0.0.1
  */
 
 public class Graph {
