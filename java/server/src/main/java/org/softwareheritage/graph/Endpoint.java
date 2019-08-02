@@ -9,6 +9,7 @@ import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.SwhPath;
 import org.softwareheritage.graph.algo.Traversal;
+import org.softwareheritage.graph.utils.Timing;
 
 /**
  * REST API endpoints wrapper functions.
@@ -40,39 +41,18 @@ public class Endpoint {
   }
 
   /**
-   * Returns measurement starting timestamp for logging purposes.
-   *
-   * @return timestamp used for time measurement
-   */
-  private long startTiming() {
-    return System.nanoTime();
-  }
-
-  /**
-   * Ends timing measurement and returns total duration in seconds for logging purposes.
-   *
-   * @param startTime measurement starting timestamp
-   * @return time in seconds elapsed since starting point
-   */
-  private float stopTiming(long startTime) {
-    long endTime = System.nanoTime();
-    float duration = (float) (endTime - startTime) / 1_000_000_000;
-    return duration;
-  }
-
-  /**
    * Converts a list of (internal) long node ids to a list of corresponding (external) SWH PIDs.
    *
    * @param nodeIds the list of long node ids
    * @return a list of corresponding SWH PIDs
    */
   private ArrayList<SwhId> convertNodesToSwhIds(ArrayList<Long> nodeIds) {
-    long startTime = this.startTiming();
+    long startTime = Timing.start();
     ArrayList<SwhId> swhIds = new ArrayList<>();
     for (long nodeId : nodeIds) {
       swhIds.add(graph.getSwhId(nodeId));
     }
-    float duration = this.stopTiming(startTime);
+    float duration = Timing.stop(startTime);
     logger.debug("convertNodesToSwhIds() took {} s.", duration);
     return swhIds;
   }
@@ -85,12 +65,12 @@ public class Endpoint {
    * @see org.softwareheritage.graph.SwhPath
    */
   private SwhPath convertNodesToSwhPath(ArrayList<Long> nodeIds) {
-    long startTime = this.startTiming();
+    long startTime = Timing.start();
     SwhPath path = new SwhPath();
     for (long nodeId : nodeIds) {
       path.add(graph.getSwhId(nodeId));
     }
-    float duration = this.stopTiming(startTime);
+    float duration = Timing.stop(startTime);
     logger.debug("convertNodesToSwhPath() took {} s.", duration);
     return path;
   }
@@ -103,12 +83,12 @@ public class Endpoint {
    * @see org.softwareheritage.graph.SwhPath
    */
   private ArrayList<SwhPath> convertPathsToSwhIds(ArrayList<ArrayList<Long>> pathsNodeId) {
-    long startTime = this.startTiming();
+    long startTime = Timing.start();
     ArrayList<SwhPath> paths = new ArrayList<>();
     for (ArrayList<Long> path : pathsNodeId) {
       paths.add(convertNodesToSwhPath(path));
     }
-    float duration = this.stopTiming(startTime);
+    float duration = Timing.stop(startTime);
     logger.debug("convertPathsToSwhIds() took {} s.", duration);
     return paths;
   }
@@ -124,9 +104,9 @@ public class Endpoint {
   public ArrayList<SwhId> leaves(SwhId src) {
     long srcNodeId = graph.getNodeId(src);
 
-    long startTime = this.startTiming();
+    long startTime = Timing.start();
     ArrayList<Long> nodeIds = traversal.leaves(srcNodeId);
-    float duration = this.stopTiming(startTime);
+    float duration = Timing.stop(startTime);
     logger.debug("leaves({}) took {} s.", src, duration);
 
     return convertNodesToSwhIds(nodeIds);
@@ -143,9 +123,9 @@ public class Endpoint {
   public ArrayList<SwhId> neighbors(SwhId src) {
     long srcNodeId = graph.getNodeId(src);
 
-    long startTime = this.startTiming();
+    long startTime = Timing.start();
     ArrayList<Long> nodeIds = traversal.neighbors(srcNodeId);
-    float duration = this.stopTiming(startTime);
+    float duration = Timing.stop(startTime);
     logger.debug("neighbors({}) took {} s.", src, duration);
 
     return convertNodesToSwhIds(nodeIds);
@@ -171,17 +151,17 @@ public class Endpoint {
       SwhId dstSwhId = new SwhId(dstFmt);
       long dstNodeId = graph.getNodeId(dstSwhId);
 
-      long startTime = this.startTiming();
+      long startTime = Timing.start();
       nodeIds = traversal.walk(srcNodeId, dstNodeId, algorithm);
-      float duration = this.stopTiming(startTime);
+      float duration = Timing.stop(startTime);
       logger.debug("walk({}) took {} s.", src, duration);
     } catch (IllegalArgumentException ignored1) {
       try {
         Node.Type dstType = Node.Type.fromStr(dstFmt);
 
-        long startTime = this.startTiming();
+        long startTime = Timing.start();
         nodeIds = traversal.walk(srcNodeId, dstType, algorithm);
-        float duration = this.stopTiming(startTime);
+        float duration = Timing.stop(startTime);
         logger.debug("walk({}) took {} s.", src, duration);
       } catch (IllegalArgumentException ignored2) { }
     }
@@ -200,9 +180,9 @@ public class Endpoint {
   public ArrayList<SwhId> visitNodes(SwhId src) {
     long srcNodeId = graph.getNodeId(src);
 
-    long startTime = this.startTiming();
+    long startTime = Timing.start();
     ArrayList<Long> nodeIds = traversal.visitNodes(srcNodeId);
-    float duration = this.stopTiming(startTime);
+    float duration = Timing.stop(startTime);
     logger.debug("visitNodes({}) took {} s.", src, duration);
 
     return convertNodesToSwhIds(nodeIds);
@@ -220,9 +200,9 @@ public class Endpoint {
   public ArrayList<SwhPath> visitPaths(SwhId src) {
     long srcNodeId = graph.getNodeId(src);
 
-    long startTime = this.startTiming();
+    long startTime = Timing.start();
     ArrayList<ArrayList<Long>> paths = traversal.visitPaths(srcNodeId);
-    float duration = this.stopTiming(startTime);
+    float duration = Timing.stop(startTime);
     logger.debug("visitPaths({}) took {} s.", src, duration);
 
     return convertPathsToSwhIds(paths);
