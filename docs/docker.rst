@@ -30,7 +30,7 @@ Given a graph ``g`` specified by:
         --volume /PATH/TO/GRAPH/:/srv/softwareheritage/graph/data \
         --publish 127.0.0.1:5009:5009 \
         swh-graph:latest \
-	bash
+        bash
 
 Where ``/PATH/TO/GRAPH`` is a directory containing the ``g.edges.csv.gz`` and
 ``g.nodes.csv.gz`` files.  By default, when entering the container the current
@@ -61,7 +61,8 @@ in either ``.csv.gz`` or ad-hoc ``.map`` format):
 .. code:: bash
 
     $ java -cp app/swh-graph.jar \
-        org.softwareheritage.graph.backend.Setup data/compressed/g
+        org.softwareheritage.graph.backend.Setup \
+        data/g.nodes.csv.gz data/compressed/g
 
 
 Graph server
