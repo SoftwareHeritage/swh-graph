@@ -1,13 +1,20 @@
+JAVA_DIR = ../java/server
+
 sphinx/html: images
-sphinx/clean: clean-images
-assets: images
+sphinx/clean: clean-images clean-javadoc
+assets: images javadoc
 
 images:
 	make -C images/
 clean-images:
 	make -C images/ clean
 
-.PHONY: images clean-images
+javadoc:
+	mvn -f $(JAVA_DIR)/pom.xml javadoc:javadoc
+clean-javadoc:
+	mvn -f $(JAVA_DIR)/pom.xml clean
+
+.PHONY: images clean-images javadoc clean-javadoc
 
 
 # Local Variables:
