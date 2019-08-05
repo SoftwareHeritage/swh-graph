@@ -53,6 +53,10 @@ compr_graph_path="${out_dir}/${dataset}"
 test -d "$out_dir" || mkdir -p "$out_dir"
 test -d "$tmp_dir" || mkdir -p "$tmp_dir"
 
+step_info() {
+    echo -e "\n* swh-graph: $1 step... ($2)\n"
+}
+
 java_cmd () {
     /usr/bin/time -v java -cp $lib_dir/'*' $*
 }
@@ -60,11 +64,13 @@ java_cmd () {
 {
     # Build a function (MPH) that maps node names to node numbers in
     # lexicographic order (output: .mph)
+    step_info "MPH" "1/6"                                               &&
     java_cmd it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction       \
         --zipped $compr_graph_path.mph --temp-dir $tmp_dir              \
         $graph_path.nodes.csv.gz                                        &&
 
     # Build the graph in BVGraph format (output: .{graph,offsets,properties})
+    step_info "BV compress" "2/6"                                       &&
     java_cmd it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph          \
         --function $compr_graph_path.mph --temp-dir $tmp_dir            \
         --zipped $compr_graph_path-bv < $graph_path.edges.csv.gz        &&
@@ -73,10 +79,12 @@ java_cmd () {
         --list $compr_graph_path-bv                                     &&
 
     # Find a better permutation using a BFS traversal order (output: .order)
+    step_info "BFS" "3/6"                                               &&
     java_cmd it.unimi.dsi.law.big.graph.BFS                             \
         $compr_graph_path-bv $compr_graph_path.order                    &&
 
     # Permute the graph accordingly
+    step_info "Permute" "4/6"                                           &&
     java_cmd it.unimi.dsi.big.webgraph.Transform mapOffline             \
         $compr_graph_path-bv $compr_graph_path                          \
         $compr_graph_path.order $batch_size $tmp_dir                    &&
@@ -84,9 +92,11 @@ java_cmd () {
         --list $compr_graph_path                                        &&
 
     # Compute graph statistics (output: .{indegree,outdegree,stats})
+    step_info "Stats" "5/6"                                             &&
     java_cmd it.unimi.dsi.big.webgraph.Stats $compr_graph_path          &&
 
     # Create transposed graph (to allow backward traversal)
+    step_info "Transpose" "6/6"                                         &&
     java_cmd it.unimi.dsi.big.webgraph.Transform transposeOffline       \
         $compr_graph_path $compr_graph_path-transposed                  \
         $batch_size $tmp_dir                                            &&
