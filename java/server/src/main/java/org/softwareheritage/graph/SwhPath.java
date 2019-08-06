@@ -16,6 +16,7 @@ import org.softwareheritage.graph.SwhId;
  */
 
 public class SwhPath {
+  /** Internal list of {@link SwhId} */
   ArrayList<SwhId> path;
 
   /**
@@ -40,7 +41,7 @@ public class SwhPath {
   /**
    * Constructor.
    *
-   * @param swhIds variable number of @{link SwhId} to initialize this path with
+   * @param swhIds variable number of {@link SwhId} to initialize this path with
    * @see org.softwareheritage.graph.SwhId
    */
   public SwhPath(SwhId ...swhIds) {

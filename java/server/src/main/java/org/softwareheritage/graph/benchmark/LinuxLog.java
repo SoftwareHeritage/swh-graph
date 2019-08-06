@@ -8,6 +8,9 @@ import org.softwareheritage.graph.SwhId;
 
 /**
  * Linux git log experiment to benchmark graph traversal.
+ * <p>
+ * The goal is to do the equivalent of a {@code git log} in the Linux kernel by following revisions
+ * nodes.
  *
  * @author Thibault Allançon
  * @version 0.0.1
@@ -15,6 +18,11 @@ import org.softwareheritage.graph.SwhId;
  */
 
 public class LinuxLog {
+  /**
+   * Main entrypoint.
+   *
+   * @param args command line arguments
+   */
   public static void main(String[] args) throws IOException {
     String path = args[0];
     Graph graph = new Graph(path);

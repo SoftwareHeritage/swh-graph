@@ -9,6 +9,10 @@ import it.unimi.dsi.io.ByteBufferInputStream;
 
 /**
  * Wrapper class around very big mmap()-ed file.
+ * <p>
+ * Java has a limit for mmap()-ed files because of unsupported 64-bit indexing. The <a
+ * href="http://dsiutils.di.unimi.it/">dsiutils</a> ByteBufferInputStream is used to overcome this
+ * Java limit.
  *
  * @author Thibault Allançon
  * @version 0.0.1
@@ -16,10 +20,7 @@ import it.unimi.dsi.io.ByteBufferInputStream;
  */
 
 public class MapFile {
-  /**
-   * Memory-mapped file buffer
-   * @see it.unimi.dsi.io.ByteBufferInputStream
-   */
+  /** Memory-mapped file buffer */
   ByteBufferInputStream bufferMap;
   /** Fixed line length of the mmap()-ed file */
   int lineLength;

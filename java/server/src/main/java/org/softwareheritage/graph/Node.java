@@ -57,7 +57,7 @@ public class Node {
     }
 
     /**
-     * Parses SWH node type from string.
+     * Converts string to corresponding SWH node type.
      *
      * @param strType node type represented as a string
      * @return the corresponding {@link Node.Type} value
@@ -71,9 +71,11 @@ public class Node {
     }
 
     /**
-     * Parses SWH node type possible values from formatted string (TODO: link API doc).
+     * Parses SWH node type possible values from formatted string (see the <a
+     * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">API
+     * syntax</a>).
      *
-     * @param strFmtType node types represented as a formatted string (TODO: link API doc)
+     * @param strFmtType node types represented as a formatted string
      * @return a list containing the {@link Node.Type} values
      * @see org.softwareheritage.graph.Node.Type
      */

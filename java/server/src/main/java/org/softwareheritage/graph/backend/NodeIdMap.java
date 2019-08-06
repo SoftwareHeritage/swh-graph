@@ -5,13 +5,18 @@ import java.io.IOException;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.backend.MapFile;
+import org.softwareheritage.graph.backend.Setup;
 
 /**
  * Mapping between internal long node id and external SWH PID.
+ * <p>
+ * Mappings in both directions are pre-computed and dumped on disk in the {@link Setup} class, then
+ * they are loaded here using mmap().
  *
  * @author Thibault Allançon
  * @version 0.0.1
  * @since 0.0.1
+ * @see org.softwareheritage.graph.backend.Setup
  */
 
 public class NodeIdMap {
@@ -20,7 +25,7 @@ public class NodeIdMap {
   /** Fixed length of long node id */
   public static final int NODE_ID_LENGTH = 20;
 
-  /** Full graph path */
+  /** Graph path and basename */
   String graphPath;
   /** Number of ids to map */
   long nbIds;

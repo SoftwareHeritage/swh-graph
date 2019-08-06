@@ -13,10 +13,15 @@ import org.softwareheritage.graph.utils.Timing;
 
 /**
  * REST API endpoints wrapper functions.
+ * <p>
+ * Graph operations are segmented between high-level class (this one) and the low-level class
+ * ({@link Traversal}). The {@link Endpoint} class creates wrappers for each endpoints by performing
+ * all the input/output node ids conversions and logging timings.
  *
  * @author Thibault Allançon
  * @version 0.0.1
  * @since 0.0.1
+ * @see org.softwareheritage.graph.algo.Traversal
  */
 
 public class Endpoint {
@@ -33,7 +38,8 @@ public class Endpoint {
    *
    * @param graph the graph used for traversal endpoint
    * @param direction a string (either "forward" or "backward") specifying edge orientation
-   * @param edgesFmt a formatted string describing allowed edges (TODO: link API doc)
+   * @param edgesFmt a formatted string describing <a
+   * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed edges</a>
    */
   public Endpoint(Graph graph, String direction, String edgesFmt) {
     this.graph = graph;
@@ -94,10 +100,10 @@ public class Endpoint {
   }
 
   /**
-   * Leaves endpoint wrapper (performs input/output node ids conversions).
+   * Leaves endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a SwhId
-   * @return the resulting list of SwhId from endpoint call
+   * @param src source node of endpoint call specified as a {@link SwhId}
+   * @return the resulting list of {@link SwhId} from endpoint call
    * @see org.softwareheritage.graph.SwhId
    * @see org.softwareheritage.graph.algo.Traversal#leaves(long)
    */
@@ -113,10 +119,10 @@ public class Endpoint {
   }
 
   /**
-   * Neighbors endpoint wrapper (performs input/output node ids conversions).
+   * Neighbors endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a SwhId
-   * @return the resulting list of SwhId from endpoint call
+   * @param src source node of endpoint call specified as a {@link SwhId}
+   * @return the resulting list of {@link SwhId} from endpoint call
    * @see org.softwareheritage.graph.SwhId
    * @see org.softwareheritage.graph.algo.Traversal#neighbors(long)
    */
@@ -132,10 +138,11 @@ public class Endpoint {
   }
 
   /**
-   * Walk endpoint wrapper (performs input/output node ids conversions).
+   * Walk endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a SwhId
-   * @param dstFmt destination used in endpoint call (TODO: link to API doc)
+   * @param src source node of endpoint call specified as a {@link SwhId}
+   * @param dstFmt destination formatted string as described in the <a
+   * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#walk">API</a>
    * @param algorithm traversal algorithm used in endpoint call (either "dfs" or "bfs")
    * @return the resulting {@link SwhPath} from endpoint call
    * @see org.softwareheritage.graph.SwhId
@@ -170,10 +177,10 @@ public class Endpoint {
   }
 
   /**
-   * VisitNodes endpoint wrapper (performs input/output node ids conversions).
+   * VisitNodes endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a SwhId
-   * @return the resulting list of SwhId from endpoint call
+   * @param src source node of endpoint call specified as a {@link SwhId}
+   * @return the resulting list of {@link SwhId} from endpoint call
    * @see org.softwareheritage.graph.SwhId
    * @see org.softwareheritage.graph.algo.Traversal#visitNodes(long)
    */
@@ -189,9 +196,9 @@ public class Endpoint {
   }
 
   /**
-   * VisitPaths endpoint wrapper (performs input/output node ids conversions).
+   * VisitPaths endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a SwhId
+   * @param src source node of endpoint call specified as a {@link SwhId}
    * @return the resulting list of {@link SwhPath} from endpoint call
    * @see org.softwareheritage.graph.SwhId
    * @see org.softwareheritage.graph.SwhPath

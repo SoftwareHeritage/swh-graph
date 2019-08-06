@@ -11,6 +11,11 @@ import org.softwareheritage.graph.Node;
 /**
  * Mapping between long node id and SWH node type as described in the <a
  * href="https://docs.softwareheritage.org/devel/swh-model/data-model.html">data model</a>.
+ * <p>
+ * The type mapping is pre-computed and dumped on disk in the {@link Setup} class, then it is loaded
+ * in-memory here using <a href="http://fastutil.di.unimi.it/">fastutil</a> LongBigList. To be
+ * space-efficient, the mapping is stored as a bitmap using minimum number of bits per {@link
+ * Node.Type}.
  *
  * @author Thibault Allançon
  * @version 0.0.1
@@ -18,16 +23,13 @@ import org.softwareheritage.graph.Node;
  */
 
 public class NodeTypesMap {
-  /**
-   * Array storing for each node its type
-   * @see it.unimi.dsi.fastutil.longs.LongBigList
-   */
+  /** Array storing for each node its type */
   LongBigList nodeTypesMap;
 
   /**
    * Constructor.
    *
-   * @param graphPath full path of the compressed graph
+   * @param graphPath path and basename of the compressed graph
    */
   public NodeTypesMap(String graphPath) throws IOException {
     try {

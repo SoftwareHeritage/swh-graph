@@ -9,10 +9,13 @@ import org.softwareheritage.graph.Graph;
 
 /**
  * Iterator class to go over a node neighbors in the graph.
+ * <p>
+ * Wrapper iterator class to easily deal with {@link AllowedEdges} during traversals.
  *
  * @author Thibault Allançon
  * @version 0.0.1
  * @since 0.0.1
+ * @see org.softwareheritage.graph.AllowedEdges
  */
 
 public class Neighbors implements Iterable<Long> {
@@ -56,6 +59,7 @@ public class Neighbors implements Iterable<Long> {
   public class NeighborsIterator implements Iterator<Long> {
     long nextNeighborIdx;
     long nbNeighbors;
+    // LongBigArrays to support 64-bit indexing.
     long[][] neighbors;
 
     public NeighborsIterator() {
@@ -65,7 +69,7 @@ public class Neighbors implements Iterable<Long> {
     }
 
     public boolean hasNext() {
-      // No edge restriction case: bypass type checks and skip to next neighbor
+      // Case 1: no edge restriction, bypass type checks and skip to next neighbor
       if (edges.restrictedTo == null) {
         if (nextNeighborIdx + 1 < nbNeighbors) {
           nextNeighborIdx++;
@@ -75,7 +79,7 @@ public class Neighbors implements Iterable<Long> {
         }
       }
 
-      // Edge restriction case: look ahead for next neighbor
+      // Case 2: edge restriction, look ahead for next neighbor
       for (long lookAheadIdx = nextNeighborIdx + 1; lookAheadIdx < nbNeighbors; lookAheadIdx++) {
         long nextNodeId = LongBigArrays.get(neighbors, lookAheadIdx);
         if (edges.isAllowed(srcNodeId, nextNodeId)) {

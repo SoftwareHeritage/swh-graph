@@ -6,6 +6,9 @@ import java.util.Properties;
 
 /**
  * Statistics on the compressed graph.
+ * <p>
+ * These statistics are not computed but directly read from <a
+ * href="http://webgraph.di.unimi.it/">WebGraph</a> generated .stats and .properties files.
  *
  * @author Thibault Allançon
  * @version 0.0.1
@@ -39,7 +42,7 @@ public class Stats {
   /**
    * Constructor.
    *
-   * @param graphPath full path of compressed graph
+   * @param graphPath path and basename of compressed graph
    */
   public Stats(String graphPath) throws IOException {
     Properties properties = new Properties();

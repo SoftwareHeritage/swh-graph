@@ -7,6 +7,11 @@ import org.softwareheritage.graph.Node;
 
 /**
  * Edge restriction based on node types, used when visiting the graph.
+ * <p>
+ * <a href="https://docs.softwareheritage.org/devel/swh-model/data-model.html">Software Heritage
+ * graph</a> contains multiple node types (contents, directories, revisions, ...) and restricting
+ * the traversal to specific node types is necessary for many querying operations: <a
+ * href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html">use cases</a>.
  *
  * @author Thibault Allançon
  * @version 0.0.1
@@ -27,7 +32,8 @@ public class AllowedEdges {
    * Constructor.
    *
    * @param graph the graph on which to perform edge restriction
-   * @param edgesFmt a formatted string describing allowed edges (TODO: link API doc)
+   * @param edgesFmt a formatted string describing <a
+   * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed edges</a>
    */
   public AllowedEdges(Graph graph, String edgesFmt) {
     this.graph = graph;
@@ -45,7 +51,6 @@ public class AllowedEdges {
     }
 
     // Format: "src1:dst1,src2:dst2,[...]"
-    // TODO: link API doc
     String[] edgeTypes = edgesFmt.split(",");
     for (String edgeType : edgeTypes) {
       String[] nodeTypes = edgeType.split(":");

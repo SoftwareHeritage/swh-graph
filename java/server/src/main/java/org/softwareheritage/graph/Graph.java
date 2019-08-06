@@ -11,10 +11,22 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
 
 /**
  * Main class storing the compressed graph and node id mappings.
+ * <p>
+ * The compressed graph is stored using the <a href="http://webgraph.di.unimi.it/">WebGraph</a>
+ * ecosystem. Additional mappings are necessary because Software Heritage uses string based <a
+ * href="https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html">persistent
+ * identifiers</a> (PID) while WebGraph uses integers internally. These two mappings (long id &harr;
+ * PID) are used for the input (users refer to the graph using PID) and the output (convert back to
+ * PID for users results). However, since graph traversal can be restricted depending on the node
+ * type (see {@link AllowedEdges}), a long id &rarr; node type map is stored as well to avoid a full
+ * PID lookup.
  *
  * @author Thibault Allançon
  * @version 0.0.1
  * @since 0.0.1
+ * @see org.softwareheritage.graph.AllowedEdges
+ * @see org.softwareheritage.graph.NodeIdMap;
+ * @see org.softwareheritage.graph.NodeTypesMap;
  */
 
 public class Graph {
@@ -120,8 +132,8 @@ public class Graph {
    * Returns list of successors of a node.
    *
    * @param nodeId node specified as a long id
-   * @return list of successors of the node, specified as a {@link LongBigArrays}
-   * @see it.unimi.dsi.fastutil.longs.LongBigArrays
+   * @return list of successors of the node, specified as a <a
+   * href="http://fastutil.di.unimi.it/">fastutil</a> LongBigArrays
    */
   public long[][] successors(long nodeId) {
     return graph.successorBigArray(nodeId);
@@ -141,8 +153,8 @@ public class Graph {
    * Returns list of predecessors of a node.
    *
    * @param nodeId node specified as a long id
-   * @return list of predecessors of the node, specified as a {@link LongBigArrays}
-   * @see it.unimi.dsi.fastutil.longs.LongBigArrays
+   * @return list of successors of the node, specified as a <a
+   * href="http://fastutil.di.unimi.it/">fastutil</a> LongBigArrays
    */
   public long[][] predecessors(long nodeId) {
     return graphTransposed.successorBigArray(nodeId);
@@ -174,8 +186,8 @@ public class Graph {
    *
    * @param nodeId node specified as a long id
    * @param useTransposed boolean value to use transposed graph
-   * @return list of neighbors of the node, specified as a {@link LongBigArrays}
-   * @see it.unimi.dsi.fastutil.longs.LongBigArrays
+   * @return list of successors of the node, specified as a <a
+   * href="http://fastutil.di.unimi.it/">fastutil</a> LongBigArrays
    */
   public long[][] neighbors(long nodeId, boolean useTransposed) {
     return (useTransposed) ? predecessors(nodeId) : successors(nodeId);

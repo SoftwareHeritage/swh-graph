@@ -10,16 +10,22 @@ import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
 
 import org.softwareheritage.graph.AllowedEdges;
+import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Neighbors;
 import org.softwareheritage.graph.Node;
 
 /**
  * Traversal algorithms on the compressed graph.
+ * <p>
+ * Internal implementation of the traversal API endpoints. These methods only input/output internal
+ * long ids, which are converted in the {@link Endpoint} higher-level class to Software Heritage
+ * PID.
  *
  * @author Thibault Allançon
  * @version 0.0.1
  * @since 0.0.1
+ * @see org.softwareheritage.graph.Endpoint
  */
 
 public class Traversal {
@@ -30,15 +36,9 @@ public class Traversal {
   /** Graph edge restriction */
   AllowedEdges edges;
 
-  /**
-   * Bit array storing if we have visited a node
-   * @see it.unimi.dsi.bits.LongArrayBitVector
-   */
+  /** Bit array storing if we have visited a node */
   LongArrayBitVector visited;
-  /**
-   * Array storing parent node id for each nodes during a traversal
-   * @see it.unimi.dsi.fastutil.longs.LongBigArrays
-   */
+  /** LongBigArray storing parent node id for each nodes during a traversal */
   long[][] nodeParent;
 
   /**
@@ -46,7 +46,8 @@ public class Traversal {
    *
    * @param graph graph used in the traversal
    * @param direction a string (either "forward" or "backward") specifying edge orientation
-   * @param edgesFmt a formatted string describing allowed edges (TODO: link API doc)
+   * @param edgesFmt a formatted string describing <a
+   * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed edges</a>
    */
   public Traversal(Graph graph, String direction, String edgesFmt) {
     if (!direction.matches("forward|backward")) {

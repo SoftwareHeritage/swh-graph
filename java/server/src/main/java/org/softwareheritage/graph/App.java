@@ -23,7 +23,7 @@ import org.softwareheritage.graph.SwhId;
 import org.softwareheritage.graph.algo.Stats;
 
 /**
- * Entrypoint of the swh-graph server REST API.
+ * Web framework of the swh-graph server REST API.
  *
  * @author Thibault Allançon
  * @version 0.0.1
@@ -31,6 +31,11 @@ import org.softwareheritage.graph.algo.Stats;
  */
 
 public class App {
+  /**
+   * Main entrypoint.
+   *
+   * @param args command line arguments
+   */
   public static void main(String[] args) throws IOException, JSAPException {
     SimpleJSAP jsap = new SimpleJSAP(
         App.class.getName(),
@@ -54,6 +59,12 @@ public class App {
     startServer(graphPath, port);
   }
 
+  /**
+   * Loads compressed graph and starts the web server to query it.
+   *
+   * @param graphPath basename of the compressed graph
+   * @param port binding port of the server
+   */
   private static void startServer(String graphPath, int port) throws IOException {
     Graph graph = new Graph(graphPath);
     Stats stats = new Stats(graphPath);
@@ -140,6 +151,13 @@ public class App {
     });
   }
 
+  /**
+   * Checks query strings names provided to the REST API.
+   *
+   * @param ctx Javalin HTTP request context
+   * @param allowedFmt a regular expression describing allowed query strings names
+   * @throws IllegalArgumentException unknown query string provided
+   */
   private static void checkQueryStrings(Context ctx, String allowedFmt) {
     Map<String, List<String>> queryParamMap = ctx.queryParamMap();
     for (String key : queryParamMap.keySet()) {

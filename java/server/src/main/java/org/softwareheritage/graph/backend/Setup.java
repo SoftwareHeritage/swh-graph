@@ -33,6 +33,11 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
  */
 
 public class Setup {
+  /**
+   * Main entrypoint.
+   *
+   * @param args command line arguments
+   */
   public static void main(String[] args) throws IOException {
     if (args.length != 2) {
       System.err.println("Expected parameters: <nodes.csv.gz path> <compressed graph path>");
