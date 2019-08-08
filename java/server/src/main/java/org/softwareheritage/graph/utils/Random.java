@@ -1,6 +1,9 @@
 package org.softwareheritage.graph.utils;
 
+import java.util.PrimitiveIterator;
+
 import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.Node;
 
 /**
  * Random related utility class.
@@ -33,11 +36,34 @@ public class Random {
   /**
    * Generates random node ids.
    *
-   * @param graph graph from which node ids will be picked
+   * @param graph graph used to pick node ids
    * @param nbNodes number of node ids to generate
    * @return an array of random node ids
    */
-  public long[] generateNodeIds(Graph graph, long nbNodes) {
+  public long[] generateNodeIds(Graph graph, int nbNodes) {
     return random.longs(nbNodes, 0, graph.getNbNodes()).toArray();
+  }
+
+  /**
+   * Generates random node ids with a specific type.
+   *
+   * @param graph graph used to pick node ids
+   * @param nbNodes number of node ids to generate
+   * @param expectedType specific node type to pick
+   * @return an array of random node ids
+   */
+  public long[] generateNodeIdsOfType(Graph graph, int nbNodes, Node.Type expectedType) {
+    PrimitiveIterator.OfLong nodes = random.longs(0, graph.getNbNodes()).iterator();
+    long[] nodeIds = new long[nbNodes];
+
+    long nextId;
+    for (int i = 0; i < nbNodes; i++) {
+      do {
+        nextId = nodes.nextLong();
+      } while (graph.getNodeType(nextId) != expectedType);
+      nodeIds[i] = nextId;
+    }
+
+    return nodeIds;
   }
 }

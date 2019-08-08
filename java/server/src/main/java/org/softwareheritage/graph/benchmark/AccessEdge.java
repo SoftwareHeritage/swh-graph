@@ -29,7 +29,7 @@ public class AccessEdge {
     Graph graph = new Graph(path);
 
     final long seed = 42;
-    final long nbNodes = 1_000_000;
+    final int nbNodes = 1_000_000;
     Random random = new Random(seed);
     long[] nodeIds = random.generateNodeIds(graph, nbNodes);
 
