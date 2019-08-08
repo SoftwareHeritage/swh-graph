@@ -36,7 +36,7 @@ public class AccessEdge {
     ArrayList<Double> timings = new ArrayList<>();
     for (long nodeId : nodeIds) {
       long startTime = Timing.start();
-      LazyLongIterator neighbors = graph.lazySuccessors(nodeId);
+      LazyLongIterator neighbors = graph.successors(nodeId);
       long firstNeighbor = neighbors.nextLong();
       double duration = (double) Timing.stop(startTime);
       timings.add(duration);

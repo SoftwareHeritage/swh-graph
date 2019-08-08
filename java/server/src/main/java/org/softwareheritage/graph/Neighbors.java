@@ -2,7 +2,7 @@ package org.softwareheritage.graph;
 
 import java.util.Iterator;
 
-import it.unimi.dsi.fastutil.longs.LongBigArrays;
+import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
 import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Graph;
@@ -57,33 +57,24 @@ public class Neighbors implements Iterable<Long> {
   */
 
   public class NeighborsIterator implements Iterator<Long> {
-    long nextNeighborIdx;
-    long nbNeighbors;
-    // LongBigArrays to support 64-bit indexing.
-    long[][] neighbors;
+    LazyLongIterator neighbors;
+    long nextNeighborId;
 
     public NeighborsIterator() {
-      this.nextNeighborIdx = -1;
-      this.nbNeighbors = graph.degree(srcNodeId, useTransposed);
       this.neighbors = graph.neighbors(srcNodeId, useTransposed);
+      this.nextNeighborId = -1;
     }
 
     public boolean hasNext() {
       // Case 1: no edge restriction, bypass type checks and skip to next neighbor
       if (edges.restrictedTo == null) {
-        if (nextNeighborIdx + 1 < nbNeighbors) {
-          nextNeighborIdx++;
-          return true;
-        } else {
-          return false;
-        }
+        nextNeighborId = neighbors.nextLong();
+        return (nextNeighborId != -1);
       }
 
       // Case 2: edge restriction, look ahead for next neighbor
-      for (long lookAheadIdx = nextNeighborIdx + 1; lookAheadIdx < nbNeighbors; lookAheadIdx++) {
-        long nextNodeId = LongBigArrays.get(neighbors, lookAheadIdx);
-        if (edges.isAllowed(srcNodeId, nextNodeId)) {
-          nextNeighborIdx = lookAheadIdx;
+      while ((nextNeighborId = neighbors.nextLong()) != -1) {
+        if (edges.isAllowed(srcNodeId, nextNeighborId)) {
           return true;
         }
       }
@@ -91,8 +82,7 @@ public class Neighbors implements Iterable<Long> {
     }
 
     public Long next() {
-      long nextNodeId = LongBigArrays.get(neighbors, nextNeighborIdx);
-      return nextNodeId;
+      return nextNeighborId;
     }
   }
 }

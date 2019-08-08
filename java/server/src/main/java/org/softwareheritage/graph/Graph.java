@@ -130,24 +130,13 @@ public class Graph {
   }
 
   /**
-   * Returns list of successors of a node.
-   *
-   * @param nodeId node specified as a long id
-   * @return list of successors of the node, specified as a <a
-   * href="http://fastutil.di.unimi.it/">fastutil</a> LongBigArrays
-   */
-  public long[][] successors(long nodeId) {
-    return graph.successorBigArray(nodeId);
-  }
-
-  /**
    * Returns lazy iterator of successors of a node.
    *
    * @param nodeId node specified as a long id
    * @return lazy iterator of successors of the node, specified as a <a
    * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
    */
-  public LazyLongIterator lazySuccessors(long nodeId) {
+  public LazyLongIterator successors(long nodeId) {
     return graph.successors(nodeId);
   }
 
@@ -162,24 +151,13 @@ public class Graph {
   }
 
   /**
-   * Returns list of predecessors of a node.
-   *
-   * @param nodeId node specified as a long id
-   * @return list of predecessors of the node, specified as a <a
-   * href="http://fastutil.di.unimi.it/">fastutil</a> LongBigArrays
-   */
-  public long[][] predecessors(long nodeId) {
-    return graphTransposed.successorBigArray(nodeId);
-  }
-
-  /**
    * Returns lazy iterator of predecessors of a node.
    *
    * @param nodeId node specified as a long id
    * @return lazy iterator of predecessors of the node, specified as a <a
    * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
    */
-  public LazyLongIterator lazyPredecessors(long nodeId) {
+  public LazyLongIterator predecessors(long nodeId) {
     return graphTransposed.successors(nodeId);
   }
 
@@ -205,18 +183,6 @@ public class Graph {
   }
 
   /**
-   * Returns the neighbors of a node (as a list), depending on graph orientation.
-   *
-   * @param nodeId node specified as a long id
-   * @param useTransposed boolean value to use transposed graph
-   * @return list of neighbors of the node, specified as a <a
-   * href="http://fastutil.di.unimi.it/">fastutil</a> LongBigArrays
-   */
-  public long[][] neighbors(long nodeId, boolean useTransposed) {
-    return (useTransposed) ? predecessors(nodeId) : successors(nodeId);
-  }
-
-  /**
    * Returns the neighbors of a node (as a lazy iterator), depending on graph orientation.
    *
    * @param nodeId node specified as a long id
@@ -224,7 +190,7 @@ public class Graph {
    * @return lazy iterator of neighbors of the node, specified as a <a
    * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
    */
-  public LazyLongIterator lazyNeighbors(long nodeId, boolean useTransposed) {
-    return (useTransposed) ? lazyPredecessors(nodeId) : lazySuccessors(nodeId);
+  public LazyLongIterator neighbors(long nodeId, boolean useTransposed) {
+    return (useTransposed) ? predecessors(nodeId) : successors(nodeId);
   }
 }
