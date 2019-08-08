@@ -1,6 +1,7 @@
 package org.softwareheritage.graph;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -12,6 +13,7 @@ import com.martiansoftware.jsap.JSAPException;
 import com.martiansoftware.jsap.JSAPResult;
 import com.martiansoftware.jsap.Parameter;
 import com.martiansoftware.jsap.SimpleJSAP;
+import com.martiansoftware.jsap.Switch;
 import com.martiansoftware.jsap.UnflaggedOption;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
@@ -45,6 +47,7 @@ public class App {
               "Binding port of the server."),
           new UnflaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
               JSAP.NOT_GREEDY, "The basename of the compressed graph."),
+          new Switch("timings", 't', "timings", "Show timings in API result metadata."),
         }
     );
 
@@ -55,8 +58,9 @@ public class App {
 
     String graphPath = config.getString("graphPath");
     int port = config.getInt("port");
+    boolean showTimings = config.getBoolean("timings");
 
-    startServer(graphPath, port);
+    startServer(graphPath, port, showTimings);
   }
 
   /**
@@ -64,8 +68,9 @@ public class App {
    *
    * @param graphPath basename of the compressed graph
    * @param port binding port of the server
+   * @param showTimings true if timings should be in results metadata, false otherwise
    */
-  private static void startServer(String graphPath, int port) throws IOException {
+  private static void startServer(String graphPath, int port, boolean showTimings) throws IOException {
     Graph graph = new Graph(graphPath);
     Stats stats = new Stats(graphPath);
 
@@ -104,7 +109,8 @@ public class App {
       String edgesFmt = ctx.queryParam("edges", "*");
 
       Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
-      ctx.json(endpoint.leaves(src));
+      Endpoint.Output output = endpoint.leaves(src);
+      ctx.json(formatEndpointOutput(output, showTimings));
     });
 
     app.get("/neighbors/:src", ctx -> {
@@ -113,7 +119,8 @@ public class App {
       String edgesFmt = ctx.queryParam("edges", "*");
 
       Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
-      ctx.json(endpoint.neighbors(src));
+      Endpoint.Output output = endpoint.neighbors(src);
+      ctx.json(formatEndpointOutput(output, showTimings));
     });
 
     app.get("/visit/nodes/:src", ctx -> {
@@ -122,7 +129,8 @@ public class App {
       String edgesFmt = ctx.queryParam("edges", "*");
 
       Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
-      ctx.json(endpoint.visitNodes(src));
+      Endpoint.Output output = endpoint.visitNodes(src);
+      ctx.json(formatEndpointOutput(output, showTimings));
     });
 
     app.get("/visit/paths/:src", ctx -> {
@@ -131,7 +139,8 @@ public class App {
       String edgesFmt = ctx.queryParam("edges", "*");
 
       Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
-      ctx.json(endpoint.visitPaths(src));
+      Endpoint.Output output = endpoint.visitPaths(src);
+      ctx.json(formatEndpointOutput(output, showTimings));
     });
 
     app.get("/walk/:src/:dst", ctx -> {
@@ -142,7 +151,8 @@ public class App {
       String algorithm = ctx.queryParam("traversal", "dfs");
 
       Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
-      ctx.json(endpoint.walk(src, dstFmt, algorithm));
+      Endpoint.Output output = endpoint.walk(src, dstFmt, algorithm);
+      ctx.json(formatEndpointOutput(output, showTimings));
     });
 
     app.exception(IllegalArgumentException.class, (e, ctx) -> {
@@ -164,6 +174,26 @@ public class App {
       if (!key.matches(allowedFmt)) {
         throw new IllegalArgumentException("Unknown query string: " + key);
       }
+    }
+  }
+
+  /**
+   * Formats endpoint result into final JSON for the REST API.
+   * <p>
+   * Removes unwanted information if necessary, such as timings (to prevent use of side channels
+   * attacks).
+   *
+   * @param output endpoint operation output which needs formatting
+   * @param showTimings true if timings should be in results metadata, false otherwise
+   * @return final Object with desired JSON format
+   */
+  private static Object formatEndpointOutput(Endpoint.Output output, boolean showTimings) {
+    if (showTimings) {
+      return output;
+    } else {
+      Map<String, Object> outputNoTimings = new HashMap<>();
+      outputNoTimings.put("result", output.result);
+      return outputNoTimings;
     }
   }
 }

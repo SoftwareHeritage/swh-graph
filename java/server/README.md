@@ -19,7 +19,9 @@ $ java -cp target/swh-graph-0.0.1-jar-with-dependencies.jar \
     <compressed_graph_path>
 ```
 
-Default port is 5009.
+Default port is 5009 (use the `--port` option to change port number). If you
+need timings metadata send back to the client in addition to the result, use the
+`--timings` flag.
 
 Tests
 -----
