@@ -30,15 +30,19 @@ Examples
   nodes, or from directories nodes.
 - ``"*:rel"`` node types allowing all edges to releases.
 
-Timings
-~~~~~~~
+Metadata
+--------
 
-When configured to do so (see the server's README), the server can provide
-timings metadata in addition to the result:
+Extra metadata are given in addition to the result:
 
-- ``traversal``: time in seconds to do the actual graph traversal.
-- ``pid2node``: time in seconds to convert input PID to node id.
-- ``node2pid``: time in seconds to convert output node ids to PIDs.
+- ``timings``: only when configured to do so (see the server's README):
+
+    - ``traversal``: time in seconds to do the actual graph traversal.
+    - ``pid2node``: time in seconds to convert input PID to node id.
+    - ``node2pid``: time in seconds to convert output node ids to PIDs.
+
+- ``nb_edges_accessed``: number of edges accessed during the traversal
+  operation.
 
 Leaves
 ------
@@ -75,7 +79,8 @@ Leaves
                     "traversal": 0.002942681,
                     "pid2node": 0.000178051,
                     "node2pid": 0.000956569
-                }
+                },
+                "nb_edges_accessed": 12
             }
         }
 
@@ -113,7 +118,8 @@ Neighbors
                     "traversal": 0.002942681,
                     "pid2node": 0.000178051,
                     "node2pid": 0.000956569
-                }
+                },
+                "nb_edges_accessed": 12
             }
         }
 
@@ -159,7 +165,8 @@ Walk
                     "traversal": 0.002942681,
                     "pid2node": 0.000178051,
                     "node2pid": 0.000956569
-                }
+                },
+                "nb_edges_accessed": 12
             }
         }
 
@@ -202,7 +209,8 @@ Visit
                     "traversal": 0.002942681,
                     "pid2node": 0.000178051,
                     "node2pid": 0.000956569
-                }
+                },
+                "nb_edges_accessed": 12
             }
         }
 
@@ -231,7 +239,8 @@ Visit
                     "traversal": 0.002942681,
                     "pid2node": 0.000178051,
                     "node2pid": 0.000956569
-                }
+                },
+                "nb_edges_accessed": 12
             }
         }
 

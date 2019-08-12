@@ -40,6 +40,8 @@ public class Traversal {
   LongArrayBitVector visited;
   /** LongBigArray storing parent node id for each nodes during a traversal */
   long[][] nodeParent;
+  /** Number of edges accessed during traversal */
+  long nbEdgesAccessed;
 
   /**
    * Constructor.
@@ -61,6 +63,16 @@ public class Traversal {
     long nbNodes = graph.getNbNodes();
     this.visited = LongArrayBitVector.ofLength(nbNodes);
     this.nodeParent = LongBigArrays.newBigArray(nbNodes);
+    this.nbEdgesAccessed = 0;
+  }
+
+  /**
+   * Returns number of accessed edges during traversal.
+   *
+   * @return number of edges accessed in last traversal
+   */
+  public long getnbEdgesAccessed() {
+    return nbEdgesAccessed;
   }
 
   /**
@@ -73,6 +85,7 @@ public class Traversal {
     ArrayList<Long> nodeIds = new ArrayList<Long>();
     Stack<Long> stack = new Stack<Long>();
     this.visited.fill(false);
+    this.nbEdgesAccessed = 0;
 
     stack.push(srcNodeId);
     visited.set(srcNodeId);
@@ -83,6 +96,7 @@ public class Traversal {
       long neighborsCnt = 0;
       for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
         neighborsCnt++;
+        nbEdgesAccessed++;
         if (!visited.getBoolean(neighborNodeId)) {
           stack.push(neighborNodeId);
           visited.set(neighborNodeId);
@@ -105,8 +119,10 @@ public class Traversal {
    */
   public ArrayList<Long> neighbors(long srcNodeId) {
     ArrayList<Long> nodeIds = new ArrayList<Long>();
+    this.nbEdgesAccessed = 0;
     for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, srcNodeId)) {
       nodeIds.add(neighborNodeId);
+      nbEdgesAccessed++;
     }
     return nodeIds;
   }
@@ -121,6 +137,7 @@ public class Traversal {
     ArrayList<Long> nodeIds = new ArrayList<Long>();
     Stack<Long> stack = new Stack<Long>();
     this.visited.fill(false);
+    this.nbEdgesAccessed = 0;
 
     stack.push(srcNodeId);
     visited.set(srcNodeId);
@@ -130,6 +147,7 @@ public class Traversal {
       nodeIds.add(currentNodeId);
 
       for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+        nbEdgesAccessed++;
         if (!visited.getBoolean(neighborNodeId)) {
           stack.push(neighborNodeId);
           visited.set(neighborNodeId);
@@ -149,6 +167,7 @@ public class Traversal {
   public ArrayList<ArrayList<Long>> visitPaths(long srcNodeId) {
     ArrayList<ArrayList<Long>> paths = new ArrayList<>();
     Stack<Long> currentPath = new Stack<Long>();
+    this.nbEdgesAccessed = 0;
     visitPathsInternal(srcNodeId, paths, currentPath);
     return paths;
   }
@@ -168,6 +187,7 @@ public class Traversal {
     for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
       visitPathsInternal(neighborNodeId, paths, currentPath);
       visitedNeighbors++;
+      this.nbEdgesAccessed++;
     }
 
     if (visitedNeighbors == 0) {
@@ -216,6 +236,7 @@ public class Traversal {
   private <T> long walkInternalDfs(long srcNodeId, T dst) {
     Stack<Long> stack = new Stack<Long>();
     this.visited.fill(false);
+    this.nbEdgesAccessed = 0;
 
     stack.push(srcNodeId);
     visited.set(srcNodeId);
@@ -227,6 +248,7 @@ public class Traversal {
       }
 
       for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+        nbEdgesAccessed++;
         if (!visited.getBoolean(neighborNodeId)) {
           stack.push(neighborNodeId);
           visited.set(neighborNodeId);
@@ -248,6 +270,7 @@ public class Traversal {
   private <T> long walkInternalBfs(long srcNodeId, T dst) {
     Queue<Long> queue = new LinkedList<Long>();
     this.visited.fill(false);
+    this.nbEdgesAccessed = 0;
 
     queue.add(srcNodeId);
     visited.set(srcNodeId);
@@ -259,6 +282,7 @@ public class Traversal {
       }
 
       for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+        nbEdgesAccessed++;
         if (!visited.getBoolean(neighborNodeId)) {
           queue.add(neighborNodeId);
           visited.set(neighborNodeId);

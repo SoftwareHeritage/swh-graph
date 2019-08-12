@@ -42,9 +42,12 @@ public class Endpoint {
     public class Meta {
       /** Operations timings */
       public Timings timings;
+      /** Number of edges accessed during traversal */
+      public long nbEdgesAccessed;
 
       public Meta() {
         this.timings = new Timings();
+        this.nbEdgesAccessed = 0;
       }
 
       /**
@@ -142,6 +145,7 @@ public class Endpoint {
     startTime = Timing.start();
     ArrayList<Long> nodeIds = traversal.leaves(srcNodeId);
     output.meta.timings.traversal = Timing.stop(startTime);
+    output.meta.nbEdgesAccessed = traversal.getnbEdgesAccessed();
 
     startTime = Timing.start();
     output.result = convertNodesToSwhPIDs(nodeIds);
@@ -169,6 +173,7 @@ public class Endpoint {
     startTime = Timing.start();
     ArrayList<Long> nodeIds = traversal.neighbors(srcNodeId);
     output.meta.timings.traversal = Timing.stop(startTime);
+    output.meta.nbEdgesAccessed = traversal.getnbEdgesAccessed();
 
     startTime = Timing.start();
     output.result = convertNodesToSwhPIDs(nodeIds);
@@ -218,6 +223,8 @@ public class Endpoint {
       }
     }
 
+    output.meta.nbEdgesAccessed = traversal.getnbEdgesAccessed();
+
     startTime = Timing.start();
     output.result = convertNodesToSwhPath(nodeIds);
     output.meta.timings.node2pid = Timing.stop(startTime);
@@ -244,6 +251,7 @@ public class Endpoint {
     startTime = Timing.start();
     ArrayList<Long> nodeIds = traversal.visitNodes(srcNodeId);
     output.meta.timings.traversal = Timing.stop(startTime);
+    output.meta.nbEdgesAccessed = traversal.getnbEdgesAccessed();
 
     startTime = Timing.start();
     output.result = convertNodesToSwhPIDs(nodeIds);
@@ -272,6 +280,7 @@ public class Endpoint {
     startTime = Timing.start();
     ArrayList<ArrayList<Long>> paths = traversal.visitPaths(srcNodeId);
     output.meta.timings.traversal = Timing.stop(startTime);
+    output.meta.nbEdgesAccessed = traversal.getnbEdgesAccessed();
 
     startTime = Timing.start();
     output.result = convertPathsToSwhPIDs(paths);
