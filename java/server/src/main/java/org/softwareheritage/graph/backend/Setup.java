@@ -51,7 +51,7 @@ public class Setup {
     long startTime = System.nanoTime();
     precomputeNodeIdMap(nodesPath, graphPath);
     long endTime = System.nanoTime();
-    double duration = (double) (endTime - startTime) / 1_000_000_000;
+    double duration = (endTime - startTime) / 1_000_000_000;
     System.out.println("Done in: " + duration + " seconds");
   }
 

@@ -52,11 +52,11 @@ public class Endpoint {
        */
       public class Timings {
         /** Time in seconds to do the traversal */
-        public float traversal;
+        public double traversal;
         /** Time in seconds to convert input SWH PID to node id */
-        public float pid2node;
+        public double pid2node;
         /** Time in seconds to convert output node ids to SWH PIDs */
-        public float node2pid;
+        public double node2pid;
       }
     }
   }

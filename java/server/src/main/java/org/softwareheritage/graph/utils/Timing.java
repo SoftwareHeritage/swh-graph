@@ -24,9 +24,9 @@ public class Timing {
    * @param startTime measurement starting timestamp
    * @return time in seconds elapsed since starting point
    */
-  public static float stop(long startTime) {
+  public static double stop(long startTime) {
     long endTime = System.nanoTime();
-    float duration = (float) (endTime - startTime) / 1_000_000_000;
+    double duration = (double) (endTime - startTime) / 1_000_000_000;
     return duration;
   }
 }

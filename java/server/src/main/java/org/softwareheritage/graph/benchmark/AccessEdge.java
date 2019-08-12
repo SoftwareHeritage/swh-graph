@@ -38,7 +38,7 @@ public class AccessEdge {
       long startTime = Timing.start();
       LazyLongIterator neighbors = graph.successors(nodeId);
       long firstNeighbor = neighbors.nextLong();
-      double duration = (double) Timing.stop(startTime);
+      double duration = Timing.stop(startTime);
       timings.add(duration);
     }
 
