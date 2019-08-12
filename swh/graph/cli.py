@@ -18,6 +18,7 @@ def cli(ctx, host, port):
     app = client.RemoteGraphClient(url)
 
     # TODO: run web app
+    print(app.stats())
 
 
 def main():
