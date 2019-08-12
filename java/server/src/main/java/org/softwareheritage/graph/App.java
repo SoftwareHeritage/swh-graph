@@ -39,17 +39,15 @@ public class App {
    * @param args command line arguments
    */
   public static void main(String[] args) throws IOException, JSAPException {
-    SimpleJSAP jsap = new SimpleJSAP(
-        App.class.getName(),
+    SimpleJSAP jsap = new SimpleJSAP(App.class.getName(),
         "Server to load and query a compressed graph representation of Software Heritage archive.",
         new Parameter[] {
-          new FlaggedOption("port", JSAP.INTEGER_PARSER, "5009", JSAP.NOT_REQUIRED, 'p', "port",
-              "Binding port of the server."),
-          new UnflaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-              JSAP.NOT_GREEDY, "The basename of the compressed graph."),
-          new Switch("timings", 't', "timings", "Show timings in API result metadata."),
-        }
-    );
+            new FlaggedOption("port", JSAP.INTEGER_PARSER, "5009", JSAP.NOT_REQUIRED, 'p', "port",
+                "Binding port of the server."),
+            new UnflaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+                JSAP.NOT_GREEDY, "The basename of the compressed graph."),
+            new Switch("timings", 't', "timings", "Show timings in API result metadata."),
+        });
 
     JSAPResult config = jsap.parse(args);
     if (jsap.messagePrinted()) {
@@ -70,7 +68,8 @@ public class App {
    * @param port binding port of the server
    * @param showTimings true if timings should be in results metadata, false otherwise
    */
-  private static void startServer(String graphPath, int port, boolean showTimings) throws IOException {
+  private static void startServer(String graphPath, int port, boolean showTimings)
+      throws IOException {
     Graph graph = new Graph(graphPath);
     Stats stats = new Stats(graphPath);
 

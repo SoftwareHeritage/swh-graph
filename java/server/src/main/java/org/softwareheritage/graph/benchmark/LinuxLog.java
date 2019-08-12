@@ -42,6 +42,5 @@ public class LinuxLog {
     long endTime = System.nanoTime();
     double duration = (double) (endTime - startTime) / 1_000_000_000;
     System.out.println("Visit operation done in: " + duration + " seconds");
-
   }
 }

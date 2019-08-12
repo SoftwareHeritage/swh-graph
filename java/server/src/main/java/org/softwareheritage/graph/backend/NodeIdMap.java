@@ -60,7 +60,8 @@ public class NodeIdMap {
    */
   public long getNodeId(SwhPID swhPID) {
     // Each line in PID_TO_NODE is formatted as: swhPID nodeId
-    // The file is sorted by swhPID, hence we can binary search on swhPID to get corresponding nodeId
+    // The file is sorted by swhPID, hence we can binary search on swhPID to get corresponding
+    // nodeId
     long start = 0;
     long end = nbIds - 1;
 

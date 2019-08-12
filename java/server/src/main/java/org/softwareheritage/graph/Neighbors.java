@@ -49,12 +49,12 @@ public class Neighbors implements Iterable<Long> {
   }
 
   /**
-  * Inner class for {@link Neighbors} iterator.
-  *
-  * @author Thibault Allançon
-  * @version 0.0.1
-  * @since 0.0.1
-  */
+   * Inner class for {@link Neighbors} iterator.
+   *
+   * @author Thibault Allançon
+   * @version 0.0.1
+   * @since 0.0.1
+   */
 
   public class NeighborsIterator implements Iterator<Long> {
     LazyLongIterator neighbors;

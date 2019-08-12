@@ -36,7 +36,8 @@ public class SwhPID {
     // PID format: 'swh:1:type:hash'
     String[] parts = swhPID.split(":");
     if (parts.length != 4 || !parts[0].equals("swh") || !parts[1].equals("1")) {
-      throw new IllegalArgumentException("Expected SWH PID format to be 'swh:1:type:hash', got: " + swhPID);
+      throw new IllegalArgumentException(
+          "Expected SWH PID format to be 'swh:1:type:hash', got: " + swhPID);
     }
 
     this.type = Node.Type.fromStr(parts[2]);
@@ -49,8 +50,10 @@ public class SwhPID {
 
   @Override
   public boolean equals(Object otherObj) {
-    if (otherObj == this) return true;
-    if (!(otherObj instanceof SwhPID)) return false;
+    if (otherObj == this)
+      return true;
+    if (!(otherObj instanceof SwhPID))
+      return false;
 
     SwhPID other = (SwhPID) otherObj;
     return swhPID.equals(other.getSwhPID());

@@ -37,8 +37,8 @@ public class Endpoint {
     }
 
     /**
-    * Endpoint result metadata.
-    */
+     * Endpoint result metadata.
+     */
     public class Meta {
       /** Operations timings */
       public Timings timings;
@@ -48,8 +48,8 @@ public class Endpoint {
       }
 
       /**
-      * Wrapper class for JSON output format.
-      */
+       * Wrapper class for JSON output format.
+       */
       public class Timings {
         /** Time in seconds to do the traversal */
         public float traversal;
@@ -214,7 +214,8 @@ public class Endpoint {
         startTime = Timing.start();
         nodeIds = traversal.walk(srcNodeId, dstType, algorithm);
         output.meta.timings.traversal = Timing.stop(startTime);
-      } catch (IllegalArgumentException ignored2) { }
+      } catch (IllegalArgumentException ignored2) {
+      }
     }
 
     startTime = Timing.start();
