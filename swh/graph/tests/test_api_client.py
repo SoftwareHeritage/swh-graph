@@ -59,7 +59,8 @@ class TestEndpoints:
             'swh:1:cnt:0000000000000000000000000000000000000005',
             'swh:1:cnt:0000000000000000000000000000000000000007'
         ]
-        assert set(actual) == set(expected)
+        assert set(actual.keys()) == {'result'}
+        assert set(actual['result']) == set(expected)
 
     def test_neighbors(self):
         actual = self.client.neighbors(
@@ -71,7 +72,8 @@ class TestEndpoints:
             'swh:1:rel:0000000000000000000000000000000000000010',
             'swh:1:rev:0000000000000000000000000000000000000013'
         ]
-        assert set(actual) == set(expected)
+        assert set(actual.keys()) == {'result'}
+        assert set(actual['result']) == set(expected)
 
     def test_stats(self):
         stats = self.client.stats()
@@ -108,14 +110,15 @@ class TestEndpoints:
             'swh:1:rev:0000000000000000000000000000000000000009',
             'swh:1:rev:0000000000000000000000000000000000000003'
         ]
-        assert set(actual) == set(expected)
+        assert set(actual.keys()) == {'result'}
+        assert set(actual['result']) == set(expected)
 
     def test_visit_paths(self):
-        actual = [tuple(path) for path in
-                  self.client.visit_paths(
+        actual = self.client.visit_paths(
                       'swh:1:snp:0000000000000000000000000000000000000020',
                       edges='snp:*,rev:*')
-                  ]
+        assert set(actual.keys()) == {'result'}
+        actual = [tuple(path) for path in actual['result']]
         expected = [
             (
                 'swh:1:snp:0000000000000000000000000000000000000020',
@@ -148,4 +151,5 @@ class TestEndpoints:
             'swh:1:rev:0000000000000000000000000000000000000018',
             'swh:1:rel:0000000000000000000000000000000000000019'
         ]
-        assert set(actual) == set(expected)
+        assert set(actual.keys()) == {'result'}
+        assert set(actual['result']) == set(expected)
