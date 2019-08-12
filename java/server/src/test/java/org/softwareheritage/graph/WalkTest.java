@@ -10,7 +10,7 @@ import org.junit.Test;
 import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.GraphTest;
-import org.softwareheritage.graph.SwhId;
+import org.softwareheritage.graph.SwhPID;
 import org.softwareheritage.graph.SwhPath;
 
 public class WalkTest extends GraphTest {
@@ -18,7 +18,7 @@ public class WalkTest extends GraphTest {
   public void forwardRootToLeaf() {
     Graph graph = getGraph();
     Endpoint endpoint = new Endpoint(graph, "forward", "*");
-    SwhId src = new SwhId("swh:1:snp:0000000000000000000000000000000000000020");
+    SwhPID src = new SwhPID("swh:1:snp:0000000000000000000000000000000000000020");
     String dstFmt = "swh:1:cnt:0000000000000000000000000000000000000005";
 
     SwhPath solution1 =
@@ -51,7 +51,7 @@ public class WalkTest extends GraphTest {
   public void forwardLeafToLeaf() {
     Graph graph = getGraph();
     Endpoint endpoint = new Endpoint(graph, "forward", "*");
-    SwhId src = new SwhId("swh:1:cnt:0000000000000000000000000000000000000007");
+    SwhPID src = new SwhPID("swh:1:cnt:0000000000000000000000000000000000000007");
     String dstFmt = "cnt";
 
     SwhPath expectedPath =
@@ -70,7 +70,7 @@ public class WalkTest extends GraphTest {
   public void forwardRevToRev() {
     Graph graph = getGraph();
     Endpoint endpoint = new Endpoint(graph, "forward", "rev:rev");
-    SwhId src = new SwhId("swh:1:rev:0000000000000000000000000000000000000018");
+    SwhPID src = new SwhPID("swh:1:rev:0000000000000000000000000000000000000018");
     String dstFmt = "swh:1:rev:0000000000000000000000000000000000000003";
 
     SwhPath expectedPath =
@@ -92,7 +92,7 @@ public class WalkTest extends GraphTest {
   public void backwardRevToRev() {
     Graph graph = getGraph();
     Endpoint endpoint = new Endpoint(graph, "backward", "rev:rev");
-    SwhId src = new SwhId("swh:1:rev:0000000000000000000000000000000000000003");
+    SwhPID src = new SwhPID("swh:1:rev:0000000000000000000000000000000000000003");
     String dstFmt = "swh:1:rev:0000000000000000000000000000000000000018";
 
     SwhPath expectedPath =
@@ -114,7 +114,7 @@ public class WalkTest extends GraphTest {
   public void backwardCntToFirstSnp() {
     Graph graph = getGraph();
     Endpoint endpoint = new Endpoint(graph, "backward", "*");
-    SwhId src = new SwhId("swh:1:cnt:0000000000000000000000000000000000000001");
+    SwhPID src = new SwhPID("swh:1:cnt:0000000000000000000000000000000000000001");
     String dstFmt = "snp";
 
     SwhPath solution1 =
@@ -162,7 +162,7 @@ public class WalkTest extends GraphTest {
   public void forwardRevToFirstCnt() {
     Graph graph = getGraph();
     Endpoint endpoint = new Endpoint(graph, "forward", "rev:*,dir:*");
-    SwhId src = new SwhId("swh:1:rev:0000000000000000000000000000000000000009");
+    SwhPID src = new SwhPID("swh:1:rev:0000000000000000000000000000000000000009");
     String dstFmt = "cnt";
 
     SwhPath solution1 =
@@ -212,7 +212,7 @@ public class WalkTest extends GraphTest {
   public void backwardDirToFirstRel() {
     Graph graph = getGraph();
     Endpoint endpoint = new Endpoint(graph, "backward", "dir:dir,dir:rev,rev:*");
-    SwhId src = new SwhId("swh:1:dir:0000000000000000000000000000000000000016");
+    SwhPID src = new SwhPID("swh:1:dir:0000000000000000000000000000000000000016");
     String dstFmt = "rel";
 
     SwhPath expectedPath =

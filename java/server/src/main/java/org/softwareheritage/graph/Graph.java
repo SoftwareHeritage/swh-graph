@@ -6,7 +6,7 @@ import it.unimi.dsi.big.webgraph.BVGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
 import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.SwhId;
+import org.softwareheritage.graph.SwhPID;
 import org.softwareheritage.graph.backend.NodeIdMap;
 import org.softwareheritage.graph.backend.NodeTypesMap;
 
@@ -79,25 +79,25 @@ public class Graph {
   }
 
   /**
-   * Converts {@link SwhId} node to long.
+   * Converts {@link SwhPID} node to long.
    *
-   * @param swhId node specified as a {@link SwhId}
+   * @param swhPID node specified as a {@link SwhPID}
    * @return internal long node id
-   * @see org.softwareheritage.graph.SwhId
+   * @see org.softwareheritage.graph.SwhPID
    */
-  public long getNodeId(SwhId swhId) {
-    return nodeIdMap.getNodeId(swhId);
+  public long getNodeId(SwhPID swhPID) {
+    return nodeIdMap.getNodeId(swhPID);
   }
 
   /**
-   * Converts long id node to {@link SwhId}.
+   * Converts long id node to {@link SwhPID}.
    *
    * @param nodeId node specified as a long id
    * @return external SWH PID
-   * @see org.softwareheritage.graph.SwhId
+   * @see org.softwareheritage.graph.SwhPID
    */
-  public SwhId getSwhId(long nodeId) {
-    return nodeIdMap.getSwhId(nodeId);
+  public SwhPID getSwhPID(long nodeId) {
+    return nodeIdMap.getSwhPID(nodeId);
   }
 
   /**

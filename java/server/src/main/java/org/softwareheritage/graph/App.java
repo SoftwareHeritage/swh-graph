@@ -21,7 +21,7 @@ import io.javalin.plugin.json.JavalinJackson;
 
 import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.SwhId;
+import org.softwareheritage.graph.SwhPID;
 import org.softwareheritage.graph.algo.Stats;
 
 /**
@@ -104,7 +104,7 @@ public class App {
     // By default the traversal is a forward DFS using all edges
 
     app.get("/leaves/:src", ctx -> {
-      SwhId src = new SwhId(ctx.pathParam("src"));
+      SwhPID src = new SwhPID(ctx.pathParam("src"));
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
@@ -114,7 +114,7 @@ public class App {
     });
 
     app.get("/neighbors/:src", ctx -> {
-      SwhId src = new SwhId(ctx.pathParam("src"));
+      SwhPID src = new SwhPID(ctx.pathParam("src"));
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
@@ -124,7 +124,7 @@ public class App {
     });
 
     app.get("/visit/nodes/:src", ctx -> {
-      SwhId src = new SwhId(ctx.pathParam("src"));
+      SwhPID src = new SwhPID(ctx.pathParam("src"));
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
@@ -134,7 +134,7 @@ public class App {
     });
 
     app.get("/visit/paths/:src", ctx -> {
-      SwhId src = new SwhId(ctx.pathParam("src"));
+      SwhPID src = new SwhPID(ctx.pathParam("src"));
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");
 
@@ -144,7 +144,7 @@ public class App {
     });
 
     app.get("/walk/:src/:dst", ctx -> {
-      SwhId src = new SwhId(ctx.pathParam("src"));
+      SwhPID src = new SwhPID(ctx.pathParam("src"));
       String dstFmt = ctx.pathParam("dst");
       String direction = ctx.queryParam("direction", "forward");
       String edgesFmt = ctx.queryParam("edges", "*");

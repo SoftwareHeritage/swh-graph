@@ -3,7 +3,7 @@ package org.softwareheritage.graph;
 import java.util.ArrayList;
 
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.SwhId;
+import org.softwareheritage.graph.SwhPID;
 import org.softwareheritage.graph.SwhPath;
 import org.softwareheritage.graph.algo.Traversal;
 import org.softwareheritage.graph.utils.Timing;
@@ -85,12 +85,12 @@ public class Endpoint {
    * @param nodeIds the list of long node ids
    * @return a list of corresponding SWH PIDs
    */
-  private ArrayList<SwhId> convertNodesToSwhIds(ArrayList<Long> nodeIds) {
-    ArrayList<SwhId> swhIds = new ArrayList<>();
+  private ArrayList<SwhPID> convertNodesToSwhPIDs(ArrayList<Long> nodeIds) {
+    ArrayList<SwhPID> swhPIDs = new ArrayList<>();
     for (long nodeId : nodeIds) {
-      swhIds.add(graph.getSwhId(nodeId));
+      swhPIDs.add(graph.getSwhPID(nodeId));
     }
-    return swhIds;
+    return swhPIDs;
   }
 
   /**
@@ -103,7 +103,7 @@ public class Endpoint {
   private SwhPath convertNodesToSwhPath(ArrayList<Long> nodeIds) {
     SwhPath path = new SwhPath();
     for (long nodeId : nodeIds) {
-      path.add(graph.getSwhId(nodeId));
+      path.add(graph.getSwhPID(nodeId));
     }
     return path;
   }
@@ -115,7 +115,7 @@ public class Endpoint {
    * @return a list of corresponding {@link SwhPath}
    * @see org.softwareheritage.graph.SwhPath
    */
-  private ArrayList<SwhPath> convertPathsToSwhIds(ArrayList<ArrayList<Long>> pathsNodeId) {
+  private ArrayList<SwhPath> convertPathsToSwhPIDs(ArrayList<ArrayList<Long>> pathsNodeId) {
     ArrayList<SwhPath> paths = new ArrayList<>();
     for (ArrayList<Long> path : pathsNodeId) {
       paths.add(convertNodesToSwhPath(path));
@@ -126,13 +126,13 @@ public class Endpoint {
   /**
    * Leaves endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a {@link SwhId}
-   * @return the resulting list of {@link SwhId} from endpoint call and operation metadata
-   * @see org.softwareheritage.graph.SwhId
+   * @param src source node of endpoint call specified as a {@link SwhPID}
+   * @return the resulting list of {@link SwhPID} from endpoint call and operation metadata
+   * @see org.softwareheritage.graph.SwhPID
    * @see org.softwareheritage.graph.algo.Traversal#leaves(long)
    */
-  public Output leaves(SwhId src) {
-    Output<ArrayList<SwhId>> output = new Output<>();
+  public Output leaves(SwhPID src) {
+    Output<ArrayList<SwhPID>> output = new Output<>();
     long startTime;
 
     startTime = Timing.start();
@@ -144,7 +144,7 @@ public class Endpoint {
     output.meta.timings.traversal = Timing.stop(startTime);
 
     startTime = Timing.start();
-    output.result = convertNodesToSwhIds(nodeIds);
+    output.result = convertNodesToSwhPIDs(nodeIds);
     output.meta.timings.node2pid = Timing.stop(startTime);
 
     return output;
@@ -153,13 +153,13 @@ public class Endpoint {
   /**
    * Neighbors endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a {@link SwhId}
-   * @return the resulting list of {@link SwhId} from endpoint call and operation metadata
-   * @see org.softwareheritage.graph.SwhId
+   * @param src source node of endpoint call specified as a {@link SwhPID}
+   * @return the resulting list of {@link SwhPID} from endpoint call and operation metadata
+   * @see org.softwareheritage.graph.SwhPID
    * @see org.softwareheritage.graph.algo.Traversal#neighbors(long)
    */
-  public Output neighbors(SwhId src) {
-    Output<ArrayList<SwhId>> output = new Output<>();
+  public Output neighbors(SwhPID src) {
+    Output<ArrayList<SwhPID>> output = new Output<>();
     long startTime;
 
     startTime = Timing.start();
@@ -171,7 +171,7 @@ public class Endpoint {
     output.meta.timings.traversal = Timing.stop(startTime);
 
     startTime = Timing.start();
-    output.result = convertNodesToSwhIds(nodeIds);
+    output.result = convertNodesToSwhPIDs(nodeIds);
     output.meta.timings.node2pid = Timing.stop(startTime);
 
     return output;
@@ -180,16 +180,16 @@ public class Endpoint {
   /**
    * Walk endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a {@link SwhId}
+   * @param src source node of endpoint call specified as a {@link SwhPID}
    * @param dstFmt destination formatted string as described in the <a
    * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#walk">API</a>
    * @param algorithm traversal algorithm used in endpoint call (either "dfs" or "bfs")
    * @return the resulting {@link SwhPath} from endpoint call and operation metadata
-   * @see org.softwareheritage.graph.SwhId
+   * @see org.softwareheritage.graph.SwhPID
    * @see org.softwareheritage.graph.SwhPath
    * @see org.softwareheritage.graph.algo.Traversal#walk
    */
-  public Output walk(SwhId src, String dstFmt, String algorithm) {
+  public Output walk(SwhPID src, String dstFmt, String algorithm) {
     Output<SwhPath> output = new Output<>();
     long startTime;
 
@@ -199,10 +199,10 @@ public class Endpoint {
 
     ArrayList<Long> nodeIds = new ArrayList<Long>();
 
-    // Destination is either a SWH ID or a node type
+    // Destination is either a SWH PID or a node type
     try {
-      SwhId dstSwhId = new SwhId(dstFmt);
-      long dstNodeId = graph.getNodeId(dstSwhId);
+      SwhPID dstSwhPID = new SwhPID(dstFmt);
+      long dstNodeId = graph.getNodeId(dstSwhPID);
 
       startTime = Timing.start();
       nodeIds = traversal.walk(srcNodeId, dstNodeId, algorithm);
@@ -227,13 +227,13 @@ public class Endpoint {
   /**
    * VisitNodes endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a {@link SwhId}
-   * @return the resulting list of {@link SwhId} from endpoint call and operation metadata
-   * @see org.softwareheritage.graph.SwhId
+   * @param src source node of endpoint call specified as a {@link SwhPID}
+   * @return the resulting list of {@link SwhPID} from endpoint call and operation metadata
+   * @see org.softwareheritage.graph.SwhPID
    * @see org.softwareheritage.graph.algo.Traversal#visitNodes(long)
    */
-  public Output visitNodes(SwhId src) {
-    Output<ArrayList<SwhId>> output = new Output<>();
+  public Output visitNodes(SwhPID src) {
+    Output<ArrayList<SwhPID>> output = new Output<>();
     long startTime;
 
     startTime = Timing.start();
@@ -245,7 +245,7 @@ public class Endpoint {
     output.meta.timings.traversal = Timing.stop(startTime);
 
     startTime = Timing.start();
-    output.result = convertNodesToSwhIds(nodeIds);
+    output.result = convertNodesToSwhPIDs(nodeIds);
     output.meta.timings.node2pid = Timing.stop(startTime);
 
     return output;
@@ -254,13 +254,13 @@ public class Endpoint {
   /**
    * VisitPaths endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a {@link SwhId}
+   * @param src source node of endpoint call specified as a {@link SwhPID}
    * @return the resulting list of {@link SwhPath} from endpoint call and operation metadata
-   * @see org.softwareheritage.graph.SwhId
+   * @see org.softwareheritage.graph.SwhPID
    * @see org.softwareheritage.graph.SwhPath
    * @see org.softwareheritage.graph.algo.Traversal#visitPaths(long)
    */
-  public Output visitPaths(SwhId src) {
+  public Output visitPaths(SwhPID src) {
     Output<ArrayList<SwhPath>> output = new Output<>();
     long startTime;
 
@@ -273,7 +273,7 @@ public class Endpoint {
     output.meta.timings.traversal = Timing.stop(startTime);
 
     startTime = Timing.start();
-    output.result = convertPathsToSwhIds(paths);
+    output.result = convertPathsToSwhPIDs(paths);
     output.meta.timings.node2pid = Timing.stop(startTime);
 
     return output;

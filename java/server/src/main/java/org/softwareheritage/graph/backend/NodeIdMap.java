@@ -3,7 +3,7 @@ package org.softwareheritage.graph.backend;
 import java.io.IOException;
 
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.SwhId;
+import org.softwareheritage.graph.SwhPID;
 import org.softwareheritage.graph.backend.MapFile;
 import org.softwareheritage.graph.backend.Setup;
 
@@ -54,13 +54,13 @@ public class NodeIdMap {
   /**
    * Converts SWH PID to corresponding long node id.
    *
-   * @param swhId node represented as a {@link SwhId}
+   * @param swhPID node represented as a {@link SwhPID}
    * @return corresponding node as a long id
-   * @see org.softwareheritage.graph.SwhId
+   * @see org.softwareheritage.graph.SwhPID
    */
-  public long getNodeId(SwhId swhId) {
-    // Each line in PID_TO_NODE is formatted as: swhId nodeId
-    // The file is sorted by swhId, hence we can binary search on swhId to get corresponding nodeId
+  public long getNodeId(SwhPID swhPID) {
+    // Each line in PID_TO_NODE is formatted as: swhPID nodeId
+    // The file is sorted by swhPID, hence we can binary search on swhPID to get corresponding nodeId
     long start = 0;
     long end = nbIds - 1;
 
@@ -71,10 +71,10 @@ public class NodeIdMap {
         break;
       }
 
-      String currentSwhId = parts[0];
+      String currentSwhPID = parts[0];
       long currentNodeId = Long.parseLong(parts[1]);
 
-      int cmp = currentSwhId.compareTo(swhId.toString());
+      int cmp = currentSwhPID.compareTo(swhPID.toString());
       if (cmp == 0) {
         return currentNodeId;
       } else if (cmp < 0) {
@@ -84,26 +84,26 @@ public class NodeIdMap {
       }
     }
 
-    throw new IllegalArgumentException("Unknown SWH id: " + swhId);
+    throw new IllegalArgumentException("Unknown SWH PID: " + swhPID);
   }
 
   /**
    * Converts a node long id to corresponding SWH PID.
    *
    * @param nodeId node as a long id
-   * @return corresponding node as a {@link SwhId}
-   * @see org.softwareheritage.graph.SwhId
+   * @return corresponding node as a {@link SwhPID}
+   * @see org.softwareheritage.graph.SwhPID
    */
-  public SwhId getSwhId(long nodeId) {
-    // Each line in NODE_TO_PID is formatted as: swhId
-    // The file is ordered by nodeId, meaning node0's swhId is at line 0, hence we can read the
-    // nodeId-th line to get corresponding swhId
+  public SwhPID getSwhPID(long nodeId) {
+    // Each line in NODE_TO_PID is formatted as: swhPID
+    // The file is ordered by nodeId, meaning node0's swhPID is at line 0, hence we can read the
+    // nodeId-th line to get corresponding swhPID
     if (nodeId < 0 || nodeId >= nbIds) {
       throw new IllegalArgumentException("Node id " + nodeId + " should be between 0 and " + nbIds);
     }
 
-    String swhId = nodeToSwhMap.readAtLine(nodeId);
-    return new SwhId(swhId);
+    String swhPID = nodeToSwhMap.readAtLine(nodeId);
+    return new SwhPID(swhPID);
   }
 
   /**

@@ -4,82 +4,82 @@ import java.util.ArrayList;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-import org.softwareheritage.graph.SwhId;
+import org.softwareheritage.graph.SwhPID;
 
 /**
- * Wrapper class to store a list of {@link SwhId}.
+ * Wrapper class to store a list of {@link SwhPID}.
  *
  * @author Thibault Allançon
  * @version 0.0.1
  * @since 0.0.1
- * @see org.softwareheritage.graph.SwhId
+ * @see org.softwareheritage.graph.SwhPID
  */
 
 public class SwhPath {
-  /** Internal list of {@link SwhId} */
-  ArrayList<SwhId> path;
+  /** Internal list of {@link SwhPID} */
+  ArrayList<SwhPID> path;
 
   /**
    * Constructor.
    */
   public SwhPath() {
-    this.path = new ArrayList<SwhId>();
+    this.path = new ArrayList<SwhPID>();
   }
 
   /**
    * Constructor.
    *
-   * @param swhIds variable number of string PIDs to initialize this path with
+   * @param swhPIDs variable number of string PIDs to initialize this path with
    */
-  public SwhPath(String ...swhIds) {
+  public SwhPath(String ...swhPIDs) {
     this();
-    for (String swhId : swhIds) {
-      add(new SwhId(swhId));
+    for (String swhPID : swhPIDs) {
+      add(new SwhPID(swhPID));
     }
   }
 
   /**
    * Constructor.
    *
-   * @param swhIds variable number of {@link SwhId} to initialize this path with
-   * @see org.softwareheritage.graph.SwhId
+   * @param swhPIDs variable number of {@link SwhPID} to initialize this path with
+   * @see org.softwareheritage.graph.SwhPID
    */
-  public SwhPath(SwhId ...swhIds) {
+  public SwhPath(SwhPID ...swhPIDs) {
     this();
-    for (SwhId swhId : swhIds) {
-      add(swhId);
+    for (SwhPID swhPID : swhPIDs) {
+      add(swhPID);
     }
   }
 
   /**
-   * Returns this path as a list of {@link SwhId}.
+   * Returns this path as a list of {@link SwhPID}.
    *
-   * @return list of {@link SwhId} constituting the path
-   * @see org.softwareheritage.graph.SwhId
+   * @return list of {@link SwhPID} constituting the path
+   * @see org.softwareheritage.graph.SwhPID
    */
   @JsonValue
-  public ArrayList<SwhId> getPath() {
+  public ArrayList<SwhPID> getPath() {
     return path;
   }
 
   /**
-   * Adds a {@link SwhId} to this path.
+   * Adds a {@link SwhPID} to this path.
    *
-   * @param {@link SwhId} to add to this path
-   * @see org.softwareheritage.graph.SwhId
+   * @param {@link SwhPID} to add to this path
+   * @see org.softwareheritage.graph.SwhPID
    */
-  public void add(SwhId swhId) {
-    path.add(swhId);
+  public void add(SwhPID swhPID) {
+    path.add(swhPID);
   }
 
   /**
-   * Returns the {@link SwhId} at the specified position in this path.
+   * Returns the {@link SwhPID} at the specified position in this path.
    *
-   * @param index position of the {@link SwhId} to return
-   * @return {@link SwhId} at the specified position
-   * @see org.softwareheritage.graph.SwhId
+   * @param index position of the {@link SwhPID} to return
+   * @return {@link SwhPID} at the specified position
+   * @see org.softwareheritage.graph.SwhPID
    */
-  public SwhId get(int index) {
+  public SwhPID get(int index) {
     return path.get(index);
   }
 
@@ -103,9 +103,9 @@ public class SwhPath {
     }
 
     for (int i = 0; i < size(); i++) {
-      SwhId thisSwhId = get(i);
-      SwhId otherSwhId = other.get(i);
-      if (!thisSwhId.equals(otherSwhId)) {
+      SwhPID thisSwhPID = get(i);
+      SwhPID otherSwhPID = other.get(i);
+      if (!thisSwhPID.equals(otherSwhPID)) {
         return false;
       }
     }
@@ -116,8 +116,8 @@ public class SwhPath {
   @Override
   public String toString() {
     String str = new String();
-    for (SwhId swhId : path) {
-      str += swhId + "/";
+    for (SwhPID swhPID : path) {
+      str += swhPID + "/";
     }
     return str;
   }

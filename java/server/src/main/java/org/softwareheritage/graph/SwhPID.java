@@ -14,12 +14,12 @@ import org.softwareheritage.graph.Node;
  * @since 0.0.1
  */
 
-public class SwhId {
+public class SwhPID {
   /** Fixed hash length of the PID */
   public static final int HASH_LENGTH = 40;
 
   /** Full PID as a string */
-  String swhId;
+  String swhPID;
   /** PID node type */
   Node.Type type;
   /** PID hex-encoded SHA1 hash */
@@ -28,42 +28,42 @@ public class SwhId {
   /**
    * Constructor.
    *
-   * @param swhId full PID as a string
+   * @param swhPID full PID as a string
    */
-  public SwhId(String swhId) {
-    this.swhId = swhId;
+  public SwhPID(String swhPID) {
+    this.swhPID = swhPID;
 
     // PID format: 'swh:1:type:hash'
-    String[] parts = swhId.split(":");
+    String[] parts = swhPID.split(":");
     if (parts.length != 4 || !parts[0].equals("swh") || !parts[1].equals("1")) {
-      throw new IllegalArgumentException("Expected SWH ID format to be 'swh:1:type:hash', got: " + swhId);
+      throw new IllegalArgumentException("Expected SWH PID format to be 'swh:1:type:hash', got: " + swhPID);
     }
 
     this.type = Node.Type.fromStr(parts[2]);
 
     this.hash = parts[3];
     if (!hash.matches("[0-9a-f]{" + HASH_LENGTH + "}")) {
-      throw new IllegalArgumentException("Wrong SWH ID hash format in: " + swhId);
+      throw new IllegalArgumentException("Wrong SWH PID hash format in: " + swhPID);
     }
   }
 
   @Override
   public boolean equals(Object otherObj) {
     if (otherObj == this) return true;
-    if (!(otherObj instanceof SwhId)) return false;
+    if (!(otherObj instanceof SwhPID)) return false;
 
-    SwhId other = (SwhId) otherObj;
-    return swhId.equals(other.getSwhId());
+    SwhPID other = (SwhPID) otherObj;
+    return swhPID.equals(other.getSwhPID());
   }
 
   @Override
   public int hashCode() {
-    return swhId.hashCode();
+    return swhPID.hashCode();
   }
 
   @Override
   public String toString() {
-    return swhId;
+    return swhPID;
   }
 
   /**
@@ -72,8 +72,8 @@ public class SwhId {
    * @return full PID string
    */
   @JsonValue
-  public String getSwhId() {
-    return swhId;
+  public String getSwhPID() {
+    return swhPID;
   }
 
   /**
