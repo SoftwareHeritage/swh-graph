@@ -1,4 +1,4 @@
-package org.softwareheritage.graph.utils;
+package org.softwareheritage.graph.benchmark.utils;
 
 /**
  * Time measurement utility class.

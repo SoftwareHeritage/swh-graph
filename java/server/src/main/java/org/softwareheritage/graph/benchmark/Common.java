@@ -6,7 +6,7 @@ import java.util.function.Function;
 import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhPID;
-import org.softwareheritage.graph.utils.Statistics;
+import org.softwareheritage.graph.benchmark.utils.Statistics;
 
 /**
  * Benchmark common utility functions.

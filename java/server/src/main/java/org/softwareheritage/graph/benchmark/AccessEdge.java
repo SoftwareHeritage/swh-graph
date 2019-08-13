@@ -6,9 +6,9 @@ import java.util.ArrayList;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.utils.Random;
-import org.softwareheritage.graph.utils.Statistics;
-import org.softwareheritage.graph.utils.Timing;
+import org.softwareheritage.graph.benchmark.utils.Random;
+import org.softwareheritage.graph.benchmark.utils.Statistics;
+import org.softwareheritage.graph.benchmark.utils.Timing;
 
 /**
  * Benchmark to time edge access time.

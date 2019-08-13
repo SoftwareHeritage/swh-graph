@@ -6,7 +6,7 @@ import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhPID;
 import org.softwareheritage.graph.SwhPath;
 import org.softwareheritage.graph.algo.Traversal;
-import org.softwareheritage.graph.utils.Timing;
+import org.softwareheritage.graph.benchmark.utils.Timing;
 
 /**
  * REST API endpoints wrapper functions.

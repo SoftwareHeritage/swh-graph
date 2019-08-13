@@ -6,7 +6,7 @@ import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.benchmark.Common;
-import org.softwareheritage.graph.utils.Random;
+import org.softwareheritage.graph.benchmark.utils.Random;
 
 /**
  * Benchmark Software Heritage browsing use-cases scenarios: <a
