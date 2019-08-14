@@ -8,8 +8,9 @@ import org.softwareheritage.graph.benchmark.Common;
 import org.softwareheritage.graph.benchmark.utils.Random;
 
 /**
- * Benchmark Software Heritage vault use-case scenario: <a
- * href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html">use cases</a>.
+ * Benchmark Software Heritage <a
+ * href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html#vault">vault
+ * use-case scenario</a>.
  *
  * @author Thibault Allançon
  * @version 0.0.1

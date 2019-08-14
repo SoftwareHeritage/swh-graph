@@ -9,8 +9,9 @@ import org.softwareheritage.graph.benchmark.Common;
 import org.softwareheritage.graph.benchmark.utils.Random;
 
 /**
- * Benchmark Software Heritage browsing use-cases scenarios: <a
- * href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html">use cases</a>.
+ * Benchmark Software Heritage <a
+ * href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html#browsing">browsing
+ * use-cases scenarios</a>.
  *
  * @author Thibault Allançon
  * @version 0.0.1
