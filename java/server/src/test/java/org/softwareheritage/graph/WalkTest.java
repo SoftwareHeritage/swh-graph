@@ -39,8 +39,8 @@ public class WalkTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000005"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(src, dstFmt, "dfs").result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(src, dstFmt, "bfs").result;
+    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     List<SwhPath> possibleSolutions = Arrays.asList(solution1, solution2);
     Assert.assertTrue(possibleSolutions.contains(dfsPath));
@@ -59,8 +59,8 @@ public class WalkTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000007"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(src, dstFmt, "dfs").result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(src, dstFmt, "bfs").result;
+    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     Assert.assertEquals(dfsPath, expectedPath);
     Assert.assertEquals(bfsPath, expectedPath);
@@ -81,8 +81,8 @@ public class WalkTest extends GraphTest {
           "swh:1:rev:0000000000000000000000000000000000000003"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(src, dstFmt, "dfs").result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(src, dstFmt, "bfs").result;
+    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     Assert.assertEquals(dfsPath, expectedPath);
     Assert.assertEquals(bfsPath, expectedPath);
@@ -103,8 +103,8 @@ public class WalkTest extends GraphTest {
           "swh:1:rev:0000000000000000000000000000000000000018"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(src, dstFmt, "dfs").result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(src, dstFmt, "bfs").result;
+    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     Assert.assertEquals(dfsPath, expectedPath);
     Assert.assertEquals(bfsPath, expectedPath);
@@ -150,8 +150,8 @@ public class WalkTest extends GraphTest {
           "swh:1:snp:0000000000000000000000000000000000000020"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(src, dstFmt, "dfs").result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(src, dstFmt, "bfs").result;
+    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     List<SwhPath> possibleSolutions = Arrays.asList(solution1, solution2, solution3, solution4);
     Assert.assertTrue(possibleSolutions.contains(dfsPath));
@@ -199,8 +199,8 @@ public class WalkTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000001"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(src, dstFmt, "dfs").result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(src, dstFmt, "bfs").result;
+    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     List<SwhPath> possibleSolutions =
       Arrays.asList(solution1, solution2, solution3, solution4, solution5);
@@ -223,8 +223,8 @@ public class WalkTest extends GraphTest {
           "swh:1:rel:0000000000000000000000000000000000000019"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(src, dstFmt, "dfs").result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(src, dstFmt, "bfs").result;
+    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     Assert.assertEquals(dfsPath, expectedPath);
     Assert.assertEquals(bfsPath, expectedPath);

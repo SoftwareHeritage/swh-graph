@@ -23,9 +23,34 @@ import org.softwareheritage.graph.benchmark.utils.Timing;
 
 public class Endpoint {
   /**
+   * Wrapper class to unify traversal methods input signatures.
+   */
+  public static class Input {
+    /** Source node of endpoint call specified as a {@link SwhPID} */
+    public SwhPID src;
+    /**
+     * Destination formatted string as described in the <a
+     * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#walk">API</a>
+     */
+    public String dstFmt;
+    /** Traversal algorithm used in endpoint call (either "dfs" or "bfs") */
+    public String algorithm;
+
+    public Input(SwhPID src) {
+      this.src = src;
+    }
+
+    public Input(SwhPID src, String dstFmt, String algorithm) {
+      this.src = src;
+      this.dstFmt = dstFmt;
+      this.algorithm = algorithm;
+    }
+  }
+
+  /**
    * Wrapper class to return both the endpoint result and metadata (such as timings).
    */
-  public class Output<T> {
+  public static class Output<T> {
     /** The result content itself */
     public T result;
     /** Various metadata about the result */
@@ -129,17 +154,17 @@ public class Endpoint {
   /**
    * Leaves endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a {@link SwhPID}
+   * @param input input parameters for the underlying endpoint call
    * @return the resulting list of {@link SwhPID} from endpoint call and operation metadata
    * @see org.softwareheritage.graph.SwhPID
    * @see org.softwareheritage.graph.algo.Traversal#leaves(long)
    */
-  public Output leaves(SwhPID src) {
+  public Output leaves(Input input) {
     Output<ArrayList<SwhPID>> output = new Output<>();
     long startTime;
 
     startTime = Timing.start();
-    long srcNodeId = graph.getNodeId(src);
+    long srcNodeId = graph.getNodeId(input.src);
     output.meta.timings.pid2node = Timing.stop(startTime);
 
     startTime = Timing.start();
@@ -157,17 +182,17 @@ public class Endpoint {
   /**
    * Neighbors endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a {@link SwhPID}
+   * @param input input parameters for the underlying endpoint call
    * @return the resulting list of {@link SwhPID} from endpoint call and operation metadata
    * @see org.softwareheritage.graph.SwhPID
    * @see org.softwareheritage.graph.algo.Traversal#neighbors(long)
    */
-  public Output neighbors(SwhPID src) {
+  public Output neighbors(Input input) {
     Output<ArrayList<SwhPID>> output = new Output<>();
     long startTime;
 
     startTime = Timing.start();
-    long srcNodeId = graph.getNodeId(src);
+    long srcNodeId = graph.getNodeId(input.src);
     output.meta.timings.pid2node = Timing.stop(startTime);
 
     startTime = Timing.start();
@@ -185,39 +210,36 @@ public class Endpoint {
   /**
    * Walk endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a {@link SwhPID}
-   * @param dstFmt destination formatted string as described in the <a
-   * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#walk">API</a>
-   * @param algorithm traversal algorithm used in endpoint call (either "dfs" or "bfs")
+   * @param input input parameters for the underlying endpoint call
    * @return the resulting {@link SwhPath} from endpoint call and operation metadata
    * @see org.softwareheritage.graph.SwhPID
    * @see org.softwareheritage.graph.SwhPath
    * @see org.softwareheritage.graph.algo.Traversal#walk
    */
-  public Output walk(SwhPID src, String dstFmt, String algorithm) {
+  public Output walk(Input input) {
     Output<SwhPath> output = new Output<>();
     long startTime;
 
     startTime = Timing.start();
-    long srcNodeId = graph.getNodeId(src);
+    long srcNodeId = graph.getNodeId(input.src);
     output.meta.timings.pid2node = Timing.stop(startTime);
 
     ArrayList<Long> nodeIds = new ArrayList<Long>();
 
     // Destination is either a SWH PID or a node type
     try {
-      SwhPID dstSwhPID = new SwhPID(dstFmt);
+      SwhPID dstSwhPID = new SwhPID(input.dstFmt);
       long dstNodeId = graph.getNodeId(dstSwhPID);
 
       startTime = Timing.start();
-      nodeIds = traversal.walk(srcNodeId, dstNodeId, algorithm);
+      nodeIds = traversal.walk(srcNodeId, dstNodeId, input.algorithm);
       output.meta.timings.traversal = Timing.stop(startTime);
     } catch (IllegalArgumentException ignored1) {
       try {
-        Node.Type dstType = Node.Type.fromStr(dstFmt);
+        Node.Type dstType = Node.Type.fromStr(input.dstFmt);
 
         startTime = Timing.start();
-        nodeIds = traversal.walk(srcNodeId, dstType, algorithm);
+        nodeIds = traversal.walk(srcNodeId, dstType, input.algorithm);
         output.meta.timings.traversal = Timing.stop(startTime);
       } catch (IllegalArgumentException ignored2) {
       }
@@ -235,17 +257,17 @@ public class Endpoint {
   /**
    * VisitNodes endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a {@link SwhPID}
+   * @param input input parameters for the underlying endpoint call
    * @return the resulting list of {@link SwhPID} from endpoint call and operation metadata
    * @see org.softwareheritage.graph.SwhPID
    * @see org.softwareheritage.graph.algo.Traversal#visitNodes(long)
    */
-  public Output visitNodes(SwhPID src) {
+  public Output visitNodes(Input input) {
     Output<ArrayList<SwhPID>> output = new Output<>();
     long startTime;
 
     startTime = Timing.start();
-    long srcNodeId = graph.getNodeId(src);
+    long srcNodeId = graph.getNodeId(input.src);
     output.meta.timings.pid2node = Timing.stop(startTime);
 
     startTime = Timing.start();
@@ -263,18 +285,18 @@ public class Endpoint {
   /**
    * VisitPaths endpoint wrapper.
    *
-   * @param src source node of endpoint call specified as a {@link SwhPID}
+   * @param input input parameters for the underlying endpoint call
    * @return the resulting list of {@link SwhPath} from endpoint call and operation metadata
    * @see org.softwareheritage.graph.SwhPID
    * @see org.softwareheritage.graph.SwhPath
    * @see org.softwareheritage.graph.algo.Traversal#visitPaths(long)
    */
-  public Output visitPaths(SwhPID src) {
+  public Output visitPaths(Input input) {
     Output<ArrayList<SwhPath>> output = new Output<>();
     long startTime;
 
     startTime = Timing.start();
-    long srcNodeId = graph.getNodeId(src);
+    long srcNodeId = graph.getNodeId(input.src);
     output.meta.timings.pid2node = Timing.stop(startTime);
 
     startTime = Timing.start();

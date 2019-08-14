@@ -108,7 +108,7 @@ public class App {
       String edgesFmt = ctx.queryParam("edges", "*");
 
       Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
-      Endpoint.Output output = endpoint.leaves(src);
+      Endpoint.Output output = endpoint.leaves(new Endpoint.Input(src));
       ctx.json(formatEndpointOutput(output, showTimings));
     });
 
@@ -118,7 +118,7 @@ public class App {
       String edgesFmt = ctx.queryParam("edges", "*");
 
       Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
-      Endpoint.Output output = endpoint.neighbors(src);
+      Endpoint.Output output = endpoint.neighbors(new Endpoint.Input(src));
       ctx.json(formatEndpointOutput(output, showTimings));
     });
 
@@ -128,7 +128,7 @@ public class App {
       String edgesFmt = ctx.queryParam("edges", "*");
 
       Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
-      Endpoint.Output output = endpoint.visitNodes(src);
+      Endpoint.Output output = endpoint.visitNodes(new Endpoint.Input(src));
       ctx.json(formatEndpointOutput(output, showTimings));
     });
 
@@ -138,7 +138,7 @@ public class App {
       String edgesFmt = ctx.queryParam("edges", "*");
 
       Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
-      Endpoint.Output output = endpoint.visitPaths(src);
+      Endpoint.Output output = endpoint.visitPaths(new Endpoint.Input(src));
       ctx.json(formatEndpointOutput(output, showTimings));
     });
 
@@ -150,7 +150,7 @@ public class App {
       String algorithm = ctx.queryParam("traversal", "dfs");
 
       Endpoint endpoint = new Endpoint(graph, direction, edgesFmt);
-      Endpoint.Output output = endpoint.walk(src, dstFmt, algorithm);
+      Endpoint.Output output = endpoint.walk(new Endpoint.Input(src, dstFmt, algorithm));
       ctx.json(formatEndpointOutput(output, showTimings));
     });
 

@@ -24,7 +24,8 @@ public class LeavesTest extends GraphTest {
     expectedLeaves.add(new SwhPID("swh:1:cnt:0000000000000000000000000000000000000005"));
     expectedLeaves.add(new SwhPID("swh:1:cnt:0000000000000000000000000000000000000007"));
 
-    GraphTest.assertEqualsAnyOrder(expectedLeaves, (ArrayList) endpoint.leaves(src).result);
+    ArrayList<SwhPID> actualLeaves = (ArrayList) endpoint.leaves(new Endpoint.Input(src)).result;
+    GraphTest.assertEqualsAnyOrder(expectedLeaves, actualLeaves);
   }
 
   @Test
@@ -42,7 +43,8 @@ public class LeavesTest extends GraphTest {
     expectedLeaves.add(new SwhPID("swh:1:cnt:0000000000000000000000000000000000000007"));
     expectedLeaves.add(new SwhPID("swh:1:cnt:0000000000000000000000000000000000000011"));
 
-    GraphTest.assertEqualsAnyOrder(expectedLeaves, (ArrayList) endpoint.leaves(src).result);
+    ArrayList<SwhPID> actualLeaves = (ArrayList) endpoint.leaves(new Endpoint.Input(src)).result;
+    GraphTest.assertEqualsAnyOrder(expectedLeaves, actualLeaves);
   }
 
   @Test
@@ -53,13 +55,15 @@ public class LeavesTest extends GraphTest {
     SwhPID src1 = new SwhPID("swh:1:cnt:0000000000000000000000000000000000000015");
     ArrayList<SwhPID> expectedLeaves1 = new ArrayList<>();
     expectedLeaves1.add(new SwhPID("swh:1:rel:0000000000000000000000000000000000000019"));
-    GraphTest.assertEqualsAnyOrder(expectedLeaves1, (ArrayList) endpoint.leaves(src1).result);
+    ArrayList<SwhPID> actualLeaves1 = (ArrayList) endpoint.leaves(new Endpoint.Input(src1)).result;
+    GraphTest.assertEqualsAnyOrder(expectedLeaves1, actualLeaves1);
 
     SwhPID src2 = new SwhPID("swh:1:cnt:0000000000000000000000000000000000000004");
     ArrayList<SwhPID> expectedLeaves2 = new ArrayList<>();
     expectedLeaves2.add(new SwhPID("swh:1:ori:0000000000000000000000000000000000000021"));
     expectedLeaves2.add(new SwhPID("swh:1:rel:0000000000000000000000000000000000000019"));
-    GraphTest.assertEqualsAnyOrder(expectedLeaves2, (ArrayList) endpoint.leaves(src2).result);
+    ArrayList<SwhPID> actualLeaves2 = (ArrayList) endpoint.leaves(new Endpoint.Input(src2)).result;
+    GraphTest.assertEqualsAnyOrder(expectedLeaves2, actualLeaves2);
   }
 
   @Test
@@ -71,7 +75,8 @@ public class LeavesTest extends GraphTest {
     ArrayList<SwhPID> expectedLeaves = new ArrayList<>();
     expectedLeaves.add(new SwhPID("swh:1:rev:0000000000000000000000000000000000000003"));
 
-    GraphTest.assertEqualsAnyOrder(expectedLeaves, (ArrayList) endpoint.leaves(src).result);
+    ArrayList<SwhPID> actualLeaves = (ArrayList) endpoint.leaves(new Endpoint.Input(src)).result;
+    GraphTest.assertEqualsAnyOrder(expectedLeaves, actualLeaves);
   }
 
   @Test
@@ -86,7 +91,8 @@ public class LeavesTest extends GraphTest {
     expectedLeaves.add(new SwhPID("swh:1:cnt:0000000000000000000000000000000000000001"));
     expectedLeaves.add(new SwhPID("swh:1:cnt:0000000000000000000000000000000000000007"));
 
-    GraphTest.assertEqualsAnyOrder(expectedLeaves, (ArrayList) endpoint.leaves(src).result);
+    ArrayList<SwhPID> actualLeaves = (ArrayList) endpoint.leaves(new Endpoint.Input(src)).result;
+    GraphTest.assertEqualsAnyOrder(expectedLeaves, actualLeaves);
   }
 
   @Test
@@ -98,6 +104,7 @@ public class LeavesTest extends GraphTest {
     ArrayList<SwhPID> expectedLeaves = new ArrayList<>();
     expectedLeaves.add(new SwhPID("swh:1:dir:0000000000000000000000000000000000000012"));
 
-    GraphTest.assertEqualsAnyOrder(expectedLeaves, (ArrayList) endpoint.leaves(src).result);
+    ArrayList<SwhPID> actualLeaves = (ArrayList) endpoint.leaves(new Endpoint.Input(src)).result;
+    GraphTest.assertEqualsAnyOrder(expectedLeaves, actualLeaves);
   }
 }
