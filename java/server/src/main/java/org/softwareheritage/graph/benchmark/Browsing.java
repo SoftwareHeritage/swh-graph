@@ -8,7 +8,6 @@ import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.benchmark.Common;
-import org.softwareheritage.graph.benchmark.utils.Random;
 
 /**
  * Benchmark Software Heritage <a
@@ -30,10 +29,11 @@ public class Browsing {
     Common.BenchArgs benchArgs = Common.parseCommandLineArgs(args);
 
     Graph graph = new Graph(benchArgs.graphPath);
-    Random random = (benchArgs.seed == null) ? new Random() : new Random(benchArgs.seed);
 
-    long[] dirNodeIds = random.generateNodeIdsOfType(graph, benchArgs.nbNodes, Node.Type.DIR);
-    long[] revNodeIds = random.generateNodeIdsOfType(graph, benchArgs.nbNodes, Node.Type.REV);
+    long[] dirNodeIds =
+        benchArgs.random.generateNodeIdsOfType(graph, benchArgs.nbNodes, Node.Type.DIR);
+    long[] revNodeIds =
+        benchArgs.random.generateNodeIdsOfType(graph, benchArgs.nbNodes, Node.Type.REV);
 
     Endpoint dirEndpoint = new Endpoint(graph, "forward", "dir:cnt,dir:dir");
     Endpoint revEndpoint = new Endpoint(graph, "forward", "rev:rev");

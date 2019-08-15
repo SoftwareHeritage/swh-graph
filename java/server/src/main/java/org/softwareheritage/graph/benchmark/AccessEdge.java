@@ -8,7 +8,6 @@ import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.benchmark.Common;
-import org.softwareheritage.graph.benchmark.utils.Random;
 import org.softwareheritage.graph.benchmark.utils.Statistics;
 import org.softwareheritage.graph.benchmark.utils.Timing;
 
@@ -30,9 +29,8 @@ public class AccessEdge {
     Common.BenchArgs benchArgs = Common.parseCommandLineArgs(args);
 
     Graph graph = new Graph(benchArgs.graphPath);
-    Random random = (benchArgs.seed == null) ? new Random() : new Random(benchArgs.seed);
 
-    long[] nodeIds = random.generateNodeIds(graph, benchArgs.nbNodes);
+    long[] nodeIds = benchArgs.random.generateNodeIds(graph, benchArgs.nbNodes);
 
     ArrayList<Double> timings = new ArrayList<>();
     for (long nodeId : nodeIds) {

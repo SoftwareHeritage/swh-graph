@@ -7,7 +7,6 @@ import com.martiansoftware.jsap.JSAPException;
 import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.benchmark.Common;
-import org.softwareheritage.graph.benchmark.utils.Random;
 
 /**
  * Benchmark Software Heritage <a
@@ -29,9 +28,8 @@ public class Vault {
     Common.BenchArgs benchArgs = Common.parseCommandLineArgs(args);
 
     Graph graph = new Graph(benchArgs.graphPath);
-    Random random = (benchArgs.seed == null) ? new Random() : new Random(benchArgs.seed);
 
-    long[] nodeIds = random.generateNodeIds(graph, benchArgs.nbNodes);
+    long[] nodeIds = benchArgs.random.generateNodeIds(graph, benchArgs.nbNodes);
 
     Endpoint endpoint = new Endpoint(graph, "forward", "*");
 

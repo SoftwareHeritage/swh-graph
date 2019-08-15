@@ -14,6 +14,7 @@ import com.martiansoftware.jsap.UnflaggedOption;
 import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhPID;
+import org.softwareheritage.graph.benchmark.utils.Random;
 import org.softwareheritage.graph.benchmark.utils.Statistics;
 
 /**
@@ -33,8 +34,8 @@ public class Common {
     public String graphPath;
     /** Number of random nodes to use for the benchmark */
     public int nbNodes;
-    /** Random generator seed */
-    public Long seed;
+    /** Random generator */
+    public Random random;
   }
 
   /**
@@ -63,7 +64,7 @@ public class Common {
     BenchArgs benchArgs = new BenchArgs();
     benchArgs.graphPath = config.getString("graphPath");
     benchArgs.nbNodes = config.getInt("nbNodes");
-    benchArgs.seed = config.getLong("seed");
+    benchArgs.random = config.contains("seed") ? new Random(config.getLong("seed")) : new Random();
 
     return benchArgs;
   }
