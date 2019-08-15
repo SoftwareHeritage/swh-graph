@@ -2,12 +2,13 @@ package org.softwareheritage.graph.algo;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Stack;
 
 import it.unimi.dsi.bits.LongArrayBitVector;
-import it.unimi.dsi.fastutil.longs.LongBigArrays;
 
 import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Endpoint;
@@ -38,8 +39,8 @@ public class Traversal {
 
   /** Bit array storing if we have visited a node */
   LongArrayBitVector visited;
-  /** LongBigArray storing parent node id for each nodes during a traversal */
-  long[][] nodeParent;
+  /** Hash map storing parent node id for each nodes during a traversal */
+  Map<Long, Long> parentNode;
   /** Number of edges accessed during traversal */
   long nbEdgesAccessed;
 
@@ -62,7 +63,7 @@ public class Traversal {
 
     long nbNodes = graph.getNbNodes();
     this.visited = LongArrayBitVector.ofLength(nbNodes);
-    this.nodeParent = LongBigArrays.newBigArray(nbNodes);
+    this.parentNode = new HashMap<>();
     this.nbEdgesAccessed = 0;
   }
 
@@ -252,7 +253,7 @@ public class Traversal {
         if (!visited.getBoolean(neighborNodeId)) {
           stack.push(neighborNodeId);
           visited.set(neighborNodeId);
-          LongBigArrays.set(nodeParent, neighborNodeId, currentNodeId);
+          parentNode.put(neighborNodeId, currentNodeId);
         }
       }
     }
@@ -286,7 +287,7 @@ public class Traversal {
         if (!visited.getBoolean(neighborNodeId)) {
           queue.add(neighborNodeId);
           visited.set(neighborNodeId);
-          LongBigArrays.set(nodeParent, neighborNodeId, currentNodeId);
+          parentNode.put(neighborNodeId, currentNodeId);
         }
       }
     }
@@ -325,7 +326,7 @@ public class Traversal {
     long currentNodeId = dstNodeId;
     while (currentNodeId != srcNodeId) {
       path.add(currentNodeId);
-      currentNodeId = LongBigArrays.get(nodeParent, currentNodeId);
+      currentNodeId = parentNode.get(currentNodeId);
     }
     path.add(srcNodeId);
     Collections.reverse(path);
