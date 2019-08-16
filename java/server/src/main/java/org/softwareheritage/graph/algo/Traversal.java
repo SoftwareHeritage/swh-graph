@@ -95,9 +95,9 @@ public class Traversal {
       long currentNodeId = stack.pop();
 
       long neighborsCnt = 0;
+      nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
       for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
         neighborsCnt++;
-        nbEdgesAccessed++;
         if (!visited.getBoolean(neighborNodeId)) {
           stack.push(neighborNodeId);
           visited.set(neighborNodeId);
@@ -120,10 +120,9 @@ public class Traversal {
    */
   public ArrayList<Long> neighbors(long srcNodeId) {
     ArrayList<Long> nodeIds = new ArrayList<Long>();
-    this.nbEdgesAccessed = 0;
+    this.nbEdgesAccessed = graph.degree(srcNodeId, useTransposed);
     for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, srcNodeId)) {
       nodeIds.add(neighborNodeId);
-      nbEdgesAccessed++;
     }
     return nodeIds;
   }
@@ -147,8 +146,8 @@ public class Traversal {
       long currentNodeId = stack.pop();
       nodeIds.add(currentNodeId);
 
+      nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
       for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-        nbEdgesAccessed++;
         if (!visited.getBoolean(neighborNodeId)) {
           stack.push(neighborNodeId);
           visited.set(neighborNodeId);
@@ -185,10 +184,10 @@ public class Traversal {
     currentPath.push(currentNodeId);
 
     long visitedNeighbors = 0;
+    nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
     for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
       visitPathsInternal(neighborNodeId, paths, currentPath);
       visitedNeighbors++;
-      this.nbEdgesAccessed++;
     }
 
     if (visitedNeighbors == 0) {
@@ -248,8 +247,8 @@ public class Traversal {
         return currentNodeId;
       }
 
+      nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
       for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-        nbEdgesAccessed++;
         if (!visited.getBoolean(neighborNodeId)) {
           stack.push(neighborNodeId);
           visited.set(neighborNodeId);
@@ -282,8 +281,8 @@ public class Traversal {
         return currentNodeId;
       }
 
+      nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
       for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-        nbEdgesAccessed++;
         if (!visited.getBoolean(neighborNodeId)) {
           queue.add(neighborNodeId);
           visited.set(neighborNodeId);
