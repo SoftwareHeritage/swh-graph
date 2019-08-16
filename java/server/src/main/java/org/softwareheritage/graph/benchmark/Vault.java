@@ -6,7 +6,7 @@ import com.martiansoftware.jsap.JSAPException;
 
 import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.benchmark.Common;
+import org.softwareheritage.graph.benchmark.Benchmark;
 
 /**
  * Benchmark Software Heritage <a
@@ -25,16 +25,16 @@ public class Vault {
    * @param args command line arguments
    */
   public static void main(String[] args) throws IOException, JSAPException {
-    Common.BenchArgs benchArgs = Common.parseCommandLineArgs(args);
+    Benchmark bench = new Benchmark();
+    bench.parseCommandLineArgs(args);
 
-    Graph graph = new Graph(benchArgs.graphPath);
+    Graph graph = new Graph(bench.args.graphPath);
 
-    long[] nodeIds = benchArgs.random.generateNodeIds(graph, benchArgs.nbNodes);
+    long[] nodeIds = bench.args.random.generateNodeIds(graph, bench.args.nbNodes);
 
     Endpoint endpoint = new Endpoint(graph, "forward", "*");
 
-    System.out.println("Used " + benchArgs.nbNodes + " random nodes (results are in seconds):");
-    System.out.println("\n'git bundle' use-case");
-    Common.timeEndpoint(graph, nodeIds, endpoint::visitNodes);
+    System.out.println("Used " + bench.args.nbNodes + " random nodes (results are in seconds):");
+    bench.timeEndpoint("git bundle", graph, nodeIds, endpoint::visitNodes);
   }
 }

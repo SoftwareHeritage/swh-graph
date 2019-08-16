@@ -7,7 +7,7 @@ import com.martiansoftware.jsap.JSAPException;
 import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.benchmark.Common;
+import org.softwareheritage.graph.benchmark.Benchmark;
 
 /**
  * Benchmark Software Heritage <a
@@ -26,24 +26,22 @@ public class Browsing {
    * @param args command line arguments
    */
   public static void main(String[] args) throws IOException, JSAPException {
-    Common.BenchArgs benchArgs = Common.parseCommandLineArgs(args);
+    Benchmark bench = new Benchmark();
+    bench.parseCommandLineArgs(args);
 
-    Graph graph = new Graph(benchArgs.graphPath);
+    Graph graph = new Graph(bench.args.graphPath);
 
     long[] dirNodeIds =
-        benchArgs.random.generateNodeIdsOfType(graph, benchArgs.nbNodes, Node.Type.DIR);
+        bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.DIR);
     long[] revNodeIds =
-        benchArgs.random.generateNodeIdsOfType(graph, benchArgs.nbNodes, Node.Type.REV);
+        bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.REV);
 
     Endpoint dirEndpoint = new Endpoint(graph, "forward", "dir:cnt,dir:dir");
     Endpoint revEndpoint = new Endpoint(graph, "forward", "rev:rev");
 
-    System.out.println("Used " + benchArgs.nbNodes + " random nodes (results are in seconds):");
-    System.out.println("\n'ls' use-case");
-    Common.timeEndpoint(graph, dirNodeIds, dirEndpoint::neighbors);
-    System.out.println("\n'ls -R' use-case");
-    Common.timeEndpoint(graph, dirNodeIds, dirEndpoint::visitPaths);
-    System.out.println("\n'git log' use-case");
-    Common.timeEndpoint(graph, revNodeIds, revEndpoint::visitNodes);
+    System.out.println("Used " + bench.args.nbNodes + " random nodes (results are in seconds):");
+    bench.timeEndpoint("ls", graph, dirNodeIds, dirEndpoint::neighbors);
+    bench.timeEndpoint("ls -R", graph, dirNodeIds, dirEndpoint::visitPaths);
+    bench.timeEndpoint("git log", graph, revNodeIds, revEndpoint::visitNodes);
   }
 }

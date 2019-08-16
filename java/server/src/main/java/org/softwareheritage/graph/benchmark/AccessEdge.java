@@ -7,7 +7,7 @@ import com.martiansoftware.jsap.JSAPException;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.benchmark.Common;
+import org.softwareheritage.graph.benchmark.Benchmark;
 import org.softwareheritage.graph.benchmark.utils.Statistics;
 import org.softwareheritage.graph.benchmark.utils.Timing;
 
@@ -26,11 +26,12 @@ public class AccessEdge {
    * @param args command line arguments
    */
   public static void main(String[] args) throws IOException, JSAPException {
-    Common.BenchArgs benchArgs = Common.parseCommandLineArgs(args);
+    Benchmark bench = new Benchmark();
+    bench.parseCommandLineArgs(args);
 
-    Graph graph = new Graph(benchArgs.graphPath);
+    Graph graph = new Graph(bench.args.graphPath);
 
-    long[] nodeIds = benchArgs.random.generateNodeIds(graph, benchArgs.nbNodes);
+    long[] nodeIds = bench.args.random.generateNodeIds(graph, bench.args.nbNodes);
 
     ArrayList<Double> timings = new ArrayList<>();
     for (long nodeId : nodeIds) {
@@ -41,7 +42,7 @@ public class AccessEdge {
       timings.add(duration);
     }
 
-    System.out.println("Used " + benchArgs.nbNodes + " random edges (results are in seconds):");
+    System.out.println("Used " + bench.args.nbNodes + " random edges (results are in seconds):");
     Statistics stats = new Statistics(timings);
     stats.printAll();
   }

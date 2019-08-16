@@ -6,7 +6,7 @@ import com.martiansoftware.jsap.JSAPException;
 
 import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.benchmark.Common;
+import org.softwareheritage.graph.benchmark.Benchmark;
 
 /**
  * Benchmark Software Heritage <a
@@ -25,29 +25,30 @@ public class Provenance {
    * @param args command line arguments
    */
   public static void main(String[] args) throws IOException, JSAPException {
-    Common.BenchArgs benchArgs = Common.parseCommandLineArgs(args);
+    Benchmark bench = new Benchmark();
+    bench.parseCommandLineArgs(args);
 
-    Graph graph = new Graph(benchArgs.graphPath);
+    Graph graph = new Graph(bench.args.graphPath);
 
-    long[] nodeIds = benchArgs.random.generateNodeIds(graph, benchArgs.nbNodes);
+    long[] nodeIds = bench.args.random.generateNodeIds(graph, bench.args.nbNodes);
 
     Endpoint commitProvenanceEndpoint = new Endpoint(graph, "backward", "dir:dir,cnt:dir,dir:rev");
     Endpoint originProvenanceEndpoint = new Endpoint(graph, "backward", "*");
 
-    System.out.println("Used " + benchArgs.nbNodes + " random nodes (results are in seconds):");
+    System.out.println("Used " + bench.args.nbNodes + " random nodes (results are in seconds):");
 
-    System.out.println("\n'commit provenance' use-case (using dfs)");
-    Common.timeEndpoint(graph, nodeIds, commitProvenanceEndpoint::walk, "rev", "dfs");
-    System.out.println("\n'commit provenance' use-case (using bfs)");
-    Common.timeEndpoint(graph, nodeIds, commitProvenanceEndpoint::walk, "rev", "bfs");
-    System.out.println("\n'complete commit provenance' use-case");
-    Common.timeEndpoint(graph, nodeIds, commitProvenanceEndpoint::leaves);
+    bench.timeEndpoint(
+        "commit provenance (dfs)", graph, nodeIds, commitProvenanceEndpoint::walk, "rev", "dfs");
+    bench.timeEndpoint(
+        "commit provenance (bfs)", graph, nodeIds, commitProvenanceEndpoint::walk, "rev", "bfs");
+    bench.timeEndpoint(
+        "complete commit provenance", graph, nodeIds, commitProvenanceEndpoint::leaves);
 
-    System.out.println("\n'origin provenance' use-case (using dfs)");
-    Common.timeEndpoint(graph, nodeIds, originProvenanceEndpoint::walk, "ori", "dfs");
-    System.out.println("\n'origin provenance' use-case (using bfs)");
-    Common.timeEndpoint(graph, nodeIds, originProvenanceEndpoint::walk, "ori", "bfs");
-    System.out.println("\n'complete origin provenance' use-case");
-    Common.timeEndpoint(graph, nodeIds, originProvenanceEndpoint::leaves);
+    bench.timeEndpoint(
+        "origin provenance (dfs)", graph, nodeIds, originProvenanceEndpoint::walk, "ori", "dfs");
+    bench.timeEndpoint(
+        "origin provenance (bfs)", graph, nodeIds, originProvenanceEndpoint::walk, "ori", "bfs");
+    bench.timeEndpoint(
+        "complete origin provenance", graph, nodeIds, originProvenanceEndpoint::leaves);
   }
 }
