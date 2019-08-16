@@ -1,6 +1,7 @@
 package org.softwareheritage.graph.benchmark.utils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 /**
  * Compute various statistics on a list of values.
@@ -63,6 +64,21 @@ public class Statistics {
   }
 
   /**
+   * Returns the median value.
+   *
+   * @return median value
+   */
+  public double getMedian() {
+    Collections.sort(values);
+    int length = values.size();
+    if (length % 2 == 0) {
+      return (values.get(length / 2) + values.get(length / 2 - 1)) / 2;
+    } else {
+      return values.get(length / 2);
+    }
+  }
+
+  /**
    * Computes the standard deviation.
    *
    * @return standard deviation value
@@ -84,6 +100,7 @@ public class Statistics {
     System.out.println("min value: " + getMin());
     System.out.println("max value: " + getMax());
     System.out.println("average: " + getAverage());
+    System.out.println("median: " + getMedian());
     System.out.println("standard deviation: " + getStandardDeviation());
   }
 }
