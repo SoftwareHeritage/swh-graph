@@ -1,7 +1,6 @@
 package org.softwareheritage.graph;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -190,8 +189,8 @@ public class App {
     if (showTimings) {
       return output;
     } else {
-      Map<String, Object> outputNoTimings = new HashMap<>();
-      outputNoTimings.put("result", output.result);
+      Map<String, Object> metaNoTimings = Map.of("nb_edges_accessed", output.meta.nbEdgesAccessed);
+      Map<String, Object> outputNoTimings = Map.of("result", output.result, "meta", metaNoTimings);
       return outputNoTimings;
     }
   }
