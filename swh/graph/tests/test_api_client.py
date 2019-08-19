@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.request import urlopen
 import subprocess
 import time
 
@@ -31,11 +32,19 @@ def graph_client():
         'org.softwareheritage.graph.App', str(graph_path), '-p', str(port)
     ])
 
-    # Make sure the server is entirely started before running the client
-    time.sleep(1)
+    # Wait max 5 seconds for server to spawn
+    localhost = 'http://0.0.0.0:{}'.format(port)
+    i = 0
+    while i < 20:
+        try:
+            urlopen(localhost)
+        except Exception:
+            i += 1
+            time.sleep(0.25)
+        else:
+            break
 
     # Start Python client
-    localhost = 'http://0.0.0.0:{}'.format(port)
     client = RemoteGraphClient(localhost)
 
     yield client
