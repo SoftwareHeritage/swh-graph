@@ -85,7 +85,6 @@ public class Traversal {
   public ArrayList<Long> leaves(long srcNodeId) {
     ArrayList<Long> nodeIds = new ArrayList<Long>();
     Stack<Long> stack = new Stack<Long>();
-    this.visited.fill(false);
     this.nbEdgesAccessed = 0;
 
     stack.push(srcNodeId);
@@ -136,7 +135,6 @@ public class Traversal {
   public ArrayList<Long> visitNodes(long srcNodeId) {
     ArrayList<Long> nodeIds = new ArrayList<Long>();
     Stack<Long> stack = new Stack<Long>();
-    this.visited.fill(false);
     this.nbEdgesAccessed = 0;
 
     stack.push(srcNodeId);
@@ -235,7 +233,6 @@ public class Traversal {
    */
   private <T> long walkInternalDfs(long srcNodeId, T dst) {
     Stack<Long> stack = new Stack<Long>();
-    this.visited.fill(false);
     this.nbEdgesAccessed = 0;
 
     stack.push(srcNodeId);
@@ -269,7 +266,6 @@ public class Traversal {
    */
   private <T> long walkInternalBfs(long srcNodeId, T dst) {
     Queue<Long> queue = new LinkedList<Long>();
-    this.visited.fill(false);
     this.nbEdgesAccessed = 0;
 
     queue.add(srcNodeId);
