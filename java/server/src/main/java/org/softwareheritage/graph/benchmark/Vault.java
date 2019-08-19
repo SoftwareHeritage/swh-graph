@@ -35,6 +35,7 @@ public class Vault {
     Endpoint endpoint = new Endpoint(graph, "forward", "*");
 
     System.out.println("Used " + bench.args.nbNodes + " random nodes (results are in seconds):");
+    bench.createCSVLogFile();
     bench.timeEndpoint("git bundle", graph, nodeIds, endpoint::visitNodes);
   }
 }

@@ -36,6 +36,7 @@ public class Provenance {
     Endpoint originProvenanceEndpoint = new Endpoint(graph, "backward", "*");
 
     System.out.println("Used " + bench.args.nbNodes + " random nodes (results are in seconds):");
+    bench.createCSVLogFile();
 
     bench.timeEndpoint(
         "commit provenance (dfs)", graph, nodeIds, commitProvenanceEndpoint::walk, "rev", "dfs");

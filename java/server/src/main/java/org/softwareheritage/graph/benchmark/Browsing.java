@@ -40,6 +40,7 @@ public class Browsing {
     Endpoint revEndpoint = new Endpoint(graph, "forward", "rev:rev");
 
     System.out.println("Used " + bench.args.nbNodes + " random nodes (results are in seconds):");
+    bench.createCSVLogFile();
     bench.timeEndpoint("ls", graph, dirNodeIds, dirEndpoint::neighbors);
     bench.timeEndpoint("ls -R", graph, dirNodeIds, dirEndpoint::visitPaths);
     bench.timeEndpoint("git log", graph, revNodeIds, revEndpoint::visitNodes);

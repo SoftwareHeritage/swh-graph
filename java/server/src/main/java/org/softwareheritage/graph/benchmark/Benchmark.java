@@ -47,6 +47,8 @@ public class Benchmark {
 
   /** Command line arguments */
   public Args args;
+  /** CSV separator for log file */
+  final String CSV_SEPARATOR = ";";
 
   /**
    * Constructor.
@@ -86,6 +88,22 @@ public class Benchmark {
   }
 
   /**
+   * Creates CSV file for log output.
+   */
+  public void createCSVLogFile() throws IOException {
+    try (Writer csvLog = new BufferedWriter(new FileWriter(args.logFile))) {
+      StringJoiner csvHeader = new StringJoiner(CSV_SEPARATOR);
+      csvHeader.add("use case name")
+          .add("SWH PID")
+          .add("number of edges accessed")
+          .add("traversal timing")
+          .add("pid2node timing")
+          .add("node2pid timing");
+      csvLog.write(csvHeader.toString() + "\n");
+    }
+  }
+
+  /**
    * Times a specific endpoint and outputs individual datapoints along with aggregated statistics.
    *
    * @param useCaseName benchmark use-case name
@@ -102,17 +120,8 @@ public class Benchmark {
     ArrayList<Double> timings = new ArrayList<>();
     ArrayList<Double> timingsNormalized = new ArrayList<>();
 
-    final String CSV_SEPARATOR = ";";
-    try (Writer csvLog = new BufferedWriter(new FileWriter(args.logFile))) {
-      StringJoiner csvHeader = new StringJoiner(CSV_SEPARATOR);
-      csvHeader.add("use case name")
-          .add("SWH PID")
-          .add("number of edges accessed")
-          .add("traversal timing")
-          .add("pid2node timing")
-          .add("node2pid timing");
-      csvLog.write(csvHeader.toString() + "\n");
-
+    final boolean append = true;
+    try (Writer csvLog = new BufferedWriter(new FileWriter(args.logFile, append))) {
       for (long nodeId : nodeIds) {
         SwhPID swhPID = graph.getSwhPID(nodeId);
 
