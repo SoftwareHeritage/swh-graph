@@ -72,7 +72,7 @@ public class Traversal {
    *
    * @return number of edges accessed in last traversal
    */
-  public long getnbEdgesAccessed() {
+  public long getNbEdgesAccessed() {
     return nbEdgesAccessed;
   }
 

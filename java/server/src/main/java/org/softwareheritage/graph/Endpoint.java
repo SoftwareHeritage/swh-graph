@@ -170,7 +170,7 @@ public class Endpoint {
     startTime = Timing.start();
     ArrayList<Long> nodeIds = traversal.leaves(srcNodeId);
     output.meta.timings.traversal = Timing.stop(startTime);
-    output.meta.nbEdgesAccessed = traversal.getnbEdgesAccessed();
+    output.meta.nbEdgesAccessed = traversal.getNbEdgesAccessed();
 
     startTime = Timing.start();
     output.result = convertNodesToSwhPIDs(nodeIds);
@@ -198,7 +198,7 @@ public class Endpoint {
     startTime = Timing.start();
     ArrayList<Long> nodeIds = traversal.neighbors(srcNodeId);
     output.meta.timings.traversal = Timing.stop(startTime);
-    output.meta.nbEdgesAccessed = traversal.getnbEdgesAccessed();
+    output.meta.nbEdgesAccessed = traversal.getNbEdgesAccessed();
 
     startTime = Timing.start();
     output.result = convertNodesToSwhPIDs(nodeIds);
@@ -245,7 +245,7 @@ public class Endpoint {
       }
     }
 
-    output.meta.nbEdgesAccessed = traversal.getnbEdgesAccessed();
+    output.meta.nbEdgesAccessed = traversal.getNbEdgesAccessed();
 
     startTime = Timing.start();
     output.result = convertNodesToSwhPath(nodeIds);
@@ -273,7 +273,7 @@ public class Endpoint {
     startTime = Timing.start();
     ArrayList<Long> nodeIds = traversal.visitNodes(srcNodeId);
     output.meta.timings.traversal = Timing.stop(startTime);
-    output.meta.nbEdgesAccessed = traversal.getnbEdgesAccessed();
+    output.meta.nbEdgesAccessed = traversal.getNbEdgesAccessed();
 
     startTime = Timing.start();
     output.result = convertNodesToSwhPIDs(nodeIds);
@@ -302,7 +302,7 @@ public class Endpoint {
     startTime = Timing.start();
     ArrayList<ArrayList<Long>> paths = traversal.visitPaths(srcNodeId);
     output.meta.timings.traversal = Timing.stop(startTime);
-    output.meta.nbEdgesAccessed = traversal.getnbEdgesAccessed();
+    output.meta.nbEdgesAccessed = traversal.getNbEdgesAccessed();
 
     startTime = Timing.start();
     output.result = convertPathsToSwhPIDs(paths);
