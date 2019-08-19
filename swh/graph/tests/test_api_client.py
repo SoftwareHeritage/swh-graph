@@ -49,31 +49,45 @@ class TestEndpoints:
     def init_graph_client(self, graph_client):
         self.client = graph_client
 
+    @staticmethod
+    def assert_endpoint_output(actual, expected):
+        assert set(actual.keys()) == {'result', 'meta'}
+        assert set(actual['result']) == set(expected['result'])
+        assert actual['meta'] == expected['meta']
+
     def test_leaves(self):
         actual = self.client.leaves(
             'swh:1:ori:0000000000000000000000000000000000000021'
         )
-        expected = [
-            'swh:1:cnt:0000000000000000000000000000000000000001',
-            'swh:1:cnt:0000000000000000000000000000000000000004',
-            'swh:1:cnt:0000000000000000000000000000000000000005',
-            'swh:1:cnt:0000000000000000000000000000000000000007'
-        ]
-        assert set(actual.keys()) == {'result'}
-        assert set(actual['result']) == set(expected)
+        expected = {
+            'result': [
+                'swh:1:cnt:0000000000000000000000000000000000000001',
+                'swh:1:cnt:0000000000000000000000000000000000000004',
+                'swh:1:cnt:0000000000000000000000000000000000000005',
+                'swh:1:cnt:0000000000000000000000000000000000000007'
+            ],
+            'meta': {
+                'nb_edges_accessed': 13
+            }
+        }
+        TestEndpoints.assert_endpoint_output(actual, expected)
 
     def test_neighbors(self):
         actual = self.client.neighbors(
             'swh:1:rev:0000000000000000000000000000000000000009',
             direction='backward'
         )
-        expected = [
-            'swh:1:snp:0000000000000000000000000000000000000020',
-            'swh:1:rel:0000000000000000000000000000000000000010',
-            'swh:1:rev:0000000000000000000000000000000000000013'
-        ]
-        assert set(actual.keys()) == {'result'}
-        assert set(actual['result']) == set(expected)
+        expected = {
+            'result': [
+                'swh:1:snp:0000000000000000000000000000000000000020',
+                'swh:1:rel:0000000000000000000000000000000000000010',
+                'swh:1:rev:0000000000000000000000000000000000000013'
+            ],
+            'meta': {
+                'nb_edges_accessed': 3
+            }
+        }
+        TestEndpoints.assert_endpoint_output(actual, expected)
 
     def test_stats(self):
         stats = self.client.stats()
@@ -105,38 +119,46 @@ class TestEndpoints:
             'swh:1:rel:0000000000000000000000000000000000000010',
             edges='rel:rev,rev:rev'
         )
-        expected = [
-            'swh:1:rel:0000000000000000000000000000000000000010',
-            'swh:1:rev:0000000000000000000000000000000000000009',
-            'swh:1:rev:0000000000000000000000000000000000000003'
-        ]
-        assert set(actual.keys()) == {'result'}
-        assert set(actual['result']) == set(expected)
+        expected = {
+            'result': [
+                'swh:1:rel:0000000000000000000000000000000000000010',
+                'swh:1:rev:0000000000000000000000000000000000000009',
+                'swh:1:rev:0000000000000000000000000000000000000003'
+            ],
+            'meta': {
+                'nb_edges_accessed': 4
+            }
+        }
+        TestEndpoints.assert_endpoint_output(actual, expected)
 
     def test_visit_paths(self):
         actual = self.client.visit_paths(
                       'swh:1:snp:0000000000000000000000000000000000000020',
                       edges='snp:*,rev:*')
-        assert set(actual.keys()) == {'result'}
-        actual = [tuple(path) for path in actual['result']]
-        expected = [
-            (
-                'swh:1:snp:0000000000000000000000000000000000000020',
-                'swh:1:rev:0000000000000000000000000000000000000009',
-                'swh:1:rev:0000000000000000000000000000000000000003',
-                'swh:1:dir:0000000000000000000000000000000000000002'
-            ),
-            (
-                'swh:1:snp:0000000000000000000000000000000000000020',
-                'swh:1:rev:0000000000000000000000000000000000000009',
-                'swh:1:dir:0000000000000000000000000000000000000008'
-            ),
-            (
-                'swh:1:snp:0000000000000000000000000000000000000020',
-                'swh:1:rel:0000000000000000000000000000000000000010'
-            )
-        ]
-        assert set(actual) == set(expected)
+        actual['result'] = [tuple(path) for path in actual['result']]
+        expected = {
+            'result': [
+                (
+                    'swh:1:snp:0000000000000000000000000000000000000020',
+                    'swh:1:rev:0000000000000000000000000000000000000009',
+                    'swh:1:rev:0000000000000000000000000000000000000003',
+                    'swh:1:dir:0000000000000000000000000000000000000002'
+                ),
+                (
+                    'swh:1:snp:0000000000000000000000000000000000000020',
+                    'swh:1:rev:0000000000000000000000000000000000000009',
+                    'swh:1:dir:0000000000000000000000000000000000000008'
+                ),
+                (
+                    'swh:1:snp:0000000000000000000000000000000000000020',
+                    'swh:1:rel:0000000000000000000000000000000000000010'
+                )
+            ],
+            'meta': {
+                'nb_edges_accessed': 10
+            }
+        }
+        TestEndpoints.assert_endpoint_output(actual, expected)
 
     def test_walk(self):
         actual = self.client.walk(
@@ -145,11 +167,15 @@ class TestEndpoints:
             direction='backward',
             traversal='bfs'
         )
-        expected = [
-            'swh:1:dir:0000000000000000000000000000000000000016',
-            'swh:1:dir:0000000000000000000000000000000000000017',
-            'swh:1:rev:0000000000000000000000000000000000000018',
-            'swh:1:rel:0000000000000000000000000000000000000019'
-        ]
-        assert set(actual.keys()) == {'result'}
-        assert set(actual['result']) == set(expected)
+        expected = {
+            'result': [
+                'swh:1:dir:0000000000000000000000000000000000000016',
+                'swh:1:dir:0000000000000000000000000000000000000017',
+                'swh:1:rev:0000000000000000000000000000000000000018',
+                'swh:1:rel:0000000000000000000000000000000000000019'
+            ],
+            'meta': {
+                'nb_edges_accessed': 3
+            }
+        }
+        TestEndpoints.assert_endpoint_output(actual, expected)
