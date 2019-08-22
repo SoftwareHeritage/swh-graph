@@ -119,6 +119,7 @@ public class Benchmark {
       throws IOException {
     ArrayList<Double> timings = new ArrayList<>();
     ArrayList<Double> timingsNormalized = new ArrayList<>();
+    ArrayList<Double> nbEdgesAccessed = new ArrayList<>();
 
     final boolean append = true;
     try (Writer csvLog = new BufferedWriter(new FileWriter(args.logFile, append))) {
@@ -139,6 +140,7 @@ public class Benchmark {
         csvLog.write(csvLine.toString() + "\n");
 
         timings.add(output.meta.timings.traversal);
+        nbEdgesAccessed.add((double) output.meta.nbEdgesAccessed);
         if (output.meta.nbEdgesAccessed != 0) {
           timingsNormalized.add(output.meta.timings.traversal / output.meta.nbEdgesAccessed);
         }
@@ -154,6 +156,10 @@ public class Benchmark {
     System.out.println("timings normalized:");
     Statistics statsNormalized = new Statistics(timingsNormalized);
     statsNormalized.printAll();
+
+    System.out.println("nb edges accessed:");
+    Statistics statsNbEdgesAccessed = new Statistics(nbEdgesAccessed);
+    statsNbEdgesAccessed.printAll();
   }
 
   /**
