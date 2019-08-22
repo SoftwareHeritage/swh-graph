@@ -8,8 +8,6 @@ import java.util.List;
  * A node in the Software Heritage graph.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  */
 
 public class Node {

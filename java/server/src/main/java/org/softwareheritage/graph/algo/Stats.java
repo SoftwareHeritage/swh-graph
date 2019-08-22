@@ -11,8 +11,6 @@ import java.util.Properties;
  * href="http://webgraph.di.unimi.it/">WebGraph</a> generated .stats and .properties files.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  */
 
 public class Stats {

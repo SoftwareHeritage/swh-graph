@@ -15,8 +15,6 @@ import org.softwareheritage.graph.benchmark.utils.Timing;
  * Benchmark to time edge access time.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  */
 
 public class AccessEdge {

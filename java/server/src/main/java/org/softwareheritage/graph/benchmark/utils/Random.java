@@ -9,8 +9,6 @@ import org.softwareheritage.graph.Node;
  * Random related utility class.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  */
 
 public class Random {

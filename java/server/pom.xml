@@ -6,7 +6,7 @@
 
     <groupId>org.softwareheritage.graph</groupId>
     <artifactId>swh-graph</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.2</version>
 
     <name>swh-graph</name>
     <url>https://www.softwareheritage.org/</url>

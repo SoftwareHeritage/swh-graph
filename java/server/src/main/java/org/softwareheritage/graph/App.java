@@ -27,8 +27,6 @@ import org.softwareheritage.graph.algo.Stats;
  * Web framework of the swh-graph server REST API.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  */
 
 public class App {

@@ -14,8 +14,6 @@ import org.softwareheritage.graph.Node;
  * href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html">use cases</a>.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  */
 
 public class AllowedEdges {

@@ -24,8 +24,6 @@ import org.softwareheritage.graph.Node;
  * PID.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  * @see org.softwareheritage.graph.Endpoint
  */
 

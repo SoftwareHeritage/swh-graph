@@ -4,8 +4,6 @@ package org.softwareheritage.graph.benchmark.utils;
  * Time measurement utility class.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  */
 
 public class Timing {

@@ -14,8 +14,6 @@ import org.softwareheritage.graph.benchmark.Benchmark;
  * use-case scenario</a>.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  */
 
 public class Vault {

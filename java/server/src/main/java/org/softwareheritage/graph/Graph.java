@@ -23,8 +23,6 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
  * PID lookup.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  * @see org.softwareheritage.graph.AllowedEdges
  * @see org.softwareheritage.graph.NodeIdMap;
  * @see org.softwareheritage.graph.NodeTypesMap;

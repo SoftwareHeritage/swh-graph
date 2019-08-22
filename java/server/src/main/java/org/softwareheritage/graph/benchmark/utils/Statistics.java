@@ -7,8 +7,6 @@ import java.util.Collections;
  * Compute various statistics on a list of values.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  */
 
 public class Statistics {

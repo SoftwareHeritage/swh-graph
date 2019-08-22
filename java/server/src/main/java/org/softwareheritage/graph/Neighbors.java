@@ -13,8 +13,6 @@ import org.softwareheritage.graph.Graph;
  * Wrapper iterator class to easily deal with {@link AllowedEdges} during traversals.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  * @see org.softwareheritage.graph.AllowedEdges
  */
 
@@ -52,8 +50,6 @@ public class Neighbors implements Iterable<Long> {
    * Inner class for {@link Neighbors} iterator.
    *
    * @author Thibault Allançon
-   * @version 0.0.1
-   * @since 0.0.1
    */
 
   public class NeighborsIterator implements Iterator<Long> {

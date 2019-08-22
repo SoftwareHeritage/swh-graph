@@ -14,8 +14,6 @@ import org.softwareheritage.graph.backend.Setup;
  * they are loaded here using mmap().
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  * @see org.softwareheritage.graph.backend.Setup
  */
 

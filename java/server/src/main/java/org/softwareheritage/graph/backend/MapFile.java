@@ -15,8 +15,6 @@ import it.unimi.dsi.io.ByteBufferInputStream;
  * Java limit.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  */
 
 public class MapFile {

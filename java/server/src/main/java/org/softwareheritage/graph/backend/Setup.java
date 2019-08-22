@@ -28,8 +28,6 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
  * Pre-processing steps (such as dumping mapping files on disk) before running the graph service.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  */
 
 public class Setup {

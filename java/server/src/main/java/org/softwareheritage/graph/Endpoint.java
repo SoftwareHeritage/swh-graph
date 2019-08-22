@@ -16,8 +16,6 @@ import org.softwareheritage.graph.benchmark.utils.Timing;
  * all the input/output node ids conversions and logging timings.
  *
  * @author Thibault Allançon
- * @version 0.0.1
- * @since 0.0.1
  * @see org.softwareheritage.graph.algo.Traversal
  */
 
