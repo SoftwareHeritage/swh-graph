@@ -17,7 +17,6 @@ public class WalkTest extends GraphTest {
   @Test
   public void forwardRootToLeaf() {
     Graph graph = getGraph();
-    Endpoint endpoint = new Endpoint(graph, "forward", "*");
     SwhPID src = new SwhPID("swh:1:snp:0000000000000000000000000000000000000020");
     String dstFmt = "swh:1:cnt:0000000000000000000000000000000000000005";
 
@@ -39,8 +38,10 @@ public class WalkTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000005"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
+    Endpoint endpoint1 = new Endpoint(graph, "forward", "*");
+    SwhPath dfsPath = (SwhPath) endpoint1.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    Endpoint endpoint2 = new Endpoint(graph, "forward", "*");
+    SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     List<SwhPath> possibleSolutions = Arrays.asList(solution1, solution2);
     Assert.assertTrue(possibleSolutions.contains(dfsPath));
@@ -50,7 +51,6 @@ public class WalkTest extends GraphTest {
   @Test
   public void forwardLeafToLeaf() {
     Graph graph = getGraph();
-    Endpoint endpoint = new Endpoint(graph, "forward", "*");
     SwhPID src = new SwhPID("swh:1:cnt:0000000000000000000000000000000000000007");
     String dstFmt = "cnt";
 
@@ -59,8 +59,10 @@ public class WalkTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000007"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
+    Endpoint endpoint1 = new Endpoint(graph, "forward", "*");
+    SwhPath dfsPath = (SwhPath) endpoint1.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    Endpoint endpoint2 = new Endpoint(graph, "forward", "*");
+    SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     Assert.assertEquals(dfsPath, expectedPath);
     Assert.assertEquals(bfsPath, expectedPath);
@@ -69,7 +71,6 @@ public class WalkTest extends GraphTest {
   @Test
   public void forwardRevToRev() {
     Graph graph = getGraph();
-    Endpoint endpoint = new Endpoint(graph, "forward", "rev:rev");
     SwhPID src = new SwhPID("swh:1:rev:0000000000000000000000000000000000000018");
     String dstFmt = "swh:1:rev:0000000000000000000000000000000000000003";
 
@@ -81,8 +82,10 @@ public class WalkTest extends GraphTest {
           "swh:1:rev:0000000000000000000000000000000000000003"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
+    Endpoint endpoint1 = new Endpoint(graph, "forward", "rev:rev");
+    SwhPath dfsPath = (SwhPath) endpoint1.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    Endpoint endpoint2 = new Endpoint(graph, "forward", "rev:rev");
+    SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     Assert.assertEquals(dfsPath, expectedPath);
     Assert.assertEquals(bfsPath, expectedPath);
@@ -91,7 +94,6 @@ public class WalkTest extends GraphTest {
   @Test
   public void backwardRevToRev() {
     Graph graph = getGraph();
-    Endpoint endpoint = new Endpoint(graph, "backward", "rev:rev");
     SwhPID src = new SwhPID("swh:1:rev:0000000000000000000000000000000000000003");
     String dstFmt = "swh:1:rev:0000000000000000000000000000000000000018";
 
@@ -103,8 +105,10 @@ public class WalkTest extends GraphTest {
           "swh:1:rev:0000000000000000000000000000000000000018"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
+    Endpoint endpoint1 = new Endpoint(graph, "backward", "rev:rev");
+    SwhPath dfsPath = (SwhPath) endpoint1.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    Endpoint endpoint2 = new Endpoint(graph, "backward", "rev:rev");
+    SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     Assert.assertEquals(dfsPath, expectedPath);
     Assert.assertEquals(bfsPath, expectedPath);
@@ -113,7 +117,6 @@ public class WalkTest extends GraphTest {
   @Test
   public void backwardCntToFirstSnp() {
     Graph graph = getGraph();
-    Endpoint endpoint = new Endpoint(graph, "backward", "*");
     SwhPID src = new SwhPID("swh:1:cnt:0000000000000000000000000000000000000001");
     String dstFmt = "snp";
 
@@ -150,8 +153,10 @@ public class WalkTest extends GraphTest {
           "swh:1:snp:0000000000000000000000000000000000000020"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
+    Endpoint endpoint1 = new Endpoint(graph, "backward", "*");
+    SwhPath dfsPath = (SwhPath) endpoint1.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    Endpoint endpoint2 = new Endpoint(graph, "backward", "*");
+    SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     List<SwhPath> possibleSolutions = Arrays.asList(solution1, solution2, solution3, solution4);
     Assert.assertTrue(possibleSolutions.contains(dfsPath));
@@ -161,7 +166,6 @@ public class WalkTest extends GraphTest {
   @Test
   public void forwardRevToFirstCnt() {
     Graph graph = getGraph();
-    Endpoint endpoint = new Endpoint(graph, "forward", "rev:*,dir:*");
     SwhPID src = new SwhPID("swh:1:rev:0000000000000000000000000000000000000009");
     String dstFmt = "cnt";
 
@@ -199,8 +203,10 @@ public class WalkTest extends GraphTest {
           "swh:1:cnt:0000000000000000000000000000000000000001"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
+    Endpoint endpoint1 = new Endpoint(graph, "forward", "rev:*,dir:*");
+    SwhPath dfsPath = (SwhPath) endpoint1.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    Endpoint endpoint2 = new Endpoint(graph, "forward", "rev:*,dir:*");
+    SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     List<SwhPath> possibleSolutions =
       Arrays.asList(solution1, solution2, solution3, solution4, solution5);
@@ -211,7 +217,6 @@ public class WalkTest extends GraphTest {
   @Test
   public void backwardDirToFirstRel() {
     Graph graph = getGraph();
-    Endpoint endpoint = new Endpoint(graph, "backward", "dir:dir,dir:rev,rev:*");
     SwhPID src = new SwhPID("swh:1:dir:0000000000000000000000000000000000000016");
     String dstFmt = "rel";
 
@@ -223,8 +228,10 @@ public class WalkTest extends GraphTest {
           "swh:1:rel:0000000000000000000000000000000000000019"
       );
 
-    SwhPath dfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
-    SwhPath bfsPath = (SwhPath) endpoint.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
+    Endpoint endpoint1 = new Endpoint(graph, "backward", "dir:dir,dir:rev,rev:*");
+    SwhPath dfsPath = (SwhPath) endpoint1.walk(new Endpoint.Input(src, dstFmt, "dfs")).result;
+    Endpoint endpoint2 = new Endpoint(graph, "backward", "dir:dir,dir:rev,rev:*");
+    SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
     Assert.assertEquals(dfsPath, expectedPath);
     Assert.assertEquals(bfsPath, expectedPath);

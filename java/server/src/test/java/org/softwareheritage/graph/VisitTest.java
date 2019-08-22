@@ -29,9 +29,10 @@ public class VisitTest extends GraphTest {
   public void forwardFromRoot() {
     Graph graph = getGraph();
     SwhPID swhPID = new SwhPID("swh:1:ori:0000000000000000000000000000000000000021");
-    Endpoint endpoint = new Endpoint(graph, "forward", "*");
-    ArrayList<SwhPath> paths = (ArrayList) endpoint.visitPaths(new Endpoint.Input(swhPID)).result;
-    ArrayList<SwhPID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint1 = new Endpoint(graph, "forward", "*");
+    ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint2 = new Endpoint(graph, "forward", "*");
+    ArrayList<SwhPID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhPID)).result;
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -134,9 +135,10 @@ public class VisitTest extends GraphTest {
   public void forwardFromMiddle() {
     Graph graph = getGraph();
     SwhPID swhPID = new SwhPID("swh:1:dir:0000000000000000000000000000000000000012");
-    Endpoint endpoint = new Endpoint(graph, "forward", "*");
-    ArrayList<SwhPath> paths = (ArrayList) endpoint.visitPaths(new Endpoint.Input(swhPID)).result;
-    ArrayList<SwhPID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint1 = new Endpoint(graph, "forward", "*");
+    ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint2 = new Endpoint(graph, "forward", "*");
+    ArrayList<SwhPID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhPID)).result;
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -179,9 +181,10 @@ public class VisitTest extends GraphTest {
   public void forwardFromLeaf() {
     Graph graph = getGraph();
     SwhPID swhPID = new SwhPID("swh:1:cnt:0000000000000000000000000000000000000004");
-    Endpoint endpoint = new Endpoint(graph, "forward", "*");
-    ArrayList<SwhPath> paths = (ArrayList) endpoint.visitPaths(new Endpoint.Input(swhPID)).result;
-    ArrayList<SwhPID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint1 = new Endpoint(graph, "forward", "*");
+    ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint2 = new Endpoint(graph, "forward", "*");
+    ArrayList<SwhPID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhPID)).result;
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -197,9 +200,10 @@ public class VisitTest extends GraphTest {
   public void backwardFromRoot() {
     Graph graph = getGraph();
     SwhPID swhPID = new SwhPID("swh:1:ori:0000000000000000000000000000000000000021");
-    Endpoint endpoint = new Endpoint(graph, "backward", "*");
-    ArrayList<SwhPath> paths = (ArrayList) endpoint.visitPaths(new Endpoint.Input(swhPID)).result;
-    ArrayList<SwhPID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint1 = new Endpoint(graph, "backward", "*");
+    ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint2 = new Endpoint(graph, "backward", "*");
+    ArrayList<SwhPID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhPID)).result;
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -215,9 +219,10 @@ public class VisitTest extends GraphTest {
   public void backwardFromMiddle() {
     Graph graph = getGraph();
     SwhPID swhPID = new SwhPID("swh:1:dir:0000000000000000000000000000000000000012");
-    Endpoint endpoint = new Endpoint(graph, "backward", "*");
-    ArrayList<SwhPath> paths = (ArrayList) endpoint.visitPaths(new Endpoint.Input(swhPID)).result;
-    ArrayList<SwhPID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint1 = new Endpoint(graph, "backward", "*");
+    ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint2 = new Endpoint(graph, "backward", "*");
+    ArrayList<SwhPID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhPID)).result;
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -236,9 +241,10 @@ public class VisitTest extends GraphTest {
   public void backwardFromLeaf() {
     Graph graph = getGraph();
     SwhPID swhPID = new SwhPID("swh:1:cnt:0000000000000000000000000000000000000004");
-    Endpoint endpoint = new Endpoint(graph, "backward", "*");
-    ArrayList<SwhPath> paths = (ArrayList) endpoint.visitPaths(new Endpoint.Input(swhPID)).result;
-    ArrayList<SwhPID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint1 = new Endpoint(graph, "backward", "*");
+    ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint2 = new Endpoint(graph, "backward", "*");
+    ArrayList<SwhPID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhPID)).result;
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -289,9 +295,10 @@ public class VisitTest extends GraphTest {
   public void forwardSnpToRev() {
     Graph graph = getGraph();
     SwhPID swhPID = new SwhPID("swh:1:snp:0000000000000000000000000000000000000020");
-    Endpoint endpoint = new Endpoint(graph, "forward", "snp:rev");
-    ArrayList<SwhPath> paths = (ArrayList) endpoint.visitPaths(new Endpoint.Input(swhPID)).result;
-    ArrayList<SwhPID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint1 = new Endpoint(graph, "forward", "snp:rev");
+    ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint2 = new Endpoint(graph, "forward", "snp:rev");
+    ArrayList<SwhPID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhPID)).result;
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -308,9 +315,10 @@ public class VisitTest extends GraphTest {
   public void forwardRelToRevRevToRev() {
     Graph graph = getGraph();
     SwhPID swhPID = new SwhPID("swh:1:rel:0000000000000000000000000000000000000010");
-    Endpoint endpoint = new Endpoint(graph, "forward", "rel:rev,rev:rev");
-    ArrayList<SwhPath> paths = (ArrayList) endpoint.visitPaths(new Endpoint.Input(swhPID)).result;
-    ArrayList<SwhPID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint1 = new Endpoint(graph, "forward", "rel:rev,rev:rev");
+    ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint2 = new Endpoint(graph, "forward", "rel:rev,rev:rev");
+    ArrayList<SwhPID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhPID)).result;
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -328,9 +336,10 @@ public class VisitTest extends GraphTest {
   public void forwardRevToAllDirToAll() {
     Graph graph = getGraph();
     SwhPID swhPID = new SwhPID("swh:1:rev:0000000000000000000000000000000000000013");
-    Endpoint endpoint = new Endpoint(graph, "forward", "rev:*,dir:*");
-    ArrayList<SwhPath> paths = (ArrayList) endpoint.visitPaths(new Endpoint.Input(swhPID)).result;
-    ArrayList<SwhPID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint1 = new Endpoint(graph, "forward", "rev:*,dir:*");
+    ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint2 = new Endpoint(graph, "forward", "rev:*,dir:*");
+    ArrayList<SwhPID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhPID)).result;
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -416,9 +425,10 @@ public class VisitTest extends GraphTest {
   public void forwardSnpToAllRevToAll() {
     Graph graph = getGraph();
     SwhPID swhPID = new SwhPID("swh:1:snp:0000000000000000000000000000000000000020");
-    Endpoint endpoint = new Endpoint(graph, "forward", "snp:*,rev:*");
-    ArrayList<SwhPath> paths = (ArrayList) endpoint.visitPaths(new Endpoint.Input(swhPID)).result;
-    ArrayList<SwhPID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint1 = new Endpoint(graph, "forward", "snp:*,rev:*");
+    ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint2 = new Endpoint(graph, "forward", "snp:*,rev:*");
+    ArrayList<SwhPID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhPID)).result;
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -448,9 +458,10 @@ public class VisitTest extends GraphTest {
   public void forwardNoEdges() {
     Graph graph = getGraph();
     SwhPID swhPID = new SwhPID("swh:1:snp:0000000000000000000000000000000000000020");
-    Endpoint endpoint = new Endpoint(graph, "forward", "");
-    ArrayList<SwhPath> paths = (ArrayList) endpoint.visitPaths(new Endpoint.Input(swhPID)).result;
-    ArrayList<SwhPID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint1 = new Endpoint(graph, "forward", "");
+    ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint2 = new Endpoint(graph, "forward", "");
+    ArrayList<SwhPID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhPID)).result;
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(
@@ -466,9 +477,10 @@ public class VisitTest extends GraphTest {
   public void backwardRevToRevRevToRel() {
     Graph graph = getGraph();
     SwhPID swhPID = new SwhPID("swh:1:rev:0000000000000000000000000000000000000003");
-    Endpoint endpoint = new Endpoint(graph, "backward", "rev:rev,rev:rel");
-    ArrayList<SwhPath> paths = (ArrayList) endpoint.visitPaths(new Endpoint.Input(swhPID)).result;
-    ArrayList<SwhPID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint1 = new Endpoint(graph, "backward", "rev:rev,rev:rel");
+    ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhPID)).result;
+    Endpoint endpoint2 = new Endpoint(graph, "backward", "rev:rev,rev:rel");
+    ArrayList<SwhPID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhPID)).result;
 
     ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
     expectedPaths.add(

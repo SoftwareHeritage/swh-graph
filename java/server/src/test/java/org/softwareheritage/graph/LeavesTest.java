@@ -50,19 +50,20 @@ public class LeavesTest extends GraphTest {
   @Test
   public void backwardFromLeaf() {
     Graph graph = getGraph();
-    Endpoint endpoint = new Endpoint(graph, "backward", "*");
 
+    Endpoint endpoint1 = new Endpoint(graph, "backward", "*");
     SwhPID src1 = new SwhPID("swh:1:cnt:0000000000000000000000000000000000000015");
     ArrayList<SwhPID> expectedLeaves1 = new ArrayList<>();
     expectedLeaves1.add(new SwhPID("swh:1:rel:0000000000000000000000000000000000000019"));
-    ArrayList<SwhPID> actualLeaves1 = (ArrayList) endpoint.leaves(new Endpoint.Input(src1)).result;
+    ArrayList<SwhPID> actualLeaves1 = (ArrayList) endpoint1.leaves(new Endpoint.Input(src1)).result;
     GraphTest.assertEqualsAnyOrder(expectedLeaves1, actualLeaves1);
 
+    Endpoint endpoint2 = new Endpoint(graph, "backward", "*");
     SwhPID src2 = new SwhPID("swh:1:cnt:0000000000000000000000000000000000000004");
     ArrayList<SwhPID> expectedLeaves2 = new ArrayList<>();
     expectedLeaves2.add(new SwhPID("swh:1:ori:0000000000000000000000000000000000000021"));
     expectedLeaves2.add(new SwhPID("swh:1:rel:0000000000000000000000000000000000000019"));
-    ArrayList<SwhPID> actualLeaves2 = (ArrayList) endpoint.leaves(new Endpoint.Input(src2)).result;
+    ArrayList<SwhPID> actualLeaves2 = (ArrayList) endpoint2.leaves(new Endpoint.Input(src2)).result;
     GraphTest.assertEqualsAnyOrder(expectedLeaves2, actualLeaves2);
   }
 
