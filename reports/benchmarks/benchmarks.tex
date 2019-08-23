@@ -1,0 +1,137 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[colorlinks,urlcolor=blue,linkcolor=magenta,citecolor=red,linktocpage=true]{hyperref}
+\usepackage[english]{babel}
+\usepackage{a4wide}
+\usepackage{booktabs}
+\usepackage{minted}
+\usepackage{siunitx}
+
+\title{Google Summer of Code 2019}
+\author{Thibault Allançon}
+\date{August 23, 2019}
+
+\begin{document}
+
+\maketitle
+
+Benchmarks results on the compressed graph, using the API endpoints.
+
+\section{Environment}
+
+For each benchmarks, 10000 nodes were randomly selected and used for each
+use-case as a starting point. All the results are then aggregated.
+
+See
+\href{https://docs.softwareheritage.org/devel/swh-graph/use-cases.html}{use-cases}
+for more details on each use-case.
+
+\section{Results}
+
+All the timings are in $\mu$s and normalized with respect to the number of edges
+accessed during the traversal. The goal is to evaluate the cost of accessing an
+edge on average for each use-case.
+
+\subsection{Browsing use-cases}
+
+\begin{center}
+    \begin{tabular}{@{} l *3r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{ls} &
+            \textbf{ls -R} &
+            \textbf{git log} \\
+        \midrule
+        min value & 0.05 & 0.08 & 0.1 \\
+        max value & 1791 & 100  & 58 \\
+        average & 3.0 & 3.8 & 1.5 \\
+        median & 1.6 & 1.7 & 3.2 \\
+        standard deviation & 20 & 5.0 & 3.4 \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\vspace{0.5cm}
+
+\begin{center}
+    \begin{tabular}{@{} l *3r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{ls} &
+            \textbf{ls -R} &
+            \textbf{git log} \\
+        \midrule
+        average edge accessed & 30 & 2566 & 21081 \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\newpage
+
+\subsection{Vault use-cases}
+
+\begin{center}
+    \begin{tabular}{@{} l r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{git bundle} \\
+        \midrule
+        min value & 0.03 \\
+        max value & 483 \\
+        average & 2.9 \\
+        median & 0.9 \\
+        standard deviation & 0.2 \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\vspace{0.5cm}
+
+\begin{center}
+    \begin{tabular}{@{} l r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{git bundle} \\
+        \midrule
+        average edge accessed & 456418 \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\subsection{Provenance use-cases}
+
+\begin{center}
+    \begin{tabular}{@{} l *4r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{commit pr.} &
+            \textbf{complete commit pr.} &
+            \textbf{origin pr.} &
+            \textbf{complete origin pr.} \\
+        \midrule
+        min value & 0 & 0.03 & 0 & 0.02 \\
+        max value & 2600 & 136 & 571 & 57 \\
+        average & 3.5 & 1.7 & 1.4 & 1.4 \\
+        median & 2.4 & 1.7 & 1.1 & 1.4 \\
+        standard deviation & 3.0 & 1.7 & 6.2 & 1.2 \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\vspace{0.5cm}
+
+\begin{center}
+    \begin{tabular}{@{} l *4r @{}}
+        \toprule
+        \multicolumn{1}{c}{} &
+            \textbf{commit pr.} &
+            \textbf{complete commit pr.} &
+            \textbf{origin pr.} &
+            \textbf{complete origin pr.} \\
+        \midrule
+        average edge accessed & 38 & 12 & 2799 & 12 \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\end{document}
