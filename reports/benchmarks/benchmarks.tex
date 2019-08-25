@@ -4,6 +4,7 @@
 \usepackage[english]{babel}
 \usepackage{a4wide}
 \usepackage{booktabs}
+\usepackage{makecell}
 \usepackage{minted}
 \usepackage{siunitx}
 
@@ -39,9 +40,9 @@ edge on average for each use-case.
     \begin{tabular}{@{} l *3r @{}}
         \toprule
         \multicolumn{1}{c}{} &
-            \textbf{ls} &
-            \textbf{ls -R} &
-            \textbf{git log} \\
+            \thead{\normalsize{\textbf{ls}} \\ $\mu$s/edge} &
+            \thead{\normalsize{\textbf{ls -R}} \\ $\mu$s/edge} &
+            \thead{\normalsize{\textbf{git log}} \\ $\mu$s/edge} \\
         \midrule
         min value & 0.05 & 0.08 & 0.1 \\
         max value & 1791 & 100  & 58 \\
@@ -75,7 +76,7 @@ edge on average for each use-case.
     \begin{tabular}{@{} l r @{}}
         \toprule
         \multicolumn{1}{c}{} &
-            \textbf{git bundle} \\
+            \thead{\normalsize{\textbf{git bundle}} \\ $\mu$s/edge} \\
         \midrule
         min value & 0.03 \\
         max value & 483 \\
@@ -105,10 +106,10 @@ edge on average for each use-case.
     \begin{tabular}{@{} l *4r @{}}
         \toprule
         \multicolumn{1}{c}{} &
-            \textbf{commit pr.} &
-            \textbf{complete commit pr.} &
-            \textbf{origin pr.} &
-            \textbf{complete origin pr.} \\
+            \thead{\normalsize{\textbf{commit pr.}} \\ $\mu$s/edge} &
+            \thead{\normalsize{\textbf{complete commit pr.}} \\ $\mu$s/edge} &
+            \thead{\normalsize{\textbf{origin pr.}} \\ $\mu$s/edge} &
+            \thead{\normalsize{\textbf{complete origin pr.}} \\ $\mu$s/edge} \\
         \midrule
         min value & 0 & 0.03 & 0 & 0.02 \\
         max value & 2600 & 136 & 571 & 57 \\
