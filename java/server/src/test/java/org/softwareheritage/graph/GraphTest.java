@@ -12,19 +12,19 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import org.softwareheritage.graph.Graph;
 
 public class GraphTest {
-  static Graph graph;
+    static Graph graph;
 
-  public static <T> void assertEqualsAnyOrder(Collection<T> expecteds, Collection<T> actuals) {
-    Assert.assertThat(expecteds, containsInAnyOrder(actuals.toArray()));
-  }
+    public static <T> void assertEqualsAnyOrder(Collection<T> expecteds, Collection<T> actuals) {
+        Assert.assertThat(expecteds, containsInAnyOrder(actuals.toArray()));
+    }
 
-  @BeforeClass
-  public static void setUp() throws IOException {
-    Path graphPath = Paths.get("src", "test", "dataset", "output", "example");
-    graph = new Graph(graphPath.toString());
-  }
+    @BeforeClass
+    public static void setUp() throws IOException {
+        Path graphPath = Paths.get("src", "test", "dataset", "output", "example");
+        graph = new Graph(graphPath.toString());
+    }
 
-  public Graph getGraph() {
-    return graph;
-  }
+    public Graph getGraph() {
+        return graph;
+    }
 }
