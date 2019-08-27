@@ -28,301 +28,301 @@ import org.softwareheritage.graph.Node;
  */
 
 public class Traversal {
-  /** Graph used in the traversal */
-  Graph graph;
-  /** Boolean to specify the use of the transposed graph */
-  boolean useTransposed;
-  /** Graph edge restriction */
-  AllowedEdges edges;
+    /** Graph used in the traversal */
+    Graph graph;
+    /** Boolean to specify the use of the transposed graph */
+    boolean useTransposed;
+    /** Graph edge restriction */
+    AllowedEdges edges;
 
-  /** Bit array storing if we have visited a node */
-  LongArrayBitVector visited;
-  /** Hash map storing parent node id for each nodes during a traversal */
-  Map<Long, Long> parentNode;
-  /** Number of edges accessed during traversal */
-  long nbEdgesAccessed;
+    /** Bit array storing if we have visited a node */
+    LongArrayBitVector visited;
+    /** Hash map storing parent node id for each nodes during a traversal */
+    Map<Long, Long> parentNode;
+    /** Number of edges accessed during traversal */
+    long nbEdgesAccessed;
 
-  /**
-   * Constructor.
-   *
-   * @param graph graph used in the traversal
-   * @param direction a string (either "forward" or "backward") specifying edge orientation
-   * @param edgesFmt a formatted string describing <a
-   * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed edges</a>
-   */
-  public Traversal(Graph graph, String direction, String edgesFmt) {
-    if (!direction.matches("forward|backward")) {
-      throw new IllegalArgumentException("Unknown traversal direction: " + direction);
-    }
-
-    this.graph = graph;
-    this.useTransposed = (direction.equals("backward"));
-    this.edges = new AllowedEdges(graph, edgesFmt);
-
-    long nbNodes = graph.getNbNodes();
-    this.visited = LongArrayBitVector.ofLength(nbNodes);
-    this.parentNode = new HashMap<>();
-    this.nbEdgesAccessed = 0;
-  }
-
-  /**
-   * Returns number of accessed edges during traversal.
-   *
-   * @return number of edges accessed in last traversal
-   */
-  public long getNbEdgesAccessed() {
-    return nbEdgesAccessed;
-  }
-
-  /**
-   * Returns the leaves of a subgraph rooted at the specified source node.
-   *
-   * @param srcNodeId source node
-   * @return list of node ids corresponding to the leaves
-   */
-  public ArrayList<Long> leaves(long srcNodeId) {
-    ArrayList<Long> nodeIds = new ArrayList<Long>();
-    Stack<Long> stack = new Stack<Long>();
-    this.nbEdgesAccessed = 0;
-
-    stack.push(srcNodeId);
-    visited.set(srcNodeId);
-
-    while (!stack.isEmpty()) {
-      long currentNodeId = stack.pop();
-
-      long neighborsCnt = 0;
-      nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
-      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-        neighborsCnt++;
-        if (!visited.getBoolean(neighborNodeId)) {
-          stack.push(neighborNodeId);
-          visited.set(neighborNodeId);
+    /**
+     * Constructor.
+     *
+     * @param graph graph used in the traversal
+     * @param direction a string (either "forward" or "backward") specifying edge orientation
+     * @param edgesFmt a formatted string describing <a
+     * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed edges</a>
+     */
+    public Traversal(Graph graph, String direction, String edgesFmt) {
+        if (!direction.matches("forward|backward")) {
+            throw new IllegalArgumentException("Unknown traversal direction: " + direction);
         }
-      }
 
-      if (neighborsCnt == 0) {
-        nodeIds.add(currentNodeId);
-      }
+        this.graph = graph;
+        this.useTransposed = (direction.equals("backward"));
+        this.edges = new AllowedEdges(graph, edgesFmt);
+
+        long nbNodes = graph.getNbNodes();
+        this.visited = LongArrayBitVector.ofLength(nbNodes);
+        this.parentNode = new HashMap<>();
+        this.nbEdgesAccessed = 0;
     }
 
-    return nodeIds;
-  }
-
-  /**
-   * Returns node direct neighbors (linked with exactly one edge).
-   *
-   * @param srcNodeId source node
-   * @return list of node ids corresponding to the neighbors
-   */
-  public ArrayList<Long> neighbors(long srcNodeId) {
-    ArrayList<Long> nodeIds = new ArrayList<Long>();
-    this.nbEdgesAccessed = graph.degree(srcNodeId, useTransposed);
-    for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, srcNodeId)) {
-      nodeIds.add(neighborNodeId);
+    /**
+     * Returns number of accessed edges during traversal.
+     *
+     * @return number of edges accessed in last traversal
+     */
+    public long getNbEdgesAccessed() {
+        return nbEdgesAccessed;
     }
-    return nodeIds;
-  }
 
-  /**
-   * Performs a graph traversal and returns explored nodes.
-   *
-   * @param srcNodeId source node
-   * @return list of explored node ids
-   */
-  public ArrayList<Long> visitNodes(long srcNodeId) {
-    ArrayList<Long> nodeIds = new ArrayList<Long>();
-    Stack<Long> stack = new Stack<Long>();
-    this.nbEdgesAccessed = 0;
+    /**
+     * Returns the leaves of a subgraph rooted at the specified source node.
+     *
+     * @param srcNodeId source node
+     * @return list of node ids corresponding to the leaves
+     */
+    public ArrayList<Long> leaves(long srcNodeId) {
+        ArrayList<Long> nodeIds = new ArrayList<Long>();
+        Stack<Long> stack = new Stack<Long>();
+        this.nbEdgesAccessed = 0;
 
-    stack.push(srcNodeId);
-    visited.set(srcNodeId);
+        stack.push(srcNodeId);
+        visited.set(srcNodeId);
 
-    while (!stack.isEmpty()) {
-      long currentNodeId = stack.pop();
-      nodeIds.add(currentNodeId);
+        while (!stack.isEmpty()) {
+            long currentNodeId = stack.pop();
 
-      nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
-      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-        if (!visited.getBoolean(neighborNodeId)) {
-          stack.push(neighborNodeId);
-          visited.set(neighborNodeId);
+            long neighborsCnt = 0;
+            nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
+            for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+                neighborsCnt++;
+                if (!visited.getBoolean(neighborNodeId)) {
+                    stack.push(neighborNodeId);
+                    visited.set(neighborNodeId);
+                }
+            }
+
+            if (neighborsCnt == 0) {
+                nodeIds.add(currentNodeId);
+            }
         }
-      }
+
+        return nodeIds;
     }
 
-    return nodeIds;
-  }
-
-  /**
-   * Performs a graph traversal and returns explored paths.
-   *
-   * @param srcNodeId source node
-   * @return list of explored paths (represented as a list of node ids)
-   */
-  public ArrayList<ArrayList<Long>> visitPaths(long srcNodeId) {
-    ArrayList<ArrayList<Long>> paths = new ArrayList<>();
-    Stack<Long> currentPath = new Stack<Long>();
-    this.nbEdgesAccessed = 0;
-    visitPathsInternal(srcNodeId, paths, currentPath);
-    return paths;
-  }
-
-  /**
-   * Internal recursive function of {@link #visitPaths}.
-   *
-   * @param currentNodeId current node
-   * @param paths list of currently stored paths
-   * @param currentPath current path as node ids
-   */
-  private void visitPathsInternal(
-      long currentNodeId, ArrayList<ArrayList<Long>> paths, Stack<Long> currentPath) {
-    currentPath.push(currentNodeId);
-
-    long visitedNeighbors = 0;
-    nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
-    for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-      visitPathsInternal(neighborNodeId, paths, currentPath);
-      visitedNeighbors++;
-    }
-
-    if (visitedNeighbors == 0) {
-      ArrayList<Long> path = new ArrayList<Long>();
-      for (long nodeId : currentPath) {
-        path.add(nodeId);
-      }
-      paths.add(path);
-    }
-
-    currentPath.pop();
-  }
-
-  /**
-   * Performs a graph traversal and returns the first found path from source to destination.
-   *
-   * @param srcNodeId source node
-   * @param dst destination (either a node or a node type)
-   * @return found path as a list of node ids
-   */
-  public <T> ArrayList<Long> walk(long srcNodeId, T dst, String algorithm) {
-    long dstNodeId = -1;
-    if (algorithm.equals("dfs")) {
-      dstNodeId = walkInternalDfs(srcNodeId, dst);
-    } else if (algorithm.equals("bfs")) {
-      dstNodeId = walkInternalBfs(srcNodeId, dst);
-    } else {
-      throw new IllegalArgumentException("Unknown traversal algorithm: " + algorithm);
-    }
-
-    if (dstNodeId == -1) {
-      throw new IllegalArgumentException("Unable to find destination point: " + dst);
-    }
-
-    ArrayList<Long> nodeIds = backtracking(srcNodeId, dstNodeId);
-    return nodeIds;
-  }
-
-  /**
-   * Internal DFS function of {@link #walk}.
-   *
-   * @param srcNodeId source node
-   * @param dst destination (either a node or a node type)
-   * @return final destination node or -1 if no path found
-   */
-  private <T> long walkInternalDfs(long srcNodeId, T dst) {
-    Stack<Long> stack = new Stack<Long>();
-    this.nbEdgesAccessed = 0;
-
-    stack.push(srcNodeId);
-    visited.set(srcNodeId);
-
-    while (!stack.isEmpty()) {
-      long currentNodeId = stack.pop();
-      if (isDstNode(currentNodeId, dst)) {
-        return currentNodeId;
-      }
-
-      nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
-      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-        if (!visited.getBoolean(neighborNodeId)) {
-          stack.push(neighborNodeId);
-          visited.set(neighborNodeId);
-          parentNode.put(neighborNodeId, currentNodeId);
+    /**
+     * Returns node direct neighbors (linked with exactly one edge).
+     *
+     * @param srcNodeId source node
+     * @return list of node ids corresponding to the neighbors
+     */
+    public ArrayList<Long> neighbors(long srcNodeId) {
+        ArrayList<Long> nodeIds = new ArrayList<Long>();
+        this.nbEdgesAccessed = graph.degree(srcNodeId, useTransposed);
+        for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, srcNodeId)) {
+            nodeIds.add(neighborNodeId);
         }
-      }
+        return nodeIds;
     }
 
-    return -1;
-  }
+    /**
+     * Performs a graph traversal and returns explored nodes.
+     *
+     * @param srcNodeId source node
+     * @return list of explored node ids
+     */
+    public ArrayList<Long> visitNodes(long srcNodeId) {
+        ArrayList<Long> nodeIds = new ArrayList<Long>();
+        Stack<Long> stack = new Stack<Long>();
+        this.nbEdgesAccessed = 0;
 
-  /**
-   * Internal BFS function of {@link #walk}.
-   *
-   * @param srcNodeId source node
-   * @param dst destination (either a node or a node type)
-   * @return final destination node or -1 if no path found
-   */
-  private <T> long walkInternalBfs(long srcNodeId, T dst) {
-    Queue<Long> queue = new LinkedList<Long>();
-    this.nbEdgesAccessed = 0;
+        stack.push(srcNodeId);
+        visited.set(srcNodeId);
 
-    queue.add(srcNodeId);
-    visited.set(srcNodeId);
+        while (!stack.isEmpty()) {
+            long currentNodeId = stack.pop();
+            nodeIds.add(currentNodeId);
 
-    while (!queue.isEmpty()) {
-      long currentNodeId = queue.poll();
-      if (isDstNode(currentNodeId, dst)) {
-        return currentNodeId;
-      }
-
-      nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
-      for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-        if (!visited.getBoolean(neighborNodeId)) {
-          queue.add(neighborNodeId);
-          visited.set(neighborNodeId);
-          parentNode.put(neighborNodeId, currentNodeId);
+            nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
+            for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+                if (!visited.getBoolean(neighborNodeId)) {
+                    stack.push(neighborNodeId);
+                    visited.set(neighborNodeId);
+                }
+            }
         }
-      }
+
+        return nodeIds;
     }
 
-    return -1;
-  }
-
-  /**
-   * Internal function of {@link #walk} to check if a node corresponds to the destination.
-   *
-   * @param nodeId current node
-   * @param dst destination (either a node or a node type)
-   * @return true if the node is a destination, or false otherwise
-   */
-  private <T> boolean isDstNode(long nodeId, T dst) {
-    if (dst instanceof Long) {
-      long dstNodeId = (Long) dst;
-      return nodeId == dstNodeId;
-    } else if (dst instanceof Node.Type) {
-      Node.Type dstType = (Node.Type) dst;
-      return graph.getNodeType(nodeId) == dstType;
-    } else {
-      return false;
+    /**
+     * Performs a graph traversal and returns explored paths.
+     *
+     * @param srcNodeId source node
+     * @return list of explored paths (represented as a list of node ids)
+     */
+    public ArrayList<ArrayList<Long>> visitPaths(long srcNodeId) {
+        ArrayList<ArrayList<Long>> paths = new ArrayList<>();
+        Stack<Long> currentPath = new Stack<Long>();
+        this.nbEdgesAccessed = 0;
+        visitPathsInternal(srcNodeId, paths, currentPath);
+        return paths;
     }
-  }
 
-  /**
-   * Internal backtracking function of {@link #walk}.
-   *
-   * @param srcNodeId source node
-   * @param dstNodeId destination node
-   * @return the found path, as a list of node ids
-   */
-  private ArrayList<Long> backtracking(long srcNodeId, long dstNodeId) {
-    ArrayList<Long> path = new ArrayList<Long>();
-    long currentNodeId = dstNodeId;
-    while (currentNodeId != srcNodeId) {
-      path.add(currentNodeId);
-      currentNodeId = parentNode.get(currentNodeId);
+    /**
+     * Internal recursive function of {@link #visitPaths}.
+     *
+     * @param currentNodeId current node
+     * @param paths list of currently stored paths
+     * @param currentPath current path as node ids
+     */
+    private void visitPathsInternal(
+        long currentNodeId, ArrayList<ArrayList<Long>> paths, Stack<Long> currentPath) {
+        currentPath.push(currentNodeId);
+
+        long visitedNeighbors = 0;
+        nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
+        for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+            visitPathsInternal(neighborNodeId, paths, currentPath);
+            visitedNeighbors++;
+        }
+
+        if (visitedNeighbors == 0) {
+            ArrayList<Long> path = new ArrayList<Long>();
+            for (long nodeId : currentPath) {
+                path.add(nodeId);
+            }
+            paths.add(path);
+        }
+
+        currentPath.pop();
     }
-    path.add(srcNodeId);
-    Collections.reverse(path);
-    return path;
-  }
+
+    /**
+     * Performs a graph traversal and returns the first found path from source to destination.
+     *
+     * @param srcNodeId source node
+     * @param dst destination (either a node or a node type)
+     * @return found path as a list of node ids
+     */
+    public <T> ArrayList<Long> walk(long srcNodeId, T dst, String algorithm) {
+        long dstNodeId = -1;
+        if (algorithm.equals("dfs")) {
+            dstNodeId = walkInternalDfs(srcNodeId, dst);
+        } else if (algorithm.equals("bfs")) {
+            dstNodeId = walkInternalBfs(srcNodeId, dst);
+        } else {
+            throw new IllegalArgumentException("Unknown traversal algorithm: " + algorithm);
+        }
+
+        if (dstNodeId == -1) {
+            throw new IllegalArgumentException("Unable to find destination point: " + dst);
+        }
+
+        ArrayList<Long> nodeIds = backtracking(srcNodeId, dstNodeId);
+        return nodeIds;
+    }
+
+    /**
+     * Internal DFS function of {@link #walk}.
+     *
+     * @param srcNodeId source node
+     * @param dst destination (either a node or a node type)
+     * @return final destination node or -1 if no path found
+     */
+    private <T> long walkInternalDfs(long srcNodeId, T dst) {
+        Stack<Long> stack = new Stack<Long>();
+        this.nbEdgesAccessed = 0;
+
+        stack.push(srcNodeId);
+        visited.set(srcNodeId);
+
+        while (!stack.isEmpty()) {
+            long currentNodeId = stack.pop();
+            if (isDstNode(currentNodeId, dst)) {
+                return currentNodeId;
+            }
+
+            nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
+            for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+                if (!visited.getBoolean(neighborNodeId)) {
+                    stack.push(neighborNodeId);
+                    visited.set(neighborNodeId);
+                    parentNode.put(neighborNodeId, currentNodeId);
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    /**
+     * Internal BFS function of {@link #walk}.
+     *
+     * @param srcNodeId source node
+     * @param dst destination (either a node or a node type)
+     * @return final destination node or -1 if no path found
+     */
+    private <T> long walkInternalBfs(long srcNodeId, T dst) {
+        Queue<Long> queue = new LinkedList<Long>();
+        this.nbEdgesAccessed = 0;
+
+        queue.add(srcNodeId);
+        visited.set(srcNodeId);
+
+        while (!queue.isEmpty()) {
+            long currentNodeId = queue.poll();
+            if (isDstNode(currentNodeId, dst)) {
+                return currentNodeId;
+            }
+
+            nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
+            for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+                if (!visited.getBoolean(neighborNodeId)) {
+                    queue.add(neighborNodeId);
+                    visited.set(neighborNodeId);
+                    parentNode.put(neighborNodeId, currentNodeId);
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    /**
+     * Internal function of {@link #walk} to check if a node corresponds to the destination.
+     *
+     * @param nodeId current node
+     * @param dst destination (either a node or a node type)
+     * @return true if the node is a destination, or false otherwise
+     */
+    private <T> boolean isDstNode(long nodeId, T dst) {
+        if (dst instanceof Long) {
+            long dstNodeId = (Long) dst;
+            return nodeId == dstNodeId;
+        } else if (dst instanceof Node.Type) {
+            Node.Type dstType = (Node.Type) dst;
+            return graph.getNodeType(nodeId) == dstType;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Internal backtracking function of {@link #walk}.
+     *
+     * @param srcNodeId source node
+     * @param dstNodeId destination node
+     * @return the found path, as a list of node ids
+     */
+    private ArrayList<Long> backtracking(long srcNodeId, long dstNodeId) {
+        ArrayList<Long> path = new ArrayList<Long>();
+        long currentNodeId = dstNodeId;
+        while (currentNodeId != srcNodeId) {
+            path.add(currentNodeId);
+            currentNodeId = parentNode.get(currentNodeId);
+        }
+        path.add(srcNodeId);
+        Collections.reverse(path);
+        return path;
+    }
 }

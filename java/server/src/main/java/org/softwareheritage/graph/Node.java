@@ -11,83 +11,83 @@ import java.util.List;
  */
 
 public class Node {
-  /**
-   * Software Heritage graph node types, as described in the
-   * <a href="https://docs.softwareheritage.org/devel/swh-model/data-model.html">data model</a>.
-   */
-  public enum Type {
-    /** Content node */
-    CNT,
-    /** Directory node */
-    DIR,
-    /** Origin node */
-    ORI,
-    /** Release node */
-    REL,
-    /** Revision node */
-    REV,
-    /** Snapshot node */
-    SNP;
-
     /**
-     * Converts integer to corresponding SWH node type.
-     *
-     * @param intType node type represented as an integer
-     * @return the corresponding {@link Node.Type} value
-     * @see org.softwareheritage.graph.Node.Type
+     * Software Heritage graph node types, as described in the
+     * <a href="https://docs.softwareheritage.org/devel/swh-model/data-model.html">data model</a>.
      */
-    public static Node.Type fromInt(int intType) {
-      switch (intType) {
-        case 0:
-          return CNT;
-        case 1:
-          return DIR;
-        case 2:
-          return ORI;
-        case 3:
-          return REL;
-        case 4:
-          return REV;
-        case 5:
-          return SNP;
-      }
-      return null;
+    public enum Type {
+        /** Content node */
+        CNT,
+        /** Directory node */
+        DIR,
+        /** Origin node */
+        ORI,
+        /** Release node */
+        REL,
+        /** Revision node */
+        REV,
+        /** Snapshot node */
+        SNP;
+
+        /**
+         * Converts integer to corresponding SWH node type.
+         *
+         * @param intType node type represented as an integer
+         * @return the corresponding {@link Node.Type} value
+         * @see org.softwareheritage.graph.Node.Type
+         */
+        public static Node.Type fromInt(int intType) {
+            switch (intType) {
+            case 0:
+                return CNT;
+            case 1:
+                return DIR;
+            case 2:
+                return ORI;
+            case 3:
+                return REL;
+            case 4:
+                return REV;
+            case 5:
+                return SNP;
+            }
+            return null;
+        }
+
+        /**
+         * Converts string to corresponding SWH node type.
+         *
+         * @param strType node type represented as a string
+         * @return the corresponding {@link Node.Type} value
+         * @see org.softwareheritage.graph.Node.Type
+         */
+        public static Node.Type fromStr(String strType) {
+            if (!strType.matches("cnt|dir|ori|rel|rev|snp")) {
+                throw new IllegalArgumentException("Unknown node type: " + strType);
+            }
+            return Node.Type.valueOf(strType.toUpperCase());
+        }
+
+        /**
+         * Parses SWH node type possible values from formatted string (see the <a
+         * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">API
+         * syntax</a>).
+         *
+         * @param strFmtType node types represented as a formatted string
+         * @return a list containing the {@link Node.Type} values
+         * @see org.softwareheritage.graph.Node.Type
+         */
+        public static ArrayList<Node.Type> parse(String strFmtType) {
+            ArrayList<Node.Type> types = new ArrayList<>();
+
+            if (strFmtType.equals("*")) {
+                List<Node.Type> nodeTypes = Arrays.asList(Node.Type.values());
+                types.addAll(nodeTypes);
+            } else {
+                types.add(Node.Type.fromStr(strFmtType));
+            }
+
+            return types;
+        }
     }
-
-    /**
-     * Converts string to corresponding SWH node type.
-     *
-     * @param strType node type represented as a string
-     * @return the corresponding {@link Node.Type} value
-     * @see org.softwareheritage.graph.Node.Type
-     */
-    public static Node.Type fromStr(String strType) {
-      if (!strType.matches("cnt|dir|ori|rel|rev|snp")) {
-        throw new IllegalArgumentException("Unknown node type: " + strType);
-      }
-      return Node.Type.valueOf(strType.toUpperCase());
-    }
-
-    /**
-     * Parses SWH node type possible values from formatted string (see the <a
-     * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">API
-     * syntax</a>).
-     *
-     * @param strFmtType node types represented as a formatted string
-     * @return a list containing the {@link Node.Type} values
-     * @see org.softwareheritage.graph.Node.Type
-     */
-    public static ArrayList<Node.Type> parse(String strFmtType) {
-      ArrayList<Node.Type> types = new ArrayList<>();
-
-      if (strFmtType.equals("*")) {
-        List<Node.Type> nodeTypes = Arrays.asList(Node.Type.values());
-        types.addAll(nodeTypes);
-      } else {
-        types.add(Node.Type.fromStr(strFmtType));
-      }
-
-      return types;
-    }
-  }
 }

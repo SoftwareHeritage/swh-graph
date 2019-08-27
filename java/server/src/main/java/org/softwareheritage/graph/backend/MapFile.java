@@ -18,46 +18,46 @@ import it.unimi.dsi.io.ByteBufferInputStream;
  */
 
 public class MapFile {
-  /** Memory-mapped file buffer */
-  ByteBufferInputStream bufferMap;
-  /** Fixed line length of the mmap()-ed file */
-  int lineLength;
+    /** Memory-mapped file buffer */
+    ByteBufferInputStream bufferMap;
+    /** Fixed line length of the mmap()-ed file */
+    int lineLength;
 
-  /**
-   * Constructor.
-   *
-   * @param path file path to mmap()
-   * @param lineLength fixed length of a line in the file
-   */
-  public MapFile(String path, int lineLength) throws IOException {
-    this.bufferMap = null;
-    this.lineLength = lineLength;
+    /**
+     * Constructor.
+     *
+     * @param path file path to mmap()
+     * @param lineLength fixed length of a line in the file
+     */
+    public MapFile(String path, int lineLength) throws IOException {
+        this.bufferMap = null;
+        this.lineLength = lineLength;
 
-    try (RandomAccessFile mapFile = new RandomAccessFile(new File(path), "r")) {
-      FileChannel fileChannel = mapFile.getChannel();
-      bufferMap = ByteBufferInputStream.map(fileChannel, FileChannel.MapMode.READ_ONLY);
+        try (RandomAccessFile mapFile = new RandomAccessFile(new File(path), "r")) {
+            FileChannel fileChannel = mapFile.getChannel();
+            bufferMap = ByteBufferInputStream.map(fileChannel, FileChannel.MapMode.READ_ONLY);
+        }
     }
-  }
 
-  /**
-   * Returns a specific line in the file.
-   *
-   * @param lineIndex line number in the file
-   * @return the line at the specified position
-   */
-  public String readAtLine(long lineIndex) {
-    byte[] buffer = new byte[lineLength];
-    long position = lineIndex * (long) lineLength;
-    bufferMap.position(position);
-    bufferMap.read(buffer, 0, lineLength);
-    String line = new String(buffer);
-    return line.trim();
-  }
+    /**
+     * Returns a specific line in the file.
+     *
+     * @param lineIndex line number in the file
+     * @return the line at the specified position
+     */
+    public String readAtLine(long lineIndex) {
+        byte[] buffer = new byte[lineLength];
+        long position = lineIndex * (long) lineLength;
+        bufferMap.position(position);
+        bufferMap.read(buffer, 0, lineLength);
+        String line = new String(buffer);
+        return line.trim();
+    }
 
-  /**
-   * Closes the mmap()-ed file.
-   */
-  public void close() throws IOException {
-    bufferMap.close();
-  }
+    /**
+     * Closes the mmap()-ed file.
+     */
+    public void close() throws IOException {
+        bufferMap.close();
+    }
 }

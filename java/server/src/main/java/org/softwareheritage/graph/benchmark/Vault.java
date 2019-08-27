@@ -17,23 +17,23 @@ import org.softwareheritage.graph.benchmark.Benchmark;
  */
 
 public class Vault {
-  /**
-   * Main entrypoint.
-   *
-   * @param args command line arguments
-   */
-  public static void main(String[] args) throws IOException, JSAPException {
-    Benchmark bench = new Benchmark();
-    bench.parseCommandLineArgs(args);
+    /**
+     * Main entrypoint.
+     *
+     * @param args command line arguments
+     */
+    public static void main(String[] args) throws IOException, JSAPException {
+        Benchmark bench = new Benchmark();
+        bench.parseCommandLineArgs(args);
 
-    Graph graph = new Graph(bench.args.graphPath);
+        Graph graph = new Graph(bench.args.graphPath);
 
-    long[] nodeIds = bench.args.random.generateNodeIds(graph, bench.args.nbNodes);
+        long[] nodeIds = bench.args.random.generateNodeIds(graph, bench.args.nbNodes);
 
-    Endpoint endpoint = new Endpoint(graph, "forward", "*");
+        Endpoint endpoint = new Endpoint(graph, "forward", "*");
 
-    System.out.println("Used " + bench.args.nbNodes + " random nodes (results are in seconds):");
-    bench.createCSVLogFile();
-    bench.timeEndpoint("git bundle", graph, nodeIds, endpoint::visitNodes);
-  }
+        System.out.println("Used " + bench.args.nbNodes + " random nodes (results are in seconds):");
+        bench.createCSVLogFile();
+        bench.timeEndpoint("git bundle", graph, nodeIds, endpoint::visitNodes);
+    }
 }

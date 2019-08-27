@@ -18,29 +18,29 @@ import org.softwareheritage.graph.benchmark.Benchmark;
  */
 
 public class Browsing {
-  /**
-   * Main entrypoint.
-   *
-   * @param args command line arguments
-   */
-  public static void main(String[] args) throws IOException, JSAPException {
-    Benchmark bench = new Benchmark();
-    bench.parseCommandLineArgs(args);
+    /**
+     * Main entrypoint.
+     *
+     * @param args command line arguments
+     */
+    public static void main(String[] args) throws IOException, JSAPException {
+        Benchmark bench = new Benchmark();
+        bench.parseCommandLineArgs(args);
 
-    Graph graph = new Graph(bench.args.graphPath);
+        Graph graph = new Graph(bench.args.graphPath);
 
-    long[] dirNodeIds =
-        bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.DIR);
-    long[] revNodeIds =
-        bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.REV);
+        long[] dirNodeIds =
+            bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.DIR);
+        long[] revNodeIds =
+            bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.REV);
 
-    Endpoint dirEndpoint = new Endpoint(graph, "forward", "dir:cnt,dir:dir");
-    Endpoint revEndpoint = new Endpoint(graph, "forward", "rev:rev");
+        Endpoint dirEndpoint = new Endpoint(graph, "forward", "dir:cnt,dir:dir");
+        Endpoint revEndpoint = new Endpoint(graph, "forward", "rev:rev");
 
-    System.out.println("Used " + bench.args.nbNodes + " random nodes (results are in seconds):");
-    bench.createCSVLogFile();
-    bench.timeEndpoint("ls", graph, dirNodeIds, dirEndpoint::neighbors);
-    bench.timeEndpoint("ls -R", graph, dirNodeIds, dirEndpoint::visitPaths);
-    bench.timeEndpoint("git log", graph, revNodeIds, revEndpoint::visitNodes);
-  }
+        System.out.println("Used " + bench.args.nbNodes + " random nodes (results are in seconds):");
+        bench.createCSVLogFile();
+        bench.timeEndpoint("ls", graph, dirNodeIds, dirEndpoint::neighbors);
+        bench.timeEndpoint("ls -R", graph, dirNodeIds, dirEndpoint::visitPaths);
+        bench.timeEndpoint("git log", graph, revNodeIds, revEndpoint::visitNodes);
+    }
 }

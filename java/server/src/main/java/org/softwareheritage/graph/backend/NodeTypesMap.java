@@ -21,31 +21,31 @@ import org.softwareheritage.graph.Node;
  */
 
 public class NodeTypesMap {
-  /** Array storing for each node its type */
-  LongBigList nodeTypesMap;
+    /** Array storing for each node its type */
+    LongBigList nodeTypesMap;
 
-  /**
-   * Constructor.
-   *
-   * @param graphPath path and basename of the compressed graph
-   */
-  public NodeTypesMap(String graphPath) throws IOException {
-    try {
-      nodeTypesMap = (LongBigList) BinIO.loadObject(graphPath + Graph.NODE_TO_TYPE);
-    } catch (ClassNotFoundException e) {
-      throw new IllegalArgumentException("Unknown class object: " + e);
+    /**
+     * Constructor.
+     *
+     * @param graphPath path and basename of the compressed graph
+     */
+    public NodeTypesMap(String graphPath) throws IOException {
+        try {
+            nodeTypesMap = (LongBigList) BinIO.loadObject(graphPath + Graph.NODE_TO_TYPE);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException("Unknown class object: " + e);
+        }
     }
-  }
 
-  /**
-   * Returns node type from a node long id.
-   *
-   * @param nodeId node as a long id
-   * @return corresponding {@link Node.Type} value
-   * @see org.softwareheritage.graph.Node.Type
-   */
-  public Node.Type getType(long nodeId) {
-    long type = nodeTypesMap.getLong(nodeId);
-    return Node.Type.fromInt((int) type);
-  }
+    /**
+     * Returns node type from a node long id.
+     *
+     * @param nodeId node as a long id
+     * @return corresponding {@link Node.Type} value
+     * @see org.softwareheritage.graph.Node.Type
+     */
+    public Node.Type getType(long nodeId) {
+        long type = nodeTypesMap.getLong(nodeId);
+        return Node.Type.fromInt((int) type);
+    }
 }
