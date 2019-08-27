@@ -23,7 +23,7 @@ import org.softwareheritage.graph.Node;
  * long ids, which are converted in the {@link Endpoint} higher-level class to Software Heritage
  * PID.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  * @see org.softwareheritage.graph.Endpoint
  */
 

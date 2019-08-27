@@ -10,7 +10,7 @@ import java.util.Properties;
  * These statistics are not computed but directly read from <a
  * href="http://webgraph.di.unimi.it/">WebGraph</a> generated .stats and .properties files.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  */
 
 public class Stats {

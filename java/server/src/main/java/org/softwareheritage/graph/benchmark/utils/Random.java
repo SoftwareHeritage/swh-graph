@@ -8,7 +8,7 @@ import org.softwareheritage.graph.Node;
 /**
  * Random related utility class.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  */
 
 public class Random {

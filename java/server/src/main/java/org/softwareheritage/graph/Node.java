@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * A node in the Software Heritage graph.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  */
 
 public class Node {

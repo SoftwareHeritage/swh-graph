@@ -22,7 +22,7 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
  * type (see {@link AllowedEdges}), a long id &rarr; node type map is stored as well to avoid a full
  * PID lookup.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  * @see org.softwareheritage.graph.AllowedEdges
  * @see org.softwareheritage.graph.NodeIdMap;
  * @see org.softwareheritage.graph.NodeTypesMap;

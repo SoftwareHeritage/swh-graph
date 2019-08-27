@@ -14,7 +14,7 @@ import it.unimi.dsi.io.ByteBufferInputStream;
  * href="http://dsiutils.di.unimi.it/">dsiutils</a> ByteBufferInputStream is used to overcome this
  * Java limit.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  */
 
 public class MapFile {

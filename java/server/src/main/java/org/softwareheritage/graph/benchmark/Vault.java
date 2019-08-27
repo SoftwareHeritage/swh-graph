@@ -13,7 +13,7 @@ import org.softwareheritage.graph.benchmark.Benchmark;
  * href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html#vault">vault
  * use-case scenario</a>.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  */
 
 public class Vault {

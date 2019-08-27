@@ -12,7 +12,7 @@ import org.softwareheritage.graph.Graph;
  * <p>
  * Wrapper iterator class to easily deal with {@link AllowedEdges} during traversals.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  * @see org.softwareheritage.graph.AllowedEdges
  */
 
@@ -49,7 +49,7 @@ public class Neighbors implements Iterable<Long> {
     /**
      * Inner class for {@link Neighbors} iterator.
      *
-     * @author Thibault Allançon
+     * @author The Software Heritage developers
      */
 
     public class NeighborsIterator implements Iterator<Long> {

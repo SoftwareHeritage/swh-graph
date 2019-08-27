@@ -15,7 +15,7 @@ import org.softwareheritage.graph.benchmark.utils.Timing;
  * ({@link Traversal}). The {@link Endpoint} class creates wrappers for each endpoints by performing
  * all the input/output node ids conversions and logging timings.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  * @see org.softwareheritage.graph.algo.Traversal
  */
 

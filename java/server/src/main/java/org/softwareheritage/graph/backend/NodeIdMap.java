@@ -13,7 +13,7 @@ import org.softwareheritage.graph.backend.Setup;
  * Mappings in both directions are pre-computed and dumped on disk in the {@link Setup} class, then
  * they are loaded here using mmap().
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  * @see org.softwareheritage.graph.backend.Setup
  */
 

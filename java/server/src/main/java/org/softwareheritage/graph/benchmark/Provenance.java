@@ -13,7 +13,7 @@ import org.softwareheritage.graph.benchmark.Benchmark;
  * href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html#provenance">provenance
  * use-cases scenarios</a>.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  */
 
 public class Provenance {

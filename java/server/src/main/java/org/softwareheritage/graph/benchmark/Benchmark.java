@@ -25,7 +25,7 @@ import org.softwareheritage.graph.benchmark.utils.Statistics;
 /**
  * Benchmark common utility functions.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  */
 
 public class Benchmark {

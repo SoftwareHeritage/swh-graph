@@ -9,7 +9,7 @@ import org.softwareheritage.graph.Node;
  * href="https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html#persistent-identifiers">persistent
  * identifier documentation</a>.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  */
 
 public class SwhPID {

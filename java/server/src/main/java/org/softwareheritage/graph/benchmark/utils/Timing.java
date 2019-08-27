@@ -3,7 +3,7 @@ package org.softwareheritage.graph.benchmark.utils;
 /**
  * Time measurement utility class.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  */
 
 public class Timing {

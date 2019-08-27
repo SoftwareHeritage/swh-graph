@@ -13,7 +13,7 @@ import org.softwareheritage.graph.Node;
  * the traversal to specific node types is necessary for many querying operations: <a
  * href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html">use cases</a>.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  */
 
 public class AllowedEdges {

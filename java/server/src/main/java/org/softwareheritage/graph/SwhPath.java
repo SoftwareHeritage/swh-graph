@@ -9,7 +9,7 @@ import org.softwareheritage.graph.SwhPID;
 /**
  * Wrapper class to store a list of {@link SwhPID}.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  * @see org.softwareheritage.graph.SwhPID
  */
 

@@ -17,7 +17,7 @@ import org.softwareheritage.graph.Node;
  * space-efficient, the mapping is stored as a bitmap using minimum number of bits per {@link
  * Node.Type}.
  *
- * @author Thibault Allançon
+ * @author The Software Heritage developers
  */
 
 public class NodeTypesMap {
