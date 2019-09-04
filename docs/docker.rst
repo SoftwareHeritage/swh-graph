@@ -1,5 +1,5 @@
-Graph Docker environment
-========================
+Docker environment
+==================
 
 
 Build

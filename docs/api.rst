@@ -1,5 +1,5 @@
-Graph traversal API
-===================
+Traversal REST API
+==================
 
 Terminology
 -----------

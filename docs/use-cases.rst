@@ -1,3 +1,8 @@
+=========
+Use cases
+=========
+
+
 This document lists use cases and benchmark scenarios for the Software Heritage
 graph service.
 
