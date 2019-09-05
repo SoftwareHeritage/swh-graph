@@ -1,20 +1,26 @@
 import click
 
-import client
+from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
+from swh.graph import client
 
 
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-
-
-@click.command(context_settings=CONTEXT_SETTINGS)
-@click.option('--host', default='0.0.0.0', help="Host where runs the server")
-@click.option('--port', default='5009', help="Binding port of the server")
+@click.group(name='graph', context_settings=CONTEXT_SETTINGS,
+             cls=AliasedGroup)
 @click.pass_context
-def cli(ctx, host, port):
-    """Software Heritage Graph API
+def cli(ctx):
+    """Software Heritage graph tools."""
+    ctx.ensure_object(dict)
+
+
+@cli.command('api-client')
+@click.option('--host', default='localhost', help='Graph server host')
+@click.option('--port', default='5009', help='Graph server port')
+@click.pass_context
+def api_client(ctx, host, port):
+    """Client for the Software Heritage Graph REST service
 
     """
-    url = 'http://' + host + ':' + port
+    url = 'http://{}:{}'.format(host, port)
     app = client.RemoteGraphClient(url)
 
     # TODO: run web app
