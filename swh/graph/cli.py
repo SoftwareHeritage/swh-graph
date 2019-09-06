@@ -8,7 +8,7 @@ import sys
 
 from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
 from swh.graph import client
-from swh.graph.pid import PidToIntMap, IntToPidMap
+from swh.graph.pid import PidToIntMap, IntToPidMap, PID_BIN_SIZE
 
 
 @click.group(name='graph', context_settings=CONTEXT_SETTINGS,
@@ -69,7 +69,8 @@ def restore_int2pid(filename):
     """
     with open(filename, 'wb') as dst:
         for line in sys.stdin:
-            (_str_int, str_pid) = line.split()
+            (str_int, str_pid) = line.split()
+            dst.seek(int(str_int) * PID_BIN_SIZE)
             IntToPidMap.write_record(dst, str_pid)
 
 
