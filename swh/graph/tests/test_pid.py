@@ -8,6 +8,8 @@ import shutil
 import tempfile
 import unittest
 
+from itertools import islice
+
 from swh.graph.pid import str_to_bytes, bytes_to_str
 from swh.graph.pid import PidToIntMap, IntToPidMap
 
@@ -49,7 +51,7 @@ class TestPidSerialization(unittest.TestCase):
             self.assertEqual(pid_bytes, str_to_bytes(bytes_to_str(pid_bytes)))
 
 
-def gen_records(types=['ori', 'snp', 'rev', 'rel', 'dir', 'cnt'],
+def gen_records(types=['cnt', 'dir', 'rel', 'rev', 'ori', 'snp'],
                 length=10000):
     """generate sequential PID/int records, suitable for filling int<->pid maps for
     testing swh-graph on-disk binary databases
@@ -124,6 +126,17 @@ class TestPidToIntMap(unittest.TestCase):
         with self.assertRaises(TypeError):
             self.map[1.2]
 
+    def test_update(self):
+        fname2 = self.fname + '.update'
+        shutil.copy(self.fname, fname2)  # fresh map copy
+        map2 = PidToIntMap(fname2, mode='rb+')
+        for (pid, int) in islice(map2, 11):  # update the first N items
+            new_int = int + 42
+            map2[pid] = new_int
+            self.assertEqual(map2[pid], new_int)  # check updated value
+
+        os.unlink(fname2)  # tmpdir will be cleaned even if we don't reach this
+
 
 class TestIntToPidMap(unittest.TestCase):
 
@@ -157,3 +170,14 @@ class TestIntToPidMap(unittest.TestCase):
             self.map[1000000]
         with self.assertRaises(IndexError):
             self.map[-1000000]
+
+    def test_update(self):
+        fname2 = self.fname + '.update'
+        shutil.copy(self.fname, fname2)  # fresh map copy
+        map2 = IntToPidMap(fname2, mode='rb+')
+        for (int, pid) in islice(map2, 11):  # update the first N items
+            new_pid = pid.replace(':0', ':f')  # mangle first hex digit
+            map2[int] = new_pid
+            self.assertEqual(map2[int], new_pid)  # check updated value
+
+        os.unlink(fname2)  # tmpdir will be cleaned even if we don't reach this

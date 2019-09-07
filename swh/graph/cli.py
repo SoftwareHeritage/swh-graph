@@ -47,7 +47,7 @@ def dump_pid2int(filename):
 
 
 def dump_int2pid(filename):
-    for (int, pid) in enumerate(IntToPidMap(filename)):
+    for (int, pid) in IntToPidMap(filename):
         print('{}\t{}'.format(int, pid))
 
 
