@@ -9,7 +9,7 @@ import struct
 
 from collections.abc import MutableMapping
 from enum import Enum
-from mmap import MAP_SHARED, MAP_PRIVATE
+from mmap import ACCESS_READ, ACCESS_WRITE, MAP_SHARED, MAP_PRIVATE
 
 from swh.model.identifiers import PersistentId, parse_persistent_identifier
 
@@ -99,13 +99,20 @@ class _OnDiskMap():
             raise ValueError('invalid file open mode: ' + mode)
         new_map = (mode == 'wb')
         writable_map = mode in ['wb', 'rb+']
+        os_mode = None
+        if mode == 'rb':
+            os_mode = os.O_RDONLY
+        elif mode == 'wb':
+            os_mode = os.O_RDWR | os.O_CREAT
+        elif mode == 'rb+':
+            os_mode = os.O_RDWR
 
         self.record_size = record_size
-        self.f = open(fname, mode)
+        self.fd = os.open(fname, os_mode)
         if new_map:
             if length is None:
                 raise ValueError('missing length when creating new map')
-            self.f.truncate(length * self.record_size)
+            os.truncate(self.fd, length * self.record_size)
 
         self.size = os.path.getsize(fname)
         (self.length, remainder) = divmod(self.size, record_size)
@@ -114,8 +121,9 @@ class _OnDiskMap():
                 'map size {} is not a multiple of the record size {}'.format(
                     self.size, record_size))
 
-        self.mm = mmap.mmap(self.f.fileno(), self.size,
-                            MAP_SHARED if writable_map else MAP_PRIVATE)
+        self.mm = mmap.mmap(
+            self.fd, self.size,
+            flags=MAP_SHARED if writable_map else MAP_PRIVATE)
 
     def close(self):
         """close the map
@@ -125,8 +133,7 @@ class _OnDiskMap():
         """
         if not self.mm.closed:
             self.mm.close()
-        if not self.f.closed:
-            self.f.close()
+        os.close(self.fd)
 
     def __len__(self):
         return self.length

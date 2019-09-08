@@ -62,16 +62,16 @@ def restore_pid2int(filename):
             PidToIntMap.write_record(dst, str_pid, int(str_int))
 
 
-def restore_int2pid(filename):
+def restore_int2pid(filename, length):
     """read a textual int->PID map from stdin and write its binary version to
     filename
 
     """
-    with open(filename, 'wb') as dst:
-        for line in sys.stdin:
-            (str_int, str_pid) = line.split()
-            dst.seek(int(str_int) * PID_BIN_SIZE)
-            IntToPidMap.write_record(dst, str_pid)
+    int2pid = IntToPidMap(filename, mode='wb', length=length)
+    for line in sys.stdin:
+        (str_int, str_pid) = line.split()
+        int2pid[int(str_int)] = str_pid
+    int2pid.close()
 
 
 @map.command('dump')
@@ -95,14 +95,21 @@ def dump_map(ctx, map_type, filename):
 @click.option('--type', '-t', 'map_type', required=True,
               type=click.Choice(['pid2int', 'int2pid']),
               help='type of map to dump')
+@click.option('--length', '-l', type=int,
+              help='''map size in number of logical records
+              (required for int2pid maps)''')
 @click.argument('filename', required=True, type=click.Path())
 @click.pass_context
-def restore_map(ctx, map_type, filename):
+def restore_map(ctx, map_type, length, filename):
     """restore a binary PID<->int map from textual format"""
     if map_type == 'pid2int':
-        restore_pid2int(filename)
+        restore_pid2int(filename, length)
     elif map_type == 'int2pid':
-        restore_int2pid(filename)
+        if length is None:
+            raise click.UsageError(
+                'map length is required when restoring {} maps'.format(
+                    map_type), ctx)
+        restore_int2pid(filename, length)
     else:
         raise ValueError('invalid map type: ' + map_type)
 
