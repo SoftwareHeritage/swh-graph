@@ -8,7 +8,7 @@ import sys
 
 from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
 from swh.graph import client
-from swh.graph.pid import PidToIntMap, IntToPidMap, PID_BIN_SIZE
+from swh.graph.pid import PidToIntMap, IntToPidMap
 
 
 @click.group(name='graph', context_settings=CONTEXT_SETTINGS,
