@@ -9,7 +9,7 @@ import struct
 
 from collections.abc import MutableMapping
 from enum import Enum
-from mmap import ACCESS_READ, ACCESS_WRITE, MAP_SHARED, MAP_PRIVATE
+from mmap import MAP_SHARED, MAP_PRIVATE
 
 from swh.model.identifiers import PersistentId, parse_persistent_identifier
 
