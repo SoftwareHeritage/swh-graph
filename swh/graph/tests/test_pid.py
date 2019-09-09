@@ -51,7 +51,7 @@ class TestPidSerialization(unittest.TestCase):
             self.assertEqual(pid_bytes, str_to_bytes(bytes_to_str(pid_bytes)))
 
 
-def gen_records(types=['cnt', 'dir', 'rel', 'rev', 'ori', 'snp'],
+def gen_records(types=['cnt', 'dir', 'ori', 'rel', 'rev', 'snp'],
                 length=10000):
     """generate sequential PID/int records, suitable for filling int<->pid maps for
     testing swh-graph on-disk binary databases
