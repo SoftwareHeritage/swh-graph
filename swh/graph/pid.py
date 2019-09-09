@@ -95,20 +95,18 @@ class _OnDiskMap():
                 otherwise
 
         """
-        if mode not in ['rb', 'wb', 'rb+']:
+        os_modes = {
+            'rb': os.O_RDONLY,
+            'wb': os.O_RDWR | os.O_CREAT,
+            'rb+': os.O_RDWR
+        }
+        if mode not in os_modes:
             raise ValueError('invalid file open mode: ' + mode)
         new_map = (mode == 'wb')
         writable_map = mode in ['wb', 'rb+']
-        os_mode = None
-        if mode == 'rb':
-            os_mode = os.O_RDONLY
-        elif mode == 'wb':
-            os_mode = os.O_RDWR | os.O_CREAT
-        elif mode == 'rb+':
-            os_mode = os.O_RDWR
 
         self.record_size = record_size
-        self.fd = os.open(fname, os_mode)
+        self.fd = os.open(fname, os_modes[mode])
         if new_map:
             if length is None:
                 raise ValueError('missing length when creating new map')
