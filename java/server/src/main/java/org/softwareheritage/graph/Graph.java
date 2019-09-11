@@ -3,6 +3,7 @@ package org.softwareheritage.graph;
 import java.io.IOException;
 
 import it.unimi.dsi.big.webgraph.BVGraph;
+import it.unimi.dsi.lang.FlyweightPrototype;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
 import org.softwareheritage.graph.Node;
@@ -28,7 +29,7 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
  * @see org.softwareheritage.graph.NodeTypesMap;
  */
 
-public class Graph {
+public class Graph implements FlyweightPrototype<Graph> {
     /** File extension for the SWH PID to long node id map */
     public static final String PID_TO_NODE = ".pid2node.csv";
     /** File extension for the long node id to SWH PID map */
@@ -58,6 +59,23 @@ public class Graph {
         this.path = path;
         this.nodeIdMap = new NodeIdMap(path, getNbNodes());
         this.nodeTypesMap = new NodeTypesMap(path);
+    }
+
+    // Protected empty constructor to implement copy()
+    protected Graph() { }
+
+    /**
+     * Return a flyweight copy of the graph.
+     */
+    @Override
+    public Graph copy() {
+        final Graph ng = new Graph();
+        ng.graph = this.graph.copy();
+        ng.graphTransposed = this.graphTransposed.copy();
+        ng.path = path;
+        ng.nodeIdMap = this.nodeIdMap;
+        ng.nodeTypesMap = this.nodeTypesMap;
+        return ng;
     }
 
     /**
