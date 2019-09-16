@@ -103,7 +103,7 @@ def dump_map(ctx, map_type, filename):
 def restore_map(ctx, map_type, length, filename):
     """restore a binary PID<->int map from textual format"""
     if map_type == 'pid2int':
-        restore_pid2int(filename, length)
+        restore_pid2int(filename)
     elif map_type == 'int2pid':
         if length is None:
             raise click.UsageError(
