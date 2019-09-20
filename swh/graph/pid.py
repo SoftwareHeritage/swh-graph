@@ -10,6 +10,7 @@ import struct
 from collections.abc import MutableMapping
 from enum import Enum
 from mmap import MAP_SHARED, MAP_PRIVATE
+from typing import BinaryIO, Iterator, Tuple
 
 from swh.model.identifiers import PersistentId, parse_persistent_identifier
 
@@ -35,7 +36,7 @@ class PidType(Enum):
     snapshot = 6
 
 
-def str_to_bytes(pid):
+def str_to_bytes(pid_str: str) -> bytes:
     """Convert a PID to a byte sequence
 
     The binary format used to represent PIDs as byte sequences is as follows:
@@ -46,28 +47,28 @@ def str_to_bytes(pid):
     - 20 bytes for the SHA1 digest as a byte sequence
 
     Args:
-        pid (str): persistent identifier
+        pid: persistent identifier
 
     Returns:
-        bytes (bytes): byte sequence representation of pid
+        bytes: byte sequence representation of pid
 
     """
-    pid = parse_persistent_identifier(pid)
+    pid = parse_persistent_identifier(pid_str)
     return struct.pack(PID_BIN_FMT, pid.scheme_version,
                        PidType[pid.object_type].value,
                        bytes.fromhex(pid.object_id))
 
 
-def bytes_to_str(bytes):
+def bytes_to_str(bytes: bytes) -> str:
     """Inverse function of :func:`str_to_bytes`
 
     See :func:`str_to_bytes` for a description of the binary PID format.
 
     Args:
-        bytes (bytes): byte sequence representation of pid
+        bytes: byte sequence representation of pid
 
     Returns:
-        pid (str): persistent identifier
+        pid: persistent identifier
 
     """
     (version, type, bin_digest) = struct.unpack(PID_BIN_FMT, bytes)
@@ -80,19 +81,19 @@ class _OnDiskMap():
 
     """
 
-    def __init__(self, record_size, fname, mode='rb', length=None):
+    def __init__(self, record_size: int, fname: str, mode: str = 'rb',
+                 length: int = None):
         """open an existing on-disk map
 
         Args:
-            record_size (int): size of each record in bytes
-            fname (str): path to the on-disk map
-            mode (str): file open mode, usually either 'rb' for read-only maps,
-                'wb' for creating new maps, or 'rb+' for updating existing ones
+            record_size: size of each record in bytes
+            fname: path to the on-disk map
+            mode: file open mode, usually either 'rb' for read-only maps, 'wb'
+                for creating new maps, or 'rb+' for updating existing ones
                 (default: 'rb')
-            length (int): map size in number of logical records; used to
-                initialize writable maps at creation time. Must be given when
-                mode is 'wb' and the map doesn't exist on disk; ignored
-                otherwise
+            length: map size in number of logical records; used to initialize
+                writable maps at creation time. Must be given when mode is 'wb'
+                and the map doesn't exist on disk; ignored otherwise
 
         """
         os_modes = {
@@ -123,7 +124,7 @@ class _OnDiskMap():
             self.fd, self.size,
             flags=MAP_SHARED if writable_map else MAP_PRIVATE)
 
-    def close(self):
+    def close(self) -> None:
         """close the map
 
         shuts down both the mmap and the underlying file descriptor
@@ -133,10 +134,10 @@ class _OnDiskMap():
             self.mm.close()
         os.close(self.fd)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.length
 
-    def __delitem__(self, pos):
+    def __delitem__(self, pos: int) -> None:
         raise NotImplementedError('cannot delete records from fixed-size map')
 
 
@@ -170,22 +171,22 @@ class PidToIntMap(_OnDiskMap, MutableMapping):
     RECORD_BIN_FMT = '>' + PID_BIN_FMT + 'q'
     RECORD_SIZE = PID_BIN_SIZE + INT_BIN_SIZE
 
-    def __init__(self, fname, mode='rb', length=None):
+    def __init__(self, fname: str, mode: str = 'rb', length: int = None):
         """open an existing on-disk map
 
         Args:
-            fname (str): path to the on-disk map
-            mode (str): file open mode, usually either 'rb' for read-only maps,
-                'wb' for creating new maps, or 'rb+' for updating existing ones
+            fname: path to the on-disk map
+            mode: file open mode, usually either 'rb' for read-only maps, 'wb'
+                for creating new maps, or 'rb+' for updating existing ones
                 (default: 'rb')
-            length (int): map size in number of logical records; used to
-                initialize read-write maps at creation time. Must be given when
-                mode is 'wb'; ignored otherwise
+            length: map size in number of logical records; used to initialize
+                read-write maps at creation time. Must be given when mode is
+                'wb'; ignored otherwise
 
         """
         super().__init__(self.RECORD_SIZE, fname, mode=mode, length=length)
 
-    def _get_bin_record(self, pos):
+    def _get_bin_record(self, pos: int) -> Tuple[bytes, bytes]:
         """seek and return the (binary) record at a given (logical) position
 
         see :func:`_get_record` for an equivalent function with additional
@@ -195,7 +196,7 @@ class PidToIntMap(_OnDiskMap, MutableMapping):
             pos: 0-based record number
 
         Returns:
-            tuple: a pair `(pid, int)`, where pid and int are bytes
+            a pair `(pid, int)`, where pid and int are bytes
 
         """
         rec_pos = pos * self.RECORD_SIZE
@@ -204,7 +205,7 @@ class PidToIntMap(_OnDiskMap, MutableMapping):
         return (self.mm[rec_pos:int_pos],
                 self.mm[int_pos:int_pos+INT_BIN_SIZE])
 
-    def _get_record(self, pos):
+    def _get_record(self, pos: int) -> Tuple[str, int]:
         """seek and return the record at a given (logical) position
 
         moral equivalent of :func:`_get_bin_record`, with additional
@@ -214,8 +215,8 @@ class PidToIntMap(_OnDiskMap, MutableMapping):
             pos: 0-based record number
 
         Returns:
-            tuple: a pair `(pid, int)`, where pid is a string-based PID and int
-            an integer
+            a pair `(pid, int)`, where pid is a string-based PID and int the
+            corresponding integer identifier
 
         """
         (pid_bytes, int_bytes) = self._get_bin_record(pos)
@@ -223,27 +224,27 @@ class PidToIntMap(_OnDiskMap, MutableMapping):
                 struct.unpack(INT_BIN_FMT, int_bytes)[0])
 
     @classmethod
-    def write_record(cls, f, pid, int):
+    def write_record(cls, f: BinaryIO, pid: str, int: int) -> None:
         """write a logical record to a file-like object
 
         Args:
             f: file-like object to write the record to
-            pid (str): textual PID
-            int (int): PID integer identifier
+            pid: textual PID
+            int: PID integer identifier
 
         """
         f.write(str_to_bytes(pid))
         f.write(struct.pack(INT_BIN_FMT, int))
 
-    def _find(self, pid_str):
+    def _find(self, pid_str: str) -> Tuple[int, int]:
         """lookup the integer identifier of a pid and its position
 
         Args:
-            pid (str): the pid as a string
+            pid_str: the pid as a string
 
         Returns:
-            tuple: a pair `(pid, pos)` with pid integer identifier and its
-            logical record position in the map
+            a pair `(pid, pos)` with pid integer identifier and its logical
+            record position in the map
 
         """
         if not isinstance(pid_str, str):
@@ -267,19 +268,19 @@ class PidToIntMap(_OnDiskMap, MutableMapping):
 
         raise KeyError(pid_str)
 
-    def __getitem__(self, pid_str):
+    def __getitem__(self, pid_str: str) -> int:
         """lookup the integer identifier of a PID
 
         Args:
-            pid (str): the PID as a string
+            pid: the PID as a string
 
         Returns:
-            int: the integer identifier of pid
+            the integer identifier of pid
 
         """
         return self._find(pid_str)[0]  # return element, ignore position
 
-    def __setitem__(self, pid_str, int):
+    def __setitem__(self, pid_str: str, int: str) -> None:
         (_pid, pos) = self._find(pid_str)  # might raise KeyError and that's OK
 
         rec_pos = pos * self.RECORD_SIZE
@@ -287,7 +288,7 @@ class PidToIntMap(_OnDiskMap, MutableMapping):
         self.mm[rec_pos:int_pos] = str_to_bytes(pid_str)
         self.mm[int_pos:int_pos+INT_BIN_SIZE] = struct.pack(INT_BIN_FMT, int)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Tuple[str, int]]:
         for pos in range(self.length):
             yield self._get_record(pos)
 
@@ -310,30 +311,31 @@ class IntToPidMap(_OnDiskMap, MutableMapping):
     RECORD_BIN_FMT = PID_BIN_FMT
     RECORD_SIZE = PID_BIN_SIZE
 
-    def __init__(self, fname, mode='rb', length=None):
+    def __init__(self, fname: str, mode: str = 'rb', length: int = None):
         """open an existing on-disk map
 
         Args:
-            fname (str): path to the on-disk map
-            mode (str): file open mode, usually either 'rb' for read-only maps,
-                'wb' for creating new maps, or 'rb+' for updating existing ones
+            fname: path to the on-disk map
+            mode: file open mode, usually either 'rb' for read-only maps, 'wb'
+                for creating new maps, or 'rb+' for updating existing ones
                 (default: 'rb')
-            size (int): map size in number of logical records; used to
-                initialize read-write maps at creation time. Must be given when
-                mode is 'wb'; ignored otherwise
+            size: map size in number of logical records; used to initialize
+                read-write maps at creation time. Must be given when mode is
+                'wb'; ignored otherwise
+            length: passed to :class:`_OnDiskMap`
 
         """
 
         super().__init__(self.RECORD_SIZE, fname, mode=mode, length=length)
 
-    def _get_bin_record(self, pos):
+    def _get_bin_record(self, pos: int) -> bytes:
         """seek and return the (binary) PID at a given (logical) position
 
         Args:
             pos: 0-based record number
 
         Returns:
-            bytes: PID as a byte sequence
+            PID as a byte sequence
 
         """
         rec_pos = pos * self.RECORD_SIZE
@@ -341,17 +343,17 @@ class IntToPidMap(_OnDiskMap, MutableMapping):
         return self.mm[rec_pos:rec_pos+self.RECORD_SIZE]
 
     @classmethod
-    def write_record(cls, f, pid):
+    def write_record(cls, f: BinaryIO, pid: str) -> None:
         """write a PID to a file-like object
 
         Args:
             f: file-like object to write the record to
-            pid (str): textual PID
+            pid: textual PID
 
         """
         f.write(str_to_bytes(pid))
 
-    def __getitem__(self, pos):
+    def __getitem__(self, pos: int) -> str:
         orig_pos = pos
         if pos < 0:
             pos = len(self) + pos
@@ -360,10 +362,10 @@ class IntToPidMap(_OnDiskMap, MutableMapping):
 
         return bytes_to_str(self._get_bin_record(pos))
 
-    def __setitem__(self, pos, pid):
+    def __setitem__(self, pos: int, pid: str) -> None:
         rec_pos = pos * self.RECORD_SIZE
         self.mm[rec_pos:rec_pos+self.RECORD_SIZE] = str_to_bytes(pid)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Tuple[int, str]]:
         for pos in range(self.length):
             yield (pos, self[pos])
