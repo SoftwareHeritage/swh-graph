@@ -6,7 +6,7 @@ ENV JAVA_TOOL_OPTIONS                                                   \
     -Xmx${MAX_RAM} -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G    \
     -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA        \
     -XX:+UseTLAB -XX:+ResizeTLAB                                        \
-    -Dlogback.configurationFile=configuration/logback.xml
+    -Dlogback.configurationFile=app/configuration/logback.xml
 
 # Monitoring
 RUN yum install -y time
