@@ -21,9 +21,9 @@ RUN cp webgraph-big-3.5.1/webgraph-big-3.5.1.jar .
 RUN curl -O http://webgraph.di.unimi.it/webgraph-big-deps.tar.gz
 RUN tar xvfz webgraph-big-deps.tar.gz
 
-RUN curl -O http://law.di.unimi.it/software/download/law-2.5.2-bin.tar.gz
-RUN tar xvfz law-2.5.2-bin.tar.gz
-RUN cp law-2.5.2/law-2.5.2.jar .
+RUN curl -O http://law.di.unimi.it/software/download/law-2.6.0-bin.tar.gz
+RUN tar xvfz law-2.6.0-bin.tar.gz
+RUN cp law-2.6.0/law-2.6.0.jar .
 
 # Add user files
 WORKDIR /srv/softwareheritage/graph/app
