@@ -11,19 +11,22 @@ ENV JAVA_TOOL_OPTIONS                                                   \
 # Monitoring
 RUN yum install -y time
 
+ARG WEBGRAPH_VERSION=3.5.1
+ARG LAW_VERSION=2.6.0
+
 # Download third party binaries and dependencies
 WORKDIR /srv/softwareheritage/graph/lib
 
-RUN curl -O http://webgraph.di.unimi.it/webgraph-big-3.5.1-bin.tar.gz
-RUN tar xvfz webgraph-big-3.5.1-bin.tar.gz
-RUN cp webgraph-big-3.5.1/webgraph-big-3.5.1.jar .
+RUN curl -O http://webgraph.di.unimi.it/webgraph-big-${WEBGRAPH_VERSION}-bin.tar.gz
+RUN tar xvfz webgraph-big-${WEBGRAPH_VERSION}-bin.tar.gz
+RUN cp webgraph-big-${WEBGRAPH_VERSION}/webgraph-big-${WEBGRAPH_VERSION}.jar .
 
 RUN curl -O http://webgraph.di.unimi.it/webgraph-big-deps.tar.gz
 RUN tar xvfz webgraph-big-deps.tar.gz
 
-RUN curl -O http://law.di.unimi.it/software/download/law-2.6.0-bin.tar.gz
-RUN tar xvfz law-2.6.0-bin.tar.gz
-RUN cp law-2.6.0/law-2.6.0.jar .
+RUN curl -O http://law.di.unimi.it/software/download/law-${LAW_VERSION}-bin.tar.gz
+RUN tar xvfz law-${LAW_VERSION}-bin.tar.gz
+RUN cp law-${LAW_VERSION}/law-${LAW_VERSION}.jar .
 
 # Add user files
 WORKDIR /srv/softwareheritage/graph/app
