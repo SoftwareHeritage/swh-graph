@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import json
 import os
 import struct
 import sys
@@ -47,11 +48,14 @@ class Backend:
         return self.entry.stats()
 
     async def _simple_traversal(self, ttype, direction, edges_fmt, src):
-        assert ttype in ('leaves', 'neighbors', 'visit_nodes')
+        assert ttype in ('leaves', 'neighbors', 'visit_nodes', 'visit_paths')
         src_id = self.pid2node[src]
         method = getattr(self.stream_proxy, ttype)
         async for node_id in method(direction, edges_fmt, src_id):
-            yield self.node2pid[node_id]
+            if node_id == -1:  # Path separator
+                yield None
+            else:
+                yield self.node2pid[node_id]
 
     async def leaves(self, *args):
         async for res_pid in self._simple_traversal('leaves', *args):
@@ -77,6 +81,15 @@ class Backend:
 
         async for node_id in it:
             yield self.node2pid[node_id]
+
+    async def visit_paths(self, *args):
+        buffer = []
+        async for res_pid in self._simple_traversal('visit_paths', *args):
+            if res_pid is None:  # Path separator, flush
+                yield json.dumps(buffer)
+                buffer = []
+            else:
+                buffer.append(res_pid)
 
 
 class JavaStreamProxy:

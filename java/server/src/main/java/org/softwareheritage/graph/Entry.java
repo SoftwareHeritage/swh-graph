@@ -1,5 +1,6 @@
 package org.softwareheritage.graph;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
@@ -59,6 +60,13 @@ public class Entry {
             }
         }
 
+        public void writePath(ArrayList<Long> path) {
+            for (Long nodeId : path) {
+                writeNode(nodeId);
+            }
+            writeNode(-1);  // Path separator
+        }
+
         public void open() {
             try {
                 FileOutputStream file = new FileOutputStream(this.clientFIFO);
@@ -97,8 +105,16 @@ public class Entry {
             close();
         }
 
+        public void visit_paths(String direction, String edgesFmt,
+                                long srcNodeId) {
+            open();
+            Traversal t = new Traversal(this.graph, direction, edgesFmt);
+            t.visitPathsVisitor(srcNodeId, this::writePath);
+            close();
+        }
+
         public void walk(String direction, String edgesFmt, String algorithm,
-                             long srcNodeId, long dstNodeId) {
+                         long srcNodeId, long dstNodeId) {
             open();
             Traversal t = new Traversal(this.graph, direction, edgesFmt);
             for (Long nodeId : t.walk(srcNodeId, dstNodeId, algorithm)) {
