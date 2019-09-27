@@ -3,6 +3,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import json
+
 from swh.core.api import RPCClient
 
 
@@ -27,14 +29,16 @@ class RemoteGraphClient(RPCClient):
                         params={
                             'edges': edges,
                             'direction': direction
-                        })
+                        },
+                        stream_lines=True)
 
     def neighbors(self, src, edges="*", direction="forward"):
         return self.get('neighbors/{}'.format(src),
                         params={
                             'edges': edges,
                             'direction': direction
-                        })
+                        },
+                        stream_lines=True)
 
     def stats(self):
         return self.get('stats')
@@ -44,14 +48,20 @@ class RemoteGraphClient(RPCClient):
                         params={
                             'edges': edges,
                             'direction': direction
-                        })
+                        },
+                        stream_lines=True)
 
     def visit_paths(self, src, edges="*", direction="forward"):
-        return self.get('visit/paths/{}'.format(src),
-                        params={
-                            'edges': edges,
-                            'direction': direction
-                        })
+        def decode_path_wrapper(it):
+            for e in it:
+                yield json.loads(e)
+
+        return decode_path_wrapper(
+            self.get('visit/paths/{}'.format(src),
+                     params={
+                         'edges': edges,
+                         'direction': direction
+                     }, stream_lines=True))
 
     def walk(self, src, dst, edges="*", traversal="dfs", direction="forward"):
         return self.get('walk/{}/{}'.format(src, dst),
@@ -59,4 +69,5 @@ class RemoteGraphClient(RPCClient):
                             'edges': edges,
                             'traversal': traversal,
                             'direction': direction
-                        })
+                        },
+                        stream_lines=True)
