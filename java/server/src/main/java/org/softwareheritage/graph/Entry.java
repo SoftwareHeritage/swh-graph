@@ -19,6 +19,8 @@ import org.softwareheritage.graph.algo.Traversal;
 public class Entry {
     Graph graph;
 
+    final long PATH_SEPARATOR_ID = -1;
+
     public void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
         this.graph = new Graph(graphBasename);
@@ -64,7 +66,7 @@ public class Entry {
             for (Long nodeId : path) {
                 writeNode(nodeId);
             }
-            writeNode(-1);  // Path separator
+            writeNode(PATH_SEPARATOR_ID);
         }
 
         public void open() {
@@ -72,7 +74,7 @@ public class Entry {
                 FileOutputStream file = new FileOutputStream(this.clientFIFO);
                 this.out = new DataOutputStream(file);
             } catch (IOException e) {
-                throw new RuntimeException("Cannot create FIFO: " + e);
+                throw new RuntimeException("Cannot open client FIFO: " + e);
             }
         }
 

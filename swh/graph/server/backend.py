@@ -15,9 +15,11 @@ import tempfile
 from py4j.java_gateway import JavaGateway
 
 from swh.graph.pid import IntToPidMap, PidToIntMap
+from swh.model.identifiers import PID_TYPES
 
 BUF_SIZE = 64*1024
 BIN_FMT = '>q'  # 64 bit integer, big endian
+PATH_SEPARATOR_ID = -1
 NODE2PID_EXT = 'node2pid.bin'
 PID2NODE_EXT = 'pid2node.bin'
 
@@ -66,7 +68,7 @@ class Backend:
         src_id = self.pid2node[src]
         method = getattr(self.stream_proxy, ttype)
         async for node_id in method(direction, edges_fmt, src_id):
-            if node_id == -1:  # Path separator
+            if node_id == PATH_SEPARATOR_ID:
                 yield None
             else:
                 yield self.node2pid[node_id]
@@ -85,7 +87,7 @@ class Backend:
 
     async def walk(self, direction, edges_fmt, algo, src, dst):
         src_id = self.pid2node[src]
-        if dst in ('cnt', 'dir', 'rel', 'rev', 'snp', 'ori'):
+        if dst in PID_TYPES:
             it = self.stream_proxy.walk_type(direction, edges_fmt, algo,
                                              src_id, dst)
         else:
