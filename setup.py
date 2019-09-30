@@ -8,6 +8,7 @@ from setuptools import setup, find_packages
 
 from os import path
 from io import open
+from glob import glob
 
 here = path.abspath(path.dirname(__file__))
 
@@ -35,6 +36,8 @@ def parse_requirements(name=None):
     return requirements
 
 
+JAR_PATHS = list(glob('java/server/target/swh-graph-*.jar'))
+
 setup(
     name='swh.graph',
     description='Software Heritage graph service',
@@ -50,6 +53,7 @@ setup(
     extras_require={'testing': parse_requirements('test')},
     vcversioner={},
     include_package_data=True,
+    data_files=[('share/swh-graph', JAR_PATHS)],
     entry_points='''
         [console_scripts]
         swh-graph=swh.graph.cli:main

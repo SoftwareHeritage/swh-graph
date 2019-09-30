@@ -1,7 +1,13 @@
+# Copyright (C) 2019  The Software Heritage developers
+# See the AUTHORS file at the top-level directory of this distribution
+# License: GNU General Public License version 3, or any later version
+# See top-level LICENSE file for more information
+
 import asyncio
 import contextlib
 import json
 import os
+import pathlib
 import struct
 import sys
 import tempfile
@@ -15,10 +21,18 @@ BIN_FMT = '>q'  # 64 bit integer, big endian
 NODE2PID_EXT = 'node2pid.bin'
 PID2NODE_EXT = 'pid2node.bin'
 
-JAR_PATH = os.path.join(
-    os.path.dirname(__file__), '../../..',
-    'java/server/target/swh-graph-0.0.2-jar-with-dependencies.jar'
-)
+
+def find_graph_jar():
+    swh_graph_root = pathlib.Path(__file__).parents[3]
+    try_paths = [
+        swh_graph_root / 'java/server/target/',
+        pathlib.Path(sys.prefix) / 'share/swh-graph/',
+    ]
+    for path in try_paths:
+        glob = list(path.glob('swh-graph-*.jar'))
+        if glob:
+            return str(glob[0])
+    raise RuntimeError("swh-graph-*.jar not found. Have you run `make java`?")
 
 
 class Backend:
@@ -30,7 +44,7 @@ class Backend:
     def __enter__(self):
         self.gateway = JavaGateway.launch_gateway(
             java_path=None,
-            classpath=JAR_PATH,  # noqa
+            classpath=find_graph_jar(),
             die_on_exit=True,
             redirect_stdout=sys.stdout,
             redirect_stderr=sys.stderr,
