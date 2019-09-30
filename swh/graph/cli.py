@@ -3,12 +3,15 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import aiohttp
 import click
 import sys
 
 from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
 from swh.graph import client
 from swh.graph.pid import PidToIntMap, IntToPidMap
+from swh.graph.server.app import make_app
+from swh.graph.server.backend import Backend
 
 
 @click.group(name='graph', context_settings=CONTEXT_SETTINGS,
@@ -112,6 +115,31 @@ def restore_map(ctx, map_type, length, filename):
         restore_int2pid(filename, length)
     else:
         raise ValueError('invalid map type: ' + map_type)
+
+
+@cli.group('graph')
+@click.pass_context
+def graph(ctx):
+    """Manage swh-graph on-disk maps"""
+    pass
+
+
+@graph.command(name='rpc-serve')
+@click.option('--host', default='0.0.0.0',
+              metavar='IP', show_default=True,
+              help="Host ip address to bind the server on")
+@click.option('--port', default=5002, type=click.INT,
+              metavar='PORT', show_default=True,
+              help="Binding port of the server")
+@click.option('--graph', required=True, metavar='GRAPH',
+              help="Path prefix of the graph to load")
+@click.pass_context
+def serve(ctx, host, port, graph):
+    backend = Backend(graph_path=graph)
+    app = make_app(backend=backend)
+
+    with backend:
+        aiohttp.web.run_app(app, host=host, port=port)
 
 
 def main():
