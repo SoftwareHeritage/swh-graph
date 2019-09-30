@@ -11,14 +11,30 @@
  * of graph edges as <from, to> PID pairs.
  */
 
-#include <git2.h>
+#include <assert.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#include <git2.h>
+
 
 #define SWH_PREFIX  "swh:1"
 #define SWH_DIR     "swh:1:dir"
 #define SWH_REV     "swh:1:rev"
-#define SWH_PIDSZ   GIT_OID_HEXSZ + 10  // size of a SWH PID
+#define SWH_PIDSZ   (GIT_OID_HEXSZ + 10)  // size of a SWH PID
+
+// line-lengths in nodes and edges file
+#define NODES_LINELEN  (SWH_PIDSZ + 1)
+#define EDGES_LINELEN  (SWH_PIDSZ * 2 + 2)
+
+// Output buffer sizes for nodes and edges files. To guarantee atomic and
+// non-interleaved writes (which matter when used concurrently writing to a
+// shared FIFO), these sizes must be <= PIPE_BUF and multiples of
+// {NODES,EDGES}_LINELEN.
+#define NODES_OUTSZ  ((PIPE_BUF / NODES_LINELEN) * NODES_LINELEN)
+#define EDGES_OUTSZ  ((PIPE_BUF / EDGES_LINELEN) * EDGES_LINELEN)
 
 
 /* extra payload for callback invoked on Git objects */
@@ -177,6 +193,8 @@ int main(int argc, char **argv) {
 	int rc;
 	cb_payload *payload;
 	FILE *nodes, *edges;
+	char nodes_buf[NODES_OUTSZ];
+	char edges_buf[EDGES_OUTSZ];
 	
 	if (argc != 4) {
 		fprintf(stderr,
@@ -203,6 +221,12 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "can't open edges file: %s\n", argv[3]);
 		exit(EXIT_FAILURE);
 	}
+
+	// ensure atomic and non-interleaved writes
+	assert(NODES_OUTSZ <= PIPE_BUF && (NODES_OUTSZ % NODES_LINELEN == 0));
+	assert(EDGES_OUTSZ <= PIPE_BUF && (EDGES_OUTSZ % EDGES_LINELEN == 0));
+	setvbuf(nodes, nodes_buf, _IOFBF, NODES_OUTSZ);
+	setvbuf(edges, edges_buf, _IOFBF, EDGES_OUTSZ);
 
 	payload = malloc(sizeof(cb_payload));
 	payload->odb = odb;
