@@ -63,7 +63,7 @@ class Backend:
     def stats(self):
         return self.entry.stats()
 
-    async def _simple_traversal(self, ttype, direction, edges_fmt, src):
+    async def simple_traversal(self, ttype, direction, edges_fmt, src):
         assert ttype in ('leaves', 'neighbors', 'visit_nodes', 'visit_paths')
         src_id = self.pid2node[src]
         method = getattr(self.stream_proxy, ttype)
@@ -72,18 +72,6 @@ class Backend:
                 yield None
             else:
                 yield self.node2pid[node_id]
-
-    async def leaves(self, *args):
-        async for res_pid in self._simple_traversal('leaves', *args):
-            yield res_pid
-
-    async def neighbors(self, *args):
-        async for res_pid in self._simple_traversal('neighbors', *args):
-            yield res_pid
-
-    async def visit_nodes(self, *args):
-        async for res_pid in self._simple_traversal('visit_nodes', *args):
-            yield res_pid
 
     async def walk(self, direction, edges_fmt, algo, src, dst):
         src_id = self.pid2node[src]
@@ -100,7 +88,7 @@ class Backend:
 
     async def visit_paths(self, *args):
         buffer = []
-        async for res_pid in self._simple_traversal('visit_paths', *args):
+        async for res_pid in self.simple_traversal('visit_paths', *args):
             if res_pid is None:  # Path separator, flush
                 yield json.dumps(buffer)
                 buffer = []

@@ -1,3 +1,13 @@
+# Copyright (C) 2019  The Software Heritage developers
+# See the AUTHORS file at the top-level directory of this distribution
+# License: GNU General Public License version 3, or any later version
+# See top-level LICENSE file for more information
+
+"""
+A proxy HTTP server for swh-graph, talking to the Java code via py4j, and using
+FIFO as a transport to stream integers between the two languages.
+"""
+
 import contextlib
 import aiohttp.web
 
@@ -21,34 +31,20 @@ async def stats(request):
     return aiohttp.web.Response(body=stats, content_type='application/json')
 
 
-async def _simple_traversal(request, ttype):
-    assert ttype in ('leaves', 'neighbors', 'visit_nodes', 'visit_paths')
-    method = getattr(request.app['backend'], ttype)
+def get_simple_traversal_handler(ttype):
+    async def simple_traversal(request):
+        src = request.match_info['src']
+        edges = request.query.get('edges', '*')
+        direction = request.query.get('direction', 'forward')
 
-    src = request.match_info['src']
-    edges = request.query.get('edges', '*')
-    direction = request.query.get('direction', 'forward')
+        async with stream_response(request) as response:
+            async for res_pid in request.app['backend'].simple_traversal(
+                ttype, direction, edges, src
+            ):
+                await response.write('{}\n'.format(res_pid).encode())
+            return response
 
-    async with stream_response(request) as response:
-        async for res_pid in method(direction, edges, src):
-            await response.write('{}\n'.format(res_pid).encode())
-        return response
-
-
-async def leaves(request):
-    return (await _simple_traversal(request, 'leaves'))
-
-
-async def neighbors(request):
-    return (await _simple_traversal(request, 'neighbors'))
-
-
-async def visit_nodes(request):
-    return (await _simple_traversal(request, 'visit_nodes'))
-
-
-async def visit_paths(request):
-    return (await _simple_traversal(request, 'visit_paths'))
+    return simple_traversal
 
 
 async def walk(request):
@@ -65,15 +61,30 @@ async def walk(request):
         return response
 
 
+async def visit_paths(request):
+    src = request.match_info['src']
+    edges = request.query.get('edges', '*')
+    direction = request.query.get('direction', 'forward')
+
+    it = request.app['backend'].visit_paths(direction, edges, src)
+    async with stream_response(request) as response:
+        async for res_pid in it:
+            await response.write('{}\n'.format(res_pid).encode())
+        return response
+
+
 def make_app(backend, **kwargs):
     app = RPCServerApp(**kwargs)
     app.router.add_route('GET', '/', index)
     app.router.add_route('GET', '/graph/stats', stats)
-    app.router.add_route('GET', '/graph/leaves/{src}', leaves)
-    app.router.add_route('GET', '/graph/neighbors/{src}', neighbors)
-    app.router.add_route('GET', '/graph/walk/{src}/{dst}', walk)
-    app.router.add_route('GET', '/graph/visit/nodes/{src}', visit_nodes)
+    app.router.add_route('GET', '/graph/leaves/{src}',
+                         get_simple_traversal_handler('leaves'))
+    app.router.add_route('GET', '/graph/neighbors/{src}',
+                         get_simple_traversal_handler('neighbors'))
+    app.router.add_route('GET', '/graph/visit/nodes/{src}',
+                         get_simple_traversal_handler('visit_nodes'))
     app.router.add_route('GET', '/graph/visit/paths/{src}', visit_paths)
+    app.router.add_route('GET', '/graph/walk/{src}/{dst}', walk)
 
     app['backend'] = backend
     return app
