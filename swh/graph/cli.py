@@ -128,7 +128,7 @@ def graph(ctx):
 @click.option('--host', default='0.0.0.0',
               metavar='IP', show_default=True,
               help="Host ip address to bind the server on")
-@click.option('--port', default=5002, type=click.INT,
+@click.option('--port', default=5009, type=click.INT,
               metavar='PORT', show_default=True,
               help="Binding port of the server")
 @click.option('--graph', required=True, metavar='GRAPH',
