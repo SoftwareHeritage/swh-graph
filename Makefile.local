@@ -1,0 +1,6 @@
+POM_PATH=java/server/pom.xml
+
+java:
+	mvn -f $(POM_PATH) compile assembly:single
+
+.PHONY: java

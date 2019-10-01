@@ -15,6 +15,8 @@ import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Neighbors;
 import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.algo.NodeIdConsumer;
+import org.softwareheritage.graph.algo.PathConsumer;
 
 /**
  * Traversal algorithms on the compressed graph.
@@ -75,13 +77,9 @@ public class Traversal {
     }
 
     /**
-     * Returns the leaves of a subgraph rooted at the specified source node.
-     *
-     * @param srcNodeId source node
-     * @return list of node ids corresponding to the leaves
+     * Push version of {@link leaves}: will fire passed callback for each leaf.
      */
-    public ArrayList<Long> leaves(long srcNodeId) {
-        ArrayList<Long> nodeIds = new ArrayList<Long>();
+    public void leavesVisitor(long srcNodeId, NodeIdConsumer cb) {
         Stack<Long> stack = new Stack<Long>();
         this.nbEdgesAccessed = 0;
 
@@ -102,11 +100,32 @@ public class Traversal {
             }
 
             if (neighborsCnt == 0) {
-                nodeIds.add(currentNodeId);
+		cb.accept(currentNodeId);
             }
         }
+    }
 
+    /**
+     * Returns the leaves of a subgraph rooted at the specified source node.
+     *
+     * @param srcNodeId source node
+     * @return list of node ids corresponding to the leaves
+     */
+    public ArrayList<Long> leaves(long srcNodeId) {
+        ArrayList<Long> nodeIds = new ArrayList<Long>();
+	leavesVisitor(srcNodeId, (nodeId) -> nodeIds.add(nodeId));
         return nodeIds;
+    }
+
+    /**
+     * Push version of {@link neighbors}: will fire passed callback on each
+     * neighbor.
+     */
+    public void neighborsVisitor(long srcNodeId, NodeIdConsumer cb) {
+        this.nbEdgesAccessed = graph.degree(srcNodeId, useTransposed);
+        for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, srcNodeId)) {
+	    cb.accept(neighborNodeId);
+        }
     }
 
     /**
@@ -117,11 +136,33 @@ public class Traversal {
      */
     public ArrayList<Long> neighbors(long srcNodeId) {
         ArrayList<Long> nodeIds = new ArrayList<Long>();
-        this.nbEdgesAccessed = graph.degree(srcNodeId, useTransposed);
-        for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, srcNodeId)) {
-            nodeIds.add(neighborNodeId);
-        }
+	neighborsVisitor(srcNodeId, (nodeId) -> nodeIds.add(nodeId));
         return nodeIds;
+    }
+
+    /**
+     * Push version of {@link visitNodes}: will fire passed callback on each
+     * visited node.
+     */
+    public void visitNodesVisitor(long srcNodeId, NodeIdConsumer cb) {
+        Stack<Long> stack = new Stack<Long>();
+        this.nbEdgesAccessed = 0;
+
+        stack.push(srcNodeId);
+        visited.set(srcNodeId);
+
+        while (!stack.isEmpty()) {
+            long currentNodeId = stack.pop();
+	    cb.accept(currentNodeId);
+
+            nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
+            for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+                if (!visited.getBoolean(neighborNodeId)) {
+                    stack.push(neighborNodeId);
+                    visited.set(neighborNodeId);
+                }
+            }
+        }
     }
 
     /**
@@ -132,26 +173,18 @@ public class Traversal {
      */
     public ArrayList<Long> visitNodes(long srcNodeId) {
         ArrayList<Long> nodeIds = new ArrayList<Long>();
-        Stack<Long> stack = new Stack<Long>();
+	visitNodesVisitor(srcNodeId, (nodeId) -> nodeIds.add(nodeId));
+	return nodeIds;
+    }
+
+    /**
+     * Push version of {@link visitPaths}: will fire passed callback on each
+     * discovered (complete) path.
+     */
+    public void visitPathsVisitor(long srcNodeId, PathConsumer cb) {
+        Stack<Long> currentPath = new Stack<Long>();
         this.nbEdgesAccessed = 0;
-
-        stack.push(srcNodeId);
-        visited.set(srcNodeId);
-
-        while (!stack.isEmpty()) {
-            long currentNodeId = stack.pop();
-            nodeIds.add(currentNodeId);
-
-            nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
-            for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-                if (!visited.getBoolean(neighborNodeId)) {
-                    stack.push(neighborNodeId);
-                    visited.set(neighborNodeId);
-                }
-            }
-        }
-
-        return nodeIds;
+        visitPathsInternalVisitor(srcNodeId, currentPath, cb);
     }
 
     /**
@@ -162,27 +195,19 @@ public class Traversal {
      */
     public ArrayList<ArrayList<Long>> visitPaths(long srcNodeId) {
         ArrayList<ArrayList<Long>> paths = new ArrayList<>();
-        Stack<Long> currentPath = new Stack<Long>();
-        this.nbEdgesAccessed = 0;
-        visitPathsInternal(srcNodeId, paths, currentPath);
+	visitPathsVisitor(srcNodeId, (path) -> paths.add(path));
         return paths;
     }
 
-    /**
-     * Internal recursive function of {@link #visitPaths}.
-     *
-     * @param currentNodeId current node
-     * @param paths list of currently stored paths
-     * @param currentPath current path as node ids
-     */
-    private void visitPathsInternal(
-        long currentNodeId, ArrayList<ArrayList<Long>> paths, Stack<Long> currentPath) {
+    private void visitPathsInternalVisitor(long currentNodeId,
+					   Stack<Long> currentPath,
+					   PathConsumer cb) {
         currentPath.push(currentNodeId);
 
         long visitedNeighbors = 0;
         nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
         for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-            visitPathsInternal(neighborNodeId, paths, currentPath);
+            visitPathsInternalVisitor(neighborNodeId, currentPath, cb);
             visitedNeighbors++;
         }
 
@@ -191,7 +216,7 @@ public class Traversal {
             for (long nodeId : currentPath) {
                 path.add(nodeId);
             }
-            paths.add(path);
+	    cb.accept(path);
         }
 
         currentPath.pop();

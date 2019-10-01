@@ -3,6 +3,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import json
+
 from swh.core.api import RPCClient
 
 
@@ -20,43 +22,61 @@ class RemoteGraphClient(RPCClient):
         super().__init__(
             api_exception=GraphAPIError, url=url, timeout=timeout)
 
+    def raw_verb_lines(self, verb, endpoint, **kwargs):
+        response = self.raw_verb(verb, endpoint, stream=True, **kwargs)
+        for line in response.iter_lines():
+            yield line.decode().lstrip('\n')
+
+    def get_lines(self, endpoint, **kwargs):
+        yield from self.raw_verb_lines('get', endpoint, **kwargs)
+
     # Web API endpoints
-
-    def leaves(self, src, edges="*", direction="forward"):
-        return self.get('leaves/{}'.format(src),
-                        params={
-                            'edges': edges,
-                            'direction': direction
-                        })
-
-    def neighbors(self, src, edges="*", direction="forward"):
-        return self.get('neighbors/{}'.format(src),
-                        params={
-                            'edges': edges,
-                            'direction': direction
-                        })
 
     def stats(self):
         return self.get('stats')
 
+    def leaves(self, src, edges="*", direction="forward"):
+        return self.get_lines(
+            'leaves/{}'.format(src),
+            params={
+                'edges': edges,
+                'direction': direction
+            })
+
+    def neighbors(self, src, edges="*", direction="forward"):
+        return self.get_lines(
+            'neighbors/{}'.format(src),
+            params={
+                'edges': edges,
+                'direction': direction
+            })
+
     def visit_nodes(self, src, edges="*", direction="forward"):
-        return self.get('visit/nodes/{}'.format(src),
-                        params={
-                            'edges': edges,
-                            'direction': direction
-                        })
+        return self.get_lines(
+            'visit/nodes/{}'.format(src),
+            params={
+                'edges': edges,
+                'direction': direction
+            })
 
     def visit_paths(self, src, edges="*", direction="forward"):
-        return self.get('visit/paths/{}'.format(src),
-                        params={
-                            'edges': edges,
-                            'direction': direction
-                        })
+        def decode_path_wrapper(it):
+            for e in it:
+                yield json.loads(e)
+
+        return decode_path_wrapper(
+            self.get_lines(
+                'visit/paths/{}'.format(src),
+                params={
+                    'edges': edges,
+                    'direction': direction
+                }))
 
     def walk(self, src, dst, edges="*", traversal="dfs", direction="forward"):
-        return self.get('walk/{}/{}'.format(src, dst),
-                        params={
-                            'edges': edges,
-                            'traversal': traversal,
-                            'direction': direction
-                        })
+        return self.get_lines(
+            'walk/{}/{}'.format(src, dst),
+            params={
+                'edges': edges,
+                'traversal': traversal,
+                'direction': direction
+            })

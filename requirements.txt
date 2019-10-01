@@ -1,3 +1,4 @@
 aiohttp
 click
 vcversioner
+py4j
