@@ -1,2 +1,3 @@
 *.o
 git2graph
+gmon.out
