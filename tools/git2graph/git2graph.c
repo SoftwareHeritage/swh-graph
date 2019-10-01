@@ -36,6 +36,17 @@
 #define NODES_OUTSZ  ((PIPE_BUF / NODES_LINELEN) * NODES_LINELEN)
 #define EDGES_OUTSZ  ((PIPE_BUF / EDGES_LINELEN) * EDGES_LINELEN)
 
+/* map from libgit2's git_otype to SWH PID type qualifiers */
+static char *_git_otype2swh[] = {
+	"ERR", // 0 == GIT_OBJ__EXT1 (unused)
+	"rev", // 1 == GIT_OBJ_COMMIT
+	"dir", // 2 == GIT_OBJ_TREE
+	"cnt", // 3 == GIT_OBJ_BLOB
+	"rel", // 4 == GIT_OBJ_TAG
+};
+
+/* Convert a git object type to the corresponding SWH PID type. */
+#define git_otype2swh(type)  _git_otype2swh[(type)]
 
 /* extra payload for callback invoked on Git objects */
 typedef struct {
@@ -74,20 +85,6 @@ void check_lg2(int error, const char *message, const char *extra) {
 }
 
 
-/* Convert a git object type to the corresponding SWH PID type. */
-char *git_object_type2swh(int type) {
-	switch(type) {
-	case GIT_OBJ_BLOB:   return "cnt"; break;
-	case GIT_OBJ_COMMIT: return "rev"; break;
-	case GIT_OBJ_TAG:    return "rel"; break;
-	case GIT_OBJ_TREE:   return "dir"; break;
-	default:
-		fprintf(stderr, "Unknown object type: %d\n", type);
-		exit(EXIT_FAILURE);
-	}
-}
-
-
 /* Emit commit edges. */
 void emit_commit(const git_commit *commit, const char *swhpid, FILE *out) {
 	unsigned int i, max_i;
@@ -113,7 +110,7 @@ void emit_tag(const git_tag *tag, const char *swhpid, FILE *out) {
 	// rel -> *
 	git_oid_tostr(oidstr, sizeof(oidstr), git_tag_target_id(tag));
 	fprintf(out, "%s %s:%s:%s\n", swhpid, SWH_PREFIX,
-	       git_object_type2swh(git_tag_target_type(tag)), oidstr);
+	       git_otype2swh(git_tag_target_type(tag)), oidstr);
 }
 
 
@@ -128,8 +125,7 @@ void emit_tree(const git_tree *tree, const char *swhpid, FILE *out) {
 		te = git_tree_entry_byindex(tree, i);
 		git_oid_tostr(oidstr, sizeof(oidstr), git_tree_entry_id(te));
 		fprintf(out, "%s %s:%s:%s\n", swhpid, SWH_PREFIX,
-			git_object_type2swh(git_tree_entry_type(te)),
-			oidstr);
+			git_otype2swh(git_tree_entry_type(te)), oidstr);
 	}
 }
 
@@ -151,7 +147,7 @@ int emit_obj(const git_oid *id, void *payload) {
 		  "cannot read object header", NULL);
 
 	// emit node
-	sprintf(swhpid, "swh:1:%s:", git_object_type2swh(obj_type));
+	sprintf(swhpid, "swh:1:%s:", git_otype2swh(obj_type));
 	git_oid_tostr(swhpid + 10, sizeof(oidstr), id);
 	fprintf(((cb_payload *) payload)->nodes, "%s\n", swhpid);
 
