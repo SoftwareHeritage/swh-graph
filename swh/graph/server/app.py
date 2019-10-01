@@ -23,7 +23,19 @@ async def stream_response(request, *args, **kwargs):
 
 
 async def index(request):
-    return aiohttp.web.Response(body="SWH Graph API server")
+    return aiohttp.web.Response(
+        content_type='text/html',
+        body="""<html>
+<head><title>Software Heritage storage server</title></head>
+<body>
+<p>You have reached the <a href="https://www.softwareheritage.org/">
+Software Heritage</a> graph API server.</p>
+
+<p>See its
+<a href="https://docs.softwareheritage.org/devel/swh-graph/api.html">API
+documentation</a> for more information.</p>
+</body>
+</html>""")
 
 
 async def stats(request):
