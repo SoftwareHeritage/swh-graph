@@ -27,6 +27,10 @@ public class Entry {
         System.err.println("Graph loaded.");
     }
 
+    public Graph get_graph() {
+        return graph.copy();
+    }
+
     public String stats() {
         try {
             Stats stats = new Stats(graph.getPath());

@@ -56,6 +56,7 @@ class Backend:
         self.node2pid = IntToPidMap(self.graph_path + '.' + NODE2PID_EXT)
         self.pid2node = PidToIntMap(self.graph_path + '.' + PID2NODE_EXT)
         self.stream_proxy = JavaStreamProxy(self.entry)
+        return self
 
     def __exit__(self, exc_type, exc_value, tb):
         self.gateway.shutdown()
