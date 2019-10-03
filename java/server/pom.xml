@@ -9,7 +9,7 @@
     <version>${git.closest.tag.name}</version>
 
     <name>swh-graph</name>
-    <url>https://www.softwareheritage.org/</url>
+    <url>https://forge.softwareheritage.org/source/swh-graph/</url>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -72,7 +72,6 @@
     </dependencies>
 
     <build>
-        <finalName>swh-graph</finalName>
         <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
             <plugins>
                 <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
@@ -131,6 +130,7 @@
                         <descriptorRefs>
                             <descriptorRef>jar-with-dependencies</descriptorRef>
                         </descriptorRefs>
+                        <appendAssemblyId>false</appendAssemblyId>
                     </configuration>
                     <executions>
                         <execution>
@@ -159,13 +159,21 @@
               </execution>
             </executions>
             <configuration>
-              <verbose>true</verbose>
-              <offline>true</offline>
-              <useNativeGit>true</useNativeGit>
-              <gitDescribe>
-                <always>true</always>
-                <match>v*</match>
-              </gitDescribe>
+                <verbose>true</verbose>
+                <offline>true</offline>
+                <useNativeGit>true</useNativeGit>
+                <gitDescribe>
+                  <always>true</always>
+                  <match>v*</match>
+                </gitDescribe>
+                <replacementProperties>
+                  <replacementProperty>
+                    <property>git.closest.tag.name</property>
+                    <token>^v</token>
+                    <value></value>
+                    <regex>true</regex>
+                  </replacementProperty>
+                </replacementProperties>
             </configuration>
           </plugin>
         </plugins>
