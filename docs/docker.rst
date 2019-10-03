@@ -60,7 +60,7 @@ in either ``.csv.gz`` or ad-hoc ``.map`` format):
 
 .. code:: bash
 
-    $ java -cp app/swh-graph.jar \
+    $ java -cp lib/swh-graph-jar-with-dependencies.jar \
         org.softwareheritage.graph.backend.Setup \
         data/g.nodes.csv.gz data/compressed/g
 
@@ -72,7 +72,7 @@ To start the swh-graph server:
 
 .. code:: bash
 
-    $ java -cp app/swh-graph.jar \
+    $ java -cp lib/swh-graph-jar-with-dependencies.jar \
         org.softwareheritage.graph.App data/compressed/g
 
 To specify the port on which the server will run, use the `--port` or `-p` flag

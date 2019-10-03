@@ -1,29 +1,28 @@
-FROM openjdk:12
+FROM openjdk:13-slim-buster
 
 # Java global config
 ARG MAX_RAM=2800G
-ENV JAVA_TOOL_OPTIONS                                                   \
-    -Xmx${MAX_RAM} -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G    \
-    -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA        \
-    -XX:+UseTLAB -XX:+ResizeTLAB                                        \
+ENV JAVA_TOOL_OPTIONS \
+    -Xmx${MAX_RAM} -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G \
+    -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA \
+    -XX:+UseTLAB -XX:+ResizeTLAB \
     -Dlogback.configurationFile=app/configuration/logback.xml
 
-# Monitoring
-RUN yum install -y time
+# Install swh.graph (both Python and Java parts)
+RUN apt-get update
+RUN apt-get install --no-install-recommends --yes \
+    curl time \
+    gcc pkg-config libsystemd-dev python3-dev \
+    python3-pip python3-setuptools
+RUN pip3 install swh.graph
 
-ARG WEBGRAPH_VERSION=3.5.1
-ARG LAW_VERSION=2.6.0
-
-# Download third party binaries and dependencies
+# Install 3rd party dependencies (not shipped with swh.graph)
 WORKDIR /srv/softwareheritage/graph/lib
 
-RUN curl -O http://webgraph.di.unimi.it/webgraph-big-${WEBGRAPH_VERSION}-bin.tar.gz
-RUN tar xvfz webgraph-big-${WEBGRAPH_VERSION}-bin.tar.gz
-RUN cp webgraph-big-${WEBGRAPH_VERSION}/webgraph-big-${WEBGRAPH_VERSION}.jar .
+RUN cp /usr/local/share/swh-graph/*.jar .
 
-RUN curl -O http://webgraph.di.unimi.it/webgraph-big-deps.tar.gz
-RUN tar xvfz webgraph-big-deps.tar.gz
-
+# law is not shipped via Maven, download from upstream
+ARG LAW_VERSION=2.6.0
 RUN curl -O http://law.di.unimi.it/software/download/law-${LAW_VERSION}-bin.tar.gz
 RUN tar xvfz law-${LAW_VERSION}-bin.tar.gz
 RUN cp law-${LAW_VERSION}/law-${LAW_VERSION}.jar .

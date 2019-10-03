@@ -14,8 +14,8 @@ Start REST API
 --------------
 
 ```bash
-$ java -cp target/swh-graph-0.0.2-jar-with-dependencies.jar \
-    org.softwareheritage.graph.App                          \
+$ java -cp target/swh-graph-jar-with-dependencies.jar \
+    org.softwareheritage.graph.App \
     <compressed_graph_path>
 ```
 
@@ -43,8 +43,8 @@ $ cd ../../../
 
 $ mvn compile assembly:single
 # Dump mapping files
-$ java -cp target/swh-graph-0.0.2-jar-with-dependencies.jar \
-    org.softwareheritage.graph.backend.Setup                \
-    src/test/dataset/example.nodes.csv.gz                   \
+$ java -cp target/swh-graph-jar-with-dependencies.jar \
+    org.softwareheritage.graph.backend.Setup \
+    src/test/dataset/example.nodes.csv.gz \
     src/test/dataset/output/example
 ```
