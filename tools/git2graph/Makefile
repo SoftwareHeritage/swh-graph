@@ -1,7 +1,9 @@
 CC = gcc
 LD = gcc
-CFLAGS = -Wall -Werror $(shell pkg-config --cflags libgit2)
-LDFLAGS = $(shell pkg-config --libs libgit2)
+LIBS = libgit2
+
+CFLAGS = -Wall -Werror $(shell pkg-config --cflags $(LIBS))
+LDFLAGS = $(shell pkg-config --libs $(LIBS))
 
 all: git2graph
 
