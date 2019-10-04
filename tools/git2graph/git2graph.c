@@ -13,6 +13,7 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,17 +37,60 @@
 #define NODES_OUTSZ  ((PIPE_BUF / NODES_LINELEN) * NODES_LINELEN)
 #define EDGES_OUTSZ  ((PIPE_BUF / EDGES_LINELEN) * EDGES_LINELEN)
 
-/* map from libgit2's git_otype to SWH PID type qualifiers */
-static char *_git_otype2swh[] = {
+// GIT_OBJ_* constants extension for non-git objects
+#define SWH_OBJ_SNP  5  // snapshots (swh:1:snp:...)
+#define SWH_OBJ_ORI  6  // origins (swh:1:ori:...)
+#define SWH_OBJ_LOC  7  // lines of code (swh:1:loc:...)
+
+#define OBJ_TYPES  8
+
+/* map from libgit2's git_otype (+ SWH-specific types above) to SWH PID type
+ * qualifiers */
+static char *_git_otype2swh[OBJ_TYPES] = {
 	"ERR", // 0 == GIT_OBJ__EXT1 (unused)
 	"rev", // 1 == GIT_OBJ_COMMIT
 	"dir", // 2 == GIT_OBJ_TREE
 	"cnt", // 3 == GIT_OBJ_BLOB
 	"rel", // 4 == GIT_OBJ_TAG
+	"snp", // 5 == SWH_OBJ_SNP
+	"ori", // 6 == SWH_OBJ_ORI
+	"loc", // 7 == SWH_OBJ_LOC
 };
 
-/* Convert a git object type to the corresponding SWH PID type. */
+/* Convert a git object type (+ SWH-specific types above) to the corresponding
+ * SWH PID type. */
 #define git_otype2swh(type)  _git_otype2swh[(type)]
+
+/* Allowed edge types matrix. Each cell denotes whether edges from a given
+ * SRC_TYPE to a given DST_TYPE should be produced or not. */
+static int _allowed_edges[OBJ_TYPES][OBJ_TYPES] = {
+	// TO   rev    dir    cnt    rel    snp    ori    loc        |
+	// ----------------------------------------------------------------
+	{true,  true,  true,  true,  true,  true,  true,  true},  // | FROM
+	{true,  true,  true,  true,  true,  true,  true,  true},  // | rev
+	{true,  true,  true,  true,  true,  true,  true,  true},  // | dir
+	{true,  true,  true,  true,  true,  true,  true,  true},  // | cnt
+	{true,  true,  true,  true,  true,  true,  true,  true},  // | rel
+	{true,  true,  true,  true,  true,  true,  true,  true},  // | snp
+	{true,  true,  true,  true,  true,  true,  true,  true},  // | ori
+	{true,  true,  true,  true,  true,  true,  true,  true},  // | loc
+};
+
+
+/* Allowed node type vector. */
+static int _allowed_nodes[OBJ_TYPES] = {
+	true,  //
+	true,  // rev
+	true,  // dir
+	true,  // cnt
+	true,  // rel
+	true,  // snp
+	true,  // ori
+	true,  // loc
+};
+
+#define is_edge_allowed(src_type, dst_type)  _allowed_edges[(src_type)][(dst_type)]
+#define is_node_allowed(type)  _allowed_nodes[(type)]
 
 /* extra payload for callback invoked on Git objects */
 typedef struct {
@@ -85,47 +129,78 @@ void check_lg2(int error, const char *message, const char *extra) {
 }
 
 
+/* Compute allowed node types base on allowed edge types, which is a sane
+ * default. The result should be overridden in case one wants to output nodes,
+ * but not their outgoing edges. */
+void init_allowed_nodes_from_edges(
+	int allowed_edges[OBJ_TYPES][OBJ_TYPES],
+	int allowed_nodes[OBJ_TYPES])
+{
+	for (int src_type = 0; src_type < OBJ_TYPES; src_type++) {
+		allowed_nodes[src_type] = false;
+		for (int dst_type = 0; dst_type < OBJ_TYPES; dst_type++) {
+			allowed_nodes[src_type] = allowed_nodes[src_type] \
+				|| allowed_edges[src_type][dst_type];
+		}
+	}
+}
+
+
 /* Emit commit edges. */
-void emit_commit(const git_commit *commit, const char *swhpid, FILE *out) {
+void emit_commit_edges(const git_commit *commit, const char *swhpid, FILE *out) {
 	unsigned int i, max_i;
 	char oidstr[GIT_OID_HEXSZ + 1];  // to PID
 
 	// rev -> dir
-	git_oid_tostr(oidstr, sizeof(oidstr), git_commit_tree_id(commit));
-	fprintf(out, "%s %s:%s\n", swhpid, SWH_DIR, oidstr);
+	if (is_edge_allowed(GIT_OBJ_COMMIT, GIT_OBJ_TREE)) {
+		git_oid_tostr(oidstr, sizeof(oidstr),
+			      git_commit_tree_id(commit));
+		fprintf(out, "%s %s:%s\n", swhpid, SWH_DIR, oidstr);
+	}
 
 	// rev -> rev
-	max_i = (unsigned int)git_commit_parentcount(commit);
-	for (i = 0; i < max_i; ++i) {
-		git_oid_tostr(oidstr, sizeof(oidstr),
-			      git_commit_parent_id(commit, i));
-		fprintf(out, "%s %s:%s\n", swhpid, SWH_REV, oidstr);
+	if (is_edge_allowed(GIT_OBJ_COMMIT, GIT_OBJ_COMMIT)) {
+		max_i = (unsigned int)git_commit_parentcount(commit);
+		for (i = 0; i < max_i; ++i) {
+			git_oid_tostr(oidstr, sizeof(oidstr),
+				      git_commit_parent_id(commit, i));
+			fprintf(out, "%s %s:%s\n", swhpid, SWH_REV, oidstr);
+		}
 	}
 }
 
 /* Emit tag edges. */
-void emit_tag(const git_tag *tag, const char *swhpid, FILE *out) {
+void emit_tag_edges(const git_tag *tag, const char *swhpid, FILE *out) {
 	char oidstr[GIT_OID_HEXSZ + 1];
+	int target_type;
 
 	// rel -> *
-	git_oid_tostr(oidstr, sizeof(oidstr), git_tag_target_id(tag));
-	fprintf(out, "%s %s:%s:%s\n", swhpid, SWH_PREFIX,
-	       git_otype2swh(git_tag_target_type(tag)), oidstr);
+	target_type = git_tag_target_type(tag);
+	if (is_edge_allowed(GIT_OBJ_TAG, target_type)) {
+		git_oid_tostr(oidstr, sizeof(oidstr), git_tag_target_id(tag));
+		fprintf(out, "%s %s:%s:%s\n", swhpid, SWH_PREFIX,
+			git_otype2swh(target_type), oidstr);
+	}
 }
 
 
 /* Emit tree edges. */
-void emit_tree(const git_tree *tree, const char *swhpid, FILE *out) {
+void emit_tree_edges(const git_tree *tree, const char *swhpid, FILE *out) {
 	size_t i, max_i = (int)git_tree_entrycount(tree);
 	char oidstr[GIT_OID_HEXSZ + 1];
 	const git_tree_entry *te;
+	int entry_type;
 
 	// dir -> *
 	for (i = 0; i < max_i; ++i) {
 		te = git_tree_entry_byindex(tree, i);
-		git_oid_tostr(oidstr, sizeof(oidstr), git_tree_entry_id(te));
-		fprintf(out, "%s %s:%s:%s\n", swhpid, SWH_PREFIX,
-			git_otype2swh(git_tree_entry_type(te)), oidstr);
+		entry_type = git_tree_entry_type(te);
+		if (is_edge_allowed(GIT_OBJ_TREE, entry_type)) {
+			git_oid_tostr(oidstr, sizeof(oidstr),
+				      git_tree_entry_id(te));
+			fprintf(out, "%s %s:%s:%s\n", swhpid, SWH_PREFIX,
+				git_otype2swh(entry_type), oidstr);
+		}
 	}
 }
 
@@ -145,6 +220,8 @@ int emit_obj(const git_oid *id, void *payload) {
 
 	check_lg2(git_odb_read_header(&len, &obj_type, odb, id),
 		  "cannot read object header", NULL);
+	if (!is_node_allowed(obj_type))  // no outbound edges allowed, skip node
+		return 0;
 
 	// emit node
 	sprintf(swhpid, "swh:1:%s:", git_otype2swh(obj_type));
@@ -158,19 +235,20 @@ int emit_obj(const git_oid *id, void *payload) {
 	case GIT_OBJ_COMMIT:
 		check_lg2(git_commit_lookup(&commit, repo, id),
 			  "cannot find commit", NULL);
-		emit_commit(commit, swhpid, ((cb_payload *) payload)->edges);
+		emit_commit_edges(commit, swhpid,
+				  ((cb_payload *) payload)->edges);
 		git_commit_free(commit);
 		break;
 	case GIT_OBJ_TAG:
 		check_lg2(git_tag_lookup(&tag, repo, id),
 			  "cannot find tag", NULL);
-		emit_tag(tag, swhpid, ((cb_payload *) payload)->edges);
+		emit_tag_edges(tag, swhpid, ((cb_payload *) payload)->edges);
 		git_tag_free(tag);
 		break;
 	case GIT_OBJ_TREE:
 		check_lg2(git_tree_lookup(&tree, repo, id),
 			  "cannot find tree", NULL);
-		emit_tree(tree, swhpid, ((cb_payload *) payload)->edges);
+		emit_tree_edges(tree, swhpid, ((cb_payload *) payload)->edges);
 		git_tree_free(tree);
 		break;
 	default:
@@ -198,6 +276,8 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Note: you can use \"-\" for stdout.\n");
 		exit(EXIT_FAILURE);
 	}
+
+	init_allowed_nodes_from_edges(_allowed_edges, _allowed_nodes);
 
 	git_libgit2_init();
 	check_lg2(git_repository_open(&repo, argv[1]),
