@@ -5,10 +5,11 @@
 
 import asyncio
 import contextlib
-import json
+import io
 import os
 import pathlib
 import struct
+import subprocess
 import sys
 import tempfile
 
@@ -25,7 +26,7 @@ PID2NODE_EXT = 'pid2node.bin'
 
 
 def find_graph_jar():
-    swh_graph_root = pathlib.Path(__file__).parents[3]
+    swh_graph_root = pathlib.Path(__file__).parents[2]
     try_paths = [
         swh_graph_root / 'java/server/target/',
         pathlib.Path(sys.prefix) / 'share/swh-graph/',
@@ -35,6 +36,16 @@ def find_graph_jar():
         if glob:
             return str(glob[0])
     raise RuntimeError("swh-graph-*.jar not found. Have you run `make java`?")
+
+
+def _get_pipe_stderr():
+    # Get stderr if possible, or pipe to stdout if running with Jupyter.
+    try:
+        sys.stderr.fileno()
+    except io.UnsupportedOperation:
+        return subprocess.STDOUT
+    else:
+        return sys.stderr
 
 
 class Backend:
@@ -49,7 +60,7 @@ class Backend:
             classpath=find_graph_jar(),
             die_on_exit=True,
             redirect_stdout=sys.stdout,
-            redirect_stderr=sys.stderr,
+            redirect_stderr=_get_pipe_stderr(),
         )
         self.entry = self.gateway.jvm.org.softwareheritage.graph.Entry()
         self.entry.load_graph(self.graph_path)
@@ -66,35 +77,28 @@ class Backend:
 
     async def simple_traversal(self, ttype, direction, edges_fmt, src):
         assert ttype in ('leaves', 'neighbors', 'visit_nodes', 'visit_paths')
-        src_id = self.pid2node[src]
         method = getattr(self.stream_proxy, ttype)
-        async for node_id in method(direction, edges_fmt, src_id):
-            if node_id == PATH_SEPARATOR_ID:
-                yield None
-            else:
-                yield self.node2pid[node_id]
+        async for node_id in method(direction, edges_fmt, src):
+            yield node_id
 
     async def walk(self, direction, edges_fmt, algo, src, dst):
-        src_id = self.pid2node[src]
         if dst in PID_TYPES:
             it = self.stream_proxy.walk_type(direction, edges_fmt, algo,
-                                             src_id, dst)
+                                             src, dst)
         else:
-            dst_id = self.pid2node[dst]
             it = self.stream_proxy.walk(direction, edges_fmt, algo,
-                                        src_id, dst_id)
-
+                                        src, dst)
         async for node_id in it:
-            yield self.node2pid[node_id]
+            yield node_id
 
     async def visit_paths(self, *args):
-        buffer = []
-        async for res_pid in self.simple_traversal('visit_paths', *args):
-            if res_pid is None:  # Path separator, flush
-                yield json.dumps(buffer)
-                buffer = []
+        path = []
+        async for node in self.simple_traversal('visit_paths', *args):
+            if node == PATH_SEPARATOR_ID:
+                yield path
+                path = []
             else:
-                buffer.append(res_pid)
+                path.append(node)
 
 
 class JavaStreamProxy:

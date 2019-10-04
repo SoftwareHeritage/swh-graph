@@ -3,8 +3,9 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import asyncio
 import contextlib
-from swh.graph.server.backend import Backend
+from swh.graph.backend import Backend
 from swh.graph.dot import dot_to_svg, graph_dot
 
 
@@ -16,6 +17,27 @@ KIND_TO_SHAPE = {
     'dir': 'folder',
     'cnt': 'oval',
 }
+
+
+KIND_TO_URL = {
+    'ori': 'https://archive.softwareheritage.org/browse/origin/{}',
+    'snp': 'https://archive.softwareheritage.org/browse/snapshot/{}',
+    'rel': 'https://archive.softwareheritage.org/browse/release/{}',
+    'rev': 'https://archive.softwareheritage.org/browse/revision/{}',
+    'dir': 'https://archive.softwareheritage.org/browse/directory/{}',
+    'cnt': 'https://archive.softwareheritage.org/browse/content/sha1_git:{}/',
+}
+
+
+def call_async_gen(generator, *args, **kwargs):
+    loop = asyncio.get_event_loop()
+    it = generator(*args, **kwargs).__aiter__()
+    while True:
+        try:
+            res = loop.run_until_complete(it.__anext__())
+            yield res
+        except StopAsyncIteration:
+            break
 
 
 class Neighbors:
@@ -57,6 +79,33 @@ class GraphNode:
             self.parent_graph.java_graph.predecessors(self.id),
             lambda: self.parent_graph.java_graph.indegree(self.id))
 
+    def simple_traversal(self, ttype, direction='forward', edges='*'):
+        for node in call_async_gen(
+            self.parent_graph.backend.simple_traversal,
+            ttype, direction, edges, self.id
+        ):
+            yield self.parent_graph[node]
+
+    def leaves(self, *args, **kwargs):
+        yield from self.simple_traversal('leaves', *args, **kwargs)
+
+    def visit_nodes(self, *args, **kwargs):
+        yield from self.simple_traversal('visit_nodes', *args, **kwargs)
+
+    def visit_paths(self, direction='forward', edges='*'):
+        for path in call_async_gen(
+                self.parent_graph.backend.visit_paths,
+                direction, edges, self.id
+        ):
+            yield [self.parent_graph[node] for node in path]
+
+    def walk(self, dst, direction='forward', edges='*', traversal='dfs'):
+        for node in call_async_gen(
+            self.parent_graph.backend.walk,
+            direction, edges, traversal, self.id, dst
+        ):
+            yield self.parent_graph[node]
+
     @property
     def pid(self):
         return self.parent_graph.node2pid[self.id]
@@ -74,8 +123,10 @@ class GraphNode:
     def dot_fragment(self):
         swh, version, kind, hash = self.pid.split(':')
         label = '{}:{}..{}'.format(kind, hash[0:2], hash[-2:])
+        url = KIND_TO_URL[kind].format(hash)
         shape = KIND_TO_SHAPE[kind]
-        return '{} [label="{}", shape="{}"];'.format(self.id, label, shape)
+        return ('{} [label="{}", href="{}", target="_blank", shape="{}"];'
+                .format(self.id, label, url, shape))
 
     def _repr_svg_(self):
         nodes = [self, *list(self.children()), *list(self.parents())]
@@ -85,8 +136,9 @@ class GraphNode:
 
 
 class Graph:
-    def __init__(self, java_graph, node2pid, pid2node):
-        self.java_graph = java_graph
+    def __init__(self, backend, node2pid, pid2node):
+        self.backend = backend
+        self.java_graph = backend.entry.get_graph()
         self.node2pid = node2pid
         self.pid2node = pid2node
 
@@ -109,5 +161,4 @@ class Graph:
 @contextlib.contextmanager
 def load(graph_path):
     with Backend(graph_path) as backend:
-        yield Graph(backend.entry.get_graph(),
-                    backend.node2pid, backend.pid2node)
+        yield Graph(backend, backend.node2pid, backend.pid2node)

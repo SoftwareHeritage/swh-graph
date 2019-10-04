@@ -8,10 +8,12 @@ A proxy HTTP server for swh-graph, talking to the Java code via py4j, and using
 FIFO as a transport to stream integers between the two languages.
 """
 
+import json
 import contextlib
 import aiohttp.web
 
 from swh.core.api.asynchronous import RPCServerApp
+from swh.model.identifiers import PID_TYPES
 
 
 @contextlib.asynccontextmanager
@@ -45,14 +47,18 @@ async def stats(request):
 
 def get_simple_traversal_handler(ttype):
     async def simple_traversal(request):
+        backend = request.app['backend']
+
         src = request.match_info['src']
         edges = request.query.get('edges', '*')
         direction = request.query.get('direction', 'forward')
 
+        src_node = backend.pid2node[src]
         async with stream_response(request) as response:
-            async for res_pid in request.app['backend'].simple_traversal(
-                ttype, direction, edges, src
+            async for res_node in backend.simple_traversal(
+                ttype, direction, edges, src_node
             ):
+                res_pid = backend.node2pid[res_node]
                 await response.write('{}\n'.format(res_pid).encode())
             return response
 
@@ -60,28 +66,40 @@ def get_simple_traversal_handler(ttype):
 
 
 async def walk(request):
+    backend = request.app['backend']
+
     src = request.match_info['src']
     dst = request.match_info['dst']
     edges = request.query.get('edges', '*')
     direction = request.query.get('direction', 'forward')
     algo = request.query.get('traversal', 'dfs')
 
-    it = request.app['backend'].walk(direction, edges, algo, src, dst)
+    src_node = backend.pid2node[src]
+    if dst not in PID_TYPES:
+        dst = backend.pid2node[dst]
     async with stream_response(request) as response:
-        async for res_pid in it:
+        async for res_node in backend.walk(
+                direction, edges, algo, src_node, dst
+        ):
+            res_pid = backend.node2pid[res_node]
             await response.write('{}\n'.format(res_pid).encode())
         return response
 
 
 async def visit_paths(request):
+    backend = request.app['backend']
+
     src = request.match_info['src']
     edges = request.query.get('edges', '*')
     direction = request.query.get('direction', 'forward')
 
-    it = request.app['backend'].visit_paths(direction, edges, src)
+    src_node = backend.pid2node[src]
+    it = backend.visit_paths(direction, edges, src_node)
     async with stream_response(request) as response:
-        async for res_pid in it:
-            await response.write('{}\n'.format(res_pid).encode())
+        async for res_path in it:
+            res_path_pid = [backend.node2pid[n] for n in res_path]
+            line = json.dumps(res_path_pid)
+            await response.write('{}\n'.format(line).encode())
         return response
 
 

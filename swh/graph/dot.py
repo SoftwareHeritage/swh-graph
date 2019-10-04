@@ -10,8 +10,14 @@ import collections
 
 @lru_cache()
 def dot_to_svg(dot):
-    p = subprocess.run(['dot', '-Tsvg'], input=dot, universal_newlines=True,
-                       capture_output=True, check=True)
+    try:
+        p = subprocess.run(
+            ['dot', '-Tsvg'], input=dot,
+            universal_newlines=True, capture_output=True,
+            check=True
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(e.stderr) from e
     return p.stdout
 
 

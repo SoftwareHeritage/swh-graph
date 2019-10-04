@@ -11,7 +11,7 @@ from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
 from swh.graph import client
 from swh.graph.pid import PidToIntMap, IntToPidMap
 from swh.graph.server.app import make_app
-from swh.graph.server.backend import Backend
+from swh.graph.backend import Backend
 
 
 @click.group(name='graph', context_settings=CONTEXT_SETTINGS,
