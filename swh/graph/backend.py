@@ -76,7 +76,7 @@ class Backend:
         return self.entry.stats()
 
     async def simple_traversal(self, ttype, direction, edges_fmt, src):
-        assert ttype in ('leaves', 'neighbors', 'visit_nodes', 'visit_paths')
+        assert ttype in ('leaves', 'neighbors', 'visit_nodes')
         method = getattr(self.stream_proxy, ttype)
         async for node_id in method(direction, edges_fmt, src):
             yield node_id
@@ -91,9 +91,10 @@ class Backend:
         async for node_id in it:
             yield node_id
 
-    async def visit_paths(self, *args):
+    async def visit_paths(self, direction, edges_fmt, src):
         path = []
-        async for node in self.simple_traversal('visit_paths', *args):
+        async for node in self.stream_proxy.visit_paths(
+                direction, edges_fmt, src):
             if node == PATH_SEPARATOR_ID:
                 yield path
                 path = []
@@ -122,7 +123,8 @@ class JavaStreamProxy:
 
     async def read_node_ids(self, fname):
         loop = asyncio.get_event_loop()
-        with (await loop.run_in_executor(None, open, fname, 'rb')) as f:
+        with (await asyncio.wait_for(loop.run_in_executor(
+                None, open, fname, 'rb'), timeout=2)) as f:
             while True:
                 data = await loop.run_in_executor(None, f.read, BUF_SIZE)
                 if not data:
@@ -160,7 +162,13 @@ class JavaStreamProxy:
         async def java_call_iterator(*args, **kwargs):
             with self.get_handler() as (handler, reader):
                 java_task = getattr(handler, name)(*args, **kwargs)
-                async for value in reader:
-                    yield value
+                try:
+                    async for value in reader:
+                        yield value
+                except asyncio.TimeoutError:
+                    task_exc = java_task.exception()
+                    if task_exc:
+                        raise task_exc
+                    raise
                 await java_task
         return java_call_iterator

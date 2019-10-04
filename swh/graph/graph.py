@@ -142,6 +142,9 @@ class Graph:
         self.node2pid = node2pid
         self.pid2node = pid2node
 
+    def stats(self):
+        return self.backend.stats()
+
     @property
     def path(self):
         return self.java_graph.getPath()
