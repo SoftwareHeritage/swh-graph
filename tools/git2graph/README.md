@@ -22,7 +22,7 @@ Test dependencies:
 Micro benchmark
 ---------------
 
-    $ time ./git2graph /srv/src/linux >(pigz -c > nodes.csv.gz) >(pigz -c > edges.csv.gz)
+    $ time ./git2graph -n >(pigz -c > nodes.csv.gz) -e >(pigz -c > edges.csv.gz) /srv/src/linux
     ./git2graph /srv/src/linux >(pigz -c > nodes.csv.gz) >(pigz -c > edges.csv.gz  243,30s user 17,28s system 89% cpu 4:51,53 total
     
     $ zcat nodes.csv.gz | wc -l
@@ -44,7 +44,7 @@ something like:
     $ mkfifo nodes.fifo edges.fifo
     $ sort -u < nodes.fifo | pigz -c > nodes.csv.gz &
     $ sort -u < edges.fifo | pigz -c > edges.csv.gz &
-    $ parallel -i git2graph '{}' nodes.fifo edges.fifo -- repo_dir_1 repo_dir_2 ...
+    $ parallel git2graph -n nodes.fifo -e edges.fifo -- repo_dir_1 repo_dir_2 ...
     $ rm nodes.fifo edges.fifo
 
 Note that you most likely want to tune `sort` in order to be parallel

@@ -24,7 +24,7 @@ run_git2graph () {
         mkdir -p "$dest_dir"
     fi
 
-    ./git2graph "$repo_dir" >(sort > "$nodes_file") >(sort > "$edges_file")
+    ./git2graph -n >(sort > "$nodes_file") -e >(sort > "$edges_file") "$repo_dir"
 }
 
 # Ensure that two graphs, each specified as a dir that should contain a pair of
