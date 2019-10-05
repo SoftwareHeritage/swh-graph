@@ -7,6 +7,18 @@ nodes as Software Heritage (SWH) Persistent Identifiers (PIDs); the edges file
 a list of graph edges as <from, to> PID pairs.
 
 
+Dependencies
+------------
+
+Build time dependencies:
+
+- [libgit2](https://libgit2.org/)
+
+Test dependencies:
+
+- [bats](https://github.com/bats-core/bats-core)
+
+
 Micro benchmark
 ---------------
 
