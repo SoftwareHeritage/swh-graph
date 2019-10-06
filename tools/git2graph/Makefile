@@ -4,7 +4,7 @@ BATS = bats
 
 LIBS = libgit2 glib-2.0
 
-CFLAGS = -Wall -Werror $(shell pkg-config --cflags $(LIBS)) -g
+CFLAGS = -Wall -Werror $(shell pkg-config --cflags $(LIBS))
 LDFLAGS = $(shell pkg-config --libs $(LIBS))
 BATS_FLAGS =
 

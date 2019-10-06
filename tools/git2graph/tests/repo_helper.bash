@@ -26,7 +26,7 @@ run_git2graph () {
         mkdir -p "$dest_dir"
     fi
 
-    ./git2graph "$@" -n >(sort > "$nodes_file") -e >(sort > "$edges_file") "$repo_dir"
+    ./git2graph "$@" "$repo_dir" | sort > "$edges_file"
 }
 
 # Ensure that two graphs, each specified as a dir that should contain a pair of
@@ -36,6 +36,5 @@ assert_equal_graphs () {
     dir_1="$1"
     dir_2="$2"
 
-    diff "${dir_1}/nodes.csv" "${dir_2}/nodes.csv" &&
     diff "${dir_1}/edges.csv" "${dir_2}/edges.csv"
 }

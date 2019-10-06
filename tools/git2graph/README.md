@@ -7,6 +7,16 @@ nodes as Software Heritage (SWH) Persistent Identifiers (PIDs); the edges file
 a list of graph edges as <from, to> PID pairs.
 
 
+Nodes file
+----------
+
+`git2graph` outputs a textual edges file. If you also need a *nodes* file, with
+one PID per line, you can postprocess the edges files as follows:
+
+    $ git2graph REPO_DIR > edges.csv
+    $ sort -u < edges.csv > nodes.csv
+
+
 Dependencies
 ------------
 
@@ -22,14 +32,15 @@ Test dependencies:
 Micro benchmark
 ---------------
 
-    $ time ./git2graph -n >(pigz -c > nodes.csv.gz) -e >(pigz -c > edges.csv.gz) /srv/src/linux
-    ./git2graph /srv/src/linux >(pigz -c > nodes.csv.gz) >(pigz -c > edges.csv.gz  243,30s user 17,28s system 89% cpu 4:51,53 total
-    
-    $ zcat nodes.csv.gz | wc -l
-    6503402
+    $ time ./git2graph -o >(pigz -c > edges.csv.gz) /srv/src/linux
+    ./git2graph -o >(pigz -c > edges.csv.gz /srv/src/linux  243,30s user 17,28s system 89% cpu 4:51,53 total
     
     $ zcat edges.csv.gz | wc -l
     305095437
+    
+    $ zcat edges.csv.gz | tr ' ' '\n' | sort -u | pigz -c > nodes.csv.gz
+    $ zcat nodes.csv.gz | wc -l
+    6503402
 
 
 Parallel use
@@ -41,11 +52,10 @@ bytes on Linux, and guaranteed to be at least 512 bytes by POSIX), writes are
 atomic. Hence it is possible to mass analyze many repositories in parallel with
 something like:
 
-    $ mkfifo nodes.fifo edges.fifo
-    $ sort -u < nodes.fifo | pigz -c > nodes.csv.gz &
+    $ mkfifo edges.fifo
     $ sort -u < edges.fifo | pigz -c > edges.csv.gz &
-    $ parallel git2graph -n nodes.fifo -e edges.fifo -- repo_dir_1 repo_dir_2 ...
-    $ rm nodes.fifo edges.fifo
+    $ parallel git2graph -o edges.fifo -- repo_dir_1 repo_dir_2 ...
+    $ rm edges.fifo
 
 Note that you most likely want to tune `sort` in order to be parallel
 (`--parallel`), use a large buffer size (`-S`), and use a temporary directory

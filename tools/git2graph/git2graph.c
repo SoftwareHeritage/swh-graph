@@ -5,10 +5,9 @@
  * See top-level LICENSE file for more information
  */
 
-/* Crawl a Git repository and output it as a graph, i.e., as a pair of textual
- * files <nodes, edges>. The nodes file will contain a list of graph nodes as
- * Software Heritage (SWH) Persistent Identifiers (PIDs); the edges file a list
- * of graph edges as <from, to> PID pairs.
+/* Crawl a Git repository and output it as a graph, i.e., as textual file
+ * containing a list of graph edges, one per line. Each edge is a <from, to>
+ * pair of Software Heritage (SWH) Persistent Identifiers (PIDs).
  */
 
 #include <assert.h>
@@ -29,15 +28,12 @@
 #define SWH_REV     "swh:1:rev"
 #define SWH_PIDSZ   (GIT_OID_HEXSZ + 10)  // size of a SWH PID
 
-// line-lengths in nodes and edges file
-#define NODES_LINELEN  (SWH_PIDSZ + 1)
+// length of a textual edge line
 #define EDGES_LINELEN  (SWH_PIDSZ * 2 + 2)
 
-// Output buffer sizes for nodes and edges files. To guarantee atomic and
-// non-interleaved writes (which matter when used concurrently writing to a
-// shared FIFO), these sizes must be <= PIPE_BUF and multiples of
-// {NODES,EDGES}_LINELEN.
-#define NODES_OUTSZ  ((PIPE_BUF / NODES_LINELEN) * NODES_LINELEN)
+// Output buffer size for edges files. To guarantee atomic and non-interleaved
+// writes (which matter when used concurrently writing to a shared FIFO), size
+// must be <= PIPE_BUF and a multiple of EDGES_LINELEN.
 #define EDGES_OUTSZ  ((PIPE_BUF / EDGES_LINELEN) * EDGES_LINELEN)
 
 // GIT_OBJ_* constants extension for non-git objects
@@ -95,26 +91,27 @@ static int _allowed_edges[OBJ_TYPES][OBJ_TYPES] = {
 	{true,  true,  true,  true,  true,  true,  true,  true},  // | loc
 };
 
-/* Allowed node type vector. */
+/* Whether a nore type is allowed as *origin* for edges. Derived information
+ * from the _allowed_edges matrix. */
 static int _allowed_nodes[OBJ_TYPES] = {
-	true,  //
-	true,  // rev
-	true,  // dir
-	true,  // cnt
-	true,  // rel
-	true,  // snp
-	true,  // ori
-	true,  // loc
+       true,  //
+       true,  // rev
+       true,  // dir
+       true,  // cnt
+       true,  // rel
+       true,  // snp
+       true,  // ori
+       true,  // loc
 };
 
 #define is_edge_allowed(src_type, dst_type)  _allowed_edges[(src_type)][(dst_type)]
 #define is_node_allowed(type)  _allowed_nodes[(type)]
 
+
 /* extra payload for callback invoked on Git objects */
 typedef struct {
 	git_odb *odb;  // Git object DB
 	git_repository *repo;  // Git repository
-	FILE *nodes_out;  // stream to write nodes to, or NULL
 	FILE *edges_out;  // stream to write edges to, or NULL
 } cb_payload;
 
@@ -147,22 +144,20 @@ void check_lg2(int error, const char *message, const char *extra) {
 }
 
 
-/* Compute allowed node types base on allowed edge types, which is a sane
- * default. The result should be overridden in case one wants to output
- * specific nodes, but not their outgoing edges. */
+/* Compute allowed node types based on allowed edge types. */
 void init_allowed_nodes_from_edges(
 	int allowed_edges[OBJ_TYPES][OBJ_TYPES],
 	int allowed_nodes[OBJ_TYPES])
 {
 	for (int i = 0; i < OBJ_TYPES; i++) {
 		allowed_nodes[i] = false;  // disallowed by default
-		// allowed if either a edge can originate from it...
+		// allowed if an edge can originate from it...
 		for (int src_type = 0; src_type < OBJ_TYPES; src_type++)
-			allowed_nodes[i] = allowed_nodes[i]		\
+			allowed_nodes[i] = allowed_nodes[i]	\
 				|| allowed_edges[src_type][i];
 		// ...or lead to it
 		for (int dst_type = 0; dst_type < OBJ_TYPES; dst_type++)
-			allowed_nodes[i] = allowed_nodes[i]		\
+			allowed_nodes[i] = allowed_nodes[i]	\
 				|| allowed_edges[i][dst_type];
 	}
 }
@@ -227,7 +222,7 @@ void emit_tree_edges(const git_tree *tree, const char *swhpid, FILE *out) {
 }
 
 
-/* Emit node and edges for current object. */
+/* Emit edges for current object. */
 int emit_obj(const git_oid *id, void *payload) {
 	char oidstr[GIT_OID_HEXSZ + 1];
 	char swhpid[SWH_PIDSZ + 1];
@@ -239,48 +234,43 @@ int emit_obj(const git_oid *id, void *payload) {
 
 	git_odb *odb = ((cb_payload *) payload)->odb;
 	git_repository *repo = ((cb_payload *) payload)->repo;
-	FILE *nodes_out = ((cb_payload *) payload)->nodes_out;
 	FILE *edges_out = ((cb_payload *) payload)->edges_out;
 
 	check_lg2(git_odb_read_header(&len, &obj_type, odb, id),
 		  "cannot read object header", NULL);
-	if (!is_node_allowed(obj_type))  // no outbound edges allowed, skip node
+	if (!is_node_allowed(obj_type))
 		return 0;
 
-	// emit node
+	// format node PID
 	sprintf(swhpid, "swh:1:%s:", git_otype2swh(obj_type));
 	git_oid_tostr(swhpid + 10, sizeof(oidstr), id);
-	if (nodes_out != NULL)
-		fprintf(nodes_out, "%s\n", swhpid);
 
 	// emit edges
-	if (edges_out != NULL) {
-		switch (obj_type) {
-		case GIT_OBJ_BLOB:  // graph leaf: no edges to emit
-			break;
-		case GIT_OBJ_COMMIT:
-			check_lg2(git_commit_lookup(&commit, repo, id),
-				  "cannot find commit", NULL);
-			emit_commit_edges(commit, swhpid, edges_out);
-			git_commit_free(commit);
-			break;
-		case GIT_OBJ_TAG:
-			check_lg2(git_tag_lookup(&tag, repo, id),
-				  "cannot find tag", NULL);
-			emit_tag_edges(tag, swhpid, edges_out);
-			git_tag_free(tag);
-			break;
-		case GIT_OBJ_TREE:
-			check_lg2(git_tree_lookup(&tree, repo, id),
-				  "cannot find tree", NULL);
-			emit_tree_edges(tree, swhpid, edges_out);
-			git_tree_free(tree);
-			break;
-		default:
-			git_oid_tostr(oidstr, sizeof(oidstr), id);
-			fprintf(stderr, "ignoring unknown object: %s\n", oidstr);
-			break;
-		}
+	switch (obj_type) {
+	case GIT_OBJ_BLOB:  // graph leaf: no edges to emit
+		break;
+	case GIT_OBJ_COMMIT:
+		check_lg2(git_commit_lookup(&commit, repo, id),
+			  "cannot find commit", NULL);
+		emit_commit_edges(commit, swhpid, edges_out);
+		git_commit_free(commit);
+		break;
+	case GIT_OBJ_TAG:
+		check_lg2(git_tag_lookup(&tag, repo, id),
+			  "cannot find tag", NULL);
+		emit_tag_edges(tag, swhpid, edges_out);
+		git_tag_free(tag);
+		break;
+	case GIT_OBJ_TREE:
+		check_lg2(git_tree_lookup(&tree, repo, id),
+			  "cannot find tree", NULL);
+		emit_tree_edges(tree, swhpid, edges_out);
+		git_tree_free(tree);
+		break;
+	default:
+		git_oid_tostr(oidstr, sizeof(oidstr), id);
+		fprintf(stderr, "ignoring unknown object: %s\n", oidstr);
+		break;
 	}
 
 	return 0;
@@ -294,15 +284,13 @@ void exit_usage(char *msg) {
 	fprintf(stderr, "Usage: git2graph [OPTION..] GIT_REPO_DIR\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Options:\n");
-	fprintf(stderr, "  -e, --edges-file=PATH          file where to store edges\n");
-	fprintf(stderr, "  -n, --nodes-file=PATH          file where to store nodes\n");
+	fprintf(stderr, "  -o, --output=PATH              output file, default to stdout\n");
 	fprintf(stderr, "  -E, --edges-filter=EDGES_EXPR  only emit selected edges\n");
-	fprintf(stderr, "  -N, --nodes-filter=NODES_EXPR  only emit selected nodes\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "EDGES_EXPR is a comma separate list of src_TYPE:dst_TYPE pairs\n");
-	fprintf(stderr, "NODES_EXPR is a comme separate list of node TYPEs\n");
-	fprintf(stderr, "TYPE is one of: cnt, dir, loc, ori, rel, rev, snp\n");
+	fprintf(stderr, "TYPE is one of: cnt, dir, loc, ori, rel, rev, snp, *\n");
 	fprintf(stderr, "\nNote: you can use \"-\" for stdout in file names.\n");
+
 
 	exit(EXIT_FAILURE);
 }
@@ -310,9 +298,7 @@ void exit_usage(char *msg) {
 
 /* command line arguments */
 typedef struct {
-	char *nodes_path;
-	char *edges_path;
-	char *nodes_filter;
+	char *outfile;
 	char *edges_filter;
 	char *repo_dir;
 } cli_args;
@@ -326,29 +312,23 @@ cli_args *parse_cli(int argc, char **argv) {
 		perror("Cannot allocate memory.");
 		exit(EXIT_FAILURE);
 	} else {
-		args->nodes_path = NULL;
-		args->edges_path = NULL;
-		args->nodes_filter = NULL;
+		args->outfile = NULL;
 		args->edges_filter = NULL;
 		args->repo_dir = NULL;
 	}
 
 	static struct option long_opts[] = {
-		{"edges-file",   required_argument, 0, 'e' },
-		{"nodes-file",   required_argument, 0, 'n' },
 		{"edges-filter", required_argument, 0, 'E' },
-		{"nodes-filter", required_argument, 0, 'N' },
+		{"output",       required_argument, 0, 'o' },
 		{"help",         no_argument,       0, 'h' },
 		{0,              0,                 0,  0  }
 	};
 
-	while ((opt = getopt_long(argc, argv, "e:n:E:N:h", long_opts,
+	while ((opt = getopt_long(argc, argv, "E:o:h", long_opts,
 				  NULL)) != -1) {
 		switch (opt) {
-		case 'e': args->edges_path = optarg;   break;
-		case 'n': args->nodes_path = optarg;   break;
 		case 'E': args->edges_filter = optarg; break;
-		case 'N': args->nodes_filter = optarg; break;
+		case 'o': args->outfile = optarg; break;
 		case 'h':
 		default:
 			exit_usage(NULL);
@@ -357,6 +337,9 @@ cli_args *parse_cli(int argc, char **argv) {
 	if (argv[optind] == NULL)
 		exit_usage(NULL);
 	args->repo_dir = argv[optind];
+
+	if (args->outfile == NULL)
+		args->outfile = "-";
 
 	return args;
 }
@@ -424,7 +407,7 @@ void _dump_filters(FILE *out, int matrix[OBJ_TYPES][OBJ_TYPES], int vector[OBJ_T
 
 
 /* set up nodes and edges restrictions, interpreting command line filters */
-void init_graph_filters(char *nodes_filter, char *edges_filter) {
+void init_graph_filters(char *edges_filter) {
 	char **filters;
 	char **types;
 	char **ptr;
@@ -454,22 +437,7 @@ void init_graph_filters(char *nodes_filter, char *edges_filter) {
 		g_strfreev(filters);
 	}
 
-	if (nodes_filter != NULL) {
-		fill_vector(_allowed_nodes, false);  // nothing allowed by default
-		filters = g_strsplit(nodes_filter, ELT_SEP, -1);  // "typ" fragments
-		for (ptr = filters; *ptr; ptr++) {
-			src_type = parse_otype(*ptr);
-			if (src_type == GIT_OBJ_ANY) {  // "*" wildcard
-				fill_vector(_allowed_nodes, true);
-				break;  // all nodes allowed already
-			} else
-				_allowed_nodes[src_type] = true;
-		}
-		g_strfreev(filters);
-	} else {  // no explicit node filtering request, derive allowed nodes
-		  // from allowed edges
-		init_allowed_nodes_from_edges(_allowed_edges, _allowed_nodes);
-	}
+	init_allowed_nodes_from_edges(_allowed_edges, _allowed_nodes);
 }
 
 
@@ -479,12 +447,11 @@ int main(int argc, char **argv) {
 	int rc;
 	cli_args *args;
 	cb_payload *payload;
-	FILE *nodes_out, *edges_out;
-	char nodes_buf[NODES_OUTSZ];
+	FILE *edges_out;
 	char edges_buf[EDGES_OUTSZ];
 	
 	args = parse_cli(argc, argv);
-	init_graph_filters(args->nodes_filter, args->edges_filter);
+	init_graph_filters(args->edges_filter);
 	// _dump_filters(stdout, _allowed_edges, _allowed_nodes);
 
 	git_libgit2_init();
@@ -493,15 +460,12 @@ int main(int argc, char **argv) {
 	check_lg2(git_repository_odb(&odb, repo),
 		  "cannot get object DB", NULL);
 
-	nodes_out = open_out_stream(args->nodes_path, nodes_buf, NODES_OUTSZ);
-	edges_out = open_out_stream(args->edges_path, edges_buf, EDGES_OUTSZ);
-	assert(NODES_OUTSZ <= PIPE_BUF && (NODES_OUTSZ % NODES_LINELEN == 0));
+	edges_out = open_out_stream(args->outfile, edges_buf, EDGES_OUTSZ);
 	assert(EDGES_OUTSZ <= PIPE_BUF && (EDGES_OUTSZ % EDGES_LINELEN == 0));
 
 	payload = malloc(sizeof(cb_payload));
 	payload->odb = odb;
 	payload->repo = repo;
-	payload->nodes_out = nodes_out;
 	payload->edges_out = edges_out;
 
 	rc = git_odb_foreach(odb, emit_obj, payload);
