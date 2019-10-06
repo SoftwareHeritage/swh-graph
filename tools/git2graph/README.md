@@ -7,16 +7,6 @@ nodes as Software Heritage (SWH) Persistent Identifiers (PIDs); the edges file
 a list of graph edges as <from, to> PID pairs.
 
 
-Nodes file
-----------
-
-`git2graph` outputs a textual edges file. If you also need a *nodes* file, with
-one PID per line, you can postprocess the edges files as follows:
-
-    $ git2graph REPO_DIR > edges.csv
-    $ sort -u < edges.csv > nodes.csv
-
-
 Dependencies
 ------------
 
@@ -29,11 +19,21 @@ Test dependencies:
 - [bats](https://github.com/bats-core/bats-core)
 
 
+Nodes file
+----------
+
+`git2graph` outputs a textual edges file. If you also need a *nodes* file, with
+one PID per line, you can postprocess the edges files as follows:
+
+    $ git2graph REPO_DIR > edges.csv
+    $ sort -u < edges.csv > nodes.csv
+
+
 Micro benchmark
 ---------------
 
     $ time ./git2graph -o >(pigz -c > edges.csv.gz) /srv/src/linux
-    ./git2graph -o >(pigz -c > edges.csv.gz /srv/src/linux  243,30s user 17,28s system 89% cpu 4:51,53 total
+    ./git2graph -o >(pigz -c > edges.csv.gz) /srv/src/linux  232,06s user 16,24s system 90% cpu 4:35,52 total
     
     $ zcat edges.csv.gz | wc -l
     305095437
