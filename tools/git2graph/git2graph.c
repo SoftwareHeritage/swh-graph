@@ -112,13 +112,13 @@ static int _allowed_nodes[OBJ_TYPES] = {
 #define is_node_allowed(type)  _allowed_nodes[(type)]
 
 
-/* extra payload for callback invoked on Git objects */
+/* runtime configuration, for node/edges emitter functions */
 typedef struct {
 	git_odb *odb;  // Git object DB
 	git_repository *repo;  // Git repository
 	FILE *nodes_out;  // stream to write nodes to, or NULL
 	FILE *edges_out;  // stream to write edges to, or NULL
-} cb_payload;
+} config_t;
 
 
 /* Invoke a libgit2 method and exits with an error message in case of
@@ -209,7 +209,7 @@ void emit_tree_edges(const git_tree *tree, const char *swhpid, FILE *out) {
 
 
 /* Emit node and edges for current object. */
-int emit_obj(const git_oid *id, void *payload) {
+int emit_obj(const git_oid *id, void *conf) {
 	char oidstr[GIT_OID_HEXSZ + 1];
 	char swhpid[SWH_PIDSZ + 1];
 	size_t len;
@@ -218,10 +218,10 @@ int emit_obj(const git_oid *id, void *payload) {
 	git_tag *tag;
 	git_tree *tree;
 
-	git_odb *odb = ((cb_payload *) payload)->odb;
-	git_repository *repo = ((cb_payload *) payload)->repo;
-	FILE *nodes_out = ((cb_payload *) payload)->nodes_out;
-	FILE *edges_out = ((cb_payload *) payload)->edges_out;
+	git_odb *odb = ((config_t *) conf)->odb;
+	git_repository *repo = ((config_t *) conf)->repo;
+	FILE *nodes_out = ((config_t *) conf)->nodes_out;
+	FILE *edges_out = ((config_t *) conf)->edges_out;
 
 	check_lg2(git_odb_read_header(&len, &obj_type, odb, id),
 		  "cannot read object header", NULL);
@@ -267,10 +267,10 @@ int emit_obj(const git_oid *id, void *payload) {
 
 
 /* emit origin node and its outbound edges (to snapshots) */
-void emit_origin(char *origin_url, cb_payload *payload) {
+void emit_origin(char *origin_url, config_t *conf) {
 	gchar *hex_sha1;
-	FILE *nodes_out = payload->nodes_out;
-	// FILE *edges_out = payload->edges_out;
+	FILE *nodes_out = conf->nodes_out;
+	// FILE *edges_out = conf->edges_out;
 
 	if (nodes_out != NULL && is_node_allowed(SWH_OBJ_ORI)) {
 		hex_sha1 = g_compute_checksum_for_string(
@@ -314,13 +314,13 @@ typedef struct {
 	char *edges_filter;  // edges filter expression
 	char *origin_url;    // origin URL
 	char *repo_dir;      // repository directory
-} cli_args;
+} cli_args_t;
 
 
-cli_args *parse_cli(int argc, char **argv) {
+cli_args_t *parse_cli(int argc, char **argv) {
 	int opt;
 
-	cli_args *args = malloc(sizeof(cli_args));
+	cli_args_t *args = malloc(sizeof(cli_args_t));
 	if (args == NULL) {
 		perror("Cannot allocate memory.");
 		exit(EXIT_FAILURE);
@@ -485,8 +485,8 @@ int main(int argc, char **argv) {
 	git_repository *repo;
 	git_odb *odb;
 	int rc;
-	cli_args *args;
-	cb_payload *payload;
+	cli_args_t *args;
+	config_t *conf;
 	FILE *nodes_out, *edges_out;
 	char nodes_buf[EDGES_OUTSZ], edges_buf[EDGES_OUTSZ];
 	
@@ -505,20 +505,20 @@ int main(int argc, char **argv) {
 	assert(NODES_OUTSZ <= PIPE_BUF && (NODES_OUTSZ % NODES_LINELEN == 0));
 	assert(EDGES_OUTSZ <= PIPE_BUF && (EDGES_OUTSZ % EDGES_LINELEN == 0));
 
-	payload = malloc(sizeof(cb_payload));
-	payload->odb = odb;
-	payload->repo = repo;
-	payload->nodes_out = nodes_out;
-	payload->edges_out = edges_out;
+	conf = malloc(sizeof(config_t));
+	conf->odb = odb;
+	conf->repo = repo;
+	conf->nodes_out = nodes_out;
+	conf->edges_out = edges_out;
 
 	if (args->origin_url != NULL)
-		emit_origin(args->origin_url, payload);
+		emit_origin(args->origin_url, conf);
 
-	rc = git_odb_foreach(odb, emit_obj, payload);
+	rc = git_odb_foreach(odb, emit_obj, conf);
 	check_lg2(rc, "failure during object iteration", NULL);
 
 	git_odb_free(odb);
 	git_repository_free(repo);
-	free(payload);
+	free(conf);
 	exit(rc);
 }
