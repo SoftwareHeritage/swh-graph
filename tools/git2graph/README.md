@@ -19,28 +19,16 @@ Test dependencies:
 - [bats](https://github.com/bats-core/bats-core)
 
 
-Nodes file
-----------
-
-`git2graph` outputs a textual edges file. If you also need a *nodes* file, with
-one PID per line, you can postprocess the edges files as follows:
-
-    $ git2graph REPO_DIR > edges.csv
-    $ sort -u < edges.csv > nodes.csv
-
-
 Micro benchmark
 ---------------
 
-    $ time ./git2graph -o >(pigz -c > edges.csv.gz) /srv/src/linux
-    ./git2graph -o >(pigz -c > edges.csv.gz) /srv/src/linux  232,06s user 16,24s system 90% cpu 4:35,52 total
+    $ time ./git2graph -n >(pigz -c > nodes.csv.gz) -e >(pigz -c > edges.csv.gz) /srv/src/linux
+    232,06s user 16,24s system 90% cpu 4:40,35 total
     
-    $ zcat edges.csv.gz | wc -l
-    305095437
-    
-    $ zcat edges.csv.gz | tr ' ' '\n' | sort -u | pigz -c > nodes.csv.gz
     $ zcat nodes.csv.gz | wc -l
     6503402
+    $ zcat edges.csv.gz | wc -l
+    305095437
 
 
 Parallel use
@@ -52,10 +40,11 @@ bytes on Linux, and guaranteed to be at least 512 bytes by POSIX), writes are
 atomic. Hence it is possible to mass analyze many repositories in parallel with
 something like:
 
-    $ mkfifo edges.fifo
+    $ mkfifo nodes.fifo edges.fifo
+    $ sort -u < nodes.fifo | pigz -c > nodes.csv.gz &
     $ sort -u < edges.fifo | pigz -c > edges.csv.gz &
-    $ parallel git2graph -o edges.fifo -- repo_dir_1 repo_dir_2 ...
-    $ rm edges.fifo
+    $ parallel git2graph -n nodes.fifo -e edges.fifo -- repo_dir_1 repo_dir_2 ...
+    $ rm nodes.fifo edges.fifo
 
 Note that you most likely want to tune `sort` in order to be parallel
 (`--parallel`), use a large buffer size (`-S`), and use a temporary directory
