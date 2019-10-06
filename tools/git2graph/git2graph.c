@@ -21,6 +21,7 @@
 #include <unistd.h>
 
 #include <git2.h>
+#include <glib.h>
 
 
 #define SWH_PREFIX  "swh:1"
@@ -46,10 +47,13 @@
 
 #define OBJ_TYPES  8
 
+#define ELT_SEP   ","  // element separator in lists
+#define PAIR_SEP  ":"  // key/value separator in paris
+
 /* map from libgit2's git_otype (+ SWH-specific types above) to SWH PID type
  * qualifiers */
 static char *_git_otype2swh[OBJ_TYPES] = {
-	"ERR", // 0 == GIT_OBJ__EXT1 (unused)
+	"*",   // 0 == GIT_OBJ__EXT1 (unused in libgit2, used as wildcard here)
 	"rev", // 1 == GIT_OBJ_COMMIT
 	"dir", // 2 == GIT_OBJ_TREE
 	"cnt", // 3 == GIT_OBJ_BLOB
@@ -59,9 +63,22 @@ static char *_git_otype2swh[OBJ_TYPES] = {
 	"loc", // 7 == SWH_OBJ_LOC
 };
 
+#define GIT_OBJ_ANY  GIT_OBJ__EXT1
+
 /* Convert a git object type (+ SWH-specific types above) to the corresponding
  * SWH PID type. */
 #define git_otype2swh(type)  _git_otype2swh[(type)]
+
+/* Parse object type (libgit's + SWH-specific types) from 3-letter type
+ * qualifiers. Return either object type, or 0 in case of "*" wildcard, or -1
+ * in case of parse error. */
+int parse_otype(char *str) {
+	for (int i = 0; i < OBJ_TYPES; i++) {
+		if (strcmp(str, _git_otype2swh[i]) == 0)
+			return i;
+	}
+	return -1;
+}
 
 /* Allowed edge types matrix. Each cell denotes whether edges from a given
  * SRC_TYPE to a given DST_TYPE should be produced or not. */
@@ -137,12 +154,16 @@ void init_allowed_nodes_from_edges(
 	int allowed_edges[OBJ_TYPES][OBJ_TYPES],
 	int allowed_nodes[OBJ_TYPES])
 {
-	for (int src_type = 0; src_type < OBJ_TYPES; src_type++) {
-		allowed_nodes[src_type] = false;
-		for (int dst_type = 0; dst_type < OBJ_TYPES; dst_type++) {
-			allowed_nodes[src_type] = allowed_nodes[src_type] \
-				|| allowed_edges[src_type][dst_type];
-		}
+	for (int i = 0; i < OBJ_TYPES; i++) {
+		allowed_nodes[i] = false;  // disallowed by default
+		// allowed if either a edge can originate from it...
+		for (int src_type = 0; src_type < OBJ_TYPES; src_type++)
+			allowed_nodes[i] = allowed_nodes[i]		\
+				|| allowed_edges[src_type][i];
+		// ...or lead to it
+		for (int dst_type = 0; dst_type < OBJ_TYPES; dst_type++)
+			allowed_nodes[i] = allowed_nodes[i]		\
+				|| allowed_edges[i][dst_type];
 	}
 }
 
@@ -275,6 +296,12 @@ void exit_usage(char *msg) {
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "  -e, --edges-file=PATH          file where to store edges\n");
 	fprintf(stderr, "  -n, --nodes-file=PATH          file where to store nodes\n");
+	fprintf(stderr, "  -E, --edges-filter=EDGES_EXPR  only emit selected edges\n");
+	fprintf(stderr, "  -N, --nodes-filter=NODES_EXPR  only emit selected nodes\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "EDGES_EXPR is a comma separate list of src_TYPE:dst_TYPE pairs\n");
+	fprintf(stderr, "NODES_EXPR is a comme separate list of node TYPEs\n");
+	fprintf(stderr, "TYPE is one of: cnt, dir, loc, ori, rel, rev, snp\n");
 	fprintf(stderr, "\nNote: you can use \"-\" for stdout in file names.\n");
 
 	exit(EXIT_FAILURE);
@@ -285,6 +312,8 @@ void exit_usage(char *msg) {
 typedef struct {
 	char *nodes_path;
 	char *edges_path;
+	char *nodes_filter;
+	char *edges_filter;
 	char *repo_dir;
 } cli_args;
 
@@ -299,21 +328,27 @@ cli_args *parse_cli(int argc, char **argv) {
 	} else {
 		args->nodes_path = NULL;
 		args->edges_path = NULL;
+		args->nodes_filter = NULL;
+		args->edges_filter = NULL;
 		args->repo_dir = NULL;
 	}
 
 	static struct option long_opts[] = {
 		{"edges-file",   required_argument, 0, 'e' },
 		{"nodes-file",   required_argument, 0, 'n' },
+		{"edges-filter", required_argument, 0, 'E' },
+		{"nodes-filter", required_argument, 0, 'N' },
 		{"help",         no_argument,       0, 'h' },
 		{0,              0,                 0,  0  }
 	};
 
-	while ((opt = getopt_long(argc, argv, "e:n:h", long_opts,
+	while ((opt = getopt_long(argc, argv, "e:n:E:N:h", long_opts,
 				  NULL)) != -1) {
 		switch (opt) {
 		case 'e': args->edges_path = optarg;   break;
 		case 'n': args->nodes_path = optarg;   break;
+		case 'E': args->edges_filter = optarg; break;
+		case 'N': args->nodes_filter = optarg; break;
 		case 'h':
 		default:
 			exit_usage(NULL);
@@ -348,6 +383,96 @@ FILE *open_out_stream(char *cli_path, char *buf, int bufsiz) {
 }
 
 
+void fill_matrix(int matrix[OBJ_TYPES][OBJ_TYPES], int val) {
+	for (int i = 0; i < OBJ_TYPES; i++)
+		for (int j = 0; j < OBJ_TYPES; j++)
+			matrix[i][j] = val;
+}
+
+
+void fill_row(int matrix[OBJ_TYPES][OBJ_TYPES], int row, int val) {
+	for (int j = 0; j < OBJ_TYPES; j++)
+		matrix[row][j] = val;
+}
+
+
+void fill_column(int matrix[OBJ_TYPES][OBJ_TYPES], int col, int val) {
+	for (int i = 0; i < OBJ_TYPES; i++)
+		matrix[i][col] = val;
+}
+
+
+void fill_vector(int vector[OBJ_TYPES], int val) {
+	for (int i = 0; i < OBJ_TYPES; i++)
+		vector[i] = val;
+}
+
+
+/* Dump node/edge filters to a given stream. For debugging purposes. */
+void _dump_filters(FILE *out, int matrix[OBJ_TYPES][OBJ_TYPES], int vector[OBJ_TYPES]) {
+	fprintf(out, "TO rev dir cnt rel snp ori loc FROM\n");
+	for(int i = 0; i < OBJ_TYPES; i++) {
+		for(int j = 0; j < OBJ_TYPES; j++)
+			fprintf(out, "%d   ", matrix[i][j]);
+		fprintf(out, "%s\n", _git_otype2swh[i]);
+	}
+
+	fprintf(out, "   rev dir cnt rel snp ori loc\n");
+	for (int i = 0; i < OBJ_TYPES; i++)
+		fprintf(out, "%d   ", vector[i]);
+}
+
+
+/* set up nodes and edges restrictions, interpreting command line filters */
+void init_graph_filters(char *nodes_filter, char *edges_filter) {
+	char **filters;
+	char **types;
+	char **ptr;
+	int src_type, dst_type;
+
+	if (edges_filter != NULL) {
+		fill_matrix(_allowed_edges, false);  // nothing allowed by default
+		filters = g_strsplit(edges_filter, ELT_SEP, -1);  // "typ:typ" pairs
+		for (ptr = filters; *ptr; ptr++) {
+			types = g_strsplit(*ptr, PAIR_SEP, 2);  // 2 "typ" fragments
+
+			src_type = parse_otype(types[0]);
+			dst_type = parse_otype(types[1]);
+			if (src_type == GIT_OBJ_ANY && dst_type == GIT_OBJ_ANY) {
+				// "*:*" wildcard
+				fill_matrix(_allowed_edges, true);
+				break;  // all edges allowed already
+			} else if (src_type == GIT_OBJ_ANY) {  // "*:typ" wildcard
+				fill_column(_allowed_edges, dst_type, true);
+			} else if (dst_type == GIT_OBJ_ANY) {  // "typ:*" wildcard
+				fill_row(_allowed_edges, src_type, true);
+			} else  // "src_type:dst_type"
+				_allowed_edges[src_type][dst_type] = true;
+
+			g_strfreev(types);
+		}
+		g_strfreev(filters);
+	}
+
+	if (nodes_filter != NULL) {
+		fill_vector(_allowed_nodes, false);  // nothing allowed by default
+		filters = g_strsplit(nodes_filter, ELT_SEP, -1);  // "typ" fragments
+		for (ptr = filters; *ptr; ptr++) {
+			src_type = parse_otype(*ptr);
+			if (src_type == GIT_OBJ_ANY) {  // "*" wildcard
+				fill_vector(_allowed_nodes, true);
+				break;  // all nodes allowed already
+			} else
+				_allowed_nodes[src_type] = true;
+		}
+		g_strfreev(filters);
+	} else {  // no explicit node filtering request, derive allowed nodes
+		  // from allowed edges
+		init_allowed_nodes_from_edges(_allowed_edges, _allowed_nodes);
+	}
+}
+
+
 int main(int argc, char **argv) {
 	git_repository *repo;
 	git_odb *odb;
@@ -359,7 +484,8 @@ int main(int argc, char **argv) {
 	char edges_buf[EDGES_OUTSZ];
 	
 	args = parse_cli(argc, argv);
-	init_allowed_nodes_from_edges(_allowed_edges, _allowed_nodes);
+	init_graph_filters(args->nodes_filter, args->edges_filter);
+	// _dump_filters(stdout, _allowed_edges, _allowed_nodes);
 
 	git_libgit2_init();
 	check_lg2(git_repository_open(&repo, args->repo_dir),

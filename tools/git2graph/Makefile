@@ -2,9 +2,9 @@ CC = gcc
 LD = gcc
 BATS = bats
 
-LIBS = libgit2
+LIBS = libgit2 glib-2.0
 
-CFLAGS = -Wall -Werror $(shell pkg-config --cflags $(LIBS))
+CFLAGS = -Wall -Werror $(shell pkg-config --cflags $(LIBS)) -g
 LDFLAGS = $(shell pkg-config --libs $(LIBS))
 BATS_FLAGS =
 

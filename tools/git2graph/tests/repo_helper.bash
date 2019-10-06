@@ -17,6 +17,8 @@ teardown () {
 run_git2graph () {
     repo_dir="$1"
     dest_dir="$2"
+    shift 2
+
     nodes_file="${dest_dir}/nodes.csv"
     edges_file="${dest_dir}/edges.csv"
 
@@ -24,7 +26,7 @@ run_git2graph () {
         mkdir -p "$dest_dir"
     fi
 
-    ./git2graph -n >(sort > "$nodes_file") -e >(sort > "$edges_file") "$repo_dir"
+    ./git2graph "$@" -n >(sort > "$nodes_file") -e >(sort > "$edges_file") "$repo_dir"
 }
 
 # Ensure that two graphs, each specified as a dir that should contain a pair of
