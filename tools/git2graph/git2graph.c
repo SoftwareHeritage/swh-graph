@@ -24,9 +24,10 @@
 #include <glib.h>
 
 
-#define SWH_PREFIX  "swh:1"
-#define SWH_DIR     "swh:1:dir"
-#define SWH_REV     "swh:1:rev"
+#define SWH_PREFIX   "swh:1"
+#define SWH_DIR_PRE  "swh:1:dir"
+#define SWH_ORI_PRE  "swh:1:ori"
+#define SWH_REV_PRE  "swh:1:rev"
 #define SWH_PIDSZ   (GIT_OID_HEXSZ + 10)  // size of a SWH PID
 
 // line-lengths in nodes and edges file
@@ -157,7 +158,7 @@ void emit_commit_edges(const git_commit *commit, const char *swhpid, FILE *out) 
 	if (is_edge_allowed(GIT_OBJ_COMMIT, GIT_OBJ_TREE)) {
 		git_oid_tostr(oidstr, sizeof(oidstr),
 			      git_commit_tree_id(commit));
-		fprintf(out, "%s %s:%s\n", swhpid, SWH_DIR, oidstr);
+		fprintf(out, "%s %s:%s\n", swhpid, SWH_DIR_PRE, oidstr);
 	}
 
 	// rev -> rev
@@ -166,7 +167,7 @@ void emit_commit_edges(const git_commit *commit, const char *swhpid, FILE *out) 
 		for (i = 0; i < max_i; ++i) {
 			git_oid_tostr(oidstr, sizeof(oidstr),
 				      git_commit_parent_id(commit, i));
-			fprintf(out, "%s %s:%s\n", swhpid, SWH_REV, oidstr);
+			fprintf(out, "%s %s:%s\n", swhpid, SWH_REV_PRE, oidstr);
 		}
 	}
 }
@@ -265,6 +266,23 @@ int emit_obj(const git_oid *id, void *payload) {
 }
 
 
+/* emit origin node and its outbound edges (to snapshots) */
+void emit_origin(char *origin_url, cb_payload *payload) {
+	gchar *hex_sha1;
+	FILE *nodes_out = payload->nodes_out;
+	// FILE *edges_out = payload->edges_out;
+
+	if (nodes_out != NULL && is_node_allowed(SWH_OBJ_ORI)) {
+		hex_sha1 = g_compute_checksum_for_string(
+			G_CHECKSUM_SHA1, origin_url, strlen(origin_url));
+		fprintf(nodes_out, "%s:%s\n", SWH_ORI_PRE, hex_sha1);
+		g_free(hex_sha1);
+	}
+
+	// TODO emit ori->snp edges
+}
+
+
 void exit_usage(char *msg) {
 	if (msg != NULL)
 		fprintf(stderr, "Error: %s\n\n", msg);
@@ -276,6 +294,7 @@ void exit_usage(char *msg) {
 	fprintf(stderr, "  -n, --nodes-output=PATH        nodes output file (default: stdout)\n");
 	fprintf(stderr, "  -E, --edges-filter=EDGES_EXPR  only emit selected edges\n");
 	fprintf(stderr, "  -N, --nodes-filter=NODES_EXPR  only emit selected nodes\n");
+	fprintf(stderr, "  -o, --origin=URL               repository origin URL\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "EDGES_EXPR is a comma separate list of src_TYPE:dst_TYPE pairs\n");
 	fprintf(stderr, "NODES_EXPR is a comme separate list of node TYPEs\n");
@@ -289,11 +308,12 @@ void exit_usage(char *msg) {
 
 /* command line arguments */
 typedef struct {
-	char *nodes_out;
-	char *edges_out;
-	char *nodes_filter;
-	char *edges_filter;
-	char *repo_dir;
+	char *nodes_out;     // path of nodes outputs file
+	char *edges_out;     // path of edges outputs file
+	char *nodes_filter;  // nodes filter expression
+	char *edges_filter;  // edges filter expression
+	char *origin_url;    // origin URL
+	char *repo_dir;      // repository directory
 } cli_args;
 
 
@@ -309,6 +329,7 @@ cli_args *parse_cli(int argc, char **argv) {
 		args->edges_out = NULL;
 		args->nodes_filter = NULL;
 		args->edges_filter = NULL;
+		args->origin_url = NULL;
 		args->repo_dir = NULL;
 	}
 
@@ -317,17 +338,19 @@ cli_args *parse_cli(int argc, char **argv) {
 		{"nodes-output", required_argument, 0, 'n' },
 		{"edges-filter", required_argument, 0, 'E' },
 		{"nodes-filter", required_argument, 0, 'N' },
+		{"origin",       required_argument, 0, 'o' },
 		{"help",         no_argument,       0, 'h' },
 		{0,              0,                 0,  0  }
 	};
 
-	while ((opt = getopt_long(argc, argv, "e:n:E:N:h", long_opts,
+	while ((opt = getopt_long(argc, argv, "e:n:E:N:o:h", long_opts,
 				  NULL)) != -1) {
 		switch (opt) {
 		case 'e': args->edges_out = optarg; break;
 		case 'n': args->nodes_out = optarg; break;
 		case 'E': args->edges_filter = optarg; break;
 		case 'N': args->nodes_filter = optarg; break;
+		case 'o': args->origin_url = optarg; break;
 		case 'h':
 		default:
 			exit_usage(NULL);
@@ -487,6 +510,9 @@ int main(int argc, char **argv) {
 	payload->repo = repo;
 	payload->nodes_out = nodes_out;
 	payload->edges_out = edges_out;
+
+	if (args->origin_url != NULL)
+		emit_origin(args->origin_url, payload);
 
 	rc = git_odb_foreach(odb, emit_obj, payload);
 	check_lg2(rc, "failure during object iteration", NULL);
