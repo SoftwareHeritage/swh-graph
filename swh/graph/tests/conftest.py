@@ -21,7 +21,6 @@ class GraphServerProcess(multiprocessing.Process):
         backend = Backend(graph_path=str(TEST_GRAPH_PATH))
         with backend:
             with loop_context() as loop:
-                self.loop = loop
                 app = make_app(backend=backend)
                 client = TestClient(TestServer(app), loop=loop)
                 loop.run_until_complete(client.start_server())
