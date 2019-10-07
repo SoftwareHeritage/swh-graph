@@ -103,10 +103,27 @@ async def visit_paths(request):
         return response
 
 
+def get_count_handler(ttype):
+    async def count(request):
+        backend = request.app['backend']
+
+        src = request.match_info['src']
+        edges = request.query.get('edges', '*')
+        direction = request.query.get('direction', 'forward')
+
+        src_node = backend.pid2node[src]
+        cnt = backend.count(ttype, direction, edges, src_node)
+        return aiohttp.web.Response(body=str(cnt),
+                                    content_type='application/json')
+
+    return count
+
+
 def make_app(backend, **kwargs):
     app = RPCServerApp(**kwargs)
     app.router.add_route('GET', '/', index)
     app.router.add_route('GET', '/graph/stats', stats)
+
     app.router.add_route('GET', '/graph/leaves/{src}',
                          get_simple_traversal_handler('leaves'))
     app.router.add_route('GET', '/graph/neighbors/{src}',
@@ -115,6 +132,13 @@ def make_app(backend, **kwargs):
                          get_simple_traversal_handler('visit_nodes'))
     app.router.add_route('GET', '/graph/visit/paths/{src}', visit_paths)
     app.router.add_route('GET', '/graph/walk/{src}/{dst}', walk)
+
+    app.router.add_route('GET', '/graph/neighbors/count/{src}',
+                         get_count_handler('neighbors'))
+    app.router.add_route('GET', '/graph/leaves/count/{src}',
+                         get_count_handler('leaves'))
+    app.router.add_route('GET', '/graph/visit/nodes/count/{src}',
+                         get_count_handler('visit_nodes'))
 
     app['backend'] = backend
     return app

@@ -1,25 +1,21 @@
 package org.softwareheritage.graph;
 
 import java.util.ArrayList;
-import java.util.Map;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
-import py4j.GatewayServer;
+import org.softwareheritage.graph.algo.NodeIdConsumer;
 
-import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.algo.Stats;
-import org.softwareheritage.graph.algo.NodeIdsConsumer;
 import org.softwareheritage.graph.algo.Traversal;
 
 public class Entry {
-    Graph graph;
+    private Graph graph;
 
-    final long PATH_SEPARATOR_ID = -1;
+    private final long PATH_SEPARATOR_ID = -1;
 
     public void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
@@ -36,11 +32,35 @@ public class Entry {
             Stats stats = new Stats(graph.getPath());
             ObjectMapper objectMapper = new ObjectMapper();
             objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
-            String res = objectMapper.writeValueAsString(stats);
-            return res;
+            return objectMapper.writeValueAsString(stats);
         } catch (IOException e) {
             throw new RuntimeException("Cannot read stats: " + e);
         }
+    }
+
+    private interface NodeCountVisitor {
+        void accept(long nodeId, NodeIdConsumer consumer);
+    }
+
+    private int count_visitor(NodeCountVisitor f, long srcNodeId) {
+        int count[] = { 0 };
+        f.accept(srcNodeId, (node) -> { count[0]++; });
+        return count[0];
+    }
+
+    public int count_leaves(String direction, String edgesFmt, long srcNodeId) {
+        Traversal t = new Traversal(this.graph, direction, edgesFmt);
+        return count_visitor(t::leavesVisitor, srcNodeId);
+    }
+
+    public int count_neighbors(String direction, String edgesFmt, long srcNodeId) {
+        Traversal t = new Traversal(this.graph, direction, edgesFmt);
+        return count_visitor(t::neighborsVisitor, srcNodeId);
+    }
+
+    public int count_visit_nodes(String direction, String edgesFmt, long srcNodeId) {
+        Traversal t = new Traversal(this.graph, direction, edgesFmt);
+        return count_visitor(t::visitNodesVisitor, srcNodeId);
     }
 
     public QueryHandler get_handler(String clientFIFO) {

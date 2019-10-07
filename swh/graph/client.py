@@ -80,3 +80,27 @@ class RemoteGraphClient(RPCClient):
                 'traversal': traversal,
                 'direction': direction
             })
+
+    def count_leaves(self, src, edges="*", direction="forward"):
+        return self.get(
+            'leaves/count/{}'.format(src),
+            params={
+                'edges': edges,
+                'direction': direction
+            })
+
+    def count_neighbors(self, src, edges="*", direction="forward"):
+        return self.get(
+            'neighbors/count/{}'.format(src),
+            params={
+                'edges': edges,
+                'direction': direction
+            })
+
+    def count_visit_nodes(self, src, edges="*", direction="forward"):
+        return self.get(
+            'visit/nodes/count/{}'.format(src),
+            params={
+                'edges': edges,
+                'direction': direction
+            })

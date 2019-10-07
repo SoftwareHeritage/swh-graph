@@ -5,17 +5,19 @@
 
 import asyncio
 import contextlib
+import functools
 from swh.graph.backend import Backend
 from swh.graph.dot import dot_to_svg, graph_dot, KIND_TO_SHAPE
 
 
-KIND_TO_URL = {
-    'ori': 'https://archive.softwareheritage.org/browse/origin/{}',
-    'snp': 'https://archive.softwareheritage.org/browse/snapshot/{}',
-    'rel': 'https://archive.softwareheritage.org/browse/release/{}',
-    'rev': 'https://archive.softwareheritage.org/browse/revision/{}',
-    'dir': 'https://archive.softwareheritage.org/browse/directory/{}',
-    'cnt': 'https://archive.softwareheritage.org/browse/content/sha1_git:{}/',
+BASE_URL = 'https://archive.softwareheritage.org/browse'
+KIND_TO_URL_FRAGMENT = {
+    'ori': '/origin/{}',
+    'snp': '/snapshot/{}',
+    'rel': '/release/{}',
+    'rev': '/revision/{}',
+    'dir': '/directory/{}',
+    'cnt': '/content/sha1_git:{}/',
 }
 
 
@@ -96,6 +98,13 @@ class GraphNode:
         ):
             yield self.graph[node]
 
+    def _count(self, ttype, direction='forward', edges='*'):
+        return self.graph.backend.count(ttype, direction, edges, self.id)
+
+    count_leaves = functools.partialmethod(_count, ttype='leaves')
+    count_neighbors = functools.partialmethod(_count, ttype='neighbors')
+    count_visit_nodes = functools.partialmethod(_count, ttype='visit_nodes')
+
     @property
     def pid(self):
         return self.graph.node2pid[self.id]
@@ -113,7 +122,7 @@ class GraphNode:
     def dot_fragment(self):
         swh, version, kind, hash = self.pid.split(':')
         label = '{}:{}..{}'.format(kind, hash[0:2], hash[-2:])
-        url = KIND_TO_URL[kind].format(hash)
+        url = BASE_URL + KIND_TO_URL_FRAGMENT[kind].format(hash)
         shape = KIND_TO_SHAPE[kind]
         return ('{} [label="{}", href="{}", target="_blank", shape="{}"];'
                 .format(self.id, label, url, shape))

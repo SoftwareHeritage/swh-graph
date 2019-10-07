@@ -75,6 +75,10 @@ class Backend:
     def stats(self):
         return self.entry.stats()
 
+    def count(self, ttype, direction, edges_fmt, src):
+        method = getattr(self.entry, 'count_' + ttype)
+        return method(direction, edges_fmt, src)
+
     async def simple_traversal(self, ttype, direction, edges_fmt, src):
         assert ttype in ('leaves', 'neighbors', 'visit_nodes')
         method = getattr(self.stream_proxy, ttype)

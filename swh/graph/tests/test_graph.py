@@ -101,3 +101,12 @@ def test_walk(graph):
         'swh:1:rel:0000000000000000000000000000000000000019'
     ]
     assert set(actual) == set(expected)
+
+
+def test_count(graph):
+    assert (graph['swh:1:ori:0000000000000000000000000000000000000021']
+            .count_leaves() == 4)
+    assert (graph['swh:1:rel:0000000000000000000000000000000000000010']
+            .count_visit_nodes(edges='rel:rev,rev:rev') == 3)
+    assert (graph['swh:1:rev:0000000000000000000000000000000000000009']
+            .count_neighbors(direction='backward') == 3)
