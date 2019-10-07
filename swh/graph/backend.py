@@ -123,8 +123,12 @@ class JavaStreamProxy:
 
     async def read_node_ids(self, fname):
         loop = asyncio.get_event_loop()
-        with (await asyncio.wait_for(loop.run_in_executor(
-                None, open, fname, 'rb'), timeout=2)) as f:
+        open_thread = loop.run_in_executor(None, open, fname, 'rb')
+
+        # Since the open() call on the FIFO is blocking until it is also opened
+        # on the Java side, we await it with a timeout in case there is an
+        # exception that prevents the write-side open().
+        with (await asyncio.wait_for(open_thread, timeout=2)) as f:
             while True:
                 data = await loop.run_in_executor(None, f.read, BUF_SIZE)
                 if not data:
@@ -166,6 +170,10 @@ class JavaStreamProxy:
                     async for value in reader:
                         yield value
                 except asyncio.TimeoutError:
+                    # If the read-side open() timeouts, an exception on the
+                    # Java side probably happened that prevented the
+                    # write-side open(). We propagate this exception here if
+                    # that is the case.
                     task_exc = java_task.exception()
                     if task_exc:
                         raise task_exc

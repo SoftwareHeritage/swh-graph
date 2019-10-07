@@ -8,6 +8,16 @@ import subprocess
 import collections
 
 
+KIND_TO_SHAPE = {
+    'ori': 'egg',
+    'snp': 'doubleoctagon',
+    'rel': 'octagon',
+    'rev': 'diamond',
+    'dir': 'folder',
+    'cnt': 'oval',
+}
+
+
 @lru_cache()
 def dot_to_svg(dot):
     try:

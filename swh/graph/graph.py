@@ -6,17 +6,7 @@
 import asyncio
 import contextlib
 from swh.graph.backend import Backend
-from swh.graph.dot import dot_to_svg, graph_dot
-
-
-KIND_TO_SHAPE = {
-    'ori': 'egg',
-    'snp': 'doubleoctagon',
-    'rel': 'octagon',
-    'rev': 'diamond',
-    'dir': 'folder',
-    'cnt': 'oval',
-}
+from swh.graph.dot import dot_to_svg, graph_dot, KIND_TO_SHAPE
 
 
 KIND_TO_URL = {
@@ -42,8 +32,8 @@ def call_async_gen(generator, *args, **kwargs):
 
 class Neighbors:
     """Neighbor iterator with custom O(1) length method"""
-    def __init__(self, parent_graph, iterator, length_func):
-        self.parent_graph = parent_graph
+    def __init__(self, graph, iterator, length_func):
+        self.graph = graph
         self.iterator = iterator
         self.length_func = length_func
 
@@ -54,7 +44,7 @@ class Neighbors:
         succ = self.iterator.nextLong()
         if succ == -1:
             raise StopIteration
-        return GraphNode(self.parent_graph, succ)
+        return GraphNode(self.graph, succ)
 
     def __len__(self):
         return self.length_func()
@@ -63,28 +53,28 @@ class Neighbors:
 class GraphNode:
     """Node in the SWH graph"""
 
-    def __init__(self, parent_graph, node_id):
-        self.parent_graph = parent_graph
+    def __init__(self, graph, node_id):
+        self.graph = graph
         self.id = node_id
 
     def children(self):
         return Neighbors(
-            self.parent_graph,
-            self.parent_graph.java_graph.successors(self.id),
-            lambda: self.parent_graph.java_graph.outdegree(self.id))
+            self.graph,
+            self.graph.java_graph.successors(self.id),
+            lambda: self.graph.java_graph.outdegree(self.id))
 
     def parents(self):
         return Neighbors(
-            self.parent_graph,
-            self.parent_graph.java_graph.predecessors(self.id),
-            lambda: self.parent_graph.java_graph.indegree(self.id))
+            self.graph,
+            self.graph.java_graph.predecessors(self.id),
+            lambda: self.graph.java_graph.indegree(self.id))
 
     def simple_traversal(self, ttype, direction='forward', edges='*'):
         for node in call_async_gen(
-            self.parent_graph.backend.simple_traversal,
+            self.graph.backend.simple_traversal,
             ttype, direction, edges, self.id
         ):
-            yield self.parent_graph[node]
+            yield self.graph[node]
 
     def leaves(self, *args, **kwargs):
         yield from self.simple_traversal('leaves', *args, **kwargs)
@@ -94,21 +84,21 @@ class GraphNode:
 
     def visit_paths(self, direction='forward', edges='*'):
         for path in call_async_gen(
-                self.parent_graph.backend.visit_paths,
+                self.graph.backend.visit_paths,
                 direction, edges, self.id
         ):
-            yield [self.parent_graph[node] for node in path]
+            yield [self.graph[node] for node in path]
 
     def walk(self, dst, direction='forward', edges='*', traversal='dfs'):
         for node in call_async_gen(
-            self.parent_graph.backend.walk,
+            self.graph.backend.walk,
             direction, edges, traversal, self.id, dst
         ):
-            yield self.parent_graph[node]
+            yield self.graph[node]
 
     @property
     def pid(self):
-        return self.parent_graph.node2pid[self.id]
+        return self.graph.node2pid[self.id]
 
     @property
     def kind(self):
