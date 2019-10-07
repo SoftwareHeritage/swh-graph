@@ -63,7 +63,7 @@ public class SwhPath {
     /**
      * Adds a {@link SwhPID} to this path.
      *
-     * @param {@link SwhPID} to add to this path
+     * @param swhPID {@link SwhPID} to add to this path
      * @see org.softwareheritage.graph.SwhPID
      */
     public void add(SwhPID swhPID) {

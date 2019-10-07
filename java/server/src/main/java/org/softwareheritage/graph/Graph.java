@@ -24,9 +24,9 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
  * PID lookup.
  *
  * @author The Software Heritage developers
- * @see org.softwareheritage.graph.AllowedEdges
- * @see org.softwareheritage.graph.NodeIdMap;
- * @see org.softwareheritage.graph.NodeTypesMap;
+ * @see org.softwareheritage.graph.AllowedEdges;
+ * @see org.softwareheritage.graph.backend.NodeIdMap;
+ * @see org.softwareheritage.graph.backend.NodeTypesMap;
  */
 
 public class Graph implements FlyweightPrototype<Graph> {
