@@ -28,7 +28,9 @@
 #define SWH_DIR_PRE  "swh:1:dir"
 #define SWH_ORI_PRE  "swh:1:ori"
 #define SWH_REV_PRE  "swh:1:rev"
-#define SWH_PIDSZ   (GIT_OID_HEXSZ + 10)  // size of a SWH PID
+#define SWH_SNP_PRE  "swh:1:snp"
+
+#define SWH_PIDSZ  (GIT_OID_HEXSZ + 10)  // size of a SWH PID
 
 // line-lengths in nodes and edges file
 #define NODES_LINELEN  (SWH_PIDSZ + 1)
@@ -64,11 +66,26 @@ static char *_git_otype2swh[OBJ_TYPES] = {
 	"loc", // 7 == SWH_OBJ_LOC
 };
 
+/* map from libgit2's git_otype (+ SWH-specific types above) to long names of
+ * SWH PID types. Used most notably to assemble snapshot manifests; see
+ * https://docs.softwareheritage.org/devel/apidoc/swh.model.html#swh.model.identifiers.snapshot_identifier */
+static char *_git_otype2swhlong[OBJ_TYPES] = {
+	"ERROR",      // 0 == GIT_OBJ__EXT1
+	"revision",   // 1 == GIT_OBJ_COMMIT
+	"directory",  // 2 == GIT_OBJ_TREE
+	"content",    // 3 == GIT_OBJ_BLOB
+	"release",    // 4 == GIT_OBJ_TAG
+	"snapshot",   // 5 == SWH_OBJ_SNP
+	"origin",     // 6 == SWH_OBJ_ORI
+	"line",       // 7 == SWH_OBJ_LOC
+};
+
 #define GIT_OBJ_ANY  GIT_OBJ__EXT1
 
 /* Convert a git object type (+ SWH-specific types above) to the corresponding
  * SWH PID type. */
-#define git_otype2swh(type)  _git_otype2swh[(type)]
+#define git_otype2swh(type)      _git_otype2swh[(type)]
+#define git_otype2swhlong(type)  _git_otype2swhlong[(type)]
 
 /* Parse object type (libgit's + SWH-specific types) from 3-letter type
  * qualifiers. Return either object type, or 0 in case of "*" wildcard, or -1
@@ -119,6 +136,15 @@ typedef struct {
 	FILE *nodes_out;  // stream to write nodes to, or NULL
 	FILE *edges_out;  // stream to write edges to, or NULL
 } config_t;
+
+
+/* context for iterating over refs */
+typedef struct {
+	GByteArray *manifest;  // snapshot manifest, incrementally build
+	GSList *pids;          // target PIDs, incrementally collected
+	char *snapshot_pid;    // snapshot PID, initially missing
+	config_t *conf;        // runtime configuration
+} ref_ctxt_t;
 
 
 /* Invoke a libgit2 method and exits with an error message in case of
@@ -209,7 +235,7 @@ void emit_tree_edges(const git_tree *tree, const char *swhpid, FILE *out) {
 
 
 /* Emit node and edges for current object. */
-int emit_obj(const git_oid *id, void *conf) {
+int emit_obj(const git_oid *oid, config_t *conf) {
 	char oidstr[GIT_OID_HEXSZ + 1];
 	char swhpid[SWH_PIDSZ + 1];
 	size_t len;
@@ -218,17 +244,17 @@ int emit_obj(const git_oid *id, void *conf) {
 	git_tag *tag;
 	git_tree *tree;
 
-	git_odb *odb = ((config_t *) conf)->odb;
-	git_repository *repo = ((config_t *) conf)->repo;
-	FILE *nodes_out = ((config_t *) conf)->nodes_out;
-	FILE *edges_out = ((config_t *) conf)->edges_out;
+	git_odb *odb = conf->odb;
+	git_repository *repo = conf->repo;
+	FILE *nodes_out = conf->nodes_out;
+	FILE *edges_out = conf->edges_out;
 
-	check_lg2(git_odb_read_header(&len, &obj_type, odb, id),
+	check_lg2(git_odb_read_header(&len, &obj_type, odb, oid),
 		  "cannot read object header", NULL);
 
 	// emit node
 	sprintf(swhpid, "swh:1:%s:", git_otype2swh(obj_type));
-	git_oid_tostr(swhpid + 10, sizeof(oidstr), id);
+	git_oid_tostr(swhpid + 10, sizeof(oidstr), oid);
 	if (nodes_out != NULL && is_node_allowed(obj_type))
 		fprintf(nodes_out, "%s\n", swhpid);
 
@@ -238,25 +264,25 @@ int emit_obj(const git_oid *id, void *conf) {
 		case GIT_OBJ_BLOB:  // graph leaf: no edges to emit
 			break;
 		case GIT_OBJ_COMMIT:
-			check_lg2(git_commit_lookup(&commit, repo, id),
+			check_lg2(git_commit_lookup(&commit, repo, oid),
 				  "cannot find commit", NULL);
 			emit_commit_edges(commit, swhpid, edges_out);
 			git_commit_free(commit);
 			break;
 		case GIT_OBJ_TAG:
-			check_lg2(git_tag_lookup(&tag, repo, id),
+			check_lg2(git_tag_lookup(&tag, repo, oid),
 				  "cannot find tag", NULL);
 			emit_tag_edges(tag, swhpid, edges_out);
 			git_tag_free(tag);
 			break;
 		case GIT_OBJ_TREE:
-			check_lg2(git_tree_lookup(&tree, repo, id),
+			check_lg2(git_tree_lookup(&tree, repo, oid),
 				  "cannot find tree", NULL);
 			emit_tree_edges(tree, swhpid, edges_out);
 			git_tree_free(tree);
 			break;
 		default:
-			git_oid_tostr(oidstr, sizeof(oidstr), id);
+			git_oid_tostr(oidstr, sizeof(oidstr), oid);
 			fprintf(stderr, "E: ignoring unknown object: %s\n", oidstr);
 			break;
 		}
@@ -266,20 +292,204 @@ int emit_obj(const git_oid *id, void *conf) {
 }
 
 
-/* emit origin node and its outbound edges (to snapshots) */
-void emit_origin(char *origin_url, config_t *conf) {
+/* Callback for emit_snapshots. Add a git reference to a snapshot manifest
+ * (payload->manifest), according to the snapshot PID spec, see:
+ * https://docs.softwareheritage.org/devel/apidoc/swh.model.html#swh.model.identifiers.snapshot_identifier .
+ * As a side effect collect PIDs of references objects in payload->pids for
+ * later reuse.
+ *
+ * Sample manifest entries for the tests/data/sample-repo.tgz repository:
+ *
+ *   revision  HEAD                    9bf3ce249cf3d74ef57d5a1fb4227e26818553f0
+ *   revision  refs/heads/feature/baz  261586c455130b4bf10a5be7ffb0bf4077581b56
+ *   revision  refs/heads/feature/qux  20cca959bae94594f60450f339b408581f1b401f
+ *   revision  refs/heads/master       9bf3ce249cf3d74ef57d5a1fb4227e26818553f0
+ *   release   refs/tags/1.0           1720af781051a8cafdf3cf134c263ec5c5e72412
+ *   release   refs/tags/1.1           d48ad9915be780fcfa296985f69df35e144864a5
+ */
+int _snapshot_add_ref(char *ref_name, ref_ctxt_t *ctxt) {
+	const git_oid *oid;
+	size_t len;
+	int dangling, obj_type, ref_type;
+	const char *target_type, *target_name;
+	char ascii_len[GIT_OID_HEXSZ];
+	char oidstr[GIT_OID_HEXSZ + 1];
+	char *swhpid = malloc(SWH_PIDSZ + 1);
+	git_reference *ref, *ref2;
+
+	// fprintf(stderr, "DEBUG: _snapshot_add_ref: %s\n", ref_name);
+	check_lg2(git_reference_lookup(&ref, ctxt->conf->repo, ref_name),
+		  "cannot find reference", NULL);
+	ref_type = git_reference_type(ref);
+	assert(ref_type == GIT_REF_OID || ref_type == GIT_REF_SYMBOLIC);
+
+	if (ref_type == GIT_REF_OID) {
+		// fprintf(stderr, "DEBUG:   direct ref\n");
+		oid = git_reference_target(ref);
+		dangling = (oid == NULL);
+	} else {  // ref_type == GIT_REF_SYMBOLIC
+		// fprintf(stderr, "DEBUG:   symbolic ref\n");
+		target_name = git_reference_symbolic_target(ref);
+		dangling = (target_name == NULL);
+	}
+
+	if (dangling) {  // target type
+		target_type = "dangling";
+	} else if (ref_type == GIT_REF_OID) {  // non dangling, direct ref
+		check_lg2(git_odb_read_header(&len, &obj_type,
+					      ctxt->conf->odb, oid),
+			  "cannot read object header", NULL);
+		target_type = git_otype2swhlong(obj_type);
+	} else {  // non dangling, symbolic ref
+		target_type = "alias";
+
+		// recurse to lookup OID and type for PID generation
+		check_lg2(git_reference_resolve(&ref2, ref),
+			  "cannot resolve symbolic reference", NULL);
+		assert(git_reference_type(ref2) == GIT_REF_OID);
+		oid = git_reference_target(ref2);
+		check_lg2(git_odb_read_header(&len, &obj_type,
+					      ctxt->conf->odb, oid),
+			  "cannot read object header", NULL);
+	}
+	// fprintf(stderr, "DEBUG:   target type: %s\n", target_type);
+	g_byte_array_append(ctxt->manifest, (unsigned char *) target_type,
+			    strlen(target_type));
+	g_byte_array_append(ctxt->manifest, (unsigned char *) " ", 1);
+
+	// reference name
+	g_byte_array_append(ctxt->manifest, (unsigned char  *) ref_name,
+			    strlen(ref_name));
+	g_byte_array_append(ctxt->manifest, (unsigned char  *) "\0", 1);
+	// fprintf(stderr, "DEBUG:   ref name: %s\n", ref_name);
+
+	// (length-encoded) target ID
+	if (dangling) {
+		g_byte_array_append(ctxt->manifest, (unsigned char *) "0:", 2);
+	} else {
+		if (ref_type == GIT_REF_OID) {  // direct ref
+			g_byte_array_append(ctxt->manifest,
+					    (unsigned char *) "20:", 3);
+			g_byte_array_append(ctxt->manifest, oid->id, 20);
+		} else {  // symbolic ref
+			if (snprintf(ascii_len, sizeof(ascii_len), "%zd:",
+				     strlen(target_name)) > sizeof(ascii_len)) {
+				fprintf(stderr,
+					"symbolic reference target too long: %s\n",
+					target_name);
+				exit(EXIT_FAILURE);
+			}
+			g_byte_array_append(ctxt->manifest,
+					    (unsigned char *) ascii_len,
+					    strlen(ascii_len));
+			g_byte_array_append(ctxt->manifest,
+					    (unsigned char *) target_name,
+					    strlen(target_name));
+		}
+	}
+
+	sprintf(swhpid, "swh:1:%s:", git_otype2swh(obj_type));
+	git_oid_tostr(swhpid + 10, sizeof(oidstr), oid);
+	if (g_slist_find_custom(ctxt->pids, swhpid, (GCompareFunc) strcmp) == NULL)
+		// avoid duplicate outbound snp->* edges
+		ctxt->pids = g_slist_prepend(ctxt->pids, swhpid);
+
+	git_reference_free(ref);
+	// git_reference_free(ref2);  // XXX triggers double-free, WTH
+	return 0;
+}
+
+
+/* emit an edge snp->* */
+void emit_snapshot_edge(char *target_pid, ref_ctxt_t *ctxt) {
+	FILE *edges_out = ctxt->conf->edges_out;
+	char **pid_parts, **ptr;
+
+	// fprintf(stderr, "DEBUG: emit_snapshot_edge target: ='%s'\n", target_pid);
+	pid_parts = g_strsplit(target_pid, ":", 4);
+	ptr = pid_parts; ptr++; ptr++;  // move ptr to PID type component
+	int target_type = parse_otype(*ptr);
+	g_strfreev(pid_parts);
+
+	if (edges_out != NULL && is_edge_allowed(SWH_OBJ_SNP, target_type))
+		fprintf(edges_out, "%s %s\n", ctxt->snapshot_pid, target_pid);
+}
+
+
+int _collect_ref_name(const char *name, GSList **ref_names) {
+	*ref_names = g_slist_insert_sorted(*ref_names,
+					   (gpointer) strdup(name),
+					   (GCompareFunc) strcmp);
+	return 0;
+}
+
+
+/* Emit origin nodes and their outbound edges. Return the snapshot PID as a
+ * freshly allocated string that should be freed by the caller. */
+char *emit_snapshot(config_t *conf) {
 	gchar *hex_sha1;
+	char *snapshot_pid;
+	GBytes *manifest;
+	GSList *ref_names = NULL;
 	FILE *nodes_out = conf->nodes_out;
-	// FILE *edges_out = conf->edges_out;
+
+	snapshot_pid = malloc(SWH_PIDSZ + 1);
+
+	ref_ctxt_t *ctxt = malloc(sizeof(ref_ctxt_t));
+	ctxt->manifest = g_byte_array_new();
+	ctxt->pids = NULL;
+	ctxt->snapshot_pid = NULL;
+	ctxt->conf = conf;
+
+	// XXX TODO this does not return symbolic refs, making snapshot PIDs
+	// potentially incompatible with `swh identify` :-( As a partial
+	// workaround we explicitly add HEAD here.
+	git_reference_foreach_name(conf->repo,
+				   (git_reference_foreach_name_cb) _collect_ref_name,
+				   &ref_names);  // collect refs, sorted by name
+	ref_names = g_slist_insert_sorted(ref_names, (gpointer) "HEAD",
+					  (GCompareFunc) strcmp);
+	/* iterate over refs to assemble manifest; side-effect: fill ctxt->pids */
+	g_slist_foreach(ref_names, (GFunc) _snapshot_add_ref, (gpointer) ctxt);
+	ctxt->pids = g_slist_reverse(ctxt->pids);
+
+	/* compute snapshot PID and emit snapshot node */
+	manifest = g_byte_array_free_to_bytes(ctxt->manifest);
+	ctxt->manifest = NULL;  // memory has been freed by *_free_to_bytes
+	hex_sha1 = g_compute_checksum_for_bytes(G_CHECKSUM_SHA1, manifest);
+	sprintf(snapshot_pid, "%s:%s", SWH_SNP_PRE, hex_sha1);
+	ctxt->snapshot_pid = snapshot_pid;
+	if (nodes_out != NULL && is_node_allowed(SWH_OBJ_SNP))
+		fprintf(nodes_out, "%s\n", snapshot_pid);
+
+	/* emit snp->* edges */
+	g_slist_foreach(ctxt->pids, (GFunc) emit_snapshot_edge, (void *) ctxt);
+
+	g_slist_free_full(ctxt->pids, (GDestroyNotify) free);
+	free(ctxt);
+	g_free(hex_sha1);
+
+	return snapshot_pid;
+}
+
+
+/* emit origin node and its outbound edges (to snapshots) */
+void emit_origin(char *origin_url, config_t *conf, char *snapshot_pid) {
+	gchar *hex_sha1;
+	char origin_pid[SWH_PIDSZ + 1];
+	FILE *nodes_out = conf->nodes_out;
+	FILE *edges_out = conf->edges_out;
 
 	if (nodes_out != NULL && is_node_allowed(SWH_OBJ_ORI)) {
 		hex_sha1 = g_compute_checksum_for_string(
 			G_CHECKSUM_SHA1, origin_url, strlen(origin_url));
-		fprintf(nodes_out, "%s:%s\n", SWH_ORI_PRE, hex_sha1);
+		sprintf(origin_pid, "%s:%s", SWH_ORI_PRE, hex_sha1);
+		fprintf(nodes_out, "%s\n", origin_pid);
 		g_free(hex_sha1);
 	}
 
-	// TODO emit ori->snp edges
+	if (edges_out != NULL && is_edge_allowed(SWH_OBJ_ORI, SWH_OBJ_SNP))
+		fprintf(edges_out, "%s %s\n", origin_pid, snapshot_pid);
 }
 
 
@@ -489,6 +699,7 @@ int main(int argc, char **argv) {
 	config_t *conf;
 	FILE *nodes_out, *edges_out;
 	char nodes_buf[EDGES_OUTSZ], edges_buf[EDGES_OUTSZ];
+	char *snapshot_pid;
 	
 	args = parse_cli(argc, argv);
 	init_graph_filters(args->nodes_filter, args->edges_filter);
@@ -511,10 +722,12 @@ int main(int argc, char **argv) {
 	conf->nodes_out = nodes_out;
 	conf->edges_out = edges_out;
 
-	if (args->origin_url != NULL)
-		emit_origin(args->origin_url, conf);
+	snapshot_pid = emit_snapshot(conf);
 
-	rc = git_odb_foreach(odb, emit_obj, conf);
+	if (args->origin_url != NULL)
+		emit_origin(args->origin_url, conf, snapshot_pid);
+
+	rc = git_odb_foreach(odb, (git_odb_foreach_cb) emit_obj, (void *) conf);
 	check_lg2(rc, "failure during object iteration", NULL);
 
 	git_odb_free(odb);

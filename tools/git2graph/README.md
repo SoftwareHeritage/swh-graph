@@ -52,3 +52,16 @@ with enough available space (`-T`).  (The above example uses `parallel`
 from [moreutils](https://joeyh.name/code/moreutils/), but it could trivially be
 adapted to use [GNU parallel](https://www.gnu.org/software/parallel/) or
 similar parallelization tools.)
+
+
+Limitations
+-----------
+
+Snapshot PID calculation is not fully compatible with
+the
+[spec](https://docs.softwareheritage.org/devel/apidoc/swh.model.html#swh.model.identifiers.snapshot_identifier),
+because currently only HEAD is considered as a symbolic reference. Other
+symbolic refs, if present, will be ignored, ultimately leading to a different
+snapshot PID than what Software Heritage will obtain. The graph structure is
+not affected, but looking up obtained snapshots by PID on the main Software
+Heritage archive might fail.
