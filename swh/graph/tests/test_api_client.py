@@ -102,3 +102,21 @@ def test_walk(graph_client):
         'swh:1:rel:0000000000000000000000000000000000000019'
     ]
     assert set(actual) == set(expected)
+
+
+def test_count(graph_client):
+    print(graph_client)
+    actual = graph_client.count_leaves(
+        'swh:1:ori:0000000000000000000000000000000000000021'
+    )
+    assert actual == 4
+    actual = graph_client.count_visit_nodes(
+        'swh:1:rel:0000000000000000000000000000000000000010',
+        edges='rel:rev,rev:rev'
+    )
+    assert actual == 3
+    actual = graph_client.count_neighbors(
+        'swh:1:rev:0000000000000000000000000000000000000009',
+        direction='backward'
+    )
+    assert actual == 3

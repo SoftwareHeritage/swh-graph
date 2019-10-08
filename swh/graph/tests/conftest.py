@@ -4,8 +4,9 @@ from pathlib import Path
 
 from aiohttp.test_utils import TestServer, TestClient, loop_context
 
+from swh.graph.graph import load as graph_load
 from swh.graph.client import RemoteGraphClient
-from swh.graph.server.backend import Backend
+from swh.graph.backend import Backend
 from swh.graph.server.app import make_app
 
 SWH_GRAPH_ROOT = Path(__file__).parents[3]
@@ -21,7 +22,7 @@ class GraphServerProcess(multiprocessing.Process):
         backend = Backend(graph_path=str(TEST_GRAPH_PATH))
         with backend:
             with loop_context() as loop:
-                app = make_app(backend=backend)
+                app = make_app(backend=backend, debug=True)
                 client = TestClient(TestServer(app), loop=loop)
                 loop.run_until_complete(client.start_server())
                 url = client.make_url('/graph/')
@@ -37,3 +38,9 @@ def graph_client():
     url = queue.get()
     yield RemoteGraphClient(str(url))
     server.terminate()
+
+
+@pytest.fixture(scope="module")
+def graph():
+    with graph_load(str(TEST_GRAPH_PATH)) as g:
+        yield g
