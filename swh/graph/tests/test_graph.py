@@ -110,3 +110,13 @@ def test_count(graph):
             .count_visit_nodes(edges='rel:rev,rev:rev') == 3)
     assert (graph['swh:1:rev:0000000000000000000000000000000000000009']
             .count_neighbors(direction='backward') == 3)
+
+
+def test_iter_type(graph):
+    rev_list = list(graph.iter_type('rev'))
+    actual = [n.pid for n in rev_list]
+    expected = ['swh:1:rev:0000000000000000000000000000000000000003',
+                'swh:1:rev:0000000000000000000000000000000000000009',
+                'swh:1:rev:0000000000000000000000000000000000000013',
+                'swh:1:rev:0000000000000000000000000000000000000018']
+    assert expected == actual

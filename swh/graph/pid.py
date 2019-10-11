@@ -236,6 +236,35 @@ class PidToIntMap(_OnDiskMap, MutableMapping):
         f.write(str_to_bytes(pid))
         f.write(struct.pack(INT_BIN_FMT, int))
 
+    def _bisect_pos(self, pid_str: str) -> int:
+        """bisect the position of the given identifier. If the identifier is
+        not found, the position of the pid immediately after is returned.
+
+        Args:
+            pid_str: the pid as a string
+
+        Returns:
+            the logical record of the bisected position in the map
+
+        """
+        if not isinstance(pid_str, str):
+            raise TypeError('PID must be a str, not {}'.format(type(pid_str)))
+        try:
+            target = str_to_bytes(pid_str)  # desired PID as bytes
+        except ValueError:
+            raise ValueError('invalid PID: "{}"'.format(pid_str))
+
+        lo = 0
+        hi = self.length - 1
+        while lo < hi:
+            mid = (lo + hi) // 2
+            (pid, _value) = self._get_bin_record(mid)
+            if pid < target:
+                lo = mid + 1
+            else:
+                hi = mid
+        return lo
+
     def _find(self, pid_str: str) -> Tuple[int, int]:
         """lookup the integer identifier of a pid and its position
 
@@ -247,25 +276,10 @@ class PidToIntMap(_OnDiskMap, MutableMapping):
             record position in the map
 
         """
-        if not isinstance(pid_str, str):
-            raise TypeError('PID must be a str, not ' + type(pid_str))
-        try:
-            target = str_to_bytes(pid_str)  # desired PID as bytes
-        except ValueError:
-            raise ValueError('invalid PID: "{}"'.format(pid_str))
-
-        min = 0
-        max = self.length - 1
-        while (min <= max):
-            mid = (min + max) // 2
-            (pid, int) = self._get_bin_record(mid)
-            if pid < target:
-                min = mid + 1
-            elif pid > target:
-                max = mid - 1
-            else:  # pid == target
-                return (struct.unpack(INT_BIN_FMT, int)[0], mid)
-
+        pos = self._bisect_pos(pid_str)
+        pid_found, value = self._get_record(pos)
+        if pid_found == pid_str:
+            return (value, pos)
         raise KeyError(pid_str)
 
     def __getitem__(self, pid_str: str) -> int:
@@ -291,6 +305,21 @@ class PidToIntMap(_OnDiskMap, MutableMapping):
     def __iter__(self) -> Iterator[Tuple[str, int]]:
         for pos in range(self.length):
             yield self._get_record(pos)
+
+    def iter_prefix(self, prefix: str):
+        swh, n, t, sha = prefix.split(':')
+        sha = sha.ljust(40, '0')
+        start_pid = ':'.join([swh, n, t, sha])
+        start = self._bisect_pos(start_pid)
+        for pos in range(start, self.length):
+            pid, value = self._get_record(pos)
+            if not pid.startswith(prefix):
+                break
+            yield pid, value
+
+    def iter_type(self, pid_type: str) -> Iterator[Tuple[str, int]]:
+        prefix = 'swh:1:{}:'.format(pid_type)
+        yield from self.iter_prefix(prefix)
 
 
 class IntToPidMap(_OnDiskMap, MutableMapping):

@@ -159,6 +159,18 @@ class Graph:
             node_id = self.pid2node[node_id]
             return GraphNode(self, node_id)
 
+    def __iter__(self):
+        for pid, pos in self.backend.pid2node:
+            yield self[pid]
+
+    def iter_prefix(self, prefix):
+        for pid, pos in self.backend.pid2node.iter_prefix(prefix):
+            yield self[pid]
+
+    def iter_type(self, pid_type):
+        for pid, pos in self.backend.pid2node.iter_type(pid_type):
+            yield self[pid]
+
 
 @contextlib.contextmanager
 def load(graph_path):
