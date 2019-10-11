@@ -12,6 +12,7 @@ from itertools import islice
 
 from swh.graph.pid import str_to_bytes, bytes_to_str
 from swh.graph.pid import PidToIntMap, IntToPidMap
+from swh.model.identifiers import PID_TYPES
 
 
 class TestPidSerialization(unittest.TestCase):
@@ -136,6 +137,14 @@ class TestPidToIntMap(unittest.TestCase):
             self.assertEqual(map2[pid], new_int)  # check updated value
 
         os.unlink(fname2)  # tmpdir will be cleaned even if we don't reach this
+
+    def test_iter_type(self):
+        for t in PID_TYPES:
+            first_20 = list(islice(self.map.iter_type(t), 20))
+            k = first_20[0][1]
+            expected = [('swh:1:{}:{:040x}'.format(t, i), i)
+                        for i in range(k, k + 20)]
+            assert first_20 == expected
 
 
 class TestIntToPidMap(unittest.TestCase):
