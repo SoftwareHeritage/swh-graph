@@ -3,6 +3,7 @@ package org.softwareheritage.graph.algo;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
@@ -15,8 +16,6 @@ import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Neighbors;
 import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.algo.NodeIdConsumer;
-import org.softwareheritage.graph.algo.PathConsumer;
 
 /**
  * Traversal algorithms on the compressed graph.
@@ -37,8 +36,8 @@ public class Traversal {
     /** Graph edge restriction */
     AllowedEdges edges;
 
-    /** Bit array storing if we have visited a node */
-    LongArrayBitVector visited;
+    /** Hash set storing if we have visited a node */
+    HashSet<Long> visited;
     /** Hash map storing parent node id for each nodes during a traversal */
     Map<Long, Long> parentNode;
     /** Number of edges accessed during traversal */
@@ -62,7 +61,7 @@ public class Traversal {
         this.edges = new AllowedEdges(graph, edgesFmt);
 
         long nbNodes = graph.getNbNodes();
-        this.visited = LongArrayBitVector.ofLength(nbNodes);
+        this.visited = new HashSet<>();
         this.parentNode = new HashMap<>();
         this.nbEdgesAccessed = 0;
     }
@@ -84,7 +83,7 @@ public class Traversal {
         this.nbEdgesAccessed = 0;
 
         stack.push(srcNodeId);
-        visited.set(srcNodeId);
+        visited.add(srcNodeId);
 
         while (!stack.isEmpty()) {
             long currentNodeId = stack.pop();
@@ -93,9 +92,9 @@ public class Traversal {
             nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
             for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
                 neighborsCnt++;
-                if (!visited.getBoolean(neighborNodeId)) {
+                if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
-                    visited.set(neighborNodeId);
+                    visited.add(neighborNodeId);
                 }
             }
 
@@ -149,7 +148,7 @@ public class Traversal {
         this.nbEdgesAccessed = 0;
 
         stack.push(srcNodeId);
-        visited.set(srcNodeId);
+        visited.add(srcNodeId);
 
         while (!stack.isEmpty()) {
             long currentNodeId = stack.pop();
@@ -157,9 +156,9 @@ public class Traversal {
 
             nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
             for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-                if (!visited.getBoolean(neighborNodeId)) {
+                if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
-                    visited.set(neighborNodeId);
+                    visited.add(neighborNodeId);
                 }
             }
         }
@@ -259,7 +258,7 @@ public class Traversal {
         this.nbEdgesAccessed = 0;
 
         stack.push(srcNodeId);
-        visited.set(srcNodeId);
+        visited.add(srcNodeId);
 
         while (!stack.isEmpty()) {
             long currentNodeId = stack.pop();
@@ -269,9 +268,9 @@ public class Traversal {
 
             nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
             for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-                if (!visited.getBoolean(neighborNodeId)) {
+                if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
-                    visited.set(neighborNodeId);
+                    visited.add(neighborNodeId);
                     parentNode.put(neighborNodeId, currentNodeId);
                 }
             }
@@ -292,7 +291,7 @@ public class Traversal {
         this.nbEdgesAccessed = 0;
 
         queue.add(srcNodeId);
-        visited.set(srcNodeId);
+        visited.add(srcNodeId);
 
         while (!queue.isEmpty()) {
             long currentNodeId = queue.poll();
@@ -302,9 +301,9 @@ public class Traversal {
 
             nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
             for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
-                if (!visited.getBoolean(neighborNodeId)) {
+                if (!visited.contains(neighborNodeId)) {
                     queue.add(neighborNodeId);
-                    visited.set(neighborNodeId);
+                    visited.add(neighborNodeId);
                     parentNode.put(neighborNodeId, currentNodeId);
                 }
             }
