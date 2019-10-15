@@ -55,8 +55,22 @@ class Backend:
         self.graph_path = graph_path
 
     def __enter__(self):
+        # TODO: make all of that configurable with sane defaults
+        java_opts = [
+            '-Xmx640G',
+            '-Xss1G',
+            '-server',
+            '-XX:PretenureSizeThreshold=512M',
+            '-XX:MaxNewSize=4G',
+            '-XX:+UseLargePages',
+            '-XX:+UseTransparentHugePages',
+            '-XX:+UseNUMA',
+            '-XX:+UseTLAB',
+            '-XX:+ResizeTLAB',
+        ]
         self.gateway = JavaGateway.launch_gateway(
             java_path=None,
+            javaopts=java_opts,
             classpath=find_graph_jar(),
             die_on_exit=True,
             redirect_stdout=sys.stdout,
