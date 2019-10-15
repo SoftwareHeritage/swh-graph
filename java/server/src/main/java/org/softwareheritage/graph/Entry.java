@@ -49,17 +49,17 @@ public class Entry {
     }
 
     public int count_leaves(String direction, String edgesFmt, long srcNodeId) {
-        Traversal t = new Traversal(this.graph, direction, edgesFmt);
+        Traversal t = new Traversal(this.graph.copy(), direction, edgesFmt);
         return count_visitor(t::leavesVisitor, srcNodeId);
     }
 
     public int count_neighbors(String direction, String edgesFmt, long srcNodeId) {
-        Traversal t = new Traversal(this.graph, direction, edgesFmt);
+        Traversal t = new Traversal(this.graph.copy(), direction, edgesFmt);
         return count_visitor(t::neighborsVisitor, srcNodeId);
     }
 
     public int count_visit_nodes(String direction, String edgesFmt, long srcNodeId) {
-        Traversal t = new Traversal(this.graph, direction, edgesFmt);
+        Traversal t = new Traversal(this.graph.copy(), direction, edgesFmt);
         return count_visitor(t::visitNodesVisitor, srcNodeId);
     }
 
