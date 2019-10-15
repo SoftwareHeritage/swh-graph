@@ -8,15 +8,20 @@ A proxy HTTP server for swh-graph, talking to the Java code via py4j, and using
 FIFO as a transport to stream integers between the two languages.
 """
 
+import asyncio
 import json
-import contextlib
 import aiohttp.web
 
 from swh.core.api.asynchronous import RPCServerApp
 from swh.model.identifiers import PID_TYPES
 
+try:
+    from contextlib import asynccontextmanager
+except ImportError:
+    # Compatibility with 3.6 backport
+    from async_generator import asynccontextmanager
 
-@contextlib.asynccontextmanager
+@asynccontextmanager
 async def stream_response(request, *args, **kwargs):
     response = aiohttp.web.StreamResponse(*args, **kwargs)
     await response.prepare(request)
@@ -105,6 +110,7 @@ async def visit_paths(request):
 
 def get_count_handler(ttype):
     async def count(request):
+        loop = asyncio.get_event_loop()
         backend = request.app['backend']
 
         src = request.match_info['src']
@@ -112,7 +118,8 @@ def get_count_handler(ttype):
         direction = request.query.get('direction', 'forward')
 
         src_node = backend.pid2node[src]
-        cnt = backend.count(ttype, direction, edges, src_node)
+        cnt = await loop.run_in_executor(
+            None, backend.count, ttype, direction, edges, src_node)
         return aiohttp.web.Response(body=str(cnt),
                                     content_type='application/json')
 
