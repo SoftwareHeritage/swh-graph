@@ -21,8 +21,10 @@ import org.softwareheritage.graph.Node;
  */
 
 public class NodeTypesMap {
-    /** Array storing for each node its type */
-    LongBigList nodeTypesMap;
+    /**
+     * Array storing for each node its type
+     */
+    public LongBigList nodeTypesMap;
 
     /**
      * Constructor.
