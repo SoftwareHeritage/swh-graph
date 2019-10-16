@@ -57,8 +57,13 @@ public class Graph implements FlyweightPrototype<Graph> {
         this.graph = BVGraph.load(path);
         this.graphTransposed = BVGraph.load(path + "-transposed");
         this.path = path;
-        this.nodeIdMap = new NodeIdMap(path, getNbNodes());
         this.nodeTypesMap = new NodeTypesMap(path);
+
+        // TODO: we don't need to load the nodeIdMap now that all the
+        // translation between ints and PIDs is happening on the Python side.
+        // However, some parts of the code still depend on this, so it's
+        // commented out while we decide on what to do with it.
+        this.nodeIdMap = null; // new NodeIdMap(path, getNbNodes());
     }
 
     // Protected empty constructor to implement copy()
