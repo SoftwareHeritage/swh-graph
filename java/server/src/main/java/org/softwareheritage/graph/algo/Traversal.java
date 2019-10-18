@@ -76,6 +76,15 @@ public class Traversal {
     }
 
     /**
+     * Returns number of accessed nodes during traversal.
+     *
+     * @return number of nodes accessed in last traversal
+     */
+    public long getNbNodesAccessed() {
+        return this.visited.size();
+    }
+
+    /**
      * Push version of {@link leaves}: will fire passed callback for each leaf.
      */
     public void leavesVisitor(long srcNodeId, NodeIdConsumer cb) {
@@ -99,7 +108,7 @@ public class Traversal {
             }
 
             if (neighborsCnt == 0) {
-		cb.accept(currentNodeId);
+                cb.accept(currentNodeId);
             }
         }
     }
