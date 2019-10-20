@@ -31,6 +31,9 @@ public class ParallelBFS {
 
                     new FlaggedOption("numThreads", JSAP.INTEGER_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
                             't', "numthreads", "Number of threads"),
+
+                    new FlaggedOption("useTransposed", JSAP.BOOLEAN_PARSER, "false", JSAP.NOT_REQUIRED,
+                            'T', "transposed", "Use transposed graph (default: false)"),
                 }
             );
 
@@ -46,9 +49,10 @@ public class ParallelBFS {
 
     public static void main(String[] args) {
         JSAPResult config = parse_args(args);
-
         String graphPath = config.getString("graphPath");
         int numThreads = config.getInt("numThreads");
+        boolean useTransposed = config.getBoolean("useTransposed");
+
         ProgressLogger logger = new ProgressLogger();
         long startTime;
         double totalTime;
@@ -63,7 +67,7 @@ public class ParallelBFS {
         }
 
         ParallelBreadthFirstVisit visit =
-            new ParallelBreadthFirstVisit(bfs.graph.getBVGraph(false),
+            new ParallelBreadthFirstVisit(bfs.graph.getBVGraph(useTransposed),
                                           numThreads, true, logger);
         logger.start("Parallel BFS visit...");
         visit.visitAll();
