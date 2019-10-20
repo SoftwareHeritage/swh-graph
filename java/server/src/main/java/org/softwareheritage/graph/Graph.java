@@ -214,4 +214,14 @@ public class Graph implements FlyweightPrototype<Graph> {
     public LazyLongIterator neighbors(long nodeId, boolean useTransposed) {
         return (useTransposed) ? predecessors(nodeId) : successors(nodeId);
     }
+
+    /**
+     * Returns the underlying BVGraph.
+     *
+     * @param useTransposed boolean value to use transposed graph
+     * @return WebGraph BVGraph
+     */
+    public BVGraph getBVGraph(boolean useTransposed) {
+        return (useTransposed) ? this.graphTransposed : this.graph;
+    }
 }
