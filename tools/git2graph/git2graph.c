@@ -367,16 +367,11 @@ int _snapshot_add_ref(char *ref_name, ref_ctxt_t *ctxt) {
 					    (unsigned char *) "20:", 3);
 			g_byte_array_append(ctxt->manifest, oid->id, 20);
 		} else {  // symbolic ref
-			if (snprintf(ascii_len, sizeof(ascii_len), "%zd:",
-				     strlen(target_name)) > sizeof(ascii_len)) {
-				fprintf(stderr,
-					"symbolic reference target too long: %s\n",
-					target_name);
-				exit(EXIT_FAILURE);
-			}
+			len = snprintf(ascii_len, sizeof(ascii_len),
+				       "%zd:", strlen(target_name));
+			assert(len <= sizeof(ascii_len));
 			g_byte_array_append(ctxt->manifest,
-					    (unsigned char *) ascii_len,
-					    strlen(ascii_len));
+					    (unsigned char *) ascii_len, len);
 			g_byte_array_append(ctxt->manifest,
 					    (unsigned char *) target_name,
 					    strlen(target_name));
@@ -424,8 +419,10 @@ char *emit_snapshot(config_t *conf) {
 	gchar *hex_sha1;
 	char *snapshot_pid;
 	GBytes *manifest;
+	char manifest_header[GIT_OID_HEXSZ];
 	GSList *ref_names = NULL;
 	FILE *nodes_out = conf->nodes_out;
+	int len;
 
 	snapshot_pid = malloc(SWH_PIDSZ + 1);
 
@@ -446,6 +443,13 @@ char *emit_snapshot(config_t *conf) {
 	/* iterate over refs to assemble manifest; side-effect: fill ctxt->pids */
 	g_slist_foreach(ref_names, (GFunc) _snapshot_add_ref, (gpointer) ctxt);
 	ctxt->pids = g_slist_reverse(ctxt->pids);
+
+	/* prepend header for salted git hashes */
+	len = snprintf(manifest_header, sizeof(manifest_header),
+		       "snapshot %d", ctxt->manifest->len);
+	assert(len <= sizeof(manifest_header));
+	g_byte_array_prepend(ctxt->manifest, (unsigned char *) "\0", 1);
+	g_byte_array_prepend(ctxt->manifest, (unsigned char *) manifest_header, len);
 
 	/* compute snapshot PID and emit snapshot node */
 	manifest = g_byte_array_free_to_bytes(ctxt->manifest);
