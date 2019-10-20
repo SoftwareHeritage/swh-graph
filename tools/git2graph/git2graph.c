@@ -317,18 +317,15 @@ int _snapshot_add_ref(char *ref_name, ref_ctxt_t *ctxt) {
 	char *swhpid = malloc(SWH_PIDSZ + 1);
 	git_reference *ref, *ref2;
 
-	// fprintf(stderr, "DEBUG: _snapshot_add_ref: %s\n", ref_name);
 	check_lg2(git_reference_lookup(&ref, ctxt->conf->repo, ref_name),
 		  "cannot find reference", NULL);
 	ref_type = git_reference_type(ref);
 	assert(ref_type == GIT_REF_OID || ref_type == GIT_REF_SYMBOLIC);
 
 	if (ref_type == GIT_REF_OID) {
-		// fprintf(stderr, "DEBUG:   direct ref\n");
 		oid = git_reference_target(ref);
 		dangling = (oid == NULL);
 	} else {  // ref_type == GIT_REF_SYMBOLIC
-		// fprintf(stderr, "DEBUG:   symbolic ref\n");
 		target_name = git_reference_symbolic_target(ref);
 		dangling = (target_name == NULL);
 	}
@@ -352,16 +349,14 @@ int _snapshot_add_ref(char *ref_name, ref_ctxt_t *ctxt) {
 					      ctxt->conf->odb, oid),
 			  "cannot read object header", NULL);
 	}
-	// fprintf(stderr, "DEBUG:   target type: %s\n", target_type);
 	g_byte_array_append(ctxt->manifest, (unsigned char *) target_type,
 			    strlen(target_type));
 	g_byte_array_append(ctxt->manifest, (unsigned char *) " ", 1);
 
 	// reference name
-	g_byte_array_append(ctxt->manifest, (unsigned char  *) ref_name,
+	g_byte_array_append(ctxt->manifest, (unsigned char *) ref_name,
 			    strlen(ref_name));
-	g_byte_array_append(ctxt->manifest, (unsigned char  *) "\0", 1);
-	// fprintf(stderr, "DEBUG:   ref name: %s\n", ref_name);
+	g_byte_array_append(ctxt->manifest, (unsigned char *) "\0", 1);
 
 	// (length-encoded) target ID
 	if (dangling) {
@@ -405,7 +400,6 @@ void emit_snapshot_edge(char *target_pid, ref_ctxt_t *ctxt) {
 	FILE *edges_out = ctxt->conf->edges_out;
 	char **pid_parts, **ptr;
 
-	// fprintf(stderr, "DEBUG: emit_snapshot_edge target: ='%s'\n", target_pid);
 	pid_parts = g_strsplit(target_pid, ":", 4);
 	ptr = pid_parts; ptr++; ptr++;  // move ptr to PID type component
 	int target_type = parse_otype(*ptr);
