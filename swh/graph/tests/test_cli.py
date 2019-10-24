@@ -11,8 +11,6 @@ from typing import Dict
 
 from click.testing import CliRunner
 
-import swh.graph
-
 from swh.graph import cli
 
 
@@ -31,8 +29,7 @@ def read_properties(properties_fname) -> Dict[str, str]:
 
 class TestCompress(unittest.TestCase):
 
-    DATA_DIR = Path(swh.graph.__file__).parent.parent.parent \
-        / 'tests' / 'dataset'
+    DATA_DIR = Path(__file__).parents[0] / 'dataset'
 
     def setUp(self):
         self.runner = CliRunner()

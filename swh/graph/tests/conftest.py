@@ -1,16 +1,16 @@
 import multiprocessing
 import pytest
-from pathlib import Path
 
 from aiohttp.test_utils import TestServer, TestClient, loop_context
+from pathlib import Path
 
 from swh.graph.graph import load as graph_load
 from swh.graph.client import RemoteGraphClient
 from swh.graph.backend import Backend
 from swh.graph.server.app import make_app
 
-SWH_GRAPH_ROOT = Path(__file__).parents[3]
-TEST_GRAPH_PATH = SWH_GRAPH_ROOT / 'tests/dataset/output/example'
+SWH_GRAPH_TESTS_ROOT = Path(__file__).parents[0]
+TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / 'dataset/output/example'
 
 
 class GraphServerProcess(multiprocessing.Process):

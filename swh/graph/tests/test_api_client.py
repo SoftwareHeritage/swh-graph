@@ -1,10 +1,3 @@
-import os
-import pytest
-
-
-pytestmark = pytest.mark.skipif(os.environ.get('JENKINS'), reason='T2055')
-
-
 def test_stats(graph_client):
     stats = graph_client.stats()
 
@@ -112,7 +105,6 @@ def test_walk(graph_client):
 
 
 def test_count(graph_client):
-    print(graph_client)
     actual = graph_client.count_leaves(
         'swh:1:ori:0000000000000000000000000000000000000021'
     )

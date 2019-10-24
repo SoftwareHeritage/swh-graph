@@ -27,7 +27,7 @@ Tests
 -----
 
 Unit tests rely on test data that are already available in the Git repository
-(under `src/test/dataset/`). You generally only need to run them using Maven:
+(under `src/swh/graph/tests/dataset/`). You generally only need to run them using Maven:
 
 ```bash
 $ mvn test
@@ -37,14 +37,14 @@ In case you want to regenerate the test data:
 
 ```bash
 # Graph compression
-$ cd src/test/dataset
+$ cd src/swh/graph/tests/dataset
 $ ./generate_graph.sh
-$ cd ../../../
+$ cd ../../../..
 
 $ mvn compile assembly:single
 # Dump mapping files
 $ java -cp target/swh-graph-jar-with-dependencies.jar \
     org.softwareheritage.graph.backend.Setup \
-    src/test/dataset/example.nodes.csv.gz \
-    src/test/dataset/output/example
+    src/swh/graph/tests/dataset/example.nodes.csv.gz \
+    src/swh/graph/tests/dataset/output/example
 ```
