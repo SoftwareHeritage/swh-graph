@@ -1,10 +1,13 @@
-package org.softwareheritage.graph;
+package org.softwareheritage.graph.benchmark;
 
 import com.martiansoftware.jsap.*;
+import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.algo.Traversal;
 import org.softwareheritage.graph.benchmark.utils.Timing;
 
 import java.io.IOException;
+import java.util.Scanner;
 import java.util.concurrent.*;
 
 public class GenDistribution {
@@ -71,9 +74,11 @@ public class GenDistribution {
 
         service.submit(() -> {
             try {
-                for (long curnode = 0; curnode < tp.graph.nodeTypesMap.nodeTypesMap.size64(); curnode++) {
-                    if (tp.graph.nodeTypesMap.getType(curnode) == srcType) {
-                        queue.put(curnode);
+                Scanner input = new Scanner(System.in);
+                while (input.hasNextLong()) {
+                    long node = input.nextLong();
+                    if (tp.graph.getNodeType(node) == srcType) {
+                        queue.put(node);
                     }
                 }
             } catch (InterruptedException e) {
@@ -111,13 +116,13 @@ public class GenDistribution {
 
                     startTime = Timing.start();
                     t.visitNodesVisitor(node, (curnode) -> {
-                        if (tp.graph.nodeTypesMap.getType(curnode) == dstType) {
+                        if (tp.graph.getNodeType(curnode) == dstType) {
                             count[0]++;
                         }
                     });
                     totalTime = Timing.stop(startTime);
-                    System.out.format("%d %d %d %f\n",
-                            count[0], t.getNbNodesAccessed(),
+                    System.out.format("%d %d %d %d %f\n",
+                            node, count[0], t.getNbNodesAccessed(),
                             t.getNbEdgesAccessed(), totalTime
                     );
                 }
