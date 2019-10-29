@@ -57,8 +57,7 @@ class Backend:
     def __enter__(self):
         # TODO: make all of that configurable with sane defaults
         java_opts = [
-            '-Xmx640G',
-            '-Xss1G',
+            '-Xmx200G',
             '-server',
             '-XX:PretenureSizeThreshold=512M',
             '-XX:MaxNewSize=4G',
