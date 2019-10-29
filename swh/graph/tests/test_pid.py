@@ -146,6 +146,15 @@ class TestPidToIntMap(unittest.TestCase):
                         for i in range(k, k + 20)]
             assert first_20 == expected
 
+    def test_iter_prefix(self):
+        for t in PID_TYPES:
+            prefix = self.map.iter_prefix('swh:1:{}:00'.format(t))
+            first_20 = list(islice(prefix, 20))
+            k = first_20[0][1]
+            expected = [('swh:1:{}:{:040x}'.format(t, i), i)
+                        for i in range(k, k + 20)]
+            assert first_20 == expected
+
 
 class TestIntToPidMap(unittest.TestCase):
 
