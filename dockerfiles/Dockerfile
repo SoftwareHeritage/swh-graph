@@ -22,13 +22,6 @@ WORKDIR /srv/softwareheritage/graph/lib
 
 RUN ln /usr/local/share/swh-graph/*.jar .
 
-# law is not shipped via Maven, download from upstream
-ARG LAW_VERSION=2.6.0
-RUN curl -O http://law.di.unimi.it/software/download/law-${LAW_VERSION}-bin.tar.gz && \
-    tar xaf law-${LAW_VERSION}-bin.tar.gz && \
-    cp law-${LAW_VERSION}/law-${LAW_VERSION}.jar . &&\
-    rm -rf law-${LAW_VERSION}-bin.tar.gz law-${LAW_VERSION}/
-
 # Add user files
 WORKDIR /srv/softwareheritage/graph/app
 COPY configuration configuration/
