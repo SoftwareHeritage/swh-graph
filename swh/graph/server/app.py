@@ -21,6 +21,7 @@ except ImportError:
     # Compatibility with 3.6 backport
     from async_generator import asynccontextmanager
 
+
 @asynccontextmanager
 async def stream_response(request, *args, **kwargs):
     response = aiohttp.web.StreamResponse(*args, **kwargs)
