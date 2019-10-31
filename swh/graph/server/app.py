@@ -19,7 +19,7 @@ try:
     from contextlib import asynccontextmanager
 except ImportError:
     # Compatibility with 3.6 backport
-    from async_generator import asynccontextmanager
+    from async_generator import asynccontextmanager  # type: ignore
 
 
 @asynccontextmanager
