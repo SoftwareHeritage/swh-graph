@@ -117,14 +117,7 @@ def restore_map(ctx, map_type, length, filename):
         raise ValueError('invalid map type: ' + map_type)
 
 
-@cli.group('graph')
-@click.pass_context
-def graph(ctx):
-    """Manage swh-graph on-disk maps"""
-    pass
-
-
-@graph.command(name='rpc-serve')
+@cli.command(name='rpc-serve')
 @click.option('--host', default='0.0.0.0',
               metavar='IP', show_default=True,
               help="Host ip address to bind the server on")
@@ -135,6 +128,9 @@ def graph(ctx):
               help="Path prefix of the graph to load")
 @click.pass_context
 def serve(ctx, host, port, graph):
+    """Run the Software Heritage Graph REST service
+
+    """
     backend = Backend(graph_path=graph)
     app = make_app(backend=backend)
 
