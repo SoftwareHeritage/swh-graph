@@ -26,6 +26,12 @@ PID2NODE_EXT = 'pid2node.bin'
 
 
 def find_graph_jar():
+    """find swh-graph.jar, containing the Java part of swh-graph
+
+    look both in development directories and installed data (for in-production
+    deployments who fecthed the JAR from pypi)
+
+    """
     swh_graph_root = pathlib.Path(__file__).parents[2]
     try_paths = [
         swh_graph_root / 'java/server/target/',
