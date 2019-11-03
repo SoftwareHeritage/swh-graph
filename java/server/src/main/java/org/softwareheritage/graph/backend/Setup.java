@@ -38,7 +38,7 @@ public class Setup {
      */
     public static void main(String[] args) throws IOException {
         if (args.length != 2) {
-            System.err.println("Expected parameters: <nodes.csv.gz path> <compressed graph path>");
+            System.err.println("Usage: NODES_CSV_GZ COMPRESSED_GRAPH_BASE_NAME");
             System.exit(1);
         }
 
