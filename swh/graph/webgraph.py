@@ -34,7 +34,8 @@ class CompressionStep(Enum):
     STATS = 7
     TRANSPOSE = 8
     TRANSPOSE_OBL = 9
-    CLEAN_TMP = 10
+    MAPS = 10
+    CLEAN_TMP = 11
 
     def __str__(self):
         return self.name
@@ -77,6 +78,10 @@ STEP_ARGV = {
     CompressionStep.TRANSPOSE_OBL:
     (['{java}', 'it.unimi.dsi.big.webgraph.BVGraph',
       '--list', '{out_dir}/{graph_name}-transposed'],
+     {}),
+    CompressionStep.MAPS:
+    (['{java}', 'org.softwareheritage.graph.backend.Setup',
+      '{in_dir}/{graph_name}.nodes.csv.gz', '{out_dir}/{graph_name}'],
      {}),
     CompressionStep.CLEAN_TMP:
     (['rm', '-rf',
