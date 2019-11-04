@@ -139,6 +139,36 @@ def restore_map(ctx, map_type, length, filename):
         raise ValueError('invalid map type: ' + map_type)
 
 
+@map.command('write')
+@click.option('--type', '-t', 'map_type', required=True,
+              type=click.Choice(['pid2int', 'int2pid']),
+              help='type of map to write')
+@click.argument('filename', required=True, type=click.Path())
+@click.pass_context
+def write(ctx, map_type, filename):
+    """write a map to disk sequentially
+
+    read from stdin a textual PID->int mapping (for pid2int, or a simple
+    sequence of PIDs for int2pid) and write it to disk in the requested binary
+    map format
+
+    note that no sorting is applied, so the input should already be sorted as
+    required by the chosen map type (by PID for pid2int, by int for int2pid)
+
+    """
+    with open(filename, 'wb') as f:
+        if map_type == 'pid2int':
+            for line in sys.stdin:
+                (pid, int_str) = line.rstrip().split(maxsplit=1)
+                PidToIntMap.write_record(f, pid, int(int_str))
+        elif map_type == 'int2pid':
+            for line in sys.stdin:
+                pid = line.rstrip()
+                IntToPidMap.write_record(f, pid)
+        else:
+            raise ValueError('invalid map type: ' + map_type)
+
+
 @cli.command(name='rpc-serve')
 @click.option('--host', '-h', default='0.0.0.0',
               metavar='IP', show_default=True,
