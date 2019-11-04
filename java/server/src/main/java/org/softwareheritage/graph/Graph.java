@@ -31,10 +31,10 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
 
 public class Graph implements FlyweightPrototype<Graph> {
     /** File extension for the SWH PID to long node id map */
-    public static final String PID_TO_NODE = ".pid2node.csv";
+    public static final String PID_TO_NODE = ".pid2node.bin";
     /** File extension for the long node id to SWH PID map */
-    public static final String NODE_TO_PID = ".node2pid.csv";
-    /** File extension for the long node id to node typ map */
+    public static final String NODE_TO_PID = ".node2pid.bin";
+    /** File extension for the long node id to node type map */
     public static final String NODE_TO_TYPE = ".node2type.map";
 
     /** Compressed graph stored as a {@link it.unimi.dsi.big.webgraph.BVGraph} */

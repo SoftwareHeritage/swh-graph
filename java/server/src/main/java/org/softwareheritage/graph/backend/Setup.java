@@ -1,12 +1,12 @@
 package org.softwareheritage.graph.backend;
 
-import java.io.BufferedWriter;
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
 import java.io.FileInputStream;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Writer;
 import java.util.zip.GZIPInputStream;
 
 import it.unimi.dsi.bits.LongArrayBitVector;
@@ -84,9 +84,11 @@ public class Setup {
         FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(nodesStream, "UTF-8"));
         LineIterator swhPIDIterator = new LineIterator(buffer);
 
-        try (Writer swhToNodeMap = new BufferedWriter(new FileWriter(graphPath + Graph.PID_TO_NODE));
-                    Writer nodeToSwhMap = new BufferedWriter(new FileWriter(graphPath + Graph.NODE_TO_PID))) {
-            // nodeToSwhMap needs to write SWH PID in order of node id, so use a temporary array
+	// for the binary format of pidToNodeMap, see Python module swh.graph.pid:PidToIntMap
+	// for the binary format of nodeToPidMap, see Python module swh.graph.pid:IntToPidMap
+        try (DataOutputStream pidToNodeMap = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(graphPath + Graph.PID_TO_NODE)));
+             BufferedOutputStream nodeToPidMap = new BufferedOutputStream(new FileOutputStream(graphPath + Graph.NODE_TO_PID))) {
+            // nodeToPidMap needs to write SWH PID in order of node id, so use a temporary array
             Object[][] nodeToSwhPID = ObjectBigArrays.newBigArray(nbIds);
 
             // To effectively run edge restriction during graph traversals, we store node id (long) -> SWH
@@ -99,24 +101,23 @@ public class Setup {
 
             for (long iNode = 0; iNode < nbIds && swhPIDIterator.hasNext(); iNode++) {
                 String strSwhPID = swhPIDIterator.next().toString();
+                SwhPID swhPID = new SwhPID(strSwhPID);
+		byte[] swhPIDBin = swhPID.toBytes();
+
                 long mphId = mphMap.getLong(strSwhPID);
                 long nodeId = LongBigArrays.get(bfsMap, mphId);
 
-                String paddedNodeId = String.format("%0" + NodeIdMap.NODE_ID_LENGTH + "d", nodeId);
-                String line = strSwhPID + " " + paddedNodeId + "\n";
-                swhToNodeMap.write(line);
+		pidToNodeMap.write(swhPIDBin, 0, swhPIDBin.length);
+		pidToNodeMap.writeLong(nodeId);
 
-                ObjectBigArrays.set(nodeToSwhPID, nodeId, strSwhPID);
-
-                SwhPID swhPID = new SwhPID(strSwhPID);
+                ObjectBigArrays.set(nodeToSwhPID, nodeId, swhPIDBin);
                 nodeTypesMap.set(nodeId, swhPID.getType().ordinal());
             }
 
             BinIO.storeObject(nodeTypesMap, graphPath + Graph.NODE_TO_TYPE);
 
             for (long iNode = 0; iNode < nbIds; iNode++) {
-                String line = ObjectBigArrays.get(nodeToSwhPID, iNode).toString() + "\n";
-                nodeToSwhMap.write(line);
+                nodeToPidMap.write((byte[]) ObjectBigArrays.get(nodeToSwhPID, iNode));
             }
         }
     }
