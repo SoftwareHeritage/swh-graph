@@ -1,3 +1,10 @@
+import os
+import pytest
+
+
+pytestmark = pytest.mark.skipif(os.environ.get('JENKINS'), reason='T2055')
+
+
 def test_stats(graph_client):
     stats = graph_client.stats()
 
