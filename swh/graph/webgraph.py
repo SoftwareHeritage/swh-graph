@@ -219,10 +219,33 @@ def check_config(conf, graph_name, in_dir, out_dir):
     return conf
 
 
-def compress(conf: Dict[str, str], graph_name: str,
-             in_dir: Path, out_dir: Path, steps: Set[CompressionStep]):
+def compress(graph_name: str, in_dir: Path, out_dir: Path,
+             steps: Set[CompressionStep] = set(COMP_SEQ),
+             conf: Dict[str, str] = {}):
     """graph compression pipeline driver from nodes/edges files to compressed
     on-disk representation
+
+    Args:
+        graph_name: graph base name, relative to in_dir
+        in_dir: input directory, where the uncompressed graph can be found
+        out_dir: output directory, where the compressed graph will be stored
+        steps: compression steps to run (default: all steps)
+        conf: compression configuration, supporting the following keys (all are
+          optional, so an empty configuration is fine and is the default)
+
+          - batch_size: batch size for `WebGraph transformations
+            <http://webgraph.di.unimi.it/docs/it/unimi/dsi/webgraph/Transform.html>`_;
+            defaults to 1 billion
+          - classpath: java classpath, defaults to swh-graph JAR only
+          - java: command to run java VM, defaults to "java"
+          - java_tool_options: value for JAVA_TOOL_OPTIONS environment
+            variable; defaults to various settings for high memory machines
+          - logback: path to a logback.xml configuration file; if not provided
+            a temporary one will be created and used
+          - max_ram: maximum RAM to use for compression; defaults to available
+            virtual memory
+          - tmp_dir: temporary directory, defaults to the "tmp" subdir of
+            out_dir
 
     """
     if not steps:

@@ -189,7 +189,7 @@ def compress(ctx, graph, out_dir, steps):
     except KeyError:
         conf = {}  # use defaults
 
-    webgraph.compress(conf, graph_name, in_dir, out_dir, steps)
+    webgraph.compress(graph_name, in_dir, out_dir, steps, conf)
 
 
 def main():
