@@ -1,3 +1,4 @@
+
 def test_stats(graph_client):
     stats = graph_client.stats()
 
