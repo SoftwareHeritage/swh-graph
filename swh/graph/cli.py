@@ -8,6 +8,7 @@ import click
 import sys
 
 from pathlib import Path
+from typing import Any, Dict, Tuple
 
 from swh.core import config
 from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
@@ -25,7 +26,7 @@ class PathlibPath(click.Path):
 
 DEFAULT_CONFIG = {
     'graph': ('dict', {})
-}
+}  # type: Dict[str, Tuple[str, Any]]
 
 
 @click.group(name='graph', context_settings=CONTEXT_SETTINGS,

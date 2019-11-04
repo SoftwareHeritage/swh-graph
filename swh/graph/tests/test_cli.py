@@ -6,11 +6,12 @@
 import unittest
 
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, NamedTemporaryFile
 from typing import Dict
 
 from click.testing import CliRunner
 
+from swh.core import config
 from swh.graph import cli
 
 
@@ -34,12 +35,31 @@ class TestCompress(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
 
+        tmpconf = NamedTemporaryFile(mode='w', delete=False,
+                                     prefix='swh-graph-test', suffix='.yml')
+        # bare bone configuration, to allow testing the compression pipeline
+        # with minimum RAM requirements on trivial graphs
+        tmpconf.write("""
+graph:
+  compress:
+    batch_size: 1000
+    java_tool_options: -Dlogback.configurationFile={logback}
+""")
+        tmpconf.close()
+        self.conffile = Path(tmpconf.name)
+        self.config = config.read(self.conffile, cli.DEFAULT_CONFIG)
+
+    def tearDown(self):
+        if self.conffile.exists():
+            self.conffile.unlink()
+
     def test_pipeline(self):
         """run full compression pipeline"""
         with TemporaryDirectory(suffix='.swh-graph-test') as tmpdir:
             result = self.runner.invoke(
                 cli.compress,
-                ['--graph', self.DATA_DIR / 'example', '--outdir', tmpdir])
+                ['--graph', self.DATA_DIR / 'example', '--outdir', tmpdir],
+                obj={'config': self.config})
 
             self.assertEqual(result.exit_code, 0)
             properties = read_properties(Path(tmpdir) / 'example.properties')
