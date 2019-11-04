@@ -24,22 +24,24 @@ INT_BIN_SIZE = 8       # in bytes
 class PidType(Enum):
     """types of existing PIDs, used to serialize PID type as a (char) integer
 
-    note that the order does matter also for driving the binary search in
-    PID-indexed maps
+    Note that the order does matter also for driving the binary search in
+    PID-indexed maps. Integer values also matter, for compatibility with the
+    Java layer.
 
     """
-    content = 1
-    directory = 2
-    origin = 3
-    release = 4
-    revision = 5
-    snapshot = 6
+    content = 0
+    directory = 1
+    origin = 2
+    release = 3
+    revision = 4
+    snapshot = 5
 
 
 def str_to_bytes(pid_str: str) -> bytes:
     """Convert a PID to a byte sequence
 
-    The binary format used to represent PIDs as byte sequences is as follows:
+    The binary format used to represent PIDs as 22-byte long byte sequences as
+    follows:
 
     - 1 byte for the namespace version represented as a C `unsigned char`
     - 1 byte for the object type, as the int value of :class:`PidType` enums,
@@ -328,8 +330,8 @@ class IntToPidMap(_OnDiskMap, MutableMapping):
 
     This is the converse mapping of :class:`PidToIntMap`.
 
-    The on-disk serialization format is a sequence of fixed length (22 bytes),
-    where each record is the binary representation of PID as per
+    The on-disk serialization format is a sequence of fixed length records (22
+    bytes), each being the binary representation of a PID as per
     :func:`str_to_bytes`.
 
     The records are sorted by long integer, so that integer lookup is possible

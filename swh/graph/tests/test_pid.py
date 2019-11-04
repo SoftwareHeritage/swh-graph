@@ -19,22 +19,22 @@ class TestPidSerialization(unittest.TestCase):
 
     pairs = [
         ('swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2',
-         bytes.fromhex('01' + '01' +
+         bytes.fromhex('01' + '00' +
                        '94a9ed024d3859793618152ea559a168bbcbb5e2')),
         ('swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505',
-         bytes.fromhex('01' + '02' +
+         bytes.fromhex('01' + '01' +
                        'd198bc9d7a6bcf6db04f476d29314f157507d505')),
         ('swh:1:ori:b63a575fe3faab7692c9f38fb09d4bb45651bb0f',
-         bytes.fromhex('01' + '03' +
+         bytes.fromhex('01' + '02' +
                        'b63a575fe3faab7692c9f38fb09d4bb45651bb0f')),
         ('swh:1:rel:22ece559cc7cc2364edc5e5593d63ae8bd229f9f',
-         bytes.fromhex('01' + '04' +
+         bytes.fromhex('01' + '03' +
                        '22ece559cc7cc2364edc5e5593d63ae8bd229f9f')),
         ('swh:1:rev:309cf2674ee7a0749978cf8265ab91a60aea0f7d',
-         bytes.fromhex('01' + '05' +
+         bytes.fromhex('01' + '04' +
                        '309cf2674ee7a0749978cf8265ab91a60aea0f7d')),
         ('swh:1:snp:c7c108084bc0bf3d81436bf980b46e98bd338453',
-         bytes.fromhex('01' + '06' +
+         bytes.fromhex('01' + '05' +
                        'c7c108084bc0bf3d81436bf980b46e98bd338453')),
     ]
 
