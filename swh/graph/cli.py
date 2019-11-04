@@ -9,6 +9,7 @@ import sys
 
 from pathlib import Path
 
+from swh.core import config
 from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
 from swh.graph import client, webgraph
 from swh.graph.pid import PidToIntMap, IntToPidMap
@@ -22,12 +23,26 @@ class PathlibPath(click.Path):
         return Path(super().convert(value, param, ctx))
 
 
+DEFAULT_CONFIG = {
+    'graph': ('dict', {})
+}
+
+
 @click.group(name='graph', context_settings=CONTEXT_SETTINGS,
              cls=AliasedGroup)
+@click.option('--config-file', '-C', default=None,
+              type=click.Path(exists=True, dir_okay=False,),
+              help='YAML configuration file')
 @click.pass_context
-def cli(ctx):
+def cli(ctx, config_file):
     """Software Heritage graph tools."""
     ctx.ensure_object(dict)
+
+    conf = config.read(config_file, DEFAULT_CONFIG)
+    if 'graph' not in conf:
+        raise ValueError('no "graph" stanza found in configuration file %s'
+                         % config_file)
+    ctx.obj['config'] = conf
 
 
 @cli.command('api-client')
@@ -167,7 +182,10 @@ def compress(ctx, graph, out_dir, steps):
     """
     graph_name = graph.name
     in_dir = graph.parent
-    conf = {}  # use defaults
+    try:
+        conf = ctx.obj['config']['graph']['compress']
+    except KeyError:
+        conf = {}  # use defaults
 
     webgraph.compress(conf, graph_name, in_dir, out_dir, steps)
 
