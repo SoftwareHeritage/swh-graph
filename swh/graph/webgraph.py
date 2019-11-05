@@ -83,7 +83,8 @@ STEP_ARGV = {
      '--list', '{out_dir}/{graph_name}-transposed'],
     CompressionStep.MAPS:
     ['{java}', 'org.softwareheritage.graph.backend.Setup',
-     '{in_dir}/{graph_name}.nodes.csv.gz', '{out_dir}/{graph_name}'],
+     '{in_dir}/{graph_name}.nodes.csv.gz', '{out_dir}/{graph_name}',
+     '{tmp_dir}'],
     CompressionStep.CLEAN_TMP:
     ['rm', '-rf',
      '{out_dir}/{graph_name}-bv.graph',
