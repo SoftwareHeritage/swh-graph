@@ -46,28 +46,26 @@ public class MapBuilder {
      * @param args command line arguments
      */
     public static void main(String[] args) throws IOException {
-        if (args.length != 3) {
-            logger.error("Usage: NODES_CSV_GZ COMPRESSED_GRAPH_BASE_NAME TEMP_DIR");
+        if (args.length != 2) {
+            logger.error("Usage: COMPRESSED_GRAPH_BASE_NAME TEMP_DIR < NODES_CSV");
             System.exit(1);
         }
-        String nodesPath = args[0];
-        String graphPath = args[1];
-        String tmpDir = args[2];
+        String graphPath = args[0];
+        String tmpDir = args[1];
 
         logger.info("starting maps generation...");
-        precomputeNodeIdMap(nodesPath, graphPath, tmpDir);
+        precomputeNodeIdMap(graphPath, tmpDir);
         logger.info("maps generation completed");
     }
 
     /**
      * Computes and dumps on disk mapping files.
      *
-     * @param nodesPath path of the compressed csv nodes file
      * @param graphPath path of the compressed graph
      */
     // Suppress warning for Object2LongFunction cast
     @SuppressWarnings("unchecked")
-    static void precomputeNodeIdMap(String nodesPath, String graphPath, String tmpDir)
+    static void precomputeNodeIdMap(String graphPath, String tmpDir)
         throws IOException
     {
         ProgressLogger plPid2Node = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
@@ -104,9 +102,9 @@ public class MapBuilder {
         }
 
         // Create mapping SWH PID -> WebGraph node id, by sequentially reading
-        // nodes, hasing them with MPH, and permuting according to BFS order
+        // nodes, hashing them with MPH, and permuting according to BFS order
         InputStream nodesStream = new GZIPInputStream(new FileInputStream(nodesPath));
-        FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(nodesStream,
+        FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in,
                                                                                  StandardCharsets.US_ASCII));
         LineIterator swhPIDIterator = new LineIterator(buffer);
 

@@ -50,11 +50,11 @@ COMP_SEQ = list(CompressionStep)
 # configuration values, see :func:`compress`.
 STEP_ARGV = {
     CompressionStep.MPH:
-    ['zcat', '{in_dir}/{graph_name}.nodes.csv.gz', '|',
+    ['zstdcat', '{in_dir}/{graph_name}.nodes.csv.zst', '|',
      '{java}', 'it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction',
      '--temp-dir', '{tmp_dir}', '{out_dir}/{graph_name}.mph'],
     CompressionStep.BV:
-    ['zcat', '{in_dir}/{graph_name}.edges.csv.gz', '|',
+    ['zstdcat', '{in_dir}/{graph_name}.edges.csv.zst', '|',
      '{java}', 'it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph',
      '--temp-dir', '{tmp_dir}',
      '--function', '{out_dir}/{graph_name}.mph', '{out_dir}/{graph_name}-bv'],
@@ -82,9 +82,9 @@ STEP_ARGV = {
     ['{java}', 'it.unimi.dsi.big.webgraph.BVGraph',
      '--list', '{out_dir}/{graph_name}-transposed'],
     CompressionStep.MAPS:
-    ['{java}', 'org.softwareheritage.graph.backend.MapBuilder',
-     '{in_dir}/{graph_name}.nodes.csv.gz', '{out_dir}/{graph_name}',
-     '{tmp_dir}'],
+    ['zstdcat', '{in_dir}/{graph_name}.nodes.csv.zst', '|',
+     '{java}', 'org.softwareheritage.graph.backend.MapBuilder',
+     '{out_dir}/{graph_name}', '{tmp_dir}'],
     CompressionStep.CLEAN_TMP:
     ['rm', '-rf',
      '{out_dir}/{graph_name}-bv.graph',
