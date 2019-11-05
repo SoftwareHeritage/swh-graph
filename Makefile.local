@@ -3,7 +3,9 @@ POM_PATH=java/server/pom.xml
 java:
 	mvn -f $(POM_PATH) compile assembly:single
 
-clean-java:
-	mvn -f $(POM_PATH) clean
+java-%:
+	mvn -f $(POM_PATH) $*
+
+clean-java: java-clean
 
 .PHONY: java clean-java
