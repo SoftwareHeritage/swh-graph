@@ -4,7 +4,6 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 import java.util.concurrent.*;
-import java.util.zip.GZIPInputStream;
 
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.Size64;
@@ -103,7 +102,6 @@ public class MapBuilder {
 
         // Create mapping SWH PID -> WebGraph node id, by sequentially reading
         // nodes, hashing them with MPH, and permuting according to BFS order
-        InputStream nodesStream = new GZIPInputStream(new FileInputStream(nodesPath));
         FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in,
                                                                                  StandardCharsets.US_ASCII));
         LineIterator swhPIDIterator = new LineIterator(buffer);
