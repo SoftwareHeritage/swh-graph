@@ -13,7 +13,7 @@ from typing import Any, Dict, Tuple
 from swh.core import config
 from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
 from swh.graph import client, webgraph
-from swh.graph.pid import PidToIntMap, IntToPidMap
+from swh.graph.pid import PidToNodeMap, NodeToPidMap
 from swh.graph.server.app import make_app
 from swh.graph.backend import Backend
 
@@ -66,17 +66,17 @@ def map(ctx):
     pass
 
 
-def dump_pid2int(filename):
-    for (pid, int) in PidToIntMap(filename):
+def dump_pid2node(filename):
+    for (pid, int) in PidToNodeMap(filename):
         print('{}\t{}'.format(pid, int))
 
 
-def dump_int2pid(filename):
-    for (int, pid) in IntToPidMap(filename):
+def dump_node2pid(filename):
+    for (int, pid) in NodeToPidMap(filename):
         print('{}\t{}'.format(int, pid))
 
 
-def restore_pid2int(filename):
+def restore_pid2node(filename):
     """read a textual PID->int map from stdin and write its binary version to
     filename
 
@@ -84,33 +84,33 @@ def restore_pid2int(filename):
     with open(filename, 'wb') as dst:
         for line in sys.stdin:
             (str_pid, str_int) = line.split()
-            PidToIntMap.write_record(dst, str_pid, int(str_int))
+            PidToNodeMap.write_record(dst, str_pid, int(str_int))
 
 
-def restore_int2pid(filename, length):
+def restore_node2pid(filename, length):
     """read a textual int->PID map from stdin and write its binary version to
     filename
 
     """
-    int2pid = IntToPidMap(filename, mode='wb', length=length)
+    node2pid = NodeToPidMap(filename, mode='wb', length=length)
     for line in sys.stdin:
         (str_int, str_pid) = line.split()
-        int2pid[int(str_int)] = str_pid
-    int2pid.close()
+        node2pid[int(str_int)] = str_pid
+    node2pid.close()
 
 
 @map.command('dump')
 @click.option('--type', '-t', 'map_type', required=True,
-              type=click.Choice(['pid2int', 'int2pid']),
+              type=click.Choice(['pid2node', 'node2pid']),
               help='type of map to dump')
 @click.argument('filename', required=True, type=click.Path(exists=True))
 @click.pass_context
 def dump_map(ctx, map_type, filename):
-    """dump a binary PID<->int map to textual format"""
-    if map_type == 'pid2int':
-        dump_pid2int(filename)
-    elif map_type == 'int2pid':
-        dump_int2pid(filename)
+    """dump a binary PID<->node map to textual format"""
+    if map_type == 'pid2node':
+        dump_pid2node(filename)
+    elif map_type == 'node2pid':
+        dump_node2pid(filename)
     else:
         raise ValueError('invalid map type: ' + map_type)
     pass
@@ -118,53 +118,53 @@ def dump_map(ctx, map_type, filename):
 
 @map.command('restore')
 @click.option('--type', '-t', 'map_type', required=True,
-              type=click.Choice(['pid2int', 'int2pid']),
+              type=click.Choice(['pid2node', 'node2pid']),
               help='type of map to dump')
 @click.option('--length', '-l', type=int,
               help='''map size in number of logical records
-              (required for int2pid maps)''')
+              (required for node2pid maps)''')
 @click.argument('filename', required=True, type=click.Path())
 @click.pass_context
 def restore_map(ctx, map_type, length, filename):
-    """restore a binary PID<->int map from textual format"""
-    if map_type == 'pid2int':
-        restore_pid2int(filename)
-    elif map_type == 'int2pid':
+    """restore a binary PID<->node map from textual format"""
+    if map_type == 'pid2node':
+        restore_pid2node(filename)
+    elif map_type == 'node2pid':
         if length is None:
             raise click.UsageError(
                 'map length is required when restoring {} maps'.format(
                     map_type), ctx)
-        restore_int2pid(filename, length)
+        restore_node2pid(filename, length)
     else:
         raise ValueError('invalid map type: ' + map_type)
 
 
 @map.command('write')
 @click.option('--type', '-t', 'map_type', required=True,
-              type=click.Choice(['pid2int', 'int2pid']),
+              type=click.Choice(['pid2node', 'node2pid']),
               help='type of map to write')
 @click.argument('filename', required=True, type=click.Path())
 @click.pass_context
 def write(ctx, map_type, filename):
     """write a map to disk sequentially
 
-    read from stdin a textual PID->int mapping (for pid2int, or a simple
-    sequence of PIDs for int2pid) and write it to disk in the requested binary
+    read from stdin a textual PID->node mapping (for pid2node, or a simple
+    sequence of PIDs for node2pid) and write it to disk in the requested binary
     map format
 
     note that no sorting is applied, so the input should already be sorted as
-    required by the chosen map type (by PID for pid2int, by int for int2pid)
+    required by the chosen map type (by PID for pid2node, by int for node2pid)
 
     """
     with open(filename, 'wb') as f:
-        if map_type == 'pid2int':
+        if map_type == 'pid2node':
             for line in sys.stdin:
                 (pid, int_str) = line.rstrip().split(maxsplit=1)
-                PidToIntMap.write_record(f, pid, int(int_str))
-        elif map_type == 'int2pid':
+                PidToNodeMap.write_record(f, pid, int(int_str))
+        elif map_type == 'node2pid':
             for line in sys.stdin:
                 pid = line.rstrip()
-                IntToPidMap.write_record(f, pid)
+                NodeToPidMap.write_record(f, pid)
         else:
             raise ValueError('invalid map type: ' + map_type)
 

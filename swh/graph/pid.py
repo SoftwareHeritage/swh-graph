@@ -143,11 +143,11 @@ class _OnDiskMap():
         raise NotImplementedError('cannot delete records from fixed-size map')
 
 
-class PidToIntMap(_OnDiskMap, MutableMapping):
+class PidToNodeMap(_OnDiskMap, MutableMapping):
     """memory mapped map from PID (:ref:`persistent-identifiers`) to a continuous
     range 0..N of (8-byte long) integers
 
-    This is the converse mapping of :class:`IntToPidMap`.
+    This is the converse mapping of :class:`NodeToPidMap`.
 
     The on-disk serialization format is a sequence of fixed length (30 bytes)
     records with the following fields:
@@ -324,11 +324,11 @@ class PidToIntMap(_OnDiskMap, MutableMapping):
         yield from self.iter_prefix(prefix)
 
 
-class IntToPidMap(_OnDiskMap, MutableMapping):
+class NodeToPidMap(_OnDiskMap, MutableMapping):
     """memory mapped map from a continuous range of 0..N (8-byte long) integers to
     PIDs (:ref:`persistent-identifiers`)
 
-    This is the converse mapping of :class:`PidToIntMap`.
+    This is the converse mapping of :class:`PidToNodeMap`.
 
     The on-disk serialization format is a sequence of fixed length records (22
     bytes), each being the binary representation of a PID as per

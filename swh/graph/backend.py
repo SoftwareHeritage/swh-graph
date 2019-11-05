@@ -15,7 +15,7 @@ import tempfile
 
 from py4j.java_gateway import JavaGateway
 
-from swh.graph.pid import IntToPidMap, PidToIntMap
+from swh.graph.pid import NodeToPidMap, PidToNodeMap
 from swh.model.identifiers import PID_TYPES
 
 BUF_SIZE = 64*1024
@@ -83,8 +83,8 @@ class Backend:
         )
         self.entry = self.gateway.jvm.org.softwareheritage.graph.Entry()
         self.entry.load_graph(self.graph_path)
-        self.node2pid = IntToPidMap(self.graph_path + '.' + NODE2PID_EXT)
-        self.pid2node = PidToIntMap(self.graph_path + '.' + PID2NODE_EXT)
+        self.node2pid = NodeToPidMap(self.graph_path + '.' + NODE2PID_EXT)
+        self.pid2node = PidToNodeMap(self.graph_path + '.' + PID2NODE_EXT)
         self.stream_proxy = JavaStreamProxy(self.entry)
         return self
 

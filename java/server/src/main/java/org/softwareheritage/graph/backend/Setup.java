@@ -84,8 +84,8 @@ public class Setup {
         FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(nodesStream, "UTF-8"));
         LineIterator swhPIDIterator = new LineIterator(buffer);
 
-	// for the binary format of pidToNodeMap, see Python module swh.graph.pid:PidToIntMap
-	// for the binary format of nodeToPidMap, see Python module swh.graph.pid:IntToPidMap
+	// for the binary format of pidToNodeMap, see Python module swh.graph.pid:PidToNodeMap
+	// for the binary format of nodeToPidMap, see Python module swh.graph.pid:NodeToPidMap
         try (DataOutputStream pidToNodeMap = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(graphPath + Graph.PID_TO_NODE)));
              BufferedOutputStream nodeToPidMap = new BufferedOutputStream(new FileOutputStream(graphPath + Graph.NODE_TO_PID))) {
             // nodeToPidMap needs to write SWH PID in order of node id, so use a temporary array

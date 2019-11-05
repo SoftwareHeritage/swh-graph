@@ -11,7 +11,7 @@ import unittest
 from itertools import islice
 
 from swh.graph.pid import str_to_bytes, bytes_to_str
-from swh.graph.pid import PidToIntMap, IntToPidMap
+from swh.graph.pid import PidToNodeMap, NodeToPidMap
 from swh.model.identifiers import PID_TYPES
 
 
@@ -88,7 +88,7 @@ MAP_PAIRS = [
 ]
 
 
-class TestPidToIntMap(unittest.TestCase):
+class TestPidToNodeMap(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -99,14 +99,14 @@ class TestPidToIntMap(unittest.TestCase):
         cls.fname = os.path.join(cls.tmpdir, 'pid2int.bin')
         with open(cls.fname, 'wb') as f:
             for (pid, i) in gen_records(length=10000):
-                PidToIntMap.write_record(f, pid, i)
+                PidToNodeMap.write_record(f, pid, i)
 
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tmpdir)
 
     def setUp(self):
-        self.map = PidToIntMap(self.fname)
+        self.map = PidToNodeMap(self.fname)
 
     def tearDown(self):
         self.map.close()
@@ -130,7 +130,7 @@ class TestPidToIntMap(unittest.TestCase):
     def test_update(self):
         fname2 = self.fname + '.update'
         shutil.copy(self.fname, fname2)  # fresh map copy
-        map2 = PidToIntMap(fname2, mode='rb+')
+        map2 = PidToNodeMap(fname2, mode='rb+')
         for (pid, int) in islice(map2, 11):  # update the first N items
             new_int = int + 42
             map2[pid] = new_int
@@ -156,7 +156,7 @@ class TestPidToIntMap(unittest.TestCase):
             assert first_20 == expected
 
 
-class TestIntToPidMap(unittest.TestCase):
+class TestNodeToPidMap(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -167,14 +167,14 @@ class TestIntToPidMap(unittest.TestCase):
         cls.fname = os.path.join(cls.tmpdir, 'int2pid.bin')
         with open(cls.fname, 'wb') as f:
             for (pid, _i) in gen_records(length=10000):
-                IntToPidMap.write_record(f, pid)
+                NodeToPidMap.write_record(f, pid)
 
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tmpdir)
 
     def setUp(self):
-        self.map = IntToPidMap(self.fname)
+        self.map = NodeToPidMap(self.fname)
 
     def tearDown(self):
         self.map.close()
@@ -192,7 +192,7 @@ class TestIntToPidMap(unittest.TestCase):
     def test_update(self):
         fname2 = self.fname + '.update'
         shutil.copy(self.fname, fname2)  # fresh map copy
-        map2 = IntToPidMap(fname2, mode='rb+')
+        map2 = NodeToPidMap(fname2, mode='rb+')
         for (int, pid) in islice(map2, 11):  # update the first N items
             new_pid = pid.replace(':0', ':f')  # mangle first hex digit
             map2[int] = new_pid
