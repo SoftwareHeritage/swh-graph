@@ -12,10 +12,9 @@ import os
 import subprocess
 
 from enum import Enum
-from contextlib import ExitStack
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set
 
 import psutil
 
@@ -44,53 +43,54 @@ class CompressionStep(Enum):
 # full compression pipeline
 COMP_SEQ = list(CompressionStep)
 
+# Mapping from compression steps to shell commands implementing them. Commands
+# will be executed by the shell, so be careful with meta characters. They are
+# specified here as lists of tokens that will be joined together only for ease
+# of line splitting. In commands, {tokens} will be interpolated with
+# configuration values, see :func:`compress`.
 STEP_ARGV = {
     CompressionStep.MPH:
-    (['{java}', 'it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction',
-      '--zipped', '{out_dir}/{graph_name}.mph',
-      '--temp-dir', '{tmp_dir}',
-      '{in_dir}/{graph_name}.nodes.csv.gz'], {}),
+    ['zcat', '{in_dir}/{graph_name}.nodes.csv.gz', '|',
+     '{java}', 'it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction',
+     '--temp-dir', '{tmp_dir}', '{out_dir}/{graph_name}.mph'],
     CompressionStep.BV:
-    (['{java}', 'it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph',
-      '--function', '{out_dir}/{graph_name}.mph', '--temp-dir', '{tmp_dir}',
-      '--zipped', '{out_dir}/{graph_name}-bv'],
-     {'stdin': '{in_dir}/{graph_name}.edges.csv.gz'}),
+    ['zcat', '{in_dir}/{graph_name}.edges.csv.gz', '|',
+     '{java}', 'it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph',
+     '--temp-dir', '{tmp_dir}',
+     '--function', '{out_dir}/{graph_name}.mph', '{out_dir}/{graph_name}-bv'],
     CompressionStep.BV_OBL:
-    (['{java}', 'it.unimi.dsi.big.webgraph.BVGraph',
-      '--list', '{out_dir}/{graph_name}-bv'], {}),
+    ['{java}', 'it.unimi.dsi.big.webgraph.BVGraph',
+     '--list', '{out_dir}/{graph_name}-bv'],
     CompressionStep.BFS:
-    (['{java}', 'it.unimi.dsi.law.big.graph.BFS',
-      '{out_dir}/{graph_name}-bv', '{out_dir}/{graph_name}.order'], {}),
+    ['{java}', 'it.unimi.dsi.law.big.graph.BFS',
+     '{out_dir}/{graph_name}-bv', '{out_dir}/{graph_name}.order'],
     CompressionStep.PERMUTE:
-    (['{java}', 'it.unimi.dsi.big.webgraph.Transform',
-      'mapOffline', '{out_dir}/{graph_name}-bv', '{out_dir}/{graph_name}',
-      '{out_dir}/{graph_name}.order', '{batch_size}', '{tmp_dir}'], {}),
+    ['{java}', 'it.unimi.dsi.big.webgraph.Transform',
+     'mapOffline', '{out_dir}/{graph_name}-bv', '{out_dir}/{graph_name}',
+     '{out_dir}/{graph_name}.order', '{batch_size}', '{tmp_dir}'],
     CompressionStep.PERMUTE_OBL:
-    (['{java}', 'it.unimi.dsi.big.webgraph.BVGraph',
-      '--list', '{out_dir}/{graph_name}'], {}),
+    ['{java}', 'it.unimi.dsi.big.webgraph.BVGraph',
+     '--list', '{out_dir}/{graph_name}'],
     CompressionStep.STATS:
-    (['{java}', 'it.unimi.dsi.big.webgraph.Stats',
-      '{out_dir}/{graph_name}'], {}),
+    ['{java}', 'it.unimi.dsi.big.webgraph.Stats',
+     '{out_dir}/{graph_name}'],
     CompressionStep.TRANSPOSE:
-    (['{java}', 'it.unimi.dsi.big.webgraph.Transform',
-      'transposeOffline', '{out_dir}/{graph_name}',
-      '{out_dir}/{graph_name}-transposed', '{batch_size}', '{tmp_dir}'], {}),
+    ['{java}', 'it.unimi.dsi.big.webgraph.Transform',
+     'transposeOffline', '{out_dir}/{graph_name}',
+     '{out_dir}/{graph_name}-transposed', '{batch_size}', '{tmp_dir}'],
     CompressionStep.TRANSPOSE_OBL:
-    (['{java}', 'it.unimi.dsi.big.webgraph.BVGraph',
-      '--list', '{out_dir}/{graph_name}-transposed'],
-     {}),
+    ['{java}', 'it.unimi.dsi.big.webgraph.BVGraph',
+     '--list', '{out_dir}/{graph_name}-transposed'],
     CompressionStep.MAPS:
-    (['{java}', 'org.softwareheritage.graph.backend.Setup',
-      '{in_dir}/{graph_name}.nodes.csv.gz', '{out_dir}/{graph_name}'],
-     {}),
+    ['{java}', 'org.softwareheritage.graph.backend.Setup',
+     '{in_dir}/{graph_name}.nodes.csv.gz', '{out_dir}/{graph_name}'],
     CompressionStep.CLEAN_TMP:
-    (['rm', '-rf',
-      '{out_dir}/{graph_name}-bv.graph',
-      '{out_dir}/{graph_name}-bv.obl',
-      '{out_dir}/{graph_name}-bv.offsets',
-      '{tmp_dir}'],
-     {}),
-}  # type: Dict[CompressionStep, Tuple[List[str], Dict[str, str]]]
+    ['rm', '-rf',
+     '{out_dir}/{graph_name}-bv.graph',
+     '{out_dir}/{graph_name}-bv.obl',
+     '{out_dir}/{graph_name}-bv.offsets',
+     '{tmp_dir}'],
+}  # type: Dict[CompressionStep, List[str]]
 
 
 class StepOption(ParamType):
@@ -137,34 +137,26 @@ class StepOption(ParamType):
 
 
 def do_step(step, conf):
-    (raw_cmd, raw_kwargs) = STEP_ARGV[step]
-    cmd = list(map(lambda s: s.format(**conf), raw_cmd))
-    kwargs = {k: v.format(**conf) for (k, v) in raw_kwargs.items()}
+    cmd = ' '.join(STEP_ARGV[step]).format(**conf)
 
     cmd_env = os.environ.copy()
     cmd_env['JAVA_TOOL_OPTIONS'] = conf['java_tool_options']
     cmd_env['CLASSPATH'] = conf['classpath']
 
-    with ExitStack() as ctxt:
-        run_kwargs = {}
-        if 'stdin' in kwargs:  # redirect standard input
-            run_kwargs['stdin'] = ctxt.enter_context(open(kwargs['stdin']))
-
-        logging.info('running: ' + ' '.join(cmd))
-        # return subprocess.run(cmd, check=True, env=cmd_env,
-        #                       stderr=subprocess.STDOUT, **run_kwargs)
-        process = subprocess.Popen(cmd, env=cmd_env, encoding='utf8',
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT, **run_kwargs)
-        with process.stdout as stdout:
-            for line in stdout:
-                logging.info(line.rstrip())
-        rc = process.wait()
-        if rc != 0:
-            raise RuntimeError('compression step %s returned non-zero '
-                               'exit code %d' % (step, rc))
-        else:
-            return rc
+    logging.info('running: %s' % cmd)
+    process = subprocess.Popen(cmd, shell=True,
+                               env=cmd_env, encoding='utf8',
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT)
+    with process.stdout as stdout:
+        for line in stdout:
+            logging.info(line.rstrip())
+    rc = process.wait()
+    if rc != 0:
+        raise RuntimeError('compression step %s returned non-zero '
+                           'exit code %d' % (step, rc))
+    else:
+        return rc
 
 
 def check_config(conf, graph_name, in_dir, out_dir):
