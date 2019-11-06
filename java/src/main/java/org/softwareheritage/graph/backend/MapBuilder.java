@@ -36,7 +36,7 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
  */
 public class MapBuilder {
 
-    final static long SORT_BUFFER_SIZE = Runtime.getRuntime().maxMemory() * 40 / 100;  // 40% max_ram
+    final static String SORT_BUFFER_SIZE = "40%";
 
     final static Logger logger = LoggerFactory.getLogger(MapBuilder.class);
 
@@ -106,7 +106,7 @@ public class MapBuilder {
         // /usr/bin/sort via pipes
         ProcessBuilder processBuilder = new ProcessBuilder();
         processBuilder.command("sort", "--numeric-sort", "--key", "2",
-                               "--buffer-size", Long.toString(SORT_BUFFER_SIZE),
+                               "--buffer-size", SORT_BUFFER_SIZE,
                                "--temporary-directory", tmpDir);
         Process sort = processBuilder.start();
         BufferedOutputStream sort_stdin = new BufferedOutputStream(sort.getOutputStream());
