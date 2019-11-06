@@ -203,7 +203,9 @@ def check_config(conf, graph_name, in_dir, out_dir):
             '-XX:MaxNewSize=4G', '-XX:+UseLargePages',
             '-XX:+UseTransparentHugePages', '-XX:+UseNUMA', '-XX:+UseTLAB',
             '-XX:+ResizeTLAB', '-Dlogback.configurationFile={logback}'
-        ]).format(max_ram=conf['max_ram'], logback=conf['logback'])
+        ])
+    conf['java_tool_options'] = conf['java_tool_options'].format(
+        max_ram=conf['max_ram'], logback=conf['logback'])
     if 'java' not in conf:
         conf['java'] = 'java'
     if 'classpath' not in conf:
