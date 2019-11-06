@@ -82,6 +82,8 @@ public class Setup {
             System.exit(2);
         }
         long nbIds = (mphMap instanceof Size64) ? ((Size64) mphMap).size64() : mphMap.size();
+        plPid2Node.expectedUpdates = nbIds;
+        plNode2Pid.expectedUpdates = nbIds;
 
         // second half of PID->node mapping: WebGraph MPH (long) -> BFS order (long)
         long[][] bfsMap = LongBigArrays.newBigArray(nbIds);
