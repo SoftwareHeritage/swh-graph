@@ -15,6 +15,10 @@ import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.fastutil.objects.ObjectBigArrays;
 import it.unimi.dsi.io.FastBufferedReader;
 import it.unimi.dsi.io.LineIterator;
+import it.unimi.dsi.logging.ProgressLogger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
@@ -32,8 +36,9 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
  */
 public class Setup {
 
-    final static long PROGRESS_TICK = 1_000_000;
     final static long SORT_BUFFER_SIZE = Runtime.getRuntime().maxMemory() * 40 / 100;  // 40% max_ram
+
+    final static Logger logger = LoggerFactory.getLogger(Setup.class);
 
     /**
      * Main entrypoint.
@@ -42,19 +47,16 @@ public class Setup {
      */
     public static void main(String[] args) throws IOException {
         if (args.length != 3) {
-            System.err.println("Usage: NODES_CSV_GZ COMPRESSED_GRAPH_BASE_NAME TEMP_DIR");
+            logger.error("Usage: NODES_CSV_GZ COMPRESSED_GRAPH_BASE_NAME TEMP_DIR");
             System.exit(1);
         }
         String nodesPath = args[0];
         String graphPath = args[1];
         String tmpDir = args[2];
 
-        System.out.println("Pre-computing node id maps...");
-        long startTime = System.nanoTime();
+	logger.info("starting maps generation...");
         precomputeNodeIdMap(nodesPath, graphPath, tmpDir);
-        long endTime = System.nanoTime();
-        double duration = (endTime - startTime) / 1_000_000_000;
-        System.out.println("Done in: " + duration + " seconds");
+	logger.info("maps generation completed");
     }
 
     /**
@@ -66,13 +68,17 @@ public class Setup {
     // Suppress warning for Object2LongFunction cast
     @SuppressWarnings("unchecked")
     static void precomputeNodeIdMap(String nodesPath, String graphPath, String tmpDir)
-	throws IOException {
+	throws IOException
+    {
+	ProgressLogger plPid2Node = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
+	ProgressLogger plNode2Pid = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
+
         // first half of PID->node mapping: PID -> WebGraph MPH (long)
         Object2LongFunction<String> mphMap = null;
         try {
             mphMap = (Object2LongFunction<String>) BinIO.loadObject(graphPath + ".mph");
         } catch (ClassNotFoundException e) {
-	    System.err.println("unknown class object in .mph file: " + e);
+	    logger.error("unknown class object in .mph file: " + e);
 	    System.exit(2);
         }
         long nbIds = (mphMap instanceof Size64) ? ((Size64) mphMap).size64() : mphMap.size();
@@ -81,7 +87,7 @@ public class Setup {
         long[][] bfsMap = LongBigArrays.newBigArray(nbIds);
         long loaded = BinIO.loadLongs(graphPath + ".order", bfsMap);
         if (loaded != nbIds) {
-	    System.err.println("graph contains " + nbIds + " nodes, but read " + loaded);
+	    logger.error("graph contains " + nbIds + " nodes, but read " + loaded);
 	    System.exit(2);
         }
 
@@ -112,7 +118,7 @@ public class Setup {
 	    // background handler for sort output, it will be fed PID/node
 	    // pairs while pidToNodeMap is being filled, and will itself fill
 	    // nodeToPidMap as soon as data from sort is ready
-	    SortOutputHandler outputHandler = new SortOutputHandler(sort_stdout, nodeToPidMap);
+	    SortOutputHandler outputHandler = new SortOutputHandler(sort_stdout, nodeToPidMap, plNode2Pid);
 	    outputHandler.start();
 
             // Type map from WebGraph node ID to SWH type. Used at runtime by
@@ -125,11 +131,8 @@ public class Setup {
                 LongArrayBitVector.ofLength(nbBitsPerNodeType * nbIds);
             LongBigList nodeTypesMap = nodeTypesBitVector.asLongBigList(nbBitsPerNodeType);
 
+            plPid2Node.start("filling pid2node map");
             for (long iNode = 0; iNode < nbIds && swhPIDIterator.hasNext(); iNode++) {
-		if (iNode > 0 && iNode % PROGRESS_TICK == 0) {
-		    System.out.println("pid2node: processed " + iNode / PROGRESS_TICK
-				       + "M nodes...");
-		}
                 String strSwhPID = swhPIDIterator.next().toString();
                 SwhPID swhPID = new SwhPID(strSwhPID);
 		byte[] swhPIDBin = swhPID.toBytes();
@@ -143,22 +146,26 @@ public class Setup {
 				 .getBytes(StandardCharsets.US_ASCII));
 
                 nodeTypesMap.set(nodeId, swhPID.getType().ordinal());
+                plPid2Node.lightUpdate();
             }
+            plPid2Node.done();
 	    sort_stdin.close();
 
 	    // write type map
+            logger.info("storing type map");
 	    BinIO.storeObject(nodeTypesMap, graphPath + Graph.NODE_TO_TYPE);
+            logger.info("type map stored");
 
 	    // wait for nodeToPidMap filling
 	    try {
 		int sortExitCode = sort.waitFor();
 		if (sortExitCode != 0) {
-		    System.err.println("sort returned non-zero exit code: " + sortExitCode);
+		    logger.error("sort returned non-zero exit code: " + sortExitCode);
 		    System.exit(2);
 		}
 		outputHandler.join();
 	    } catch (InterruptedException e) {
-		System.err.println("processing of sort output failed with: " + e);
+		logger.error("processing of sort output failed with: " + e);
 		System.exit(2);
 	    }
         }
@@ -168,29 +175,32 @@ public class Setup {
     private static class SortOutputHandler extends Thread {
         private Scanner input;
         private OutputStream output;
+        private ProgressLogger pl;
 
-        SortOutputHandler(InputStream input, OutputStream output) {
+        SortOutputHandler(InputStream input, OutputStream output, ProgressLogger pl) {
             this.input = new Scanner(input, StandardCharsets.US_ASCII);
             this.output = output;
+            this.pl = pl;
         }
 
         public void run() {
-	    System.out.println("node2pid: waiting for sort output...");
-	    long i = -1;
+            boolean sortDone = false;
+	    logger.info("node2pid: waiting for sort output...");
 	    while (input.hasNextLine()) {
-		i++;
-		if (i > 0 && i % PROGRESS_TICK == 0) {
-		    System.out.println("node2pid: processed " + i / PROGRESS_TICK
-				       + "M nodes...");
-		}
+                if (! sortDone) {
+                    sortDone = true;
+                    this.pl.start("filling node2pid map");
+                }
 		String line = input.nextLine();  // format: SWH_PID <TAB> NODE_ID
 		SwhPID swhPID = new SwhPID(line.split("\\t")[0]);  // get PID
 		try {
 		    output.write((byte[]) swhPID.toBytes());
 		} catch (IOException e) {
-		    System.err.println("writing to node->PID map failed with: " + e);
+		    logger.error("writing to node->PID map failed with: " + e);
 		}
+                this.pl.lightUpdate();
 	    }
+            this.pl.done();
         }
     }
 
