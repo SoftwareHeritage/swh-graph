@@ -33,7 +33,7 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
 public class Setup {
 
     final static long PROGRESS_TICK = 1_000_000;
-    final static long SORT_BUFFER_SIZE = Runtime.getRuntime().maxMemory() * 66 / 100;  // 2/3 of max_ram
+    final static long SORT_BUFFER_SIZE = Runtime.getRuntime().maxMemory() * 40 / 100;  // 40% max_ram
 
     /**
      * Main entrypoint.
