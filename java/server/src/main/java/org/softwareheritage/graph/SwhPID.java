@@ -71,19 +71,19 @@ public class SwhPID {
      * swh.graph.pid:str_to_bytes .
      */
     public byte[] toBytes() {
-	byte[] bytes = new byte[22];
-	byte[] digest;
+        byte[] bytes = new byte[22];
+        byte[] digest;
 
-	bytes[0] = (byte) 1;  // namespace version
-	bytes[1] = (byte) Node.Type.toInt(this.type);  // PID type
-	try {
-	    digest = Hex.decodeHex(this.swhPID.substring(10));  // SHA1 hash
-	    System.arraycopy(digest, 0, bytes, 2, digest.length);
-	} catch (DecoderException e) {
+        bytes[0] = (byte) 1;  // namespace version
+        bytes[1] = (byte) Node.Type.toInt(this.type);  // PID type
+        try {
+            digest = Hex.decodeHex(this.swhPID.substring(10));  // SHA1 hash
+            System.arraycopy(digest, 0, bytes, 2, digest.length);
+        } catch (DecoderException e) {
             throw new IllegalArgumentException("invalid hex sequence in PID: " + this.swhPID);
-	}
+        }
 
-	return bytes;
+        return bytes;
     }
 
     /**

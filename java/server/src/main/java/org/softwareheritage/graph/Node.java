@@ -63,7 +63,7 @@ public class Node {
             case REV: return 4;
             case SNP: return 5;
             }
-	    throw new IllegalArgumentException("Unknown node type: " + type);
+            throw new IllegalArgumentException("Unknown node type: " + type);
         }
 
         /**

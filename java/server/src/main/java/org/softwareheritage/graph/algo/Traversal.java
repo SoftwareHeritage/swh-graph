@@ -121,7 +121,7 @@ public class Traversal {
      */
     public ArrayList<Long> leaves(long srcNodeId) {
         ArrayList<Long> nodeIds = new ArrayList<Long>();
-	leavesVisitor(srcNodeId, (nodeId) -> nodeIds.add(nodeId));
+        leavesVisitor(srcNodeId, (nodeId) -> nodeIds.add(nodeId));
         return nodeIds;
     }
 
@@ -132,7 +132,7 @@ public class Traversal {
     public void neighborsVisitor(long srcNodeId, NodeIdConsumer cb) {
         this.nbEdgesAccessed = graph.degree(srcNodeId, useTransposed);
         for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, srcNodeId)) {
-	    cb.accept(neighborNodeId);
+            cb.accept(neighborNodeId);
         }
     }
 
@@ -144,7 +144,7 @@ public class Traversal {
      */
     public ArrayList<Long> neighbors(long srcNodeId) {
         ArrayList<Long> nodeIds = new ArrayList<Long>();
-	neighborsVisitor(srcNodeId, (nodeId) -> nodeIds.add(nodeId));
+        neighborsVisitor(srcNodeId, (nodeId) -> nodeIds.add(nodeId));
         return nodeIds;
     }
 
@@ -161,7 +161,7 @@ public class Traversal {
 
         while (!stack.isEmpty()) {
             long currentNodeId = stack.pop();
-	    cb.accept(currentNodeId);
+            cb.accept(currentNodeId);
 
             nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
             for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
@@ -181,8 +181,8 @@ public class Traversal {
      */
     public ArrayList<Long> visitNodes(long srcNodeId) {
         ArrayList<Long> nodeIds = new ArrayList<Long>();
-	visitNodesVisitor(srcNodeId, (nodeId) -> nodeIds.add(nodeId));
-	return nodeIds;
+        visitNodesVisitor(srcNodeId, (nodeId) -> nodeIds.add(nodeId));
+        return nodeIds;
     }
 
     /**
@@ -203,13 +203,13 @@ public class Traversal {
      */
     public ArrayList<ArrayList<Long>> visitPaths(long srcNodeId) {
         ArrayList<ArrayList<Long>> paths = new ArrayList<>();
-	visitPathsVisitor(srcNodeId, (path) -> paths.add(path));
+        visitPathsVisitor(srcNodeId, (path) -> paths.add(path));
         return paths;
     }
 
     private void visitPathsInternalVisitor(long currentNodeId,
-					   Stack<Long> currentPath,
-					   PathConsumer cb) {
+                                           Stack<Long> currentPath,
+                                           PathConsumer cb) {
         currentPath.push(currentNodeId);
 
         long visitedNeighbors = 0;
@@ -224,7 +224,7 @@ public class Traversal {
             for (long nodeId : currentPath) {
                 path.add(nodeId);
             }
-	    cb.accept(path);
+            cb.accept(path);
         }
 
         currentPath.pop();
