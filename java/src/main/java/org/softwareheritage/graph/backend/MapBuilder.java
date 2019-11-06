@@ -75,10 +75,16 @@ public class MapBuilder {
         plPid2Node.itemsName = "pid→node";
         plNode2Pid.itemsName = "node→pid";
 
+        // avg speed for pid→node is sometime skewed due to write to the sort
+        // pipe hanging when sort is sorting; hence also desplay local speed
+        plPid2Node.displayLocalSpeed = true;
+
         // first half of PID->node mapping: PID -> WebGraph MPH (long)
         Object2LongFunction<String> mphMap = null;
         try {
+            logger.info("loading MPH function...");
             mphMap = (Object2LongFunction<String>) BinIO.loadObject(graphPath + ".mph");
+            logger.info("MPH function loaded");
         } catch (ClassNotFoundException e) {
             logger.error("unknown class object in .mph file: " + e);
             System.exit(2);
@@ -89,7 +95,9 @@ public class MapBuilder {
 
         // second half of PID->node mapping: WebGraph MPH (long) -> BFS order (long)
         long[][] bfsMap = LongBigArrays.newBigArray(nbIds);
+        logger.info("loading BFS order file...");
         long loaded = BinIO.loadLongs(graphPath + ".order", bfsMap);
+        logger.info("BFS order file loaded");
         if (loaded != nbIds) {
             logger.error("graph contains " + nbIds + " nodes, but read " + loaded);
             System.exit(2);
@@ -162,6 +170,7 @@ public class MapBuilder {
 
             // wait for nodeToPidMap filling
             try {
+                logger.info("waiting for node2pid map...");
                 int sortExitCode = sort.waitFor();
                 if (sortExitCode != 0) {
                     logger.error("sort returned non-zero exit code: " + sortExitCode);
