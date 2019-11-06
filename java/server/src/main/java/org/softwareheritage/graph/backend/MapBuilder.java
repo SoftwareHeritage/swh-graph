@@ -34,11 +34,11 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
  *
  * @author The Software Heritage developers
  */
-public class Setup {
+public class MapBuilder {
 
     final static long SORT_BUFFER_SIZE = Runtime.getRuntime().maxMemory() * 40 / 100;  // 40% max_ram
 
-    final static Logger logger = LoggerFactory.getLogger(Setup.class);
+    final static Logger logger = LoggerFactory.getLogger(MapBuilder.class);
 
     /**
      * Main entrypoint.

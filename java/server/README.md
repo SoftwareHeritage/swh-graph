@@ -1,5 +1,5 @@
-Graph service - Server side
-===========================
+Graph service - Java backend
+============================
 
 Server side Java REST API.
 
@@ -14,7 +14,7 @@ Start REST API
 --------------
 
 ```bash
-$ java -cp target/swh-graph-jar-with-dependencies.jar \
+$ java -cp target/swh-graph-*.jar \
     org.softwareheritage.graph.App \
     <compressed_graph_path>
 ```
@@ -43,8 +43,8 @@ $ cd ../../../..
 
 $ mvn compile assembly:single
 # Dump mapping files
-$ java -cp target/swh-graph-jar-with-dependencies.jar \
-    org.softwareheritage.graph.backend.Setup \
+$ java -cp target/swh-graph-*.jar \
+    org.softwareheritage.graph.backend.MapBuilder \
     src/swh/graph/tests/dataset/example.nodes.csv.gz \
     src/swh/graph/tests/dataset/output/example
 ```

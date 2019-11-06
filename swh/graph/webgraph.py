@@ -82,7 +82,7 @@ STEP_ARGV = {
     ['{java}', 'it.unimi.dsi.big.webgraph.BVGraph',
      '--list', '{out_dir}/{graph_name}-transposed'],
     CompressionStep.MAPS:
-    ['{java}', 'org.softwareheritage.graph.backend.Setup',
+    ['{java}', 'org.softwareheritage.graph.backend.MapBuilder',
      '{in_dir}/{graph_name}.nodes.csv.gz', '{out_dir}/{graph_name}',
      '{tmp_dir}'],
     CompressionStep.CLEAN_TMP:
