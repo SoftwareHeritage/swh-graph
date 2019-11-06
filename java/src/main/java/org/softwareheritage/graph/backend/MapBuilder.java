@@ -72,6 +72,8 @@ public class MapBuilder {
     {
         ProgressLogger plPid2Node = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         ProgressLogger plNode2Pid = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
+        plPid2Node.itemsName = "pid→node";
+        plNode2Pid.itemsName = "node→pid";
 
         // first half of PID->node mapping: PID -> WebGraph MPH (long)
         Object2LongFunction<String> mphMap = null;
