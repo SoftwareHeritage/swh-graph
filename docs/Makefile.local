@@ -1,4 +1,4 @@
-JAVA_DIR = ../java/server
+JAVA_DIR = ../java
 
 sphinx/html: images
 sphinx/clean: clean-images clean-javadoc

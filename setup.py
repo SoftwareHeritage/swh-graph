@@ -36,7 +36,7 @@ def parse_requirements(name=None):
     return requirements
 
 
-JAR_PATHS = list(glob('java/server/target/swh-graph-*.jar'))
+JAR_PATHS = list(glob('java/target/swh-graph-*.jar'))
 
 setup(
     name='swh.graph',

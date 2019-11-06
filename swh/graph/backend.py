@@ -34,7 +34,7 @@ def find_graph_jar():
     """
     swh_graph_root = pathlib.Path(__file__).parents[2]
     try_paths = [
-        swh_graph_root / 'java/server/target/',
+        swh_graph_root / 'java/target/',
         pathlib.Path(sys.prefix) / 'share/swh-graph/',
     ]
     for path in try_paths:
