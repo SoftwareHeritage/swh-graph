@@ -22,9 +22,17 @@ except ImportError:
     from async_generator import asynccontextmanager  # type: ignore
 
 
+MIME_TYPE_HTML = 'text/html'
+MIME_TYPE_JSON = 'application/json'
+MIME_TYPE_NDJSON = 'application/x-ndjson'  # see http://ndjson.org/
+MIME_TYPE_TEXT = 'text/plain'
+
+
 @asynccontextmanager
-async def stream_response(request, *args, **kwargs):
+async def stream_response(request, content_type=MIME_TYPE_TEXT,
+                          *args, **kwargs):
     response = aiohttp.web.StreamResponse(*args, **kwargs)
+    response.content_type = content_type
     await response.prepare(request)
     yield response
     await response.write_eof()
@@ -32,7 +40,7 @@ async def stream_response(request, *args, **kwargs):
 
 async def index(request):
     return aiohttp.web.Response(
-        content_type='text/html',
+        content_type=MIME_TYPE_HTML,
         body="""<html>
 <head><title>Software Heritage storage server</title></head>
 <body>
@@ -48,7 +56,7 @@ documentation</a> for more information.</p>
 
 async def stats(request):
     stats = request.app['backend'].stats()
-    return aiohttp.web.Response(body=stats, content_type='application/json')
+    return aiohttp.web.Response(body=stats, content_type=MIME_TYPE_JSON)
 
 
 def get_simple_traversal_handler(ttype):
@@ -101,7 +109,8 @@ async def visit_paths(request):
 
     src_node = backend.pid2node[src]
     it = backend.visit_paths(direction, edges, src_node)
-    async with stream_response(request) as response:
+    async with stream_response(request, content_type=MIME_TYPE_NDJSON) \
+            as response:
         async for res_path in it:
             res_path_pid = [backend.node2pid[n] for n in res_path]
             line = json.dumps(res_path_pid)
@@ -122,7 +131,7 @@ def get_count_handler(ttype):
         cnt = await loop.run_in_executor(
             None, backend.count, ttype, direction, edges, src_node)
         return aiohttp.web.Response(body=str(cnt),
-                                    content_type='application/json')
+                                    content_type=MIME_TYPE_JSON)
 
     return count
 
