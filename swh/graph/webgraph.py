@@ -50,9 +50,11 @@ COMP_SEQ = list(CompressionStep)
 # configuration values, see :func:`compress`.
 STEP_ARGV = {
     CompressionStep.MPH:
-    ['zstdcat', '{in_dir}/{graph_name}.nodes.csv.zst', '|',
-     '{java}', 'it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction',
-     '--temp-dir', '{tmp_dir}', '{out_dir}/{graph_name}.mph'],
+    ['{java}', 'it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction',
+     '--temp-dir', '{tmp_dir}', '{out_dir}/{graph_name}.mph',
+     '<( zstdcat {in_dir}/{graph_name}.nodes.csv.zst )'],
+    # use process substitution (and hence FIFO) above as MPH class load the
+    # entire file in memory when reading from stdin
     CompressionStep.BV:
     ['zstdcat', '{in_dir}/{graph_name}.edges.csv.zst', '|',
      '{java}', 'it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph',
@@ -145,7 +147,7 @@ def do_step(step, conf):
     cmd_env['CLASSPATH'] = conf['classpath']
 
     logging.info('running: %s' % cmd)
-    process = subprocess.Popen(cmd, shell=True,
+    process = subprocess.Popen(['/bin/bash', '-c', cmd],
                                env=cmd_env, encoding='utf8',
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT)
