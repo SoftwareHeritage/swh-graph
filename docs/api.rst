@@ -174,6 +174,21 @@ Visit
         ...
 
 
+Counting results
+----------------
+
+The following method variants, with trailing `/count` added, behave like the
+already discussed methods but, instead of returning results, return the
+*amount* of results that would have been returned:
+
+.. http:get:: /graph/leaves/count/:src
+
+.. http:get:: /graph/neighbors/count/:src
+
+.. http:get:: /graph/visit/nodes/count/:src
+
+
+
 Stats
 -----
 
