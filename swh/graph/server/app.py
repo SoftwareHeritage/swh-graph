@@ -14,6 +14,7 @@ import aiohttp.web
 
 from swh.core.api.asynchronous import RPCServerApp
 from swh.model.identifiers import PID_TYPES
+from swh.model.exceptions import ValidationError
 
 try:
     from contextlib import asynccontextmanager
@@ -61,7 +62,12 @@ def get_simple_traversal_handler(ttype):
         edges = request.query.get('edges', '*')
         direction = request.query.get('direction', 'forward')
 
-        src_node = backend.pid2node[src]
+        try:
+            src_node = backend.pid2node[src]
+        except KeyError:
+            return aiohttp.web.HTTPNotFound()
+        except ValidationError:
+            return aiohttp.web.HTTPBadRequest()
         async with stream_response(request) as response:
             async for res_node in backend.simple_traversal(
                 ttype, direction, edges, src_node
@@ -82,9 +88,14 @@ async def walk(request):
     direction = request.query.get('direction', 'forward')
     algo = request.query.get('traversal', 'dfs')
 
-    src_node = backend.pid2node[src]
-    if dst not in PID_TYPES:
-        dst = backend.pid2node[dst]
+    try:
+        src_node = backend.pid2node[src]
+        if dst not in PID_TYPES:
+            dst = backend.pid2node[dst]
+    except KeyError:
+        return aiohttp.web.HTTPNotFound()
+    except ValidationError:
+        return aiohttp.web.HTTPBadRequest()
     async with stream_response(request) as response:
         async for res_node in backend.walk(
                 direction, edges, algo, src_node, dst
@@ -101,7 +112,12 @@ async def visit_paths(request):
     edges = request.query.get('edges', '*')
     direction = request.query.get('direction', 'forward')
 
-    src_node = backend.pid2node[src]
+    try:
+        src_node = backend.pid2node[src]
+    except KeyError:
+        return aiohttp.web.HTTPNotFound()
+    except ValidationError:
+        return aiohttp.web.HTTPBadRequest()
     it = backend.visit_paths(direction, edges, src_node)
     async with stream_response(request, content_type='application/x-ndjson') \
             as response:
@@ -121,7 +137,12 @@ def get_count_handler(ttype):
         edges = request.query.get('edges', '*')
         direction = request.query.get('direction', 'forward')
 
-        src_node = backend.pid2node[src]
+        try:
+            src_node = backend.pid2node[src]
+        except KeyError:
+            return aiohttp.web.HTTPNotFound()
+        except ValidationError:
+            return aiohttp.web.HTTPBadRequest()
         cnt = await loop.run_in_executor(
             None, backend.count, ttype, direction, edges, src_node)
         return aiohttp.web.Response(body=str(cnt),
