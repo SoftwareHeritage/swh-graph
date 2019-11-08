@@ -1,5 +1,6 @@
-Traversal REST API
-==================
+Graph REST API
+==============
+
 
 Terminology
 -----------
@@ -16,6 +17,7 @@ This API uses the following notions:
 - **Edge type**: a comma-separated list of ``src:dst`` strings where ``src`` and
   ``dst`` are node types, or ``*`` for all edge types.
 
+
 Examples
 ~~~~~~~~
 
@@ -30,19 +32,6 @@ Examples
   nodes, or from directories nodes.
 - ``"*:rel"`` node types allowing all edges to releases.
 
-Metadata
---------
-
-Extra metadata are given in addition to the result:
-
-- ``timings``: only when configured to do so (see the server's README):
-
-    - ``traversal``: time in seconds to do the actual graph traversal.
-    - ``pid2node``: time in seconds to convert input PID to node id.
-    - ``node2pid``: time in seconds to convert output node ids to PIDs.
-
-- ``nb_edges_accessed``: number of edges accessed during the traversal
-  operation.
 
 Leaves
 ------
@@ -66,23 +55,13 @@ Leaves
     .. sourcecode:: http
 
         HTTP/1.1 200 OK
-        Content-Type: application/json
+        Content-Type: text/plain
+        Transfer-Encoding: chunked
 
-        {
-            "result": [
-                "swh:1:cnt:669ac7c32292798644b21dbb5a0dc657125f444d",
-                "swh:1:cnt:da4cb28febe66172a9fdf1a235525ae6c00cde1d",
-                ...
-            ],
-            "meta": {
-                "timings": {
-                    "traversal": 0.002942681,
-                    "pid2node": 0.000178051,
-                    "node2pid": 0.000956569
-                },
-                "nb_edges_accessed": 12
-            }
-        }
+        swh:1:cnt:669ac7c32292798644b21dbb5a0dc657125f444d
+        swh:1:cnt:da4cb28febe66172a9fdf1a235525ae6c00cde1d",
+        ...
+
 
 Neighbors
 ---------
@@ -105,23 +84,13 @@ Neighbors
     .. sourcecode:: http
 
         HTTP/1.1 200 OK
-        Content-Type: application/json
+        Content-Type: text/plain
+        Transfer-Encoding: chunked
 
-        {
-            "result": [
-                "swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2",
-                "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
-                ...
-            ],
-            "meta": {
-                "timings": {
-                    "traversal": 0.002942681,
-                    "pid2node": 0.000178051,
-                    "node2pid": 0.000956569
-                },
-                "nb_edges_accessed": 12
-            }
-        }
+        swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2
+        swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505
+        ...
+
 
 Walk
 ----
@@ -150,25 +119,15 @@ Walk
     .. sourcecode:: http
 
         HTTP/1.1 200 OK
-        Content-Type: application/json
+        Content-Type: text/plain
+        Transfer-Encoding: chunked
 
-        {
-            "result": [
-                "swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35",
-                "swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd",
-                "swh:1:rev:cea92e843e40452c08ba313abc39f59efbb4c29c",
-                "swh:1:rev:8d517bdfb57154b8a11d7f1682ecc0f79abf8e02",
-                ...
-            ],
-            "meta": {
-                "timings": {
-                    "traversal": 0.002942681,
-                    "pid2node": 0.000178051,
-                    "node2pid": 0.000956569
-                },
-                "nb_edges_accessed": 12
-            }
-        }
+        swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35
+        swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd
+        swh:1:rev:cea92e843e40452c08ba313abc39f59efbb4c29c
+        swh:1:rev:8d517bdfb57154b8a11d7f1682ecc0f79abf8e02
+        ...
+
 
 Visit
 -----
@@ -192,57 +151,28 @@ Visit
 
     .. sourcecode:: http
 
-        GET /graph/visit/nodes/
+        GET /graph/visit/nodes/...
         HTTP/1.1 200 OK
-        Content-Type: application/json
+        Content-Type: text/plain
+        Transfer-Encoding: chunked
 
-        {
-            "result": [
-                "swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35",
-                "swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd",
-                ...
-                "swh:1:rev:a31e58e129f73ab5b04016330b13ed51fde7a961",
-                ...
-            ],
-            "meta": {
-                "timings": {
-                    "traversal": 0.002942681,
-                    "pid2node": 0.000178051,
-                    "node2pid": 0.000956569
-                },
-                "nb_edges_accessed": 12
-            }
-        }
+        swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35
+        swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd
+        ...
+        swh:1:rev:a31e58e129f73ab5b04016330b13ed51fde7a961
+        ...
 
     .. sourcecode:: http
 
-        GET /graph/visit/paths/
+        GET /graph/visit/paths/...
         HTTP/1.1 200 OK
-        Content-Type: application/json
+        Content-Type: application/x-ndjson
+        Transfer-Encoding: chunked
 
-        {
-            "result": [
-                [
-                    "swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35",
-                    "swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd",
-                    ...
-                ],
-                [
-                    "swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35",
-                    "swh:1:rev:a31e58e129f73ab5b04016330b13ed51fde7a961",
-                    ...
-                ],
-                ...
-            ],
-            "meta": {
-                "timings" : {
-                    "traversal": 0.002942681,
-                    "pid2node": 0.000178051,
-                    "node2pid": 0.000956569
-                },
-                "nb_edges_accessed": 12
-            }
-        }
+        ["swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35", "swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd", ...]
+        ["swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35", "swh:1:rev:a31e58e129f73ab5b04016330b13ed51fde7a961", ...]
+        ...
+
 
 Stats
 -----
