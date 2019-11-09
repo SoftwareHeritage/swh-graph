@@ -26,9 +26,9 @@ Micro benchmark
     160,38s user 12,72s system 98% cpu 2:55,02 total
     
     $ zstdcat nodes.csv.zst | wc -l
-    6503402
+    6503403
     $ zstdcat edges.csv.zst | wc -l
-    305095437
+    305096029
 
 
 Parallel use
@@ -57,11 +57,13 @@ similar parallelization tools.)
 Limitations
 -----------
 
-Snapshot PID calculation is not fully compatible with
-the
+Snapshot PID calculation is not fully compatible with the
 [spec](https://docs.softwareheritage.org/devel/apidoc/swh.model.html#swh.model.identifiers.snapshot_identifier),
 because currently only HEAD is considered as a symbolic reference. Other
-symbolic refs, if present, will be ignored, ultimately leading to a different
-snapshot PID than what Software Heritage will obtain. The graph structure is
-not affected, but looking up obtained snapshots by PID on the main Software
-Heritage archive might fail.
+symbolic refs, if present, will be ignored, potentially leading to a different
+snapshot PID than what Software Heritage will obtain. This is due to a
+limitation of libgit2, that at the time of writing doesn't allow to list all
+symbolic references.
+
+The graph structure is not affected, but looking up obtained snapshots by PID
+on the main Software Heritage archive might fail.
