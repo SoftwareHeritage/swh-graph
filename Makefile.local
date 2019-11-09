@@ -3,6 +3,9 @@ POM_PATH=java/pom.xml
 java:
 	mvn -f $(POM_PATH) compile assembly:single
 
+java-doc:
+	mvn -f $(POM_PATH) javadoc:javadoc
+
 java-%:
 	mvn -f $(POM_PATH) $*
 
