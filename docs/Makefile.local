@@ -1,8 +1,10 @@
 JAVA_DIR = ../java
 
 sphinx/html: images
-sphinx/clean: clean-images clean-javadoc
-assets: images javadoc
+# sphinx/clean: clean-images clean-javadoc
+sphinx/clean: clean-images
+# assets: images javadoc
+assets: images
 
 images:
 	make -C images/
