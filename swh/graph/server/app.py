@@ -180,24 +180,24 @@ def get_count_handler(ttype):
 
 def make_app(backend, **kwargs):
     app = RPCServerApp(**kwargs)
-    app.router.add_route('GET', '/', index)
-    app.router.add_route('GET', '/graph/stats', stats)
+    app.router.add_get('/', index)
+    app.router.add_get('/graph/stats', stats)
 
-    app.router.add_route('GET', '/graph/leaves/{src}',
-                         get_simple_traversal_handler('leaves'))
-    app.router.add_route('GET', '/graph/neighbors/{src}',
-                         get_simple_traversal_handler('neighbors'))
-    app.router.add_route('GET', '/graph/visit/nodes/{src}',
-                         get_simple_traversal_handler('visit_nodes'))
-    app.router.add_route('GET', '/graph/visit/paths/{src}', visit_paths)
-    app.router.add_route('GET', '/graph/walk/{src}/{dst}', walk)
+    app.router.add_get('/graph/leaves/{src}',
+                       get_simple_traversal_handler('leaves'))
+    app.router.add_get('/graph/neighbors/{src}',
+                       get_simple_traversal_handler('neighbors'))
+    app.router.add_get('/graph/visit/nodes/{src}',
+                       get_simple_traversal_handler('visit_nodes'))
+    app.router.add_get('/graph/visit/paths/{src}', visit_paths)
+    app.router.add_get('/graph/walk/{src}/{dst}', walk)
 
-    app.router.add_route('GET', '/graph/neighbors/count/{src}',
-                         get_count_handler('neighbors'))
-    app.router.add_route('GET', '/graph/leaves/count/{src}',
-                         get_count_handler('leaves'))
-    app.router.add_route('GET', '/graph/visit/nodes/count/{src}',
-                         get_count_handler('visit_nodes'))
+    app.router.add_get('/graph/neighbors/count/{src}',
+                       get_count_handler('neighbors'))
+    app.router.add_get('/graph/leaves/count/{src}',
+                       get_count_handler('leaves'))
+    app.router.add_get('/graph/visit/nodes/count/{src}',
+                       get_count_handler('visit_nodes'))
 
     app['backend'] = backend
     return app
