@@ -15,4 +15,5 @@ representation of the Software Heritage Merkle DAG (see :ref:`data-model`).
    api
    use-cases
    docker
+   git2graph
    /apidoc/swh.graph
