@@ -1,4 +1,5 @@
-dockerfiles/
+docker/
 output/*-bv.*
 output/stderr
 output/stdout
+output/compression.log

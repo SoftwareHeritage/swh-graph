@@ -9,7 +9,7 @@ Build
 
     $ git clone https://forge.softwareheritage.org/source/swh-graph.git
     $ cd swh-graph
-    $ docker build --tag swh-graph dockerfiles
+    $ docker build --tag swh-graph docker/
 
 
 Run
@@ -17,12 +17,12 @@ Run
 
 Given a graph ``g`` specified by:
 
-- ``g.edges.csv.gz``: gzip-compressed csv file with one edge per line, as a
+- ``g.edges.csv.zst``: zstd-compressed CSV file with one edge per line, as a
   "SRC_ID SPACE DST_ID" string, where identifiers are the
   :ref:`persistent-identifiers` of each node.
-- ``g.nodes.csv.gz``: sorted list of unique node identifiers appearing in the
-  corresponding ``g.edges.csv.gz`` file. The format is a gzip-compressed csv
-  file with one persistent identifier per line.
+- ``g.nodes.csv.zst``: sorted list of unique node identifiers appearing in the
+  corresponding ``g.edges.csv.zst`` file. The format is a zst-compressed CSV
+  file (single column) with one persistent identifier per line.
 
 .. code:: bash
 
@@ -32,8 +32,8 @@ Given a graph ``g`` specified by:
         swh-graph:latest \
         bash
 
-Where ``/PATH/TO/GRAPH`` is a directory containing the ``g.edges.csv.gz`` and
-``g.nodes.csv.gz`` files.  By default, when entering the container the current
+Where ``/PATH/TO/GRAPH`` is a directory containing the ``g.edges.csv.zst`` and
+``g.nodes.csv.zst`` files.  By default, when entering the container the current
 working directory will be ``/srv/softwareheritage/graph``; all relative paths
 found below are intended to be relative to that dir.
 
@@ -45,24 +45,7 @@ To compress the graph:
 
 .. code:: bash
 
-    $ app/scripts/compress_graph.sh --lib lib/ --input data/g
-
-Warning: very large graphs may need a bigger batch size parameter for WebGraph
-internals (you can specify a value when running the compression script using:
-``--batch-size 1000000000``).
-
-
-Node identifier mappings
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-To dump the mapping files (i.e., various node id <-> other info mapping files,
-in either ``.csv.gz`` or ad-hoc ``.map`` format):
-
-.. code:: bash
-
-    $ java -cp lib/swh-graph-*.jar \
-        org.softwareheritage.graph.backend.MapBuilder \
-        data/g.nodes.csv.gz data/compressed/g
+    $ swh graph compress --graph data/g --outdir data/compressed
 
 
 Graph server
@@ -72,8 +55,4 @@ To start the swh-graph server:
 
 .. code:: bash
 
-    $ java -cp lib/swh-graph-*.jar \
-        org.softwareheritage.graph.App data/compressed/g
-
-To specify the port on which the server will run, use the `--port` or `-p` flag
-(default is 5009).
+    $ swh graph rpc-serve --graph data/compressed/g
