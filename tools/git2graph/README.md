@@ -22,12 +22,12 @@ Test dependencies:
 Micro benchmark
 ---------------
 
-    $ time ./git2graph -n >(pigz -c > nodes.csv.gz) -e >(pigz -c > edges.csv.gz) /srv/src/linux
-    232,06s user 16,24s system 90% cpu 4:40,35 total
+    $ time ./git2graph -n >(zstdmt > nodes.csv.zst) -e >(zstdmt -c > edges.csv.zst) /srv/src/linux
+    160,38s user 12,72s system 98% cpu 2:55,02 total
     
-    $ zcat nodes.csv.gz | wc -l
+    $ zstdcat nodes.csv.zst | wc -l
     6503402
-    $ zcat edges.csv.gz | wc -l
+    $ zstdcat edges.csv.zst | wc -l
     305095437
 
 
@@ -41,8 +41,8 @@ atomic. Hence it is possible to mass analyze many repositories in parallel with
 something like:
 
     $ mkfifo nodes.fifo edges.fifo
-    $ sort -u < nodes.fifo | pigz -c > nodes.csv.gz &
-    $ sort -u < edges.fifo | pigz -c > edges.csv.gz &
+    $ sort -u < nodes.fifo | zstdmt > nodes.csv.zst &
+    $ sort -u < edges.fifo | zstdmt > edges.csv.zst &
     $ parallel git2graph -n nodes.fifo -e edges.fifo -- repo_dir_1 repo_dir_2 ...
     $ rm nodes.fifo edges.fifo
 
