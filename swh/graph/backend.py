@@ -6,6 +6,7 @@
 import asyncio
 import contextlib
 import io
+import logging
 import os
 import pathlib
 import struct
@@ -40,8 +41,12 @@ def find_graph_jar():
     for path in try_paths:
         glob = list(path.glob('swh-graph-*.jar'))
         if glob:
+            if len(glob) > 1:
+                logging.warn('found multiple swh-graph JARs, '
+                             'arbitrarily picking one')
+            logging.info('using swh-graph JAR: {0}'.format(glob[0]))
             return str(glob[0])
-    raise RuntimeError("swh-graph-*.jar not found. Have you run `make java`?")
+    raise RuntimeError('swh-graph JAR not found. Have you run `make java`?')
 
 
 def _get_pipe_stderr():
