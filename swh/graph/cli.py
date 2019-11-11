@@ -10,12 +10,16 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
+import swh.model.exceptions
+
 from swh.core import config
 from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
 from swh.graph import client, webgraph
+from swh.graph.backend import NODE2PID_EXT, PID2NODE_EXT
 from swh.graph.pid import PidToNodeMap, NodeToPidMap
 from swh.graph.server.app import make_app
 from swh.graph.backend import Backend
+from swh.model.identifiers import parse_persistent_identifier
 
 
 class PathlibPath(click.Path):
@@ -106,7 +110,7 @@ def restore_node2pid(filename, length):
 @click.argument('filename', required=True, type=click.Path(exists=True))
 @click.pass_context
 def dump_map(ctx, map_type, filename):
-    """dump a binary PID<->node map to textual format"""
+    """Dump a binary PID<->node map to textual format."""
     if map_type == 'pid2node':
         dump_pid2node(filename)
     elif map_type == 'node2pid':
@@ -126,7 +130,7 @@ def dump_map(ctx, map_type, filename):
 @click.argument('filename', required=True, type=click.Path())
 @click.pass_context
 def restore_map(ctx, map_type, length, filename):
-    """restore a binary PID<->node map from textual format"""
+    """Restore a binary PID<->node map from textual format."""
     if map_type == 'pid2node':
         restore_pid2node(filename)
     elif map_type == 'node2pid':
@@ -146,7 +150,7 @@ def restore_map(ctx, map_type, length, filename):
 @click.argument('filename', required=True, type=click.Path())
 @click.pass_context
 def write(ctx, map_type, filename):
-    """write a map to disk sequentially
+    """Write a map to disk sequentially.
 
     read from stdin a textual PID->node mapping (for pid2node, or a simple
     sequence of PIDs for node2pid) and write it to disk in the requested binary
@@ -167,6 +171,36 @@ def write(ctx, map_type, filename):
                 NodeToPidMap.write_record(f, pid)
         else:
             raise ValueError('invalid map type: ' + map_type)
+
+
+@map.command('lookup')
+@click.option('--graph', '-g', required=True, metavar='GRAPH',
+              help='compressed graph basename')
+@click.argument('identifier', required=True)
+def map_lookup(graph, identifier):
+    """Lookup an identifier using on-disk maps.
+
+    Depending on the identifier type lookup either a PID into a PID->node (and
+    return the node integer identifier) or, vice-versa, lookup a node integer
+    identifier into a node->PID (and return the PID).  The desired behavior is
+    chosen depending on the syntax of the given identifier.
+
+    """
+    is_pid = None
+    try:
+        int(identifier)
+        is_pid = False
+    except ValueError:
+        try:
+            parse_persistent_identifier(identifier)
+            is_pid = True
+        except swh.model.exceptions.ValidationError:
+            raise ValueError(f'invalid identifier: {identifier}')
+
+    if is_pid:
+        print(PidToNodeMap(f'{graph}.{PID2NODE_EXT}')[identifier])
+    else:
+        print(NodeToPidMap(f'{graph}.{NODE2PID_EXT}')[int(identifier)])
 
 
 @cli.command(name='rpc-serve')
