@@ -119,8 +119,8 @@ class StepOption(ParamType):
                 l_step = self.convert(raw_l, param, ctx)
                 r_step = self.convert(raw_r, param, ctx)
                 if len(l_step) != 1 or len(r_step) != 1:
-                    self.fail('invalid step specification: %s, see --help'
-                              % value)
+                    self.fail(f'invalid step specification: {value}, '
+                              f'see --help')
                 l_idx = l_step.pop()
                 r_idx = r_step.pop()
                 steps = steps.union(set(map(CompressionStep,
@@ -133,8 +133,8 @@ class StepOption(ParamType):
                     try:
                         steps.add(CompressionStep[spec.upper()])  # step name
                     except KeyError:
-                        self.fail('invalid step specification: %s, see --help'
-                                  % value)
+                        self.fail(f'invalid step specification: {value}, '
+                                  f'see --help')
 
         return steps
 
@@ -146,7 +146,7 @@ def do_step(step, conf):
     cmd_env['JAVA_TOOL_OPTIONS'] = conf['java_tool_options']
     cmd_env['CLASSPATH'] = conf['classpath']
 
-    logging.info('running: %s' % cmd)
+    logging.info(f'running: {cmd}')
     process = subprocess.Popen(['/bin/bash', '-c', cmd],
                                env=cmd_env, encoding='utf8',
                                stdout=subprocess.PIPE,
@@ -156,8 +156,8 @@ def do_step(step, conf):
             logging.info(line.rstrip())
     rc = process.wait()
     if rc != 0:
-        raise RuntimeError('compression step %s returned non-zero '
-                           'exit code %d' % (step, rc))
+        raise RuntimeError(f'compression step {step} returned non-zero '
+                           f'exit code {rc}')
     else:
         return rc
 
@@ -250,20 +250,23 @@ def compress(graph_name: str, in_dir: Path, out_dir: Path,
 
     conf = check_config(conf, graph_name, in_dir, out_dir)
 
-    logging.info('starting compression')
     compression_start_time = datetime.now()
+    logging.info(f'starting compression at {compression_start_time}')
     seq_no = 0
     for step in COMP_SEQ:
         if step not in steps:
-            logging.debug('skipping compression step %s' % step)
+            logging.debug(f'skipping compression step {step}')
             continue
         seq_no += 1
-        logging.info('starting compression step %s (%d/%d)'
-                     % (step, seq_no, len(steps)))
         step_start_time = datetime.now()
+        logging.info(f'starting compression step {step} '
+                     f'({seq_no}/{len(steps)}) at {step_start_time}')
         do_step(step, conf)
-        step_duration = datetime.now() - step_start_time
-        logging.info('completed compression step %s (%d/%d) in %s'
-                     % (step, seq_no, len(steps), step_duration))
-    compression_duration = datetime.now() - compression_start_time
-    logging.info('completed compression in %s' % compression_duration)
+        step_end_time = datetime.now()
+        step_duration = step_end_time - step_start_time
+        logging.info(f'completed compression step {step} '
+                     f'({seq_no}/{len(steps)}) '
+                     f'at {step_end_time} in {step_duration}')
+    compression_end_time = datetime.now()
+    compression_duration = compression_end_time - compression_start_time
+    logging.info(f'completed compression in {compression_duration}')
