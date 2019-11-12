@@ -22,14 +22,8 @@ except ImportError:
     from async_generator import asynccontextmanager  # type: ignore
 
 
-MIME_TYPE_HTML = 'text/html'
-MIME_TYPE_JSON = 'application/json'
-MIME_TYPE_NDJSON = 'application/x-ndjson'  # see http://ndjson.org/
-MIME_TYPE_TEXT = 'text/plain'
-
-
 @asynccontextmanager
-async def stream_response(request, content_type=MIME_TYPE_TEXT,
+async def stream_response(request, content_type='text/plain',
                           *args, **kwargs):
     response = aiohttp.web.StreamResponse(*args, **kwargs)
     response.content_type = content_type
@@ -40,7 +34,7 @@ async def stream_response(request, content_type=MIME_TYPE_TEXT,
 
 async def index(request):
     return aiohttp.web.Response(
-        content_type=MIME_TYPE_HTML,
+        content_type='text/html',
         body="""<html>
 <head><title>Software Heritage storage server</title></head>
 <body>
@@ -56,7 +50,7 @@ documentation</a> for more information.</p>
 
 async def stats(request):
     stats = request.app['backend'].stats()
-    return aiohttp.web.Response(body=stats, content_type=MIME_TYPE_JSON)
+    return aiohttp.web.Response(body=stats, content_type='application/json')
 
 
 def get_simple_traversal_handler(ttype):
@@ -109,7 +103,7 @@ async def visit_paths(request):
 
     src_node = backend.pid2node[src]
     it = backend.visit_paths(direction, edges, src_node)
-    async with stream_response(request, content_type=MIME_TYPE_NDJSON) \
+    async with stream_response(request, content_type='application/x-ndjson') \
             as response:
         async for res_path in it:
             res_path_pid = [backend.node2pid[n] for n in res_path]
@@ -131,7 +125,7 @@ def get_count_handler(ttype):
         cnt = await loop.run_in_executor(
             None, backend.count, ttype, direction, edges, src_node)
         return aiohttp.web.Response(body=str(cnt),
-                                    content_type=MIME_TYPE_JSON)
+                                    content_type='application/json')
 
     return count
 
