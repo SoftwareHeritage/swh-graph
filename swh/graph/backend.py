@@ -120,6 +120,16 @@ class Backend:
         async for node_id in it:
             yield node_id
 
+    async def random_walk(self, direction, edges_fmt, retries, src, dst):
+        if dst in PID_TYPES:
+            it = self.stream_proxy.random_walk_type(direction, edges_fmt,
+                                                    retries, src, dst)
+        else:
+            it = self.stream_proxy.random_walk(direction, edges_fmt, retries,
+                                               src, dst)
+        async for node_id in it:  # TODO return 404 if path is empty
+            yield node_id
+
     async def visit_paths(self, direction, edges_fmt, src):
         path = []
         async for node in self.stream_proxy.visit_paths(

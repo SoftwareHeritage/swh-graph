@@ -129,6 +129,40 @@ Walk
         ...
 
 
+
+.. http:get:: /graph/randomwalk/:src/:dst
+
+    Performs a graph *random* traversal, i.e., picking one random successor
+    node at each hop, from source to destination (final destination node
+    included).
+
+    :param string src: starting node specified as a SWH PID
+    :param string dst: destination node, either as a node PID or a node type.
+        The traversal will stop at the first node encountered matching the
+        desired destination.
+
+    :query string edges: edges types the traversal can follow; default to
+        ``"*"``
+    :query string direction: direction in which graph edges will be followed;
+        can be either ``forward`` or ``backward``, default to ``forward``
+
+    :statuscode 200: success
+    :statuscode 400: invalid query string provided
+    :statuscode 404: starting node cannot be found
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200 OK
+        Content-Type: text/plain
+        Transfer-Encoding: chunked
+
+        swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35
+        swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd
+        swh:1:rev:cea92e843e40452c08ba313abc39f59efbb4c29c
+        swh:1:rev:8d517bdfb57154b8a11d7f1682ecc0f79abf8e02
+        ...
+
+
 Visit
 -----
 

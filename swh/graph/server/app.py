@@ -23,6 +23,10 @@ except ImportError:
     from async_generator import asynccontextmanager  # type: ignore
 
 
+# maximum number of retries for random walks
+RANDOM_RETRIES = 5  # TODO make this configurable via rpc-serve configuration
+
+
 @asynccontextmanager
 async def stream_response(request, content_type='text/plain',
                           *args, **kwargs):
@@ -121,25 +125,31 @@ def get_simple_traversal_handler(ttype):
     return simple_traversal
 
 
-async def walk(request):
-    backend = request.app['backend']
+def get_walk_handler(random=False):
+    async def walk(request):
+        backend = request.app['backend']
 
-    src = request.match_info['src']
-    dst = request.match_info['dst']
-    edges = get_edges(request)
-    direction = get_direction(request)
-    algo = get_traversal(request)
+        src = request.match_info['src']
+        dst = request.match_info['dst']
+        edges = get_edges(request)
+        direction = get_direction(request)
+        algo = get_traversal(request)
 
-    src_node = node_of_pid(src, backend)
-    if dst not in PID_TYPES:
-        dst = node_of_pid(dst, backend)
-    async with stream_response(request) as response:
-        async for res_node in backend.walk(
-                direction, edges, algo, src_node, dst
-        ):
-            res_pid = pid_of_node(res_node, backend)
-            await response.write('{}\n'.format(res_pid).encode())
-        return response
+        src_node = node_of_pid(src, backend)
+        if dst not in PID_TYPES:
+            dst = node_of_pid(dst, backend)
+        async with stream_response(request) as response:
+            if random:
+                it = backend.random_walk(direction, edges, RANDOM_RETRIES,
+                                         src_node, dst)
+            else:
+                it = backend.walk(direction, edges, algo, src_node, dst)
+            async for res_node in it:
+                res_pid = pid_of_node(res_node, backend)
+                await response.write('{}\n'.format(res_pid).encode())
+            return response
+
+    return walk
 
 
 async def visit_paths(request):
@@ -190,7 +200,10 @@ def make_app(backend, **kwargs):
     app.router.add_get('/graph/visit/nodes/{src}',
                        get_simple_traversal_handler('visit_nodes'))
     app.router.add_get('/graph/visit/paths/{src}', visit_paths)
-    app.router.add_get('/graph/walk/{src}/{dst}', walk)
+    app.router.add_get('/graph/walk/{src}/{dst}',
+                       get_walk_handler(random=False))
+    app.router.add_get('/graph/randomwalk/{src}/{dst}',
+                       get_walk_handler(random=True))
 
     app.router.add_get('/graph/neighbors/count/{src}',
                        get_count_handler('neighbors'))

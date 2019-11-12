@@ -81,6 +81,14 @@ class RemoteGraphClient(RPCClient):
                 'direction': direction
             })
 
+    def random_walk(self, src, dst, edges="*", direction="forward"):
+        return self.get_lines(
+            'randomwalk/{}/{}'.format(src, dst),
+            params={
+                'edges': edges,
+                'direction': direction
+            })
+
     def count_leaves(self, src, edges="*", direction="forward"):
         return self.get(
             'leaves/count/{}'.format(src),

@@ -105,6 +105,19 @@ def test_walk(graph_client):
     assert set(actual) == set(expected)
 
 
+def test_random_walk(graph_client):
+    """as the walk is random, we test a visit from a cnt node to the only origin in
+    the dataset, and only check the final node of the path (i.e., the origin)
+
+    """
+    actual = list(graph_client.random_walk(
+        'swh:1:cnt:0000000000000000000000000000000000000001', 'ori',
+        direction='backward',
+    ))
+    expected_root = 'swh:1:ori:0000000000000000000000000000000000000021'
+    assert actual[-1] == expected_root
+
+
 def test_count(graph_client):
     actual = graph_client.count_leaves(
         'swh:1:ori:0000000000000000000000000000000000000021'

@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Random;
 import java.util.Stack;
 
 import it.unimi.dsi.bits.LongArrayBitVector;
@@ -43,6 +45,9 @@ public class Traversal {
     /** Number of edges accessed during traversal */
     long nbEdgesAccessed;
 
+    /** random number generator, for random walks */
+    Random rng;
+
     /**
      * Constructor.
      *
@@ -64,6 +69,7 @@ public class Traversal {
         this.visited = new HashSet<>();
         this.parentNode = new HashMap<>();
         this.nbEdgesAccessed = 0;
+        this.rng = new Random();
     }
 
     /**
@@ -231,28 +237,118 @@ public class Traversal {
     }
 
     /**
-     * Performs a graph traversal and returns the first found path from source to destination.
+     * Performs a graph traversal with backtracking, and returns the first
+     * found path from source to destination.
      *
      * @param srcNodeId source node
      * @param dst destination (either a node or a node type)
      * @return found path as a list of node ids
      */
-    public <T> ArrayList<Long> walk(long srcNodeId, T dst, String algorithm) {
+    public <T> ArrayList<Long> walk(long srcNodeId, T dst, String visitOrder) {
         long dstNodeId = -1;
-        if (algorithm.equals("dfs")) {
-            dstNodeId = walkInternalDfs(srcNodeId, dst);
-        } else if (algorithm.equals("bfs")) {
-            dstNodeId = walkInternalBfs(srcNodeId, dst);
+        if (visitOrder.equals("dfs")) {
+            dstNodeId = walkInternalDFS(srcNodeId, dst);
+        } else if (visitOrder.equals("bfs")) {
+            dstNodeId = walkInternalBFS(srcNodeId, dst);
         } else {
-            throw new IllegalArgumentException("Unknown traversal algorithm: " + algorithm);
+            throw new IllegalArgumentException("Unknown visit order: " + visitOrder);
         }
 
         if (dstNodeId == -1) {
-            throw new IllegalArgumentException("Unable to find destination point: " + dst);
+            throw new IllegalArgumentException("Cannot find destination: " + dst);
         }
 
         ArrayList<Long> nodeIds = backtracking(srcNodeId, dstNodeId);
         return nodeIds;
+    }
+
+    /**
+     * Performs a random walk (picking a random successor at each step) from
+     * source to destination.
+     *
+     * @param srcNodeId source node
+     * @param dst destination (either a node or a node type)
+     * @return found path as a list of node ids or an empty path to indicate
+     * that no suitable path have been found
+     */
+    public <T> ArrayList<Long> randomWalk(long srcNodeId, T dst) {
+        return randomWalk(srcNodeId, dst, 0);
+    }
+
+    /**
+     * Performs a stubborn random walk (picking a random successor at each
+     * step) from source to destination. The walk is "stubborn" in the sense
+     * that it will not give up the first time if a satisfying target node is
+     * found, but it will retry up to a limited amount of times.
+     *
+     * @param srcNodeId source node
+     * @param dst destination (either a node or a node type)
+     * @param retries number of times to retry; 0 means no retries (single walk)
+     * @return found path as a list of node ids or an empty path to indicate
+     * that no suitable path have been found
+     */
+    public <T> ArrayList<Long> randomWalk(long srcNodeId, T dst, int retries) {
+        ArrayList<Long> path = new ArrayList<Long>();
+        this.nbEdgesAccessed = 0;
+        long curNodeId = srcNodeId;
+        boolean found;
+
+        if (retries < 0) {
+            throw new IllegalArgumentException("Negative number of retries given: " + retries);
+        }
+
+        while (true) {
+            long nbNeighbors = graph.degree(curNodeId, useTransposed);
+            if (nbNeighbors == 0) {
+                found = false;
+                break;
+            }
+            Neighbors neighbors = new Neighbors(graph, useTransposed, edges, curNodeId);
+            Iterator<Long> successors = neighbors.iterator();
+
+            curNodeId = randomPick(successors, nbNeighbors);
+            path.add(curNodeId);
+
+            if (isDstNode(curNodeId, dst)) {
+                found = true;
+                break;
+            }
+        }
+
+        if (found) {
+            return path;
+        } else if (retries > 0) {  // try again
+            return randomWalk(srcNodeId, dst, retries - 1);
+        } else {  // not found and no retries left
+            path.clear();
+            return path;
+        }
+    }
+
+    /**
+     * Randomly choose an element from an iterator
+     *
+     * @param elements iterator over selection domain
+     * @param lenght total length of elements iterated upon
+     * @return randomly chosen element
+     */
+    private <T> T randomPick(Iterator<T> elements, long length) {
+        long elementsToSkip = Math.round(rng.nextFloat() * (length - 1));
+        long skippedElements = -1;
+        T e;
+
+        while (elements.hasNext()) {
+            e = elements.next();
+            skippedElements++;
+            this.nbEdgesAccessed++;
+            if (skippedElements < elementsToSkip) {
+                continue;
+            } else {
+                return e;
+            }
+        }
+
+        throw new IllegalStateException("Skipped past all available elements");
     }
 
     /**
@@ -262,7 +358,7 @@ public class Traversal {
      * @param dst destination (either a node or a node type)
      * @return final destination node or -1 if no path found
      */
-    private <T> long walkInternalDfs(long srcNodeId, T dst) {
+    private <T> long walkInternalDFS(long srcNodeId, T dst) {
         Stack<Long> stack = new Stack<Long>();
         this.nbEdgesAccessed = 0;
 
@@ -295,7 +391,7 @@ public class Traversal {
      * @param dst destination (either a node or a node type)
      * @return final destination node or -1 if no path found
      */
-    private <T> long walkInternalBfs(long srcNodeId, T dst) {
+    private <T> long walkInternalBFS(long srcNodeId, T dst) {
         Queue<Long> queue = new LinkedList<Long>();
         this.nbEdgesAccessed = 0;
 

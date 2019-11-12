@@ -159,5 +159,26 @@ public class Entry {
             }
             close();
         }
+
+        public void random_walk(String direction, String edgesFmt, int retries,
+                                long srcNodeId, long dstNodeId) {
+            open();
+            Traversal t = new Traversal(this.graph, direction, edgesFmt);
+            for (Long nodeId : t.randomWalk(srcNodeId, dstNodeId, retries)) {
+                writeNode(nodeId);
+            }
+            close();
+        }
+
+        public void random_walk_type(String direction, String edgesFmt, int retries,
+                                     long srcNodeId, String dst) {
+            open();
+            Node.Type dstType = Node.Type.fromStr(dst);
+            Traversal t = new Traversal(this.graph, direction, edgesFmt);
+            for (Long nodeId : t.randomWalk(srcNodeId, dstType, retries)) {
+                writeNode(nodeId);
+            }
+            close();
+        }
     }
 }
