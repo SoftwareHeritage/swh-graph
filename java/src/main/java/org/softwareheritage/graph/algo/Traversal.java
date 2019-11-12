@@ -299,15 +299,12 @@ public class Traversal {
 
         while (true) {
             path.add(curNodeId);
-            long nbNeighbors = graph.degree(curNodeId, useTransposed);
-            if (nbNeighbors == 0) {
+            Neighbors neighbors = new Neighbors(graph, useTransposed, edges, curNodeId);
+            curNodeId = randomPick(neighbors.iterator());
+            if (curNodeId < 0) {
                 found = false;
                 break;
             }
-            Neighbors neighbors = new Neighbors(graph, useTransposed, edges, curNodeId);
-            Iterator<Long> successors = neighbors.iterator();
-
-            curNodeId = randomPick(successors, nbNeighbors);
             if (isDstNode(curNodeId, dst)) {
                 path.add(curNodeId);
                 found = true;
@@ -326,29 +323,24 @@ public class Traversal {
     }
 
     /**
-     * Randomly choose an element from an iterator
+     * Randomly choose an element from an iterator over Longs using reservoir
+     * sampling
      *
      * @param elements iterator over selection domain
-     * @param lenght total length of elements iterated upon
-     * @return randomly chosen element
+     * @return randomly chosen element or -1 if no suitable element was found
      */
-    private <T> T randomPick(Iterator<T> elements, long length) {
-        long elementsToSkip = Math.round(rng.nextFloat() * (length - 1));
-        long skippedElements = -1;
-        T e;
+    private long randomPick(Iterator<Long> elements) {
+        long curPick = -1;
+        long seenCandidates = 0;
 
         while (elements.hasNext()) {
-            e = elements.next();
-            skippedElements++;
-            this.nbEdgesAccessed++;
-            if (skippedElements < elementsToSkip) {
-                continue;
-            } else {
-                return e;
+            seenCandidates++;
+            if (Math.round(rng.nextFloat() * (seenCandidates - 1)) == 0) {
+                curPick = elements.next();
             }
         }
 
-        throw new IllegalStateException("Skipped past all available elements");
+        return curPick;
     }
 
     /**
