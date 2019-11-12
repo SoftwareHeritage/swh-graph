@@ -132,7 +132,7 @@ async def walk(request):
 
     src_node = node_of_pid(src, backend)
     if dst not in PID_TYPES:
-        dst = backend.node_of_pid(dst, backend)
+        dst = node_of_pid(dst, backend)
     async with stream_response(request) as response:
         async for res_node in backend.walk(
                 direction, edges, algo, src_node, dst
