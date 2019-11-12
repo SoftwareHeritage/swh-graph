@@ -288,9 +288,9 @@ public class Traversal {
      * that no suitable path have been found
      */
     public <T> ArrayList<Long> randomWalk(long srcNodeId, T dst, int retries) {
+        long curNodeId = srcNodeId;
         ArrayList<Long> path = new ArrayList<Long>();
         this.nbEdgesAccessed = 0;
-        long curNodeId = srcNodeId;
         boolean found;
 
         if (retries < 0) {
@@ -298,6 +298,7 @@ public class Traversal {
         }
 
         while (true) {
+            path.add(curNodeId);
             long nbNeighbors = graph.degree(curNodeId, useTransposed);
             if (nbNeighbors == 0) {
                 found = false;
@@ -307,9 +308,8 @@ public class Traversal {
             Iterator<Long> successors = neighbors.iterator();
 
             curNodeId = randomPick(successors, nbNeighbors);
-            path.add(curNodeId);
-
             if (isDstNode(curNodeId, dst)) {
+                path.add(curNodeId);
                 found = true;
                 break;
             }
