@@ -37,6 +37,7 @@ def find_graph_jar():
     try_paths = [
         swh_graph_root / 'java/target/',
         pathlib.Path(sys.prefix) / 'share/swh-graph/',
+        pathlib.Path(sys.prefix) / 'local/share/swh-graph/',
     ]
     for path in try_paths:
         glob = list(path.glob('swh-graph-*.jar'))
