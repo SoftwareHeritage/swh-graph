@@ -24,6 +24,7 @@ class RemoteGraphClient(RPCClient):
 
     def raw_verb_lines(self, verb, endpoint, **kwargs):
         response = self.raw_verb(verb, endpoint, stream=True, **kwargs)
+        self.check_status(response)
         for line in response.iter_lines():
             yield line.decode().lstrip('\n')
 

@@ -1,6 +1,11 @@
 import pytest
 
 
+from pytest import raises
+
+from swh.core.api import RemoteException
+
+
 def test_stats(graph_client):
     stats = graph_client.stats()
 
@@ -153,3 +158,33 @@ def test_count(graph_client):
         direction='backward'
     )
     assert actual == 3
+
+
+def test_param_validation(graph_client):
+    with raises(RemoteException):  # PID not found
+        list(graph_client.leaves(
+            'swh:1:ori:fff0000000000000000000000000000000000021'))
+    with raises(RemoteException):  # malformed PID
+        list(graph_client.neighbors(
+            'swh:1:ori:fff000000zzzzzz0000000000000000000000021'))
+    with raises(RemoteException):  # malformed edge specificaiton
+        list(graph_client.walk(
+            'swh:1:dir:0000000000000000000000000000000000000016', 'rel',
+            edges='dir:notanodetype,dir:rev,rev:*',
+            direction='backward',
+            traversal='bfs',
+        ))
+    with raises(RemoteException):  # malformed direction
+        list(graph_client.walk(
+            'swh:1:dir:0000000000000000000000000000000000000016', 'rel',
+            edges='dir:dir,dir:rev,rev:*',
+            direction='notadirection',
+            traversal='bfs',
+        ))
+    with raises(RemoteException):  # malformed traversal order
+        list(graph_client.walk(
+            'swh:1:dir:0000000000000000000000000000000000000016', 'rel',
+            edges='dir:dir,dir:rev,rev:*',
+            direction='backward',
+            traversal='notatraversalorder',
+        ))
