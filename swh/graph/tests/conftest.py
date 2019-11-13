@@ -39,7 +39,7 @@ def graph_client():
     server = GraphServerProcess(queue)
     server.start()
     res = queue.get()
-    if instanceof(res, Exception):
+    if isinstance(res, Exception):
         raise res
     yield RemoteGraphClient(str(res))
     server.terminate()
