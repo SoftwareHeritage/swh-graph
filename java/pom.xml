@@ -76,6 +76,14 @@
           <groupId>org.eclipse.jetty.aggregate</groupId>
           <artifactId>jetty-all</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>it.unimi.di</groupId>
+          <artifactId>mg4j</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>it.unimi.di</groupId>
+          <artifactId>mg4j-big</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
