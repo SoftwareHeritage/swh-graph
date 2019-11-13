@@ -11,6 +11,8 @@ Build
     $ cd swh-graph
     $ docker build --tag swh-graph docker/
 
+``docker/build.sh`` also exists as an alias for the last line.
+
 
 Run
 ---
@@ -32,6 +34,12 @@ Given a graph ``g`` specified by:
         swh-graph:latest \
         bash
 
+or, as a shortcut:
+
+.. code:: bash
+
+    $ docker/run.sh /PATH/TO/GRAPH/
+
 Where ``/PATH/TO/GRAPH`` is a directory containing the ``g.edges.csv.zst`` and
 ``g.nodes.csv.zst`` files.  By default, when entering the container the current
 working directory will be ``/srv/softwareheritage/graph``; all relative paths
@@ -41,18 +49,22 @@ found below are intended to be relative to that dir.
 Graph compression
 ~~~~~~~~~~~~~~~~~
 
-To compress the graph:
+To compress the graph (from within the docker container):
 
 .. code:: bash
 
-    $ swh graph compress --graph data/g --outdir data/compressed
+    $ docker/run.sh /PATH/TO/GRAPH/
+    root@7f3306806861:/srv/softwareheritage/graph# \
+        swh graph compress --graph data/g --outdir data/compressed
 
 
 Graph server
 ~~~~~~~~~~~~
 
-To start the swh-graph server:
+To start the swh-graph server (from within the docker container):
 
 .. code:: bash
 
-    $ swh graph rpc-serve --graph data/compressed/g
+    $ docker/run.sh /PATH/TO/GRAPH/
+    root@7f3306806861:/srv/softwareheritage/graph# \
+        swh graph rpc-serve --graph data/compressed/g
