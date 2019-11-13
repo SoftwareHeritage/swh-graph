@@ -19,15 +19,18 @@ class GraphServerProcess(multiprocessing.Process):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        backend = Backend(graph_path=str(TEST_GRAPH_PATH))
-        with backend:
-            with loop_context() as loop:
-                app = make_app(backend=backend, debug=True)
-                client = TestClient(TestServer(app), loop=loop)
-                loop.run_until_complete(client.start_server())
-                url = client.make_url('/graph/')
-                self.q.put(url)
-                loop.run_forever()
+        try:
+            backend = Backend(graph_path=str(TEST_GRAPH_PATH))
+            with backend:
+                with loop_context() as loop:
+                    app = make_app(backend=backend, debug=True)
+                    client = TestClient(TestServer(app), loop=loop)
+                    loop.run_until_complete(client.start_server())
+                    url = client.make_url('/graph/')
+                    self.q.put(url)
+                    loop.run_forever()
+        except Exception as e:
+            self.q.put(e)
 
 
 @pytest.fixture(scope="module")
@@ -35,8 +38,10 @@ def graph_client():
     queue = multiprocessing.Queue()
     server = GraphServerProcess(queue)
     server.start()
-    url = queue.get()
-    yield RemoteGraphClient(str(url))
+    res = queue.get()
+    if instanceof(res, Exception):
+        raise res
+    yield RemoteGraphClient(str(res))
     server.terminate()
 
 
