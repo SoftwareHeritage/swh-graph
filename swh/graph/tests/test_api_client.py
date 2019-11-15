@@ -161,30 +161,39 @@ def test_count(graph_client):
 
 
 def test_param_validation(graph_client):
-    with raises(RemoteException):  # PID not found
+    with raises(RemoteException) as exc_info:  # PID not found
         list(graph_client.leaves(
             'swh:1:ori:fff0000000000000000000000000000000000021'))
-    with raises(RemoteException):  # malformed PID
+    assert exc_info.value.response.status_code == 404
+
+    with raises(RemoteException) as exc_info:  # malformed PID
         list(graph_client.neighbors(
             'swh:1:ori:fff000000zzzzzz0000000000000000000000021'))
-    with raises(RemoteException):  # malformed edge specificaiton
+    assert exc_info.value.response.status_code == 400
+
+    with raises(RemoteException) as exc_info:  # malformed edge specificaiton
         list(graph_client.walk(
             'swh:1:dir:0000000000000000000000000000000000000016', 'rel',
             edges='dir:notanodetype,dir:rev,rev:*',
             direction='backward',
             traversal='bfs',
         ))
-    with raises(RemoteException):  # malformed direction
+    assert exc_info.value.response.status_code == 400
+
+    with raises(RemoteException) as exc_info:  # malformed direction
         list(graph_client.walk(
             'swh:1:dir:0000000000000000000000000000000000000016', 'rel',
             edges='dir:dir,dir:rev,rev:*',
             direction='notadirection',
             traversal='bfs',
         ))
-    with raises(RemoteException):  # malformed traversal order
+    assert exc_info.value.response.status_code == 400
+
+    with raises(RemoteException) as exc_info:  # malformed traversal order
         list(graph_client.walk(
             'swh:1:dir:0000000000000000000000000000000000000016', 'rel',
             edges='dir:dir,dir:rev,rev:*',
             direction='backward',
             traversal='notatraversalorder',
         ))
+    assert exc_info.value.response.status_code == 400
