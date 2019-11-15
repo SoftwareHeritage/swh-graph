@@ -121,9 +121,8 @@ public class GenDistribution {
                         }
                     });
                     totalTime = Timing.stop(startTime);
-                    System.out.format("%d %d %d %d %f\n",
-                            node, count[0], t.getNbNodesAccessed(),
-                            t.getNbEdgesAccessed(), totalTime
+                    System.out.format("%d %d %d %f\n",
+                            node, count[0], t.getNbNodesAccessed(), totalTime
                     );
                 }
             });

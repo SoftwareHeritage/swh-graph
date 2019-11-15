@@ -117,7 +117,6 @@ public class Benchmark {
     throws IOException {
         ArrayList<Double> timings = new ArrayList<>();
         ArrayList<Double> timingsNormalized = new ArrayList<>();
-        ArrayList<Double> nbEdgesAccessed = new ArrayList<>();
 
         final boolean append = true;
         try (Writer csvLog = new BufferedWriter(new FileWriter(args.logFile, append))) {
@@ -131,17 +130,12 @@ public class Benchmark {
                 StringJoiner csvLine = new StringJoiner(CSV_SEPARATOR);
                 csvLine.add(useCaseName)
                 .add(swhPID.toString())
-                .add(Long.toString(output.meta.nbEdgesAccessed))
                 .add(Double.toString(output.meta.timings.traversal))
                 .add(Double.toString(output.meta.timings.pid2node))
                 .add(Double.toString(output.meta.timings.node2pid));
                 csvLog.write(csvLine.toString() + "\n");
 
                 timings.add(output.meta.timings.traversal);
-                nbEdgesAccessed.add((double) output.meta.nbEdgesAccessed);
-                if (output.meta.nbEdgesAccessed != 0) {
-                    timingsNormalized.add(output.meta.timings.traversal / output.meta.nbEdgesAccessed);
-                }
             }
         }
 
@@ -156,8 +150,6 @@ public class Benchmark {
         statsNormalized.printAll();
 
         System.out.println("nb edges accessed:");
-        Statistics statsNbEdgesAccessed = new Statistics(nbEdgesAccessed);
-        statsNbEdgesAccessed.printAll();
     }
 
     /**
