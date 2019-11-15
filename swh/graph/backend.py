@@ -6,9 +6,7 @@
 import asyncio
 import contextlib
 import io
-import logging
 import os
-import pathlib
 import struct
 import subprocess
 import sys
@@ -16,6 +14,7 @@ import tempfile
 
 from py4j.java_gateway import JavaGateway
 
+from swh.graph.config import check_config
 from swh.graph.pid import NodeToPidMap, PidToNodeMap
 from swh.model.identifiers import PID_TYPES
 
@@ -24,30 +23,6 @@ BIN_FMT = '>q'  # 64 bit integer, big endian
 PATH_SEPARATOR_ID = -1
 NODE2PID_EXT = 'node2pid.bin'
 PID2NODE_EXT = 'pid2node.bin'
-
-
-def find_graph_jar():
-    """find swh-graph.jar, containing the Java part of swh-graph
-
-    look both in development directories and installed data (for in-production
-    deployments who fecthed the JAR from pypi)
-
-    """
-    swh_graph_root = pathlib.Path(__file__).parents[2]
-    try_paths = [
-        swh_graph_root / 'java/target/',
-        pathlib.Path(sys.prefix) / 'share/swh-graph/',
-        pathlib.Path(sys.prefix) / 'local/share/swh-graph/',
-    ]
-    for path in try_paths:
-        glob = list(path.glob('swh-graph-*.jar'))
-        if glob:
-            if len(glob) > 1:
-                logging.warn('found multiple swh-graph JARs, '
-                             'arbitrarily picking one')
-            logging.info('using swh-graph JAR: {0}'.format(glob[0]))
-            return str(glob[0])
-    raise RuntimeError('swh-graph JAR not found. Have you run `make java`?')
 
 
 def _get_pipe_stderr():
@@ -61,28 +36,17 @@ def _get_pipe_stderr():
 
 
 class Backend:
-    def __init__(self, graph_path):
+    def __init__(self, graph_path, config=None):
         self.gateway = None
         self.entry = None
         self.graph_path = graph_path
+        self.config = check_config(config or {})
 
     def __enter__(self):
-        # TODO: make all of that configurable with sane defaults
-        java_opts = [
-            '-Xmx200G',
-            '-server',
-            '-XX:PretenureSizeThreshold=512M',
-            '-XX:MaxNewSize=4G',
-            '-XX:+UseLargePages',
-            '-XX:+UseTransparentHugePages',
-            '-XX:+UseNUMA',
-            '-XX:+UseTLAB',
-            '-XX:+ResizeTLAB',
-        ]
         self.gateway = JavaGateway.launch_gateway(
             java_path=None,
-            javaopts=java_opts,
-            classpath=find_graph_jar(),
+            javaopts=self.config['java_tool_options'].split(),
+            classpath=self.config['classpath'],
             die_on_exit=True,
             redirect_stdout=sys.stdout,
             redirect_stderr=_get_pipe_stderr(),

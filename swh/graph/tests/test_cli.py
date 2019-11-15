@@ -43,7 +43,6 @@ class TestCompress(unittest.TestCase):
 graph:
   compress:
     batch_size: 1000
-    java_tool_options: -Dlogback.configurationFile={logback}
 """)
         tmpconf.close()
         self.conffile = Path(tmpconf.name)

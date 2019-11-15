@@ -215,7 +215,7 @@ def map_lookup(graph, identifier):
 @click.pass_context
 def serve(ctx, host, port, graph):
     """run the graph REST service"""
-    backend = Backend(graph_path=graph)
+    backend = Backend(graph_path=graph, config=ctx.obj['config'])
     app = make_app(backend=backend)
 
     with backend:
