@@ -177,12 +177,6 @@ Walk
         ...
 
 
-.. http:get:: /graph/randomwalk/last/:src/:dst
-
-    Same as ``/graph/randomwalk``, but only retururn the last visited node,
-    i.e., destination, if any.
-
-
 Visit
 -----
 
@@ -231,8 +225,8 @@ Visit
 Counting results
 ----------------
 
-The following method variants, with trailing ``/count`` added, behave like the
-already discussed methods but, instead of returning results, return the
+The following method variants, with trailing `/count` added, behave like their
+already discussed counterparts but, instead of returning results, return the
 *amount* of results that would have been returned:
 
 .. http:get:: /graph/leaves/count/:src
@@ -241,6 +235,17 @@ already discussed methods but, instead of returning results, return the
 
 .. http:get:: /graph/visit/nodes/count/:src
 
+
+Returning last element only
+---------------------------
+
+The following method variants, with trailing `/last` added, behave like their
+already discussed counterparts but, instead of returning full results, return
+the *last* element of the result that would have been returned:
+
+.. http:get:: /graph/walk/last/:src/:dst
+
+.. http:get:: /graph/randomwalk/last/:src/:dst
 
 
 Stats
