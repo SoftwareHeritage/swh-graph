@@ -144,7 +144,6 @@ Walk
 	   swh:1:rev:8d517bdfb57154b8a11d7f1682ecc0f79abf8e02
 	   ...
 
-
 .. http:get:: /graph/randomwalk/:src/:dst
 
     Performs a graph *random* traversal, i.e., picking one random successor
@@ -176,6 +175,12 @@ Walk
         swh:1:rev:cea92e843e40452c08ba313abc39f59efbb4c29c
         swh:1:rev:8d517bdfb57154b8a11d7f1682ecc0f79abf8e02
         ...
+
+
+.. http:get:: /graph/randomwalk/last/:src/:dst
+
+    Same as ``/graph/randomwalk``, but only retururn the last visited node,
+    i.e., destination, if any.
 
 
 Visit

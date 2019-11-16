@@ -93,16 +93,26 @@ def test_visit_paths(graph_client):
 
 @pytest.mark.skip(reason='currently disabled due to T1969')
 def test_walk(graph_client):
-    actual = list(graph_client.walk(
-        'swh:1:dir:0000000000000000000000000000000000000016', 'rel',
-        edges='dir:dir,dir:rev,rev:*',
-        direction='backward',
-        traversal='bfs'
-    ))
+    args = ('swh:1:dir:0000000000000000000000000000000000000016', 'rel')
+    kwargs = {
+        'edges': 'dir:dir,dir:rev,rev:*',
+        'direction': 'backward',
+        'traversal': 'bfs',
+    }
+
+    actual = list(graph_client.walk(*args, **kwargs))
     expected = [
         'swh:1:dir:0000000000000000000000000000000000000016',
         'swh:1:dir:0000000000000000000000000000000000000017',
         'swh:1:rev:0000000000000000000000000000000000000018',
+        'swh:1:rel:0000000000000000000000000000000000000019'
+    ]
+    assert set(actual) == set(expected)
+
+    kwargs2 = kwargs.copy()
+    kwargs2['last'] = True
+    actual = list(graph_client.walk(*args, **kwargs2))
+    expected = [
         'swh:1:rel:0000000000000000000000000000000000000019'
     ]
     assert set(actual) == set(expected)
@@ -113,11 +123,19 @@ def test_random_walk(graph_client):
     the dataset, and only check the final node of the path (i.e., the origin)
 
     """
-    src = 'swh:1:cnt:0000000000000000000000000000000000000001'
-    actual = list(graph_client.random_walk(src, 'ori', direction='backward'))
+    args = ('swh:1:cnt:0000000000000000000000000000000000000001', 'ori')
+    kwargs = {'direction': 'backward'}
     expected_root = 'swh:1:ori:0000000000000000000000000000000000000021'
-    assert actual[0] == src
+
+    actual = list(graph_client.random_walk(*args, **kwargs))
+    assert len(actual) > 1  # no origin directly links to a content
+    assert actual[0] == args[0]
     assert actual[-1] == expected_root
+
+    kwargs2 = kwargs.copy()
+    kwargs2['last'] = True
+    actual = list(graph_client.random_walk(*args, **kwargs2))
+    assert actual == [expected_root]
 
 
 def test_count(graph_client):

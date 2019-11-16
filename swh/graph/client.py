@@ -72,18 +72,22 @@ class RemoteGraphClient(RPCClient):
                     'direction': direction
                 }))
 
-    def walk(self, src, dst, edges="*", traversal="dfs", direction="forward"):
+    def walk(self, src, dst,
+             edges="*", traversal="dfs", direction="forward", last=False):
+        endpoint = 'walk/last/{}/{}' if last else 'walk/{}/{}'
         return self.get_lines(
-            'walk/{}/{}'.format(src, dst),
+            endpoint.format(src, dst),
             params={
                 'edges': edges,
                 'traversal': traversal,
                 'direction': direction
             })
 
-    def random_walk(self, src, dst, edges="*", direction="forward"):
+    def random_walk(self, src, dst,
+                    edges="*", direction="forward", last=False):
+        endpoint = 'randomwalk/last/{}/{}' if last else 'randomwalk/{}/{}'
         return self.get_lines(
-            'randomwalk/{}/{}'.format(src, dst),
+            endpoint.format(src, dst),
             params={
                 'edges': edges,
                 'direction': direction

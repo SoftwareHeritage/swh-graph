@@ -125,7 +125,7 @@ def get_simple_traversal_handler(ttype):
     return simple_traversal
 
 
-def get_walk_handler(random=False):
+def get_walk_handler(random=False, last=False):
     async def walk(request):
         backend = request.app['backend']
 
@@ -144,7 +144,12 @@ def get_walk_handler(random=False):
                                          src_node, dst)
             else:
                 it = backend.walk(direction, edges, algo, src_node, dst)
+            res_node = None
             async for res_node in it:
+                if not last:
+                    res_pid = pid_of_node(res_node, backend)
+                    await response.write('{}\n'.format(res_pid).encode())
+            if last and res_node is not None:
                 res_pid = pid_of_node(res_node, backend)
                 await response.write('{}\n'.format(res_pid).encode())
             return response
@@ -204,9 +209,13 @@ def make_app(backend, **kwargs):
     # temporarily disabled in wait of a proper fix for T1969
     # app.router.add_get('/graph/walk/{src}/{dst}',
     #                    get_walk_handler(random=False))
+    # app.router.add_get('/graph/walk/last/{src}/{dst}',
+    #                    get_walk_handler(random=False, last=True))
 
     app.router.add_get('/graph/randomwalk/{src}/{dst}',
-                       get_walk_handler(random=True))
+                       get_walk_handler(random=True, last=False))
+    app.router.add_get('/graph/randomwalk/last/{src}/{dst}',
+                       get_walk_handler(random=True, last=True))
 
     app.router.add_get('/graph/neighbors/count/{src}',
                        get_count_handler('neighbors'))
