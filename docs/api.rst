@@ -211,7 +211,7 @@ Visit
 Counting results
 ----------------
 
-The following method variants, with trailing `/count` added, behave like the
+The following method variants, with trailing ``/count`` added, behave like the
 already discussed methods but, instead of returning results, return the
 *amount* of results that would have been returned:
 
