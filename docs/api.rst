@@ -12,10 +12,25 @@ This API uses the following notions:
   represented by a `persistent identifier
   <https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html#persistent-identifiers>`_
   (abbreviated as *SWH PID*, or simply *PID*).
+
 - **Node type**: the 3-letter specifier from the node PID (``cnt``, ``dir``,
-  ``rel``, ``rev``, ``snp``), or ``*`` for all node types.
-- **Edge type**: a comma-separated list of ``src:dst`` strings where ``src`` and
-  ``dst`` are node types, or ``*`` for all edge types.
+  ``rel``, ``rev``, ``snp``, ``ori``), or ``*`` for all node types.
+
+- **Edge type**: a pair ``src:dst`` where ``src`` and ``dst`` are either node
+  types, or ``*`` to denote all node types.
+
+- **Edge restrictions**: a textual specification of which edges can be followed
+  during graph traversal. Either ``*`` to denote that all edges can be followed
+  or a comma separated list of edge types to allow following only those edges.
+
+  Note that when traversing the *backward* (i.e., transposed) graph, edge types
+  are reversed too. So, for instance, ``ori:snp`` makes sense when traversing
+  the forward graph, but useless (due to lack of matching edges in the graph)
+  when traversing the backward graph; conversely ``snp:ori`` is useful when
+  traversing the backward graph, but not in the forward one. For the same
+  reason ``dir:dir` allows following edges from parent directories to
+  sub-directories when traversing the forward graph, but the same restriction
+  allows following edges from sub-directories to parent directories.
 
 
 Examples
