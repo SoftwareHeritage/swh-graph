@@ -196,6 +196,7 @@ def get_count_handler(ttype):
 def make_app(backend, **kwargs):
     app = RPCServerApp(**kwargs)
     app.router.add_get('/', index)
+    app.router.add_get('/graph', index)
     app.router.add_get('/graph/stats', stats)
 
     app.router.add_get('/graph/leaves/{src}',
