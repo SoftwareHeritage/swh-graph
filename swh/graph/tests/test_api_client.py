@@ -1,3 +1,5 @@
+import pytest
+
 
 def test_stats(graph_client):
     stats = graph_client.stats()
@@ -89,6 +91,7 @@ def test_visit_paths(graph_client):
     assert set(actual) == set(expected)
 
 
+@pytest.mark.skip(reason='currently disabled due to T1969')
 def test_walk(graph_client):
     actual = list(graph_client.walk(
         'swh:1:dir:0000000000000000000000000000000000000016', 'rel',
