@@ -200,8 +200,11 @@ def make_app(backend, **kwargs):
     app.router.add_get('/graph/visit/nodes/{src}',
                        get_simple_traversal_handler('visit_nodes'))
     app.router.add_get('/graph/visit/paths/{src}', visit_paths)
-    app.router.add_get('/graph/walk/{src}/{dst}',
-                       get_walk_handler(random=False))
+
+    # temporarily disabled in wait of a proper fix for T1969
+    # app.router.add_get('/graph/walk/{src}/{dst}',
+    #                    get_walk_handler(random=False))
+
     app.router.add_get('/graph/randomwalk/{src}/{dst}',
                        get_walk_handler(random=True))
 
