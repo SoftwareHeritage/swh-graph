@@ -172,23 +172,25 @@ def test_param_validation(graph_client):
     assert exc_info.value.response.status_code == 400
 
     with raises(RemoteException) as exc_info:  # malformed edge specificaiton
-        list(graph_client.walk(
-            'swh:1:dir:0000000000000000000000000000000000000016', 'rel',
+        list(graph_client.visit_nodes(
+            'swh:1:dir:0000000000000000000000000000000000000016',
             edges='dir:notanodetype,dir:rev,rev:*',
             direction='backward',
-            traversal='bfs',
         ))
     assert exc_info.value.response.status_code == 400
 
     with raises(RemoteException) as exc_info:  # malformed direction
-        list(graph_client.walk(
-            'swh:1:dir:0000000000000000000000000000000000000016', 'rel',
+        list(graph_client.visit_nodes(
+            'swh:1:dir:0000000000000000000000000000000000000016',
             edges='dir:dir,dir:rev,rev:*',
             direction='notadirection',
-            traversal='bfs',
         ))
     assert exc_info.value.response.status_code == 400
 
+
+@pytest.mark.skip(reason='currently disabled due to T1969')
+def test_param_validation_walk(graph_client):
+    """test validation of walk-specific parameters only"""
     with raises(RemoteException) as exc_info:  # malformed traversal order
         list(graph_client.walk(
             'swh:1:dir:0000000000000000000000000000000000000016', 'rel',
