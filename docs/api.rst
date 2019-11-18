@@ -229,11 +229,20 @@ The following method variants, with trailing `/count` added, behave like their
 already discussed counterparts but, instead of returning results, return the
 *amount* of results that would have been returned:
 
+
 .. http:get:: /graph/leaves/count/:src
+
+   return the amount of :http:get:`/graph/leaves/:src` results
+
 
 .. http:get:: /graph/neighbors/count/:src
 
+   return the amount of :http:get:`/graph/neighbors/:src` results
+
+
 .. http:get:: /graph/visit/nodes/count/:src
+
+   return the amount of :http:get:`/graph/visit/nodes/:src` results
 
 
 Returning last element only
@@ -243,9 +252,16 @@ The following method variants, with trailing `/last` added, behave like their
 already discussed counterparts but, instead of returning full results, return
 the *last* element of the result that would have been returned:
 
-.. http:get:: /graph/walk/last/:src/:dst
+
+..
+   .. http:get:: /graph/walk/last/:src/:dst
+
+      return the last among :http:get:`/graph/walk/:src/:dst` results
+
 
 .. http:get:: /graph/randomwalk/last/:src/:dst
+
+   return the last among :http:get:`/graph/randomwalk/:src/:dst` results
 
 
 Stats
