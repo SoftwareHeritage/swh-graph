@@ -1,15 +1,6 @@
 package org.softwareheritage.graph.algo;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Random;
-import java.util.Stack;
+import java.util.*;
 
 import it.unimi.dsi.bits.LongArrayBitVector;
 
@@ -445,5 +436,49 @@ public class Traversal {
         path.add(srcNodeId);
         Collections.reverse(path);
         return path;
+    }
+
+    public Long findCommonDescendant(long lhsNode, long rhsNode) {
+        Queue<Long> lhsStack = new ArrayDeque<>();
+        Queue<Long> rhsStack = new ArrayDeque<>();
+        HashSet<Long> lhsVisited = new HashSet<>();
+        HashSet<Long> rhsVisited = new HashSet<>();
+        lhsStack.add(lhsNode);
+        rhsStack.add(rhsNode);
+        lhsVisited.add(lhsNode);
+        rhsVisited.add(rhsNode);
+
+        this.nbEdgesAccessed = 0;
+        Long curNode;
+
+        while (!lhsStack.isEmpty() || !rhsStack.isEmpty()) {
+            if (!lhsStack.isEmpty()) {
+                curNode = lhsStack.poll();
+                nbEdgesAccessed += graph.degree(curNode, useTransposed);
+                for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, curNode)) {
+                    if (!lhsVisited.contains(neighborNodeId)) {
+                        if (rhsVisited.contains(neighborNodeId))
+                            return neighborNodeId;
+                        lhsStack.add(neighborNodeId);
+                        lhsVisited.add(neighborNodeId);
+                    }
+                }
+            }
+
+            if (!rhsStack.isEmpty()) {
+                curNode = rhsStack.poll();
+                nbEdgesAccessed += graph.degree(curNode, useTransposed);
+                for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, curNode)) {
+                    if (!rhsVisited.contains(neighborNodeId)) {
+                        if (lhsVisited.contains(neighborNodeId))
+                            return neighborNodeId;
+                        rhsStack.add(neighborNodeId);
+                        rhsVisited.add(neighborNodeId);
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 }
