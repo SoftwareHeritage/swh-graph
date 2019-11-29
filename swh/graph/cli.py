@@ -23,6 +23,9 @@ from swh.graph.backend import Backend
 from swh.model.identifiers import parse_persistent_identifier
 
 
+DEFAULT_API_URL = 'http://localhost:5009/graph'
+
+
 class PathlibPath(click.Path):
     """A Click path argument that returns a pathlib Path, not a string"""
     def convert(self, value, param, ctx):
@@ -52,15 +55,13 @@ def cli(ctx, config_file):
 
 
 @cli.command('api-client')
-@click.option('--host', default='localhost', help='Graph server host')
-@click.option('--port', default='5009', help='Graph server port')
+@click.option('--api-url', default=DEFAULT_API_URL,
+              help='Graph API URL (default: "{}")'.format(DEFAULT_API_URL))
 @click.pass_context
-def api_client(ctx, host, port):
+def api_client(ctx, api_url):
     """client for the graph REST service"""
-    url = 'http://{}:{}'.format(host, port)
-    app = client.RemoteGraphClient(url)
+    app = client.RemoteGraphClient(api_url)
 
-    # TODO: run web app
     print(app.stats())
 
 
