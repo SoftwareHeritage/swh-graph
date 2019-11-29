@@ -15,7 +15,7 @@ import swh.model.exceptions
 
 from swh.core import config
 from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
-from swh.graph import client, webgraph
+from swh.graph import client, fuse, webgraph
 from swh.graph.backend import NODE2PID_EXT, PID2NODE_EXT
 from swh.graph.pid import PidToNodeMap, NodeToPidMap
 from swh.graph.server.app import make_app
@@ -27,9 +27,23 @@ DEFAULT_API_URL = 'http://localhost:5009/graph'
 
 
 class PathlibPath(click.Path):
-    """A Click path argument that returns a pathlib Path, not a string"""
+    """Click path argument that returns a pathlib Path, not a string"""
     def convert(self, value, param, ctx):
         return Path(super().convert(value, param, ctx))
+
+
+class PidParamType(click.ParamType):
+    """Click argument that accepts Software Heritage PIDs and return them as
+    :class:`swh.model.identifiers.PersistentId` instances
+
+    """
+    name = "PID"
+
+    def convert(self, value, param, ctx) -> swh.model.identifiers.PersistentId:
+        try:
+            return parse_persistent_identifier(value)
+        except swh.model.exceptions.ValidationError:
+            self.fail(f'"{value}" is not a valid PID', param, ctx)
 
 
 DEFAULT_CONFIG = {
@@ -282,6 +296,22 @@ def compress(ctx, graph, out_dir, steps):
         conf = {}  # use defaults
 
     webgraph.compress(graph_name, in_dir, out_dir, steps, conf)
+
+
+@cli.command(name='mount')
+@click.option('--api-url', default=DEFAULT_API_URL,
+              help='Graph API URL (default: "{}")'.format(DEFAULT_API_URL))
+@click.argument('pid', required=True, metavar='PID', type=PidParamType())
+@click.argument('path', required=True, metavar='PATH',
+                type=click.Path(exists=True, dir_okay=True, file_okay=False))
+@click.pass_context
+def fuse_mount(ctx, api_url, pid, path):
+    """FUSE mount the given graph node (specified as a PID) at the given mountpoint
+    (specified as an existing directory).
+
+    """
+    graph_cli = client.RemoteGraphClient(api_url)
+    fuse.main(graph_cli, pid, path)
 
 
 def main():
