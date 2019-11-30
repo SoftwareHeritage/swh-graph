@@ -32,6 +32,7 @@ class GraphFs(pyfuse3.Operations):
     def __init__(self, client: RemoteGraphClient, root_pid: PersistentId):
         super(GraphFs, self).__init__()
 
+        # TODO check if root_pid actually exists in the graph
         self._pid2inode: Dict[str, int] = {str(root_pid): ROOT_INODE}
         self._inode2pid: Dict[int, str] = {ROOT_INODE: str(root_pid)}
         self._next_inode: int = ROOT_INODE + 1
@@ -69,13 +70,6 @@ class GraphFs(pyfuse3.Operations):
         except KeyError:
             raise pyfuse3.FUSEError(errno.ENOENT)
 
-    def fsname_of_pid(self, pid: Union[str, PersistentId]) -> bytes:
-        if isinstance(pid, PersistentId):
-            str_pid = str(pid)
-        else:
-            str_pid = pid
-        return os.fsencode(str_pid)
-
     @lru_cache(maxsize=INODE_CACHE_SIZE)
     def pid_of_inode(self, inode: int) -> PersistentId:
         """lookup the PID corresponding to a given inode"""
@@ -83,6 +77,13 @@ class GraphFs(pyfuse3.Operations):
             return parse_persistent_identifier(self._inode2pid[inode])
         except KeyError:
             raise pyfuse3.FUSEError(errno.ENOENT)
+
+    def fsname_of_pid(self, pid: Union[str, PersistentId]) -> bytes:
+        if isinstance(pid, PersistentId):
+            str_pid = str(pid)
+        else:
+            str_pid = pid
+        return os.fsencode(str_pid)
 
     def attrs_of_pid(self, pid: Union[str, PersistentId],
                      inode: Optional[int]) -> pyfuse3.EntryAttributes:
@@ -110,7 +111,7 @@ class GraphFs(pyfuse3.Operations):
 
         return attrs
 
-    async def getattr(self, inode, ctx=None):
+    async def getattr(self, inode, ctx):
         return self.attrs_of_pid(self.pid_of_inode(inode), inode)
 
     async def opendir(self, inode, ctx):
@@ -139,10 +140,13 @@ class GraphFs(pyfuse3.Operations):
         else:  # TODO add virtual dir support for other object types
             raise pyfuse3.FUSEError(errno.ENOTDIR)
 
-    # async def lookup(self, parent_inode, name, ctx=None):
-    #     if parent_inode != ROOT_INODE or name != self.hello_name:
-    #         raise pyfuse3.FUSEError(errno.ENOENT)
-    #     return self.getattr(self.hello_inode)
+    async def lookup(self, dir_inode, fs_name, ctx):
+        self.pid_of_inode(dir_inode)  # will barf if dir_inode doesn't exist
+        entry_pid = os.fsdecode(fs_name)
+        # TODO check if entry_pid actually exists in the graph
+        inode = self._alloc_inode(entry_pid)
+
+        return self.attrs_of_pid(entry_pid, inode)
 
 
 def main(graph_cli: RemoteGraphClient, pid: PersistentId, path: Path) -> None:
