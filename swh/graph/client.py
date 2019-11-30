@@ -5,7 +5,7 @@
 
 import json
 
-from swh.core.api import RPCClient
+from swh.core.api import RPCClient, RemoteException
 
 
 class GraphAPIError(Exception):
@@ -35,6 +35,24 @@ class RemoteGraphClient(RPCClient):
 
     def stats(self):
         return self.get('stats')
+
+    def node(self, src):
+        try:
+            list(self.get_lines('node/{}'.format(src)))
+            return True
+        except RemoteException:
+            return False
+
+    def edge(self, src, dst, edges="*", direction="forward"):
+        try:
+            list(self.get_lines('edge/{}/{}'.format(src, dst),
+                                params={
+                                    'edges': edges,
+                                    'direction': direction
+                                }))
+            return True
+        except RemoteException:
+            return False
 
     def leaves(self, src, edges="*", direction="forward"):
         return self.get_lines(
