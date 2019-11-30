@@ -5,6 +5,7 @@
 
 import aiohttp
 import click
+import logging
 import sys
 
 from pathlib import Path
@@ -176,31 +177,57 @@ def write(ctx, map_type, filename):
 @map.command('lookup')
 @click.option('--graph', '-g', required=True, metavar='GRAPH',
               help='compressed graph basename')
-@click.argument('identifier', required=True)
-def map_lookup(graph, identifier):
-    """Lookup an identifier using on-disk maps.
+@click.argument('identifiers', nargs=-1)
+def map_lookup(graph, identifiers):
+    """Lookup identifiers using on-disk maps.
 
     Depending on the identifier type lookup either a PID into a PID->node (and
     return the node integer identifier) or, vice-versa, lookup a node integer
     identifier into a node->PID (and return the PID).  The desired behavior is
-    chosen depending on the syntax of the given identifier.
+    chosen depending on the syntax of each given identifier.
+
+    Identifiers can be passed either directly on the command line or on
+    standard input, separate by blanks. Logical lines (as returned by
+    readline()) in stdin will be preserved in stdout.
 
     """
-    is_pid = None
-    try:
-        int(identifier)
-        is_pid = False
-    except ValueError:
-        try:
-            parse_persistent_identifier(identifier)
-            is_pid = True
-        except swh.model.exceptions.ValidationError:
-            raise ValueError(f'invalid identifier: {identifier}')
+    success = True  # no identifiers failed to be looked up
+    pid2node = PidToNodeMap(f'{graph}.{PID2NODE_EXT}')
+    node2pid = NodeToPidMap(f'{graph}.{NODE2PID_EXT}')
 
-    if is_pid:
-        print(PidToNodeMap(f'{graph}.{PID2NODE_EXT}')[identifier])
-    else:
-        print(NodeToPidMap(f'{graph}.{NODE2PID_EXT}')[int(identifier)])
+    def lookup(identifier):
+        nonlocal success, pid2node, node2pid
+        is_pid = None
+        try:
+            int(identifier)
+            is_pid = False
+        except ValueError:
+            try:
+                parse_persistent_identifier(identifier)
+                is_pid = True
+            except swh.model.exceptions.ValidationError:
+                success = False
+                logging.error(f'invalid identifier: "{identifier}", skipping')
+
+        try:
+            if is_pid:
+                return str(pid2node[identifier])
+            else:
+                return node2pid[int(identifier)]
+        except KeyError:
+            success = False
+            logging.error(f'identifier not found: "{identifier}", skipping')
+
+    if identifiers:  # lookup identifiers passed via CLI
+        for identifier in identifiers:
+            print(lookup(identifier))
+    else:  # lookup identifiers passed via stdin, preserving logical lines
+        for line in sys.stdin:
+            results = [lookup(id) for id in line.rstrip().split()]
+            if results:  # might be empty if all IDs on the same line failed
+                print(' '.join(results))
+
+    sys.exit(0 if success else 1)
 
 
 @cli.command(name='rpc-serve')
