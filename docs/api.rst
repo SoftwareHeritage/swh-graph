@@ -69,12 +69,16 @@ Leaves
 
     .. sourcecode:: http
 
+        GET /graph/leaves/swh:1:dir:432d1b21c1256f7408a07c577b6974bbdbcc1323
+
         HTTP/1.1 200 OK
         Content-Type: text/plain
         Transfer-Encoding: chunked
 
-        swh:1:cnt:669ac7c32292798644b21dbb5a0dc657125f444d
-        swh:1:cnt:da4cb28febe66172a9fdf1a235525ae6c00cde1d
+        swh:1:cnt:540faad6b1e02e2db4f349a4845192db521ff2bd
+        swh:1:cnt:630585fc6d34e5e121139e2aee0a64e83dc9aae6
+        swh:1:cnt:f8634ced669f0a9155c8cab1b2621d57d778215e
+        swh:1:cnt:ba6daa801ad3ea587904b1abe9161dceedb2e0bd
         ...
 
 
@@ -98,13 +102,15 @@ Neighbors
 
     .. sourcecode:: http
 
+        GET /graph/neighbors/swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35
+
         HTTP/1.1 200 OK
         Content-Type: text/plain
         Transfer-Encoding: chunked
 
-        swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2
-        swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505
-        ...
+        swh:1:rev:a31e58e129f73ab5b04016330b13ed51fde7a961
+        swh:1:dir:b5d2aa0746b70300ebbca82a8132af386cc5986d
+        swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd
 
 
 Walk
@@ -166,15 +172,22 @@ Walk
 
     .. sourcecode:: http
 
+        GET /graph/randomwalk/swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2/ori?direction=backward
+
         HTTP/1.1 200 OK
         Content-Type: text/plain
         Transfer-Encoding: chunked
 
-        swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35
-        swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd
-        swh:1:rev:cea92e843e40452c08ba313abc39f59efbb4c29c
-        swh:1:rev:8d517bdfb57154b8a11d7f1682ecc0f79abf8e02
+        swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2
+        swh:1:dir:8de8a8823a0780524529c94464ee6ef60b98e2ed
+        swh:1:dir:7146ea6cbd5ffbfec58cc8df5e0552da45e69cb7
+        swh:1:rev:b12563e00026b48b817fd3532fc3df2db2a0f460
+        swh:1:rev:13e8ebe80fb878bade776131e738d5772aa0ad1b
+        swh:1:rev:cb39b849f167c70c1f86d4356f02d1285d49ee13
         ...
+        swh:1:rev:ff70949f336593d6c59b18e4989edf24d7f0f254
+        swh:1:snp:a511810642b7795e725033febdd82075064ed863
+        swh:1:ori:98aa0e71f5c789b12673717a97f6e9fa20aa1161
 
 
 Visit
@@ -199,26 +212,37 @@ Visit
 
     .. sourcecode:: http
 
-        GET /graph/visit/nodes/...
+        GET /graph/visit/nodes/swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc
+
         HTTP/1.1 200 OK
         Content-Type: text/plain
         Transfer-Encoding: chunked
 
-        swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35
-        swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd
-        ...
-        swh:1:rev:a31e58e129f73ab5b04016330b13ed51fde7a961
+        swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc
+        swh:1:rev:cfab784723a6c2d33468c9ed8a566fd5e2abd8c9
+        swh:1:rev:53e5df0e7a6b7bd4919074c081a173655c0da164
+        swh:1:rev:f85647f14b8243532283eff3e08f4ee96c35945f
+        swh:1:rev:fe5f9ef854715fc59b9ec22f9878f11498cfcdbf
+        swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb
+        swh:1:cnt:c8cece50beae7a954f4ea27e3ae7bf941dc6d0c0
+        swh:1:dir:a358d0cf89821227d4c00b0ced5e0a8b3756b5db
+        swh:1:cnt:cc407b7e24dd300d2e1a77d8f04af89b3f962a51
+        swh:1:cnt:701bd0a63e11b3390a547ce8515d28c6bab8a201
         ...
 
     .. sourcecode:: http
 
-        GET /graph/visit/paths/...
+        GET /graph/visit/nodes/swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb
+
         HTTP/1.1 200 OK
         Content-Type: application/x-ndjson
         Transfer-Encoding: chunked
 
-        ["swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35", "swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd", ...]
-        ["swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35", "swh:1:rev:a31e58e129f73ab5b04016330b13ed51fde7a961", ...]
+        ["swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb", "swh:1:cnt:acfb7cabd63b368a03a9df87670ece1488c8bce0"]
+        ["swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb", "swh:1:cnt:2a0837708151d76edf28fdbb90dc3eabc676cff3"]
+        ["swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb", "swh:1:cnt:eaf025ad54b94b2fdda26af75594cfae3491ec75"]
+        ...
+        ["swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb", "swh:1:dir:2ebd4b96fa5665ff74f2b27ae41aecdc43af4463", "swh:1:cnt:1d3b6575fb7bf2a147d228e78ffd77ea193c3639"]
         ...
 
 
@@ -263,6 +287,16 @@ the *last* element of the result that would have been returned:
 
    return the last among :http:get:`/graph/randomwalk/:src/:dst` results
 
+    .. sourcecode:: http
+
+        GET /graph/randomwalk/last/swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2/ori?direction=backward
+
+        HTTP/1.1 200 OK
+        Content-Type: text/plain
+        Transfer-Encoding: chunked
+
+        swh:1:ori:39bdc50b7d7bc5b02a898148286adb1b816066ab
+
 
 Stats
 -----
@@ -274,6 +308,8 @@ Stats
     :statuscode 200: success
 
     .. sourcecode:: http
+
+        GET /graph/stats
 
         HTTP/1.1 200 OK
         Content-Type: application/json
