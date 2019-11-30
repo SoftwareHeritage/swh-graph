@@ -74,7 +74,7 @@ Leaves
         Transfer-Encoding: chunked
 
         swh:1:cnt:669ac7c32292798644b21dbb5a0dc657125f444d
-        swh:1:cnt:da4cb28febe66172a9fdf1a235525ae6c00cde1d",
+        swh:1:cnt:da4cb28febe66172a9fdf1a235525ae6c00cde1d
         ...
 
 
