@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import collections
 import errno
 import itertools as it
 import stat
@@ -25,6 +26,97 @@ FILE_MODE = 0o444  # read-only file
 DIR_MODE = 0o555   # read-only directory
 
 INODE_CACHE_SIZE = 1024  # number of inode -> PersistentId pairs to cache
+
+
+class Directory(collections.abc.Mapping):
+    """actual directory corresponding to Merkle DAG directory nodes
+
+    """
+
+    def __getitem__(self, key):
+        raise NotImplementedError
+
+    def __iter__(self):
+        raise NotImplementedError
+
+    def __len__(self):
+        raise NotImplementedError
+
+
+class RevisionVirtualDir(Directory):
+    """virtual directory representing a revision object
+
+    Virtual directory entries:
+
+    message
+      commit message (regular file)
+
+    author, committer
+      authorship information (regular files)
+
+    author_date, committer_date
+      timestamps (regular files containing textual ISO 8601 date and time
+      timestamps)
+
+    root
+      source tree at the time of this revision (directory)
+
+    type
+      type of originating revisions (regular file containing strings like: git,
+      tar, dsc, svn, hg, etc.)
+
+    metadata.json
+      revision metadata (regular file in JSON format)
+
+    synthetic
+      whether the object has been synthetized by Software Heritage or not
+      (regular file, containing either 0 (false) or 1 (true))
+
+    """
+    pass
+
+
+class ReleaseVirtualDir(Directory):
+    """virtual directory representing a release object
+
+    Virtual directory entries:
+
+    name
+      release name (regular file)
+
+    comment
+      release message (regular file)
+
+    author
+      authorship information (regular file)
+
+    date
+      release timestamp (regular file containing a textual ISO 8601 date and
+      time timestamp)
+
+    target
+      target object (file type depends on target type: regular file for
+      content, directory for everything else)
+
+    synthetic
+      whether the object has been synthetized by Software Heritage or not
+      (regular file, containing either 0 or 1, for true/false respectively)
+
+    """
+    pass
+
+
+class SnapshotVirtualDir(Directory):
+    """virtual directory representing a release object
+
+    The virtual directory contains one entry per snapshot branch, mangled as a
+    a local file name (i.e., without "/"). Each entry is either a regular file
+    (if the branch target is a content) or a directory (everything else). In
+    most cases branches will point to revisions; as such they will be revision
+    virtual directories.
+
+    """
+    pass
 
 
 class GraphFs(pyfuse3.Operations):
