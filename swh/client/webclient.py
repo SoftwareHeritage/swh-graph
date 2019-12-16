@@ -3,10 +3,11 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import requests
-
 from typing import Any, Dict, Generator, List, Union
 from urllib.parse import urlparse
+
+import dateutil.parser
+import requests
 
 from swh.model.identifiers import \
     SNAPSHOT, REVISION, RELEASE, DIRECTORY, CONTENT
@@ -28,21 +29,51 @@ def _get_pid(pidish: PIDish) -> PID:
 def typify(json: Any, obj_type: str) -> Any:
     """type json data using pythonic types where appropriate
 
-    e.g., PID instances instead of textual PIDs, datetime.datetime instances
-    instead of textual ISO 8601 timestamps, etc.
+    the following conversions are performed:
+
+    - identifiers are converted from strings to PersistentId instances
+    - timestamps are converted from strings to datetime.datetime objects
 
     """
-    # TODO implement this for real
+    def to_pid(object_type, s):
+        return PID(object_type=object_type, object_id=s)
+
+    def to_date(s):
+        return dateutil.parser.parse(s)
+
+    def obj_type_of_entry_type(s):
+        if s == 'file':
+            return CONTENT
+        elif s == 'dir':
+            return DIRECTORY
+        elif s == 'rev':
+            return REVISION
+
     if obj_type == SNAPSHOT:
-        pass
+        json['id'] = to_pid(obj_type, json['id'])
+        branches = json['branches']
+        for name, target in branches.items():
+            target['target'] = to_pid(target['target_type'], target['target'])
     elif obj_type == REVISION:
-        pass
+        json['id'] = to_pid(obj_type, json['id'])
+        json['directory'] = to_pid(DIRECTORY, json['directory'])
+        for key in ('date', 'committer_date'):
+            json[key] = to_date(json[key])
+        for parent in json['parents']:
+            parent['id'] = to_pid(REVISION, parent['id'])
     elif obj_type == RELEASE:
-        pass
+        json['id'] = to_pid(obj_type, json['id'])
+        json['date'] = to_date(json['date'])
+        json['target'] = to_pid(json['target_type'], json['target'])
     elif obj_type == DIRECTORY:
-        pass
+        dir_pid = None
+        for entry in json:
+            dir_pid = dir_pid or to_pid(obj_type, entry['dir_id'])
+            entry['dir_id'] = dir_pid
+            entry['target'] = to_pid(obj_type_of_entry_type(entry['type']),
+                                     entry['target'])
     elif obj_type == CONTENT:
-        pass
+        pass  # nothing to do for contents
     else:
         raise ValueError(f'invalid object type: {obj_type}')
 
@@ -105,7 +136,52 @@ class WebAPIClient:
 
         return r
 
+    def get(self, pid: PIDish, **req_args) -> Any:
+        """retrieve information about an object of any kind
+
+        dispatcher method over the more specific methods content(),
+        directory(), etc.
+
+        note that this method will buffer the entire output in case of long,
+        iterable output (e.g., for snapshot()), see the iter() method for
+        streaming
+
+        """
+        pid_ = _get_pid(pid)
+        obj_type = pid_.object_type
+        if obj_type == SNAPSHOT:
+            return list(self.snapshot(pid_))
+        elif obj_type == REVISION:
+            return self.revision(pid_)
+        elif obj_type == RELEASE:
+            return self.release(pid_)
+        elif obj_type == DIRECTORY:
+            return self.directory(pid_)
+        elif obj_type == CONTENT:
+            return self.content(pid_)
+
+    def iter(self, pid: PIDish, **req_args) -> Generator[Dict[str, Any],
+                                                         None, None]:
+        """stream over the information about an object of any kind
+
+        streaming variant of get()
+
+        """
+        pid_ = _get_pid(pid)
+        obj_type = pid_.object_type
+        if obj_type == SNAPSHOT:
+            yield from self.snapshot(pid_)
+        elif obj_type == REVISION:
+            yield from [self.revision(pid_)]
+        elif obj_type == RELEASE:
+            yield from [self.release(pid_)]
+        elif obj_type == DIRECTORY:
+            yield from self.directory(pid_)
+        elif obj_type == CONTENT:
+            yield from [self.content(pid_)]
+
     def content(self, pid: PIDish, **req_args) -> Dict[str, Any]:
+
         """retrieve information about a content object
 
         Args:
@@ -195,6 +271,7 @@ class WebAPIClient:
                     # XXX hackish URL cleaning while we wait for swh-web API to
                     # return complete URLs (a-la GitHub/GitLab) in Link headers
                     # instead of absolute paths rooted at https://archive.s.o/
+                    # cf. https://forge.softwareheritage.org/T2147
                     query = query[len(self.api_path):].lstrip('/')
             else:
                 done = True
