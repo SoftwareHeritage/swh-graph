@@ -28,7 +28,7 @@ This API uses the following notions:
   the forward graph, but useless (due to lack of matching edges in the graph)
   when traversing the backward graph; conversely ``snp:ori`` is useful when
   traversing the backward graph, but not in the forward one. For the same
-  reason ``dir:dir` allows following edges from parent directories to
+  reason ``dir:dir`` allows following edges from parent directories to
   sub-directories when traversing the forward graph, but the same restriction
   allows following edges from sub-directories to parent directories.
 
@@ -67,13 +67,18 @@ Leaves
     :statuscode 400: invalid query string provided
     :statuscode 404: starting node cannot be found
 
+    **Example:**
+
     .. sourcecode:: http
 
-        GET /graph/leaves/swh:1:dir:432d1b21c1256f7408a07c577b6974bbdbcc1323
+        GET /graph/leaves/swh:1:dir:432d1b21c1256f7408a07c577b6974bbdbcc1323 HTTP/1.1
 
-        HTTP/1.1 200 OK
         Content-Type: text/plain
         Transfer-Encoding: chunked
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200 OK
 
         swh:1:cnt:540faad6b1e02e2db4f349a4845192db521ff2bd
         swh:1:cnt:630585fc6d34e5e121139e2aee0a64e83dc9aae6
@@ -100,55 +105,61 @@ Neighbors
     :statuscode 400: invalid query string provided
     :statuscode 404: starting node cannot be found
 
+    **Example:**
+
     .. sourcecode:: http
 
-        GET /graph/neighbors/swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35
+        GET /graph/neighbors/swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35 HTTP/1.1
 
-        HTTP/1.1 200 OK
         Content-Type: text/plain
         Transfer-Encoding: chunked
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200 OK
 
         swh:1:rev:a31e58e129f73ab5b04016330b13ed51fde7a961
         swh:1:dir:b5d2aa0746b70300ebbca82a8132af386cc5986d
         swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd
+        ...
 
 
 Walk
 ----
 
 ..
-   .. http:get:: /graph/walk/:src/:dst
+  .. http:get:: /graph/walk/:src/:dst
 
-       Performs a graph traversal and returns the first found path from source to
-       destination (final destination node included).
+      Performs a graph traversal and returns the first found path from source to
+      destination (final destination node included).
 
-       :param string src: starting node specified as a SWH PID
-       :param string dst: destination node, either as a node PID or a node type.
-           The traversal will stop at the first node encountered matching the
-           desired destination.
+      :param string src: starting node specified as a SWH PID
+      :param string dst: destination node, either as a node PID or a node type.
+          The traversal will stop at the first node encountered matching the
+          desired destination.
 
-       :query string edges: edges types the traversal can follow; default to
-           ``"*"``
-       :query string traversal: traversal algorithm; can be either ``dfs`` or
-           ``bfs``, default to ``dfs``
-       :query string direction: direction in which graph edges will be followed;
-           can be either ``forward`` or ``backward``, default to ``forward``
+      :query string edges: edges types the traversal can follow; default to
+          ``"*"``
+      :query string traversal: traversal algorithm; can be either ``dfs`` or
+          ``bfs``, default to ``dfs``
+      :query string direction: direction in which graph edges will be followed;
+          can be either ``forward`` or ``backward``, default to ``forward``
 
-       :statuscode 200: success
-       :statuscode 400: invalid query string provided
-       :statuscode 404: starting node cannot be found
+      :statuscode 200: success
+      :statuscode 400: invalid query string provided
+      :statuscode 404: starting node cannot be found
 
-       .. sourcecode:: http
+      **Example:**
 
-           HTTP/1.1 200 OK
-           Content-Type: text/plain
-           Transfer-Encoding: chunked
+      .. sourcecode:: http
 
-           swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35
-           swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd
-           swh:1:rev:cea92e843e40452c08ba313abc39f59efbb4c29c
-           swh:1:rev:8d517bdfb57154b8a11d7f1682ecc0f79abf8e02
-           ...
+          HTTP/1.1 200 OK
+
+          swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35
+          swh:1:rev:52c90f2d32bfa7d6eccd66a56c44ace1f78fbadd
+          swh:1:rev:cea92e843e40452c08ba313abc39f59efbb4c29c
+          swh:1:rev:8d517bdfb57154b8a11d7f1682ecc0f79abf8e02
+          ...
 
 .. http:get:: /graph/randomwalk/:src/:dst
 
@@ -170,13 +181,18 @@ Walk
     :statuscode 400: invalid query string provided
     :statuscode 404: starting node cannot be found
 
+    **Example:**
+
     .. sourcecode:: http
 
-        GET /graph/randomwalk/swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2/ori?direction=backward
+        GET /graph/randomwalk/swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2/ori?direction=backward HTTP/1.1
 
-        HTTP/1.1 200 OK
         Content-Type: text/plain
         Transfer-Encoding: chunked
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200 OK
 
         swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2
         swh:1:dir:8de8a8823a0780524529c94464ee6ef60b98e2ed
@@ -210,13 +226,18 @@ Visit
     :statuscode 400: invalid query string provided
     :statuscode 404: starting node cannot be found
 
+    **Example:**
+
     .. sourcecode:: http
 
-        GET /graph/visit/nodes/swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc
+        GET /graph/visit/nodes/swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc HTTP/1.1
 
-        HTTP/1.1 200 OK
         Content-Type: text/plain
         Transfer-Encoding: chunked
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200 OK
 
         swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc
         swh:1:rev:cfab784723a6c2d33468c9ed8a566fd5e2abd8c9
@@ -230,13 +251,18 @@ Visit
         swh:1:cnt:701bd0a63e11b3390a547ce8515d28c6bab8a201
         ...
 
+    **Example:**
+
     .. sourcecode:: http
 
-        GET /graph/visit/nodes/swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb
+        GET /graph/visit/nodes/swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb HTTP/1.1
 
-        HTTP/1.1 200 OK
         Content-Type: application/x-ndjson
         Transfer-Encoding: chunked
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200 OK
 
         ["swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb", "swh:1:cnt:acfb7cabd63b368a03a9df87670ece1488c8bce0"]
         ["swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb", "swh:1:cnt:2a0837708151d76edf28fdbb90dc3eabc676cff3"]
@@ -256,17 +282,17 @@ already discussed counterparts but, instead of returning results, return the
 
 .. http:get:: /graph/leaves/count/:src
 
-   return the amount of :http:get:`/graph/leaves/:src` results
+   Return the amount of :http:get:`/graph/leaves/:src` results
 
 
 .. http:get:: /graph/neighbors/count/:src
 
-   return the amount of :http:get:`/graph/neighbors/:src` results
+   Return the amount of :http:get:`/graph/neighbors/:src` results
 
 
 .. http:get:: /graph/visit/nodes/count/:src
 
-   return the amount of :http:get:`/graph/visit/nodes/:src` results
+   Return the amount of :http:get:`/graph/visit/nodes/:src` results
 
 
 Returning last element only
@@ -280,20 +306,25 @@ the *last* element of the result that would have been returned:
 ..
    .. http:get:: /graph/walk/last/:src/:dst
 
-      return the last among :http:get:`/graph/walk/:src/:dst` results
+      Return the last among :http:get:`/graph/walk/:src/:dst` results
 
 
 .. http:get:: /graph/randomwalk/last/:src/:dst
 
-   return the last among :http:get:`/graph/randomwalk/:src/:dst` results
+    Return the last among :http:get:`/graph/randomwalk/:src/:dst` results
+
+    **Example**
 
     .. sourcecode:: http
 
-        GET /graph/randomwalk/last/swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2/ori?direction=backward
+        GET /graph/randomwalk/last/swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2/ori?direction=backward HTTP/1.1
 
-        HTTP/1.1 200 OK
         Content-Type: text/plain
         Transfer-Encoding: chunked
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200 OK
 
         swh:1:ori:39bdc50b7d7bc5b02a898148286adb1b816066ab
 
@@ -307,12 +338,17 @@ Stats
 
     :statuscode 200: success
 
+    **Example**
+
     .. sourcecode:: http
 
-        GET /graph/stats
+        GET /graph/stats HTTP/1.1
+
+        Content-Type: application/json
+
+    .. sourcecode:: http
 
         HTTP/1.1 200 OK
-        Content-Type: application/json
 
         {
             "counts": {
