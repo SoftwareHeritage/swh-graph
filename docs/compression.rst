@@ -1,19 +1,9 @@
 Graph compression
 =================
 
-The compression process is based on the `WebGraph framework
-<http://webgraph.di.unimi.it/>`_ and ecosystem libraries.
-
-References used:
-
-- Paolo Boldi, Sebastiano Vigna, *The webgraph framework I: compression
-  techniques*, Proceedings of the 13th international conference on World Wide
-  Web. ACM, 2004. `pdf <http://vigna.di.unimi.it/ftp/papers/WebGraphI.pdf>`_
-- Paolo Boldi, Marco Rosa, Massimo Santini, Sebastiano Vigna, *Layered label
-  propagation: A multiresolution coordinate-free ordering for compressing social
-  networks*. `arxiv <https://arxiv.org/abs/1011.5425>`_
-- Alberto Apostolico, Guido Drovandi, *Graph compression by BFS*, Algorithms
-  2009, 2(3), 1031-1044. `mdpi <https://www.mdpi.com/1999-4893/2/3/1031/pdf>`_
+The compression process is a pipeline implemented for the most part on top of
+the `WebGraph framework <http://webgraph.di.unimi.it/>`_ and ecosystem
+libraries. The compression pipeline consists of the following steps:
 
 .. figure:: images/compression_steps.png
     :align: center
@@ -21,14 +11,35 @@ References used:
 
     Compression steps
 
+Each of these steps is briefly described below. For more details see the
+following paper:
+
+.. note::
+
+  Paolo Boldi, Antoine Pietri, Sebastiano Vigna, Stefano Zacchiroli.
+  `Ultra-Large-Scale Repository Analysis via Graph Compression
+  <https://upsilon.cc/~zack/research/publications/saner-2020-swh-graph.pdf>`_. In
+  proceedings of `SANER 2020 <https://saner2020.csd.uwo.ca/>`_: The 27th IEEE
+  International Conference on Software Analysis, Evolution and
+  Reengineering. IEEE 2020.
+
+  Links: `preprint
+  <https://upsilon.cc/~zack/research/publications/saner-2020-swh-graph.pdf>`_,
+  `bibtex
+  <https://upsilon.cc/~zack/research/publications/saner-2020-swh-graph.bib>`_.
+
+In order to practically perform graph compression, install the ``swh.graph``
+module and use the ``swh graph compress`` command line interface of the
+compression driver, that will conduct the various steps in the right order.
+See ``swh graph compress --help`` for usage details.
+
+
 1. MPH
 ------
 
-A node in the `Software Heritage graph
-<https://docs.softwareheritage.org/devel/swh-model/data-model.html>`_ is
-identified using its string `persistent identifier
-<https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html#persistent-identifiers>`_.
-However, WebGraph internally uses integers to refer to node ids.
+A node in the Software Heritage :ref:`data-model` is identified using its PID
+(see :ref:`persistent-identifiers`). However, WebGraph internally uses integers
+to refer to node ids.
 
 Mapping between the strings and longs ids is needed before compressing the
 graph. From the `Sux4J <http://sux.di.unimi.it/>`_ utility tool, we use the
@@ -39,6 +50,7 @@ class, mapping with no collisions N keys to N consecutive integers.
 The step produces a ``.mph`` file (MPH stands for *Minimal Perfect
 Hash-function*) storing the hash function taking as input a string and returning
 a unique integer.
+
 
 2. BV compress
 --------------
@@ -56,6 +68,7 @@ The resulting BV graph is stored as a set of files:
 - ``.obl``: offsets cache to load the graph faster
 - ``.properties``: entries used to correctly decode graph and offset files
 
+
 3. BFS
 -------
 
@@ -72,6 +85,7 @@ class from the `LAW <http://law.di.unimi.it/>`_ library.
 The resulting ordering is stored in the ``.order`` file, listing nodes ids in
 order of traversal.
 
+
 4. Permute
 ----------
 
@@ -84,11 +98,9 @@ class from WebGraph framework.
 The final compressed graph is only stored in the resulting ``.graph``,
 ``.offsets``, ``.obl``, and ``.properties`` files.
 
-Extra steps
------------
 
 5. Stats
-~~~~~~~~
+--------
 
 Compute various statistics on the final compressed graph:
 
@@ -101,8 +113,9 @@ This step uses the `Stats
 <http://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Stats.html>`_
 class from WebGraph.
 
+
 6. Transpose
-~~~~~~~~~~~~
+------------
 
 Create a transposed graph to allow backward traversal, using the `Transform
 <http://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.html>`_
