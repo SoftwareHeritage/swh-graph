@@ -73,25 +73,27 @@ class RemoteGraphClient(RPCClient):
                     'direction': direction
                 }))
 
-    def walk(self, src, dst,
-             edges="*", traversal="dfs", direction="forward", last=False):
-        endpoint = 'walk/last/{}/{}' if last else 'walk/{}/{}'
+    def walk(self, src, dst, edges="*", traversal="dfs",
+             direction="forward", limit=None):
+        endpoint = 'walk/{}/{}'
         return self.get_lines(
             endpoint.format(src, dst),
             params={
                 'edges': edges,
                 'traversal': traversal,
-                'direction': direction
+                'direction': direction,
+                'limit': limit
             })
 
     def random_walk(self, src, dst,
-                    edges="*", direction="forward", last=False):
-        endpoint = 'randomwalk/last/{}/{}' if last else 'randomwalk/{}/{}'
+                    edges="*", direction="forward", limit=None):
+        endpoint = 'randomwalk/{}/{}'
         return self.get_lines(
             endpoint.format(src, dst),
             params={
                 'edges': edges,
-                'direction': direction
+                'direction': direction,
+                'limit': limit
             })
 
     def count_leaves(self, src, edges="*", direction="forward"):

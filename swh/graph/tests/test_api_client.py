@@ -115,10 +115,19 @@ def test_walk(graph_client):
     assert set(actual) == set(expected)
 
     kwargs2 = kwargs.copy()
-    kwargs2['last'] = True
+    kwargs2['limit'] = -1
     actual = list(graph_client.walk(*args, **kwargs2))
     expected = [
         'swh:1:rel:0000000000000000000000000000000000000019'
+    ]
+    assert set(actual) == set(expected)
+
+    kwargs2 = kwargs.copy()
+    kwargs2['limit'] = 2
+    actual = list(graph_client.walk(*args, **kwargs2))
+    expected = [
+        'swh:1:dir:0000000000000000000000000000000000000016',
+        'swh:1:dir:0000000000000000000000000000000000000017'
     ]
     assert set(actual) == set(expected)
 
@@ -138,9 +147,18 @@ def test_random_walk(graph_client):
     assert actual[-1] == expected_root
 
     kwargs2 = kwargs.copy()
-    kwargs2['last'] = True
+    kwargs2['limit'] = -1
     actual = list(graph_client.random_walk(*args, **kwargs2))
     assert actual == [expected_root]
+
+    kwargs2['limit'] = -2
+    actual = list(graph_client.random_walk(*args, **kwargs2))
+    assert len(actual) == 2
+    assert actual[-1] == expected_root
+
+    kwargs2['limit'] = 3
+    actual = list(graph_client.random_walk(*args, **kwargs2))
+    assert len(actual) == 3
 
 
 def test_count(graph_client):

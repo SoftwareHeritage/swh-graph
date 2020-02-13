@@ -11,6 +11,7 @@ FIFO as a transport to stream integers between the two languages.
 import asyncio
 import json
 import aiohttp.web
+from collections import deque
 
 from swh.core.api.asynchronous import RPCServerApp
 from swh.model.identifiers import PID_TYPES
@@ -70,8 +71,8 @@ def get_edges(request):
     """validate HTTP query parameter `edges`, i.e., edge restrictions"""
     s = request.query.get('edges', '*')
     if any([node_type != '*' and node_type not in PID_TYPES
-           for edge in s.split(':')
-           for node_type in edge.split(',', maxsplit=1)]):
+            for edge in s.split(':')
+            for node_type in edge.split(',', maxsplit=1)]):
         raise aiohttp.web.HTTPBadRequest(body=f'invalid edge restriction: {s}')
     return s
 
@@ -82,6 +83,15 @@ def get_traversal(request):
     if s not in ('bfs', 'dfs'):
         raise aiohttp.web.HTTPBadRequest(body=f'invalid traversal order: {s}')
     return s
+
+
+def get_limit(request):
+    """validate HTTP query parameter `limit`, i.e., number of results"""
+    s = request.query.get('limit', '0')
+    try:
+        return int(s)
+    except ValueError:
+        raise aiohttp.web.HTTPBadRequest(body=f'invalid limit value: {s}')
 
 
 def node_of_pid(pid, backend):
@@ -125,7 +135,7 @@ def get_simple_traversal_handler(ttype):
     return simple_traversal
 
 
-def get_walk_handler(random=False, last=False):
+def get_walk_handler(random=False):
     async def walk(request):
         backend = request.app['backend']
 
@@ -134,6 +144,7 @@ def get_walk_handler(random=False, last=False):
         edges = get_edges(request)
         direction = get_direction(request)
         algo = get_traversal(request)
+        limit = get_limit(request)
 
         src_node = node_of_pid(src, backend)
         if dst not in PID_TYPES:
@@ -144,14 +155,23 @@ def get_walk_handler(random=False, last=False):
                                          src_node, dst)
             else:
                 it = backend.walk(direction, edges, algo, src_node, dst)
-            res_node = None
-            async for res_node in it:
-                if not last:
+
+            if limit < 0:
+                queue = deque(maxlen=-limit)
+                async for res_node in it:
                     res_pid = pid_of_node(res_node, backend)
-                    await response.write('{}\n'.format(res_pid).encode())
-            if last and res_node is not None:
-                res_pid = pid_of_node(res_node, backend)
-                await response.write('{}\n'.format(res_pid).encode())
+                    queue.append('{}\n'.format(res_pid).encode())
+                while queue:
+                    await response.write(queue.popleft())
+            else:
+                count = 0
+                async for res_node in it:
+                    if limit == 0 or count < limit:
+                        res_pid = pid_of_node(res_node, backend)
+                        await response.write('{}\n'.format(res_pid).encode())
+                        count += 1
+                    else:
+                        break
             return response
 
     return walk
@@ -214,9 +234,7 @@ def make_app(backend, **kwargs):
     #                    get_walk_handler(random=False, last=True))
 
     app.router.add_get('/graph/randomwalk/{src}/{dst}',
-                       get_walk_handler(random=True, last=False))
-    app.router.add_get('/graph/randomwalk/last/{src}/{dst}',
-                       get_walk_handler(random=True, last=True))
+                       get_walk_handler(random=True))
 
     app.router.add_get('/graph/neighbors/count/{src}',
                        get_count_handler('neighbors'))
