@@ -176,6 +176,10 @@ Walk
         ``"*"``
     :query string direction: direction in which graph edges will be followed;
         can be either ``forward`` or ``backward``, default to ``forward``
+    :query int limit: limit the number of nodes returned. You can use positive
+        numbers to get the first N results, or negative numbers to get the last
+        N results starting from the tail;
+        default to ``0``, meaning no limit.
 
     :statuscode 200: success
     :statuscode 400: invalid query string provided
@@ -204,6 +208,22 @@ Walk
         swh:1:rev:ff70949f336593d6c59b18e4989edf24d7f0f254
         swh:1:snp:a511810642b7795e725033febdd82075064ed863
         swh:1:ori:98aa0e71f5c789b12673717a97f6e9fa20aa1161
+
+    **Limit example:**
+
+    .. sourcecode:: http
+
+        GET /graph/randomwalk/swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2/ori?direction=backward&limit=-2 HTTP/1.1
+
+        Content-Type: text/plain
+        Transfer-Encoding: chunked
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200 OK
+
+        swh:1:ori:98aa0e71f5c789b12673717a97f6e9fa20aa1161
+        swh:1:snp:a511810642b7795e725033febdd82075064ed863
 
 
 Visit
@@ -293,40 +313,6 @@ already discussed counterparts but, instead of returning results, return the
 .. http:get:: /graph/visit/nodes/count/:src
 
    Return the amount of :http:get:`/graph/visit/nodes/:src` results
-
-
-Returning last element only
----------------------------
-
-The following method variants, with trailing `/last` added, behave like their
-already discussed counterparts but, instead of returning full results, return
-the *last* element of the result that would have been returned:
-
-
-..
-   .. http:get:: /graph/walk/last/:src/:dst
-
-      Return the last among :http:get:`/graph/walk/:src/:dst` results
-
-
-.. http:get:: /graph/randomwalk/last/:src/:dst
-
-    Return the last among :http:get:`/graph/randomwalk/:src/:dst` results
-
-    **Example**
-
-    .. sourcecode:: http
-
-        GET /graph/randomwalk/last/swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2/ori?direction=backward HTTP/1.1
-
-        Content-Type: text/plain
-        Transfer-Encoding: chunked
-
-    .. sourcecode:: http
-
-        HTTP/1.1 200 OK
-
-        swh:1:ori:39bdc50b7d7bc5b02a898148286adb1b816066ab
 
 
 Stats
