@@ -1,4 +1,4 @@
-package org.softwareheritage.graph.benchmark;
+package org.softwareheritage.graph.experiments.forks;
 
 import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.ImmutableGraph;

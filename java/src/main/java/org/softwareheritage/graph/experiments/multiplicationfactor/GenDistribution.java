@@ -1,4 +1,4 @@
-package org.softwareheritage.graph.benchmark;
+package org.softwareheritage.graph.experiments.multiplicationfactor;
 
 import com.martiansoftware.jsap.*;
 import org.softwareheritage.graph.Graph;

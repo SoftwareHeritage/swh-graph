@@ -14,10 +14,7 @@ import org.softwareheritage.graph.benchmark.BFS;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Scanner;
-import java.util.TreeMap;
+import java.util.*;
 
 public class ForkCC {
     public Boolean includeRootDir;
@@ -30,18 +27,18 @@ public class ForkCC {
         JSAPResult config = null;
         try {
             SimpleJSAP jsap = new SimpleJSAP(
-                    ForkCC.class.getName(),
-                    "",
-                    new Parameter[]{
-                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'g', "graph", "Basename of the compressed graph"),
-                            new FlaggedOption("whitelistPath", JSAP.STRING_PARSER, null, JSAP.NOT_REQUIRED,
-                                    't', "whitelist", "Whitelist of origins"),
-                            new FlaggedOption("numThreads", JSAP.INTEGER_PARSER, "128", JSAP.NOT_REQUIRED,
-                                    'w', "numthreads", "Number of threads"),
-                            new FlaggedOption("includeRootDir", JSAP.BOOLEAN_PARSER, "false", JSAP.NOT_REQUIRED,
-                                    'R', "includerootdir", "Include root directory (default: false)"),
-                    }
+                ForkCC.class.getName(),
+                "",
+                new Parameter[] {
+                    new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+                            'g', "graph", "Basename of the compressed graph"),
+                    new FlaggedOption("whitelistPath", JSAP.STRING_PARSER, null, JSAP.NOT_REQUIRED,
+                            't', "whitelist", "Whitelist of origins"),
+                    new FlaggedOption("includeRootDir", JSAP.BOOLEAN_PARSER, "false", JSAP.NOT_REQUIRED,
+                            'R', "includerootdir", "Include root directory (default: false)"),
+                    new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+                            'o', "outdir", "Directory where to put the results"),
+                }
             );
 
             config = jsap.parse(args);
@@ -76,38 +73,6 @@ public class ForkCC {
         for (Long node : component) {
             System.out.println(node);
         }
-    }
-
-    public static void main(String[] args) {
-        JSAPResult config = parse_args(args);
-
-        String graphPath = config.getString("graphPath");
-        int numThreads = config.getInt("numThreads");
-        String whitelistPath = config.getString("whitelistPath");
-        boolean includeRootDir = config.getBoolean("includeRootDir");
-
-        ForkCC forkCc = new ForkCC();
-        try {
-            forkCc.load_graph(graphPath);
-            forkCc.includeRootDir = includeRootDir;
-        } catch (IOException e) {
-            System.out.println("Could not load graph: " + e);
-            System.exit(2);
-        }
-
-        if (whitelistPath != null) {
-            forkCc.parseWhitelist(whitelistPath);
-        }
-
-        ProgressLogger logger = new ProgressLogger();
-        try {
-            ArrayList<ArrayList<Long>> components = forkCc.compute(logger);
-            printDistribution(components);
-            // printLargestComponent(components);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        logger.done();
     }
 
     private void load_graph(String graphBasename) throws IOException {
@@ -150,7 +115,7 @@ public class ForkCC {
         int bufferSize = (int) Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * n);
 
         // Use a disk based queue to store BFS frontier
-        final File queueFile = File.createTempFile(BFS.class.getSimpleName(), "queue");
+        final File queueFile = File.createTempFile(ForkCC.class.getSimpleName(), "queue");
         final ByteDiskQueue queue = ByteDiskQueue.createNew(queueFile, bufferSize, true);
         final byte[] byteBuf = new byte[Long.BYTES];
         // WARNING: no 64-bit version of this data-structure, but it can support
@@ -202,10 +167,44 @@ public class ForkCC {
         return components;
     }
 
+    private static void printDistribution(ArrayList<ArrayList<Long>> components, Formatter out) {
+        TreeMap<Long, Long> distribution = new TreeMap<>();
+        for (ArrayList<Long> component : components) {
+            distribution.merge((long) component.size(), 1L, Long::sum);
+        }
+
+        for (Map.Entry<Long, Long> entry : distribution.entrySet()) {
+            out.format("%d %d\n", entry.getKey(), entry.getValue());
+        }
+    }
+
+    private static void printLargestComponent(ArrayList<ArrayList<Long>> components, Formatter out) {
+        int indexLargest = 0;
+        for (int i = 1; i < components.size(); ++i) {
+            if (components.get(i).size() > components.get(indexLargest).size())
+                indexLargest = i;
+        }
+
+        ArrayList<Long> component = components.get(indexLargest);
+        for (Long node : component) {
+            out.format("%d\n", node);
+        }
+    }
+
+    private static void printAllComponents(ArrayList<ArrayList<Long>> components, Formatter out) {
+        for (int i = 1; i < components.size(); ++i) {
+            ArrayList<Long> component = components.get(i);
+            for (Long node : component) {
+                out.format("%d ", node);
+            }
+            out.format("\n");
+        }
+    }
+
     private void parseWhitelist(String path) {
         System.err.println("Loading whitelist " + path + " ...");
         this.whitelist = LongArrayBitVector.ofLength(this.graph.numNodes());
-        Scanner scanner = null;
+        Scanner scanner;
         try {
             scanner = new Scanner(new File(path));
             while (scanner.hasNextLong()) {
@@ -215,5 +214,40 @@ public class ForkCC {
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    public static void main(String[] args) {
+        JSAPResult config = parse_args(args);
+
+        String graphPath = config.getString("graphPath");
+        String whitelistPath = config.getString("whitelistPath");
+        boolean includeRootDir = config.getBoolean("includeRootDir");
+        String outdirPath = config.getString("outdir");
+
+        ForkCC forkCc = new ForkCC();
+        try {
+            forkCc.load_graph(graphPath);
+            forkCc.includeRootDir = includeRootDir;
+        } catch (IOException e) {
+            System.out.println("Could not load graph: " + e);
+            System.exit(2);
+        }
+
+        if (whitelistPath != null) {
+            forkCc.parseWhitelist(whitelistPath);
+        }
+
+        ProgressLogger logger = new ProgressLogger();
+        //noinspection ResultOfMethodCallIgnored
+        new File(outdirPath).mkdirs();
+        try {
+            ArrayList<ArrayList<Long>> components = forkCc.compute(logger);
+            printDistribution(components, new Formatter(outdirPath + "/distribution.txt"));
+            printLargestComponent(components, new Formatter(outdirPath + "/largest_clique.txt"));
+            printAllComponents(components, new Formatter(outdirPath + "/all_cliques.txt"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        logger.done();
     }
 }
