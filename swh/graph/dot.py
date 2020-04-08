@@ -9,12 +9,12 @@ import collections
 
 
 KIND_TO_SHAPE = {
-    'ori': 'egg',
-    'snp': 'doubleoctagon',
-    'rel': 'octagon',
-    'rev': 'diamond',
-    'dir': 'folder',
-    'cnt': 'oval',
+    "ori": "egg",
+    "snp": "doubleoctagon",
+    "rel": "octagon",
+    "rev": "diamond",
+    "dir": "folder",
+    "cnt": "oval",
 }
 
 
@@ -22,9 +22,11 @@ KIND_TO_SHAPE = {
 def dot_to_svg(dot):
     try:
         p = subprocess.run(
-            ['dot', '-Tsvg'], input=dot,
-            universal_newlines=True, capture_output=True,
-            check=True
+            ["dot", "-Tsvg"],
+            input=dot,
+            universal_newlines=True,
+            capture_output=True,
+            check=True,
         )
     except subprocess.CalledProcessError as e:
         raise RuntimeError(e.stderr) from e
@@ -51,8 +53,8 @@ def graph_dot(nodes):
         if parent.id in ids
     ]
     edges = set(forward_edges + backward_edges)
-    edges_fmt = '\n'.join('{} -> {};'.format(a, b) for a, b in edges)
-    nodes_fmt = '\n'.join(node.dot_fragment() for node in nodes)
+    edges_fmt = "\n".join("{} -> {};".format(a, b) for a, b in edges)
+    nodes_fmt = "\n".join(node.dot_fragment() for node in nodes)
 
     s = """digraph G {{
     ranksep=1;
@@ -61,5 +63,7 @@ def graph_dot(nodes):
     {nodes}
     {edges}
 
-    }}""".format(nodes=nodes_fmt, edges=edges_fmt)
+    }}""".format(
+        nodes=nodes_fmt, edges=edges_fmt
+    )
     return s

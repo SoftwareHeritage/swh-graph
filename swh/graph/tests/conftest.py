@@ -10,7 +10,7 @@ from swh.graph.backend import Backend
 from swh.graph.server.app import make_app
 
 SWH_GRAPH_TESTS_ROOT = Path(__file__).parents[0]
-TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / 'dataset/output/example'
+TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / "dataset/output/example"
 
 
 class GraphServerProcess(multiprocessing.Process):
@@ -26,7 +26,7 @@ class GraphServerProcess(multiprocessing.Process):
                     app = make_app(backend=backend, debug=True)
                     client = TestClient(TestServer(app), loop=loop)
                     loop.run_until_complete(client.start_server())
-                    url = client.make_url('/graph/')
+                    url = client.make_url("/graph/")
                     self.q.put(url)
                     loop.run_forever()
         except Exception as e:

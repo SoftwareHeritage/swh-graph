@@ -15,10 +15,10 @@ from typing import BinaryIO, Iterator, Tuple
 from swh.model.identifiers import PersistentId, parse_persistent_identifier
 
 
-PID_BIN_FMT = 'BB20s'  # 2 unsigned chars + 20 bytes
-INT_BIN_FMT = '>q'     # big endian, 8-byte integer
-PID_BIN_SIZE = 22      # in bytes
-INT_BIN_SIZE = 8       # in bytes
+PID_BIN_FMT = "BB20s"  # 2 unsigned chars + 20 bytes
+INT_BIN_FMT = ">q"  # big endian, 8-byte integer
+PID_BIN_SIZE = 22  # in bytes
+INT_BIN_SIZE = 8  # in bytes
 
 
 class PidType(Enum):
@@ -29,6 +29,7 @@ class PidType(Enum):
     Java layer.
 
     """
+
     content = 0
     directory = 1
     origin = 2
@@ -56,9 +57,12 @@ def str_to_bytes(pid_str: str) -> bytes:
 
     """
     pid = parse_persistent_identifier(pid_str)
-    return struct.pack(PID_BIN_FMT, pid.scheme_version,
-                       PidType[pid.object_type].value,
-                       bytes.fromhex(pid.object_id))
+    return struct.pack(
+        PID_BIN_FMT,
+        pid.scheme_version,
+        PidType[pid.object_type].value,
+        bytes.fromhex(pid.object_id),
+    )
 
 
 def bytes_to_str(bytes: bytes) -> str:
@@ -78,13 +82,14 @@ def bytes_to_str(bytes: bytes) -> str:
     return str(pid)
 
 
-class _OnDiskMap():
+class _OnDiskMap:
     """mmap-ed on-disk sequence of fixed size records
 
     """
 
-    def __init__(self, record_size: int, fname: str, mode: str = 'rb',
-                 length: int = None):
+    def __init__(
+        self, record_size: int, fname: str, mode: str = "rb", length: int = None
+    ):
         """open an existing on-disk map
 
         Args:
@@ -98,33 +103,31 @@ class _OnDiskMap():
                 and the map doesn't exist on disk; ignored otherwise
 
         """
-        os_modes = {
-            'rb': os.O_RDONLY,
-            'wb': os.O_RDWR | os.O_CREAT,
-            'rb+': os.O_RDWR
-        }
+        os_modes = {"rb": os.O_RDONLY, "wb": os.O_RDWR | os.O_CREAT, "rb+": os.O_RDWR}
         if mode not in os_modes:
-            raise ValueError('invalid file open mode: ' + mode)
-        new_map = (mode == 'wb')
-        writable_map = mode in ['wb', 'rb+']
+            raise ValueError("invalid file open mode: " + mode)
+        new_map = mode == "wb"
+        writable_map = mode in ["wb", "rb+"]
 
         self.record_size = record_size
         self.fd = os.open(fname, os_modes[mode])
         if new_map:
             if length is None:
-                raise ValueError('missing length when creating new map')
+                raise ValueError("missing length when creating new map")
             os.truncate(self.fd, length * self.record_size)
 
         self.size = os.path.getsize(fname)
         (self.length, remainder) = divmod(self.size, record_size)
         if remainder:
             raise ValueError(
-                'map size {} is not a multiple of the record size {}'.format(
-                    self.size, record_size))
+                "map size {} is not a multiple of the record size {}".format(
+                    self.size, record_size
+                )
+            )
 
         self.mm = mmap.mmap(
-            self.fd, self.size,
-            flags=MAP_SHARED if writable_map else MAP_PRIVATE)
+            self.fd, self.size, flags=MAP_SHARED if writable_map else MAP_PRIVATE
+        )
 
     def close(self) -> None:
         """close the map
@@ -140,7 +143,7 @@ class _OnDiskMap():
         return self.length
 
     def __delitem__(self, pos: int) -> None:
-        raise NotImplementedError('cannot delete records from fixed-size map')
+        raise NotImplementedError("cannot delete records from fixed-size map")
 
 
 class PidToNodeMap(_OnDiskMap, MutableMapping):
@@ -170,10 +173,10 @@ class PidToNodeMap(_OnDiskMap, MutableMapping):
     """
 
     # record binary format: PID + a big endian 8-byte big endian integer
-    RECORD_BIN_FMT = '>' + PID_BIN_FMT + 'q'
+    RECORD_BIN_FMT = ">" + PID_BIN_FMT + "q"
     RECORD_SIZE = PID_BIN_SIZE + INT_BIN_SIZE
 
-    def __init__(self, fname: str, mode: str = 'rb', length: int = None):
+    def __init__(self, fname: str, mode: str = "rb", length: int = None):
         """open an existing on-disk map
 
         Args:
@@ -204,8 +207,7 @@ class PidToNodeMap(_OnDiskMap, MutableMapping):
         rec_pos = pos * self.RECORD_SIZE
         int_pos = rec_pos + PID_BIN_SIZE
 
-        return (self.mm[rec_pos:int_pos],
-                self.mm[int_pos:int_pos+INT_BIN_SIZE])
+        return (self.mm[rec_pos:int_pos], self.mm[int_pos : int_pos + INT_BIN_SIZE])
 
     def _get_record(self, pos: int) -> Tuple[str, int]:
         """seek and return the record at a given (logical) position
@@ -222,8 +224,7 @@ class PidToNodeMap(_OnDiskMap, MutableMapping):
 
         """
         (pid_bytes, int_bytes) = self._get_bin_record(pos)
-        return (bytes_to_str(pid_bytes),
-                struct.unpack(INT_BIN_FMT, int_bytes)[0])
+        return (bytes_to_str(pid_bytes), struct.unpack(INT_BIN_FMT, int_bytes)[0])
 
     @classmethod
     def write_record(cls, f: BinaryIO, pid: str, int: int) -> None:
@@ -250,7 +251,7 @@ class PidToNodeMap(_OnDiskMap, MutableMapping):
 
         """
         if not isinstance(pid_str, str):
-            raise TypeError('PID must be a str, not {}'.format(type(pid_str)))
+            raise TypeError("PID must be a str, not {}".format(type(pid_str)))
         try:
             target = str_to_bytes(pid_str)  # desired PID as bytes
         except ValueError:
@@ -302,16 +303,16 @@ class PidToNodeMap(_OnDiskMap, MutableMapping):
         rec_pos = pos * self.RECORD_SIZE
         int_pos = rec_pos + PID_BIN_SIZE
         self.mm[rec_pos:int_pos] = str_to_bytes(pid_str)
-        self.mm[int_pos:int_pos+INT_BIN_SIZE] = struct.pack(INT_BIN_FMT, int)
+        self.mm[int_pos : int_pos + INT_BIN_SIZE] = struct.pack(INT_BIN_FMT, int)
 
     def __iter__(self) -> Iterator[Tuple[str, int]]:
         for pos in range(self.length):
             yield self._get_record(pos)
 
     def iter_prefix(self, prefix: str):
-        swh, n, t, sha = prefix.split(':')
-        sha = sha.ljust(40, '0')
-        start_pid = ':'.join([swh, n, t, sha])
+        swh, n, t, sha = prefix.split(":")
+        sha = sha.ljust(40, "0")
+        start_pid = ":".join([swh, n, t, sha])
         start = self._bisect_pos(start_pid)
         for pos in range(start, self.length):
             pid, value = self._get_record(pos)
@@ -320,7 +321,7 @@ class PidToNodeMap(_OnDiskMap, MutableMapping):
             yield pid, value
 
     def iter_type(self, pid_type: str) -> Iterator[Tuple[str, int]]:
-        prefix = 'swh:1:{}:'.format(pid_type)
+        prefix = "swh:1:{}:".format(pid_type)
         yield from self.iter_prefix(prefix)
 
 
@@ -342,7 +343,7 @@ class NodeToPidMap(_OnDiskMap, MutableMapping):
     RECORD_BIN_FMT = PID_BIN_FMT
     RECORD_SIZE = PID_BIN_SIZE
 
-    def __init__(self, fname: str, mode: str = 'rb', length: int = None):
+    def __init__(self, fname: str, mode: str = "rb", length: int = None):
         """open an existing on-disk map
 
         Args:
@@ -371,7 +372,7 @@ class NodeToPidMap(_OnDiskMap, MutableMapping):
         """
         rec_pos = pos * self.RECORD_SIZE
 
-        return self.mm[rec_pos:rec_pos+self.RECORD_SIZE]
+        return self.mm[rec_pos : rec_pos + self.RECORD_SIZE]
 
     @classmethod
     def write_record(cls, f: BinaryIO, pid: str) -> None:
@@ -395,7 +396,7 @@ class NodeToPidMap(_OnDiskMap, MutableMapping):
 
     def __setitem__(self, pos: int, pid: str) -> None:
         rec_pos = pos * self.RECORD_SIZE
-        self.mm[rec_pos:rec_pos+self.RECORD_SIZE] = str_to_bytes(pid)
+        self.mm[rec_pos : rec_pos + self.RECORD_SIZE] = str_to_bytes(pid)
 
     def __iter__(self) -> Iterator[Tuple[int, str]]:
         for pos in range(self.length):

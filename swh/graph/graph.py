@@ -10,14 +10,14 @@ from swh.graph.backend import Backend
 from swh.graph.dot import dot_to_svg, graph_dot, KIND_TO_SHAPE
 
 
-BASE_URL = 'https://archive.softwareheritage.org/browse'
+BASE_URL = "https://archive.softwareheritage.org/browse"
 KIND_TO_URL_FRAGMENT = {
-    'ori': '/origin/{}',
-    'snp': '/snapshot/{}',
-    'rel': '/release/{}',
-    'rev': '/revision/{}',
-    'dir': '/directory/{}',
-    'cnt': '/content/sha1_git:{}/',
+    "ori": "/origin/{}",
+    "snp": "/snapshot/{}",
+    "rel": "/release/{}",
+    "rev": "/revision/{}",
+    "dir": "/directory/{}",
+    "cnt": "/content/sha1_git:{}/",
 }
 
 
@@ -34,6 +34,7 @@ def call_async_gen(generator, *args, **kwargs):
 
 class Neighbors:
     """Neighbor iterator with custom O(1) length method"""
+
     def __init__(self, graph, iterator, length_func):
         self.graph = graph
         self.iterator = iterator
@@ -63,47 +64,46 @@ class GraphNode:
         return Neighbors(
             self.graph,
             self.graph.java_graph.successors(self.id),
-            lambda: self.graph.java_graph.outdegree(self.id))
+            lambda: self.graph.java_graph.outdegree(self.id),
+        )
 
     def parents(self):
         return Neighbors(
             self.graph,
             self.graph.java_graph.predecessors(self.id),
-            lambda: self.graph.java_graph.indegree(self.id))
+            lambda: self.graph.java_graph.indegree(self.id),
+        )
 
-    def simple_traversal(self, ttype, direction='forward', edges='*'):
+    def simple_traversal(self, ttype, direction="forward", edges="*"):
         for node in call_async_gen(
-            self.graph.backend.simple_traversal,
-            ttype, direction, edges, self.id
+            self.graph.backend.simple_traversal, ttype, direction, edges, self.id
         ):
             yield self.graph[node]
 
     def leaves(self, *args, **kwargs):
-        yield from self.simple_traversal('leaves', *args, **kwargs)
+        yield from self.simple_traversal("leaves", *args, **kwargs)
 
     def visit_nodes(self, *args, **kwargs):
-        yield from self.simple_traversal('visit_nodes', *args, **kwargs)
+        yield from self.simple_traversal("visit_nodes", *args, **kwargs)
 
-    def visit_paths(self, direction='forward', edges='*'):
+    def visit_paths(self, direction="forward", edges="*"):
         for path in call_async_gen(
-                self.graph.backend.visit_paths,
-                direction, edges, self.id
+            self.graph.backend.visit_paths, direction, edges, self.id
         ):
             yield [self.graph[node] for node in path]
 
-    def walk(self, dst, direction='forward', edges='*', traversal='dfs'):
+    def walk(self, dst, direction="forward", edges="*", traversal="dfs"):
         for node in call_async_gen(
-            self.graph.backend.walk,
-            direction, edges, traversal, self.id, dst
+            self.graph.backend.walk, direction, edges, traversal, self.id, dst
         ):
             yield self.graph[node]
 
-    def _count(self, ttype, direction='forward', edges='*'):
+    def _count(self, ttype, direction="forward", edges="*"):
         return self.graph.backend.count(ttype, direction, edges, self.id)
 
-    count_leaves = functools.partialmethod(_count, ttype='leaves')
-    count_neighbors = functools.partialmethod(_count, ttype='neighbors')
-    count_visit_nodes = functools.partialmethod(_count, ttype='visit_nodes')
+    count_leaves = functools.partialmethod(_count, ttype="leaves")
+    count_neighbors = functools.partialmethod(_count, ttype="neighbors")
+    count_visit_nodes = functools.partialmethod(_count, ttype="visit_nodes")
 
     @property
     def pid(self):
@@ -111,21 +111,22 @@ class GraphNode:
 
     @property
     def kind(self):
-        return self.pid.split(':')[2]
+        return self.pid.split(":")[2]
 
     def __str__(self):
         return self.pid
 
     def __repr__(self):
-        return '<{}>'.format(self.pid)
+        return "<{}>".format(self.pid)
 
     def dot_fragment(self):
-        swh, version, kind, hash = self.pid.split(':')
-        label = '{}:{}..{}'.format(kind, hash[0:2], hash[-2:])
+        swh, version, kind, hash = self.pid.split(":")
+        label = "{}:{}..{}".format(kind, hash[0:2], hash[-2:])
         url = BASE_URL + KIND_TO_URL_FRAGMENT[kind].format(hash)
         shape = KIND_TO_SHAPE[kind]
-        return ('{} [label="{}", href="{}", target="_blank", shape="{}"];'
-                .format(self.id, label, url, shape))
+        return '{} [label="{}", href="{}", target="_blank", shape="{}"];'.format(
+            self.id, label, url, shape
+        )
 
     def _repr_svg_(self):
         nodes = [self, *list(self.children()), *list(self.parents())]

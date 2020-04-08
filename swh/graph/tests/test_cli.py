@@ -20,9 +20,9 @@ def read_properties(properties_fname) -> Dict[str, str]:
     properties = {}
     with open(properties_fname) as f:
         for line in f:
-            if line.startswith('#'):
+            if line.startswith("#"):
                 continue
-            (key, value) = line.rstrip().split('=', maxsplit=1)
+            (key, value) = line.rstrip().split("=", maxsplit=1)
             properties[key] = value
 
     return properties
@@ -30,20 +30,23 @@ def read_properties(properties_fname) -> Dict[str, str]:
 
 class TestCompress(unittest.TestCase):
 
-    DATA_DIR = Path(__file__).parents[0] / 'dataset'
+    DATA_DIR = Path(__file__).parents[0] / "dataset"
 
     def setUp(self):
         self.runner = CliRunner()
 
-        tmpconf = NamedTemporaryFile(mode='w', delete=False,
-                                     prefix='swh-graph-test', suffix='.yml')
+        tmpconf = NamedTemporaryFile(
+            mode="w", delete=False, prefix="swh-graph-test", suffix=".yml"
+        )
         # bare bone configuration, to allow testing the compression pipeline
         # with minimum RAM requirements on trivial graphs
-        tmpconf.write("""
+        tmpconf.write(
+            """
 graph:
   compress:
     batch_size: 1000
-""")
+"""
+        )
         tmpconf.close()
         self.conffile = Path(tmpconf.name)
         self.config = config.read(self.conffile, cli.DEFAULT_CONFIG)
@@ -54,13 +57,14 @@ graph:
 
     def test_pipeline(self):
         """run full compression pipeline"""
-        with TemporaryDirectory(suffix='.swh-graph-test') as tmpdir:
+        with TemporaryDirectory(suffix=".swh-graph-test") as tmpdir:
             result = self.runner.invoke(
                 cli.compress,
-                ['--graph', self.DATA_DIR / 'example', '--outdir', tmpdir],
-                obj={'config': self.config})
+                ["--graph", self.DATA_DIR / "example", "--outdir", tmpdir],
+                obj={"config": self.config},
+            )
 
             self.assertEqual(result.exit_code, 0)
-            properties = read_properties(Path(tmpdir) / 'example.properties')
-            self.assertEqual(int(properties['nodes']), 21)
-            self.assertEqual(int(properties['arcs']), 23)
+            properties = read_properties(Path(tmpdir) / "example.properties")
+            self.assertEqual(int(properties["nodes"]), 21)
+            self.assertEqual(int(properties["arcs"]), 23)

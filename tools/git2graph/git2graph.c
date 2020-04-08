@@ -149,7 +149,7 @@ typedef struct {
 
 /* Invoke a libgit2 method and exits with an error message in case of
  * failure.
- * 
+ *
  * Reused from libgit2 examples, specifically common.c, available under CC0.
  */
 void check_lg2(int error, const char *message, const char *extra) {
@@ -698,7 +698,7 @@ int main(int argc, char **argv) {
 	FILE *nodes_out, *edges_out;
 	char nodes_buf[EDGES_OUTSZ], edges_buf[EDGES_OUTSZ];
 	char *snapshot_pid;
-	
+
 	args = parse_cli(argc, argv);
 	init_graph_filters(args->nodes_filter, args->edges_filter);
 	// _dump_filters(stdout, _allowed_edges, _allowed_nodes);

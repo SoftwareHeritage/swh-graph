@@ -18,11 +18,11 @@ from swh.graph.config import check_config
 from swh.graph.pid import NodeToPidMap, PidToNodeMap
 from swh.model.identifiers import PID_TYPES
 
-BUF_SIZE = 64*1024
-BIN_FMT = '>q'  # 64 bit integer, big endian
+BUF_SIZE = 64 * 1024
+BIN_FMT = ">q"  # 64 bit integer, big endian
 PATH_SEPARATOR_ID = -1
-NODE2PID_EXT = 'node2pid.bin'
-PID2NODE_EXT = 'pid2node.bin'
+NODE2PID_EXT = "node2pid.bin"
+PID2NODE_EXT = "pid2node.bin"
 
 
 def _get_pipe_stderr():
@@ -45,16 +45,16 @@ class Backend:
     def __enter__(self):
         self.gateway = JavaGateway.launch_gateway(
             java_path=None,
-            javaopts=self.config['java_tool_options'].split(),
-            classpath=self.config['classpath'],
+            javaopts=self.config["java_tool_options"].split(),
+            classpath=self.config["classpath"],
             die_on_exit=True,
             redirect_stdout=sys.stdout,
             redirect_stderr=_get_pipe_stderr(),
         )
         self.entry = self.gateway.jvm.org.softwareheritage.graph.Entry()
         self.entry.load_graph(self.graph_path)
-        self.node2pid = NodeToPidMap(self.graph_path + '.' + NODE2PID_EXT)
-        self.pid2node = PidToNodeMap(self.graph_path + '.' + PID2NODE_EXT)
+        self.node2pid = NodeToPidMap(self.graph_path + "." + NODE2PID_EXT)
+        self.pid2node = PidToNodeMap(self.graph_path + "." + PID2NODE_EXT)
         self.stream_proxy = JavaStreamProxy(self.entry)
         return self
 
@@ -65,39 +65,36 @@ class Backend:
         return self.entry.stats()
 
     def count(self, ttype, direction, edges_fmt, src):
-        method = getattr(self.entry, 'count_' + ttype)
+        method = getattr(self.entry, "count_" + ttype)
         return method(direction, edges_fmt, src)
 
     async def simple_traversal(self, ttype, direction, edges_fmt, src):
-        assert ttype in ('leaves', 'neighbors', 'visit_nodes')
+        assert ttype in ("leaves", "neighbors", "visit_nodes")
         method = getattr(self.stream_proxy, ttype)
         async for node_id in method(direction, edges_fmt, src):
             yield node_id
 
     async def walk(self, direction, edges_fmt, algo, src, dst):
         if dst in PID_TYPES:
-            it = self.stream_proxy.walk_type(direction, edges_fmt, algo,
-                                             src, dst)
+            it = self.stream_proxy.walk_type(direction, edges_fmt, algo, src, dst)
         else:
-            it = self.stream_proxy.walk(direction, edges_fmt, algo,
-                                        src, dst)
+            it = self.stream_proxy.walk(direction, edges_fmt, algo, src, dst)
         async for node_id in it:
             yield node_id
 
     async def random_walk(self, direction, edges_fmt, retries, src, dst):
         if dst in PID_TYPES:
-            it = self.stream_proxy.random_walk_type(direction, edges_fmt,
-                                                    retries, src, dst)
+            it = self.stream_proxy.random_walk_type(
+                direction, edges_fmt, retries, src, dst
+            )
         else:
-            it = self.stream_proxy.random_walk(direction, edges_fmt, retries,
-                                               src, dst)
+            it = self.stream_proxy.random_walk(direction, edges_fmt, retries, src, dst)
         async for node_id in it:  # TODO return 404 if path is empty
             yield node_id
 
     async def visit_paths(self, direction, edges_fmt, src):
         path = []
-        async for node in self.stream_proxy.visit_paths(
-                direction, edges_fmt, src):
+        async for node in self.stream_proxy.visit_paths(direction, edges_fmt, src):
             if node == PATH_SEPARATOR_ID:
                 yield path
                 path = []
@@ -126,7 +123,7 @@ class JavaStreamProxy:
 
     async def read_node_ids(self, fname):
         loop = asyncio.get_event_loop()
-        open_thread = loop.run_in_executor(None, open, fname, 'rb')
+        open_thread = loop.run_in_executor(None, open, fname, "rb")
 
         # Since the open() call on the FIFO is blocking until it is also opened
         # on the Java side, we await it with a timeout in case there is an
@@ -157,8 +154,8 @@ class JavaStreamProxy:
 
     @contextlib.contextmanager
     def get_handler(self):
-        with tempfile.TemporaryDirectory(prefix='swh-graph-') as tmpdirname:
-            cli_fifo = os.path.join(tmpdirname, 'swh-graph.fifo')
+        with tempfile.TemporaryDirectory(prefix="swh-graph-") as tmpdirname:
+            cli_fifo = os.path.join(tmpdirname, "swh-graph.fifo")
             os.mkfifo(cli_fifo)
             reader = self.read_node_ids(cli_fifo)
             query_handler = self.entry.get_handler(cli_fifo)
@@ -182,4 +179,5 @@ class JavaStreamProxy:
                         raise task_exc
                     raise
                 await java_task
+
         return java_call_iterator

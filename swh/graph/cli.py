@@ -25,46 +25,49 @@ from swh.model.identifiers import parse_persistent_identifier
 
 class PathlibPath(click.Path):
     """A Click path argument that returns a pathlib Path, not a string"""
+
     def convert(self, value, param, ctx):
         return Path(super().convert(value, param, ctx))
 
 
-DEFAULT_CONFIG = {
-    'graph': ('dict', {})
-}  # type: Dict[str, Tuple[str, Any]]
+DEFAULT_CONFIG = {"graph": ("dict", {})}  # type: Dict[str, Tuple[str, Any]]
 
 
-@click.group(name='graph', context_settings=CONTEXT_SETTINGS,
-             cls=AliasedGroup)
-@click.option('--config-file', '-C', default=None,
-              type=click.Path(exists=True, dir_okay=False,),
-              help='YAML configuration file')
+@click.group(name="graph", context_settings=CONTEXT_SETTINGS, cls=AliasedGroup)
+@click.option(
+    "--config-file",
+    "-C",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False,),
+    help="YAML configuration file",
+)
 @click.pass_context
 def cli(ctx, config_file):
     """Software Heritage graph tools."""
     ctx.ensure_object(dict)
 
     conf = config.read(config_file, DEFAULT_CONFIG)
-    if 'graph' not in conf:
-        raise ValueError('no "graph" stanza found in configuration file %s'
-                         % config_file)
-    ctx.obj['config'] = conf
+    if "graph" not in conf:
+        raise ValueError(
+            'no "graph" stanza found in configuration file %s' % config_file
+        )
+    ctx.obj["config"] = conf
 
 
-@cli.command('api-client')
-@click.option('--host', default='localhost', help='Graph server host')
-@click.option('--port', default='5009', help='Graph server port')
+@cli.command("api-client")
+@click.option("--host", default="localhost", help="Graph server host")
+@click.option("--port", default="5009", help="Graph server port")
 @click.pass_context
 def api_client(ctx, host, port):
     """client for the graph REST service"""
-    url = 'http://{}:{}'.format(host, port)
+    url = "http://{}:{}".format(host, port)
     app = client.RemoteGraphClient(url)
 
     # TODO: run web app
     print(app.stats())
 
 
-@cli.group('map')
+@cli.group("map")
 @click.pass_context
 def map(ctx):
     """Manage swh-graph on-disk maps"""
@@ -73,12 +76,12 @@ def map(ctx):
 
 def dump_pid2node(filename):
     for (pid, int) in PidToNodeMap(filename):
-        print('{}\t{}'.format(pid, int))
+        print("{}\t{}".format(pid, int))
 
 
 def dump_node2pid(filename):
     for (int, pid) in NodeToPidMap(filename):
-        print('{}\t{}'.format(int, pid))
+        print("{}\t{}".format(int, pid))
 
 
 def restore_pid2node(filename):
@@ -86,7 +89,7 @@ def restore_pid2node(filename):
     filename
 
     """
-    with open(filename, 'wb') as dst:
+    with open(filename, "wb") as dst:
         for line in sys.stdin:
             (str_pid, str_int) = line.split()
             PidToNodeMap.write_record(dst, str_pid, int(str_int))
@@ -97,58 +100,77 @@ def restore_node2pid(filename, length):
     filename
 
     """
-    node2pid = NodeToPidMap(filename, mode='wb', length=length)
+    node2pid = NodeToPidMap(filename, mode="wb", length=length)
     for line in sys.stdin:
         (str_int, str_pid) = line.split()
         node2pid[int(str_int)] = str_pid
     node2pid.close()
 
 
-@map.command('dump')
-@click.option('--type', '-t', 'map_type', required=True,
-              type=click.Choice(['pid2node', 'node2pid']),
-              help='type of map to dump')
-@click.argument('filename', required=True, type=click.Path(exists=True))
+@map.command("dump")
+@click.option(
+    "--type",
+    "-t",
+    "map_type",
+    required=True,
+    type=click.Choice(["pid2node", "node2pid"]),
+    help="type of map to dump",
+)
+@click.argument("filename", required=True, type=click.Path(exists=True))
 @click.pass_context
 def dump_map(ctx, map_type, filename):
     """Dump a binary PID<->node map to textual format."""
-    if map_type == 'pid2node':
+    if map_type == "pid2node":
         dump_pid2node(filename)
-    elif map_type == 'node2pid':
+    elif map_type == "node2pid":
         dump_node2pid(filename)
     else:
-        raise ValueError('invalid map type: ' + map_type)
+        raise ValueError("invalid map type: " + map_type)
     pass
 
 
-@map.command('restore')
-@click.option('--type', '-t', 'map_type', required=True,
-              type=click.Choice(['pid2node', 'node2pid']),
-              help='type of map to dump')
-@click.option('--length', '-l', type=int,
-              help='''map size in number of logical records
-              (required for node2pid maps)''')
-@click.argument('filename', required=True, type=click.Path())
+@map.command("restore")
+@click.option(
+    "--type",
+    "-t",
+    "map_type",
+    required=True,
+    type=click.Choice(["pid2node", "node2pid"]),
+    help="type of map to dump",
+)
+@click.option(
+    "--length",
+    "-l",
+    type=int,
+    help="""map size in number of logical records
+              (required for node2pid maps)""",
+)
+@click.argument("filename", required=True, type=click.Path())
 @click.pass_context
 def restore_map(ctx, map_type, length, filename):
     """Restore a binary PID<->node map from textual format."""
-    if map_type == 'pid2node':
+    if map_type == "pid2node":
         restore_pid2node(filename)
-    elif map_type == 'node2pid':
+    elif map_type == "node2pid":
         if length is None:
             raise click.UsageError(
-                'map length is required when restoring {} maps'.format(
-                    map_type), ctx)
+                "map length is required when restoring {} maps".format(map_type), ctx
+            )
         restore_node2pid(filename, length)
     else:
-        raise ValueError('invalid map type: ' + map_type)
+        raise ValueError("invalid map type: " + map_type)
 
 
-@map.command('write')
-@click.option('--type', '-t', 'map_type', required=True,
-              type=click.Choice(['pid2node', 'node2pid']),
-              help='type of map to write')
-@click.argument('filename', required=True, type=click.Path())
+@map.command("write")
+@click.option(
+    "--type",
+    "-t",
+    "map_type",
+    required=True,
+    type=click.Choice(["pid2node", "node2pid"]),
+    help="type of map to write",
+)
+@click.argument("filename", required=True, type=click.Path())
 @click.pass_context
 def write(ctx, map_type, filename):
     """Write a map to disk sequentially.
@@ -161,23 +183,24 @@ def write(ctx, map_type, filename):
     required by the chosen map type (by PID for pid2node, by int for node2pid)
 
     """
-    with open(filename, 'wb') as f:
-        if map_type == 'pid2node':
+    with open(filename, "wb") as f:
+        if map_type == "pid2node":
             for line in sys.stdin:
                 (pid, int_str) = line.rstrip().split(maxsplit=1)
                 PidToNodeMap.write_record(f, pid, int(int_str))
-        elif map_type == 'node2pid':
+        elif map_type == "node2pid":
             for line in sys.stdin:
                 pid = line.rstrip()
                 NodeToPidMap.write_record(f, pid)
         else:
-            raise ValueError('invalid map type: ' + map_type)
+            raise ValueError("invalid map type: " + map_type)
 
 
-@map.command('lookup')
-@click.option('--graph', '-g', required=True, metavar='GRAPH',
-              help='compressed graph basename')
-@click.argument('identifiers', nargs=-1)
+@map.command("lookup")
+@click.option(
+    "--graph", "-g", required=True, metavar="GRAPH", help="compressed graph basename"
+)
+@click.argument("identifiers", nargs=-1)
 def map_lookup(graph, identifiers):
     """Lookup identifiers using on-disk maps.
 
@@ -192,8 +215,8 @@ def map_lookup(graph, identifiers):
 
     """
     success = True  # no identifiers failed to be looked up
-    pid2node = PidToNodeMap(f'{graph}.{PID2NODE_EXT}')
-    node2pid = NodeToPidMap(f'{graph}.{NODE2PID_EXT}')
+    pid2node = PidToNodeMap(f"{graph}.{PID2NODE_EXT}")
+    node2pid = NodeToPidMap(f"{graph}.{NODE2PID_EXT}")
 
     def lookup(identifier):
         nonlocal success, pid2node, node2pid
@@ -225,24 +248,36 @@ def map_lookup(graph, identifiers):
         for line in sys.stdin:
             results = [lookup(id) for id in line.rstrip().split()]
             if results:  # might be empty if all IDs on the same line failed
-                print(' '.join(results))
+                print(" ".join(results))
 
     sys.exit(0 if success else 1)
 
 
-@cli.command(name='rpc-serve')
-@click.option('--host', '-h', default='0.0.0.0',
-              metavar='IP', show_default=True,
-              help='host IP address to bind the server on')
-@click.option('--port', '-p', default=5009, type=click.INT,
-              metavar='PORT', show_default=True,
-              help='port to bind the server on')
-@click.option('--graph', '-g', required=True, metavar='GRAPH',
-              help='compressed graph basename')
+@cli.command(name="rpc-serve")
+@click.option(
+    "--host",
+    "-h",
+    default="0.0.0.0",
+    metavar="IP",
+    show_default=True,
+    help="host IP address to bind the server on",
+)
+@click.option(
+    "--port",
+    "-p",
+    default=5009,
+    type=click.INT,
+    metavar="PORT",
+    show_default=True,
+    help="port to bind the server on",
+)
+@click.option(
+    "--graph", "-g", required=True, metavar="GRAPH", help="compressed graph basename"
+)
 @click.pass_context
 def serve(ctx, host, port, graph):
     """run the graph REST service"""
-    backend = Backend(graph_path=graph, config=ctx.obj['config'])
+    backend = Backend(graph_path=graph, config=ctx.obj["config"])
     app = make_app(backend=backend)
 
     with backend:
@@ -250,14 +285,30 @@ def serve(ctx, host, port, graph):
 
 
 @cli.command()
-@click.option('--graph', '-g', required=True, metavar='GRAPH',
-              type=PathlibPath(),
-              help='input graph basename')
-@click.option('--outdir', '-o', 'out_dir', required=True, metavar='DIR',
-              type=PathlibPath(),
-              help='directory where to store compressed graph')
-@click.option('--steps', '-s', metavar='STEPS', type=webgraph.StepOption(),
-              help='run only these compression steps (default: all steps)')
+@click.option(
+    "--graph",
+    "-g",
+    required=True,
+    metavar="GRAPH",
+    type=PathlibPath(),
+    help="input graph basename",
+)
+@click.option(
+    "--outdir",
+    "-o",
+    "out_dir",
+    required=True,
+    metavar="DIR",
+    type=PathlibPath(),
+    help="directory where to store compressed graph",
+)
+@click.option(
+    "--steps",
+    "-s",
+    metavar="STEPS",
+    type=webgraph.StepOption(),
+    help="run only these compression steps (default: all steps)",
+)
 @click.pass_context
 def compress(ctx, graph, out_dir, steps):
     """Compress a graph using WebGraph
@@ -276,7 +327,7 @@ def compress(ctx, graph, out_dir, steps):
     graph_name = graph.name
     in_dir = graph.parent
     try:
-        conf = ctx.obj['config']['graph']['compress']
+        conf = ctx.obj["config"]["graph"]["compress"]
     except KeyError:
         conf = {}  # use defaults
 
@@ -284,8 +335,8 @@ def compress(ctx, graph, out_dir, steps):
 
 
 def main():
-    return cli(auto_envvar_prefix='SWH_GRAPH')
+    return cli(auto_envvar_prefix="SWH_GRAPH")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
