@@ -54,8 +54,8 @@ public class Graph implements FlyweightPrototype<Graph> {
      * @param path path and basename of the compressed graph to load
      */
     public Graph(String path) throws IOException {
-        this.graph = BVGraph.load(path);
-        this.graphTransposed = BVGraph.load(path + "-transposed");
+        this.graph = BVGraph.loadMapped(path);
+        this.graphTransposed = BVGraph.loadMapped(path + "-transposed");
         this.path = path;
         this.nodeTypesMap = new NodeTypesMap(path);
 
