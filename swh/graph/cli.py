@@ -6,6 +6,7 @@
 import aiohttp
 import click
 import logging
+import shutil
 import sys
 
 from pathlib import Path
@@ -332,6 +333,41 @@ def compress(ctx, graph, out_dir, steps):
         conf = {}  # use defaults
 
     webgraph.compress(graph_name, in_dir, out_dir, steps, conf)
+
+
+@cli.command(name="cachemount")
+@click.option(
+    "--graph", "-g", required=True, metavar="GRAPH", help="compressed graph basename"
+)
+@click.option(
+    "--cache",
+    "-c",
+    default="/dev/shm/swh-graph/default",
+    metavar="CACHE",
+    type=PathlibPath(),
+    help="Memory cache path (defaults to /dev/shm/swh-graph/default)",
+)
+@click.pass_context
+def cachemount(ctx, graph, cache):
+    """
+    Cache the mmapped files of the compressed graph in a tmpfs.
+
+    This command creates a new directory at the path given by CACHE that has
+    the same structure as the compressed graph basename, except it copies the
+    files that require fast/mmap access (.graph, .obl, .offsets) but uses
+    symlinks from the source for all the other files (.map, .bin, ...).
+
+    The command outputs the path to the memory cache directory (particularly
+    useful when relying on the default value).
+    """
+    cache.mkdir(parents=True)
+    for src in Path(graph).parent.glob("*"):
+        dst = cache / src.name
+        if src.suffix in (".graph", ".obl", ".offsets"):
+            shutil.copy2(src, dst)
+        else:
+            dst.symlink_to(src.resolve())
+    print(cache)
 
 
 def main():
