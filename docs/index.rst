@@ -8,6 +8,7 @@
    :caption: Overview
 
    compression
+   cli
    api
    use-cases
    docker
