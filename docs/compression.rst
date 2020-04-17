@@ -37,9 +37,10 @@ See ``swh graph compress --help`` for usage details.
 1. MPH
 ------
 
-A node in the Software Heritage :ref:`data-model` is identified using its PID
-(see :ref:`persistent-identifiers`). However, WebGraph internally uses integers
-to refer to node ids.
+A node in the Software Heritage :ref:`data model <data-model>` is identified
+using its SWHID (see :ref:`persistent identifiers
+<persistent-identifiers>`). However, WebGraph internally uses integers to refer
+to node ids.
 
 Mapping between the strings and longs ids is needed before compressing the
 graph. From the `Sux4J <http://sux.di.unimi.it/>`_ utility tool, we use the

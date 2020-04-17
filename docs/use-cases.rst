@@ -11,7 +11,7 @@ Conventions
 ===========
 
 - **Node identification**: in the following, nodes are always identified by
-  their Software Heritage :ref:`persistent-identifiers` (SWH PIDs).
+  their :ref:`SWHIDs <persistent-identifiers>`.
 
 
 Use cases
@@ -139,7 +139,7 @@ Notes on how to benchmark graph access:
   (e.g., node types), no matter if the mappings are in-memory or on-disk
 
 - separate in-memory timings from on-disk timings; in particular, separate the
-  timing of translating node identifiers between internal integers and SWH PIDs
+  timing of translating node identifiers between internal integers and SWHIDs
 
 - for each use case that requires a node as input, we will randomize the choice
   of the input node and repeat the experiment a suitable number of times; where

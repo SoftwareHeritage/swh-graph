@@ -20,8 +20,8 @@ Run
 Given a graph ``g`` specified by:
 
 - ``g.edges.csv.zst``: zstd-compressed CSV file with one edge per line, as a
-  "SRC_ID SPACE DST_ID" string, where identifiers are the
-  :ref:`persistent-identifiers` of each node.
+  "SRC_ID SPACE DST_ID" string, where identifiers are the :ref:`SWHIDs
+  <persistent-identifiers>` of each node.
 - ``g.nodes.csv.zst``: sorted list of unique node identifiers appearing in the
   corresponding ``g.edges.csv.zst`` file. The format is a zst-compressed CSV
   file (single column) with one persistent identifier per line.

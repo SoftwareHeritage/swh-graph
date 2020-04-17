@@ -7,13 +7,10 @@ Terminology
 
 This API uses the following notions:
 
-- **Node**: a node in the `Software Heritage graph
-  <https://docs.softwareheritage.org/devel/swh-model/data-model.html>`_,
-  represented by a `persistent identifier
-  <https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html#persistent-identifiers>`_
-  (abbreviated as *SWH PID*, or simply *PID*).
+- **Node**: a node in the :ref:`Software Heritage graph <data-model>`,
+  represented by a :ref:`SWHID <persistent-identifiers>`.
 
-- **Node type**: the 3-letter specifier from the node PID (``cnt``, ``dir``,
+- **Node type**: the 3-letter specifier from the node SWHID (``cnt``, ``dir``,
   ``rel``, ``rev``, ``snp``, ``ori``), or ``*`` for all node types.
 
 - **Edge type**: a pair ``src:dst`` where ``src`` and ``dst`` are either node
@@ -36,9 +33,9 @@ This API uses the following notions:
 Examples
 ~~~~~~~~
 
-- ``swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2`` the PID of a node of
+- ``swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2`` the SWHID of a node of
   type content containing the full text of the GPL3 license.
-- ``swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35`` the PID of a node of
+- ``swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35`` the SWHID of a node of
   type revision corresponding to the commit in Linux that merged the
   'x86/urgent' branch on 31 December 2017.
 - ``"dir:dir,dir:cnt"`` node types allowing edges from directories to
@@ -56,7 +53,7 @@ Leaves
     Performs a graph traversal and returns the leaves of the subgraph rooted at
     the specified source node.
 
-    :param string src: source node specified as a SWH PID
+    :param string src: source node specified as a SWHID
 
     :query string edges: edges types the traversal can follow; default to
         ``"*"``
@@ -94,7 +91,7 @@ Neighbors
 
     Returns node direct neighbors (linked with exactly one edge) in the graph.
 
-    :param string src: source node specified as a SWH PID
+    :param string src: source node specified as a SWHID
 
     :query string edges: edges types allowed to be listed as neighbors; default
         to ``"*"``
@@ -133,10 +130,10 @@ Walk
       Performs a graph traversal and returns the first found path from source to
       destination (final destination node included).
 
-      :param string src: starting node specified as a SWH PID
-      :param string dst: destination node, either as a node PID or a node type.
-          The traversal will stop at the first node encountered matching the
-          desired destination.
+      :param string src: starting node specified as a SWHID
+      :param string dst: destination node, either as a node SWHID or a node
+          type.  The traversal will stop at the first node encountered matching
+          the desired destination.
 
       :query string edges: edges types the traversal can follow; default to
           ``"*"``
@@ -167,8 +164,8 @@ Walk
     node at each hop, from source to destination (final destination node
     included).
 
-    :param string src: starting node specified as a SWH PID
-    :param string dst: destination node, either as a node PID or a node type.
+    :param string src: starting node specified as a SWHID
+    :param string dst: destination node, either as a node SWHID or a node type.
         The traversal will stop at the first node encountered matching the
         desired destination.
 
@@ -235,7 +232,7 @@ Visit
     Performs a graph traversal and returns explored nodes or paths (in the order
     of the traversal).
 
-    :param string src: starting node specified as a SWH PID
+    :param string src: starting node specified as a SWHID
 
     :query string edges: edges types the traversal can follow; default to
         ``"*"``

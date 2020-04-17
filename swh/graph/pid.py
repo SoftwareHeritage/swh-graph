@@ -147,8 +147,8 @@ class _OnDiskMap:
 
 
 class PidToNodeMap(_OnDiskMap, MutableMapping):
-    """memory mapped map from PID (:ref:`persistent-identifiers`) to a continuous
-    range 0..N of (8-byte long) integers
+    """memory mapped map from :ref:`SWHIDs <persistent-identifiers>` to a
+    continuous range 0..N of (8-byte long) integers
 
     This is the converse mapping of :class:`NodeToPidMap`.
 
@@ -327,7 +327,7 @@ class PidToNodeMap(_OnDiskMap, MutableMapping):
 
 class NodeToPidMap(_OnDiskMap, MutableMapping):
     """memory mapped map from a continuous range of 0..N (8-byte long) integers to
-    PIDs (:ref:`persistent-identifiers`)
+    :ref:`SWHIDs <persistent-identifiers>`
 
     This is the converse mapping of :class:`PidToNodeMap`.
 
