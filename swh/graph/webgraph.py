@@ -45,7 +45,7 @@ COMP_SEQ = list(CompressionStep)
 # specified here as lists of tokens that will be joined together only for ease
 # of line splitting. In commands, {tokens} will be interpolated with
 # configuration values, see :func:`compress`.
-STEP_ARGV = {
+STEP_ARGV: Dict[CompressionStep, List[str]] = {
     CompressionStep.MPH: [
         "{java}",
         "it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction",
@@ -133,7 +133,7 @@ STEP_ARGV = {
         "{out_dir}/{graph_name}-bv.offsets",
         "{tmp_dir}",
     ],
-}  # type: Dict[CompressionStep, List[str]]
+}
 
 
 class StepOption(ParamType):
@@ -147,7 +147,7 @@ class StepOption(ParamType):
     name = "compression step"
 
     def convert(self, value, param, ctx) -> Set[CompressionStep]:
-        steps = set()  # type: Set[CompressionStep]
+        steps: Set[CompressionStep] = set()
 
         specs = value.split(",")
         for spec in specs:

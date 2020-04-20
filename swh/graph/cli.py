@@ -31,7 +31,7 @@ class PathlibPath(click.Path):
         return Path(super().convert(value, param, ctx))
 
 
-DEFAULT_CONFIG = {"graph": ("dict", {})}  # type: Dict[str, Tuple[str, Any]]
+DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {"graph": ("dict", {})}
 
 
 @click.group(name="graph", context_settings=CONTEXT_SETTINGS, cls=AliasedGroup)
