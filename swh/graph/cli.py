@@ -354,8 +354,8 @@ def cachemount(ctx, graph, cache):
 
     This command creates a new directory at the path given by CACHE that has
     the same structure as the compressed graph basename, except it copies the
-    files that require fast/mmap access (.graph, .obl, .offsets) but uses
-    symlinks from the source for all the other files (.map, .bin, ...).
+    files that require mmap access (*.graph) but uses symlinks from the source
+    for all the other files (.map, .bin, ...).
 
     The command outputs the path to the memory cache directory (particularly
     useful when relying on the default value).
@@ -363,7 +363,7 @@ def cachemount(ctx, graph, cache):
     cache.mkdir(parents=True)
     for src in Path(graph).parent.glob("*"):
         dst = cache / src.name
-        if src.suffix in (".graph", ".obl", ".offsets"):
+        if src.suffix == ".graph":
             shutil.copy2(src, dst)
         else:
             dst.symlink_to(src.resolve())
