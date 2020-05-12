@@ -7,8 +7,8 @@
 
 /* Crawls a Git repository and outputs it as a graph, i.e., as a pair of
  * textual files <nodes, edges>. The nodes file will contain a list of graph
- * nodes as Software Heritage (SWH) Persistent Identifiers (PIDs); the edges
- * file a list of graph edges as <from, to> PID pairs.
+ * nodes as Software Heritage (SWH) Persistent Identifiers (SWHIDs); the edges
+ * file a list of graph edges as <from, to> SWHID pairs.
  */
 
 #include <assert.h>
@@ -30,11 +30,11 @@
 #define SWH_REV_PRE  "swh:1:rev"
 #define SWH_SNP_PRE  "swh:1:snp"
 
-#define SWH_PIDSZ  (GIT_OID_HEXSZ + 10)  // size of a SWH PID
+#define SWHID_SZ  (GIT_OID_HEXSZ + 10)  // size of a SWHID
 
 // line-lengths in nodes and edges file
-#define NODES_LINELEN  (SWH_PIDSZ + 1)
-#define EDGES_LINELEN  (SWH_PIDSZ * 2 + 2)
+#define NODES_LINELEN  (SWHID_SZ + 1)
+#define EDGES_LINELEN  (SWHID_SZ * 2 + 2)
 
 // Output buffer sizes for nodes and edges files. To guarantee atomic and
 // non-interleaved writes (which matter when used concurrently writing to a
@@ -53,7 +53,7 @@
 #define ELT_SEP   ","  // element separator in lists
 #define PAIR_SEP  ":"  // key/value separator in paris
 
-/* map from libgit2's git_otype (+ SWH-specific types above) to SWH PID type
+/* map from libgit2's git_otype (+ SWH-specific types above) to SWHID type
  * qualifiers */
 static char *_git_otype2swh[OBJ_TYPES] = {
 	"*",   // 0 == GIT_OBJ__EXT1 (unused in libgit2, used as wildcard here)
@@ -67,7 +67,7 @@ static char *_git_otype2swh[OBJ_TYPES] = {
 };
 
 /* map from libgit2's git_otype (+ SWH-specific types above) to long names of
- * SWH PID types. Used most notably to assemble snapshot manifests; see
+ * SWHID types. Used most notably to assemble snapshot manifests; see
  * https://docs.softwareheritage.org/devel/apidoc/swh.model.html#swh.model.identifiers.snapshot_identifier */
 static char *_git_otype2swhlong[OBJ_TYPES] = {
 	"ERROR",      // 0 == GIT_OBJ__EXT1
@@ -83,7 +83,7 @@ static char *_git_otype2swhlong[OBJ_TYPES] = {
 #define MY_GIT_OBJ_ANY  GIT_OBJ__EXT1
 
 /* Convert a git object type (+ SWH-specific types above) to the corresponding
- * SWH PID type. */
+ * SWHID type. */
 #define git_otype2swh(type)      _git_otype2swh[(type)]
 #define git_otype2swhlong(type)  _git_otype2swhlong[(type)]
 
@@ -141,8 +141,8 @@ typedef struct {
 /* context for iterating over refs */
 typedef struct {
 	GByteArray *manifest;  // snapshot manifest, incrementally build
-	GSList *pids;          // target PIDs, incrementally collected
-	char *snapshot_pid;    // snapshot PID, initially missing
+	GSList *pids;          // target SWHIDs, incrementally collected
+	char *snapshot_pid;    // snapshot SWHID, initially missing
 	config_t *conf;        // runtime configuration
 } ref_ctxt_t;
 
@@ -178,7 +178,7 @@ void check_lg2(int error, const char *message, const char *extra) {
 /* Emit commit edges. */
 void emit_commit_edges(const git_commit *commit, const char *swhpid, FILE *out) {
 	unsigned int i, max_i;
-	char oidstr[GIT_OID_HEXSZ + 1];  // to PID
+	char oidstr[GIT_OID_HEXSZ + 1];  // to SWHID
 
 	// rev -> dir
 	if (is_edge_allowed(GIT_OBJ_COMMIT, GIT_OBJ_TREE)) {
@@ -237,7 +237,7 @@ void emit_tree_edges(const git_tree *tree, const char *swhpid, FILE *out) {
 /* Emit node and edges for current object. */
 int emit_obj(const git_oid *oid, config_t *conf) {
 	char oidstr[GIT_OID_HEXSZ + 1];
-	char swhpid[SWH_PIDSZ + 1];
+	char swhpid[SWHID_SZ + 1];
 	size_t len;
 	int obj_type;
 	git_commit *commit;
@@ -293,9 +293,9 @@ int emit_obj(const git_oid *oid, config_t *conf) {
 
 
 /* Callback for emit_snapshots. Add a git reference to a snapshot manifest
- * (payload->manifest), according to the snapshot PID spec, see:
+ * (payload->manifest), according to the snapshot SWHID spec, see:
  * https://docs.softwareheritage.org/devel/apidoc/swh.model.html#swh.model.identifiers.snapshot_identifier .
- * As a side effect collect PIDs of references objects in payload->pids for
+ * As a side effect collect SWHIDs of references objects in payload->pids for
  * later reuse.
  *
  * Sample manifest entries for the tests/data/sample-repo.tgz repository:
@@ -314,7 +314,7 @@ int _snapshot_add_ref(char *ref_name, ref_ctxt_t *ctxt) {
 	const char *target_type, *target_name;
 	char ascii_len[GIT_OID_HEXSZ];
 	char oidstr[GIT_OID_HEXSZ + 1];
-	char *swhpid = malloc(SWH_PIDSZ + 1);
+	char *swhpid = malloc(SWHID_SZ + 1);
 	git_reference *ref, *ref2;
 
 	check_lg2(git_reference_lookup(&ref, ctxt->conf->repo, ref_name),
@@ -340,7 +340,7 @@ int _snapshot_add_ref(char *ref_name, ref_ctxt_t *ctxt) {
 	} else {  // non dangling, symbolic ref
 		target_type = "alias";
 
-		// recurse to lookup OID and type for PID generation
+		// recurse to lookup OID and type for SWHID generation
 		check_lg2(git_reference_resolve(&ref2, ref),
 			  "cannot resolve symbolic reference", NULL);
 		assert(git_reference_type(ref2) == GIT_REF_OID);
@@ -396,7 +396,7 @@ void emit_snapshot_edge(char *target_pid, ref_ctxt_t *ctxt) {
 	char **pid_parts, **ptr;
 
 	pid_parts = g_strsplit(target_pid, ":", 4);
-	ptr = pid_parts; ptr++; ptr++;  // move ptr to PID type component
+	ptr = pid_parts; ptr++; ptr++;  // move ptr to SWHID type component
 	int target_type = parse_otype(*ptr);
 	g_strfreev(pid_parts);
 
@@ -413,7 +413,7 @@ int _collect_ref_name(const char *name, GSList **ref_names) {
 }
 
 
-/* Emit origin nodes and their outbound edges. Return the snapshot PID as a
+/* Emit origin nodes and their outbound edges. Return the snapshot SWHID as a
  * freshly allocated string that should be freed by the caller. */
 char *emit_snapshot(config_t *conf) {
 	gchar *hex_sha1;
@@ -424,7 +424,7 @@ char *emit_snapshot(config_t *conf) {
 	FILE *nodes_out = conf->nodes_out;
 	int len;
 
-	snapshot_pid = malloc(SWH_PIDSZ + 1);
+	snapshot_pid = malloc(SWHID_SZ + 1);
 
 	ref_ctxt_t *ctxt = malloc(sizeof(ref_ctxt_t));
 	ctxt->manifest = g_byte_array_new();
@@ -432,7 +432,7 @@ char *emit_snapshot(config_t *conf) {
 	ctxt->snapshot_pid = NULL;
 	ctxt->conf = conf;
 
-	// XXX TODO this does not return symbolic refs, making snapshot PIDs
+	// XXX TODO this does not return symbolic refs, making snapshot SWHIDs
 	// potentially incompatible with `swh identify` :-( As a partial
 	// workaround we explicitly add HEAD here.
 	git_reference_foreach_name(conf->repo,
@@ -451,7 +451,7 @@ char *emit_snapshot(config_t *conf) {
 	g_byte_array_prepend(ctxt->manifest, (unsigned char *) "\0", 1);
 	g_byte_array_prepend(ctxt->manifest, (unsigned char *) manifest_header, len);
 
-	/* compute snapshot PID and emit snapshot node */
+	/* compute snapshot SWHID and emit snapshot node */
 	manifest = g_byte_array_free_to_bytes(ctxt->manifest);
 	ctxt->manifest = NULL;  // memory has been freed by *_free_to_bytes
 	hex_sha1 = g_compute_checksum_for_bytes(G_CHECKSUM_SHA1, manifest);
@@ -474,7 +474,7 @@ char *emit_snapshot(config_t *conf) {
 /* emit origin node and its outbound edges (to snapshots) */
 void emit_origin(char *origin_url, config_t *conf, char *snapshot_pid) {
 	gchar *hex_sha1;
-	char origin_pid[SWH_PIDSZ + 1];
+	char origin_pid[SWHID_SZ + 1];
 	FILE *nodes_out = conf->nodes_out;
 	FILE *edges_out = conf->edges_out;
 

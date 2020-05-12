@@ -3,8 +3,9 @@ git2graph
 
 `git2graph` crawls a Git repository and outputs it as a graph, i.e., as a pair
 of textual files <nodes, edges>. The nodes file will contain a list of graph
-nodes as Software Heritage (SWH) Persistent Identifiers (PIDs); the edges file
-a list of graph edges as <from, to> PID pairs.
+nodes as [Software Heritage](https://www.softwareheritage.org/) (SWH)
+[Persistent Identifiers (SWHIDs)](https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html);
+the edges file a list of graph edges as <from, to> SWHID pairs.
 
 
 Dependencies
@@ -57,13 +58,13 @@ similar parallelization tools.)
 Limitations
 -----------
 
-Snapshot PID calculation is not fully compatible with the
+Snapshot SWHID calculation is not fully compatible with the
 [spec](https://docs.softwareheritage.org/devel/apidoc/swh.model.html#swh.model.identifiers.snapshot_identifier),
 because currently only HEAD is considered as a symbolic reference. Other
 symbolic refs, if present, will be ignored, potentially leading to a different
-snapshot PID than what Software Heritage will obtain. This is due to a
+snapshot SWHID than what Software Heritage will obtain. This is due to a
 limitation of libgit2, that at the time of writing doesn't allow to list all
 symbolic references.
 
-The graph structure is not affected, but looking up obtained snapshots by PID
+The graph structure is not affected, but looking up obtained snapshots by SWHID
 on the main Software Heritage archive might fail.
