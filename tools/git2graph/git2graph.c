@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019  The Software Heritage developers
+ * Copyright (C) 2019-2020  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -80,7 +80,7 @@ static char *_git_otype2swhlong[OBJ_TYPES] = {
 	"line",       // 7 == SWH_OBJ_LOC
 };
 
-#define GIT_OBJ_ANY  GIT_OBJ__EXT1
+#define MY_GIT_OBJ_ANY  GIT_OBJ__EXT1
 
 /* Convert a git object type (+ SWH-specific types above) to the corresponding
  * SWH PID type. */
@@ -657,13 +657,13 @@ void init_graph_filters(char *nodes_filter, char *edges_filter) {
 
 			src_type = parse_otype(types[0]);
 			dst_type = parse_otype(types[1]);
-			if (src_type == GIT_OBJ_ANY && dst_type == GIT_OBJ_ANY) {
+			if (src_type == MY_GIT_OBJ_ANY && dst_type == MY_GIT_OBJ_ANY) {
 				// "*:*" wildcard
 				fill_matrix(_allowed_edges, true);
 				break;  // all edges allowed already
-			} else if (src_type == GIT_OBJ_ANY) {  // "*:typ" wildcard
+			} else if (src_type == MY_GIT_OBJ_ANY) {  // "*:typ" wildcard
 				fill_column(_allowed_edges, dst_type, true);
-			} else if (dst_type == GIT_OBJ_ANY) {  // "typ:*" wildcard
+			} else if (dst_type == MY_GIT_OBJ_ANY) {  // "typ:*" wildcard
 				fill_row(_allowed_edges, src_type, true);
 			} else  // "src_type:dst_type"
 				_allowed_edges[src_type][dst_type] = true;
@@ -678,7 +678,7 @@ void init_graph_filters(char *nodes_filter, char *edges_filter) {
 		filters = g_strsplit(nodes_filter, ELT_SEP, -1);  // "typ" fragments
 		for (ptr = filters; *ptr; ptr++) {
 			src_type = parse_otype(*ptr);
-			if (src_type == GIT_OBJ_ANY) {  // "*" wildcard
+			if (src_type == MY_GIT_OBJ_ANY) {  // "*" wildcard
 				fill_vector(_allowed_nodes, true);
 				break;  // all nodes allowed already
 			} else
