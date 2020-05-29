@@ -70,7 +70,7 @@ public class GenDistribution {
         final long END_OF_QUEUE = -1L;
 
         ArrayBlockingQueue<Long> queue = new ArrayBlockingQueue<>(numThreads);
-        ExecutorService service = Executors.newFixedThreadPool(numThreads + 2);
+        ExecutorService service = Executors.newFixedThreadPool(numThreads + 1);
 
         service.submit(() -> {
             try {
@@ -128,5 +128,7 @@ public class GenDistribution {
                 }
             });
         }
+
+        service.shutdown();
     }
 }
