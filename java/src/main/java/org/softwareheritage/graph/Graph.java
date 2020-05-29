@@ -3,6 +3,7 @@ package org.softwareheritage.graph;
 import java.io.IOException;
 
 import it.unimi.dsi.big.webgraph.BVGraph;
+import it.unimi.dsi.big.webgraph.typed.BVImmutableTypedGraph;
 import it.unimi.dsi.lang.FlyweightPrototype;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
@@ -10,6 +11,8 @@ import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SwhPID;
 import org.softwareheritage.graph.backend.NodeIdMap;
 import org.softwareheritage.graph.backend.NodeTypesMap;
+
+import javax.naming.ConfigurationException;
 
 /**
  * Main class storing the compressed graph and node id mappings.
@@ -38,9 +41,9 @@ public class Graph implements FlyweightPrototype<Graph> {
     public static final String NODE_TO_TYPE = ".node2type.map";
 
     /** Compressed graph stored as a {@link it.unimi.dsi.big.webgraph.BVGraph} */
-    BVGraph graph;
+    BVImmutableTypedGraph graph;
     /** Transposed compressed graph (used for backward traversals) */
-    BVGraph graphTransposed;
+    BVImmutableTypedGraph graphTransposed;
     /** Path and basename of the compressed graph */
     String path;
     /** Mapping long id &harr; SWH PIDs */
@@ -54,8 +57,18 @@ public class Graph implements FlyweightPrototype<Graph> {
      * @param path path and basename of the compressed graph to load
      */
     public Graph(String path) throws IOException {
-        this.graph = BVGraph.loadMapped(path);
-        this.graphTransposed = BVGraph.loadMapped(path + "-transposed");
+        String typegraph_basename = path + "-typegraph";
+        try {
+            this.graph = BVImmutableTypedGraph.load(path, typegraph_basename, null);
+            this.graphTransposed = BVImmutableTypedGraph.load(path + "-transposed", typegraph_basename, null);
+        }
+        catch (org.apache.commons.configuration.ConfigurationException e) {
+            throw new IOException("lol");
+        }
+        catch (ClassNotFoundException e)
+        {
+            throw new IOException("lol");
+        }
         this.path = path;
         this.nodeTypesMap = new NodeTypesMap(path);
 
@@ -75,8 +88,8 @@ public class Graph implements FlyweightPrototype<Graph> {
     @Override
     public Graph copy() {
         final Graph ng = new Graph();
-        ng.graph = this.graph.copy();
-        ng.graphTransposed = this.graphTransposed.copy();
+        ng.graph = this.graph;
+        ng.graphTransposed = this.graphTransposed;
         ng.path = path;
         ng.nodeIdMap = this.nodeIdMap;
         ng.nodeTypesMap = this.nodeTypesMap;
@@ -158,7 +171,12 @@ public class Graph implements FlyweightPrototype<Graph> {
      * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
      */
     public LazyLongIterator successors(long nodeId) {
-        return graph.successors(nodeId);
+        try {
+            return graph.successors(nodeId);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     /**
@@ -167,8 +185,13 @@ public class Graph implements FlyweightPrototype<Graph> {
      * @param nodeId node specified as a long id
      * @return outdegree of a node
      */
-    public long outdegree(long nodeId) {
-        return graph.outdegree(nodeId);
+    public Long outdegree(long nodeId) {
+        try {
+            return graph.outdegree(nodeId);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     /**
@@ -179,7 +202,12 @@ public class Graph implements FlyweightPrototype<Graph> {
      * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
      */
     public LazyLongIterator predecessors(long nodeId) {
-        return graphTransposed.successors(nodeId);
+        try {
+            return graphTransposed.successors(nodeId);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     /**
@@ -188,8 +216,13 @@ public class Graph implements FlyweightPrototype<Graph> {
      * @param nodeId node specified as a long id
      * @return indegree of a node
      */
-    public long indegree(long nodeId) {
-        return graphTransposed.outdegree(nodeId);
+    public Long indegree(long nodeId) {
+        try {
+            return graphTransposed.outdegree(nodeId);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     /**
@@ -221,7 +254,7 @@ public class Graph implements FlyweightPrototype<Graph> {
      * @param useTransposed boolean value to use transposed graph
      * @return WebGraph BVGraph
      */
-    public BVGraph getBVGraph(boolean useTransposed) {
+    public BVImmutableTypedGraph getBVGraph(boolean useTransposed) {
         return (useTransposed) ? this.graphTransposed : this.graph;
     }
 }
