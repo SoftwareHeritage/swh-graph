@@ -7,12 +7,11 @@ import it.unimi.dsi.big.webgraph.typed.BVImmutableTypedGraph;
 import it.unimi.dsi.lang.FlyweightPrototype;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
+import org.apache.commons.configuration.ConfigurationException;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SwhPID;
 import org.softwareheritage.graph.backend.NodeIdMap;
 import org.softwareheritage.graph.backend.NodeTypesMap;
-
-import javax.naming.ConfigurationException;
 
 /**
  * Main class storing the compressed graph and node id mappings.
@@ -62,11 +61,7 @@ public class Graph implements FlyweightPrototype<Graph> {
             this.graph = BVImmutableTypedGraph.load(path, typegraph_basename, null);
             this.graphTransposed = BVImmutableTypedGraph.load(path + "-transposed", typegraph_basename, null);
         }
-        catch (org.apache.commons.configuration.ConfigurationException e) {
-            throw new IOException("lol");
-        }
-        catch (ClassNotFoundException e)
-        {
+        catch (ConfigurationException | ClassNotFoundException e) {
             throw new IOException("lol");
         }
         this.path = path;

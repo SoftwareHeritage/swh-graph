@@ -156,15 +156,24 @@ public class Traversal {
         stack.push(srcNodeId);
         visited.add(srcNodeId);
 
+        System.err.println("A");
         while (!stack.isEmpty()) {
+            System.err.println("B");
             long currentNodeId = stack.pop();
+            System.err.println("C");
             cb.accept(currentNodeId);
 
+            System.err.println("D");
             nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
+            System.err.println("D.1");
             for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+                System.err.println("E");
                 if (!visited.contains(neighborNodeId)) {
+                    System.err.println("F");
                     stack.push(neighborNodeId);
+                    System.err.println("G");
                     visited.add(neighborNodeId);
+                    System.err.println("H");
                 }
             }
         }

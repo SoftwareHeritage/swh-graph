@@ -54,8 +54,6 @@
       <artifactId>webgraph-big</artifactId>
       <version>3.5.2</version>
       <type>jar</type>
-      <scope>system</scope>
-      <systemPath>/home/antoine/swh/swh-environment/swh-graph/java/webgraph/webgraph-big-3.5.2.jar</systemPath>
     </dependency>
     <dependency>
       <groupId>it.unimi.dsi</groupId>

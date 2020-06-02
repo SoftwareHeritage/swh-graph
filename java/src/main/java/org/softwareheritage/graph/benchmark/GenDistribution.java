@@ -78,6 +78,7 @@ public class GenDistribution {
                 while (input.hasNextLong()) {
                     long node = input.nextLong();
                     if (tp.graph.getNodeType(node) == srcType) {
+                        System.err.println("putting into queue " + node);
                         queue.put(node);
                     }
                 }
@@ -96,10 +97,12 @@ public class GenDistribution {
 
         for (int i = 0; i < numThreads; ++i) {
             service.submit(() -> {
+                System.err.println("1");
                 Graph thread_graph = tp.graph.copy();
                 long startTime;
                 double totalTime;
 
+                System.err.println("2");
                 while (true) {
                     Long node = null;
                     try {
@@ -107,24 +110,31 @@ public class GenDistribution {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
+                    System.err.println("3");
                     if (node == null || node == END_OF_QUEUE) {
                         return;
                     }
 
+                    System.err.println("4");
                     Traversal t = new Traversal(thread_graph, "backward", edgesFmt);
                     int[] count = { 0 };
 
+                    System.err.println("5");
                     startTime = Timing.start();
+                    System.err.println("5.1 node start: " + node);
                     t.visitNodesVisitor(node, (curnode) -> {
+                        System.err.println("5.1 node: " + curnode);
                         if (tp.graph.getNodeType(curnode) == dstType) {
                             count[0]++;
                         }
                     });
+                    System.err.println("6");
                     totalTime = Timing.stop(startTime);
                     System.out.format("%d %d %d %d %f\n",
                             node, count[0], t.getNbNodesAccessed(),
                             t.getNbEdgesAccessed(), totalTime
                     );
+                    System.err.println("7");
                 }
             });
         }

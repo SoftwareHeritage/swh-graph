@@ -3,6 +3,7 @@ package org.softwareheritage.graph.benchmark;
 import com.google.common.primitives.Longs;
 import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
+import it.unimi.dsi.big.webgraph.typed.BVImmutableTypedGraph;
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.io.ByteDiskQueue;
 import org.slf4j.Logger;
@@ -30,7 +31,7 @@ public class BFS {
     private final static Logger LOGGER = LoggerFactory.getLogger(BFS.class);
 
     // Partly inlined from it.unimi.dsi.law.big.graph.BFS
-    private static void bfsperm(final ImmutableGraph graph) throws IOException {
+    private static void bfsperm(final BVImmutableTypedGraph graph) throws IOException {
         final long n = graph.numNodes();
         // Allow enough memory to behave like in-memory queue
         int bufferSize = (int)Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * n);
