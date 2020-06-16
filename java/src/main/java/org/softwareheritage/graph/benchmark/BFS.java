@@ -3,7 +3,9 @@ package org.softwareheritage.graph.benchmark;
 import com.google.common.primitives.Longs;
 import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
+import it.unimi.dsi.big.webgraph.NodeIterator;
 import it.unimi.dsi.big.webgraph.typed.BVImmutableTypedGraph;
+import it.unimi.dsi.big.webgraph.typed.TypedGraph;
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.io.ByteDiskQueue;
 import org.slf4j.Logger;
@@ -42,7 +44,11 @@ public class BFS {
         final byte[] byteBuf = new byte[Long.BYTES];
         // WARNING: no 64-bit version of this data-structure, but it can support
         // indices up to 2^37
-        final LongArrayBitVector visited = LongArrayBitVector.ofLength(n);
+        long nbTypes = graph.typeGraph().numNodes();
+        final LongArrayBitVector[] visited = new LongArrayBitVector[(int) nbTypes];
+        for (int i = 0; i < nbTypes; ++i)
+            visited[i] = LongArrayBitVector.ofLength(n);
+
         final ProgressLogger pl = new ProgressLogger(LOGGER);
         pl.expectedUpdates = n;
         pl.itemsName = "nodes";
@@ -50,10 +56,12 @@ public class BFS {
 
         long pos = 0;
 
-        for (long i = 0; i < n; i++) {
-            if (visited.getBoolean(i)) continue;
+        final NodeIterator nodeIterator = graph.nodeIterator();
+        while (nodeIterator.hasNext()) {
+            long i = nodeIterator.nextLong();
+            if (visited[TypedGraph.type(i)].getBoolean(i)) continue;
             queue.enqueue(Longs.toByteArray(i));
-            visited.set(i);
+            visited[TypedGraph.type(i)].set(i);
 
             while (!queue.isEmpty()) {
                 queue.dequeue(byteBuf);
@@ -61,9 +69,13 @@ public class BFS {
 
                 final LazyLongIterator iterator = graph.successors(currentNode);
                 long succ;
+                System.err.println("lol2");
                 while((succ = iterator.nextLong()) != -1) {
-                    if (!visited.getBoolean(succ)) {
-                        visited.set(succ);
+                    System.err.println("lol3");
+                    if (!visited[TypedGraph.type(succ)].getBoolean(succ)) {
+                        System.err.println("lol4");
+                        visited[TypedGraph.type(succ)].set(succ);
+
                         queue.enqueue(Longs.toByteArray(succ));
                     }
                 }
@@ -112,6 +124,7 @@ public class BFS {
         double totalTime;
 
 
+        logger.start("Loading graph...");
         BFS bfs = new BFS();
         try {
             bfs.load_graph(graphPath);
