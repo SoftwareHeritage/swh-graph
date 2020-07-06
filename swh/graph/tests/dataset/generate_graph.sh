@@ -12,8 +12,8 @@ docker build --tag swh-graph-test docker
 
 # Setup input for compression script
 tr ' ' '\n' < example.edges.csv | sort -u > example.nodes.csv
-zstd < example.nodes.csv > example.edges.csv.zst
-zstd < example.edges.csv > example.nodes.csv.zst
+zstd < example.nodes.csv > example.nodes.csv.zst
+zstd < example.edges.csv > example.edges.csv.zst
 
 docker run \
     --user $(id -u):$(id -g) \
