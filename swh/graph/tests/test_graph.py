@@ -27,6 +27,17 @@ def test_graph(graph):
     assert expected == actual
 
 
+def test_duplicate_edges(graph):
+    actual = list(
+        graph["swh:1:ori:0000000000000000000000000000000000000021"].children()
+    )
+    expected = [
+        "swh:1:snp:0000000000000000000000000000000000000020",
+        "swh:1:snp:0000000000000000000000000000000000000020",
+    ]
+    assert expected == actual
+
+
 def test_invalid_pid(graph):
     with pytest.raises(IndexError):
         graph[1337]

@@ -78,5 +78,6 @@ digraph "Software Heritage mini DAG" {
         21 [label="ori:0x21"];
 
         21 -> 20;
+        21 -> 20;
     }
 }
