@@ -18,7 +18,7 @@ import com.martiansoftware.jsap.UnflaggedOption;
 
 import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.SwhPID;
+import org.softwareheritage.graph.SWHID;
 import org.softwareheritage.graph.benchmark.utils.Random;
 import org.softwareheritage.graph.benchmark.utils.Statistics;
 
@@ -92,11 +92,11 @@ public class Benchmark {
         try (Writer csvLog = new BufferedWriter(new FileWriter(args.logFile))) {
             StringJoiner csvHeader = new StringJoiner(CSV_SEPARATOR);
             csvHeader.add("use case name")
-            .add("SWH PID")
+            .add("SWHID")
             .add("number of edges accessed")
             .add("traversal timing")
-            .add("pid2node timing")
-            .add("node2pid timing");
+            .add("swhid2node timing")
+            .add("node2swhid timing");
             csvLog.write(csvHeader.toString() + "\n");
         }
     }
@@ -122,19 +122,19 @@ public class Benchmark {
         final boolean append = true;
         try (Writer csvLog = new BufferedWriter(new FileWriter(args.logFile, append))) {
             for (long nodeId : nodeIds) {
-                SwhPID swhPID = graph.getSwhPID(nodeId);
+                SWHID swhid = graph.getSWHID(nodeId);
 
                 Endpoint.Output output = (dstFmt == null)
-                                         ? operation.apply(new Endpoint.Input(swhPID))
-                                         : operation.apply(new Endpoint.Input(swhPID, dstFmt, algorithm));
+                                         ? operation.apply(new Endpoint.Input(swhid))
+                                         : operation.apply(new Endpoint.Input(swhid, dstFmt, algorithm));
 
                 StringJoiner csvLine = new StringJoiner(CSV_SEPARATOR);
                 csvLine.add(useCaseName)
-                .add(swhPID.toString())
+                .add(swhid.toString())
                 .add(Long.toString(output.meta.nbEdgesAccessed))
                 .add(Double.toString(output.meta.timings.traversal))
-                .add(Double.toString(output.meta.timings.pid2node))
-                .add(Double.toString(output.meta.timings.node2pid));
+                .add(Double.toString(output.meta.timings.swhid2node))
+                .add(Double.toString(output.meta.timings.node2swhid));
                 csvLog.write(csvLine.toString() + "\n");
 
                 timings.add(output.meta.timings.traversal);

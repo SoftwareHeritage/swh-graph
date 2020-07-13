@@ -4,80 +4,80 @@ import java.util.ArrayList;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-import org.softwareheritage.graph.SwhPID;
+import org.softwareheritage.graph.SWHID;
 
 /**
- * Wrapper class to store a list of {@link SwhPID}.
+ * Wrapper class to store a list of {@link SWHID}.
  *
  * @author The Software Heritage developers
- * @see org.softwareheritage.graph.SwhPID
+ * @see org.softwareheritage.graph.SWHID
  */
 
 public class SwhPath {
-    /** Internal list of {@link SwhPID} */
-    ArrayList<SwhPID> path;
+    /** Internal list of {@link SWHID} */
+    ArrayList<SWHID> path;
 
     /**
      * Constructor.
      */
     public SwhPath() {
-        this.path = new ArrayList<SwhPID>();
+        this.path = new ArrayList<SWHID>();
     }
 
     /**
      * Constructor.
      *
-     * @param swhPIDs variable number of string PIDs to initialize this path with
+     * @param swhids variable number of SWHIDs to initialize this path with
      */
-    public SwhPath(String... swhPIDs) {
+    public SwhPath(String... swhids) {
         this();
-        for (String swhPID : swhPIDs) {
-            add(new SwhPID(swhPID));
+        for (String swhid : swhids) {
+            add(new SWHID(swhid));
         }
     }
 
     /**
      * Constructor.
      *
-     * @param swhPIDs variable number of {@link SwhPID} to initialize this path with
-     * @see org.softwareheritage.graph.SwhPID
+     * @param swhids variable number of {@link SWHID} to initialize this path with
+     * @see org.softwareheritage.graph.SWHID
      */
-    public SwhPath(SwhPID... swhPIDs) {
+    public SwhPath(SWHID... swhids) {
         this();
-        for (SwhPID swhPID : swhPIDs) {
-            add(swhPID);
+        for (SWHID swhid : swhids) {
+            add(swhid);
         }
     }
 
     /**
-     * Returns this path as a list of {@link SwhPID}.
+     * Returns this path as a list of {@link SWHID}.
      *
-     * @return list of {@link SwhPID} constituting the path
-     * @see org.softwareheritage.graph.SwhPID
+     * @return list of {@link SWHID} constituting the path
+     * @see org.softwareheritage.graph.SWHID
      */
     @JsonValue
-    public ArrayList<SwhPID> getPath() {
+    public ArrayList<SWHID> getPath() {
         return path;
     }
 
     /**
-     * Adds a {@link SwhPID} to this path.
+     * Adds a {@link SWHID} to this path.
      *
-     * @param swhPID {@link SwhPID} to add to this path
-     * @see org.softwareheritage.graph.SwhPID
+     * @param swhid {@link SWHID} to add to this path
+     * @see org.softwareheritage.graph.SWHID
      */
-    public void add(SwhPID swhPID) {
-        path.add(swhPID);
+    public void add(SWHID swhid) {
+        path.add(swhid);
     }
 
     /**
-     * Returns the {@link SwhPID} at the specified position in this path.
+     * Returns the {@link SWHID} at the specified position in this path.
      *
-     * @param index position of the {@link SwhPID} to return
-     * @return {@link SwhPID} at the specified position
-     * @see org.softwareheritage.graph.SwhPID
+     * @param index position of the {@link SWHID} to return
+     * @return {@link SWHID} at the specified position
+     * @see org.softwareheritage.graph.SWHID
      */
-    public SwhPID get(int index) {
+    public SWHID get(int index) {
         return path.get(index);
     }
 
@@ -103,9 +103,9 @@ public class SwhPath {
         }
 
         for (int i = 0; i < size(); i++) {
-            SwhPID thisSwhPID = get(i);
-            SwhPID otherSwhPID = other.get(i);
-            if (!thisSwhPID.equals(otherSwhPID)) {
+            SWHID thisSWHID = get(i);
+            SWHID otherSWHID = other.get(i);
+            if (!thisSWHID.equals(otherSWHID)) {
                 return false;
             }
         }
@@ -116,8 +116,8 @@ public class SwhPath {
     @Override
     public String toString() {
         String str = new String();
-        for (SwhPID swhPID : path) {
-            str += swhPID + "/";
+        for (SWHID swhid : path) {
+            str += swhid + "/";
         }
         return str;
     }

@@ -21,7 +21,7 @@ import it.unimi.dsi.io.LineIterator;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.SwhPID;
+import org.softwareheritage.graph.SWHID;
 import org.softwareheritage.graph.backend.NodeTypesMap;
 
 public class Pp {

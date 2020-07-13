@@ -3,11 +3,11 @@ package org.softwareheritage.graph.backend;
 import java.io.IOException;
 
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.SwhPID;
+import org.softwareheritage.graph.SWHID;
 import org.softwareheritage.graph.backend.MapFile;
 
 /**
- * Mapping between internal long node id and external SWH PID.
+ * Mapping between internal long node id and external SWHID.
  *
  * Mappings in both directions are pre-computed and dumped on disk in the
  * {@link MapBuilder} class, then they are loaded here using mmap().
@@ -17,7 +17,7 @@ import org.softwareheritage.graph.backend.MapFile;
  */
 
 public class NodeIdMap {
-    /** Fixed length of full SWH PID */
+    /** Fixed length of full SWHID */
     public static final int SWH_ID_LENGTH = 50;
     /** Fixed length of long node id */
     public static final int NODE_ID_LENGTH = 20;
@@ -26,10 +26,10 @@ public class NodeIdMap {
     String graphPath;
     /** Number of ids to map */
     long nbIds;
-    /** mmap()-ed PID_TO_NODE file */
-    MapFile swhToNodeMap;
-    /** mmap()-ed NODE_TO_PID file */
-    MapFile nodeToSwhMap;
+    /** mmap()-ed SWHID_TO_NODE file */
+    MapFile swhidToNodeMap;
+    /** mmap()-ed NODE_TO_SWHID file */
+    MapFile nodeToSwhidMap;
 
     /**
      * Constructor.
@@ -42,37 +42,37 @@ public class NodeIdMap {
         this.nbIds = nbNodes;
 
         // +1 are for spaces and end of lines
-        int swhToNodeLineLength = SWH_ID_LENGTH + 1 + NODE_ID_LENGTH + 1;
-        int nodeToSwhLineLength = SWH_ID_LENGTH + 1;
-        this.swhToNodeMap = new MapFile(graphPath + Graph.PID_TO_NODE, swhToNodeLineLength);
-        this.nodeToSwhMap = new MapFile(graphPath + Graph.NODE_TO_PID, nodeToSwhLineLength);
+        int swhidToNodeLineLength = SWH_ID_LENGTH + 1 + NODE_ID_LENGTH + 1;
+        int nodeToSwhidLineLength = SWH_ID_LENGTH + 1;
+        this.swhidToNodeMap = new MapFile(graphPath + Graph.SWHID_TO_NODE, swhidToNodeLineLength);
+        this.nodeToSwhidMap = new MapFile(graphPath + Graph.NODE_TO_SWHID, nodeToSwhidLineLength);
     }
 
     /**
-     * Converts SWH PID to corresponding long node id.
+     * Converts SWHID to corresponding long node id.
      *
-     * @param swhPID node represented as a {@link SwhPID}
+     * @param swhid node represented as a {@link SWHID}
      * @return corresponding node as a long id
-     * @see org.softwareheritage.graph.SwhPID
+     * @see org.softwareheritage.graph.SWHID
      */
-    public long getNodeId(SwhPID swhPID) {
-        // Each line in PID_TO_NODE is formatted as: swhPID nodeId
-        // The file is sorted by swhPID, hence we can binary search on swhPID to get corresponding
+    public long getNodeId(SWHID swhid) {
+        // Each line in SWHID_TO_NODE is formatted as: swhid nodeId
+        // The file is sorted by swhid, hence we can binary search on swhid to get corresponding
         // nodeId
         long start = 0;
         long end = nbIds - 1;
 
         while (start <= end) {
             long lineNumber = (start + end) / 2L;
-            String[] parts = swhToNodeMap.readAtLine(lineNumber).split(" ");
+            String[] parts = swhidToNodeMap.readAtLine(lineNumber).split(" ");
             if (parts.length != 2) {
                 break;
             }
 
-            String currentSwhPID = parts[0];
+            String currentSWHID = parts[0];
             long currentNodeId = Long.parseLong(parts[1]);
 
-            int cmp = currentSwhPID.compareTo(swhPID.toString());
+            int cmp = currentSWHID.compareTo(swhid.toString());
             if (cmp == 0) {
                 return currentNodeId;
             } else if (cmp < 0) {
@@ -82,33 +82,33 @@ public class NodeIdMap {
             }
         }
 
-        throw new IllegalArgumentException("Unknown SWH PID: " + swhPID);
+        throw new IllegalArgumentException("Unknown SWHID: " + swhid);
     }
 
     /**
-     * Converts a node long id to corresponding SWH PID.
+     * Converts a node long id to corresponding SWHID.
      *
      * @param nodeId node as a long id
-     * @return corresponding node as a {@link SwhPID}
-     * @see org.softwareheritage.graph.SwhPID
+     * @return corresponding node as a {@link SWHID}
+     * @see org.softwareheritage.graph.SWHID
      */
-    public SwhPID getSwhPID(long nodeId) {
-        // Each line in NODE_TO_PID is formatted as: swhPID
-        // The file is ordered by nodeId, meaning node0's swhPID is at line 0, hence we can read the
-        // nodeId-th line to get corresponding swhPID
+    public SWHID getSWHID(long nodeId) {
+        // Each line in NODE_TO_SWHID is formatted as: SWHID
+        // The file is ordered by nodeId, meaning node0's swhid is at line 0, hence we can read the
+        // nodeId-th line to get corresponding swhid
         if (nodeId < 0 || nodeId >= nbIds) {
             throw new IllegalArgumentException("Node id " + nodeId + " should be between 0 and " + nbIds);
         }
 
-        String swhPID = nodeToSwhMap.readAtLine(nodeId);
-        return new SwhPID(swhPID);
+        String swhid = nodeToSwhidMap.readAtLine(nodeId);
+        return new SWHID(swhid);
     }
 
     /**
      * Closes the mapping files.
      */
     public void close() throws IOException {
-        swhToNodeMap.close();
-        nodeToSwhMap.close();
+        swhidToNodeMap.close();
+        nodeToSwhidMap.close();
     }
 }

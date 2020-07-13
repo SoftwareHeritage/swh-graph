@@ -21,14 +21,14 @@ import org.slf4j.LoggerFactory;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.SwhPID;
+import org.softwareheritage.graph.SWHID;
 import org.softwareheritage.graph.backend.NodeTypesMap;
 
 /**
  * Create maps needed at runtime by the graph service, in particular:
  *
- * - SWH PID → WebGraph long node id
- * - WebGraph long node id → SWH PID (converse of the former)
+ * - SWHID → WebGraph long node id
+ * - WebGraph long node id → SWHID (converse of the former)
  * - WebGraph long node id → SWH node type (enum)
  *
  * @author The Software Heritage developers
@@ -67,16 +67,16 @@ public class MapBuilder {
     static void precomputeNodeIdMap(String graphPath, String tmpDir)
         throws IOException
     {
-        ProgressLogger plPid2Node = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
-        ProgressLogger plNode2Pid = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
-        plPid2Node.itemsName = "pid→node";
-        plNode2Pid.itemsName = "node→pid";
+        ProgressLogger plSwhid2Node = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
+        ProgressLogger plNode2Swhid = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
+        plSwhid2Node.itemsName = "s→n";
+        plNode2Swhid.itemsName = "n→s";
 
-        // avg speed for pid→node is sometime skewed due to write to the sort
+        // avg speed for swhid→node is sometime skewed due to write to the sort
         // pipe hanging when sort is sorting; hence also desplay local speed
-        plPid2Node.displayLocalSpeed = true;
+        plSwhid2Node.displayLocalSpeed = true;
 
-        // first half of PID->node mapping: PID -> WebGraph MPH (long)
+        // first half of SWHID->node mapping: SWHID -> WebGraph MPH (long)
         Object2LongFunction<String> mphMap = null;
         try {
             logger.info("loading MPH function...");
@@ -87,10 +87,10 @@ public class MapBuilder {
             System.exit(2);
         }
         long nbIds = (mphMap instanceof Size64) ? ((Size64) mphMap).size64() : mphMap.size();
-        plPid2Node.expectedUpdates = nbIds;
-        plNode2Pid.expectedUpdates = nbIds;
+        plSwhid2Node.expectedUpdates = nbIds;
+        plNode2Swhid.expectedUpdates = nbIds;
 
-        // second half of PID->node mapping: WebGraph MPH (long) -> BFS order (long)
+        // second half of SWHID->node mapping: WebGraph MPH (long) -> BFS order (long)
         long[][] bfsMap = LongBigArrays.newBigArray(nbIds);
         logger.info("loading BFS order file...");
         long loaded = BinIO.loadLongs(graphPath + ".order", bfsMap);
@@ -100,15 +100,15 @@ public class MapBuilder {
             System.exit(2);
         }
 
-        // Create mapping SWH PID -> WebGraph node id, by sequentially reading
+        // Create mapping SWH SWHID -> WebGraph node id, by sequentially reading
         // nodes, hashing them with MPH, and permuting according to BFS order
         FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in,
                                                                                  StandardCharsets.US_ASCII));
-        LineIterator swhPIDIterator = new LineIterator(buffer);
+        LineIterator swhidIterator = new LineIterator(buffer);
 
-        // The WebGraph node id -> SWH PID mapping can be obtained from the
-        // PID->node one by numerically sorting on node id and sequentially
-        // writing obtained PIDs to a binary map. Delegates the sorting job to
+        // The WebGraph node id -> SWH SWHID mapping can be obtained from the
+        // SWHID->node one by numerically sorting on node id and sequentially
+        // writing obtained SWHIDs to a binary map. Delegates the sorting job to
         // /usr/bin/sort via pipes
         ProcessBuilder processBuilder = new ProcessBuilder();
         processBuilder.command("sort", "--numeric-sort", "--key", "2",
@@ -118,15 +118,15 @@ public class MapBuilder {
         BufferedOutputStream sort_stdin = new BufferedOutputStream(sort.getOutputStream());
         BufferedInputStream sort_stdout = new BufferedInputStream(sort.getInputStream());
 
-        // for the binary format of pidToNodeMap, see Python module swh.graph.pid:PidToIntMap
-        // for the binary format of nodeToPidMap, see Python module swh.graph.pid:IntToPidMap
-        try (DataOutputStream pidToNodeMap = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(graphPath + Graph.PID_TO_NODE)));
-             BufferedOutputStream nodeToPidMap = new BufferedOutputStream(new FileOutputStream(graphPath + Graph.NODE_TO_PID))) {
+        // for the binary format of swhidToNodeMap, see Python module swh.graph.swhid:SwhidToIntMap
+        // for the binary format of nodeToSwhidMap, see Python module swh.graph.swhid:IntToSwhidMap
+        try (DataOutputStream swhidToNodeMap = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(graphPath + Graph.SWHID_TO_NODE)));
+             BufferedOutputStream nodeToSwhidMap = new BufferedOutputStream(new FileOutputStream(graphPath + Graph.NODE_TO_SWHID))) {
 
-            // background handler for sort output, it will be fed PID/node
-            // pairs while pidToNodeMap is being filled, and will itself fill
-            // nodeToPidMap as soon as data from sort is ready
-            SortOutputHandler outputHandler = new SortOutputHandler(sort_stdout, nodeToPidMap, plNode2Pid);
+            // background handler for sort output, it will be fed SWHID/node
+            // pairs while swhidToNodeMap is being filled, and will itself fill
+            // nodeToSwhidMap as soon as data from sort is ready
+            SortOutputHandler outputHandler = new SortOutputHandler(sort_stdout, nodeToSwhidMap, plNode2Swhid);
             outputHandler.start();
 
             // Type map from WebGraph node ID to SWH type. Used at runtime by
@@ -139,24 +139,24 @@ public class MapBuilder {
                 LongArrayBitVector.ofLength(nbBitsPerNodeType * nbIds);
             LongBigList nodeTypesMap = nodeTypesBitVector.asLongBigList(nbBitsPerNodeType);
 
-            plPid2Node.start("filling pid2node map");
-            for (long iNode = 0; iNode < nbIds && swhPIDIterator.hasNext(); iNode++) {
-                String strSwhPID = swhPIDIterator.next().toString();
-                SwhPID swhPID = new SwhPID(strSwhPID);
-                byte[] swhPIDBin = swhPID.toBytes();
+            plSwhid2Node.start("filling swhid2node map");
+            for (long iNode = 0; iNode < nbIds && swhidIterator.hasNext(); iNode++) {
+                String strSwhid = swhidIterator.next().toString();
+                SWHID swhid = new SWHID(strSwhid);
+                byte[] binSwhid = swhid.toBytes();
 
-                long mphId = mphMap.getLong(strSwhPID);
+                long mphId = mphMap.getLong(strSwhid);
                 long nodeId = LongBigArrays.get(bfsMap, mphId);
 
-                pidToNodeMap.write(swhPIDBin, 0, swhPIDBin.length);
-                pidToNodeMap.writeLong(nodeId);
-                sort_stdin.write((strSwhPID + "\t" + nodeId + "\n")
+                swhidToNodeMap.write(binSwhid, 0, binSwhid.length);
+                swhidToNodeMap.writeLong(nodeId);
+                sort_stdin.write((strSwhid + "\t" + nodeId + "\n")
                                  .getBytes(StandardCharsets.US_ASCII));
 
-                nodeTypesMap.set(nodeId, swhPID.getType().ordinal());
-                plPid2Node.lightUpdate();
+                nodeTypesMap.set(nodeId, swhid.getType().ordinal());
+                plSwhid2Node.lightUpdate();
             }
-            plPid2Node.done();
+            plSwhid2Node.done();
             sort_stdin.close();
 
             // write type map
@@ -164,9 +164,9 @@ public class MapBuilder {
             BinIO.storeObject(nodeTypesMap, graphPath + Graph.NODE_TO_TYPE);
             logger.info("type map stored");
 
-            // wait for nodeToPidMap filling
+            // wait for nodeToSwhidMap filling
             try {
-                logger.info("waiting for node2pid map...");
+                logger.info("waiting for node2swhid map...");
                 int sortExitCode = sort.waitFor();
                 if (sortExitCode != 0) {
                     logger.error("sort returned non-zero exit code: " + sortExitCode);
@@ -194,18 +194,18 @@ public class MapBuilder {
 
         public void run() {
             boolean sortDone = false;
-            logger.info("node2pid: waiting for sort output...");
+            logger.info("node2swhid: waiting for sort output...");
             while (input.hasNextLine()) {
                 if (! sortDone) {
                     sortDone = true;
-                    this.pl.start("filling node2pid map");
+                    this.pl.start("filling node2swhid map");
                 }
-                String line = input.nextLine();  // format: SWH_PID <TAB> NODE_ID
-                SwhPID swhPID = new SwhPID(line.split("\\t")[0]);  // get PID
+                String line = input.nextLine();  // format: SWH_SWHID <TAB> NODE_ID
+                SWHID swhid = new SWHID(line.split("\\t")[0]);  // get SWHID
                 try {
-                    output.write((byte[]) swhPID.toBytes());
+                    output.write((byte[]) swhid.toBytes());
                 } catch (IOException e) {
-                    logger.error("writing to node->PID map failed with: " + e);
+                    logger.error("writing to node->SWHID map failed with: " + e);
                 }
                 this.pl.lightUpdate();
             }
