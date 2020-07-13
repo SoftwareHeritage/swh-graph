@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -17,8 +17,8 @@ import swh.model.exceptions
 from swh.core import config
 from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
 from swh.graph import client, webgraph
-from swh.graph.backend import NODE2PID_EXT, PID2NODE_EXT
-from swh.graph.pid import PidToNodeMap, NodeToPidMap
+from swh.graph.backend import NODE2SWHID_EXT, SWHID2NODE_EXT
+from swh.graph.swhid import SwhidToNodeMap, NodeToSwhidMap
 from swh.graph.server.app import make_app
 from swh.graph.backend import Backend
 from swh.model.identifiers import parse_persistent_identifier
@@ -75,37 +75,37 @@ def map(ctx):
     pass
 
 
-def dump_pid2node(filename):
-    for (pid, int) in PidToNodeMap(filename):
-        print("{}\t{}".format(pid, int))
+def dump_swhid2node(filename):
+    for (swhid, int) in SwhidToNodeMap(filename):
+        print("{}\t{}".format(swhid, int))
 
 
-def dump_node2pid(filename):
-    for (int, pid) in NodeToPidMap(filename):
-        print("{}\t{}".format(int, pid))
+def dump_node2swhid(filename):
+    for (int, swhid) in NodeToSwhidMap(filename):
+        print("{}\t{}".format(int, swhid))
 
 
-def restore_pid2node(filename):
-    """read a textual PID->int map from stdin and write its binary version to
+def restore_swhid2node(filename):
+    """read a textual SWHID->int map from stdin and write its binary version to
     filename
 
     """
     with open(filename, "wb") as dst:
         for line in sys.stdin:
-            (str_pid, str_int) = line.split()
-            PidToNodeMap.write_record(dst, str_pid, int(str_int))
+            (str_swhid, str_int) = line.split()
+            SwhidToNodeMap.write_record(dst, str_swhid, int(str_int))
 
 
-def restore_node2pid(filename, length):
-    """read a textual int->PID map from stdin and write its binary version to
+def restore_node2swhid(filename, length):
+    """read a textual int->SWHID map from stdin and write its binary version to
     filename
 
     """
-    node2pid = NodeToPidMap(filename, mode="wb", length=length)
+    node2swhid = NodeToSwhidMap(filename, mode="wb", length=length)
     for line in sys.stdin:
-        (str_int, str_pid) = line.split()
-        node2pid[int(str_int)] = str_pid
-    node2pid.close()
+        (str_int, str_swhid) = line.split()
+        node2swhid[int(str_int)] = str_swhid
+    node2swhid.close()
 
 
 @map.command("dump")
@@ -114,17 +114,17 @@ def restore_node2pid(filename, length):
     "-t",
     "map_type",
     required=True,
-    type=click.Choice(["pid2node", "node2pid"]),
+    type=click.Choice(["swhid2node", "node2swhid"]),
     help="type of map to dump",
 )
 @click.argument("filename", required=True, type=click.Path(exists=True))
 @click.pass_context
 def dump_map(ctx, map_type, filename):
-    """Dump a binary PID<->node map to textual format."""
-    if map_type == "pid2node":
-        dump_pid2node(filename)
-    elif map_type == "node2pid":
-        dump_node2pid(filename)
+    """Dump a binary SWHID<->node map to textual format."""
+    if map_type == "swhid2node":
+        dump_swhid2node(filename)
+    elif map_type == "node2swhid":
+        dump_node2swhid(filename)
     else:
         raise ValueError("invalid map type: " + map_type)
     pass
@@ -136,7 +136,7 @@ def dump_map(ctx, map_type, filename):
     "-t",
     "map_type",
     required=True,
-    type=click.Choice(["pid2node", "node2pid"]),
+    type=click.Choice(["swhid2node", "node2swhid"]),
     help="type of map to dump",
 )
 @click.option(
@@ -144,20 +144,20 @@ def dump_map(ctx, map_type, filename):
     "-l",
     type=int,
     help="""map size in number of logical records
-              (required for node2pid maps)""",
+              (required for node2swhid maps)""",
 )
 @click.argument("filename", required=True, type=click.Path())
 @click.pass_context
 def restore_map(ctx, map_type, length, filename):
-    """Restore a binary PID<->node map from textual format."""
-    if map_type == "pid2node":
-        restore_pid2node(filename)
-    elif map_type == "node2pid":
+    """Restore a binary SWHID<->node map from textual format."""
+    if map_type == "swhid2node":
+        restore_swhid2node(filename)
+    elif map_type == "node2swhid":
         if length is None:
             raise click.UsageError(
                 "map length is required when restoring {} maps".format(map_type), ctx
             )
-        restore_node2pid(filename, length)
+        restore_node2swhid(filename, length)
     else:
         raise ValueError("invalid map type: " + map_type)
 
@@ -168,7 +168,7 @@ def restore_map(ctx, map_type, length, filename):
     "-t",
     "map_type",
     required=True,
-    type=click.Choice(["pid2node", "node2pid"]),
+    type=click.Choice(["swhid2node", "node2swhid"]),
     help="type of map to write",
 )
 @click.argument("filename", required=True, type=click.Path())
@@ -176,23 +176,23 @@ def restore_map(ctx, map_type, length, filename):
 def write(ctx, map_type, filename):
     """Write a map to disk sequentially.
 
-    read from stdin a textual PID->node mapping (for pid2node, or a simple
-    sequence of PIDs for node2pid) and write it to disk in the requested binary
+    read from stdin a textual SWHID->node mapping (for swhid2node, or a simple
+    sequence of SWHIDs for node2swhid) and write it to disk in the requested binary
     map format
 
     note that no sorting is applied, so the input should already be sorted as
-    required by the chosen map type (by PID for pid2node, by int for node2pid)
+    required by the chosen map type (by SWHID for swhid2node, by int for node2swhid)
 
     """
     with open(filename, "wb") as f:
-        if map_type == "pid2node":
+        if map_type == "swhid2node":
             for line in sys.stdin:
-                (pid, int_str) = line.rstrip().split(maxsplit=1)
-                PidToNodeMap.write_record(f, pid, int(int_str))
-        elif map_type == "node2pid":
+                (swhid, int_str) = line.rstrip().split(maxsplit=1)
+                SwhidToNodeMap.write_record(f, swhid, int(int_str))
+        elif map_type == "node2swhid":
             for line in sys.stdin:
-                pid = line.rstrip()
-                NodeToPidMap.write_record(f, pid)
+                swhid = line.rstrip()
+                NodeToSwhidMap.write_record(f, swhid)
         else:
             raise ValueError("invalid map type: " + map_type)
 
@@ -205,9 +205,9 @@ def write(ctx, map_type, filename):
 def map_lookup(graph, identifiers):
     """Lookup identifiers using on-disk maps.
 
-    Depending on the identifier type lookup either a PID into a PID->node (and
+    Depending on the identifier type lookup either a SWHID into a SWHID->node (and
     return the node integer identifier) or, vice-versa, lookup a node integer
-    identifier into a node->PID (and return the PID).  The desired behavior is
+    identifier into a node->SWHID (and return the SWHID).  The desired behavior is
     chosen depending on the syntax of each given identifier.
 
     Identifiers can be passed either directly on the command line or on
@@ -216,28 +216,28 @@ def map_lookup(graph, identifiers):
 
     """
     success = True  # no identifiers failed to be looked up
-    pid2node = PidToNodeMap(f"{graph}.{PID2NODE_EXT}")
-    node2pid = NodeToPidMap(f"{graph}.{NODE2PID_EXT}")
+    swhid2node = SwhidToNodeMap(f"{graph}.{SWHID2NODE_EXT}")
+    node2swhid = NodeToSwhidMap(f"{graph}.{NODE2SWHID_EXT}")
 
     def lookup(identifier):
-        nonlocal success, pid2node, node2pid
-        is_pid = None
+        nonlocal success, swhid2node, node2swhid
+        is_swhid = None
         try:
             int(identifier)
-            is_pid = False
+            is_swhid = False
         except ValueError:
             try:
                 parse_persistent_identifier(identifier)
-                is_pid = True
+                is_swhid = True
             except swh.model.exceptions.ValidationError:
                 success = False
                 logging.error(f'invalid identifier: "{identifier}", skipping')
 
         try:
-            if is_pid:
-                return str(pid2node[identifier])
+            if is_swhid:
+                return str(swhid2node[identifier])
             else:
-                return node2pid[int(identifier)]
+                return node2swhid[int(identifier)]
         except KeyError:
             success = False
             logging.error(f'identifier not found: "{identifier}", skipping')

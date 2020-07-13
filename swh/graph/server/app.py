@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -14,7 +14,7 @@ import aiohttp.web
 from collections import deque
 
 from swh.core.api.asynchronous import RPCServerApp
-from swh.model.identifiers import PID_TYPES
+from swh.model.identifiers import PID_TYPES as SWHID_TYPES
 from swh.model.exceptions import ValidationError
 
 try:
@@ -72,7 +72,7 @@ def get_edges(request):
     s = request.query.get("edges", "*")
     if any(
         [
-            node_type != "*" and node_type not in PID_TYPES
+            node_type != "*" and node_type not in SWHID_TYPES
             for edge in s.split(":")
             for node_type in edge.split(",", maxsplit=1)
         ]
@@ -98,22 +98,22 @@ def get_limit(request):
         raise aiohttp.web.HTTPBadRequest(body=f"invalid limit value: {s}")
 
 
-def node_of_pid(pid, backend):
-    """lookup a PID in a pid2node map, failing in an HTTP-nice way if needed"""
+def node_of_swhid(swhid, backend):
+    """lookup a SWHID in a swhid2node map, failing in an HTTP-nice way if needed"""
     try:
-        return backend.pid2node[pid]
+        return backend.swhid2node[swhid]
     except KeyError:
-        raise aiohttp.web.HTTPNotFound(body=f"PID not found: {pid}")
+        raise aiohttp.web.HTTPNotFound(body=f"SWHID not found: {swhid}")
     except ValidationError:
-        raise aiohttp.web.HTTPBadRequest(body=f"malformed PID: {pid}")
+        raise aiohttp.web.HTTPBadRequest(body=f"malformed SWHID: {swhid}")
 
 
-def pid_of_node(node, backend):
-    """lookup a node in a node2pid map, failing in an HTTP-nice way if needed
+def swhid_of_node(node, backend):
+    """lookup a node in a node2swhid map, failing in an HTTP-nice way if needed
 
     """
     try:
-        return backend.node2pid[node]
+        return backend.node2swhid[node]
     except KeyError:
         raise aiohttp.web.HTTPInternalServerError(
             body=f"reverse lookup failed for node id: {node}"
@@ -128,13 +128,13 @@ def get_simple_traversal_handler(ttype):
         edges = get_edges(request)
         direction = get_direction(request)
 
-        src_node = node_of_pid(src, backend)
+        src_node = node_of_swhid(src, backend)
         async with stream_response(request) as response:
             async for res_node in backend.simple_traversal(
                 ttype, direction, edges, src_node
             ):
-                res_pid = pid_of_node(res_node, backend)
-                await response.write("{}\n".format(res_pid).encode())
+                res_swhid = swhid_of_node(res_node, backend)
+                await response.write("{}\n".format(res_swhid).encode())
             return response
 
     return simple_traversal
@@ -151,9 +151,9 @@ def get_walk_handler(random=False):
         algo = get_traversal(request)
         limit = get_limit(request)
 
-        src_node = node_of_pid(src, backend)
-        if dst not in PID_TYPES:
-            dst = node_of_pid(dst, backend)
+        src_node = node_of_swhid(src, backend)
+        if dst not in SWHID_TYPES:
+            dst = node_of_swhid(dst, backend)
         async with stream_response(request) as response:
             if random:
                 it = backend.random_walk(
@@ -165,16 +165,16 @@ def get_walk_handler(random=False):
             if limit < 0:
                 queue = deque(maxlen=-limit)
                 async for res_node in it:
-                    res_pid = pid_of_node(res_node, backend)
-                    queue.append("{}\n".format(res_pid).encode())
+                    res_swhid = swhid_of_node(res_node, backend)
+                    queue.append("{}\n".format(res_swhid).encode())
                 while queue:
                     await response.write(queue.popleft())
             else:
                 count = 0
                 async for res_node in it:
                     if limit == 0 or count < limit:
-                        res_pid = pid_of_node(res_node, backend)
-                        await response.write("{}\n".format(res_pid).encode())
+                        res_swhid = swhid_of_node(res_node, backend)
+                        await response.write("{}\n".format(res_swhid).encode())
                         count += 1
                     else:
                         break
@@ -190,14 +190,14 @@ async def visit_paths(request):
     edges = get_edges(request)
     direction = get_direction(request)
 
-    src_node = node_of_pid(src, backend)
+    src_node = node_of_swhid(src, backend)
     it = backend.visit_paths(direction, edges, src_node)
     async with stream_response(
         request, content_type="application/x-ndjson"
     ) as response:
         async for res_path in it:
-            res_path_pid = [pid_of_node(n, backend) for n in res_path]
-            line = json.dumps(res_path_pid)
+            res_path_swhid = [swhid_of_node(n, backend) for n in res_path]
+            line = json.dumps(res_path_swhid)
             await response.write("{}\n".format(line).encode())
         return response
 
@@ -211,7 +211,7 @@ def get_count_handler(ttype):
         edges = get_edges(request)
         direction = get_direction(request)
 
-        src_node = node_of_pid(src, backend)
+        src_node = node_of_swhid(src, backend)
         cnt = await loop.run_in_executor(
             None, backend.count, ttype, direction, edges, src_node
         )

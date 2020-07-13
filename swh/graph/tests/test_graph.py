@@ -11,7 +11,7 @@ def test_graph(graph):
     assert len(node.children()) == 3
     assert len(node.parents()) == 2
 
-    actual = {p.pid for p in node.children()}
+    actual = {p.swhid for p in node.children()}
     expected = {
         "swh:1:cnt:0000000000000000000000000000000000000001",
         "swh:1:dir:0000000000000000000000000000000000000006",
@@ -19,7 +19,7 @@ def test_graph(graph):
     }
     assert expected == actual
 
-    actual = {p.pid for p in node.parents()}
+    actual = {p.swhid for p in node.parents()}
     expected = {
         "swh:1:rev:0000000000000000000000000000000000000009",
         "swh:1:dir:0000000000000000000000000000000000000012",
@@ -27,7 +27,7 @@ def test_graph(graph):
     assert expected == actual
 
 
-def test_invalid_pid(graph):
+def test_invalid_swhid(graph):
     with pytest.raises(IndexError):
         graph[1337]
 
@@ -40,7 +40,7 @@ def test_invalid_pid(graph):
 
 def test_leaves(graph):
     actual = list(graph["swh:1:ori:0000000000000000000000000000000000000021"].leaves())
-    actual = [p.pid for p in actual]
+    actual = [p.swhid for p in actual]
     expected = [
         "swh:1:cnt:0000000000000000000000000000000000000001",
         "swh:1:cnt:0000000000000000000000000000000000000004",
@@ -56,7 +56,7 @@ def test_visit_nodes(graph):
             edges="rel:rev,rev:rev"
         )
     )
-    actual = [p.pid for p in actual]
+    actual = [p.swhid for p in actual]
     expected = [
         "swh:1:rel:0000000000000000000000000000000000000010",
         "swh:1:rev:0000000000000000000000000000000000000009",
@@ -71,7 +71,7 @@ def test_visit_paths(graph):
             edges="snp:*,rev:*"
         )
     )
-    actual = [tuple(n.pid for n in path) for path in actual]
+    actual = [tuple(n.swhid for n in path) for path in actual]
     expected = [
         (
             "swh:1:snp:0000000000000000000000000000000000000020",
@@ -98,7 +98,7 @@ def test_walk(graph):
             "rel", edges="dir:dir,dir:rev,rev:*", direction="backward", traversal="bfs"
         )
     )
-    actual = [p.pid for p in actual]
+    actual = [p.swhid for p in actual]
     expected = [
         "swh:1:dir:0000000000000000000000000000000000000016",
         "swh:1:dir:0000000000000000000000000000000000000017",
@@ -128,7 +128,7 @@ def test_count(graph):
 
 def test_iter_type(graph):
     rev_list = list(graph.iter_type("rev"))
-    actual = [n.pid for n in rev_list]
+    actual = [n.swhid for n in rev_list]
     expected = [
         "swh:1:rev:0000000000000000000000000000000000000003",
         "swh:1:rev:0000000000000000000000000000000000000009",
