@@ -164,12 +164,12 @@ public class Traversal {
 
             nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
             for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+                if (edgeCb != null) {
+                    edgeCb.accept(currentNodeId, neighborNodeId);
+                }
                 if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
                     visited.add(neighborNodeId);
-                    if (edgeCb != null) {
-                        edgeCb.accept(currentNodeId, neighborNodeId);
-                    }
                 }
             }
         }
