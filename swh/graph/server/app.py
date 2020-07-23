@@ -202,6 +202,24 @@ async def visit_paths(request):
         return response
 
 
+async def visit_edges(request):
+    backend = request.app["backend"]
+
+    src = request.match_info["src"]
+    edges = get_edges(request)
+    direction = get_direction(request)
+
+    src_node = node_of_pid(src, backend)
+    it = backend.visit_edges(direction, edges, src_node)
+    print(it)
+    async with stream_response(request) as response:
+        async for (res_src, res_dst) in it:
+            res_src_pid = pid_of_node(res_src, backend)
+            res_dst_pid = pid_of_node(res_dst, backend)
+            await response.write("{} {}\n".format(res_src_pid, res_dst_pid).encode())
+        return response
+
+
 def get_count_handler(ttype):
     async def count(request):
         loop = asyncio.get_event_loop()
@@ -233,6 +251,7 @@ def make_app(backend, **kwargs):
     app.router.add_get(
         "/graph/visit/nodes/{src}", get_simple_traversal_handler("visit_nodes")
     )
+    app.router.add_get("/graph/visit/edges/{src}", visit_edges)
     app.router.add_get("/graph/visit/paths/{src}", visit_paths)
 
     # temporarily disabled in wait of a proper fix for T1969

@@ -86,6 +86,12 @@ class GraphNode:
     def visit_nodes(self, *args, **kwargs):
         yield from self.simple_traversal("visit_nodes", *args, **kwargs)
 
+    def visit_edges(self, direction="forward", edges="*"):
+        for src, dst in call_async_gen(
+            self.graph.backend.visit_edges, direction, edges, self.id
+        ):
+            yield (self.graph[src], self.graph[dst])
+
     def visit_paths(self, direction="forward", edges="*"):
         for path in call_async_gen(
             self.graph.backend.visit_paths, direction, edges, self.id

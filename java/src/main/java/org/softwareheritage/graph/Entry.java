@@ -86,6 +86,11 @@ public class Entry {
             }
         }
 
+        public void writeEdge(long srcId, long dstId) {
+            writeNode(srcId);
+            writeNode(dstId);
+        }
+
         public void writePath(ArrayList<Long> path) {
             for (Long nodeId : path) {
                 writeNode(nodeId);
@@ -128,6 +133,13 @@ public class Entry {
             open();
             Traversal t = new Traversal(this.graph, direction, edgesFmt);
             t.visitNodesVisitor(srcNodeId, this::writeNode);
+            close();
+        }
+
+        public void visit_edges(String direction, String edgesFmt, long srcNodeId) {
+            open();
+            Traversal t = new Traversal(this.graph, direction, edgesFmt);
+            t.visitNodesVisitor(srcNodeId, null, this::writeEdge);
             close();
         }
 

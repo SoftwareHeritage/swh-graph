@@ -65,6 +65,34 @@ def test_visit_nodes(graph):
     assert set(actual) == set(expected)
 
 
+def test_visit_edges(graph):
+    actual = list(
+        graph["swh:1:rel:0000000000000000000000000000000000000010"].visit_edges(
+            edges="rel:rev,rev:rev,rev:dir"
+        )
+    )
+    actual = [(src.pid, dst.pid) for src, dst in actual]
+    expected = [
+        (
+            "swh:1:rel:0000000000000000000000000000000000000010",
+            "swh:1:rev:0000000000000000000000000000000000000009",
+        ),
+        (
+            "swh:1:rev:0000000000000000000000000000000000000009",
+            "swh:1:rev:0000000000000000000000000000000000000003",
+        ),
+        (
+            "swh:1:rev:0000000000000000000000000000000000000009",
+            "swh:1:dir:0000000000000000000000000000000000000008",
+        ),
+        (
+            "swh:1:rev:0000000000000000000000000000000000000003",
+            "swh:1:dir:0000000000000000000000000000000000000002",
+        ),
+    ]
+    assert set(actual) == set(expected)
+
+
 def test_visit_paths(graph):
     actual = list(
         graph["swh:1:snp:0000000000000000000000000000000000000020"].visit_paths(

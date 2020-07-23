@@ -51,6 +51,14 @@ class RemoteGraphClient(RPCClient):
             params={"edges": edges, "direction": direction},
         )
 
+    def visit_edges(self, src, edges="*", direction="forward"):
+        for edge in self.get_lines(
+            "visit/edges/{}".format(src),
+            params={"edges": edges, "direction": direction},
+        ):
+            print(edge)
+            yield tuple(edge.split())
+
     def visit_paths(self, src, edges="*", direction="forward"):
         def decode_path_wrapper(it):
             for e in it:

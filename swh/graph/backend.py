@@ -92,6 +92,17 @@ class Backend:
         async for node_id in it:  # TODO return 404 if path is empty
             yield node_id
 
+    async def visit_edges(self, direction, edges_fmt, src):
+        it = self.stream_proxy.visit_edges(direction, edges_fmt, src)
+        # convert stream a, b, c, d -> (a, b), (c, d)
+        prevNode = None
+        async for node in it:
+            if prevNode is not None:
+                yield (prevNode, node)
+                prevNode = None
+            else:
+                prevNode = node
+
     async def visit_paths(self, direction, edges_fmt, src):
         path = []
         async for node in self.stream_proxy.visit_paths(direction, edges_fmt, src):

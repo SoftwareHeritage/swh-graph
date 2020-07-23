@@ -149,7 +149,7 @@ public class Traversal {
      * Push version of {@link visitNodes}: will fire passed callback on each
      * visited node.
      */
-    public void visitNodesVisitor(long srcNodeId, NodeIdConsumer cb) {
+    public void visitNodesVisitor(long srcNodeId, NodeIdConsumer nodeCb, EdgeIdConsumer edgeCb) {
         Stack<Long> stack = new Stack<Long>();
         this.nbEdgesAccessed = 0;
 
@@ -158,16 +158,26 @@ public class Traversal {
 
         while (!stack.isEmpty()) {
             long currentNodeId = stack.pop();
-            cb.accept(currentNodeId);
+            if (nodeCb != null) {
+                nodeCb.accept(currentNodeId);
+            }
 
             nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
             for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
                 if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
                     visited.add(neighborNodeId);
+                    if (edgeCb != null) {
+                        edgeCb.accept(currentNodeId, neighborNodeId);
+                    }
                 }
             }
         }
+    }
+
+    /** One-argument version to handle callbacks properly */
+    public void visitNodesVisitor(long srcNodeId, NodeIdConsumer cb) {
+        visitNodesVisitor(srcNodeId, cb, null);
     }
 
     /**
