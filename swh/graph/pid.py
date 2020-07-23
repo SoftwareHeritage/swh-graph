@@ -12,7 +12,7 @@ from enum import Enum
 from mmap import MAP_SHARED, PROT_READ, PROT_WRITE
 from typing import BinaryIO, Iterator, Tuple
 
-from swh.model.identifiers import PersistentId, parse_persistent_identifier
+from swh.model.identifiers import SWHID, parse_swhid
 
 
 PID_BIN_FMT = "BB20s"  # 2 unsigned chars + 20 bytes
@@ -56,7 +56,7 @@ def str_to_bytes(pid_str: str) -> bytes:
         bytes: byte sequence representation of pid
 
     """
-    pid = parse_persistent_identifier(pid_str)
+    pid = parse_swhid(pid_str)
     return struct.pack(
         PID_BIN_FMT,
         pid.scheme_version,
@@ -78,7 +78,7 @@ def bytes_to_str(bytes: bytes) -> str:
 
     """
     (version, type, bin_digest) = struct.unpack(PID_BIN_FMT, bytes)
-    pid = PersistentId(object_type=PidType(type).name, object_id=bin_digest)
+    pid = SWHID(object_type=PidType(type).name, object_id=bin_digest)
     return str(pid)
 
 
