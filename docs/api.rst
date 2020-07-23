@@ -227,10 +227,11 @@ Visit
 -----
 
 .. http:get:: /graph/visit/nodes/:src
+.. http:get:: /graph/visit/edges/:src
 .. http:get:: /graph/visit/paths/:src
 
-    Performs a graph traversal and returns explored nodes or paths (in the order
-    of the traversal).
+    Performs a graph traversal and returns explored nodes, edges or paths (in
+    the order of the traversal).
 
     :param string src: starting node specified as a SWHID
 
@@ -272,7 +273,32 @@ Visit
 
     .. sourcecode:: http
 
-        GET /graph/visit/nodes/swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb HTTP/1.1
+        GET /graph/visit/edges/swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc HTTP/1.1
+
+        Content-Type: text/plain
+        Transfer-Encoding: chunked
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200 OK
+
+        swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:61f92a7db95f5a6d1fcb94d2b897ed3797584d7b
+        swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:00e81c89c29ff3e58745fdaf7abb68daa1389e85
+        swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:7596fdc31c9aa00aed281ccb026a74cabf2383bb
+        swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:ec7a2341ac3d9d8b571bbdfb90a089d4e54dea56
+        swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:1c5b5eac61eda2454034a43eb124ab490885ef3a
+        swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:4dfa88ca55e04e8afe05e8543ddddee32dde7236
+        swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:d56ae79e43ff1b37534370911c8a78ec7f38d437
+        swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:19ba5d6203a040a39ecc4a77b165d3f097c1e662
+        swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:9c56102eefea23c95405533e1de23da4b873ecc4
+        swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:3f54e816b46c2e179cd164e17fea93b3013a9db4
+        ...
+
+    **Example:**
+
+    .. sourcecode:: http
+
+        GET /graph/visit/paths/swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb HTTP/1.1
 
         Content-Type: application/x-ndjson
         Transfer-Encoding: chunked
