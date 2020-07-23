@@ -9,7 +9,7 @@ import struct
 
 from collections.abc import MutableMapping
 from enum import Enum
-from mmap import MAP_SHARED, MAP_PRIVATE
+from mmap import MAP_SHARED, PROT_READ, PROT_WRITE
 from typing import BinaryIO, Iterator, Tuple
 
 from swh.model.identifiers import PersistentId, parse_persistent_identifier
@@ -126,7 +126,10 @@ class _OnDiskMap:
             )
 
         self.mm = mmap.mmap(
-            self.fd, self.size, flags=MAP_SHARED if writable_map else MAP_PRIVATE
+            self.fd,
+            self.size,
+            prot=(PROT_READ | PROT_WRITE if writable_map else PROT_READ),
+            flags=MAP_SHARED,
         )
 
     def close(self) -> None:
