@@ -211,7 +211,6 @@ async def visit_edges(request):
 
     src_node = node_of_pid(src, backend)
     it = backend.visit_edges(direction, edges, src_node)
-    print(it)
     async with stream_response(request) as response:
         async for (res_src, res_dst) in it:
             res_src_pid = pid_of_node(res_src, backend)

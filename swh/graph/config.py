@@ -107,5 +107,4 @@ def check_config_compress(config, graph_name, in_dir, out_dir):
         logback=conf["logback"]
     )
 
-    print(conf)
     return conf

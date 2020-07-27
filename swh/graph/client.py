@@ -56,7 +56,6 @@ class RemoteGraphClient(RPCClient):
             "visit/edges/{}".format(src),
             params={"edges": edges, "direction": direction},
         ):
-            print(edge)
             yield tuple(edge.split())
 
     def visit_paths(self, src, edges="*", direction="forward"):
