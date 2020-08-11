@@ -5,11 +5,10 @@ import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.FixedWidthIntLabel;
-import it.unimi.dsi.bits.LongArrayBitVector;
+import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.Size64;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
-import it.unimi.dsi.fastutil.longs.LongBigList;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.io.FastBufferedReader;
 import it.unimi.dsi.io.LineIterator;
@@ -20,7 +19,6 @@ import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.NodeIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.softwareheritage.graph.SwhPID;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -91,12 +89,21 @@ public class LabelMapBuilder {
         return (mph instanceof Size64) ? ((Size64) mph).size64() : mph.size();
     }
 
+    static long SwhIDToNode(String strSWHID, Object2LongFunction<String> mphMap, long[][] orderMap)
+    {
+        long mphId = mphMap.getLong(strSWHID);
+        return BigArrays.get(orderMap, mphId);
+    }
+
     static void computeLabelMap(String graphPath, String debugPath, String tmpDir)
         throws IOException
     {
         // Compute intermediate representation in the format "<src node id> <dst node id> <label ids>\n"
         ImmutableGraph graph = BVGraph.loadMapped(graphPath);
-        NodeIdMap nodeMap = new NodeIdMap(graphPath, graph.numNodes());
+
+        Object2LongFunction<String> swhIdMph = loadMPH(graphPath);
+        long[][] orderMap = LongBigArrays.newBigArray(getMPHSize(swhIdMph));
+        BinIO.loadLongs(graphPath + ".order", orderMap);
 
         Object2LongFunction<String> labelMPH = loadMPH(graphPath + "-labels");
         long numLabels = getMPHSize(labelMPH);
@@ -129,26 +136,18 @@ public class LabelMapBuilder {
         LineIterator edgeIterator = new LineIterator(buffer);
 
         plInter.start("Piping intermediate representation to sort(1)");
-        int i = 0;
         while (edgeIterator.hasNext()) {
-            // if (i > 100000) break;
             String[] edge = edgeIterator.next().toString().split(" ");
             if (edge.length < 3)
                 continue;
 
-            SwhPID srcPid = new SwhPID(edge[0]);
-            SwhPID dstPid = new SwhPID(edge[1]);
-            String label = edge[2];
-
-            // FIXME: Very slow. Use MPH + .order instead?
-            long srcNode = nodeMap.getNodeId(srcPid);
-            long dstNode = nodeMap.getNodeId(dstPid);
-            long labelId = labelMPH.getLong(label);
+            long srcNode = SwhIDToNode(edge[0], swhIdMph, orderMap);
+            long dstNode = SwhIDToNode(edge[1], swhIdMph, orderMap);
+            long labelId = labelMPH.getLong(edge[2]);
 
             sort_stdin.write((srcNode + "\t" + dstNode + "\t" + labelId + "\n")
                     .getBytes(StandardCharsets.US_ASCII));
             plInter.lightUpdate();
-            i++;
         }
         plInter.done();
         sort_stdin.close();
@@ -185,7 +184,7 @@ public class LabelMapBuilder {
                     //        Changing this requires using a FixedWidthIntList.
                     successorsLabels.put(labelDstNode, labelId);
                     if (debugFile != null) {
-                        debugFile.write(labelSrcNode + " " + labelDstNode + " " + labelId);
+                        debugFile.write(labelSrcNode + " " + labelDstNode + " " + labelId + "\n");
                     }
                 }
 
