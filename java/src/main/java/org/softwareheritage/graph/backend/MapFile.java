@@ -45,13 +45,12 @@ public class MapFile {
      * @param lineIndex line number in the file
      * @return the line at the specified position
      */
-    public String readAtLine(long lineIndex) {
+    public byte[] readAtLine(long lineIndex) {
         byte[] buffer = new byte[lineLength];
         long position = lineIndex * (long) lineLength;
         bufferMap.position(position);
         bufferMap.read(buffer, 0, lineLength);
-        String line = new String(buffer);
-        return line.trim();
+        return buffer;
     }
 
     /**

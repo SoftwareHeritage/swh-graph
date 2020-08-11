@@ -86,6 +86,24 @@ public class SwhPID {
         return bytes;
     }
 
+    /** Creates a SwhPID from a compact binary representation.
+     *
+     * The binary format is specified in the Python module
+     * swh.graph.pid:str_to_bytes .
+     */
+    public static SwhPID fromBytes(byte[] input) {
+        byte[] digest = new byte[20];
+        System.arraycopy(input, 2, digest, 0, digest.length);
+
+        String pidStr = String.format(
+            "swh:%d:%s:%s",
+            input[0],
+            Node.Type.fromInt(input[1]).toString().toLowerCase(),
+            Hex.encodeHexString(digest)
+        );
+        return new SwhPID(pidStr);
+    }
+
     /**
      * Returns full PID as a string.
      *

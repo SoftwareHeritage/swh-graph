@@ -22,6 +22,11 @@ public class NodeIdMap {
     /** Fixed length of long node id */
     public static final int NODE_ID_LENGTH = 20;
 
+    /** Fixed length of binary SWH PID buffer */
+    public static final int SWH_ID_BIN_SIZE = 22;
+    /** Fixed length of binary node id buffer */
+    public static final int NODE_ID_BIN_SIZE = 8;
+
     /** Graph path and basename */
     String graphPath;
     /** Number of ids to map */
@@ -41,11 +46,8 @@ public class NodeIdMap {
         this.graphPath = graphPath;
         this.nbIds = nbNodes;
 
-        // +1 are for spaces and end of lines
-        int swhToNodeLineLength = SWH_ID_LENGTH + 1 + NODE_ID_LENGTH + 1;
-        int nodeToSwhLineLength = SWH_ID_LENGTH + 1;
-        this.swhToNodeMap = new MapFile(graphPath + Graph.PID_TO_NODE, swhToNodeLineLength);
-        this.nodeToSwhMap = new MapFile(graphPath + Graph.NODE_TO_PID, nodeToSwhLineLength);
+        this.swhToNodeMap = new MapFile(graphPath + Graph.PID_TO_NODE, SWH_ID_BIN_SIZE + NODE_ID_BIN_SIZE);
+        this.nodeToSwhMap = new MapFile(graphPath + Graph.NODE_TO_PID, SWH_ID_BIN_SIZE);
     }
 
     /**
@@ -56,7 +58,6 @@ public class NodeIdMap {
      * @see org.softwareheritage.graph.SwhPID
      */
     public long getNodeId(SwhPID swhPID) {
-        // Each line in PID_TO_NODE is formatted as: swhPID nodeId
         // The file is sorted by swhPID, hence we can binary search on swhPID to get corresponding
         // nodeId
         long start = 0;
@@ -64,13 +65,14 @@ public class NodeIdMap {
 
         while (start <= end) {
             long lineNumber = (start + end) / 2L;
-            String[] parts = swhToNodeMap.readAtLine(lineNumber).split(" ");
-            if (parts.length != 2) {
-                break;
-            }
+            byte[] buffer = swhToNodeMap.readAtLine(lineNumber);
+            byte[] pidBuffer = new byte[SWH_ID_BIN_SIZE];
+            byte[] nodeBuffer = new byte[NODE_ID_BIN_SIZE];
+            System.arraycopy(buffer, 0, pidBuffer, 0, SWH_ID_BIN_SIZE);
+            System.arraycopy(buffer, SWH_ID_BIN_SIZE, nodeBuffer, 0, NODE_ID_BIN_SIZE);
 
-            String currentSwhPID = parts[0];
-            long currentNodeId = Long.parseLong(parts[1]);
+            String currentSwhPID = SwhPID.fromBytes(pidBuffer).getSwhPID();
+            long currentNodeId = java.nio.ByteBuffer.wrap(nodeBuffer).getLong();
 
             int cmp = currentSwhPID.compareTo(swhPID.toString());
             if (cmp == 0) {
@@ -100,8 +102,7 @@ public class NodeIdMap {
             throw new IllegalArgumentException("Node id " + nodeId + " should be between 0 and " + nbIds);
         }
 
-        String swhPID = nodeToSwhMap.readAtLine(nodeId);
-        return new SwhPID(swhPID);
+        return SwhPID.fromBytes(nodeToSwhMap.readAtLine(nodeId));
     }
 
     /**
