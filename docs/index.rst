@@ -7,6 +7,7 @@
    :maxdepth: 1
    :caption: Overview
 
+   quickstart
    compression
    cli
    api

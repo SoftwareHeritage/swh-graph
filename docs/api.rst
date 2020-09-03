@@ -1,3 +1,5 @@
+.. _swh-graph-api:
+
 Graph REST API
 ==============
 
