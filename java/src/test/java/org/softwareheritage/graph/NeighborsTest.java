@@ -4,10 +4,7 @@ import java.util.ArrayList;
 
 import org.junit.Test;
 
-import org.softwareheritage.graph.Endpoint;
-import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.GraphTest;
-import org.softwareheritage.graph.SwhPID;
+import org.softwareheritage.graph.server.Endpoint;
 
 // Avoid warnings concerning Endpoint.Output.result manual cast
 @SuppressWarnings("unchecked")

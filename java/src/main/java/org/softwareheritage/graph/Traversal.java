@@ -1,12 +1,11 @@
-package org.softwareheritage.graph.algo;
+package org.softwareheritage.graph;
 
 import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.LongConsumer;
 
-import org.softwareheritage.graph.AllowedEdges;
-import org.softwareheritage.graph.Endpoint;
-import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.Neighbors;
-import org.softwareheritage.graph.Node;
+import it.unimi.dsi.big.webgraph.LazyLongIterator;
+import org.softwareheritage.graph.server.Endpoint;
 
 /**
  * Traversal algorithms on the compressed graph.
@@ -16,7 +15,7 @@ import org.softwareheritage.graph.Node;
  * PID.
  *
  * @author The Software Heritage developers
- * @see org.softwareheritage.graph.Endpoint
+ * @see Endpoint
  */
 
 public class Traversal {
@@ -94,7 +93,8 @@ public class Traversal {
 
             long neighborsCnt = 0;
             nbEdgesAccessed += graph.outdegree(currentNodeId);
-            for (long neighborNodeId : new Neighbors(graph, edges, currentNodeId)) {
+            LazyLongIterator it = graph.successors(currentNodeId, edges);
+            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 neighborsCnt++;
                 if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
@@ -126,7 +126,8 @@ public class Traversal {
      */
     public void neighborsVisitor(long srcNodeId, NodeIdConsumer cb) {
         this.nbEdgesAccessed = graph.outdegree(srcNodeId);
-        for (long neighborNodeId : new Neighbors(graph, edges, srcNodeId)) {
+        LazyLongIterator it = graph.successors(srcNodeId, edges);
+        for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
             cb.accept(neighborNodeId);
         }
     }
@@ -161,7 +162,8 @@ public class Traversal {
             }
 
             nbEdgesAccessed += graph.outdegree(currentNodeId);
-            for (long neighborNodeId : new Neighbors(graph, edges, currentNodeId)) {
+            LazyLongIterator it = graph.successors(currentNodeId, edges);
+            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 if (edgeCb != null) {
                     edgeCb.accept(currentNodeId, neighborNodeId);
                 }
@@ -219,7 +221,8 @@ public class Traversal {
 
         long visitedNeighbors = 0;
         nbEdgesAccessed += graph.outdegree(currentNodeId);
-        for (long neighborNodeId : new Neighbors(graph, edges, currentNodeId)) {
+        LazyLongIterator it = graph.successors(currentNodeId, edges);
+        for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
             visitPathsInternalVisitor(neighborNodeId, currentPath, cb);
             visitedNeighbors++;
         }
@@ -294,8 +297,8 @@ public class Traversal {
 
         while (true) {
             path.add(curNodeId);
-            Neighbors neighbors = new Neighbors(graph, edges, curNodeId);
-            curNodeId = randomPick(neighbors.iterator());
+            LazyLongIterator successors = graph.successors(curNodeId, edges);
+            curNodeId = randomPick(successors);
             if (curNodeId < 0) {
                 found = false;
                 break;
@@ -324,14 +327,14 @@ public class Traversal {
      * @param elements iterator over selection domain
      * @return randomly chosen element or -1 if no suitable element was found
      */
-    private long randomPick(Iterator<Long> elements) {
+    private long randomPick(LazyLongIterator elements) {
         long curPick = -1;
         long seenCandidates = 0;
 
-        while (elements.hasNext()) {
+        for (long element; (element = elements.nextLong()) != -1;) {
             seenCandidates++;
             if (Math.round(rng.nextFloat() * (seenCandidates - 1)) == 0) {
-                curPick = elements.next();
+                curPick = element;
             }
         }
 
@@ -359,7 +362,8 @@ public class Traversal {
             }
 
             nbEdgesAccessed += graph.outdegree(currentNodeId);
-            for (long neighborNodeId : new Neighbors(graph, edges, currentNodeId)) {
+            LazyLongIterator it = graph.successors(currentNodeId, edges);
+            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
                     visited.add(neighborNodeId);
@@ -392,7 +396,8 @@ public class Traversal {
             }
 
             nbEdgesAccessed += graph.outdegree(currentNodeId);
-            for (long neighborNodeId : new Neighbors(graph, edges, currentNodeId)) {
+            LazyLongIterator it = graph.successors(currentNodeId, edges);
+            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 if (!visited.contains(neighborNodeId)) {
                     queue.add(neighborNodeId);
                     visited.add(neighborNodeId);
@@ -466,7 +471,8 @@ public class Traversal {
             if (!lhsStack.isEmpty()) {
                 curNode = lhsStack.poll();
                 nbEdgesAccessed += graph.outdegree(curNode);
-                for (long neighborNodeId : new Neighbors(graph, edges, curNode)) {
+                LazyLongIterator it = graph.successors(curNode, edges);
+                for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                     if (!lhsVisited.contains(neighborNodeId)) {
                         if (rhsVisited.contains(neighborNodeId))
                             return neighborNodeId;
@@ -479,7 +485,8 @@ public class Traversal {
             if (!rhsStack.isEmpty()) {
                 curNode = rhsStack.poll();
                 nbEdgesAccessed += graph.outdegree(curNode);
-                for (long neighborNodeId : new Neighbors(graph, edges, curNode)) {
+                LazyLongIterator it = graph.successors(curNode, edges);
+                for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                     if (!rhsVisited.contains(neighborNodeId)) {
                         if (lhsVisited.contains(neighborNodeId))
                             return neighborNodeId;
@@ -491,5 +498,26 @@ public class Traversal {
         }
 
         return null;
+    }
+
+    public interface NodeIdConsumer extends LongConsumer {
+        /** Callback for incrementally receiving node identifiers during a graph
+         * visit.
+         */
+        void accept(long nodeId);
+    }
+
+    public interface EdgeIdConsumer {
+        /** Callback for incrementally receiving edge identifiers during a graph
+         * visit.
+         */
+        void accept(long srcId, long dstId);
+    }
+
+    public interface PathConsumer extends Consumer<ArrayList<Long>> {
+        /** Callback for incrementally receiving node paths (made of node
+         * identifiers) during a graph visit.
+         */
+        void accept(ArrayList<Long> path);
     }
 }

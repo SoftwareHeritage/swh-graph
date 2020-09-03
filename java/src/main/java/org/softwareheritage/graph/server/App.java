@@ -1,4 +1,4 @@
-package org.softwareheritage.graph;
+package org.softwareheritage.graph.server;
 
 import java.io.IOException;
 import java.util.List;
@@ -17,11 +17,9 @@ import com.martiansoftware.jsap.UnflaggedOption;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.plugin.json.JavalinJackson;
-
-import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.Stats;
 import org.softwareheritage.graph.SwhPID;
-import org.softwareheritage.graph.algo.Stats;
 
 /**
  * Web framework of the swh-graph server REST API.

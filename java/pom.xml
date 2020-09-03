@@ -159,7 +159,7 @@
           <configuration>
             <archive>
               <manifest>
-                <mainClass>org.softwareheritage.graph.App</mainClass>
+                <mainClass>org.softwareheritage.graph.server.App</mainClass>
               </manifest>
             </archive>
             <descriptorRefs>

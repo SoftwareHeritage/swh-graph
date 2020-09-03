@@ -1,10 +1,8 @@
 package org.softwareheritage.graph;
 
-import java.util.ArrayList;
-
 import com.fasterxml.jackson.annotation.JsonValue;
 
-import org.softwareheritage.graph.SwhPID;
+import java.util.ArrayList;
 
 /**
  * Wrapper class to store a list of {@link SwhPID}.
@@ -21,7 +19,7 @@ public class SwhPath {
      * Constructor.
      */
     public SwhPath() {
-        this.path = new ArrayList<SwhPID>();
+        this.path = new ArrayList<>();
     }
 
     /**
@@ -115,10 +113,10 @@ public class SwhPath {
 
     @Override
     public String toString() {
-        String str = new String();
+        StringBuilder str = new StringBuilder();
         for (SwhPID swhPID : path) {
-            str += swhPID + "/";
+            str.append(swhPID).append("/");
         }
-        return str;
+        return str.toString();
     }
 }

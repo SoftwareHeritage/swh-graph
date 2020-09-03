@@ -3,7 +3,7 @@ package org.softwareheritage.graph.benchmark;
 import com.martiansoftware.jsap.*;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.algo.Traversal;
+import org.softwareheritage.graph.Traversal;
 import org.softwareheritage.graph.benchmark.utils.Timing;
 
 import java.io.IOException;

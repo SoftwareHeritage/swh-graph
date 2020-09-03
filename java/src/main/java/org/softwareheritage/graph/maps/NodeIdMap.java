@@ -1,10 +1,9 @@
-package org.softwareheritage.graph.backend;
+package org.softwareheritage.graph.maps;
 
 import java.io.IOException;
 
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhPID;
-import org.softwareheritage.graph.backend.MapFile;
 
 /**
  * Mapping between internal long node id and external SWH PID.
@@ -13,7 +12,7 @@ import org.softwareheritage.graph.backend.MapFile;
  * {@link MapBuilder} class, then they are loaded here using mmap().
  *
  * @author The Software Heritage developers
- * @see org.softwareheritage.graph.backend.MapBuilder
+ * @see org.softwareheritage.graph.maps.MapBuilder
  */
 
 public class NodeIdMap {

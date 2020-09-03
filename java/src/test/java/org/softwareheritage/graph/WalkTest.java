@@ -1,17 +1,12 @@
 package org.softwareheritage.graph;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.softwareheritage.graph.Endpoint;
-import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.GraphTest;
-import org.softwareheritage.graph.SwhPID;
-import org.softwareheritage.graph.SwhPath;
+import org.softwareheritage.graph.server.Endpoint;
 
 public class WalkTest extends GraphTest {
     @Test

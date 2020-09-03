@@ -1,11 +1,8 @@
-package org.softwareheritage.graph;
+package org.softwareheritage.graph.server;
 
 import java.util.ArrayList;
 
-import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.SwhPID;
-import org.softwareheritage.graph.SwhPath;
-import org.softwareheritage.graph.algo.Traversal;
+import org.softwareheritage.graph.*;
 import org.softwareheritage.graph.benchmark.utils.Timing;
 
 /**
@@ -16,7 +13,7 @@ import org.softwareheritage.graph.benchmark.utils.Timing;
  * all the input/output node ids conversions and logging timings.
  *
  * @author The Software Heritage developers
- * @see org.softwareheritage.graph.algo.Traversal
+ * @see Traversal
  */
 
 public class Endpoint {
@@ -155,7 +152,7 @@ public class Endpoint {
      * @param input input parameters for the underlying endpoint call
      * @return the resulting list of {@link SwhPID} from endpoint call and operation metadata
      * @see org.softwareheritage.graph.SwhPID
-     * @see org.softwareheritage.graph.algo.Traversal#leaves(long)
+     * @see Traversal#leaves(long)
      */
     public Output leaves(Input input) {
         Output<ArrayList<SwhPID>> output = new Output<>();
@@ -183,7 +180,7 @@ public class Endpoint {
      * @param input input parameters for the underlying endpoint call
      * @return the resulting list of {@link SwhPID} from endpoint call and operation metadata
      * @see org.softwareheritage.graph.SwhPID
-     * @see org.softwareheritage.graph.algo.Traversal#neighbors(long)
+     * @see Traversal#neighbors(long)
      */
     public Output neighbors(Input input) {
         Output<ArrayList<SwhPID>> output = new Output<>();
@@ -212,7 +209,7 @@ public class Endpoint {
      * @return the resulting {@link SwhPath} from endpoint call and operation metadata
      * @see org.softwareheritage.graph.SwhPID
      * @see org.softwareheritage.graph.SwhPath
-     * @see org.softwareheritage.graph.algo.Traversal#walk
+     * @see Traversal#walk
      */
     public Output walk(Input input) {
         Output<SwhPath> output = new Output<>();
@@ -258,7 +255,7 @@ public class Endpoint {
      * @param input input parameters for the underlying endpoint call
      * @return the resulting list of {@link SwhPID} from endpoint call and operation metadata
      * @see org.softwareheritage.graph.SwhPID
-     * @see org.softwareheritage.graph.algo.Traversal#visitNodes(long)
+     * @see Traversal#visitNodes(long)
      */
     public Output visitNodes(Input input) {
         Output<ArrayList<SwhPID>> output = new Output<>();
@@ -287,7 +284,7 @@ public class Endpoint {
      * @return the resulting list of {@link SwhPath} from endpoint call and operation metadata
      * @see org.softwareheritage.graph.SwhPID
      * @see org.softwareheritage.graph.SwhPath
-     * @see org.softwareheritage.graph.algo.Traversal#visitPaths(long)
+     * @see Traversal#visitPaths(long)
      */
     public Output visitPaths(Input input) {
         Output<ArrayList<SwhPath>> output = new Output<>();

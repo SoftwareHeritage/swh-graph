@@ -7,10 +7,6 @@ import java.io.IOException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
-import org.softwareheritage.graph.algo.NodeIdConsumer;
-
-import org.softwareheritage.graph.algo.Stats;
-import org.softwareheritage.graph.algo.Traversal;
 
 public class Entry {
     private Graph graph;
@@ -39,11 +35,11 @@ public class Entry {
     }
 
     private interface NodeCountVisitor {
-        void accept(long nodeId, NodeIdConsumer consumer);
+        void accept(long nodeId, Traversal.NodeIdConsumer consumer);
     }
 
     private int count_visitor(NodeCountVisitor f, long srcNodeId) {
-        int count[] = { 0 };
+        int[] count = { 0 };
         f.accept(srcNodeId, (node) -> { count[0]++; });
         return count[0];
     }

@@ -1,4 +1,4 @@
-package org.softwareheritage.graph.backend;
+package org.softwareheritage.graph.maps;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -12,7 +12,6 @@ import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.fastutil.longs.LongBigList;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
-import it.unimi.dsi.fastutil.objects.ObjectBigArrays;
 import it.unimi.dsi.io.FastBufferedReader;
 import it.unimi.dsi.io.LineIterator;
 import it.unimi.dsi.logging.ProgressLogger;
@@ -23,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SwhPID;
-import org.softwareheritage.graph.backend.NodeTypesMap;
 
 /**
  * Create maps needed at runtime by the graph service, in particular:

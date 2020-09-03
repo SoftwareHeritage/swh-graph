@@ -2,16 +2,10 @@ package org.softwareheritage.graph;
 
 import java.io.IOException;
 
-import it.unimi.dsi.big.webgraph.BVGraph;
-import it.unimi.dsi.big.webgraph.ImmutableGraph;
-import it.unimi.dsi.big.webgraph.Transform;
-import it.unimi.dsi.lang.FlyweightPrototype;
-import it.unimi.dsi.big.webgraph.LazyLongIterator;
+import it.unimi.dsi.big.webgraph.*;
 
-import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.SwhPID;
-import org.softwareheritage.graph.backend.NodeIdMap;
-import org.softwareheritage.graph.backend.NodeTypesMap;
+import org.softwareheritage.graph.maps.NodeIdMap;
+import org.softwareheritage.graph.maps.NodeTypesMap;
 
 /**
  * Main class storing the compressed graph and node id mappings.
@@ -27,8 +21,8 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
  *
  * @author The Software Heritage developers
  * @see org.softwareheritage.graph.AllowedEdges
- * @see org.softwareheritage.graph.backend.NodeIdMap
- * @see org.softwareheritage.graph.backend.NodeTypesMap
+ * @see org.softwareheritage.graph.maps.NodeIdMap
+ * @see org.softwareheritage.graph.maps.NodeTypesMap
  */
 
 public class Graph extends ImmutableGraph {
@@ -56,22 +50,15 @@ public class Graph extends ImmutableGraph {
      * @param path path and basename of the compressed graph to load
      */
     public Graph(String path) throws IOException {
+        this.path = path;
         this.graph = BVGraph.loadMapped(path);
         this.graphTransposed = BVGraph.loadMapped(path + "-transposed");
-        this.path = path;
         this.nodeTypesMap = new NodeTypesMap(path);
-
-        // TODO: we don't need to load the nodeIdMap now that all the
-        // translation between ints and PIDs is happening on the Python side.
-        // However, some parts of the code still depend on this, so it's
-        // commented out while we decide on what to do with it.
-        this.nodeIdMap = null; // new NodeIdMap(path, numNodes());
+        this.nodeIdMap = new NodeIdMap(path, numNodes());
     }
 
-    // Protected empty constructor to implement copy()
-    protected Graph() { }
-
-    protected Graph(ImmutableGraph graph, ImmutableGraph graphTransposed, String path, NodeIdMap nodeIdMap, NodeTypesMap nodeTypesMap) {
+    protected Graph(ImmutableGraph graph, ImmutableGraph graphTransposed,
+                    String path, NodeIdMap nodeIdMap, NodeTypesMap nodeTypesMap) {
         this.graph = graph;
         this.graphTransposed = graphTransposed;
         this.path = path;
@@ -87,10 +74,21 @@ public class Graph extends ImmutableGraph {
         return new Graph(this.graph.copy(), this.graphTransposed.copy(), this.path, this.nodeIdMap, this.nodeTypesMap);
     }
 
-    public Graph transpose() {
-        return new Graph(this.graphTransposed.copy(), this.graph.copy(), this.path, this.nodeIdMap, this.nodeTypesMap);
+    @Override
+    public boolean randomAccess() {
+        return graph.randomAccess() && graphTransposed.randomAccess();
     }
 
+    /**
+     * Return a transposed version of the graph.
+     */
+    public Graph transpose() {
+        return new Graph(this.graphTransposed, this.graph, this.path, this.nodeIdMap, this.nodeTypesMap);
+    }
+
+    /**
+     * Return a symmetric version of the graph.
+     */
     public Graph symmetrize() {
         ImmutableGraph symmetric = Transform.union(graph, graphTransposed);
         return new Graph(symmetric, symmetric, this.path, this.nodeIdMap, this.nodeTypesMap);
@@ -101,6 +99,114 @@ public class Graph extends ImmutableGraph {
      */
     public void cleanUp() throws IOException {
         nodeIdMap.close();
+    }
+    /**
+     * Returns number of nodes in the graph.
+     *
+     * @return number of nodes in the graph
+     */
+    @Override
+    public long numNodes() {
+        return graph.numNodes();
+    }
+
+    /**
+     * Returns number of edges in the graph.
+     *
+     * @return number of edges in the graph
+     */
+    @Override
+    public long numArcs() {
+        return graph.numArcs();
+    }
+
+    /**
+     * Returns lazy iterator of successors of a node.
+     *
+     * @param nodeId node specified as a long id
+     * @return lazy iterator of successors of the node, specified as a <a
+     * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
+     */
+    @Override
+    public LazyLongIterator successors(long nodeId) {
+        return graph.successors(nodeId);
+    }
+
+    /**
+     * Returns lazy iterator of successors of a node while following a specific set of edge types.
+     *
+     * @param nodeId node specified as a long id
+     * @param allowedEdges the specification of which edges can be traversed
+     * @return lazy iterator of successors of the node, specified as a <a
+     * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
+     */
+    public LazyLongIterator successors(long nodeId, AllowedEdges allowedEdges) {
+        if (allowedEdges.restrictedTo == null) {
+            // All edges are allowed, bypass edge check
+            return this.successors(nodeId);
+        } else {
+            LazyLongIterator allSuccessors = this.successors(nodeId);
+            return new LazyLongIterator() {
+                @Override
+                public long nextLong() {
+                    long neighbor;
+                    while ((neighbor = allSuccessors.nextLong()) != -1) {
+                        if (allowedEdges.isAllowed(nodeId, neighbor)) {
+                            return neighbor;
+                        }
+                    }
+                    return -1;
+                }
+
+                @Override
+                public long skip(final long n) {
+                    long i;
+                    for (i = 0; i < n && nextLong() != -1; i++);
+                    return i;
+                }
+            };
+        }
+    }
+
+    /**
+     * Returns the outdegree of a node.
+     *
+     * @param nodeId node specified as a long id
+     * @return outdegree of a node
+     */
+    @Override
+    public long outdegree(long nodeId) {
+        return graph.outdegree(nodeId);
+    }
+
+    /**
+     * Returns lazy iterator of predecessors of a node.
+     *
+     * @param nodeId node specified as a long id
+     * @return lazy iterator of predecessors of the node, specified as a <a
+     * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
+     */
+    public LazyLongIterator predecessors(long nodeId) {
+        return this.transpose().successors(nodeId);
+    }
+
+    /**
+     * Returns the indegree of a node.
+     *
+     * @param nodeId node specified as a long id
+     * @return indegree of a node
+     */
+    public long indegree(long nodeId) {
+        return this.transpose().outdegree(nodeId);
+    }
+
+    /**
+     * Returns the underlying BVGraph.
+     *
+     * @return WebGraph BVGraph
+     */
+    public ImmutableGraph getGraph() {
+        return this.graph;
     }
 
     /**
@@ -143,76 +249,5 @@ public class Graph extends ImmutableGraph {
      */
     public Node.Type getNodeType(long nodeId) {
         return nodeTypesMap.getType(nodeId);
-    }
-
-    public boolean randomAccess() { return graph.randomAccess() && graphTransposed.randomAccess(); }
-
-    /**
-     * Returns number of nodes in the graph.
-     *
-     * @return number of nodes in the graph
-     */
-    public long numNodes() {
-        return graph.numNodes();
-    }
-
-    /**
-     * Returns number of edges in the graph.
-     *
-     * @return number of edges in the graph
-     */
-    public long numArcs() {
-        return graph.numArcs();
-    }
-
-    /**
-     * Returns lazy iterator of successors of a node.
-     *
-     * @param nodeId node specified as a long id
-     * @return lazy iterator of successors of the node, specified as a <a
-     * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
-     */
-    public LazyLongIterator successors(long nodeId) {
-        return graph.successors(nodeId);
-    }
-
-    /**
-     * Returns the outdegree of a node.
-     *
-     * @param nodeId node specified as a long id
-     * @return outdegree of a node
-     */
-    public long outdegree(long nodeId) {
-        return graph.outdegree(nodeId);
-    }
-
-    /**
-     * Returns lazy iterator of predecessors of a node.
-     *
-     * @param nodeId node specified as a long id
-     * @return lazy iterator of predecessors of the node, specified as a <a
-     * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
-     */
-    public LazyLongIterator predecessors(long nodeId) {
-        return graphTransposed.successors(nodeId);
-    }
-
-    /**
-     * Returns the indegree of a node.
-     *
-     * @param nodeId node specified as a long id
-     * @return indegree of a node
-     */
-    public long indegree(long nodeId) {
-        return graphTransposed.outdegree(nodeId);
-    }
-
-    /**
-     * Returns the underlying BVGraph.
-     *
-     * @return WebGraph BVGraph
-     */
-    public ImmutableGraph getGraph() {
-        return this.graph;
     }
 }

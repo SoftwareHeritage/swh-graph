@@ -1,4 +1,4 @@
-package org.softwareheritage.graph.benchmark;
+package org.softwareheritage.graph.experiments.forks;
 
 import com.google.common.primitives.Longs;
 import com.martiansoftware.jsap.*;
@@ -9,6 +9,7 @@ import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.benchmark.BFS;
 
 import java.io.File;
 import java.io.FileNotFoundException;

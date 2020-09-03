@@ -1,4 +1,4 @@
-package org.softwareheritage.graph.algo;
+package org.softwareheritage.graph;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -14,19 +14,19 @@ import java.util.Properties;
  */
 
 public class Stats {
-    public class Counts {
+    public static class Counts {
         public long nodes;
         public long edges;
     }
 
-    public class Ratios {
+    public static class Ratios {
         public double compression;
         public double bitsPerNode;
         public double bitsPerEdge;
         public double avgLocality;
     }
 
-    public class Degree {
+    public static class Degree {
         public long min;
         public long max;
         public double avg;

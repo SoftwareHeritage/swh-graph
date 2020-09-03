@@ -4,9 +4,8 @@ import java.io.IOException;
 
 import com.martiansoftware.jsap.JSAPException;
 
-import org.softwareheritage.graph.Endpoint;
+import org.softwareheritage.graph.server.Endpoint;
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.benchmark.Benchmark;
 
 /**
  * Benchmark Software Heritage <a

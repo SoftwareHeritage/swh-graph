@@ -16,7 +16,7 @@ import com.martiansoftware.jsap.Parameter;
 import com.martiansoftware.jsap.SimpleJSAP;
 import com.martiansoftware.jsap.UnflaggedOption;
 
-import org.softwareheritage.graph.Endpoint;
+import org.softwareheritage.graph.server.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhPID;
 import org.softwareheritage.graph.benchmark.utils.Random;

@@ -15,7 +15,7 @@ Start REST API
 
 ```bash
 $ java -cp target/swh-graph-*.jar \
-    org.softwareheritage.graph.App \
+    org.softwareheritage.graph.server.App \
     <compressed_graph_path>
 ```
 
@@ -44,7 +44,7 @@ $ cd ../../../..
 $ mvn compile assembly:single
 # Dump mapping files
 $ java -cp target/swh-graph-*.jar \
-    org.softwareheritage.graph.backend.MapBuilder \
+    org.softwareheritage.graph.maps.MapBuilder \
     src/swh/graph/tests/dataset/example.nodes.csv.gz \
     src/swh/graph/tests/dataset/output/example
 ```
