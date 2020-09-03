@@ -2,8 +2,6 @@ package org.softwareheritage.graph.algo;
 
 import java.util.*;
 
-import it.unimi.dsi.bits.LongArrayBitVector;
-
 import org.softwareheritage.graph.AllowedEdges;
 import org.softwareheritage.graph.Endpoint;
 import org.softwareheritage.graph.Graph;
@@ -24,8 +22,6 @@ import org.softwareheritage.graph.Node;
 public class Traversal {
     /** Graph used in the traversal */
     Graph graph;
-    /** Boolean to specify the use of the transposed graph */
-    boolean useTransposed;
     /** Graph edge restriction */
     AllowedEdges edges;
 
@@ -52,11 +48,13 @@ public class Traversal {
             throw new IllegalArgumentException("Unknown traversal direction: " + direction);
         }
 
-        this.graph = graph;
-        this.useTransposed = (direction.equals("backward"));
+        if (direction.equals("backward")) {
+            this.graph = graph.transpose();
+        } else {
+            this.graph = graph;
+        }
         this.edges = new AllowedEdges(graph, edgesFmt);
 
-        long nbNodes = graph.getNbNodes();
         this.visited = new HashSet<>();
         this.parentNode = new HashMap<>();
         this.nbEdgesAccessed = 0;
@@ -82,10 +80,10 @@ public class Traversal {
     }
 
     /**
-     * Push version of {@link leaves}: will fire passed callback for each leaf.
+     * Push version of {@link #leaves} will fire passed callback for each leaf.
      */
     public void leavesVisitor(long srcNodeId, NodeIdConsumer cb) {
-        Stack<Long> stack = new Stack<Long>();
+        Stack<Long> stack = new Stack<>();
         this.nbEdgesAccessed = 0;
 
         stack.push(srcNodeId);
@@ -95,8 +93,8 @@ public class Traversal {
             long currentNodeId = stack.pop();
 
             long neighborsCnt = 0;
-            nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
-            for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+            nbEdgesAccessed += graph.outdegree(currentNodeId);
+            for (long neighborNodeId : new Neighbors(graph, edges, currentNodeId)) {
                 neighborsCnt++;
                 if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
@@ -117,18 +115,18 @@ public class Traversal {
      * @return list of node ids corresponding to the leaves
      */
     public ArrayList<Long> leaves(long srcNodeId) {
-        ArrayList<Long> nodeIds = new ArrayList<Long>();
-        leavesVisitor(srcNodeId, (nodeId) -> nodeIds.add(nodeId));
+        ArrayList<Long> nodeIds = new ArrayList<>();
+        leavesVisitor(srcNodeId, nodeIds::add);
         return nodeIds;
     }
 
     /**
-     * Push version of {@link neighbors}: will fire passed callback on each
+     * Push version of {@link #neighbors}: will fire passed callback on each
      * neighbor.
      */
     public void neighborsVisitor(long srcNodeId, NodeIdConsumer cb) {
-        this.nbEdgesAccessed = graph.degree(srcNodeId, useTransposed);
-        for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, srcNodeId)) {
+        this.nbEdgesAccessed = graph.outdegree(srcNodeId);
+        for (long neighborNodeId : new Neighbors(graph, edges, srcNodeId)) {
             cb.accept(neighborNodeId);
         }
     }
@@ -140,17 +138,17 @@ public class Traversal {
      * @return list of node ids corresponding to the neighbors
      */
     public ArrayList<Long> neighbors(long srcNodeId) {
-        ArrayList<Long> nodeIds = new ArrayList<Long>();
-        neighborsVisitor(srcNodeId, (nodeId) -> nodeIds.add(nodeId));
+        ArrayList<Long> nodeIds = new ArrayList<>();
+        neighborsVisitor(srcNodeId, nodeIds::add);
         return nodeIds;
     }
 
     /**
-     * Push version of {@link visitNodes}: will fire passed callback on each
+     * Push version of {@link #visitNodes}: will fire passed callback on each
      * visited node.
      */
     public void visitNodesVisitor(long srcNodeId, NodeIdConsumer nodeCb, EdgeIdConsumer edgeCb) {
-        Stack<Long> stack = new Stack<Long>();
+        Stack<Long> stack = new Stack<>();
         this.nbEdgesAccessed = 0;
 
         stack.push(srcNodeId);
@@ -162,8 +160,8 @@ public class Traversal {
                 nodeCb.accept(currentNodeId);
             }
 
-            nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
-            for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+            nbEdgesAccessed += graph.outdegree(currentNodeId);
+            for (long neighborNodeId : new Neighbors(graph, edges, currentNodeId)) {
                 if (edgeCb != null) {
                     edgeCb.accept(currentNodeId, neighborNodeId);
                 }
@@ -187,17 +185,17 @@ public class Traversal {
      * @return list of explored node ids
      */
     public ArrayList<Long> visitNodes(long srcNodeId) {
-        ArrayList<Long> nodeIds = new ArrayList<Long>();
-        visitNodesVisitor(srcNodeId, (nodeId) -> nodeIds.add(nodeId));
+        ArrayList<Long> nodeIds = new ArrayList<>();
+        visitNodesVisitor(srcNodeId, nodeIds::add);
         return nodeIds;
     }
 
     /**
-     * Push version of {@link visitPaths}: will fire passed callback on each
+     * Push version of {@link #visitPaths}: will fire passed callback on each
      * discovered (complete) path.
      */
     public void visitPathsVisitor(long srcNodeId, PathConsumer cb) {
-        Stack<Long> currentPath = new Stack<Long>();
+        Stack<Long> currentPath = new Stack<>();
         this.nbEdgesAccessed = 0;
         visitPathsInternalVisitor(srcNodeId, currentPath, cb);
     }
@@ -210,7 +208,7 @@ public class Traversal {
      */
     public ArrayList<ArrayList<Long>> visitPaths(long srcNodeId) {
         ArrayList<ArrayList<Long>> paths = new ArrayList<>();
-        visitPathsVisitor(srcNodeId, (path) -> paths.add(path));
+        visitPathsVisitor(srcNodeId, paths::add);
         return paths;
     }
 
@@ -220,17 +218,14 @@ public class Traversal {
         currentPath.push(currentNodeId);
 
         long visitedNeighbors = 0;
-        nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
-        for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+        nbEdgesAccessed += graph.outdegree(currentNodeId);
+        for (long neighborNodeId : new Neighbors(graph, edges, currentNodeId)) {
             visitPathsInternalVisitor(neighborNodeId, currentPath, cb);
             visitedNeighbors++;
         }
 
         if (visitedNeighbors == 0) {
-            ArrayList<Long> path = new ArrayList<Long>();
-            for (long nodeId : currentPath) {
-                path.add(nodeId);
-            }
+            ArrayList<Long> path = new ArrayList<>(currentPath);
             cb.accept(path);
         }
 
@@ -246,7 +241,7 @@ public class Traversal {
      * @return found path as a list of node ids
      */
     public <T> ArrayList<Long> walk(long srcNodeId, T dst, String visitOrder) {
-        long dstNodeId = -1;
+        long dstNodeId;
         if (visitOrder.equals("dfs")) {
             dstNodeId = walkInternalDFS(srcNodeId, dst);
         } else if (visitOrder.equals("bfs")) {
@@ -259,8 +254,7 @@ public class Traversal {
             throw new IllegalArgumentException("Cannot find destination: " + dst);
         }
 
-        ArrayList<Long> nodeIds = backtracking(srcNodeId, dstNodeId);
-        return nodeIds;
+        return backtracking(srcNodeId, dstNodeId);
     }
 
     /**
@@ -290,7 +284,7 @@ public class Traversal {
      */
     public <T> ArrayList<Long> randomWalk(long srcNodeId, T dst, int retries) {
         long curNodeId = srcNodeId;
-        ArrayList<Long> path = new ArrayList<Long>();
+        ArrayList<Long> path = new ArrayList<>();
         this.nbEdgesAccessed = 0;
         boolean found;
 
@@ -300,7 +294,7 @@ public class Traversal {
 
         while (true) {
             path.add(curNodeId);
-            Neighbors neighbors = new Neighbors(graph, useTransposed, edges, curNodeId);
+            Neighbors neighbors = new Neighbors(graph, edges, curNodeId);
             curNodeId = randomPick(neighbors.iterator());
             if (curNodeId < 0) {
                 found = false;
@@ -352,7 +346,7 @@ public class Traversal {
      * @return final destination node or -1 if no path found
      */
     private <T> long walkInternalDFS(long srcNodeId, T dst) {
-        Stack<Long> stack = new Stack<Long>();
+        Stack<Long> stack = new Stack<>();
         this.nbEdgesAccessed = 0;
 
         stack.push(srcNodeId);
@@ -364,8 +358,8 @@ public class Traversal {
                 return currentNodeId;
             }
 
-            nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
-            for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+            nbEdgesAccessed += graph.outdegree(currentNodeId);
+            for (long neighborNodeId : new Neighbors(graph, edges, currentNodeId)) {
                 if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
                     visited.add(neighborNodeId);
@@ -385,7 +379,7 @@ public class Traversal {
      * @return final destination node or -1 if no path found
      */
     private <T> long walkInternalBFS(long srcNodeId, T dst) {
-        Queue<Long> queue = new LinkedList<Long>();
+        Queue<Long> queue = new LinkedList<>();
         this.nbEdgesAccessed = 0;
 
         queue.add(srcNodeId);
@@ -397,8 +391,8 @@ public class Traversal {
                 return currentNodeId;
             }
 
-            nbEdgesAccessed += graph.degree(currentNodeId, useTransposed);
-            for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, currentNodeId)) {
+            nbEdgesAccessed += graph.outdegree(currentNodeId);
+            for (long neighborNodeId : new Neighbors(graph, edges, currentNodeId)) {
                 if (!visited.contains(neighborNodeId)) {
                     queue.add(neighborNodeId);
                     visited.add(neighborNodeId);
@@ -437,7 +431,7 @@ public class Traversal {
      * @return the found path, as a list of node ids
      */
     private ArrayList<Long> backtracking(long srcNodeId, long dstNodeId) {
-        ArrayList<Long> path = new ArrayList<Long>();
+        ArrayList<Long> path = new ArrayList<>();
         long currentNodeId = dstNodeId;
         while (currentNodeId != srcNodeId) {
             path.add(currentNodeId);
@@ -448,6 +442,13 @@ public class Traversal {
         return path;
     }
 
+    /**
+     * Find a common descendant between two given nodes using two parallel BFS
+     *
+     * @param lhsNode the first node
+     * @param rhsNode the second node
+     * @return the found path, as a list of node ids
+     */
     public Long findCommonDescendant(long lhsNode, long rhsNode) {
         Queue<Long> lhsStack = new ArrayDeque<>();
         Queue<Long> rhsStack = new ArrayDeque<>();
@@ -464,8 +465,8 @@ public class Traversal {
         while (!lhsStack.isEmpty() || !rhsStack.isEmpty()) {
             if (!lhsStack.isEmpty()) {
                 curNode = lhsStack.poll();
-                nbEdgesAccessed += graph.degree(curNode, useTransposed);
-                for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, curNode)) {
+                nbEdgesAccessed += graph.outdegree(curNode);
+                for (long neighborNodeId : new Neighbors(graph, edges, curNode)) {
                     if (!lhsVisited.contains(neighborNodeId)) {
                         if (rhsVisited.contains(neighborNodeId))
                             return neighborNodeId;
@@ -477,8 +478,8 @@ public class Traversal {
 
             if (!rhsStack.isEmpty()) {
                 curNode = rhsStack.poll();
-                nbEdgesAccessed += graph.degree(curNode, useTransposed);
-                for (long neighborNodeId : new Neighbors(graph, useTransposed, edges, curNode)) {
+                nbEdgesAccessed += graph.outdegree(curNode);
+                for (long neighborNodeId : new Neighbors(graph, edges, curNode)) {
                     if (!rhsVisited.contains(neighborNodeId)) {
                         if (lhsVisited.contains(neighborNodeId))
                             return neighborNodeId;

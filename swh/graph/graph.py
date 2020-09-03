@@ -156,7 +156,7 @@ class Graph:
         return self.java_graph.getPath()
 
     def __len__(self):
-        return self.java_graph.getNbNodes()
+        return self.java_graph.numNodes()
 
     def __getitem__(self, node_id):
         if isinstance(node_id, int):

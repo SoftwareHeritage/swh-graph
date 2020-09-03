@@ -6,6 +6,7 @@ import java.util.Scanner;
 import java.util.concurrent.*;
 
 import it.unimi.dsi.bits.LongArrayBitVector;
+import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.Size64;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
@@ -146,7 +147,7 @@ public class MapBuilder {
                 byte[] swhPIDBin = swhPID.toBytes();
 
                 long mphId = mphMap.getLong(strSwhPID);
-                long nodeId = LongBigArrays.get(bfsMap, mphId);
+                long nodeId = BigArrays.get(bfsMap, mphId);
 
                 pidToNodeMap.write(swhPIDBin, 0, swhPIDBin.length);
                 pidToNodeMap.writeLong(nodeId);

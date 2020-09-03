@@ -39,7 +39,7 @@ public class Random {
      * @return an array of random node ids
      */
     public long[] generateNodeIds(Graph graph, int nbNodes) {
-        return random.longs(nbNodes, 0, graph.getNbNodes()).toArray();
+        return random.longs(nbNodes, 0, graph.numNodes()).toArray();
     }
 
     /**
@@ -51,7 +51,7 @@ public class Random {
      * @return an array of random node ids
      */
     public long[] generateNodeIdsOfType(Graph graph, int nbNodes, Node.Type expectedType) {
-        PrimitiveIterator.OfLong nodes = random.longs(0, graph.getNbNodes()).iterator();
+        PrimitiveIterator.OfLong nodes = random.longs(0, graph.numNodes()).iterator();
         long[] nodeIds = new long[nbNodes];
 
         long nextId;

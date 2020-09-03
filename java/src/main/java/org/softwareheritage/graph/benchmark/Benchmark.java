@@ -161,7 +161,7 @@ public class Benchmark {
     }
 
     /**
-     * Same as {@link timeEndpoint} but without destination or algorithm specified to endpoint call.
+     * Same as {@link #timeEndpoint} but without destination or algorithm specified to endpoint call.
      */
     public void timeEndpoint(String useCaseName, Graph graph, long[] nodeIds,
                              Function<Endpoint.Input, Endpoint.Output> operation) throws IOException {

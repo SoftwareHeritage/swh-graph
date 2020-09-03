@@ -85,7 +85,7 @@ public class ListEmptyOrigins {
             System.out.println("Could not load graph: " + e);
             System.exit(2);
         }
-        ArrayList<Long> badlist = leo.compute(leo.graph.getBVGraph(false));
+        ArrayList<Long> badlist = leo.compute(leo.graph);
         for (Long bad : badlist) {
             System.out.println(bad);
         }

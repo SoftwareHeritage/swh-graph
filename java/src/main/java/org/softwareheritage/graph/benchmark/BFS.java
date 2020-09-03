@@ -19,18 +19,16 @@ import java.io.IOException;
 
 
 public class BFS {
-    private Graph graph;
-
-    private void load_graph(String graphBasename) throws IOException {
-        System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = new Graph(graphBasename);
-        System.err.println("Graph loaded.");
-    }
+    private final ImmutableGraph graph;
 
     private final static Logger LOGGER = LoggerFactory.getLogger(BFS.class);
 
+    public BFS(ImmutableGraph graph) {
+        this.graph = graph;
+    }
+
     // Partly inlined from it.unimi.dsi.law.big.graph.BFS
-    private static void bfsperm(final ImmutableGraph graph) throws IOException {
+    private void bfsperm() throws IOException {
         final long n = graph.numNodes();
         // Allow enough memory to behave like in-memory queue
         int bufferSize = (int)Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * n);
@@ -46,8 +44,6 @@ public class BFS {
         pl.expectedUpdates = n;
         pl.itemsName = "nodes";
         pl.start("Starting breadth-first visit...");
-
-        long pos = 0;
 
         for (long i = 0; i < n; i++) {
             if (visited.getBoolean(i)) continue;
@@ -101,30 +97,19 @@ public class BFS {
         return config;
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         JSAPResult config = parse_args(args);
         String graphPath = config.getString("graphPath");
         boolean useTransposed = config.getBoolean("useTransposed");
 
-        ProgressLogger logger = new ProgressLogger();
-        long startTime;
-        double totalTime;
+        System.err.println("Loading graph " + graphPath + " ...");
+        Graph graph = new Graph(graphPath);
+        System.err.println("Graph loaded.");
 
+        if (useTransposed)
+            graph = graph.transpose();
 
-        BFS bfs = new BFS();
-        try {
-            bfs.load_graph(graphPath);
-        } catch (IOException e) {
-            System.out.println("Could not load graph: " + e);
-            System.exit(2);
-        }
-
-        logger.start("Parallel BFS visit...");
-        try {
-            BFS.bfsperm(bfs.graph.getBVGraph(useTransposed));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        logger.done();
+        BFS bfs = new BFS(graph);
+        bfs.bfsperm();
     }
 }

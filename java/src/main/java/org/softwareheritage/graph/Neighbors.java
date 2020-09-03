@@ -19,8 +19,6 @@ import org.softwareheritage.graph.Graph;
 public class Neighbors implements Iterable<Long> {
     /** Graph used to explore neighbors */
     Graph graph;
-    /** Boolean to specify the use of the transposed graph */
-    boolean useTransposed;
     /** Graph edge restriction */
     AllowedEdges edges;
     /** Source node from which neighbors will be listed */
@@ -30,13 +28,11 @@ public class Neighbors implements Iterable<Long> {
      * Constructor.
      *
      * @param graph graph used to explore neighbors
-     * @param useTransposed boolean value to use transposed graph
      * @param edges edges allowed to be used in the graph
      * @param srcNodeId source node from where to list neighbors
      */
-    public Neighbors(Graph graph, boolean useTransposed, AllowedEdges edges, long srcNodeId) {
+    public Neighbors(Graph graph, AllowedEdges edges, long srcNodeId) {
         this.graph = graph;
-        this.useTransposed = useTransposed;
         this.edges = edges;
         this.srcNodeId = srcNodeId;
     }
@@ -57,7 +53,7 @@ public class Neighbors implements Iterable<Long> {
         long nextNeighborId;
 
         public NeighborsIterator() {
-            this.neighbors = graph.neighbors(srcNodeId, useTransposed);
+            this.neighbors = graph.successors(srcNodeId);
             this.nextNeighborId = -1;
         }
 

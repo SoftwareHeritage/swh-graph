@@ -3,6 +3,8 @@ package org.softwareheritage.graph;
 import java.io.IOException;
 
 import it.unimi.dsi.big.webgraph.BVGraph;
+import it.unimi.dsi.big.webgraph.ImmutableGraph;
+import it.unimi.dsi.big.webgraph.Transform;
 import it.unimi.dsi.lang.FlyweightPrototype;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
@@ -29,7 +31,7 @@ import org.softwareheritage.graph.backend.NodeTypesMap;
  * @see org.softwareheritage.graph.backend.NodeTypesMap
  */
 
-public class Graph implements FlyweightPrototype<Graph> {
+public class Graph extends ImmutableGraph {
     /** File extension for the SWH PID to long node id map */
     public static final String PID_TO_NODE = ".pid2node.bin";
     /** File extension for the long node id to SWH PID map */
@@ -38,9 +40,9 @@ public class Graph implements FlyweightPrototype<Graph> {
     public static final String NODE_TO_TYPE = ".node2type.map";
 
     /** Compressed graph stored as a {@link it.unimi.dsi.big.webgraph.BVGraph} */
-    BVGraph graph;
+    ImmutableGraph graph;
     /** Transposed compressed graph (used for backward traversals) */
-    BVGraph graphTransposed;
+    ImmutableGraph graphTransposed;
     /** Path and basename of the compressed graph */
     String path;
     /** Mapping long id &harr; SWH PIDs */
@@ -63,24 +65,35 @@ public class Graph implements FlyweightPrototype<Graph> {
         // translation between ints and PIDs is happening on the Python side.
         // However, some parts of the code still depend on this, so it's
         // commented out while we decide on what to do with it.
-        this.nodeIdMap = null; // new NodeIdMap(path, getNbNodes());
+        this.nodeIdMap = null; // new NodeIdMap(path, numNodes());
     }
 
     // Protected empty constructor to implement copy()
     protected Graph() { }
+
+    protected Graph(ImmutableGraph graph, ImmutableGraph graphTransposed, String path, NodeIdMap nodeIdMap, NodeTypesMap nodeTypesMap) {
+        this.graph = graph;
+        this.graphTransposed = graphTransposed;
+        this.path = path;
+        this.nodeIdMap = nodeIdMap;
+        this.nodeTypesMap = nodeTypesMap;
+    }
 
     /**
      * Return a flyweight copy of the graph.
      */
     @Override
     public Graph copy() {
-        final Graph ng = new Graph();
-        ng.graph = this.graph.copy();
-        ng.graphTransposed = this.graphTransposed.copy();
-        ng.path = path;
-        ng.nodeIdMap = this.nodeIdMap;
-        ng.nodeTypesMap = this.nodeTypesMap;
-        return ng;
+        return new Graph(this.graph.copy(), this.graphTransposed.copy(), this.path, this.nodeIdMap, this.nodeTypesMap);
+    }
+
+    public Graph transpose() {
+        return new Graph(this.graphTransposed.copy(), this.graph.copy(), this.path, this.nodeIdMap, this.nodeTypesMap);
+    }
+
+    public Graph symmetrize() {
+        ImmutableGraph symmetric = Transform.union(graph, graphTransposed);
+        return new Graph(symmetric, symmetric, this.path, this.nodeIdMap, this.nodeTypesMap);
     }
 
     /**
@@ -132,12 +145,14 @@ public class Graph implements FlyweightPrototype<Graph> {
         return nodeTypesMap.getType(nodeId);
     }
 
+    public boolean randomAccess() { return graph.randomAccess() && graphTransposed.randomAccess(); }
+
     /**
      * Returns number of nodes in the graph.
      *
      * @return number of nodes in the graph
      */
-    public long getNbNodes() {
+    public long numNodes() {
         return graph.numNodes();
     }
 
@@ -146,7 +161,7 @@ public class Graph implements FlyweightPrototype<Graph> {
      *
      * @return number of edges in the graph
      */
-    public long getNbEdges() {
+    public long numArcs() {
         return graph.numArcs();
     }
 
@@ -193,35 +208,11 @@ public class Graph implements FlyweightPrototype<Graph> {
     }
 
     /**
-     * Returns the degree of a node, depending on graph orientation.
-     *
-     * @param nodeId node specified as a long id
-     * @param useTransposed boolean value to use transposed graph
-     * @return degree of a node
-     */
-    public long degree(long nodeId, boolean useTransposed) {
-        return (useTransposed) ? indegree(nodeId) : outdegree(nodeId);
-    }
-
-    /**
-     * Returns the neighbors of a node (as a lazy iterator), depending on graph orientation.
-     *
-     * @param nodeId node specified as a long id
-     * @param useTransposed boolean value to use transposed graph
-     * @return lazy iterator of neighbors of the node, specified as a <a
-     * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
-     */
-    public LazyLongIterator neighbors(long nodeId, boolean useTransposed) {
-        return (useTransposed) ? predecessors(nodeId) : successors(nodeId);
-    }
-
-    /**
      * Returns the underlying BVGraph.
      *
-     * @param useTransposed boolean value to use transposed graph
      * @return WebGraph BVGraph
      */
-    public BVGraph getBVGraph(boolean useTransposed) {
-        return (useTransposed) ? this.graphTransposed : this.graph;
+    public ImmutableGraph getGraph() {
+        return this.graph;
     }
 }

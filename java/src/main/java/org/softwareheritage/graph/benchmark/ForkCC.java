@@ -2,9 +2,7 @@ package org.softwareheritage.graph.benchmark;
 
 import com.google.common.primitives.Longs;
 import com.martiansoftware.jsap.*;
-import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
-import it.unimi.dsi.big.webgraph.Transform;
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.Arrays;
 import it.unimi.dsi.io.ByteDiskQueue;
@@ -26,7 +24,7 @@ public class ForkCC {
 
     private void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = new Graph(graphBasename);
+        this.graph = new Graph(graphBasename).symmetrize();
         System.err.println("Graph loaded.");
         this.emptySnapshot = null;
         this.whitelist = null;
@@ -87,7 +85,7 @@ public class ForkCC {
     }
 
 
-    private ArrayList<ArrayList<Long>> compute(final ImmutableGraph graph, ProgressLogger pl) throws IOException {
+    private ArrayList<ArrayList<Long>> compute(ProgressLogger pl) throws IOException {
         final long n = graph.numNodes();
         // Allow enough memory to behave like in-memory queue
         int bufferSize = (int)Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * n);
@@ -171,7 +169,7 @@ public class ForkCC {
 
     private void parseWhitelist(String path) {
         System.err.println("Loading whitelist " + path + " ...");
-        this.whitelist = LongArrayBitVector.ofLength(this.graph.getNbNodes());
+        this.whitelist = LongArrayBitVector.ofLength(this.graph.numNodes());
         Scanner scanner = null;
         try {
             scanner = new Scanner(new File(path));
@@ -205,14 +203,9 @@ public class ForkCC {
             forkCc.parseWhitelist(whitelistPath);
         }
 
-        ImmutableGraph symmetric = Transform.union(
-            forkCc.graph.getBVGraph(false),
-            forkCc.graph.getBVGraph(true)
-        );
-
         ProgressLogger logger = new ProgressLogger();
         try {
-            ArrayList<ArrayList<Long>> components = forkCc.compute(symmetric, logger);
+            ArrayList<ArrayList<Long>> components = forkCc.compute(logger);
             printDistribution(components);
             // printLargestComponent(components);
         } catch (IOException e) {
