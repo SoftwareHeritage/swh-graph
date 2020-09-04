@@ -1,9 +1,9 @@
 package org.softwareheritage.graph.benchmark.utils;
 
-import java.util.PrimitiveIterator;
-
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
+
+import java.util.PrimitiveIterator;
 
 /**
  * Random related utility class.

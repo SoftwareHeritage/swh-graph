@@ -1,10 +1,5 @@
 package org.softwareheritage.graph.maps;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.util.Scanner;
-import java.util.concurrent.*;
-
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.Size64;
@@ -15,17 +10,20 @@ import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.io.FastBufferedReader;
 import it.unimi.dsi.io.LineIterator;
 import it.unimi.dsi.logging.ProgressLogger;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SwhPID;
 
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
+
 /**
  * Create maps needed at runtime by the graph service, in particular:
- *
+ * <p>
  * - SWH PID → WebGraph long node id
  * - WebGraph long node id → SWH PID (converse of the former)
  * - WebGraph long node id → SWH node type (enum)
@@ -64,8 +62,7 @@ public class MapBuilder {
     // Suppress warning for Object2LongFunction cast
     @SuppressWarnings("unchecked")
     static void precomputeNodeIdMap(String graphPath, String tmpDir)
-        throws IOException
-    {
+            throws IOException {
         ProgressLogger plPid2Node = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         ProgressLogger plNode2Pid = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         plPid2Node.itemsName = "pid→node";
@@ -102,7 +99,7 @@ public class MapBuilder {
         // Create mapping SWH PID -> WebGraph node id, by sequentially reading
         // nodes, hashing them with MPH, and permuting according to BFS order
         FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in,
-                                                                                 StandardCharsets.US_ASCII));
+                StandardCharsets.US_ASCII));
         LineIterator swhPIDIterator = new LineIterator(buffer);
 
         // The WebGraph node id -> SWH PID mapping can be obtained from the
@@ -111,8 +108,8 @@ public class MapBuilder {
         // /usr/bin/sort via pipes
         ProcessBuilder processBuilder = new ProcessBuilder();
         processBuilder.command("sort", "--numeric-sort", "--key", "2",
-                               "--buffer-size", SORT_BUFFER_SIZE,
-                               "--temporary-directory", tmpDir);
+                "--buffer-size", SORT_BUFFER_SIZE,
+                "--temporary-directory", tmpDir);
         Process sort = processBuilder.start();
         BufferedOutputStream sort_stdin = new BufferedOutputStream(sort.getOutputStream());
         BufferedInputStream sort_stdout = new BufferedInputStream(sort.getInputStream());
@@ -132,10 +129,10 @@ public class MapBuilder {
             // pure Java graph traversals to efficiently check edge
             // restrictions.
             final int log2NbTypes = (int) Math.ceil(Math.log(Node.Type.values().length)
-                                                    / Math.log(2));
+                    / Math.log(2));
             final int nbBitsPerNodeType = log2NbTypes;
             LongArrayBitVector nodeTypesBitVector =
-                LongArrayBitVector.ofLength(nbBitsPerNodeType * nbIds);
+                    LongArrayBitVector.ofLength(nbBitsPerNodeType * nbIds);
             LongBigList nodeTypesMap = nodeTypesBitVector.asLongBigList(nbBitsPerNodeType);
 
             plPid2Node.start("filling pid2node map");
@@ -150,7 +147,7 @@ public class MapBuilder {
                 pidToNodeMap.write(swhPIDBin, 0, swhPIDBin.length);
                 pidToNodeMap.writeLong(nodeId);
                 sort_stdin.write((strSwhPID + "\t" + nodeId + "\n")
-                                 .getBytes(StandardCharsets.US_ASCII));
+                        .getBytes(StandardCharsets.US_ASCII));
 
                 nodeTypesMap.set(nodeId, swhPID.getType().ordinal());
                 plPid2Node.lightUpdate();
@@ -195,7 +192,7 @@ public class MapBuilder {
             boolean sortDone = false;
             logger.info("node2pid: waiting for sort output...");
             while (input.hasNextLine()) {
-                if (! sortDone) {
+                if (!sortDone) {
                     sortDone = true;
                     this.pl.start("filling node2pid map");
                 }

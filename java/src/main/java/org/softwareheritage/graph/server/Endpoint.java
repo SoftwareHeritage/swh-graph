@@ -1,9 +1,9 @@
 package org.softwareheritage.graph.server;
 
-import java.util.ArrayList;
-
 import org.softwareheritage.graph.*;
 import org.softwareheritage.graph.benchmark.utils.Timing;
+
+import java.util.ArrayList;
 
 /**
  * REST API endpoints wrapper functions.
@@ -17,73 +17,6 @@ import org.softwareheritage.graph.benchmark.utils.Timing;
  */
 
 public class Endpoint {
-    /**
-     * Wrapper class to unify traversal methods input signatures.
-     */
-    public static class Input {
-        /** Source node of endpoint call specified as a {@link SwhPID} */
-        public SwhPID src;
-        /**
-         * Destination formatted string as described in the <a
-         * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#walk">API</a>
-         */
-        public String dstFmt;
-        /** Traversal algorithm used in endpoint call (either "dfs" or "bfs") */
-        public String algorithm;
-
-        public Input(SwhPID src) {
-            this.src = src;
-        }
-
-        public Input(SwhPID src, String dstFmt, String algorithm) {
-            this.src = src;
-            this.dstFmt = dstFmt;
-            this.algorithm = algorithm;
-        }
-    }
-
-    /**
-     * Wrapper class to return both the endpoint result and metadata (such as timings).
-     */
-    public static class Output<T> {
-        /** The result content itself */
-        public T result;
-        /** Various metadata about the result */
-        public Meta meta;
-
-        public Output() {
-            this.result = null;
-            this.meta = new Meta();
-        }
-
-        /**
-         * Endpoint result metadata.
-         */
-        public class Meta {
-            /** Operations timings */
-            public Timings timings;
-            /** Number of edges accessed during traversal */
-            public long nbEdgesAccessed;
-
-            public Meta() {
-                this.timings = new Timings();
-                this.nbEdgesAccessed = 0;
-            }
-
-            /**
-             * Wrapper class for JSON output format.
-             */
-            public class Timings {
-                /** Time in seconds to do the traversal */
-                public double traversal;
-                /** Time in seconds to convert input SWH PID to node id */
-                public double pid2node;
-                /** Time in seconds to convert output node ids to SWH PIDs */
-                public double node2pid;
-            }
-        }
-    }
-
     /** Graph where traversal endpoint is performed */
     Graph graph;
     /** Internal traversal API */
@@ -304,5 +237,72 @@ public class Endpoint {
         output.meta.timings.node2pid = Timing.stop(startTime);
 
         return output;
+    }
+
+    /**
+     * Wrapper class to unify traversal methods input signatures.
+     */
+    public static class Input {
+        /** Source node of endpoint call specified as a {@link SwhPID} */
+        public SwhPID src;
+        /**
+         * Destination formatted string as described in the <a
+         * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#walk">API</a>
+         */
+        public String dstFmt;
+        /** Traversal algorithm used in endpoint call (either "dfs" or "bfs") */
+        public String algorithm;
+
+        public Input(SwhPID src) {
+            this.src = src;
+        }
+
+        public Input(SwhPID src, String dstFmt, String algorithm) {
+            this.src = src;
+            this.dstFmt = dstFmt;
+            this.algorithm = algorithm;
+        }
+    }
+
+    /**
+     * Wrapper class to return both the endpoint result and metadata (such as timings).
+     */
+    public static class Output<T> {
+        /** The result content itself */
+        public T result;
+        /** Various metadata about the result */
+        public Meta meta;
+
+        public Output() {
+            this.result = null;
+            this.meta = new Meta();
+        }
+
+        /**
+         * Endpoint result metadata.
+         */
+        public class Meta {
+            /** Operations timings */
+            public Timings timings;
+            /** Number of edges accessed during traversal */
+            public long nbEdgesAccessed;
+
+            public Meta() {
+                this.timings = new Timings();
+                this.nbEdgesAccessed = 0;
+            }
+
+            /**
+             * Wrapper class for JSON output format.
+             */
+            public class Timings {
+                /** Time in seconds to do the traversal */
+                public double traversal;
+                /** Time in seconds to convert input SWH PID to node id */
+                public double pid2node;
+                /** Time in seconds to convert output node ids to SWH PIDs */
+                public double node2pid;
+            }
+        }
     }
 }

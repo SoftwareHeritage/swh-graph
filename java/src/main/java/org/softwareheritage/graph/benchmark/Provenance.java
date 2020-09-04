@@ -1,11 +1,10 @@
 package org.softwareheritage.graph.benchmark;
 
-import java.io.IOException;
-
 import com.martiansoftware.jsap.JSAPException;
-
-import org.softwareheritage.graph.server.Endpoint;
 import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.server.Endpoint;
+
+import java.io.IOException;
 
 /**
  * Benchmark Software Heritage <a
@@ -36,17 +35,17 @@ public class Provenance {
         bench.createCSVLogFile();
 
         bench.timeEndpoint(
-            "commit provenance (dfs)", graph, nodeIds, commitProvenanceEndpoint::walk, "rev", "dfs");
+                "commit provenance (dfs)", graph, nodeIds, commitProvenanceEndpoint::walk, "rev", "dfs");
         bench.timeEndpoint(
-            "commit provenance (bfs)", graph, nodeIds, commitProvenanceEndpoint::walk, "rev", "bfs");
+                "commit provenance (bfs)", graph, nodeIds, commitProvenanceEndpoint::walk, "rev", "bfs");
         bench.timeEndpoint(
-            "complete commit provenance", graph, nodeIds, commitProvenanceEndpoint::leaves);
+                "complete commit provenance", graph, nodeIds, commitProvenanceEndpoint::leaves);
 
         bench.timeEndpoint(
-            "origin provenance (dfs)", graph, nodeIds, originProvenanceEndpoint::walk, "ori", "dfs");
+                "origin provenance (dfs)", graph, nodeIds, originProvenanceEndpoint::walk, "ori", "dfs");
         bench.timeEndpoint(
-            "origin provenance (bfs)", graph, nodeIds, originProvenanceEndpoint::walk, "ori", "bfs");
+                "origin provenance (bfs)", graph, nodeIds, originProvenanceEndpoint::walk, "ori", "bfs");
         bench.timeEndpoint(
-            "complete origin provenance", graph, nodeIds, originProvenanceEndpoint::leaves);
+                "complete origin provenance", graph, nodeIds, originProvenanceEndpoint::leaves);
     }
 }

@@ -1,17 +1,16 @@
 package org.softwareheritage.graph;
 
-import java.util.ArrayList;
-import java.io.DataOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 
-public class Entry {
-    private Graph graph;
+import java.io.DataOutputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
 
+public class Entry {
     private final long PATH_SEPARATOR_ID = -1;
+    private Graph graph;
 
     public void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
@@ -34,13 +33,11 @@ public class Entry {
         }
     }
 
-    private interface NodeCountVisitor {
-        void accept(long nodeId, Traversal.NodeIdConsumer consumer);
-    }
-
     private int count_visitor(NodeCountVisitor f, long srcNodeId) {
-        int[] count = { 0 };
-        f.accept(srcNodeId, (node) -> { count[0]++; });
+        int[] count = {0};
+        f.accept(srcNodeId, (node) -> {
+            count[0]++;
+        });
         return count[0];
     }
 
@@ -61,6 +58,10 @@ public class Entry {
 
     public QueryHandler get_handler(String clientFIFO) {
         return new QueryHandler(this.graph.copy(), clientFIFO);
+    }
+
+    private interface NodeCountVisitor {
+        void accept(long nodeId, Traversal.NodeIdConsumer consumer);
     }
 
     public class QueryHandler {

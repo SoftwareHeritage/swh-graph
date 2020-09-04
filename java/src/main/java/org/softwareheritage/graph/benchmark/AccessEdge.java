@@ -1,15 +1,13 @@
 package org.softwareheritage.graph.benchmark;
 
-import java.io.IOException;
-import java.util.ArrayList;
-
 import com.martiansoftware.jsap.JSAPException;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
-
 import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.benchmark.Benchmark;
 import org.softwareheritage.graph.benchmark.utils.Statistics;
 import org.softwareheritage.graph.benchmark.utils.Timing;
+
+import java.io.IOException;
+import java.util.ArrayList;
 
 /**
  * Benchmark to time edge access time.

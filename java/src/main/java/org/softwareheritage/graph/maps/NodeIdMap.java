@@ -1,13 +1,13 @@
 package org.softwareheritage.graph.maps;
 
-import java.io.IOException;
-
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SwhPID;
 
+import java.io.IOException;
+
 /**
  * Mapping between internal long node id and external SWH PID.
- *
+ * <p>
  * Mappings in both directions are pre-computed and dumped on disk in the
  * {@link MapBuilder} class, then they are loaded here using mmap().
  *

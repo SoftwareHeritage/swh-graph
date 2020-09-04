@@ -1,11 +1,13 @@
 package org.softwareheritage.graph;
 
-import java.io.IOException;
-
-import it.unimi.dsi.big.webgraph.*;
-
+import it.unimi.dsi.big.webgraph.BVGraph;
+import it.unimi.dsi.big.webgraph.ImmutableGraph;
+import it.unimi.dsi.big.webgraph.LazyLongIterator;
+import it.unimi.dsi.big.webgraph.Transform;
 import org.softwareheritage.graph.maps.NodeIdMap;
 import org.softwareheritage.graph.maps.NodeTypesMap;
+
+import java.io.IOException;
 
 /**
  * Main class storing the compressed graph and node id mappings.
@@ -100,6 +102,7 @@ public class Graph extends ImmutableGraph {
     public void cleanUp() throws IOException {
         nodeIdMap.close();
     }
+
     /**
      * Returns number of nodes in the graph.
      *
@@ -161,7 +164,7 @@ public class Graph extends ImmutableGraph {
                 @Override
                 public long skip(final long n) {
                     long i;
-                    for (i = 0; i < n && nextLong() != -1; i++);
+                    for (i = 0; i < n && nextLong() != -1; i++) ;
                     return i;
                 }
             };

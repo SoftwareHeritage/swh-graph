@@ -2,9 +2,6 @@ package org.softwareheritage.graph;
 
 import java.util.ArrayList;
 
-import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.Node;
-
 /**
  * Edge restriction based on node types, used when visiting the graph.
  * <p>
@@ -17,14 +14,14 @@ import org.softwareheritage.graph.Node;
  */
 
 public class AllowedEdges {
-    /** Graph on which edge restriction is performed */
-    Graph graph;
     /**
      * 2D boolean matrix storing access rights for all combination of src/dst node types (first
      * dimension is source, second dimension is destination), when edge restriction is not enforced
      * this array is set to null for early bypass.
      */
     public boolean[][] restrictedTo;
+    /** Graph on which edge restriction is performed */
+    Graph graph;
 
     /**
      * Constructor.

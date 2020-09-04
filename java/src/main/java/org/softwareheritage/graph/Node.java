@@ -38,12 +38,18 @@ public class Node {
          */
         public static Node.Type fromInt(int intType) {
             switch (intType) {
-            case 0: return CNT;
-            case 1: return DIR;
-            case 2: return ORI;
-            case 3: return REL;
-            case 4: return REV;
-            case 5: return SNP;
+                case 0:
+                    return CNT;
+                case 1:
+                    return DIR;
+                case 2:
+                    return ORI;
+                case 3:
+                    return REL;
+                case 4:
+                    return REV;
+                case 5:
+                    return SNP;
             }
             return null;
         }
@@ -55,13 +61,19 @@ public class Node {
          * @return the corresponding int value
          */
         public static int toInt(Node.Type type) {
-            switch  (type) {
-            case CNT: return 0;
-            case DIR: return 1;
-            case ORI: return 2;
-            case REL: return 3;
-            case REV: return 4;
-            case SNP: return 5;
+            switch (type) {
+                case CNT:
+                    return 0;
+                case DIR:
+                    return 1;
+                case ORI:
+                    return 2;
+                case REL:
+                    return 3;
+                case REV:
+                    return 4;
+                case SNP:
+                    return 5;
             }
             throw new IllegalArgumentException("Unknown node type: " + type);
         }

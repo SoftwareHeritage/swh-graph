@@ -1,12 +1,8 @@
 package org.softwareheritage.graph;
 
-import java.lang.System;
-
 import com.fasterxml.jackson.annotation.JsonValue;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.DecoderException;
-
-import org.softwareheritage.graph.Node;
+import org.apache.commons.codec.binary.Hex;
 
 /**
  * A Software Heritage PID, see <a
@@ -44,6 +40,25 @@ public class SwhPID {
         }
     }
 
+    /**
+     * Creates a SwhPID from a compact binary representation.
+     * <p>
+     * The binary format is specified in the Python module
+     * swh.graph.pid:str_to_bytes .
+     */
+    public static SwhPID fromBytes(byte[] input) {
+        byte[] digest = new byte[20];
+        System.arraycopy(input, 2, digest, 0, digest.length);
+
+        String pidStr = String.format(
+                "swh:%d:%s:%s",
+                input[0],
+                Node.Type.fromInt(input[1]).toString().toLowerCase(),
+                Hex.encodeHexString(digest)
+        );
+        return new SwhPID(pidStr);
+    }
+
     @Override
     public boolean equals(Object otherObj) {
         if (otherObj == this)
@@ -65,8 +80,9 @@ public class SwhPID {
         return swhPID;
     }
 
-    /** Converts PID to a compact binary representation.
-     *
+    /**
+     * Converts PID to a compact binary representation.
+     * <p>
      * The binary format is specified in the Python module
      * swh.graph.pid:str_to_bytes .
      */
@@ -84,24 +100,6 @@ public class SwhPID {
         }
 
         return bytes;
-    }
-
-    /** Creates a SwhPID from a compact binary representation.
-     *
-     * The binary format is specified in the Python module
-     * swh.graph.pid:str_to_bytes .
-     */
-    public static SwhPID fromBytes(byte[] input) {
-        byte[] digest = new byte[20];
-        System.arraycopy(input, 2, digest, 0, digest.length);
-
-        String pidStr = String.format(
-            "swh:%d:%s:%s",
-            input[0],
-            Node.Type.fromInt(input[1]).toString().toLowerCase(),
-            Hex.encodeHexString(digest)
-        );
-        return new SwhPID(pidStr);
     }
 
     /**

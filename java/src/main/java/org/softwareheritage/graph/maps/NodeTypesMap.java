@@ -1,18 +1,17 @@
 package org.softwareheritage.graph.maps;
 
-import java.io.IOException;
-
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigList;
-
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
+
+import java.io.IOException;
 
 /**
  * Mapping between long node id and SWH node type as described in the <a
  * href="https://docs.softwareheritage.org/devel/swh-model/data-model.html">data
  * model</a>.
- *
+ * <p>
  * The type mapping is pre-computed and dumped on disk in the {@link MapBuilder}
  * class, then it is loaded in-memory here using
  * <a href="http://fastutil.di.unimi.it/">fastutil</a> LongBigList. To be

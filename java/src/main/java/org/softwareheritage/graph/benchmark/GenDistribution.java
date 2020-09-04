@@ -8,36 +8,32 @@ import org.softwareheritage.graph.benchmark.utils.Timing;
 
 import java.io.IOException;
 import java.util.Scanner;
-import java.util.concurrent.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class GenDistribution {
     private Graph graph;
-
-    private void load_graph(String graphBasename) throws IOException {
-        System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = new Graph(graphBasename);
-        System.err.println("Graph loaded.");
-    }
 
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
             SimpleJSAP jsap = new SimpleJSAP(
-                GenDistribution.class.getName(),
-                "",
-                new Parameter[] {
-                    new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            'g', "graph", "Basename of the compressed graph"),
-                    new FlaggedOption("srcType", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            's', "srctype", "Source node type"),
-                    new FlaggedOption("dstType", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            'd', "dsttype", "Destination node type"),
-                    new FlaggedOption("edgesFmt", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            'e', "edges", "Edges constraints"),
+                    GenDistribution.class.getName(),
+                    "",
+                    new Parameter[]{
+                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+                                    'g', "graph", "Basename of the compressed graph"),
+                            new FlaggedOption("srcType", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+                                    's', "srctype", "Source node type"),
+                            new FlaggedOption("dstType", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+                                    'd', "dsttype", "Destination node type"),
+                            new FlaggedOption("edgesFmt", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+                                    'e', "edges", "Edges constraints"),
 
-                    new FlaggedOption("numThreads", JSAP.INTEGER_PARSER, "128", JSAP.NOT_REQUIRED,
-                            't', "numthreads", "Number of threads"),
-                }
+                            new FlaggedOption("numThreads", JSAP.INTEGER_PARSER, "128", JSAP.NOT_REQUIRED,
+                                    't', "numthreads", "Number of threads"),
+                    }
             );
 
             config = jsap.parse(args);
@@ -112,7 +108,7 @@ public class GenDistribution {
                     }
 
                     Traversal t = new Traversal(thread_graph, "backward", edgesFmt);
-                    int[] count = { 0 };
+                    int[] count = {0};
 
                     startTime = Timing.start();
                     t.visitNodesVisitor(node, (curnode) -> {
@@ -130,5 +126,11 @@ public class GenDistribution {
         }
 
         service.shutdown();
+    }
+
+    private void load_graph(String graphBasename) throws IOException {
+        System.err.println("Loading graph " + graphBasename + " ...");
+        this.graph = new Graph(graphBasename);
+        System.err.println("Graph loaded.");
     }
 }

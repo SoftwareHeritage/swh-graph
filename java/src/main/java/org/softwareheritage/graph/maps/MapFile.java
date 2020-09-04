@@ -1,11 +1,11 @@
 package org.softwareheritage.graph.maps;
 
+import it.unimi.dsi.io.ByteBufferInputStream;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
-
-import it.unimi.dsi.io.ByteBufferInputStream;
 
 /**
  * Wrapper class around very big mmap()-ed file.

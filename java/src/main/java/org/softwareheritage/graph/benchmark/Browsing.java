@@ -1,12 +1,11 @@
 package org.softwareheritage.graph.benchmark;
 
-import java.io.IOException;
-
 import com.martiansoftware.jsap.JSAPException;
-
-import org.softwareheritage.graph.server.Endpoint;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.server.Endpoint;
+
+import java.io.IOException;
 
 /**
  * Benchmark Software Heritage <a
@@ -29,9 +28,9 @@ public class Browsing {
         Graph graph = new Graph(bench.args.graphPath);
 
         long[] dirNodeIds =
-            bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.DIR);
+                bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.DIR);
         long[] revNodeIds =
-            bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.REV);
+                bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.REV);
 
         Endpoint dirEndpoint = new Endpoint(graph, "forward", "dir:cnt,dir:dir");
         Endpoint revEndpoint = new Endpoint(graph, "forward", "rev:rev");

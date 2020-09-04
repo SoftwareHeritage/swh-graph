@@ -14,29 +14,10 @@ import java.util.Properties;
  */
 
 public class Stats {
-    public static class Counts {
-        public long nodes;
-        public long edges;
-    }
-
-    public static class Ratios {
-        public double compression;
-        public double bitsPerNode;
-        public double bitsPerEdge;
-        public double avgLocality;
-    }
-
-    public static class Degree {
-        public long min;
-        public long max;
-        public double avg;
-    }
-
     public Counts counts;
     public Ratios ratios;
     public Degree indegree;
     public Degree outdegree;
-
     /**
      * Constructor.
      *
@@ -64,5 +45,23 @@ public class Stats {
         this.outdegree.min = Long.parseLong(properties.getProperty("minoutdegree"));
         this.outdegree.max = Long.parseLong(properties.getProperty("maxoutdegree"));
         this.outdegree.avg = Double.parseDouble(properties.getProperty("avgoutdegree"));
+    }
+
+    public static class Counts {
+        public long nodes;
+        public long edges;
+    }
+
+    public static class Ratios {
+        public double compression;
+        public double bitsPerNode;
+        public double bitsPerEdge;
+        public double avgLocality;
+    }
+
+    public static class Degree {
+        public long min;
+        public long max;
+        public double avg;
     }
 }

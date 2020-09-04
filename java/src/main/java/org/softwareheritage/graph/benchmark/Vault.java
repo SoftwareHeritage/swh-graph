@@ -1,11 +1,10 @@
 package org.softwareheritage.graph.benchmark;
 
-import java.io.IOException;
-
 import com.martiansoftware.jsap.JSAPException;
-
-import org.softwareheritage.graph.server.Endpoint;
 import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.server.Endpoint;
+
+import java.io.IOException;
 
 /**
  * Benchmark Software Heritage <a
