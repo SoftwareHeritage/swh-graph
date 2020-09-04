@@ -21,7 +21,7 @@ public class ClusteringCoefficient {
 
     private void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = new Graph(graphBasename);
+        this.graph = new Graph(graphBasename).symmetrize();
         System.err.println("Graph loaded.");
     }
 
@@ -73,8 +73,8 @@ public class ClusteringCoefficient {
         return closed_triplets;
     }
 
-    public void compute(ImmutableGraph graph, ProgressLogger pl, Formatter out_local, Formatter out_global) {
-        final long n = this.graph.getNbNodes();
+    public void compute(ProgressLogger pl, Formatter out_local, Formatter out_global) {
+        final long n = this.graph.numNodes();
 
         pl.expectedUpdates = n;
         pl.itemsName = "nodes";
@@ -116,8 +116,8 @@ public class ClusteringCoefficient {
         out_global.format("C1: %f\n", gC1);
     }
 
-    public void compute_approx(ImmutableGraph graph, Formatter out_global) {
-        final long n = this.graph.getNbNodes();
+    public void compute_approx(Formatter out_global) {
+        final long n = this.graph.numNodes();
 
         long trials = 0;
         long triangles = 0;
@@ -181,13 +181,8 @@ public class ClusteringCoefficient {
 
         new File(outdirPath).mkdirs();
 
-        ImmutableGraph symmetric = Transform.union(
-                ccoef.graph.getBVGraph(false),
-                ccoef.graph.getBVGraph(true)
-        );
         try {
             ccoef.compute_approx(
-                    symmetric,
                     new Formatter(outdirPath + "/local.txt")
             );
             /*
