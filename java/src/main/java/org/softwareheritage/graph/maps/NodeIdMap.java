@@ -9,10 +9,10 @@ import java.io.IOException;
  * Mapping between internal long node id and external SWH PID.
  * <p>
  * Mappings in both directions are pre-computed and dumped on disk in the
- * {@link MapBuilder} class, then they are loaded here using mmap().
+ * {@link NodeMapBuilder} class, then they are loaded here using mmap().
  *
  * @author The Software Heritage developers
- * @see org.softwareheritage.graph.maps.MapBuilder
+ * @see NodeMapBuilder
  */
 
 public class NodeIdMap {

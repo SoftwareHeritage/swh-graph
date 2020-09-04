@@ -12,7 +12,7 @@ import java.io.IOException;
  * href="https://docs.softwareheritage.org/devel/swh-model/data-model.html">data
  * model</a>.
  * <p>
- * The type mapping is pre-computed and dumped on disk in the {@link MapBuilder}
+ * The type mapping is pre-computed and dumped on disk in the {@link NodeMapBuilder}
  * class, then it is loaded in-memory here using
  * <a href="http://fastutil.di.unimi.it/">fastutil</a> LongBigList. To be
  * space-efficient, the mapping is stored as a bitmap using minimum number of

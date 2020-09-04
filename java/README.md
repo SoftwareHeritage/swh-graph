@@ -44,7 +44,7 @@ $ cd ../../../..
 $ mvn compile assembly:single
 # Dump mapping files
 $ java -cp target/swh-graph-*.jar \
-    org.softwareheritage.graph.maps.MapBuilder \
+    org.softwareheritage.graph.maps.NodeMapBuilder \
     src/swh/graph/tests/dataset/example.nodes.csv.gz \
     src/swh/graph/tests/dataset/output/example
 ```

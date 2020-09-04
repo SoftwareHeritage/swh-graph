@@ -30,11 +30,11 @@ import java.util.concurrent.TimeUnit;
  *
  * @author The Software Heritage developers
  */
-public class MapBuilder {
+public class NodeMapBuilder {
 
     final static String SORT_BUFFER_SIZE = "40%";
 
-    final static Logger logger = LoggerFactory.getLogger(MapBuilder.class);
+    final static Logger logger = LoggerFactory.getLogger(NodeMapBuilder.class);
 
     /**
      * Main entrypoint.

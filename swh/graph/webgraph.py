@@ -121,7 +121,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{in_dir}/{graph_name}.nodes.csv.zst",
         "|",
         "{java}",
-        "org.softwareheritage.graph.maps.MapBuilder",
+        "org.softwareheritage.graph.maps.NodeMapBuilder",
         "{out_dir}/{graph_name}",
         "{tmp_dir}",
     ],
