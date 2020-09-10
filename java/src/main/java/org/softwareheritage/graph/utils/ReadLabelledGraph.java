@@ -24,17 +24,23 @@ public class ReadLabelledGraph {
             ArcLabelledNodeIterator.LabelledArcIterator s = it.successors();
             long dstNode;
             while ((dstNode = s.nextLong()) >= 0) {
-                int label = (int) s.label().get();
-                int missing = (1 << s.label().fixedWidth()) - 1;
-                if (label == missing)
-                    label = -1;
-
-                System.out.format(
-                        "%s %s %s\n",
-                        nodeMap.getSwhPID(srcNode),
-                        nodeMap.getSwhPID(dstNode),
-                        ((label > -1) ? labelMap.get(label) : "")
-                );
+                int[] labels = (int[]) s.label().get();
+                if (labels.length > 0) {
+                    for (int label : labels) {
+                        System.out.format(
+                                "%s %s %s\n",
+                                nodeMap.getSwhPID(srcNode),
+                                nodeMap.getSwhPID(dstNode),
+                                labelMap.get(label)
+                        );
+                    }
+                } else {
+                    System.out.format(
+                            "%s %s\n",
+                            nodeMap.getSwhPID(srcNode),
+                            nodeMap.getSwhPID(dstNode)
+                    );
+                }
             }
         }
     }

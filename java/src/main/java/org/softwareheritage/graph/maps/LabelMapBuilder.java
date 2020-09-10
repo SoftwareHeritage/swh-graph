@@ -5,6 +5,7 @@ import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.FixedWidthIntLabel;
+import it.unimi.dsi.big.webgraph.labelling.FixedWidthIntListLabel;
 import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.Size64;
 import it.unimi.dsi.fastutil.io.BinIO;
@@ -22,8 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class LabelMapBuilder {
@@ -42,7 +42,8 @@ public class LabelMapBuilder {
                             new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
                                     'g', "graph", "Basename of the compressed graph"),
                             new FlaggedOption("debugPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED,
-                                    'd', "debug-path", "Store the intermediate representation here for debug"),
+                                    'd', "debug-path",
+                                    "Store the intermediate representation here for debug"),
 
                             new FlaggedOption("tmpDir", JSAP.STRING_PARSER, "tmp", JSAP.NOT_REQUIRED,
                                     't', "tmp", "Temporary directory path"),
@@ -131,8 +132,8 @@ public class LabelMapBuilder {
         BufferedOutputStream sort_stdin = new BufferedOutputStream(sort.getOutputStream());
         BufferedInputStream sort_stdout = new BufferedInputStream(sort.getInputStream());
 
-        FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in,
-                StandardCharsets.US_ASCII));
+        FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(
+                System.in, StandardCharsets.US_ASCII));
         LineIterator edgeIterator = new LineIterator(buffer);
 
         plInter.start("Piping intermediate representation to sort(1)");
@@ -162,8 +163,12 @@ public class LabelMapBuilder {
             debugFile = new FileWriter(debugPath);
         }
 
-        OutputBitStream labels = new OutputBitStream(new File(graphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABELS_EXTENSION));
-        OutputBitStream offsets = new OutputBitStream(new File(graphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABEL_OFFSETS_EXTENSION));
+        OutputBitStream labels = new OutputBitStream(new File(
+                graphPath + "-labelled"
+                        + BitStreamArcLabelledImmutableGraph.LABELS_EXTENSION));
+        OutputBitStream offsets = new OutputBitStream(new File(
+                graphPath + "-labelled"
+                        + BitStreamArcLabelledImmutableGraph.LABEL_OFFSETS_EXTENSION));
         offsets.writeGamma(0);
 
         Scanner sortOutput = new Scanner(sort_stdout, StandardCharsets.US_ASCII);
@@ -177,16 +182,21 @@ public class LabelMapBuilder {
             long srcNode = it.nextLong();
 
             // Fill a hashmap with the labels of each edge starting from this node
-            HashMap<Long, Long> successorsLabels = new HashMap<>();
-            while (labelSrcNode <= srcNode && sortOutput.hasNext()) {
+            HashMap<Long, List<Long>> successorsLabels = new HashMap<>();
+            while (labelSrcNode <= srcNode) {
                 if (labelSrcNode == srcNode) {
-                    // FIXME: This overrides the previous label in case of multiple src<->dst edges
-                    //        Changing this requires using a FixedWidthIntList.
-                    successorsLabels.put(labelDstNode, labelId);
+                    successorsLabels
+                            .computeIfAbsent(
+                                    labelDstNode,
+                                    k -> new ArrayList<>()
+                            ).add(labelId);
                     if (debugFile != null) {
                         debugFile.write(labelSrcNode + " " + labelDstNode + " " + labelId + "\n");
                     }
                 }
+
+                if (!sortOutput.hasNext())
+                    break;
 
                 String line = sortOutput.nextLine();
                 String[] parts = line.split("\\t");
@@ -199,7 +209,11 @@ public class LabelMapBuilder {
             LazyLongIterator s = it.successors();
             long dstNode;
             while ((dstNode = s.nextLong()) >= 0) {
-                bits += labels.writeLong(successorsLabels.getOrDefault(dstNode, -1L), labelWidth);
+                List<Long> edgeLabels = successorsLabels.getOrDefault(dstNode, Collections.emptyList());
+                bits += labels.writeGamma(edgeLabels.size());
+                for (Long label : edgeLabels) {
+                    bits += labels.writeLong(label, labelWidth);
+                }
             }
             offsets.writeGamma(bits);
 
@@ -212,9 +226,9 @@ public class LabelMapBuilder {
             debugFile.close();
         }
 
-        PrintWriter pw = new PrintWriter(new FileWriter( graphPath + "-labelled.properties" ));
+        PrintWriter pw = new PrintWriter(new FileWriter((new File(graphPath)).getName() + "-labelled.properties" ));
         pw.println(ImmutableGraph.GRAPHCLASS_PROPERTY_KEY + " = " + BitStreamArcLabelledImmutableGraph.class.getName());
-        pw.println(BitStreamArcLabelledImmutableGraph.LABELSPEC_PROPERTY_KEY + " = " + FixedWidthIntLabel.class.getName() + "(TEST," + labelWidth + ")" );
+        pw.println(BitStreamArcLabelledImmutableGraph.LABELSPEC_PROPERTY_KEY + " = " + FixedWidthIntListLabel.class.getName() + "(TEST," + labelWidth + ")" );
         pw.println(ArcLabelledImmutableGraph.UNDERLYINGGRAPH_PROPERTY_KEY + " = " + graphPath);
         pw.close();
     }
