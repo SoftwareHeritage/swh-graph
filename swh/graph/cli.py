@@ -3,25 +3,65 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import aiohttp
+# WARNING: do not import unnecessary things here to keep cli startup time under
+# control
 import click
 import logging
-import shutil
 import sys
 
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Set, TYPE_CHECKING
 
-import swh.model.exceptions
-
-from swh.core import config
 from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
-from swh.graph import client, webgraph
-from swh.graph.backend import NODE2PID_EXT, PID2NODE_EXT
-from swh.graph.pid import PidToNodeMap, NodeToPidMap
-from swh.graph.server.app import make_app
-from swh.graph.backend import Backend
-from swh.model.identifiers import parse_persistent_identifier
+
+if TYPE_CHECKING:
+    from swh.graph.webgraph import CompressionStep  # noqa
+
+
+class StepOption(click.ParamType):
+    """click type for specifying a compression step on the CLI
+
+    parse either individual steps, specified as step names or integers, or step
+    ranges
+
+    """
+
+    name = "compression step"
+
+    def convert(self, value, param, ctx):  # type: (...) -> Set[CompressionStep]
+        from swh.graph.webgraph import CompressionStep, COMP_SEQ  # noqa
+
+        steps: Set[CompressionStep] = set()
+
+        specs = value.split(",")
+        for spec in specs:
+            if "-" in spec:  # step range
+                (raw_l, raw_r) = spec.split("-", maxsplit=1)
+                if raw_l == "":  # no left endpoint
+                    raw_l = COMP_SEQ[0].name
+                if raw_r == "":  # no right endpoint
+                    raw_r = COMP_SEQ[-1].name
+                l_step = self.convert(raw_l, param, ctx)
+                r_step = self.convert(raw_r, param, ctx)
+                if len(l_step) != 1 or len(r_step) != 1:
+                    self.fail(f"invalid step specification: {value}, " f"see --help")
+                l_idx = l_step.pop()
+                r_idx = r_step.pop()
+                steps = steps.union(
+                    set(map(CompressionStep, range(l_idx.value, r_idx.value + 1)))
+                )
+            else:  # singleton step
+                try:
+                    steps.add(CompressionStep(int(spec)))  # integer step
+                except ValueError:
+                    try:
+                        steps.add(CompressionStep[spec.upper()])  # step name
+                    except KeyError:
+                        self.fail(
+                            f"invalid step specification: {value}, " f"see --help"
+                        )
+
+        return steps
 
 
 class PathlibPath(click.Path):
@@ -45,8 +85,9 @@ DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {"graph": ("dict", {})}
 @click.pass_context
 def cli(ctx, config_file):
     """Software Heritage graph tools."""
-    ctx.ensure_object(dict)
+    from swh.core import config
 
+    ctx.ensure_object(dict)
     conf = config.read(config_file, DEFAULT_CONFIG)
     if "graph" not in conf:
         raise ValueError(
@@ -61,6 +102,8 @@ def cli(ctx, config_file):
 @click.pass_context
 def api_client(ctx, host, port):
     """client for the graph REST service"""
+    from swh.graph import client
+
     url = "http://{}:{}".format(host, port)
     app = client.RemoteGraphClient(url)
 
@@ -76,11 +119,15 @@ def map(ctx):
 
 
 def dump_pid2node(filename):
+    from swh.graph.pid import PidToNodeMap
+
     for (pid, int) in PidToNodeMap(filename):
         print("{}\t{}".format(pid, int))
 
 
 def dump_node2pid(filename):
+    from swh.graph.pid import NodeToPidMap
+
     for (int, pid) in NodeToPidMap(filename):
         print("{}\t{}".format(int, pid))
 
@@ -90,6 +137,8 @@ def restore_pid2node(filename):
     filename
 
     """
+    from swh.graph.pid import PidToNodeMap
+
     with open(filename, "wb") as dst:
         for line in sys.stdin:
             (str_pid, str_int) = line.split()
@@ -101,6 +150,8 @@ def restore_node2pid(filename, length):
     filename
 
     """
+    from swh.graph.pid import NodeToPidMap
+
     node2pid = NodeToPidMap(filename, mode="wb", length=length)
     for line in sys.stdin:
         (str_int, str_pid) = line.split()
@@ -184,6 +235,8 @@ def write(ctx, map_type, filename):
     required by the chosen map type (by PID for pid2node, by int for node2pid)
 
     """
+    from swh.graph.pid import PidToNodeMap, NodeToPidMap
+
     with open(filename, "wb") as f:
         if map_type == "pid2node":
             for line in sys.stdin:
@@ -215,6 +268,11 @@ def map_lookup(graph, identifiers):
     readline()) in stdin will be preserved in stdout.
 
     """
+    import swh.model.exceptions
+    from swh.graph.backend import NODE2PID_EXT, PID2NODE_EXT
+    from swh.graph.pid import PidToNodeMap, NodeToPidMap
+    from swh.model.identifiers import parse_persistent_identifier
+
     success = True  # no identifiers failed to be looked up
     pid2node = PidToNodeMap(f"{graph}.{PID2NODE_EXT}")
     node2pid = NodeToPidMap(f"{graph}.{NODE2PID_EXT}")
@@ -278,6 +336,10 @@ def map_lookup(graph, identifiers):
 @click.pass_context
 def serve(ctx, host, port, graph):
     """run the graph REST service"""
+    import aiohttp
+    from swh.graph.server.app import make_app
+    from swh.graph.backend import Backend
+
     backend = Backend(graph_path=graph, config=ctx.obj["config"])
     app = make_app(backend=backend)
 
@@ -307,7 +369,7 @@ def serve(ctx, host, port, graph):
     "--steps",
     "-s",
     metavar="STEPS",
-    type=webgraph.StepOption(),
+    type=StepOption(),
     help="run only these compression steps (default: all steps)",
 )
 @click.pass_context
@@ -325,6 +387,8 @@ def compress(ctx, graph, out_dir, steps):
     also supported.
 
     """
+    from swh.graph import webgraph
+
     graph_name = graph.name
     in_dir = graph.parent
     try:
@@ -360,6 +424,8 @@ def cachemount(ctx, graph, cache):
     The command outputs the path to the memory cache directory (particularly
     useful when relying on the default value).
     """
+    import shutil
+
     cache.mkdir(parents=True)
     for src in Path(graph).parent.glob("*"):
         dst = cache / src.name

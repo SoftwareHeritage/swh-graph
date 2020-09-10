@@ -15,7 +15,6 @@ from enum import Enum
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
-from click import ParamType
 
 from swh.graph.config import check_config_compress
 
@@ -134,50 +133,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{tmp_dir}",
     ],
 }
-
-
-class StepOption(ParamType):
-    """click type for specifying a compression step on the CLI
-
-    parse either individual steps, specified as step names or integers, or step
-    ranges
-
-    """
-
-    name = "compression step"
-
-    def convert(self, value, param, ctx) -> Set[CompressionStep]:
-        steps: Set[CompressionStep] = set()
-
-        specs = value.split(",")
-        for spec in specs:
-            if "-" in spec:  # step range
-                (raw_l, raw_r) = spec.split("-", maxsplit=1)
-                if raw_l == "":  # no left endpoint
-                    raw_l = COMP_SEQ[0].name
-                if raw_r == "":  # no right endpoint
-                    raw_r = COMP_SEQ[-1].name
-                l_step = self.convert(raw_l, param, ctx)
-                r_step = self.convert(raw_r, param, ctx)
-                if len(l_step) != 1 or len(r_step) != 1:
-                    self.fail(f"invalid step specification: {value}, " f"see --help")
-                l_idx = l_step.pop()
-                r_idx = r_step.pop()
-                steps = steps.union(
-                    set(map(CompressionStep, range(l_idx.value, r_idx.value + 1)))
-                )
-            else:  # singleton step
-                try:
-                    steps.add(CompressionStep(int(spec)))  # integer step
-                except ValueError:
-                    try:
-                        steps.add(CompressionStep[spec.upper()])  # step name
-                    except KeyError:
-                        self.fail(
-                            f"invalid step specification: {value}, " f"see --help"
-                        )
-
-        return steps
 
 
 def do_step(step, conf):
