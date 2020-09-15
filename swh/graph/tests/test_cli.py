@@ -6,6 +6,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Dict
+import yaml
 
 from click.testing import CliRunner
 
@@ -33,10 +34,20 @@ def test_pipeline():
     runner = CliRunner()
 
     with TemporaryDirectory(suffix=".swh-graph-test") as tmpdir:
+        config_path = Path(tmpdir, "config.yml")
+        config_path.write_text(yaml.dump(config))
+
         result = runner.invoke(
             cli,
-            ["compress", "--graph", DATA_DIR / "example", "--outdir", tmpdir],
-            obj={"config": config},
+            [
+                "--config-file",
+                config_path,
+                "compress",
+                "--graph",
+                DATA_DIR / "example",
+                "--outdir",
+                tmpdir,
+            ],
         )
         assert result.exit_code == 0, result
         properties = read_properties(Path(tmpdir) / "example.properties")
