@@ -3,17 +3,15 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import mmap
-import os
-import struct
-
 from collections.abc import MutableMapping
 from enum import Enum
+import mmap
 from mmap import MAP_SHARED, PROT_READ, PROT_WRITE
+import os
+import struct
 from typing import BinaryIO, Iterator, Tuple
 
 from swh.model.identifiers import SWHID, parse_swhid
-
 
 PID_BIN_FMT = "BB20s"  # 2 unsigned chars + 20 bytes
 INT_BIN_FMT = ">q"  # big endian, 8-byte integer

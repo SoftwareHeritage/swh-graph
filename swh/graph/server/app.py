@@ -9,14 +9,15 @@ FIFO as a transport to stream integers between the two languages.
 """
 
 import asyncio
-import json
-import aiohttp.web
 from collections import deque
+import json
 from typing import Optional
 
+import aiohttp.web
+
 from swh.core.api.asynchronous import RPCServerApp
-from swh.model.identifiers import PID_TYPES
 from swh.model.exceptions import ValidationError
+from swh.model.identifiers import PID_TYPES
 
 try:
     from contextlib import asynccontextmanager

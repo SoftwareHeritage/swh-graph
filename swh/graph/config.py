@@ -4,9 +4,10 @@
 # See top-level LICENSE file for more information
 
 import logging
-import psutil
-import sys
 from pathlib import Path
+import sys
+
+import psutil
 
 
 def find_graph_jar():

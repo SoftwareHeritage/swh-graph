@@ -3,10 +3,9 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import collections
 from functools import lru_cache
 import subprocess
-import collections
-
 
 KIND_TO_SHAPE = {
     "ori": "egg",

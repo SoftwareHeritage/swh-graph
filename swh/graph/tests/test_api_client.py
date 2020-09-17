@@ -1,6 +1,4 @@
 import pytest
-
-
 from pytest import raises
 
 from swh.core.api import RemoteException

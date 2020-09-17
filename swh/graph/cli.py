@@ -3,14 +3,14 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import logging
+from pathlib import Path
+import sys
+from typing import TYPE_CHECKING, Any, Dict, Set, Tuple
+
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 import click
-import logging
-import sys
-
-from pathlib import Path
-from typing import Any, Dict, Tuple, Set, TYPE_CHECKING
 
 from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
 
@@ -29,7 +29,7 @@ class StepOption(click.ParamType):
     name = "compression step"
 
     def convert(self, value, param, ctx):  # type: (...) -> Set[CompressionStep]
-        from swh.graph.webgraph import CompressionStep, COMP_SEQ  # noqa
+        from swh.graph.webgraph import COMP_SEQ, CompressionStep  # noqa
 
         steps: Set[CompressionStep] = set()
 
@@ -235,7 +235,7 @@ def write(ctx, map_type, filename):
     required by the chosen map type (by PID for pid2node, by int for node2pid)
 
     """
-    from swh.graph.pid import PidToNodeMap, NodeToPidMap
+    from swh.graph.pid import NodeToPidMap, PidToNodeMap
 
     with open(filename, "wb") as f:
         if map_type == "pid2node":
@@ -268,9 +268,9 @@ def map_lookup(graph, identifiers):
     readline()) in stdin will be preserved in stdout.
 
     """
-    import swh.model.exceptions
     from swh.graph.backend import NODE2PID_EXT, PID2NODE_EXT
-    from swh.graph.pid import PidToNodeMap, NodeToPidMap
+    from swh.graph.pid import NodeToPidMap, PidToNodeMap
+    import swh.model.exceptions
     from swh.model.identifiers import parse_persistent_identifier
 
     success = True  # no identifiers failed to be looked up
@@ -337,8 +337,9 @@ def map_lookup(graph, identifiers):
 def serve(ctx, host, port, graph):
     """run the graph REST service"""
     import aiohttp
-    from swh.graph.server.app import make_app
+
     from swh.graph.backend import Backend
+    from swh.graph.server.app import make_app
 
     backend = Backend(graph_path=graph, config=ctx.obj["config"])
     app = make_app(backend=backend)

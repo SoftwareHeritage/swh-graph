@@ -11,7 +11,6 @@ from click.testing import CliRunner
 
 from swh.graph.cli import cli
 
-
 DATA_DIR = Path(__file__).parents[0] / "dataset"
 
 

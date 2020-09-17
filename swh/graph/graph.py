@@ -6,9 +6,9 @@
 import asyncio
 import contextlib
 import functools
-from swh.graph.backend import Backend
-from swh.graph.dot import dot_to_svg, graph_dot, KIND_TO_SHAPE
 
+from swh.graph.backend import Backend
+from swh.graph.dot import KIND_TO_SHAPE, dot_to_svg, graph_dot
 
 BASE_URL = "https://archive.softwareheritage.org/browse"
 KIND_TO_URL_FRAGMENT = {

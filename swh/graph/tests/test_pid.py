@@ -3,15 +3,13 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from itertools import islice
 import os
 import shutil
 import tempfile
 import unittest
 
-from itertools import islice
-
-from swh.graph.pid import str_to_bytes, bytes_to_str
-from swh.graph.pid import PidToNodeMap, NodeToPidMap
+from swh.graph.pid import NodeToPidMap, PidToNodeMap, bytes_to_str, str_to_bytes
 from swh.model.identifiers import PID_TYPES
 
 

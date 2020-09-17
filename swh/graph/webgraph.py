@@ -7,13 +7,12 @@
 
 """
 
+from datetime import datetime
+from enum import Enum
 import logging
 import os
-import subprocess
-
-from enum import Enum
-from datetime import datetime
 from pathlib import Path
+import subprocess
 from typing import Dict, List, Set
 
 from swh.graph.config import check_config_compress
