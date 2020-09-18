@@ -107,9 +107,9 @@ Then, we can run the compression:
    [...]
 
    (swhenv) ~/t/swh-graph-tests$ ls output/
-    example-bv.properties  example.mph            example.obl      example.outdegree     example.stats             example-transposed.offsets
-    example.graph          example.node2pid.bin   example.offsets  example.pid2node.bin  example-transposed.graph  example-transposed.properties
-    example.indegree       example.node2type.map  example.order    example.properties    example-transposed.obl
+    example-bv.properties  example.mph             example.obl      example.outdegree   example.swhid2node.bin    example-transposed.offsets
+    example.graph          example.node2swhid.bin  example.offsets  example.properties  example-transposed.graph  example-transposed.properties
+    example.indegree       example.node2type.map   example.order    example.stats       example-transposed.obl
 
 
 API server
