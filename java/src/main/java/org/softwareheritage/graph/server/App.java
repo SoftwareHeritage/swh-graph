@@ -8,7 +8,7 @@ import io.javalin.http.Context;
 import io.javalin.plugin.json.JavalinJackson;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Stats;
-import org.softwareheritage.graph.SwhPID;
+import org.softwareheritage.graph.SWHID;
 
 import java.io.IOException;
 import java.util.List;
@@ -103,7 +103,7 @@ public class App {
         // By default the traversal is a forward DFS using all edges
 
         app.get("/leaves/:src", ctx -> {
-            SwhPID src = new SwhPID(ctx.pathParam("src"));
+            SWHID src = new SWHID(ctx.pathParam("src"));
             String direction = ctx.queryParam("direction", "forward");
             String edgesFmt = ctx.queryParam("edges", "*");
 
@@ -113,7 +113,7 @@ public class App {
         });
 
         app.get("/neighbors/:src", ctx -> {
-            SwhPID src = new SwhPID(ctx.pathParam("src"));
+            SWHID src = new SWHID(ctx.pathParam("src"));
             String direction = ctx.queryParam("direction", "forward");
             String edgesFmt = ctx.queryParam("edges", "*");
 
@@ -123,7 +123,7 @@ public class App {
         });
 
         app.get("/visit/nodes/:src", ctx -> {
-            SwhPID src = new SwhPID(ctx.pathParam("src"));
+            SWHID src = new SWHID(ctx.pathParam("src"));
             String direction = ctx.queryParam("direction", "forward");
             String edgesFmt = ctx.queryParam("edges", "*");
 
@@ -133,7 +133,7 @@ public class App {
         });
 
         app.get("/visit/paths/:src", ctx -> {
-            SwhPID src = new SwhPID(ctx.pathParam("src"));
+            SWHID src = new SWHID(ctx.pathParam("src"));
             String direction = ctx.queryParam("direction", "forward");
             String edgesFmt = ctx.queryParam("edges", "*");
 
@@ -143,7 +143,7 @@ public class App {
         });
 
         app.get("/walk/:src/:dst", ctx -> {
-            SwhPID src = new SwhPID(ctx.pathParam("src"));
+            SWHID src = new SWHID(ctx.pathParam("src"));
             String dstFmt = ctx.pathParam("dst");
             String direction = ctx.queryParam("direction", "forward");
             String edgesFmt = ctx.queryParam("edges", "*");

@@ -27,7 +27,8 @@ Tests
 -----
 
 Unit tests rely on test data that are already available in the Git repository
-(under `src/swh/graph/tests/dataset/`). You generally only need to run them using Maven:
+(under `src/swh/graph/tests/dataset/`). You generally only need to run them
+using Maven:
 
 ```bash
 $ mvn test

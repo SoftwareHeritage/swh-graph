@@ -15,11 +15,11 @@ import java.io.IOException;
  * The compressed graph is stored using the <a href="http://webgraph.di.unimi.it/">WebGraph</a>
  * ecosystem. Additional mappings are necessary because Software Heritage uses string based <a
  * href="https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html">persistent
- * identifiers</a> (PID) while WebGraph uses integers internally. These two mappings (long id &harr;
- * PID) are used for the input (users refer to the graph using PID) and the output (convert back to
- * PID for users results). However, since graph traversal can be restricted depending on the node
+ * identifiers</a> (SWHID) while WebGraph uses integers internally. These two mappings (long id &harr;
+ * SWHID) are used for the input (users refer to the graph using SWHID) and the output (convert back to
+ * SWHID for users results). However, since graph traversal can be restricted depending on the node
  * type (see {@link AllowedEdges}), a long id &rarr; node type map is stored as well to avoid a full
- * PID lookup.
+ * SWHID lookup.
  *
  * @author The Software Heritage developers
  * @see org.softwareheritage.graph.AllowedEdges
@@ -28,10 +28,10 @@ import java.io.IOException;
  */
 
 public class Graph extends ImmutableGraph {
-    /** File extension for the SWH PID to long node id map */
-    public static final String PID_TO_NODE = ".pid2node.bin";
-    /** File extension for the long node id to SWH PID map */
-    public static final String NODE_TO_PID = ".node2pid.bin";
+    /** File extension for the SWHID to long node id map */
+    public static final String SWHID_TO_NODE = ".swhid2node.bin";
+    /** File extension for the long node id to SWHID map */
+    public static final String NODE_TO_SWHID = ".node2swhid.bin";
     /** File extension for the long node id to node type map */
     public static final String NODE_TO_TYPE = ".node2type.map";
 
@@ -41,7 +41,7 @@ public class Graph extends ImmutableGraph {
     ImmutableGraph graphTransposed;
     /** Path and basename of the compressed graph */
     String path;
-    /** Mapping long id &harr; SWH PIDs */
+    /** Mapping long id &harr; SWHIDs */
     NodeIdMap nodeIdMap;
     /** Mapping long id &rarr; node types */
     NodeTypesMap nodeTypesMap;
@@ -222,25 +222,25 @@ public class Graph extends ImmutableGraph {
     }
 
     /**
-     * Converts {@link SwhPID} node to long.
+     * Converts {@link SWHID} node to long.
      *
-     * @param swhPID node specified as a {@link SwhPID}
+     * @param swhid node specified as a {@link SWHID}
      * @return internal long node id
-     * @see org.softwareheritage.graph.SwhPID
+     * @see SWHID
      */
-    public long getNodeId(SwhPID swhPID) {
-        return nodeIdMap.getNodeId(swhPID);
+    public long getNodeId(SWHID swhid) {
+        return nodeIdMap.getNodeId(swhid);
     }
 
     /**
-     * Converts long id node to {@link SwhPID}.
+     * Converts long id node to {@link SWHID}.
      *
      * @param nodeId node specified as a long id
-     * @return external SWH PID
-     * @see org.softwareheritage.graph.SwhPID
+     * @return external SWHID
+     * @see SWHID
      */
-    public SwhPID getSwhPID(long nodeId) {
-        return nodeIdMap.getSwhPID(nodeId);
+    public SWHID getSWHID(long nodeId) {
+        return nodeIdMap.getSWHID(nodeId);
     }
 
     /**

@@ -11,8 +11,7 @@ import java.util.function.LongConsumer;
  * Traversal algorithms on the compressed graph.
  * <p>
  * Internal implementation of the traversal API endpoints. These methods only input/output internal
- * long ids, which are converted in the {@link Endpoint} higher-level class to Software Heritage
- * PID.
+ * long ids, which are converted in the {@link Endpoint} higher-level class to {@link SWHID}.
  *
  * @author The Software Heritage developers
  * @see Endpoint

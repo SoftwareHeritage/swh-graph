@@ -29,16 +29,16 @@ public class ReadLabelledGraph {
                     for (int label : labels) {
                         System.out.format(
                                 "%s %s %s\n",
-                                nodeMap.getSwhPID(srcNode),
-                                nodeMap.getSwhPID(dstNode),
+                                nodeMap.getSWHID(srcNode),
+                                nodeMap.getSWHID(dstNode),
                                 labelMap.get(label)
                         );
                     }
                 } else {
                     System.out.format(
                             "%s %s\n",
-                            nodeMap.getSwhPID(srcNode),
-                            nodeMap.getSwhPID(dstNode)
+                            nodeMap.getSWHID(srcNode),
+                            nodeMap.getSWHID(dstNode)
                     );
                 }
             }

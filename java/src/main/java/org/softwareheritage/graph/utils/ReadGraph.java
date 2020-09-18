@@ -22,8 +22,8 @@ public class ReadGraph {
             while ((dstNode = s.nextLong()) >= 0) {
                 System.out.format(
                         "%s %s\n",
-                        nodeMap.getSwhPID(srcNode),
-                        nodeMap.getSwhPID(dstNode)
+                        nodeMap.getSWHID(srcNode),
+                        nodeMap.getSWHID(dstNode)
                 );
             }
         }
