@@ -36,8 +36,7 @@ def find_graph_jar():
 
 
 def check_config(conf):
-    """check configuration and propagate defaults
-    """
+    """check configuration and propagate defaults"""
     conf = conf.copy()
     if "batch_size" not in conf:
         conf["batch_size"] = "1000000000"  # 1 billion

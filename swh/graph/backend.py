@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -15,14 +15,14 @@ import tempfile
 from py4j.java_gateway import JavaGateway
 
 from swh.graph.config import check_config
-from swh.graph.pid import NodeToPidMap, PidToNodeMap
-from swh.model.identifiers import PID_TYPES
+from swh.graph.swhid import NodeToSwhidMap, SwhidToNodeMap
+from swh.model.identifiers import SWHID_TYPES
 
 BUF_SIZE = 64 * 1024
 BIN_FMT = ">q"  # 64 bit integer, big endian
 PATH_SEPARATOR_ID = -1
-NODE2PID_EXT = "node2pid.bin"
-PID2NODE_EXT = "pid2node.bin"
+NODE2SWHID_EXT = "node2swhid.bin"
+SWHID2NODE_EXT = "swhid2node.bin"
 
 
 def _get_pipe_stderr():
@@ -53,8 +53,8 @@ class Backend:
         )
         self.entry = self.gateway.jvm.org.softwareheritage.graph.Entry()
         self.entry.load_graph(self.graph_path)
-        self.node2pid = NodeToPidMap(self.graph_path + "." + NODE2PID_EXT)
-        self.pid2node = PidToNodeMap(self.graph_path + "." + PID2NODE_EXT)
+        self.node2swhid = NodeToSwhidMap(self.graph_path + "." + NODE2SWHID_EXT)
+        self.swhid2node = SwhidToNodeMap(self.graph_path + "." + SWHID2NODE_EXT)
         self.stream_proxy = JavaStreamProxy(self.entry)
         return self
 
@@ -75,7 +75,7 @@ class Backend:
             yield node_id
 
     async def walk(self, direction, edges_fmt, algo, src, dst):
-        if dst in PID_TYPES:
+        if dst in SWHID_TYPES:
             it = self.stream_proxy.walk_type(direction, edges_fmt, algo, src, dst)
         else:
             it = self.stream_proxy.walk(direction, edges_fmt, algo, src, dst)
@@ -83,7 +83,7 @@ class Backend:
             yield node_id
 
     async def random_walk(self, direction, edges_fmt, retries, src, dst):
-        if dst in PID_TYPES:
+        if dst in SWHID_TYPES:
             it = self.stream_proxy.random_walk_type(
                 direction, edges_fmt, retries, src, dst
             )

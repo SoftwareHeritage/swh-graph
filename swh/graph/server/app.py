@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -17,7 +17,7 @@ import aiohttp.web
 
 from swh.core.api.asynchronous import RPCServerApp
 from swh.model.exceptions import ValidationError
-from swh.model.identifiers import PID_TYPES
+from swh.model.identifiers import SWHID_TYPES
 
 try:
     from contextlib import asynccontextmanager
@@ -54,19 +54,21 @@ class GraphView(aiohttp.web.View):
         super().__init__(*args, **kwargs)
         self.backend = self.request.app["backend"]
 
-    def node_of_pid(self, pid):
-        """Lookup a PID in a pid2node map, failing in an HTTP-nice way if needed."""
+    def node_of_swhid(self, swhid):
+        """Lookup a SWHID in a swhid2node map, failing in an HTTP-nice way if
+        needed."""
         try:
-            return self.backend.pid2node[pid]
+            return self.backend.swhid2node[swhid]
         except KeyError:
-            raise aiohttp.web.HTTPNotFound(body=f"PID not found: {pid}")
+            raise aiohttp.web.HTTPNotFound(body=f"SWHID not found: {swhid}")
         except ValidationError:
-            raise aiohttp.web.HTTPBadRequest(body=f"malformed PID: {pid}")
+            raise aiohttp.web.HTTPBadRequest(body=f"malformed SWHID: {swhid}")
 
-    def pid_of_node(self, node):
-        """Lookup a node in a node2pid map, failing in an HTTP-nice way if needed."""
+    def swhid_of_node(self, node):
+        """Lookup a node in a node2swhid map, failing in an HTTP-nice way if
+        needed."""
         try:
-            return self.backend.node2pid[node]
+            return self.backend.node2swhid[node]
         except KeyError:
             raise aiohttp.web.HTTPInternalServerError(
                 body=f"reverse lookup failed for node id: {node}"
@@ -84,7 +86,7 @@ class GraphView(aiohttp.web.View):
         s = self.request.query.get("edges", "*")
         if any(
             [
-                node_type != "*" and node_type not in PID_TYPES
+                node_type != "*" and node_type not in SWHID_TYPES
                 for edge in s.split(":")
                 for node_type in edge.split(",", maxsplit=1)
             ]
@@ -160,7 +162,7 @@ class SimpleTraversalView(StreamingGraphView):
 
     async def prepare_response(self):
         src = self.request.match_info["src"]
-        self.src_node = self.node_of_pid(src)
+        self.src_node = self.node_of_swhid(src)
 
         self.edges = self.get_edges()
         self.direction = self.get_direction()
@@ -169,8 +171,8 @@ class SimpleTraversalView(StreamingGraphView):
         async for res_node in self.backend.simple_traversal(
             self.simple_traversal_type, self.direction, self.edges, self.src_node
         ):
-            res_pid = self.pid_of_node(res_node)
-            await self.stream_line(res_pid)
+            res_swhid = self.swhid_of_node(res_node)
+            await self.stream_line(res_swhid)
 
 
 class LeavesView(SimpleTraversalView):
@@ -189,9 +191,9 @@ class WalkView(StreamingGraphView):
     async def prepare_response(self):
         src = self.request.match_info["src"]
         dst = self.request.match_info["dst"]
-        self.src_node = self.node_of_pid(src)
-        if dst not in PID_TYPES:
-            self.dst_thing = self.node_of_pid(dst)
+        self.src_node = self.node_of_swhid(src)
+        if dst not in SWHID_TYPES:
+            self.dst_thing = self.node_of_swhid(dst)
         else:
             self.dst_thing = dst
 
@@ -210,16 +212,16 @@ class WalkView(StreamingGraphView):
         if self.limit < 0:
             queue = deque(maxlen=-self.limit)
             async for res_node in it:
-                res_pid = self.pid_of_node(res_node)
-                queue.append(res_pid)
+                res_swhid = self.swhid_of_node(res_node)
+                queue.append(res_swhid)
             while queue:
                 await self.stream_line(queue.popleft())
         else:
             count = 0
             async for res_node in it:
                 if self.limit == 0 or count < self.limit:
-                    res_pid = self.pid_of_node(res_node)
-                    await self.stream_line(res_pid)
+                    res_swhid = self.swhid_of_node(res_node)
+                    await self.stream_line(res_swhid)
                     count += 1
                 else:
                     break
@@ -236,9 +238,9 @@ class VisitEdgesView(SimpleTraversalView):
     async def stream_response(self):
         it = self.backend.visit_edges(self.direction, self.edges, self.src_node)
         async for (res_src, res_dst) in it:
-            res_src_pid = self.pid_of_node(res_src)
-            res_dst_pid = self.pid_of_node(res_dst)
-            await self.stream_line("{} {}".format(res_src_pid, res_dst_pid))
+            res_src_swhid = self.swhid_of_node(res_src)
+            res_dst_swhid = self.swhid_of_node(res_dst)
+            await self.stream_line("{} {}".format(res_src_swhid, res_dst_swhid))
 
 
 class VisitPathsView(SimpleTraversalView):
@@ -247,8 +249,8 @@ class VisitPathsView(SimpleTraversalView):
     async def stream_response(self):
         it = self.backend.visit_paths(self.direction, self.edges, self.src_node)
         async for res_path in it:
-            res_path_pid = [self.pid_of_node(n) for n in res_path]
-            line = json.dumps(res_path_pid)
+            res_path_swhid = [self.swhid_of_node(n) for n in res_path]
+            line = json.dumps(res_path_swhid)
             await self.stream_line(line)
 
 
@@ -259,7 +261,7 @@ class CountView(GraphView):
 
     async def get(self):
         src = self.request.match_info["src"]
-        self.src_node = self.node_of_pid(src)
+        self.src_node = self.node_of_swhid(src)
 
         self.edges = self.get_edges()
         self.direction = self.get_direction()

@@ -112,21 +112,21 @@ class GraphNode:
     count_visit_nodes = functools.partialmethod(_count, ttype="visit_nodes")
 
     @property
-    def pid(self):
-        return self.graph.node2pid[self.id]
+    def swhid(self):
+        return self.graph.node2swhid[self.id]
 
     @property
     def kind(self):
-        return self.pid.split(":")[2]
+        return self.swhid.split(":")[2]
 
     def __str__(self):
-        return self.pid
+        return self.swhid
 
     def __repr__(self):
-        return "<{}>".format(self.pid)
+        return "<{}>".format(self.swhid)
 
     def dot_fragment(self):
-        swh, version, kind, hash = self.pid.split(":")
+        swh, version, kind, hash = self.swhid.split(":")
         label = "{}:{}..{}".format(kind, hash[0:2], hash[-2:])
         url = BASE_URL + KIND_TO_URL_FRAGMENT[kind].format(hash)
         shape = KIND_TO_SHAPE[kind]
@@ -142,11 +142,11 @@ class GraphNode:
 
 
 class Graph:
-    def __init__(self, backend, node2pid, pid2node):
+    def __init__(self, backend, node2swhid, swhid2node):
         self.backend = backend
         self.java_graph = backend.entry.get_graph()
-        self.node2pid = node2pid
-        self.pid2node = pid2node
+        self.node2swhid = node2swhid
+        self.swhid2node = swhid2node
 
     def stats(self):
         return self.backend.stats()
@@ -160,26 +160,26 @@ class Graph:
 
     def __getitem__(self, node_id):
         if isinstance(node_id, int):
-            self.node2pid[node_id]  # check existence
+            self.node2swhid[node_id]  # check existence
             return GraphNode(self, node_id)
         elif isinstance(node_id, str):
-            node_id = self.pid2node[node_id]
+            node_id = self.swhid2node[node_id]
             return GraphNode(self, node_id)
 
     def __iter__(self):
-        for pid, pos in self.backend.pid2node:
-            yield self[pid]
+        for swhid, pos in self.backend.swhid2node:
+            yield self[swhid]
 
     def iter_prefix(self, prefix):
-        for pid, pos in self.backend.pid2node.iter_prefix(prefix):
-            yield self[pid]
+        for swhid, pos in self.backend.swhid2node.iter_prefix(prefix):
+            yield self[swhid]
 
-    def iter_type(self, pid_type):
-        for pid, pos in self.backend.pid2node.iter_type(pid_type):
-            yield self[pid]
+    def iter_type(self, swhid_type):
+        for swhid, pos in self.backend.swhid2node.iter_type(swhid_type):
+            yield self[swhid]
 
 
 @contextlib.contextmanager
 def load(graph_path):
     with Backend(graph_path) as backend:
-        yield Graph(backend, backend.node2pid, backend.pid2node)
+        yield Graph(backend, backend.node2swhid, backend.swhid2node)
