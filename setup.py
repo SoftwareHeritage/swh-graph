@@ -59,7 +59,7 @@ setup(
         [console_scripts]
         swh-graph=swh.graph.cli:main
         [swh.cli.subcommands]
-        graph=swh.graph.cli:cli
+        graph=swh.graph.cli
     """,
     classifiers=[
         "Programming Language :: Python :: 3",

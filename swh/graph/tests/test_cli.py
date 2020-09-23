@@ -10,7 +10,7 @@ import yaml
 
 from click.testing import CliRunner
 
-from swh.graph.cli import cli
+from swh.graph.cli import graph_cli_group
 
 DATA_DIR = Path(__file__).parents[0] / "dataset"
 
@@ -38,7 +38,7 @@ def test_pipeline():
         config_path.write_text(yaml.dump(config))
 
         result = runner.invoke(
-            cli,
+            graph_cli_group,
             [
                 "--config-file",
                 config_path,

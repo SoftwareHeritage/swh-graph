@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Dict, Set, Tuple
 # control
 import click
 
-from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
+from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup, swh as swh_cli_group
 
 if TYPE_CHECKING:
     from swh.graph.webgraph import CompressionStep  # noqa
@@ -74,7 +74,7 @@ class PathlibPath(click.Path):
 DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {"graph": ("dict", {})}
 
 
-@click.group(name="graph", context_settings=CONTEXT_SETTINGS, cls=AliasedGroup)
+@swh_cli_group.group(name="graph", context_settings=CONTEXT_SETTINGS, cls=AliasedGroup)
 @click.option(
     "--config-file",
     "-C",
@@ -83,7 +83,7 @@ DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {"graph": ("dict", {})}
     help="YAML configuration file",
 )
 @click.pass_context
-def cli(ctx, config_file):
+def graph_cli_group(ctx, config_file):
     """Software Heritage graph tools."""
     from swh.core import config
 
@@ -96,7 +96,7 @@ def cli(ctx, config_file):
     ctx.obj["config"] = conf
 
 
-@cli.command("api-client")
+@graph_cli_group.command("api-client")
 @click.option("--host", default="localhost", help="Graph server host")
 @click.option("--port", default="5009", help="Graph server port")
 @click.pass_context
@@ -111,7 +111,7 @@ def api_client(ctx, host, port):
     print(app.stats())
 
 
-@cli.group("map")
+@graph_cli_group.group("map")
 @click.pass_context
 def map(ctx):
     """Manage swh-graph on-disk maps"""
@@ -312,7 +312,7 @@ def map_lookup(graph, identifiers):
     sys.exit(0 if success else 1)
 
 
-@cli.command(name="rpc-serve")
+@graph_cli_group.command(name="rpc-serve")
 @click.option(
     "--host",
     "-h",
@@ -348,7 +348,7 @@ def serve(ctx, host, port, graph):
         aiohttp.web.run_app(app, host=host, port=port)
 
 
-@cli.command()
+@graph_cli_group.command()
 @click.option(
     "--graph",
     "-g",
@@ -400,7 +400,7 @@ def compress(ctx, graph, out_dir, steps):
     webgraph.compress(graph_name, in_dir, out_dir, steps, conf)
 
 
-@cli.command(name="cachemount")
+@graph_cli_group.command(name="cachemount")
 @click.option(
     "--graph", "-g", required=True, metavar="GRAPH", help="compressed graph basename"
 )
@@ -438,7 +438,7 @@ def cachemount(ctx, graph, cache):
 
 
 def main():
-    return cli(auto_envvar_prefix="SWH_GRAPH")
+    return graph_cli_group(auto_envvar_prefix="SWH_GRAPH")
 
 
 if __name__ == "__main__":
