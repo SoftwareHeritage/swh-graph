@@ -12,7 +12,9 @@ import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.Graph;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.*;
 
 public class ConnectedComponents {
@@ -48,7 +50,7 @@ public class ConnectedComponents {
         return config;
     }
 
-    private ArrayList<ArrayList<Long>> compute(ProgressLogger pl) throws IOException {
+    private HashMap<Long, Long> /*ArrayList<ArrayList<Long>>*/ compute(ProgressLogger pl) throws IOException {
         final long n = graph.numNodes();
 
         // Allow enough memory to behave like in-memory queue
@@ -66,10 +68,12 @@ public class ConnectedComponents {
         pl.itemsName = "nodes";
         pl.start("Starting connected components visit...");
 
-        ArrayList<ArrayList<Long>> components = new ArrayList<>();
+        // ArrayList<ArrayList<Long>> components = new ArrayList<>();
+        HashMap<Long, Long> componentDistribution = new HashMap<>();
 
         for (long i = 0; i < n; i++) {
-            ArrayList<Long> component = new ArrayList<>();
+            // ArrayList<Long> component = new ArrayList<>();
+            long componentNodes = 0;
 
             queue.enqueue(Longs.toByteArray(i));
             visited.set(i);
@@ -77,7 +81,8 @@ public class ConnectedComponents {
             while (!queue.isEmpty()) {
                 queue.dequeue(byteBuf);
                 final long currentNode = Longs.fromByteArray(byteBuf);
-                component.add(currentNode);
+                // component.add(currentNode);
+                componentNodes += 1;
 
                 final LazyLongIterator iterator = graph.successors(currentNode);
                 long succ;
@@ -91,12 +96,17 @@ public class ConnectedComponents {
                 pl.update();
             }
 
+            /*
             if (component.size() > 0) {
                 components.add(component);
             }
+            */
+            if (componentNodes > 0)
+                componentDistribution.merge(componentNodes, 1L, Long::sum);
         }
         pl.done();
-        return components;
+        // return components;
+        return componentDistribution;
     }
 
     private static void printDistribution(ArrayList<ArrayList<Long>> components, Formatter out) {
@@ -154,12 +164,21 @@ public class ConnectedComponents {
         //noinspection ResultOfMethodCallIgnored
         new File(outdirPath).mkdirs();
         try {
-            ArrayList<ArrayList<Long>> components = connectedComponents.compute(logger);
-            components.sort(Comparator.comparing(ArrayList<Long>::size).reversed());
+            // ArrayList<ArrayList<Long>> components = connectedComponents.compute(logger);
+            // components.sort(Comparator.comparing(ArrayList<Long>::size).reversed());
 
-            printDistribution(components, new Formatter(outdirPath + "/distribution.txt"));
+            // printDistribution(components, new Formatter(outdirPath + "/distribution.txt"));
             // printLargestComponent(components, new Formatter(outdirPath + "/largest_component.txt"));
             // printAllComponents(components, new Formatter(outdirPath + "/all_components.txt"));
+
+            HashMap<Long, Long> componentDistribution = connectedComponents.compute(logger);
+            PrintWriter f = new PrintWriter(new FileWriter(outdirPath + "/distribution.txt"));
+            TreeMap<Long, Long> sortedDistribution = new TreeMap<>(componentDistribution);
+            for (Map.Entry<Long, Long> entry : sortedDistribution.entrySet()) {
+                f.println(entry.getKey() + " " + entry.getValue());
+            }
+            f.close();
+
         } catch (IOException e) {
             e.printStackTrace();
         }
