@@ -108,6 +108,7 @@ public class ConnectedComponents {
         for (Map.Entry<Long, Long> entry : distribution.entrySet()) {
             out.format("%d %d\n", entry.getKey(), entry.getValue());
         }
+        out.close();
     }
 
     private static void printLargestComponent(ArrayList<ArrayList<Long>> components, Formatter out) {
@@ -121,6 +122,7 @@ public class ConnectedComponents {
         for (Long node : component) {
             out.format("%d\n", node);
         }
+        out.close();
     }
 
     private static void printAllComponents(ArrayList<ArrayList<Long>> components, Formatter out) {
@@ -131,6 +133,7 @@ public class ConnectedComponents {
             }
             out.format("\n");
         }
+        out.close();
     }
 
     public static void main(String[] args) {
@@ -155,8 +158,8 @@ public class ConnectedComponents {
             components.sort(Comparator.comparing(ArrayList<Long>::size).reversed());
 
             printDistribution(components, new Formatter(outdirPath + "/distribution.txt"));
-            printLargestComponent(components, new Formatter(outdirPath + "/largest_component.txt"));
-            printAllComponents(components, new Formatter(outdirPath + "/all_components.txt"));
+            // printLargestComponent(components, new Formatter(outdirPath + "/largest_component.txt"));
+            // printAllComponents(components, new Formatter(outdirPath + "/all_components.txt"));
         } catch (IOException e) {
             e.printStackTrace();
         }
