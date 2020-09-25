@@ -6,9 +6,9 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Dict
-import yaml
 
 from click.testing import CliRunner
+import yaml
 
 from swh.graph.cli import graph_cli_group
 

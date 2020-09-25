@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING, Any, Dict, Set, Tuple
 # control
 import click
 
-from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup, swh as swh_cli_group
+from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
+from swh.core.cli import swh as swh_cli_group
 
 if TYPE_CHECKING:
     from swh.graph.webgraph import CompressionStep  # noqa
