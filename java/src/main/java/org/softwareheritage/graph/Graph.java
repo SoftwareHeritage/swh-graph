@@ -1,6 +1,5 @@
 package org.softwareheritage.graph;
 
-import it.unimi.dsi.big.webgraph.BVGraph;
 import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.Transform;
@@ -53,8 +52,8 @@ public class Graph extends ImmutableGraph {
      */
     public Graph(String path) throws IOException {
         this.path = path;
-        this.graph = BVGraph.loadMapped(path);
-        this.graphTransposed = BVGraph.loadMapped(path + "-transposed");
+        this.graph = ImmutableGraph.loadMapped(path);
+        this.graphTransposed = ImmutableGraph.loadMapped(path + "-transposed");
         this.nodeTypesMap = new NodeTypesMap(path);
         this.nodeIdMap = new NodeIdMap(path, numNodes());
     }
@@ -149,12 +148,13 @@ public class Graph extends ImmutableGraph {
             return this.successors(nodeId);
         } else {
             LazyLongIterator allSuccessors = this.successors(nodeId);
+            Graph thisGraph = this;
             return new LazyLongIterator() {
                 @Override
                 public long nextLong() {
                     long neighbor;
                     while ((neighbor = allSuccessors.nextLong()) != -1) {
-                        if (allowedEdges.isAllowed(nodeId, neighbor)) {
+                        if (allowedEdges.isAllowed(thisGraph.getNodeType(nodeId), thisGraph.getNodeType(neighbor))) {
                             return neighbor;
                         }
                     }

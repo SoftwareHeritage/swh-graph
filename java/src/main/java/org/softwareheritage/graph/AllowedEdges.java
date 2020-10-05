@@ -20,19 +20,14 @@ public class AllowedEdges {
      * this array is set to null for early bypass.
      */
     public boolean[][] restrictedTo;
-    /** Graph on which edge restriction is performed */
-    Graph graph;
 
     /**
      * Constructor.
      *
-     * @param graph the graph on which to perform edge restriction
      * @param edgesFmt a formatted string describing <a
      * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed edges</a>
      */
-    public AllowedEdges(Graph graph, String edgesFmt) {
-        this.graph = graph;
-
+    public AllowedEdges(String edgesFmt) {
         int nbNodeTypes = Node.Type.values().length;
         this.restrictedTo = new boolean[nbNodeTypes][nbNodeTypes];
         // Special values (null, empty, "*")
@@ -66,23 +61,13 @@ public class AllowedEdges {
     /**
      * Checks if a given edge can be followed during graph traversal.
      *
-     * @param srcNodeId edge source node
-     * @param dstNodeId edge destination node
+     * @param srcType edge source type
+     * @param dstType edge destination type
      * @return true if allowed and false otherwise
      */
-    public boolean isAllowed(long srcNodeId, long dstNodeId) {
-        Node.Type srcType = graph.getNodeType(srcNodeId);
-        Node.Type dstType = graph.getNodeType(dstNodeId);
-        return restrictedTo[srcType.ordinal()][dstType.ordinal()];
-    }
-
-    /**
-     * Works like {@link AllowedEdges#isAllowed(long, long)} but with node types directly instead of
-     * node ids.
-     *
-     * @see AllowedEdges#isAllowed(long, long)
-     */
     public boolean isAllowed(Node.Type srcType, Node.Type dstType) {
+        if (restrictedTo == null)
+            return true;
         return restrictedTo[srcType.ordinal()][dstType.ordinal()];
     }
 }

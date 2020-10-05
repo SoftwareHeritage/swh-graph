@@ -51,7 +51,7 @@ public class Traversal {
         } else {
             this.graph = graph;
         }
-        this.edges = new AllowedEdges(graph, edgesFmt);
+        this.edges = new AllowedEdges(edgesFmt);
 
         this.visited = new HashSet<>();
         this.parentNode = new HashMap<>();
