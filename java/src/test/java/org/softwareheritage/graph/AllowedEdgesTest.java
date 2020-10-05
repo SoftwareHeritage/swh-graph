@@ -1,9 +1,9 @@
 package org.softwareheritage.graph;
 
-import java.util.ArrayList;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-import org.junit.Assert;
+import java.util.ArrayList;
 
 
 public class AllowedEdgesTest extends GraphTest {
@@ -40,7 +40,7 @@ public class AllowedEdgesTest extends GraphTest {
                     }
                 }
 
-                Assert.assertEquals("Edge type: " + src + " -> " + dst, isAllowed, isExpected);
+                Assertions.assertEquals(isAllowed, isExpected, "Edge type: " + src + " -> " + dst);
             }
         }
     }
@@ -98,7 +98,7 @@ public class AllowedEdgesTest extends GraphTest {
 
         // Special null value used to quickly bypass edge check when no restriction
         AllowedEdges edges2 = new AllowedEdges("*");
-        Assert.assertNull(edges2.restrictedTo);
+        Assertions.assertNull(edges2.restrictedTo);
     }
 
     @Test

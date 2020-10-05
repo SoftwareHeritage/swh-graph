@@ -2,8 +2,7 @@ package org.softwareheritage.graph;
 
 import java.util.ArrayList;
 
-import org.junit.Test;
-
+import org.junit.jupiter.api.Test;
 import org.softwareheritage.graph.server.Endpoint;
 
 // Avoid warnings concerning Endpoint.Output.result manual cast

@@ -3,9 +3,8 @@ package org.softwareheritage.graph;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.Assert;
-import org.junit.Test;
-
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.softwareheritage.graph.server.Endpoint;
 
 public class WalkTest extends GraphTest {
@@ -39,8 +38,8 @@ public class WalkTest extends GraphTest {
         SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
         List<SwhPath> possibleSolutions = Arrays.asList(solution1, solution2);
-        Assert.assertTrue(possibleSolutions.contains(dfsPath));
-        Assert.assertTrue(possibleSolutions.contains(bfsPath));
+        Assertions.assertTrue(possibleSolutions.contains(dfsPath));
+        Assertions.assertTrue(possibleSolutions.contains(bfsPath));
     }
 
     @Test
@@ -59,8 +58,8 @@ public class WalkTest extends GraphTest {
         Endpoint endpoint2 = new Endpoint(graph, "forward", "*");
         SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
-        Assert.assertEquals(dfsPath, expectedPath);
-        Assert.assertEquals(bfsPath, expectedPath);
+        Assertions.assertEquals(dfsPath, expectedPath);
+        Assertions.assertEquals(bfsPath, expectedPath);
     }
 
     @Test
@@ -82,8 +81,8 @@ public class WalkTest extends GraphTest {
         Endpoint endpoint2 = new Endpoint(graph, "forward", "rev:rev");
         SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
-        Assert.assertEquals(dfsPath, expectedPath);
-        Assert.assertEquals(bfsPath, expectedPath);
+        Assertions.assertEquals(dfsPath, expectedPath);
+        Assertions.assertEquals(bfsPath, expectedPath);
     }
 
     @Test
@@ -105,8 +104,8 @@ public class WalkTest extends GraphTest {
         Endpoint endpoint2 = new Endpoint(graph, "backward", "rev:rev");
         SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
-        Assert.assertEquals(dfsPath, expectedPath);
-        Assert.assertEquals(bfsPath, expectedPath);
+        Assertions.assertEquals(dfsPath, expectedPath);
+        Assertions.assertEquals(bfsPath, expectedPath);
     }
 
     @Test
@@ -154,8 +153,8 @@ public class WalkTest extends GraphTest {
         SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
         List<SwhPath> possibleSolutions = Arrays.asList(solution1, solution2, solution3, solution4);
-        Assert.assertTrue(possibleSolutions.contains(dfsPath));
-        Assert.assertTrue(possibleSolutions.contains(bfsPath));
+        Assertions.assertTrue(possibleSolutions.contains(dfsPath));
+        Assertions.assertTrue(possibleSolutions.contains(bfsPath));
     }
 
     @Test
@@ -205,8 +204,8 @@ public class WalkTest extends GraphTest {
 
         List<SwhPath> possibleSolutions =
             Arrays.asList(solution1, solution2, solution3, solution4, solution5);
-        Assert.assertTrue(possibleSolutions.contains(dfsPath));
-        Assert.assertTrue(possibleSolutions.contains(bfsPath));
+        Assertions.assertTrue(possibleSolutions.contains(dfsPath));
+        Assertions.assertTrue(possibleSolutions.contains(bfsPath));
     }
 
     @Test
@@ -228,7 +227,7 @@ public class WalkTest extends GraphTest {
         Endpoint endpoint2 = new Endpoint(graph, "backward", "dir:dir,dir:rev,rev:*");
         SwhPath bfsPath = (SwhPath) endpoint2.walk(new Endpoint.Input(src, dstFmt, "bfs")).result;
 
-        Assert.assertEquals(dfsPath, expectedPath);
-        Assert.assertEquals(bfsPath, expectedPath);
+        Assertions.assertEquals(dfsPath, expectedPath);
+        Assertions.assertEquals(bfsPath, expectedPath);
     }
 }

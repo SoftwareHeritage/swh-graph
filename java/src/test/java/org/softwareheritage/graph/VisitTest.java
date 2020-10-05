@@ -4,8 +4,7 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.HashSet;
 
-import org.junit.Test;
-
+import org.junit.jupiter.api.Test;
 import org.softwareheritage.graph.server.Endpoint;
 
 // Avoid warnings concerning Endpoint.Output.result manual cast
@@ -14,9 +13,7 @@ public class VisitTest extends GraphTest {
     private void assertSameNodesFromPaths(ArrayList<SwhPath> paths, ArrayList<SWHID> nodes) {
         Set<SWHID> expectedNodes = new HashSet<SWHID>();
         for (SwhPath path : paths) {
-            for (SWHID node : path.getPath()) {
-                expectedNodes.add(node);
-            }
+            expectedNodes.addAll(path.getPath());
         }
         GraphTest.assertEqualsAnyOrder(expectedNodes, nodes);
     }
