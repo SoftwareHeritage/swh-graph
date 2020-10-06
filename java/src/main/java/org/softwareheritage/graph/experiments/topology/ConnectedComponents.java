@@ -7,7 +7,9 @@ import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.Arrays;
 import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
+import org.softwareheritage.graph.AllowedNodes;
 import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.Subgraph;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -16,23 +18,31 @@ import java.io.PrintWriter;
 import java.util.*;
 
 public class ConnectedComponents {
-    private Graph graph;
+    private Subgraph graph;
 
-    private void load_graph(String graphBasename) throws IOException {
+    private void load_graph(String graphBasename, String nodeTypes) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = new Graph(graphBasename).symmetrize();
+        var underlyingGraph = new Graph(graphBasename);
+        var underlyingGraphSym = underlyingGraph.symmetrize();
+        graph = new Subgraph(underlyingGraphSym, new AllowedNodes(nodeTypes));
         System.err.println("Graph loaded.");
     }
 
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(ConnectedComponents.class.getName(), "",
-                    new Parameter[]{
-                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
-                                    "graph", "Basename of the compressed graph"),
-                            new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'o',
-                                    "outdir", "Directory where to put the results"),});
+            SimpleJSAP jsap = new SimpleJSAP(
+                ConnectedComponents.class.getName(),
+                "",
+                new Parameter[] {
+                    new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+                            'g', "graph", "Basename of the compressed graph"),
+                    new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+                            'o', "outdir", "Directory where to put the results"),
+                    new FlaggedOption("nodeTypes", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+                            'n', "nodetypes", "Allowed node types (comma-separated)"),
+                }
+            );
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -46,9 +56,10 @@ public class ConnectedComponents {
 
     private HashMap<Long, Long> /* ArrayList<ArrayList<Long>> */ compute(ProgressLogger pl) throws IOException {
         final long n = graph.numNodes();
+        final long maxN = graph.maxNodeNumber();
 
         // Allow enough memory to behave like in-memory queue
-        int bufferSize = (int) Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * n);
+        int bufferSize = (int)Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * maxN);
 
         // Use a disk based queue to store BFS frontier
         final File queueFile = File.createTempFile(ConnectedComponents.class.getSimpleName(), "queue");
@@ -56,7 +67,7 @@ public class ConnectedComponents {
         final byte[] byteBuf = new byte[Long.BYTES];
         // WARNING: no 64-bit version of this data-structure, but it can support
         // indices up to 2^37
-        LongArrayBitVector visited = LongArrayBitVector.ofLength(n);
+        LongArrayBitVector visited = LongArrayBitVector.ofLength(maxN);
 
         pl.expectedUpdates = n;
         pl.itemsName = "nodes";
@@ -65,7 +76,13 @@ public class ConnectedComponents {
         // ArrayList<ArrayList<Long>> components = new ArrayList<>();
         HashMap<Long, Long> componentDistribution = new HashMap<>();
 
-        for (long i = 0; i < n; i++) {
+        var it = graph.nodeIterator();
+        while (it.hasNext()) {
+            long i = it.nextLong();
+
+            if (visited.getBoolean(i))
+                continue;
+
             // ArrayList<Long> component = new ArrayList<>();
             long componentNodes = 0;
 
@@ -143,10 +160,11 @@ public class ConnectedComponents {
 
         String graphPath = config.getString("graphPath");
         String outdirPath = config.getString("outdir");
+        String nodeTypes = config.getString("nodeTypes");
 
         ConnectedComponents connectedComponents = new ConnectedComponents();
         try {
-            connectedComponents.load_graph(graphPath);
+            connectedComponents.load_graph(graphPath, nodeTypes);
         } catch (IOException e) {
             System.out.println("Could not load graph: " + e);
             System.exit(2);
