@@ -18,20 +18,6 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 public class GraphTest {
     static Graph graph;
 
-    public static <T> void assertEqualsAnyOrder(Collection<T> expecteds, Collection<T> actuals) {
-        MatcherAssert.assertThat(expecteds, containsInAnyOrder(actuals.toArray()));
-    }
-
-    public static void assertLazyLongIteratorsEqual(LazyLongIterator expected, LazyLongIterator actual) {
-        ArrayList<Long> expectedList = new ArrayList<>();
-        ArrayList<Long> actualList = new ArrayList<>();
-        Iterator<Long> expectedIt = LazyLongIterators.eager(expected);
-        Iterator<Long> actualIt = LazyLongIterators.eager(actual);
-        expectedIt.forEachRemaining(expectedList::add);
-        actualIt.forEachRemaining(actualList::add);
-        Assertions.assertArrayEquals(expectedList.toArray(), actualList.toArray());
-    }
-
     @BeforeAll
     public static void setUp() throws IOException {
         Path graphPath = Paths.get("..", "swh", "graph", "tests", "dataset", "output", "example");
@@ -40,5 +26,20 @@ public class GraphTest {
 
     public Graph getGraph() {
         return graph;
+    }
+
+    public static SWHID fakeSWHID(String type, int num) {
+        return new SWHID(String.format("swh:1:%s:%040d", type, num));
+    }
+
+    public static <T> void assertEqualsAnyOrder(Collection<T> expecteds, Collection<T> actuals) {
+        MatcherAssert.assertThat(expecteds, containsInAnyOrder(actuals.toArray()));
+    }
+
+    public static ArrayList<Long> lazyLongIteratorToList(LazyLongIterator input) {
+        ArrayList<Long> inputList = new ArrayList<>();
+        Iterator<Long> inputIt = LazyLongIterators.eager(input);
+        inputIt.forEachRemaining(inputList::add);
+        return inputList;
     }
 }
