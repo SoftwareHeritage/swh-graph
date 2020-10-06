@@ -19,16 +19,12 @@ public class FindCommonAncestor {
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(
-                FindCommonAncestor.class.getName(),
-                "",
-                new Parameter[] {
-                    new FlaggedOption("edgesFmt", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            'e', "edges", "Edges constraints"),
-                    new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            'g', "graph", "Basename of the compressed graph"),
-                }
-            );
+            SimpleJSAP jsap = new SimpleJSAP(FindCommonAncestor.class.getName(), "",
+                    new Parameter[]{
+                            new FlaggedOption("edgesFmt", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'e',
+                                    "edges", "Edges constraints"),
+                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
+                                    "graph", "Basename of the compressed graph"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {

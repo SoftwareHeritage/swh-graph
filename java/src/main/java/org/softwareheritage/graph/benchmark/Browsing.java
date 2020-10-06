@@ -8,8 +8,8 @@ import org.softwareheritage.graph.server.Endpoint;
 import java.io.IOException;
 
 /**
- * Benchmark Software Heritage <a
- * href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html#browsing">browsing
+ * Benchmark Software Heritage
+ * <a href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html#browsing">browsing
  * use-cases scenarios</a>.
  *
  * @author The Software Heritage developers
@@ -27,10 +27,8 @@ public class Browsing {
 
         Graph graph = new Graph(bench.args.graphPath);
 
-        long[] dirNodeIds =
-                bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.DIR);
-        long[] revNodeIds =
-                bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.REV);
+        long[] dirNodeIds = bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.DIR);
+        long[] revNodeIds = bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.REV);
 
         Endpoint dirEndpoint = new Endpoint(graph, "forward", "dir:cnt,dir:dir");
         Endpoint revEndpoint = new Endpoint(graph, "forward", "rev:rev");

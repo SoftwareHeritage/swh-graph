@@ -7,8 +7,8 @@ import java.util.Properties;
 /**
  * Statistics on the compressed graph.
  * <p>
- * These statistics are not computed but directly read from <a
- * href="http://webgraph.di.unimi.it/">WebGraph</a> generated .stats and .properties files.
+ * These statistics are not computed but directly read from
+ * <a href="http://webgraph.di.unimi.it/">WebGraph</a> generated .stats and .properties files.
  *
  * @author The Software Heritage developers
  */

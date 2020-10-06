@@ -12,13 +12,13 @@ import java.io.IOException;
  * Main class storing the compressed graph and node id mappings.
  * <p>
  * The compressed graph is stored using the <a href="http://webgraph.di.unimi.it/">WebGraph</a>
- * ecosystem. Additional mappings are necessary because Software Heritage uses string based <a
- * href="https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html">persistent
- * identifiers</a> (SWHID) while WebGraph uses integers internally. These two mappings (long id &harr;
- * SWHID) are used for the input (users refer to the graph using SWHID) and the output (convert back to
- * SWHID for users results). However, since graph traversal can be restricted depending on the node
- * type (see {@link AllowedEdges}), a long id &rarr; node type map is stored as well to avoid a full
- * SWHID lookup.
+ * ecosystem. Additional mappings are necessary because Software Heritage uses string based <a href=
+ * "https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html">persistent
+ * identifiers</a> (SWHID) while WebGraph uses integers internally. These two mappings (long id
+ * &harr; SWHID) are used for the input (users refer to the graph using SWHID) and the output
+ * (convert back to SWHID for users results). However, since graph traversal can be restricted
+ * depending on the node type (see {@link AllowedEdges}), a long id &rarr; node type map is stored
+ * as well to avoid a full SWHID lookup.
  *
  * @author The Software Heritage developers
  * @see org.softwareheritage.graph.AllowedEdges
@@ -58,8 +58,8 @@ public class Graph extends ImmutableGraph {
         this.nodeIdMap = new NodeIdMap(path, numNodes());
     }
 
-    protected Graph(ImmutableGraph graph, ImmutableGraph graphTransposed,
-                    String path, NodeIdMap nodeIdMap, NodeTypesMap nodeTypesMap) {
+    protected Graph(ImmutableGraph graph, ImmutableGraph graphTransposed, String path, NodeIdMap nodeIdMap,
+            NodeTypesMap nodeTypesMap) {
         this.graph = graph;
         this.graphTransposed = graphTransposed;
         this.path = path;
@@ -126,8 +126,8 @@ public class Graph extends ImmutableGraph {
      * Returns lazy iterator of successors of a node.
      *
      * @param nodeId node specified as a long id
-     * @return lazy iterator of successors of the node, specified as a <a
-     * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
+     * @return lazy iterator of successors of the node, specified as a
+     *         <a href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
      */
     @Override
     public LazyLongIterator successors(long nodeId) {
@@ -139,8 +139,8 @@ public class Graph extends ImmutableGraph {
      *
      * @param nodeId node specified as a long id
      * @param allowedEdges the specification of which edges can be traversed
-     * @return lazy iterator of successors of the node, specified as a <a
-     * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
+     * @return lazy iterator of successors of the node, specified as a
+     *         <a href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
      */
     public LazyLongIterator successors(long nodeId, AllowedEdges allowedEdges) {
         if (allowedEdges.restrictedTo == null) {
@@ -164,7 +164,8 @@ public class Graph extends ImmutableGraph {
                 @Override
                 public long skip(final long n) {
                     long i;
-                    for (i = 0; i < n && nextLong() != -1; i++) ;
+                    for (i = 0; i < n && nextLong() != -1; i++)
+                        ;
                     return i;
                 }
             };
@@ -186,8 +187,8 @@ public class Graph extends ImmutableGraph {
      * Returns lazy iterator of predecessors of a node.
      *
      * @param nodeId node specified as a long id
-     * @return lazy iterator of predecessors of the node, specified as a <a
-     * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
+     * @return lazy iterator of predecessors of the node, specified as a
+     *         <a href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
      */
     public LazyLongIterator predecessors(long nodeId) {
         return this.transpose().successors(nodeId);

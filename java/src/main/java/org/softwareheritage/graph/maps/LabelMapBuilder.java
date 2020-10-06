@@ -4,7 +4,6 @@ import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph;
-import it.unimi.dsi.big.webgraph.labelling.FixedWidthIntLabel;
 import it.unimi.dsi.big.webgraph.labelling.FixedWidthIntListLabel;
 import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.Size64;
@@ -35,20 +34,15 @@ public class LabelMapBuilder {
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(
-                    LabelMapBuilder.class.getName(),
-                    "",
-                    new Parameter[] {
-                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'g', "graph", "Basename of the compressed graph"),
-                            new FlaggedOption("debugPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED,
-                                    'd', "debug-path",
-                                    "Store the intermediate representation here for debug"),
+            SimpleJSAP jsap = new SimpleJSAP(LabelMapBuilder.class.getName(), "",
+                    new Parameter[]{
+                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
+                                    "graph", "Basename of the compressed graph"),
+                            new FlaggedOption("debugPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'd',
+                                    "debug-path", "Store the intermediate representation here for debug"),
 
-                            new FlaggedOption("tmpDir", JSAP.STRING_PARSER, "tmp", JSAP.NOT_REQUIRED,
-                                    't', "tmp", "Temporary directory path"),
-                    }
-            );
+                            new FlaggedOption("tmpDir", JSAP.STRING_PARSER, "tmp", JSAP.NOT_REQUIRED, 't', "tmp",
+                                    "Temporary directory path"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -85,21 +79,17 @@ public class LabelMapBuilder {
         return mphMap;
     }
 
-    static long getMPHSize(Object2LongFunction<String> mph)
-    {
+    static long getMPHSize(Object2LongFunction<String> mph) {
         return (mph instanceof Size64) ? ((Size64) mph).size64() : mph.size();
     }
 
-    static long SwhIDToNode(String strSWHID, Object2LongFunction<String> mphMap, long[][] orderMap)
-    {
+    static long SwhIDToNode(String strSWHID, Object2LongFunction<String> mphMap, long[][] orderMap) {
         long mphId = mphMap.getLong(strSWHID);
         return BigArrays.get(orderMap, mphId);
     }
 
-    static void computeLabelMap(String graphPath, String debugPath, String tmpDir)
-        throws IOException
-    {
-        // Compute intermediate representation in the format "<src node id> <dst node id> <label ids>\n"
+    static void computeLabelMap(String graphPath, String debugPath, String tmpDir) throws IOException {
+        // Compute intermediate representation as: "<src node id> <dst node id> <label ids>\n"
         ImmutableGraph graph = BVGraph.loadMapped(graphPath);
 
         Object2LongFunction<String> swhIdMph = loadMPH(graphPath);
@@ -118,22 +108,18 @@ public class LabelMapBuilder {
         plInter.itemsName = "edges";
         plInter.expectedUpdates = graph.numArcs();
 
-        // Pass the intermediate representation to sort(1) so that we see the labels in the
-        // order they will appear in the label file.
+        /*
+         * Pass the intermediate representation to sort(1) so that we see the labels in the order they will
+         * appear in the label file.
+         */
         ProcessBuilder processBuilder = new ProcessBuilder();
-        processBuilder.command(
-                "sort",
-                "-k1,1n", "-k2,2n", "-k3,3n",  // Numerical sort on all fields
-                "--numeric-sort",
-                "--buffer-size", SORT_BUFFER_SIZE,
-                "--temporary-directory", tmpDir
-        );
+        processBuilder.command("sort", "-k1,1n", "-k2,2n", "-k3,3n", // Numerical sort on all fields
+                "--numeric-sort", "--buffer-size", SORT_BUFFER_SIZE, "--temporary-directory", tmpDir);
         Process sort = processBuilder.start();
         BufferedOutputStream sort_stdin = new BufferedOutputStream(sort.getOutputStream());
         BufferedInputStream sort_stdout = new BufferedInputStream(sort.getInputStream());
 
-        FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(
-                System.in, StandardCharsets.US_ASCII));
+        FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in, StandardCharsets.US_ASCII));
         LineIterator edgeIterator = new LineIterator(buffer);
 
         plInter.start("Piping intermediate representation to sort(1)");
@@ -146,8 +132,7 @@ public class LabelMapBuilder {
             long dstNode = SwhIDToNode(edge[1], swhIdMph, orderMap);
             long labelId = labelMPH.getLong(edge[2]);
 
-            sort_stdin.write((srcNode + "\t" + dstNode + "\t" + labelId + "\n")
-                    .getBytes(StandardCharsets.US_ASCII));
+            sort_stdin.write((srcNode + "\t" + dstNode + "\t" + labelId + "\n").getBytes(StandardCharsets.US_ASCII));
             plInter.lightUpdate();
         }
         plInter.done();
@@ -163,12 +148,10 @@ public class LabelMapBuilder {
             debugFile = new FileWriter(debugPath);
         }
 
-        OutputBitStream labels = new OutputBitStream(new File(
-                graphPath + "-labelled"
-                        + BitStreamArcLabelledImmutableGraph.LABELS_EXTENSION));
-        OutputBitStream offsets = new OutputBitStream(new File(
-                graphPath + "-labelled"
-                        + BitStreamArcLabelledImmutableGraph.LABEL_OFFSETS_EXTENSION));
+        OutputBitStream labels = new OutputBitStream(
+                new File(graphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABELS_EXTENSION));
+        OutputBitStream offsets = new OutputBitStream(
+                new File(graphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABEL_OFFSETS_EXTENSION));
         offsets.writeGamma(0);
 
         Scanner sortOutput = new Scanner(sort_stdout, StandardCharsets.US_ASCII);
@@ -185,11 +168,7 @@ public class LabelMapBuilder {
             HashMap<Long, List<Long>> successorsLabels = new HashMap<>();
             while (labelSrcNode <= srcNode) {
                 if (labelSrcNode == srcNode) {
-                    successorsLabels
-                            .computeIfAbsent(
-                                    labelDstNode,
-                                    k -> new ArrayList<>()
-                            ).add(labelId);
+                    successorsLabels.computeIfAbsent(labelDstNode, k -> new ArrayList<>()).add(labelId);
                     if (debugFile != null) {
                         debugFile.write(labelSrcNode + " " + labelDstNode + " " + labelId + "\n");
                     }
@@ -226,9 +205,10 @@ public class LabelMapBuilder {
             debugFile.close();
         }
 
-        PrintWriter pw = new PrintWriter(new FileWriter((new File(graphPath)).getName() + "-labelled.properties" ));
+        PrintWriter pw = new PrintWriter(new FileWriter((new File(graphPath)).getName() + "-labelled.properties"));
         pw.println(ImmutableGraph.GRAPHCLASS_PROPERTY_KEY + " = " + BitStreamArcLabelledImmutableGraph.class.getName());
-        pw.println(BitStreamArcLabelledImmutableGraph.LABELSPEC_PROPERTY_KEY + " = " + FixedWidthIntListLabel.class.getName() + "(TEST," + labelWidth + ")" );
+        pw.println(BitStreamArcLabelledImmutableGraph.LABELSPEC_PROPERTY_KEY + " = "
+                + FixedWidthIntListLabel.class.getName() + "(TEST," + labelWidth + ")");
         pw.println(ArcLabelledImmutableGraph.UNDERLYINGGRAPH_PROPERTY_KEY + " = " + graphPath);
         pw.close();
     }

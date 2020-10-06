@@ -15,7 +15,8 @@ public class ReadLabelledGraph {
 
         ArcLabelledImmutableGraph graph = BitStreamArcLabelledImmutableGraph.loadOffline(graphPath + "-labelled");
         NodeIdMap nodeMap = new NodeIdMap(graphPath, graph.numNodes());
-        PermutedFrontCodedStringList labelMap = (PermutedFrontCodedStringList) BinIO.loadObject(graphPath + "-labels.fcl");
+        PermutedFrontCodedStringList labelMap = (PermutedFrontCodedStringList) BinIO
+                .loadObject(graphPath + "-labels.fcl");
 
         ArcLabelledNodeIterator it = graph.nodeIterator();
         while (it.hasNext()) {
@@ -27,22 +28,13 @@ public class ReadLabelledGraph {
                 int[] labels = (int[]) s.label().get();
                 if (labels.length > 0) {
                     for (int label : labels) {
-                        System.out.format(
-                                "%s %s %s\n",
-                                nodeMap.getSWHID(srcNode),
-                                nodeMap.getSWHID(dstNode),
-                                labelMap.get(label)
-                        );
+                        System.out.format("%s %s %s\n", nodeMap.getSWHID(srcNode), nodeMap.getSWHID(dstNode),
+                                labelMap.get(label));
                     }
                 } else {
-                    System.out.format(
-                            "%s %s\n",
-                            nodeMap.getSWHID(srcNode),
-                            nodeMap.getSWHID(dstNode)
-                    );
+                    System.out.format("%s %s\n", nodeMap.getSWHID(srcNode), nodeMap.getSWHID(dstNode));
                 }
             }
         }
     }
 }
-

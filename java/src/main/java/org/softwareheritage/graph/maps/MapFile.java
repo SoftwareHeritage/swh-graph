@@ -10,9 +10,9 @@ import java.nio.channels.FileChannel;
 /**
  * Wrapper class around very big mmap()-ed file.
  * <p>
- * Java has a limit for mmap()-ed files because of unsupported 64-bit indexing. The <a
- * href="http://dsiutils.di.unimi.it/">dsiutils</a> ByteBufferInputStream is used to overcome this
- * Java limit.
+ * Java has a limit for mmap()-ed files because of unsupported 64-bit indexing. The
+ * <a href="http://dsiutils.di.unimi.it/">dsiutils</a> ByteBufferInputStream is used to overcome
+ * this Java limit.
  *
  * @author The Software Heritage developers
  */

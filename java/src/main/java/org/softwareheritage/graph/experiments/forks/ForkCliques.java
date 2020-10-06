@@ -32,18 +32,14 @@ public class ForkCliques {
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(
-                    ForkCliques.class.getName(),
-                    "",
+            SimpleJSAP jsap = new SimpleJSAP(ForkCliques.class.getName(), "",
                     new Parameter[]{
-                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'g', "graph", "Basename of the compressed graph"),
-                            new FlaggedOption("whitelistPath", JSAP.STRING_PARSER, null, JSAP.NOT_REQUIRED,
-                                    't', "whitelist", "Whitelist of origins"),
-                            new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'o', "outdir", "Directory where to put the results"),
-                    }
-            );
+                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
+                                    "graph", "Basename of the compressed graph"),
+                            new FlaggedOption("whitelistPath", JSAP.STRING_PARSER, null, JSAP.NOT_REQUIRED, 't',
+                                    "whitelist", "Whitelist of origins"),
+                            new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'o',
+                                    "outdir", "Directory where to put the results"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -72,8 +68,7 @@ public class ForkCliques {
                     Node.Type nt = this.graph.getNodeType(succ);
                     if (nt == Node.Type.DIR || nt == Node.Type.CNT)
                         continue;
-                    if (nt == Node.Type.ORI
-                        && (this.whitelist == null || this.whitelist.getBoolean(succ))) {
+                    if (nt == Node.Type.ORI && (this.whitelist == null || this.whitelist.getBoolean(succ))) {
                         res.add(succ);
                     } else {
                         stack.push(succ);
@@ -97,7 +92,7 @@ public class ForkCliques {
             if (this.graph.getNodeType(succ) == Node.Type.REV)
                 return false;
         }
-        return  true;
+        return true;
     }
 
     static private String fingerprint(ArrayList<Long> cluster) {
@@ -180,7 +175,7 @@ public class ForkCliques {
         Scanner scanner;
         try {
             scanner = new Scanner(new File(path));
-            while(scanner.hasNextLong()) {
+            while (scanner.hasNextLong()) {
                 whitelist.set(scanner.nextLong());
             }
             System.err.println("Whitelist loaded.");
@@ -214,7 +209,7 @@ public class ForkCliques {
         ProgressLogger logger = new ProgressLogger(rootLogger);
         ArrayList<ArrayList<Long>> components = forkCliques.compute(logger);
 
-        //noinspection ResultOfMethodCallIgnored
+        // noinspection ResultOfMethodCallIgnored
         new File(outdirPath).mkdirs();
         try {
             printDistribution(components, new Formatter(outdirPath + "/distribution.txt"));

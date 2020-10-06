@@ -18,23 +18,19 @@ public class GenDistribution {
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(
-                    GenDistribution.class.getName(),
-                    "",
+            SimpleJSAP jsap = new SimpleJSAP(GenDistribution.class.getName(), "",
                     new Parameter[]{
-                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'g', "graph", "Basename of the compressed graph"),
-                            new FlaggedOption("srcType", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    's', "srctype", "Source node type"),
-                            new FlaggedOption("dstType", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'd', "dsttype", "Destination node type"),
-                            new FlaggedOption("edgesFmt", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'e', "edges", "Edges constraints"),
+                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
+                                    "graph", "Basename of the compressed graph"),
+                            new FlaggedOption("srcType", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 's',
+                                    "srctype", "Source node type"),
+                            new FlaggedOption("dstType", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'd',
+                                    "dsttype", "Destination node type"),
+                            new FlaggedOption("edgesFmt", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'e',
+                                    "edges", "Edges constraints"),
 
-                            new FlaggedOption("numThreads", JSAP.INTEGER_PARSER, "128", JSAP.NOT_REQUIRED,
-                                    't', "numthreads", "Number of threads"),
-                    }
-            );
+                            new FlaggedOption("numThreads", JSAP.INTEGER_PARSER, "128", JSAP.NOT_REQUIRED, 't',
+                                    "numthreads", "Number of threads"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -117,10 +113,8 @@ public class GenDistribution {
                         }
                     });
                     totalTime = Timing.stop(startTime);
-                    System.out.format("%d %d %d %d %f\n",
-                            node, count[0], t.getNbNodesAccessed(),
-                            t.getNbEdgesAccessed(), totalTime
-                    );
+                    System.out.format("%d %d %d %d %f\n", node, count[0], t.getNbNodesAccessed(),
+                            t.getNbEdgesAccessed(), totalTime);
                 }
             });
         }

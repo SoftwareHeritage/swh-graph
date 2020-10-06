@@ -38,8 +38,9 @@ public class Traversal {
      *
      * @param graph graph used in the traversal
      * @param direction a string (either "forward" or "backward") specifying edge orientation
-     * @param edgesFmt a formatted string describing <a
-     * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed edges</a>
+     * @param edgesFmt a formatted string describing <a href=
+     *            "https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed
+     *            edges</a>
      */
     public Traversal(Graph graph, String direction, String edgesFmt) {
         if (!direction.matches("forward|backward")) {
@@ -93,7 +94,7 @@ public class Traversal {
             long neighborsCnt = 0;
             nbEdgesAccessed += graph.outdegree(currentNodeId);
             LazyLongIterator it = graph.successors(currentNodeId, edges);
-            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1; ) {
+            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 neighborsCnt++;
                 if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
@@ -120,13 +121,12 @@ public class Traversal {
     }
 
     /**
-     * Push version of {@link #neighbors}: will fire passed callback on each
-     * neighbor.
+     * Push version of {@link #neighbors}: will fire passed callback on each neighbor.
      */
     public void neighborsVisitor(long srcNodeId, NodeIdConsumer cb) {
         this.nbEdgesAccessed = graph.outdegree(srcNodeId);
         LazyLongIterator it = graph.successors(srcNodeId, edges);
-        for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1; ) {
+        for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
             cb.accept(neighborNodeId);
         }
     }
@@ -144,8 +144,7 @@ public class Traversal {
     }
 
     /**
-     * Push version of {@link #visitNodes}: will fire passed callback on each
-     * visited node.
+     * Push version of {@link #visitNodes}: will fire passed callback on each visited node.
      */
     public void visitNodesVisitor(long srcNodeId, NodeIdConsumer nodeCb, EdgeIdConsumer edgeCb) {
         Stack<Long> stack = new Stack<>();
@@ -162,7 +161,7 @@ public class Traversal {
 
             nbEdgesAccessed += graph.outdegree(currentNodeId);
             LazyLongIterator it = graph.successors(currentNodeId, edges);
-            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1; ) {
+            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 if (edgeCb != null) {
                     edgeCb.accept(currentNodeId, neighborNodeId);
                 }
@@ -192,8 +191,8 @@ public class Traversal {
     }
 
     /**
-     * Push version of {@link #visitPaths}: will fire passed callback on each
-     * discovered (complete) path.
+     * Push version of {@link #visitPaths}: will fire passed callback on each discovered (complete)
+     * path.
      */
     public void visitPathsVisitor(long srcNodeId, PathConsumer cb) {
         Stack<Long> currentPath = new Stack<>();
@@ -213,15 +212,13 @@ public class Traversal {
         return paths;
     }
 
-    private void visitPathsInternalVisitor(long currentNodeId,
-                                           Stack<Long> currentPath,
-                                           PathConsumer cb) {
+    private void visitPathsInternalVisitor(long currentNodeId, Stack<Long> currentPath, PathConsumer cb) {
         currentPath.push(currentNodeId);
 
         long visitedNeighbors = 0;
         nbEdgesAccessed += graph.outdegree(currentNodeId);
         LazyLongIterator it = graph.successors(currentNodeId, edges);
-        for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1; ) {
+        for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
             visitPathsInternalVisitor(neighborNodeId, currentPath, cb);
             visitedNeighbors++;
         }
@@ -235,8 +232,8 @@ public class Traversal {
     }
 
     /**
-     * Performs a graph traversal with backtracking, and returns the first
-     * found path from source to destination.
+     * Performs a graph traversal with backtracking, and returns the first found path from source to
+     * destination.
      *
      * @param srcNodeId source node
      * @param dst destination (either a node or a node type)
@@ -260,29 +257,27 @@ public class Traversal {
     }
 
     /**
-     * Performs a random walk (picking a random successor at each step) from
-     * source to destination.
+     * Performs a random walk (picking a random successor at each step) from source to destination.
      *
      * @param srcNodeId source node
      * @param dst destination (either a node or a node type)
-     * @return found path as a list of node ids or an empty path to indicate
-     * that no suitable path have been found
+     * @return found path as a list of node ids or an empty path to indicate that no suitable path have
+     *         been found
      */
     public <T> ArrayList<Long> randomWalk(long srcNodeId, T dst) {
         return randomWalk(srcNodeId, dst, 0);
     }
 
     /**
-     * Performs a stubborn random walk (picking a random successor at each
-     * step) from source to destination. The walk is "stubborn" in the sense
-     * that it will not give up the first time if a satisfying target node is
-     * found, but it will retry up to a limited amount of times.
+     * Performs a stubborn random walk (picking a random successor at each step) from source to
+     * destination. The walk is "stubborn" in the sense that it will not give up the first time if a
+     * satisfying target node is found, but it will retry up to a limited amount of times.
      *
      * @param srcNodeId source node
      * @param dst destination (either a node or a node type)
      * @param retries number of times to retry; 0 means no retries (single walk)
-     * @return found path as a list of node ids or an empty path to indicate
-     * that no suitable path have been found
+     * @return found path as a list of node ids or an empty path to indicate that no suitable path have
+     *         been found
      */
     public <T> ArrayList<Long> randomWalk(long srcNodeId, T dst, int retries) {
         long curNodeId = srcNodeId;
@@ -311,17 +306,16 @@ public class Traversal {
 
         if (found) {
             return path;
-        } else if (retries > 0) {  // try again
+        } else if (retries > 0) { // try again
             return randomWalk(srcNodeId, dst, retries - 1);
-        } else {  // not found and no retries left
+        } else { // not found and no retries left
             path.clear();
             return path;
         }
     }
 
     /**
-     * Randomly choose an element from an iterator over Longs using reservoir
-     * sampling
+     * Randomly choose an element from an iterator over Longs using reservoir sampling
      *
      * @param elements iterator over selection domain
      * @return randomly chosen element or -1 if no suitable element was found
@@ -330,7 +324,7 @@ public class Traversal {
         long curPick = -1;
         long seenCandidates = 0;
 
-        for (long element; (element = elements.nextLong()) != -1; ) {
+        for (long element; (element = elements.nextLong()) != -1;) {
             seenCandidates++;
             if (Math.round(rng.nextFloat() * (seenCandidates - 1)) == 0) {
                 curPick = element;
@@ -362,7 +356,7 @@ public class Traversal {
 
             nbEdgesAccessed += graph.outdegree(currentNodeId);
             LazyLongIterator it = graph.successors(currentNodeId, edges);
-            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1; ) {
+            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
                     visited.add(neighborNodeId);
@@ -396,7 +390,7 @@ public class Traversal {
 
             nbEdgesAccessed += graph.outdegree(currentNodeId);
             LazyLongIterator it = graph.successors(currentNodeId, edges);
-            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1; ) {
+            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 if (!visited.contains(neighborNodeId)) {
                     queue.add(neighborNodeId);
                     visited.add(neighborNodeId);
@@ -471,7 +465,7 @@ public class Traversal {
                 curNode = lhsStack.poll();
                 nbEdgesAccessed += graph.outdegree(curNode);
                 LazyLongIterator it = graph.successors(curNode, edges);
-                for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1; ) {
+                for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                     if (!lhsVisited.contains(neighborNodeId)) {
                         if (rhsVisited.contains(neighborNodeId))
                             return neighborNodeId;
@@ -485,7 +479,7 @@ public class Traversal {
                 curNode = rhsStack.poll();
                 nbEdgesAccessed += graph.outdegree(curNode);
                 LazyLongIterator it = graph.successors(curNode, edges);
-                for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1; ) {
+                for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                     if (!rhsVisited.contains(neighborNodeId)) {
                         if (lhsVisited.contains(neighborNodeId))
                             return neighborNodeId;
@@ -501,24 +495,21 @@ public class Traversal {
 
     public interface NodeIdConsumer extends LongConsumer {
         /**
-         * Callback for incrementally receiving node identifiers during a graph
-         * visit.
+         * Callback for incrementally receiving node identifiers during a graph visit.
          */
         void accept(long nodeId);
     }
 
     public interface EdgeIdConsumer {
         /**
-         * Callback for incrementally receiving edge identifiers during a graph
-         * visit.
+         * Callback for incrementally receiving edge identifiers during a graph visit.
          */
         void accept(long srcId, long dstId);
     }
 
     public interface PathConsumer extends Consumer<ArrayList<Long>> {
         /**
-         * Callback for incrementally receiving node paths (made of node
-         * identifiers) during a graph visit.
+         * Callback for incrementally receiving node paths (made of node identifiers) during a graph visit.
          */
         void accept(ArrayList<Long> path);
     }

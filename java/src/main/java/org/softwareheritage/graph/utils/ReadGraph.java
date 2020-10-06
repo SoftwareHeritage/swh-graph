@@ -20,13 +20,8 @@ public class ReadGraph {
             var s = it.successors();
             long dstNode;
             while ((dstNode = s.nextLong()) >= 0) {
-                System.out.format(
-                        "%s %s\n",
-                        nodeMap.getSWHID(srcNode),
-                        nodeMap.getSWHID(dstNode)
-                );
+                System.out.format("%s %s\n", nodeMap.getSWHID(srcNode), nodeMap.getSWHID(dstNode));
             }
         }
     }
 }
-

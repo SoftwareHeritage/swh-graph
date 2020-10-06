@@ -19,70 +19,72 @@ import java.io.*;
 
 public class SubdatasetSizeFunction {
 
-	private SubdatasetSizeFunction() {}
+    private SubdatasetSizeFunction() {
+    }
 
-	public static void run(final Graph graph) throws IOException {
-		final ProgressLogger pl = new ProgressLogger();
-		pl.itemsName = "nodes";
-		pl.expectedUpdates = graph.numNodes();
+    public static void run(final Graph graph) throws IOException {
+        final ProgressLogger pl = new ProgressLogger();
+        pl.itemsName = "nodes";
+        pl.expectedUpdates = graph.numNodes();
 
-		long n = graph.numNodes();
-		LongArrayBitVector visited = LongArrayBitVector.ofLength(n);
+        long n = graph.numNodes();
+        LongArrayBitVector visited = LongArrayBitVector.ofLength(n);
 
-		int bufferSize = (int) Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * n);
-		final File queueFile = File.createTempFile(ForkCC.class.getSimpleName(), "queue");
-		final ByteDiskQueue queue = ByteDiskQueue.createNew(queueFile, bufferSize, true);
-		final byte[] byteBuf = new byte[Long.BYTES];
+        int bufferSize = (int) Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * n);
+        final File queueFile = File.createTempFile(ForkCC.class.getSimpleName(), "queue");
+        final ByteDiskQueue queue = ByteDiskQueue.createNew(queueFile, bufferSize, true);
+        final byte[] byteBuf = new byte[Long.BYTES];
 
-		long[][] randomPerm = Util.identity(graph.numNodes());
-		LongBigArrays.shuffle(randomPerm, new XoRoShiRo128PlusRandom());
+        long[][] randomPerm = Util.identity(graph.numNodes());
+        LongBigArrays.shuffle(randomPerm, new XoRoShiRo128PlusRandom());
 
-		long visitedSize = 0;
-		pl.start("Running traversal starting from origins...");
-		for (long j = 0; j < n; ++j) {
-		    long i = BigArrays.get(randomPerm, j);
-			if (visited.getBoolean(i) || graph.getNodeType(i) != Node.Type.ORI) {
-				continue;
-			}
-			queue.enqueue(Longs.toByteArray(i));
-			visited.set(i);
+        long visitedSize = 0;
+        pl.start("Running traversal starting from origins...");
+        for (long j = 0; j < n; ++j) {
+            long i = BigArrays.get(randomPerm, j);
+            if (visited.getBoolean(i) || graph.getNodeType(i) != Node.Type.ORI) {
+                continue;
+            }
+            queue.enqueue(Longs.toByteArray(i));
+            visited.set(i);
 
-			while (!queue.isEmpty()) {
-				queue.dequeue(byteBuf);
-				final long currentNode = Longs.fromByteArray(byteBuf);
+            while (!queue.isEmpty()) {
+                queue.dequeue(byteBuf);
+                final long currentNode = Longs.fromByteArray(byteBuf);
 
-				visitedSize++;
+                visitedSize++;
 
-				final LazyLongIterator iterator = graph.successors(currentNode);
-				long succ;
-				while ((succ = iterator.nextLong()) != -1) {
-					if (visited.getBoolean(succ))
-						continue;
-					visited.set(succ);
-					queue.enqueue(Longs.toByteArray(succ));
-				}
+                final LazyLongIterator iterator = graph.successors(currentNode);
+                long succ;
+                while ((succ = iterator.nextLong()) != -1) {
+                    if (visited.getBoolean(succ))
+                        continue;
+                    visited.set(succ);
+                    queue.enqueue(Longs.toByteArray(succ));
+                }
 
-				pl.update();
-			}
+                pl.update();
+            }
 
-			System.out.println(visitedSize);
-		}
-		pl.done();
-	}
+            System.out.println(visitedSize);
+        }
+        pl.done();
+    }
 
-	static public void main(final String[] arg) throws IllegalArgumentException, SecurityException, JSAPException, IOException {
-		final SimpleJSAP jsap = new SimpleJSAP(SubdatasetSizeFunction.class.getName(), "Computes in and out degrees of the given SWHGraph",
-				new Parameter[] {
-						new UnflaggedOption("basename", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, JSAP.NOT_GREEDY, "The basename of the graph."),
-					}
-				);
+    static public void main(final String[] arg)
+            throws IllegalArgumentException, SecurityException, JSAPException, IOException {
+        final SimpleJSAP jsap = new SimpleJSAP(SubdatasetSizeFunction.class.getName(),
+                "Computes in and out degrees of the given SWHGraph",
+                new Parameter[]{new UnflaggedOption("basename", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+                        JSAP.NOT_GREEDY, "The basename of the graph."),});
 
-		final JSAPResult jsapResult = jsap.parse(arg);
-		if (jsap.messagePrinted()) System.exit(1);
+        final JSAPResult jsapResult = jsap.parse(arg);
+        if (jsap.messagePrinted())
+            System.exit(1);
 
-		final String basename = jsapResult.getString("basename");
+        final String basename = jsapResult.getString("basename");
 
-		Graph graph = new Graph(basename);
-		run(graph);
-	}
+        Graph graph = new Graph(basename);
+        run(graph);
+    }
 }

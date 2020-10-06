@@ -34,8 +34,7 @@ public class App {
                                 "Binding port of the server."),
                         new UnflaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
                                 JSAP.NOT_GREEDY, "The basename of the compressed graph."),
-                        new Switch("timings", 't', "timings", "Show timings in API result metadata."),
-                });
+                        new Switch("timings", 't', "timings", "Show timings in API result metadata."),});
 
         JSAPResult config = jsap.parse(args);
         if (jsap.messagePrinted()) {
@@ -56,8 +55,7 @@ public class App {
      * @param port binding port of the server
      * @param showTimings true if timings should be in results metadata, false otherwise
      */
-    private static void startServer(String graphPath, int port, boolean showTimings)
-            throws IOException {
+    private static void startServer(String graphPath, int port, boolean showTimings) throws IOException {
         Graph graph = new Graph(graphPath);
         Stats stats = new Stats(graphPath);
 

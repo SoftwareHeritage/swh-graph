@@ -5,7 +5,6 @@ import ch.qos.logback.classic.Logger;
 import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
-import it.unimi.dsi.big.webgraph.Transform;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.slf4j.LoggerFactory;
 import org.softwareheritage.graph.Graph;
@@ -28,16 +27,12 @@ public class ClusteringCoefficient {
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(
-                    ClusteringCoefficient.class.getName(),
-                    "",
+            SimpleJSAP jsap = new SimpleJSAP(ClusteringCoefficient.class.getName(), "",
                     new Parameter[]{
-                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'g', "graph", "Basename of the compressed graph"),
-                            new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'o', "outdir", "Directory where to put the results"),
-                    }
-            );
+                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
+                                    "graph", "Basename of the compressed graph"),
+                            new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'o',
+                                    "outdir", "Directory where to put the results"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -155,7 +150,7 @@ public class ClusteringCoefficient {
             trials++;
 
             if (trials % 100 == 0 || true) {
-                double gC =  (double)triangles / (double)trials;
+                double gC = (double) triangles / (double) trials;
                 out_global.format("C: %f (triangles: %d, trials: %d)\n", gC, triangles, trials);
                 System.out.format("C: %f (triangles: %d, trials: %d)\n", gC, triangles, trials);
             }
@@ -182,16 +177,10 @@ public class ClusteringCoefficient {
         new File(outdirPath).mkdirs();
 
         try {
-            ccoef.compute_approx(
-                    new Formatter(outdirPath + "/local.txt")
-            );
+            ccoef.compute_approx(new Formatter(outdirPath + "/local.txt"));
             /*
-            ccoef.compute(
-                    symmetric,
-                    new ProgressLogger(rootLogger),
-                    new Formatter(outdirPath + "/local.txt"),
-                    new Formatter(outdirPath + "/global.txt")
-            );
+             * ccoef.compute( symmetric, new ProgressLogger(rootLogger), new Formatter(outdirPath +
+             * "/local.txt"), new Formatter(outdirPath + "/global.txt") );
              */
         } catch (FileNotFoundException e) {
             e.printStackTrace();

@@ -93,9 +93,8 @@ public class Node {
         }
 
         /**
-         * Parses SWH node type possible values from formatted string (see the <a
-         * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">API
-         * syntax</a>).
+         * Parses SWH node type possible values from formatted string (see the
+         * <a href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">API syntax</a>).
          *
          * @param strFmtType node types represented as a formatted string
          * @return a list containing the {@link Node.Type} values

@@ -28,97 +28,67 @@ public class VisitTest extends GraphTest {
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:ori:0000000000000000000000000000000000000021",
+        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
                 "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
-                "swh:1:cnt:0000000000000000000000000000000000000007"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:ori:0000000000000000000000000000000000000021",
+                "swh:1:cnt:0000000000000000000000000000000000000007"));
+        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
                 "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
-                "swh:1:cnt:0000000000000000000000000000000000000001"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:ori:0000000000000000000000000000000000000021",
+                "swh:1:cnt:0000000000000000000000000000000000000001"));
+        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
                 "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
-                "swh:1:cnt:0000000000000000000000000000000000000004"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:ori:0000000000000000000000000000000000000021",
+                "swh:1:cnt:0000000000000000000000000000000000000004"));
+        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
                 "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
-                "swh:1:cnt:0000000000000000000000000000000000000005"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:ori:0000000000000000000000000000000000000021",
+                "swh:1:cnt:0000000000000000000000000000000000000005"));
+        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
                 "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:rev:0000000000000000000000000000000000000003",
                 "swh:1:dir:0000000000000000000000000000000000000002",
-                "swh:1:cnt:0000000000000000000000000000000000000001"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:ori:0000000000000000000000000000000000000021",
+                "swh:1:cnt:0000000000000000000000000000000000000001"));
+        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
                 "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rel:0000000000000000000000000000000000000010",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
-                "swh:1:cnt:0000000000000000000000000000000000000007"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:ori:0000000000000000000000000000000000000021",
+                "swh:1:cnt:0000000000000000000000000000000000000007"));
+        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
                 "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rel:0000000000000000000000000000000000000010",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
-                "swh:1:cnt:0000000000000000000000000000000000000001"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:ori:0000000000000000000000000000000000000021",
+                "swh:1:cnt:0000000000000000000000000000000000000001"));
+        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
                 "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rel:0000000000000000000000000000000000000010",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
-                "swh:1:cnt:0000000000000000000000000000000000000004"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:ori:0000000000000000000000000000000000000021",
+                "swh:1:cnt:0000000000000000000000000000000000000004"));
+        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
                 "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rel:0000000000000000000000000000000000000010",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
-                "swh:1:cnt:0000000000000000000000000000000000000005"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:ori:0000000000000000000000000000000000000021",
+                "swh:1:cnt:0000000000000000000000000000000000000005"));
+        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
                 "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rel:0000000000000000000000000000000000000010",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:rev:0000000000000000000000000000000000000003",
                 "swh:1:dir:0000000000000000000000000000000000000002",
-                "swh:1:cnt:0000000000000000000000000000000000000001"
-            ));
+                "swh:1:cnt:0000000000000000000000000000000000000001"));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -134,37 +104,22 @@ public class VisitTest extends GraphTest {
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:dir:0000000000000000000000000000000000000012",
+        expectedPaths.add(new SwhPath("swh:1:dir:0000000000000000000000000000000000000012",
                 "swh:1:dir:0000000000000000000000000000000000000008",
-                "swh:1:cnt:0000000000000000000000000000000000000007"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:dir:0000000000000000000000000000000000000012",
+                "swh:1:cnt:0000000000000000000000000000000000000007"));
+        expectedPaths.add(new SwhPath("swh:1:dir:0000000000000000000000000000000000000012",
                 "swh:1:dir:0000000000000000000000000000000000000008",
-                "swh:1:cnt:0000000000000000000000000000000000000001"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:dir:0000000000000000000000000000000000000012",
+                "swh:1:cnt:0000000000000000000000000000000000000001"));
+        expectedPaths.add(new SwhPath("swh:1:dir:0000000000000000000000000000000000000012",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
-                "swh:1:cnt:0000000000000000000000000000000000000004"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:dir:0000000000000000000000000000000000000012",
+                "swh:1:cnt:0000000000000000000000000000000000000004"));
+        expectedPaths.add(new SwhPath("swh:1:dir:0000000000000000000000000000000000000012",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
-                "swh:1:cnt:0000000000000000000000000000000000000005"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:dir:0000000000000000000000000000000000000012",
-                "swh:1:cnt:0000000000000000000000000000000000000011"
-            ));
+                "swh:1:cnt:0000000000000000000000000000000000000005"));
+        expectedPaths.add(new SwhPath("swh:1:dir:0000000000000000000000000000000000000012",
+                "swh:1:cnt:0000000000000000000000000000000000000011"));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -180,10 +135,7 @@ public class VisitTest extends GraphTest {
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:cnt:0000000000000000000000000000000000000004"
-            ));
+        expectedPaths.add(new SwhPath("swh:1:cnt:0000000000000000000000000000000000000004"));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -199,10 +151,7 @@ public class VisitTest extends GraphTest {
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:ori:0000000000000000000000000000000000000021"
-            ));
+        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021"));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -218,13 +167,10 @@ public class VisitTest extends GraphTest {
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:dir:0000000000000000000000000000000000000012",
+        expectedPaths.add(new SwhPath("swh:1:dir:0000000000000000000000000000000000000012",
                 "swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:rev:0000000000000000000000000000000000000018",
-                "swh:1:rel:0000000000000000000000000000000000000019"
-            ));
+                "swh:1:rel:0000000000000000000000000000000000000019"));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -240,45 +186,33 @@ public class VisitTest extends GraphTest {
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:cnt:0000000000000000000000000000000000000004",
+        expectedPaths.add(new SwhPath("swh:1:cnt:0000000000000000000000000000000000000004",
                 "swh:1:dir:0000000000000000000000000000000000000006",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000012",
                 "swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:rev:0000000000000000000000000000000000000018",
-                "swh:1:rel:0000000000000000000000000000000000000019"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:cnt:0000000000000000000000000000000000000004",
+                "swh:1:rel:0000000000000000000000000000000000000019"));
+        expectedPaths.add(new SwhPath("swh:1:cnt:0000000000000000000000000000000000000004",
                 "swh:1:dir:0000000000000000000000000000000000000006",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:rev:0000000000000000000000000000000000000018",
-                "swh:1:rel:0000000000000000000000000000000000000019"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:cnt:0000000000000000000000000000000000000004",
+                "swh:1:rel:0000000000000000000000000000000000000019"));
+        expectedPaths.add(new SwhPath("swh:1:cnt:0000000000000000000000000000000000000004",
                 "swh:1:dir:0000000000000000000000000000000000000006",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:snp:0000000000000000000000000000000000000020",
-                "swh:1:ori:0000000000000000000000000000000000000021"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:cnt:0000000000000000000000000000000000000004",
+                "swh:1:ori:0000000000000000000000000000000000000021"));
+        expectedPaths.add(new SwhPath("swh:1:cnt:0000000000000000000000000000000000000004",
                 "swh:1:dir:0000000000000000000000000000000000000006",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:rel:0000000000000000000000000000000000000010",
                 "swh:1:snp:0000000000000000000000000000000000000020",
-                "swh:1:ori:0000000000000000000000000000000000000021"
-            ));
+                "swh:1:ori:0000000000000000000000000000000000000021"));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -294,11 +228,8 @@ public class VisitTest extends GraphTest {
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:snp:0000000000000000000000000000000000000020",
-                "swh:1:rev:0000000000000000000000000000000000000009"
-            ));
+        expectedPaths.add(new SwhPath("swh:1:snp:0000000000000000000000000000000000000020",
+                "swh:1:rev:0000000000000000000000000000000000000009"));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -314,12 +245,9 @@ public class VisitTest extends GraphTest {
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rel:0000000000000000000000000000000000000010",
+        expectedPaths.add(new SwhPath("swh:1:rel:0000000000000000000000000000000000000010",
                 "swh:1:rev:0000000000000000000000000000000000000009",
-                "swh:1:rev:0000000000000000000000000000000000000003"
-            ));
+                "swh:1:rev:0000000000000000000000000000000000000003"));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -335,80 +263,50 @@ public class VisitTest extends GraphTest {
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rev:0000000000000000000000000000000000000013",
+        expectedPaths.add(new SwhPath("swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
-                "swh:1:cnt:0000000000000000000000000000000000000005"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rev:0000000000000000000000000000000000000013",
+                "swh:1:cnt:0000000000000000000000000000000000000005"));
+        expectedPaths.add(new SwhPath("swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:dir:0000000000000000000000000000000000000012",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
-                "swh:1:cnt:0000000000000000000000000000000000000005"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rev:0000000000000000000000000000000000000013",
+                "swh:1:cnt:0000000000000000000000000000000000000005"));
+        expectedPaths.add(new SwhPath("swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
-                "swh:1:cnt:0000000000000000000000000000000000000004"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rev:0000000000000000000000000000000000000013",
+                "swh:1:cnt:0000000000000000000000000000000000000004"));
+        expectedPaths.add(new SwhPath("swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:dir:0000000000000000000000000000000000000012",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
-                "swh:1:cnt:0000000000000000000000000000000000000004"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rev:0000000000000000000000000000000000000013",
+                "swh:1:cnt:0000000000000000000000000000000000000004"));
+        expectedPaths.add(new SwhPath("swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
-                "swh:1:cnt:0000000000000000000000000000000000000007"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rev:0000000000000000000000000000000000000013",
+                "swh:1:cnt:0000000000000000000000000000000000000007"));
+        expectedPaths.add(new SwhPath("swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:dir:0000000000000000000000000000000000000012",
                 "swh:1:dir:0000000000000000000000000000000000000008",
-                "swh:1:cnt:0000000000000000000000000000000000000007"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rev:0000000000000000000000000000000000000013",
+                "swh:1:cnt:0000000000000000000000000000000000000007"));
+        expectedPaths.add(new SwhPath("swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:dir:0000000000000000000000000000000000000012",
-                "swh:1:cnt:0000000000000000000000000000000000000011"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rev:0000000000000000000000000000000000000013",
+                "swh:1:cnt:0000000000000000000000000000000000000011"));
+        expectedPaths.add(new SwhPath("swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:rev:0000000000000000000000000000000000000003",
                 "swh:1:dir:0000000000000000000000000000000000000002",
-                "swh:1:cnt:0000000000000000000000000000000000000001"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rev:0000000000000000000000000000000000000013",
+                "swh:1:cnt:0000000000000000000000000000000000000001"));
+        expectedPaths.add(new SwhPath("swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
-                "swh:1:cnt:0000000000000000000000000000000000000001"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rev:0000000000000000000000000000000000000013",
+                "swh:1:cnt:0000000000000000000000000000000000000001"));
+        expectedPaths.add(new SwhPath("swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:dir:0000000000000000000000000000000000000012",
                 "swh:1:dir:0000000000000000000000000000000000000008",
-                "swh:1:cnt:0000000000000000000000000000000000000001"
-            ));
+                "swh:1:cnt:0000000000000000000000000000000000000001"));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -424,24 +322,15 @@ public class VisitTest extends GraphTest {
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:snp:0000000000000000000000000000000000000020",
+        expectedPaths.add(new SwhPath("swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:rev:0000000000000000000000000000000000000003",
-                "swh:1:dir:0000000000000000000000000000000000000002"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:snp:0000000000000000000000000000000000000020",
+                "swh:1:dir:0000000000000000000000000000000000000002"));
+        expectedPaths.add(new SwhPath("swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rev:0000000000000000000000000000000000000009",
-                "swh:1:dir:0000000000000000000000000000000000000008"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:snp:0000000000000000000000000000000000000020",
-                "swh:1:rel:0000000000000000000000000000000000000010"
-            ));
+                "swh:1:dir:0000000000000000000000000000000000000008"));
+        expectedPaths.add(new SwhPath("swh:1:snp:0000000000000000000000000000000000000020",
+                "swh:1:rel:0000000000000000000000000000000000000010"));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -457,10 +346,7 @@ public class VisitTest extends GraphTest {
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:snp:0000000000000000000000000000000000000020"
-            ));
+        expectedPaths.add(new SwhPath("swh:1:snp:0000000000000000000000000000000000000020"));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -476,20 +362,14 @@ public class VisitTest extends GraphTest {
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rev:0000000000000000000000000000000000000003",
+        expectedPaths.add(new SwhPath("swh:1:rev:0000000000000000000000000000000000000003",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:rev:0000000000000000000000000000000000000013",
                 "swh:1:rev:0000000000000000000000000000000000000018",
-                "swh:1:rel:0000000000000000000000000000000000000019"
-            ));
-        expectedPaths.add(
-            new SwhPath(
-                "swh:1:rev:0000000000000000000000000000000000000003",
+                "swh:1:rel:0000000000000000000000000000000000000019"));
+        expectedPaths.add(new SwhPath("swh:1:rev:0000000000000000000000000000000000000003",
                 "swh:1:rev:0000000000000000000000000000000000000009",
-                "swh:1:rel:0000000000000000000000000000000000000010"
-            ));
+                "swh:1:rel:0000000000000000000000000000000000000010"));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);

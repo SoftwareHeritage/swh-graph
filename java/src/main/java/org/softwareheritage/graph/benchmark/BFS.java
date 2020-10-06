@@ -15,7 +15,6 @@ import org.softwareheritage.graph.Graph;
 import java.io.File;
 import java.io.IOException;
 
-
 public class BFS {
     private final static Logger LOGGER = LoggerFactory.getLogger(BFS.class);
     private final ImmutableGraph graph;
@@ -27,17 +26,13 @@ public class BFS {
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(
-                    BFS.class.getName(),
-                    "",
+            SimpleJSAP jsap = new SimpleJSAP(BFS.class.getName(), "",
                     new Parameter[]{
-                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'g', "graph", "Basename of the compressed graph"),
+                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
+                                    "graph", "Basename of the compressed graph"),
 
-                            new FlaggedOption("useTransposed", JSAP.BOOLEAN_PARSER, "false", JSAP.NOT_REQUIRED,
-                                    'T', "transposed", "Use transposed graph (default: false)"),
-                    }
-            );
+                            new FlaggedOption("useTransposed", JSAP.BOOLEAN_PARSER, "false", JSAP.NOT_REQUIRED, 'T',
+                                    "transposed", "Use transposed graph (default: false)"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -84,7 +79,8 @@ public class BFS {
         pl.start("Starting breadth-first visit...");
 
         for (long i = 0; i < n; i++) {
-            if (visited.getBoolean(i)) continue;
+            if (visited.getBoolean(i))
+                continue;
             queue.enqueue(Longs.toByteArray(i));
             visited.set(i);
 

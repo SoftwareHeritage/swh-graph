@@ -5,8 +5,8 @@ import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 
 /**
- * A Software Heritage persistent identifier (SWHID), see <a
- * href="https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html#persistent-identifiers">persistent
+ * A Software Heritage persistent identifier (SWHID), see <a href=
+ * "https://docs.softwareheritage.org/devel/swh-model/persistent-identifiers.html#persistent-identifiers">persistent
  * identifier documentation</a>.
  *
  * @author The Software Heritage developers
@@ -43,19 +43,14 @@ public class SWHID {
     /**
      * Creates a SWHID from a compact binary representation.
      * <p>
-     * The binary format is specified in the Python module
-     * swh.graph.swhid:str_to_bytes .
+     * The binary format is specified in the Python module swh.graph.swhid:str_to_bytes .
      */
     public static SWHID fromBytes(byte[] input) {
         byte[] digest = new byte[20];
         System.arraycopy(input, 2, digest, 0, digest.length);
 
-        String swhidStr = String.format(
-                "swh:%d:%s:%s",
-                input[0],
-                Node.Type.fromInt(input[1]).toString().toLowerCase(),
-                Hex.encodeHexString(digest)
-        );
+        String swhidStr = String.format("swh:%d:%s:%s", input[0], Node.Type.fromInt(input[1]).toString().toLowerCase(),
+                Hex.encodeHexString(digest));
         return new SWHID(swhidStr);
     }
 
@@ -83,17 +78,16 @@ public class SWHID {
     /**
      * Converts SWHID to a compact binary representation.
      * <p>
-     * The binary format is specified in the Python module
-     * swh.graph.swhid:str_to_bytes .
+     * The binary format is specified in the Python module swh.graph.swhid:str_to_bytes .
      */
     public byte[] toBytes() {
         byte[] bytes = new byte[22];
         byte[] digest;
 
-        bytes[0] = (byte) 1;  // namespace version
-        bytes[1] = (byte) Node.Type.toInt(this.type);  // SWHID type
+        bytes[0] = (byte) 1; // namespace version
+        bytes[1] = (byte) Node.Type.toInt(this.type); // SWHID type
         try {
-            digest = Hex.decodeHex(this.swhid.substring(10));  // SHA1 hash
+            digest = Hex.decodeHex(this.swhid.substring(10)); // SHA1 hash
             System.arraycopy(digest, 0, bytes, 2, digest.length);
         } catch (DecoderException e) {
             throw new IllegalArgumentException("invalid hex sequence in SWHID: " + this.swhid);

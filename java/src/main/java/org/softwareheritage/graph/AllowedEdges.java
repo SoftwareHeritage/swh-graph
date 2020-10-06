@@ -7,8 +7,8 @@ import java.util.ArrayList;
  * <p>
  * <a href="https://docs.softwareheritage.org/devel/swh-model/data-model.html">Software Heritage
  * graph</a> contains multiple node types (contents, directories, revisions, ...) and restricting
- * the traversal to specific node types is necessary for many querying operations: <a
- * href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html">use cases</a>.
+ * the traversal to specific node types is necessary for many querying operations:
+ * <a href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html">use cases</a>.
  *
  * @author The Software Heritage developers
  */
@@ -16,16 +16,17 @@ import java.util.ArrayList;
 public class AllowedEdges {
     /**
      * 2D boolean matrix storing access rights for all combination of src/dst node types (first
-     * dimension is source, second dimension is destination), when edge restriction is not enforced
-     * this array is set to null for early bypass.
+     * dimension is source, second dimension is destination), when edge restriction is not enforced this
+     * array is set to null for early bypass.
      */
     public boolean[][] restrictedTo;
 
     /**
      * Constructor.
      *
-     * @param edgesFmt a formatted string describing <a
-     * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed edges</a>
+     * @param edgesFmt a formatted string describing <a href=
+     *            "https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed
+     *            edges</a>
      */
     public AllowedEdges(String edgesFmt) {
         int nbNodeTypes = Node.Type.values().length;

@@ -2,9 +2,7 @@ package org.softwareheritage.graph.experiments.topology;
 
 import com.google.common.primitives.Longs;
 import com.martiansoftware.jsap.*;
-import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
-import it.unimi.dsi.big.webgraph.Transform;
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.Arrays;
 import it.unimi.dsi.io.ByteDiskQueue;
@@ -29,16 +27,12 @@ public class ConnectedComponents {
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(
-                ConnectedComponents.class.getName(),
-                "",
-                new Parameter[] {
-                    new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            'g', "graph", "Basename of the compressed graph"),
-                    new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            'o', "outdir", "Directory where to put the results"),
-                }
-            );
+            SimpleJSAP jsap = new SimpleJSAP(ConnectedComponents.class.getName(), "",
+                    new Parameter[]{
+                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
+                                    "graph", "Basename of the compressed graph"),
+                            new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'o',
+                                    "outdir", "Directory where to put the results"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -50,11 +44,11 @@ public class ConnectedComponents {
         return config;
     }
 
-    private HashMap<Long, Long> /*ArrayList<ArrayList<Long>>*/ compute(ProgressLogger pl) throws IOException {
+    private HashMap<Long, Long> /* ArrayList<ArrayList<Long>> */ compute(ProgressLogger pl) throws IOException {
         final long n = graph.numNodes();
 
         // Allow enough memory to behave like in-memory queue
-        int bufferSize = (int)Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * n);
+        int bufferSize = (int) Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * n);
 
         // Use a disk based queue to store BFS frontier
         final File queueFile = File.createTempFile(ConnectedComponents.class.getSimpleName(), "queue");
@@ -97,10 +91,8 @@ public class ConnectedComponents {
             }
 
             /*
-            if (component.size() > 0) {
-                components.add(component);
-            }
-            */
+             * if (component.size() > 0) { components.add(component); }
+             */
             if (componentNodes > 0)
                 componentDistribution.merge(componentNodes, 1L, Long::sum);
         }
@@ -161,7 +153,7 @@ public class ConnectedComponents {
         }
 
         ProgressLogger logger = new ProgressLogger();
-        //noinspection ResultOfMethodCallIgnored
+        // noinspection ResultOfMethodCallIgnored
         new File(outdirPath).mkdirs();
         try {
             // ArrayList<ArrayList<Long>> components = connectedComponents.compute(logger);

@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 
-
 public class AllowedEdgesTest extends GraphTest {
     static class EdgeType {
         Node.Type src;
@@ -18,8 +17,10 @@ public class AllowedEdgesTest extends GraphTest {
 
         @Override
         public boolean equals(Object otherObj) {
-            if (otherObj == this) return true;
-            if (!(otherObj instanceof EdgeType)) return false;
+            if (otherObj == this)
+                return true;
+            if (!(otherObj instanceof EdgeType))
+                return false;
 
             EdgeType other = (EdgeType) otherObj;
             return src == other.src && dst == other.dst;

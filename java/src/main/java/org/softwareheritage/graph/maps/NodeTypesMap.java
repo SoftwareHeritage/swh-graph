@@ -8,15 +8,13 @@ import org.softwareheritage.graph.Node;
 import java.io.IOException;
 
 /**
- * Mapping between long node id and SWH node type as described in the <a
- * href="https://docs.softwareheritage.org/devel/swh-model/data-model.html">data
- * model</a>.
+ * Mapping between long node id and SWH node type as described in the
+ * <a href="https://docs.softwareheritage.org/devel/swh-model/data-model.html">data model</a>.
  * <p>
- * The type mapping is pre-computed and dumped on disk in the {@link NodeMapBuilder}
- * class, then it is loaded in-memory here using
- * <a href="http://fastutil.di.unimi.it/">fastutil</a> LongBigList. To be
- * space-efficient, the mapping is stored as a bitmap using minimum number of
- * bits per {@link Node.Type}.
+ * The type mapping is pre-computed and dumped on disk in the {@link NodeMapBuilder} class, then it
+ * is loaded in-memory here using <a href="http://fastutil.di.unimi.it/">fastutil</a> LongBigList.
+ * To be space-efficient, the mapping is stored as a bitmap using minimum number of bits per
+ * {@link Node.Type}.
  *
  * @author The Software Heritage developers
  */

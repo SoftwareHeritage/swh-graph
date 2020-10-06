@@ -7,9 +7,9 @@ import org.softwareheritage.graph.server.Endpoint;
 import java.io.IOException;
 
 /**
- * Benchmark Software Heritage <a
- * href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html#vault">vault
- * use-case scenario</a>.
+ * Benchmark Software Heritage
+ * <a href="https://docs.softwareheritage.org/devel/swh-graph/use-cases.html#vault">vault use-case
+ * scenario</a>.
  *
  * @author The Software Heritage developers
  */

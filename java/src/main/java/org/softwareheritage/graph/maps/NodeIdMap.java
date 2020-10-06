@@ -8,8 +8,8 @@ import java.io.IOException;
 /**
  * Mapping between internal long node id and external SWHID.
  * <p>
- * Mappings in both directions are pre-computed and dumped on disk in the
- * {@link NodeMapBuilder} class, then they are loaded here using mmap().
+ * Mappings in both directions are pre-computed and dumped on disk in the {@link NodeMapBuilder}
+ * class, then they are loaded here using mmap().
  *
  * @author The Software Heritage developers
  * @see NodeMapBuilder
@@ -57,8 +57,9 @@ public class NodeIdMap {
      * @see SWHID
      */
     public long getNodeId(SWHID swhid) {
-        // The file is sorted by swhid, hence we can binary search on swhid to get corresponding
-        // nodeId
+        /*
+         * The file is sorted by swhid, hence we can binary search on swhid to get corresponding nodeId
+         */
         long start = 0;
         long end = nbIds - 1;
 
@@ -94,9 +95,10 @@ public class NodeIdMap {
      * @see SWHID
      */
     public SWHID getSWHID(long nodeId) {
-        // Each line in NODE_TO_SWHID is formatted as: swhid
-        // The file is ordered by nodeId, meaning node0's swhid is at line 0, hence we can read the
-        // nodeId-th line to get corresponding swhid
+        /*
+         * Each line in NODE_TO_SWHID is formatted as: swhid The file is ordered by nodeId, meaning node0's
+         * swhid is at line 0, hence we can read the nodeId-th line to get corresponding swhid
+         */
         if (nodeId < 0 || nodeId >= nbIds) {
             throw new IllegalArgumentException("Node id " + nodeId + " should be between 0 and " + nbIds);
         }

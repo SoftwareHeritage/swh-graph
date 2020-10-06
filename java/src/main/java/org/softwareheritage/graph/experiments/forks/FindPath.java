@@ -22,14 +22,9 @@ public class FindPath {
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(
-                    FindPath.class.getName(),
-                    "",
-                    new Parameter[] {
-                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'g', "graph", "Basename of the compressed graph"),
-                    }
-            );
+            SimpleJSAP jsap = new SimpleJSAP(FindPath.class.getName(), "",
+                    new Parameter[]{new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
+                            'g', "graph", "Basename of the compressed graph"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -42,8 +37,7 @@ public class FindPath {
     }
 
     private boolean nodeIsEmptySnapshot(Long node) {
-        if (this.emptySnapshot == null
-                && this.graph.getNodeType(node) == Node.Type.SNP
+        if (this.emptySnapshot == null && this.graph.getNodeType(node) == Node.Type.SNP
                 && this.graph.outdegree(node) == 0) {
             System.err.println("Found empty snapshot: " + node);
             this.emptySnapshot = node;
@@ -51,10 +45,9 @@ public class FindPath {
         return node.equals(this.emptySnapshot);
     }
 
-    private Boolean shouldVisit(Long node){
+    private Boolean shouldVisit(Long node) {
         Node.Type nt = this.graph.getNodeType(node);
-        if (nt != Node.Type.REV && nt != Node.Type.REL
-                && nt != Node.Type.SNP && nt != Node.Type.ORI) {
+        if (nt != Node.Type.REV && nt != Node.Type.REL && nt != Node.Type.SNP && nt != Node.Type.ORI) {
             return false;
         }
         if (this.nodeIsEmptySnapshot(node))
@@ -76,7 +69,8 @@ public class FindPath {
             final LazyLongIterator iterator = graph.successors(currentNode);
             long succ;
             while ((succ = iterator.nextLong()) != -1) {
-                if (!shouldVisit(succ) || visited.contains(succ)) continue;
+                if (!shouldVisit(succ) || visited.contains(succ))
+                    continue;
                 visited.add(succ);
                 queue.add(succ);
                 parentNode.put(succ, currentNode);
@@ -121,8 +115,7 @@ public class FindPath {
                     System.out.format("%d ", n);
                 }
                 System.out.println();
-            }
-            else {
+            } else {
                 System.out.println("null");
             }
         }

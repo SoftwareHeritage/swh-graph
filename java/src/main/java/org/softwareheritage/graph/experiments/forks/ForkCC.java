@@ -9,7 +9,6 @@ import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.benchmark.BFS;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -26,20 +25,16 @@ public class ForkCC {
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(
-                ForkCC.class.getName(),
-                "",
-                new Parameter[] {
-                    new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            'g', "graph", "Basename of the compressed graph"),
-                    new FlaggedOption("whitelistPath", JSAP.STRING_PARSER, null, JSAP.NOT_REQUIRED,
-                            't', "whitelist", "Whitelist of origins"),
-                    new FlaggedOption("includeRootDir", JSAP.BOOLEAN_PARSER, "false", JSAP.NOT_REQUIRED,
-                            'R', "includerootdir", "Include root directory (default: false)"),
-                    new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            'o', "outdir", "Directory where to put the results"),
-                }
-            );
+            SimpleJSAP jsap = new SimpleJSAP(ForkCC.class.getName(), "",
+                    new Parameter[]{
+                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
+                                    "graph", "Basename of the compressed graph"),
+                            new FlaggedOption("whitelistPath", JSAP.STRING_PARSER, null, JSAP.NOT_REQUIRED, 't',
+                                    "whitelist", "Whitelist of origins"),
+                            new FlaggedOption("includeRootDir", JSAP.BOOLEAN_PARSER, "false", JSAP.NOT_REQUIRED, 'R',
+                                    "includerootdir", "Include root directory (default: false)"),
+                            new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'o',
+                                    "outdir", "Directory where to put the results"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -86,8 +81,7 @@ public class ForkCC {
     }
 
     private boolean nodeIsEmptySnapshot(Long node) {
-        if (this.emptySnapshot == null
-                && this.graph.getNodeType(node) == Node.Type.SNP
+        if (this.emptySnapshot == null && this.graph.getNodeType(node) == Node.Type.SNP
                 && this.graph.outdegree(node) == 0) {
             System.err.println("Found empty snapshot: " + node);
             this.emptySnapshot = node;
@@ -128,7 +122,8 @@ public class ForkCC {
         ArrayList<ArrayList<Long>> components = new ArrayList<>();
 
         for (long i = 0; i < n; i++) {
-            if (!shouldVisit(i) || this.graph.getNodeType(i) == Node.Type.DIR) continue;
+            if (!shouldVisit(i) || this.graph.getNodeType(i) == Node.Type.DIR)
+                continue;
 
             ArrayList<Long> component = new ArrayList<>();
 
@@ -139,8 +134,7 @@ public class ForkCC {
                 queue.dequeue(byteBuf);
                 final long currentNode = Longs.fromByteArray(byteBuf);
                 Node.Type cur_nt = this.graph.getNodeType(currentNode);
-                if (cur_nt == Node.Type.ORI
-                        && (this.whitelist == null || this.whitelist.getBoolean(currentNode))) {
+                if (cur_nt == Node.Type.ORI && (this.whitelist == null || this.whitelist.getBoolean(currentNode))) {
                     // TODO: add a check that the origin has >=1 non-empty snapshot
                     component.add(currentNode);
                 }
@@ -148,8 +142,10 @@ public class ForkCC {
                 final LazyLongIterator iterator = graph.successors(currentNode);
                 long succ;
                 while ((succ = iterator.nextLong()) != -1) {
-                    if (!shouldVisit(succ)) continue;
-                    if (this.graph.getNodeType(succ) == Node.Type.DIR && cur_nt != Node.Type.REV) continue;
+                    if (!shouldVisit(succ))
+                        continue;
+                    if (this.graph.getNodeType(succ) == Node.Type.DIR && cur_nt != Node.Type.REV)
+                        continue;
                     visited.set(succ);
                     queue.enqueue(Longs.toByteArray(succ));
                 }
@@ -238,7 +234,7 @@ public class ForkCC {
         }
 
         ProgressLogger logger = new ProgressLogger();
-        //noinspection ResultOfMethodCallIgnored
+        // noinspection ResultOfMethodCallIgnored
         new File(outdirPath).mkdirs();
         try {
             ArrayList<ArrayList<Long>> components = forkCc.compute(logger);

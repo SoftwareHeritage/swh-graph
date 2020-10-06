@@ -140,16 +140,14 @@ public class Entry {
             close();
         }
 
-        public void visit_paths(String direction, String edgesFmt,
-                                long srcNodeId) {
+        public void visit_paths(String direction, String edgesFmt, long srcNodeId) {
             open();
             Traversal t = new Traversal(this.graph, direction, edgesFmt);
             t.visitPathsVisitor(srcNodeId, this::writePath);
             close();
         }
 
-        public void walk(String direction, String edgesFmt, String algorithm,
-                         long srcNodeId, long dstNodeId) {
+        public void walk(String direction, String edgesFmt, String algorithm, long srcNodeId, long dstNodeId) {
             open();
             Traversal t = new Traversal(this.graph, direction, edgesFmt);
             for (Long nodeId : t.walk(srcNodeId, dstNodeId, algorithm)) {
@@ -158,8 +156,7 @@ public class Entry {
             close();
         }
 
-        public void walk_type(String direction, String edgesFmt, String algorithm,
-                              long srcNodeId, String dst) {
+        public void walk_type(String direction, String edgesFmt, String algorithm, long srcNodeId, String dst) {
             open();
             Node.Type dstType = Node.Type.fromStr(dst);
             Traversal t = new Traversal(this.graph, direction, edgesFmt);
@@ -169,8 +166,7 @@ public class Entry {
             close();
         }
 
-        public void random_walk(String direction, String edgesFmt, int retries,
-                                long srcNodeId, long dstNodeId) {
+        public void random_walk(String direction, String edgesFmt, int retries, long srcNodeId, long dstNodeId) {
             open();
             Traversal t = new Traversal(this.graph, direction, edgesFmt);
             for (Long nodeId : t.randomWalk(srcNodeId, dstNodeId, retries)) {
@@ -179,8 +175,7 @@ public class Entry {
             close();
         }
 
-        public void random_walk_type(String direction, String edgesFmt, int retries,
-                                     long srcNodeId, String dst) {
+        public void random_walk_type(String direction, String edgesFmt, int retries, long srcNodeId, String dst) {
             open();
             Node.Type dstType = Node.Type.fromStr(dst);
             Traversal t = new Traversal(this.graph, direction, edgesFmt);

@@ -27,8 +27,9 @@ public class Endpoint {
      *
      * @param graph the graph used for traversal endpoint
      * @param direction a string (either "forward" or "backward") specifying edge orientation
-     * @param edgesFmt a formatted string describing <a
-     * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed edges</a>
+     * @param edgesFmt a formatted string describing <a href=
+     *            "https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed
+     *            edges</a>
      */
     public Endpoint(Graph graph, String direction, String edgesFmt) {
         this.graph = graph;
@@ -246,8 +247,8 @@ public class Endpoint {
         /** Source node of endpoint call specified as a {@link SWHID} */
         public SWHID src;
         /**
-         * Destination formatted string as described in the <a
-         * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#walk">API</a>
+         * Destination formatted string as described in the
+         * <a href="https://docs.softwareheritage.org/devel/swh-graph/api.html#walk">API</a>
          */
         public String dstFmt;
         /** Traversal algorithm used in endpoint call (either "dfs" or "bfs") */

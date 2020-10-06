@@ -48,9 +48,8 @@ public class Benchmark {
                                 "nb-nodes", "Number of random nodes used to do the benchmark."),
                         new FlaggedOption("logFile", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'l',
                                 "log-file", "File name to output CSV format benchmark log."),
-                        new FlaggedOption("seed", JSAP.LONG_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 's',
-                                "seed", "Random generator seed."),
-                });
+                        new FlaggedOption("seed", JSAP.LONG_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 's', "seed",
+                                "Random generator seed."),});
 
         JSAPResult config = jsap.parse(args);
         if (jsap.messagePrinted()) {
@@ -69,12 +68,8 @@ public class Benchmark {
     public void createCSVLogFile() throws IOException {
         try (Writer csvLog = new BufferedWriter(new FileWriter(args.logFile))) {
             StringJoiner csvHeader = new StringJoiner(CSV_SEPARATOR);
-            csvHeader.add("use case name")
-                    .add("SWHID")
-                    .add("number of edges accessed")
-                    .add("traversal timing")
-                    .add("swhid2node timing")
-                    .add("node2swhid timing");
+            csvHeader.add("use case name").add("SWHID").add("number of edges accessed").add("traversal timing")
+                    .add("swhid2node timing").add("node2swhid timing");
             csvLog.write(csvHeader.toString() + "\n");
         }
     }
@@ -86,13 +81,12 @@ public class Benchmark {
      * @param graph compressed graph used in the benchmark
      * @param nodeIds node ids to use as starting point for the endpoint traversal
      * @param operation endpoint function to benchmark
-     * @param dstFmt destination formatted string as described in the <a
-     * href="https://docs.softwareheritage.org/devel/swh-graph/api.html#walk">API</a>
+     * @param dstFmt destination formatted string as described in the
+     *            <a href="https://docs.softwareheritage.org/devel/swh-graph/api.html#walk">API</a>
      * @param algorithm traversal algorithm used in endpoint call (either "dfs" or "bfs")
      */
     public void timeEndpoint(String useCaseName, Graph graph, long[] nodeIds,
-                             Function<Endpoint.Input, Endpoint.Output> operation, String dstFmt, String algorithm)
-            throws IOException {
+            Function<Endpoint.Input, Endpoint.Output> operation, String dstFmt, String algorithm) throws IOException {
         ArrayList<Double> timings = new ArrayList<>();
         ArrayList<Double> timingsNormalized = new ArrayList<>();
         ArrayList<Double> nbEdgesAccessed = new ArrayList<>();
@@ -107,9 +101,7 @@ public class Benchmark {
                         : operation.apply(new Endpoint.Input(swhid, dstFmt, algorithm));
 
                 StringJoiner csvLine = new StringJoiner(CSV_SEPARATOR);
-                csvLine.add(useCaseName)
-                        .add(swhid.toString())
-                        .add(Long.toString(output.meta.nbEdgesAccessed))
+                csvLine.add(useCaseName).add(swhid.toString()).add(Long.toString(output.meta.nbEdgesAccessed))
                         .add(Double.toString(output.meta.timings.traversal))
                         .add(Double.toString(output.meta.timings.swhid2node))
                         .add(Double.toString(output.meta.timings.node2swhid));
@@ -142,7 +134,7 @@ public class Benchmark {
      * Same as {@link #timeEndpoint} but without destination or algorithm specified to endpoint call.
      */
     public void timeEndpoint(String useCaseName, Graph graph, long[] nodeIds,
-                             Function<Endpoint.Input, Endpoint.Output> operation) throws IOException {
+            Function<Endpoint.Input, Endpoint.Output> operation) throws IOException {
         timeEndpoint(useCaseName, graph, nodeIds, operation, null, null);
     }
 
