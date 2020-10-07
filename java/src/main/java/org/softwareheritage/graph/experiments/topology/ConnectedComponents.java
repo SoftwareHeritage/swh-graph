@@ -31,18 +31,14 @@ public class ConnectedComponents {
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(
-                ConnectedComponents.class.getName(),
-                "",
-                new Parameter[] {
-                    new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            'g', "graph", "Basename of the compressed graph"),
-                    new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            'o', "outdir", "Directory where to put the results"),
-                    new FlaggedOption("nodeTypes", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                            'n', "nodetypes", "Allowed node types (comma-separated)"),
-                }
-            );
+            SimpleJSAP jsap = new SimpleJSAP(ConnectedComponents.class.getName(), "",
+                    new Parameter[]{
+                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
+                                    "graph", "Basename of the compressed graph"),
+                            new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'o',
+                                    "outdir", "Directory where to put the results"),
+                            new FlaggedOption("nodeTypes", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'n',
+                                    "nodetypes", "Allowed node types (comma-separated)"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -59,7 +55,7 @@ public class ConnectedComponents {
         final long maxN = graph.maxNodeNumber();
 
         // Allow enough memory to behave like in-memory queue
-        int bufferSize = (int)Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * maxN);
+        int bufferSize = (int) Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * maxN);
 
         // Use a disk based queue to store BFS frontier
         final File queueFile = File.createTempFile(ConnectedComponents.class.getSimpleName(), "queue");

@@ -1,6 +1,5 @@
 package org.softwareheritage.graph;
 
-import java.lang.IllegalArgumentException;
 import java.util.*;
 
 import org.junit.jupiter.api.Assertions;
@@ -55,24 +54,14 @@ public class SubgraphTest extends GraphTest {
         Subgraph sg = new Subgraph(g, new AllowedNodes("dir,ori"));
 
         SWHID dir1 = fakeSWHID("dir", 17);
-        assertEqualsAnyOrder(
-                Collections.singletonList(
-                        sg.getNodeId(fakeSWHID("dir", 16))
-                ),
-                lazyLongIteratorToList(sg.successors(sg.getNodeId(dir1)))
-        );
+        assertEqualsAnyOrder(Collections.singletonList(sg.getNodeId(fakeSWHID("dir", 16))),
+                lazyLongIteratorToList(sg.successors(sg.getNodeId(dir1))));
 
         SWHID dir2 = fakeSWHID("dir", 6);
-        assertEqualsAnyOrder(
-                Collections.emptyList(),
-                lazyLongIteratorToList(sg.successors(sg.getNodeId(dir2)))
-        );
+        assertEqualsAnyOrder(Collections.emptyList(), lazyLongIteratorToList(sg.successors(sg.getNodeId(dir2))));
 
         SWHID ori1 = fakeSWHID("ori", 21);
-        assertEqualsAnyOrder(
-                Collections.emptyList(),
-                lazyLongIteratorToList(sg.successors(sg.getNodeId(ori1)))
-        );
+        assertEqualsAnyOrder(Collections.emptyList(), lazyLongIteratorToList(sg.successors(sg.getNodeId(ori1))));
     }
 
     @Test
@@ -82,29 +71,15 @@ public class SubgraphTest extends GraphTest {
         ArrayList<Long> nodeList = new ArrayList<>();
         Iterator<Long> nodeIt = sg.nodeIterator();
         nodeIt.forEachRemaining(nodeList::add);
-        assertEqualsAnyOrder(
-                Arrays.asList(
-                        sg.getNodeId(fakeSWHID("ori", 21)),
-                        sg.getNodeId(fakeSWHID("dir", 2)),
-                        sg.getNodeId(fakeSWHID("dir", 6)),
-                        sg.getNodeId(fakeSWHID("dir", 8)),
-                        sg.getNodeId(fakeSWHID("dir", 12)),
-                        sg.getNodeId(fakeSWHID("dir", 16)),
-                        sg.getNodeId(fakeSWHID("dir", 17))
-                ),
-                nodeList
-        );
+        assertEqualsAnyOrder(Arrays.asList(sg.getNodeId(fakeSWHID("ori", 21)), sg.getNodeId(fakeSWHID("dir", 2)),
+                sg.getNodeId(fakeSWHID("dir", 6)), sg.getNodeId(fakeSWHID("dir", 8)),
+                sg.getNodeId(fakeSWHID("dir", 12)), sg.getNodeId(fakeSWHID("dir", 16)),
+                sg.getNodeId(fakeSWHID("dir", 17))), nodeList);
         sg = new Subgraph(g, new AllowedNodes("snp,rel"));
         nodeList = new ArrayList<>();
         nodeIt = sg.nodeIterator();
         nodeIt.forEachRemaining(nodeList::add);
-        assertEqualsAnyOrder(
-                Arrays.asList(
-                        sg.getNodeId(fakeSWHID("snp", 20)),
-                        sg.getNodeId(fakeSWHID("rel", 10)),
-                        sg.getNodeId(fakeSWHID("rel", 19))
-                ),
-                nodeList
-        );
+        assertEqualsAnyOrder(Arrays.asList(sg.getNodeId(fakeSWHID("snp", 20)), sg.getNodeId(fakeSWHID("rel", 10)),
+                sg.getNodeId(fakeSWHID("rel", 19))), nodeList);
     }
 }

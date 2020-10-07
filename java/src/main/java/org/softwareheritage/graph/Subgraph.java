@@ -6,7 +6,6 @@ import it.unimi.dsi.big.webgraph.NodeIterator;
 
 import java.util.NoSuchElementException;
 
-
 public class Subgraph extends ImmutableGraph {
     private final Graph underlyingGraph;
     public final AllowedNodes allowedNodeTypes;
@@ -87,8 +86,8 @@ public class Subgraph extends ImmutableGraph {
      * Returns lazy iterator of successors of a node.
      *
      * @param nodeId node specified as a long id
-     * @return lazy iterator of successors of the node, specified as a <a
-     * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
+     * @return lazy iterator of successors of the node, specified as a
+     *         <a href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
      */
     @Override
     public LazyLongIterator successors(long nodeId) {
@@ -111,7 +110,8 @@ public class Subgraph extends ImmutableGraph {
             @Override
             public long skip(final long n) {
                 long i;
-                for (i = 0; i < n && nextLong() != -1; i++) ;
+                for (i = 0; i < n && nextLong() != -1; i++)
+                    ;
                 return i;
             }
         };
@@ -126,7 +126,8 @@ public class Subgraph extends ImmutableGraph {
     @Override
     public long outdegree(long nodeId) {
         long deg = 0;
-        for (LazyLongIterator allSuccessors = successors(nodeId); allSuccessors.nextLong() != -1; ++deg);
+        for (LazyLongIterator allSuccessors = successors(nodeId); allSuccessors.nextLong() != -1; ++deg)
+            ;
         return deg;
     }
 
@@ -144,7 +145,8 @@ public class Subgraph extends ImmutableGraph {
 
             @Override
             public long nextLong() {
-                if (!hasNext()) throw new NoSuchElementException();
+                if (!hasNext())
+                    throw new NoSuchElementException();
                 do {
                     ++i;
                     if (i >= underlyingGraph.numNodes())
@@ -170,8 +172,8 @@ public class Subgraph extends ImmutableGraph {
      * Returns lazy iterator of predecessors of a node.
      *
      * @param nodeId node specified as a long id
-     * @return lazy iterator of predecessors of the node, specified as a <a
-     * href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
+     * @return lazy iterator of predecessors of the node, specified as a
+     *         <a href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
      */
     public LazyLongIterator predecessors(long nodeId) {
         return this.transpose().successors(nodeId);

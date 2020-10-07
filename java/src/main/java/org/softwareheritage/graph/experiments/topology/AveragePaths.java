@@ -35,20 +35,16 @@ public class AveragePaths {
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(
-                    AveragePaths.class.getName(),
-                    "",
+            SimpleJSAP jsap = new SimpleJSAP(AveragePaths.class.getName(), "",
                     new Parameter[]{
-                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'g', "graph", "Basename of the compressed graph"),
-                            new FlaggedOption("nodeTypes", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    's', "nodetypes", "Node type constraints"),
-                            new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
-                                    'o', "outdir", "Directory where to put the results"),
-                            new FlaggedOption("numThreads", JSAP.INTEGER_PARSER, "32", JSAP.NOT_REQUIRED,
-                                    't', "numthreads", "Number of threads"),
-                    }
-            );
+                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
+                                    "graph", "Basename of the compressed graph"),
+                            new FlaggedOption("nodeTypes", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 's',
+                                    "nodetypes", "Node type constraints"),
+                            new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'o',
+                                    "outdir", "Directory where to put the results"),
+                            new FlaggedOption("numThreads", JSAP.INTEGER_PARSER, "32", JSAP.NOT_REQUIRED, 't',
+                                    "numthreads", "Number of threads"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -59,7 +55,6 @@ public class AveragePaths {
         }
         return config;
     }
-
 
     private void run(int numThreads) throws InterruptedException {
         final long END_OF_QUEUE = -1L;
@@ -121,7 +116,7 @@ public class AveragePaths {
 
                         bfsAt(thread_subgraph, node);
                     }
-                } catch (Exception e){
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             });
@@ -131,8 +126,7 @@ public class AveragePaths {
         service.awaitTermination(365, TimeUnit.DAYS);
     }
 
-    private void bfsAt(Subgraph graph, long srcNodeId)
-    {
+    private void bfsAt(Subgraph graph, long srcNodeId) {
         ArrayDeque<Long> queue = new ArrayDeque<>();
         HashSet<Long> visited = new HashSet<>();
 
@@ -148,7 +142,7 @@ public class AveragePaths {
             long currentNodeId = queue.removeFirst();
             // System.err.println("curr: " + currentNodeId);
             if (currentNodeId == FRONTIER_MARKER) {
-                if (queue.isEmpty())  // avoid infinite loops
+                if (queue.isEmpty()) // avoid infinite loops
                     break;
                 ++distance;
                 queue.addLast(FRONTIER_MARKER);
@@ -159,7 +153,7 @@ public class AveragePaths {
             }
 
             LazyLongIterator it = graph.predecessors(currentNodeId);
-            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1; ) {
+            for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 if (!visited.contains(neighborNodeId)) {
                     queue.addLast(neighborNodeId);
                     visited.add(neighborNodeId);
