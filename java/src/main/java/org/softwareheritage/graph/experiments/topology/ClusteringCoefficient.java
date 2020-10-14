@@ -24,7 +24,7 @@ public class ClusteringCoefficient {
     private final ConcurrentHashMap<Long, Long> result_revrel;
     private final ConcurrentHashMap<Long, Long> result_orisnp;
 
-    public ClusteringCoefficient(String graphBasename, String allowedNodes, String outdirPath) throws IOException {
+    public ClusteringCoefficient(String graphBasename, String outdirPath) throws IOException {
         this.outdirPath = outdirPath;
         System.err.println("Loading graph " + graphBasename + " ...");
         this.graph = new Graph(graphBasename);
@@ -44,8 +44,6 @@ public class ClusteringCoefficient {
                     new Parameter[]{
                             new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
                                     "graph", "Basename of the compressed graph"),
-                            new FlaggedOption("nodeTypes", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 's',
-                                    "nodetypes", "Node type constraints"),
                             new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'o',
                                     "outdir", "Directory where to put the results"),
                             new FlaggedOption("numThreads", JSAP.INTEGER_PARSER, "32", JSAP.NOT_REQUIRED, 't',
@@ -206,10 +204,9 @@ public class ClusteringCoefficient {
 
         String graphPath = config.getString("graphPath");
         String outdir = config.getString("outdir");
-        String allowedNodes = config.getString("nodeTypes");
         int numThreads = config.getInt("numThreads");
 
-        ClusteringCoefficient cc = new ClusteringCoefficient(graphPath, allowedNodes, outdir);
+        ClusteringCoefficient cc = new ClusteringCoefficient(graphPath, outdir);
         cc.run(numThreads);
         cc.printResult();
     }
