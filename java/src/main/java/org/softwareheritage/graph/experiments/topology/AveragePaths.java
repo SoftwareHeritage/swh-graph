@@ -20,11 +20,13 @@ public class AveragePaths {
     private final Graph graph;
     private final Subgraph subgraph;
     private final ConcurrentHashMap<Long, Long> result;
+    private final String outdir;
 
-    public AveragePaths(String graphBasename, String allowedNodes) throws IOException {
+    public AveragePaths(String graphBasename, String allowedNodes, String outdir) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
         this.graph = new Graph(graphBasename);
         this.subgraph = new Subgraph(this.graph, new AllowedNodes(allowedNodes));
+        this.outdir = outdir;
         System.err.println("Graph loaded.");
 
         result = new ConcurrentHashMap<>();
@@ -83,6 +85,9 @@ public class AveragePaths {
                     long node = BigArrays.get(randomPerm, j);
                     if (thread_subgraph.nodeExists(node) && thread_subgraph.outdegree(node) == 0) {
                         queue.put(node);
+                    }
+                    if (j % 10000 == 0) {
+                        printResult();
                     }
                     pl.update();
                 }
@@ -163,10 +168,10 @@ public class AveragePaths {
         }
     }
 
-    public void printResult(String outdirPath) throws IOException {
-        new File(outdirPath).mkdirs();
+    public void printResult() throws IOException {
+        new File(outdir).mkdirs();
 
-        PrintWriter f = new PrintWriter(new FileWriter(outdirPath + "/distribution.txt"));
+        PrintWriter f = new PrintWriter(new FileWriter(outdir + "/distribution.txt"));
         TreeMap<Long, Long> sortedDistribution = new TreeMap<>(result);
         for (Map.Entry<Long, Long> entry : sortedDistribution.entrySet()) {
             f.println(entry.getKey() + " " + entry.getValue());
@@ -182,8 +187,8 @@ public class AveragePaths {
         String allowedNodes = config.getString("nodeTypes");
         int numThreads = config.getInt("numThreads");
 
-        AveragePaths tp = new AveragePaths(graphPath, allowedNodes);
+        AveragePaths tp = new AveragePaths(graphPath, allowedNodes, outdir);
         tp.run(numThreads);
-        tp.printResult(outdir);
+        tp.printResult();
     }
 }
