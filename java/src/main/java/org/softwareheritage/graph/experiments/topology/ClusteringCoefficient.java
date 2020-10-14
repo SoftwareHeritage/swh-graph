@@ -8,10 +8,8 @@ import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.logging.ProgressLogger;
 import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
-import org.softwareheritage.graph.AllowedNodes;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.Subgraph;
 
 import java.io.*;
 import java.util.*;
@@ -19,7 +17,6 @@ import java.util.concurrent.*;
 
 public class ClusteringCoefficient {
     private final Graph graph;
-    private final Subgraph subgraph;
     private final String outdirPath;
     private final ConcurrentHashMap<Long, Long> result_full;
     private final ConcurrentHashMap<Long, Long> result_dircnt;
@@ -31,7 +28,6 @@ public class ClusteringCoefficient {
         this.outdirPath = outdirPath;
         System.err.println("Loading graph " + graphBasename + " ...");
         this.graph = new Graph(graphBasename);
-        this.subgraph = new Subgraph(this.graph, new AllowedNodes(allowedNodes));
         System.err.println("Graph loaded.");
 
         result_full = new ConcurrentHashMap<>();
@@ -74,7 +70,6 @@ public class ClusteringCoefficient {
         service.submit(() -> {
             try {
                 Graph thread_graph = graph.copy();
-                Subgraph thread_subgraph = subgraph.copy();
 
                 long[][] randomPerm = Util.identity(thread_graph.numNodes());
                 LongBigArrays.shuffle(randomPerm, new XoRoShiRo128PlusRandom());
@@ -87,9 +82,7 @@ public class ClusteringCoefficient {
 
                 for (long j = 0; j < n; ++j) {
                     long node = BigArrays.get(randomPerm, j);
-                    if (thread_subgraph.nodeExists(node) && thread_subgraph.outdegree(node) == 0) {
-                        queue.put(node);
-                    }
+                    queue.put(node);
                     if (j % 10000 == 0) {
                         printResult();
                     }
@@ -111,7 +104,7 @@ public class ClusteringCoefficient {
         for (int i = 0; i < numThreads; ++i) {
             service.submit(() -> {
                 try {
-                    Subgraph thread_subgraph = subgraph.copy();
+                    Graph thread_graph = graph.copy();
                     while (true) {
                         Long node = null;
                         try {
@@ -123,7 +116,7 @@ public class ClusteringCoefficient {
                             return;
                         }
 
-                        computeAt(thread_subgraph, node);
+                        computeAt(thread_graph, node);
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -135,7 +128,7 @@ public class ClusteringCoefficient {
         service.awaitTermination(365, TimeUnit.DAYS);
     }
 
-    private void computeAt(Subgraph graph, long node) {
+    private void computeAt(Graph graph, long node) {
         long d = graph.outdegree(node);
         if (d < 2) {
             return;
