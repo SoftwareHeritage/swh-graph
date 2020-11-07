@@ -13,6 +13,7 @@ Dependencies
 
 Build time dependencies:
 
+- [glib](https://developer.gnome.org/glib/)
 - [libgit2](https://libgit2.org/)
 
 Test dependencies:
