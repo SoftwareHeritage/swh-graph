@@ -504,8 +504,8 @@ void exit_usage(char *msg) {
 	fprintf(stderr, "  -N, --nodes-filter=NODES_EXPR  only emit selected nodes\n");
 	fprintf(stderr, "  -o, --origin=URL               repository origin URL\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "EDGES_EXPR is a comma separate list of src_TYPE:dst_TYPE pairs\n");
-	fprintf(stderr, "NODES_EXPR is a comme separate list of node TYPEs\n");
+	fprintf(stderr, "EDGES_EXPR is a comma-separated list of src_TYPE:dst_TYPE pairs\n");
+	fprintf(stderr, "NODES_EXPR is a comma-separated list of node TYPEs\n");
 	fprintf(stderr, "{NODES,EDGES}_EXPR can be empty strings to filter *out* all elements.\n");
 	fprintf(stderr, "TYPE is one of: cnt, dir, loc, ori, rel, rev, snp, *\n");
 	fprintf(stderr, "\nNote: you can use \"-\" for stdout in file names.\n");
