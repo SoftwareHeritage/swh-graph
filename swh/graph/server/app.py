@@ -60,9 +60,9 @@ class GraphView(aiohttp.web.View):
         try:
             return self.backend.swhid2node[swhid]
         except KeyError:
-            raise aiohttp.web.HTTPNotFound(body=f"SWHID not found: {swhid}")
+            raise aiohttp.web.HTTPNotFound(text=f"SWHID not found: {swhid}")
         except ValidationError:
-            raise aiohttp.web.HTTPBadRequest(body=f"malformed SWHID: {swhid}")
+            raise aiohttp.web.HTTPBadRequest(text=f"malformed SWHID: {swhid}")
 
     def swhid_of_node(self, node):
         """Lookup a node in a node2swhid map, failing in an HTTP-nice way if
@@ -71,14 +71,14 @@ class GraphView(aiohttp.web.View):
             return self.backend.node2swhid[node]
         except KeyError:
             raise aiohttp.web.HTTPInternalServerError(
-                body=f"reverse lookup failed for node id: {node}"
+                text=f"reverse lookup failed for node id: {node}"
             )
 
     def get_direction(self):
         """Validate HTTP query parameter `direction`"""
         s = self.request.query.get("direction", "forward")
         if s not in ("forward", "backward"):
-            raise aiohttp.web.HTTPBadRequest(body=f"invalid direction: {s}")
+            raise aiohttp.web.HTTPBadRequest(text=f"invalid direction: {s}")
         return s
 
     def get_edges(self):
@@ -91,14 +91,14 @@ class GraphView(aiohttp.web.View):
                 for node_type in edge.split(",", maxsplit=1)
             ]
         ):
-            raise aiohttp.web.HTTPBadRequest(body=f"invalid edge restriction: {s}")
+            raise aiohttp.web.HTTPBadRequest(text=f"invalid edge restriction: {s}")
         return s
 
     def get_traversal(self):
         """Validate HTTP query parameter `traversal`, i.e., visit order"""
         s = self.request.query.get("traversal", "dfs")
         if s not in ("bfs", "dfs"):
-            raise aiohttp.web.HTTPBadRequest(body=f"invalid traversal order: {s}")
+            raise aiohttp.web.HTTPBadRequest(text=f"invalid traversal order: {s}")
         return s
 
     def get_limit(self):
@@ -107,7 +107,7 @@ class GraphView(aiohttp.web.View):
         try:
             return int(s)
         except ValueError:
-            raise aiohttp.web.HTTPBadRequest(body=f"invalid limit value: {s}")
+            raise aiohttp.web.HTTPBadRequest(text=f"invalid limit value: {s}")
 
 
 class StreamingGraphView(GraphView):
