@@ -39,7 +39,9 @@ def check_config(conf):
     """check configuration and propagate defaults"""
     conf = conf.copy()
     if "batch_size" not in conf:
-        conf["batch_size"] = "1000000000"  # 1 billion
+        # Use 0.1% of the RAM as a batch size:
+        # ~1 billion for big servers, ~10 million for small desktop machines
+        conf["batch_size"] = int(psutil.virtual_memory().total / 1000)
     if "max_ram" not in conf:
         conf["max_ram"] = str(psutil.virtual_memory().total)
     if "java_tool_options" not in conf:
