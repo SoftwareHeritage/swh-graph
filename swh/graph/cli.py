@@ -382,9 +382,10 @@ def compress(ctx, graph, out_dir, steps):
 
     Output: a directory containing a WebGraph compressed graph
 
-    Compression steps are: (1) mph, (2) bv, (3) bv_obl, (4) bfs, (5) permute,
-    (6) permute_obl, (7) stats, (8) transpose, (9) transpose_obl, (10) maps,
-    (11) clean_tmp. Compression steps can be selected by name or number using
+    Compression steps are: (1) mph, (2) bv, (3) bfs, (4) permute_bfs,
+    (5) transpose_bfs, (6) simplify, (7) llp, (8) permute_llp, (9) obl, (10)
+    compose_orders, (11) stats, (12) transpose, (13) transpose_obl, (14) maps,
+    (15) clean_tmp. Compression steps can be selected by name or number using
     --steps, separating them with commas; step ranges (e.g., 3-9, 6-, etc.) are
     also supported.
 
