@@ -58,6 +58,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "zstdcat",
         "{in_dir}/{graph_name}.edges.csv.zst",
         "|",
+        "cut -d' ' -f1,2",
+        "|",
         "{java}",
         "it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph",
         "--temp-dir",
