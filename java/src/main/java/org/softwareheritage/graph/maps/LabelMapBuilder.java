@@ -4,7 +4,6 @@ import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph;
-import it.unimi.dsi.big.webgraph.labelling.FixedWidthIntListLabel;
 import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.Size64;
 import it.unimi.dsi.fastutil.io.BinIO;
@@ -19,6 +18,8 @@ import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.NodeIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.softwareheritage.graph.labels.DirEntry;
+import org.softwareheritage.graph.labels.SwhLabel;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -96,13 +97,10 @@ public class LabelMapBuilder {
         long[][] orderMap = LongBigArrays.newBigArray(getMPHSize(swhIdMph));
         BinIO.loadLongs(graphPath + ".order", orderMap);
 
-        Object2LongFunction<String> labelMPH = loadMPH(graphPath + "-labels");
-        long numLabels = getMPHSize(labelMPH);
-        int labelWidth = (int) Math.ceil(Math.log(numLabels) / Math.log(2));
-        if (labelWidth > 30) {
-            logger.error("FIXME: Too many labels, we can't handle more than 2^30 for now.");
-            System.exit(2);
-        }
+        Object2LongFunction<String> filenameMph = loadMPH(graphPath + "-filename-labels");
+        long numFilenames = getMPHSize(filenameMph);
+
+        int totalLabelWidth = DirEntry.labelWidth(numFilenames);
 
         ProgressLogger plInter = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         plInter.itemsName = "edges";
@@ -113,8 +111,13 @@ public class LabelMapBuilder {
          * appear in the label file.
          */
         ProcessBuilder processBuilder = new ProcessBuilder();
-        processBuilder.command("sort", "-k1,1n", "-k2,2n", "-k3,3n", // Numerical sort on all fields
-                "--numeric-sort", "--buffer-size", SORT_BUFFER_SIZE, "--temporary-directory", tmpDir);
+        processBuilder.command(
+                "sort",
+                "-k1,1n", "-k2,2n", // Numerical sort
+                "--numeric-sort",
+                "--buffer-size", SORT_BUFFER_SIZE,
+                "--temporary-directory", tmpDir
+        );
         Process sort = processBuilder.start();
         BufferedOutputStream sort_stdin = new BufferedOutputStream(sort.getOutputStream());
         BufferedInputStream sort_stdout = new BufferedInputStream(sort.getInputStream());
@@ -125,14 +128,16 @@ public class LabelMapBuilder {
         plInter.start("Piping intermediate representation to sort(1)");
         while (edgeIterator.hasNext()) {
             String[] edge = edgeIterator.next().toString().split(" ");
-            if (edge.length < 3)
+            if (edge.length < 4)
                 continue;
 
             long srcNode = SwhIDToNode(edge[0], swhIdMph, orderMap);
             long dstNode = SwhIDToNode(edge[1], swhIdMph, orderMap);
-            long labelId = labelMPH.getLong(edge[2]);
+            long filenameId = filenameMph.getLong(edge[2]);
+            int permission = Integer.parseInt(edge[3]);
 
-            sort_stdin.write((srcNode + "\t" + dstNode + "\t" + labelId + "\n").getBytes(StandardCharsets.US_ASCII));
+            sort_stdin.write((srcNode + "\t" + dstNode + "\t" + filenameId + "\t" + permission + "\n")
+                    .getBytes(StandardCharsets.US_ASCII));
             plInter.lightUpdate();
         }
         plInter.done();
@@ -159,18 +164,23 @@ public class LabelMapBuilder {
         NodeIterator it = graph.nodeIterator();
         long labelSrcNode = -1;
         long labelDstNode = -1;
-        long labelId = -1;
+        long labelFilenameId = -1;
+        int labelPermission = -1;
 
         while (it.hasNext()) {
             long srcNode = it.nextLong();
 
             // Fill a hashmap with the labels of each edge starting from this node
-            HashMap<Long, List<Long>> successorsLabels = new HashMap<>();
+            HashMap<Long, List<DirEntry>> successorsLabels = new HashMap<>();
             while (labelSrcNode <= srcNode) {
                 if (labelSrcNode == srcNode) {
-                    successorsLabels.computeIfAbsent(labelDstNode, k -> new ArrayList<>()).add(labelId);
+                    successorsLabels
+                            .computeIfAbsent(
+                                    labelDstNode,
+                                    k -> new ArrayList<>()
+                            ).add(new DirEntry(labelFilenameId, labelPermission));
                     if (debugFile != null) {
-                        debugFile.write(labelSrcNode + " " + labelDstNode + " " + labelId + "\n");
+                        debugFile.write(labelSrcNode + " " + labelDstNode + " " + labelFilenameId + " " + labelPermission + "\n");
                     }
                 }
 
@@ -181,18 +191,17 @@ public class LabelMapBuilder {
                 String[] parts = line.split("\\t");
                 labelSrcNode = Long.parseLong(parts[0]);
                 labelDstNode = Long.parseLong(parts[1]);
-                labelId = Long.parseLong(parts[2]);
+                labelFilenameId = Long.parseLong(parts[2]);
+                labelPermission = Integer.parseInt(parts[3]);
             }
 
             int bits = 0;
             LazyLongIterator s = it.successors();
             long dstNode;
             while ((dstNode = s.nextLong()) >= 0) {
-                List<Long> edgeLabels = successorsLabels.getOrDefault(dstNode, Collections.emptyList());
-                bits += labels.writeGamma(edgeLabels.size());
-                for (Long label : edgeLabels) {
-                    bits += labels.writeLong(label, labelWidth);
-                }
+                List<DirEntry> currentLabels = successorsLabels.getOrDefault(dstNode, Collections.emptyList());
+                SwhLabel l = new SwhLabel("edgelabel", totalLabelWidth, currentLabels.toArray(new DirEntry[0]));
+                bits += l.toBitStream(labels, -1);
             }
             offsets.writeGamma(bits);
 
@@ -207,8 +216,7 @@ public class LabelMapBuilder {
 
         PrintWriter pw = new PrintWriter(new FileWriter((new File(graphPath)).getName() + "-labelled.properties"));
         pw.println(ImmutableGraph.GRAPHCLASS_PROPERTY_KEY + " = " + BitStreamArcLabelledImmutableGraph.class.getName());
-        pw.println(BitStreamArcLabelledImmutableGraph.LABELSPEC_PROPERTY_KEY + " = "
-                + FixedWidthIntListLabel.class.getName() + "(TEST," + labelWidth + ")");
+        pw.println(BitStreamArcLabelledImmutableGraph.LABELSPEC_PROPERTY_KEY + " = " + SwhLabel.class.getName() + "(DirEntry," + totalLabelWidth + ")" );
         pw.println(ArcLabelledImmutableGraph.UNDERLYINGGRAPH_PROPERTY_KEY + " = " + graphPath);
         pw.close();
     }
