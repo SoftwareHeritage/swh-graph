@@ -49,7 +49,7 @@ class StepOption(click.ParamType):
                 l_idx = l_step.pop()
                 r_idx = r_step.pop()
                 steps = steps.union(
-                    set(map(CompressionStep, range(l_idx.value, r_idx.value + 1)))
+                    set(CompressionStep(i) for i in range(l_idx.value, r_idx.value + 1))
                 )
             else:  # singleton step
                 try:
