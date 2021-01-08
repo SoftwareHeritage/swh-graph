@@ -103,8 +103,9 @@ def check_config_compress(config, graph_name, in_dir, out_dir):
         conf["logback"] = str(logback_confpath)
 
     conf["java_tool_options"] += " -Dlogback.configurationFile={logback}"
+    conf["java_tool_options"] += " -Djava.io.tmpdir={tmp_dir}"
     conf["java_tool_options"] = conf["java_tool_options"].format(
-        logback=conf["logback"]
+        logback=conf["logback"], tmp_dir=conf["tmp_dir"],
     )
 
     return conf
