@@ -97,7 +97,7 @@ public class LabelMapBuilder {
         long[][] orderMap = LongBigArrays.newBigArray(getMPHSize(swhIdMph));
         BinIO.loadLongs(graphPath + ".order", orderMap);
 
-        Object2LongFunction<String> filenameMph = loadMPH(graphPath + "-filename-labels");
+        Object2LongFunction<String> filenameMph = loadMPH(graphPath + "-labels");
         long numFilenames = getMPHSize(filenameMph);
 
         int totalLabelWidth = DirEntry.labelWidth(numFilenames);
