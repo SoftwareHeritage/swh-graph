@@ -6,11 +6,11 @@ import it.unimi.dsi.big.webgraph.labelling.ArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph;
 import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.Size64;
+import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.io.BinIO;
+import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
-import it.unimi.dsi.io.FastBufferedReader;
-import it.unimi.dsi.io.LineIterator;
 import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.logging.ProgressLogger;
 import it.unimi.dsi.big.webgraph.BVGraph;
@@ -84,11 +84,6 @@ public class LabelMapBuilder {
         return (mph instanceof Size64) ? ((Size64) mph).size64() : mph.size();
     }
 
-    static long SwhIDToNode(String strSWHID, Object2LongFunction<String> mphMap, long[][] orderMap) {
-        long mphId = mphMap.getLong(strSWHID);
-        return BigArrays.get(orderMap, mphId);
-    }
-
     static void computeLabelMap(String graphPath, String debugPath, String tmpDir) throws IOException {
         // Compute intermediate representation as: "<src node id> <dst node id> <label ids>\n"
         ImmutableGraph graph = BVGraph.loadMapped(graphPath);
@@ -111,30 +106,90 @@ public class LabelMapBuilder {
          * appear in the label file.
          */
         ProcessBuilder processBuilder = new ProcessBuilder();
-        processBuilder.command(
-                "sort",
-                "-k1,1n", "-k2,2n", // Numerical sort
-                "--numeric-sort",
-                "--buffer-size", SORT_BUFFER_SIZE,
-                "--temporary-directory", tmpDir
-        );
+        processBuilder.command("sort", "-k1,1n", "-k2,2n", // Numerical sort
+                "--numeric-sort", "--buffer-size", SORT_BUFFER_SIZE, "--temporary-directory", tmpDir);
         Process sort = processBuilder.start();
         BufferedOutputStream sort_stdin = new BufferedOutputStream(sort.getOutputStream());
         BufferedInputStream sort_stdout = new BufferedInputStream(sort.getInputStream());
 
-        FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in, StandardCharsets.US_ASCII));
-        LineIterator edgeIterator = new LineIterator(buffer);
-
         plInter.start("Piping intermediate representation to sort(1)");
-        while (edgeIterator.hasNext()) {
-            String[] edge = edgeIterator.next().toString().split(" ");
-            if (edge.length < 4)
+
+        final FastBufferedInputStream fbis = new FastBufferedInputStream(System.in);
+        var charset = StandardCharsets.US_ASCII;
+        byte[] array = new byte[1024];
+        for (long line = 0;; line++) {
+            int start = 0, len;
+            while ((len = fbis.readLine(array, start, array.length - start,
+                    FastBufferedInputStream.ALL_TERMINATORS)) == array.length - start) {
+                start += len;
+                array = ByteArrays.grow(array, array.length + 1);
+            }
+            if (len == -1)
+                break; // EOF
+            final int lineLength = start + len;
+
+            // Skip whitespace at the start of the line.
+            int offset = 0;
+            while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
+                offset++;
+            if (offset == lineLength) {
+                continue;
+            }
+            if (array[0] == '#')
                 continue;
 
-            long srcNode = SwhIDToNode(edge[0], swhIdMph, orderMap);
-            long dstNode = SwhIDToNode(edge[1], swhIdMph, orderMap);
-            long filenameId = filenameMph.getLong(edge[2]);
-            int permission = Integer.parseInt(edge[3]);
+            // Scan source id.
+            start = offset;
+            while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
+                offset++;
+            final String ss = new String(array, start, offset - start, charset);
+
+            // Skip whitespace between identifiers.
+            while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
+                offset++;
+            if (offset == lineLength) {
+                logger.error("Error at line " + line + ": no target");
+                continue;
+            }
+
+            // Scan target ID
+            start = offset;
+            while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
+                offset++;
+            final String ts = new String(array, start, offset - start, charset);
+
+            // Skip whitespace between identifiers.
+            while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
+                offset++;
+            if (offset == lineLength)
+                continue; // No label, skip
+
+            // Scan label
+            start = offset;
+            while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
+                offset++;
+            final String ls = new String(array, start, offset - start, charset);
+
+            // Skip whitespace between identifiers.
+            while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
+                offset++;
+            // Scan permission
+            int permission = 0;
+            if (offset < lineLength) {
+                start = offset;
+                while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
+                    offset++;
+                permission = Integer.parseInt(new String(array, start, offset - start, charset));
+            }
+
+            // System.err.format("DEBUG: read %s %s %s %d\n", ss, ts, ls, permission);
+
+            long s = swhIdMph.getLong(ss);
+            long t = swhIdMph.getLong(ts);
+            long filenameId = filenameMph.getLong(ls);
+
+            long srcNode = BigArrays.get(orderMap, s);
+            long dstNode = BigArrays.get(orderMap, t);
 
             sort_stdin.write((srcNode + "\t" + dstNode + "\t" + filenameId + "\t" + permission + "\n")
                     .getBytes(StandardCharsets.US_ASCII));
@@ -174,13 +229,11 @@ public class LabelMapBuilder {
             HashMap<Long, List<DirEntry>> successorsLabels = new HashMap<>();
             while (labelSrcNode <= srcNode) {
                 if (labelSrcNode == srcNode) {
-                    successorsLabels
-                            .computeIfAbsent(
-                                    labelDstNode,
-                                    k -> new ArrayList<>()
-                            ).add(new DirEntry(labelFilenameId, labelPermission));
+                    successorsLabels.computeIfAbsent(labelDstNode, k -> new ArrayList<>())
+                            .add(new DirEntry(labelFilenameId, labelPermission));
                     if (debugFile != null) {
-                        debugFile.write(labelSrcNode + " " + labelDstNode + " " + labelFilenameId + " " + labelPermission + "\n");
+                        debugFile.write(labelSrcNode + " " + labelDstNode + " " + labelFilenameId + " "
+                                + labelPermission + "\n");
                     }
                 }
 
@@ -216,7 +269,8 @@ public class LabelMapBuilder {
 
         PrintWriter pw = new PrintWriter(new FileWriter((new File(graphPath)).getName() + "-labelled.properties"));
         pw.println(ImmutableGraph.GRAPHCLASS_PROPERTY_KEY + " = " + BitStreamArcLabelledImmutableGraph.class.getName());
-        pw.println(BitStreamArcLabelledImmutableGraph.LABELSPEC_PROPERTY_KEY + " = " + SwhLabel.class.getName() + "(DirEntry," + totalLabelWidth + ")" );
+        pw.println(BitStreamArcLabelledImmutableGraph.LABELSPEC_PROPERTY_KEY + " = " + SwhLabel.class.getName()
+                + "(DirEntry," + totalLabelWidth + ")");
         pw.println(ArcLabelledImmutableGraph.UNDERLYINGGRAPH_PROPERTY_KEY + " = " + graphPath);
         pw.close();
     }
