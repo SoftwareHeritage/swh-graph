@@ -1,0 +1,81 @@
+package org.softwareheritage.graph.utils;
+
+import com.google.common.primitives.Longs;
+import it.unimi.dsi.big.webgraph.LazyLongIterator;
+import it.unimi.dsi.bits.LongArrayBitVector;
+import it.unimi.dsi.fastutil.Arrays;
+import it.unimi.dsi.fastutil.io.BinIO;
+import it.unimi.dsi.fastutil.objects.Object2LongFunction;
+import it.unimi.dsi.io.ByteDiskQueue;
+import it.unimi.dsi.io.FastBufferedReader;
+import it.unimi.dsi.io.LineIterator;
+import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SWHID;
+import org.softwareheritage.graph.experiments.topology.ConnectedComponents;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+
+public class ExportSubdataset {
+    @SuppressWarnings("unchecked") // Suppress warning for Object2LongFunction cast
+    static Object2LongFunction<String> loadMPH(String mphPath) throws IOException, ClassNotFoundException {
+        return (Object2LongFunction<String>) BinIO.loadObject(mphPath);
+    }
+
+    public static void main(String[] args) throws IOException, ClassNotFoundException {
+        System.err.print("Loading everything...");
+        String graphPath = args[0];
+        Graph graph = new Graph(graphPath);
+        Object2LongFunction<String> mphMap = loadMPH(graphPath + ".mph");
+        System.err.println(" done.");
+
+        final long n = graph.numNodes();
+
+        // Allow enough memory to behave like in-memory queue
+        int bufferSize = (int) Math.min(Arrays.MAX_ARRAY_SIZE & ~0x7, 8L * n);
+
+        // Use a disk based queue to store BFS frontier
+        final File queueFile = File.createTempFile(ConnectedComponents.class.getSimpleName(), "queue");
+        final ByteDiskQueue queue = ByteDiskQueue.createNew(queueFile, bufferSize, true);
+        final byte[] byteBuf = new byte[Long.BYTES];
+        // WARNING: no 64-bit version of this data-structure, but it can support
+        // indices up to 2^37
+        LongArrayBitVector visited = LongArrayBitVector.ofLength(n);
+
+        FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in, StandardCharsets.US_ASCII));
+        LineIterator lineIterator = new LineIterator(buffer);
+
+        while (lineIterator.hasNext()) {
+            String line = lineIterator.next().toString();
+            long i;
+            try {
+                // i = mphMap.getLong(line);
+                i = graph.getNodeId(new SWHID(line));
+            } catch (IllegalArgumentException e) {
+                continue;
+            }
+
+            queue.enqueue(Longs.toByteArray(i));
+            visited.set(i);
+
+            while (!queue.isEmpty()) {
+                queue.dequeue(byteBuf);
+                final long currentNode = Longs.fromByteArray(byteBuf);
+                SWHID currentNodeSWHID = graph.getSWHID(currentNode);
+
+                final LazyLongIterator iterator = graph.successors(currentNode);
+                long succ;
+                while ((succ = iterator.nextLong()) != -1) {
+                    System.out.format("%s %s\n", currentNodeSWHID, graph.getSWHID(succ));
+                    if (visited.getBoolean(succ))
+                        continue;
+                    visited.set(succ);
+                    queue.enqueue(Longs.toByteArray(succ));
+                }
+            }
+
+        }
+    }
+}
