@@ -27,10 +27,18 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class LabelMapBuilder {
-
     final static String SORT_BUFFER_SIZE = "40%";
-
     final static Logger logger = LoggerFactory.getLogger(LabelMapBuilder.class);
+
+    String graphPath;
+    String debugPath;
+    String tmpDir;
+
+    public LabelMapBuilder(String graphPath, String debugPath, String tmpDir) {
+        this.graphPath = graphPath;
+        this.debugPath = debugPath;
+        this.tmpDir = tmpDir;
+    }
 
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
@@ -61,8 +69,10 @@ public class LabelMapBuilder {
         String tmpDir = config.getString("tmpDir");
         String debugPath = config.getString("debugPath");
 
+        LabelMapBuilder builder = new LabelMapBuilder(graphPath, debugPath, tmpDir);
+
         logger.info("Starting label map generation...");
-        computeLabelMap(graphPath, debugPath, tmpDir);
+        builder.computeLabelMap();
         logger.info("Label map generation ended.");
     }
 
@@ -84,7 +94,7 @@ public class LabelMapBuilder {
         return (mph instanceof Size64) ? ((Size64) mph).size64() : mph.size();
     }
 
-    static void computeLabelMap(String graphPath, String debugPath, String tmpDir) throws IOException {
+    void computeLabelMap() throws IOException {
         // Compute intermediate representation as: "<src node id> <dst node id> <label ids>\n"
         ImmutableGraph graph = BVGraph.loadMapped(graphPath);
 
