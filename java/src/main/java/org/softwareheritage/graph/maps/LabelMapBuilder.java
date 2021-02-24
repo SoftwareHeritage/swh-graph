@@ -22,6 +22,7 @@ import org.softwareheritage.graph.labels.DirEntry;
 import org.softwareheritage.graph.labels.SwhLabel;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -126,9 +127,9 @@ public class LabelMapBuilder {
     void loadGraph() throws IOException {
         graph = BVGraph.loadMapped(graphPath);
 
-        Object2LongFunction<String> swhIdMph = loadMPH(graphPath);
+        swhIdMph = loadMPH(graphPath);
 
-        long[][] orderMap = LongBigArrays.newBigArray(getMPHSize(swhIdMph));
+        orderMap = LongBigArrays.newBigArray(getMPHSize(swhIdMph));
         BinIO.loadLongs(graphPath + ".order", orderMap);
 
         filenameMph = loadMPH(graphPath + "-labels");
@@ -252,44 +253,43 @@ public class LabelMapBuilder {
         long labelFilenameId = -1;
         int labelPermission = -1;
 
+        ArrayList<DirEntry> labelBuffer = new ArrayList<>(128);
         while (it.hasNext()) {
             long srcNode = it.nextLong();
-
-            // Fill a hashmap with the labels of each edge starting from this node
-            HashMap<Long, List<DirEntry>> successorsLabels = new HashMap<>();
-            while (labelSrcNode <= srcNode) {
-                if (labelSrcNode == srcNode) {
-                    successorsLabels.computeIfAbsent(labelDstNode, k -> new ArrayList<>())
-                            .add(new DirEntry(labelFilenameId, labelPermission));
-                    if (debugFile != null) {
-                        debugFile.write(labelSrcNode + " " + labelDstNode + " " + labelFilenameId + " "
-                                + labelPermission + "\n");
-                    }
-                }
-
-                if (!mapLines.hasNext())
-                    break;
-
-                String line = mapLines.nextLine();
-                String[] parts = line.split("\\t");
-                labelSrcNode = Long.parseLong(parts[0]);
-                labelDstNode = Long.parseLong(parts[1]);
-                labelFilenameId = Long.parseLong(parts[2]);
-                labelPermission = Integer.parseInt(parts[3]);
-            }
 
             int bits = 0;
             LazyLongIterator s = it.successors();
             long dstNode;
             while ((dstNode = s.nextLong()) >= 0) {
-                List<DirEntry> currentLabels = successorsLabels.getOrDefault(dstNode, Collections.emptyList());
-                SwhLabel l = new SwhLabel("edgelabel", totalLabelWidth, currentLabels.toArray(new DirEntry[0]));
+                while (labelSrcNode <= srcNode && labelDstNode <= dstNode) {
+                    if (labelSrcNode == srcNode && labelDstNode == dstNode) {
+                        labelBuffer.add(new DirEntry(labelFilenameId, labelPermission));
+
+                        if (debugFile != null) {
+                            debugFile.write(labelSrcNode + " " + labelDstNode + " " + labelFilenameId + " "
+                                    + labelPermission + "\n");
+                        }
+                    }
+
+                    if (!mapLines.hasNext())
+                        break;
+
+                    String line = mapLines.nextLine();
+                    String[] parts = line.split("\\t");
+                    labelSrcNode = Long.parseLong(parts[0]);
+                    labelDstNode = Long.parseLong(parts[1]);
+                    labelFilenameId = Long.parseLong(parts[2]);
+                    labelPermission = Integer.parseInt(parts[3]);
+                }
+
+                SwhLabel l = new SwhLabel("edgelabel", totalLabelWidth, labelBuffer.toArray(new DirEntry[0]));
+                labelBuffer.clear();
                 bits += l.toBitStream(labels, -1);
             }
             offsets.writeGamma(bits);
-
             plLabels.lightUpdate();
         }
+
         labels.close();
         offsets.close();
         plLabels.done();
