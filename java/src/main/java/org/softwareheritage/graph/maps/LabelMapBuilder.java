@@ -33,6 +33,13 @@ public class LabelMapBuilder {
     String graphPath;
     String debugPath;
     String tmpDir;
+    ImmutableGraph graph;
+
+    Object2LongFunction<String> swhIdMph;
+    long[][] orderMap;
+    Object2LongFunction<String> filenameMph;
+    long numFilenames;
+    int totalLabelWidth;
 
     public LabelMapBuilder(String graphPath, String debugPath, String tmpDir) {
         this.graphPath = graphPath;
@@ -70,19 +77,14 @@ public class LabelMapBuilder {
         String debugPath = config.getString("debugPath");
 
         LabelMapBuilder builder = new LabelMapBuilder(graphPath, debugPath, tmpDir);
-
-        logger.info("Starting label map generation...");
         builder.computeLabelMap();
-        logger.info("Label map generation ended.");
     }
 
     @SuppressWarnings("unchecked") // Suppress warning for Object2LongFunction cast
     static Object2LongFunction<String> loadMPH(String mphBasename) throws IOException {
         Object2LongFunction<String> mphMap = null;
         try {
-            logger.info("loading MPH function...");
             mphMap = (Object2LongFunction<String>) BinIO.loadObject(mphBasename + ".mph");
-            logger.info("MPH function loaded");
         } catch (ClassNotFoundException e) {
             logger.error("unknown class object in .mph file: " + e);
             System.exit(2);
@@ -95,26 +97,15 @@ public class LabelMapBuilder {
     }
 
     void computeLabelMap() throws IOException {
-        // Compute intermediate representation as: "<src node id> <dst node id> <label ids>\n"
-        ImmutableGraph graph = BVGraph.loadMapped(graphPath);
-
-        Object2LongFunction<String> swhIdMph = loadMPH(graphPath);
-        long[][] orderMap = LongBigArrays.newBigArray(getMPHSize(swhIdMph));
-        BinIO.loadLongs(graphPath + ".order", orderMap);
-
-        Object2LongFunction<String> filenameMph = loadMPH(graphPath + "-labels");
-        long numFilenames = getMPHSize(filenameMph);
-
-        int totalLabelWidth = DirEntry.labelWidth(numFilenames);
-
-        ProgressLogger plInter = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
-        plInter.itemsName = "edges";
-        plInter.expectedUpdates = graph.numArcs();
-
         /*
          * Pass the intermediate representation to sort(1) so that we see the labels in the order they will
          * appear in the label file.
          */
+        logger.info("Loading graph and MPH functions...");
+        loadGraph();
+
+        logger.info("Hashing the input labels...");
+
         ProcessBuilder processBuilder = new ProcessBuilder();
         processBuilder.command("sort", "-k1,1n", "-k2,2n", // Numerical sort
                 "--numeric-sort", "--buffer-size", SORT_BUFFER_SIZE, "--temporary-directory", tmpDir);
@@ -122,14 +113,42 @@ public class LabelMapBuilder {
         BufferedOutputStream sort_stdin = new BufferedOutputStream(sort.getOutputStream());
         BufferedInputStream sort_stdout = new BufferedInputStream(sort.getInputStream());
 
-        plInter.start("Piping intermediate representation to sort(1)");
-
         final FastBufferedInputStream fbis = new FastBufferedInputStream(System.in);
+        hashLabelStream(fbis, sort_stdin);
+        sort_stdin.close();
+
+        logger.info("Writing label map to file...");
+        writeLabels(sort_stdout);
+
+        logger.info("Done");
+    }
+
+    void loadGraph() throws IOException {
+        graph = BVGraph.loadMapped(graphPath);
+
+        Object2LongFunction<String> swhIdMph = loadMPH(graphPath);
+
+        long[][] orderMap = LongBigArrays.newBigArray(getMPHSize(swhIdMph));
+        BinIO.loadLongs(graphPath + ".order", orderMap);
+
+        filenameMph = loadMPH(graphPath + "-labels");
+        numFilenames = getMPHSize(filenameMph);
+        totalLabelWidth = DirEntry.labelWidth(numFilenames);
+    }
+
+    void hashLabelStream(FastBufferedInputStream input, BufferedOutputStream output) throws IOException {
+        // Compute intermediate representation and write it on :
+        // "<src node id> <dst node id> <label ids>\n"
+        ProgressLogger plInter = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
+        plInter.itemsName = "edges";
+        plInter.expectedUpdates = graph.numArcs();
+        plInter.start("Hashing the label stream");
+
         var charset = StandardCharsets.US_ASCII;
         byte[] array = new byte[1024];
         for (long line = 0;; line++) {
             int start = 0, len;
-            while ((len = fbis.readLine(array, start, array.length - start,
+            while ((len = input.readLine(array, start, array.length - start,
                     FastBufferedInputStream.ALL_TERMINATORS)) == array.length - start) {
                 start += len;
                 array = ByteArrays.grow(array, array.length + 1);
@@ -201,13 +220,14 @@ public class LabelMapBuilder {
             long srcNode = BigArrays.get(orderMap, s);
             long dstNode = BigArrays.get(orderMap, t);
 
-            sort_stdin.write((srcNode + "\t" + dstNode + "\t" + filenameId + "\t" + permission + "\n")
+            output.write((srcNode + "\t" + dstNode + "\t" + filenameId + "\t" + permission + "\n")
                     .getBytes(StandardCharsets.US_ASCII));
             plInter.lightUpdate();
         }
         plInter.done();
-        sort_stdin.close();
+    }
 
+    void writeLabels(InputStream sortedMapping) throws IOException {
         // Get the sorted output and write the labels and label offsets
         ProgressLogger plLabels = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         plLabels.itemsName = "nodes";
@@ -224,7 +244,7 @@ public class LabelMapBuilder {
                 new File(graphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABEL_OFFSETS_EXTENSION));
         offsets.writeGamma(0);
 
-        Scanner sortOutput = new Scanner(sort_stdout, StandardCharsets.US_ASCII);
+        Scanner mapLines = new Scanner(sortedMapping, StandardCharsets.US_ASCII);
 
         NodeIterator it = graph.nodeIterator();
         long labelSrcNode = -1;
@@ -247,10 +267,10 @@ public class LabelMapBuilder {
                     }
                 }
 
-                if (!sortOutput.hasNext())
+                if (!mapLines.hasNext())
                     break;
 
-                String line = sortOutput.nextLine();
+                String line = mapLines.nextLine();
                 String[] parts = line.split("\\t");
                 labelSrcNode = Long.parseLong(parts[0]);
                 labelDstNode = Long.parseLong(parts[1]);
