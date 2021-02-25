@@ -10,6 +10,7 @@ import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
+import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.logging.ProgressLogger;
@@ -78,6 +79,10 @@ public class LabelMapBuilder {
         String debugPath = config.getString("debugPath");
 
         LabelMapBuilder builder = new LabelMapBuilder(graphPath, debugPath, tmpDir);
+
+        logger.info("Loading graph and MPH functions...");
+        builder.loadGraph();
+
         builder.computeLabelMap();
     }
 
@@ -102,11 +107,6 @@ public class LabelMapBuilder {
          * Pass the intermediate representation to sort(1) so that we see the labels in the order they will
          * appear in the label file.
          */
-        logger.info("Loading graph and MPH functions...");
-        loadGraph();
-
-        logger.info("Hashing the input labels...");
-
         ProcessBuilder processBuilder = new ProcessBuilder();
         processBuilder.command("sort", "-k1,1n", "-k2,2n", // Numerical sort
                 "--numeric-sort", "--buffer-size", SORT_BUFFER_SIZE, "--temporary-directory", tmpDir);
@@ -118,8 +118,8 @@ public class LabelMapBuilder {
         hashLabelStream(fbis, sort_stdin);
         sort_stdin.close();
 
-        logger.info("Writing label map to file...");
-        writeLabels(sort_stdout);
+        EdgeLabelLineIterator mapLines = new TextualEdgeLabelLineIterator(sort_stdout);
+        writeLabels(mapLines);
 
         logger.info("Done");
     }
@@ -228,11 +228,12 @@ public class LabelMapBuilder {
         plInter.done();
     }
 
-    void writeLabels(InputStream sortedMapping) throws IOException {
+    void writeLabels(EdgeLabelLineIterator mapLines) throws IOException {
         // Get the sorted output and write the labels and label offsets
         ProgressLogger plLabels = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
-        plLabels.itemsName = "nodes";
-        plLabels.expectedUpdates = graph.numNodes();
+        plLabels.itemsName = "edges";
+        plLabels.expectedUpdates = graph.numArcs();
+        plLabels.start("Hashing the label stream");
 
         FileWriter debugFile = null;
         if (debugPath != null) {
@@ -245,41 +246,37 @@ public class LabelMapBuilder {
                 new File(graphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABEL_OFFSETS_EXTENSION));
         offsets.writeGamma(0);
 
-        Scanner mapLines = new Scanner(sortedMapping, StandardCharsets.US_ASCII);
+        EdgeLabelLine line = new EdgeLabelLine(-1, -1, -1, -1);
 
         NodeIterator it = graph.nodeIterator();
-        long labelSrcNode = -1;
-        long labelDstNode = -1;
-        long labelFilenameId = -1;
-        int labelPermission = -1;
+        boolean started = false;
 
         ArrayList<DirEntry> labelBuffer = new ArrayList<>(128);
         while (it.hasNext()) {
             long srcNode = it.nextLong();
+            if (!started) {
+                plLabels.start("Writing label map to file...");
+                started = true;
+            }
 
             int bits = 0;
             LazyLongIterator s = it.successors();
             long dstNode;
             while ((dstNode = s.nextLong()) >= 0) {
-                while (labelSrcNode <= srcNode && labelDstNode <= dstNode) {
-                    if (labelSrcNode == srcNode && labelDstNode == dstNode) {
-                        labelBuffer.add(new DirEntry(labelFilenameId, labelPermission));
+                while (line.srcNode <= srcNode && line.dstNode <= dstNode) {
+                    if (line.srcNode == srcNode && line.dstNode == dstNode) {
+                        labelBuffer.add(new DirEntry(line.filenameId, line.permission));
 
                         if (debugFile != null) {
-                            debugFile.write(labelSrcNode + " " + labelDstNode + " " + labelFilenameId + " "
-                                    + labelPermission + "\n");
+                            debugFile.write(line.srcNode + " " + line.dstNode + " " + line.filenameId + " "
+                                    + line.permission + "\n");
                         }
                     }
 
                     if (!mapLines.hasNext())
                         break;
 
-                    String line = mapLines.nextLine();
-                    String[] parts = line.split("\\t");
-                    labelSrcNode = Long.parseLong(parts[0]);
-                    labelDstNode = Long.parseLong(parts[1]);
-                    labelFilenameId = Long.parseLong(parts[2]);
-                    labelPermission = Integer.parseInt(parts[3]);
+                    line = mapLines.next();
                 }
 
                 SwhLabel l = new SwhLabel("edgelabel", totalLabelWidth, labelBuffer.toArray(new DirEntry[0]));
@@ -303,5 +300,74 @@ public class LabelMapBuilder {
                 + "(DirEntry," + totalLabelWidth + ")");
         pw.println(ArcLabelledImmutableGraph.UNDERLYINGGRAPH_PROPERTY_KEY + " = " + graphPath);
         pw.close();
+    }
+
+    public static class EdgeLabelLine {
+        public long srcNode;
+        public long dstNode;
+        public long filenameId;
+        public int permission;
+
+        public EdgeLabelLine(long labelSrcNode, long labelDstNode, long labelFilenameId, int labelPermission) {
+            this.srcNode = labelSrcNode;
+            this.dstNode = labelDstNode;
+            this.filenameId = labelFilenameId;
+            this.permission = labelPermission;
+        }
+    }
+
+    public abstract static class EdgeLabelLineIterator implements Iterator<EdgeLabelLine> {
+        @Override
+        public abstract boolean hasNext();
+        @Override
+        public abstract EdgeLabelLine next();
+    }
+
+    public static class TextualEdgeLabelLineIterator extends EdgeLabelLineIterator {
+        private final Scanner scanner;
+
+        public TextualEdgeLabelLineIterator(InputStream stream) {
+            scanner = new Scanner(stream, StandardCharsets.US_ASCII);
+        }
+
+        @Override
+        public boolean hasNext() {
+            return scanner.hasNext();
+        }
+        @Override
+        public EdgeLabelLine next() {
+            String line = scanner.nextLine();
+            String[] parts = line.split("\\t");
+            return new EdgeLabelLine(
+                Long.parseLong(parts[0]),
+                Long.parseLong(parts[1]),
+                Long.parseLong(parts[2]),
+                Integer.parseInt(parts[3])
+            );
+        }
+    }
+
+    public static class BinaryEdgeLabelLineIterator extends EdgeLabelLineIterator {
+        private final Scanner scanner;
+
+        public BinaryEdgeLabelLineIterator(InputStream stream) {
+            scanner = new Scanner(stream, StandardCharsets.US_ASCII);
+        }
+
+        @Override
+        public boolean hasNext() {
+            return scanner.hasNext();
+        }
+        @Override
+        public EdgeLabelLine next() {
+            String line = scanner.nextLine();
+            String[] parts = line.split("\\t");
+            return new EdgeLabelLine(
+                    Long.parseLong(parts[0]),
+                    Long.parseLong(parts[1]),
+                    Long.parseLong(parts[2]),
+                    Integer.parseInt(parts[3])
+            );
+        }
     }
 }
