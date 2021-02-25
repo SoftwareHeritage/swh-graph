@@ -14,15 +14,15 @@ import java.nio.charset.StandardCharsets;
 
 public class WriteRevisionTimestamps {
     @SuppressWarnings("unchecked") // Suppress warning for Object2LongFunction cast
-    static Object2LongFunction<String> loadMPH(String mphPath) throws IOException, ClassNotFoundException {
-        return (Object2LongFunction<String>) BinIO.loadObject(mphPath);
+    static Object2LongFunction<byte[]> loadMPH(String mphPath) throws IOException, ClassNotFoundException {
+        return (Object2LongFunction<byte[]>) BinIO.loadObject(mphPath);
     }
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         System.err.print("Loading everything...");
         String graphPath = args[0];
         String outputFile = args[1];
-        Object2LongFunction<String> mphMap = loadMPH(graphPath + ".mph");
+        Object2LongFunction<byte[]> mphMap = loadMPH(graphPath + ".mph");
         long nbIds = (mphMap instanceof Size64) ? ((Size64) mphMap).size64() : mphMap.size();
         long[][] nodePerm = BinIO.loadLongsBig(graphPath + ".order");
         // NodeIdMap nodeIdMap = new NodeIdMap(graphPath, nbIds);
@@ -30,6 +30,7 @@ public class WriteRevisionTimestamps {
         BigArrays.fill(timestampArray, Long.MIN_VALUE);
         System.err.println(" done.");
 
+        // TODO: wasteful to convert to/from bytes
         FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in, StandardCharsets.US_ASCII));
         LineIterator lineIterator = new LineIterator(buffer);
 
@@ -42,7 +43,7 @@ public class WriteRevisionTimestamps {
             long timestamp = -1;
             try {
                 // revId = nodeIdMap.getNodeId(currentRev);
-                long revHash = mphMap.getLong(line_elements[0].strip());
+                long revHash = mphMap.getLong(line_elements[0].strip().getBytes(StandardCharsets.US_ASCII));
                 revId = BigArrays.get(nodePerm, revHash);
                 timestamp = Long.parseLong(line_elements[1].strip());
             } catch (IllegalArgumentException e) {

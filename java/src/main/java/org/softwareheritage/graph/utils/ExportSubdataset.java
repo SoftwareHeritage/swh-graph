@@ -20,15 +20,15 @@ import java.nio.charset.StandardCharsets;
 
 public class ExportSubdataset {
     @SuppressWarnings("unchecked") // Suppress warning for Object2LongFunction cast
-    static Object2LongFunction<String> loadMPH(String mphPath) throws IOException, ClassNotFoundException {
-        return (Object2LongFunction<String>) BinIO.loadObject(mphPath);
+    static Object2LongFunction<byte[]> loadMPH(String mphPath) throws IOException, ClassNotFoundException {
+        return (Object2LongFunction<byte[]>) BinIO.loadObject(mphPath);
     }
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         System.err.print("Loading everything...");
         String graphPath = args[0];
         Graph graph = new Graph(graphPath);
-        Object2LongFunction<String> mphMap = loadMPH(graphPath + ".mph");
+        Object2LongFunction<byte[]> mphMap = loadMPH(graphPath + ".mph");
         System.err.println(" done.");
 
         final long n = graph.numNodes();
@@ -51,7 +51,7 @@ public class ExportSubdataset {
             String line = lineIterator.next().toString();
             long i;
             try {
-                // i = mphMap.getLong(line);
+                // i = mphMap.getLong(line.getBytes(StandardCharsets.UTF_8));
                 i = graph.getNodeId(new SWHID(line));
             } catch (IllegalArgumentException e) {
                 continue;

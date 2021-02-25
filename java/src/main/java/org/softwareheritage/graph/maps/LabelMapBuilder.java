@@ -36,9 +36,9 @@ public class LabelMapBuilder {
     String tmpDir;
     ImmutableGraph graph;
 
-    Object2LongFunction<String> swhIdMph;
+    Object2LongFunction<byte[]> swhIdMph;
     long[][] orderMap;
-    Object2LongFunction<String> filenameMph;
+    Object2LongFunction<byte[]> filenameMph;
     long numFilenames;
     int totalLabelWidth;
 
@@ -82,10 +82,10 @@ public class LabelMapBuilder {
     }
 
     @SuppressWarnings("unchecked") // Suppress warning for Object2LongFunction cast
-    static Object2LongFunction<String> loadMPH(String mphBasename) throws IOException {
-        Object2LongFunction<String> mphMap = null;
+    static Object2LongFunction<byte[]> loadMPH(String mphBasename) throws IOException {
+        Object2LongFunction<byte[]> mphMap = null;
         try {
-            mphMap = (Object2LongFunction<String>) BinIO.loadObject(mphBasename + ".mph");
+            mphMap = (Object2LongFunction<byte[]>) BinIO.loadObject(mphBasename + ".mph");
         } catch (ClassNotFoundException e) {
             logger.error("unknown class object in .mph file: " + e);
             System.exit(2);
@@ -93,7 +93,7 @@ public class LabelMapBuilder {
         return mphMap;
     }
 
-    static long getMPHSize(Object2LongFunction<String> mph) {
+    static long getMPHSize(Object2LongFunction<byte[]> mph) {
         return (mph instanceof Size64) ? ((Size64) mph).size64() : mph.size();
     }
 
@@ -172,7 +172,7 @@ public class LabelMapBuilder {
             start = offset;
             while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
                 offset++;
-            final String ss = new String(array, start, offset - start, charset);
+            final byte[] ss = Arrays.copyOfRange(array, start, offset);
 
             // Skip whitespace between identifiers.
             while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
@@ -186,7 +186,7 @@ public class LabelMapBuilder {
             start = offset;
             while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
                 offset++;
-            final String ts = new String(array, start, offset - start, charset);
+            final byte[] ts = Arrays.copyOfRange(array, start, offset);
 
             // Skip whitespace between identifiers.
             while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
@@ -198,7 +198,7 @@ public class LabelMapBuilder {
             start = offset;
             while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
                 offset++;
-            final String ls = new String(array, start, offset - start, charset);
+            final byte[] ls = Arrays.copyOfRange(array, start, offset);
 
             // Skip whitespace between identifiers.
             while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')

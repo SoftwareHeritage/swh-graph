@@ -76,10 +76,10 @@ public class NodeMapBuilder {
         plSWHID2Node.displayLocalSpeed = true;
 
         // first half of SWHID->node mapping: SWHID -> WebGraph MPH (long)
-        Object2LongFunction<String> mphMap = null;
+        Object2LongFunction<byte[]> mphMap = null;
         try {
             logger.info("loading MPH function...");
-            mphMap = (Object2LongFunction<String>) BinIO.loadObject(graphPath + ".mph");
+            mphMap = (Object2LongFunction<byte[]>) BinIO.loadObject(graphPath + ".mph");
             logger.info("MPH function loaded");
         } catch (ClassNotFoundException e) {
             logger.error("unknown class object in .mph file: " + e);
@@ -147,7 +147,7 @@ public class NodeMapBuilder {
                 SWHID swhid = new SWHID(swhidStr);
                 byte[] swhidBin = swhid.toBytes();
 
-                long mphId = mphMap.getLong(swhidStr);
+                long mphId = mphMap.getLong(swhidStr.getBytes(StandardCharsets.US_ASCII));
                 long nodeId = BigArrays.get(bfsMap, mphId);
 
                 swhidToNodeMap.write(swhidBin, 0, swhidBin.length);

@@ -29,22 +29,23 @@ public class MPHTranslate {
     }
 
     @SuppressWarnings("unchecked") // Suppress warning for Object2LongFunction cast
-    static Object2LongFunction<String> loadMPH(String mphPath) throws IOException, ClassNotFoundException {
-        return (Object2LongFunction<String>) BinIO.loadObject(mphPath);
+    static Object2LongFunction<byte[]> loadMPH(String mphPath) throws IOException, ClassNotFoundException {
+        return (Object2LongFunction<byte[]>) BinIO.loadObject(mphPath);
     }
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         JSAPResult config = parse_args(args);
         String mphPath = config.getString("function");
 
-        Object2LongFunction<String> mphMap = loadMPH(mphPath);
+        Object2LongFunction<byte[]> mphMap = loadMPH(mphPath);
 
+        // TODO: wasteful to convert to/from bytes
         FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in, StandardCharsets.US_ASCII));
         LineIterator lineIterator = new LineIterator(buffer);
 
         while (lineIterator.hasNext()) {
             String line = lineIterator.next().toString();
-            System.out.println(mphMap.getLong(line));
+            System.out.println(mphMap.getLong(line.getBytes(StandardCharsets.US_ASCII)));
         }
     }
 }
