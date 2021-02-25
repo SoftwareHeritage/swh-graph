@@ -17,7 +17,7 @@ import aiohttp.web
 
 from swh.core.api.asynchronous import RPCServerApp
 from swh.model.exceptions import ValidationError
-from swh.model.identifiers import SWHID_TYPES
+from swh.model.identifiers import EXTENDED_SWHID_TYPES
 
 try:
     from contextlib import asynccontextmanager
@@ -86,7 +86,7 @@ class GraphView(aiohttp.web.View):
         s = self.request.query.get("edges", "*")
         if any(
             [
-                node_type != "*" and node_type not in SWHID_TYPES
+                node_type != "*" and node_type not in EXTENDED_SWHID_TYPES
                 for edge in s.split(":")
                 for node_type in edge.split(",", maxsplit=1)
             ]
@@ -192,7 +192,7 @@ class WalkView(StreamingGraphView):
         src = self.request.match_info["src"]
         dst = self.request.match_info["dst"]
         self.src_node = self.node_of_swhid(src)
-        if dst not in SWHID_TYPES:
+        if dst not in EXTENDED_SWHID_TYPES:
             self.dst_thing = self.node_of_swhid(dst)
         else:
             self.dst_thing = dst

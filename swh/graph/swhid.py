@@ -1,7 +1,9 @@
-# Copyright (C) 2019-2020  The Software Heritage developers
+# Copyright (C) 2019-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
+
+from __future__ import annotations
 
 from collections.abc import MutableMapping
 from enum import Enum
@@ -11,7 +13,7 @@ import os
 import struct
 from typing import BinaryIO, Iterator, Tuple
 
-from swh.model.identifiers import SWHID, parse_swhid
+from swh.model.identifiers import ExtendedObjectType, ExtendedSWHID
 
 SWHID_BIN_FMT = "BB20s"  # 2 unsigned chars + 20 bytes
 INT_BIN_FMT = ">q"  # big endian, 8-byte integer
@@ -20,7 +22,8 @@ INT_BIN_SIZE = 8  # in bytes
 
 
 class SwhidType(Enum):
-    """types of existing SWHIDs, used to serialize SWHID type as a (char) integer
+    """types of existing SWHIDs, used to serialize ExtendedSWHID type as a (char)
+    integer
 
     Note that the order does matter also for driving the binary search in
     SWHID-indexed maps. Integer values also matter, for compatibility with the
@@ -34,6 +37,13 @@ class SwhidType(Enum):
     release = 3
     revision = 4
     snapshot = 5
+
+    @classmethod
+    def from_extended_object_type(cls, object_type: ExtendedObjectType) -> SwhidType:
+        return cls[object_type.name.lower()]
+
+    def to_extended_object_type(self) -> ExtendedObjectType:
+        return ExtendedObjectType[SwhidType(self).name.upper()]
 
 
 def str_to_bytes(swhid_str: str) -> bytes:
@@ -54,12 +64,12 @@ def str_to_bytes(swhid_str: str) -> bytes:
         bytes: byte sequence representation of swhid
 
     """
-    swhid = parse_swhid(swhid_str)
+    swhid = ExtendedSWHID.from_string(swhid_str)
     return struct.pack(
         SWHID_BIN_FMT,
         swhid.scheme_version,
-        SwhidType[swhid.object_type].value,
-        bytes.fromhex(swhid.object_id),
+        SwhidType.from_extended_object_type(swhid.object_type).value,
+        swhid.object_id,
     )
 
 
@@ -76,7 +86,9 @@ def bytes_to_str(bytes: bytes) -> str:
 
     """
     (version, type, bin_digest) = struct.unpack(SWHID_BIN_FMT, bytes)
-    swhid = SWHID(object_type=SwhidType(type).name, object_id=bin_digest)
+    swhid = ExtendedSWHID(
+        object_type=SwhidType(type).to_extended_object_type(), object_id=bin_digest
+    )
     return str(swhid)
 
 

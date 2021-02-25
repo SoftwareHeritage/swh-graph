@@ -16,7 +16,7 @@ from py4j.java_gateway import JavaGateway
 
 from swh.graph.config import check_config
 from swh.graph.swhid import NodeToSwhidMap, SwhidToNodeMap
-from swh.model.identifiers import SWHID_TYPES
+from swh.model.identifiers import EXTENDED_SWHID_TYPES
 
 BUF_SIZE = 64 * 1024
 BIN_FMT = ">q"  # 64 bit integer, big endian
@@ -75,7 +75,7 @@ class Backend:
             yield node_id
 
     async def walk(self, direction, edges_fmt, algo, src, dst):
-        if dst in SWHID_TYPES:
+        if dst in EXTENDED_SWHID_TYPES:
             it = self.stream_proxy.walk_type(direction, edges_fmt, algo, src, dst)
         else:
             it = self.stream_proxy.walk(direction, edges_fmt, algo, src, dst)
@@ -83,7 +83,7 @@ class Backend:
             yield node_id
 
     async def random_walk(self, direction, edges_fmt, retries, src, dst):
-        if dst in SWHID_TYPES:
+        if dst in EXTENDED_SWHID_TYPES:
             it = self.stream_proxy.random_walk_type(
                 direction, edges_fmt, retries, src, dst
             )
