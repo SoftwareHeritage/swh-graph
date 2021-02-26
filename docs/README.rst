@@ -19,10 +19,10 @@ described in the following scientific paper. If you publish results based on
 
   Paolo Boldi, Antoine Pietri, Sebastiano Vigna, Stefano Zacchiroli.
   `Ultra-Large-Scale Repository Analysis via Graph Compression
-  <https://upsilon.cc/~zack/research/publications/saner-2020-swh-graph.pdf>`_. In
-  proceedings of `SANER 2020 <https://saner2020.csd.uwo.ca/>`_: The 27th IEEE
-  International Conference on Software Analysis, Evolution and
-  Reengineering. IEEE 2020.
+  <https://ieeexplore.ieee.org/document/9054827>`_. In proceedings of `SANER
+  2020 <https://saner2020.csd.uwo.ca/>`_: The 27th IEEE International
+  Conference on Software Analysis, Evolution and Reengineering, pages
+  184-194. IEEE 2020.
 
   Links: `preprint
   <https://upsilon.cc/~zack/research/publications/saner-2020-swh-graph.pdf>`_,
