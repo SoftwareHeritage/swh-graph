@@ -33,7 +33,7 @@ public class FindEarliestRevision {
         System.err.println(String.format("revision timestamps loaded (duration: %s).", elapsed));
 
         Scanner stdin = new Scanner(System.in);
-        AllowedEdges edges = new AllowedEdges("cnt:dir,dir:dir,dir:rev,rev:rev");
+        AllowedEdges edges = new AllowedEdges("cnt:dir,dir:dir,dir:rev");
         String rawSWHID = null;
         SWHID srcSWHID = null;
         long lineCount = 0;
