@@ -4,14 +4,14 @@ import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph;
-import it.unimi.dsi.big.webgraph.labelling.FixedWidthIntListLabel;
 import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.Size64;
+import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.io.BinIO;
+import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
+import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
-import it.unimi.dsi.io.FastBufferedReader;
-import it.unimi.dsi.io.LineIterator;
 import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.logging.ProgressLogger;
 import it.unimi.dsi.big.webgraph.BVGraph;
@@ -19,17 +19,38 @@ import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.NodeIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.softwareheritage.graph.labels.DirEntry;
+import org.softwareheritage.graph.labels.SwhLabel;
 
 import java.io.*;
+import java.lang.reflect.Array;
+import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class LabelMapBuilder {
-
     final static String SORT_BUFFER_SIZE = "40%";
-
     final static Logger logger = LoggerFactory.getLogger(LabelMapBuilder.class);
+
+    String graphPath;
+    String debugPath;
+    String tmpDir;
+    ImmutableGraph graph;
+
+    Object2LongFunction<byte[]> swhIdMph;
+    long[][] orderMap;
+    Object2LongFunction<byte[]> filenameMph;
+    long numFilenames;
+    int totalLabelWidth;
+
+    public LabelMapBuilder(String graphPath, String debugPath, String tmpDir) {
+        this.graphPath = graphPath;
+        this.debugPath = debugPath;
+        this.tmpDir = tmpDir;
+    }
 
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
@@ -54,24 +75,26 @@ public class LabelMapBuilder {
         return config;
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         JSAPResult config = parse_args(args);
         String graphPath = config.getString("graphPath");
         String tmpDir = config.getString("tmpDir");
         String debugPath = config.getString("debugPath");
 
-        logger.info("Starting label map generation...");
-        computeLabelMap(graphPath, debugPath, tmpDir);
-        logger.info("Label map generation ended.");
+        LabelMapBuilder builder = new LabelMapBuilder(graphPath, debugPath, tmpDir);
+
+        logger.info("Loading graph and MPH functions...");
+        builder.loadGraph();
+
+        // builder.computeLabelMapSort();
+        builder.computeLabelMapBsort();
     }
 
     @SuppressWarnings("unchecked") // Suppress warning for Object2LongFunction cast
-    static Object2LongFunction<String> loadMPH(String mphBasename) throws IOException {
-        Object2LongFunction<String> mphMap = null;
+    static Object2LongFunction<byte[]> loadMPH(String mphBasename) throws IOException {
+        Object2LongFunction<byte[]> mphMap = null;
         try {
-            logger.info("loading MPH function...");
-            mphMap = (Object2LongFunction<String>) BinIO.loadObject(mphBasename + ".mph");
-            logger.info("MPH function loaded");
+            mphMap = (Object2LongFunction<byte[]>) BinIO.loadObject(mphBasename + ".mph");
         } catch (ClassNotFoundException e) {
             logger.error("unknown class object in .mph file: " + e);
             System.exit(2);
@@ -79,69 +102,188 @@ public class LabelMapBuilder {
         return mphMap;
     }
 
-    static long getMPHSize(Object2LongFunction<String> mph) {
+    static long getMPHSize(Object2LongFunction<byte[]> mph) {
         return (mph instanceof Size64) ? ((Size64) mph).size64() : mph.size();
     }
 
-    static long SwhIDToNode(String strSWHID, Object2LongFunction<String> mphMap, long[][] orderMap) {
-        long mphId = mphMap.getLong(strSWHID);
-        return BigArrays.get(orderMap, mphId);
-    }
-
-    static void computeLabelMap(String graphPath, String debugPath, String tmpDir) throws IOException {
-        // Compute intermediate representation as: "<src node id> <dst node id> <label ids>\n"
-        ImmutableGraph graph = BVGraph.loadMapped(graphPath);
-
-        Object2LongFunction<String> swhIdMph = loadMPH(graphPath);
-        long[][] orderMap = LongBigArrays.newBigArray(getMPHSize(swhIdMph));
-        BinIO.loadLongs(graphPath + ".order", orderMap);
-
-        Object2LongFunction<String> labelMPH = loadMPH(graphPath + "-labels");
-        long numLabels = getMPHSize(labelMPH);
-        int labelWidth = (int) Math.ceil(Math.log(numLabels) / Math.log(2));
-        if (labelWidth > 30) {
-            logger.error("FIXME: Too many labels, we can't handle more than 2^30 for now.");
-            System.exit(2);
-        }
-
-        ProgressLogger plInter = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
-        plInter.itemsName = "edges";
-        plInter.expectedUpdates = graph.numArcs();
-
-        /*
-         * Pass the intermediate representation to sort(1) so that we see the labels in the order they will
-         * appear in the label file.
-         */
+    void computeLabelMapSort() throws IOException {
+        // Pass the intermediate representation to sort(1) so that we see the labels in the order they will
+        // appear in the label file.
         ProcessBuilder processBuilder = new ProcessBuilder();
-        processBuilder.command("sort", "-k1,1n", "-k2,2n", "-k3,3n", // Numerical sort on all fields
+        processBuilder.command("sort", "-k1,1n", "-k2,2n", // Numerical sort
                 "--numeric-sort", "--buffer-size", SORT_BUFFER_SIZE, "--temporary-directory", tmpDir);
         Process sort = processBuilder.start();
         BufferedOutputStream sort_stdin = new BufferedOutputStream(sort.getOutputStream());
-        BufferedInputStream sort_stdout = new BufferedInputStream(sort.getInputStream());
+        // BufferedInputStream sort_stdout = new BufferedInputStream(sort.getInputStream());
+        FastBufferedInputStream sort_stdout = new FastBufferedInputStream(sort.getInputStream());
 
-        FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in, StandardCharsets.US_ASCII));
-        LineIterator edgeIterator = new LineIterator(buffer);
+        final FastBufferedInputStream fbis = new FastBufferedInputStream(System.in);
+        hashLabelStream(fbis, new EdgeLabelLineWriter() {
+            @Override
+            public void writeLine(long src, long dst, long filenameId, int permission) throws IOException {
+                sort_stdin.write((src + "\t" + dst + "\t" + filenameId + "\t" + permission + "\n")
+                        .getBytes(StandardCharsets.US_ASCII));
+            }
+        });
+        sort_stdin.close();
 
-        plInter.start("Piping intermediate representation to sort(1)");
-        while (edgeIterator.hasNext()) {
-            String[] edge = edgeIterator.next().toString().split(" ");
-            if (edge.length < 3)
+        EdgeLabelLineIterator mapLines = new TextualEdgeLabelLineIterator(sort_stdout);
+        writeLabels(mapLines);
+        logger.info("Done");
+    }
+
+    void computeLabelMapBsort() throws IOException, InterruptedException {
+        // Pass the intermediate representation to bsort(1) so that we see the labels in the order they will
+        // appear in the label file.
+
+        String tmpFile = tmpDir + "/labelsToSort.bin";
+        final FastBufferedInputStream fbis = new FastBufferedInputStream(System.in);
+        final DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(tmpFile)));
+
+        // Number of bytes to represent a node.
+        final int nodeBytes = (Long.SIZE - Long.numberOfLeadingZeros(graph.numNodes())) / 8 + 1;
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        logger.info("Writing labels to a packed binary files (node bytes: {})", nodeBytes);
+
+        hashLabelStream(fbis, new EdgeLabelLineWriter() {
+            @Override
+            public void writeLine(long src, long dst, long filenameId, int permission) throws IOException {
+                buffer.putLong(0, src);
+                out.write(buffer.array(), Long.BYTES - nodeBytes, nodeBytes);
+                buffer.putLong(0, dst);
+                out.write(buffer.array(), Long.BYTES - nodeBytes, nodeBytes);
+                out.writeLong(filenameId);
+                out.writeInt(permission);
+            }
+        });
+
+        ProcessBuilder processBuilder = new ProcessBuilder();
+        processBuilder.command(
+            "/home/seirl/bsort/src/bsort",
+            "-v",
+            "-r", String.valueOf(nodeBytes * 2 + Long.BYTES + Integer.BYTES),
+            "-k", String.valueOf(nodeBytes * 2),
+            tmpFile
+        );
+        Process sort = processBuilder.start();
+        sort.waitFor();
+
+        final DataInputStream sortedLabels = new DataInputStream(new BufferedInputStream(new FileInputStream(tmpFile)));
+        BinaryEdgeLabelLineIterator mapLines = new BinaryEdgeLabelLineIterator(sortedLabels, nodeBytes);
+        writeLabels(mapLines);
+
+        logger.info("Done");
+    }
+
+    void loadGraph() throws IOException {
+        graph = BVGraph.loadMapped(graphPath);
+
+        swhIdMph = loadMPH(graphPath);
+
+        orderMap = LongBigArrays.newBigArray(getMPHSize(swhIdMph));
+        BinIO.loadLongs(graphPath + ".order", orderMap);
+
+        filenameMph = loadMPH(graphPath + "-labels");
+        numFilenames = getMPHSize(filenameMph);
+        totalLabelWidth = DirEntry.labelWidth(numFilenames);
+    }
+
+    void hashLabelStream(FastBufferedInputStream input, EdgeLabelLineWriter writer) throws IOException {
+        // Compute intermediate representation and write it on :
+        // "<src node id> <dst node id> <label ids>\n"
+        ProgressLogger plInter = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
+        plInter.itemsName = "edges";
+        plInter.expectedUpdates = graph.numArcs();
+        plInter.start("Hashing the label stream");
+
+        var charset = StandardCharsets.US_ASCII;
+        byte[] array = new byte[1024];
+        for (long line = 0;; line++) {
+            int start = 0, len;
+            while ((len = input.readLine(array, start, array.length - start,
+                    FastBufferedInputStream.ALL_TERMINATORS)) == array.length - start) {
+                start += len;
+                array = ByteArrays.grow(array, array.length + 1);
+            }
+            if (len == -1)
+                break; // EOF
+            final int lineLength = start + len;
+
+            // Skip whitespace at the start of the line.
+            int offset = 0;
+            while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
+                offset++;
+            if (offset == lineLength) {
+                continue;
+            }
+            if (array[0] == '#')
                 continue;
 
-            long srcNode = SwhIDToNode(edge[0], swhIdMph, orderMap);
-            long dstNode = SwhIDToNode(edge[1], swhIdMph, orderMap);
-            long labelId = labelMPH.getLong(edge[2]);
+            // Scan source id.
+            start = offset;
+            while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
+                offset++;
+            final byte[] ss = Arrays.copyOfRange(array, start, offset);
 
-            sort_stdin.write((srcNode + "\t" + dstNode + "\t" + labelId + "\n").getBytes(StandardCharsets.US_ASCII));
+            // Skip whitespace between identifiers.
+            while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
+                offset++;
+            if (offset == lineLength) {
+                logger.error("Error at line " + line + ": no target");
+                continue;
+            }
+
+            // Scan target ID
+            start = offset;
+            while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
+                offset++;
+            final byte[] ts = Arrays.copyOfRange(array, start, offset);
+
+            // Skip whitespace between identifiers.
+            while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
+                offset++;
+            if (offset == lineLength)
+                continue; // No label, skip
+
+            // Scan label
+            start = offset;
+            while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
+                offset++;
+            final byte[] ls = Arrays.copyOfRange(array, start, offset);
+
+            // Skip whitespace between identifiers.
+            while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
+                offset++;
+            // Scan permission
+            int permission = 0;
+            if (offset < lineLength) {
+                start = offset;
+                while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
+                    offset++;
+                permission = Integer.parseInt(new String(array, start, offset - start, charset));
+            }
+
+            // System.err.format("DEBUG: read %s %s %s %d\n", ss, ts, ls, permission);
+
+            long s = swhIdMph.getLong(ss);
+            long t = swhIdMph.getLong(ts);
+            long filenameId = filenameMph.getLong(ls);
+
+            long srcNode = BigArrays.get(orderMap, s);
+            long dstNode = BigArrays.get(orderMap, t);
+
+            writer.writeLine(srcNode, dstNode, filenameId, permission);
             plInter.lightUpdate();
         }
         plInter.done();
-        sort_stdin.close();
+    }
 
+    void writeLabels(EdgeLabelLineIterator mapLines) throws IOException {
         // Get the sorted output and write the labels and label offsets
         ProgressLogger plLabels = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
-        plLabels.itemsName = "nodes";
-        plLabels.expectedUpdates = graph.numNodes();
+        plLabels.itemsName = "edges";
+        plLabels.expectedUpdates = graph.numArcs();
+        plLabels.start("Writing the labels to the label file.");
 
         FileWriter debugFile = null;
         if (debugPath != null) {
@@ -154,50 +296,47 @@ public class LabelMapBuilder {
                 new File(graphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABEL_OFFSETS_EXTENSION));
         offsets.writeGamma(0);
 
-        Scanner sortOutput = new Scanner(sort_stdout, StandardCharsets.US_ASCII);
+        EdgeLabelLine line = new EdgeLabelLine(-1, -1, -1, -1);
 
         NodeIterator it = graph.nodeIterator();
-        long labelSrcNode = -1;
-        long labelDstNode = -1;
-        long labelId = -1;
+        boolean started = false;
 
+        ArrayList<DirEntry> labelBuffer = new ArrayList<>(128);
         while (it.hasNext()) {
             long srcNode = it.nextLong();
-
-            // Fill a hashmap with the labels of each edge starting from this node
-            HashMap<Long, List<Long>> successorsLabels = new HashMap<>();
-            while (labelSrcNode <= srcNode) {
-                if (labelSrcNode == srcNode) {
-                    successorsLabels.computeIfAbsent(labelDstNode, k -> new ArrayList<>()).add(labelId);
-                    if (debugFile != null) {
-                        debugFile.write(labelSrcNode + " " + labelDstNode + " " + labelId + "\n");
-                    }
-                }
-
-                if (!sortOutput.hasNext())
-                    break;
-
-                String line = sortOutput.nextLine();
-                String[] parts = line.split("\\t");
-                labelSrcNode = Long.parseLong(parts[0]);
-                labelDstNode = Long.parseLong(parts[1]);
-                labelId = Long.parseLong(parts[2]);
-            }
 
             int bits = 0;
             LazyLongIterator s = it.successors();
             long dstNode;
             while ((dstNode = s.nextLong()) >= 0) {
-                List<Long> edgeLabels = successorsLabels.getOrDefault(dstNode, Collections.emptyList());
-                bits += labels.writeGamma(edgeLabels.size());
-                for (Long label : edgeLabels) {
-                    bits += labels.writeLong(label, labelWidth);
+                while (line != null && line.srcNode <= srcNode && line.dstNode <= dstNode) {
+                    if (line.srcNode == srcNode && line.dstNode == dstNode) {
+                        labelBuffer.add(new DirEntry(line.filenameId, line.permission));
+
+                        if (debugFile != null) {
+                            debugFile.write(line.srcNode + " " + line.dstNode + " " + line.filenameId + " "
+                                    + line.permission + "\n");
+                        }
+                    }
+
+                    if (!mapLines.hasNext())
+                        break;
+
+                    line = mapLines.next();
+                    if (!started) {
+                        plLabels.start("Writing label map to file...");
+                        started = true;
+                    }
                 }
+
+                SwhLabel l = new SwhLabel("edgelabel", totalLabelWidth, labelBuffer.toArray(new DirEntry[0]));
+                labelBuffer.clear();
+                bits += l.toBitStream(labels, -1);
+                plLabels.lightUpdate();
             }
             offsets.writeGamma(bits);
-
-            plLabels.lightUpdate();
         }
+
         labels.close();
         offsets.close();
         plLabels.done();
@@ -207,9 +346,196 @@ public class LabelMapBuilder {
 
         PrintWriter pw = new PrintWriter(new FileWriter((new File(graphPath)).getName() + "-labelled.properties"));
         pw.println(ImmutableGraph.GRAPHCLASS_PROPERTY_KEY + " = " + BitStreamArcLabelledImmutableGraph.class.getName());
-        pw.println(BitStreamArcLabelledImmutableGraph.LABELSPEC_PROPERTY_KEY + " = "
-                + FixedWidthIntListLabel.class.getName() + "(TEST," + labelWidth + ")");
+        pw.println(BitStreamArcLabelledImmutableGraph.LABELSPEC_PROPERTY_KEY + " = " + SwhLabel.class.getName()
+                + "(DirEntry," + totalLabelWidth + ")");
         pw.println(ArcLabelledImmutableGraph.UNDERLYINGGRAPH_PROPERTY_KEY + " = " + graphPath);
         pw.close();
+    }
+
+    public abstract static class EdgeLabelLineWriter {
+        public abstract void writeLine(long src, long dst, long filenameId, int permission) throws IOException;
+    }
+
+    public static class EdgeLabelLine {
+        public long srcNode;
+        public long dstNode;
+        public long filenameId;
+        public int permission;
+
+        public EdgeLabelLine(long labelSrcNode, long labelDstNode, long labelFilenameId, int labelPermission) {
+            this.srcNode = labelSrcNode;
+            this.dstNode = labelDstNode;
+            this.filenameId = labelFilenameId;
+            this.permission = labelPermission;
+        }
+    }
+
+    public abstract static class EdgeLabelLineIterator implements Iterator<EdgeLabelLine> {
+        @Override
+        public abstract boolean hasNext();
+        @Override
+        public abstract EdgeLabelLine next();
+    }
+
+    public static class ScannerEdgeLabelLineIterator extends EdgeLabelLineIterator {
+        private final Scanner scanner;
+
+        public ScannerEdgeLabelLineIterator(InputStream input) {
+            this.scanner = new Scanner(input);
+        }
+
+        @Override
+        public boolean hasNext() {
+            return this.scanner.hasNext();
+        }
+
+        @Override
+        public EdgeLabelLine next() {
+            String line = scanner.nextLine();
+            String[] parts = line.split("\\t");
+            return new EdgeLabelLine(
+                    Long.parseLong(parts[0]),
+                    Long.parseLong(parts[1]),
+                    Long.parseLong(parts[2]),
+                    Integer.parseInt(parts[3])
+            );
+
+            /*
+            String line = scanner.nextLine();
+            long src = scanner.nextLong();
+            long dst = scanner.nextLong();
+            long label = scanner.nextLong();
+            int permission = scanner.nextInt();
+            return new EdgeLabelLine(src, dst, label, permission);
+             */
+        }
+    }
+
+    public static class TextualEdgeLabelLineIterator extends EdgeLabelLineIterator {
+        private final FastBufferedInputStream input;
+        private final Charset charset;
+        private byte[] array;
+        boolean finished;
+
+        public TextualEdgeLabelLineIterator(FastBufferedInputStream input) {
+            this.input = input;
+            this.finished = false;
+            this.charset = StandardCharsets.US_ASCII;
+            this.array = new byte[1024];
+        }
+
+        @Override
+        public boolean hasNext() {
+            return !this.finished;
+        }
+
+        @Override
+        public EdgeLabelLine next() {
+            int start = 0, len;
+            try {
+                while ((len = input.readLine(array, start, array.length - start,
+                        FastBufferedInputStream.ALL_TERMINATORS)) == array.length - start) {
+                    start += len;
+                    array = ByteArrays.grow(array, array.length + 1);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                return null;
+            }
+            if (len == -1) {
+                finished = true;
+                return null;
+            }
+            final int lineLength = start + len;
+
+            int offset = 0;
+
+            // Scan source id.
+            start = offset;
+            while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
+                offset++;
+            long src = Long.parseLong(new String(array, start, offset - start, charset));
+
+            // Skip whitespace between identifiers.
+            while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
+                offset++;
+
+            // Scan target ID
+            start = offset;
+            while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
+                offset++;
+            long dst = Long.parseLong(new String(array, start, offset - start, charset));
+
+            // Skip whitespace between identifiers.
+            while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
+                offset++;
+
+            // Scan label
+            start = offset;
+            while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
+                offset++;
+            long label = Long.parseLong(new String(array, start, offset - start, charset));
+
+            // Skip whitespace between identifiers.
+            while (offset < lineLength && array[offset] >= 0 && array[offset] <= ' ')
+                offset++;
+
+            // Scan permission
+            int permission = 0;
+            if (offset < lineLength) {
+                start = offset;
+                while (offset < lineLength && (array[offset] < 0 || array[offset] > ' '))
+                    offset++;
+                permission = Integer.parseInt(new String(array, start, offset - start, charset));
+            }
+
+            return new EdgeLabelLine(src, dst, label, permission);
+        }
+    }
+
+    public static class BinaryEdgeLabelLineIterator extends EdgeLabelLineIterator {
+        private final int nodeBytes;
+        DataInputStream stream;
+        boolean finished;
+        ByteBuffer buffer;
+
+        public BinaryEdgeLabelLineIterator(DataInputStream stream, int nodeBytes) {
+            this.stream = stream;
+            this.nodeBytes = nodeBytes;
+            this.buffer = ByteBuffer.allocate(Long.BYTES);
+            this.finished = false;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return !finished;
+        }
+
+        @Override
+        public EdgeLabelLine next() {
+            try {
+                // long src = stream.readLong();
+                // long dst = stream.readLong();
+                stream.readFully(this.buffer.array(), Long.BYTES - nodeBytes, nodeBytes);
+                this.buffer.position(0);
+                long src = this.buffer.getLong();
+                this.buffer.clear();
+
+                stream.readFully(this.buffer.array(), Long.BYTES - nodeBytes, nodeBytes);
+                this.buffer.position(0);
+                long dst = this.buffer.getLong();
+                this.buffer.clear();
+
+                long label = stream.readLong();
+                int perm = stream.readInt();
+                return new EdgeLabelLine(src, dst, label, perm);
+            } catch (EOFException e) {
+                finished = true;
+                return null;
+            } catch (IOException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
     }
 }
