@@ -85,24 +85,16 @@ Note: not for the faint heart, but the full dataset is available at:
 Own datasets
 ^^^^^^^^^^^^
 
-A graph is described as both its adjacency list and the set of nodes identifiers
-in plain text format. Such graph example can be found in the
-`swh/graph/tests/dataset/` folder. Depending on the machine you are using, you
-might want to tune parameters down for lower RAM usage. Parameters are
-configured in a separate YAML file:
+A graph is described as both its adjacency list and the set of nodes
+identifiers in plain text format. Such graph example can be found in the
+`swh/graph/tests/dataset/` folder.
 
-.. code:: yaml
-
-    graph:
-    compress:
-        batch_size: 1000
-
-Then, we can run the compression:
+You can compress the example graph on the command line like this:
 
 .. code:: bash
 
 
-   (swhenv) ~/t/swh-graph-tests$ swh graph -C config.yml compress --graph swh/graph/tests/dataset/example --outdir output/
+   (swhenv) ~/t/swh-graph-tests$ swh graph compress --graph swh/graph/tests/dataset/example --outdir output/
 
    [...]
 
