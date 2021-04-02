@@ -47,6 +47,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
     CompressionStep.MPH: [
         "{java}",
         "it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction",
+        "--byte-array",
         "--temp-dir",
         "{tmp_dir}",
         "{out_dir}/{graph_name}.mph",
@@ -62,6 +63,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "|",
         "{java}",
         "it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph",
+        "--byte-array",
         "--temp-dir",
         "{tmp_dir}",
         "--function",
