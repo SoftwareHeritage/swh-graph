@@ -17,7 +17,8 @@ import java.util.Arrays;
 public class SwhLabel extends AbstractLabel {
     private final String key;
     private final int width;
-    // TODO: in the future we would like this to be edge type dependent (eg: having a similar SnpEntry to store branch names)
+    // TODO: in the future we would like this to be edge type dependent (eg: having a similar SnpEntry
+    // to store branch names)
     public DirEntry[] value;
     // Use existing Webgraph class to represent a list of DirEntry as a list of encoded long
     private final FixedWidthLongListLabel longList;

@@ -10,7 +10,6 @@ import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
-import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.logging.ProgressLogger;
@@ -23,8 +22,6 @@ import org.softwareheritage.graph.labels.DirEntry;
 import org.softwareheritage.graph.labels.SwhLabel;
 
 import java.io.*;
-import java.lang.reflect.Array;
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -158,13 +155,9 @@ public class LabelMapBuilder {
         });
 
         ProcessBuilder processBuilder = new ProcessBuilder();
-        processBuilder.command(
-            "/home/seirl/bsort/src/bsort",
-            "-v",
-            "-r", String.valueOf(nodeBytes * 2 + Long.BYTES + Integer.BYTES),
-            "-k", String.valueOf(nodeBytes * 2),
-            tmpFile
-        );
+        processBuilder.command("/home/seirl/bsort/src/bsort", "-v", "-r",
+                String.valueOf(nodeBytes * 2 + Long.BYTES + Integer.BYTES), "-k", String.valueOf(nodeBytes * 2),
+                tmpFile);
         Process sort = processBuilder.start();
         sort.waitFor();
 
@@ -393,20 +386,13 @@ public class LabelMapBuilder {
         public EdgeLabelLine next() {
             String line = scanner.nextLine();
             String[] parts = line.split("\\t");
-            return new EdgeLabelLine(
-                    Long.parseLong(parts[0]),
-                    Long.parseLong(parts[1]),
-                    Long.parseLong(parts[2]),
-                    Integer.parseInt(parts[3])
-            );
+            return new EdgeLabelLine(Long.parseLong(parts[0]), Long.parseLong(parts[1]), Long.parseLong(parts[2]),
+                    Integer.parseInt(parts[3]));
 
             /*
-            String line = scanner.nextLine();
-            long src = scanner.nextLong();
-            long dst = scanner.nextLong();
-            long label = scanner.nextLong();
-            int permission = scanner.nextInt();
-            return new EdgeLabelLine(src, dst, label, permission);
+             * String line = scanner.nextLine(); long src = scanner.nextLong(); long dst = scanner.nextLong();
+             * long label = scanner.nextLong(); int permission = scanner.nextInt(); return new
+             * EdgeLabelLine(src, dst, label, permission);
              */
         }
     }

@@ -1,7 +1,6 @@
 package org.softwareheritage.graph.utils;
 
 import it.unimi.dsi.big.util.FrontCodedStringBigList;
-import it.unimi.dsi.big.util.PermutedFrontCodedStringBigList;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledNodeIterator;
 import it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph;
@@ -17,8 +16,7 @@ public class ReadLabelledGraph {
 
         ArcLabelledImmutableGraph graph = BitStreamArcLabelledImmutableGraph.loadOffline(graphPath + "-labelled");
         NodeIdMap nodeMap = new NodeIdMap(graphPath, graph.numNodes());
-        FrontCodedStringBigList filenameMap = (FrontCodedStringBigList) BinIO
-                .loadObject(graphPath + "-labels.fcl");
+        FrontCodedStringBigList filenameMap = (FrontCodedStringBigList) BinIO.loadObject(graphPath + "-labels.fcl");
 
         ArcLabelledNodeIterator it = graph.nodeIterator();
         while (it.hasNext()) {
