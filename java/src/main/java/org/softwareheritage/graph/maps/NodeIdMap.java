@@ -1,39 +1,48 @@
 package org.softwareheritage.graph.maps;
 
+import it.unimi.dsi.fastutil.io.BinIO;
+import it.unimi.dsi.fastutil.longs.LongBigList;
+import it.unimi.dsi.fastutil.objects.Object2LongFunction;
+import it.unimi.dsi.util.ByteBufferLongBigList;
 import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SWHID;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Mapping between internal long node id and external SWHID.
  * <p>
- * Mappings in both directions are pre-computed and dumped on disk in the {@link NodeMapBuilder}
- * class, then they are loaded here using mmap().
+ * The SWHID -> node mapping is obtained from hashing the SWHID with a MPH,
+ * then permuting it using an mmap()-ed .order file containing the graph
+ * permutation.
+ *
+ * The node -> SWHID reverse mapping is pre-computed and dumped on disk in the
+ * {@link NodeMapBuilder} class, then it is loaded here using mmap().
  *
  * @author The Software Heritage developers
  * @see NodeMapBuilder
  */
 
 public class NodeIdMap {
-    /** Fixed length of full SWHID */
-    public static final int SWHID_LENGTH = 50;
-    /** Fixed length of long node id */
-    public static final int NODE_ID_LENGTH = 20;
-
     /** Fixed length of binary SWHID buffer */
     public static final int SWHID_BIN_SIZE = 22;
-    /** Fixed length of binary node id buffer */
-    public static final int NODE_ID_BIN_SIZE = 8;
 
     /** Graph path and basename */
     String graphPath;
     /** Number of ids to map */
     long nbIds;
-    /** mmap()-ed SWHID_TO_NODE file */
-    MapFile swhToNodeMap;
+
     /** mmap()-ed NODE_TO_SWHID file */
     MapFile nodeToSwhMap;
+
+    /** Minimal perfect hash (MPH) function SWHID -> initial order */
+    Object2LongFunction<byte[]> mph;
+    /** mmap()-ed long list with the permutation initial order -> graph order */
+    LongBigList orderMap;
+    /** FileInputStream containing the permutation */
+    FileInputStream orderInputStream;
 
     /**
      * Constructor.
@@ -45,46 +54,51 @@ public class NodeIdMap {
         this.graphPath = graphPath;
         this.nbIds = nbNodes;
 
-        this.swhToNodeMap = new MapFile(graphPath + Graph.SWHID_TO_NODE, SWHID_BIN_SIZE + NODE_ID_BIN_SIZE);
+        // node -> SWHID
         this.nodeToSwhMap = new MapFile(graphPath + Graph.NODE_TO_SWHID, SWHID_BIN_SIZE);
+
+        // SWHID -> node
+        this.mph = loadMph(graphPath + ".mph");
+        this.orderInputStream = new FileInputStream(graphPath + ".order");
+        this.orderMap = ByteBufferLongBigList.map(orderInputStream.getChannel());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object2LongFunction<byte[]> loadMph(String path) throws IOException {
+        try {
+            return (Object2LongFunction<byte[]>) BinIO.loadObject(path);
+        } catch (ClassNotFoundException e) {
+            throw new IOException(e.getMessage());
+        }
     }
 
     /**
      * Converts SWHID to corresponding long node id.
      *
      * @param swhid node represented as a {@link SWHID}
+     * @param checkExists if true, error if the SWHID is not present in the graph, if false the check
+     *            will be skipped and invalid data will be returned for non-existing SWHIDs.
      * @return corresponding node as a long id
      * @see SWHID
      */
-    public long getNodeId(SWHID swhid) {
-        /*
-         * The file is sorted by swhid, hence we can binary search on swhid to get corresponding nodeId
-         */
-        long start = 0;
-        long end = nbIds - 1;
+    public long getNodeId(SWHID swhid, boolean checkExists) {
+        // 1. Hash the SWHID with the MPH to get its original ID
+        long origNodeId = mph.getLong(swhid.toString().getBytes(StandardCharsets.US_ASCII));
 
-        while (start <= end) {
-            long lineNumber = (start + end) / 2L;
-            byte[] buffer = swhToNodeMap.readAtLine(lineNumber);
-            byte[] swhidBuffer = new byte[SWHID_BIN_SIZE];
-            byte[] nodeBuffer = new byte[NODE_ID_BIN_SIZE];
-            System.arraycopy(buffer, 0, swhidBuffer, 0, SWHID_BIN_SIZE);
-            System.arraycopy(buffer, SWHID_BIN_SIZE, nodeBuffer, 0, NODE_ID_BIN_SIZE);
+        // 2. Use the order permutation to get the position in the permuted graph
+        long nodeId = this.orderMap.getLong(origNodeId);
 
-            String currentSWHID = SWHID.fromBytes(swhidBuffer).getSWHID();
-            long currentNodeId = java.nio.ByteBuffer.wrap(nodeBuffer).getLong();
-
-            int cmp = currentSWHID.compareTo(swhid.toString());
-            if (cmp == 0) {
-                return currentNodeId;
-            } else if (cmp < 0) {
-                start = lineNumber + 1;
-            } else {
-                end = lineNumber - 1;
-            }
+        // 3. Check that the position effectively corresponds to a real node using the reverse map.
+        // This is necessary because the MPH makes no guarantees on whether the input SWHID is valid.
+        if (!checkExists || getSWHID(nodeId).equals(swhid)) {
+            return nodeId;
+        } else {
+            throw new IllegalArgumentException("Unknown SWHID: " + swhid);
         }
+    }
 
-        throw new IllegalArgumentException("Unknown SWHID: " + swhid);
+    public long getNodeId(SWHID swhid) {
+        return getNodeId(swhid, true);
     }
 
     /**
@@ -110,7 +124,7 @@ public class NodeIdMap {
      * Closes the mapping files.
      */
     public void close() throws IOException {
-        swhToNodeMap.close();
+        orderInputStream.close();
         nodeToSwhMap.close();
     }
 }
