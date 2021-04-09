@@ -1,10 +1,10 @@
 package org.softwareheritage.graph.utils;
 
 import com.martiansoftware.jsap.*;
-import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.io.FastBufferedReader;
 import it.unimi.dsi.io.LineIterator;
+import org.softwareheritage.graph.maps.NodeIdMap;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -28,16 +28,11 @@ public class MPHTranslate {
         return config;
     }
 
-    @SuppressWarnings("unchecked") // Suppress warning for Object2LongFunction cast
-    static Object2LongFunction<byte[]> loadMPH(String mphPath) throws IOException, ClassNotFoundException {
-        return (Object2LongFunction<byte[]>) BinIO.loadObject(mphPath);
-    }
-
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         JSAPResult config = parse_args(args);
         String mphPath = config.getString("function");
 
-        Object2LongFunction<byte[]> mphMap = loadMPH(mphPath);
+        Object2LongFunction<byte[]> mphMap = NodeIdMap.loadMph(mphPath);
 
         // TODO: wasteful to convert to/from bytes
         FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in, StandardCharsets.US_ASCII));

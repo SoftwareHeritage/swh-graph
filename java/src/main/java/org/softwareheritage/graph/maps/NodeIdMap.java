@@ -14,9 +14,8 @@ import java.nio.charset.StandardCharsets;
 /**
  * Mapping between internal long node id and external SWHID.
  * <p>
- * The SWHID -> node mapping is obtained from hashing the SWHID with a MPH,
- * then permuting it using an mmap()-ed .order file containing the graph
- * permutation.
+ * The SWHID -> node mapping is obtained from hashing the SWHID with a MPH, then permuting it using
+ * an mmap()-ed .order file containing the graph permutation.
  *
  * The node -> SWHID reverse mapping is pre-computed and dumped on disk in the
  * {@link NodeMapBuilder} class, then it is loaded here using mmap().
@@ -64,12 +63,31 @@ public class NodeIdMap {
     }
 
     @SuppressWarnings("unchecked")
-    private Object2LongFunction<byte[]> loadMph(String path) throws IOException {
+    public static Object2LongFunction<byte[]> loadMph(String path) throws IOException {
+        Object obj;
         try {
-            return (Object2LongFunction<byte[]>) BinIO.loadObject(path);
+            obj = BinIO.loadObject(path);
         } catch (ClassNotFoundException e) {
             throw new IOException(e.getMessage());
         }
+
+        Object2LongFunction<byte[]> res = (Object2LongFunction<byte[]>) obj;
+
+        // Backward-compatibility for old maps parametrized with <String>.
+        // New maps should be parametrized with <byte[]>, which is faster.
+        try {
+            // Try to call it with bytes, will fail if it's a O2LF<String>.
+            res.getLong("42".getBytes(StandardCharsets.UTF_8));
+        } catch (ClassCastException e) {
+            Object2LongFunction<String> mphLegacy = (Object2LongFunction<String>) obj;
+            res = (o -> {
+                byte[] bi = (byte[]) o;
+                return mphLegacy.getLong(new String(bi, StandardCharsets.UTF_8));
+            });
+        }
+        // End of backward-compatibility block
+
+        return res;
     }
 
     /**

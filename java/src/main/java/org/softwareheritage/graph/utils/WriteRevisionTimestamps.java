@@ -7,22 +7,18 @@ import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.io.FastBufferedReader;
 import it.unimi.dsi.io.LineIterator;
+import org.softwareheritage.graph.maps.NodeIdMap;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
 public class WriteRevisionTimestamps {
-    @SuppressWarnings("unchecked") // Suppress warning for Object2LongFunction cast
-    static Object2LongFunction<byte[]> loadMPH(String mphPath) throws IOException, ClassNotFoundException {
-        return (Object2LongFunction<byte[]>) BinIO.loadObject(mphPath);
-    }
-
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         System.err.print("Loading everything...");
         String graphPath = args[0];
         String outputFile = args[1];
-        Object2LongFunction<byte[]> mphMap = loadMPH(graphPath + ".mph");
+        Object2LongFunction<byte[]> mphMap = NodeIdMap.loadMph(graphPath + ".mph");
         long nbIds = (mphMap instanceof Size64) ? ((Size64) mphMap).size64() : mphMap.size();
         long[][] nodePerm = BinIO.loadLongsBig(graphPath + ".order");
         // NodeIdMap nodeIdMap = new NodeIdMap(graphPath, nbIds);
