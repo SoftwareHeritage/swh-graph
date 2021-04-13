@@ -4,7 +4,7 @@ Quickstart
 This quick tutorial shows how to compress and browse a graph using `swh.graph`.
 
 It does not cover the technical details behind the graph compression techniques
-(refer to :ref:`Graph compression <compression>`).
+(refer to :ref:`graph-compression`).
 
 
 Dependencies
