@@ -30,6 +30,9 @@ public class Traversal {
     /** Number of edges accessed during traversal */
     long nbEdgesAccessed;
 
+    /** The anti Dos limit of edges traversed while a visit */
+    long maxEdges;
+
     /** random number generator, for random walks */
     Random rng;
 
@@ -43,6 +46,10 @@ public class Traversal {
      *            edges</a>
      */
     public Traversal(Graph graph, String direction, String edgesFmt) {
+        this(graph, direction, edgesFmt, 0);
+    }
+
+    public Traversal(Graph graph, String direction, String edgesFmt, long maxEdges) {
         if (!direction.matches("forward|backward")) {
             throw new IllegalArgumentException("Unknown traversal direction: " + direction);
         }
@@ -57,6 +64,7 @@ public class Traversal {
         this.visited = new HashSet<>();
         this.parentNode = new HashMap<>();
         this.nbEdgesAccessed = 0;
+        this.maxEdges = maxEdges;
         this.rng = new Random();
     }
 
@@ -93,6 +101,11 @@ public class Traversal {
 
             long neighborsCnt = 0;
             nbEdgesAccessed += graph.outdegree(currentNodeId);
+            if (this.maxEdges > 0) {
+                if (nbEdgesAccessed >= this.maxEdges) {
+                    break;
+                }
+            }
             LazyLongIterator it = graph.successors(currentNodeId, edges);
             for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 neighborsCnt++;
@@ -125,6 +138,11 @@ public class Traversal {
      */
     public void neighborsVisitor(long srcNodeId, NodeIdConsumer cb) {
         this.nbEdgesAccessed = graph.outdegree(srcNodeId);
+        if (this.maxEdges > 0) {
+            if (nbEdgesAccessed >= this.maxEdges) {
+                return;
+            }
+        }
         LazyLongIterator it = graph.successors(srcNodeId, edges);
         for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
             cb.accept(neighborNodeId);
@@ -158,8 +176,12 @@ public class Traversal {
             if (nodeCb != null) {
                 nodeCb.accept(currentNodeId);
             }
-
             nbEdgesAccessed += graph.outdegree(currentNodeId);
+            if (this.maxEdges > 0) {
+                if (nbEdgesAccessed >= this.maxEdges) {
+                    break;
+                }
+            }
             LazyLongIterator it = graph.successors(currentNodeId, edges);
             for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 if (edgeCb != null) {
@@ -216,7 +238,14 @@ public class Traversal {
         currentPath.push(currentNodeId);
 
         long visitedNeighbors = 0;
+
         nbEdgesAccessed += graph.outdegree(currentNodeId);
+        if (this.maxEdges > 0) {
+            if (nbEdgesAccessed >= this.maxEdges) {
+                currentPath.pop();
+                return;
+            }
+        }
         LazyLongIterator it = graph.successors(currentNodeId, edges);
         for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
             visitPathsInternalVisitor(neighborNodeId, currentPath, cb);

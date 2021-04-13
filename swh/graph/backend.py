@@ -68,10 +68,10 @@ class Backend:
         method = getattr(self.entry, "count_" + ttype)
         return method(direction, edges_fmt, src)
 
-    async def simple_traversal(self, ttype, direction, edges_fmt, src):
+    async def simple_traversal(self, ttype, direction, edges_fmt, src, max_edges):
         assert ttype in ("leaves", "neighbors", "visit_nodes")
         method = getattr(self.stream_proxy, ttype)
-        async for node_id in method(direction, edges_fmt, src):
+        async for node_id in method(direction, edges_fmt, src, max_edges):
             yield node_id
 
     async def walk(self, direction, edges_fmt, algo, src, dst):
@@ -92,8 +92,8 @@ class Backend:
         async for node_id in it:  # TODO return 404 if path is empty
             yield node_id
 
-    async def visit_edges(self, direction, edges_fmt, src):
-        it = self.stream_proxy.visit_edges(direction, edges_fmt, src)
+    async def visit_edges(self, direction, edges_fmt, src, max_edges):
+        it = self.stream_proxy.visit_edges(direction, edges_fmt, src, max_edges)
         # convert stream a, b, c, d -> (a, b), (c, d)
         prevNode = None
         async for node in it:
@@ -103,9 +103,11 @@ class Backend:
             else:
                 prevNode = node
 
-    async def visit_paths(self, direction, edges_fmt, src):
+    async def visit_paths(self, direction, edges_fmt, src, max_edges):
         path = []
-        async for node in self.stream_proxy.visit_paths(direction, edges_fmt, src):
+        async for node in self.stream_proxy.visit_paths(
+            direction, edges_fmt, src, max_edges
+        ):
             if node == PATH_SEPARATOR_ID:
                 yield path
                 path = []

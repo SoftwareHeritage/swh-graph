@@ -109,6 +109,15 @@ class GraphView(aiohttp.web.View):
         except ValueError:
             raise aiohttp.web.HTTPBadRequest(text=f"invalid limit value: {s}")
 
+    def get_max_edges(self):
+        """Validate HTTP query parameter 'max_edges', i.e.,
+        the limit of the number of edges that can be visited"""
+        s = self.request.query.get("max_edges", "0")
+        try:
+            return int(s)
+        except ValueError:
+            raise aiohttp.web.HTTPBadRequest(text=f"invalid max_edges value: {s}")
+
 
 class StreamingGraphView(GraphView):
     """Base class for views streaming their response line by line."""
@@ -166,10 +175,15 @@ class SimpleTraversalView(StreamingGraphView):
 
         self.edges = self.get_edges()
         self.direction = self.get_direction()
+        self.max_edges = self.get_max_edges()
 
     async def stream_response(self):
         async for res_node in self.backend.simple_traversal(
-            self.simple_traversal_type, self.direction, self.edges, self.src_node
+            self.simple_traversal_type,
+            self.direction,
+            self.edges,
+            self.src_node,
+            self.max_edges,
         ):
             res_swhid = self.swhid_of_node(res_node)
             await self.stream_line(res_swhid)
@@ -236,7 +250,9 @@ class RandomWalkView(WalkView):
 
 class VisitEdgesView(SimpleTraversalView):
     async def stream_response(self):
-        it = self.backend.visit_edges(self.direction, self.edges, self.src_node)
+        it = self.backend.visit_edges(
+            self.direction, self.edges, self.src_node, self.max_edges
+        )
         async for (res_src, res_dst) in it:
             res_src_swhid = self.swhid_of_node(res_src)
             res_dst_swhid = self.swhid_of_node(res_dst)
@@ -247,7 +263,9 @@ class VisitPathsView(SimpleTraversalView):
     content_type = "application/x-ndjson"
 
     async def stream_response(self):
-        it = self.backend.visit_paths(self.direction, self.edges, self.src_node)
+        it = self.backend.visit_paths(
+            self.direction, self.edges, self.src_node, self.max_edges
+        )
         async for res_path in it:
             res_path_swhid = [self.swhid_of_node(n) for n in res_path]
             line = json.dumps(res_path_swhid)

@@ -103,6 +103,29 @@ def test_visit_edges(graph_client):
     assert set(actual) == set(expected)
 
 
+def test_visit_edges_limited(graph_client):
+    actual = list(
+        graph_client.visit_edges(
+            "swh:1:rel:0000000000000000000000000000000000000010", max_edges=4
+        )
+    )
+    expected = [
+        (
+            "swh:1:rel:0000000000000000000000000000000000000010",
+            "swh:1:rev:0000000000000000000000000000000000000009",
+        ),
+        (
+            "swh:1:rev:0000000000000000000000000000000000000009",
+            "swh:1:dir:0000000000000000000000000000000000000008",
+        ),
+        (
+            "swh:1:rev:0000000000000000000000000000000000000009",
+            "swh:1:rev:0000000000000000000000000000000000000003",
+        ),
+    ]
+    assert set(actual) == set(expected)
+
+
 def test_visit_edges_diamond_pattern(graph_client):
     actual = list(
         graph_client.visit_edges(

@@ -35,30 +35,32 @@ class RemoteGraphClient(RPCClient):
     def stats(self):
         return self.get("stats")
 
-    def leaves(self, src, edges="*", direction="forward"):
+    def leaves(self, src, edges="*", direction="forward", max_edges=0):
         return self.get_lines(
-            "leaves/{}".format(src), params={"edges": edges, "direction": direction}
+            "leaves/{}".format(src),
+            params={"edges": edges, "direction": direction, "max_edges": max_edges},
         )
 
-    def neighbors(self, src, edges="*", direction="forward"):
+    def neighbors(self, src, edges="*", direction="forward", max_edges=0):
         return self.get_lines(
-            "neighbors/{}".format(src), params={"edges": edges, "direction": direction}
+            "neighbors/{}".format(src),
+            params={"edges": edges, "direction": direction, "max_edges": max_edges},
         )
 
-    def visit_nodes(self, src, edges="*", direction="forward"):
+    def visit_nodes(self, src, edges="*", direction="forward", max_edges=0):
         return self.get_lines(
             "visit/nodes/{}".format(src),
-            params={"edges": edges, "direction": direction},
+            params={"edges": edges, "direction": direction, "max_edges": max_edges},
         )
 
-    def visit_edges(self, src, edges="*", direction="forward"):
+    def visit_edges(self, src, edges="*", direction="forward", max_edges=0):
         for edge in self.get_lines(
             "visit/edges/{}".format(src),
-            params={"edges": edges, "direction": direction},
+            params={"edges": edges, "direction": direction, "max_edges": max_edges},
         ):
             yield tuple(edge.split())
 
-    def visit_paths(self, src, edges="*", direction="forward"):
+    def visit_paths(self, src, edges="*", direction="forward", max_edges=0):
         def decode_path_wrapper(it):
             for e in it:
                 yield json.loads(e)
@@ -66,7 +68,7 @@ class RemoteGraphClient(RPCClient):
         return decode_path_wrapper(
             self.get_lines(
                 "visit/paths/{}".format(src),
-                params={"edges": edges, "direction": direction},
+                params={"edges": edges, "direction": direction, "max_edges": max_edges},
             )
         )
 

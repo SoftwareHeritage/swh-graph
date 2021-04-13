@@ -112,37 +112,37 @@ public class Entry {
             }
         }
 
-        public void leaves(String direction, String edgesFmt, long srcNodeId) {
+        public void leaves(String direction, String edgesFmt, long srcNodeId, long maxEdges) {
             open();
-            Traversal t = new Traversal(this.graph, direction, edgesFmt);
+            Traversal t = new Traversal(this.graph, direction, edgesFmt, maxEdges);
             t.leavesVisitor(srcNodeId, this::writeNode);
             close();
         }
 
-        public void neighbors(String direction, String edgesFmt, long srcNodeId) {
+        public void neighbors(String direction, String edgesFmt, long srcNodeId, long maxEdges) {
             open();
-            Traversal t = new Traversal(this.graph, direction, edgesFmt);
+            Traversal t = new Traversal(this.graph, direction, edgesFmt, maxEdges);
             t.neighborsVisitor(srcNodeId, this::writeNode);
             close();
         }
 
-        public void visit_nodes(String direction, String edgesFmt, long srcNodeId) {
+        public void visit_nodes(String direction, String edgesFmt, long srcNodeId, long maxEdges) {
             open();
-            Traversal t = new Traversal(this.graph, direction, edgesFmt);
+            Traversal t = new Traversal(this.graph, direction, edgesFmt, maxEdges);
             t.visitNodesVisitor(srcNodeId, this::writeNode);
             close();
         }
 
-        public void visit_edges(String direction, String edgesFmt, long srcNodeId) {
+        public void visit_edges(String direction, String edgesFmt, long srcNodeId, long maxEdges) {
             open();
-            Traversal t = new Traversal(this.graph, direction, edgesFmt);
+            Traversal t = new Traversal(this.graph, direction, edgesFmt, maxEdges);
             t.visitNodesVisitor(srcNodeId, null, this::writeEdge);
             close();
         }
 
-        public void visit_paths(String direction, String edgesFmt, long srcNodeId) {
+        public void visit_paths(String direction, String edgesFmt, long srcNodeId, long maxEdges) {
             open();
-            Traversal t = new Traversal(this.graph, direction, edgesFmt);
+            Traversal t = new Traversal(this.graph, direction, edgesFmt, maxEdges);
             t.visitPathsVisitor(srcNodeId, this::writePath);
             close();
         }
