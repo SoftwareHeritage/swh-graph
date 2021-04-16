@@ -420,8 +420,8 @@ def cachemount(ctx, graph, cache):
 
     This command creates a new directory at the path given by CACHE that has
     the same structure as the compressed graph basename, except it copies the
-    files that require mmap access (*.graph) but uses symlinks from the source
-    for all the other files (.map, .bin, ...).
+    files that require mmap access (:file:`{*}.graph`) but uses symlinks from the source
+    for all the other files (:file:`{*}.map`, :file:`{*}.bin`, ...).
 
     The command outputs the path to the memory cache directory (particularly
     useful when relying on the default value).
