@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Web framework of the swh-graph server REST API.
+ * Web framework of the swh-graph server RPC API.
  *
  * @author The Software Heritage developers
  */
@@ -159,7 +159,7 @@ public class App {
     }
 
     /**
-     * Checks query strings names provided to the REST API.
+     * Checks query strings names provided to the RPC API.
      *
      * @param ctx Javalin HTTP request context
      * @param allowedFmt a regular expression describing allowed query strings names
@@ -175,7 +175,7 @@ public class App {
     }
 
     /**
-     * Formats endpoint result into final JSON for the REST API.
+     * Formats endpoint result into final JSON for the RPC API.
      * <p>
      * Removes unwanted information if necessary, such as timings (to prevent use of side channels
      * attacks).

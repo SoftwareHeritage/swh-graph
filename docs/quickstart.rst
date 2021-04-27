@@ -55,11 +55,11 @@ Install the `swh.graph` python package:
      -h, --help              Show this message and exit.
 
    Commands:
-     api-client  client for the graph REST service
+     api-client  client for the graph RPC service
      cachemount  Cache the mmapped files of the compressed graph in a tmpfs.
      compress    Compress a graph using WebGraph Input: a pair of files...
      map         Manage swh-graph on-disk maps
-     rpc-serve   run the graph REST service
+     rpc-serve   run the graph RPC service
 
 Compression
 -----------

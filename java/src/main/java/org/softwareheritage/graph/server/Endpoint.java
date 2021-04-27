@@ -6,7 +6,7 @@ import org.softwareheritage.graph.benchmark.utils.Timing;
 import java.util.ArrayList;
 
 /**
- * REST API endpoints wrapper functions.
+ * RPC API endpoints wrapper functions.
  * <p>
  * Graph operations are segmented between high-level class (this one) and the low-level class
  * ({@link Traversal}). The {@link Endpoint} class creates wrappers for each endpoints by performing

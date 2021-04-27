@@ -1,7 +1,7 @@
 .. _swh-graph-api:
 
-Graph REST API
-==============
+Graph RPC API
+=============
 
 
 Terminology

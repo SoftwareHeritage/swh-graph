@@ -102,7 +102,7 @@ def graph_cli_group(ctx, config_file):
 @click.option("--port", default="5009", help="Graph server port")
 @click.pass_context
 def api_client(ctx, host, port):
-    """client for the graph REST service"""
+    """client for the graph RPC service"""
     from swh.graph import client
 
     url = "http://{}:{}".format(host, port)
@@ -336,7 +336,7 @@ def map_lookup(graph, identifiers):
 )
 @click.pass_context
 def serve(ctx, host, port, graph):
-    """run the graph REST service"""
+    """run the graph RPC service"""
     import aiohttp
 
     from swh.graph.backend import Backend

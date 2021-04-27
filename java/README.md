@@ -1,7 +1,7 @@
 Graph service - Java backend
 ============================
 
-Server side Java REST API.
+Server side Java RPC API.
 
 Build
 -----
@@ -10,8 +10,8 @@ Build
 $ mvn compile assembly:single
 ```
 
-Start REST API
---------------
+Start RPC API
+-------------
 
 ```bash
 $ java -cp target/swh-graph-*.jar \
