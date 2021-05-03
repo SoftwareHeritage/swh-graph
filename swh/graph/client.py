@@ -19,7 +19,7 @@ class GraphAPIError(Exception):
 
 
 class GraphArgumentException(Exception):
-    def __init__(self, *args, response):
+    def __init__(self, *args, response=None):
         super().__init__(*args)
         self.response = response
 

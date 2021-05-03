@@ -326,13 +326,15 @@ def test_count(graph_client):
 def test_param_validation(graph_client):
     with raises(GraphArgumentException) as exc_info:  # SWHID not found
         list(graph_client.leaves("swh:1:ori:fff0000000000000000000000000000000000021"))
-    assert exc_info.value.response.status_code == 404
+    if exc_info.value.response:
+        assert exc_info.value.response.status_code == 404
 
     with raises(GraphArgumentException) as exc_info:  # malformed SWHID
         list(
             graph_client.neighbors("swh:1:ori:fff000000zzzzzz0000000000000000000000021")
         )
-    assert exc_info.value.response.status_code == 400
+    if exc_info.value.response:
+        assert exc_info.value.response.status_code == 400
 
     with raises(GraphArgumentException) as exc_info:  # malformed edge specificaiton
         list(
@@ -342,7 +344,8 @@ def test_param_validation(graph_client):
                 direction="backward",
             )
         )
-    assert exc_info.value.response.status_code == 400
+    if exc_info.value.response:
+        assert exc_info.value.response.status_code == 400
 
     with raises(GraphArgumentException) as exc_info:  # malformed direction
         list(
@@ -352,7 +355,8 @@ def test_param_validation(graph_client):
                 direction="notadirection",
             )
         )
-    assert exc_info.value.response.status_code == 400
+    if exc_info.value.response:
+        assert exc_info.value.response.status_code == 400
 
 
 @pytest.mark.skip(reason="currently disabled due to T1969")
