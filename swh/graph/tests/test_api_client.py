@@ -106,7 +106,9 @@ def test_visit_edges(graph_client):
 def test_visit_edges_limited(graph_client):
     actual = list(
         graph_client.visit_edges(
-            "swh:1:rel:0000000000000000000000000000000000000010", max_edges=4
+            "swh:1:rel:0000000000000000000000000000000000000010",
+            max_edges=4,
+            edges="rel:rev,rev:rev,rev:dir",
         )
     )
     expected = [
@@ -116,14 +118,21 @@ def test_visit_edges_limited(graph_client):
         ),
         (
             "swh:1:rev:0000000000000000000000000000000000000009",
-            "swh:1:dir:0000000000000000000000000000000000000008",
+            "swh:1:rev:0000000000000000000000000000000000000003",
         ),
         (
             "swh:1:rev:0000000000000000000000000000000000000009",
+            "swh:1:dir:0000000000000000000000000000000000000008",
+        ),
+        (
             "swh:1:rev:0000000000000000000000000000000000000003",
+            "swh:1:dir:0000000000000000000000000000000000000002",
         ),
     ]
-    assert set(actual) == set(expected)
+    # As there are four valid answers (up to reordering), we cannot check for
+    # equality. Instead, we check the client returned all edges but one.
+    assert set(actual).issubset(set(expected))
+    assert len(actual) == 3
 
 
 def test_visit_edges_diamond_pattern(graph_client):
