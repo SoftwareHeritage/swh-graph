@@ -63,7 +63,7 @@ public class Traversal {
     }
 
     public Traversal(Graph graph, String direction, String edgesFmt, long maxEdges) {
-        this(graph, direction, edgesFmt, 0, "*");
+        this(graph, direction, edgesFmt, maxEdges, "*");
     }
 
     public Traversal(Graph graph, String direction, String edgesFmt, long maxEdges, String returnTypes) {

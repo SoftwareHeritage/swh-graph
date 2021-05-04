@@ -167,7 +167,7 @@ def test_visit_edges_limited(graph_client):
     # As there are four valid answers (up to reordering), we cannot check for
     # equality. Instead, we check the client returned all edges but one.
     assert set(actual).issubset(set(expected))
-    assert len(actual) == 4
+    assert len(actual) == 3
 
 
 def test_visit_edges_diamond_pattern(graph_client):
