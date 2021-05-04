@@ -18,6 +18,12 @@ class GraphAPIError(Exception):
         )
 
 
+class GraphArgumentException(Exception):
+    def __init__(self, *args, response):
+        super().__init__(*args)
+        self.response = response
+
+
 class RemoteGraphClient(RPCClient):
     """Client to the Software Heritage Graph."""
 
@@ -32,6 +38,13 @@ class RemoteGraphClient(RPCClient):
 
     def get_lines(self, endpoint, **kwargs):
         yield from self.raw_verb_lines("get", endpoint, **kwargs)
+
+    def raise_for_status(self, response) -> None:
+        if response.status_code // 100 == 4:
+            raise GraphArgumentException(
+                response.content.decode("ascii"), response=response
+            )
+        super().raise_for_status(response)
 
     # Web API endpoints
 

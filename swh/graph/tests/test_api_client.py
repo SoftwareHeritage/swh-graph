@@ -2,6 +2,7 @@ import pytest
 from pytest import raises
 
 from swh.core.api import RemoteException
+from swh.graph.client import GraphArgumentException
 
 
 def test_stats(graph_client):
@@ -323,17 +324,17 @@ def test_count(graph_client):
 
 
 def test_param_validation(graph_client):
-    with raises(RemoteException) as exc_info:  # SWHID not found
+    with raises(GraphArgumentException) as exc_info:  # SWHID not found
         list(graph_client.leaves("swh:1:ori:fff0000000000000000000000000000000000021"))
     assert exc_info.value.response.status_code == 404
 
-    with raises(RemoteException) as exc_info:  # malformed SWHID
+    with raises(GraphArgumentException) as exc_info:  # malformed SWHID
         list(
             graph_client.neighbors("swh:1:ori:fff000000zzzzzz0000000000000000000000021")
         )
     assert exc_info.value.response.status_code == 400
 
-    with raises(RemoteException) as exc_info:  # malformed edge specificaiton
+    with raises(GraphArgumentException) as exc_info:  # malformed edge specificaiton
         list(
             graph_client.visit_nodes(
                 "swh:1:dir:0000000000000000000000000000000000000016",
@@ -343,7 +344,7 @@ def test_param_validation(graph_client):
         )
     assert exc_info.value.response.status_code == 400
 
-    with raises(RemoteException) as exc_info:  # malformed direction
+    with raises(GraphArgumentException) as exc_info:  # malformed direction
         list(
             graph_client.visit_nodes(
                 "swh:1:dir:0000000000000000000000000000000000000016",
