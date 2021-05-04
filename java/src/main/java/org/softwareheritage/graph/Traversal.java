@@ -1,11 +1,21 @@
 package org.softwareheritage.graph;
 
-import it.unimi.dsi.big.webgraph.LazyLongIterator;
-import org.softwareheritage.graph.server.Endpoint;
-
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Random;
+import java.util.Stack;
 import java.util.function.Consumer;
 import java.util.function.LongConsumer;
+
+import org.softwareheritage.graph.server.Endpoint;
+
+import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
 /**
  * Traversal algorithms on the compressed graph.
@@ -32,6 +42,8 @@ public class Traversal {
 
     /** The anti Dos limit of edges traversed while a visit */
     long maxEdges;
+    /** The string represent the set of type restriction */
+    NodesFiltering ndsfilter;
 
     /** random number generator, for random walks */
     Random rng;
@@ -45,11 +57,16 @@ public class Traversal {
      *            "https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed
      *            edges</a>
      */
+
     public Traversal(Graph graph, String direction, String edgesFmt) {
         this(graph, direction, edgesFmt, 0);
     }
 
     public Traversal(Graph graph, String direction, String edgesFmt, long maxEdges) {
+        this(graph, direction, edgesFmt, 0, "*");
+    }
+
+    public Traversal(Graph graph, String direction, String edgesFmt, long maxEdges, String returnTypes) {
         if (!direction.matches("forward|backward")) {
             throw new IllegalArgumentException("Unknown traversal direction: " + direction);
         }
@@ -66,6 +83,12 @@ public class Traversal {
         this.nbEdgesAccessed = 0;
         this.maxEdges = maxEdges;
         this.rng = new Random();
+
+        if (returnTypes.equals("*")) {
+            this.ndsfilter = new NodesFiltering();
+        } else {
+            this.ndsfilter = new NodesFiltering(returnTypes);
+        }
     }
 
     /**
@@ -128,8 +151,11 @@ public class Traversal {
      * @return list of node ids corresponding to the leaves
      */
     public ArrayList<Long> leaves(long srcNodeId) {
-        ArrayList<Long> nodeIds = new ArrayList<>();
+        ArrayList<Long> nodeIds = new ArrayList<Long>();
         leavesVisitor(srcNodeId, nodeIds::add);
+        if (ndsfilter.restricted) {
+            return ndsfilter.filterByNodeTypes(nodeIds, graph);
+        }
         return nodeIds;
     }
 
@@ -158,6 +184,9 @@ public class Traversal {
     public ArrayList<Long> neighbors(long srcNodeId) {
         ArrayList<Long> nodeIds = new ArrayList<>();
         neighborsVisitor(srcNodeId, nodeIds::add);
+        if (ndsfilter.restricted) {
+            return ndsfilter.filterByNodeTypes(nodeIds, graph);
+        }
         return nodeIds;
     }
 
@@ -209,6 +238,9 @@ public class Traversal {
     public ArrayList<Long> visitNodes(long srcNodeId) {
         ArrayList<Long> nodeIds = new ArrayList<>();
         visitNodesVisitor(srcNodeId, nodeIds::add);
+        if (ndsfilter.restricted) {
+            return ndsfilter.filterByNodeTypes(nodeIds, graph);
+        }
         return nodeIds;
     }
 
@@ -334,6 +366,9 @@ public class Traversal {
         }
 
         if (found) {
+            if (ndsfilter.restricted) {
+                return ndsfilter.filterByNodeTypes(path, graph);
+            }
             return path;
         } else if (retries > 0) { // try again
             return randomWalk(srcNodeId, dst, retries - 1);

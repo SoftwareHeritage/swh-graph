@@ -12,7 +12,10 @@ class GraphAPIError(Exception):
     """Graph API Error"""
 
     def __str__(self):
-        return "An unexpected error occurred in the Graph backend: {}".format(self.args)
+        return """An unexpected error occurred
+               in the Graph backend: {}""".format(
+            self.args
+        )
 
 
 class RemoteGraphClient(RPCClient):
@@ -35,22 +38,43 @@ class RemoteGraphClient(RPCClient):
     def stats(self):
         return self.get("stats")
 
-    def leaves(self, src, edges="*", direction="forward", max_edges=0):
+    def leaves(
+        self, src, edges="*", direction="forward", max_edges=0, return_types="*"
+    ):
         return self.get_lines(
             "leaves/{}".format(src),
-            params={"edges": edges, "direction": direction, "max_edges": max_edges},
+            params={
+                "edges": edges,
+                "direction": direction,
+                "max_edges": max_edges,
+                "return_types": return_types,
+            },
         )
 
-    def neighbors(self, src, edges="*", direction="forward", max_edges=0):
+    def neighbors(
+        self, src, edges="*", direction="forward", max_edges=0, return_types="*"
+    ):
         return self.get_lines(
             "neighbors/{}".format(src),
-            params={"edges": edges, "direction": direction, "max_edges": max_edges},
+            params={
+                "edges": edges,
+                "direction": direction,
+                "max_edges": max_edges,
+                "return_types": return_types,
+            },
         )
 
-    def visit_nodes(self, src, edges="*", direction="forward", max_edges=0):
+    def visit_nodes(
+        self, src, edges="*", direction="forward", max_edges=0, return_types="*"
+    ):
         return self.get_lines(
             "visit/nodes/{}".format(src),
-            params={"edges": edges, "direction": direction, "max_edges": max_edges},
+            params={
+                "edges": edges,
+                "direction": direction,
+                "max_edges": max_edges,
+                "return_types": return_types,
+            },
         )
 
     def visit_edges(self, src, edges="*", direction="forward", max_edges=0):
@@ -86,11 +110,18 @@ class RemoteGraphClient(RPCClient):
             },
         )
 
-    def random_walk(self, src, dst, edges="*", direction="forward", limit=None):
+    def random_walk(
+        self, src, dst, edges="*", direction="forward", limit=None, return_types="*"
+    ):
         endpoint = "randomwalk/{}/{}"
         return self.get_lines(
             endpoint.format(src, dst),
-            params={"edges": edges, "direction": direction, "limit": limit},
+            params={
+                "edges": edges,
+                "direction": direction,
+                "limit": limit,
+                "return_types": return_types,
+            },
         )
 
     def count_leaves(self, src, edges="*", direction="forward"):

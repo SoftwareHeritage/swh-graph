@@ -75,6 +75,41 @@ def test_visit_nodes(graph_client):
     assert set(actual) == set(expected)
 
 
+def test_visit_nodes_filtered(graph_client):
+    actual = list(
+        graph_client.visit_nodes(
+            "swh:1:rel:0000000000000000000000000000000000000010", return_types="dir",
+        )
+    )
+    expected = [
+        "swh:1:dir:0000000000000000000000000000000000000002",
+        "swh:1:dir:0000000000000000000000000000000000000008",
+        "swh:1:dir:0000000000000000000000000000000000000006",
+    ]
+    assert set(actual) == set(expected)
+
+
+def test_visit_nodes_filtered_star(graph_client):
+    actual = list(
+        graph_client.visit_nodes(
+            "swh:1:rel:0000000000000000000000000000000000000010", return_types="*",
+        )
+    )
+    expected = [
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        "swh:1:rev:0000000000000000000000000000000000000009",
+        "swh:1:rev:0000000000000000000000000000000000000003",
+        "swh:1:dir:0000000000000000000000000000000000000002",
+        "swh:1:cnt:0000000000000000000000000000000000000001",
+        "swh:1:dir:0000000000000000000000000000000000000008",
+        "swh:1:cnt:0000000000000000000000000000000000000007",
+        "swh:1:dir:0000000000000000000000000000000000000006",
+        "swh:1:cnt:0000000000000000000000000000000000000004",
+        "swh:1:cnt:0000000000000000000000000000000000000005",
+    ]
+    assert set(actual) == set(expected)
+
+
 def test_visit_edges(graph_client):
     actual = list(
         graph_client.visit_edges(
@@ -132,7 +167,7 @@ def test_visit_edges_limited(graph_client):
     # As there are four valid answers (up to reordering), we cannot check for
     # equality. Instead, we check the client returned all edges but one.
     assert set(actual).issubset(set(expected))
-    assert len(actual) == 3
+    assert len(actual) == 4
 
 
 def test_visit_edges_diamond_pattern(graph_client):
@@ -244,9 +279,9 @@ def test_walk(graph_client):
 
 
 def test_random_walk(graph_client):
-    """as the walk is random, we test a visit from a cnt node to the only origin in
-    the dataset, and only check the final node of the path (i.e., the origin)
-
+    """as the walk is random, we test a visit from a cnt node to the only
+    origin in the dataset, and only check the final node of the path
+    (i.e., the origin)
     """
     args = ("swh:1:cnt:0000000000000000000000000000000000000001", "ori")
     kwargs = {"direction": "backward"}

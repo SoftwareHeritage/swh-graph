@@ -94,6 +94,24 @@ class GraphView(aiohttp.web.View):
             raise aiohttp.web.HTTPBadRequest(text=f"invalid edge restriction: {s}")
         return s
 
+    def get_return_types(self):
+        """Validate HTTP query parameter 'return types', i.e,
+        a set of types which we will filter the query results with"""
+        s = self.request.query.get("return_types", "*")
+        if any(
+            node_type != "*" and node_type not in EXTENDED_SWHID_TYPES
+            for node_type in s.split(",")
+        ):
+            raise aiohttp.web.HTTPBadRequest(
+                text=f"invalid type for filtering res: {s}"
+            )
+        # if the user puts a star,
+        # then we filter nothing, we don't need the other information
+        if "*" in s:
+            return "*"
+        else:
+            return s
+
     def get_traversal(self):
         """Validate HTTP query parameter `traversal`, i.e., visit order"""
         s = self.request.query.get("traversal", "dfs")
@@ -176,6 +194,7 @@ class SimpleTraversalView(StreamingGraphView):
         self.edges = self.get_edges()
         self.direction = self.get_direction()
         self.max_edges = self.get_max_edges()
+        self.return_types = self.get_return_types()
 
     async def stream_response(self):
         async for res_node in self.backend.simple_traversal(
@@ -184,6 +203,7 @@ class SimpleTraversalView(StreamingGraphView):
             self.edges,
             self.src_node,
             self.max_edges,
+            self.return_types,
         ):
             res_swhid = self.swhid_of_node(res_node)
             await self.stream_line(res_swhid)
@@ -215,6 +235,7 @@ class WalkView(StreamingGraphView):
         self.direction = self.get_direction()
         self.algo = self.get_traversal()
         self.limit = self.get_limit()
+        self.return_types = self.get_return_types()
 
     async def get_walk_iterator(self):
         return self.backend.walk(
@@ -244,7 +265,12 @@ class WalkView(StreamingGraphView):
 class RandomWalkView(WalkView):
     def get_walk_iterator(self):
         return self.backend.random_walk(
-            self.direction, self.edges, RANDOM_RETRIES, self.src_node, self.dst_thing
+            self.direction,
+            self.edges,
+            RANDOM_RETRIES,
+            self.src_node,
+            self.dst_thing,
+            self.return_types,
         )
 
 

@@ -74,7 +74,9 @@ class GraphNode:
             lambda: self.graph.java_graph.indegree(self.id),
         )
 
-    def simple_traversal(self, ttype, direction="forward", edges="*", max_edges=0):
+    def simple_traversal(
+        self, ttype, direction="forward", edges="*", max_edges=0, return_types="*"
+    ):
         for node in call_async_gen(
             self.graph.backend.simple_traversal,
             ttype,
@@ -82,6 +84,7 @@ class GraphNode:
             edges,
             self.id,
             max_edges,
+            return_types,
         ):
             yield self.graph[node]
 

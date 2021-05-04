@@ -68,10 +68,12 @@ class Backend:
         method = getattr(self.entry, "count_" + ttype)
         return method(direction, edges_fmt, src)
 
-    async def simple_traversal(self, ttype, direction, edges_fmt, src, max_edges):
+    async def simple_traversal(
+        self, ttype, direction, edges_fmt, src, max_edges, return_types
+    ):
         assert ttype in ("leaves", "neighbors", "visit_nodes")
         method = getattr(self.stream_proxy, ttype)
-        async for node_id in method(direction, edges_fmt, src, max_edges):
+        async for node_id in method(direction, edges_fmt, src, max_edges, return_types):
             yield node_id
 
     async def walk(self, direction, edges_fmt, algo, src, dst):
@@ -82,13 +84,15 @@ class Backend:
         async for node_id in it:
             yield node_id
 
-    async def random_walk(self, direction, edges_fmt, retries, src, dst):
+    async def random_walk(self, direction, edges_fmt, retries, src, dst, return_types):
         if dst in EXTENDED_SWHID_TYPES:
             it = self.stream_proxy.random_walk_type(
-                direction, edges_fmt, retries, src, dst
+                direction, edges_fmt, retries, src, dst, return_types
             )
         else:
-            it = self.stream_proxy.random_walk(direction, edges_fmt, retries, src, dst)
+            it = self.stream_proxy.random_walk(
+                direction, edges_fmt, retries, src, dst, return_types
+            )
         async for node_id in it:  # TODO return 404 if path is empty
             yield node_id
 
