@@ -174,8 +174,6 @@ class NaiveClient:
     ) -> Iterator[Tuple[str, str]]:
         if max_edges == 0:
             max_edges = None  # type: ignore
-        else:
-            max_edges -= 1
         yield from list(self.graph.iter_edges_dfs(direction, edges, src))[:max_edges]
 
     @check_arguments

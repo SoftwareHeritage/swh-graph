@@ -139,12 +139,12 @@ def test_visit_edges(graph_client):
     assert set(actual) == set(expected)
 
 
-def test_visit_edges_limited(graph_client):
+@pytest.mark.parametrize("max_edges", [1, 2, 3, 4, 5])
+@pytest.mark.parametrize("edges", ["*", "rel:rev,rev:rev,rev:dir"])
+def test_visit_edges_limited(graph_client, max_edges, edges):
     actual = list(
         graph_client.visit_edges(
-            "swh:1:rel:0000000000000000000000000000000000000010",
-            max_edges=4,
-            edges="rel:rev,rev:rev,rev:dir",
+            "swh:1:rel:0000000000000000000000000000000000000010", max_edges=max_edges,
         )
     )
     expected = [
@@ -161,14 +161,39 @@ def test_visit_edges_limited(graph_client):
             "swh:1:dir:0000000000000000000000000000000000000008",
         ),
         (
+            "swh:1:dir:0000000000000000000000000000000000000008",
+            "swh:1:dir:0000000000000000000000000000000000000006",
+        ),
+        (
+            "swh:1:dir:0000000000000000000000000000000000000008",
+            "swh:1:cnt:0000000000000000000000000000000000000007",
+        ),
+        (
+            "swh:1:dir:0000000000000000000000000000000000000008",
+            "swh:1:cnt:0000000000000000000000000000000000000001",
+        ),
+        (
+            "swh:1:dir:0000000000000000000000000000000000000006",
+            "swh:1:cnt:0000000000000000000000000000000000000005",
+        ),
+        (
+            "swh:1:dir:0000000000000000000000000000000000000006",
+            "swh:1:cnt:0000000000000000000000000000000000000004",
+        ),
+        (
             "swh:1:rev:0000000000000000000000000000000000000003",
             "swh:1:dir:0000000000000000000000000000000000000002",
         ),
+        (
+            "swh:1:dir:0000000000000000000000000000000000000002",
+            "swh:1:cnt:0000000000000000000000000000000000000001",
+        ),
     ]
-    # As there are four valid answers (up to reordering), we cannot check for
-    # equality. Instead, we check the client returned all edges but one.
+    # As there are multiple valid answers for every value of max_edges (<= 3),
+    # we cannot check for equality.
+    # Instead, we check the client returned all edges but one.
     assert set(actual).issubset(set(expected))
-    assert len(actual) == 3
+    assert 1 <= len(actual) <= max_edges
 
 
 def test_visit_edges_diamond_pattern(graph_client):
