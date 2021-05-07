@@ -83,8 +83,8 @@ public class LabelMapBuilder {
         logger.info("Loading graph and MPH functions...");
         builder.loadGraph();
 
-        // builder.computeLabelMapSort();
-        builder.computeLabelMapBsort();
+        builder.computeLabelMapSort();
+        // builder.computeLabelMapBsort();
     }
 
     @SuppressWarnings("unchecked") // Suppress warning for Object2LongFunction cast
