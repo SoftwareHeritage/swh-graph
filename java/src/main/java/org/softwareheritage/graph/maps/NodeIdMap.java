@@ -1,5 +1,6 @@
 package org.softwareheritage.graph.maps;
 
+import it.unimi.dsi.fastutil.Size64;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigList;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
@@ -79,11 +80,38 @@ public class NodeIdMap {
             // Try to call it with bytes, will fail if it's a O2LF<String>.
             res.getLong("42".getBytes(StandardCharsets.UTF_8));
         } catch (ClassCastException e) {
+            class StringCompatibleByteFunction implements Object2LongFunction<byte[]>, Size64 {
+                private final Object2LongFunction<String> legacyFunction;
+
+                public StringCompatibleByteFunction(Object2LongFunction<String> legacyFunction) {
+                    this.legacyFunction = legacyFunction;
+                }
+
+                @Override
+                public long getLong(Object o) {
+                    byte[] bi = (byte[]) o;
+                    return legacyFunction.getLong(new String(bi, StandardCharsets.UTF_8));
+                }
+
+                @Override
+                public int size() {
+                    return legacyFunction.size();
+                }
+
+                @Override
+                public long size64() {
+                    return (legacyFunction instanceof Size64)
+                            ? ((Size64) legacyFunction).size64()
+                            : legacyFunction.size();
+                }
+            }
+
             Object2LongFunction<String> mphLegacy = (Object2LongFunction<String>) obj;
-            res = (o -> {
-                byte[] bi = (byte[]) o;
-                return mphLegacy.getLong(new String(bi, StandardCharsets.UTF_8));
-            });
+            return new StringCompatibleByteFunction(mphLegacy);
+            /*
+             * res = (o -> { byte[] bi = (byte[]) o; return mphLegacy.getLong(new String(bi,
+             * StandardCharsets.UTF_8)); });
+             */
         }
         // End of backward-compatibility block
 

@@ -33,6 +33,7 @@ public class LabelMapBuilder {
     final static Logger logger = LoggerFactory.getLogger(LabelMapBuilder.class);
 
     String graphPath;
+    String outputGraphPath;
     String debugPath;
     String tmpDir;
     ImmutableGraph graph;
@@ -43,8 +44,13 @@ public class LabelMapBuilder {
     long numFilenames;
     int totalLabelWidth;
 
-    public LabelMapBuilder(String graphPath, String debugPath, String tmpDir) {
+    public LabelMapBuilder(String graphPath, String debugPath, String outputGraphPath, String tmpDir) {
         this.graphPath = graphPath;
+        if (outputGraphPath == null) {
+            this.outputGraphPath = graphPath;
+        } else {
+            this.outputGraphPath = outputGraphPath;
+        }
         this.debugPath = debugPath;
         this.tmpDir = tmpDir;
     }
@@ -52,15 +58,16 @@ public class LabelMapBuilder {
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(LabelMapBuilder.class.getName(), "",
-                    new Parameter[]{
-                            new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g',
-                                    "graph", "Basename of the compressed graph"),
-                            new FlaggedOption("debugPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'd',
-                                    "debug-path", "Store the intermediate representation here for debug"),
+            SimpleJSAP jsap = new SimpleJSAP(LabelMapBuilder.class.getName(), "", new Parameter[]{
+                    new FlaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'g', "graph",
+                            "Basename of the compressed graph"),
+                    new FlaggedOption("debugPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'd',
+                            "debug-path", "Store the intermediate representation here for debug"),
+                    new FlaggedOption("outputGraphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'o',
+                            "output-graph", "Basename of the output graph, same as --graph if not specified"),
 
-                            new FlaggedOption("tmpDir", JSAP.STRING_PARSER, "tmp", JSAP.NOT_REQUIRED, 't', "tmp",
-                                    "Temporary directory path"),});
+                    new FlaggedOption("tmpDir", JSAP.STRING_PARSER, "tmp", JSAP.NOT_REQUIRED, 't', "tmp",
+                            "Temporary directory path"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -75,28 +82,17 @@ public class LabelMapBuilder {
     public static void main(String[] args) throws IOException, InterruptedException {
         JSAPResult config = parse_args(args);
         String graphPath = config.getString("graphPath");
+        String outputGraphPath = config.getString("outputGraphPath");
         String tmpDir = config.getString("tmpDir");
         String debugPath = config.getString("debugPath");
 
-        LabelMapBuilder builder = new LabelMapBuilder(graphPath, debugPath, tmpDir);
+        LabelMapBuilder builder = new LabelMapBuilder(graphPath, debugPath, outputGraphPath, tmpDir);
 
         logger.info("Loading graph and MPH functions...");
         builder.loadGraph();
 
         builder.computeLabelMapSort();
         // builder.computeLabelMapBsort();
-    }
-
-    @SuppressWarnings("unchecked") // Suppress warning for Object2LongFunction cast
-    static Object2LongFunction<byte[]> loadMPH(String mphBasename) throws IOException {
-        Object2LongFunction<byte[]> mphMap = null;
-        try {
-            mphMap = (Object2LongFunction<byte[]>) BinIO.loadObject(mphBasename + ".mph");
-        } catch (ClassNotFoundException e) {
-            logger.error("unknown class object in .mph file: " + e);
-            System.exit(2);
-        }
-        return mphMap;
     }
 
     static long getMPHSize(Object2LongFunction<byte[]> mph) {
@@ -171,12 +167,12 @@ public class LabelMapBuilder {
     void loadGraph() throws IOException {
         graph = BVGraph.loadMapped(graphPath);
 
-        swhIdMph = loadMPH(graphPath);
+        swhIdMph = NodeIdMap.loadMph(graphPath + ".mph");
 
         orderMap = LongBigArrays.newBigArray(getMPHSize(swhIdMph));
         BinIO.loadLongs(graphPath + ".order", orderMap);
 
-        filenameMph = loadMPH(graphPath + "-labels");
+        filenameMph = NodeIdMap.loadMph(graphPath + "-labels.mph");
         numFilenames = getMPHSize(filenameMph);
         totalLabelWidth = DirEntry.labelWidth(numFilenames);
     }
@@ -284,9 +280,9 @@ public class LabelMapBuilder {
         }
 
         OutputBitStream labels = new OutputBitStream(
-                new File(graphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABELS_EXTENSION));
+                new File(outputGraphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABELS_EXTENSION));
         OutputBitStream offsets = new OutputBitStream(
-                new File(graphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABEL_OFFSETS_EXTENSION));
+                new File(outputGraphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABEL_OFFSETS_EXTENSION));
         offsets.writeGamma(0);
 
         EdgeLabelLine line = new EdgeLabelLine(-1, -1, -1, -1);
@@ -337,11 +333,12 @@ public class LabelMapBuilder {
             debugFile.close();
         }
 
-        PrintWriter pw = new PrintWriter(new FileWriter((new File(graphPath)).getName() + "-labelled.properties"));
+        PrintWriter pw = new PrintWriter(
+                new FileWriter((new File(outputGraphPath)).getName() + "-labelled.properties"));
         pw.println(ImmutableGraph.GRAPHCLASS_PROPERTY_KEY + " = " + BitStreamArcLabelledImmutableGraph.class.getName());
         pw.println(BitStreamArcLabelledImmutableGraph.LABELSPEC_PROPERTY_KEY + " = " + SwhLabel.class.getName()
                 + "(DirEntry," + totalLabelWidth + ")");
-        pw.println(ArcLabelledImmutableGraph.UNDERLYINGGRAPH_PROPERTY_KEY + " = " + graphPath);
+        pw.println(ArcLabelledImmutableGraph.UNDERLYINGGRAPH_PROPERTY_KEY + " = " + outputGraphPath);
         pw.close();
     }
 
