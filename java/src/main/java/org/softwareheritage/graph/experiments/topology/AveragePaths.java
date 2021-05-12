@@ -24,7 +24,7 @@ public class AveragePaths {
 
     public AveragePaths(String graphBasename, String allowedNodes, String outdir) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = new Graph(graphBasename);
+        this.graph = Graph.loadMapped(graphBasename);
         this.subgraph = new Subgraph(this.graph, new AllowedNodes(allowedNodes));
         this.outdir = outdir;
         System.err.println("Graph loaded.");

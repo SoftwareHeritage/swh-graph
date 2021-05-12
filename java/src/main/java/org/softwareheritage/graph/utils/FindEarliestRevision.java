@@ -22,7 +22,7 @@ public class FindEarliestRevision {
 
         System.err.println("loading transposed graph...");
         ts = System.nanoTime();
-        Graph graph = new Graph(graphPath).transpose();
+        Graph graph = Graph.loadMapped(graphPath).transpose();
         elapsed = Duration.ofNanos(System.nanoTime() - ts);
         System.err.println(String.format("transposed graph loaded (duration: %s).", elapsed));
 

@@ -20,7 +20,7 @@ public class GraphTest {
     @BeforeAll
     public static void setUp() throws IOException {
         Path graphPath = Paths.get("..", "swh", "graph", "tests", "dataset", "output", "example");
-        graph = new Graph(graphPath.toString());
+        graph = Graph.loadMapped(graphPath.toString());
     }
 
     public Graph getGraph() {

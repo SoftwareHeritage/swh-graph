@@ -52,7 +52,7 @@ public class Graph extends ImmutableGraph {
      * @param path path and basename of the compressed graph to load
      */
 
-    public Graph(String path) throws IOException {
+    private Graph(String path) throws IOException {
         loadInternal(path, null, LoadMethod.MAPPED);
     }
 
@@ -84,27 +84,27 @@ public class Graph extends ImmutableGraph {
     protected Graph() {
     }
 
-    public Graph load(String Path, ProgressLogger pl) throws IOException {
+    public static Graph load(String path, ProgressLogger pl) throws IOException {
         return new Graph().loadInternal(path, pl, LoadMethod.MEMORY);
     }
 
-    public Graph loadMapped(String Path, ProgressLogger pl) throws IOException {
+    public static Graph loadMapped(String path, ProgressLogger pl) throws IOException {
         return new Graph().loadInternal(path, pl, LoadMethod.MAPPED);
     }
 
-    public Graph loadOffline(String Path, ProgressLogger pl) throws IOException {
+    public static Graph loadOffline(String path, ProgressLogger pl) throws IOException {
         return new Graph().loadInternal(path, null, LoadMethod.OFFLINE);
     }
 
-    public Graph load(String Path) throws IOException {
+    public static Graph load(String path) throws IOException {
         return new Graph().loadInternal(path, null, LoadMethod.MEMORY);
     }
 
-    public Graph loadMapped(String Path) throws IOException {
+    public static Graph loadMapped(String path) throws IOException {
         return new Graph().loadInternal(path, null, LoadMethod.MAPPED);
     }
 
-    public Graph loadOffline(String Path) throws IOException {
+    public static Graph loadOffline(String path) throws IOException {
         return new Graph().loadInternal(path, null, LoadMethod.OFFLINE);
     }
 

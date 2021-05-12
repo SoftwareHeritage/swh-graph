@@ -233,7 +233,7 @@ public class InOutDegree {
 
         final ProgressLogger pl = new ProgressLogger();
 
-        Graph graph = new Graph(basename);
+        Graph graph = Graph.loadMapped(basename);
         run(graph, resultsDir);
     }
 }

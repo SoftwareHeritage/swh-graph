@@ -84,7 +84,7 @@ public class SubdatasetSizeFunction {
 
         final String basename = jsapResult.getString("basename");
 
-        Graph graph = new Graph(basename);
+        Graph graph = Graph.loadMapped(basename);
         run(graph);
     }
 }

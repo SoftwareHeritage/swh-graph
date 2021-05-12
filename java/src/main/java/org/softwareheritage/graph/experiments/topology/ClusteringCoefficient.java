@@ -27,7 +27,7 @@ public class ClusteringCoefficient {
     public ClusteringCoefficient(String graphBasename, String outdirPath) throws IOException {
         this.outdirPath = outdirPath;
         System.err.println("Loading graph " + graphBasename + " ...");
-        Graph directedGraph = new Graph(graphBasename);
+        Graph directedGraph = Graph.loadMapped(graphBasename);
         this.graph = directedGraph.symmetrize();
         System.err.println("Graph loaded.");
 

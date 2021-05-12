@@ -14,7 +14,7 @@ public class FindPath {
 
     private void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = new Graph(graphBasename).symmetrize();
+        this.graph = Graph.loadMapped(graphBasename).symmetrize();
         System.err.println("Graph loaded.");
         this.emptySnapshot = null;
     }

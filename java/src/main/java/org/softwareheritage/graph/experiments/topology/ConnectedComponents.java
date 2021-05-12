@@ -22,7 +22,7 @@ public class ConnectedComponents {
 
     private void load_graph(String graphBasename, String nodeTypes) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        var underlyingGraph = new Graph(graphBasename);
+        var underlyingGraph = Graph.loadMapped(graphBasename);
         var underlyingGraphSym = underlyingGraph.symmetrize();
         graph = new Subgraph(underlyingGraphSym, new AllowedNodes(nodeTypes));
         System.err.println("Graph loaded.");
