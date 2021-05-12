@@ -3,6 +3,7 @@ package org.softwareheritage.graph;
 import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.Transform;
+import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.maps.NodeIdMap;
 import org.softwareheritage.graph.maps.NodeTypesMap;
 
@@ -50,14 +51,66 @@ public class Graph extends ImmutableGraph {
      *
      * @param path path and basename of the compressed graph to load
      */
+
     public Graph(String path) throws IOException {
-        this.path = path;
-        this.graph = ImmutableGraph.loadMapped(path);
-        this.graphTransposed = ImmutableGraph.loadMapped(path + "-transposed");
-        this.nodeTypesMap = new NodeTypesMap(path);
-        this.nodeIdMap = new NodeIdMap(path, numNodes());
+        loadInternal(path, null, LoadMethod.MAPPED);
     }
 
+    /**
+     * Loading mechanisms
+     */
+
+    enum LoadMethod {
+        MEMORY, MAPPED, OFFLINE,
+    }
+
+    protected Graph loadInternal(String path, ProgressLogger pl, LoadMethod method) throws IOException {
+        this.path = path;
+        if (method == LoadMethod.MEMORY) {
+            this.graph = ImmutableGraph.load(path, pl);
+            this.graphTransposed = ImmutableGraph.load(path + "-transposed", pl);
+        } else if (method == LoadMethod.MAPPED) {
+            this.graph = ImmutableGraph.loadMapped(path, pl);
+            this.graphTransposed = ImmutableGraph.loadMapped(path + "-transposed", pl);
+        } else if (method == LoadMethod.OFFLINE) {
+            this.graph = ImmutableGraph.loadOffline(path, pl);
+            this.graphTransposed = ImmutableGraph.loadOffline(path + "-transposed", pl);
+        }
+        this.nodeTypesMap = new NodeTypesMap(path);
+        this.nodeIdMap = new NodeIdMap(path, numNodes());
+        return this;
+    }
+
+    protected Graph() {
+    }
+
+    public Graph load(String Path, ProgressLogger pl) throws IOException {
+        return new Graph().loadInternal(path, pl, LoadMethod.MEMORY);
+    }
+
+    public Graph loadMapped(String Path, ProgressLogger pl) throws IOException {
+        return new Graph().loadInternal(path, pl, LoadMethod.MAPPED);
+    }
+
+    public Graph loadOffline(String Path, ProgressLogger pl) throws IOException {
+        return new Graph().loadInternal(path, null, LoadMethod.OFFLINE);
+    }
+
+    public Graph load(String Path) throws IOException {
+        return new Graph().loadInternal(path, null, LoadMethod.MEMORY);
+    }
+
+    public Graph loadMapped(String Path) throws IOException {
+        return new Graph().loadInternal(path, null, LoadMethod.MAPPED);
+    }
+
+    public Graph loadOffline(String Path) throws IOException {
+        return new Graph().loadInternal(path, null, LoadMethod.OFFLINE);
+    }
+
+    /**
+     * Constructor used for copy()
+     */
     protected Graph(ImmutableGraph graph, ImmutableGraph graphTransposed, String path, NodeIdMap nodeIdMap,
             NodeTypesMap nodeTypesMap) {
         this.graph = graph;

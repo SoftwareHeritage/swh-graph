@@ -164,7 +164,7 @@ public class InOutDegree {
                     orisnp_in.merge(0L, 1L, Long::sum);
                     orisnp_out.merge(d_out, 1L, Long::sum);
                     break;
-                default:
+                default :
                     pl.logger().warn("Invalid node type at pos {}", i);
                     break;
             }
