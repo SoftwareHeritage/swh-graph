@@ -196,7 +196,7 @@ public class ClusteringCoefficient {
         printSortedDistribution(outdirPath + "/distribution-full.txt", result_full);
         printSortedDistribution(outdirPath + "/distribution-dircnt.txt", result_dircnt);
         printSortedDistribution(outdirPath + "/distribution-rev.txt", result_rev);
-        printSortedDistribution(outdirPath + "/distribution-revrel.txt", result_revrel);
+        printSortedDistribution(outdirPath + "/distribution-relrev.txt", result_revrel);
         printSortedDistribution(outdirPath + "/distribution-orisnp.txt", result_orisnp);
     }
 
