@@ -56,7 +56,7 @@ public class App {
      * @param showTimings true if timings should be in results metadata, false otherwise
      */
     private static void startServer(String graphPath, int port, boolean showTimings) throws IOException {
-        Graph graph = new Graph(graphPath);
+        Graph graph = Graph.loadMapped(graphPath);
         Stats stats = new Stats(graphPath);
 
         // Clean up on exit

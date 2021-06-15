@@ -50,7 +50,7 @@ public class BFS {
         boolean useTransposed = config.getBoolean("useTransposed");
 
         System.err.println("Loading graph " + graphPath + " ...");
-        Graph graph = new Graph(graphPath);
+        Graph graph = Graph.loadMapped(graphPath);
         System.err.println("Graph loaded.");
 
         if (useTransposed)

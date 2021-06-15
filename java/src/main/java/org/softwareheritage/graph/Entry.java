@@ -14,7 +14,7 @@ public class Entry {
 
     public void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = new Graph(graphBasename);
+        this.graph = Graph.loadMapped(graphBasename);
         System.err.println("Graph loaded.");
     }
 

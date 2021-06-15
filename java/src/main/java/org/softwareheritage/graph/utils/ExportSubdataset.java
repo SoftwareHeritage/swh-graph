@@ -22,7 +22,7 @@ public class ExportSubdataset {
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         System.err.print("Loading everything...");
         String graphPath = args[0];
-        Graph graph = new Graph(graphPath);
+        Graph graph = Graph.loadMapped(graphPath);
         Object2LongFunction<byte[]> mphMap = NodeIdMap.loadMph(graphPath + ".mph");
         System.err.println(" done.");
 

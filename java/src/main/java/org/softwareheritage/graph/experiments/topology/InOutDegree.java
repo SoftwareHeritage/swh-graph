@@ -1,5 +1,6 @@
 package org.softwareheritage.graph.experiments.topology;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -55,6 +56,7 @@ public class InOutDegree {
     }
 
     public static void run(final Graph graph, String resultsDir) throws IOException {
+        // Per-type
         var cnt_in_dir = new HashMap<Long, Long>();
         var dir_in_dir = new HashMap<Long, Long>();
         var dir_in_rev = new HashMap<Long, Long>();
@@ -76,6 +78,18 @@ public class InOutDegree {
         var snp_out_rev = new HashMap<Long, Long>();
         var ori_out_snp = new HashMap<Long, Long>();
 
+        // Aggregated per layer
+        var full_in = new HashMap<Long, Long>();
+        var full_out = new HashMap<Long, Long>();
+        var dircnt_in = new HashMap<Long, Long>();
+        var dircnt_out = new HashMap<Long, Long>();
+        var orisnp_in = new HashMap<Long, Long>();
+        var orisnp_out = new HashMap<Long, Long>();
+        var relrev_in = new HashMap<Long, Long>();
+        var relrev_out = new HashMap<Long, Long>();
+        var rev_in = rev_in_rev; // alias for single-type layer
+        var rev_out = rev_out_rev;
+
         final ProgressLogger pl = new ProgressLogger();
         pl.itemsName = "nodes";
         pl.expectedUpdates = graph.numNodes();
@@ -85,12 +99,23 @@ public class InOutDegree {
         long[] out;
 
         for (long i = graph.numNodes(); i-- != 0;) {
+            long d_in = graph.indegree(i);
+            long d_out = graph.outdegree(i);
+
+            full_in.merge(d_in, 1L, Long::sum);
+            full_out.merge(d_out, 1L, Long::sum);
+
             switch (graph.getNodeType(i)) {
                 case CNT:
-                    cnt_in_dir.merge(graph.indegree(i), 1L, Long::sum);
+                    cnt_in_dir.merge(d_in, 1L, Long::sum);
+
+                    dircnt_in.merge(d_in, 1L, Long::sum);
+                    dircnt_out.merge(0L, 1L, Long::sum);
+                    break;
                 case DIR:
                     in = indegreeTypes(graph, i);
                     out = outdegreeTypes(graph, i);
+
                     dir_in_all.merge(in[TYPE_ALL], 1L, Long::sum);
                     dir_out_all.merge(out[TYPE_ALL], 1L, Long::sum);
                     dir_in_dir.merge(in[TYPE_DIR], 1L, Long::sum);
@@ -98,25 +123,50 @@ public class InOutDegree {
                     dir_out_cnt.merge(out[TYPE_CNT], 1L, Long::sum);
                     dir_out_dir.merge(out[TYPE_DIR], 1L, Long::sum);
                     dir_out_rev.merge(out[TYPE_REV], 1L, Long::sum);
+
+                    dircnt_in.merge(in[TYPE_DIR] + in[TYPE_CNT], 1L, Long::sum);
+                    dircnt_out.merge(out[TYPE_DIR] + out[TYPE_CNT], 1L, Long::sum);
+                    break;
                 case REV:
                     in = indegreeTypes(graph, i);
                     out = outdegreeTypes(graph, i);
+
                     rev_in_all.merge(in[TYPE_ALL], 1L, Long::sum);
                     rev_in_dir.merge(in[TYPE_DIR], 1L, Long::sum);
                     rev_in_rev.merge(in[TYPE_REV], 1L, Long::sum);
                     rev_in_rel.merge(in[TYPE_REL], 1L, Long::sum);
                     rev_in_snp.merge(in[TYPE_SNP], 1L, Long::sum);
                     rev_out_rev.merge(out[TYPE_REV], 1L, Long::sum);
+
+                    relrev_in.merge(in[TYPE_REL] + in[TYPE_REV], 1L, Long::sum);
+                    relrev_out.merge(out[TYPE_REL] + out[TYPE_REV], 1L, Long::sum);
+                    break;
                 case REL:
-                    rel_in_snp.merge(graph.indegree(i), 1L, Long::sum);
+                    rel_in_snp.merge(d_in, 1L, Long::sum);
+
+                    relrev_in.merge(0L, 1L, Long::sum);
+                    relrev_out.merge(d_out, 1L, Long::sum);
+                    break;
                 case SNP:
                     out = outdegreeTypes(graph, i);
-                    snp_in_ori.merge(graph.indegree(i), 1L, Long::sum);
+
+                    snp_in_ori.merge(d_in, 1L, Long::sum);
                     snp_out_all.merge(out[TYPE_ALL], 1L, Long::sum);
                     snp_out_rel.merge(out[TYPE_REL], 1L, Long::sum);
                     snp_out_rev.merge(out[TYPE_REV], 1L, Long::sum);
+
+                    orisnp_in.merge(d_in, 1L, Long::sum);
+                    orisnp_out.merge(out[TYPE_REL] + out[TYPE_REV], 1L, Long::sum);
+                    break;
                 case ORI:
-                    ori_out_snp.merge(graph.outdegree(i), 1L, Long::sum);
+                    ori_out_snp.merge(d_out, 1L, Long::sum);
+
+                    orisnp_in.merge(0L, 1L, Long::sum);
+                    orisnp_out.merge(d_out, 1L, Long::sum);
+                    break;
+                default :
+                    pl.logger().warn("Invalid node type at pos {}", i);
+                    break;
             }
 
             pl.update();
@@ -124,26 +174,41 @@ public class InOutDegree {
 
         pl.done();
 
-        writeDistribution(cnt_in_dir, resultsDir + "/cnt_in_dir.txt");
-        writeDistribution(dir_in_dir, resultsDir + "/dir_in_dir.txt");
-        writeDistribution(dir_in_rev, resultsDir + "/dir_in_rev.txt");
-        writeDistribution(dir_in_all, resultsDir + "/dir_in_all.txt");
-        writeDistribution(dir_out_all, resultsDir + "/dir_out_all.txt");
-        writeDistribution(dir_out_dir, resultsDir + "/dir_out_dir.txt");
-        writeDistribution(dir_out_cnt, resultsDir + "/dir_out_cnt.txt");
-        writeDistribution(dir_out_rev, resultsDir + "/dir_out_rev.txt");
-        writeDistribution(rev_in_dir, resultsDir + "/rev_in_dir.txt");
-        writeDistribution(rev_in_rel, resultsDir + "/rev_in_rel.txt");
-        writeDistribution(rev_in_rev, resultsDir + "/rev_in_rev.txt");
-        writeDistribution(rev_in_snp, resultsDir + "/rev_in_snp.txt");
-        writeDistribution(rev_in_all, resultsDir + "/rev_in_all.txt");
-        writeDistribution(rev_out_rev, resultsDir + "/rev_out_rev.txt");
-        writeDistribution(rel_in_snp, resultsDir + "/rel_in_snp.txt");
-        writeDistribution(snp_in_ori, resultsDir + "/snp_in_ori.txt");
-        writeDistribution(snp_out_all, resultsDir + "/snp_out_all.txt");
-        writeDistribution(snp_out_rel, resultsDir + "/snp_out_rel.txt");
-        writeDistribution(snp_out_rev, resultsDir + "/snp_out_rev.txt");
-        writeDistribution(ori_out_snp, resultsDir + "/ori_out_snp.txt");
+        (new File(resultsDir)).mkdir();
+        writeDistribution(full_in, resultsDir + "/full_in.txt");
+        writeDistribution(full_out, resultsDir + "/full_out.txt");
+        writeDistribution(dircnt_in, resultsDir + "/dir+cnt_in.txt");
+        writeDistribution(dircnt_out, resultsDir + "/dir+cnt_out.txt");
+        writeDistribution(relrev_in, resultsDir + "/rel+rev_in.txt");
+        writeDistribution(relrev_out, resultsDir + "/rel+rev_out.txt");
+        writeDistribution(orisnp_in, resultsDir + "/ori+snp_in.txt");
+        writeDistribution(orisnp_out, resultsDir + "/ori+snp_out.txt");
+        writeDistribution(rev_in, resultsDir + "/rev_in.txt");
+        writeDistribution(rev_out, resultsDir + "/rev_out.txt");
+
+        String resultsTypeDir = resultsDir + "/per_type";
+        (new File(resultsTypeDir)).mkdir();
+        writeDistribution(cnt_in_dir, resultsTypeDir + "/cnt_in_dir.txt");
+        writeDistribution(dir_in_dir, resultsTypeDir + "/dir_in_dir.txt");
+        writeDistribution(dir_in_rev, resultsTypeDir + "/dir_in_rev.txt");
+        writeDistribution(dir_in_all, resultsTypeDir + "/dir_in_all.txt");
+        writeDistribution(dir_out_all, resultsTypeDir + "/dir_out_all.txt");
+        writeDistribution(dir_out_dir, resultsTypeDir + "/dir_out_dir.txt");
+        writeDistribution(dir_out_cnt, resultsTypeDir + "/dir_out_cnt.txt");
+        writeDistribution(dir_out_rev, resultsTypeDir + "/dir_out_rev.txt");
+        writeDistribution(rev_in_dir, resultsTypeDir + "/rev_in_dir.txt");
+        writeDistribution(rev_in_rel, resultsTypeDir + "/rev_in_rel.txt");
+        writeDistribution(rev_in_rev, resultsTypeDir + "/rev_in_rev.txt");
+        writeDistribution(rev_in_snp, resultsTypeDir + "/rev_in_snp.txt");
+        writeDistribution(rev_in_all, resultsTypeDir + "/rev_in_all.txt");
+        writeDistribution(rev_out_rev, resultsTypeDir + "/rev_out_rev.txt");
+        writeDistribution(rel_in_snp, resultsTypeDir + "/rel_in_snp.txt");
+        writeDistribution(snp_in_ori, resultsTypeDir + "/snp_in_ori.txt");
+        writeDistribution(snp_out_all, resultsTypeDir + "/snp_out_all.txt");
+        writeDistribution(snp_out_rel, resultsTypeDir + "/snp_out_rel.txt");
+        writeDistribution(snp_out_rev, resultsTypeDir + "/snp_out_rev.txt");
+        writeDistribution(ori_out_snp, resultsTypeDir + "/ori_out_snp.txt");
+
     }
 
     static public void main(final String[] arg)
@@ -168,7 +233,7 @@ public class InOutDegree {
 
         final ProgressLogger pl = new ProgressLogger();
 
-        Graph graph = new Graph(basename);
+        Graph graph = Graph.loadMapped(basename);
         run(graph, resultsDir);
     }
 }

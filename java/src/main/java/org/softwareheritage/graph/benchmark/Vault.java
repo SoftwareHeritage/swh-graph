@@ -24,7 +24,7 @@ public class Vault {
         Benchmark bench = new Benchmark();
         bench.parseCommandLineArgs(args);
 
-        Graph graph = new Graph(bench.args.graphPath);
+        Graph graph = Graph.loadMapped(bench.args.graphPath);
 
         long[] nodeIds = bench.args.random.generateNodeIds(graph, bench.args.nbNodes);
 

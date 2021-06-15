@@ -25,7 +25,7 @@ public class Browsing {
         Benchmark bench = new Benchmark();
         bench.parseCommandLineArgs(args);
 
-        Graph graph = new Graph(bench.args.graphPath);
+        Graph graph = Graph.loadMapped(bench.args.graphPath);
 
         long[] dirNodeIds = bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.DIR);
         long[] revNodeIds = bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.REV);
