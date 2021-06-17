@@ -14,11 +14,25 @@ import java.util.HashSet;
 import java.util.Scanner;
 import java.util.Stack;
 
+/* sample invocation on granet.internal.softwareheritage.org for benchmarking
+ * purposes, with the main swh-graph service already running:
+ *
+ *   $ java -cp ~/swh-environment/swh-graph/java/target/swh-graph-0.3.0.jar -Xmx300G -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:+UseTLAB -XX:+ResizeTLAB org.softwareheritage.graph.utils.FindEarliestRevision --timing /dev/shm/swh-graph/default/graph
+ *
+ */
+
 public class FindEarliestRevision {
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         String graphPath = args[0];
+        boolean timing = false;
         long ts, elapsedNanos;
         Duration elapsed;
+
+        if (args.length >= 2 && (args[0].equals("-t") || args[0].equals("--timing"))) {
+            timing = true;
+            graphPath = args[1];
+            System.err.println("started with timing option, will keep track of elapsed time");
+        }
 
         System.err.println("loading transposed graph...");
         ts = System.nanoTime();
@@ -37,10 +51,13 @@ public class FindEarliestRevision {
         String rawSWHID = null;
         SWHID srcSWHID = null;
         long lineCount = 0;
-        System.err.println("starting SWHID processing...");
-        elapsed = Duration.ZERO;
+        if (timing) {
+            System.err.println("starting SWHID processing...");
+            elapsed = Duration.ZERO;
+        }
         while (stdin.hasNextLine()) {
-            ts = System.nanoTime();
+            if (timing)
+                ts = System.nanoTime();
             rawSWHID = stdin.nextLine().strip();
             lineCount++;
             try {
@@ -51,7 +68,8 @@ public class FindEarliestRevision {
             }
             long srcNodeId = graph.getNodeId(srcSWHID);
 
-            System.err.println("starting traversal for: " + srcSWHID.toString());
+            if (timing)
+                System.err.println("starting traversal for: " + srcSWHID.toString());
             Stack<Long> stack = new Stack<>();
             HashSet<Long> visited = new HashSet<>();
             stack.push(srcNodeId);
@@ -83,11 +101,14 @@ public class FindEarliestRevision {
             } else {
                 System.out.println(srcSWHID.toString() + "\t" + graph.getSWHID(minRevId).toString());
             }
-            elapsedNanos = System.nanoTime() - ts; // processing time for current SWHID
-            elapsed = elapsed.plus(Duration.ofNanos(elapsedNanos)); // cumulative processing time for all SWHIDs
-            System.err.println(String.format("visit time (s):\t%.6f", (double) elapsedNanos / 1_000_000_000));
+            if (timing) {
+                elapsedNanos = System.nanoTime() - ts; // processing time for current SWHID
+                elapsed = elapsed.plus(Duration.ofNanos(elapsedNanos)); // cumulative processing time for all SWHIDs
+                System.err.println(String.format("visit time (s):\t%.6f", (double) elapsedNanos / 1_000_000_000));
+            }
         }
-        System.err.println(
-                String.format("processed %d SWHIDs in %s (%s avg)", lineCount, elapsed, elapsed.dividedBy(lineCount)));
+        if (timing)
+            System.err.println(String.format("processed %d SWHIDs in %s (%s avg)", lineCount, elapsed,
+                    elapsed.dividedBy(lineCount)));
     }
 }
