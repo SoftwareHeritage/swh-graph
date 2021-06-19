@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+
+# Copyright (C) 2021  The Software Heritage developers
+# See the AUTHORS file at the top-level directory of this distribution
+# License: GNU General Public License version 3, or any later version
+# See top-level LICENSE file for more information
+
+import sys
+from typing import Iterator, Tuple, Union
+
+import click
+
+from swh.model.from_disk import Content, Directory
+from swh.model.identifiers import CoreSWHID, ObjectType
+
+
+def swhid_of_node(obj: Union[Content, Directory]):
+    return CoreSWHID(
+        object_type=ObjectType[obj.object_type.upper()], object_id=obj.hash,
+    )
+
+
+def walk_model(root: Directory,) -> Iterator[Tuple[CoreSWHID, Iterator[CoreSWHID]]]:
+    """recursively visit a model.from_disk object
+
+    Yield pairs (SWHID, neighbors) where SWHID is the identifier of a node and neighbors
+    an iterator over SWHID of nodes directly reachable from it. So you can obtain all
+    graph nodes by only looking at the first element of the pair, and edges by joining
+    the first element with each of the neighbors.
+
+    Note that no deduplication is applied, so both nodes and edges can be yielded
+    multiple times if they do in fact appear multiple times in the graph.
+
+    """
+
+    def walk_neighbors(node, to_visit):
+        for child in node.values():
+            to_visit.insert(0, child)
+            yield swhid_of_node(child)
+
+    to_visit = [root]
+    while to_visit:
+        node = to_visit.pop()
+        swhid = swhid_of_node(node)
+        yield (swhid, walk_neighbors(node, to_visit))
+
+
+@click.command()
+@click.argument(
+    "directory",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+)
+@click.option(
+    "-n",
+    "--nodes-output",
+    type=click.Path(file_okay=True, dir_okay=False, writable=True),
+    help="output file where to store nodes as SWHIDs"
+    " (if not given, node SWHIDs will not be output)."
+    ' Use "-" for stdout.'
+    " Default: output node SWHIDs to stdout.",
+)
+@click.option(
+    "-e",
+    "--edges-output",
+    type=click.Path(file_okay=True, dir_okay=False, writable=True),
+    help="output file where to store edges as SWHID pairs"
+    " (if not given, edge SWHIDs will not be output)"
+    ' Use "-" for stdout.'
+    " Default: do not output edge SWHIDs.",
+)
+def main(directory, nodes_output, edges_output):
+    """Recursively identifies the content of a directory.
+
+    Outputs SWHID identifiers as both nodes (one SWHID per object) and edges (pairs of
+    SWHIDs (parent, child) corresponding to the filesystem hierarchy).
+
+    """
+    nodes_file = sys.stdout
+    edges_file = None
+    if nodes_output:
+        if nodes_output == "-":
+            nodes_file = sys.stdout
+        else:
+            nodes_file = open(nodes_output, "w")
+    if edges_output:
+        if edges_output == "-":
+            edges_file = sys.stdout
+        else:
+            edges_file = open(edges_output, "w")
+
+    root = Directory.from_disk(path=directory.encode())
+    for swhid, neighbors in walk_model(root):
+        if nodes_file:
+            nodes_file.write(f"{swhid}\n")
+        if edges_file:
+            for child_swhid in neighbors:
+                edges_file.write(f"{swhid} {child_swhid}\n")
+
+
+if __name__ == "__main__":
+    main()
