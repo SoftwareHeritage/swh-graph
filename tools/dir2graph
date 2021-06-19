@@ -33,16 +33,17 @@ def walk_model(root: Directory,) -> Iterator[Tuple[CoreSWHID, Iterator[CoreSWHID
 
     """
 
-    def walk_neighbors(node, to_visit):
+    def walk_neighbors(node):
         for child in node.values():
-            to_visit.insert(0, child)
             yield swhid_of_node(child)
 
     to_visit = [root]
     while to_visit:
         node = to_visit.pop()
         swhid = swhid_of_node(node)
-        yield (swhid, walk_neighbors(node, to_visit))
+        yield (swhid, walk_neighbors(node))
+        for child in node.values():
+            to_visit.insert(0, child)
 
 
 @click.command()
