@@ -119,6 +119,21 @@ public class NodeIdMap {
     }
 
     /**
+     * Converts byte-form SWHID to corresponding long node id.
+     * Low-level function, does not check if the SWHID is valid.
+     *
+     * @param swhid node represented as bytes
+     * @return corresponding node as a long id
+     */
+    public long getNodeId(byte[] swhid) {
+        // 1. Hash the SWHID with the MPH to get its original ID
+        long origNodeId = mph.getLong(swhid);
+
+        // 2. Use the order permutation to get the position in the permuted graph
+        return this.orderMap.getLong(origNodeId);
+    }
+
+    /**
      * Converts SWHID to corresponding long node id.
      *
      * @param swhid node represented as a {@link SWHID}
@@ -128,13 +143,10 @@ public class NodeIdMap {
      * @see SWHID
      */
     public long getNodeId(SWHID swhid, boolean checkExists) {
-        // 1. Hash the SWHID with the MPH to get its original ID
-        long origNodeId = mph.getLong(swhid.toString().getBytes(StandardCharsets.US_ASCII));
+        // Convert the SWHID to bytes and call getNodeId()
+        long nodeId = getNodeId(swhid.toString().getBytes(StandardCharsets.US_ASCII));
 
-        // 2. Use the order permutation to get the position in the permuted graph
-        long nodeId = this.orderMap.getLong(origNodeId);
-
-        // 3. Check that the position effectively corresponds to a real node using the reverse map.
+        // Check that the position effectively corresponds to a real node using the reverse map.
         // This is necessary because the MPH makes no guarantees on whether the input SWHID is valid.
         if (!checkExists || getSWHID(nodeId).equals(swhid)) {
             return nodeId;

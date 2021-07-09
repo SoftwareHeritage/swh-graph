@@ -37,14 +37,15 @@ public class LabelMapBuilder {
     String debugPath;
     String tmpDir;
     ImmutableGraph graph;
+    long numNodes;
+    long numArcs;
 
-    Object2LongFunction<byte[]> swhIdMph;
-    long[][] orderMap;
+    NodeIdMap nodeIdMap;
     Object2LongFunction<byte[]> filenameMph;
     long numFilenames;
     int totalLabelWidth;
 
-    public LabelMapBuilder(String graphPath, String debugPath, String outputGraphPath, String tmpDir) {
+    public LabelMapBuilder(String graphPath, String debugPath, String outputGraphPath, String tmpDir) throws IOException {
         this.graphPath = graphPath;
         if (outputGraphPath == null) {
             this.outputGraphPath = graphPath;
@@ -53,6 +54,20 @@ public class LabelMapBuilder {
         }
         this.debugPath = debugPath;
         this.tmpDir = tmpDir;
+
+        // Load the graph in offline mode to retrieve the number of nodes/edges,
+        // then immediately destroy it. XXX: not even needed?
+        // ImmutableGraph graphOffline = BVGraph.loadMapped(graphPath);
+
+        graph = BVGraph.loadMapped(graphPath);
+        numArcs = graph.numArcs();
+        numNodes = graph.numNodes();
+
+        nodeIdMap = new NodeIdMap(graphPath, numNodes);
+
+        filenameMph = NodeIdMap.loadMph(graphPath + "-labels.mph");
+        numFilenames = getMPHSize(filenameMph);
+        totalLabelWidth = DirEntry.labelWidth(numFilenames);
     }
 
     private static JSAPResult parse_args(String[] args) {
@@ -89,14 +104,17 @@ public class LabelMapBuilder {
         LabelMapBuilder builder = new LabelMapBuilder(graphPath, debugPath, outputGraphPath, tmpDir);
 
         logger.info("Loading graph and MPH functions...");
-        builder.loadGraph();
-
-        builder.computeLabelMapSort();
-        // builder.computeLabelMapBsort();
+        builder.computeLabelMap();
     }
 
     static long getMPHSize(Object2LongFunction<byte[]> mph) {
         return (mph instanceof Size64) ? ((Size64) mph).size64() : mph.size();
+    }
+
+    void computeLabelMap() throws IOException, InterruptedException {
+        this.loadGraph();
+        // this.computeLabelMapSort();
+        this.computeLabelMapBsort();
     }
 
     void computeLabelMapSort() throws IOException {
@@ -165,16 +183,6 @@ public class LabelMapBuilder {
     }
 
     void loadGraph() throws IOException {
-        graph = BVGraph.loadMapped(graphPath);
-
-        swhIdMph = NodeIdMap.loadMph(graphPath + ".mph");
-
-        orderMap = LongBigArrays.newBigArray(getMPHSize(swhIdMph));
-        BinIO.loadLongs(graphPath + ".order", orderMap);
-
-        filenameMph = NodeIdMap.loadMph(graphPath + "-labels.mph");
-        numFilenames = getMPHSize(filenameMph);
-        totalLabelWidth = DirEntry.labelWidth(numFilenames);
     }
 
     void hashLabelStream(FastBufferedInputStream input, EdgeLabelLineWriter writer) throws IOException {
@@ -182,7 +190,7 @@ public class LabelMapBuilder {
         // "<src node id> <dst node id> <label ids>\n"
         ProgressLogger plInter = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         plInter.itemsName = "edges";
-        plInter.expectedUpdates = graph.numArcs();
+        plInter.expectedUpdates = this.numArcs;
         plInter.start("Hashing the label stream");
 
         var charset = StandardCharsets.US_ASCII;
@@ -254,12 +262,9 @@ public class LabelMapBuilder {
 
             // System.err.format("DEBUG: read %s %s %s %d\n", ss, ts, ls, permission);
 
-            long s = swhIdMph.getLong(ss);
-            long t = swhIdMph.getLong(ts);
+            long srcNode = nodeIdMap.getNodeId(ss);
+            long dstNode = nodeIdMap.getNodeId(ts);
             long filenameId = filenameMph.getLong(ls);
-
-            long srcNode = BigArrays.get(orderMap, s);
-            long dstNode = BigArrays.get(orderMap, t);
 
             writer.writeLine(srcNode, dstNode, filenameId, permission);
             plInter.lightUpdate();
@@ -271,7 +276,7 @@ public class LabelMapBuilder {
         // Get the sorted output and write the labels and label offsets
         ProgressLogger plLabels = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         plLabels.itemsName = "edges";
-        plLabels.expectedUpdates = graph.numArcs();
+        plLabels.expectedUpdates = this.numArcs;
         plLabels.start("Writing the labels to the label file.");
 
         FileWriter debugFile = null;
