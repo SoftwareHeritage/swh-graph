@@ -9,6 +9,7 @@ import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.AllowedNodes;
 import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.Subgraph;
 
 import java.io.File;
@@ -37,6 +38,8 @@ public class ConnectedComponents {
                                     "graph", "Basename of the compressed graph"),
                             new FlaggedOption("outdir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'o',
                                     "outdir", "Directory where to put the results"),
+                            new Switch("byOrigins", JSAP.NO_SHORTFLAG, "by-origins",
+                                    "Compute size of components by number of origins"),
                             new FlaggedOption("nodeTypes", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'n',
                                     "nodetypes", "Allowed node types (comma-separated)"),});
 
@@ -50,7 +53,7 @@ public class ConnectedComponents {
         return config;
     }
 
-    private HashMap<Long, Long> /* ArrayList<ArrayList<Long>> */ compute(ProgressLogger pl) throws IOException {
+    private HashMap<Long, Long> /* ArrayList<ArrayList<Long>> */ compute(ProgressLogger pl, boolean byOrigin) throws IOException {
         final long n = graph.numNodes();
         final long maxN = graph.maxNodeNumber();
 
@@ -89,7 +92,9 @@ public class ConnectedComponents {
                 queue.dequeue(byteBuf);
                 final long currentNode = Longs.fromByteArray(byteBuf);
                 // component.add(currentNode);
-                componentNodes += 1;
+
+                if (!byOrigin || graph.getNodeType(currentNode) == Node.Type.ORI)
+                    componentNodes += 1;
 
                 final LazyLongIterator iterator = graph.successors(currentNode);
                 long succ;
@@ -157,6 +162,7 @@ public class ConnectedComponents {
         String graphPath = config.getString("graphPath");
         String outdirPath = config.getString("outdir");
         String nodeTypes = config.getString("nodeTypes");
+        boolean byOrigin = config.getBoolean("byOrigins");
 
         ConnectedComponents connectedComponents = new ConnectedComponents();
         try {
@@ -177,7 +183,7 @@ public class ConnectedComponents {
             // printLargestComponent(components, new Formatter(outdirPath + "/largest_component.txt"));
             // printAllComponents(components, new Formatter(outdirPath + "/all_components.txt"));
 
-            HashMap<Long, Long> componentDistribution = connectedComponents.compute(logger);
+            HashMap<Long, Long> componentDistribution = connectedComponents.compute(logger, byOrigin);
             PrintWriter f = new PrintWriter(new FileWriter(outdirPath + "/distribution.txt"));
             TreeMap<Long, Long> sortedDistribution = new TreeMap<>(componentDistribution);
             for (Map.Entry<Long, Long> entry : sortedDistribution.entrySet()) {
