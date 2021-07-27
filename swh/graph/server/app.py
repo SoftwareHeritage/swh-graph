@@ -11,11 +11,14 @@ FIFO as a transport to stream integers between the two languages.
 import asyncio
 from collections import deque
 import json
+import os
 from typing import Optional
 
 import aiohttp.web
 
 from swh.core.api.asynchronous import RPCServerApp
+from swh.core.config import read as config_read
+from swh.graph.backend import Backend
 from swh.model.exceptions import ValidationError
 from swh.model.identifiers import EXTENDED_SWHID_TYPES
 
@@ -28,6 +31,23 @@ except ImportError:
 
 # maximum number of retries for random walks
 RANDOM_RETRIES = 5  # TODO make this configurable via rpc-serve configuration
+
+
+class GraphServerApp(RPCServerApp):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.on_startup.append(self._start_gateway)
+        self.on_shutdown.append(self._stop_gateway)
+
+    @staticmethod
+    async def _start_gateway(app):
+        # Equivalent to entering `with app["backend"]:`
+        app["backend"].start_gateway()
+
+    @staticmethod
+    async def _stop_gateway(app):
+        # Equivalent to exiting `with app["backend"]:` with no error
+        app["backend"].stop_gateway()
 
 
 async def index(request):
@@ -334,8 +354,12 @@ class CountVisitNodesView(CountView):
     count_type = "visit_nodes"
 
 
-def make_app(backend, **kwargs):
-    app = RPCServerApp(**kwargs)
+def make_app(config=None, backend=None, **kwargs):
+    if (config is None) == (backend is None):
+        raise ValueError("make_app() expects exactly one of 'config' or 'backend'")
+    if backend is None:
+        backend = Backend(graph_path=config["graph"]["path"], config=config["graph"])
+    app = GraphServerApp(**kwargs)
     app.add_routes(
         [
             aiohttp.web.get("/", index),
@@ -357,3 +381,12 @@ def make_app(backend, **kwargs):
 
     app["backend"] = backend
     return app
+
+
+def make_app_from_configfile():
+    """Load configuration and then build application to run
+
+    """
+    config_file = os.environ.get("SWH_CONFIG_FILENAME")
+    config = config_read(config_file)
+    return make_app(config=config)

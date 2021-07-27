@@ -42,7 +42,7 @@ class Backend:
         self.graph_path = graph_path
         self.config = check_config(config or {})
 
-    def __enter__(self):
+    def start_gateway(self):
         self.gateway = JavaGateway.launch_gateway(
             java_path=None,
             javaopts=self.config["java_tool_options"].split(),
@@ -56,10 +56,16 @@ class Backend:
         self.node2swhid = NodeToSwhidMap(self.graph_path + "." + NODE2SWHID_EXT)
         self.swhid2node = SwhidToNodeMap(self.graph_path + "." + SWHID2NODE_EXT)
         self.stream_proxy = JavaStreamProxy(self.entry)
+
+    def stop_gateway(self):
+        self.gateway.shutdown()
+
+    def __enter__(self):
+        self.start_gateway()
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        self.gateway.shutdown()
+        self.stop_gateway()
 
     def stats(self):
         return self.entry.stats()

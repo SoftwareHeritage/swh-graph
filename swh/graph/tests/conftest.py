@@ -28,14 +28,13 @@ class GraphServerProcess(multiprocessing.Process):
     def run(self):
         try:
             backend = Backend(graph_path=str(TEST_GRAPH_PATH))
-            with backend:
-                with loop_context() as loop:
-                    app = make_app(backend=backend, debug=True)
-                    client = TestClient(TestServer(app), loop=loop)
-                    loop.run_until_complete(client.start_server())
-                    url = client.make_url("/graph/")
-                    self.q.put(url)
-                    loop.run_forever()
+            with loop_context() as loop:
+                app = make_app(backend=backend, debug=True)
+                client = TestClient(TestServer(app), loop=loop)
+                loop.run_until_complete(client.start_server())
+                url = client.make_url("/graph/")
+                self.q.put(url)
+                loop.run_forever()
         except Exception as e:
             self.q.put(e)
 

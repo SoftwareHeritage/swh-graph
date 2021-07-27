@@ -339,14 +339,11 @@ def serve(ctx, host, port, graph):
     """run the graph RPC service"""
     import aiohttp
 
-    from swh.graph.backend import Backend
     from swh.graph.server.app import make_app
 
-    backend = Backend(graph_path=graph, config=ctx.obj["config"])
-    app = make_app(backend=backend)
+    app = make_app(config=ctx.obj["config"])
 
-    with backend:
-        aiohttp.web.run_app(app, host=host, port=port)
+    aiohttp.web.run_app(app, host=host, port=port)
 
 
 @graph_cli_group.command()
