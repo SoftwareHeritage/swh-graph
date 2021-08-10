@@ -13,6 +13,7 @@ import os
 import struct
 from typing import BinaryIO, Iterator, Tuple
 
+from swh.model.hashutil import hash_to_hex
 from swh.model.identifiers import ExtendedObjectType, ExtendedSWHID
 
 SWHID_BIN_FMT = "BB20s"  # 2 unsigned chars + 20 bytes
@@ -86,10 +87,14 @@ def bytes_to_str(bytes: bytes) -> str:
 
     """
     (version, type, bin_digest) = struct.unpack(SWHID_BIN_FMT, bytes)
-    swhid = ExtendedSWHID(
-        object_type=SwhidType(type).to_extended_object_type(), object_id=bin_digest
-    )
-    return str(swhid)
+
+    # The following is equivalent to:
+    # return str(ExtendedSWHID(
+    #    object_type=SwhidType(type).to_extended_object_type(), object_id=bin_digest
+    # )
+    # but more efficient, because ExtendedSWHID.__init__ is extremely slow.
+    object_type = ExtendedObjectType[SwhidType(type).name.upper()]
+    return f"swh:1:{object_type.value}:{hash_to_hex(bin_digest)}"
 
 
 class _OnDiskMap:
