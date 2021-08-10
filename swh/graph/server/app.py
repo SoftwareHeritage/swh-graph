@@ -174,7 +174,11 @@ class StreamingGraphView(GraphView):
     async def get(self):
         await self.prepare_response()
         async with self.response_streamer() as self.response_stream:
-            await self.stream_response()
+            self._buf = []
+            try:
+                await self.stream_response()
+            finally:
+                await self._flush_buffer()
             return self.response_stream
 
     async def prepare_response(self):
@@ -191,7 +195,13 @@ class StreamingGraphView(GraphView):
 
     async def stream_line(self, line):
         """Write a line in the response stream."""
-        await self.response_stream.write((line + "\n").encode())
+        self._buf.append(line)
+        if len(self._buf) > 100:
+            await self._flush_buffer()
+
+    async def _flush_buffer(self):
+        await self.response_stream.write("\n".join(self._buf).encode() + b"\n")
+        self._buf = []
 
 
 class StatsView(GraphView):
