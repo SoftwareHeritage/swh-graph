@@ -54,7 +54,7 @@ async def index(request):
     return aiohttp.web.Response(
         content_type="text/html",
         body="""<html>
-<head><title>Software Heritage storage server</title></head>
+<head><title>Software Heritage graph server</title></head>
 <body>
 <p>You have reached the <a href="https://www.softwareheritage.org/">
 Software Heritage</a> graph API server.</p>
