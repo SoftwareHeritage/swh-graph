@@ -341,7 +341,10 @@ def serve(ctx, host, port, graph):
 
     from swh.graph.server.app import make_app
 
-    app = make_app(config=ctx.obj["config"])
+    config = ctx.obj["config"]
+    config.setdefault("graph", {})
+    config["graph"]["path"] = graph
+    app = make_app(config=config)
 
     aiohttp.web.run_app(app, host=host, port=port)
 
