@@ -1,0 +1,22 @@
+Source: swh.graph
+Priority: optional
+Section: python
+Maintainer: SoftwareHeritage Developers <swh-devel@inria.fr>
+Build-Depends: debhelper (>= 11),
+               dh-python (>= 2),
+               python3-all,
+               python3-pytest,
+               python3-setuptools,
+               python3-setuptools-scm,
+               python3-swh.core,
+               python3-swh.model,
+Standards-Version: 4.1.3
+Homepage: https://forge.softwareheritage.org/source/swh-graph
+
+Package: python3-swh.graph.client
+Architecture: all
+Depends: python3-swh.core,
+         python3-swh.model,
+         ${misc:Depends},
+         ${python3:Depends}
+Description: Tooling and services collectively known as swh-graph
