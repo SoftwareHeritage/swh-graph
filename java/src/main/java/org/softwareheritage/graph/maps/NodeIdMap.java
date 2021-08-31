@@ -119,8 +119,8 @@ public class NodeIdMap {
     }
 
     /**
-     * Converts byte-form SWHID to corresponding long node id.
-     * Low-level function, does not check if the SWHID is valid.
+     * Converts byte-form SWHID to corresponding long node id. Low-level function, does not check if the
+     * SWHID is valid.
      *
      * @param swhid node represented as bytes
      * @return corresponding node as a long id

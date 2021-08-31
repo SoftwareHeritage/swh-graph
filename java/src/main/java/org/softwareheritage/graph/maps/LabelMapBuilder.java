@@ -4,12 +4,9 @@ import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph;
-import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.Size64;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
-import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
-import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.logging.ProgressLogger;
@@ -45,7 +42,8 @@ public class LabelMapBuilder {
     long numFilenames;
     int totalLabelWidth;
 
-    public LabelMapBuilder(String graphPath, String debugPath, String outputGraphPath, String tmpDir) throws IOException {
+    public LabelMapBuilder(String graphPath, String debugPath, String outputGraphPath, String tmpDir)
+            throws IOException {
         this.graphPath = graphPath;
         if (outputGraphPath == null) {
             this.outputGraphPath = graphPath;

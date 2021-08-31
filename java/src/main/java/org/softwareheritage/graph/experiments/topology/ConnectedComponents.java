@@ -53,7 +53,8 @@ public class ConnectedComponents {
         return config;
     }
 
-    private HashMap<Long, Long> /* ArrayList<ArrayList<Long>> */ compute(ProgressLogger pl, boolean byOrigin) throws IOException {
+    private HashMap<Long, Long> /* ArrayList<ArrayList<Long>> */ compute(ProgressLogger pl, boolean byOrigin)
+            throws IOException {
         final long n = graph.numNodes();
         final long maxN = graph.maxNodeNumber();
 
