@@ -10,11 +10,8 @@ from pathlib import Path
 from aiohttp.test_utils import TestClient, TestServer, loop_context
 import pytest
 
-from swh.graph.backend import Backend
 from swh.graph.client import RemoteGraphClient
-from swh.graph.graph import load as graph_load
 from swh.graph.naive_client import NaiveClient
-from swh.graph.server.app import make_app
 
 SWH_GRAPH_TESTS_ROOT = Path(__file__).parents[0]
 TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / "dataset/output/example"
@@ -26,6 +23,10 @@ class GraphServerProcess(multiprocessing.Process):
         super().__init__(*args, **kwargs)
 
     def run(self):
+        # Lazy import to allow debian packaging
+        from swh.graph.backend import Backend
+        from swh.graph.server.app import make_app
+
         try:
             backend = Backend(graph_path=str(TEST_GRAPH_PATH))
             with loop_context() as loop:
@@ -60,5 +61,8 @@ def graph_client(request):
 
 @pytest.fixture(scope="module")
 def graph():
+    # Lazy import to allow debian packaging
+    from swh.graph.graph import load as graph_load
+
     with graph_load(str(TEST_GRAPH_PATH)) as g:
         yield g
