@@ -1,0 +1,12 @@
+aiohttp
+click
+py4j
+psutil
+swh.core[http]>=0.3
+swh.model>=0.13.0
+
+[testing]
+pytest
+types-click
+types-pyyaml
+types-requests
