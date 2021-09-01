@@ -1,3 +1,9 @@
+swh.graph (0.5.0-1+swh1~bpo10+1) buster-swh; urgency=medium
+
+  * Rebuild for buster-swh
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Wed, 01 Sep 2021 14:12:43 +0000
+
 swh.graph (0.5.0-1+swh1) unstable-swh; urgency=medium
 
   * Initial release
