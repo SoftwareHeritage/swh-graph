@@ -2,8 +2,8 @@
 
 export PYBUILD_NAME=swh.graph
 export no_proxy=localhost,127.0.0.1
-# only naive for client tests to pass
-export PYBUILD_TEST_ARGS=-vv -s -k 'not remote'
+# only naive_client implementation are tested
+export PYBUILD_TEST_ARGS=-vv -s -k 'naive'
 
 %:
 	dh $@ --with python3 --buildsystem=pybuild
