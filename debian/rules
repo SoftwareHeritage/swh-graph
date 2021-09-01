@@ -9,14 +9,9 @@ export PYBUILD_TEST_ARGS=-vv -s -k 'naive'
 	dh $@ --with python3 --buildsystem=pybuild
 
 override_dh_auto_install:
-	dh_auto_install
-	rm -v $(CURDIR)/debian/python3-*/usr/lib/python*/dist-packages/swh/__init__.py
 	for pyvers in $(shell py3versions -vr); do \
-		mkdir -p $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/swh/graph/ ; \
-		mv $(CURDIR)/debian/python3-swh.graph/usr/lib/python$$pyvers/dist-packages/*.egg-info \
-		   $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/ ; \
-		mv $(CURDIR)/debian/python3-swh.graph/usr/lib/python$$pyvers/dist-packages/swh/graph/{*client.py,} \
-		   $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/swh/graph/ ; \
-		mv $(CURDIR)/debian/python3-swh.graph/usr/lib/python$$pyvers/dist-packages/swh/graph/tests \
-		   $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/swh/graph/ ; \
+	    mkdir -p $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/swh/graph/ ; \
+	    mv $(CURDIR)/*.egg-info $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/ ; \
+	    mv $(CURDIR)/swh/graph/*client.py $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/swh/graph/ ; \
+	    mv $(CURDIR)/swh/graph/tests/ $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/swh/graph/ ; \
 	done
