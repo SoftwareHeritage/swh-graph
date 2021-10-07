@@ -16,7 +16,7 @@ from py4j.java_gateway import JavaGateway
 
 from swh.graph.config import check_config
 from swh.graph.swhid import NodeToSwhidMap, SwhidToNodeMap
-from swh.model.identifiers import EXTENDED_SWHID_TYPES
+from swh.model.swhids import EXTENDED_SWHID_TYPES
 
 BUF_SIZE = 64 * 1024
 BIN_FMT = ">q"  # 64 bit integer, big endian

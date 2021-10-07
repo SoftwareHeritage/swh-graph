@@ -272,7 +272,7 @@ def map_lookup(graph, identifiers):
     from swh.graph.backend import NODE2SWHID_EXT, SWHID2NODE_EXT
     from swh.graph.swhid import NodeToSwhidMap, SwhidToNodeMap
     import swh.model.exceptions
-    from swh.model.identifiers import ExtendedSWHID
+    from swh.model.swhids import ExtendedSWHID
 
     success = True  # no identifiers failed to be looked up
     swhid2node = SwhidToNodeMap(f"{graph}.{SWHID2NODE_EXT}")

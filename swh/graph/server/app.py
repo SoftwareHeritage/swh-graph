@@ -20,7 +20,7 @@ from swh.core.api.asynchronous import RPCServerApp
 from swh.core.config import read as config_read
 from swh.graph.backend import Backend
 from swh.model.exceptions import ValidationError
-from swh.model.identifiers import EXTENDED_SWHID_TYPES
+from swh.model.swhids import EXTENDED_SWHID_TYPES
 
 try:
     from contextlib import asynccontextmanager

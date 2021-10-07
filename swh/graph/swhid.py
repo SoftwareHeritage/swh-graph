@@ -14,7 +14,7 @@ import struct
 from typing import BinaryIO, Iterator, Tuple
 
 from swh.model.hashutil import hash_to_hex
-from swh.model.identifiers import ExtendedObjectType, ExtendedSWHID
+from swh.model.swhids import ExtendedObjectType, ExtendedSWHID
 
 SWHID_BIN_FMT = "BB20s"  # 2 unsigned chars + 20 bytes
 INT_BIN_FMT = ">q"  # big endian, 8-byte integer

@@ -19,7 +19,7 @@ from typing import (
     TypeVar,
 )
 
-from swh.model.identifiers import ExtendedSWHID, ValidationError
+from swh.model.swhids import ExtendedSWHID, ValidationError
 
 from .client import GraphArgumentException
 
