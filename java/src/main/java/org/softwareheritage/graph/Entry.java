@@ -1,15 +1,12 @@
 package org.softwareheritage.graph;
 
-import java.io.DataOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 
 public class Entry {
-    private final long PATH_SEPARATOR_ID = -1;
     private Graph graph;
 
     public void load_graph(String graphBasename) throws IOException {
@@ -33,6 +30,10 @@ public class Entry {
         }
     }
 
+    public void check_swhid(String src) {
+        graph.getNodeId(new SWHID(src));
+    }
+
     private int count_visitor(NodeCountVisitor f, long srcNodeId) {
         int[] count = {0};
         f.accept(srcNodeId, (node) -> {
@@ -41,23 +42,26 @@ public class Entry {
         return count[0];
     }
 
-    public int count_leaves(String direction, String edgesFmt, long srcNodeId) {
-        Traversal t = new Traversal(this.graph.copy(), direction, edgesFmt);
+    public int count_leaves(String direction, String edgesFmt, String src) {
+        long srcNodeId = graph.getNodeId(new SWHID(src));
+        Traversal t = new Traversal(graph.copy(), direction, edgesFmt);
         return count_visitor(t::leavesVisitor, srcNodeId);
     }
 
-    public int count_neighbors(String direction, String edgesFmt, long srcNodeId) {
-        Traversal t = new Traversal(this.graph.copy(), direction, edgesFmt);
+    public int count_neighbors(String direction, String edgesFmt, String src) {
+        long srcNodeId = graph.getNodeId(new SWHID(src));
+        Traversal t = new Traversal(graph.copy(), direction, edgesFmt);
         return count_visitor(t::neighborsVisitor, srcNodeId);
     }
 
-    public int count_visit_nodes(String direction, String edgesFmt, long srcNodeId) {
-        Traversal t = new Traversal(this.graph.copy(), direction, edgesFmt);
+    public int count_visit_nodes(String direction, String edgesFmt, String src) {
+        long srcNodeId = graph.getNodeId(new SWHID(src));
+        Traversal t = new Traversal(graph.copy(), direction, edgesFmt);
         return count_visitor(t::visitNodesVisitor, srcNodeId);
     }
 
     public QueryHandler get_handler(String clientFIFO) {
-        return new QueryHandler(this.graph.copy(), clientFIFO);
+        return new QueryHandler(graph.copy(), clientFIFO);
     }
 
     private interface NodeCountVisitor {
@@ -66,7 +70,7 @@ public class Entry {
 
     public class QueryHandler {
         Graph graph;
-        DataOutputStream out;
+        BufferedWriter out;
         String clientFIFO;
 
         public QueryHandler(Graph graph, String clientFIFO) {
@@ -75,30 +79,26 @@ public class Entry {
             this.out = null;
         }
 
-        public void writeNode(long nodeId) {
+        public void writeNode(SWHID swhid) {
             try {
-                out.writeLong(nodeId);
+                out.write(swhid.toString() + "\n");
             } catch (IOException e) {
                 throw new RuntimeException("Cannot write response to client: " + e);
             }
         }
 
-        public void writeEdge(long srcId, long dstId) {
-            writeNode(srcId);
-            writeNode(dstId);
-        }
-
-        public void writePath(ArrayList<Long> path) {
-            for (Long nodeId : path) {
-                writeNode(nodeId);
+        public void writeEdge(SWHID src, SWHID dst) {
+            try {
+                out.write(src.toString() + " " + dst.toString() + "\n");
+            } catch (IOException e) {
+                throw new RuntimeException("Cannot write response to client: " + e);
             }
-            writeNode(PATH_SEPARATOR_ID);
         }
 
         public void open() {
             try {
                 FileOutputStream file = new FileOutputStream(this.clientFIFO);
-                this.out = new DataOutputStream(file);
+                this.out = new BufferedWriter(new OutputStreamWriter(file));
             } catch (IOException e) {
                 throw new RuntimeException("Cannot open client FIFO: " + e);
             }
@@ -112,83 +112,80 @@ public class Entry {
             }
         }
 
-        public void leaves(String direction, String edgesFmt, long srcNodeId, long maxEdges, String returnTypes) {
+        public void leaves(String direction, String edgesFmt, String src, long maxEdges, String returnTypes) {
+            long srcNodeId = graph.getNodeId(new SWHID(src));
             open();
-            Traversal t = new Traversal(this.graph, direction, edgesFmt, maxEdges, returnTypes);
+            Traversal t = new Traversal(graph, direction, edgesFmt, maxEdges, returnTypes);
             for (Long nodeId : t.leaves(srcNodeId)) {
-                writeNode(nodeId);
+                writeNode(graph.getSWHID(nodeId));
             }
             close();
         }
 
-        public void neighbors(String direction, String edgesFmt, long srcNodeId, long maxEdges, String returnTypes) {
+        public void neighbors(String direction, String edgesFmt, String src, long maxEdges, String returnTypes) {
+            long srcNodeId = graph.getNodeId(new SWHID(src));
             open();
-            Traversal t = new Traversal(this.graph, direction, edgesFmt, maxEdges, returnTypes);
+            Traversal t = new Traversal(graph, direction, edgesFmt, maxEdges, returnTypes);
             for (Long nodeId : t.neighbors(srcNodeId)) {
-                writeNode(nodeId);
+                writeNode(graph.getSWHID(nodeId));
             }
             close();
         }
 
-        public void visit_nodes(String direction, String edgesFmt, long srcNodeId, long maxEdges, String returnTypes) {
+        public void visit_nodes(String direction, String edgesFmt, String src, long maxEdges, String returnTypes) {
+            long srcNodeId = graph.getNodeId(new SWHID(src));
             open();
-            Traversal t = new Traversal(this.graph, direction, edgesFmt, maxEdges, returnTypes);
+            Traversal t = new Traversal(graph, direction, edgesFmt, maxEdges, returnTypes);
             for (Long nodeId : t.visitNodes(srcNodeId)) {
-                writeNode(nodeId);
+                writeNode(graph.getSWHID(nodeId));
             }
             close();
         }
 
-        public void visit_edges(String direction, String edgesFmt, long srcNodeId, long maxEdges) {
+        public void visit_edges(String direction, String edgesFmt, String src, long maxEdges, String returnTypes) {
+            long srcNodeId = graph.getNodeId(new SWHID(src));
             open();
-            Traversal t = new Traversal(this.graph, direction, edgesFmt, maxEdges);
-            t.visitNodesVisitor(srcNodeId, null, this::writeEdge);
+            Traversal t = new Traversal(graph, direction, edgesFmt, maxEdges);
+            t.visitNodesVisitor(srcNodeId, null, (srcId, dstId) -> {
+                writeEdge(graph.getSWHID(srcId), graph.getSWHID(dstId));
+            });
             close();
         }
 
-        public void visit_paths(String direction, String edgesFmt, long srcNodeId, long maxEdges) {
+        public void walk(String direction, String edgesFmt, String algorithm, String src, String dst) {
+            long srcNodeId = graph.getNodeId(new SWHID(src));
             open();
-            Traversal t = new Traversal(this.graph, direction, edgesFmt, maxEdges);
-            t.visitPathsVisitor(srcNodeId, this::writePath);
-            close();
-        }
-
-        public void walk(String direction, String edgesFmt, String algorithm, long srcNodeId, long dstNodeId) {
-            open();
-            Traversal t = new Traversal(this.graph, direction, edgesFmt);
-            for (Long nodeId : t.walk(srcNodeId, dstNodeId, algorithm)) {
-                writeNode(nodeId);
+            ArrayList<Long> res;
+            if (dst.matches("ori|snp|rel|rev|dir|cnt")) {
+                Node.Type dstType = Node.Type.fromStr(dst);
+                Traversal t = new Traversal(graph, direction, edgesFmt);
+                res = t.walk(srcNodeId, dstType, algorithm);
+            } else {
+                long dstNodeId = graph.getNodeId(new SWHID(dst));
+                Traversal t = new Traversal(graph, direction, edgesFmt);
+                res = t.walk(srcNodeId, dstNodeId, algorithm);
+            }
+            for (Long nodeId : res) {
+                writeNode(graph.getSWHID(nodeId));
             }
             close();
         }
 
-        public void walk_type(String direction, String edgesFmt, String algorithm, long srcNodeId, String dst) {
+        public void random_walk(String direction, String edgesFmt, int retries, String src, String dst) {
+            long srcNodeId = graph.getNodeId(new SWHID(src));
             open();
-            Node.Type dstType = Node.Type.fromStr(dst);
-            Traversal t = new Traversal(this.graph, direction, edgesFmt);
-            for (Long nodeId : t.walk(srcNodeId, dstType, algorithm)) {
-                writeNode(nodeId);
+            ArrayList<Long> res;
+            if (dst.matches("ori|snp|rel|rev|dir|cnt")) {
+                Node.Type dstType = Node.Type.fromStr(dst);
+                Traversal t = new Traversal(graph, direction, edgesFmt);
+                res = t.randomWalk(srcNodeId, dstType, retries);
+            } else {
+                long dstNodeId = graph.getNodeId(new SWHID(dst));
+                Traversal t = new Traversal(graph, direction, edgesFmt);
+                res = t.randomWalk(srcNodeId, dstNodeId, retries);
             }
-            close();
-        }
-
-        public void random_walk(String direction, String edgesFmt, int retries, long srcNodeId, long dstNodeId,
-                String returnTypes) {
-            open();
-            Traversal t = new Traversal(this.graph, direction, edgesFmt, 0, returnTypes);
-            for (Long nodeId : t.randomWalk(srcNodeId, dstNodeId, retries)) {
-                writeNode(nodeId);
-            }
-            close();
-        }
-
-        public void random_walk_type(String direction, String edgesFmt, int retries, long srcNodeId, String dst,
-                String returnTypes) {
-            open();
-            Node.Type dstType = Node.Type.fromStr(dst);
-            Traversal t = new Traversal(this.graph, direction, edgesFmt, 0, returnTypes);
-            for (Long nodeId : t.randomWalk(srcNodeId, dstType, retries)) {
-                writeNode(nodeId);
+            for (Long nodeId : res) {
+                writeNode(graph.getSWHID(nodeId));
             }
             close();
         }

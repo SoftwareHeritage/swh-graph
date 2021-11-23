@@ -10,7 +10,6 @@ FIFO as a transport to stream integers between the two languages.
 
 import asyncio
 from collections import deque
-import json
 import os
 from typing import Optional
 
@@ -19,7 +18,6 @@ import aiohttp.web
 from swh.core.api.asynchronous import RPCServerApp
 from swh.core.config import read as config_read
 from swh.graph.backend import Backend
-from swh.model.exceptions import ValidationError
 from swh.model.swhids import EXTENDED_SWHID_TYPES
 
 try:
@@ -73,26 +71,6 @@ class GraphView(aiohttp.web.View):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.backend = self.request.app["backend"]
-
-    def node_of_swhid(self, swhid):
-        """Lookup a SWHID in a swhid2node map, failing in an HTTP-nice way if
-        needed."""
-        try:
-            return self.backend.swhid2node[swhid]
-        except KeyError:
-            raise aiohttp.web.HTTPNotFound(text=f"SWHID not found: {swhid}")
-        except ValidationError:
-            raise aiohttp.web.HTTPBadRequest(text=f"malformed SWHID: {swhid}")
-
-    def swhid_of_node(self, node):
-        """Lookup a node in a node2swhid map, failing in an HTTP-nice way if
-        needed."""
-        try:
-            return self.backend.node2swhid[node]
-        except KeyError:
-            raise aiohttp.web.HTTPInternalServerError(
-                text=f"reverse lookup failed for node id: {node}"
-            )
 
     def get_direction(self):
         """Validate HTTP query parameter `direction`"""
@@ -156,6 +134,13 @@ class GraphView(aiohttp.web.View):
         except ValueError:
             raise aiohttp.web.HTTPBadRequest(text=f"invalid max_edges value: {s}")
 
+    def check_swhid(self, swhid):
+        """Validate that the given SWHID exists in the graph"""
+        try:
+            self.backend.check_swhid(swhid)
+        except (NameError, ValueError) as e:
+            raise aiohttp.web.HTTPBadRequest(text=str(e))
+
 
 class StreamingGraphView(GraphView):
     """Base class for views streaming their response line by line."""
@@ -218,25 +203,23 @@ class SimpleTraversalView(StreamingGraphView):
     simple_traversal_type: Optional[str] = None
 
     async def prepare_response(self):
-        src = self.request.match_info["src"]
-        self.src_node = self.node_of_swhid(src)
-
+        self.src = self.request.match_info["src"]
         self.edges = self.get_edges()
         self.direction = self.get_direction()
         self.max_edges = self.get_max_edges()
         self.return_types = self.get_return_types()
+        self.check_swhid(self.src)
 
     async def stream_response(self):
-        async for res_node in self.backend.simple_traversal(
+        async for res_line in self.backend.traversal(
             self.simple_traversal_type,
             self.direction,
             self.edges,
-            self.src_node,
+            self.src,
             self.max_edges,
             self.return_types,
         ):
-            res_swhid = self.swhid_of_node(res_node)
-            await self.stream_line(res_swhid)
+            await self.stream_line(res_line)
 
 
 class LeavesView(SimpleTraversalView):
@@ -251,41 +234,41 @@ class VisitNodesView(SimpleTraversalView):
     simple_traversal_type = "visit_nodes"
 
 
+class VisitEdgesView(SimpleTraversalView):
+    simple_traversal_type = "visit_edges"
+
+
 class WalkView(StreamingGraphView):
     async def prepare_response(self):
-        src = self.request.match_info["src"]
-        dst = self.request.match_info["dst"]
-        self.src_node = self.node_of_swhid(src)
-        if dst not in EXTENDED_SWHID_TYPES:
-            self.dst_thing = self.node_of_swhid(dst)
-        else:
-            self.dst_thing = dst
+        self.src = self.request.match_info["src"]
+        self.dst = self.request.match_info["dst"]
 
         self.edges = self.get_edges()
         self.direction = self.get_direction()
         self.algo = self.get_traversal()
         self.limit = self.get_limit()
-        self.return_types = self.get_return_types()
+
+        self.check_swhid(self.src)
+        if self.dst not in EXTENDED_SWHID_TYPES:
+            self.check_swhid(self.dst)
 
     async def get_walk_iterator(self):
-        return self.backend.walk(
-            self.direction, self.edges, self.algo, self.src_node, self.dst_thing
+        return self.backend.traversal(
+            "walk", self.direction, self.edges, self.algo, self.src, self.dst
         )
 
     async def stream_response(self):
         it = self.get_walk_iterator()
         if self.limit < 0:
             queue = deque(maxlen=-self.limit)
-            async for res_node in it:
-                res_swhid = self.swhid_of_node(res_node)
+            async for res_swhid in it:
                 queue.append(res_swhid)
             while queue:
                 await self.stream_line(queue.popleft())
         else:
             count = 0
-            async for res_node in it:
+            async for res_swhid in it:
                 if self.limit == 0 or count < self.limit:
-                    res_swhid = self.swhid_of_node(res_node)
                     await self.stream_line(res_swhid)
                     count += 1
                 else:
@@ -294,38 +277,14 @@ class WalkView(StreamingGraphView):
 
 class RandomWalkView(WalkView):
     def get_walk_iterator(self):
-        return self.backend.random_walk(
+        return self.backend.traversal(
+            "random_walk",
             self.direction,
             self.edges,
             RANDOM_RETRIES,
-            self.src_node,
-            self.dst_thing,
-            self.return_types,
+            self.src,
+            self.dst,
         )
-
-
-class VisitEdgesView(SimpleTraversalView):
-    async def stream_response(self):
-        it = self.backend.visit_edges(
-            self.direction, self.edges, self.src_node, self.max_edges
-        )
-        async for (res_src, res_dst) in it:
-            res_src_swhid = self.swhid_of_node(res_src)
-            res_dst_swhid = self.swhid_of_node(res_dst)
-            await self.stream_line("{} {}".format(res_src_swhid, res_dst_swhid))
-
-
-class VisitPathsView(SimpleTraversalView):
-    content_type = "application/x-ndjson"
-
-    async def stream_response(self):
-        it = self.backend.visit_paths(
-            self.direction, self.edges, self.src_node, self.max_edges
-        )
-        async for res_path in it:
-            res_path_swhid = [self.swhid_of_node(n) for n in res_path]
-            line = json.dumps(res_path_swhid)
-            await self.stream_line(line)
 
 
 class CountView(GraphView):
@@ -334,8 +293,8 @@ class CountView(GraphView):
     count_type: Optional[str] = None
 
     async def get(self):
-        src = self.request.match_info["src"]
-        self.src_node = self.node_of_swhid(src)
+        self.src = self.request.match_info["src"]
+        self.check_swhid(self.src)
 
         self.edges = self.get_edges()
         self.direction = self.get_direction()
@@ -347,7 +306,7 @@ class CountView(GraphView):
             self.count_type,
             self.direction,
             self.edges,
-            self.src_node,
+            self.src,
         )
         return aiohttp.web.Response(body=str(cnt), content_type="application/json")
 
@@ -379,7 +338,6 @@ def make_app(config=None, backend=None, **kwargs):
             aiohttp.web.view("/graph/neighbors/{src}", NeighborsView),
             aiohttp.web.view("/graph/visit/nodes/{src}", VisitNodesView),
             aiohttp.web.view("/graph/visit/edges/{src}", VisitEdgesView),
-            aiohttp.web.view("/graph/visit/paths/{src}", VisitPathsView),
             # temporarily disabled in wait of a proper fix for T1969
             # aiohttp.web.view("/graph/walk/{src}/{dst}", WalkView)
             aiohttp.web.view("/graph/randomwalk/{src}/{dst}", RandomWalkView),

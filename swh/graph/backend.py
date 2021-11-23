@@ -7,22 +7,17 @@ import asyncio
 import contextlib
 import io
 import os
-import struct
+import re
 import subprocess
 import sys
 import tempfile
 
 from py4j.java_gateway import JavaGateway
+from py4j.protocol import Py4JJavaError
 
 from swh.graph.config import check_config
-from swh.graph.swhid import NodeToSwhidMap, SwhidToNodeMap
-from swh.model.swhids import EXTENDED_SWHID_TYPES
 
-BUF_SIZE = 64 * 1024
-BIN_FMT = ">q"  # 64 bit integer, big endian
-PATH_SEPARATOR_ID = -1
-NODE2SWHID_EXT = "node2swhid.bin"
-SWHID2NODE_EXT = "swhid2node.bin"
+BUF_LINES = 1024
 
 
 def _get_pipe_stderr():
@@ -53,8 +48,6 @@ class Backend:
         )
         self.entry = self.gateway.jvm.org.softwareheritage.graph.Entry()
         self.entry.load_graph(self.graph_path)
-        self.node2swhid = NodeToSwhidMap(self.graph_path + "." + NODE2SWHID_EXT)
-        self.swhid2node = SwhidToNodeMap(self.graph_path + "." + SWHID2NODE_EXT)
         self.stream_proxy = JavaStreamProxy(self.entry)
 
     def stop_gateway(self):
@@ -70,59 +63,26 @@ class Backend:
     def stats(self):
         return self.entry.stats()
 
+    def check_swhid(self, swhid):
+        try:
+            self.entry.check_swhid(swhid)
+        except Py4JJavaError as e:
+            m = re.search(r"malformed SWHID: (\w+)", str(e))
+            if m:
+                raise ValueError(f"malformed SWHID: {m[1]}")
+            m = re.search(r"Unknown SWHID: (\w+)", str(e))
+            if m:
+                raise NameError(f"Unknown SWHID: {m[1]}")
+            raise
+
     def count(self, ttype, direction, edges_fmt, src):
         method = getattr(self.entry, "count_" + ttype)
         return method(direction, edges_fmt, src)
 
-    async def simple_traversal(
-        self, ttype, direction, edges_fmt, src, max_edges, return_types
-    ):
-        assert ttype in ("leaves", "neighbors", "visit_nodes")
+    async def traversal(self, ttype, *args):
         method = getattr(self.stream_proxy, ttype)
-        async for node_id in method(direction, edges_fmt, src, max_edges, return_types):
-            yield node_id
-
-    async def walk(self, direction, edges_fmt, algo, src, dst):
-        if dst in EXTENDED_SWHID_TYPES:
-            it = self.stream_proxy.walk_type(direction, edges_fmt, algo, src, dst)
-        else:
-            it = self.stream_proxy.walk(direction, edges_fmt, algo, src, dst)
-        async for node_id in it:
-            yield node_id
-
-    async def random_walk(self, direction, edges_fmt, retries, src, dst, return_types):
-        if dst in EXTENDED_SWHID_TYPES:
-            it = self.stream_proxy.random_walk_type(
-                direction, edges_fmt, retries, src, dst, return_types
-            )
-        else:
-            it = self.stream_proxy.random_walk(
-                direction, edges_fmt, retries, src, dst, return_types
-            )
-        async for node_id in it:  # TODO return 404 if path is empty
-            yield node_id
-
-    async def visit_edges(self, direction, edges_fmt, src, max_edges):
-        it = self.stream_proxy.visit_edges(direction, edges_fmt, src, max_edges)
-        # convert stream a, b, c, d -> (a, b), (c, d)
-        prevNode = None
-        async for node in it:
-            if prevNode is not None:
-                yield (prevNode, node)
-                prevNode = None
-            else:
-                prevNode = node
-
-    async def visit_paths(self, direction, edges_fmt, src, max_edges):
-        path = []
-        async for node in self.stream_proxy.visit_paths(
-            direction, edges_fmt, src, max_edges
-        ):
-            if node == PATH_SEPARATOR_ID:
-                yield path
-                path = []
-            else:
-                path.append(node)
+        async for line in method(*args):
+            yield line.decode().rstrip("\n")
 
 
 class JavaStreamProxy:
@@ -152,12 +112,22 @@ class JavaStreamProxy:
         # on the Java side, we await it with a timeout in case there is an
         # exception that prevents the write-side open().
         with (await asyncio.wait_for(open_thread, timeout=2)) as f:
+
+            def read_n_lines(f, n):
+                buf = []
+                for _ in range(n):
+                    try:
+                        buf.append(next(f))
+                    except StopIteration:
+                        break
+                return buf
+
             while True:
-                data = await loop.run_in_executor(None, f.read, BUF_SIZE)
-                if not data:
+                lines = await loop.run_in_executor(None, read_n_lines, f, BUF_LINES)
+                if not lines:
                     break
-                for data in struct.iter_unpack(BIN_FMT, data):
-                    yield data[0]
+                for line in lines:
+                    yield line
 
     class _HandlerWrapper:
         def __init__(self, handler):
