@@ -38,13 +38,17 @@ public class SubdatasetSizeFunction {
         long[][] randomPerm = Util.identity(graph.numNodes());
         LongBigArrays.shuffle(randomPerm, new XoRoShiRo128PlusRandom());
 
-        long visitedSize = 0;
+        long visitedNodes = 0;
+        long visitedEdges = 0;
+        long visitedOrigins = 0;
+        long visitedContents = 0;
         pl.start("Running traversal starting from origins...");
         for (long j = 0; j < n; ++j) {
             long i = BigArrays.get(randomPerm, j);
             if (visited.getBoolean(i) || graph.getNodeType(i) != Node.Type.ORI) {
                 continue;
             }
+            visitedOrigins++;
             queue.enqueue(Longs.toByteArray(i));
             visited.set(i);
 
@@ -52,11 +56,14 @@ public class SubdatasetSizeFunction {
                 queue.dequeue(byteBuf);
                 final long currentNode = Longs.fromByteArray(byteBuf);
 
-                visitedSize++;
+                visitedNodes++;
+                if (graph.getNodeType(currentNode) == Node.Type.CNT)
+                    visitedContents++;
 
                 final LazyLongIterator iterator = graph.successors(currentNode);
                 long succ;
                 while ((succ = iterator.nextLong()) != -1) {
+                    visitedEdges++;
                     if (visited.getBoolean(succ))
                         continue;
                     visited.set(succ);
@@ -66,7 +73,8 @@ public class SubdatasetSizeFunction {
                 pl.update();
             }
 
-            System.out.println(visitedSize);
+            if (visitedOrigins % 10000 == 0)
+                System.out.println(visitedNodes + " " + visitedEdges + " " + visitedContents);
         }
         pl.done();
     }
@@ -74,7 +82,7 @@ public class SubdatasetSizeFunction {
     static public void main(final String[] arg)
             throws IllegalArgumentException, SecurityException, JSAPException, IOException {
         final SimpleJSAP jsap = new SimpleJSAP(SubdatasetSizeFunction.class.getName(),
-                "Computes in and out degrees of the given SWHGraph",
+                "Computes subdataset size functions using a random uniform order",
                 new Parameter[]{new UnflaggedOption("basename", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
                         JSAP.NOT_GREEDY, "The basename of the graph."),});
 
