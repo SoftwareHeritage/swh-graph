@@ -2,7 +2,6 @@ package org.softwareheritage.graph;
 
 import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
-import it.unimi.dsi.big.webgraph.Transform;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.maps.NodeIdMap;
 import org.softwareheritage.graph.maps.NodeTypesMap;
@@ -28,17 +27,12 @@ import java.io.IOException;
  */
 
 public class Graph extends ImmutableGraph {
-    /** File extension for the SWHID to long node id map */
-    public static final String SWHID_TO_NODE = ".swhid2node.bin";
-    /** File extension for the long node id to SWHID map */
-    public static final String NODE_TO_SWHID = ".node2swhid.bin";
-    /** File extension for the long node id to node type map */
-    public static final String NODE_TO_TYPE = ".node2type.map";
+    /**
+     * Bidirectional graph containing two compressed {@link it.unimi.dsi.big.webgraph.BVGraph} one for
+     * each direction
+     */
+    BidirectionalImmutableGraph graph;
 
-    /** Compressed graph stored as a {@link it.unimi.dsi.big.webgraph.BVGraph} */
-    ImmutableGraph graph;
-    /** Transposed compressed graph (used for backward traversals) */
-    ImmutableGraph graphTransposed;
     /** Path and basename of the compressed graph */
     String path;
     /** Mapping long id &harr; SWHIDs */
@@ -66,16 +60,19 @@ public class Graph extends ImmutableGraph {
 
     protected Graph loadInternal(String path, ProgressLogger pl, LoadMethod method) throws IOException {
         this.path = path;
+        ImmutableGraph direct = null;
+        ImmutableGraph transposed = null;
         if (method == LoadMethod.MEMORY) {
-            this.graph = ImmutableGraph.load(path, pl);
-            this.graphTransposed = ImmutableGraph.load(path + "-transposed", pl);
+            direct = ImmutableGraph.load(path, pl);
+            transposed = ImmutableGraph.load(path + "-transposed", pl);
         } else if (method == LoadMethod.MAPPED) {
-            this.graph = ImmutableGraph.loadMapped(path, pl);
-            this.graphTransposed = ImmutableGraph.loadMapped(path + "-transposed", pl);
+            direct = ImmutableGraph.load(path, pl);
+            transposed = ImmutableGraph.loadMapped(path + "-transposed", pl);
         } else if (method == LoadMethod.OFFLINE) {
-            this.graph = ImmutableGraph.loadOffline(path, pl);
-            this.graphTransposed = ImmutableGraph.loadOffline(path + "-transposed", pl);
+            direct = ImmutableGraph.loadOffline(path, pl);
+            transposed = ImmutableGraph.loadOffline(path + "-transposed", pl);
         }
+        this.graph = new BidirectionalImmutableGraph(direct, transposed);
         this.nodeTypesMap = new NodeTypesMap(path);
         this.nodeIdMap = new NodeIdMap(path, numNodes());
         return this;
@@ -111,10 +108,8 @@ public class Graph extends ImmutableGraph {
     /**
      * Constructor used for copy()
      */
-    protected Graph(ImmutableGraph graph, ImmutableGraph graphTransposed, String path, NodeIdMap nodeIdMap,
-            NodeTypesMap nodeTypesMap) {
+    protected Graph(BidirectionalImmutableGraph graph, String path, NodeIdMap nodeIdMap, NodeTypesMap nodeTypesMap) {
         this.graph = graph;
-        this.graphTransposed = graphTransposed;
         this.path = path;
         this.nodeIdMap = nodeIdMap;
         this.nodeTypesMap = nodeTypesMap;
@@ -125,27 +120,26 @@ public class Graph extends ImmutableGraph {
      */
     @Override
     public Graph copy() {
-        return new Graph(this.graph.copy(), this.graphTransposed.copy(), this.path, this.nodeIdMap, this.nodeTypesMap);
+        return new Graph(this.graph.copy(), this.path, this.nodeIdMap, this.nodeTypesMap);
     }
 
     @Override
     public boolean randomAccess() {
-        return graph.randomAccess() && graphTransposed.randomAccess();
+        return graph.randomAccess();
     }
 
     /**
      * Return a transposed version of the graph.
      */
     public Graph transpose() {
-        return new Graph(this.graphTransposed, this.graph, this.path, this.nodeIdMap, this.nodeTypesMap);
+        return new Graph(this.graph.transpose(), this.path, this.nodeIdMap, this.nodeTypesMap);
     }
 
     /**
      * Return a symmetric version of the graph.
      */
     public Graph symmetrize() {
-        ImmutableGraph symmetric = Transform.union(graph, graphTransposed);
-        return new Graph(symmetric, symmetric, this.path, this.nodeIdMap, this.nodeTypesMap);
+        return new Graph(this.graph.symmetrize(), this.path, this.nodeIdMap, this.nodeTypesMap);
     }
 
     /**
@@ -244,7 +238,7 @@ public class Graph extends ImmutableGraph {
      *         <a href="http://webgraph.di.unimi.it/">WebGraph</a> LazyLongIterator
      */
     public LazyLongIterator predecessors(long nodeId) {
-        return this.transpose().successors(nodeId);
+        return graph.predecessors(nodeId);
     }
 
     /**
@@ -254,13 +248,13 @@ public class Graph extends ImmutableGraph {
      * @return indegree of a node
      */
     public long indegree(long nodeId) {
-        return this.transpose().outdegree(nodeId);
+        return graph.indegree(nodeId);
     }
 
     /**
-     * Returns the underlying BVGraph.
+     * Returns the underlying BidirectionalImmutableGraph.
      *
-     * @return WebGraph BVGraph
+     * @return WebGraph ImmutableGraph
      */
     public ImmutableGraph getGraph() {
         return this.graph;

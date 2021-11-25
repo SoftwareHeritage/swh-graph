@@ -12,7 +12,6 @@ import it.unimi.dsi.io.LineIterator;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SWHID;
 
@@ -121,9 +120,9 @@ public class NodeMapBuilder {
         // for the binary format of swhidToNodeMap, see Python module swh.graph.swhid:SwhidToIntMap
         // for the binary format of nodeToSwhidMap, see Python module swh.graph.swhid:IntToSwhidMap
         try (DataOutputStream swhidToNodeMap = new DataOutputStream(
-                new BufferedOutputStream(new FileOutputStream(graphPath + Graph.SWHID_TO_NODE)));
+                new BufferedOutputStream(new FileOutputStream(graphPath + NodeIdMap.SWHID_TO_NODE)));
                 BufferedOutputStream nodeToSwhidMap = new BufferedOutputStream(
-                        new FileOutputStream(graphPath + Graph.NODE_TO_SWHID))) {
+                        new FileOutputStream(graphPath + NodeIdMap.NODE_TO_SWHID))) {
 
             /*
              * background handler for sort output, it will be fed SWHID/node pairs while swhidToNodeMap is being
@@ -162,7 +161,7 @@ public class NodeMapBuilder {
 
             // write type map
             logger.info("storing type map");
-            BinIO.storeObject(nodeTypesMap, graphPath + Graph.NODE_TO_TYPE);
+            BinIO.storeObject(nodeTypesMap, graphPath + NodeTypesMap.NODE_TO_TYPE);
             logger.info("type map stored");
 
             // wait for nodeToSwhidMap filling
