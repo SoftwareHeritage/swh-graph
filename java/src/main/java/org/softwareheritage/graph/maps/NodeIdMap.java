@@ -28,8 +28,6 @@ public class NodeIdMap {
     /** Fixed length of binary SWHID buffer */
     public static final int SWHID_BIN_SIZE = 22;
 
-    /** File extension for the SWHID to long node id map */
-    public static final String SWHID_TO_NODE = ".swhid2node.bin";
     /** File extension for the long node id to SWHID map */
     public static final String NODE_TO_SWHID = ".node2swhid.bin";
 
@@ -112,10 +110,6 @@ public class NodeIdMap {
 
             Object2LongFunction<String> mphLegacy = (Object2LongFunction<String>) obj;
             return new StringCompatibleByteFunction(mphLegacy);
-            /*
-             * res = (o -> { byte[] bi = (byte[]) o; return mphLegacy.getLong(new String(bi,
-             * StandardCharsets.UTF_8)); });
-             */
         }
         // End of backward-compatibility block
 

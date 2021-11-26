@@ -60,30 +60,14 @@ public class NodeMapBuilder {
      *
      * @param graphPath path of the compressed graph
      */
-    // Suppress warning for Object2LongFunction cast
-    @SuppressWarnings("unchecked")
     static void precomputeNodeIdMap(String graphPath, String tmpDir) throws IOException {
         ProgressLogger plSWHID2Node = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         ProgressLogger plNode2SWHID = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
-        plSWHID2Node.itemsName = "swhid→node";
-        plNode2SWHID.itemsName = "node→swhid";
-
-        /*
-         * avg speed for swhid→node is sometime skewed due to write to the sort pipe hanging when sort is
-         * sorting; hence also desplay local speed
-         */
-        plSWHID2Node.displayLocalSpeed = true;
+        plSWHID2Node.itemsName = "Hashing swhid→node";
+        plNode2SWHID.itemsName = "Building map node→swhid";
 
         // first half of SWHID->node mapping: SWHID -> WebGraph MPH (long)
-        Object2LongFunction<byte[]> mphMap = null;
-        try {
-            logger.info("loading MPH function...");
-            mphMap = (Object2LongFunction<byte[]>) BinIO.loadObject(graphPath + ".mph");
-            logger.info("MPH function loaded");
-        } catch (ClassNotFoundException e) {
-            logger.error("unknown class object in .mph file: " + e);
-            System.exit(2);
-        }
+        Object2LongFunction<byte[]> mphMap = NodeIdMap.loadMph(graphPath + ".mph");
         long nbIds = (mphMap instanceof Size64) ? ((Size64) mphMap).size64() : mphMap.size();
         plSWHID2Node.expectedUpdates = nbIds;
         plNode2SWHID.expectedUpdates = nbIds;
@@ -99,8 +83,8 @@ public class NodeMapBuilder {
         }
 
         /*
-         * Create mapping SWHID -> WebGraph node id, by sequentially reading nodes, hashing them with MPH,
-         * and permuting according to BFS order
+         * Read on stdin a list of SWHIDs, hash them with MPH, then permute them according to the .order
+         * file
          */
         FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in, StandardCharsets.US_ASCII));
         LineIterator swhidIterator = new LineIterator(buffer);
@@ -117,16 +101,13 @@ public class NodeMapBuilder {
         BufferedOutputStream sort_stdin = new BufferedOutputStream(sort.getOutputStream());
         BufferedInputStream sort_stdout = new BufferedInputStream(sort.getInputStream());
 
-        // for the binary format of swhidToNodeMap, see Python module swh.graph.swhid:SwhidToIntMap
         // for the binary format of nodeToSwhidMap, see Python module swh.graph.swhid:IntToSwhidMap
-        try (DataOutputStream swhidToNodeMap = new DataOutputStream(
-                new BufferedOutputStream(new FileOutputStream(graphPath + NodeIdMap.SWHID_TO_NODE)));
-                BufferedOutputStream nodeToSwhidMap = new BufferedOutputStream(
-                        new FileOutputStream(graphPath + NodeIdMap.NODE_TO_SWHID))) {
+        try (BufferedOutputStream nodeToSwhidMap = new BufferedOutputStream(
+                new FileOutputStream(graphPath + NodeIdMap.NODE_TO_SWHID))) {
 
             /*
-             * background handler for sort output, it will be fed SWHID/node pairs while swhidToNodeMap is being
-             * filled, and will itself fill nodeToSwhidMap as soon as data from sort is ready
+             * background handler for sort output, it will be fed SWHID/node pairs, and will itself fill
+             * nodeToSwhidMap as soon as data from sort is ready.
              */
             SortOutputHandler outputHandler = new SortOutputHandler(sort_stdout, nodeToSwhidMap, plNode2SWHID);
             outputHandler.start();
@@ -135,22 +116,17 @@ public class NodeMapBuilder {
              * Type map from WebGraph node ID to SWH type. Used at runtime by pure Java graph traversals to
              * efficiently check edge restrictions.
              */
-            final int log2NbTypes = (int) Math.ceil(Math.log(Node.Type.values().length) / Math.log(2));
-            final int nbBitsPerNodeType = log2NbTypes;
+            final int nbBitsPerNodeType = (int) Math.ceil(Math.log(Node.Type.values().length) / Math.log(2));
             LongArrayBitVector nodeTypesBitVector = LongArrayBitVector.ofLength(nbBitsPerNodeType * nbIds);
             LongBigList nodeTypesMap = nodeTypesBitVector.asLongBigList(nbBitsPerNodeType);
 
-            plSWHID2Node.start("filling swhid2node map");
+            plSWHID2Node.start("Hashing SWHIDs to fill sort input");
             for (long iNode = 0; iNode < nbIds && swhidIterator.hasNext(); iNode++) {
                 String swhidStr = swhidIterator.next().toString();
                 SWHID swhid = new SWHID(swhidStr);
-                byte[] swhidBin = swhid.toBytes();
 
                 long mphId = mphMap.getLong(swhidStr.getBytes(StandardCharsets.US_ASCII));
                 long nodeId = BigArrays.get(bfsMap, mphId);
-
-                swhidToNodeMap.write(swhidBin, 0, swhidBin.length);
-                swhidToNodeMap.writeLong(nodeId);
                 sort_stdin.write((swhidStr + "\t" + nodeId + "\n").getBytes(StandardCharsets.US_ASCII));
 
                 nodeTypesMap.set(nodeId, swhid.getType().ordinal());
@@ -178,13 +154,12 @@ public class NodeMapBuilder {
                 System.exit(2);
             }
         }
-
     }
 
     private static class SortOutputHandler extends Thread {
-        private Scanner input;
-        private OutputStream output;
-        private ProgressLogger pl;
+        private final Scanner input;
+        private final OutputStream output;
+        private final ProgressLogger pl;
 
         SortOutputHandler(InputStream input, OutputStream output, ProgressLogger pl) {
             this.input = new Scanner(input, StandardCharsets.US_ASCII);
@@ -203,7 +178,7 @@ public class NodeMapBuilder {
                 String line = input.nextLine(); // format: SWHID <TAB> NODE_ID
                 SWHID swhid = new SWHID(line.split("\\t")[0]); // get SWHID
                 try {
-                    output.write((byte[]) swhid.toBytes());
+                    output.write(swhid.toBytes());
                 } catch (IOException e) {
                     logger.error("writing to node->SWHID map failed with: " + e);
                 }
