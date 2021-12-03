@@ -10,7 +10,7 @@ import org.softwareheritage.graph.server.Endpoint;
 public class NeighborsTest extends GraphTest {
     @Test
     public void zeroNeighbor() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         ArrayList<SWHID> expectedNodes = new ArrayList<>();
 
         SWHID src1 = new SWHID("swh:1:ori:0000000000000000000000000000000000000021");
@@ -41,7 +41,7 @@ public class NeighborsTest extends GraphTest {
 
     @Test
     public void oneNeighbor() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
 
         SWHID src1 = new SWHID("swh:1:rev:0000000000000000000000000000000000000003");
         Endpoint endpoint1 = new Endpoint(graph, "forward", "*");
@@ -81,7 +81,7 @@ public class NeighborsTest extends GraphTest {
 
     @Test
     public void twoNeighbors() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
 
         SWHID src1 = new SWHID("swh:1:snp:0000000000000000000000000000000000000020");
         Endpoint endpoint1 = new Endpoint(graph, "forward", "*");
@@ -118,7 +118,7 @@ public class NeighborsTest extends GraphTest {
 
     @Test
     public void threeNeighbors() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
 
         SWHID src1 = new SWHID("swh:1:dir:0000000000000000000000000000000000000008");
         Endpoint endpoint1 = new Endpoint(graph, "forward", "*");

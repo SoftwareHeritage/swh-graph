@@ -15,7 +15,7 @@ public class ReadLabelledGraph {
         String graphPath = args[0];
 
         ArcLabelledImmutableGraph graph = BitStreamArcLabelledImmutableGraph.loadOffline(graphPath + "-labelled");
-        NodeIdMap nodeMap = new NodeIdMap(graphPath, graph.numNodes());
+        NodeIdMap nodeMap = new NodeIdMap(graphPath);
         FrontCodedStringBigList filenameMap = (FrontCodedStringBigList) BinIO.loadObject(graphPath + "-labels.fcl");
 
         ArcLabelledNodeIterator it = graph.nodeIterator();

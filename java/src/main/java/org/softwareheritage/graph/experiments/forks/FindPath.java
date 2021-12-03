@@ -2,19 +2,19 @@ package org.softwareheritage.graph.experiments.forks;
 
 import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Node;
 
 import java.io.IOException;
 import java.util.*;
 
 public class FindPath {
-    private Graph graph;
+    private SwhBidirectionalGraph graph;
     private Long emptySnapshot;
 
     private void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = Graph.loadMapped(graphBasename).symmetrize();
+        this.graph = SwhBidirectionalGraph.loadMapped(graphBasename).symmetrize();
         System.err.println("Graph loaded.");
         this.emptySnapshot = null;
     }

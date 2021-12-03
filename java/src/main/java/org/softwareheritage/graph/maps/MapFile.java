@@ -53,6 +53,10 @@ public class MapFile {
         return buffer;
     }
 
+    public long size() {
+        return bufferMap.length() / (long) lineLength;
+    }
+
     /**
      * Closes the mmap()-ed file.
      */

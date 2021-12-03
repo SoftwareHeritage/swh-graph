@@ -10,7 +10,7 @@ import org.softwareheritage.graph.server.Endpoint;
 public class LeavesTest extends GraphTest {
     @Test
     public void forwardFromSnp() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID src = new SWHID("swh:1:snp:0000000000000000000000000000000000000020");
         Endpoint endpoint = new Endpoint(graph, "forward", "*");
 
@@ -26,7 +26,7 @@ public class LeavesTest extends GraphTest {
 
     @Test
     public void forwardFromRel() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID src = new SWHID("swh:1:rel:0000000000000000000000000000000000000019");
         Endpoint endpoint = new Endpoint(graph, "forward", "*");
 
@@ -45,7 +45,7 @@ public class LeavesTest extends GraphTest {
 
     @Test
     public void backwardFromLeaf() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
 
         Endpoint endpoint1 = new Endpoint(graph, "backward", "*");
         SWHID src1 = new SWHID("swh:1:cnt:0000000000000000000000000000000000000015");
@@ -65,7 +65,7 @@ public class LeavesTest extends GraphTest {
 
     @Test
     public void forwardRevToRevOnly() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID src = new SWHID("swh:1:rev:0000000000000000000000000000000000000018");
         Endpoint endpoint = new Endpoint(graph, "forward", "rev:rev");
 
@@ -78,7 +78,7 @@ public class LeavesTest extends GraphTest {
 
     @Test
     public void forwardDirToAll() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID src = new SWHID("swh:1:dir:0000000000000000000000000000000000000008");
         Endpoint endpoint = new Endpoint(graph, "forward", "dir:*");
 
@@ -94,7 +94,7 @@ public class LeavesTest extends GraphTest {
 
     @Test
     public void backwardCntToDirDirToDir() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID src = new SWHID("swh:1:cnt:0000000000000000000000000000000000000005");
         Endpoint endpoint = new Endpoint(graph, "backward", "cnt:dir,dir:dir");
 

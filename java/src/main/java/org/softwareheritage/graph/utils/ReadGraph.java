@@ -11,7 +11,7 @@ public class ReadGraph {
         String graphPath = args[0];
 
         ImmutableGraph graph = ImmutableGraph.load(graphPath);
-        NodeIdMap nodeMap = new NodeIdMap(graphPath, graph.numNodes());
+        NodeIdMap nodeMap = new NodeIdMap(graphPath);
 
         NodeIterator it = graph.nodeIterator();
         while (it.hasNext()) {

@@ -8,7 +8,7 @@ import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.slf4j.LoggerFactory;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Node;
 
 import java.io.File;
@@ -19,12 +19,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class ForkCliques {
-    private Graph graph;
+    private SwhBidirectionalGraph graph;
     private LongArrayBitVector whitelist;
 
     private void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = Graph.loadMapped(graphBasename);
+        this.graph = SwhBidirectionalGraph.loadMapped(graphBasename);
         System.err.println("Graph loaded.");
         this.whitelist = null;
     }

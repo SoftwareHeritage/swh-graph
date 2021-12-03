@@ -10,7 +10,7 @@ import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 
 import java.io.File;
 import java.io.IOException;
@@ -50,7 +50,7 @@ public class BFS {
         boolean useTransposed = config.getBoolean("useTransposed");
 
         System.err.println("Loading graph " + graphPath + " ...");
-        Graph graph = Graph.loadMapped(graphPath);
+        SwhBidirectionalGraph graph = SwhBidirectionalGraph.loadMapped(graphPath);
         System.err.println("Graph loaded.");
 
         if (useTransposed)

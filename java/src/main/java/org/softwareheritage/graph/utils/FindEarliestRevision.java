@@ -3,10 +3,7 @@ package org.softwareheritage.graph.utils;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.io.BinIO;
-import org.softwareheritage.graph.AllowedEdges;
-import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.SWHID;
+import org.softwareheritage.graph.*;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -36,7 +33,7 @@ public class FindEarliestRevision {
 
         System.err.println("loading transposed graph...");
         ts = System.nanoTime();
-        Graph graph = Graph.loadMapped(graphPath).transpose();
+        SwhBidirectionalGraph graph = SwhBidirectionalGraph.loadMapped(graphPath).transpose();
         elapsed = Duration.ofNanos(System.nanoTime() - ts);
         System.err.println(String.format("transposed graph loaded (duration: %s).", elapsed));
 
@@ -89,7 +86,7 @@ public class FindEarliestRevision {
                     }
                 }
 
-                LazyLongIterator it = graph.successors(currentNodeId, edges);
+                LazyLongIterator it = Traversal.filterSuccessors(graph, currentNodeId, edges);
                 for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                     if (!visited.contains(neighborNodeId)) {
                         stack.push(neighborNodeId);

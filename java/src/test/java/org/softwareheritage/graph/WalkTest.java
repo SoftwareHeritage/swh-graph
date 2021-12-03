@@ -10,7 +10,7 @@ import org.softwareheritage.graph.server.Endpoint;
 public class WalkTest extends GraphTest {
     @Test
     public void forwardRootToLeaf() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID src = new SWHID("swh:1:snp:0000000000000000000000000000000000000020");
         String dstFmt = "swh:1:cnt:0000000000000000000000000000000000000005";
 
@@ -38,7 +38,7 @@ public class WalkTest extends GraphTest {
 
     @Test
     public void forwardLeafToLeaf() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID src = new SWHID("swh:1:cnt:0000000000000000000000000000000000000007");
         String dstFmt = "cnt";
 
@@ -55,7 +55,7 @@ public class WalkTest extends GraphTest {
 
     @Test
     public void forwardRevToRev() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID src = new SWHID("swh:1:rev:0000000000000000000000000000000000000018");
         String dstFmt = "swh:1:rev:0000000000000000000000000000000000000003";
 
@@ -75,7 +75,7 @@ public class WalkTest extends GraphTest {
 
     @Test
     public void backwardRevToRev() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID src = new SWHID("swh:1:rev:0000000000000000000000000000000000000003");
         String dstFmt = "swh:1:rev:0000000000000000000000000000000000000018";
 
@@ -95,7 +95,7 @@ public class WalkTest extends GraphTest {
 
     @Test
     public void backwardCntToFirstSnp() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID src = new SWHID("swh:1:cnt:0000000000000000000000000000000000000001");
         String dstFmt = "snp";
 
@@ -132,7 +132,7 @@ public class WalkTest extends GraphTest {
 
     @Test
     public void forwardRevToFirstCnt() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID src = new SWHID("swh:1:rev:0000000000000000000000000000000000000009");
         String dstFmt = "cnt";
 
@@ -167,7 +167,7 @@ public class WalkTest extends GraphTest {
 
     @Test
     public void backwardDirToFirstRel() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID src = new SWHID("swh:1:dir:0000000000000000000000000000000000000016");
         String dstFmt = "rel";
 

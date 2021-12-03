@@ -8,7 +8,7 @@ import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.logging.ProgressLogger;
 import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Node;
 
 import java.io.*;
@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class ClusteringCoefficient {
-    private final Graph graph;
+    private final SwhBidirectionalGraph graph;
     private final String outdirPath;
     private final ConcurrentHashMap<Long, Long> result_full;
     private final ConcurrentHashMap<Long, Long> result_dircnt;
@@ -27,7 +27,7 @@ public class ClusteringCoefficient {
     public ClusteringCoefficient(String graphBasename, String outdirPath) throws IOException {
         this.outdirPath = outdirPath;
         System.err.println("Loading graph " + graphBasename + " ...");
-        Graph directedGraph = Graph.loadMapped(graphBasename);
+        SwhBidirectionalGraph directedGraph = SwhBidirectionalGraph.loadMapped(graphBasename);
         this.graph = directedGraph.symmetrize();
         System.err.println("Graph loaded.");
 
@@ -68,7 +68,7 @@ public class ClusteringCoefficient {
 
         service.submit(() -> {
             try {
-                Graph thread_graph = graph.copy();
+                SwhBidirectionalGraph thread_graph = graph.copy();
 
                 long[][] randomPerm = Util.identity(thread_graph.numNodes());
                 LongBigArrays.shuffle(randomPerm, new XoRoShiRo128PlusRandom());
@@ -103,7 +103,7 @@ public class ClusteringCoefficient {
         for (int i = 0; i < numThreads; ++i) {
             service.submit(() -> {
                 try {
-                    Graph thread_graph = graph.copy();
+                    SwhBidirectionalGraph thread_graph = graph.copy();
                     while (true) {
                         Long node = null;
                         try {
@@ -127,7 +127,7 @@ public class ClusteringCoefficient {
         service.awaitTermination(365, TimeUnit.DAYS);
     }
 
-    private void computeAt(Graph graph, long node) {
+    private void computeAt(SwhBidirectionalGraph graph, long node) {
         long d = graph.outdegree(node);
         if (d < 2) {
             return;

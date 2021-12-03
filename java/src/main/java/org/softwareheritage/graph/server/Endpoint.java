@@ -18,7 +18,7 @@ import java.util.ArrayList;
 
 public class Endpoint {
     /** Graph where traversal endpoint is performed */
-    Graph graph;
+    SwhBidirectionalGraph graph;
     /** Internal traversal API */
     Traversal traversal;
 
@@ -31,7 +31,7 @@ public class Endpoint {
      *            "https://docs.softwareheritage.org/devel/swh-graph/api.html#terminology">allowed
      *            edges</a>
      */
-    public Endpoint(Graph graph, String direction, String edgesFmt) {
+    public Endpoint(SwhBidirectionalGraph graph, String direction, String edgesFmt) {
         this.graph = graph;
         this.traversal = new Traversal(graph, direction, edgesFmt);
     }

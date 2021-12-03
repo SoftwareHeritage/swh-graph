@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 public class SubgraphTest extends GraphTest {
     @Test
     public void noFilter() {
-        Graph g = getGraph();
+        SwhBidirectionalGraph g = getGraph();
         Subgraph sg = new Subgraph(g, new AllowedNodes("*"));
 
         for (long i = 0; i < g.numNodes(); ++i) {
@@ -18,7 +18,7 @@ public class SubgraphTest extends GraphTest {
 
     @Test
     public void missingNode() {
-        Graph g = getGraph();
+        SwhBidirectionalGraph g = getGraph();
         Subgraph sg = new Subgraph(g, new AllowedNodes("dir,ori"));
 
         SWHID rev1 = fakeSWHID("rev", 18);
@@ -32,7 +32,7 @@ public class SubgraphTest extends GraphTest {
 
     @Test
     public void outdegreeOnlyDirOri() {
-        Graph g = getGraph();
+        SwhBidirectionalGraph g = getGraph();
         Subgraph sg = new Subgraph(g, new AllowedNodes("dir,ori"));
 
         SWHID dir1 = fakeSWHID("dir", 17);
@@ -50,7 +50,7 @@ public class SubgraphTest extends GraphTest {
 
     @Test
     public void successorsOnlyDirOri() {
-        Graph g = getGraph();
+        SwhBidirectionalGraph g = getGraph();
         Subgraph sg = new Subgraph(g, new AllowedNodes("dir,ori"));
 
         SWHID dir1 = fakeSWHID("dir", 17);
@@ -66,7 +66,7 @@ public class SubgraphTest extends GraphTest {
 
     @Test
     public void nodeIteratorOnlyOriDir() {
-        Graph g = getGraph();
+        SwhBidirectionalGraph g = getGraph();
         Subgraph sg = new Subgraph(g, new AllowedNodes("dir,ori"));
         ArrayList<Long> nodeList = new ArrayList<>();
         Iterator<Long> nodeIt = sg.nodeIterator();

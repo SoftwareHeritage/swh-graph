@@ -1,6 +1,6 @@
 package org.softwareheritage.graph.benchmark.utils;
 
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Node;
 
 import java.util.PrimitiveIterator;
@@ -38,7 +38,7 @@ public class Random {
      * @param nbNodes number of node ids to generate
      * @return an array of random node ids
      */
-    public long[] generateNodeIds(Graph graph, int nbNodes) {
+    public long[] generateNodeIds(SwhBidirectionalGraph graph, int nbNodes) {
         return random.longs(nbNodes, 0, graph.numNodes()).toArray();
     }
 
@@ -50,7 +50,7 @@ public class Random {
      * @param expectedType specific node type to pick
      * @return an array of random node ids
      */
-    public long[] generateNodeIdsOfType(Graph graph, int nbNodes, Node.Type expectedType) {
+    public long[] generateNodeIdsOfType(SwhBidirectionalGraph graph, int nbNodes, Node.Type expectedType) {
         PrimitiveIterator.OfLong nodes = random.longs(0, graph.numNodes()).iterator();
         long[] nodeIds = new long[nbNodes];
 

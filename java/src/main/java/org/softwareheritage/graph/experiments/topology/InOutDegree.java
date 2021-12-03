@@ -15,7 +15,7 @@ import com.martiansoftware.jsap.SimpleJSAP;
 import com.martiansoftware.jsap.UnflaggedOption;
 
 import it.unimi.dsi.logging.ProgressLogger;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Node;
 
 public class InOutDegree {
@@ -31,7 +31,7 @@ public class InOutDegree {
     private static final int TYPE_SNP = Node.Type.toInt(Node.Type.SNP);
     private static final int TYPE_ORI = Node.Type.toInt(Node.Type.ORI);
 
-    public static long[] outdegreeTypes(final Graph graph, long node) {
+    public static long[] outdegreeTypes(final SwhBidirectionalGraph graph, long node) {
         long[] out = new long[NODE_ARRAY_SIZE];
         var successors = graph.successors(node);
         long neighbor;
@@ -42,7 +42,7 @@ public class InOutDegree {
         return out;
     }
 
-    public static long[] indegreeTypes(final Graph graph, long node) {
+    public static long[] indegreeTypes(final SwhBidirectionalGraph graph, long node) {
         return outdegreeTypes(graph.transpose(), node);
     }
 
@@ -55,7 +55,7 @@ public class InOutDegree {
         f.close();
     }
 
-    public static void run(final Graph graph, String resultsDir) throws IOException {
+    public static void run(final SwhBidirectionalGraph graph, String resultsDir) throws IOException {
         // Per-type
         var cnt_in_dir = new HashMap<Long, Long>();
         var dir_in_dir = new HashMap<Long, Long>();
@@ -233,7 +233,7 @@ public class InOutDegree {
 
         final ProgressLogger pl = new ProgressLogger();
 
-        Graph graph = Graph.loadMapped(basename);
+        SwhBidirectionalGraph graph = SwhBidirectionalGraph.loadMapped(basename);
         run(graph, resultsDir);
     }
 }

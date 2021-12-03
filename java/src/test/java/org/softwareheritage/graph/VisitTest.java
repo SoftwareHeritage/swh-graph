@@ -20,7 +20,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void forwardFromRoot() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:ori:0000000000000000000000000000000000000021");
         Endpoint endpoint1 = new Endpoint(graph, "forward", "*");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
@@ -96,7 +96,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void forwardFromMiddle() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:dir:0000000000000000000000000000000000000012");
         Endpoint endpoint1 = new Endpoint(graph, "forward", "*");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
@@ -127,7 +127,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void forwardFromLeaf() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:cnt:0000000000000000000000000000000000000004");
         Endpoint endpoint1 = new Endpoint(graph, "forward", "*");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
@@ -143,7 +143,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void backwardFromRoot() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:ori:0000000000000000000000000000000000000021");
         Endpoint endpoint1 = new Endpoint(graph, "backward", "*");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
@@ -159,7 +159,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void backwardFromMiddle() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:dir:0000000000000000000000000000000000000012");
         Endpoint endpoint1 = new Endpoint(graph, "backward", "*");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
@@ -178,7 +178,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void backwardFromLeaf() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:cnt:0000000000000000000000000000000000000004");
         Endpoint endpoint1 = new Endpoint(graph, "backward", "*");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
@@ -220,7 +220,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void forwardSnpToRev() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:snp:0000000000000000000000000000000000000020");
         Endpoint endpoint1 = new Endpoint(graph, "forward", "snp:rev");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
@@ -237,7 +237,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void forwardRelToRevRevToRev() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:rel:0000000000000000000000000000000000000010");
         Endpoint endpoint1 = new Endpoint(graph, "forward", "rel:rev,rev:rev");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
@@ -255,7 +255,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void forwardRevToAllDirToAll() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:rev:0000000000000000000000000000000000000013");
         Endpoint endpoint1 = new Endpoint(graph, "forward", "rev:*,dir:*");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
@@ -314,7 +314,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void forwardSnpToAllRevToAll() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:snp:0000000000000000000000000000000000000020");
         Endpoint endpoint1 = new Endpoint(graph, "forward", "snp:*,rev:*");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
@@ -338,7 +338,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void forwardNoEdges() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:snp:0000000000000000000000000000000000000020");
         Endpoint endpoint1 = new Endpoint(graph, "forward", "");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
@@ -354,7 +354,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void backwardRevToRevRevToRel() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:rev:0000000000000000000000000000000000000003");
         Endpoint endpoint1 = new Endpoint(graph, "backward", "rev:rev,rev:rel");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
@@ -377,7 +377,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void forwardFromRootNodesOnly() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:ori:0000000000000000000000000000000000000021");
         Endpoint endpoint = new Endpoint(graph, "forward", "*");
         ArrayList<SWHID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhid)).result;
@@ -401,7 +401,7 @@ public class VisitTest extends GraphTest {
 
     @Test
     public void backwardRevToAllNodesOnly() {
-        Graph graph = getGraph();
+        SwhBidirectionalGraph graph = getGraph();
         SWHID swhid = new SWHID("swh:1:rev:0000000000000000000000000000000000000003");
         Endpoint endpoint = new Endpoint(graph, "backward", "rev:*");
         ArrayList<SWHID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhid)).result;

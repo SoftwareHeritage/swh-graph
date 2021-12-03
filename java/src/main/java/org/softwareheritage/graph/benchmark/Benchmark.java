@@ -1,7 +1,7 @@
 package org.softwareheritage.graph.benchmark;
 
 import com.martiansoftware.jsap.*;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.SWHID;
 import org.softwareheritage.graph.benchmark.utils.Random;
 import org.softwareheritage.graph.benchmark.utils.Statistics;
@@ -85,7 +85,7 @@ public class Benchmark {
      *            <a href="https://docs.softwareheritage.org/devel/swh-graph/api.html#walk">API</a>
      * @param algorithm traversal algorithm used in endpoint call (either "dfs" or "bfs")
      */
-    public void timeEndpoint(String useCaseName, Graph graph, long[] nodeIds,
+    public void timeEndpoint(String useCaseName, SwhBidirectionalGraph graph, long[] nodeIds,
             Function<Endpoint.Input, Endpoint.Output> operation, String dstFmt, String algorithm) throws IOException {
         ArrayList<Double> timings = new ArrayList<>();
         ArrayList<Double> timingsNormalized = new ArrayList<>();
@@ -133,7 +133,7 @@ public class Benchmark {
     /**
      * Same as {@link #timeEndpoint} but without destination or algorithm specified to endpoint call.
      */
-    public void timeEndpoint(String useCaseName, Graph graph, long[] nodeIds,
+    public void timeEndpoint(String useCaseName, SwhBidirectionalGraph graph, long[] nodeIds,
             Function<Endpoint.Input, Endpoint.Output> operation) throws IOException {
         timeEndpoint(useCaseName, graph, nodeIds, operation, null, null);
     }

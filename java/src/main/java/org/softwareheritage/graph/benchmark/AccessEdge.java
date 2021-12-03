@@ -2,7 +2,7 @@ package org.softwareheritage.graph.benchmark;
 
 import com.martiansoftware.jsap.JSAPException;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.benchmark.utils.Statistics;
 import org.softwareheritage.graph.benchmark.utils.Timing;
 
@@ -25,7 +25,7 @@ public class AccessEdge {
         Benchmark bench = new Benchmark();
         bench.parseCommandLineArgs(args);
 
-        Graph graph = Graph.loadMapped(bench.args.graphPath);
+        SwhBidirectionalGraph graph = SwhBidirectionalGraph.loadMapped(bench.args.graphPath);
 
         long[] nodeIds = bench.args.random.generateNodeIds(graph, bench.args.nbNodes);
 

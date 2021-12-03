@@ -3,14 +3,14 @@ package org.softwareheritage.graph.experiments.forks;
 import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Node;
 
 import java.io.IOException;
 import java.util.ArrayList;
 
 public class ListEmptyOrigins {
-    private Graph graph;
+    private SwhBidirectionalGraph graph;
     private Long emptySnapshot;
 
     private static JSAPResult parse_args(String[] args) {
@@ -49,7 +49,7 @@ public class ListEmptyOrigins {
 
     private void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = Graph.loadMapped(graphBasename);
+        this.graph = SwhBidirectionalGraph.loadMapped(graphBasename);
         System.err.println("Graph loaded.");
         this.emptySnapshot = null;
     }

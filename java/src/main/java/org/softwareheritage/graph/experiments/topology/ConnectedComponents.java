@@ -8,7 +8,7 @@ import it.unimi.dsi.fastutil.Arrays;
 import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.AllowedNodes;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.Subgraph;
 
@@ -23,7 +23,7 @@ public class ConnectedComponents {
 
     private void load_graph(String graphBasename, String nodeTypes) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        var underlyingGraph = Graph.loadMapped(graphBasename);
+        var underlyingGraph = SwhBidirectionalGraph.loadMapped(graphBasename);
         var underlyingGraphSym = underlyingGraph.symmetrize();
         graph = new Subgraph(underlyingGraphSym, new AllowedNodes(nodeTypes));
         System.err.println("Graph loaded.");

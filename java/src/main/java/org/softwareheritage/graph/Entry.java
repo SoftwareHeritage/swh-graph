@@ -7,15 +7,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 
 public class Entry {
-    private Graph graph;
+    private SwhBidirectionalGraph graph;
 
     public void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = Graph.loadMapped(graphBasename);
+        this.graph = SwhBidirectionalGraph.loadMapped(graphBasename);
         System.err.println("Graph loaded.");
     }
 
-    public Graph get_graph() {
+    public SwhBidirectionalGraph get_graph() {
         return graph.copy();
     }
 
@@ -69,11 +69,11 @@ public class Entry {
     }
 
     public class QueryHandler {
-        Graph graph;
+        SwhBidirectionalGraph graph;
         BufferedWriter out;
         String clientFIFO;
 
-        public QueryHandler(Graph graph, String clientFIFO) {
+        public QueryHandler(SwhBidirectionalGraph graph, String clientFIFO) {
             this.graph = graph;
             this.clientFIFO = clientFIFO;
             this.out = null;

@@ -1,7 +1,7 @@
 package org.softwareheritage.graph.benchmark;
 
 import com.martiansoftware.jsap.JSAPException;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.server.Endpoint;
 
@@ -25,7 +25,7 @@ public class Browsing {
         Benchmark bench = new Benchmark();
         bench.parseCommandLineArgs(args);
 
-        Graph graph = Graph.loadMapped(bench.args.graphPath);
+        SwhBidirectionalGraph graph = SwhBidirectionalGraph.loadMapped(bench.args.graphPath);
 
         long[] dirNodeIds = bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.DIR);
         long[] revNodeIds = bench.args.random.generateNodeIdsOfType(graph, bench.args.nbNodes, Node.Type.REV);

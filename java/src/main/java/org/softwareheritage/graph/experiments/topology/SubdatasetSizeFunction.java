@@ -11,7 +11,7 @@ import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
 import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.experiments.forks.ForkCC;
 
@@ -22,7 +22,7 @@ public class SubdatasetSizeFunction {
     private SubdatasetSizeFunction() {
     }
 
-    public static void run(final Graph graph) throws IOException {
+    public static void run(final SwhBidirectionalGraph graph) throws IOException {
         final ProgressLogger pl = new ProgressLogger();
         pl.itemsName = "nodes";
         pl.expectedUpdates = graph.numNodes();
@@ -92,7 +92,7 @@ public class SubdatasetSizeFunction {
 
         final String basename = jsapResult.getString("basename");
 
-        Graph graph = Graph.loadMapped(basename);
+        SwhBidirectionalGraph graph = SwhBidirectionalGraph.loadMapped(basename);
         run(graph);
     }
 }

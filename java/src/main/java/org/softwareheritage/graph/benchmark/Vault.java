@@ -1,7 +1,7 @@
 package org.softwareheritage.graph.benchmark;
 
 import com.martiansoftware.jsap.JSAPException;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.server.Endpoint;
 
 import java.io.IOException;
@@ -24,7 +24,7 @@ public class Vault {
         Benchmark bench = new Benchmark();
         bench.parseCommandLineArgs(args);
 
-        Graph graph = Graph.loadMapped(bench.args.graphPath);
+        SwhBidirectionalGraph graph = SwhBidirectionalGraph.loadMapped(bench.args.graphPath);
 
         long[] nodeIds = bench.args.random.generateNodeIds(graph, bench.args.nbNodes);
 

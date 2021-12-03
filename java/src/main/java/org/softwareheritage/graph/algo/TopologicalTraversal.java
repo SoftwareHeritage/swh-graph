@@ -8,7 +8,7 @@ import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Traversal;
 import org.softwareheritage.graph.experiments.forks.ForkCC;
 
@@ -16,7 +16,7 @@ import java.io.File;
 import java.io.IOException;
 
 public class TopologicalTraversal {
-    public static void run(final Graph graph, Traversal.NodeIdConsumer cb) throws IOException {
+    public static void run(final SwhBidirectionalGraph graph, Traversal.NodeIdConsumer cb) throws IOException {
         final long[][] indegree = LongBigArrays.newBigArray(graph.numNodes());
         final ProgressLogger pl = new ProgressLogger();
 

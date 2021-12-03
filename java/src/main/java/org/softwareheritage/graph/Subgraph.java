@@ -7,7 +7,7 @@ import it.unimi.dsi.big.webgraph.NodeIterator;
 import java.util.NoSuchElementException;
 
 public class Subgraph extends ImmutableGraph {
-    private final Graph underlyingGraph;
+    private final SwhBidirectionalGraph underlyingGraph;
     public final AllowedNodes allowedNodeTypes;
 
     private long nodeCount = -1;
@@ -16,7 +16,7 @@ public class Subgraph extends ImmutableGraph {
      * Constructor.
      *
      */
-    public Subgraph(Graph underlyingGraph, AllowedNodes allowedNodeTypes) {
+    public Subgraph(SwhBidirectionalGraph underlyingGraph, AllowedNodes allowedNodeTypes) {
         this.underlyingGraph = underlyingGraph.copy();
         this.allowedNodeTypes = allowedNodeTypes;
     }

@@ -6,7 +6,7 @@ import com.martiansoftware.jsap.*;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.plugin.json.JavalinJackson;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Stats;
 import org.softwareheritage.graph.SWHID;
 
@@ -56,14 +56,14 @@ public class App {
      * @param showTimings true if timings should be in results metadata, false otherwise
      */
     private static void startServer(String graphPath, int port, boolean showTimings) throws IOException {
-        Graph graph = Graph.loadMapped(graphPath);
+        SwhBidirectionalGraph graph = SwhBidirectionalGraph.loadMapped(graphPath);
         Stats stats = new Stats(graphPath);
 
         // Clean up on exit
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
                 try {
-                    graph.cleanUp();
+                    graph.close();
                 } catch (IOException e) {
                     System.out.println("Could not clean up graph on exit: " + e);
                 }

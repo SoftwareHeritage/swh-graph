@@ -3,7 +3,7 @@ package org.softwareheritage.graph;
 import java.util.ArrayList;
 
 /**
- * <h3>NodesFiltering</h3>
+ * NodesFiltering
  * <p>
  * class that manages the filtering of nodes that have been returned after a visit of the graph.
  * parameterized by a string that represents either no filtering (*) or a set of node types.
@@ -95,7 +95,7 @@ public class NodesFiltering {
      *
      *
      */
-    public ArrayList<Long> filterByNodeTypes(ArrayList<Long> nodeIds, Graph g) {
+    public ArrayList<Long> filterByNodeTypes(ArrayList<Long> nodeIds, SwhBidirectionalGraph g) {
         ArrayList<Long> filteredNodes = new ArrayList<Long>();
         for (Long node : nodeIds) {
             if (this.typeIsAllowed(g.getNodeType(node))) {

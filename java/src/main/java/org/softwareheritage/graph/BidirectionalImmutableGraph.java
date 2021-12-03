@@ -21,7 +21,7 @@ public class BidirectionalImmutableGraph extends ImmutableGraph {
      * @param forwardGraph The graph in the forward direction
      * @param backwardGraph The graph in the backward direction
      */
-    protected BidirectionalImmutableGraph(ImmutableGraph forwardGraph, ImmutableGraph backwardGraph) {
+    public BidirectionalImmutableGraph(ImmutableGraph forwardGraph, ImmutableGraph backwardGraph) {
         this.forwardGraph = forwardGraph;
         this.backwardGraph = backwardGraph;
     }

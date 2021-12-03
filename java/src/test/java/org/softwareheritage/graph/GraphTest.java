@@ -15,15 +15,15 @@ import org.junit.jupiter.api.BeforeAll;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 
 public class GraphTest {
-    static Graph graph;
+    static SwhBidirectionalGraph graph;
 
     @BeforeAll
     public static void setUp() throws IOException {
         Path graphPath = Paths.get("..", "swh", "graph", "tests", "dataset", "output", "example");
-        graph = Graph.loadMapped(graphPath.toString());
+        graph = SwhBidirectionalGraph.loadMapped(graphPath.toString());
     }
 
-    public Graph getGraph() {
+    public SwhBidirectionalGraph getGraph() {
         return graph;
     }
 

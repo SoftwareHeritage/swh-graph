@@ -7,7 +7,7 @@ import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.Arrays;
 import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Node;
 
 import java.io.File;
@@ -17,7 +17,7 @@ import java.util.*;
 
 public class ForkCC {
     public Boolean includeRootDir;
-    private Graph graph;
+    private SwhBidirectionalGraph graph;
     private Long emptySnapshot;
     private LongArrayBitVector visited;
     private LongArrayBitVector whitelist;
@@ -72,7 +72,7 @@ public class ForkCC {
 
     private void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = Graph.loadMapped(graphBasename).symmetrize();
+        this.graph = SwhBidirectionalGraph.loadMapped(graphBasename).symmetrize();
         System.err.println("Graph loaded.");
         this.emptySnapshot = null;
         this.whitelist = null;

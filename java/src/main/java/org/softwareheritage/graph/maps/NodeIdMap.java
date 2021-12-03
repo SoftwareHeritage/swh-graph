@@ -33,8 +33,6 @@ public class NodeIdMap {
 
     /** Graph path and basename */
     String graphPath;
-    /** Number of ids to map */
-    long nbIds;
 
     /** mmap()-ed NODE_TO_SWHID file */
     MapFile nodeToSwhMap;
@@ -50,11 +48,9 @@ public class NodeIdMap {
      * Constructor.
      *
      * @param graphPath full graph path
-     * @param nbNodes number of nodes in the graph
      */
-    public NodeIdMap(String graphPath, long nbNodes) throws IOException {
+    public NodeIdMap(String graphPath) throws IOException {
         this.graphPath = graphPath;
-        this.nbIds = nbNodes;
 
         // node -> SWHID
         this.nodeToSwhMap = new MapFile(graphPath + NODE_TO_SWHID, SWHID_BIN_SIZE);
@@ -169,8 +165,8 @@ public class NodeIdMap {
          * Each line in NODE_TO_SWHID is formatted as: swhid The file is ordered by nodeId, meaning node0's
          * swhid is at line 0, hence we can read the nodeId-th line to get corresponding swhid
          */
-        if (nodeId < 0 || nodeId >= nbIds) {
-            throw new IllegalArgumentException("Node id " + nodeId + " should be between 0 and " + nbIds);
+        if (nodeId < 0 || nodeId >= nodeToSwhMap.size()) {
+            throw new IllegalArgumentException("Node id " + nodeId + " should be between 0 and " + nodeToSwhMap.size());
         }
 
         return SWHID.fromBytes(nodeToSwhMap.readAtLine(nodeId));

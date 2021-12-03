@@ -1,7 +1,7 @@
 package org.softwareheritage.graph.experiments.multiplicationfactor;
 
 import com.martiansoftware.jsap.*;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.Traversal;
 import org.softwareheritage.graph.benchmark.utils.Timing;
@@ -13,7 +13,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class GenDistribution {
-    private Graph graph;
+    private SwhBidirectionalGraph graph;
 
     private static JSAPResult parse_args(String[] args) {
         JSAPResult config = null;
@@ -88,7 +88,7 @@ public class GenDistribution {
 
         for (int i = 0; i < numThreads; ++i) {
             service.submit(() -> {
-                Graph thread_graph = tp.graph.copy();
+                SwhBidirectionalGraph thread_graph = tp.graph.copy();
                 long startTime;
                 double totalTime;
 
@@ -124,7 +124,7 @@ public class GenDistribution {
 
     private void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = Graph.loadMapped(graphBasename);
+        this.graph = SwhBidirectionalGraph.loadMapped(graphBasename);
         System.err.println("Graph loaded.");
     }
 }

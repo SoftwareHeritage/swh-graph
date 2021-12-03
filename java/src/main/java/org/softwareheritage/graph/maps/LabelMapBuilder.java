@@ -61,7 +61,7 @@ public class LabelMapBuilder {
         numArcs = graph.numArcs();
         numNodes = graph.numNodes();
 
-        nodeIdMap = new NodeIdMap(graphPath, numNodes);
+        nodeIdMap = new NodeIdMap(graphPath);
 
         filenameMph = NodeIdMap.loadMph(graphPath + "-labels.mph");
         numFilenames = getMPHSize(filenameMph);

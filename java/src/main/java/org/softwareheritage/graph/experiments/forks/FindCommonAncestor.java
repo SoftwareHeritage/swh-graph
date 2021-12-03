@@ -1,18 +1,18 @@
 package org.softwareheritage.graph.experiments.forks;
 
 import com.martiansoftware.jsap.*;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Traversal;
 
 import java.io.IOException;
 import java.util.Scanner;
 
 public class FindCommonAncestor {
-    private Graph graph;
+    private SwhBidirectionalGraph graph;
 
     private void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = Graph.loadMapped(graphBasename);
+        this.graph = SwhBidirectionalGraph.loadMapped(graphBasename);
         System.err.println("Graph loaded.");
     }
 
