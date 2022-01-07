@@ -31,6 +31,11 @@ This API uses the following notions:
   sub-directories when traversing the forward graph, but the same restriction
   allows following edges from sub-directories to parent directories.
 
+- **Node restrictions**: a textual specification of which type of nodes can be
+  returned after a request.  Either ``*`` to denote that all types of nodes can
+  be returned or a comma separated list of node types to allow returning only
+  those node types.
+
 
 Examples
 ~~~~~~~~
@@ -45,6 +50,7 @@ Examples
 - ``"rev:rev,dir:*"`` node types allowing edges from revisions to revisions
   nodes, or from directories nodes.
 - ``"*:rel"`` node types allowing all edges to releases.
+- ``"cnt,snp"`` accepted node types returned in the query results.
 
 
 Leaves
@@ -61,6 +67,10 @@ Leaves
         ``"*"``
     :query string direction: direction in which graph edges will be followed;
         can be either ``forward`` or ``backward``, default to ``forward``
+    :query integer max_edges: how many edges can be traversed during the visit;
+        default to 0 (not restricted)
+    :query string return_types: only return the nodes matching this type;
+        default to ``"*"``
 
     :statuscode 200: success
     :statuscode 400: invalid query string provided
@@ -99,6 +109,10 @@ Neighbors
         to ``"*"``
     :query string direction: direction in which graph edges will be followed;
         can be either ``forward`` or ``backward``, default to ``forward``
+    :query integer max_edges: how many edges can be traversed during the visit;
+        default to 0 (not restricted)
+    :query string return_types: only return the nodes matching this type;
+        default to ``"*"``
 
     :statuscode 200: success
     :statuscode 400: invalid query string provided
@@ -143,6 +157,8 @@ Walk
           ``bfs``, default to ``dfs``
       :query string direction: direction in which graph edges will be followed;
           can be either ``forward`` or ``backward``, default to ``forward``
+      :query string return_types: types of nodes we want to be displayed; default to ``"*"``
+
 
       :statuscode 200: success
       :statuscode 400: invalid query string provided
@@ -179,6 +195,10 @@ Walk
         numbers to get the first N results, or negative numbers to get the last
         N results starting from the tail;
         default to ``0``, meaning no limit.
+    :query integer max_edges: how many edges can be traversed during the visit;
+        default to 0 (not restricted)
+    :query string return_types: only return the nodes matching this type;
+        default to ``"*"``
 
     :statuscode 200: success
     :statuscode 400: invalid query string provided
@@ -239,8 +259,10 @@ Visit
 
     :query string edges: edges types the traversal can follow; default to
         ``"*"``
-    :query string direction: direction in which graph edges will be followed;
-        can be either ``forward`` or ``backward``, default to ``forward``
+    :query integer max_edges: how many edges can be traversed during the visit;
+        default to 0 (not restricted)
+    :query string return_types: only return the nodes matching this type;
+        default to ``"*"``
 
     :statuscode 200: success
     :statuscode 400: invalid query string provided
