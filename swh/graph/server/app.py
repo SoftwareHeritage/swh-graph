@@ -247,6 +247,8 @@ class WalkView(StreamingGraphView):
         self.direction = self.get_direction()
         self.algo = self.get_traversal()
         self.limit = self.get_limit()
+        self.max_edges = self.get_max_edges()
+        self.return_types = self.get_return_types()
 
         self.check_swhid(self.src)
         if self.dst not in EXTENDED_SWHID_TYPES:
@@ -254,7 +256,14 @@ class WalkView(StreamingGraphView):
 
     async def get_walk_iterator(self):
         return self.backend.traversal(
-            "walk", self.direction, self.edges, self.algo, self.src, self.dst
+            "walk",
+            self.direction,
+            self.edges,
+            self.algo,
+            self.src,
+            self.dst,
+            self.max_edges,
+            self.return_types,
         )
 
     async def stream_response(self):
@@ -284,6 +293,8 @@ class RandomWalkView(WalkView):
             RANDOM_RETRIES,
             self.src,
             self.dst,
+            self.max_edges,
+            self.return_types,
         )
 
 
@@ -298,6 +309,7 @@ class CountView(GraphView):
 
         self.edges = self.get_edges()
         self.direction = self.get_direction()
+        self.max_edges = self.get_max_edges()
 
         loop = asyncio.get_event_loop()
         cnt = await loop.run_in_executor(
@@ -307,6 +319,7 @@ class CountView(GraphView):
             self.direction,
             self.edges,
             self.src,
+            self.max_edges,
         )
         return aiohttp.web.Response(body=str(cnt), content_type="application/json")
 

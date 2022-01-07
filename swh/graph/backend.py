@@ -75,9 +75,9 @@ class Backend:
                 raise NameError(f"Unknown SWHID: {m[1]}")
             raise
 
-    def count(self, ttype, direction, edges_fmt, src):
+    def count(self, ttype, *args):
         method = getattr(self.entry, "count_" + ttype)
-        return method(direction, edges_fmt, src)
+        return method(*args)
 
     async def traversal(self, ttype, *args):
         method = getattr(self.stream_proxy, ttype)

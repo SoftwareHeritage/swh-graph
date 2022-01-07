@@ -42,21 +42,21 @@ public class Entry {
         return count[0];
     }
 
-    public int count_leaves(String direction, String edgesFmt, String src) {
+    public int count_leaves(String direction, String edgesFmt, String src, long maxEdges) {
         long srcNodeId = graph.getNodeId(new SWHID(src));
-        Traversal t = new Traversal(graph.copy(), direction, edgesFmt);
+        Traversal t = new Traversal(graph.copy(), direction, edgesFmt, maxEdges);
         return count_visitor(t::leavesVisitor, srcNodeId);
     }
 
-    public int count_neighbors(String direction, String edgesFmt, String src) {
+    public int count_neighbors(String direction, String edgesFmt, String src, long maxEdges) {
         long srcNodeId = graph.getNodeId(new SWHID(src));
-        Traversal t = new Traversal(graph.copy(), direction, edgesFmt);
+        Traversal t = new Traversal(graph.copy(), direction, edgesFmt, maxEdges);
         return count_visitor(t::neighborsVisitor, srcNodeId);
     }
 
-    public int count_visit_nodes(String direction, String edgesFmt, String src) {
+    public int count_visit_nodes(String direction, String edgesFmt, String src, long maxEdges) {
         long srcNodeId = graph.getNodeId(new SWHID(src));
-        Traversal t = new Traversal(graph.copy(), direction, edgesFmt);
+        Traversal t = new Traversal(graph.copy(), direction, edgesFmt, maxEdges);
         return count_visitor(t::visitNodesVisitor, srcNodeId);
     }
 
@@ -152,17 +152,17 @@ public class Entry {
             close();
         }
 
-        public void walk(String direction, String edgesFmt, String algorithm, String src, String dst) {
+        public void walk(String direction, String edgesFmt, String algorithm, String src, String dst, long maxEdges,
+                String returnTypes) {
             long srcNodeId = graph.getNodeId(new SWHID(src));
             open();
             ArrayList<Long> res;
+            Traversal t = new Traversal(graph, direction, edgesFmt, maxEdges, returnTypes);
             if (dst.matches("ori|snp|rel|rev|dir|cnt")) {
                 Node.Type dstType = Node.Type.fromStr(dst);
-                Traversal t = new Traversal(graph, direction, edgesFmt);
                 res = t.walk(srcNodeId, dstType, algorithm);
             } else {
                 long dstNodeId = graph.getNodeId(new SWHID(dst));
-                Traversal t = new Traversal(graph, direction, edgesFmt);
                 res = t.walk(srcNodeId, dstNodeId, algorithm);
             }
             for (Long nodeId : res) {
@@ -171,17 +171,17 @@ public class Entry {
             close();
         }
 
-        public void random_walk(String direction, String edgesFmt, int retries, String src, String dst) {
+        public void random_walk(String direction, String edgesFmt, int retries, String src, String dst, long maxEdges,
+                String returnTypes) {
             long srcNodeId = graph.getNodeId(new SWHID(src));
             open();
             ArrayList<Long> res;
+            Traversal t = new Traversal(graph, direction, edgesFmt, maxEdges, returnTypes);
             if (dst.matches("ori|snp|rel|rev|dir|cnt")) {
                 Node.Type dstType = Node.Type.fromStr(dst);
-                Traversal t = new Traversal(graph, direction, edgesFmt);
                 res = t.randomWalk(srcNodeId, dstType, retries);
             } else {
                 long dstNodeId = graph.getNodeId(new SWHID(dst));
-                Traversal t = new Traversal(graph, direction, edgesFmt);
                 res = t.randomWalk(srcNodeId, dstNodeId, retries);
             }
             for (Long nodeId : res) {
