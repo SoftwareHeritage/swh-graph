@@ -1,3 +1,11 @@
+swh.graph (0.5.1-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.5.1     - (tagged by Antoine Pietri
+    <antoine.pietri1@gmail.com> on 2022-01-12 17:03:07 +0100)
+  * Upstream changes:     - version 0.5.1
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Wed, 12 Jan 2022 16:09:09 +0000
+
 swh.graph (0.5.0-1+swh1) unstable-swh; urgency=medium
 
   * Initial release
