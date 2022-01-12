@@ -5,7 +5,6 @@ import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigList;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.util.ByteBufferLongBigList;
-import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.SWHID;
 
 import java.io.FileInputStream;
@@ -28,6 +27,9 @@ import java.nio.charset.StandardCharsets;
 public class NodeIdMap {
     /** Fixed length of binary SWHID buffer */
     public static final int SWHID_BIN_SIZE = 22;
+
+    /** File extension for the long node id to SWHID map */
+    public static final String NODE_TO_SWHID = ".node2swhid.bin";
 
     /** Graph path and basename */
     String graphPath;
@@ -55,7 +57,7 @@ public class NodeIdMap {
         this.nbIds = nbNodes;
 
         // node -> SWHID
-        this.nodeToSwhMap = new MapFile(graphPath + Graph.NODE_TO_SWHID, SWHID_BIN_SIZE);
+        this.nodeToSwhMap = new MapFile(graphPath + NODE_TO_SWHID, SWHID_BIN_SIZE);
 
         // SWHID -> node
         this.mph = loadMph(graphPath + ".mph");
@@ -108,10 +110,6 @@ public class NodeIdMap {
 
             Object2LongFunction<String> mphLegacy = (Object2LongFunction<String>) obj;
             return new StringCompatibleByteFunction(mphLegacy);
-            /*
-             * res = (o -> { byte[] bi = (byte[]) o; return mphLegacy.getLong(new String(bi,
-             * StandardCharsets.UTF_8)); });
-             */
         }
         // End of backward-compatibility block
 

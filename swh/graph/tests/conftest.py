@@ -57,12 +57,3 @@ def graph_client(request):
         with open(SWH_GRAPH_TESTS_ROOT / "dataset/example.edges.csv") as fd:
             edges = list(csv.reader(fd, delimiter=" "))
         yield NaiveClient(nodes=nodes, edges=edges)
-
-
-@pytest.fixture(scope="module")
-def graph():
-    # Lazy import to allow debian packaging
-    from swh.graph.graph import load as graph_load
-
-    with graph_load(str(TEST_GRAPH_PATH)) as g:
-        yield g

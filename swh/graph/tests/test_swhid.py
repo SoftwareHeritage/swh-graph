@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 from swh.graph.swhid import NodeToSwhidMap, SwhidToNodeMap, bytes_to_str, str_to_bytes
-from swh.model.identifiers import SWHID_TYPES
+from swh.model.swhids import SWHID_TYPES
 
 
 class TestSwhidSerialization(unittest.TestCase):
