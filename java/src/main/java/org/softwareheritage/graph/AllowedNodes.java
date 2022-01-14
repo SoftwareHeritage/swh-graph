@@ -1,7 +1,7 @@
 package org.softwareheritage.graph;
 
 /**
- * TODO
+ * Node type restriction, useful to implement filtering of returned nodes during traversal.
  *
  * @author The Software Heritage developers
  */

@@ -30,8 +30,10 @@ import it.unimi.dsi.big.webgraph.LazyLongIterator;
 public class Traversal {
     /** Graph used in the traversal */
     SwhBidirectionalGraph graph;
-    /** Graph edge restrictions */
-    AllowedEdges edges;
+    /** Type filter on the returned nodes */
+    AllowedNodes nodesFilter;
+    /** Restrictions on which edges can be traversed */
+    AllowedEdges edgesRestrictions;
 
     /** Hash set storing if we have visited a node */
     HashSet<Long> visited;
@@ -42,8 +44,6 @@ public class Traversal {
 
     /** The anti Dos limit of edges traversed while a visit */
     long maxEdges;
-    /** The string represent the set of type restriction */
-    NodesFiltering ndsfilter;
 
     /** random number generator, for random walks */
     Random rng;
@@ -77,19 +77,14 @@ public class Traversal {
         } else {
             this.graph = graph;
         }
-        this.edges = new AllowedEdges(edgesFmt);
+        this.nodesFilter = new AllowedNodes(returnTypes);
+        this.edgesRestrictions = new AllowedEdges(edgesFmt);
 
         this.visited = new HashSet<>();
         this.parentNode = new HashMap<>();
         this.nbEdgesAccessed = 0;
         this.maxEdges = maxEdges;
         this.rng = new Random();
-
-        if (returnTypes.equals("*")) {
-            this.ndsfilter = new NodesFiltering();
-        } else {
-            this.ndsfilter = new NodesFiltering(returnTypes);
-        }
     }
 
     /**
@@ -172,7 +167,7 @@ public class Traversal {
                     break;
                 }
             }
-            LazyLongIterator it = filterSuccessors(currentNodeId, edges);
+            LazyLongIterator it = filterSuccessors(currentNodeId, edgesRestrictions);
             for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 neighborsCnt++;
                 if (!visited.contains(neighborNodeId)) {
@@ -182,7 +177,9 @@ public class Traversal {
             }
 
             if (neighborsCnt == 0) {
-                cb.accept(currentNodeId);
+                if (nodesFilter.isAllowed(graph.getNodeType(currentNodeId))) {
+                    cb.accept(currentNodeId);
+                }
             }
         }
     }
@@ -196,9 +193,6 @@ public class Traversal {
     public ArrayList<Long> leaves(long srcNodeId) {
         ArrayList<Long> nodeIds = new ArrayList<Long>();
         leavesVisitor(srcNodeId, nodeIds::add);
-        if (ndsfilter.restricted) {
-            return ndsfilter.filterByNodeTypes(nodeIds, graph);
-        }
         return nodeIds;
     }
 
@@ -212,9 +206,11 @@ public class Traversal {
                 return;
             }
         }
-        LazyLongIterator it = filterSuccessors(srcNodeId, edges);
+        LazyLongIterator it = filterSuccessors(srcNodeId, edgesRestrictions);
         for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
-            cb.accept(neighborNodeId);
+            if (nodesFilter.isAllowed(graph.getNodeType(neighborNodeId))) {
+                cb.accept(neighborNodeId);
+            }
         }
     }
 
@@ -227,9 +223,6 @@ public class Traversal {
     public ArrayList<Long> neighbors(long srcNodeId) {
         ArrayList<Long> nodeIds = new ArrayList<>();
         neighborsVisitor(srcNodeId, nodeIds::add);
-        if (ndsfilter.restricted) {
-            return ndsfilter.filterByNodeTypes(nodeIds, graph);
-        }
         return nodeIds;
     }
 
@@ -246,7 +239,9 @@ public class Traversal {
         while (!stack.isEmpty()) {
             long currentNodeId = stack.pop();
             if (nodeCb != null) {
-                nodeCb.accept(currentNodeId);
+                if (nodesFilter.isAllowed(graph.getNodeType(currentNodeId))) {
+                    nodeCb.accept(currentNodeId);
+                }
             }
             nbEdgesAccessed += graph.outdegree(currentNodeId);
             if (this.maxEdges > 0) {
@@ -254,10 +249,12 @@ public class Traversal {
                     break;
                 }
             }
-            LazyLongIterator it = filterSuccessors(currentNodeId, edges);
+            LazyLongIterator it = filterSuccessors(currentNodeId, edgesRestrictions);
             for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 if (edgeCb != null) {
-                    edgeCb.accept(currentNodeId, neighborNodeId);
+                    if (nodesFilter.isAllowed(graph.getNodeType(currentNodeId))) {
+                        edgeCb.accept(currentNodeId, neighborNodeId);
+                    }
                 }
                 if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
@@ -281,9 +278,6 @@ public class Traversal {
     public ArrayList<Long> visitNodes(long srcNodeId) {
         ArrayList<Long> nodeIds = new ArrayList<>();
         visitNodesVisitor(srcNodeId, nodeIds::add);
-        if (ndsfilter.restricted) {
-            return ndsfilter.filterByNodeTypes(nodeIds, graph);
-        }
         return nodeIds;
     }
 
@@ -321,7 +315,7 @@ public class Traversal {
                 return;
             }
         }
-        LazyLongIterator it = filterSuccessors(currentNodeId, edges);
+        LazyLongIterator it = filterSuccessors(currentNodeId, edgesRestrictions);
         for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
             visitPathsInternalVisitor(neighborNodeId, currentPath, cb);
             visitedNeighbors++;
@@ -395,7 +389,7 @@ public class Traversal {
 
         while (true) {
             path.add(curNodeId);
-            LazyLongIterator successors = filterSuccessors(curNodeId, edges);
+            LazyLongIterator successors = filterSuccessors(curNodeId, edgesRestrictions);
             curNodeId = randomPick(successors);
             if (curNodeId < 0) {
                 found = false;
@@ -409,9 +403,6 @@ public class Traversal {
         }
 
         if (found) {
-            if (ndsfilter.restricted) {
-                return ndsfilter.filterByNodeTypes(path, graph);
-            }
             return path;
         } else if (retries > 0) { // try again
             return randomWalk(srcNodeId, dst, retries - 1);
@@ -462,7 +453,7 @@ public class Traversal {
             }
 
             nbEdgesAccessed += graph.outdegree(currentNodeId);
-            LazyLongIterator it = filterSuccessors(currentNodeId, edges);
+            LazyLongIterator it = filterSuccessors(currentNodeId, edgesRestrictions);
             for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
@@ -496,7 +487,7 @@ public class Traversal {
             }
 
             nbEdgesAccessed += graph.outdegree(currentNodeId);
-            LazyLongIterator it = filterSuccessors(currentNodeId, edges);
+            LazyLongIterator it = filterSuccessors(currentNodeId, edgesRestrictions);
             for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                 if (!visited.contains(neighborNodeId)) {
                     queue.add(neighborNodeId);
@@ -571,7 +562,7 @@ public class Traversal {
             if (!lhsStack.isEmpty()) {
                 curNode = lhsStack.poll();
                 nbEdgesAccessed += graph.outdegree(curNode);
-                LazyLongIterator it = filterSuccessors(curNode, edges);
+                LazyLongIterator it = filterSuccessors(curNode, edgesRestrictions);
                 for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                     if (!lhsVisited.contains(neighborNodeId)) {
                         if (rhsVisited.contains(neighborNodeId))
@@ -585,7 +576,7 @@ public class Traversal {
             if (!rhsStack.isEmpty()) {
                 curNode = rhsStack.poll();
                 nbEdgesAccessed += graph.outdegree(curNode);
-                LazyLongIterator it = filterSuccessors(curNode, edges);
+                LazyLongIterator it = filterSuccessors(curNode, edgesRestrictions);
                 for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
                     if (!rhsVisited.contains(neighborNodeId)) {
                         if (lhsVisited.contains(neighborNodeId))
