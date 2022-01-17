@@ -18,6 +18,30 @@ import java.io.InputStream;
  * Both graphs share their graph properties in memory by storing references to the same
  * {@link SwhGraphProperties} object.
  *
+ * <pre>
+ *                 ┌──────────────┐
+ *                 │ImmutableGraph◄────────┐
+ *                 └────▲─────────┘        │extends
+ *                      │                  │
+ *                      │       ┌──────────┴────────────────┐
+ *               extends│       │BidirectionalImmutableGraph│
+ *                      │       └────────────▲──────────────┘
+ *                      │                    │extends
+ *       ┌──────────────┴───────┐     ┌──────┴──────────────┐
+ *       │SwhUnidirectionalGraph│◄────┤SwhBidirectionalGraph│
+ *       └──┬──────────────┬────┘     └────────┬───────────┬┘
+ *          │              │    contains x2    │           │
+ *          │              │                   │           │
+ *          │    implements│                   │implements │
+ *          │             ┌▼──────────┐        │           │
+ *          │             │SwhGraph(I)◄────────┘           │
+ * contains │             └───────────┘                    │contains
+ *          │                                              │
+ *          │            ┌──────────────────┐              │
+ *          └────────────►SwhGraphProperties◄──────────────┘
+ *                       └──────────────────┘
+ * </pre>
+ *
  * @author The Software Heritage developers
  * @see SwhUnidirectionalGraph
  */
