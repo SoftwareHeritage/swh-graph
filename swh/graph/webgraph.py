@@ -133,7 +133,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
     ],
     CompressionStep.COMPOSE_ORDERS: [
         "{java}",
-        "org.softwareheritage.graph.utils.ComposePermutations",
+        "org.softwareheritage.graph.compress.ComposePermutations",
         "{out_dir}/{graph_name}-bfs.order",
         "{out_dir}/{graph_name}-llp.order",
         "{out_dir}/{graph_name}.order",

@@ -1,8 +1,6 @@
 package org.softwareheritage.graph;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 /**
  * A node in the Software Heritage graph.
@@ -90,6 +88,31 @@ public class Node {
                 throw new IllegalArgumentException("Unknown node type: " + strType);
             }
             return Node.Type.valueOf(strType.toUpperCase());
+        }
+
+        /**
+         * Converts byte array name to the int code of the corresponding SWH node type. Used for
+         * performance-critical deserialization.
+         *
+         * @param name node type represented as a byte array (e.g. b"cnt")
+         * @return the ordinal value of the corresponding {@link Node.Type}
+         * @see org.softwareheritage.graph.Node.Type
+         */
+        public static int byteNameToInt(byte[] name) {
+            if (Arrays.equals(name, "cnt".getBytes())) {
+                return 0;
+            } else if (Arrays.equals(name, "dir".getBytes())) {
+                return 1;
+            } else if (Arrays.equals(name, "ori".getBytes())) {
+                return 2;
+            } else if (Arrays.equals(name, "rel".getBytes())) {
+                return 3;
+            } else if (Arrays.equals(name, "rev".getBytes())) {
+                return 4;
+            } else if (Arrays.equals(name, "snp".getBytes())) {
+                return 5;
+            } else
+                return -1;
         }
 
         /**

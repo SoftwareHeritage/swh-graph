@@ -1,4 +1,4 @@
-package org.softwareheritage.graph.utils;
+package org.softwareheritage.graph.compress;
 
 import com.martiansoftware.jsap.*;
 import it.unimi.dsi.Util;
@@ -11,7 +11,7 @@ import java.io.IOException;
  * CLI program used to compose two on-disk permutations.
  *
  * It takes two on-disk permutations as parameters, p1 and p2, and writes on disk (p1 o p2) at the
- * given location. This is useful for multi-step compression (e.g. Unordered -> BFS -> LLP), as it
+ * given location. This is useful for multi-step compression (e.g., Unordered -> BFS -> LLP), as it
  * can be used to merge all the intermediate permutations.
  */
 public class ComposePermutations {
