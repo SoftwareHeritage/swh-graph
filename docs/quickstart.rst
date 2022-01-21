@@ -1,7 +1,7 @@
 Quickstart
 ==========
 
-This quick tutorial shows how to compress and browse a graph using `swh.graph`.
+This quick tutorial shows how to compress and browse a graph using ``swh.graph``.
 
 It does not cover the technical details behind the graph compression techniques
 (refer to :ref:`graph-compression`).
@@ -10,7 +10,7 @@ It does not cover the technical details behind the graph compression techniques
 Dependencies
 ------------
 
-In order to run the `swh.graph` tool, you will need Python (>= 3.7) and Java
+In order to run the ``swh.graph`` tool, you will need Python (>= 3.7) and Java
 JRE, you do not need the JDK if you install the package from pypi, but may want
 to install it if you want to hack the code or install it from this git
 repository. To compress a graph, you will need zstd_ compression tools.
@@ -39,7 +39,7 @@ Create a virtualenv and activate it:
    ~/t/swh-graph-tests$ virtualenv swhenv
    ~/t/swh-graph-tests$ . swhenv/bin/activate
 
-Install the `swh.graph` python package:
+Install the ``swh.graph`` python package:
 
 .. code:: bash
 
@@ -87,7 +87,7 @@ Own datasets
 
 A graph is described as both its adjacency list and the set of nodes
 identifiers in plain text format. Such graph example can be found in the
-`swh/graph/tests/dataset/` folder.
+``swh/graph/tests/dataset/`` folder.
 
 You can compress the example graph on the command line like this:
 
@@ -107,7 +107,7 @@ You can compress the example graph on the command line like this:
 API server
 ----------
 
-To start a `swh.graph` API server of a compressed graph dataset, run:
+To start a ``swh.graph`` API server of a compressed graph dataset, run:
 
 .. code:: bash
 
@@ -118,7 +118,7 @@ To start a `swh.graph` API server of a compressed graph dataset, run:
    (Press CTRL+C to quit)
 
 From there you can use this endpoint to query the compressed graph, for example
-with httpie_ (`sudo apt install`) from another terminal:
+with httpie_ (``sudo apt install``) from another terminal:
 
 .. _httpie: https://httpie.org
 
@@ -144,7 +144,7 @@ with httpie_ (`sudo apt install`) from another terminal:
     swh:1:cnt:0000000000000000000000000000000000000007
 
 
-Running the existing `python3kcompress` dataset:
+Running the existing ``python3kcompress`` dataset:
 
 .. code:: bash
 
