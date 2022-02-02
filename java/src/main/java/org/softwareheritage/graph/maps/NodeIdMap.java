@@ -6,6 +6,7 @@ import it.unimi.dsi.fastutil.longs.LongBigList;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.util.ByteBufferLongBigList;
 import org.softwareheritage.graph.SWHID;
+import org.softwareheritage.graph.compress.NodeMapBuilder;
 
 import java.io.FileInputStream;
 import java.io.IOException;

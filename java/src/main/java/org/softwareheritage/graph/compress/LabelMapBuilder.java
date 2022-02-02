@@ -1,4 +1,4 @@
-package org.softwareheritage.graph.maps;
+package org.softwareheritage.graph.compress;
 
 import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.softwareheritage.graph.labels.DirEntry;
 import org.softwareheritage.graph.labels.SwhLabel;
+import org.softwareheritage.graph.maps.NodeIdMap;
 
 import java.io.*;
 import java.nio.ByteBuffer;

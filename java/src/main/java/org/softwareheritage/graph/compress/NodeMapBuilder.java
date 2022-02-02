@@ -1,4 +1,4 @@
-package org.softwareheritage.graph.maps;
+package org.softwareheritage.graph.compress;
 
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.BigArrays;
@@ -14,6 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SWHID;
+import org.softwareheritage.graph.maps.NodeIdMap;
+import org.softwareheritage.graph.maps.NodeTypesMap;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
