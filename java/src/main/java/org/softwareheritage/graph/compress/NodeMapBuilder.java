@@ -1,5 +1,6 @@
 package org.softwareheritage.graph.compress;
 
+import com.github.luben.zstd.ZstdInputStream;
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.Size64;
@@ -65,8 +66,8 @@ public class NodeMapBuilder {
     static void precomputeNodeIdMap(String graphPath, String tmpDir) throws IOException {
         ProgressLogger plSWHID2Node = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         ProgressLogger plNode2SWHID = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
-        plSWHID2Node.itemsName = "Hashing swhid→node";
-        plNode2SWHID.itemsName = "Building map node→swhid";
+        plSWHID2Node.itemsName = "nodes";
+        plNode2SWHID.itemsName = "nodes";
 
         // first half of SWHID->node mapping: SWHID -> WebGraph MPH (long)
         Object2LongFunction<byte[]> mphMap = NodeIdMap.loadMph(graphPath + ".mph");
@@ -88,7 +89,8 @@ public class NodeMapBuilder {
          * Read on stdin a list of SWHIDs, hash them with MPH, then permute them according to the .order
          * file
          */
-        FastBufferedReader buffer = new FastBufferedReader(new InputStreamReader(System.in, StandardCharsets.US_ASCII));
+        FastBufferedReader buffer = new FastBufferedReader(
+                new InputStreamReader(new ZstdInputStream(new BufferedInputStream(System.in))));
         LineIterator swhidIterator = new LineIterator(buffer);
 
         /*

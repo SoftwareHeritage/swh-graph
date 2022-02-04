@@ -351,19 +351,23 @@ def serve(ctx, host, port, graph):
 
 @graph_cli_group.command()
 @click.option(
-    "--graph",
-    "-g",
+    "--input-dataset",
+    "-i",
     required=True,
-    metavar="GRAPH",
     type=PathlibPath(),
-    help="input graph basename",
+    help="graph dataset directory, in ORC format",
 )
 @click.option(
-    "--outdir",
+    "--output-directory",
     "-o",
-    "out_dir",
     required=True,
-    metavar="DIR",
+    type=PathlibPath(),
+    help="directory where to store compressed graph",
+)
+@click.option(
+    "--graph-name",
+    "-g",
+    default="graph",
     type=PathlibPath(),
     help="directory where to store compressed graph",
 )
@@ -375,7 +379,7 @@ def serve(ctx, host, port, graph):
     help="run only these compression steps (default: all steps)",
 )
 @click.pass_context
-def compress(ctx, graph, out_dir, steps):
+def compress(ctx, input_dataset, output_directory, graph_name, steps):
     """Compress a graph using WebGraph
 
     Input: a pair of files g.nodes.csv.gz, g.edges.csv.gz
@@ -392,14 +396,12 @@ def compress(ctx, graph, out_dir, steps):
     """
     from swh.graph import webgraph
 
-    graph_name = graph.name
-    in_dir = graph.parent
     try:
         conf = ctx.obj["config"]["graph"]["compress"]
     except KeyError:
         conf = {}  # use defaults
 
-    webgraph.compress(graph_name, in_dir, out_dir, steps, conf)
+    webgraph.compress(graph_name, input_dataset, output_directory, steps, conf)
 
 
 @graph_cli_group.command(name="cachemount")

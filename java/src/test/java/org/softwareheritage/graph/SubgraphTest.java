@@ -43,7 +43,7 @@ public class SubgraphTest extends GraphTest {
         Assertions.assertEquals(2, g.outdegree(g.getNodeId(dir2)));
         Assertions.assertEquals(0, sg.outdegree(sg.getNodeId(dir2)));
 
-        SWHID ori1 = fakeSWHID("ori", 21);
+        SWHID ori1 = new SWHID(TEST_ORIGIN_ID);
         Assertions.assertEquals(1, g.outdegree(g.getNodeId(ori1)));
         Assertions.assertEquals(0, sg.outdegree(sg.getNodeId(ori1)));
     }
@@ -60,7 +60,7 @@ public class SubgraphTest extends GraphTest {
         SWHID dir2 = fakeSWHID("dir", 6);
         assertEqualsAnyOrder(Collections.emptyList(), lazyLongIteratorToList(sg.successors(sg.getNodeId(dir2))));
 
-        SWHID ori1 = fakeSWHID("ori", 21);
+        SWHID ori1 = new SWHID(TEST_ORIGIN_ID);
         assertEqualsAnyOrder(Collections.emptyList(), lazyLongIteratorToList(sg.successors(sg.getNodeId(ori1))));
     }
 
@@ -71,7 +71,7 @@ public class SubgraphTest extends GraphTest {
         ArrayList<Long> nodeList = new ArrayList<>();
         Iterator<Long> nodeIt = sg.nodeIterator();
         nodeIt.forEachRemaining(nodeList::add);
-        assertEqualsAnyOrder(Arrays.asList(sg.getNodeId(fakeSWHID("ori", 21)), sg.getNodeId(fakeSWHID("dir", 2)),
+        assertEqualsAnyOrder(Arrays.asList(sg.getNodeId(new SWHID(TEST_ORIGIN_ID)), sg.getNodeId(fakeSWHID("dir", 2)),
                 sg.getNodeId(fakeSWHID("dir", 6)), sg.getNodeId(fakeSWHID("dir", 8)),
                 sg.getNodeId(fakeSWHID("dir", 12)), sg.getNodeId(fakeSWHID("dir", 16)),
                 sg.getNodeId(fakeSWHID("dir", 17))), nodeList);

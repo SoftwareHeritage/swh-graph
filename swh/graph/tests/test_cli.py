@@ -43,10 +43,12 @@ def test_pipeline():
                 "--config-file",
                 config_path,
                 "compress",
-                "--graph",
-                DATA_DIR / "example",
-                "--outdir",
+                "--input-dataset",
+                DATA_DIR / "orc",
+                "--output-directory",
                 tmpdir,
+                "--graph-name",
+                "example",
             ],
         )
         assert result.exit_code == 0, result

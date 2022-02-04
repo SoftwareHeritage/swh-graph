@@ -8,8 +8,10 @@ import it.unimi.dsi.util.ByteBufferLongBigList;
 import org.softwareheritage.graph.SWHID;
 import org.softwareheritage.graph.compress.NodeMapBuilder;
 
-import java.io.FileInputStream;
+import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -25,7 +27,7 @@ import java.nio.charset.StandardCharsets;
  * @see NodeMapBuilder
  */
 
-public class NodeIdMap {
+public class NodeIdMap implements Size64 {
     /** Fixed length of binary SWHID buffer */
     public static final int SWHID_BIN_SIZE = 22;
 
@@ -42,8 +44,6 @@ public class NodeIdMap {
     Object2LongFunction<byte[]> mph;
     /** mmap()-ed long list with the permutation initial order -> graph order */
     LongBigList orderMap;
-    /** FileInputStream containing the permutation */
-    FileInputStream orderInputStream;
 
     /**
      * Constructor.
@@ -58,8 +58,11 @@ public class NodeIdMap {
 
         // SWHID -> node
         this.mph = loadMph(graphPath + ".mph");
-        this.orderInputStream = new FileInputStream(graphPath + ".order");
-        this.orderMap = ByteBufferLongBigList.map(orderInputStream.getChannel());
+
+        try (RandomAccessFile mapFile = new RandomAccessFile(new File(graphPath + ".order"), "r")) {
+            FileChannel fileChannel = mapFile.getChannel();
+            this.orderMap = ByteBufferLongBigList.map(fileChannel);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -177,7 +180,12 @@ public class NodeIdMap {
      * Closes the mapping files.
      */
     public void close() throws IOException {
-        orderInputStream.close();
         nodeToSwhMap.close();
+    }
+
+    /** Return the number of nodes in the map. */
+    @Override
+    public long size64() {
+        return nodeToSwhMap.size();
     }
 }

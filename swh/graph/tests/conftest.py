@@ -3,9 +3,9 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import csv
 import multiprocessing
 from pathlib import Path
+import subprocess
 
 from aiohttp.test_utils import TestClient, TestServer, loop_context
 import pytest
@@ -14,7 +14,7 @@ from swh.graph.client import RemoteGraphClient
 from swh.graph.naive_client import NaiveClient
 
 SWH_GRAPH_TESTS_ROOT = Path(__file__).parents[0]
-TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / "dataset/output/example"
+TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / "dataset/compressed/example"
 
 
 class GraphServerProcess(multiprocessing.Process):
@@ -52,8 +52,20 @@ def graph_client(request):
         yield RemoteGraphClient(str(res))
         server.terminate()
     else:
-        with open(SWH_GRAPH_TESTS_ROOT / "dataset/example.nodes.csv") as fd:
-            nodes = [node for (node,) in csv.reader(fd, delimiter=" ")]
-        with open(SWH_GRAPH_TESTS_ROOT / "dataset/example.edges.csv") as fd:
-            edges = list(csv.reader(fd, delimiter=" "))
-        yield NaiveClient(nodes=nodes, edges=edges)
+
+        def zstdcat(*files):
+            p = subprocess.run(["zstdcat", *files], stdout=subprocess.PIPE)
+            return p.stdout.decode()
+
+        edges_dataset = SWH_GRAPH_TESTS_ROOT / "dataset/edges"
+        edge_files = edges_dataset.glob("*/*.edges.csv.zst")
+        node_files = edges_dataset.glob("*/*.nodes.csv.zst")
+
+        nodes = set(zstdcat(*node_files).strip().split("\n"))
+        edge_lines = [line.split() for line in zstdcat(*edge_files).strip().split("\n")]
+        edges = [(src, dst) for src, dst, *_ in edge_lines]
+        for src, dst in edges:
+            nodes.add(src)
+            nodes.add(dst)
+
+        yield NaiveClient(nodes=list(nodes), edges=edges)

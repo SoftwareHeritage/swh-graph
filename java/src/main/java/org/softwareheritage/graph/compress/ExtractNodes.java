@@ -3,6 +3,7 @@ package org.softwareheritage.graph.compress;
 import com.github.luben.zstd.ZstdOutputStream;
 import com.martiansoftware.jsap.*;
 import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.utils.Sort;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -57,8 +58,8 @@ public class ExtractNodes {
                             "Format of the input dataset (orc, csv)"),
                     new FlaggedOption("sortBufferSize", JSAP.STRING_PARSER, "30%", JSAP.NOT_REQUIRED, 'S',
                             "sort-buffer-size", "Size of the memory buffer used by sort"),
-                    new FlaggedOption("sortTmpDir", JSAP.STRING_PARSER, null, JSAP.NOT_REQUIRED, 'T',
-                            "sort-temporary-directory", "Path to the temporary directory used by sort")});
+                    new FlaggedOption("sortTmpDir", JSAP.STRING_PARSER, null, JSAP.NOT_REQUIRED, 'T', "temp-dir",
+                            "Path to the temporary directory used by sort")});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -80,6 +81,8 @@ public class ExtractNodes {
         String sortBufferSize = parsedArgs.getString("sortBufferSize");
         String sortTmpDir = parsedArgs.getString("sortTmpDir", null);
 
+        (new File(sortTmpDir)).mkdirs();
+
         // Open edge dataset
         GraphDataset dataset;
         if (datasetFormat.equals("orc")) {
@@ -90,8 +93,13 @@ public class ExtractNodes {
             throw new IllegalArgumentException("Unknown dataset format: " + datasetFormat);
         }
 
+        extractNodes(dataset, outputBasename, sortBufferSize, sortTmpDir);
+    }
+
+    public static void extractNodes(GraphDataset dataset, String outputBasename, String sortBufferSize,
+            String sortTmpDir) throws IOException, InterruptedException {
         // Spawn node sorting process
-        Process nodeSort = spawnSort(sortBufferSize, sortTmpDir);
+        Process nodeSort = Sort.spawnSort(sortBufferSize, sortTmpDir);
         BufferedOutputStream nodeSortStdin = new BufferedOutputStream(nodeSort.getOutputStream());
         BufferedInputStream nodeSortStdout = new BufferedInputStream(nodeSort.getInputStream());
         OutputStream nodesFileOutputStream = new ZstdOutputStream(
@@ -100,7 +108,7 @@ public class ExtractNodes {
         nodesOutputThread.start();
 
         // Spawn label sorting process
-        Process labelSort = spawnSort(sortBufferSize, sortTmpDir);
+        Process labelSort = Sort.spawnSort(sortBufferSize, sortTmpDir);
         BufferedOutputStream labelSortStdin = new BufferedOutputStream(labelSort.getOutputStream());
         BufferedInputStream labelSortStdout = new BufferedInputStream(labelSort.getInputStream());
         OutputStream labelsFileOutputStream = new ZstdOutputStream(
@@ -151,23 +159,6 @@ public class ExtractNodes {
         printEdgeCounts(outputBasename, edgeCount[0], edgeCountByType);
         printNodeCounts(outputBasename, nodesOutputThread.getNodeCount(), nodesOutputThread.getNodeTypeCounts());
         printLabelCounts(outputBasename, labelsOutputThread.getLabelCount());
-    }
-
-    private static Process spawnSort(String sortBufferSize, String sortTmpDir) throws IOException {
-        ProcessBuilder sortProcessBuilder = new ProcessBuilder();
-        sortProcessBuilder.redirectError(ProcessBuilder.Redirect.INHERIT);
-        ArrayList<String> command = new ArrayList<>(List.of("sort", "-u", "--buffer-size", sortBufferSize));
-        if (sortTmpDir != null) {
-            command.add("--temporary-directory");
-            command.add(sortTmpDir);
-        }
-        sortProcessBuilder.command(command);
-        Map<String, String> env = sortProcessBuilder.environment();
-        env.put("LC_ALL", "C");
-        env.put("LC_COLLATE", "C");
-        env.put("LANG", "C");
-
-        return sortProcessBuilder.start();
     }
 
     private static void printEdgeCounts(String basename, long edgeCount, long[][] edgeTypeCounts) throws IOException {

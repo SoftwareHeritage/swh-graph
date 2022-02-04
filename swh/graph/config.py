@@ -93,13 +93,14 @@ def check_config_compress(config, graph_name, in_dir, out_dir):
             conffile.write(
                 """
 <configuration>
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d %r %p [%t] %logger{1} - %m%n</pattern>
         </encoder>
+        <target>System.err</target>
     </appender>
     <root level="INFO">
-        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="STDERR"/>
     </root>
 </configuration>
 """

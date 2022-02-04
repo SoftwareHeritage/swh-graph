@@ -1,9 +1,24 @@
 package org.softwareheritage.graph;
 
+import it.unimi.dsi.big.util.MappedFrontCodedStringBigList;
+import it.unimi.dsi.bits.LongArrayBitVector;
+import it.unimi.dsi.fastutil.bytes.ByteBigList;
+import it.unimi.dsi.fastutil.bytes.ByteMappedBigList;
+import it.unimi.dsi.fastutil.ints.IntBigList;
+import it.unimi.dsi.fastutil.ints.IntMappedBigList;
+import it.unimi.dsi.fastutil.io.BinIO;
+import it.unimi.dsi.fastutil.longs.LongBigList;
+import it.unimi.dsi.fastutil.longs.LongMappedBigList;
+import it.unimi.dsi.fastutil.shorts.ShortBigList;
+import it.unimi.dsi.fastutil.shorts.ShortMappedBigList;
+import it.unimi.dsi.sux4j.util.EliasFanoLongBigList;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.softwareheritage.graph.maps.NodeIdMap;
 import org.softwareheritage.graph.maps.NodeTypesMap;
 
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.util.Base64;
 
 /**
  * This objects contains SWH graph properties such as node labels.
@@ -22,12 +37,23 @@ import java.io.IOException;
  * @see NodeTypesMap
  */
 public class SwhGraphProperties {
-    /** Path and basename of the compressed graph */
-    String path;
-    /** Mapping long id &harr; SWHIDs */
-    NodeIdMap nodeIdMap;
-    /** Mapping long id &rarr; node types */
-    NodeTypesMap nodeTypesMap;
+    private final String path;
+
+    private final NodeIdMap nodeIdMap;
+    private final NodeTypesMap nodeTypesMap;
+    private LongBigList authorTimestamp;
+    private ShortBigList authorTimestampOffset;
+    private LongBigList committerTimestamp;
+    private ShortBigList committerTimestampOffset;
+    private LongBigList contentLength;
+    private LongArrayBitVector contentIsSkipped;
+    private IntBigList authorId;
+    private IntBigList committerId;
+    private ByteBigList messageBuffer;
+    private LongBigList messageOffsets;
+    private ByteBigList tagNameBuffer;
+    private LongBigList tagNameOffsets;
+    private MappedFrontCodedStringBigList edgeLabelNames;
 
     protected SwhGraphProperties(String path, NodeIdMap nodeIdMap, NodeTypesMap nodeTypesMap) {
         this.path = path;
@@ -40,12 +66,14 @@ public class SwhGraphProperties {
     }
 
     /**
-     * Cleans up graph resources after use.
+     * Cleans up resources after use.
      */
     public void close() throws IOException {
-        this.nodeIdMap.close();
+        nodeIdMap.close();
+        edgeLabelNames.close();
     }
 
+    /** Return the basename of the compressed graph */
     public String getPath() {
         return path;
     }
@@ -81,5 +109,205 @@ public class SwhGraphProperties {
      */
     public Node.Type getNodeType(long nodeId) {
         return nodeTypesMap.getType(nodeId);
+    }
+
+    private static LongBigList loadMappedLongs(String path) throws IOException {
+        try (RandomAccessFile raf = new RandomAccessFile(path, "r")) {
+            return LongMappedBigList.map(raf.getChannel());
+        }
+    }
+
+    private static IntBigList loadMappedInts(String path) throws IOException {
+        try (RandomAccessFile raf = new RandomAccessFile(path, "r")) {
+            return IntMappedBigList.map(raf.getChannel());
+        }
+    }
+
+    private static ShortBigList loadMappedShorts(String path) throws IOException {
+        try (RandomAccessFile raf = new RandomAccessFile(path, "r")) {
+            return ShortMappedBigList.map(raf.getChannel());
+        }
+    }
+
+    private static ByteBigList loadMappedBytes(String path) throws IOException {
+        try (RandomAccessFile raf = new RandomAccessFile(path, "r")) {
+            return ByteMappedBigList.map(raf.getChannel());
+        }
+    }
+
+    private static LongBigList loadEFLongs(String path) throws IOException {
+        try {
+            return (EliasFanoLongBigList) BinIO.loadObject(path);
+        } catch (ClassNotFoundException e) {
+            throw new IOException(e);
+        }
+    }
+
+    private static byte[] getLine(ByteBigList byteArray, long start) {
+        long end = start;
+        while (end < byteArray.size64() && byteArray.getByte(end) != '\n') {
+            end++;
+        }
+        int length = (int) (end - start);
+        byte[] buffer = new byte[length];
+        byteArray.getElements(start, buffer, 0, length);
+        return buffer;
+    }
+
+    /** Load the sizes of the content nodes */
+    public void loadContentLength() throws IOException {
+        contentLength = loadMappedLongs(path + ".property.content.length.bin");
+    }
+
+    /** Get the size (in bytes) of the given content node */
+    public long getContentLength(long nodeId) {
+        return contentLength.getLong(nodeId);
+    }
+
+    /** Load the IDs of the persons (authors and committers) */
+    public void loadPersonIds() throws IOException {
+        authorId = loadMappedInts(path + ".property.author_id.bin");
+        committerId = loadMappedInts(path + ".property.committer_id.bin");
+    }
+
+    /** Get a unique integer ID representing the author of the given revision or release node */
+    public long getAuthorId(long nodeId) {
+        if (authorId == null) {
+            throw new IllegalStateException("Author IDs not loaded");
+        }
+        return authorId.getInt(nodeId);
+    }
+
+    /** Get a unique integer ID representing the committer of the given revision node */
+    public long getCommitterId(long nodeId) {
+        if (committerId == null) {
+            throw new IllegalStateException("Committer IDs not loaded");
+        }
+        return committerId.getInt(nodeId);
+    }
+
+    /**
+     * Loads a boolean array indicating whether the given content node was skipped during archive
+     * ingestion
+     */
+    public void loadContentIsSkipped() throws IOException {
+        try {
+            contentIsSkipped = (LongArrayBitVector) BinIO.loadObject(path + ".property.content.is_skipped.bin");
+        } catch (ClassNotFoundException e) {
+            throw new IOException(e);
+        }
+    }
+
+    /** Returns whether the given content node was skipped during archive ingestion */
+    public boolean isContentSkipped(long nodeId) {
+        if (contentIsSkipped == null) {
+            throw new IllegalStateException("Skipped content array not loaded");
+        }
+        return contentIsSkipped.getBoolean(nodeId);
+    }
+
+    /** Load the timestamps at which the releases and revisions were authored */
+    public void loadAuthorTimestamps() throws IOException {
+        authorTimestamp = loadMappedLongs(path + ".property.author_timestamp.bin");
+        authorTimestampOffset = loadMappedShorts(path + ".property.author_timestamp_offset.bin");
+    }
+
+    /** Return the timestamp at which the given revision or release was authored */
+    public long getAuthorTimestamp(long nodeId) {
+        if (authorTimestamp == null) {
+            throw new IllegalStateException("Author timestamps not loaded");
+        }
+        return authorTimestamp.getLong(nodeId);
+    }
+
+    /** Return the timestamp offset at which the given revision or release was authored */
+    public short getAuthorTimestampOffset(long nodeId) {
+        if (authorTimestampOffset == null) {
+            throw new IllegalStateException("Author timestamp offsets not loaded");
+        }
+        return authorTimestampOffset.getShort(nodeId);
+    }
+
+    /** Load the timestamps at which the releases and revisions were committed */
+    public void loadCommitterTimestamps() throws IOException {
+        committerTimestamp = loadMappedLongs(path + ".property.committer_timestamp.bin");
+        committerTimestampOffset = loadMappedShorts(path + ".property.committer_timestamp_offset.bin");
+    }
+
+    /** Return the timestamp at which the given revision was committed */
+    public long getCommitterTimestamp(long nodeId) {
+        if (committerTimestamp == null) {
+            throw new IllegalStateException("Committer timestamps not loaded");
+        }
+        return committerTimestamp.getLong(nodeId);
+    }
+
+    /** Return the timestamp offset at which the given revision was committed */
+    public short getCommitterTimestampOffset(long nodeId) {
+        if (committerTimestampOffset == null) {
+            throw new IllegalStateException("Committer timestamp offsets not loaded");
+        }
+        return committerTimestampOffset.getShort(nodeId);
+    }
+
+    /** Load the revision messages, the release messages and the origin URLs */
+    public void loadMessages() throws IOException {
+        messageBuffer = loadMappedBytes(path + ".property.message.bin");
+        messageOffsets = loadMappedLongs(path + ".property.message.offset.bin");
+    }
+
+    /** Get the message of the given revision or release node */
+    public byte[] getMessage(long nodeId) throws IOException {
+        if (messageBuffer == null || messageOffsets == null) {
+            throw new IllegalStateException("Messages not loaded");
+        }
+        long startOffset = messageOffsets.getLong(nodeId);
+        if (startOffset == -1) {
+            return null;
+        }
+        return Base64.getDecoder().decode(getLine(messageBuffer, startOffset));
+    }
+
+    /** Get the URL of the given origin node */
+    public String getUrl(long nodeId) throws IOException {
+        return new String(getMessage(nodeId));
+    }
+
+    /** Load the release names */
+    public void loadTagNames() throws IOException {
+        tagNameBuffer = loadMappedBytes(path + ".property.tag_name.bin");
+        tagNameOffsets = loadMappedLongs(path + ".property.tag_name.offset.bin");
+    }
+
+    /** Get the name of the given release node */
+    public byte[] getTagName(long nodeId) throws IOException {
+        if (tagNameBuffer == null || tagNameOffsets == null) {
+            throw new IllegalStateException("Tag names not loaded");
+        }
+        long startOffset = tagNameOffsets.getLong(nodeId);
+        if (startOffset == -1) {
+            return null;
+        }
+        return Base64.getDecoder().decode(getLine(tagNameBuffer, startOffset));
+    }
+
+    /** Load the arc label names (directory entry names and snapshot branch names) */
+    public void loadLabelNames() throws IOException {
+        try {
+            edgeLabelNames = MappedFrontCodedStringBigList.load(path + ".labels.fcl");
+        } catch (ConfigurationException e) {
+            throw new IOException(e);
+        }
+    }
+
+    /**
+     * Get the arc label name (either a directory entry name or snapshot branch name) associated with
+     * the given label ID
+     */
+    public byte[] getLabelName(long labelId) {
+        if (edgeLabelNames == null) {
+            throw new IllegalStateException("Label names not loaded");
+        }
+        return Base64.getDecoder().decode(edgeLabelNames.getArray(labelId));
     }
 }

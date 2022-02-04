@@ -8,6 +8,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.TimestampColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
@@ -36,7 +37,10 @@ public class ORCGraphDataset implements GraphDataset {
 
     final static public int ORC_BATCH_SIZE = 16 * 1024;
 
-    private final File datasetDir;
+    private File datasetDir;
+
+    protected ORCGraphDataset() {
+    }
 
     public ORCGraphDataset(String datasetPath) {
         this(new File(datasetPath));
@@ -141,6 +145,17 @@ public class ORCGraphDataset implements GraphDataset {
                     columnVector.start[row] + columnVector.length[row]);
         }
 
+        /**
+         * Utility function for long columns. Return as a long the value of the given row in the column
+         * vector.
+         */
+        public static long getLongRow(LongColumnVector columnVector, int row) {
+            if (columnVector.isRepeating) {
+                row = 0;
+            }
+            return columnVector.vector[row];
+        }
+
         interface ReadOrcBatchHandler {
             void accept(VectorizedRowBatch batch, Map<String, Integer> columnMap) throws IOException;
         }
@@ -207,14 +222,27 @@ public class ORCGraphDataset implements GraphDataset {
 
     /** Base class for SWH-specific ORC tables. */
     public static class SwhOrcTable {
-        protected final ORCTable orcTable;
+        protected ORCTable orcTable;
 
         protected static final byte[] cntPrefix = "swh:1:cnt:".getBytes();
-        protected static byte[] dirPrefix = "swh:1:dir:".getBytes();
-        protected static byte[] revPrefix = "swh:1:rev:".getBytes();
-        protected static byte[] relPrefix = "swh:1:rel:".getBytes();
-        protected static byte[] snpPrefix = "swh:1:snp:".getBytes();
-        protected static byte[] oriPrefix = "swh:1:ori:".getBytes();
+        protected static final byte[] dirPrefix = "swh:1:dir:".getBytes();
+        protected static final byte[] revPrefix = "swh:1:rev:".getBytes();
+        protected static final byte[] relPrefix = "swh:1:rel:".getBytes();
+        protected static final byte[] snpPrefix = "swh:1:snp:".getBytes();
+        protected static final byte[] oriPrefix = "swh:1:ori:".getBytes();
+
+        protected String getIdColumn() {
+            return "id";
+        }
+        protected byte[] getSwhidPrefix() {
+            throw new UnsupportedOperationException();
+        }
+        protected byte[] idToSwhid(byte[] id) {
+            return Bytes.concat(getSwhidPrefix(), id);
+        }
+
+        protected SwhOrcTable() {
+        }
 
         public SwhOrcTable(File tableDir) {
             orcTable = new ORCTable(tableDir);
@@ -227,6 +255,59 @@ public class ORCGraphDataset implements GraphDataset {
         protected static byte[] urlToOriginId(byte[] url) {
             return DigestUtils.sha1Hex(url).getBytes();
         }
+
+        public void readIdColumn(NodeCallback cb) throws IOException {
+            orcTable.readOrcTable((batch, columnMap) -> {
+                BytesColumnVector idVector = (BytesColumnVector) batch.cols[columnMap.get(getIdColumn())];
+
+                for (int row = 0; row < batch.size; row++) {
+                    byte[] id = idToSwhid(ORCTable.getBytesRow(idVector, row));
+                    cb.onNode(id);
+                }
+            }, Set.of(getIdColumn()));
+        }
+
+        public void readLongColumn(String longColumn, LongCallback cb) throws IOException {
+            orcTable.readOrcTable((batch, columnMap) -> {
+                BytesColumnVector idVector = (BytesColumnVector) batch.cols[columnMap.get(getIdColumn())];
+                LongColumnVector dateVector = (LongColumnVector) batch.cols[columnMap.get(longColumn)];
+
+                for (int row = 0; row < batch.size; row++) {
+                    byte[] id = idToSwhid(ORCTable.getBytesRow(idVector, row));
+                    long date = ORCTable.getLongRow(dateVector, row);
+                    cb.onLong(id, date);
+                }
+            }, Set.of(getIdColumn(), longColumn));
+        }
+
+        public void readTimestampColumn(String dateColumn, String dateOffsetColumn, TimestampCallback cb)
+                throws IOException {
+            orcTable.readOrcTable((batch, columnMap) -> {
+                BytesColumnVector idVector = (BytesColumnVector) batch.cols[columnMap.get(getIdColumn())];
+                TimestampColumnVector dateVector = (TimestampColumnVector) batch.cols[columnMap.get(dateColumn)];
+                LongColumnVector dateOffsetVector = (LongColumnVector) batch.cols[columnMap.get(dateOffsetColumn)];
+
+                for (int row = 0; row < batch.size; row++) {
+                    byte[] id = idToSwhid(ORCTable.getBytesRow(idVector, row));
+                    long date = dateVector.getTimestampAsLong(row); // rounded to seconds
+                    short dateOffset = (short) ORCTable.getLongRow(dateOffsetVector, row);
+                    cb.onTimestamp(id, date, dateOffset);
+                }
+            }, Set.of(getIdColumn(), dateColumn, dateOffsetColumn));
+        }
+
+        public void readBytes64Column(String longColumn, BytesCallback cb) throws IOException {
+            orcTable.readOrcTable((batch, columnMap) -> {
+                BytesColumnVector idVector = (BytesColumnVector) batch.cols[columnMap.get(getIdColumn())];
+                BytesColumnVector valueVector = (BytesColumnVector) batch.cols[columnMap.get(longColumn)];
+
+                for (int row = 0; row < batch.size; row++) {
+                    byte[] id = idToSwhid(ORCTable.getBytesRow(idVector, row));
+                    byte[] value = Base64.getEncoder().encode(ORCTable.getBytesRow(valueVector, row));
+                    cb.onBytes(id, value);
+                }
+            }, Set.of(getIdColumn(), longColumn));
+        }
     }
 
     public static class SkippedContentOrcTable extends SwhOrcTable {
@@ -235,14 +316,18 @@ public class ORCGraphDataset implements GraphDataset {
         }
 
         @Override
+        protected String getIdColumn() {
+            return "sha1_git";
+        }
+
+        @Override
+        protected byte[] getSwhidPrefix() {
+            return cntPrefix;
+        }
+
+        @Override
         public void readEdges(GraphDataset.NodeCallback nodeCb, GraphDataset.EdgeCallback edgeCb) throws IOException {
-            orcTable.readOrcTable((batch, columnMap) -> {
-                BytesColumnVector contentIdVector = (BytesColumnVector) batch.cols[columnMap.get("sha1_git")];
-                for (int row = 0; row < batch.size; row++) {
-                    byte[] contentId = Bytes.concat(cntPrefix, ORCTable.getBytesRow(contentIdVector, row));
-                    nodeCb.onNode(contentId);
-                }
-            }, Set.of("sha1_git"));
+            readIdColumn(nodeCb);
         }
     }
 
@@ -252,14 +337,18 @@ public class ORCGraphDataset implements GraphDataset {
         }
 
         @Override
+        protected String getIdColumn() {
+            return "sha1_git";
+        }
+
+        @Override
+        protected byte[] getSwhidPrefix() {
+            return cntPrefix;
+        }
+
+        @Override
         public void readEdges(GraphDataset.NodeCallback nodeCb, GraphDataset.EdgeCallback edgeCb) throws IOException {
-            orcTable.readOrcTable((batch, columnMap) -> {
-                BytesColumnVector contentIdVector = (BytesColumnVector) batch.cols[columnMap.get("sha1_git")];
-                for (int row = 0; row < batch.size; row++) {
-                    byte[] contentId = Bytes.concat(cntPrefix, ORCTable.getBytesRow(contentIdVector, row));
-                    nodeCb.onNode(contentId);
-                }
-            }, Set.of("sha1_git"));
+            readIdColumn(nodeCb);
         }
     }
 
@@ -269,14 +358,13 @@ public class ORCGraphDataset implements GraphDataset {
         }
 
         @Override
+        protected byte[] getSwhidPrefix() {
+            return dirPrefix;
+        }
+
+        @Override
         public void readEdges(GraphDataset.NodeCallback nodeCb, GraphDataset.EdgeCallback edgeCb) throws IOException {
-            orcTable.readOrcTable((batch, columnMap) -> {
-                BytesColumnVector directoryIdVector = (BytesColumnVector) batch.cols[columnMap.get("id")];
-                for (int row = 0; row < batch.size; row++) {
-                    byte[] directoryId = Bytes.concat(dirPrefix, ORCTable.getBytesRow(directoryIdVector, row));
-                    nodeCb.onNode(directoryId);
-                }
-            }, Set.of("id"));
+            readIdColumn(nodeCb);
         }
     }
 
@@ -314,8 +402,8 @@ public class ORCGraphDataset implements GraphDataset {
                     byte[] src = Bytes.concat(dirPrefix, ORCTable.getBytesRow(srcVector, row));
                     byte[] dst = Bytes.concat(targetPrefix, ORCTable.getBytesRow(dstVector, row));
                     byte[] label = Base64.getEncoder().encode(ORCTable.getBytesRow(labelVector, row));
-                    long permission = permissionVector.vector[row];
-                    edgeCb.onEdge(src, dst, label, permission);
+                    long permission = ORCTable.getLongRow(permissionVector, row);
+                    edgeCb.onEdge(src, dst, label, (int) permission);
                 }
             }, Set.of("directory_id", "target", "type", "name", "perms"));
         }
@@ -324,6 +412,11 @@ public class ORCGraphDataset implements GraphDataset {
     public static class RevisionOrcTable extends SwhOrcTable {
         public RevisionOrcTable(File tableDir) {
             super(tableDir);
+        }
+
+        @Override
+        protected byte[] getSwhidPrefix() {
+            return revPrefix;
         }
 
         @Override
@@ -354,7 +447,7 @@ public class ORCGraphDataset implements GraphDataset {
                 for (int row = 0; row < batch.size; row++) {
                     byte[] parentId = Bytes.concat(revPrefix, ORCTable.getBytesRow(parentIdVector, row));
                     byte[] revisionId = Bytes.concat(revPrefix, ORCTable.getBytesRow(revisionIdVector, row));
-                    edgeCb.onEdge(parentId, revisionId, null, -1);
+                    edgeCb.onEdge(revisionId, parentId, null, -1);
                 }
             }, Set.of("id", "parent_id"));
         }
@@ -363,6 +456,11 @@ public class ORCGraphDataset implements GraphDataset {
     public static class ReleaseOrcTable extends SwhOrcTable {
         public ReleaseOrcTable(File tableDir) {
             super(tableDir);
+        }
+
+        @Override
+        protected byte[] getSwhidPrefix() {
+            return relPrefix;
         }
 
         @Override
@@ -408,14 +506,13 @@ public class ORCGraphDataset implements GraphDataset {
         }
 
         @Override
+        protected byte[] getSwhidPrefix() {
+            return snpPrefix;
+        }
+
+        @Override
         public void readEdges(GraphDataset.NodeCallback nodeCb, GraphDataset.EdgeCallback edgeCb) throws IOException {
-            orcTable.readOrcTable((batch, columnMap) -> {
-                BytesColumnVector snapshotIdVector = (BytesColumnVector) batch.cols[columnMap.get("id")];
-                for (int row = 0; row < batch.size; row++) {
-                    byte[] snapshotId = Bytes.concat(snpPrefix, ORCTable.getBytesRow(snapshotIdVector, row));
-                    nodeCb.onNode(snapshotId);
-                }
-            }, Set.of("id"));
+            readIdColumn(nodeCb);
         }
     }
 
@@ -497,15 +594,35 @@ public class ORCGraphDataset implements GraphDataset {
         }
 
         @Override
+        protected byte[] getSwhidPrefix() {
+            return oriPrefix;
+        }
+
+        @Override
+        protected byte[] idToSwhid(byte[] id) {
+            return Bytes.concat(getSwhidPrefix(), urlToOriginId(id));
+        }
+
+        @Override
+        protected String getIdColumn() {
+            return "url";
+        }
+
+        @Override
         public void readEdges(GraphDataset.NodeCallback nodeCb, GraphDataset.EdgeCallback edgeCb) throws IOException {
+            readIdColumn(nodeCb);
+        }
+
+        public void readURLs(BytesCallback cb) throws IOException {
             orcTable.readOrcTable((batch, columnMap) -> {
-                BytesColumnVector originUrlVector = (BytesColumnVector) batch.cols[columnMap.get("url")];
+                BytesColumnVector urlVector = (BytesColumnVector) batch.cols[columnMap.get(getIdColumn())];
+
                 for (int row = 0; row < batch.size; row++) {
-                    byte[] originId = Bytes.concat(oriPrefix,
-                            urlToOriginId(ORCTable.getBytesRow(originUrlVector, row)));
-                    nodeCb.onNode(originId);
+                    byte[] id = idToSwhid(ORCTable.getBytesRow(urlVector, row));
+                    byte[] url = Base64.getEncoder().encode(ORCTable.getBytesRow(urlVector, row));
+                    cb.onBytes(id, url);
                 }
-            }, Set.of("url"));
+            }, Set.of(getIdColumn()));
         }
     }
 

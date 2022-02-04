@@ -21,69 +21,59 @@ public class VisitTest extends GraphTest {
     @Test
     public void forwardFromRoot() {
         SwhBidirectionalGraph graph = getGraph();
-        SWHID swhid = new SWHID("swh:1:ori:0000000000000000000000000000000000000021");
+        SWHID swhid = new SWHID(TEST_ORIGIN_ID);
         Endpoint endpoint1 = new Endpoint(graph, "forward", "*");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
         Endpoint endpoint2 = new Endpoint(graph, "forward", "*");
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
-                "swh:1:snp:0000000000000000000000000000000000000020",
+        expectedPaths.add(new SwhPath(TEST_ORIGIN_ID, "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:cnt:0000000000000000000000000000000000000007"));
-        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
-                "swh:1:snp:0000000000000000000000000000000000000020",
+        expectedPaths.add(new SwhPath(TEST_ORIGIN_ID, "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:cnt:0000000000000000000000000000000000000001"));
-        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
-                "swh:1:snp:0000000000000000000000000000000000000020",
+        expectedPaths.add(new SwhPath(TEST_ORIGIN_ID, "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
                 "swh:1:cnt:0000000000000000000000000000000000000004"));
-        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
-                "swh:1:snp:0000000000000000000000000000000000000020",
+        expectedPaths.add(new SwhPath(TEST_ORIGIN_ID, "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
                 "swh:1:cnt:0000000000000000000000000000000000000005"));
-        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
-                "swh:1:snp:0000000000000000000000000000000000000020",
+        expectedPaths.add(new SwhPath(TEST_ORIGIN_ID, "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:rev:0000000000000000000000000000000000000003",
                 "swh:1:dir:0000000000000000000000000000000000000002",
                 "swh:1:cnt:0000000000000000000000000000000000000001"));
-        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
-                "swh:1:snp:0000000000000000000000000000000000000020",
+        expectedPaths.add(new SwhPath(TEST_ORIGIN_ID, "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rel:0000000000000000000000000000000000000010",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:cnt:0000000000000000000000000000000000000007"));
-        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
-                "swh:1:snp:0000000000000000000000000000000000000020",
+        expectedPaths.add(new SwhPath(TEST_ORIGIN_ID, "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rel:0000000000000000000000000000000000000010",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:cnt:0000000000000000000000000000000000000001"));
-        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
-                "swh:1:snp:0000000000000000000000000000000000000020",
+        expectedPaths.add(new SwhPath(TEST_ORIGIN_ID, "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rel:0000000000000000000000000000000000000010",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
                 "swh:1:cnt:0000000000000000000000000000000000000004"));
-        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
-                "swh:1:snp:0000000000000000000000000000000000000020",
+        expectedPaths.add(new SwhPath(TEST_ORIGIN_ID, "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rel:0000000000000000000000000000000000000010",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000006",
                 "swh:1:cnt:0000000000000000000000000000000000000005"));
-        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021",
-                "swh:1:snp:0000000000000000000000000000000000000020",
+        expectedPaths.add(new SwhPath(TEST_ORIGIN_ID, "swh:1:snp:0000000000000000000000000000000000000020",
                 "swh:1:rel:0000000000000000000000000000000000000010",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:rev:0000000000000000000000000000000000000003",
@@ -144,14 +134,14 @@ public class VisitTest extends GraphTest {
     @Test
     public void backwardFromRoot() {
         SwhBidirectionalGraph graph = getGraph();
-        SWHID swhid = new SWHID("swh:1:ori:0000000000000000000000000000000000000021");
+        SWHID swhid = new SWHID(TEST_ORIGIN_ID);
         Endpoint endpoint1 = new Endpoint(graph, "backward", "*");
         ArrayList<SwhPath> paths = (ArrayList) endpoint1.visitPaths(new Endpoint.Input(swhid)).result;
         Endpoint endpoint2 = new Endpoint(graph, "backward", "*");
         ArrayList<SWHID> nodes = (ArrayList) endpoint2.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SwhPath> expectedPaths = new ArrayList<SwhPath>();
-        expectedPaths.add(new SwhPath("swh:1:ori:0000000000000000000000000000000000000021"));
+        expectedPaths.add(new SwhPath(TEST_ORIGIN_ID));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -204,15 +194,13 @@ public class VisitTest extends GraphTest {
                 "swh:1:dir:0000000000000000000000000000000000000006",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:rev:0000000000000000000000000000000000000009",
-                "swh:1:snp:0000000000000000000000000000000000000020",
-                "swh:1:ori:0000000000000000000000000000000000000021"));
+                "swh:1:snp:0000000000000000000000000000000000000020", TEST_ORIGIN_ID));
         expectedPaths.add(new SwhPath("swh:1:cnt:0000000000000000000000000000000000000004",
                 "swh:1:dir:0000000000000000000000000000000000000006",
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:rev:0000000000000000000000000000000000000009",
                 "swh:1:rel:0000000000000000000000000000000000000010",
-                "swh:1:snp:0000000000000000000000000000000000000020",
-                "swh:1:ori:0000000000000000000000000000000000000021"));
+                "swh:1:snp:0000000000000000000000000000000000000020", TEST_ORIGIN_ID));
 
         GraphTest.assertEqualsAnyOrder(expectedPaths, paths);
         assertSameNodesFromPaths(expectedPaths, nodes);
@@ -378,12 +366,12 @@ public class VisitTest extends GraphTest {
     @Test
     public void forwardFromRootNodesOnly() {
         SwhBidirectionalGraph graph = getGraph();
-        SWHID swhid = new SWHID("swh:1:ori:0000000000000000000000000000000000000021");
+        SWHID swhid = new SWHID(TEST_ORIGIN_ID);
         Endpoint endpoint = new Endpoint(graph, "forward", "*");
         ArrayList<SWHID> nodes = (ArrayList) endpoint.visitNodes(new Endpoint.Input(swhid)).result;
 
         ArrayList<SWHID> expectedNodes = new ArrayList<SWHID>();
-        expectedNodes.add(new SWHID("swh:1:ori:0000000000000000000000000000000000000021"));
+        expectedNodes.add(new SWHID(TEST_ORIGIN_ID));
         expectedNodes.add(new SWHID("swh:1:snp:0000000000000000000000000000000000000020"));
         expectedNodes.add(new SWHID("swh:1:rel:0000000000000000000000000000000000000010"));
         expectedNodes.add(new SWHID("swh:1:rev:0000000000000000000000000000000000000009"));

@@ -1,8 +1,6 @@
 package org.softwareheritage.graph.utils;
 
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
-import it.unimi.dsi.fastutil.BigArrays;
-import it.unimi.dsi.fastutil.io.BinIO;
 import org.softwareheritage.graph.*;
 
 import java.io.IOException;
@@ -39,7 +37,7 @@ public class FindEarliestRevision {
 
         System.err.println("loading revision timestamps...");
         ts = System.nanoTime();
-        long[][] committerTimestamps = BinIO.loadLongsBig(graphPath + "-rev_committer_timestamps.bin");
+        graph.loadCommitterTimestamps();
         elapsed = Duration.ofNanos(System.nanoTime() - ts);
         System.err.println(String.format("revision timestamps loaded (duration: %s).", elapsed));
 
@@ -79,7 +77,7 @@ public class FindEarliestRevision {
             while (!stack.isEmpty()) {
                 long currentNodeId = stack.pop();
                 if (graph.getNodeType(currentNodeId) == Node.Type.REV) {
-                    long committerTs = BigArrays.get(committerTimestamps, currentNodeId);
+                    long committerTs = graph.getCommitterTimestamp(currentNodeId);
                     if (committerTs < minTimestamp) {
                         minRevId = currentNodeId;
                         minTimestamp = committerTs;
@@ -103,11 +101,10 @@ public class FindEarliestRevision {
             if (timing) {
                 elapsedNanos = System.nanoTime() - ts; // processing time for current SWHID
                 elapsed = elapsed.plus(Duration.ofNanos(elapsedNanos)); // cumulative processing time for all SWHIDs
-                System.err.println(String.format("visit time (s):\t%.6f", (double) elapsedNanos / 1_000_000_000));
+                System.err.printf("visit time (s):\t%.6f\n", (double) elapsedNanos / 1_000_000_000);
             }
         }
         if (timing)
-            System.err.println(String.format("processed %d SWHIDs in %s (%s avg)", lineCount, elapsed,
-                    elapsed.dividedBy(lineCount)));
+            System.err.printf("processed %d SWHIDs in %s (%s avg)\n", lineCount, elapsed, elapsed.dividedBy(lineCount));
     }
 }

@@ -1,6 +1,7 @@
 package org.softwareheritage.graph;
 
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledNodeIterator;
+import it.unimi.dsi.big.webgraph.BidirectionalImmutableGraph;
 import it.unimi.dsi.logging.ProgressLogger;
 
 import java.io.IOException;
@@ -48,7 +49,7 @@ import java.io.InputStream;
 
 public class SwhBidirectionalGraph extends BidirectionalImmutableGraph implements SwhGraph {
     /** Property data of the graph (id/type mappings etc.) */
-    private final SwhGraphProperties properties;
+    public final SwhGraphProperties properties;
 
     private final SwhUnidirectionalGraph forwardGraph;
     private final SwhUnidirectionalGraph backwardGraph;
@@ -62,9 +63,9 @@ public class SwhBidirectionalGraph extends BidirectionalImmutableGraph implement
     }
 
     private SwhBidirectionalGraph(BidirectionalImmutableGraph graph, SwhGraphProperties properties) {
-        super(graph.getForwardGraph(), graph.getBackwardGraph());
-        this.forwardGraph = (SwhUnidirectionalGraph) graph.getForwardGraph();
-        this.backwardGraph = (SwhUnidirectionalGraph) graph.getBackwardGraph();
+        super(graph.forward, graph.backward);
+        this.forwardGraph = (SwhUnidirectionalGraph) graph.forward;
+        this.backwardGraph = (SwhUnidirectionalGraph) graph.backward;
         this.properties = properties;
     }
 
@@ -172,19 +173,8 @@ public class SwhBidirectionalGraph extends BidirectionalImmutableGraph implement
         this.properties.close();
     }
 
-    public String getPath() {
-        return properties.getPath();
-    }
-
-    public long getNodeId(SWHID swhid) {
-        return properties.getNodeId(swhid);
-    }
-
-    public SWHID getSWHID(long nodeId) {
-        return properties.getSWHID(nodeId);
-    }
-
-    public Node.Type getNodeType(long nodeId) {
-        return properties.getNodeType(nodeId);
+    @Override
+    public SwhGraphProperties getProperties() {
+        return properties;
     }
 }

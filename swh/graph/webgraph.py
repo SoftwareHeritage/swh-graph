@@ -19,21 +19,28 @@ from swh.graph.config import check_config_compress
 
 
 class CompressionStep(Enum):
-    MPH = 1
-    BV = 2
-    BFS = 3
-    PERMUTE_BFS = 4
-    TRANSPOSE_BFS = 5
-    SIMPLIFY = 6
-    LLP = 7
-    PERMUTE_LLP = 8
-    OBL = 9
-    COMPOSE_ORDERS = 10
-    STATS = 11
-    TRANSPOSE = 12
-    TRANSPOSE_OBL = 13
-    MAPS = 14
-    CLEAN_TMP = 15
+    EXTRACT_NODES = 1
+    MPH = 2
+    BV = 3
+    BFS = 4
+    PERMUTE_BFS = 5
+    TRANSPOSE_BFS = 6
+    SIMPLIFY = 7
+    LLP = 8
+    PERMUTE_LLP = 9
+    OBL = 10
+    COMPOSE_ORDERS = 11
+    STATS = 12
+    TRANSPOSE = 13
+    TRANSPOSE_OBL = 14
+    MAPS = 15
+    EXTRACT_PERSONS = 16
+    MPH_PERSONS = 17
+    NODE_PROPERTIES = 18
+    MPH_LABELS = 19
+    FCL_LABELS = 20
+    EDGE_LABELS = 21
+    CLEAN_TMP = 22
 
     def __str__(self):
         return self.name
@@ -48,20 +55,33 @@ COMP_SEQ = list(CompressionStep)
 # of line splitting. In commands, {tokens} will be interpolated with
 # configuration values, see :func:`compress`.
 STEP_ARGV: Dict[CompressionStep, List[str]] = {
+    CompressionStep.EXTRACT_NODES: [
+        "{java}",
+        "org.softwareheritage.graph.compress.ExtractNodes",
+        "--format",
+        "orc",
+        "--temp-dir",
+        "{tmp_dir}",
+        "{in_dir}",
+        "{out_dir}/{graph_name}",
+    ],
     CompressionStep.MPH: [
         "{java}",
         "it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction",
         "--byte-array",
         "--temp-dir",
         "{tmp_dir}",
+        "--decompressor",
+        "com.github.luben.zstd.ZstdInputStream",
         "{out_dir}/{graph_name}.mph",
-        "<( zstdcat {in_dir}/{graph_name}.nodes.csv.zst )",
+        "{out_dir}/{graph_name}.nodes.csv.zst",
     ],
     # use process substitution (and hence FIFO) above as MPH class load the
     # entire file in memory when reading from stdin
     CompressionStep.BV: [
-        "zstdcat",
-        "{in_dir}/{graph_name}.edges.csv.zst",
+        "{java}",
+        "org.softwareheritage.graph.compress.ORCGraphDataset",
+        "{in_dir}",
         "|",
         "cut -d' ' -f1,2",
         "|",
@@ -159,13 +179,63 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-transposed",
     ],
     CompressionStep.MAPS: [
-        "zstdcat",
-        "{in_dir}/{graph_name}.nodes.csv.zst",
-        "|",
         "{java}",
         "org.softwareheritage.graph.compress.NodeMapBuilder",
         "{out_dir}/{graph_name}",
         "{tmp_dir}",
+        "< {out_dir}/{graph_name}.nodes.csv.zst",
+    ],
+    CompressionStep.MPH_PERSONS: [
+        "{java}",
+        "it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction",
+        "--byte-array",
+        "--decompressor",
+        "com.github.luben.zstd.ZstdInputStream",
+        "--temp-dir",
+        "{tmp_dir}",
+        "{out_dir}/{graph_name}.persons.mph",
+        "{out_dir}/{graph_name}.persons.csv.zst",
+    ],
+    CompressionStep.EXTRACT_PERSONS: [
+        "{java}",
+        "org.softwareheritage.graph.compress.ExtractPersons",
+        "--temp-dir",
+        "{tmp_dir}",
+        "{in_dir}",
+        "{out_dir}/{graph_name}",
+    ],
+    CompressionStep.NODE_PROPERTIES: [
+        "{java}",
+        "org.softwareheritage.graph.compress.WriteNodeProperties",
+        "{in_dir}",
+        "{out_dir}/{graph_name}",
+    ],
+    CompressionStep.MPH_LABELS: [
+        "{java}",
+        "it.unimi.dsi.sux4j.mph.LcpMonotoneMinimalPerfectHashFunction",
+        "--byte-array",
+        "--temp-dir",
+        "{tmp_dir}",
+        "--decompressor",
+        "com.github.luben.zstd.ZstdInputStream",
+        "{out_dir}/{graph_name}.labels.mph",
+        "{out_dir}/{graph_name}.labels.csv.zst",
+    ],
+    CompressionStep.FCL_LABELS: [
+        "{java}",
+        "it.unimi.dsi.big.util.MappedFrontCodedStringBigList",
+        "--decompressor",
+        "com.github.luben.zstd.ZstdInputStream",
+        "{out_dir}/{graph_name}.labels.fcl",
+        "< {out_dir}/{graph_name}.labels.csv.zst",
+    ],
+    CompressionStep.EDGE_LABELS: [
+        "{java}",
+        "org.softwareheritage.graph.compress.LabelMapBuilder",
+        "--temp-dir",
+        "{tmp_dir}",
+        "{in_dir}",
+        "{out_dir}/{graph_name}",
     ],
     CompressionStep.CLEAN_TMP: [
         "rm",

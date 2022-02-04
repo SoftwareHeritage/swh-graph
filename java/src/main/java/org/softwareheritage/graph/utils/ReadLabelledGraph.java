@@ -1,12 +1,8 @@
 package org.softwareheritage.graph.utils;
 
-import it.unimi.dsi.big.util.FrontCodedStringBigList;
-import it.unimi.dsi.big.webgraph.labelling.ArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledNodeIterator;
-import it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph;
-import it.unimi.dsi.fastutil.io.BinIO;
+import org.softwareheritage.graph.SwhUnidirectionalGraph;
 import org.softwareheritage.graph.labels.DirEntry;
-import org.softwareheritage.graph.maps.NodeIdMap;
 
 import java.io.IOException;
 
@@ -14,11 +10,10 @@ public class ReadLabelledGraph {
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         String graphPath = args[0];
 
-        ArcLabelledImmutableGraph graph = BitStreamArcLabelledImmutableGraph.loadOffline(graphPath + "-labelled");
-        NodeIdMap nodeMap = new NodeIdMap(graphPath);
-        FrontCodedStringBigList filenameMap = (FrontCodedStringBigList) BinIO.loadObject(graphPath + "-labels.fcl");
+        SwhUnidirectionalGraph graph = SwhUnidirectionalGraph.loadLabelled(graphPath);
+        graph.properties.loadLabelNames();
 
-        ArcLabelledNodeIterator it = graph.nodeIterator();
+        ArcLabelledNodeIterator it = graph.labelledNodeIterator();
         while (it.hasNext()) {
             long srcNode = it.nextLong();
 
@@ -28,11 +23,11 @@ public class ReadLabelledGraph {
                 DirEntry[] labels = (DirEntry[]) s.label().get();
                 if (labels.length > 0) {
                     for (DirEntry label : labels) {
-                        System.out.format("%s %s %s %d\n", nodeMap.getSWHID(srcNode), nodeMap.getSWHID(dstNode),
-                                filenameMap.get(label.filenameId), label.permission);
+                        System.out.format("%s %s %s %d\n", graph.getSWHID(srcNode), graph.getSWHID(dstNode),
+                                new String(graph.properties.getLabelName(label.filenameId)), label.permission);
                     }
                 } else {
-                    System.out.format("%s %s\n", nodeMap.getSWHID(srcNode), nodeMap.getSWHID(dstNode));
+                    System.out.format("%s %s\n", graph.getSWHID(srcNode), graph.getSWHID(dstNode));
                 }
             }
         }

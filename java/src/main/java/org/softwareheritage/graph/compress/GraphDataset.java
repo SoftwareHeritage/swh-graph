@@ -12,7 +12,7 @@ public interface GraphDataset {
     }
 
     interface EdgeCallback {
-        void onEdge(byte[] src, byte[] dst, byte[] label, long permission) throws IOException;
+        void onEdge(byte[] src, byte[] dst, byte[] label, int permission) throws IOException;
     }
 
     /**
@@ -41,4 +41,20 @@ public interface GraphDataset {
      * @param edgeCb callback for each edge
      */
     void readEdges(NodeCallback nodeCb, EdgeCallback edgeCb) throws IOException;
+
+    interface TimestampCallback {
+        void onTimestamp(byte[] swhid, long timestamp, short offset) throws IOException;
+    }
+
+    interface LongCallback {
+        void onLong(byte[] swhid, long value) throws IOException;
+    }
+
+    interface BytesCallback {
+        void onBytes(byte[] swhid, byte[] value) throws IOException;
+    }
+
+    interface HashedEdgeCallback {
+        void onHashedEdge(long src, long dst, long label, int permission) throws IOException;
+    }
 }

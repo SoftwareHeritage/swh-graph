@@ -70,7 +70,7 @@ class Backend:
             m = re.search(r"malformed SWHID: (\w+)", str(e))
             if m:
                 raise ValueError(f"malformed SWHID: {m[1]}")
-            m = re.search(r"Unknown SWHID: (\w+)", str(e))
+            m = re.search(r"Unknown SWHID: ([:\w]+)", str(e))
             if m:
                 raise NameError(f"Unknown SWHID: {m[1]}")
             raise

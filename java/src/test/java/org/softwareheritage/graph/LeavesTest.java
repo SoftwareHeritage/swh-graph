@@ -57,7 +57,7 @@ public class LeavesTest extends GraphTest {
         Endpoint endpoint2 = new Endpoint(graph, "backward", "*");
         SWHID src2 = new SWHID("swh:1:cnt:0000000000000000000000000000000000000004");
         ArrayList<SWHID> expectedLeaves2 = new ArrayList<>();
-        expectedLeaves2.add(new SWHID("swh:1:ori:0000000000000000000000000000000000000021"));
+        expectedLeaves2.add(new SWHID(TEST_ORIGIN_ID));
         expectedLeaves2.add(new SWHID("swh:1:rel:0000000000000000000000000000000000000019"));
         ArrayList<SWHID> actualLeaves2 = (ArrayList) endpoint2.leaves(new Endpoint.Input(src2)).result;
         GraphTest.assertEqualsAnyOrder(expectedLeaves2, actualLeaves2);

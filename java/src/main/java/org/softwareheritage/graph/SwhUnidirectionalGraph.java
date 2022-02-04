@@ -32,7 +32,7 @@ public class SwhUnidirectionalGraph extends ImmutableGraph implements SwhGraph {
     private ArcLabelledImmutableGraph labelledGraph;
 
     /** Property data of the graph (id/type mappings etc.) */
-    private SwhGraphProperties properties;
+    public SwhGraphProperties properties;
 
     protected SwhUnidirectionalGraph(ImmutableGraph graph, SwhGraphProperties properties) {
         this.graph = graph;
@@ -59,7 +59,7 @@ public class SwhUnidirectionalGraph extends ImmutableGraph implements SwhGraph {
     public static SwhUnidirectionalGraph loadLabelledGraphOnly(LoadMethod method, String path, InputStream is,
             ProgressLogger pl) throws IOException {
         BitStreamArcLabelledImmutableGraph g = (BitStreamArcLabelledImmutableGraph) BitStreamArcLabelledImmutableGraph
-                .load(method, path, is, pl);
+                .load(method, path + "-labelled", is, pl);
         return new SwhUnidirectionalGraph(g, null);
     }
 
@@ -206,16 +206,8 @@ public class SwhUnidirectionalGraph extends ImmutableGraph implements SwhGraph {
         return graph.outdegree(nodeId);
     }
 
-    public String getPath() {
-        return properties.getPath();
-    }
-    public long getNodeId(SWHID swhid) {
-        return properties.getNodeId(swhid);
-    }
-    public SWHID getSWHID(long nodeId) {
-        return properties.getSWHID(nodeId);
-    }
-    public Node.Type getNodeType(long nodeId) {
-        return properties.getNodeType(nodeId);
+    @Override
+    public SwhGraphProperties getProperties() {
+        return properties;
     }
 }

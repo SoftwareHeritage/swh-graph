@@ -13,7 +13,7 @@ public class NeighborsTest extends GraphTest {
         SwhBidirectionalGraph graph = getGraph();
         ArrayList<SWHID> expectedNodes = new ArrayList<>();
 
-        SWHID src1 = new SWHID("swh:1:ori:0000000000000000000000000000000000000021");
+        SWHID src1 = new SWHID(TEST_ORIGIN_ID);
         Endpoint endpoint1 = new Endpoint(graph, "backward", "*");
         ArrayList<SWHID> actuals1 = (ArrayList) endpoint1.neighbors(new Endpoint.Input(src1)).result;
         GraphTest.assertEqualsAnyOrder(expectedNodes, actuals1);
@@ -74,7 +74,7 @@ public class NeighborsTest extends GraphTest {
         SWHID src5 = new SWHID("swh:1:snp:0000000000000000000000000000000000000020");
         Endpoint endpoint5 = new Endpoint(graph, "backward", "*");
         ArrayList<SWHID> expectedNodes5 = new ArrayList<>();
-        expectedNodes5.add(new SWHID("swh:1:ori:0000000000000000000000000000000000000021"));
+        expectedNodes5.add(new SWHID(TEST_ORIGIN_ID));
         ArrayList<SWHID> actuals5 = (ArrayList) endpoint5.neighbors(new Endpoint.Input(src5)).result;
         GraphTest.assertEqualsAnyOrder(expectedNodes5, actuals5);
     }

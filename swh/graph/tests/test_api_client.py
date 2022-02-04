@@ -1,8 +1,14 @@
+import hashlib
+
 import pytest
 from pytest import raises
 
 from swh.core.api import RemoteException
 from swh.graph.client import GraphArgumentException
+
+TEST_ORIGIN_ID = "swh:1:ori:{}".format(
+    hashlib.sha1(b"https://example.com/swh/graph").hexdigest()
+)
 
 
 def test_stats(graph_client):
@@ -35,9 +41,7 @@ def test_stats(graph_client):
 
 
 def test_leaves(graph_client):
-    actual = list(
-        graph_client.leaves("swh:1:ori:0000000000000000000000000000000000000021")
-    )
+    actual = list(graph_client.leaves(TEST_ORIGIN_ID))
     expected = [
         "swh:1:cnt:0000000000000000000000000000000000000001",
         "swh:1:cnt:0000000000000000000000000000000000000004",
@@ -313,9 +317,7 @@ def test_random_walk_dst_is_node(graph_client):
 
 
 def test_count(graph_client):
-    actual = graph_client.count_leaves(
-        "swh:1:ori:0000000000000000000000000000000000000021"
-    )
+    actual = graph_client.count_leaves(TEST_ORIGIN_ID)
     assert actual == 4
     actual = graph_client.count_visit_nodes(
         "swh:1:rel:0000000000000000000000000000000000000010", edges="rel:rev,rev:rev"
@@ -329,13 +331,13 @@ def test_count(graph_client):
 
 def test_param_validation(graph_client):
     with raises(GraphArgumentException) as exc_info:  # SWHID not found
-        list(graph_client.leaves("swh:1:ori:fff0000000000000000000000000000000000021"))
+        list(graph_client.leaves("swh:1:rel:00ffffffff000000000000000000000000000010"))
     if exc_info.value.response:
         assert exc_info.value.response.status_code == 404
 
     with raises(GraphArgumentException) as exc_info:  # malformed SWHID
         list(
-            graph_client.neighbors("swh:1:ori:fff000000zzzzzz0000000000000000000000021")
+            graph_client.neighbors("swh:1:rel:00ffffffff00000000zzzzzzz000000000000010")
         )
     if exc_info.value.response:
         assert exc_info.value.response.status_code == 400
