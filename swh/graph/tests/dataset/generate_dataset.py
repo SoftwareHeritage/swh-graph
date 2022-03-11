@@ -71,42 +71,56 @@ TEST_DATASET = [
     Directory(
         id=h(2),
         entries=(
-            DirectoryEntry(name=b"README.md", perms=0o644, type="file", target=h(1),),
+            DirectoryEntry(
+                name=b"README.md", perms=0o100644, type="file", target=h(1),
+            ),
         ),
     ),
     Directory(
         id=h(6),
         entries=(
-            DirectoryEntry(name=b"README.md", perms=0o644, type="file", target=h(4),),
-            DirectoryEntry(name=b"parser.c", perms=0o644, type="file", target=h(5),),
+            DirectoryEntry(
+                name=b"README.md", perms=0o100644, type="file", target=h(4),
+            ),
+            DirectoryEntry(name=b"parser.c", perms=0o100644, type="file", target=h(5),),
         ),
     ),
     Directory(
         id=h(8),
         entries=(
-            DirectoryEntry(name=b"README.md", perms=0o644, type="file", target=h(1),),
-            DirectoryEntry(name=b"parser.c", perms=0o644, type="file", target=h(7),),
-            DirectoryEntry(name=b"tests", perms=0o755, type="dir", target=h(6),),
+            DirectoryEntry(
+                name=b"README.md", perms=0o100644, type="file", target=h(1),
+            ),
+            DirectoryEntry(name=b"parser.c", perms=0o100644, type="file", target=h(7),),
+            DirectoryEntry(name=b"tests", perms=0o100755, type="dir", target=h(6),),
         ),
     ),
     Directory(
         id=h(12),
         entries=(
-            DirectoryEntry(name=b"README.md", perms=0o644, type="file", target=h(11),),
-            DirectoryEntry(name=b"oldproject", perms=0o755, type="dir", target=h(8),),
+            DirectoryEntry(
+                name=b"README.md", perms=0o100644, type="file", target=h(11),
+            ),
+            DirectoryEntry(
+                name=b"oldproject", perms=0o100755, type="dir", target=h(8),
+            ),
         ),
     ),
     Directory(
         id=h(16),
         entries=(
-            DirectoryEntry(name=b"TODO.txt", perms=0o644, type="file", target=h(15),),
+            DirectoryEntry(
+                name=b"TODO.txt", perms=0o100644, type="file", target=h(15),
+            ),
         ),
     ),
     Directory(
         id=h(17),
         entries=(
-            DirectoryEntry(name=b"TODO.txt", perms=0o644, type="file", target=h(14),),
-            DirectoryEntry(name=b"old", perms=0o755, type="dir", target=h(16),),
+            DirectoryEntry(
+                name=b"TODO.txt", perms=0o100644, type="file", target=h(14),
+            ),
+            DirectoryEntry(name=b"old", perms=0o100755, type="dir", target=h(16),),
         ),
     ),
     Revision(
