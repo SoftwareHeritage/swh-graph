@@ -4,14 +4,18 @@ import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph;
+import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.Size64;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.io.FastBufferedOutputStream;
+import it.unimi.dsi.fastutil.longs.LongBigArrays;
+import it.unimi.dsi.fastutil.longs.LongHeapSemiIndirectPriorityQueue;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.io.InputBitStream;
 import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.logging.ProgressLogger;
-import it.unimi.dsi.big.webgraph.BVGraph;
 import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.NodeIterator;
 import org.slf4j.Logger;
@@ -19,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.softwareheritage.graph.labels.DirEntry;
 import org.softwareheritage.graph.labels.SwhLabel;
 import org.softwareheritage.graph.maps.NodeIdMap;
+import org.softwareheritage.graph.utils.ForkJoinQuickSort3;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -27,16 +32,20 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class LabelMapBuilder {
     final static String SORT_BUFFER_SIZE = "40%";
     final static Logger logger = LoggerFactory.getLogger(LabelMapBuilder.class);
 
+    final static String ALGORITHM = "quicksort";
+
     String orcDatasetPath;
     String graphPath;
     String outputGraphPath;
-    String debugPath;
+    int batchSize;
     String tmpDir;
+
     ImmutableGraph graph;
     long numNodes;
     long numArcs;
@@ -46,23 +55,18 @@ public class LabelMapBuilder {
     long numFilenames;
     int totalLabelWidth;
 
-    public LabelMapBuilder(String orcDatasetPath, String graphPath, String debugPath, String outputGraphPath,
+    public LabelMapBuilder(String orcDatasetPath, String graphPath, String outputGraphPath, int batchSize,
             String tmpDir) throws IOException {
         this.orcDatasetPath = orcDatasetPath;
         this.graphPath = graphPath;
-        if (outputGraphPath == null) {
-            this.outputGraphPath = graphPath;
-        } else {
-            this.outputGraphPath = outputGraphPath;
-        }
-        this.debugPath = debugPath;
+        this.outputGraphPath = (outputGraphPath == null) ? graphPath : outputGraphPath;
+        this.batchSize = batchSize;
         this.tmpDir = tmpDir;
 
-        graph = BVGraph.loadMapped(graphPath);
-        numArcs = graph.numArcs();
-        numNodes = graph.numNodes();
-
-        nodeIdMap = new NodeIdMap(graphPath);
+        this.graph = ImmutableGraph.loadMapped(graphPath);
+        this.numArcs = graph.numArcs();
+        this.numNodes = graph.numNodes();
+        this.nodeIdMap = new NodeIdMap(graphPath);
 
         filenameMph = NodeIdMap.loadMph(graphPath + ".labels.mph");
         numFilenames = getMPHSize(filenameMph);
@@ -75,11 +79,10 @@ public class LabelMapBuilder {
             SimpleJSAP jsap = new SimpleJSAP(LabelMapBuilder.class.getName(), "", new Parameter[]{
                     new UnflaggedOption("dataset", JSAP.STRING_PARSER, JSAP.REQUIRED, "Path to the ORC graph dataset"),
                     new UnflaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.REQUIRED, "Basename of the output graph"),
-                    new FlaggedOption("debugPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'd',
-                            "debug-path", "Store the intermediate representation here for debug"),
                     new FlaggedOption("outputGraphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'o',
                             "output-graph", "Basename of the output graph, same as --graph if not specified"),
-
+                    new FlaggedOption("batchSize", JSAP.INTEGER_PARSER, "10000000", JSAP.NOT_REQUIRED, 'b',
+                            "batch-size", "Number of triplets held in memory in each batch"),
                     new FlaggedOption("tmpDir", JSAP.STRING_PARSER, "tmp", JSAP.NOT_REQUIRED, 'T', "temp-dir",
                             "Temporary directory path"),});
 
@@ -98,10 +101,10 @@ public class LabelMapBuilder {
         String orcDataset = config.getString("dataset");
         String graphPath = config.getString("graphPath");
         String outputGraphPath = config.getString("outputGraphPath");
+        int batchSize = config.getInt("batchSize");
         String tmpDir = config.getString("tmpDir");
-        String debugPath = config.getString("debugPath");
 
-        LabelMapBuilder builder = new LabelMapBuilder(orcDataset, graphPath, debugPath, outputGraphPath, tmpDir);
+        LabelMapBuilder builder = new LabelMapBuilder(orcDataset, graphPath, outputGraphPath, batchSize, tmpDir);
 
         logger.info("Loading graph and MPH functions...");
         builder.computeLabelMap();
@@ -112,11 +115,16 @@ public class LabelMapBuilder {
     }
 
     void computeLabelMap() throws IOException, InterruptedException {
-        this.loadGraph();
-        if (true) {
-            this.computeLabelMapSort();
-        } else {
-            this.computeLabelMapBsort();
+        switch (ALGORITHM) {
+            case "quicksort":
+                this.computeLabelMapQuicksort();
+                break;
+            case "gnusort":
+                this.computeLabelMapSort();
+                break;
+            case "bsort":
+                this.computeLabelMapBsort();
+                break;
         }
     }
 
@@ -174,7 +182,93 @@ public class LabelMapBuilder {
         logger.info("Done");
     }
 
-    void loadGraph() throws IOException {
+    void computeLabelMapQuicksort() throws IOException {
+        File tempDirFile = new File(tmpDir);
+        ObjectArrayList<File> batches = new ObjectArrayList<>();
+
+        ProgressLogger plSortingBatches = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
+        plSortingBatches.itemsName = "edges";
+        plSortingBatches.expectedUpdates = this.numArcs;
+        plSortingBatches.start("Sorting batches.");
+
+        long[] srcArray = new long[batchSize];
+        long[] dstArray = new long[batchSize];
+        long[] labelArray = new long[batchSize];
+        AtomicInteger i = new AtomicInteger(0);
+
+        readHashedEdgeLabels((src, dst, label, perms) -> {
+            // System.err.println("0. Input " + src + " " + dst + " " + label + " " + perms);
+            int idx = i.getAndAdd(1);
+            srcArray[idx] = src;
+            dstArray[idx] = dst;
+            labelArray[idx] = DirEntry.toEncoded(label, perms);
+            plSortingBatches.lightUpdate();
+
+            if (idx == batchSize - 1) {
+                processBatch(batchSize, srcArray, dstArray, labelArray, tempDirFile, batches);
+                i.set(0);
+            }
+        });
+
+        if (i.get() != 0) {
+            processBatch(i.get(), srcArray, dstArray, labelArray, tempDirFile, batches);
+        }
+
+        plSortingBatches.logger().info("Created " + batches.size() + " batches");
+
+        BatchEdgeLabelLineIterator batchHeapIterator = new BatchEdgeLabelLineIterator(batches);
+        writeLabels(batchHeapIterator);
+
+        logger.info("Done");
+    }
+
+    void processBatch(final int n, final long[] source, final long[] target, final long[] labels, final File tempDir,
+            final List<File> batches) throws IOException {
+        if (n == 0) {
+            return;
+        }
+        ForkJoinQuickSort3.parallelQuickSort(source, target, labels, 0, n);
+
+        final File batchFile = File.createTempFile("batch", ".bitstream", tempDir);
+        batchFile.deleteOnExit();
+        batches.add(batchFile);
+        final OutputBitStream batch = new OutputBitStream(batchFile);
+
+        // Compute unique triplets
+        int u = 1;
+        for (int i = n - 1; i-- != 0;) {
+            if (source[i] != source[i + 1] || target[i] != target[i + 1] || labels[i] != labels[i + 1]) {
+                u++;
+            }
+        }
+        batch.writeDelta(u);
+
+        // Write batch
+        long prevSource = source[0];
+        batch.writeLongDelta(prevSource);
+        batch.writeLongDelta(target[0]);
+        batch.writeLongDelta(labels[0]);
+        // System.err.println("1. Wrote " + prevSource + " " + target[0] + " " + labels[0]);
+
+        for (int i = 1; i < n; i++) {
+            if (source[i] != prevSource) {
+                // Default case, we write (source - prevsource, target, label)
+                batch.writeLongDelta(source[i] - prevSource);
+                batch.writeLongDelta(target[i]);
+                batch.writeLongDelta(labels[i]);
+                prevSource = source[i];
+            } else if (target[i] != target[i - 1] || labels[i] != labels[i - 1]) {
+                // Case where source is identical with prevsource, but target or label differ.
+                // We write (0, target - prevtarget, label)
+                batch.writeLongDelta(0);
+                batch.writeLongDelta(target[i] - target[i - 1]);
+                batch.writeLongDelta(labels[i]);
+            } else {
+                continue;
+            }
+            // System.err.println("1. Wrote " + source[i] + " " + target[i] + " " + labels[i]);
+        }
+        batch.close();
     }
 
     void readHashedEdgeLabels(GraphDataset.HashedEdgeCallback cb) throws IOException {
@@ -200,11 +294,6 @@ public class LabelMapBuilder {
         plLabels.expectedUpdates = this.numArcs;
         plLabels.start("Writing the labels to the label file.");
 
-        FileWriter debugFile = null;
-        if (debugPath != null) {
-            debugFile = new FileWriter(debugPath);
-        }
-
         OutputBitStream labels = new OutputBitStream(
                 new File(outputGraphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABELS_EXTENSION));
         OutputBitStream offsets = new OutputBitStream(
@@ -227,11 +316,6 @@ public class LabelMapBuilder {
                 while (line != null && line.srcNode <= srcNode && line.dstNode <= dstNode) {
                     if (line.srcNode == srcNode && line.dstNode == dstNode) {
                         labelBuffer.add(new DirEntry(line.filenameId, line.permission));
-
-                        if (debugFile != null) {
-                            debugFile.write(line.srcNode + " " + line.dstNode + " " + line.filenameId + " "
-                                    + line.permission + "\n");
-                        }
                     }
 
                     if (!mapLines.hasNext())
@@ -255,9 +339,6 @@ public class LabelMapBuilder {
         labels.close();
         offsets.close();
         plLabels.done();
-        if (debugFile != null) {
-            debugFile.close();
-        }
 
         PrintWriter pw = new PrintWriter(new FileWriter(outputGraphPath + "-labelled.properties"));
         pw.println(ImmutableGraph.GRAPHCLASS_PROPERTY_KEY + " = " + BitStreamArcLabelledImmutableGraph.class.getName());
@@ -285,6 +366,7 @@ public class LabelMapBuilder {
     public abstract static class EdgeLabelLineIterator implements Iterator<EdgeLabelLine> {
         @Override
         public abstract boolean hasNext();
+
         @Override
         public abstract EdgeLabelLine next();
     }
@@ -441,6 +523,116 @@ public class LabelMapBuilder {
                 e.printStackTrace();
                 return null;
             }
+        }
+    }
+
+    public static class BatchEdgeLabelLineIterator extends EdgeLabelLineIterator {
+        private static final int STD_BUFFER_SIZE = 128 * 1024;
+
+        private final InputBitStream[] batchIbs;
+        private final int[] inputStreamLength;
+        private final long[] refArray;
+        private final LongHeapSemiIndirectPriorityQueue queue;
+        private final long[] prevTarget;
+
+        /** The last returned node (-1 if no node has been returned yet). */
+        private long lastNode;
+        private long[][] lastNodeSuccessors = LongBigArrays.EMPTY_BIG_ARRAY;
+        private long[][] lastNodeLabels = LongBigArrays.EMPTY_BIG_ARRAY;
+        private long lastNodeOutdegree;
+        private long lastNodeCurrentSuccessor;
+
+        public BatchEdgeLabelLineIterator(final List<File> batches) throws IOException {
+            this.batchIbs = new InputBitStream[batches.size()];
+            this.refArray = new long[batches.size()];
+            this.prevTarget = new long[batches.size()];
+            this.queue = new LongHeapSemiIndirectPriorityQueue(refArray);
+            this.inputStreamLength = new int[batches.size()];
+
+            for (int i = 0; i < batches.size(); i++) {
+                batchIbs[i] = new InputBitStream(batches.get(i), STD_BUFFER_SIZE);
+                this.inputStreamLength[i] = batchIbs[i].readDelta();
+                this.refArray[i] = batchIbs[i].readLongDelta();
+                queue.enqueue(i);
+            }
+
+            this.lastNode = -1;
+            this.lastNodeOutdegree = 0;
+            this.lastNodeCurrentSuccessor = 0;
+        }
+
+        public boolean hasNextNode() {
+            return !queue.isEmpty();
+        }
+
+        private void readNextNode() throws IOException {
+            assert hasNext();
+
+            int i;
+            lastNode++;
+            lastNodeOutdegree = 0;
+            lastNodeCurrentSuccessor = 0;
+
+            /*
+             * We extract elements from the queue as long as their target is equal to last. If during the
+             * process we exhaust a batch, we close it.
+             */
+            while (!queue.isEmpty() && refArray[i = queue.first()] == lastNode) {
+                lastNodeSuccessors = BigArrays.grow(lastNodeSuccessors, lastNodeOutdegree + 1);
+                lastNodeLabels = BigArrays.grow(lastNodeLabels, lastNodeOutdegree + 1);
+
+                long target = prevTarget[i] += batchIbs[i].readLongDelta();
+                long label = batchIbs[i].readLongDelta();
+                BigArrays.set(lastNodeSuccessors, lastNodeOutdegree, target);
+                BigArrays.set(lastNodeLabels, lastNodeOutdegree, label);
+
+                // System.err.println("2. Read " + lastNode + " " + target + " " + label);
+                if (--inputStreamLength[i] == 0) {
+                    queue.dequeue();
+                    batchIbs[i].close();
+                    batchIbs[i] = null;
+                } else {
+                    // We read a new source and update the queue.
+                    final long sourceDelta = batchIbs[i].readLongDelta();
+                    if (sourceDelta != 0) {
+                        refArray[i] += sourceDelta;
+                        prevTarget[i] = 0;
+                        queue.changed();
+                    }
+                }
+                lastNodeOutdegree++;
+            }
+
+            // Neither quicksort nor heaps are stable, so we reestablish order here.
+            LongBigArrays.radixSort(lastNodeSuccessors, lastNodeLabels, 0, lastNodeOutdegree);
+        }
+
+        @Override
+        public boolean hasNext() {
+            return lastNodeCurrentSuccessor < lastNodeOutdegree || hasNextNode();
+        }
+
+        @Override
+        public EdgeLabelLine next() {
+            if (lastNode == -1 || lastNodeCurrentSuccessor >= lastNodeOutdegree) {
+                try {
+                    do {
+                        readNextNode();
+                    } while (hasNextNode() && lastNodeOutdegree == 0);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            long src = lastNode;
+            long dst = BigArrays.get(lastNodeSuccessors, lastNodeCurrentSuccessor);
+            long compressedLabel = BigArrays.get(lastNodeLabels, lastNodeCurrentSuccessor);
+            long labelName = DirEntry.labelNameFromEncoded(compressedLabel);
+            int permission = DirEntry.permissionFromEncoded(compressedLabel);
+            // System.err.println("3. Output (encoded): " + src + " " + dst + " " + compressedLabel);
+            // System.err.println("4. Output (decoded): " + src + " " + dst + " " + labelName + " " +
+            // permission);
+            lastNodeCurrentSuccessor++;
+            return new EdgeLabelLine(src, dst, labelName, permission);
         }
     }
 }
