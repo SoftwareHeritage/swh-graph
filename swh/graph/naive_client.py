@@ -81,10 +81,31 @@ def filter_node_types(node_types: str, nodes: Iterable[str]) -> Iterator[str]:
 class NaiveClient:
     """An alternative implementation of :class:`swh.graph.backend.Backend`,
     written in pure-python and meant for simulating it in other components' test
-    cases.
+    cases; constructed from a list of nodes and (directed) edges, both
+    represented as SWHIDs.
 
     It is NOT meant to be efficient in any way; only to be a very simple
-    implementation that provides the same behavior."""
+    implementation that provides the same behavior.
+
+    >>> nodes = [
+    ...     "swh:1:rev:1111111111111111111111111111111111111111",
+    ...     "swh:1:rev:2222222222222222222222222222222222222222",
+    ...     "swh:1:rev:3333333333333333333333333333333333333333",
+    ... ]
+    >>> edges = [
+    ...     (
+    ...         "swh:1:rev:1111111111111111111111111111111111111111",
+    ...         "swh:1:rev:2222222222222222222222222222222222222222",
+    ...     ),
+    ...     (
+    ...         "swh:1:rev:2222222222222222222222222222222222222222",
+    ...         "swh:1:rev:3333333333333333333333333333333333333333",
+    ...     ),
+    ... ]
+    >>> c = NaiveClient(nodes=nodes, edges=edges)
+    >>> list(c.leaves("swh:1:rev:1111111111111111111111111111111111111111"))
+    ['swh:1:rev:3333333333333333333333333333333333333333']
+    """
 
     def __init__(self, *, nodes: List[str], edges: List[Tuple[str, str]]):
         self.graph = Graph(nodes, edges)
