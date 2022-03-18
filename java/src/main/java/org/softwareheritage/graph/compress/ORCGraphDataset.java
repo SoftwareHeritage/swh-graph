@@ -19,6 +19,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 
 /**
  * A graph dataset in ORC format.
@@ -163,14 +165,31 @@ public class ORCGraphDataset implements GraphDataset {
         /**
          * Read the table, calling the given handler for each new batch of rows. Optionally, if columns is
          * not null, will only scan the columns present in this set instead of the entire table.
+         *
+         * If this method is called from within a ForkJoinPool, the ORC table will be read in parallel using
+         * that thread pool. Otherwise, the ORC files will be read sequentially.
          */
         public void readOrcTable(ReadOrcBatchHandler batchHandler, Set<String> columns) throws IOException {
             File[] listing = tableDir.listFiles();
             if (listing == null) {
                 throw new IOException("No files found in " + tableDir.getName());
             }
-            for (File file : listing) {
-                readOrcFile(file.getPath(), batchHandler, columns);
+            ForkJoinPool forkJoinPool = ForkJoinTask.getPool();
+            if (forkJoinPool == null) {
+                // Sequential case
+                for (File file : listing) {
+                    readOrcFile(file.getPath(), batchHandler, columns);
+                }
+            } else {
+                // Parallel case
+                ArrayList<File> listingArray = new ArrayList<>(Arrays.asList(listing));
+                listingArray.parallelStream().forEach(file -> {
+                    try {
+                        readOrcFile(file.getPath(), batchHandler, columns);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
             }
         }
 
