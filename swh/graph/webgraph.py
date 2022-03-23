@@ -88,6 +88,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{java}",
         "it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph",
         "--byte-array",
+        "--batch-size",
+        "{batch_size}",
         "--temp-dir",
         "{tmp_dir}",
         "--function",
