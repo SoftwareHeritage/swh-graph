@@ -41,7 +41,7 @@ def check_config(conf):
     if "batch_size" not in conf:
         # Use 0.1% of the RAM as a batch size:
         # ~1 billion for big servers, ~10 million for small desktop machines
-        conf["batch_size"] = int(psutil.virtual_memory().total / 1000)
+        conf["batch_size"] = min(int(psutil.virtual_memory().total / 1000), 2 ** 30 - 1)
     if "llp_gammas" not in conf:
         conf["llp_gammas"] = "-0,-1,-2,-3,-4"
     if "max_ram" not in conf:
