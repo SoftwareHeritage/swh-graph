@@ -253,16 +253,16 @@ def test_walk(graph_client):
 
 
 def test_random_walk_dst_is_type(graph_client):
-    """as the walk is random, we test a visit from a cnt node to the only
-    origin in the dataset, and only check the final node of the path
-    (i.e., the origin)
+    """as the walk is random, we test a visit from a cnt node to a release
+    reachable from every single path in the backward graph, and only check the
+    final node of the path (i.e., the release)
     """
-    args = ("swh:1:cnt:0000000000000000000000000000000000000001", "ori")
+    args = ("swh:1:cnt:0000000000000000000000000000000000000015", "rel")
     kwargs = {"direction": "backward"}
-    expected_root = "swh:1:ori:0000000000000000000000000000000000000021"
+    expected_root = "swh:1:rel:0000000000000000000000000000000000000019"
 
     actual = list(graph_client.random_walk(*args, **kwargs))
-    assert len(actual) > 1  # no origin directly links to a content
+    assert len(actual) > 1  # no release directly links to a content
     assert actual[0] == args[0]
     assert actual[-1] == expected_root
 
@@ -282,15 +282,15 @@ def test_random_walk_dst_is_type(graph_client):
 
 
 def test_random_walk_dst_is_node(graph_client):
-    """Same as test_random_walk_dst_is_type, but we target the specific origin
+    """Same as test_random_walk_dst_is_type, but we target the specific release
     node instead of a type
     """
     args = (
-        "swh:1:cnt:0000000000000000000000000000000000000001",
-        "swh:1:ori:0000000000000000000000000000000000000021",
+        "swh:1:cnt:0000000000000000000000000000000000000015",
+        "swh:1:rel:0000000000000000000000000000000000000019",
     )
     kwargs = {"direction": "backward"}
-    expected_root = "swh:1:ori:0000000000000000000000000000000000000021"
+    expected_root = "swh:1:rel:0000000000000000000000000000000000000019"
 
     actual = list(graph_client.random_walk(*args, **kwargs))
     assert len(actual) > 1  # no origin directly links to a content

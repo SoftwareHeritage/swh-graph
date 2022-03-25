@@ -103,7 +103,7 @@ java/src/test/java/org/softwareheritage/graph/NeighborsTest.java
 java/src/test/java/org/softwareheritage/graph/SubgraphTest.java
 java/src/test/java/org/softwareheritage/graph/VisitTest.java
 java/src/test/java/org/softwareheritage/graph/WalkTest.java
-java/target/swh-graph-0.5.1.jar
+java/target/swh-graph-0.5.2.jar
 reports/.gitignore
 reports/benchmarks/Makefile
 reports/benchmarks/benchmarks.tex

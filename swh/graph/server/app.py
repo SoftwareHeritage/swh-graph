@@ -28,7 +28,7 @@ except ImportError:
 
 
 # maximum number of retries for random walks
-RANDOM_RETRIES = 5  # TODO make this configurable via rpc-serve configuration
+RANDOM_RETRIES = 10  # TODO make this configurable via rpc-serve configuration
 
 
 class GraphServerApp(RPCServerApp):

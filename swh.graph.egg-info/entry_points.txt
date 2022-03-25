@@ -1,6 +1,5 @@
+[console_scripts]
+swh-graph = swh.graph.cli:main
 
-        [console_scripts]
-        swh-graph=swh.graph.cli:main
-        [swh.cli.subcommands]
-        graph=swh.graph.cli
-    
+[swh.cli.subcommands]
+graph = swh.graph.cli
