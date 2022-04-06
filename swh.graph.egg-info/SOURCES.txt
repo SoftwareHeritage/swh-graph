@@ -44,8 +44,10 @@ java/AUTHORS
 java/LICENSE
 java/README.md
 java/pom.xml
+java/.mvn/jvm.config
 java/src/main/java/org/softwareheritage/graph/AllowedEdges.java
 java/src/main/java/org/softwareheritage/graph/AllowedNodes.java
+java/src/main/java/org/softwareheritage/graph/BidirectionalImmutableGraph.java
 java/src/main/java/org/softwareheritage/graph/Entry.java
 java/src/main/java/org/softwareheritage/graph/Graph.java
 java/src/main/java/org/softwareheritage/graph/Node.java
@@ -87,6 +89,7 @@ java/src/main/java/org/softwareheritage/graph/maps/NodeMapBuilder.java
 java/src/main/java/org/softwareheritage/graph/maps/NodeTypesMap.java
 java/src/main/java/org/softwareheritage/graph/server/App.java
 java/src/main/java/org/softwareheritage/graph/server/Endpoint.java
+java/src/main/java/org/softwareheritage/graph/utils/ComposePermutations.java
 java/src/main/java/org/softwareheritage/graph/utils/ExportSubdataset.java
 java/src/main/java/org/softwareheritage/graph/utils/FindEarliestRevision.java
 java/src/main/java/org/softwareheritage/graph/utils/MPHTranslate.java
@@ -100,7 +103,7 @@ java/src/test/java/org/softwareheritage/graph/NeighborsTest.java
 java/src/test/java/org/softwareheritage/graph/SubgraphTest.java
 java/src/test/java/org/softwareheritage/graph/VisitTest.java
 java/src/test/java/org/softwareheritage/graph/WalkTest.java
-java/target/swh-graph-0.5.0.jar
+java/target/swh-graph-0.5.2.jar
 reports/.gitignore
 reports/benchmarks/Makefile
 reports/benchmarks/benchmarks.tex
@@ -126,7 +129,6 @@ swh/graph/cli.py
 swh/graph/client.py
 swh/graph/config.py
 swh/graph/dot.py
-swh/graph/graph.py
 swh/graph/naive_client.py
 swh/graph/py.typed
 swh/graph/swhid.py
@@ -137,7 +139,6 @@ swh/graph/tests/__init__.py
 swh/graph/tests/conftest.py
 swh/graph/tests/test_api_client.py
 swh/graph/tests/test_cli.py
-swh/graph/tests/test_graph.py
 swh/graph/tests/test_swhid.py
 swh/graph/tests/dataset/.gitignore
 swh/graph/tests/dataset/example.edges.csv
@@ -163,7 +164,6 @@ swh/graph/tests/dataset/output/example.order
 swh/graph/tests/dataset/output/example.outdegree
 swh/graph/tests/dataset/output/example.properties
 swh/graph/tests/dataset/output/example.stats
-swh/graph/tests/dataset/output/example.swhid2node.bin
 tools/dir2graph
 tools/swhid2int2int2swhid.sh
 tools/git2graph/.gitignore

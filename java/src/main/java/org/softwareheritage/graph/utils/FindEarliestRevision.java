@@ -51,6 +51,7 @@ public class FindEarliestRevision {
         String rawSWHID = null;
         SWHID srcSWHID = null;
         long lineCount = 0;
+        long srcNodeId = -1;
         if (timing) {
             System.err.println("starting SWHID processing...");
             elapsed = Duration.ZERO;
@@ -62,11 +63,12 @@ public class FindEarliestRevision {
             lineCount++;
             try {
                 srcSWHID = new SWHID(rawSWHID);
+                srcNodeId = graph.getNodeId(srcSWHID);
             } catch (IllegalArgumentException e) {
-                System.err.println(String.format("skipping invalid SWHID %s on line %d", rawSWHID, lineCount));
+                System.err
+                        .println(String.format("skipping invalid or unknown SWHID %s on line %d", rawSWHID, lineCount));
                 continue;
             }
-            long srcNodeId = graph.getNodeId(srcSWHID);
 
             if (timing)
                 System.err.println("starting traversal for: " + srcSWHID.toString());

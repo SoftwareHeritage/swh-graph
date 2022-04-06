@@ -21,15 +21,19 @@ from swh.graph.config import check_config_compress
 class CompressionStep(Enum):
     MPH = 1
     BV = 2
-    BV_OBL = 3
-    BFS = 4
-    PERMUTE = 5
-    PERMUTE_OBL = 6
-    STATS = 7
-    TRANSPOSE = 8
-    TRANSPOSE_OBL = 9
-    MAPS = 10
-    CLEAN_TMP = 11
+    BFS = 3
+    PERMUTE_BFS = 4
+    TRANSPOSE_BFS = 5
+    SIMPLIFY = 6
+    LLP = 7
+    PERMUTE_LLP = 8
+    OBL = 9
+    COMPOSE_ORDERS = 10
+    STATS = 11
+    TRANSPOSE = 12
+    TRANSPOSE_OBL = 13
+    MAPS = 14
+    CLEAN_TMP = 15
 
     def __str__(self):
         return self.name
@@ -68,35 +72,71 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{tmp_dir}",
         "--function",
         "{out_dir}/{graph_name}.mph",
-        "{out_dir}/{graph_name}-bv",
-    ],
-    CompressionStep.BV_OBL: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.BVGraph",
-        "--list",
-        "{out_dir}/{graph_name}-bv",
+        "{out_dir}/{graph_name}-base",
     ],
     CompressionStep.BFS: [
         "{java}",
         "it.unimi.dsi.law.big.graph.BFS",
-        "{out_dir}/{graph_name}-bv",
-        "{out_dir}/{graph_name}.order",
+        "{out_dir}/{graph_name}-base",
+        "{out_dir}/{graph_name}-bfs.order",
     ],
-    CompressionStep.PERMUTE: [
+    CompressionStep.PERMUTE_BFS: [
         "{java}",
         "it.unimi.dsi.big.webgraph.Transform",
         "mapOffline",
-        "{out_dir}/{graph_name}-bv",
-        "{out_dir}/{graph_name}",
-        "{out_dir}/{graph_name}.order",
+        "{out_dir}/{graph_name}-base",
+        "{out_dir}/{graph_name}-bfs",
+        "{out_dir}/{graph_name}-bfs.order",
         "{batch_size}",
         "{tmp_dir}",
     ],
-    CompressionStep.PERMUTE_OBL: [
+    CompressionStep.TRANSPOSE_BFS: [
+        "{java}",
+        "it.unimi.dsi.big.webgraph.Transform",
+        "transposeOffline",
+        "{out_dir}/{graph_name}-bfs",
+        "{out_dir}/{graph_name}-bfs-transposed",
+        "{batch_size}",
+        "{tmp_dir}",
+    ],
+    CompressionStep.SIMPLIFY: [
+        "{java}",
+        "it.unimi.dsi.big.webgraph.Transform",
+        "simplify",
+        "{out_dir}/{graph_name}-bfs",
+        "{out_dir}/{graph_name}-bfs-transposed",
+        "{out_dir}/{graph_name}-bfs-simplified",
+    ],
+    CompressionStep.LLP: [
+        "{java}",
+        "it.unimi.dsi.law.big.graph.LayeredLabelPropagation",
+        "-g",
+        "{llp_gammas}",
+        "{out_dir}/{graph_name}-bfs-simplified",
+        "{out_dir}/{graph_name}-llp.order",
+    ],
+    CompressionStep.PERMUTE_LLP: [
+        "{java}",
+        "it.unimi.dsi.big.webgraph.Transform",
+        "mapOffline",
+        "{out_dir}/{graph_name}-bfs",
+        "{out_dir}/{graph_name}",
+        "{out_dir}/{graph_name}-llp.order",
+        "{batch_size}",
+        "{tmp_dir}",
+    ],
+    CompressionStep.OBL: [
         "{java}",
         "it.unimi.dsi.big.webgraph.BVGraph",
         "--list",
         "{out_dir}/{graph_name}",
+    ],
+    CompressionStep.COMPOSE_ORDERS: [
+        "{java}",
+        "org.softwareheritage.graph.utils.ComposePermutations",
+        "{out_dir}/{graph_name}-bfs.order",
+        "{out_dir}/{graph_name}-llp.order",
+        "{out_dir}/{graph_name}.order",
     ],
     CompressionStep.STATS: [
         "{java}",
@@ -130,9 +170,20 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
     CompressionStep.CLEAN_TMP: [
         "rm",
         "-rf",
-        "{out_dir}/{graph_name}-bv.graph",
-        "{out_dir}/{graph_name}-bv.obl",
-        "{out_dir}/{graph_name}-bv.offsets",
+        "{out_dir}/{graph_name}-base.graph",
+        "{out_dir}/{graph_name}-base.offsets",
+        "{out_dir}/{graph_name}-base.properties",
+        "{out_dir}/{graph_name}-bfs-simplified.graph",
+        "{out_dir}/{graph_name}-bfs-simplified.offsets",
+        "{out_dir}/{graph_name}-bfs-simplified.properties",
+        "{out_dir}/{graph_name}-bfs-transposed.graph",
+        "{out_dir}/{graph_name}-bfs-transposed.offsets",
+        "{out_dir}/{graph_name}-bfs-transposed.properties",
+        "{out_dir}/{graph_name}-bfs.graph",
+        "{out_dir}/{graph_name}-bfs.offsets",
+        "{out_dir}/{graph_name}-bfs.order",
+        "{out_dir}/{graph_name}-bfs.properties",
+        "{out_dir}/{graph_name}-llp.order",
         "{tmp_dir}",
     ],
 }

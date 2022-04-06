@@ -1,8 +1,27 @@
-swh.graph (0.5.0-1+swh1~bpo10+1) buster-swh; urgency=medium
+swh.graph (0.5.2-1~swh2) unstable-swh; urgency=medium
 
-  * Rebuild for buster-swh
+  * Fix debian/rules and bump new version
 
- -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Wed, 01 Sep 2021 14:12:43 +0000
+ -- Antoine R. Dumont (@ardumont) <ardumont@softwareheritage.org>  Wed, 06 Apr 2022 16:07:48 +0200
+
+swh.graph (0.5.2-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.5.2     - (tagged by Valentin Lorentz
+    <vlorentz@softwareheritage.org> on 2022-03-25 15:46:17 +0100)
+  * Upstream changes:     - v0.5.2     - * Increase retries for random
+    walks from 5 to 10     - * naive_client: Add documentation and
+    doctest to initialize it.     - * Add support for
+    CoreSWHID/ExtendedSWHID when building naive.Graph
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Fri, 25 Mar 2022 14:53:36 +0000
+
+swh.graph (0.5.1-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.5.1     - (tagged by Antoine Pietri
+    <antoine.pietri1@gmail.com> on 2022-01-12 17:03:07 +0100)
+  * Upstream changes:     - version 0.5.1
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Wed, 12 Jan 2022 16:09:09 +0000
 
 swh.graph (0.5.0-1+swh1) unstable-swh; urgency=medium
 

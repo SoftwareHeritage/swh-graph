@@ -2,7 +2,6 @@ package org.softwareheritage.graph.maps;
 
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigList;
-import org.softwareheritage.graph.Graph;
 import org.softwareheritage.graph.Node;
 
 import java.io.IOException;
@@ -20,6 +19,9 @@ import java.io.IOException;
  */
 
 public class NodeTypesMap {
+    /** File extension for the long node id to node type map */
+    public static final String NODE_TO_TYPE = ".node2type.map";
+
     /**
      * Array storing for each node its type
      */
@@ -32,7 +34,7 @@ public class NodeTypesMap {
      */
     public NodeTypesMap(String graphPath) throws IOException {
         try {
-            nodeTypesMap = (LongBigList) BinIO.loadObject(graphPath + Graph.NODE_TO_TYPE);
+            nodeTypesMap = (LongBigList) BinIO.loadObject(graphPath + NODE_TO_TYPE);
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException("Unknown class object: " + e);
         }
