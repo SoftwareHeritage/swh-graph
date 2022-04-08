@@ -80,7 +80,10 @@ DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {"graph": ("dict", {})}
     "--config-file",
     "-C",
     default=None,
-    type=click.Path(exists=True, dir_okay=False,),
+    type=click.Path(
+        exists=True,
+        dir_okay=False,
+    ),
     help="YAML configuration file",
 )
 @click.pass_context

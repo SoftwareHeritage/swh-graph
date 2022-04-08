@@ -365,9 +365,7 @@ def make_app(config=None, backend=None, **kwargs):
 
 
 def make_app_from_configfile():
-    """Load configuration and then build application to run
-
-    """
+    """Load configuration and then build application to run"""
     config_file = os.environ.get("SWH_CONFIG_FILENAME")
     config = config_read(config_file)
     return make_app(config=config)

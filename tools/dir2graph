@@ -16,11 +16,14 @@ from swh.model.identifiers import CoreSWHID, ObjectType
 
 def swhid_of_node(obj: Union[Content, Directory]):
     return CoreSWHID(
-        object_type=ObjectType[obj.object_type.upper()], object_id=obj.hash,
+        object_type=ObjectType[obj.object_type.upper()],
+        object_id=obj.hash,
     )
 
 
-def walk_model(root: Directory,) -> Iterator[Tuple[CoreSWHID, Iterator[CoreSWHID]]]:
+def walk_model(
+    root: Directory,
+) -> Iterator[Tuple[CoreSWHID, Iterator[CoreSWHID]]]:
     """recursively visit a model.from_disk object
 
     Yield pairs (SWHID, neighbors) where SWHID is the identifier of a node and neighbors

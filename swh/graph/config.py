@@ -41,7 +41,7 @@ def check_config(conf):
     if "batch_size" not in conf:
         # Use 0.1% of the RAM as a batch size:
         # ~1 billion for big servers, ~10 million for small desktop machines
-        conf["batch_size"] = min(int(psutil.virtual_memory().total / 1000), 2 ** 30 - 1)
+        conf["batch_size"] = min(int(psutil.virtual_memory().total / 1000), 2**30 - 1)
     if "llp_gammas" not in conf:
         conf["llp_gammas"] = "-0,-1,-2,-3,-4"
     if "max_ram" not in conf:
@@ -110,7 +110,8 @@ def check_config_compress(config, graph_name, in_dir, out_dir):
     conf["java_tool_options"] += " -Dlogback.configurationFile={logback}"
     conf["java_tool_options"] += " -Djava.io.tmpdir={tmp_dir}"
     conf["java_tool_options"] = conf["java_tool_options"].format(
-        logback=conf["logback"], tmp_dir=conf["tmp_dir"],
+        logback=conf["logback"],
+        tmp_dir=conf["tmp_dir"],
     )
 
     return conf

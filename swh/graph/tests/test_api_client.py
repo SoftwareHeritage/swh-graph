@@ -83,7 +83,8 @@ def test_visit_nodes(graph_client):
 def test_visit_nodes_filtered(graph_client):
     actual = list(
         graph_client.visit_nodes(
-            "swh:1:rel:0000000000000000000000000000000000000010", return_types="dir",
+            "swh:1:rel:0000000000000000000000000000000000000010",
+            return_types="dir",
         )
     )
     expected = [
@@ -97,7 +98,8 @@ def test_visit_nodes_filtered(graph_client):
 def test_visit_nodes_filtered_star(graph_client):
     actual = list(
         graph_client.visit_nodes(
-            "swh:1:rel:0000000000000000000000000000000000000010", return_types="*",
+            "swh:1:rel:0000000000000000000000000000000000000010",
+            return_types="*",
         )
     )
     expected = [
@@ -178,7 +180,8 @@ def test_visit_edges_limited(graph_client):
 def test_visit_edges_diamond_pattern(graph_client):
     actual = list(
         graph_client.visit_edges(
-            "swh:1:rev:0000000000000000000000000000000000000009", edges="*",
+            "swh:1:rev:0000000000000000000000000000000000000009",
+            edges="*",
         )
     )
     expected = [

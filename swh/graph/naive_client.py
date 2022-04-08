@@ -25,8 +25,8 @@ from swh.model.swhids import CoreSWHID, ExtendedSWHID, ValidationError
 from .client import GraphArgumentException
 
 _NODE_TYPES = "ori|snp|rel|rev|dir|cnt"
-NODES_RE = re.compile(fr"(\*|{_NODE_TYPES})")
-EDGES_RE = re.compile(fr"(\*|{_NODE_TYPES}):(\*|{_NODE_TYPES})")
+NODES_RE = re.compile(rf"(\*|{_NODE_TYPES})")
+EDGES_RE = re.compile(rf"(\*|{_NODE_TYPES}):(\*|{_NODE_TYPES})")
 
 
 T = TypeVar("T", bound=Callable)
@@ -286,7 +286,10 @@ class Graph:
             self.backward_edges[str(dst)].append(str(src))
 
     def get_filtered_neighbors(
-        self, src: str, edges_fmt: str, direction: str,
+        self,
+        src: str,
+        edges_fmt: str,
+        direction: str,
     ) -> Set[str]:
         if direction == "forward":
             edges = self.forward_edges

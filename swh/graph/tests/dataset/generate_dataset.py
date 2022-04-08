@@ -72,7 +72,10 @@ TEST_DATASET = [
         id=h(2),
         entries=(
             DirectoryEntry(
-                name=b"README.md", perms=0o100644, type="file", target=h(1),
+                name=b"README.md",
+                perms=0o100644,
+                type="file",
+                target=h(1),
             ),
         ),
     ),
@@ -80,29 +83,56 @@ TEST_DATASET = [
         id=h(6),
         entries=(
             DirectoryEntry(
-                name=b"README.md", perms=0o100644, type="file", target=h(4),
+                name=b"README.md",
+                perms=0o100644,
+                type="file",
+                target=h(4),
             ),
-            DirectoryEntry(name=b"parser.c", perms=0o100644, type="file", target=h(5),),
+            DirectoryEntry(
+                name=b"parser.c",
+                perms=0o100644,
+                type="file",
+                target=h(5),
+            ),
         ),
     ),
     Directory(
         id=h(8),
         entries=(
             DirectoryEntry(
-                name=b"README.md", perms=0o100644, type="file", target=h(1),
+                name=b"README.md",
+                perms=0o100644,
+                type="file",
+                target=h(1),
             ),
-            DirectoryEntry(name=b"parser.c", perms=0o100644, type="file", target=h(7),),
-            DirectoryEntry(name=b"tests", perms=0o100755, type="dir", target=h(6),),
+            DirectoryEntry(
+                name=b"parser.c",
+                perms=0o100644,
+                type="file",
+                target=h(7),
+            ),
+            DirectoryEntry(
+                name=b"tests",
+                perms=0o100755,
+                type="dir",
+                target=h(6),
+            ),
         ),
     ),
     Directory(
         id=h(12),
         entries=(
             DirectoryEntry(
-                name=b"README.md", perms=0o100644, type="file", target=h(11),
+                name=b"README.md",
+                perms=0o100644,
+                type="file",
+                target=h(11),
             ),
             DirectoryEntry(
-                name=b"oldproject", perms=0o100755, type="dir", target=h(8),
+                name=b"oldproject",
+                perms=0o100755,
+                type="dir",
+                target=h(8),
             ),
         ),
     ),
@@ -110,7 +140,10 @@ TEST_DATASET = [
         id=h(16),
         entries=(
             DirectoryEntry(
-                name=b"TODO.txt", perms=0o100644, type="file", target=h(15),
+                name=b"TODO.txt",
+                perms=0o100644,
+                type="file",
+                target=h(15),
             ),
         ),
     ),
@@ -118,22 +151,36 @@ TEST_DATASET = [
         id=h(17),
         entries=(
             DirectoryEntry(
-                name=b"TODO.txt", perms=0o100644, type="file", target=h(14),
+                name=b"TODO.txt",
+                perms=0o100644,
+                type="file",
+                target=h(14),
             ),
-            DirectoryEntry(name=b"old", perms=0o100755, type="dir", target=h(16),),
+            DirectoryEntry(
+                name=b"old",
+                perms=0o100755,
+                type="dir",
+                target=h(16),
+            ),
         ),
     ),
     Revision(
         id=h(3),
         message=b"Initial commit",
         date=TimestampWithTimezone(
-            timestamp=Timestamp(seconds=1111122220, microseconds=0,),
+            timestamp=Timestamp(
+                seconds=1111122220,
+                microseconds=0,
+            ),
             offset_bytes=b"+0200",
         ),
         committer=PERSONS[0],
         author=PERSONS[0],
         committer_date=TimestampWithTimezone(
-            timestamp=Timestamp(seconds=1111122220, microseconds=0,),
+            timestamp=Timestamp(
+                seconds=1111122220,
+                microseconds=0,
+            ),
             offset_bytes=b"+0200",
         ),
         type=RevisionType.GIT,
@@ -146,13 +193,19 @@ TEST_DATASET = [
         id=h(9),
         message=b"Add parser",
         date=TimestampWithTimezone(
-            timestamp=Timestamp(seconds=1111144440, microseconds=0,),
+            timestamp=Timestamp(
+                seconds=1111144440,
+                microseconds=0,
+            ),
             offset_bytes=b"+0200",
         ),
         committer=PERSONS[1],
         author=PERSONS[1],
         committer_date=TimestampWithTimezone(
-            timestamp=Timestamp(seconds=1111155550, microseconds=0,),
+            timestamp=Timestamp(
+                seconds=1111155550,
+                microseconds=0,
+            ),
             offset_bytes=b"+0200",
         ),
         type=RevisionType.GIT,
@@ -165,13 +218,19 @@ TEST_DATASET = [
         id=h(13),
         message=b"Add tests",
         date=TimestampWithTimezone(
-            timestamp=Timestamp(seconds=1111166660, microseconds=0,),
+            timestamp=Timestamp(
+                seconds=1111166660,
+                microseconds=0,
+            ),
             offset_bytes=b"+0200",
         ),
         committer=PERSONS[1],
         author=PERSONS[0],
         committer_date=TimestampWithTimezone(
-            timestamp=Timestamp(seconds=1111166660, microseconds=0,),
+            timestamp=Timestamp(
+                seconds=1111166660,
+                microseconds=0,
+            ),
             offset_bytes=b"+0200",
         ),
         type=RevisionType.GIT,
@@ -184,13 +243,19 @@ TEST_DATASET = [
         id=h(18),
         message=b"Refactor codebase",
         date=TimestampWithTimezone(
-            timestamp=Timestamp(seconds=1111177770, microseconds=0,),
+            timestamp=Timestamp(
+                seconds=1111177770,
+                microseconds=0,
+            ),
             offset_bytes=b"+0000",
         ),
         committer=PERSONS[0],
         author=PERSONS[2],
         committer_date=TimestampWithTimezone(
-            timestamp=Timestamp(seconds=1111177770, microseconds=0,),
+            timestamp=Timestamp(
+                seconds=1111177770,
+                microseconds=0,
+            ),
             offset_bytes=b"+0000",
         ),
         type=RevisionType.GIT,
@@ -203,7 +268,10 @@ TEST_DATASET = [
         id=h(10),
         name=b"v1.0",
         date=TimestampWithTimezone(
-            timestamp=Timestamp(seconds=1234567890, microseconds=0,),
+            timestamp=Timestamp(
+                seconds=1234567890,
+                microseconds=0,
+            ),
             offset_bytes=b"+0200",
         ),
         author=PERSONS[0],
