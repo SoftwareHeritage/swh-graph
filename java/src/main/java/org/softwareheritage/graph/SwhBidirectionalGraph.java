@@ -82,7 +82,7 @@ public class SwhBidirectionalGraph extends BidirectionalImmutableGraph implement
     public static SwhBidirectionalGraph loadLabelled(LoadMethod method, String path, InputStream is, ProgressLogger pl)
             throws IOException {
         SwhUnidirectionalGraph forward = SwhUnidirectionalGraph.loadLabelledGraphOnly(method, path, is, pl);
-        SwhUnidirectionalGraph backward = SwhUnidirectionalGraph.loadGraphOnly(method, path + "-transposed", is,
+        SwhUnidirectionalGraph backward = SwhUnidirectionalGraph.loadLabelledGraphOnly(method, path + "-transposed", is,
                 pl);
         SwhGraphProperties properties = SwhGraphProperties.load(path);
         forward.setProperties(properties);
