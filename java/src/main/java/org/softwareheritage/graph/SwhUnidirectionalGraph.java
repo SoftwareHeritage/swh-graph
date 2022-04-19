@@ -210,4 +210,8 @@ public class SwhUnidirectionalGraph extends ImmutableGraph implements SwhGraph {
     public SwhGraphProperties getProperties() {
         return properties;
     }
+
+    public ArcLabelledImmutableGraph getLabelledGraph() {
+        return labelledGraph;
+    }
 }
