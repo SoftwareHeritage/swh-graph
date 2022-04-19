@@ -211,7 +211,11 @@ public class SwhUnidirectionalGraph extends ImmutableGraph implements SwhGraph {
         return properties;
     }
 
-    public ArcLabelledImmutableGraph getLabelledGraph() {
+    public ImmutableGraph underlyingGraph() {
+        return graph;
+    }
+
+    public ArcLabelledImmutableGraph underlyingLabelledGraph() {
         return labelledGraph;
     }
 }
