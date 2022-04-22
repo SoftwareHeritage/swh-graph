@@ -143,7 +143,7 @@ public class LabelMapBuilder {
         sort_stdin.close();
 
         EdgeLabelLineIterator mapLines = new TextualEdgeLabelLineIterator(sort_stdout);
-        writeLabels(mapLines);
+        writeLabels(mapLines, outputGraphPath, graph);
         logger.info("Done");
     }
 
@@ -177,14 +177,15 @@ public class LabelMapBuilder {
 
         final DataInputStream sortedLabels = new DataInputStream(new BufferedInputStream(new FileInputStream(tmpFile)));
         BinaryEdgeLabelLineIterator mapLines = new BinaryEdgeLabelLineIterator(sortedLabels, nodeBytes);
-        writeLabels(mapLines);
+        writeLabels(mapLines, outputGraphPath, graph);
 
         logger.info("Done");
     }
 
     void computeLabelMapQuicksort() throws IOException {
         File tempDirFile = new File(tmpDir);
-        ObjectArrayList<File> batches = new ObjectArrayList<>();
+        ObjectArrayList<File> forwardBatches = new ObjectArrayList<>();
+        ObjectArrayList<File> backwardBatches = new ObjectArrayList<>();
 
         ProgressLogger plSortingBatches = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         plSortingBatches.itemsName = "edges";
@@ -205,21 +206,33 @@ public class LabelMapBuilder {
             plSortingBatches.lightUpdate();
 
             if (idx == batchSize - 1) {
-                processBatch(batchSize, srcArray, dstArray, labelArray, tempDirFile, batches);
+                processBidirectionalBatches(batchSize, srcArray, dstArray, labelArray, tempDirFile, forwardBatches,
+                        backwardBatches);
                 i.set(0);
             }
         });
 
         if (i.get() != 0) {
-            processBatch(i.get(), srcArray, dstArray, labelArray, tempDirFile, batches);
+            processBidirectionalBatches(i.get(), srcArray, dstArray, labelArray, tempDirFile, forwardBatches,
+                    backwardBatches);
         }
 
-        plSortingBatches.logger().info("Created " + batches.size() + " batches");
+        plSortingBatches.logger().info("Created " + forwardBatches.size() + " batches");
 
-        BatchEdgeLabelLineIterator batchHeapIterator = new BatchEdgeLabelLineIterator(batches);
-        writeLabels(batchHeapIterator);
+        BatchEdgeLabelLineIterator forwardBatchHeapIterator = new BatchEdgeLabelLineIterator(forwardBatches);
+        writeLabels(forwardBatchHeapIterator, outputGraphPath, graph);
+
+        BatchEdgeLabelLineIterator backwardBatchHeapIterator = new BatchEdgeLabelLineIterator(backwardBatches);
+        ImmutableGraph graphTransposed = ImmutableGraph.loadMapped(graphPath + "-transposed");
+        writeLabels(backwardBatchHeapIterator, outputGraphPath + "-transposed", graphTransposed);
 
         logger.info("Done");
+    }
+
+    void processBidirectionalBatches(final int n, final long[] source, final long[] target, final long[] labels,
+            final File tempDir, final List<File> forwardBatches, final List<File> backwardBatches) throws IOException {
+        processBatch(n, source, target, labels, tempDir, forwardBatches);
+        processBatch(n, target, source, labels, tempDir, backwardBatches);
     }
 
     void processBatch(final int n, final long[] source, final long[] target, final long[] labels, final File tempDir,
@@ -287,7 +300,7 @@ public class LabelMapBuilder {
         out.flush();
     }
 
-    void writeLabels(EdgeLabelLineIterator mapLines) throws IOException {
+    void writeLabels(EdgeLabelLineIterator mapLines, String basename, ImmutableGraph graph) throws IOException {
         // Get the sorted output and write the labels and label offsets
         ProgressLogger plLabels = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         plLabels.itemsName = "edges";
@@ -295,9 +308,9 @@ public class LabelMapBuilder {
         plLabels.start("Writing the labels to the label file.");
 
         OutputBitStream labels = new OutputBitStream(
-                new File(outputGraphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABELS_EXTENSION));
+                new File(basename + "-labelled" + BitStreamArcLabelledImmutableGraph.LABELS_EXTENSION));
         OutputBitStream offsets = new OutputBitStream(
-                new File(outputGraphPath + "-labelled" + BitStreamArcLabelledImmutableGraph.LABEL_OFFSETS_EXTENSION));
+                new File(basename + "-labelled" + BitStreamArcLabelledImmutableGraph.LABEL_OFFSETS_EXTENSION));
         offsets.writeGamma(0);
 
         EdgeLabelLine line = new EdgeLabelLine(-1, -1, -1, -1);
@@ -340,12 +353,11 @@ public class LabelMapBuilder {
         offsets.close();
         plLabels.done();
 
-        PrintWriter pw = new PrintWriter(new FileWriter(outputGraphPath + "-labelled.properties"));
+        PrintWriter pw = new PrintWriter(new FileWriter(basename + "-labelled.properties"));
         pw.println(ImmutableGraph.GRAPHCLASS_PROPERTY_KEY + " = " + BitStreamArcLabelledImmutableGraph.class.getName());
         pw.println(BitStreamArcLabelledImmutableGraph.LABELSPEC_PROPERTY_KEY + " = " + SwhLabel.class.getName()
                 + "(DirEntry," + totalLabelWidth + ")");
-        pw.println(ArcLabelledImmutableGraph.UNDERLYINGGRAPH_PROPERTY_KEY + " = "
-                + Paths.get(outputGraphPath).getFileName());
+        pw.println(ArcLabelledImmutableGraph.UNDERLYINGGRAPH_PROPERTY_KEY + " = " + Paths.get(basename).getFileName());
         pw.close();
     }
 
