@@ -45,7 +45,7 @@ def check_config(conf):
     if "llp_gammas" not in conf:
         conf["llp_gammas"] = "-0,-1,-2,-3,-4"
     if "max_ram" not in conf:
-        conf["max_ram"] = str(psutil.virtual_memory().total)
+        conf["max_ram"] = str(int(psutil.virtual_memory().total * 0.9))
     if "java_tool_options" not in conf:
         conf["java_tool_options"] = " ".join(
             [
