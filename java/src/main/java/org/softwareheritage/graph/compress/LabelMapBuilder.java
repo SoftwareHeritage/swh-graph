@@ -4,9 +4,9 @@ import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledImmutableGraph;
 import it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph;
+import it.unimi.dsi.fastutil.Arrays;
 import it.unimi.dsi.fastutil.BigArrays;
 import it.unimi.dsi.fastutil.Size64;
-import it.unimi.dsi.fastutil.io.FastBufferedOutputStream;
 import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.fastutil.longs.LongHeapSemiIndirectPriorityQueue;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
@@ -27,16 +27,24 @@ import org.softwareheritage.graph.utils.ForkJoinQuickSort3;
 import java.io.*;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 public class LabelMapBuilder {
     final static Logger logger = LoggerFactory.getLogger(LabelMapBuilder.class);
 
+    // Create one thread per processor.
+    final static int numThreads = Runtime.getRuntime().availableProcessors();
+    // Allocate up to 40% of maximum memory.
+    final static int batchSize = Math.min((int) (Runtime.getRuntime().maxMemory() * 0.4 / (numThreads * 8 * 3)),
+            Arrays.MAX_ARRAY_SIZE);
+
     String orcDatasetPath;
     String graphPath;
     String outputGraphPath;
-    int batchSize;
     String tmpDir;
 
     long numNodes;
@@ -52,10 +60,10 @@ public class LabelMapBuilder {
         this.orcDatasetPath = orcDatasetPath;
         this.graphPath = graphPath;
         this.outputGraphPath = (outputGraphPath == null) ? graphPath : outputGraphPath;
-        this.batchSize = batchSize;
+        // this.batchSize = batchSize;
         this.tmpDir = tmpDir;
 
-        var graph = ImmutableGraph.loadOffline(graphPath);
+        ImmutableGraph graph = ImmutableGraph.loadOffline(graphPath);
         this.numArcs = graph.numArcs();
         this.numNodes = graph.numNodes();
 
@@ -99,7 +107,6 @@ public class LabelMapBuilder {
 
         LabelMapBuilder builder = new LabelMapBuilder(orcDataset, graphPath, outputGraphPath, batchSize, tmpDir);
 
-        logger.info("Loading graph and MPH functions...");
         builder.computeLabelMap();
     }
 
@@ -111,38 +118,7 @@ public class LabelMapBuilder {
         File tempDirFile = new File(tmpDir);
         ObjectArrayList<File> forwardBatches = new ObjectArrayList<>();
         ObjectArrayList<File> backwardBatches = new ObjectArrayList<>();
-
-        ProgressLogger plSortingBatches = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
-        plSortingBatches.itemsName = "edges";
-        plSortingBatches.expectedUpdates = this.numArcs;
-        plSortingBatches.start("Sorting batches.");
-
-        long[] srcArray = new long[batchSize];
-        long[] dstArray = new long[batchSize];
-        long[] labelArray = new long[batchSize];
-        AtomicInteger i = new AtomicInteger(0);
-
-        readHashedEdgeLabels((src, dst, label, perms) -> {
-            // System.err.println("0. Input " + src + " " + dst + " " + label + " " + perms);
-            int idx = i.getAndAdd(1);
-            srcArray[idx] = src;
-            dstArray[idx] = dst;
-            labelArray[idx] = DirEntry.toEncoded(label, perms);
-            plSortingBatches.lightUpdate();
-
-            if (idx == batchSize - 1) {
-                processBidirectionalBatches(batchSize, srcArray, dstArray, labelArray, tempDirFile, forwardBatches,
-                        backwardBatches);
-                i.set(0);
-            }
-        });
-
-        if (i.get() != 0) {
-            processBidirectionalBatches(i.get(), srcArray, dstArray, labelArray, tempDirFile, forwardBatches,
-                    backwardBatches);
-        }
-
-        plSortingBatches.logger().info("Created " + forwardBatches.size() + " batches");
+        genSortedBatches(forwardBatches, backwardBatches, tempDirFile);
 
         BatchEdgeLabelLineIterator forwardBatchHeapIterator = new BatchEdgeLabelLineIterator(forwardBatches);
         writeLabels(forwardBatchHeapIterator, graphPath, outputGraphPath);
@@ -153,20 +129,90 @@ public class LabelMapBuilder {
         logger.info("Done");
     }
 
+    void genSortedBatches(ObjectArrayList<File> forwardBatches, ObjectArrayList<File> backwardBatches, File tempDirFile)
+            throws IOException {
+        logger.info("Initializing batch arrays.");
+        long[][] srcArrays = new long[numThreads][batchSize];
+        long[][] dstArrays = new long[numThreads][batchSize];
+        long[][] labelArrays = new long[numThreads][batchSize];
+        int[] indexes = new int[numThreads];
+        long[] progressCounts = new long[numThreads];
+
+        ProgressLogger plSortingBatches = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
+        plSortingBatches.itemsName = "edges";
+        plSortingBatches.expectedUpdates = this.numArcs;
+        plSortingBatches.start("Reading edges and writing sorted batches.");
+
+        AtomicInteger nextThreadId = new AtomicInteger(0);
+        ThreadLocal<Integer> threadLocalId = ThreadLocal.withInitial(nextThreadId::getAndIncrement);
+
+        readHashedEdgeLabels((src, dst, label, perms) -> {
+            // System.err.println("0. Input " + src + " " + dst + " " + label + " " + perms);
+            int threadId = threadLocalId.get();
+            int idx = indexes[threadId]++;
+            srcArrays[threadId][idx] = src;
+            dstArrays[threadId][idx] = dst;
+            labelArrays[threadId][idx] = DirEntry.toEncoded(label, perms);
+            if (++progressCounts[threadId] > 1000) {
+                synchronized (plSortingBatches) {
+                    plSortingBatches.update(progressCounts[threadId]);
+                }
+                progressCounts[threadId] = 0;
+            }
+
+            if (idx == batchSize - 1) {
+                processBidirectionalBatches(batchSize, srcArrays[threadId], dstArrays[threadId], labelArrays[threadId],
+                        tempDirFile, forwardBatches, backwardBatches);
+                indexes[threadId] = 0;
+            }
+        });
+
+        IntStream.range(0, numThreads).parallel().forEach(t -> {
+            int idx = indexes[t];
+            if (idx > 0) {
+                try {
+                    processBidirectionalBatches(idx, srcArrays[t], dstArrays[t], labelArrays[t], tempDirFile,
+                            forwardBatches, backwardBatches);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        // Trigger the GC to free up the large arrays
+        for (int i = 0; i < numThreads; i++) {
+            srcArrays[i] = null;
+            dstArrays[i] = null;
+            labelArrays[i] = null;
+        }
+
+        logger.info("Created " + forwardBatches.size() + " forward batches and " + backwardBatches.size()
+                + " backward batches.");
+    }
+
     void readHashedEdgeLabels(GraphDataset.HashedEdgeCallback cb) throws IOException {
         ORCGraphDataset dataset = new ORCGraphDataset(orcDatasetPath);
-        FastBufferedOutputStream out = new FastBufferedOutputStream(System.out);
-        dataset.readEdges((node) -> {
-        }, (src, dst, label, perms) -> {
-            if (label == null) {
-                return;
-            }
-            long srcNode = nodeIdMap.getNodeId(src);
-            long dstNode = nodeIdMap.getNodeId(dst);
-            long labelId = filenameMph.getLong(label);
-            cb.onHashedEdge(srcNode, dstNode, labelId, perms);
-        });
-        out.flush();
+        ForkJoinPool forkJoinPool = new ForkJoinPool(numThreads);
+        try {
+            forkJoinPool.submit(() -> {
+                try {
+                    dataset.readEdges((node) -> {
+                    }, (src, dst, label, perms) -> {
+                        if (label == null) {
+                            return;
+                        }
+                        long srcNode = nodeIdMap.getNodeId(src);
+                        long dstNode = nodeIdMap.getNodeId(dst);
+                        long labelId = filenameMph.getLong(label);
+                        cb.onHashedEdge(srcNode, dstNode, labelId, perms);
+                    });
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     void processBidirectionalBatches(final int n, final long[] source, final long[] target, final long[] labels,
@@ -233,7 +279,7 @@ public class LabelMapBuilder {
         ProgressLogger plLabels = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         plLabels.itemsName = "edges";
         plLabels.expectedUpdates = this.numArcs;
-        plLabels.start("Writing the labels to the label file.");
+        plLabels.start("Writing the labels to the label file: " + outputGraphBasename + "-labelled.*");
 
         OutputBitStream labels = new OutputBitStream(
                 new File(outputGraphBasename + "-labelled" + BitStreamArcLabelledImmutableGraph.LABELS_EXTENSION));
@@ -280,6 +326,8 @@ public class LabelMapBuilder {
         labels.close();
         offsets.close();
         plLabels.done();
+
+        graph = null;
 
         PrintWriter pw = new PrintWriter(new FileWriter(outputGraphBasename + "-labelled.properties"));
         pw.println(ImmutableGraph.GRAPHCLASS_PROPERTY_KEY + " = " + BitStreamArcLabelledImmutableGraph.class.getName());
