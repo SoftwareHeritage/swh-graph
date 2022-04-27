@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.softwareheritage.graph.labels.DirEntry;
 import org.softwareheritage.graph.labels.SwhLabel;
 import org.softwareheritage.graph.maps.NodeIdMap;
+import org.softwareheritage.graph.utils.ForkJoinBigQuickSort2;
 import org.softwareheritage.graph.utils.ForkJoinQuickSort3;
 
 import java.io.*;
@@ -389,7 +390,8 @@ public class LabelMapBuilder {
             }
 
             // Neither quicksort nor heaps are stable, so we reestablish order here.
-            LongBigArrays.radixSort(lastNodeSuccessors, lastNodeLabels, 0, lastNodeOutdegree);
+            // LongBigArrays.radixSort(lastNodeSuccessors, lastNodeLabels, 0, lastNodeOutdegree);
+            ForkJoinBigQuickSort2.parallelQuickSort(lastNodeSuccessors, lastNodeLabels, 0, lastNodeOutdegree);
         }
 
         @Override
