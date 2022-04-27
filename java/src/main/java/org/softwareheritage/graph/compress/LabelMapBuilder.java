@@ -249,7 +249,7 @@ public class LabelMapBuilder {
         while (it.hasNext()) {
             long srcNode = it.nextLong();
 
-            int bits = 0;
+            long bits = 0;
             LazyLongIterator s = it.successors();
             long dstNode;
             while ((dstNode = s.nextLong()) >= 0) {
@@ -273,7 +273,7 @@ public class LabelMapBuilder {
                 bits += l.toBitStream(labels, -1);
                 plLabels.lightUpdate();
             }
-            offsets.writeGamma(bits);
+            offsets.writeLongGamma(bits);
         }
 
         labels.close();
