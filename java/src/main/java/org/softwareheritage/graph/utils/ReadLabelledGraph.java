@@ -1,16 +1,29 @@
 package org.softwareheritage.graph.utils;
 
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledNodeIterator;
+import it.unimi.dsi.logging.ProgressLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.softwareheritage.graph.SwhUnidirectionalGraph;
 import org.softwareheritage.graph.labels.DirEntry;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 public class ReadLabelledGraph {
+    final static Logger logger = LoggerFactory.getLogger(ReadLabelledGraph.class);
+
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         String graphPath = args[0];
 
-        SwhUnidirectionalGraph graph = SwhUnidirectionalGraph.loadLabelled(graphPath);
+        ProgressLogger pl = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
+        SwhUnidirectionalGraph graph;
+        if (args.length > 1 && (args[1].equals("--mapped") || args[1].equals("-m"))) {
+            graph = SwhUnidirectionalGraph.loadLabelledMapped(graphPath, pl);
+        } else {
+            graph = SwhUnidirectionalGraph.loadLabelled(graphPath, pl);
+        }
+
         graph.properties.loadLabelNames();
 
         ArcLabelledNodeIterator it = graph.labelledNodeIterator();

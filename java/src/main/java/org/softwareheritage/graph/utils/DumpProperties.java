@@ -10,7 +10,12 @@ public class DumpProperties {
     public static void main(String[] args) throws IOException {
         String graphPath = args[0];
 
-        SwhUnidirectionalGraph graph = SwhUnidirectionalGraph.loadLabelled(graphPath);
+        SwhUnidirectionalGraph graph;
+        if (args.length > 1 && (args[1].equals("--mapped") || args[1].equals("-m"))) {
+            graph = SwhUnidirectionalGraph.loadLabelledMapped(graphPath);
+        } else {
+            graph = SwhUnidirectionalGraph.loadLabelled(graphPath);
+        }
         graph.loadContentLength();
         graph.loadContentIsSkipped();
         graph.loadPersonIds();
