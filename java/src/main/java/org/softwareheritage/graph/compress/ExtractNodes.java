@@ -2,6 +2,9 @@ package org.softwareheritage.graph.compress;
 
 import com.github.luben.zstd.ZstdOutputStream;
 import com.martiansoftware.jsap.*;
+import it.unimi.dsi.logging.ProgressLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.utils.Sort;
 
@@ -10,6 +13,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
 
@@ -50,6 +55,14 @@ import java.util.concurrent.atomic.AtomicLongArray;
  * </p>
  */
 public class ExtractNodes {
+    private final static Logger logger = LoggerFactory.getLogger(ExtractNodes.class);
+
+    // Create one thread per processor.
+    final static int numThreads = Runtime.getRuntime().availableProcessors();
+
+    // Allocate up to 20% of maximum memory for sorting subprocesses.
+    final static long sortBufferSize = (long) (Runtime.getRuntime().maxMemory() * 0.2 / numThreads / 2);
+
     private static JSAPResult parseArgs(String[] args) {
         JSAPResult config = null;
         try {
@@ -60,8 +73,9 @@ public class ExtractNodes {
 
                     new FlaggedOption("format", JSAP.STRING_PARSER, "orc", JSAP.NOT_REQUIRED, 'f', "format",
                             "Format of the input dataset (orc, csv)"),
-                    new FlaggedOption("sortBufferSize", JSAP.STRING_PARSER, "30%", JSAP.NOT_REQUIRED, 'S',
-                            "sort-buffer-size", "Size of the memory buffer used by sort"),
+                    new FlaggedOption("sortBufferSize", JSAP.STRING_PARSER, String.valueOf(sortBufferSize) + "b",
+                            JSAP.NOT_REQUIRED, 'S', "sort-buffer-size",
+                            "Size of the memory buffer used by each sort process"),
                     new FlaggedOption("sortTmpDir", JSAP.STRING_PARSER, null, JSAP.NOT_REQUIRED, 'T', "temp-dir",
                             "Path to the temporary directory used by sort")});
 
@@ -102,52 +116,63 @@ public class ExtractNodes {
 
     public static void extractNodes(GraphDataset dataset, String outputBasename, String sortBufferSize,
             String sortTmpDir) throws IOException, InterruptedException {
-        // Spawn node sorting process
-        Process nodeSort = Sort.spawnSort(sortBufferSize, sortTmpDir);
-        BufferedOutputStream nodeSortStdin = new BufferedOutputStream(nodeSort.getOutputStream());
-        BufferedInputStream nodeSortStdout = new BufferedInputStream(nodeSort.getInputStream());
-        OutputStream nodesFileOutputStream = new ZstdOutputStream(
-                new BufferedOutputStream(new FileOutputStream(outputBasename + ".nodes.csv.zst")));
-        NodesOutputThread nodesOutputThread = new NodesOutputThread(nodeSortStdout, nodesFileOutputStream);
-        nodesOutputThread.start();
-
-        // Spawn label sorting process
-        Process labelSort = Sort.spawnSort(sortBufferSize, sortTmpDir);
-        BufferedOutputStream labelSortStdin = new BufferedOutputStream(labelSort.getOutputStream());
-        BufferedInputStream labelSortStdout = new BufferedInputStream(labelSort.getInputStream());
-        OutputStream labelsFileOutputStream = new ZstdOutputStream(
-                new BufferedOutputStream(new FileOutputStream(outputBasename + ".labels.csv.zst")));
-        LabelsOutputThread labelsOutputThread = new LabelsOutputThread(labelSortStdout, labelsFileOutputStream);
-        labelsOutputThread.start();
-
         // Read the dataset and write the nodes and labels to the sorting processes
         AtomicLong edgeCount = new AtomicLong(0);
         AtomicLongArray edgeCountByType = new AtomicLongArray(Node.Type.values().length * Node.Type.values().length);
-        // long[][] edgeCountByType = new long[Node.Type.values().length][Node.Type.values().length];
-        ForkJoinPool forkJoinPool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
+
+        int numThreads = Runtime.getRuntime().availableProcessors();
+        ForkJoinPool forkJoinPool = new ForkJoinPool(numThreads);
+
+        Process[] nodeSorters = new Process[numThreads];
+        String[] nodeBatchPaths = new String[numThreads];
+        Process[] labelSorters = new Process[numThreads];
+        String[] labelBatchPaths = new String[numThreads];
+        long[] progressCounts = new long[numThreads];
+
+        AtomicInteger nextThreadId = new AtomicInteger(0);
+        ThreadLocal<Integer> threadLocalId = ThreadLocal.withInitial(nextThreadId::getAndIncrement);
+
+        ProgressLogger pl = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
+        pl.itemsName = "edges";
+        pl.start("Reading node/edge files and writing sorted batches.");
+
+        GraphDataset.NodeCallback nodeCallback = (node) -> {
+            int threadId = threadLocalId.get();
+            if (nodeSorters[threadId] == null) {
+                nodeBatchPaths[threadId] = sortTmpDir + "/nodes." + threadId + ".txt";
+                nodeSorters[threadId] = Sort.spawnSort(sortBufferSize, sortTmpDir,
+                        List.of("-o", nodeBatchPaths[threadId]));
+            }
+            OutputStream nodeOutputStream = nodeSorters[threadId].getOutputStream();
+            nodeOutputStream.write(node);
+            nodeOutputStream.write('\n');
+        };
+
+        GraphDataset.NodeCallback labelCallback = (label) -> {
+            int threadId = threadLocalId.get();
+            if (labelSorters[threadId] == null) {
+                labelBatchPaths[threadId] = sortTmpDir + "/labels." + threadId + ".txt";
+                labelSorters[threadId] = Sort.spawnSort(sortBufferSize, sortTmpDir,
+                        List.of("-o", labelBatchPaths[threadId]));
+            }
+            OutputStream labelOutputStream = labelSorters[threadId].getOutputStream();
+            labelOutputStream.write(label);
+            labelOutputStream.write('\n');
+        };
+
         try {
             forkJoinPool.submit(() -> {
                 try {
                     dataset.readEdges((node) -> {
-                        synchronized (nodeSortStdin) {
-                            nodeSortStdin.write(node);
-                            nodeSortStdin.write('\n');
-                        }
+                        nodeCallback.onNode(node);
                     }, (src, dst, label, perm) -> {
-                        synchronized (nodeSortStdin) {
-                            nodeSortStdin.write(src);
-                            nodeSortStdin.write('\n');
-                            nodeSortStdin.write(dst);
-                            nodeSortStdin.write('\n');
-                        }
+                        nodeCallback.onNode(src);
+                        nodeCallback.onNode(dst);
+
                         if (label != null) {
-                            synchronized (labelSortStdin) {
-                                labelSortStdin.write(label);
-                                labelSortStdin.write('\n');
-                            }
+                            labelCallback.onNode(label);
                         }
                         edgeCount.incrementAndGet();
-                        // edgeCount[0]++;
                         // Extract type of src and dst from their SWHID: swh:1:XXX
                         byte[] srcTypeBytes = Arrays.copyOfRange(src, 6, 6 + 3);
                         byte[] dstTypeBytes = Arrays.copyOfRange(dst, 6, 6 + 3);
@@ -155,12 +180,18 @@ public class ExtractNodes {
                         int dstType = Node.Type.byteNameToInt(dstTypeBytes);
                         if (srcType != -1 && dstType != -1) {
                             edgeCountByType.incrementAndGet(srcType * Node.Type.values().length + dstType);
-                            // edgeCountByType[srcType][dstType].incrementAndGet();
-                            // edgeCountByType[srcType][dstType]++;
                         } else {
                             System.err.println("Invalid edge type: " + new String(srcTypeBytes) + " -> "
                                     + new String(dstTypeBytes));
                             System.exit(1);
+                        }
+
+                        int threadId = threadLocalId.get();
+                        if (++progressCounts[threadId] > 1000) {
+                            synchronized (pl) {
+                                pl.update(progressCounts[threadId]);
+                            }
+                            progressCounts[threadId] = 0;
                         }
                     });
                 } catch (IOException e) {
@@ -171,21 +202,68 @@ public class ExtractNodes {
             throw new RuntimeException(e);
         }
 
+        // Close all the sorters stdin
+        for (int i = 0; i < numThreads; i++) {
+            if (nodeSorters[i] != null) {
+                nodeSorters[i].getOutputStream().close();
+            }
+            if (labelSorters[i] != null) {
+                labelSorters[i].getOutputStream().close();
+            }
+        }
+
+        // Wait for sorting processes to finish
+        for (int i = 0; i < numThreads; i++) {
+            if (nodeSorters[i] != null) {
+                nodeSorters[i].waitFor();
+            }
+            if (labelSorters[i] != null) {
+                labelSorters[i].waitFor();
+            }
+        }
+        pl.done();
+
+        ArrayList<String> nodeSortMergerOptions = new ArrayList<>(List.of("-m"));
+        ArrayList<String> labelSortMergerOptions = new ArrayList<>(List.of("-m"));
+        for (int i = 0; i < numThreads; i++) {
+            if (nodeBatchPaths[i] != null) {
+                nodeSortMergerOptions.add(nodeBatchPaths[i]);
+            }
+            if (labelBatchPaths[i] != null) {
+                labelSortMergerOptions.add(labelBatchPaths[i]);
+            }
+        }
+
+        // Spawn node merge-sorting process
+        Process nodeSortMerger = Sort.spawnSort(sortBufferSize, sortTmpDir, nodeSortMergerOptions);
+        nodeSortMerger.getOutputStream().close();
+        OutputStream nodesFileOutputStream = new ZstdOutputStream(
+                new BufferedOutputStream(new FileOutputStream(outputBasename + ".nodes.csv.zst")));
+        NodesOutputThread nodesOutputThread = new NodesOutputThread(
+                new BufferedInputStream(nodeSortMerger.getInputStream()), nodesFileOutputStream);
+        nodesOutputThread.start();
+
+        // Spawn label merge-sorting process
+        Process labelSortMerger = Sort.spawnSort(sortBufferSize, sortTmpDir, labelSortMergerOptions);
+        labelSortMerger.getOutputStream().close();
+        OutputStream labelsFileOutputStream = new ZstdOutputStream(
+                new BufferedOutputStream(new FileOutputStream(outputBasename + ".labels.csv.zst")));
+        LabelsOutputThread labelsOutputThread = new LabelsOutputThread(
+                new BufferedInputStream(labelSortMerger.getInputStream()), labelsFileOutputStream);
+        labelsOutputThread.start();
+
+        pl.logger().info("Waiting for merge-sort and writing output files...");
+        nodeSortMerger.waitFor();
+        labelSortMerger.waitFor();
+        nodesOutputThread.join();
+        labelsOutputThread.join();
+
         long[][] edgeCountByTypeArray = new long[Node.Type.values().length][Node.Type.values().length];
         for (int i = 0; i < edgeCountByTypeArray.length; i++) {
             for (int j = 0; j < edgeCountByTypeArray[i].length; j++) {
                 edgeCountByTypeArray[i][j] = edgeCountByType.get(i * Node.Type.values().length + j);
             }
         }
-
-        // Wait for sorting processes to finish
-        nodeSortStdin.close();
-        nodeSort.waitFor();
-        labelSortStdin.close();
-        labelSort.waitFor();
-
-        nodesOutputThread.join();
-        labelsOutputThread.join();
 
         // Write node, edge and label counts/statistics
         printEdgeCounts(outputBasename, edgeCount.get(), edgeCountByTypeArray);

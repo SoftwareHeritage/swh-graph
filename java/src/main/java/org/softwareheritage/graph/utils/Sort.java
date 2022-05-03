@@ -7,12 +7,19 @@ import java.util.Map;
 
 public class Sort {
     public static Process spawnSort(String sortBufferSize, String sortTmpDir) throws IOException {
+        return spawnSort(sortBufferSize, sortTmpDir, null);
+    }
+
+    public static Process spawnSort(String sortBufferSize, String sortTmpDir, List<String> options) throws IOException {
         ProcessBuilder sortProcessBuilder = new ProcessBuilder();
         sortProcessBuilder.redirectError(ProcessBuilder.Redirect.INHERIT);
         ArrayList<String> command = new ArrayList<>(List.of("sort", "-u", "--buffer-size", sortBufferSize));
         if (sortTmpDir != null) {
             command.add("--temporary-directory");
             command.add(sortTmpDir);
+        }
+        if (options != null) {
+            command.addAll(options);
         }
         sortProcessBuilder.command(command);
         Map<String, String> env = sortProcessBuilder.environment();
