@@ -107,7 +107,7 @@ public class WriteNodeProperties {
     public void writeContentLength() throws IOException {
         logger.info("Writing content lengths");
         long[][] valueArray = LongBigArrays.newBigArray(numNodes);
-        BigArrays.fill(valueArray, Long.MIN_VALUE);
+        BigArrays.fill(valueArray, -1);
 
         for (String tableName : new String[]{"content", "skipped_content"}) {
             SwhOrcTable table = dataset.getTable(tableName);

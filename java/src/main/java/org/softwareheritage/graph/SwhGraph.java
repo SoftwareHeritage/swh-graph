@@ -48,7 +48,7 @@ public interface SwhGraph {
     }
 
     /** @see SwhGraphProperties#getContentLength(long) */
-    default long getContentLength(long nodeId) {
+    default Long getContentLength(long nodeId) {
         return getProperties().getContentLength(nodeId);
     }
 
@@ -58,12 +58,12 @@ public interface SwhGraph {
     }
 
     /** @see SwhGraphProperties#getAuthorId(long) */
-    default long getAuthorId(long nodeId) {
+    default Long getAuthorId(long nodeId) {
         return getProperties().getAuthorId(nodeId);
     }
 
     /** @see SwhGraphProperties#getCommitterId(long) */
-    default long getCommitterId(long nodeId) {
+    default Long getCommitterId(long nodeId) {
         return getProperties().getCommitterId(nodeId);
     }
 
@@ -83,12 +83,12 @@ public interface SwhGraph {
     }
 
     /** @see SwhGraphProperties#getAuthorTimestamp(long) */
-    default long getAuthorTimestamp(long nodeId) {
+    default Long getAuthorTimestamp(long nodeId) {
         return getProperties().getAuthorTimestamp(nodeId);
     }
 
     /** @see SwhGraphProperties#getAuthorTimestampOffset(long) */
-    default short getAuthorTimestampOffset(long nodeId) {
+    default Short getAuthorTimestampOffset(long nodeId) {
         return getProperties().getAuthorTimestampOffset(nodeId);
     }
 
@@ -98,12 +98,12 @@ public interface SwhGraph {
     }
 
     /** @see SwhGraphProperties#getCommitterTimestamp(long) */
-    default long getCommitterTimestamp(long nodeId) {
+    default Long getCommitterTimestamp(long nodeId) {
         return getProperties().getCommitterTimestamp(nodeId);
     }
 
     /** @see SwhGraphProperties#getCommitterTimestampOffset(long) */
-    default short getCommitterTimestampOffset(long nodeId) {
+    default Short getCommitterTimestampOffset(long nodeId) {
         return getProperties().getCommitterTimestampOffset(nodeId);
     }
 

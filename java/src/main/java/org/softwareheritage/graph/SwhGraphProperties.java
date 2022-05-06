@@ -160,8 +160,12 @@ public class SwhGraphProperties {
     }
 
     /** Get the size (in bytes) of the given content node */
-    public long getContentLength(long nodeId) {
-        return contentLength.getLong(nodeId);
+    public Long getContentLength(long nodeId) {
+        if (contentLength == null) {
+            throw new IllegalStateException("Content lengths not loaded");
+        }
+        long res = contentLength.getLong(nodeId);
+        return (res >= 0) ? res : null;
     }
 
     /** Load the IDs of the persons (authors and committers) */
@@ -171,19 +175,21 @@ public class SwhGraphProperties {
     }
 
     /** Get a unique integer ID representing the author of the given revision or release node */
-    public long getAuthorId(long nodeId) {
+    public Long getAuthorId(long nodeId) {
         if (authorId == null) {
             throw new IllegalStateException("Author IDs not loaded");
         }
-        return authorId.getInt(nodeId);
+        long res = authorId.getInt(nodeId);
+        return (res >= 0) ? res : null;
     }
 
     /** Get a unique integer ID representing the committer of the given revision node */
-    public long getCommitterId(long nodeId) {
+    public Long getCommitterId(long nodeId) {
         if (committerId == null) {
             throw new IllegalStateException("Committer IDs not loaded");
         }
-        return committerId.getInt(nodeId);
+        long res = committerId.getInt(nodeId);
+        return (res >= 0) ? res : null;
     }
 
     /**
@@ -213,19 +219,21 @@ public class SwhGraphProperties {
     }
 
     /** Return the timestamp at which the given revision or release was authored */
-    public long getAuthorTimestamp(long nodeId) {
+    public Long getAuthorTimestamp(long nodeId) {
         if (authorTimestamp == null) {
             throw new IllegalStateException("Author timestamps not loaded");
         }
-        return authorTimestamp.getLong(nodeId);
+        long res = authorTimestamp.getLong(nodeId);
+        return (res > Long.MIN_VALUE) ? res : null;
     }
 
     /** Return the timestamp offset at which the given revision or release was authored */
-    public short getAuthorTimestampOffset(long nodeId) {
+    public Short getAuthorTimestampOffset(long nodeId) {
         if (authorTimestampOffset == null) {
             throw new IllegalStateException("Author timestamp offsets not loaded");
         }
-        return authorTimestampOffset.getShort(nodeId);
+        short res = authorTimestampOffset.getShort(nodeId);
+        return (res > Short.MIN_VALUE) ? res : null;
     }
 
     /** Load the timestamps at which the releases and revisions were committed */
@@ -235,19 +243,21 @@ public class SwhGraphProperties {
     }
 
     /** Return the timestamp at which the given revision was committed */
-    public long getCommitterTimestamp(long nodeId) {
+    public Long getCommitterTimestamp(long nodeId) {
         if (committerTimestamp == null) {
             throw new IllegalStateException("Committer timestamps not loaded");
         }
-        return committerTimestamp.getLong(nodeId);
+        long res = committerTimestamp.getLong(nodeId);
+        return (res > Long.MIN_VALUE) ? res : null;
     }
 
     /** Return the timestamp offset at which the given revision was committed */
-    public short getCommitterTimestampOffset(long nodeId) {
+    public Short getCommitterTimestampOffset(long nodeId) {
         if (committerTimestampOffset == null) {
             throw new IllegalStateException("Committer timestamp offsets not loaded");
         }
-        return committerTimestampOffset.getShort(nodeId);
+        short res = committerTimestampOffset.getShort(nodeId);
+        return (res > Short.MIN_VALUE) ? res : null;
     }
 
     /** Load the revision messages, the release messages and the origin URLs */
@@ -270,7 +280,8 @@ public class SwhGraphProperties {
 
     /** Get the URL of the given origin node */
     public String getUrl(long nodeId) throws IOException {
-        return new String(getMessage(nodeId));
+        byte[] url = getMessage(nodeId);
+        return (url != null) ? new String(url) : null;
     }
 
     /** Load the release names */

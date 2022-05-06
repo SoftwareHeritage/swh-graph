@@ -1,20 +1,27 @@
 package org.softwareheritage.graph.utils;
 
-import it.unimi.dsi.big.webgraph.NodeIterator;
+import it.unimi.dsi.big.webgraph.labelling.ArcLabelledNodeIterator;
+import it.unimi.dsi.logging.ProgressLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.softwareheritage.graph.SwhUnidirectionalGraph;
 import org.softwareheritage.graph.labels.DirEntry;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 public class DumpProperties {
+    final static Logger logger = LoggerFactory.getLogger(DumpProperties.class);
+
     public static void main(String[] args) throws IOException {
         String graphPath = args[0];
 
+        ProgressLogger pl = new ProgressLogger(logger, 10, TimeUnit.SECONDS);
         SwhUnidirectionalGraph graph;
         if (args.length > 1 && (args[1].equals("--mapped") || args[1].equals("-m"))) {
-            graph = SwhUnidirectionalGraph.loadLabelledMapped(graphPath);
+            graph = SwhUnidirectionalGraph.loadLabelledMapped(graphPath, pl);
         } else {
-            graph = SwhUnidirectionalGraph.loadLabelled(graphPath);
+            graph = SwhUnidirectionalGraph.loadLabelled(graphPath, pl);
         }
         graph.loadContentLength();
         graph.loadContentIsSkipped();
@@ -25,15 +32,14 @@ public class DumpProperties {
         graph.loadTagNames();
         graph.loadLabelNames();
 
-        NodeIterator it = graph.nodeIterator();
+        ArcLabelledNodeIterator it = graph.labelledNodeIterator();
         while (it.hasNext()) {
             long node = it.nextLong();
             System.out.format("%s: %s\n", node, graph.getSWHID(node));
 
-            var s = graph.labelledSuccessors(node);
-            long succ;
+            var s = it.successors();
             System.out.println("  successors:");
-            while ((succ = s.nextLong()) >= 0) {
+            for (long succ; (succ = s.nextLong()) >= 0;) {
                 DirEntry[] labels = (DirEntry[]) s.label().get();
                 if (labels.length > 0) {
                     for (DirEntry label : labels) {
@@ -66,8 +72,14 @@ public class DumpProperties {
                     System.out.format("  author: %s\n", graph.getAuthorId(node));
                     System.out.format("  date: %s (offset: %s)\n", graph.getAuthorTimestamp(node),
                             graph.getAuthorTimestamp(node));
-                    System.out.format("  message: %s\n", (new String(graph.getMessage(node))).replace("\n", "\\n"));
-                    System.out.format("  tag name: %s\n", new String(graph.getTagName(node)));
+                    byte[] tagMsg = graph.getMessage(node);
+                    if (tagMsg != null) {
+                        System.out.format("  message: %s\n", (new String(tagMsg)).replace("\n", "\\n"));
+                    }
+                    byte[] tagName = graph.getTagName(node);
+                    if (tagName != null) {
+                        System.out.format("  message: %s\n", (new String(tagName)));
+                    }
                     break;
                 case ORI:
                     System.out.format("  url: %s\n", graph.getUrl(node));
