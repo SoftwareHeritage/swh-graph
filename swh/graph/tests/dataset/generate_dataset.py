@@ -342,13 +342,15 @@ def main():
     config = {"test_unique_file_id": "all"}
     output_path = Path(args.output)
     for name, exporter in exporters.items():
-        shutil.rmtree(output_path / name)
+        if (output_path / name).exists():
+            shutil.rmtree(output_path / name)
         with exporter(config, output_path / name) as e:
             for obj in TEST_DATASET:
                 e.process_object(obj.object_type, obj.to_dict())
 
     if args.compress:
-        shutil.rmtree(output_path / "compressed")
+        if (output_path / "compressed").exists():
+            shutil.rmtree(output_path / "compressed")
         compress("example", output_path / "orc", output_path / "compressed")
 
 
