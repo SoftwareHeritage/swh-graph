@@ -78,12 +78,12 @@
     <dependency>
       <groupId>it.unimi.dsi</groupId>
       <artifactId>dsiutils</artifactId>
-      <version>2.7.0</version>
+      <version>2.7.1</version>
     </dependency>
     <dependency>
         <groupId>it.unimi.dsi</groupId>
         <artifactId>sux4j</artifactId>
-        <version>5.3.0</version>
+        <version>5.3.1</version>
     </dependency>
     <dependency>
       <groupId>it.unimi.dsi</groupId>
