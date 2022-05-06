@@ -17,6 +17,8 @@ from typing import Dict, List, Set
 
 from swh.graph.config import check_config_compress
 
+logger = logging.getLogger(__name__)
+
 
 class CompressionStep(Enum):
     EXTRACT_NODES = 1
@@ -262,13 +264,27 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
 
 
 def do_step(step, conf):
-    cmd = " ".join(STEP_ARGV[step]).format(**conf)
+    log_dir = Path(conf["out_dir"]) / "logs"
+    log_dir.mkdir(exist_ok=True)
 
+    step_logger = logger.getChild(f"steps.{step.name.lower()}")
+    step_handler = logging.FileHandler(
+        log_dir
+        / (
+            f"{conf['graph_name']}"
+            f"-{int(datetime.now().timestamp() * 1000)}"
+            f"-{str(step).lower()}.log"
+        )
+    )
+    step_logger.addHandler(step_handler)
+
+    step_start_time = datetime.now()
+    step_logger.info("Starting compression step %s at %s", step, step_start_time)
+
+    cmd = " ".join(STEP_ARGV[step]).format(**conf)
     cmd_env = os.environ.copy()
     cmd_env["JAVA_TOOL_OPTIONS"] = conf["java_tool_options"]
     cmd_env["CLASSPATH"] = conf["classpath"]
-
-    logging.info(f"running: {cmd}")
     process = subprocess.Popen(
         ["/bin/bash", "-c", cmd],
         env=cmd_env,
@@ -276,16 +292,25 @@ def do_step(step, conf):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
+    step_logger.info("Running: %s", cmd)
+
     with process.stdout as stdout:
         for line in stdout:
-            logging.info(line.rstrip())
+            step_logger.info(line.rstrip())
     rc = process.wait()
     if rc != 0:
-        raise RuntimeError(
-            f"compression step {step} returned non-zero " f"exit code {rc}"
-        )
-    else:
-        return rc
+        raise RuntimeError(f"Compression step {step} returned non-zero exit code {rc}")
+    step_end_time = datetime.now()
+    step_duration = step_end_time - step_start_time
+    step_logger.info(
+        "Compression step %s finished at %s (in %s)",
+        step,
+        step_end_time,
+        step_duration,
+    )
+    step_logger.removeHandler(step_handler)
+    step_handler.close()
+    return rc
 
 
 def compress(
@@ -327,26 +352,15 @@ def compress(
     conf = check_config_compress(conf, graph_name, in_dir, out_dir)
 
     compression_start_time = datetime.now()
-    logging.info(f"starting compression at {compression_start_time}")
+    logger.info("Starting compression at %s", compression_start_time)
     seq_no = 0
     for step in COMP_SEQ:
         if step not in steps:
-            logging.debug(f"skipping compression step {step}")
+            logger.debug("Skipping compression step %s", step)
             continue
         seq_no += 1
-        step_start_time = datetime.now()
-        logging.info(
-            f"starting compression step {step} "
-            f"({seq_no}/{len(steps)}) at {step_start_time}"
-        )
+        logger.info("Running compression step %s (%s/%s)", step, seq_no, len(steps))
         do_step(step, conf)
-        step_end_time = datetime.now()
-        step_duration = step_end_time - step_start_time
-        logging.info(
-            f"completed compression step {step} "
-            f"({seq_no}/{len(steps)}) "
-            f"at {step_end_time} in {step_duration}"
-        )
     compression_end_time = datetime.now()
     compression_duration = compression_end_time - compression_start_time
-    logging.info(f"completed compression in {compression_duration}")
+    logger.info("Completed compression in %s", compression_duration)
