@@ -78,24 +78,14 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}.mph",
         "{out_dir}/{graph_name}.nodes.csv.zst",
     ],
-    # use process substitution (and hence FIFO) above as MPH class load the
-    # entire file in memory when reading from stdin
     CompressionStep.BV: [
         "{java}",
-        "org.softwareheritage.graph.compress.ORCGraphDataset",
-        "{in_dir}",
-        "|",
-        "cut -d' ' -f1,2",
-        "|",
-        "{java}",
-        "it.unimi.dsi.big.webgraph.ScatteredArcsASCIIGraph",
-        "--byte-array",
-        "--batch-size",
-        "{batch_size}",
+        "org.softwareheritage.graph.compress.ScatteredArcsORCGraph",
         "--temp-dir",
         "{tmp_dir}",
         "--function",
         "{out_dir}/{graph_name}.mph",
+        "{in_dir}",
         "{out_dir}/{graph_name}-base",
     ],
     CompressionStep.BFS: [
