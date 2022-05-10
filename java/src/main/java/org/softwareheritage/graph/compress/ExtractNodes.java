@@ -97,9 +97,10 @@ public class ExtractNodes {
 
         String datasetFormat = parsedArgs.getString("format");
         String sortBufferSize = parsedArgs.getString("sortBufferSize");
-        String sortTmpDir = parsedArgs.getString("sortTmpDir", null);
+        String sortTmpPath = parsedArgs.getString("sortTmpDir", null);
 
-        (new File(sortTmpDir)).mkdirs();
+        File sortTmpDir = new File(sortTmpPath);
+        sortTmpDir.mkdirs();
 
         // Open edge dataset
         GraphDataset dataset;
@@ -114,8 +115,8 @@ public class ExtractNodes {
         extractNodes(dataset, outputBasename, sortBufferSize, sortTmpDir);
     }
 
-    public static void extractNodes(GraphDataset dataset, String outputBasename, String sortBufferSize,
-            String sortTmpDir) throws IOException, InterruptedException {
+    public static void extractNodes(GraphDataset dataset, String outputBasename, String sortBufferSize, File sortTmpDir)
+            throws IOException, InterruptedException {
         // Read the dataset and write the nodes and labels to the sorting processes
         AtomicLong edgeCount = new AtomicLong(0);
         AtomicLongArray edgeCountByType = new AtomicLongArray(Node.Type.values().length * Node.Type.values().length);
@@ -124,9 +125,9 @@ public class ExtractNodes {
         ForkJoinPool forkJoinPool = new ForkJoinPool(numThreads);
 
         Process[] nodeSorters = new Process[numThreads];
-        String[] nodeBatchPaths = new String[numThreads];
+        File[] nodeBatchPaths = new File[numThreads];
         Process[] labelSorters = new Process[numThreads];
-        String[] labelBatchPaths = new String[numThreads];
+        File[] labelBatches = new File[numThreads];
         long[] progressCounts = new long[numThreads];
 
         AtomicInteger nextThreadId = new AtomicInteger(0);
@@ -139,9 +140,9 @@ public class ExtractNodes {
         GraphDataset.NodeCallback nodeCallback = (node) -> {
             int threadId = threadLocalId.get();
             if (nodeSorters[threadId] == null) {
-                nodeBatchPaths[threadId] = sortTmpDir + "/nodes." + threadId + ".txt";
-                nodeSorters[threadId] = Sort.spawnSort(sortBufferSize, sortTmpDir,
-                        List.of("-o", nodeBatchPaths[threadId]));
+                nodeBatchPaths[threadId] = File.createTempFile("nodes", ".txt", sortTmpDir);
+                nodeSorters[threadId] = Sort.spawnSort(sortBufferSize, sortTmpDir.getPath(),
+                        List.of("-o", nodeBatchPaths[threadId].getPath()));
             }
             OutputStream nodeOutputStream = nodeSorters[threadId].getOutputStream();
             nodeOutputStream.write(node);
@@ -151,9 +152,9 @@ public class ExtractNodes {
         GraphDataset.NodeCallback labelCallback = (label) -> {
             int threadId = threadLocalId.get();
             if (labelSorters[threadId] == null) {
-                labelBatchPaths[threadId] = sortTmpDir + "/labels." + threadId + ".txt";
-                labelSorters[threadId] = Sort.spawnSort(sortBufferSize, sortTmpDir,
-                        List.of("-o", labelBatchPaths[threadId]));
+                labelBatches[threadId] = File.createTempFile("labels", ".txt", sortTmpDir);
+                labelSorters[threadId] = Sort.spawnSort(sortBufferSize, sortTmpDir.getPath(),
+                        List.of("-o", labelBatches[threadId].getPath()));
             }
             OutputStream labelOutputStream = labelSorters[threadId].getOutputStream();
             labelOutputStream.write(label);
@@ -227,15 +228,15 @@ public class ExtractNodes {
         ArrayList<String> labelSortMergerOptions = new ArrayList<>(List.of("-m"));
         for (int i = 0; i < numThreads; i++) {
             if (nodeBatchPaths[i] != null) {
-                nodeSortMergerOptions.add(nodeBatchPaths[i]);
+                nodeSortMergerOptions.add(nodeBatchPaths[i].getPath());
             }
-            if (labelBatchPaths[i] != null) {
-                labelSortMergerOptions.add(labelBatchPaths[i]);
+            if (labelBatches[i] != null) {
+                labelSortMergerOptions.add(labelBatches[i].getPath());
             }
         }
 
         // Spawn node merge-sorting process
-        Process nodeSortMerger = Sort.spawnSort(sortBufferSize, sortTmpDir, nodeSortMergerOptions);
+        Process nodeSortMerger = Sort.spawnSort(sortBufferSize, sortTmpDir.getPath(), nodeSortMergerOptions);
         nodeSortMerger.getOutputStream().close();
         OutputStream nodesFileOutputStream = new ZstdOutputStream(
                 new BufferedOutputStream(new FileOutputStream(outputBasename + ".nodes.csv.zst")));
@@ -244,7 +245,7 @@ public class ExtractNodes {
         nodesOutputThread.start();
 
         // Spawn label merge-sorting process
-        Process labelSortMerger = Sort.spawnSort(sortBufferSize, sortTmpDir, labelSortMergerOptions);
+        Process labelSortMerger = Sort.spawnSort(sortBufferSize, sortTmpDir.getPath(), labelSortMergerOptions);
         labelSortMerger.getOutputStream().close();
         OutputStream labelsFileOutputStream = new ZstdOutputStream(
                 new BufferedOutputStream(new FileOutputStream(outputBasename + ".labels.csv.zst")));
@@ -269,6 +270,16 @@ public class ExtractNodes {
         printEdgeCounts(outputBasename, edgeCount.get(), edgeCountByTypeArray);
         printNodeCounts(outputBasename, nodesOutputThread.getNodeCount(), nodesOutputThread.getNodeTypeCounts());
         printLabelCounts(outputBasename, labelsOutputThread.getLabelCount());
+
+        // Clean up sorted batches
+        for (int i = 0; i < numThreads; i++) {
+            if (nodeBatchPaths[i] != null) {
+                nodeBatchPaths[i].delete();
+            }
+            if (labelBatches[i] != null) {
+                labelBatches[i].delete();
+            }
+        }
     }
 
     private static void printEdgeCounts(String basename, long edgeCount, long[][] edgeTypeCounts) throws IOException {

@@ -97,7 +97,7 @@ public class ScatteredArcsORCGraph extends ImmutableSequentialGraph {
                             indexes[threadId] = 0;
                         }
 
-                        if (++progressCounts[threadId] > 1000) {
+                        if (pl != null && ++progressCounts[threadId] > 1000) {
                             synchronized (pl) {
                                 pl.update(progressCounts[threadId]);
                             }
@@ -130,8 +130,10 @@ public class ScatteredArcsORCGraph extends ImmutableSequentialGraph {
             dstArrays[i] = null;
         }
 
-        pl.done();
-        pl.logger().info("Created " + batches.size() + " batches.");
+        if (pl != null) {
+            pl.done();
+            pl.logger().info("Created " + batches.size() + " batches.");
+        }
 
         batchGraph = new Transform.BatchGraph(n, pairs.get(), batches);
     }

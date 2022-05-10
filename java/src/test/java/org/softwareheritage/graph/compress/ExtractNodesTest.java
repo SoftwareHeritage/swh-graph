@@ -63,7 +63,7 @@ public class ExtractNodesTest extends GraphTest {
     public void testExtractNodes(@TempDir Path outputDir, @TempDir Path sortTmpDir)
             throws IOException, InterruptedException {
         FakeDataset dataset = new FakeDataset();
-        ExtractNodes.extractNodes(dataset, outputDir.toString() + "/graph", "2M", sortTmpDir.toString());
+        ExtractNodes.extractNodes(dataset, outputDir.toString() + "/graph", "2M", sortTmpDir.toFile());
 
         // Check count files
         Long nodeCount = Long.parseLong(Files.readString(outputDir.resolve("graph.nodes.count.txt")).strip());

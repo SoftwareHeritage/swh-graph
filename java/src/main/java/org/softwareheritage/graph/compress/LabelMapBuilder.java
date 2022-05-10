@@ -39,13 +39,14 @@ public class LabelMapBuilder {
     // Create one thread per processor.
     final static int numThreads = Runtime.getRuntime().availableProcessors();
     // Allocate up to 40% of maximum memory.
-    final static int batchSize = Math.min((int) (Runtime.getRuntime().maxMemory() * 0.4 / (numThreads * 8 * 3)),
-            Arrays.MAX_ARRAY_SIZE);
+    final static int DEFAULT_BATCH_SIZE = Math
+            .min((int) (Runtime.getRuntime().maxMemory() * 0.4 / (numThreads * 8 * 3)), Arrays.MAX_ARRAY_SIZE);
 
     String orcDatasetPath;
     String graphPath;
     String outputGraphPath;
     String tmpDir;
+    int batchSize;
 
     long numNodes;
     long numArcs;
@@ -60,7 +61,7 @@ public class LabelMapBuilder {
         this.orcDatasetPath = orcDatasetPath;
         this.graphPath = graphPath;
         this.outputGraphPath = (outputGraphPath == null) ? graphPath : outputGraphPath;
-        // this.batchSize = batchSize;
+        this.batchSize = batchSize;
         this.tmpDir = tmpDir;
 
         ImmutableGraph graph = ImmutableGraph.loadOffline(graphPath);
@@ -82,8 +83,8 @@ public class LabelMapBuilder {
                     new UnflaggedOption("graphPath", JSAP.STRING_PARSER, JSAP.REQUIRED, "Basename of the output graph"),
                     new FlaggedOption("outputGraphPath", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'o',
                             "output-graph", "Basename of the output graph, same as --graph if not specified"),
-                    new FlaggedOption("batchSize", JSAP.INTEGER_PARSER, "10000000", JSAP.NOT_REQUIRED, 'b',
-                            "batch-size", "Number of triplets held in memory in each batch"),
+                    new FlaggedOption("batchSize", JSAP.INTEGER_PARSER, String.valueOf(DEFAULT_BATCH_SIZE),
+                            JSAP.NOT_REQUIRED, 'b', "batch-size", "Number of triplets held in memory in each batch"),
                     new FlaggedOption("tmpDir", JSAP.STRING_PARSER, "tmp", JSAP.NOT_REQUIRED, 'T', "temp-dir",
                             "Temporary directory path"),});
 
@@ -122,9 +123,15 @@ public class LabelMapBuilder {
 
         BatchEdgeLabelLineIterator forwardBatchHeapIterator = new BatchEdgeLabelLineIterator(forwardBatches);
         writeLabels(forwardBatchHeapIterator, graphPath, outputGraphPath);
+        for (File batch : forwardBatches) {
+            batch.delete();
+        }
 
         BatchEdgeLabelLineIterator backwardBatchHeapIterator = new BatchEdgeLabelLineIterator(backwardBatches);
         writeLabels(backwardBatchHeapIterator, graphPath + "-transposed", outputGraphPath + "-transposed");
+        for (File batch : backwardBatches) {
+            batch.delete();
+        }
 
         logger.info("Done");
     }
