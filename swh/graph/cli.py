@@ -167,7 +167,7 @@ def serve(ctx, host, port, graph):
 def compress(ctx, input_dataset, output_directory, graph_name, steps):
     """Compress a graph using WebGraph
 
-    Input: a pair of files g.nodes.csv.gz, g.edges.csv.gz
+    Input: a directory containing a graph dataset in ORC format
 
     Output: a directory containing a WebGraph compressed graph
 
