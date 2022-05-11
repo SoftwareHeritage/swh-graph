@@ -27,7 +27,7 @@ def find_graph_jar():
         glob = list(path.glob("swh-graph-*.jar"))
         if glob:
             if len(glob) > 1:
-                logging.warn(
+                logging.warning(
                     "found multiple swh-graph JARs, " "arbitrarily picking one"
                 )
             logging.info("using swh-graph JAR: {0}".format(glob[0]))
