@@ -179,6 +179,14 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{tmp_dir}",
         "< {out_dir}/{graph_name}.nodes.csv.zst",
     ],
+    CompressionStep.EXTRACT_PERSONS: [
+        "{java}",
+        "org.softwareheritage.graph.compress.ExtractPersons",
+        "--temp-dir",
+        "{tmp_dir}",
+        "{in_dir}",
+        "{out_dir}/{graph_name}",
+    ],
     CompressionStep.MPH_PERSONS: [
         "{java}",
         "it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction",
@@ -189,14 +197,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{tmp_dir}",
         "{out_dir}/{graph_name}.persons.mph",
         "{out_dir}/{graph_name}.persons.csv.zst",
-    ],
-    CompressionStep.EXTRACT_PERSONS: [
-        "{java}",
-        "org.softwareheritage.graph.compress.ExtractPersons",
-        "--temp-dir",
-        "{tmp_dir}",
-        "{in_dir}",
-        "{out_dir}/{graph_name}",
     ],
     CompressionStep.NODE_PROPERTIES: [
         "{java}",

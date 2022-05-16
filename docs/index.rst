@@ -8,10 +8,11 @@
    :caption: Overview
 
    quickstart
+   api
+   java-api
+   memory
    compression
    cli
-   api
-   use-cases
    docker
    git2graph
    /apidoc/swh.graph

@@ -1,7 +1,7 @@
 all: compression_steps.png compression_steps.svg
 
 %.png: %.dot
-	dot -Gdpi=300 -Tpng $< -o $@
+	dot -Gdpi=150 -Tpng $< -o $@
 
 %.svg: %.dot
 	dot -Tsvg $< -o $@

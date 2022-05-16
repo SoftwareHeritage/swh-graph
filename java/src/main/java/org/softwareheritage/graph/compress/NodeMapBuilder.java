@@ -27,8 +27,7 @@ import java.util.concurrent.TimeUnit;
  * Create maps needed at runtime by the graph service, in particular:
  * <p>
  * <ul>
- * <li>SWHID → WebGraph long node id</li>
- * <li>WebGraph long node id → SWHID (converse of the former)</li>
+ * <li>WebGraph long node id → SWHID</li>
  * <li>WebGraph long node id → SWH node type (enum)</li>
  * </ul>
  *
