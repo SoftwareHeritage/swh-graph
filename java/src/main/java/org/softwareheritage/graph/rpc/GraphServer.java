@@ -31,7 +31,8 @@ public class GraphServer {
     private Server server;
 
     public GraphServer(String graphBasename, int port, int threads) throws IOException {
-        this.graph = SwhBidirectionalGraph.loadLabelledMapped(graphBasename, new ProgressLogger(logger));
+        // TODO: use loadLabelledMapped() when https://github.com/vigna/webgraph-big/pull/5 is merged
+        this.graph = SwhBidirectionalGraph.loadLabelled(graphBasename, new ProgressLogger(logger));
         this.port = port;
         this.threads = threads;
         graph.loadContentLength();
