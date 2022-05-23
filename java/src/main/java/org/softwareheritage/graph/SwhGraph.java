@@ -113,12 +113,12 @@ public interface SwhGraph {
     }
 
     /** @see SwhGraphProperties#getMessage(long) */
-    default byte[] getMessage(long nodeId) throws IOException {
+    default byte[] getMessage(long nodeId) {
         return getProperties().getMessage(nodeId);
     }
 
     /** @see SwhGraphProperties#getUrl(long) */
-    default String getUrl(long nodeId) throws IOException {
+    default String getUrl(long nodeId) {
         return getProperties().getUrl(nodeId);
     }
 
@@ -128,7 +128,7 @@ public interface SwhGraph {
     }
 
     /** @see SwhGraphProperties#getTagName(long) */
-    default byte[] getTagName(long nodeId) throws IOException {
+    default byte[] getTagName(long nodeId) {
         return getProperties().getTagName(nodeId);
     }
 

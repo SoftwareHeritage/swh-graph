@@ -267,7 +267,7 @@ public class SwhGraphProperties {
     }
 
     /** Get the message of the given revision or release node */
-    public byte[] getMessage(long nodeId) throws IOException {
+    public byte[] getMessage(long nodeId) {
         if (messageBuffer == null || messageOffsets == null) {
             throw new IllegalStateException("Messages not loaded");
         }
@@ -279,7 +279,7 @@ public class SwhGraphProperties {
     }
 
     /** Get the URL of the given origin node */
-    public String getUrl(long nodeId) throws IOException {
+    public String getUrl(long nodeId) {
         byte[] url = getMessage(nodeId);
         return (url != null) ? new String(url) : null;
     }
@@ -291,7 +291,7 @@ public class SwhGraphProperties {
     }
 
     /** Get the name of the given release node */
-    public byte[] getTagName(long nodeId) throws IOException {
+    public byte[] getTagName(long nodeId) {
         if (tagNameBuffer == null || tagNameOffsets == null) {
             throw new IllegalStateException("Tag names not loaded");
         }
