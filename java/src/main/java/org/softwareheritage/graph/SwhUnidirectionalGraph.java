@@ -34,7 +34,7 @@ public class SwhUnidirectionalGraph extends ImmutableGraph implements SwhGraph {
     /** Property data of the graph (id/type mappings etc.) */
     public SwhGraphProperties properties;
 
-    protected SwhUnidirectionalGraph(ImmutableGraph graph, SwhGraphProperties properties) {
+    public SwhUnidirectionalGraph(ImmutableGraph graph, SwhGraphProperties properties) {
         this.graph = graph;
         this.properties = properties;
     }
