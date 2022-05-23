@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "org.softwareheritage.graph.rpc";
+option java_outer_classname = "GraphService";
+
+package swh.graph;
+
+service TraversalService {
+  rpc Traverse (TraversalRequest) returns (stream Node);
+  rpc CountNodes (TraversalRequest) returns (CountResponse);
+  rpc CountEdges (TraversalRequest) returns (CountResponse);
+}
+
+enum GraphDirection {
+    FORWARD = 0;
+    BACKWARD = 1;
+    BOTH = 2;
+}
+
+message TraversalRequest {
+  repeated string src = 1;
+
+  // Traversal options
+  optional GraphDirection direction = 2;
+  optional string edges = 3;
+  optional int64 max_edges = 4;
+  optional int64 max_depth = 5;
+  optional NodeFilter return_nodes = 6;
+  optional NodeFields return_fields = 7;
+}
+
+message NodeFilter {
+    optional string types = 1;
+    optional int64 min_traversal_successors = 2;
+    optional int64 max_traversal_successors = 3;
+}
+
+message NodeFields {
+    optional bool swhid = 1;
+
+    optional bool successor = 2;
+    optional bool successor_swhid = 3;
+    optional bool successor_label = 4;
+
+    optional bool cnt_length = 5;
+    optional bool cnt_is_skipped = 6;
+
+    optional bool rev_author = 7;
+    optional bool rev_author_date = 8;
+    optional bool rev_author_date_offset = 9;
+    optional bool rev_committer = 10;
+    optional bool rev_committer_date = 11;
+    optional bool rev_committer_date_offset = 12;
+    optional bool rev_message = 13;
+
+    optional bool rel_author = 14;
+    optional bool rel_author_date = 15;
+    optional bool rel_author_date_offset = 16;
+    optional bool rel_name = 17;
+    optional bool rel_message = 18;
+
+    optional bool ori_url = 19;
+}
+
+message Node {
+    string swhid = 1;
+    repeated Successor successor = 2;
+
+    optional int64 cnt_length = 3;
+    optional bool cnt_is_skipped = 4;
+
+    optional int64 rev_author = 5;
+    optional int64 rev_author_date = 6;
+    optional int32 rev_author_date_offset = 7;
+    optional int64 rev_committer = 8;
+    optional int64 rev_committer_date = 9;
+    optional int32 rev_committer_date_offset = 10;
+    optional bytes rev_message = 11;
+
+    optional int64 rel_author = 12;
+    optional int64 rel_author_date = 13;
+    optional int32 rel_author_date_offset = 14;
+    optional bytes rel_name = 15;
+    optional bytes rel_message = 16;
+
+    optional string ori_url = 17;
+}
+
+message Successor {
+    optional string swhid = 1;
+    repeated EdgeLabel label = 2;
+}
+
+message EdgeLabel {
+    bytes name = 1;
+    int32 permission = 2;
+}
+
+message CountResponse {
+    int64 count = 1;
+}
