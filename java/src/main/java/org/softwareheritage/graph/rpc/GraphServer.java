@@ -8,10 +8,13 @@ import io.grpc.protobuf.services.ProtoReflectionService;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.softwareheritage.graph.SWHID;
 import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.compress.LabelMapBuilder;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -114,6 +117,40 @@ public class GraphServer {
 
         public TraversalService(SwhBidirectionalGraph graph) {
             this.graph = graph;
+        }
+
+        @Override
+        public void checkSwhid(CheckSwhidRequest request, StreamObserver<CheckSwhidResponse> responseObserver) {
+            graph.getNodeId(new SWHID(request.getSwhid()));
+            responseObserver.onNext(CheckSwhidResponse.getDefaultInstance());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void stats(StatsRequest request, StreamObserver<StatsResponse> responseObserver) {
+            StatsResponse.Builder response = StatsResponse.newBuilder();
+            response.setNumNodes(graph.numNodes());
+            response.setNumEdges(graph.numArcs());
+
+            Properties properties = new Properties();
+            try {
+                properties.load(new FileInputStream(graph.getPath() + ".properties"));
+                properties.load(new FileInputStream(graph.getPath() + ".stats"));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            response.setCompression(Double.parseDouble(properties.getProperty("compratio")));
+            response.setBitsPerNode(Double.parseDouble(properties.getProperty("bitspernode")));
+            response.setBitsPerEdge(Double.parseDouble(properties.getProperty("bitsperlink")));
+            response.setAvgLocality(Double.parseDouble(properties.getProperty("avglocality")));
+            response.setIndegreeMin(Long.parseLong(properties.getProperty("minindegree")));
+            response.setIndegreeMax(Long.parseLong(properties.getProperty("maxindegree")));
+            response.setIndegreeAvg(Double.parseDouble(properties.getProperty("avgindegree")));
+            response.setOutdegreeMin(Long.parseLong(properties.getProperty("minoutdegree")));
+            response.setOutdegreeMax(Long.parseLong(properties.getProperty("maxoutdegree")));
+            response.setOutdegreeAvg(Double.parseDouble(properties.getProperty("avgoutdegree")));
+            responseObserver.onNext(response.build());
+            responseObserver.onCompleted();
         }
 
         @Override

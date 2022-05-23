@@ -10,6 +10,8 @@ service TraversalService {
   rpc Traverse (TraversalRequest) returns (stream Node);
   rpc CountNodes (TraversalRequest) returns (CountResponse);
   rpc CountEdges (TraversalRequest) returns (CountResponse);
+  rpc Stats (StatsRequest) returns (StatsResponse);
+  rpc CheckSwhid (CheckSwhidRequest) returns (CheckSwhidResponse);
 }
 
 enum GraphDirection {
@@ -99,4 +101,31 @@ message EdgeLabel {
 
 message CountResponse {
     int64 count = 1;
+}
+
+message StatsRequest {
+}
+
+message StatsResponse {
+    int64 num_nodes = 1;
+    int64 num_edges = 2;
+
+    double compression = 3;
+    double bits_per_node = 4;
+    double bits_per_edge = 5;
+    double avg_locality = 6;
+
+    int64 indegree_min = 7;
+    int64 indegree_max = 8;
+    double indegree_avg = 9;
+    int64 outdegree_min = 10;
+    int64 outdegree_max = 11;
+    double outdegree_avg = 12;
+}
+
+message CheckSwhidRequest {
+    string swhid = 1;
+}
+
+message CheckSwhidResponse {
 }
