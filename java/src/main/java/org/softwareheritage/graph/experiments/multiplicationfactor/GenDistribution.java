@@ -4,7 +4,6 @@ import com.martiansoftware.jsap.*;
 import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.Traversal;
-import org.softwareheritage.graph.benchmark.utils.Timing;
 
 import java.io.IOException;
 import java.util.Scanner;
@@ -106,13 +105,14 @@ public class GenDistribution {
                     Traversal t = new Traversal(thread_graph, "backward", edgesFmt);
                     int[] count = {0};
 
-                    startTime = Timing.start();
+                    startTime = System.nanoTime();
                     t.visitNodesVisitor(node, (curnode) -> {
                         if (tp.graph.getNodeType(curnode) == dstType) {
                             count[0]++;
                         }
                     });
-                    totalTime = Timing.stop(startTime);
+                    long endTime = System.nanoTime();
+                    totalTime = (double) (endTime - startTime) / 1e9;
                     System.out.format("%d %d %d %d %f\n", node, count[0], t.getNbNodesAccessed(),
                             t.getNbEdgesAccessed(), totalTime);
                 }

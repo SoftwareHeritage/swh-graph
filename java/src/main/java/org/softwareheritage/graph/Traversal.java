@@ -13,18 +13,13 @@ import java.util.Stack;
 import java.util.function.Consumer;
 import java.util.function.LongConsumer;
 
-import org.softwareheritage.graph.server.Endpoint;
-
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 
 /**
  * Traversal algorithms on the compressed graph.
  * <p>
- * Internal implementation of the traversal API endpoints. These methods only input/output internal
- * long ids, which are converted in the {@link Endpoint} higher-level class to {@link SWHID}.
  *
  * @author The Software Heritage developers
- * @see Endpoint
  */
 
 public class Traversal {

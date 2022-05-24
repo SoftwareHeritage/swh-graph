@@ -6,15 +6,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Iterator;
 
 import com.github.luben.zstd.ZstdInputStream;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.LazyLongIterators;
-import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.BeforeAll;
 
-import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.junit.Assert.assertEquals;
 
 public class GraphTest {
     static SwhBidirectionalGraph graph;
@@ -38,8 +38,12 @@ public class GraphTest {
         return new SWHID(String.format("swh:1:%s:%040d", type, num));
     }
 
-    public static <T> void assertEqualsAnyOrder(Collection<T> expecteds, Collection<T> actuals) {
-        MatcherAssert.assertThat(expecteds, containsInAnyOrder(actuals.toArray()));
+    public static <T> void assertEqualsAnyOrder(Collection<T> expected, Collection<T> actual) {
+        ArrayList<T> expectedList = new ArrayList<>(expected);
+        ArrayList<T> actualList = new ArrayList<>(actual);
+        expectedList.sort(Comparator.comparing(Object::toString));
+        actualList.sort(Comparator.comparing(Object::toString));
+        assertEquals(expectedList, actualList);
     }
 
     public static ArrayList<Long> lazyLongIteratorToList(LazyLongIterator input) {
