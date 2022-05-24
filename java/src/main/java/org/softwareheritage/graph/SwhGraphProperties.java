@@ -69,7 +69,6 @@ public class SwhGraphProperties {
      * Cleans up resources after use.
      */
     public void close() throws IOException {
-        nodeIdMap.close();
         edgeLabelNames.close();
     }
 
