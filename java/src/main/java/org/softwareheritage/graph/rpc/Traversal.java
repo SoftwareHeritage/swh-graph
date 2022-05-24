@@ -153,7 +153,7 @@ public class Traversal {
             }
 
             Node.Builder nodeBuilder = null;
-            if (nodeReturnChecker.allowed(curr)) {
+            if (nodeReturnChecker.allowed(curr) && (!request.hasMinDepth() || currentDepth >= request.getMinDepth())) {
                 nodeBuilder = Node.newBuilder();
                 buildNodeProperties(g, request.getReturnFields(), nodeBuilder, curr);
             }

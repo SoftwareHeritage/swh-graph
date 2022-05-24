@@ -4,3 +4,4 @@ pytest-asyncio
 types-click
 types-pyyaml
 types-requests
+types-protobuf

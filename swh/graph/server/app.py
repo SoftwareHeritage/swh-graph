@@ -8,16 +8,27 @@ A proxy HTTP server for swh-graph, talking to the Java code via py4j, and using
 FIFO as a transport to stream integers between the two languages.
 """
 
-import asyncio
-from collections import deque
+import json
 import os
+import subprocess
 from typing import Optional
 
+import aiohttp.test_utils
 import aiohttp.web
+from google.protobuf import json_format
+import grpc
 
 from swh.core.api.asynchronous import RPCServerApp
 from swh.core.config import read as config_read
-from swh.graph.backend import Backend
+from swh.graph.config import check_config
+from swh.graph.rpc.swhgraph_pb2 import (
+    CheckSwhidRequest,
+    NodeFields,
+    NodeFilter,
+    StatsRequest,
+    TraversalRequest,
+)
+from swh.graph.rpc.swhgraph_pb2_grpc import TraversalServiceStub
 from swh.model.swhids import EXTENDED_SWHID_TYPES
 
 try:
@@ -34,18 +45,21 @@ RANDOM_RETRIES = 10  # TODO make this configurable via rpc-serve configuration
 class GraphServerApp(RPCServerApp):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.on_startup.append(self._start_gateway)
-        self.on_shutdown.append(self._stop_gateway)
+        self.on_startup.append(self._start)
+        self.on_shutdown.append(self._stop)
 
     @staticmethod
-    async def _start_gateway(app):
-        # Equivalent to entering `with app["backend"]:`
-        app["backend"].start_gateway()
+    async def _start(app):
+        app["channel"] = grpc.aio.insecure_channel(app["rpc_url"])
+        await app["channel"].__aenter__()
+        app["rpc_client"] = TraversalServiceStub(app["channel"])
+        await app["rpc_client"].Stats(StatsRequest(), wait_for_ready=True)
 
     @staticmethod
-    async def _stop_gateway(app):
-        # Equivalent to exiting `with app["backend"]:` with no error
-        app["backend"].stop_gateway()
+    async def _stop(app):
+        await app["channel"].__aexit__(None, None, None)
+        if app.get("local_server"):
+            app["local_server"].terminate()
 
 
 async def index(request):
@@ -70,14 +84,14 @@ class GraphView(aiohttp.web.View):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.backend = self.request.app["backend"]
+        self.rpc_client: TraversalServiceStub = self.request.app["rpc_client"]
 
     def get_direction(self):
         """Validate HTTP query parameter `direction`"""
         s = self.request.query.get("direction", "forward")
         if s not in ("forward", "backward"):
             raise aiohttp.web.HTTPBadRequest(text=f"invalid direction: {s}")
-        return s
+        return s.upper()
 
     def get_edges(self):
         """Validate HTTP query parameter `edges`, i.e., edge restrictions"""
@@ -134,12 +148,11 @@ class GraphView(aiohttp.web.View):
         except ValueError:
             raise aiohttp.web.HTTPBadRequest(text=f"invalid max_edges value: {s}")
 
-    def check_swhid(self, swhid):
+    async def check_swhid(self, swhid):
         """Validate that the given SWHID exists in the graph"""
-        try:
-            self.backend.check_swhid(swhid)
-        except (NameError, ValueError) as e:
-            raise aiohttp.web.HTTPBadRequest(text=str(e))
+        r = await self.rpc_client.CheckSwhid(CheckSwhidRequest(swhid=swhid))
+        if not r.exists:
+            raise aiohttp.web.HTTPBadRequest(text=str(r.details))
 
 
 class StreamingGraphView(GraphView):
@@ -193,109 +206,69 @@ class StatsView(GraphView):
     """View showing some statistics on the graph"""
 
     async def get(self):
-        stats = self.backend.stats()
-        return aiohttp.web.Response(body=stats, content_type="application/json")
+        res = await self.rpc_client.Stats(StatsRequest())
+        stats = json_format.MessageToDict(
+            res, including_default_value_fields=True, preserving_proto_field_name=True
+        )
+        # Int64 fields are serialized as strings by default.
+        for descriptor in res.DESCRIPTOR.fields:
+            if descriptor.type == descriptor.TYPE_INT64:
+                try:
+                    stats[descriptor.name] = int(stats[descriptor.name])
+                except KeyError:
+                    pass
+        json_body = json.dumps(stats, indent=4, sort_keys=True)
+        return aiohttp.web.Response(body=json_body, content_type="application/json")
 
 
 class SimpleTraversalView(StreamingGraphView):
     """Base class for views of simple traversals"""
 
-    simple_traversal_type: Optional[str] = None
-
     async def prepare_response(self):
-        self.src = self.request.match_info["src"]
-        self.edges = self.get_edges()
-        self.direction = self.get_direction()
-        self.max_edges = self.get_max_edges()
-        self.return_types = self.get_return_types()
-        self.check_swhid(self.src)
+        src = self.request.match_info["src"]
+        self.traversal_request = TraversalRequest(
+            src=[src],
+            edges=self.get_edges(),
+            direction=self.get_direction(),
+            return_nodes=NodeFilter(types=self.get_return_types()),
+            return_fields=NodeFields(),
+        )
+        if self.get_max_edges():
+            self.traversal_request.max_edges = self.get_max_edges()
+        await self.check_swhid(src)
+        self.configure_request()
+
+    def configure_request(self):
+        pass
 
     async def stream_response(self):
-        async for res_line in self.backend.traversal(
-            self.simple_traversal_type,
-            self.direction,
-            self.edges,
-            self.src,
-            self.max_edges,
-            self.return_types,
-        ):
-            await self.stream_line(res_line)
+        async for node in self.rpc_client.Traverse(self.traversal_request):
+            await self.stream_line(node.swhid)
 
 
 class LeavesView(SimpleTraversalView):
-    simple_traversal_type = "leaves"
+    def configure_request(self):
+        self.traversal_request.return_nodes.max_traversal_successors = 0
 
 
 class NeighborsView(SimpleTraversalView):
-    simple_traversal_type = "neighbors"
+    def configure_request(self):
+        self.traversal_request.min_depth = 1
+        self.traversal_request.max_depth = 1
 
 
 class VisitNodesView(SimpleTraversalView):
-    simple_traversal_type = "visit_nodes"
+    pass
 
 
 class VisitEdgesView(SimpleTraversalView):
-    simple_traversal_type = "visit_edges"
-
-
-class WalkView(StreamingGraphView):
-    async def prepare_response(self):
-        self.src = self.request.match_info["src"]
-        self.dst = self.request.match_info["dst"]
-
-        self.edges = self.get_edges()
-        self.direction = self.get_direction()
-        self.algo = self.get_traversal()
-        self.limit = self.get_limit()
-        self.max_edges = self.get_max_edges()
-        self.return_types = self.get_return_types()
-
-        self.check_swhid(self.src)
-        if self.dst not in EXTENDED_SWHID_TYPES:
-            self.check_swhid(self.dst)
-
-    async def get_walk_iterator(self):
-        return self.backend.traversal(
-            "walk",
-            self.direction,
-            self.edges,
-            self.algo,
-            self.src,
-            self.dst,
-            self.max_edges,
-            self.return_types,
-        )
+    def configure_request(self):
+        self.traversal_request.return_fields.successor = True
 
     async def stream_response(self):
-        it = self.get_walk_iterator()
-        if self.limit < 0:
-            queue = deque(maxlen=-self.limit)
-            async for res_swhid in it:
-                queue.append(res_swhid)
-            while queue:
-                await self.stream_line(queue.popleft())
-        else:
-            count = 0
-            async for res_swhid in it:
-                if self.limit == 0 or count < self.limit:
-                    await self.stream_line(res_swhid)
-                    count += 1
-                else:
-                    break
-
-
-class RandomWalkView(WalkView):
-    def get_walk_iterator(self):
-        return self.backend.traversal(
-            "random_walk",
-            self.direction,
-            self.edges,
-            RANDOM_RETRIES,
-            self.src,
-            self.dst,
-            self.max_edges,
-            self.return_types,
-        )
+        async for node in self.rpc_client.Traverse(self.traversal_request):
+            for succ in node.successor:
+                await self.stream_line(node.swhid + " " + succ.swhid)
 
 
 class CountView(GraphView):
@@ -304,44 +277,66 @@ class CountView(GraphView):
     count_type: Optional[str] = None
 
     async def get(self):
-        self.src = self.request.match_info["src"]
-        self.check_swhid(self.src)
-
-        self.edges = self.get_edges()
-        self.direction = self.get_direction()
-        self.max_edges = self.get_max_edges()
-
-        loop = asyncio.get_event_loop()
-        cnt = await loop.run_in_executor(
-            None,
-            self.backend.count,
-            self.count_type,
-            self.direction,
-            self.edges,
-            self.src,
-            self.max_edges,
+        src = self.request.match_info["src"]
+        self.traversal_request = TraversalRequest(
+            src=[src],
+            edges=self.get_edges(),
+            direction=self.get_direction(),
+            return_nodes=NodeFilter(types=self.get_return_types()),
+            return_fields=NodeFields(),
         )
-        return aiohttp.web.Response(body=str(cnt), content_type="application/json")
+        if self.get_max_edges():
+            self.traversal_request.max_edges = self.get_max_edges()
+        self.configure_request()
+        res = await self.rpc_client.CountNodes(self.traversal_request)
+        return aiohttp.web.Response(
+            body=str(res.count), content_type="application/json"
+        )
+
+    def configure_request(self):
+        pass
 
 
 class CountNeighborsView(CountView):
-    count_type = "neighbors"
+    def configure_request(self):
+        self.traversal_request.min_depth = 1
+        self.traversal_request.max_depth = 1
 
 
 class CountLeavesView(CountView):
-    count_type = "leaves"
+    def configure_request(self):
+        self.traversal_request.return_nodes.max_traversal_successors = 0
 
 
 class CountVisitNodesView(CountView):
-    count_type = "visit_nodes"
+    pass
 
 
-def make_app(config=None, backend=None, **kwargs):
-    if (config is None) == (backend is None):
-        raise ValueError("make_app() expects exactly one of 'config' or 'backend'")
-    if backend is None:
-        backend = Backend(graph_path=config["graph"]["path"], config=config["graph"])
+def spawn_java_rpc_server(config, port=None):
+    if port is None:
+        port = aiohttp.test_utils.unused_port()
+    config = check_config(config or {})
+    cmd = [
+        "java",
+        "-cp",
+        config["classpath"],
+        *config["java_tool_options"].split(),
+        "org.softwareheritage.graph.rpc.GraphServer",
+        "--port",
+        str(port),
+        config["graph"]["path"],
+    ]
+    server = subprocess.Popen(cmd)
+    rpc_url = f"localhost:{port}"
+    return server, rpc_url
+
+
+def make_app(config=None, rpc_url=None, **kwargs):
     app = GraphServerApp(**kwargs)
+
+    if rpc_url is None:
+        app["local_server"], rpc_url = spawn_java_rpc_server(config)
+
     app.add_routes(
         [
             aiohttp.web.get("/", index),
@@ -351,16 +346,13 @@ def make_app(config=None, backend=None, **kwargs):
             aiohttp.web.view("/graph/neighbors/{src}", NeighborsView),
             aiohttp.web.view("/graph/visit/nodes/{src}", VisitNodesView),
             aiohttp.web.view("/graph/visit/edges/{src}", VisitEdgesView),
-            # temporarily disabled in wait of a proper fix for T1969
-            # aiohttp.web.view("/graph/walk/{src}/{dst}", WalkView)
-            aiohttp.web.view("/graph/randomwalk/{src}/{dst}", RandomWalkView),
             aiohttp.web.view("/graph/neighbors/count/{src}", CountNeighborsView),
             aiohttp.web.view("/graph/leaves/count/{src}", CountLeavesView),
             aiohttp.web.view("/graph/visit/nodes/count/{src}", CountVisitNodesView),
         ]
     )
 
-    app["backend"] = backend
+    app["rpc_url"] = rpc_url
     return app
 
 

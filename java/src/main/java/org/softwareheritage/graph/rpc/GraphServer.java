@@ -2,7 +2,8 @@ package org.softwareheritage.graph.rpc;
 
 import com.martiansoftware.jsap.*;
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
+import io.grpc.netty.shaded.io.netty.channel.ChannelOption;
 import io.grpc.stub.StreamObserver;
 import io.grpc.protobuf.services.ProtoReflectionService;
 import it.unimi.dsi.logging.ProgressLogger;
@@ -46,9 +47,9 @@ public class GraphServer {
     }
 
     private void start() throws IOException {
-        server = ServerBuilder.forPort(port).executor(Executors.newFixedThreadPool(threads))
-                .addService(new TraversalService(graph)).addService(ProtoReflectionService.newInstance()).build()
-                .start();
+        server = NettyServerBuilder.forPort(port).withChildOption(ChannelOption.SO_REUSEADDR, true)
+                .executor(Executors.newFixedThreadPool(threads)).addService(new TraversalService(graph))
+                .addService(ProtoReflectionService.newInstance()).build().start();
         logger.info("Server started, listening on " + port);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
@@ -122,8 +123,15 @@ public class GraphServer {
 
         @Override
         public void checkSwhid(CheckSwhidRequest request, StreamObserver<CheckSwhidResponse> responseObserver) {
-            graph.getNodeId(new SWHID(request.getSwhid()));
-            responseObserver.onNext(CheckSwhidResponse.getDefaultInstance());
+            boolean exists = true;
+            CheckSwhidResponse.Builder builder = CheckSwhidResponse.newBuilder().setExists(true);
+            try {
+                graph.getNodeId(new SWHID(request.getSwhid()));
+            } catch (IllegalArgumentException e) {
+                builder.setExists(false);
+                builder.setDetails(e.getMessage());
+            }
+            responseObserver.onNext(builder.build());
             responseObserver.onCompleted();
         }
 

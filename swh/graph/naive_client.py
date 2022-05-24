@@ -124,26 +124,22 @@ class NaiveClient:
 
     def stats(self) -> Dict:
         return {
-            "counts": {
-                "nodes": len(self.graph.nodes),
-                "edges": sum(map(len, self.graph.forward_edges.values())),
-            },
-            "ratios": {
-                "compression": 1.0,
-                "bits_per_edge": 100.0,
-                "bits_per_node": 100.0,
-                "avg_locality": 0.0,
-            },
-            "indegree": {
-                "min": min(map(len, self.graph.backward_edges.values())),
-                "max": max(map(len, self.graph.backward_edges.values())),
-                "avg": statistics.mean(map(len, self.graph.backward_edges.values())),
-            },
-            "outdegree": {
-                "min": min(map(len, self.graph.forward_edges.values())),
-                "max": max(map(len, self.graph.forward_edges.values())),
-                "avg": statistics.mean(map(len, self.graph.forward_edges.values())),
-            },
+            "num_nodes": len(self.graph.nodes),
+            "num_edges": sum(map(len, self.graph.forward_edges.values())),
+            "compression": 1.0,
+            "bits_per_edge": 100.0,
+            "bits_per_node": 100.0,
+            "avg_locality": 0.0,
+            "indegree_min": min(map(len, self.graph.backward_edges.values())),
+            "indegree_max": max(map(len, self.graph.backward_edges.values())),
+            "indegree_avg": statistics.mean(
+                map(len, self.graph.backward_edges.values())
+            ),
+            "outdegree_min": min(map(len, self.graph.forward_edges.values())),
+            "outdegree_max": max(map(len, self.graph.forward_edges.values())),
+            "outdegree_avg": statistics.mean(
+                map(len, self.graph.forward_edges.values())
+            ),
         }
 
     @check_arguments

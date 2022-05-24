@@ -13,31 +13,18 @@ TEST_ORIGIN_ID = "swh:1:ori:{}".format(
 
 def test_stats(graph_client):
     stats = graph_client.stats()
-
-    assert set(stats.keys()) == {"counts", "ratios", "indegree", "outdegree"}
-
-    assert set(stats["counts"].keys()) == {"nodes", "edges"}
-    assert set(stats["ratios"].keys()) == {
-        "compression",
-        "bits_per_node",
-        "bits_per_edge",
-        "avg_locality",
-    }
-    assert set(stats["indegree"].keys()) == {"min", "max", "avg"}
-    assert set(stats["outdegree"].keys()) == {"min", "max", "avg"}
-
-    assert stats["counts"]["nodes"] == 21
-    assert stats["counts"]["edges"] == 23
-    assert isinstance(stats["ratios"]["compression"], float)
-    assert isinstance(stats["ratios"]["bits_per_node"], float)
-    assert isinstance(stats["ratios"]["bits_per_edge"], float)
-    assert isinstance(stats["ratios"]["avg_locality"], float)
-    assert stats["indegree"]["min"] == 0
-    assert stats["indegree"]["max"] == 3
-    assert isinstance(stats["indegree"]["avg"], float)
-    assert stats["outdegree"]["min"] == 0
-    assert stats["outdegree"]["max"] == 3
-    assert isinstance(stats["outdegree"]["avg"], float)
+    assert stats["num_nodes"] == 21
+    assert stats["num_edges"] == 23
+    assert isinstance(stats["compression"], float)
+    assert isinstance(stats["bits_per_node"], float)
+    assert isinstance(stats["bits_per_edge"], float)
+    assert isinstance(stats["avg_locality"], float)
+    assert stats["indegree_min"] == 0
+    assert stats["indegree_max"] == 3
+    assert isinstance(stats["indegree_avg"], float)
+    assert stats["outdegree_min"] == 0
+    assert stats["outdegree_max"] == 3
+    assert isinstance(stats["outdegree_avg"], float)
 
 
 def test_leaves(graph_client):
@@ -259,6 +246,7 @@ def test_walk(graph_client):
     assert set(actual) == set(expected)
 
 
+@pytest.mark.skip(reason="Random walk is deprecated")
 def test_random_walk_dst_is_type(graph_client):
     """as the walk is random, we test a visit from a cnt node to a release
     reachable from every single path in the backward graph, and only check the
@@ -288,6 +276,7 @@ def test_random_walk_dst_is_type(graph_client):
     assert len(actual) == 3
 
 
+@pytest.mark.skip(reason="Random walk is deprecated")
 def test_random_walk_dst_is_node(graph_client):
     """Same as test_random_walk_dst_is_type, but we target the specific release
     node instead of a type

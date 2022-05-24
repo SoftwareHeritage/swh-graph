@@ -48,3 +48,5 @@ repos:
         args: ["-f", "java/pom.xml", "spotless:apply"]
         pass_filenames: false
         language: system
+
+exclude: ^swh/graph/rpc/

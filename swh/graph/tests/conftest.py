@@ -24,13 +24,12 @@ class GraphServerProcess(multiprocessing.Process):
 
     def run(self):
         # Lazy import to allow debian packaging
-        from swh.graph.backend import Backend
         from swh.graph.server.app import make_app
 
         try:
-            backend = Backend(graph_path=str(TEST_GRAPH_PATH))
+            config = {"graph": {"path": TEST_GRAPH_PATH}}
             with loop_context() as loop:
-                app = make_app(backend=backend, debug=True)
+                app = make_app(config=config, debug=True)
                 client = TestClient(TestServer(app), loop=loop)
                 loop.run_until_complete(client.start_server())
                 url = client.make_url("/graph/")
