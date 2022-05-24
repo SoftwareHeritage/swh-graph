@@ -10,8 +10,8 @@ import subprocess
 from aiohttp.test_utils import TestClient, TestServer, loop_context
 import pytest
 
-from swh.graph.client import RemoteGraphClient
-from swh.graph.naive_client import NaiveClient
+from swh.graph.http_client import RemoteGraphClient
+from swh.graph.http_naive_client import NaiveClient
 
 SWH_GRAPH_TESTS_ROOT = Path(__file__).parents[0]
 TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / "dataset/compressed/example"
@@ -24,7 +24,7 @@ class GraphServerProcess(multiprocessing.Process):
 
     def run(self):
         # Lazy import to allow debian packaging
-        from swh.graph.server.app import make_app
+        from swh.graph.http_server import make_app
 
         try:
             config = {"graph": {"path": TEST_GRAPH_PATH}}

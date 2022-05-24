@@ -22,7 +22,7 @@ from typing import (
 
 from swh.model.swhids import CoreSWHID, ExtendedSWHID, ValidationError
 
-from .client import GraphArgumentException
+from .http_client import GraphArgumentException
 
 _NODE_TYPES = "ori|snp|rel|rev|dir|cnt"
 NODES_RE = re.compile(rf"(\*|{_NODE_TYPES})")

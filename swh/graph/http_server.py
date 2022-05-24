@@ -10,7 +10,6 @@ FIFO as a transport to stream integers between the two languages.
 
 import json
 import os
-import subprocess
 from typing import Optional
 
 import aiohttp.test_utils
@@ -20,7 +19,6 @@ import grpc
 
 from swh.core.api.asynchronous import RPCServerApp
 from swh.core.config import read as config_read
-from swh.graph.config import check_config
 from swh.graph.rpc.swhgraph_pb2 import (
     CheckSwhidRequest,
     NodeFields,
@@ -29,6 +27,7 @@ from swh.graph.rpc.swhgraph_pb2 import (
     TraversalRequest,
 )
 from swh.graph.rpc.swhgraph_pb2_grpc import TraversalServiceStub
+from swh.graph.rpc_server import spawn_java_rpc_server
 from swh.model.swhids import EXTENDED_SWHID_TYPES
 
 try:
@@ -312,30 +311,12 @@ class CountVisitNodesView(CountView):
     pass
 
 
-def spawn_java_rpc_server(config, port=None):
-    if port is None:
-        port = aiohttp.test_utils.unused_port()
-    config = check_config(config or {})
-    cmd = [
-        "java",
-        "-cp",
-        config["classpath"],
-        *config["java_tool_options"].split(),
-        "org.softwareheritage.graph.rpc.GraphServer",
-        "--port",
-        str(port),
-        config["graph"]["path"],
-    ]
-    server = subprocess.Popen(cmd)
-    rpc_url = f"localhost:{port}"
-    return server, rpc_url
-
-
 def make_app(config=None, rpc_url=None, **kwargs):
     app = GraphServerApp(**kwargs)
 
     if rpc_url is None:
-        app["local_server"], rpc_url = spawn_java_rpc_server(config)
+        app["local_server"], port = spawn_java_rpc_server(config)
+        rpc_url = f"localhost:{port}"
 
     app.add_routes(
         [

@@ -122,9 +122,9 @@ def graph_cli_group(ctx, config_file):
 @click.pass_context
 def serve(ctx, host, port, graph):
     """run the graph RPC service"""
-    import aiohttp
+    import aiohttp.web
 
-    from swh.graph.server.app import make_app
+    from swh.graph.http_server import make_app
 
     config = ctx.obj["config"]
     config.setdefault("graph", {})

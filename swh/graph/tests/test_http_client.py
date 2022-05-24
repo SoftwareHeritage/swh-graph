@@ -4,7 +4,7 @@ import pytest
 from pytest import raises
 
 from swh.core.api import RemoteException
-from swh.graph.client import GraphArgumentException
+from swh.graph.http_client import GraphArgumentException
 
 TEST_ORIGIN_ID = "swh:1:ori:{}".format(
     hashlib.sha1(b"https://example.com/swh/graph").hexdigest()
