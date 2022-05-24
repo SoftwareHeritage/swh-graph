@@ -82,15 +82,5 @@ public class ForkJoinBigQuickSort2Test {
             d[1][i] = random.nextInt();
         sortBig2(d[0], d[1], 10, 100);
         checkArraySorted(d[0], d[1], 10, 100);
-
-        d[0] = new long[10000000];
-        random = new Random(0);
-        for (int i = d[0].length; i-- != 0;)
-            d[0][i] = random.nextInt();
-        d[1] = new long[d[0].length];
-        for (int i = d[1].length; i-- != 0;)
-            d[1][i] = random.nextInt();
-        sortBig2(d[0], d[1]);
-        checkArraySorted(d[0], d[1]);
     }
 }

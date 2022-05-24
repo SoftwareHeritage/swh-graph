@@ -93,14 +93,6 @@ public class Traversal {
                 return false;
             }
 
-            long outdegree = g.outdegree(nodeId);
-            if (filter.hasMinTraversalSuccessors() && outdegree < filter.getMinTraversalSuccessors()) {
-                return false;
-            }
-            if (filter.hasMaxTraversalSuccessors() && outdegree > filter.getMaxTraversalSuccessors()) {
-                return false;
-            }
-
             return true;
         }
     }
@@ -159,12 +151,20 @@ public class Traversal {
             }
 
             ArcLabelledNodeIterator.LabelledArcIterator it = filterLabelledSuccessors(g, curr, allowedEdges);
+            long traversalSuccessors = 0;
             for (long succ; (succ = it.nextLong()) != -1;) {
+                traversalSuccessors++;
                 if (!visited.contains(succ)) {
                     queue.add(succ);
                     visited.add(succ);
                 }
                 buildSuccessorProperties(g, request.getReturnFields(), nodeBuilder, curr, succ, it.label());
+            }
+            if (request.getReturnNodes().hasMinTraversalSuccessors()
+                    && traversalSuccessors < request.getReturnNodes().getMinTraversalSuccessors()
+                    || request.getReturnNodes().hasMaxTraversalSuccessors()
+                            && traversalSuccessors > request.getReturnNodes().getMaxTraversalSuccessors()) {
+                nodeBuilder = null;
             }
             if (nodeBuilder != null) {
                 nodeObserver.onNext(nodeBuilder.build());

@@ -23,11 +23,14 @@ public class GraphTest {
 
     @BeforeAll
     public static void setUp() throws IOException {
-        Path graphPath = Paths.get("..", "swh", "graph", "tests", "dataset", "compressed", "example");
-        graph = SwhBidirectionalGraph.loadMapped(graphPath.toString());
+        graph = SwhBidirectionalGraph.loadLabelled(getGraphPath().toString());
     }
 
-    public SwhBidirectionalGraph getGraph() {
+    public static Path getGraphPath() {
+        return Paths.get("..", "swh", "graph", "tests", "dataset", "compressed", "example");
+    }
+
+    public static SwhBidirectionalGraph getGraph() {
         return graph;
     }
 
