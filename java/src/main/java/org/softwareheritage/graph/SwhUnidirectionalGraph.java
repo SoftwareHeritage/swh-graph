@@ -39,9 +39,10 @@ public class SwhUnidirectionalGraph extends ImmutableGraph implements SwhGraph {
         this.properties = properties;
     }
 
-    protected SwhUnidirectionalGraph(ArcLabelledImmutableGraph graph, SwhGraphProperties properties) {
+    protected SwhUnidirectionalGraph(ImmutableGraph graph, ArcLabelledImmutableGraph labelledGraph,
+            SwhGraphProperties properties) {
         this.graph = graph;
-        this.labelledGraph = graph;
+        this.labelledGraph = labelledGraph;
         this.properties = properties;
     }
 
@@ -60,7 +61,7 @@ public class SwhUnidirectionalGraph extends ImmutableGraph implements SwhGraph {
             ProgressLogger pl) throws IOException {
         BitStreamArcLabelledImmutableGraph g = (BitStreamArcLabelledImmutableGraph) BitStreamArcLabelledImmutableGraph
                 .load(method, path + "-labelled", is, pl);
-        return new SwhUnidirectionalGraph(g, null);
+        return new SwhUnidirectionalGraph(g.g, g, null);
     }
 
     /**
@@ -141,7 +142,8 @@ public class SwhUnidirectionalGraph extends ImmutableGraph implements SwhGraph {
 
     @Override
     public SwhUnidirectionalGraph copy() {
-        return new SwhUnidirectionalGraph(this.graph.copy(), this.properties);
+        return new SwhUnidirectionalGraph(this.graph.copy(),
+                this.labelledGraph != null ? this.labelledGraph.copy() : null, this.properties);
     }
 
     @Override
