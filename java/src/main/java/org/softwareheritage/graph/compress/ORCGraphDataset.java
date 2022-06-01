@@ -143,6 +143,9 @@ public class ORCGraphDataset implements GraphDataset {
             if (columnVector.isRepeating) {
                 row = 0;
             }
+            if (columnVector.isNull[row]) {
+                return null;
+            }
             return Arrays.copyOfRange(columnVector.vector[row], columnVector.start[row],
                     columnVector.start[row] + columnVector.length[row]);
         }
@@ -151,9 +154,12 @@ public class ORCGraphDataset implements GraphDataset {
          * Utility function for long columns. Return as a long the value of the given row in the column
          * vector.
          */
-        public static long getLongRow(LongColumnVector columnVector, int row) {
+        public static Long getLongRow(LongColumnVector columnVector, int row) {
             if (columnVector.isRepeating) {
                 row = 0;
+            }
+            if (columnVector.isNull[row]) {
+                return null;
             }
             return columnVector.vector[row];
         }
@@ -293,8 +299,10 @@ public class ORCGraphDataset implements GraphDataset {
 
                 for (int row = 0; row < batch.size; row++) {
                     byte[] id = idToSwhid(ORCTable.getBytesRow(idVector, row));
-                    long date = ORCTable.getLongRow(dateVector, row);
-                    cb.onLong(id, date);
+                    Long date = ORCTable.getLongRow(dateVector, row);
+                    if (date != null) {
+                        cb.onLong(id, date);
+                    }
                 }
             }, Set.of(getIdColumn(), longColumn));
         }
@@ -309,8 +317,10 @@ public class ORCGraphDataset implements GraphDataset {
                 for (int row = 0; row < batch.size; row++) {
                     byte[] id = idToSwhid(ORCTable.getBytesRow(idVector, row));
                     long date = dateVector.getTimestampAsLong(row); // rounded to seconds
-                    short dateOffset = (short) ORCTable.getLongRow(dateOffsetVector, row);
-                    cb.onTimestamp(id, date, dateOffset);
+                    Long dateOffset = ORCTable.getLongRow(dateOffsetVector, row);
+                    if (dateOffset != null) {
+                        cb.onTimestamp(id, date, dateOffset.shortValue());
+                    }
                 }
             }, Set.of(getIdColumn(), dateColumn, dateOffsetColumn));
         }
@@ -421,8 +431,8 @@ public class ORCGraphDataset implements GraphDataset {
                     byte[] src = Bytes.concat(dirPrefix, ORCTable.getBytesRow(srcVector, row));
                     byte[] dst = Bytes.concat(targetPrefix, ORCTable.getBytesRow(dstVector, row));
                     byte[] label = Base64.getEncoder().encode(ORCTable.getBytesRow(labelVector, row));
-                    long permission = ORCTable.getLongRow(permissionVector, row);
-                    edgeCb.onEdge(src, dst, label, (int) permission);
+                    Long permission = ORCTable.getLongRow(permissionVector, row);
+                    edgeCb.onEdge(src, dst, label, permission != null ? permission.intValue() : 0);
                 }
             }, Set.of("directory_id", "target", "type", "name", "perms"));
         }
@@ -592,7 +602,7 @@ public class ORCGraphDataset implements GraphDataset {
                 for (int row = 0; row < batch.size; row++) {
                     byte[] originId = urlToOriginId(ORCTable.getBytesRow(originUrlVector, row));
                     byte[] snapshot_id = ORCTable.getBytesRow(snapshotIdVector, row);
-                    if (snapshot_id.length == 0) {
+                    if (snapshot_id == null || snapshot_id.length == 0) {
                         continue;
                     }
                     edgeCb.onEdge(Bytes.concat(oriPrefix, originId), Bytes.concat(snpPrefix, snapshot_id), null, -1);

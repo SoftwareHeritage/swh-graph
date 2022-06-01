@@ -111,6 +111,9 @@ public class WriteNodeProperties {
 
         for (String tableName : new String[]{"content", "skipped_content"}) {
             SwhOrcTable table = dataset.getTable(tableName);
+            if (table == null) {
+                continue;
+            }
             table.readLongColumn("length", (swhid, value) -> {
                 long id = nodeIdMap.getNodeId(swhid);
                 BigArrays.set(valueArray, id, value);
@@ -123,10 +126,12 @@ public class WriteNodeProperties {
     public void writeContentIsSkipped() throws IOException {
         LongArrayBitVector isSkippedBitVector = LongArrayBitVector.ofLength(numNodes);
         SwhOrcTable table = dataset.getTable("skipped_content");
-        table.readIdColumn((swhid) -> {
-            long id = nodeIdMap.getNodeId(swhid);
-            isSkippedBitVector.set(id);
-        });
+        if (table != null) {
+            table.readIdColumn((swhid) -> {
+                long id = nodeIdMap.getNodeId(swhid);
+                isSkippedBitVector.set(id);
+            });
+        }
         BinIO.storeObject(isSkippedBitVector, graphBasename + ".property.content.is_skipped.bin");
     }
 
