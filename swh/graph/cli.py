@@ -153,8 +153,8 @@ def serve(ctx, host, port, graph):
     "--graph-name",
     "-g",
     default="graph",
-    type=PathlibPath(),
-    help="directory where to store compressed graph",
+    metavar="NAME",
+    help="name of the output graph (default: 'graph')",
 )
 @click.option(
     "--steps",
@@ -171,12 +171,15 @@ def compress(ctx, input_dataset, output_directory, graph_name, steps):
 
     Output: a directory containing a WebGraph compressed graph
 
-    Compression steps are: (1) mph, (2) bv, (3) bfs, (4) permute_bfs,
-    (5) transpose_bfs, (6) simplify, (7) llp, (8) permute_llp, (9) obl, (10)
-    compose_orders, (11) stats, (12) transpose, (13) transpose_obl, (14) maps,
-    (15) clean_tmp. Compression steps can be selected by name or number using
-    --steps, separating them with commas; step ranges (e.g., 3-9, 6-, etc.) are
-    also supported.
+    Compression steps are: (1) extract_nodes, (2) mph, (3) bv, (4) bfs, (5)
+    permute_bfs, (6) transpose_bfs, (7) simplify, (8) llp, (9) permute_llp,
+    (10) obl, (11) compose_orders, (12) stats, (13) transpose, (14)
+    transpose_obl, (15) maps, (16) extract_persons, (17) mph_persons, (18)
+    node_properties, (19) mph_labels, (20) fcl_labels, (21) edge_labels, (22)
+    clean_tmp.
+    Compression steps can be selected by name or number using --steps,
+    separating them with commas; step ranges (e.g., 3-9, 6-, etc.) are also
+    supported.
 
     """
     from swh.graph import webgraph
