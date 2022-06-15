@@ -15,13 +15,13 @@ from typing import Optional
 import aiohttp.test_utils
 import aiohttp.web
 from google.protobuf import json_format
+from google.protobuf.field_mask_pb2 import FieldMask
 import grpc
 
 from swh.core.api.asynchronous import RPCServerApp
 from swh.core.config import read as config_read
 from swh.graph.rpc.swhgraph_pb2 import (
     CheckSwhidRequest,
-    NodeFields,
     NodeFilter,
     StatsRequest,
     TraversalRequest,
@@ -230,7 +230,7 @@ class SimpleTraversalView(StreamingGraphView):
             edges=self.get_edges(),
             direction=self.get_direction(),
             return_nodes=NodeFilter(types=self.get_return_types()),
-            return_fields=NodeFields(),
+            mask=FieldMask(paths=["swhid"]),
         )
         if self.get_max_edges():
             self.traversal_request.max_edges = self.get_max_edges()
@@ -262,9 +262,11 @@ class VisitNodesView(SimpleTraversalView):
 
 class VisitEdgesView(SimpleTraversalView):
     def configure_request(self):
-        self.traversal_request.return_fields.successor = True
+        self.traversal_request.mask.paths.extend(["successor", "successor.swhid"])
+        # self.traversal_request.return_fields.successor = True
 
     async def stream_response(self):
+        print(self.traversal_request.mask)
         async for node in self.rpc_client.Traverse(self.traversal_request):
             for succ in node.successor:
                 await self.stream_line(node.swhid + " " + succ.swhid)
@@ -282,7 +284,7 @@ class CountView(GraphView):
             edges=self.get_edges(),
             direction=self.get_direction(),
             return_nodes=NodeFilter(types=self.get_return_types()),
-            return_fields=NodeFields(),
+            mask=FieldMask(paths=["swhid"]),
         )
         if self.get_max_edges():
             self.traversal_request.max_edges = self.get_max_edges()

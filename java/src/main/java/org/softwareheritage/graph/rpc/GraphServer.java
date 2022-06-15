@@ -1,7 +1,9 @@
 package org.softwareheritage.graph.rpc;
 
+import com.google.protobuf.FieldMask;
 import com.martiansoftware.jsap.*;
 import io.grpc.Server;
+import io.grpc.Status;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import io.grpc.netty.shaded.io.netty.channel.ChannelOption;
 import io.grpc.stub.StreamObserver;
@@ -32,18 +34,23 @@ public class GraphServer {
     private Server server;
 
     public GraphServer(String graphBasename, int port, int threads) throws IOException {
-        // TODO: use loadLabelledMapped() when https://github.com/vigna/webgraph-big/pull/5 is merged
-        this.graph = SwhBidirectionalGraph.loadLabelled(graphBasename, new ProgressLogger(logger));
+        this.graph = loadGraph(graphBasename);
         this.port = port;
         this.threads = threads;
-        graph.loadContentLength();
-        graph.loadContentIsSkipped();
-        graph.loadPersonIds();
-        graph.loadAuthorTimestamps();
-        graph.loadCommitterTimestamps();
-        graph.loadMessages();
-        graph.loadTagNames();
-        graph.loadLabelNames();
+    }
+
+    public static SwhBidirectionalGraph loadGraph(String basename) throws IOException {
+        // TODO: use loadLabelledMapped() when https://github.com/vigna/webgraph-big/pull/5 is merged
+        SwhBidirectionalGraph g = SwhBidirectionalGraph.loadLabelled(basename, new ProgressLogger(logger));
+        g.loadContentLength();
+        g.loadContentIsSkipped();
+        g.loadPersonIds();
+        g.loadAuthorTimestamps();
+        g.loadCommitterTimestamps();
+        g.loadMessages();
+        g.loadTagNames();
+        g.loadLabelNames();
+        return g;
     }
 
     private void start() throws IOException {
@@ -123,7 +130,6 @@ public class GraphServer {
 
         @Override
         public void checkSwhid(CheckSwhidRequest request, StreamObserver<CheckSwhidResponse> responseObserver) {
-            boolean exists = true;
             CheckSwhidResponse.Builder builder = CheckSwhidResponse.newBuilder().setExists(true);
             try {
                 graph.getNodeId(new SWHID(request.getSwhid()));
@@ -163,6 +169,23 @@ public class GraphServer {
         }
 
         @Override
+        public void getNode(GetNodeRequest request, StreamObserver<Node> responseObserver) {
+            long nodeId;
+            try {
+                nodeId = graph.getNodeId(new SWHID(request.getSwhid()));
+
+            } catch (IllegalArgumentException e) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asException());
+                return;
+            }
+            Node.Builder builder = Node.newBuilder();
+            NodePropertyBuilder.buildNodeProperties(graph.getForwardGraph(),
+                    request.hasMask() ? request.getMask() : null, builder, nodeId);
+            responseObserver.onNext(builder.build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
         public void traverse(TraversalRequest request, StreamObserver<Node> responseObserver) {
             SwhBidirectionalGraph g = graph.copy();
             Traversal.simpleTraversal(g, request, responseObserver::onNext);
@@ -175,7 +198,7 @@ public class GraphServer {
             SwhBidirectionalGraph g = graph.copy();
             TraversalRequest fixedReq = TraversalRequest.newBuilder(request)
                     // Ignore return fields, just count nodes
-                    .setReturnFields(NodeFields.getDefaultInstance()).build();
+                    .setMask(FieldMask.getDefaultInstance()).build();
             Traversal.simpleTraversal(g, fixedReq, (Node node) -> {
                 count.incrementAndGet();
             });
@@ -190,8 +213,7 @@ public class GraphServer {
             SwhBidirectionalGraph g = graph.copy();
             TraversalRequest fixedReq = TraversalRequest.newBuilder(request)
                     // Force return empty successors to count the edges
-                    .setReturnFields(NodeFields.newBuilder().setSuccessor(true).setSuccessorSwhid(false).build())
-                    .build();
+                    .setMask(FieldMask.newBuilder().addPaths("successor").build()).build();
             Traversal.simpleTraversal(g, fixedReq, (Node node) -> {
                 count.addAndGet(node.getSuccessorCount());
             });

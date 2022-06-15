@@ -1,11 +1,9 @@
 package org.softwareheritage.graph.rpc;
 
-import com.google.protobuf.ByteString;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledNodeIterator;
 import it.unimi.dsi.big.webgraph.labelling.Label;
 import org.softwareheritage.graph.*;
-import org.softwareheritage.graph.labels.DirEntry;
 
 import java.util.*;
 
@@ -113,6 +111,8 @@ public class Traversal {
             NodeObserver nodeObserver) {
         SwhUnidirectionalGraph g = getDirectedGraph(bidirectionalGraph, request);
         NodeFilterChecker nodeReturnChecker = new NodeFilterChecker(g, request.getReturnNodes());
+        NodePropertyBuilder.NodeDataMask nodeDataMask = new NodePropertyBuilder.NodeDataMask(
+                request.hasMask() ? request.getMask() : null);
 
         AllowedEdges allowedEdges = new AllowedEdges(request.hasEdges() ? request.getEdges() : "*");
 
@@ -147,7 +147,7 @@ public class Traversal {
             Node.Builder nodeBuilder = null;
             if (nodeReturnChecker.allowed(curr) && (!request.hasMinDepth() || currentDepth >= request.getMinDepth())) {
                 nodeBuilder = Node.newBuilder();
-                buildNodeProperties(g, request.getReturnFields(), nodeBuilder, curr);
+                NodePropertyBuilder.buildNodeProperties(g, nodeDataMask, nodeBuilder, curr);
             }
 
             ArcLabelledNodeIterator.LabelledArcIterator it = filterLabelledSuccessors(g, curr, allowedEdges);
@@ -158,7 +158,7 @@ public class Traversal {
                     queue.add(succ);
                     visited.add(succ);
                 }
-                buildSuccessorProperties(g, request.getReturnFields(), nodeBuilder, curr, succ, it.label());
+                NodePropertyBuilder.buildSuccessorProperties(g, nodeDataMask, nodeBuilder, curr, succ, it.label());
             }
             if (request.getReturnNodes().hasMinTraversalSuccessors()
                     && traversalSuccessors < request.getReturnNodes().getMinTraversalSuccessors()
@@ -169,103 +169,6 @@ public class Traversal {
             if (nodeBuilder != null) {
                 nodeObserver.onNext(nodeBuilder.build());
             }
-        }
-    }
-
-    private static void buildNodeProperties(SwhUnidirectionalGraph graph, NodeFields fields, Node.Builder nodeBuilder,
-            long node) {
-        if (fields == null || !fields.hasSwhid() || fields.getSwhid()) {
-            nodeBuilder.setSwhid(graph.getSWHID(node).toString());
-        }
-        if (fields == null) {
-            return;
-        }
-
-        switch (graph.getNodeType(node)) {
-            case CNT:
-                if (fields.hasCntLength()) {
-                    nodeBuilder.setCntLength(graph.getContentLength(node));
-                }
-                if (fields.hasCntIsSkipped()) {
-                    nodeBuilder.setCntIsSkipped(graph.isContentSkipped(node));
-                }
-                break;
-            case REV:
-                if (fields.getRevAuthor()) {
-                    nodeBuilder.setRevAuthor(graph.getAuthorId(node));
-                }
-                if (fields.getRevCommitter()) {
-                    nodeBuilder.setRevAuthor(graph.getCommitterId(node));
-                }
-                if (fields.getRevAuthorDate()) {
-                    nodeBuilder.setRevAuthorDate(graph.getAuthorTimestamp(node));
-                }
-                if (fields.getRevAuthorDateOffset()) {
-                    nodeBuilder.setRevAuthorDateOffset(graph.getAuthorTimestampOffset(node));
-                }
-                if (fields.getRevCommitterDate()) {
-                    nodeBuilder.setRevCommitterDate(graph.getCommitterTimestamp(node));
-                }
-                if (fields.getRevCommitterDateOffset()) {
-                    nodeBuilder.setRevCommitterDateOffset(graph.getCommitterTimestampOffset(node));
-                }
-                if (fields.getRevMessage()) {
-                    byte[] msg = graph.getMessage(node);
-                    if (msg != null) {
-                        nodeBuilder.setRevMessage(ByteString.copyFrom(msg));
-                    }
-                }
-                break;
-            case REL:
-                if (fields.getRelAuthor()) {
-                    nodeBuilder.setRelAuthor(graph.getAuthorId(node));
-                }
-                if (fields.getRelAuthorDate()) {
-                    nodeBuilder.setRelAuthorDate(graph.getAuthorTimestamp(node));
-                }
-                if (fields.getRelAuthorDateOffset()) {
-                    nodeBuilder.setRelAuthorDateOffset(graph.getAuthorTimestampOffset(node));
-                }
-                if (fields.getRelName()) {
-                    byte[] msg = graph.getTagName(node);
-                    if (msg != null) {
-                        nodeBuilder.setRelName(ByteString.copyFrom(msg));
-                    }
-                }
-                if (fields.getRelMessage()) {
-                    byte[] msg = graph.getMessage(node);
-                    if (msg != null) {
-                        nodeBuilder.setRelMessage(ByteString.copyFrom(msg));
-                    }
-                }
-                break;
-            case ORI:
-                if (fields.getOriUrl()) {
-                    String url = graph.getUrl(node);
-                    if (url != null) {
-                        nodeBuilder.setOriUrl(url);
-                    }
-                }
-        }
-    }
-
-    private static void buildSuccessorProperties(SwhUnidirectionalGraph graph, NodeFields fields,
-            Node.Builder nodeBuilder, long src, long dst, Label label) {
-        if (nodeBuilder != null && fields != null && fields.getSuccessor()) {
-            Successor.Builder successorBuilder = Successor.newBuilder();
-            if (!fields.hasSuccessorSwhid() || fields.getSuccessorSwhid()) {
-                successorBuilder.setSwhid(graph.getSWHID(dst).toString());
-            }
-            if (fields.getSuccessorLabel()) {
-                DirEntry[] entries = (DirEntry[]) label.get();
-                for (DirEntry entry : entries) {
-                    EdgeLabel.Builder builder = EdgeLabel.newBuilder();
-                    builder.setName(ByteString.copyFrom(graph.getLabelName(entry.filenameId)));
-                    builder.setPermission(entry.permission);
-                    successorBuilder.addLabel(builder.build());
-                }
-            }
-            nodeBuilder.addSuccessor(successorBuilder.build());
         }
     }
 

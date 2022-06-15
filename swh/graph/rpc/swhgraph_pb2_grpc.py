@@ -39,6 +39,11 @@ class TraversalServiceStub(object):
                 request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.CheckSwhidRequest.SerializeToString,
                 response_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.CheckSwhidResponse.FromString,
                 )
+        self.GetNode = channel.unary_unary(
+                '/swh.graph.TraversalService/GetNode',
+                request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.GetNodeRequest.SerializeToString,
+                response_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.FromString,
+                )
 
 
 class TraversalServiceServicer(object):
@@ -74,6 +79,12 @@ class TraversalServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetNode(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_TraversalServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -101,6 +112,11 @@ def add_TraversalServiceServicer_to_server(servicer, server):
                     servicer.CheckSwhid,
                     request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.CheckSwhidRequest.FromString,
                     response_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.CheckSwhidResponse.SerializeToString,
+            ),
+            'GetNode': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetNode,
+                    request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.GetNodeRequest.FromString,
+                    response_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -194,5 +210,22 @@ class TraversalService(object):
         return grpc.experimental.unary_unary(request, target, '/swh.graph.TraversalService/CheckSwhid',
             swh_dot_graph_dot_rpc_dot_swhgraph__pb2.CheckSwhidRequest.SerializeToString,
             swh_dot_graph_dot_rpc_dot_swhgraph__pb2.CheckSwhidResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetNode(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/swh.graph.TraversalService/GetNode',
+            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.GetNodeRequest.SerializeToString,
+            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

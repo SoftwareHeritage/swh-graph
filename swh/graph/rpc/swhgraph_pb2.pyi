@@ -4,6 +4,7 @@ isort:skip_file
 """
 import builtins
 import google.protobuf.descriptor
+import google.protobuf.field_mask_pb2
 import google.protobuf.internal.containers
 import google.protobuf.internal.enum_type_wrapper
 import google.protobuf.message
@@ -38,7 +39,7 @@ class TraversalRequest(google.protobuf.message.Message):
     MIN_DEPTH_FIELD_NUMBER: builtins.int
     MAX_DEPTH_FIELD_NUMBER: builtins.int
     RETURN_NODES_FIELD_NUMBER: builtins.int
-    RETURN_FIELDS_FIELD_NUMBER: builtins.int
+    MASK_FIELD_NUMBER: builtins.int
     @property
     def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]: ...
     direction: global___GraphDirection.ValueType
@@ -51,32 +52,30 @@ class TraversalRequest(google.protobuf.message.Message):
     @property
     def return_nodes(self) -> global___NodeFilter: ...
     @property
-    def return_fields(self) -> global___NodeFields: ...
+    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask: ...
     def __init__(self,
         *,
         src: typing.Optional[typing.Iterable[typing.Text]] = ...,
-        direction: typing.Optional[global___GraphDirection.ValueType] = ...,
+        direction: global___GraphDirection.ValueType = ...,
         edges: typing.Optional[typing.Text] = ...,
         max_edges: typing.Optional[builtins.int] = ...,
         min_depth: typing.Optional[builtins.int] = ...,
         max_depth: typing.Optional[builtins.int] = ...,
         return_nodes: typing.Optional[global___NodeFilter] = ...,
-        return_fields: typing.Optional[global___NodeFields] = ...,
+        mask: typing.Optional[google.protobuf.field_mask_pb2.FieldMask] = ...,
         ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["_direction",b"_direction","_edges",b"_edges","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_min_depth",b"_min_depth","_return_fields",b"_return_fields","_return_nodes",b"_return_nodes","direction",b"direction","edges",b"edges","max_depth",b"max_depth","max_edges",b"max_edges","min_depth",b"min_depth","return_fields",b"return_fields","return_nodes",b"return_nodes"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["_direction",b"_direction","_edges",b"_edges","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_min_depth",b"_min_depth","_return_fields",b"_return_fields","_return_nodes",b"_return_nodes","direction",b"direction","edges",b"edges","max_depth",b"max_depth","max_edges",b"max_edges","min_depth",b"min_depth","return_fields",b"return_fields","return_nodes",b"return_nodes","src",b"src"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_direction",b"_direction"]) -> typing.Optional[typing_extensions.Literal["direction"]]: ...
+    def HasField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_min_depth",b"_min_depth","_return_nodes",b"_return_nodes","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","min_depth",b"min_depth","return_nodes",b"return_nodes"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_min_depth",b"_min_depth","_return_nodes",b"_return_nodes","direction",b"direction","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","min_depth",b"min_depth","return_nodes",b"return_nodes","src",b"src"]) -> None: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_edges",b"_edges"]) -> typing.Optional[typing_extensions.Literal["edges"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_mask",b"_mask"]) -> typing.Optional[typing_extensions.Literal["mask"]]: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_max_depth",b"_max_depth"]) -> typing.Optional[typing_extensions.Literal["max_depth"]]: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_max_edges",b"_max_edges"]) -> typing.Optional[typing_extensions.Literal["max_edges"]]: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_min_depth",b"_min_depth"]) -> typing.Optional[typing_extensions.Literal["min_depth"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_return_fields",b"_return_fields"]) -> typing.Optional[typing_extensions.Literal["return_fields"]]: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_return_nodes",b"_return_nodes"]) -> typing.Optional[typing_extensions.Literal["return_nodes"]]: ...
 global___TraversalRequest = TraversalRequest
@@ -105,199 +104,37 @@ class NodeFilter(google.protobuf.message.Message):
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_types",b"_types"]) -> typing.Optional[typing_extensions.Literal["types"]]: ...
 global___NodeFilter = NodeFilter
 
-class NodeFields(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-    SWHID_FIELD_NUMBER: builtins.int
-    SUCCESSOR_FIELD_NUMBER: builtins.int
-    SUCCESSOR_SWHID_FIELD_NUMBER: builtins.int
-    SUCCESSOR_LABEL_FIELD_NUMBER: builtins.int
-    CNT_LENGTH_FIELD_NUMBER: builtins.int
-    CNT_IS_SKIPPED_FIELD_NUMBER: builtins.int
-    REV_AUTHOR_FIELD_NUMBER: builtins.int
-    REV_AUTHOR_DATE_FIELD_NUMBER: builtins.int
-    REV_AUTHOR_DATE_OFFSET_FIELD_NUMBER: builtins.int
-    REV_COMMITTER_FIELD_NUMBER: builtins.int
-    REV_COMMITTER_DATE_FIELD_NUMBER: builtins.int
-    REV_COMMITTER_DATE_OFFSET_FIELD_NUMBER: builtins.int
-    REV_MESSAGE_FIELD_NUMBER: builtins.int
-    REL_AUTHOR_FIELD_NUMBER: builtins.int
-    REL_AUTHOR_DATE_FIELD_NUMBER: builtins.int
-    REL_AUTHOR_DATE_OFFSET_FIELD_NUMBER: builtins.int
-    REL_NAME_FIELD_NUMBER: builtins.int
-    REL_MESSAGE_FIELD_NUMBER: builtins.int
-    ORI_URL_FIELD_NUMBER: builtins.int
-    swhid: builtins.bool
-    successor: builtins.bool
-    successor_swhid: builtins.bool
-    successor_label: builtins.bool
-    cnt_length: builtins.bool
-    cnt_is_skipped: builtins.bool
-    rev_author: builtins.bool
-    rev_author_date: builtins.bool
-    rev_author_date_offset: builtins.bool
-    rev_committer: builtins.bool
-    rev_committer_date: builtins.bool
-    rev_committer_date_offset: builtins.bool
-    rev_message: builtins.bool
-    rel_author: builtins.bool
-    rel_author_date: builtins.bool
-    rel_author_date_offset: builtins.bool
-    rel_name: builtins.bool
-    rel_message: builtins.bool
-    ori_url: builtins.bool
-    def __init__(self,
-        *,
-        swhid: typing.Optional[builtins.bool] = ...,
-        successor: typing.Optional[builtins.bool] = ...,
-        successor_swhid: typing.Optional[builtins.bool] = ...,
-        successor_label: typing.Optional[builtins.bool] = ...,
-        cnt_length: typing.Optional[builtins.bool] = ...,
-        cnt_is_skipped: typing.Optional[builtins.bool] = ...,
-        rev_author: typing.Optional[builtins.bool] = ...,
-        rev_author_date: typing.Optional[builtins.bool] = ...,
-        rev_author_date_offset: typing.Optional[builtins.bool] = ...,
-        rev_committer: typing.Optional[builtins.bool] = ...,
-        rev_committer_date: typing.Optional[builtins.bool] = ...,
-        rev_committer_date_offset: typing.Optional[builtins.bool] = ...,
-        rev_message: typing.Optional[builtins.bool] = ...,
-        rel_author: typing.Optional[builtins.bool] = ...,
-        rel_author_date: typing.Optional[builtins.bool] = ...,
-        rel_author_date_offset: typing.Optional[builtins.bool] = ...,
-        rel_name: typing.Optional[builtins.bool] = ...,
-        rel_message: typing.Optional[builtins.bool] = ...,
-        ori_url: typing.Optional[builtins.bool] = ...,
-        ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["_cnt_is_skipped",b"_cnt_is_skipped","_cnt_length",b"_cnt_length","_ori_url",b"_ori_url","_rel_author",b"_rel_author","_rel_author_date",b"_rel_author_date","_rel_author_date_offset",b"_rel_author_date_offset","_rel_message",b"_rel_message","_rel_name",b"_rel_name","_rev_author",b"_rev_author","_rev_author_date",b"_rev_author_date","_rev_author_date_offset",b"_rev_author_date_offset","_rev_committer",b"_rev_committer","_rev_committer_date",b"_rev_committer_date","_rev_committer_date_offset",b"_rev_committer_date_offset","_rev_message",b"_rev_message","_successor",b"_successor","_successor_label",b"_successor_label","_successor_swhid",b"_successor_swhid","_swhid",b"_swhid","cnt_is_skipped",b"cnt_is_skipped","cnt_length",b"cnt_length","ori_url",b"ori_url","rel_author",b"rel_author","rel_author_date",b"rel_author_date","rel_author_date_offset",b"rel_author_date_offset","rel_message",b"rel_message","rel_name",b"rel_name","rev_author",b"rev_author","rev_author_date",b"rev_author_date","rev_author_date_offset",b"rev_author_date_offset","rev_committer",b"rev_committer","rev_committer_date",b"rev_committer_date","rev_committer_date_offset",b"rev_committer_date_offset","rev_message",b"rev_message","successor",b"successor","successor_label",b"successor_label","successor_swhid",b"successor_swhid","swhid",b"swhid"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["_cnt_is_skipped",b"_cnt_is_skipped","_cnt_length",b"_cnt_length","_ori_url",b"_ori_url","_rel_author",b"_rel_author","_rel_author_date",b"_rel_author_date","_rel_author_date_offset",b"_rel_author_date_offset","_rel_message",b"_rel_message","_rel_name",b"_rel_name","_rev_author",b"_rev_author","_rev_author_date",b"_rev_author_date","_rev_author_date_offset",b"_rev_author_date_offset","_rev_committer",b"_rev_committer","_rev_committer_date",b"_rev_committer_date","_rev_committer_date_offset",b"_rev_committer_date_offset","_rev_message",b"_rev_message","_successor",b"_successor","_successor_label",b"_successor_label","_successor_swhid",b"_successor_swhid","_swhid",b"_swhid","cnt_is_skipped",b"cnt_is_skipped","cnt_length",b"cnt_length","ori_url",b"ori_url","rel_author",b"rel_author","rel_author_date",b"rel_author_date","rel_author_date_offset",b"rel_author_date_offset","rel_message",b"rel_message","rel_name",b"rel_name","rev_author",b"rev_author","rev_author_date",b"rev_author_date","rev_author_date_offset",b"rev_author_date_offset","rev_committer",b"rev_committer","rev_committer_date",b"rev_committer_date","rev_committer_date_offset",b"rev_committer_date_offset","rev_message",b"rev_message","successor",b"successor","successor_label",b"successor_label","successor_swhid",b"successor_swhid","swhid",b"swhid"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_cnt_is_skipped",b"_cnt_is_skipped"]) -> typing.Optional[typing_extensions.Literal["cnt_is_skipped"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_cnt_length",b"_cnt_length"]) -> typing.Optional[typing_extensions.Literal["cnt_length"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_ori_url",b"_ori_url"]) -> typing.Optional[typing_extensions.Literal["ori_url"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rel_author",b"_rel_author"]) -> typing.Optional[typing_extensions.Literal["rel_author"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rel_author_date",b"_rel_author_date"]) -> typing.Optional[typing_extensions.Literal["rel_author_date"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rel_author_date_offset",b"_rel_author_date_offset"]) -> typing.Optional[typing_extensions.Literal["rel_author_date_offset"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rel_message",b"_rel_message"]) -> typing.Optional[typing_extensions.Literal["rel_message"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rel_name",b"_rel_name"]) -> typing.Optional[typing_extensions.Literal["rel_name"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_author",b"_rev_author"]) -> typing.Optional[typing_extensions.Literal["rev_author"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_author_date",b"_rev_author_date"]) -> typing.Optional[typing_extensions.Literal["rev_author_date"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_author_date_offset",b"_rev_author_date_offset"]) -> typing.Optional[typing_extensions.Literal["rev_author_date_offset"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_committer",b"_rev_committer"]) -> typing.Optional[typing_extensions.Literal["rev_committer"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_committer_date",b"_rev_committer_date"]) -> typing.Optional[typing_extensions.Literal["rev_committer_date"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_committer_date_offset",b"_rev_committer_date_offset"]) -> typing.Optional[typing_extensions.Literal["rev_committer_date_offset"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_message",b"_rev_message"]) -> typing.Optional[typing_extensions.Literal["rev_message"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_successor",b"_successor"]) -> typing.Optional[typing_extensions.Literal["successor"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_successor_label",b"_successor_label"]) -> typing.Optional[typing_extensions.Literal["successor_label"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_successor_swhid",b"_successor_swhid"]) -> typing.Optional[typing_extensions.Literal["successor_swhid"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_swhid",b"_swhid"]) -> typing.Optional[typing_extensions.Literal["swhid"]]: ...
-global___NodeFields = NodeFields
-
 class Node(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     SWHID_FIELD_NUMBER: builtins.int
     SUCCESSOR_FIELD_NUMBER: builtins.int
-    CNT_LENGTH_FIELD_NUMBER: builtins.int
-    CNT_IS_SKIPPED_FIELD_NUMBER: builtins.int
-    REV_AUTHOR_FIELD_NUMBER: builtins.int
-    REV_AUTHOR_DATE_FIELD_NUMBER: builtins.int
-    REV_AUTHOR_DATE_OFFSET_FIELD_NUMBER: builtins.int
-    REV_COMMITTER_FIELD_NUMBER: builtins.int
-    REV_COMMITTER_DATE_FIELD_NUMBER: builtins.int
-    REV_COMMITTER_DATE_OFFSET_FIELD_NUMBER: builtins.int
-    REV_MESSAGE_FIELD_NUMBER: builtins.int
-    REL_AUTHOR_FIELD_NUMBER: builtins.int
-    REL_AUTHOR_DATE_FIELD_NUMBER: builtins.int
-    REL_AUTHOR_DATE_OFFSET_FIELD_NUMBER: builtins.int
-    REL_NAME_FIELD_NUMBER: builtins.int
-    REL_MESSAGE_FIELD_NUMBER: builtins.int
-    ORI_URL_FIELD_NUMBER: builtins.int
+    CNT_FIELD_NUMBER: builtins.int
+    REV_FIELD_NUMBER: builtins.int
+    REL_FIELD_NUMBER: builtins.int
+    ORI_FIELD_NUMBER: builtins.int
     swhid: typing.Text
     @property
     def successor(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Successor]: ...
-    cnt_length: builtins.int
-    cnt_is_skipped: builtins.bool
-    rev_author: builtins.int
-    rev_author_date: builtins.int
-    rev_author_date_offset: builtins.int
-    rev_committer: builtins.int
-    rev_committer_date: builtins.int
-    rev_committer_date_offset: builtins.int
-    rev_message: builtins.bytes
-    rel_author: builtins.int
-    rel_author_date: builtins.int
-    rel_author_date_offset: builtins.int
-    rel_name: builtins.bytes
-    rel_message: builtins.bytes
-    ori_url: typing.Text
+    @property
+    def cnt(self) -> global___ContentData: ...
+    @property
+    def rev(self) -> global___RevisionData: ...
+    @property
+    def rel(self) -> global___ReleaseData: ...
+    @property
+    def ori(self) -> global___OriginData: ...
     def __init__(self,
         *,
         swhid: typing.Text = ...,
         successor: typing.Optional[typing.Iterable[global___Successor]] = ...,
-        cnt_length: typing.Optional[builtins.int] = ...,
-        cnt_is_skipped: typing.Optional[builtins.bool] = ...,
-        rev_author: typing.Optional[builtins.int] = ...,
-        rev_author_date: typing.Optional[builtins.int] = ...,
-        rev_author_date_offset: typing.Optional[builtins.int] = ...,
-        rev_committer: typing.Optional[builtins.int] = ...,
-        rev_committer_date: typing.Optional[builtins.int] = ...,
-        rev_committer_date_offset: typing.Optional[builtins.int] = ...,
-        rev_message: typing.Optional[builtins.bytes] = ...,
-        rel_author: typing.Optional[builtins.int] = ...,
-        rel_author_date: typing.Optional[builtins.int] = ...,
-        rel_author_date_offset: typing.Optional[builtins.int] = ...,
-        rel_name: typing.Optional[builtins.bytes] = ...,
-        rel_message: typing.Optional[builtins.bytes] = ...,
-        ori_url: typing.Optional[typing.Text] = ...,
+        cnt: typing.Optional[global___ContentData] = ...,
+        rev: typing.Optional[global___RevisionData] = ...,
+        rel: typing.Optional[global___ReleaseData] = ...,
+        ori: typing.Optional[global___OriginData] = ...,
         ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["_cnt_is_skipped",b"_cnt_is_skipped","_cnt_length",b"_cnt_length","_ori_url",b"_ori_url","_rel_author",b"_rel_author","_rel_author_date",b"_rel_author_date","_rel_author_date_offset",b"_rel_author_date_offset","_rel_message",b"_rel_message","_rel_name",b"_rel_name","_rev_author",b"_rev_author","_rev_author_date",b"_rev_author_date","_rev_author_date_offset",b"_rev_author_date_offset","_rev_committer",b"_rev_committer","_rev_committer_date",b"_rev_committer_date","_rev_committer_date_offset",b"_rev_committer_date_offset","_rev_message",b"_rev_message","cnt_is_skipped",b"cnt_is_skipped","cnt_length",b"cnt_length","ori_url",b"ori_url","rel_author",b"rel_author","rel_author_date",b"rel_author_date","rel_author_date_offset",b"rel_author_date_offset","rel_message",b"rel_message","rel_name",b"rel_name","rev_author",b"rev_author","rev_author_date",b"rev_author_date","rev_author_date_offset",b"rev_author_date_offset","rev_committer",b"rev_committer","rev_committer_date",b"rev_committer_date","rev_committer_date_offset",b"rev_committer_date_offset","rev_message",b"rev_message"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["_cnt_is_skipped",b"_cnt_is_skipped","_cnt_length",b"_cnt_length","_ori_url",b"_ori_url","_rel_author",b"_rel_author","_rel_author_date",b"_rel_author_date","_rel_author_date_offset",b"_rel_author_date_offset","_rel_message",b"_rel_message","_rel_name",b"_rel_name","_rev_author",b"_rev_author","_rev_author_date",b"_rev_author_date","_rev_author_date_offset",b"_rev_author_date_offset","_rev_committer",b"_rev_committer","_rev_committer_date",b"_rev_committer_date","_rev_committer_date_offset",b"_rev_committer_date_offset","_rev_message",b"_rev_message","cnt_is_skipped",b"cnt_is_skipped","cnt_length",b"cnt_length","ori_url",b"ori_url","rel_author",b"rel_author","rel_author_date",b"rel_author_date","rel_author_date_offset",b"rel_author_date_offset","rel_message",b"rel_message","rel_name",b"rel_name","rev_author",b"rev_author","rev_author_date",b"rev_author_date","rev_author_date_offset",b"rev_author_date_offset","rev_committer",b"rev_committer","rev_committer_date",b"rev_committer_date","rev_committer_date_offset",b"rev_committer_date_offset","rev_message",b"rev_message","successor",b"successor","swhid",b"swhid"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_cnt_is_skipped",b"_cnt_is_skipped"]) -> typing.Optional[typing_extensions.Literal["cnt_is_skipped"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_cnt_length",b"_cnt_length"]) -> typing.Optional[typing_extensions.Literal["cnt_length"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_ori_url",b"_ori_url"]) -> typing.Optional[typing_extensions.Literal["ori_url"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rel_author",b"_rel_author"]) -> typing.Optional[typing_extensions.Literal["rel_author"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rel_author_date",b"_rel_author_date"]) -> typing.Optional[typing_extensions.Literal["rel_author_date"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rel_author_date_offset",b"_rel_author_date_offset"]) -> typing.Optional[typing_extensions.Literal["rel_author_date_offset"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rel_message",b"_rel_message"]) -> typing.Optional[typing_extensions.Literal["rel_message"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rel_name",b"_rel_name"]) -> typing.Optional[typing_extensions.Literal["rel_name"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_author",b"_rev_author"]) -> typing.Optional[typing_extensions.Literal["rev_author"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_author_date",b"_rev_author_date"]) -> typing.Optional[typing_extensions.Literal["rev_author_date"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_author_date_offset",b"_rev_author_date_offset"]) -> typing.Optional[typing_extensions.Literal["rev_author_date_offset"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_committer",b"_rev_committer"]) -> typing.Optional[typing_extensions.Literal["rev_committer"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_committer_date",b"_rev_committer_date"]) -> typing.Optional[typing_extensions.Literal["rev_committer_date"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_committer_date_offset",b"_rev_committer_date_offset"]) -> typing.Optional[typing_extensions.Literal["rev_committer_date_offset"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_rev_message",b"_rev_message"]) -> typing.Optional[typing_extensions.Literal["rev_message"]]: ...
+    def HasField(self, field_name: typing_extensions.Literal["cnt",b"cnt","data",b"data","ori",b"ori","rel",b"rel","rev",b"rev"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["cnt",b"cnt","data",b"data","ori",b"ori","rel",b"rel","rev",b"rev","successor",b"successor","swhid",b"swhid"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["data",b"data"]) -> typing.Optional[typing_extensions.Literal["cnt","rev","rel","ori"]]: ...
 global___Node = Node
 
 class Successor(google.protobuf.message.Message):
@@ -316,6 +153,116 @@ class Successor(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["_swhid",b"_swhid","label",b"label","swhid",b"swhid"]) -> None: ...
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_swhid",b"_swhid"]) -> typing.Optional[typing_extensions.Literal["swhid"]]: ...
 global___Successor = Successor
+
+class ContentData(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    LENGTH_FIELD_NUMBER: builtins.int
+    IS_SKIPPED_FIELD_NUMBER: builtins.int
+    length: builtins.int
+    is_skipped: builtins.bool
+    def __init__(self,
+        *,
+        length: typing.Optional[builtins.int] = ...,
+        is_skipped: typing.Optional[builtins.bool] = ...,
+        ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_is_skipped",b"_is_skipped","_length",b"_length","is_skipped",b"is_skipped","length",b"length"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_is_skipped",b"_is_skipped","_length",b"_length","is_skipped",b"is_skipped","length",b"length"]) -> None: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_is_skipped",b"_is_skipped"]) -> typing.Optional[typing_extensions.Literal["is_skipped"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_length",b"_length"]) -> typing.Optional[typing_extensions.Literal["length"]]: ...
+global___ContentData = ContentData
+
+class RevisionData(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    AUTHOR_FIELD_NUMBER: builtins.int
+    AUTHOR_DATE_FIELD_NUMBER: builtins.int
+    AUTHOR_DATE_OFFSET_FIELD_NUMBER: builtins.int
+    COMMITTER_FIELD_NUMBER: builtins.int
+    COMMITTER_DATE_FIELD_NUMBER: builtins.int
+    COMMITTER_DATE_OFFSET_FIELD_NUMBER: builtins.int
+    MESSAGE_FIELD_NUMBER: builtins.int
+    author: builtins.int
+    author_date: builtins.int
+    author_date_offset: builtins.int
+    committer: builtins.int
+    committer_date: builtins.int
+    committer_date_offset: builtins.int
+    message: builtins.bytes
+    def __init__(self,
+        *,
+        author: typing.Optional[builtins.int] = ...,
+        author_date: typing.Optional[builtins.int] = ...,
+        author_date_offset: typing.Optional[builtins.int] = ...,
+        committer: typing.Optional[builtins.int] = ...,
+        committer_date: typing.Optional[builtins.int] = ...,
+        committer_date_offset: typing.Optional[builtins.int] = ...,
+        message: typing.Optional[builtins.bytes] = ...,
+        ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_author",b"_author","_author_date",b"_author_date","_author_date_offset",b"_author_date_offset","_committer",b"_committer","_committer_date",b"_committer_date","_committer_date_offset",b"_committer_date_offset","_message",b"_message","author",b"author","author_date",b"author_date","author_date_offset",b"author_date_offset","committer",b"committer","committer_date",b"committer_date","committer_date_offset",b"committer_date_offset","message",b"message"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_author",b"_author","_author_date",b"_author_date","_author_date_offset",b"_author_date_offset","_committer",b"_committer","_committer_date",b"_committer_date","_committer_date_offset",b"_committer_date_offset","_message",b"_message","author",b"author","author_date",b"author_date","author_date_offset",b"author_date_offset","committer",b"committer","committer_date",b"committer_date","committer_date_offset",b"committer_date_offset","message",b"message"]) -> None: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_author",b"_author"]) -> typing.Optional[typing_extensions.Literal["author"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_author_date",b"_author_date"]) -> typing.Optional[typing_extensions.Literal["author_date"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_author_date_offset",b"_author_date_offset"]) -> typing.Optional[typing_extensions.Literal["author_date_offset"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_committer",b"_committer"]) -> typing.Optional[typing_extensions.Literal["committer"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_committer_date",b"_committer_date"]) -> typing.Optional[typing_extensions.Literal["committer_date"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_committer_date_offset",b"_committer_date_offset"]) -> typing.Optional[typing_extensions.Literal["committer_date_offset"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_message",b"_message"]) -> typing.Optional[typing_extensions.Literal["message"]]: ...
+global___RevisionData = RevisionData
+
+class ReleaseData(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    AUTHOR_FIELD_NUMBER: builtins.int
+    AUTHOR_DATE_FIELD_NUMBER: builtins.int
+    AUTHOR_DATE_OFFSET_FIELD_NUMBER: builtins.int
+    NAME_FIELD_NUMBER: builtins.int
+    MESSAGE_FIELD_NUMBER: builtins.int
+    author: builtins.int
+    author_date: builtins.int
+    author_date_offset: builtins.int
+    name: builtins.bytes
+    message: builtins.bytes
+    def __init__(self,
+        *,
+        author: typing.Optional[builtins.int] = ...,
+        author_date: typing.Optional[builtins.int] = ...,
+        author_date_offset: typing.Optional[builtins.int] = ...,
+        name: typing.Optional[builtins.bytes] = ...,
+        message: typing.Optional[builtins.bytes] = ...,
+        ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_author",b"_author","_author_date",b"_author_date","_author_date_offset",b"_author_date_offset","_message",b"_message","_name",b"_name","author",b"author","author_date",b"author_date","author_date_offset",b"author_date_offset","message",b"message","name",b"name"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_author",b"_author","_author_date",b"_author_date","_author_date_offset",b"_author_date_offset","_message",b"_message","_name",b"_name","author",b"author","author_date",b"author_date","author_date_offset",b"author_date_offset","message",b"message","name",b"name"]) -> None: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_author",b"_author"]) -> typing.Optional[typing_extensions.Literal["author"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_author_date",b"_author_date"]) -> typing.Optional[typing_extensions.Literal["author_date"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_author_date_offset",b"_author_date_offset"]) -> typing.Optional[typing_extensions.Literal["author_date_offset"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_message",b"_message"]) -> typing.Optional[typing_extensions.Literal["message"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_name",b"_name"]) -> typing.Optional[typing_extensions.Literal["name"]]: ...
+global___ReleaseData = ReleaseData
+
+class OriginData(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    URL_FIELD_NUMBER: builtins.int
+    url: typing.Text
+    def __init__(self,
+        *,
+        url: typing.Optional[typing.Text] = ...,
+        ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_url",b"_url","url",b"url"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_url",b"_url","url",b"url"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_url",b"_url"]) -> typing.Optional[typing_extensions.Literal["url"]]: ...
+global___OriginData = OriginData
 
 class EdgeLabel(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -402,6 +349,23 @@ class CheckSwhidRequest(google.protobuf.message.Message):
         ) -> None: ...
     def ClearField(self, field_name: typing_extensions.Literal["swhid",b"swhid"]) -> None: ...
 global___CheckSwhidRequest = CheckSwhidRequest
+
+class GetNodeRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    SWHID_FIELD_NUMBER: builtins.int
+    MASK_FIELD_NUMBER: builtins.int
+    swhid: typing.Text
+    @property
+    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask: ...
+    def __init__(self,
+        *,
+        swhid: typing.Text = ...,
+        mask: typing.Optional[google.protobuf.field_mask_pb2.FieldMask] = ...,
+        ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_mask",b"_mask","mask",b"mask"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_mask",b"_mask","mask",b"mask","swhid",b"swhid"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_mask",b"_mask"]) -> typing.Optional[typing_extensions.Literal["mask"]]: ...
+global___GetNodeRequest = GetNodeRequest
 
 class CheckSwhidResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
