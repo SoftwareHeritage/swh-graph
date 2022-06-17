@@ -176,7 +176,7 @@ def compress(ctx, input_dataset, output_directory, graph_name, steps):
     (10) obl, (11) compose_orders, (12) stats, (13) transpose, (14)
     transpose_obl, (15) maps, (16) extract_persons, (17) mph_persons, (18)
     node_properties, (19) mph_labels, (20) fcl_labels, (21) edge_labels, (22)
-    clean_tmp.
+    edge_labels_obl, (23) edge_labels_transpose_obl, (24) clean_tmp.
     Compression steps can be selected by name or number using --steps,
     separating them with commas; step ranges (e.g., 3-9, 6-, etc.) are also
     supported.

@@ -31,6 +31,8 @@ digraph "Compression steps" {
     labels_fcl [label="graph.labels.fcl"];
     graph_labelled [label="graph-labelled.*"];
     graph_transposed_labelled [label="graph-transposed-labelled.*"];
+    graph_labelled_obl [label="graph-labelled.labelobl"];
+    graph_transposed_labelled [label="graph-transposed-labelled.labelobl"];
 
     subgraph {
         node [shape=box, fontname="Courier New"];
@@ -55,6 +57,8 @@ digraph "Compression steps" {
         MPH_LABELS;
         FCL_LABELS;
         EDGE_LABELS;
+        EDGE_LABELS_OBL;
+        EDGE_LABELS_TRANSPOSE_OBL;
     }
 
 
@@ -102,4 +106,6 @@ digraph "Compression steps" {
     graph_order -> EDGE_LABELS;
     EDGE_LABELS -> graph_labelled;
     EDGE_LABELS -> graph_transposed_labelled;
+    graph_labelled -> EDGE_LABELS_OBL -> graph_labelled_obl;
+    graph_transposed_labelled -> EDGE_LABELS_TRANSPOSE_OBL -> graph_transposed_labelled_obl;
 }

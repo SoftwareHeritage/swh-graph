@@ -131,7 +131,7 @@ The compression pipeline consists of the following steps:
 .. figure:: images/compression_steps.png
     :align: center
     :alt: Compression steps
-    :target: _images/compression_steps.png
+    :scale: 20%
 
     Compression steps
 
@@ -587,8 +587,23 @@ equivalent of these files:
 ``graph-transposed-labelled.{properties,labels,labeloffsets}``.
 
 
+23. EDGE_LABELS_OBL
+-------------------
 
-22. CLEAN_TMP
+Cache the label offsets of the forward labelled graph to make loading faster.
+The resulting label offset big list is stored in the
+``graph-labelled.labelobl`` file.
+
+
+23. EDGE_LABELS_TRANSPOSE_OBL
+-----------------------------
+
+Same as EDGE_LABELS_OBL, but for the transposed labelled graph.
+The resulting label offset big list is stored in the
+``graph-transposed-labelled.labelobl`` file.
+
+
+24. CLEAN_TMP
 -------------
 
 This step reclaims space by deleting the temporary directory, as well as all

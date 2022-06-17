@@ -42,7 +42,9 @@ class CompressionStep(Enum):
     MPH_LABELS = 19
     FCL_LABELS = 20
     EDGE_LABELS = 21
-    CLEAN_TMP = 22
+    EDGE_LABELS_OBL = 22
+    EDGE_LABELS_TRANSPOSE_OBL = 23
+    CLEAN_TMP = 24
 
     def __str__(self):
         return self.name
@@ -230,6 +232,18 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{tmp_dir}",
         "{in_dir}",
         "{out_dir}/{graph_name}",
+    ],
+    CompressionStep.EDGE_LABELS_OBL: [
+        "{java}",
+        "it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph",
+        "--list",
+        "{out_dir}/{graph_name}-labelled",
+    ],
+    CompressionStep.EDGE_LABELS_TRANSPOSE_OBL: [
+        "{java}",
+        "it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph",
+        "--list",
+        "{out_dir}/{graph_name}-transposed-labelled",
     ],
     CompressionStep.CLEAN_TMP: [
         "rm",
