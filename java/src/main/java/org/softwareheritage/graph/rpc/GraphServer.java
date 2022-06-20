@@ -188,8 +188,37 @@ public class GraphServer {
         @Override
         public void traverse(TraversalRequest request, StreamObserver<Node> responseObserver) {
             SwhBidirectionalGraph g = graph.copy();
-            Traversal.simpleTraversal(g, request, responseObserver::onNext);
+            var t = new Traversal.SimpleTraversal(g, request, responseObserver::onNext);
+            t.visit();
             responseObserver.onCompleted();
+        }
+
+        @Override
+        public void findPathTo(FindPathToRequest request, StreamObserver<Path> responseObserver) {
+            SwhBidirectionalGraph g = graph.copy();
+            var t = new Traversal.FindPathTo(g, request);
+            t.visit();
+            Path path = t.getPath();
+            if (path == null) {
+                responseObserver.onError(Status.NOT_FOUND.asException());
+            } else {
+                responseObserver.onNext(path);
+                responseObserver.onCompleted();
+            }
+        }
+
+        @Override
+        public void findPathBetween(FindPathBetweenRequest request, StreamObserver<Path> responseObserver) {
+            SwhBidirectionalGraph g = graph.copy();
+            var t = new Traversal.FindPathBetween(g, request);
+            t.visit();
+            Path path = t.getPath();
+            if (path == null) {
+                responseObserver.onError(Status.NOT_FOUND.asException());
+            } else {
+                responseObserver.onNext(path);
+                responseObserver.onCompleted();
+            }
         }
 
         @Override
@@ -199,9 +228,8 @@ public class GraphServer {
             TraversalRequest fixedReq = TraversalRequest.newBuilder(request)
                     // Ignore return fields, just count nodes
                     .setMask(FieldMask.getDefaultInstance()).build();
-            Traversal.simpleTraversal(g, fixedReq, (Node node) -> {
-                count.incrementAndGet();
-            });
+            var t = new Traversal.SimpleTraversal(g, request, n -> count.incrementAndGet());
+            t.visit();
             CountResponse response = CountResponse.newBuilder().setCount(count.get()).build();
             responseObserver.onNext(response);
             responseObserver.onCompleted();
@@ -214,9 +242,8 @@ public class GraphServer {
             TraversalRequest fixedReq = TraversalRequest.newBuilder(request)
                     // Force return empty successors to count the edges
                     .setMask(FieldMask.newBuilder().addPaths("successor").build()).build();
-            Traversal.simpleTraversal(g, fixedReq, (Node node) -> {
-                count.addAndGet(node.getSuccessorCount());
-            });
+            var t = new Traversal.SimpleTraversal(g, request, n -> count.addAndGet(n.getSuccessorCount()));
+            t.visit();
             CountResponse response = CountResponse.newBuilder().setCount(count.get()).build();
             responseObserver.onNext(response);
             responseObserver.onCompleted();

@@ -47,4 +47,12 @@ public class TraversalServiceTest extends GraphTest {
         });
         return res;
     }
+
+    public ArrayList<SWHID> getSWHIDs(Path p) {
+        ArrayList<SWHID> res = new ArrayList<>();
+        p.getNodeList().forEach((Node n) -> {
+            res.add(new SWHID(n.getSwhid()));
+        });
+        return res;
+    }
 }

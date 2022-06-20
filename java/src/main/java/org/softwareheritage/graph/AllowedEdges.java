@@ -71,4 +71,21 @@ public class AllowedEdges {
             return true;
         return restrictedTo[srcType.ordinal()][dstType.ordinal()];
     }
+
+    /**
+     * Return a new AllowedEdges instance with reversed edge restrictions. e.g. "src1:dst1,src2:dst2"
+     * becomes "dst1:src1,dst2:src2"
+     *
+     * @return a new AllowedEdges instance with reversed edge restrictions
+     */
+    public AllowedEdges reverse() {
+        AllowedEdges reversed = new AllowedEdges(null);
+        reversed.restrictedTo = new boolean[restrictedTo.length][restrictedTo[0].length];
+        for (int i = 0; i < restrictedTo.length; i++) {
+            for (int j = 0; j < restrictedTo[0].length; j++) {
+                reversed.restrictedTo[i][j] = restrictedTo[j][i];
+            }
+        }
+        return reversed;
+    }
 }

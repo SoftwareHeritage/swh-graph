@@ -10,6 +10,8 @@ package swh.graph;
 
 service TraversalService {
   rpc Traverse (TraversalRequest) returns (stream Node);
+  rpc FindPathTo (FindPathToRequest) returns (Path);
+  rpc FindPathBetween (FindPathBetweenRequest) returns (Path);
   rpc CountNodes (TraversalRequest) returns (CountResponse);
   rpc CountEdges (TraversalRequest) returns (CountResponse);
   rpc Stats (StatsRequest) returns (StatsResponse);
@@ -25,8 +27,6 @@ enum GraphDirection {
 
 message TraversalRequest {
   repeated string src = 1;
-
-  // Traversal options
   GraphDirection direction = 2;
   optional string edges = 3;
   optional int64 max_edges = 4;
@@ -34,6 +34,28 @@ message TraversalRequest {
   optional int64 max_depth = 6;
   optional NodeFilter return_nodes = 7;
   optional google.protobuf.FieldMask mask = 8;
+}
+
+message FindPathToRequest {
+  repeated string src = 1;
+  optional NodeFilter target = 2;
+  GraphDirection direction = 3;
+  optional string edges = 4;
+  optional int64 max_edges = 5;
+  optional int64 max_depth = 6;
+  optional google.protobuf.FieldMask mask = 7;
+}
+
+message FindPathBetweenRequest {
+  repeated string src = 1;
+  repeated string dst = 2;
+  GraphDirection direction = 3;
+  optional GraphDirection direction_reverse = 4;
+  optional string edges = 5;
+  optional string edges_reverse = 6;
+  optional int64 max_edges = 7;
+  optional int64 max_depth = 8;
+  optional google.protobuf.FieldMask mask = 9;
 }
 
 message NodeFilter {
@@ -51,6 +73,10 @@ message Node {
         ReleaseData rel = 6;
         OriginData ori = 8;
     };
+}
+
+message Path {
+    repeated Node node = 1;
 }
 
 message Successor {
