@@ -151,7 +151,7 @@ public class FindPathBetweenTest extends TraversalServiceTest {
                 .setDirection(GraphDirection.BACKWARD).setDirectionReverse(GraphDirection.BACKWARD).build());
         ArrayList<SWHID> actual = getSWHIDs(p);
         SWHID expected = fakeSWHID("rev", 18);
-        Assertions.assertEquals(expected, actual.get(p.getMiddleNodeIndex()));
+        Assertions.assertEquals(expected, actual.get(p.getMidpointIndex()));
     }
 
     // Common descendant between rev 13 and rev 3 : cnt 1 (with rev:dir,dir:dir,dir:cnt)
@@ -162,7 +162,7 @@ public class FindPathBetweenTest extends TraversalServiceTest {
                         .setDirectionReverse(GraphDirection.FORWARD).setEdges("rev:dir,dir:dir,dir:cnt").build());
         ArrayList<SWHID> actual = getSWHIDs(p);
         SWHID expected = fakeSWHID("cnt", 1);
-        Assertions.assertEquals(expected, actual.get(p.getMiddleNodeIndex()));
+        Assertions.assertEquals(expected, actual.get(p.getMidpointIndex()));
     }
 
     // Path between rel 19 and cnt 15 with various max depths

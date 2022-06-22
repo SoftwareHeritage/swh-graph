@@ -29,12 +29,19 @@ global___GraphDirection = GraphDirection
 
 
 class GetNodeRequest(google.protobuf.message.Message):
+    """Describe a node to return"""
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     SWHID_FIELD_NUMBER: builtins.int
     MASK_FIELD_NUMBER: builtins.int
     swhid: typing.Text
+    """SWHID of the node to return"""
+
     @property
-    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask: ...
+    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask:
+        """FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
+        By default, all fields are returned.
+        """
+        pass
     def __init__(self,
         *,
         swhid: typing.Text = ...,
@@ -60,7 +67,7 @@ class TraversalRequest(google.protobuf.message.Message):
     MASK_FIELD_NUMBER: builtins.int
     @property
     def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]:
-        """Set of source nodes"""
+        """Set of source nodes (SWHIDs)"""
         pass
     direction: global___GraphDirection.ValueType
     """Direction of the graph to traverse. Defaults to FORWARD."""
@@ -139,7 +146,7 @@ class FindPathToRequest(google.protobuf.message.Message):
     MASK_FIELD_NUMBER: builtins.int
     @property
     def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]:
-        """Set of source nodes"""
+        """Set of source nodes (SWHIDs)"""
         pass
     @property
     def target(self) -> global___NodeFilter:
@@ -208,11 +215,11 @@ class FindPathBetweenRequest(google.protobuf.message.Message):
     MASK_FIELD_NUMBER: builtins.int
     @property
     def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]:
-        """Set of source nodes"""
+        """Set of source nodes (SWHIDs)"""
         pass
     @property
     def dst(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]:
-        """Set of destination nodes"""
+        """Set of destination nodes (SWHIDs)"""
         pass
     direction: global___GraphDirection.ValueType
     """Direction of the graph to traverse from the source set. Defaults to
@@ -372,13 +379,13 @@ class Path(google.protobuf.message.Message):
     """Represents a path in the graph."""
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     NODE_FIELD_NUMBER: builtins.int
-    MIDDLE_NODE_INDEX_FIELD_NUMBER: builtins.int
+    MIDPOINT_INDEX_FIELD_NUMBER: builtins.int
     @property
     def node(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Node]:
         """List of nodes in the path, from source to destination"""
         pass
-    middle_node_index: builtins.int
-    """Index of the "middle node" of the path. For paths obtained in
+    midpoint_index: builtins.int
+    """Index of the "midpoint" of the path. For paths obtained with
     bidirectional search queries, this is the node that joined the two
     sets together. When looking for a common ancestor between two nodes by
     performing a FindPathBetween search with two backward graphs, this will
@@ -388,11 +395,11 @@ class Path(google.protobuf.message.Message):
     def __init__(self,
         *,
         node: typing.Optional[typing.Iterable[global___Node]] = ...,
-        middle_node_index: typing.Optional[builtins.int] = ...,
+        midpoint_index: typing.Optional[builtins.int] = ...,
         ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["_middle_node_index",b"_middle_node_index","middle_node_index",b"middle_node_index"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["_middle_node_index",b"_middle_node_index","middle_node_index",b"middle_node_index","node",b"node"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_middle_node_index",b"_middle_node_index"]) -> typing.Optional[typing_extensions.Literal["middle_node_index"]]: ...
+    def HasField(self, field_name: typing_extensions.Literal["_midpoint_index",b"_midpoint_index","midpoint_index",b"midpoint_index"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_midpoint_index",b"_midpoint_index","midpoint_index",b"midpoint_index","node",b"node"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_midpoint_index",b"_midpoint_index"]) -> typing.Optional[typing_extensions.Literal["midpoint_index"]]: ...
 global___Path = Path
 
 class Successor(google.protobuf.message.Message):
@@ -509,6 +516,8 @@ class ReleaseData(google.protobuf.message.Message):
     NAME_FIELD_NUMBER: builtins.int
     MESSAGE_FIELD_NUMBER: builtins.int
     author: builtins.int
+    """Release author ID (anonymized)"""
+
     author_date: builtins.int
     """UNIX timestamp of the release date (UTC)"""
 
@@ -598,7 +607,7 @@ class StatsResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     NUM_NODES_FIELD_NUMBER: builtins.int
     NUM_EDGES_FIELD_NUMBER: builtins.int
-    COMPRESSION_FIELD_NUMBER: builtins.int
+    COMPRESSION_RATIO_FIELD_NUMBER: builtins.int
     BITS_PER_NODE_FIELD_NUMBER: builtins.int
     BITS_PER_EDGE_FIELD_NUMBER: builtins.int
     AVG_LOCALITY_FIELD_NUMBER: builtins.int
@@ -609,8 +618,12 @@ class StatsResponse(google.protobuf.message.Message):
     OUTDEGREE_MAX_FIELD_NUMBER: builtins.int
     OUTDEGREE_AVG_FIELD_NUMBER: builtins.int
     num_nodes: builtins.int
+    """Number of nodes in the graph"""
+
     num_edges: builtins.int
-    compression: builtins.float
+    """Number of edges in the graph"""
+
+    compression_ratio: builtins.float
     bits_per_node: builtins.float
     bits_per_edge: builtins.float
     avg_locality: builtins.float
@@ -624,7 +637,7 @@ class StatsResponse(google.protobuf.message.Message):
         *,
         num_nodes: builtins.int = ...,
         num_edges: builtins.int = ...,
-        compression: builtins.float = ...,
+        compression_ratio: builtins.float = ...,
         bits_per_node: builtins.float = ...,
         bits_per_edge: builtins.float = ...,
         avg_locality: builtins.float = ...,
@@ -635,5 +648,5 @@ class StatsResponse(google.protobuf.message.Message):
         outdegree_max: builtins.int = ...,
         outdegree_avg: builtins.float = ...,
         ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["avg_locality",b"avg_locality","bits_per_edge",b"bits_per_edge","bits_per_node",b"bits_per_node","compression",b"compression","indegree_avg",b"indegree_avg","indegree_max",b"indegree_max","indegree_min",b"indegree_min","num_edges",b"num_edges","num_nodes",b"num_nodes","outdegree_avg",b"outdegree_avg","outdegree_max",b"outdegree_max","outdegree_min",b"outdegree_min"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["avg_locality",b"avg_locality","bits_per_edge",b"bits_per_edge","bits_per_node",b"bits_per_node","compression_ratio",b"compression_ratio","indegree_avg",b"indegree_avg","indegree_max",b"indegree_max","indegree_min",b"indegree_min","num_edges",b"num_edges","num_nodes",b"num_nodes","outdegree_avg",b"outdegree_avg","outdegree_max",b"outdegree_max","outdegree_min",b"outdegree_min"]) -> None: ...
 global___StatsResponse = StatsResponse

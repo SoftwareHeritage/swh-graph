@@ -9,6 +9,7 @@
 
    quickstart
    api
+   grpc-api
    java-api
    memory
    compression

@@ -141,7 +141,7 @@ public class GraphServer {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            response.setCompression(Double.parseDouble(properties.getProperty("compratio")));
+            response.setCompressionRatio(Double.parseDouble(properties.getProperty("compratio")));
             response.setBitsPerNode(Double.parseDouble(properties.getProperty("bitspernode")));
             response.setBitsPerEdge(Double.parseDouble(properties.getProperty("bitsperlink")));
             response.setAvgLocality(Double.parseDouble(properties.getProperty("avglocality")));

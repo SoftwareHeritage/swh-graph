@@ -15,7 +15,7 @@ def test_stats(graph_client):
     stats = graph_client.stats()
     assert stats["num_nodes"] == 21
     assert stats["num_edges"] == 23
-    assert isinstance(stats["compression"], float)
+    assert isinstance(stats["compression_ratio"], float)
     assert isinstance(stats["bits_per_node"], float)
     assert isinstance(stats["bits_per_edge"], float)
     assert isinstance(stats["avg_locality"], float)

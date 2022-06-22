@@ -407,7 +407,7 @@ public class Traversal {
                 path.add(curNode);
                 curNode = srcVisitor.parents.get(curNode);
             }
-            pathBuilder.setMiddleNodeIndex(path.size() - 1);
+            pathBuilder.setMidpointIndex(path.size() - 1);
             Collections.reverse(path);
             curNode = dstVisitor.parents.get(middleNode);
             while (curNode != -1) {

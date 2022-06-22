@@ -8,22 +8,48 @@ option java_outer_classname = "GraphService";
 
 package swh.graph;
 
+/* Graph traversal service */
 service TraversalService {
     /* GetNode returns a single Node and its properties. */
     rpc GetNode (GetNodeRequest) returns (Node);
 
     /* Traverse performs a breadth-first graph traversal from a set of source
-     * nodes, then streams the nodes it encounters, along with their properties.
+     * nodes, then streams the nodes it encounters (if they match a given
+     * return filter), along with their properties.
      */
     rpc Traverse (TraversalRequest) returns (stream Node);
 
     /* FindPathTo searches for the shortest path between a set of source nodes
      * and a node that matches a specific *criteria*.
+     *
+     * It does so by performing a breadth-first search from the source node,
+     * until any node that matches the given criteria is found, then follows
+     * back its parents to return the shortest path from the source set to that
+     * node.
      */
     rpc FindPathTo (FindPathToRequest) returns (Path);
 
     /* FindPathBetween searches for the shortest path between a set of source
-     * nodes and a set of destination nodes. */
+     * nodes and a set of destination nodes.
+     *
+     * It does so by performing a *bidirectional breadth-first search*, i.e.,
+     * two parallel breadth-first searches, one from the source set ("src-BFS")
+     * and one from the destination set ("dst-BFS"), until both searches find a
+     * common node that joins their visited sets. This node is called the
+     * "midpoint node".
+     * The path returned is the path src -> ... -> midpoint * -> ... -> dst,
+     * which is the shortest path between src and dst.
+     *
+     * The graph direction of both BFS can be configured separately. By
+     * default, the dst-BFS will use the graph in the opposite direction than
+     * the src-BFS (if direction = FORWARD, by default direction_reverse =
+     * BACKWARD, and vice-versa). The default behavior is thus to search for
+     * the shortest path between two nodes in a given direction. However, one
+     * can also specify FORWARD or BACKWARD for *both* the src-BFS and the
+     * dst-BFS. This will search for a common descendant or a common ancestor
+     * between the two sets, respectively. These will be the midpoints of the
+     * returned path.
+     */
     rpc FindPathBetween (FindPathBetweenRequest) returns (Path);
 
     /* CountNodes does the same as Traverse, but only returns the number of
@@ -38,8 +64,11 @@ service TraversalService {
     rpc Stats (StatsRequest) returns (StatsResponse);
 }
 
+/* Direction of the graph */
 enum GraphDirection {
+    /* Forward DAG: ori -> snp -> rel -> rev -> dir -> cnt */
     FORWARD = 0;
+    /* Transposed DAG: cnt -> dir -> rev -> rel -> snp -> ori */
     BACKWARD = 1;
 }
 
@@ -179,12 +208,12 @@ message Node {
 message Path {
     /* List of nodes in the path, from source to destination */
     repeated Node node = 1;
-    /* Index of the "middle node" of the path. For paths obtained in
+    /* Index of the "midpoint" of the path. For paths obtained with
      * bidirectional search queries, this is the node that joined the two
      * sets together. When looking for a common ancestor between two nodes by
      * performing a FindPathBetween search with two backward graphs, this will
      * be the index of the common ancestor in the path. */
-    optional int32 middle_node_index = 2;
+    optional int32 midpoint_index = 2;
 }
 
 /* Represents a successor of a given node. */
@@ -223,6 +252,7 @@ message RevisionData {
 
 /* Release node properties */
 message ReleaseData {
+    /* Release author ID (anonymized) */
     optional int64 author = 1;
     /* UNIX timestamp of the release date (UTC) */
     optional int64 author_date = 2;
@@ -255,18 +285,32 @@ message StatsRequest {
 }
 
 message StatsResponse {
+    /* Number of nodes in the graph */
     int64 num_nodes = 1;
+    /* Number of edges in the graph */
     int64 num_edges = 2;
 
-    double compression = 3;
+    /* Ratio between the graph size and the information-theoretical lower
+     * bound */
+    double compression_ratio = 3;
+    /* Number of bits per node (overall graph size in bits divided by the
+     * number of nodes) */
     double bits_per_node = 4;
+    /* Number of bits per edge (overall graph size in bits divided by the
+     * number of arcs). */
     double bits_per_edge = 5;
     double avg_locality = 6;
 
+    /* Smallest indegree */
     int64 indegree_min = 7;
+    /* Largest indegree */
     int64 indegree_max = 8;
+    /* Average indegree */
     double indegree_avg = 9;
+    /* Smallest outdegree */
     int64 outdegree_min = 10;
+    /* Largest outdegree */
     int64 outdegree_max = 11;
+    /* Average outdegree */
     double outdegree_avg = 12;
 }

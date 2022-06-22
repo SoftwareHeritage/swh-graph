@@ -126,7 +126,7 @@ class NaiveClient:
         return {
             "num_nodes": len(self.graph.nodes),
             "num_edges": sum(map(len, self.graph.forward_edges.values())),
-            "compression": 1.0,
+            "compression_ratio": 1.0,
             "bits_per_edge": 100.0,
             "bits_per_node": 100.0,
             "avg_locality": 0.0,
