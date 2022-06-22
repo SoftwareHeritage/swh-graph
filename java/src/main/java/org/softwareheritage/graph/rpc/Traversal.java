@@ -318,7 +318,6 @@ public class Traversal {
             super(getDirectedGraph(bidirectionalGraph, request.getDirection()));
             this.request = request;
             this.nodeDataMask = new NodePropertyBuilder.NodeDataMask(request.hasMask() ? request.getMask() : null);
-            this.allowedEdgesSrc = new AllowedEdges(request.hasEdges() ? request.getEdges() : "*");
 
             GraphDirection direction = request.getDirection();
             GraphDirection directionReverse = request.hasDirectionReverse()
@@ -326,6 +325,7 @@ public class Traversal {
                     : reverseDirection(request.getDirection());
             SwhUnidirectionalGraph srcGraph = getDirectedGraph(bidirectionalGraph, direction);
             SwhUnidirectionalGraph dstGraph = getDirectedGraph(bidirectionalGraph, directionReverse);
+            this.allowedEdgesSrc = new AllowedEdges(request.hasEdges() ? request.getEdges() : "*");
             this.allowedEdgesDst = request.hasEdgesReverse()
                     ? new AllowedEdges(request.getEdgesReverse())
                     : (request.hasEdges()

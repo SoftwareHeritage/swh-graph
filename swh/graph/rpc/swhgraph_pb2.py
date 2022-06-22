@@ -16,7 +16,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import field_mask_pb2 as google_dot_protobuf_dot_field__mask__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1cswh/graph/rpc/swhgraph.proto\x12\tswh.graph\x1a google/protobuf/field_mask.proto\"\xd8\x02\n\x10TraversalRequest\x12\x0b\n\x03src\x18\x01 \x03(\t\x12,\n\tdirection\x18\x02 \x01(\x0e\x32\x19.swh.graph.GraphDirection\x12\x12\n\x05\x65\x64ges\x18\x03 \x01(\tH\x00\x88\x01\x01\x12\x16\n\tmax_edges\x18\x04 \x01(\x03H\x01\x88\x01\x01\x12\x16\n\tmin_depth\x18\x05 \x01(\x03H\x02\x88\x01\x01\x12\x16\n\tmax_depth\x18\x06 \x01(\x03H\x03\x88\x01\x01\x12\x30\n\x0creturn_nodes\x18\x07 \x01(\x0b\x32\x15.swh.graph.NodeFilterH\x04\x88\x01\x01\x12-\n\x04mask\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.FieldMaskH\x05\x88\x01\x01\x42\x08\n\x06_edgesB\x0c\n\n_max_edgesB\x0c\n\n_min_depthB\x0c\n\n_max_depthB\x0f\n\r_return_nodesB\x07\n\x05_mask\"\xa7\x02\n\x11\x46indPathToRequest\x12\x0b\n\x03src\x18\x01 \x03(\t\x12*\n\x06target\x18\x02 \x01(\x0b\x32\x15.swh.graph.NodeFilterH\x00\x88\x01\x01\x12,\n\tdirection\x18\x03 \x01(\x0e\x32\x19.swh.graph.GraphDirection\x12\x12\n\x05\x65\x64ges\x18\x04 \x01(\tH\x01\x88\x01\x01\x12\x16\n\tmax_edges\x18\x05 \x01(\x03H\x02\x88\x01\x01\x12\x16\n\tmax_depth\x18\x06 \x01(\x03H\x03\x88\x01\x01\x12-\n\x04mask\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.FieldMaskH\x04\x88\x01\x01\x42\t\n\x07_targetB\x08\n\x06_edgesB\x0c\n\n_max_edgesB\x0c\n\n_max_depthB\x07\n\x05_mask\"\x81\x03\n\x16\x46indPathBetweenRequest\x12\x0b\n\x03src\x18\x01 \x03(\t\x12\x0b\n\x03\x64st\x18\x02 \x03(\t\x12,\n\tdirection\x18\x03 \x01(\x0e\x32\x19.swh.graph.GraphDirection\x12\x39\n\x11\x64irection_reverse\x18\x04 \x01(\x0e\x32\x19.swh.graph.GraphDirectionH\x00\x88\x01\x01\x12\x12\n\x05\x65\x64ges\x18\x05 \x01(\tH\x01\x88\x01\x01\x12\x1a\n\redges_reverse\x18\x06 \x01(\tH\x02\x88\x01\x01\x12\x16\n\tmax_edges\x18\x07 \x01(\x03H\x03\x88\x01\x01\x12\x16\n\tmax_depth\x18\x08 \x01(\x03H\x04\x88\x01\x01\x12-\n\x04mask\x18\t \x01(\x0b\x32\x1a.google.protobuf.FieldMaskH\x05\x88\x01\x01\x42\x14\n\x12_direction_reverseB\x08\n\x06_edgesB\x10\n\x0e_edges_reverseB\x0c\n\n_max_edgesB\x0c\n\n_max_depthB\x07\n\x05_mask\"\xb2\x01\n\nNodeFilter\x12\x12\n\x05types\x18\x01 \x01(\tH\x00\x88\x01\x01\x12%\n\x18min_traversal_successors\x18\x02 \x01(\x03H\x01\x88\x01\x01\x12%\n\x18max_traversal_successors\x18\x03 \x01(\x03H\x02\x88\x01\x01\x42\x08\n\x06_typesB\x1b\n\x19_min_traversal_successorsB\x1b\n\x19_max_traversal_successors\"\xe2\x01\n\x04Node\x12\r\n\x05swhid\x18\x01 \x01(\t\x12\'\n\tsuccessor\x18\x02 \x03(\x0b\x32\x14.swh.graph.Successor\x12%\n\x03\x63nt\x18\x03 \x01(\x0b\x32\x16.swh.graph.ContentDataH\x00\x12&\n\x03rev\x18\x05 \x01(\x0b\x32\x17.swh.graph.RevisionDataH\x00\x12%\n\x03rel\x18\x06 \x01(\x0b\x32\x16.swh.graph.ReleaseDataH\x00\x12$\n\x03ori\x18\x08 \x01(\x0b\x32\x15.swh.graph.OriginDataH\x00\x42\x06\n\x04\x64\x61ta\"[\n\x04Path\x12\x1d\n\x04node\x18\x01 \x03(\x0b\x32\x0f.swh.graph.Node\x12\x1e\n\x11middle_node_index\x18\x02 \x01(\x03H\x00\x88\x01\x01\x42\x14\n\x12_middle_node_index\"N\n\tSuccessor\x12\x12\n\x05swhid\x18\x01 \x01(\tH\x00\x88\x01\x01\x12#\n\x05label\x18\x02 \x03(\x0b\x32\x14.swh.graph.EdgeLabelB\x08\n\x06_swhid\"U\n\x0b\x43ontentData\x12\x13\n\x06length\x18\x01 \x01(\x03H\x00\x88\x01\x01\x12\x17\n\nis_skipped\x18\x02 \x01(\x08H\x01\x88\x01\x01\x42\t\n\x07_lengthB\r\n\x0b_is_skipped\"\xc6\x02\n\x0cRevisionData\x12\x13\n\x06\x61uthor\x18\x01 \x01(\x03H\x00\x88\x01\x01\x12\x18\n\x0b\x61uthor_date\x18\x02 \x01(\x03H\x01\x88\x01\x01\x12\x1f\n\x12\x61uthor_date_offset\x18\x03 \x01(\x05H\x02\x88\x01\x01\x12\x16\n\tcommitter\x18\x04 \x01(\x03H\x03\x88\x01\x01\x12\x1b\n\x0e\x63ommitter_date\x18\x05 \x01(\x03H\x04\x88\x01\x01\x12\"\n\x15\x63ommitter_date_offset\x18\x06 \x01(\x05H\x05\x88\x01\x01\x12\x14\n\x07message\x18\x07 \x01(\x0cH\x06\x88\x01\x01\x42\t\n\x07_authorB\x0e\n\x0c_author_dateB\x15\n\x13_author_date_offsetB\x0c\n\n_committerB\x11\n\x0f_committer_dateB\x18\n\x16_committer_date_offsetB\n\n\x08_message\"\xcd\x01\n\x0bReleaseData\x12\x13\n\x06\x61uthor\x18\x01 \x01(\x03H\x00\x88\x01\x01\x12\x18\n\x0b\x61uthor_date\x18\x02 \x01(\x03H\x01\x88\x01\x01\x12\x1f\n\x12\x61uthor_date_offset\x18\x03 \x01(\x05H\x02\x88\x01\x01\x12\x11\n\x04name\x18\x04 \x01(\x0cH\x03\x88\x01\x01\x12\x14\n\x07message\x18\x05 \x01(\x0cH\x04\x88\x01\x01\x42\t\n\x07_authorB\x0e\n\x0c_author_dateB\x15\n\x13_author_date_offsetB\x07\n\x05_nameB\n\n\x08_message\"&\n\nOriginData\x12\x10\n\x03url\x18\x01 \x01(\tH\x00\x88\x01\x01\x42\x06\n\x04_url\"-\n\tEdgeLabel\x12\x0c\n\x04name\x18\x01 \x01(\x0c\x12\x12\n\npermission\x18\x02 \x01(\x05\"\x1e\n\rCountResponse\x12\r\n\x05\x63ount\x18\x01 \x01(\x03\"\x0e\n\x0cStatsRequest\"\x95\x02\n\rStatsResponse\x12\x11\n\tnum_nodes\x18\x01 \x01(\x03\x12\x11\n\tnum_edges\x18\x02 \x01(\x03\x12\x13\n\x0b\x63ompression\x18\x03 \x01(\x01\x12\x15\n\rbits_per_node\x18\x04 \x01(\x01\x12\x15\n\rbits_per_edge\x18\x05 \x01(\x01\x12\x14\n\x0c\x61vg_locality\x18\x06 \x01(\x01\x12\x14\n\x0cindegree_min\x18\x07 \x01(\x03\x12\x14\n\x0cindegree_max\x18\x08 \x01(\x03\x12\x14\n\x0cindegree_avg\x18\t \x01(\x01\x12\x15\n\routdegree_min\x18\n \x01(\x03\x12\x15\n\routdegree_max\x18\x0b \x01(\x03\x12\x15\n\routdegree_avg\x18\x0c \x01(\x01\"W\n\x0eGetNodeRequest\x12\r\n\x05swhid\x18\x01 \x01(\t\x12-\n\x04mask\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.FieldMaskH\x00\x88\x01\x01\x42\x07\n\x05_mask*+\n\x0eGraphDirection\x12\x0b\n\x07\x46ORWARD\x10\x00\x12\x0c\n\x08\x42\x41\x43KWARD\x10\x01\x32\xcf\x03\n\x10TraversalService\x12:\n\x08Traverse\x12\x1b.swh.graph.TraversalRequest\x1a\x0f.swh.graph.Node0\x01\x12;\n\nFindPathTo\x12\x1c.swh.graph.FindPathToRequest\x1a\x0f.swh.graph.Path\x12\x45\n\x0f\x46indPathBetween\x12!.swh.graph.FindPathBetweenRequest\x1a\x0f.swh.graph.Path\x12\x43\n\nCountNodes\x12\x1b.swh.graph.TraversalRequest\x1a\x18.swh.graph.CountResponse\x12\x43\n\nCountEdges\x12\x1b.swh.graph.TraversalRequest\x1a\x18.swh.graph.CountResponse\x12:\n\x05Stats\x12\x17.swh.graph.StatsRequest\x1a\x18.swh.graph.StatsResponse\x12\x35\n\x07GetNode\x12\x19.swh.graph.GetNodeRequest\x1a\x0f.swh.graph.NodeB0\n\x1eorg.softwareheritage.graph.rpcB\x0cGraphServiceP\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1cswh/graph/rpc/swhgraph.proto\x12\tswh.graph\x1a google/protobuf/field_mask.proto\"W\n\x0eGetNodeRequest\x12\r\n\x05swhid\x18\x01 \x01(\t\x12-\n\x04mask\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.FieldMaskH\x00\x88\x01\x01\x42\x07\n\x05_mask\"\xd8\x02\n\x10TraversalRequest\x12\x0b\n\x03src\x18\x01 \x03(\t\x12,\n\tdirection\x18\x02 \x01(\x0e\x32\x19.swh.graph.GraphDirection\x12\x12\n\x05\x65\x64ges\x18\x03 \x01(\tH\x00\x88\x01\x01\x12\x16\n\tmax_edges\x18\x04 \x01(\x03H\x01\x88\x01\x01\x12\x16\n\tmin_depth\x18\x05 \x01(\x03H\x02\x88\x01\x01\x12\x16\n\tmax_depth\x18\x06 \x01(\x03H\x03\x88\x01\x01\x12\x30\n\x0creturn_nodes\x18\x07 \x01(\x0b\x32\x15.swh.graph.NodeFilterH\x04\x88\x01\x01\x12-\n\x04mask\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.FieldMaskH\x05\x88\x01\x01\x42\x08\n\x06_edgesB\x0c\n\n_max_edgesB\x0c\n\n_min_depthB\x0c\n\n_max_depthB\x0f\n\r_return_nodesB\x07\n\x05_mask\"\x97\x02\n\x11\x46indPathToRequest\x12\x0b\n\x03src\x18\x01 \x03(\t\x12%\n\x06target\x18\x02 \x01(\x0b\x32\x15.swh.graph.NodeFilter\x12,\n\tdirection\x18\x03 \x01(\x0e\x32\x19.swh.graph.GraphDirection\x12\x12\n\x05\x65\x64ges\x18\x04 \x01(\tH\x00\x88\x01\x01\x12\x16\n\tmax_edges\x18\x05 \x01(\x03H\x01\x88\x01\x01\x12\x16\n\tmax_depth\x18\x06 \x01(\x03H\x02\x88\x01\x01\x12-\n\x04mask\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.FieldMaskH\x03\x88\x01\x01\x42\x08\n\x06_edgesB\x0c\n\n_max_edgesB\x0c\n\n_max_depthB\x07\n\x05_mask\"\x81\x03\n\x16\x46indPathBetweenRequest\x12\x0b\n\x03src\x18\x01 \x03(\t\x12\x0b\n\x03\x64st\x18\x02 \x03(\t\x12,\n\tdirection\x18\x03 \x01(\x0e\x32\x19.swh.graph.GraphDirection\x12\x39\n\x11\x64irection_reverse\x18\x04 \x01(\x0e\x32\x19.swh.graph.GraphDirectionH\x00\x88\x01\x01\x12\x12\n\x05\x65\x64ges\x18\x05 \x01(\tH\x01\x88\x01\x01\x12\x1a\n\redges_reverse\x18\x06 \x01(\tH\x02\x88\x01\x01\x12\x16\n\tmax_edges\x18\x07 \x01(\x03H\x03\x88\x01\x01\x12\x16\n\tmax_depth\x18\x08 \x01(\x03H\x04\x88\x01\x01\x12-\n\x04mask\x18\t \x01(\x0b\x32\x1a.google.protobuf.FieldMaskH\x05\x88\x01\x01\x42\x14\n\x12_direction_reverseB\x08\n\x06_edgesB\x10\n\x0e_edges_reverseB\x0c\n\n_max_edgesB\x0c\n\n_max_depthB\x07\n\x05_mask\"\xb2\x01\n\nNodeFilter\x12\x12\n\x05types\x18\x01 \x01(\tH\x00\x88\x01\x01\x12%\n\x18min_traversal_successors\x18\x02 \x01(\x03H\x01\x88\x01\x01\x12%\n\x18max_traversal_successors\x18\x03 \x01(\x03H\x02\x88\x01\x01\x42\x08\n\x06_typesB\x1b\n\x19_min_traversal_successorsB\x1b\n\x19_max_traversal_successors\"\x92\x02\n\x04Node\x12\r\n\x05swhid\x18\x01 \x01(\t\x12\'\n\tsuccessor\x18\x02 \x03(\x0b\x32\x14.swh.graph.Successor\x12\x1b\n\x0enum_successors\x18\t \x01(\x03H\x01\x88\x01\x01\x12%\n\x03\x63nt\x18\x03 \x01(\x0b\x32\x16.swh.graph.ContentDataH\x00\x12&\n\x03rev\x18\x05 \x01(\x0b\x32\x17.swh.graph.RevisionDataH\x00\x12%\n\x03rel\x18\x06 \x01(\x0b\x32\x16.swh.graph.ReleaseDataH\x00\x12$\n\x03ori\x18\x08 \x01(\x0b\x32\x15.swh.graph.OriginDataH\x00\x42\x06\n\x04\x64\x61taB\x11\n\x0f_num_successors\"[\n\x04Path\x12\x1d\n\x04node\x18\x01 \x03(\x0b\x32\x0f.swh.graph.Node\x12\x1e\n\x11middle_node_index\x18\x02 \x01(\x05H\x00\x88\x01\x01\x42\x14\n\x12_middle_node_index\"N\n\tSuccessor\x12\x12\n\x05swhid\x18\x01 \x01(\tH\x00\x88\x01\x01\x12#\n\x05label\x18\x02 \x03(\x0b\x32\x14.swh.graph.EdgeLabelB\x08\n\x06_swhid\"U\n\x0b\x43ontentData\x12\x13\n\x06length\x18\x01 \x01(\x03H\x00\x88\x01\x01\x12\x17\n\nis_skipped\x18\x02 \x01(\x08H\x01\x88\x01\x01\x42\t\n\x07_lengthB\r\n\x0b_is_skipped\"\xc6\x02\n\x0cRevisionData\x12\x13\n\x06\x61uthor\x18\x01 \x01(\x03H\x00\x88\x01\x01\x12\x18\n\x0b\x61uthor_date\x18\x02 \x01(\x03H\x01\x88\x01\x01\x12\x1f\n\x12\x61uthor_date_offset\x18\x03 \x01(\x05H\x02\x88\x01\x01\x12\x16\n\tcommitter\x18\x04 \x01(\x03H\x03\x88\x01\x01\x12\x1b\n\x0e\x63ommitter_date\x18\x05 \x01(\x03H\x04\x88\x01\x01\x12\"\n\x15\x63ommitter_date_offset\x18\x06 \x01(\x05H\x05\x88\x01\x01\x12\x14\n\x07message\x18\x07 \x01(\x0cH\x06\x88\x01\x01\x42\t\n\x07_authorB\x0e\n\x0c_author_dateB\x15\n\x13_author_date_offsetB\x0c\n\n_committerB\x11\n\x0f_committer_dateB\x18\n\x16_committer_date_offsetB\n\n\x08_message\"\xcd\x01\n\x0bReleaseData\x12\x13\n\x06\x61uthor\x18\x01 \x01(\x03H\x00\x88\x01\x01\x12\x18\n\x0b\x61uthor_date\x18\x02 \x01(\x03H\x01\x88\x01\x01\x12\x1f\n\x12\x61uthor_date_offset\x18\x03 \x01(\x05H\x02\x88\x01\x01\x12\x11\n\x04name\x18\x04 \x01(\x0cH\x03\x88\x01\x01\x12\x14\n\x07message\x18\x05 \x01(\x0cH\x04\x88\x01\x01\x42\t\n\x07_authorB\x0e\n\x0c_author_dateB\x15\n\x13_author_date_offsetB\x07\n\x05_nameB\n\n\x08_message\"&\n\nOriginData\x12\x10\n\x03url\x18\x01 \x01(\tH\x00\x88\x01\x01\x42\x06\n\x04_url\"-\n\tEdgeLabel\x12\x0c\n\x04name\x18\x01 \x01(\x0c\x12\x12\n\npermission\x18\x02 \x01(\x05\"\x1e\n\rCountResponse\x12\r\n\x05\x63ount\x18\x01 \x01(\x03\"\x0e\n\x0cStatsRequest\"\x95\x02\n\rStatsResponse\x12\x11\n\tnum_nodes\x18\x01 \x01(\x03\x12\x11\n\tnum_edges\x18\x02 \x01(\x03\x12\x13\n\x0b\x63ompression\x18\x03 \x01(\x01\x12\x15\n\rbits_per_node\x18\x04 \x01(\x01\x12\x15\n\rbits_per_edge\x18\x05 \x01(\x01\x12\x14\n\x0c\x61vg_locality\x18\x06 \x01(\x01\x12\x14\n\x0cindegree_min\x18\x07 \x01(\x03\x12\x14\n\x0cindegree_max\x18\x08 \x01(\x03\x12\x14\n\x0cindegree_avg\x18\t \x01(\x01\x12\x15\n\routdegree_min\x18\n \x01(\x03\x12\x15\n\routdegree_max\x18\x0b \x01(\x03\x12\x15\n\routdegree_avg\x18\x0c \x01(\x01*+\n\x0eGraphDirection\x12\x0b\n\x07\x46ORWARD\x10\x00\x12\x0c\n\x08\x42\x41\x43KWARD\x10\x01\x32\xcf\x03\n\x10TraversalService\x12\x35\n\x07GetNode\x12\x19.swh.graph.GetNodeRequest\x1a\x0f.swh.graph.Node\x12:\n\x08Traverse\x12\x1b.swh.graph.TraversalRequest\x1a\x0f.swh.graph.Node0\x01\x12;\n\nFindPathTo\x12\x1c.swh.graph.FindPathToRequest\x1a\x0f.swh.graph.Path\x12\x45\n\x0f\x46indPathBetween\x12!.swh.graph.FindPathBetweenRequest\x1a\x0f.swh.graph.Path\x12\x43\n\nCountNodes\x12\x1b.swh.graph.TraversalRequest\x1a\x18.swh.graph.CountResponse\x12\x43\n\nCountEdges\x12\x1b.swh.graph.TraversalRequest\x1a\x18.swh.graph.CountResponse\x12:\n\x05Stats\x12\x17.swh.graph.StatsRequest\x1a\x18.swh.graph.StatsResponseB0\n\x1eorg.softwareheritage.graph.rpcB\x0cGraphServiceP\x01\x62\x06proto3')
 
 _GRAPHDIRECTION = DESCRIPTOR.enum_types_by_name['GraphDirection']
 GraphDirection = enum_type_wrapper.EnumTypeWrapper(_GRAPHDIRECTION)
@@ -24,6 +24,7 @@ FORWARD = 0
 BACKWARD = 1
 
 
+_GETNODEREQUEST = DESCRIPTOR.message_types_by_name['GetNodeRequest']
 _TRAVERSALREQUEST = DESCRIPTOR.message_types_by_name['TraversalRequest']
 _FINDPATHTOREQUEST = DESCRIPTOR.message_types_by_name['FindPathToRequest']
 _FINDPATHBETWEENREQUEST = DESCRIPTOR.message_types_by_name['FindPathBetweenRequest']
@@ -39,7 +40,13 @@ _EDGELABEL = DESCRIPTOR.message_types_by_name['EdgeLabel']
 _COUNTRESPONSE = DESCRIPTOR.message_types_by_name['CountResponse']
 _STATSREQUEST = DESCRIPTOR.message_types_by_name['StatsRequest']
 _STATSRESPONSE = DESCRIPTOR.message_types_by_name['StatsResponse']
-_GETNODEREQUEST = DESCRIPTOR.message_types_by_name['GetNodeRequest']
+GetNodeRequest = _reflection.GeneratedProtocolMessageType('GetNodeRequest', (_message.Message,), {
+  'DESCRIPTOR' : _GETNODEREQUEST,
+  '__module__' : 'swh.graph.rpc.swhgraph_pb2'
+  # @@protoc_insertion_point(class_scope:swh.graph.GetNodeRequest)
+  })
+_sym_db.RegisterMessage(GetNodeRequest)
+
 TraversalRequest = _reflection.GeneratedProtocolMessageType('TraversalRequest', (_message.Message,), {
   'DESCRIPTOR' : _TRAVERSALREQUEST,
   '__module__' : 'swh.graph.rpc.swhgraph_pb2'
@@ -145,52 +152,45 @@ StatsResponse = _reflection.GeneratedProtocolMessageType('StatsResponse', (_mess
   })
 _sym_db.RegisterMessage(StatsResponse)
 
-GetNodeRequest = _reflection.GeneratedProtocolMessageType('GetNodeRequest', (_message.Message,), {
-  'DESCRIPTOR' : _GETNODEREQUEST,
-  '__module__' : 'swh.graph.rpc.swhgraph_pb2'
-  # @@protoc_insertion_point(class_scope:swh.graph.GetNodeRequest)
-  })
-_sym_db.RegisterMessage(GetNodeRequest)
-
 _TRAVERSALSERVICE = DESCRIPTOR.services_by_name['TraversalService']
 if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
   DESCRIPTOR._serialized_options = b'\n\036org.softwareheritage.graph.rpcB\014GraphServiceP\001'
-  _GRAPHDIRECTION._serialized_start=2821
-  _GRAPHDIRECTION._serialized_end=2864
-  _TRAVERSALREQUEST._serialized_start=78
-  _TRAVERSALREQUEST._serialized_end=422
-  _FINDPATHTOREQUEST._serialized_start=425
-  _FINDPATHTOREQUEST._serialized_end=720
-  _FINDPATHBETWEENREQUEST._serialized_start=723
-  _FINDPATHBETWEENREQUEST._serialized_end=1108
-  _NODEFILTER._serialized_start=1111
-  _NODEFILTER._serialized_end=1289
-  _NODE._serialized_start=1292
-  _NODE._serialized_end=1518
-  _PATH._serialized_start=1520
-  _PATH._serialized_end=1611
-  _SUCCESSOR._serialized_start=1613
-  _SUCCESSOR._serialized_end=1691
-  _CONTENTDATA._serialized_start=1693
-  _CONTENTDATA._serialized_end=1778
-  _REVISIONDATA._serialized_start=1781
-  _REVISIONDATA._serialized_end=2107
-  _RELEASEDATA._serialized_start=2110
-  _RELEASEDATA._serialized_end=2315
-  _ORIGINDATA._serialized_start=2317
-  _ORIGINDATA._serialized_end=2355
-  _EDGELABEL._serialized_start=2357
-  _EDGELABEL._serialized_end=2402
-  _COUNTRESPONSE._serialized_start=2404
-  _COUNTRESPONSE._serialized_end=2434
-  _STATSREQUEST._serialized_start=2436
-  _STATSREQUEST._serialized_end=2450
-  _STATSRESPONSE._serialized_start=2453
-  _STATSRESPONSE._serialized_end=2730
-  _GETNODEREQUEST._serialized_start=2732
-  _GETNODEREQUEST._serialized_end=2819
-  _TRAVERSALSERVICE._serialized_start=2867
-  _TRAVERSALSERVICE._serialized_end=3330
+  _GRAPHDIRECTION._serialized_start=2853
+  _GRAPHDIRECTION._serialized_end=2896
+  _GETNODEREQUEST._serialized_start=77
+  _GETNODEREQUEST._serialized_end=164
+  _TRAVERSALREQUEST._serialized_start=167
+  _TRAVERSALREQUEST._serialized_end=511
+  _FINDPATHTOREQUEST._serialized_start=514
+  _FINDPATHTOREQUEST._serialized_end=793
+  _FINDPATHBETWEENREQUEST._serialized_start=796
+  _FINDPATHBETWEENREQUEST._serialized_end=1181
+  _NODEFILTER._serialized_start=1184
+  _NODEFILTER._serialized_end=1362
+  _NODE._serialized_start=1365
+  _NODE._serialized_end=1639
+  _PATH._serialized_start=1641
+  _PATH._serialized_end=1732
+  _SUCCESSOR._serialized_start=1734
+  _SUCCESSOR._serialized_end=1812
+  _CONTENTDATA._serialized_start=1814
+  _CONTENTDATA._serialized_end=1899
+  _REVISIONDATA._serialized_start=1902
+  _REVISIONDATA._serialized_end=2228
+  _RELEASEDATA._serialized_start=2231
+  _RELEASEDATA._serialized_end=2436
+  _ORIGINDATA._serialized_start=2438
+  _ORIGINDATA._serialized_end=2476
+  _EDGELABEL._serialized_start=2478
+  _EDGELABEL._serialized_end=2523
+  _COUNTRESPONSE._serialized_start=2525
+  _COUNTRESPONSE._serialized_end=2555
+  _STATSREQUEST._serialized_start=2557
+  _STATSREQUEST._serialized_end=2571
+  _STATSRESPONSE._serialized_start=2574
+  _STATSRESPONSE._serialized_end=2851
+  _TRAVERSALSERVICE._serialized_start=2899
+  _TRAVERSALSERVICE._serialized_end=3362
 # @@protoc_insertion_point(module_scope)

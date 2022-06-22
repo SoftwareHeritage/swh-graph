@@ -16,7 +16,12 @@ import org.softwareheritage.graph.labels.DirEntry;
 
 import java.util.*;
 
+/** NodePropertyBuilder is a helper class. */
 public class NodePropertyBuilder {
+    /**
+     * NodeDataMask caches a FieldMask into a more efficient representation (booleans). This avoids the
+     * need of parsing the FieldMask for each node in the stream.
+     */
     public static class NodeDataMask {
         public boolean swhid;
         public boolean successor;

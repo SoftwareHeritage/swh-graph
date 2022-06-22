@@ -28,7 +28,27 @@ BACKWARD: GraphDirection.ValueType  # 1
 global___GraphDirection = GraphDirection
 
 
+class GetNodeRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    SWHID_FIELD_NUMBER: builtins.int
+    MASK_FIELD_NUMBER: builtins.int
+    swhid: typing.Text
+    @property
+    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask: ...
+    def __init__(self,
+        *,
+        swhid: typing.Text = ...,
+        mask: typing.Optional[google.protobuf.field_mask_pb2.FieldMask] = ...,
+        ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_mask",b"_mask","mask",b"mask"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_mask",b"_mask","mask",b"mask","swhid",b"swhid"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_mask",b"_mask"]) -> typing.Optional[typing_extensions.Literal["mask"]]: ...
+global___GetNodeRequest = GetNodeRequest
+
 class TraversalRequest(google.protobuf.message.Message):
+    """TraversalRequest describes how a breadth-first traversal should be
+    performed, and what should be returned to the client.
+    """
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     SRC_FIELD_NUMBER: builtins.int
     DIRECTION_FIELD_NUMBER: builtins.int
@@ -39,16 +59,44 @@ class TraversalRequest(google.protobuf.message.Message):
     RETURN_NODES_FIELD_NUMBER: builtins.int
     MASK_FIELD_NUMBER: builtins.int
     @property
-    def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]: ...
+    def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]:
+        """Set of source nodes"""
+        pass
     direction: global___GraphDirection.ValueType
+    """Direction of the graph to traverse. Defaults to FORWARD."""
+
     edges: typing.Text
+    """Edge restriction string (e.g. "rev:dir,dir:cnt").
+    Defaults to "*" (all).
+    """
+
     max_edges: builtins.int
+    """Maximum number of edges accessed in the traversal, after which it stops.
+    Defaults to infinite.
+    """
+
     min_depth: builtins.int
+    """Do not return nodes with a depth lower than this number.
+    By default, all depths are returned.
+    """
+
     max_depth: builtins.int
+    """Maximum depth of the traversal, after which it stops.
+    Defaults to infinite.
+    """
+
     @property
-    def return_nodes(self) -> global___NodeFilter: ...
+    def return_nodes(self) -> global___NodeFilter:
+        """Filter which nodes will be sent to the stream. By default, all nodes are
+        returned.
+        """
+        pass
     @property
-    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask: ...
+    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask:
+        """FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
+        By default, all fields are returned.
+        """
+        pass
     def __init__(self,
         *,
         src: typing.Optional[typing.Iterable[typing.Text]] = ...,
@@ -77,6 +125,10 @@ class TraversalRequest(google.protobuf.message.Message):
 global___TraversalRequest = TraversalRequest
 
 class FindPathToRequest(google.protobuf.message.Message):
+    """FindPathToRequest describes a request to find the shortest path between a
+    set of nodes and a given target criteria, as well as what should be returned
+    in the path.
+    """
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     SRC_FIELD_NUMBER: builtins.int
     TARGET_FIELD_NUMBER: builtins.int
@@ -86,15 +138,37 @@ class FindPathToRequest(google.protobuf.message.Message):
     MAX_DEPTH_FIELD_NUMBER: builtins.int
     MASK_FIELD_NUMBER: builtins.int
     @property
-    def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]: ...
+    def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]:
+        """Set of source nodes"""
+        pass
     @property
-    def target(self) -> global___NodeFilter: ...
+    def target(self) -> global___NodeFilter:
+        """Target criteria, i.e., what constitutes a valid path destination."""
+        pass
     direction: global___GraphDirection.ValueType
+    """Direction of the graph to traverse. Defaults to FORWARD."""
+
     edges: typing.Text
+    """Edge restriction string (e.g. "rev:dir,dir:cnt").
+    Defaults to "*" (all).
+    """
+
     max_edges: builtins.int
+    """Maximum number of edges accessed in the traversal, after which it stops.
+    Defaults to infinite.
+    """
+
     max_depth: builtins.int
+    """Maximum depth of the traversal, after which it stops.
+    Defaults to infinite.
+    """
+
     @property
-    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask: ...
+    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask:
+        """FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
+        By default, all fields are returned.
+        """
+        pass
     def __init__(self,
         *,
         src: typing.Optional[typing.Iterable[typing.Text]] = ...,
@@ -105,8 +179,8 @@ class FindPathToRequest(google.protobuf.message.Message):
         max_depth: typing.Optional[builtins.int] = ...,
         mask: typing.Optional[google.protobuf.field_mask_pb2.FieldMask] = ...,
         ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_target",b"_target","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","target",b"target"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_target",b"_target","direction",b"direction","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","src",b"src","target",b"target"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","target",b"target"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","direction",b"direction","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","src",b"src","target",b"target"]) -> None: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_edges",b"_edges"]) -> typing.Optional[typing_extensions.Literal["edges"]]: ...
     @typing.overload
@@ -115,11 +189,13 @@ class FindPathToRequest(google.protobuf.message.Message):
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_max_depth",b"_max_depth"]) -> typing.Optional[typing_extensions.Literal["max_depth"]]: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_max_edges",b"_max_edges"]) -> typing.Optional[typing_extensions.Literal["max_edges"]]: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_target",b"_target"]) -> typing.Optional[typing_extensions.Literal["target"]]: ...
 global___FindPathToRequest = FindPathToRequest
 
 class FindPathBetweenRequest(google.protobuf.message.Message):
+    """FindPathToRequest describes a request to find the shortest path between a
+    set of source nodes and a set of destination nodes. It works by performing a
+    bidirectional breadth-first traversal from both sets at the same time.
+    """
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     SRC_FIELD_NUMBER: builtins.int
     DST_FIELD_NUMBER: builtins.int
@@ -131,17 +207,56 @@ class FindPathBetweenRequest(google.protobuf.message.Message):
     MAX_DEPTH_FIELD_NUMBER: builtins.int
     MASK_FIELD_NUMBER: builtins.int
     @property
-    def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]: ...
+    def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]:
+        """Set of source nodes"""
+        pass
     @property
-    def dst(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]: ...
+    def dst(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]:
+        """Set of destination nodes"""
+        pass
     direction: global___GraphDirection.ValueType
+    """Direction of the graph to traverse from the source set. Defaults to
+    FORWARD.
+    """
+
     direction_reverse: global___GraphDirection.ValueType
+    """Direction of the graph to traverse from the destination set. Defaults to
+    the opposite of `direction`. If direction and direction_reverse are
+    identical, it will find the first common successor of both sets in the
+    given direction.
+    """
+
     edges: typing.Text
+    """Edge restriction string for the traversal from the source set.
+    (e.g. "rev:dir,dir:cnt"). Defaults to "*" (all).
+    """
+
     edges_reverse: typing.Text
+    """Edge restriction string for the reverse traversal from the destination
+    set.
+    If not specified:
+      - If `edges` is not specified either, defaults to "*"
+      - If direction == direction_reverse, defaults to `edges`
+      - If direction != direction_reverse, defaults to the reverse of `edges`
+        (e.g. "rev:dir" becomes "dir:rev").
+    """
+
     max_edges: builtins.int
+    """Maximum number of edges accessed in the traversal, after which it stops.
+    Defaults to infinite.
+    """
+
     max_depth: builtins.int
+    """Maximum depth of the traversal, after which it stops.
+    Defaults to infinite.
+    """
+
     @property
-    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask: ...
+    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask:
+        """FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
+        By default, all fields are returned.
+        """
+        pass
     def __init__(self,
         *,
         src: typing.Optional[typing.Iterable[typing.Text]] = ...,
@@ -171,13 +286,26 @@ class FindPathBetweenRequest(google.protobuf.message.Message):
 global___FindPathBetweenRequest = FindPathBetweenRequest
 
 class NodeFilter(google.protobuf.message.Message):
+    """Represents various criteria that make a given node is "valid". A node is
+    only valid if all the subcriteria present in this message are fulfilled.
+    """
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     TYPES_FIELD_NUMBER: builtins.int
     MIN_TRAVERSAL_SUCCESSORS_FIELD_NUMBER: builtins.int
     MAX_TRAVERSAL_SUCCESSORS_FIELD_NUMBER: builtins.int
     types: typing.Text
+    """Node restriction string. (e.g. "dir,cnt,rev"). Defaults to "*" (all)."""
+
     min_traversal_successors: builtins.int
+    """Minimum number of successors encountered *during the traversal*.
+    Default: no constraint
+    """
+
     max_traversal_successors: builtins.int
+    """Maximum number of successors encountered *during the traversal*.
+    Default: no constraint
+    """
+
     def __init__(self,
         *,
         types: typing.Optional[typing.Text] = ...,
@@ -195,16 +323,25 @@ class NodeFilter(google.protobuf.message.Message):
 global___NodeFilter = NodeFilter
 
 class Node(google.protobuf.message.Message):
+    """Represents a node in the graph."""
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     SWHID_FIELD_NUMBER: builtins.int
     SUCCESSOR_FIELD_NUMBER: builtins.int
+    NUM_SUCCESSORS_FIELD_NUMBER: builtins.int
     CNT_FIELD_NUMBER: builtins.int
     REV_FIELD_NUMBER: builtins.int
     REL_FIELD_NUMBER: builtins.int
     ORI_FIELD_NUMBER: builtins.int
     swhid: typing.Text
+    """The SWHID of the graph node."""
+
     @property
-    def successor(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Successor]: ...
+    def successor(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Successor]:
+        """List of relevant successors of this node."""
+        pass
+    num_successors: builtins.int
+    """Number of relevant successors."""
+
     @property
     def cnt(self) -> global___ContentData: ...
     @property
@@ -217,23 +354,37 @@ class Node(google.protobuf.message.Message):
         *,
         swhid: typing.Text = ...,
         successor: typing.Optional[typing.Iterable[global___Successor]] = ...,
+        num_successors: typing.Optional[builtins.int] = ...,
         cnt: typing.Optional[global___ContentData] = ...,
         rev: typing.Optional[global___RevisionData] = ...,
         rel: typing.Optional[global___ReleaseData] = ...,
         ori: typing.Optional[global___OriginData] = ...,
         ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["cnt",b"cnt","data",b"data","ori",b"ori","rel",b"rel","rev",b"rev"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["cnt",b"cnt","data",b"data","ori",b"ori","rel",b"rel","rev",b"rev","successor",b"successor","swhid",b"swhid"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_num_successors",b"_num_successors","cnt",b"cnt","data",b"data","num_successors",b"num_successors","ori",b"ori","rel",b"rel","rev",b"rev"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_num_successors",b"_num_successors","cnt",b"cnt","data",b"data","num_successors",b"num_successors","ori",b"ori","rel",b"rel","rev",b"rev","successor",b"successor","swhid",b"swhid"]) -> None: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_num_successors",b"_num_successors"]) -> typing.Optional[typing_extensions.Literal["num_successors"]]: ...
+    @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["data",b"data"]) -> typing.Optional[typing_extensions.Literal["cnt","rev","rel","ori"]]: ...
 global___Node = Node
 
 class Path(google.protobuf.message.Message):
+    """Represents a path in the graph."""
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     NODE_FIELD_NUMBER: builtins.int
     MIDDLE_NODE_INDEX_FIELD_NUMBER: builtins.int
     @property
-    def node(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Node]: ...
+    def node(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Node]:
+        """List of nodes in the path, from source to destination"""
+        pass
     middle_node_index: builtins.int
+    """Index of the "middle node" of the path. For paths obtained in
+    bidirectional search queries, this is the node that joined the two
+    sets together. When looking for a common ancestor between two nodes by
+    performing a FindPathBetween search with two backward graphs, this will
+    be the index of the common ancestor in the path.
+    """
+
     def __init__(self,
         *,
         node: typing.Optional[typing.Iterable[global___Node]] = ...,
@@ -245,12 +396,17 @@ class Path(google.protobuf.message.Message):
 global___Path = Path
 
 class Successor(google.protobuf.message.Message):
+    """Represents a successor of a given node."""
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     SWHID_FIELD_NUMBER: builtins.int
     LABEL_FIELD_NUMBER: builtins.int
     swhid: typing.Text
+    """The SWHID of the successor"""
+
     @property
-    def label(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___EdgeLabel]: ...
+    def label(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___EdgeLabel]:
+        """A list of edge labels for the given edge"""
+        pass
     def __init__(self,
         *,
         swhid: typing.Optional[typing.Text] = ...,
@@ -262,11 +418,16 @@ class Successor(google.protobuf.message.Message):
 global___Successor = Successor
 
 class ContentData(google.protobuf.message.Message):
+    """Content node properties"""
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     LENGTH_FIELD_NUMBER: builtins.int
     IS_SKIPPED_FIELD_NUMBER: builtins.int
     length: builtins.int
+    """Length of the blob, in bytes"""
+
     is_skipped: builtins.bool
+    """Whether the content was skipped during ingestion."""
+
     def __init__(self,
         *,
         length: typing.Optional[builtins.int] = ...,
@@ -281,6 +442,7 @@ class ContentData(google.protobuf.message.Message):
 global___ContentData = ContentData
 
 class RevisionData(google.protobuf.message.Message):
+    """Revision node properties"""
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     AUTHOR_FIELD_NUMBER: builtins.int
     AUTHOR_DATE_FIELD_NUMBER: builtins.int
@@ -290,12 +452,26 @@ class RevisionData(google.protobuf.message.Message):
     COMMITTER_DATE_OFFSET_FIELD_NUMBER: builtins.int
     MESSAGE_FIELD_NUMBER: builtins.int
     author: builtins.int
+    """Revision author ID (anonymized)"""
+
     author_date: builtins.int
+    """UNIX timestamp of the revision date (UTC)"""
+
     author_date_offset: builtins.int
+    """Timezone of the revision author date as an offset from UTC"""
+
     committer: builtins.int
+    """Revision committer ID (anonymized)"""
+
     committer_date: builtins.int
+    """UNIX timestamp of the revision committer date (UTC)"""
+
     committer_date_offset: builtins.int
+    """Timezone of the revision committer date as an offset from UTC"""
+
     message: builtins.bytes
+    """Revision message"""
+
     def __init__(self,
         *,
         author: typing.Optional[builtins.int] = ...,
@@ -325,6 +501,7 @@ class RevisionData(google.protobuf.message.Message):
 global___RevisionData = RevisionData
 
 class ReleaseData(google.protobuf.message.Message):
+    """Release node properties"""
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     AUTHOR_FIELD_NUMBER: builtins.int
     AUTHOR_DATE_FIELD_NUMBER: builtins.int
@@ -333,9 +510,17 @@ class ReleaseData(google.protobuf.message.Message):
     MESSAGE_FIELD_NUMBER: builtins.int
     author: builtins.int
     author_date: builtins.int
+    """UNIX timestamp of the release date (UTC)"""
+
     author_date_offset: builtins.int
+    """Timezone of the release author date as an offset from UTC"""
+
     name: builtins.bytes
+    """Release name"""
+
     message: builtins.bytes
+    """Release message"""
+
     def __init__(self,
         *,
         author: typing.Optional[builtins.int] = ...,
@@ -359,9 +544,12 @@ class ReleaseData(google.protobuf.message.Message):
 global___ReleaseData = ReleaseData
 
 class OriginData(google.protobuf.message.Message):
+    """Origin node properties"""
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     URL_FIELD_NUMBER: builtins.int
     url: typing.Text
+    """URL of the origin"""
+
     def __init__(self,
         *,
         url: typing.Optional[typing.Text] = ...,
@@ -376,7 +564,11 @@ class EdgeLabel(google.protobuf.message.Message):
     NAME_FIELD_NUMBER: builtins.int
     PERMISSION_FIELD_NUMBER: builtins.int
     name: builtins.bytes
+    """Directory entry name for directories, branch name for snapshots"""
+
     permission: builtins.int
+    """Entry permission (only set for directories)."""
+
     def __init__(self,
         *,
         name: builtins.bytes = ...,
@@ -445,20 +637,3 @@ class StatsResponse(google.protobuf.message.Message):
         ) -> None: ...
     def ClearField(self, field_name: typing_extensions.Literal["avg_locality",b"avg_locality","bits_per_edge",b"bits_per_edge","bits_per_node",b"bits_per_node","compression",b"compression","indegree_avg",b"indegree_avg","indegree_max",b"indegree_max","indegree_min",b"indegree_min","num_edges",b"num_edges","num_nodes",b"num_nodes","outdegree_avg",b"outdegree_avg","outdegree_max",b"outdegree_max","outdegree_min",b"outdegree_min"]) -> None: ...
 global___StatsResponse = StatsResponse
-
-class GetNodeRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-    SWHID_FIELD_NUMBER: builtins.int
-    MASK_FIELD_NUMBER: builtins.int
-    swhid: typing.Text
-    @property
-    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask: ...
-    def __init__(self,
-        *,
-        swhid: typing.Text = ...,
-        mask: typing.Optional[google.protobuf.field_mask_pb2.FieldMask] = ...,
-        ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["_mask",b"_mask","mask",b"mask"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["_mask",b"_mask","mask",b"mask","swhid",b"swhid"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["_mask",b"_mask"]) -> typing.Optional[typing_extensions.Literal["mask"]]: ...
-global___GetNodeRequest = GetNodeRequest

@@ -14,6 +14,11 @@ class TraversalServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.GetNode = channel.unary_unary(
+                '/swh.graph.TraversalService/GetNode',
+                request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.GetNodeRequest.SerializeToString,
+                response_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.FromString,
+                )
         self.Traverse = channel.unary_stream(
                 '/swh.graph.TraversalService/Traverse',
                 request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
@@ -44,54 +49,61 @@ class TraversalServiceStub(object):
                 request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.StatsRequest.SerializeToString,
                 response_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.StatsResponse.FromString,
                 )
-        self.GetNode = channel.unary_unary(
-                '/swh.graph.TraversalService/GetNode',
-                request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.GetNodeRequest.SerializeToString,
-                response_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.FromString,
-                )
 
 
 class TraversalServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
+    def GetNode(self, request, context):
+        """GetNode returns a single Node and its properties. 
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def Traverse(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """Traverse performs a breadth-first graph traversal from a set of source
+        nodes, then streams the nodes it encounters, along with their properties.
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def FindPathTo(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """FindPathTo searches for the shortest path between a set of source nodes
+        and a node that matches a specific *criteria*.
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def FindPathBetween(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """FindPathBetween searches for the shortest path between a set of source
+        nodes and a set of destination nodes. 
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def CountNodes(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """CountNodes does the same as Traverse, but only returns the number of
+        nodes accessed during the traversal. 
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def CountEdges(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """CountEdges does the same as Traverse, but only returns the number of
+        edges accessed during the traversal. 
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def Stats(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def GetNode(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """Stats returns various 
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -99,6 +111,11 @@ class TraversalServiceServicer(object):
 
 def add_TraversalServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'GetNode': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetNode,
+                    request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.GetNodeRequest.FromString,
+                    response_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.SerializeToString,
+            ),
             'Traverse': grpc.unary_stream_rpc_method_handler(
                     servicer.Traverse,
                     request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.TraversalRequest.FromString,
@@ -129,11 +146,6 @@ def add_TraversalServiceServicer_to_server(servicer, server):
                     request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.StatsRequest.FromString,
                     response_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.StatsResponse.SerializeToString,
             ),
-            'GetNode': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetNode,
-                    request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.GetNodeRequest.FromString,
-                    response_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.SerializeToString,
-            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'swh.graph.TraversalService', rpc_method_handlers)
@@ -143,6 +155,23 @@ def add_TraversalServiceServicer_to_server(servicer, server):
  # This class is part of an EXPERIMENTAL API.
 class TraversalService(object):
     """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def GetNode(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/swh.graph.TraversalService/GetNode',
+            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.GetNodeRequest.SerializeToString,
+            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def Traverse(request,
@@ -243,22 +272,5 @@ class TraversalService(object):
         return grpc.experimental.unary_unary(request, target, '/swh.graph.TraversalService/Stats',
             swh_dot_graph_dot_rpc_dot_swhgraph__pb2.StatsRequest.SerializeToString,
             swh_dot_graph_dot_rpc_dot_swhgraph__pb2.StatsResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def GetNode(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/swh.graph.TraversalService/GetNode',
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.GetNodeRequest.SerializeToString,
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
