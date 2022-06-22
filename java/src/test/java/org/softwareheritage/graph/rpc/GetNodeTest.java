@@ -2,6 +2,7 @@ package org.softwareheritage.graph.rpc;
 
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.FieldMask;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.junit.jupiter.api.Test;
 import org.softwareheritage.graph.SWHID;
@@ -13,16 +14,20 @@ import static org.junit.jupiter.api.Assertions.*;
 public class GetNodeTest extends TraversalServiceTest {
     @Test
     public void testNotFound() {
-        assertThrows(StatusRuntimeException.class,
+        StatusRuntimeException thrown = assertThrows(StatusRuntimeException.class,
                 () -> client.getNode(GetNodeRequest.newBuilder().setSwhid(fakeSWHID("cnt", 404).toString()).build()));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
     }
 
     @Test
     public void testInvalidSwhid() {
-        assertThrows(StatusRuntimeException.class, () -> client.getNode(
+        StatusRuntimeException thrown;
+        thrown = assertThrows(StatusRuntimeException.class, () -> client.getNode(
                 GetNodeRequest.newBuilder().setSwhid("swh:1:lol:0000000000000000000000000000000000000001").build()));
-        assertThrows(StatusRuntimeException.class, () -> client.getNode(
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        thrown = assertThrows(StatusRuntimeException.class, () -> client.getNode(
                 GetNodeRequest.newBuilder().setSwhid("swh:1:cnt:000000000000000000000000000000000000000z").build()));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
     }
 
     @Test

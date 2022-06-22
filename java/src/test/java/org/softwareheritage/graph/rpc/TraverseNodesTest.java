@@ -1,5 +1,7 @@
 package org.softwareheritage.graph.rpc;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import org.junit.jupiter.api.Test;
 import org.softwareheritage.graph.GraphTest;
 import org.softwareheritage.graph.SWHID;
@@ -7,9 +9,36 @@ import org.softwareheritage.graph.SWHID;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 public class TraverseNodesTest extends TraversalServiceTest {
     private TraversalRequest.Builder getTraversalRequestBuilder(SWHID src) {
         return TraversalRequest.newBuilder().addSrc(src.toString());
+    }
+
+    @Test
+    public void testSrcErrors() {
+        StatusRuntimeException thrown;
+        thrown = assertThrows(StatusRuntimeException.class,
+                () -> client.traverse(TraversalRequest.newBuilder().addSrc(fakeSWHID("cnt", 404).toString()).build())
+                        .forEachRemaining((n) -> {
+                        }));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        thrown = assertThrows(StatusRuntimeException.class,
+                () -> client
+                        .traverse(TraversalRequest.newBuilder()
+                                .addSrc("swh:1:lol:0000000000000000000000000000000000000001").build())
+                        .forEachRemaining((n) -> {
+                        }));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        thrown = assertThrows(StatusRuntimeException.class,
+                () -> client
+                        .traverse(TraversalRequest.newBuilder()
+                                .addSrc("swh:1:cnt:000000000000000000000000000000000000000z").build())
+                        .forEachRemaining((n) -> {
+                        }));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
     }
 
     @Test

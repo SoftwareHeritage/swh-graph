@@ -173,7 +173,6 @@ public class GraphServer {
             long nodeId;
             try {
                 nodeId = graph.getNodeId(new SWHID(request.getSwhid()));
-
             } catch (IllegalArgumentException e) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asException());
                 return;
@@ -188,7 +187,13 @@ public class GraphServer {
         @Override
         public void traverse(TraversalRequest request, StreamObserver<Node> responseObserver) {
             SwhBidirectionalGraph g = graph.copy();
-            var t = new Traversal.SimpleTraversal(g, request, responseObserver::onNext);
+            Traversal.SimpleTraversal t;
+            try {
+                t = new Traversal.SimpleTraversal(g, request, responseObserver::onNext);
+            } catch (IllegalArgumentException e) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asException());
+                return;
+            }
             t.visit();
             responseObserver.onCompleted();
         }
@@ -196,7 +201,13 @@ public class GraphServer {
         @Override
         public void findPathTo(FindPathToRequest request, StreamObserver<Path> responseObserver) {
             SwhBidirectionalGraph g = graph.copy();
-            var t = new Traversal.FindPathTo(g, request);
+            Traversal.FindPathTo t;
+            try {
+                t = new Traversal.FindPathTo(g, request);
+            } catch (IllegalArgumentException e) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asException());
+                return;
+            }
             t.visit();
             Path path = t.getPath();
             if (path == null) {
@@ -210,7 +221,13 @@ public class GraphServer {
         @Override
         public void findPathBetween(FindPathBetweenRequest request, StreamObserver<Path> responseObserver) {
             SwhBidirectionalGraph g = graph.copy();
-            var t = new Traversal.FindPathBetween(g, request);
+            Traversal.FindPathBetween t;
+            try {
+                t = new Traversal.FindPathBetween(g, request);
+            } catch (IllegalArgumentException e) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asException());
+                return;
+            }
             t.visit();
             Path path = t.getPath();
             if (path == null) {

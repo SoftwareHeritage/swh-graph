@@ -9,9 +9,38 @@ import org.softwareheritage.graph.SWHID;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 public class FindPathBetweenTest extends TraversalServiceTest {
     private FindPathBetweenRequest.Builder getRequestBuilder(SWHID src, SWHID dst) {
         return FindPathBetweenRequest.newBuilder().addSrc(src.toString()).addDst(dst.toString());
+    }
+
+    @Test
+    public void testSwhidErrors() {
+        StatusRuntimeException thrown;
+        thrown = assertThrows(StatusRuntimeException.class, () -> client
+                .findPathBetween(FindPathBetweenRequest.newBuilder().addSrc(fakeSWHID("cnt", 404).toString()).build()));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        thrown = assertThrows(StatusRuntimeException.class, () -> client.findPathBetween(FindPathBetweenRequest
+                .newBuilder().addSrc("swh:1:lol:0000000000000000000000000000000000000001").build()));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        thrown = assertThrows(StatusRuntimeException.class, () -> client.findPathBetween(FindPathBetweenRequest
+                .newBuilder().addSrc("swh:1:cnt:000000000000000000000000000000000000000z").build()));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        thrown = assertThrows(StatusRuntimeException.class,
+                () -> client.findPathBetween(FindPathBetweenRequest.newBuilder().addSrc(TEST_ORIGIN_ID)
+                        .addDst("swh:1:cnt:000000000000000000000000000000000000000z").build()));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+    }
+
+    @Test
+    public void testEdgeErrors() {
+        StatusRuntimeException thrown;
+        thrown = assertThrows(StatusRuntimeException.class, () -> client.findPathBetween(FindPathBetweenRequest
+                .newBuilder().addSrc(TEST_ORIGIN_ID).addDst(TEST_ORIGIN_ID).setEdges("batracien:reptile").build()));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
     }
 
     // Test path between ori 1 and cnt 4 (forward graph)

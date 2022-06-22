@@ -9,10 +9,44 @@ import org.softwareheritage.graph.SWHID;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 public class FindPathToTest extends TraversalServiceTest {
     private FindPathToRequest.Builder getRequestBuilder(SWHID src, String allowedNodes) {
         return FindPathToRequest.newBuilder().addSrc(src.toString())
                 .setTarget(NodeFilter.newBuilder().setTypes(allowedNodes).build());
+    }
+
+    @Test
+    public void testSrcErrors() {
+        StatusRuntimeException thrown;
+        thrown = assertThrows(StatusRuntimeException.class, () -> client
+                .findPathTo(FindPathToRequest.newBuilder().addSrc(fakeSWHID("cnt", 404).toString()).build()));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        thrown = assertThrows(StatusRuntimeException.class, () -> client.findPathTo(
+                FindPathToRequest.newBuilder().addSrc("swh:1:lol:0000000000000000000000000000000000000001").build()));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        thrown = assertThrows(StatusRuntimeException.class, () -> client.findPathTo(
+                FindPathToRequest.newBuilder().addSrc("swh:1:cnt:000000000000000000000000000000000000000z").build()));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+    }
+
+    @Test
+    public void testEdgeErrors() {
+        StatusRuntimeException thrown;
+        thrown = assertThrows(StatusRuntimeException.class, () -> client.findPathTo(
+                FindPathToRequest.newBuilder().addSrc(TEST_ORIGIN_ID).setEdges("batracien:reptile").build()));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+    }
+
+    @Test
+    public void testTargetErrors() {
+        StatusRuntimeException thrown;
+        thrown = assertThrows(StatusRuntimeException.class,
+                () -> client.findPathTo(FindPathToRequest.newBuilder().addSrc(TEST_ORIGIN_ID)
+                        .setTarget(NodeFilter.newBuilder().setTypes("argoumante,eglomatique").build()).build()));
+        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
     }
 
     // Test path between ori 1 and any dir (forward graph)
