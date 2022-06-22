@@ -71,6 +71,7 @@ message Node {
         ReleaseData rel = 6;
         OriginData ori = 8;
     };
+    optional int64 num_successors = 9;
 }
 
 message Path {

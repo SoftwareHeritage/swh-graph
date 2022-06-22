@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Server that manages startup/shutdown of a {@code Greeter} server.
@@ -231,12 +231,19 @@ public class GraphServer {
 
         @Override
         public void countNodes(TraversalRequest request, StreamObserver<CountResponse> responseObserver) {
-            AtomicInteger count = new AtomicInteger(0);
+            AtomicLong count = new AtomicLong(0);
             SwhBidirectionalGraph g = graph.copy();
             TraversalRequest fixedReq = TraversalRequest.newBuilder(request)
                     // Ignore return fields, just count nodes
                     .setMask(FieldMask.getDefaultInstance()).build();
-            var t = new Traversal.SimpleTraversal(g, request, n -> count.incrementAndGet());
+            Traversal.SimpleTraversal t;
+            try {
+                t = new Traversal.SimpleTraversal(g, fixedReq, n -> count.incrementAndGet());
+            } catch (IllegalArgumentException e) {
+                responseObserver
+                        .onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).withCause(e).asException());
+                return;
+            }
             t.visit();
             CountResponse response = CountResponse.newBuilder().setCount(count.get()).build();
             responseObserver.onNext(response);
@@ -245,12 +252,19 @@ public class GraphServer {
 
         @Override
         public void countEdges(TraversalRequest request, StreamObserver<CountResponse> responseObserver) {
-            AtomicInteger count = new AtomicInteger(0);
+            AtomicLong count = new AtomicLong(0);
             SwhBidirectionalGraph g = graph.copy();
             TraversalRequest fixedReq = TraversalRequest.newBuilder(request)
                     // Force return empty successors to count the edges
-                    .setMask(FieldMask.newBuilder().addPaths("successor").build()).build();
-            var t = new Traversal.SimpleTraversal(g, request, n -> count.addAndGet(n.getSuccessorCount()));
+                    .setMask(FieldMask.newBuilder().addPaths("num_successors").build()).build();
+            Traversal.SimpleTraversal t;
+            try {
+                t = new Traversal.SimpleTraversal(g, fixedReq, n -> count.addAndGet(n.getNumSuccessors()));
+            } catch (IllegalArgumentException e) {
+                responseObserver
+                        .onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).withCause(e).asException());
+                return;
+            }
             t.visit();
             CountResponse response = CountResponse.newBuilder().setCount(count.get()).build();
             responseObserver.onNext(response);

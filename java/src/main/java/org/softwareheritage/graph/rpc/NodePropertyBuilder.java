@@ -22,6 +22,7 @@ public class NodePropertyBuilder {
         public boolean successor;
         public boolean successorSwhid;
         public boolean successorLabel;
+        public boolean numSuccessors;
         public boolean cntLength;
         public boolean cntIsSkipped;
         public boolean revAuthor;
@@ -50,6 +51,7 @@ public class NodePropertyBuilder {
             this.successorLabel = allowedFields == null || allowedFields.contains("successor")
                     || allowedFields.contains("successor.label");
             this.successor = this.successorSwhid || this.successorLabel;
+            this.numSuccessors = allowedFields == null || allowedFields.contains("num_successors");
             this.cntLength = allowedFields == null || allowedFields.contains("cnt.length");
             this.cntIsSkipped = allowedFields == null || allowedFields.contains("cnt.is_skipped");
             this.revAuthor = allowedFields == null || allowedFields.contains("rev.author");
@@ -158,7 +160,7 @@ public class NodePropertyBuilder {
 
     public static void buildSuccessorProperties(SwhUnidirectionalGraph graph, NodeDataMask mask,
             Node.Builder nodeBuilder, long src, long dst, Label label) {
-        if (nodeBuilder != null && mask.successor) {
+        if (nodeBuilder != null) {
             Successor.Builder successorBuilder = Successor.newBuilder();
             if (mask.successorSwhid) {
                 successorBuilder.setSwhid(graph.getSWHID(dst).toString());
@@ -172,7 +174,14 @@ public class NodePropertyBuilder {
                     successorBuilder.addLabel(builder.build());
                 }
             }
-            nodeBuilder.addSuccessor(successorBuilder.build());
+            Successor successor = successorBuilder.build();
+            if (successor != Successor.getDefaultInstance()) {
+                nodeBuilder.addSuccessor(successor);
+            }
+
+            if (mask.numSuccessors) {
+                nodeBuilder.setNumSuccessors(nodeBuilder.getNumSuccessors() + 1);
+            }
         }
     }
 
