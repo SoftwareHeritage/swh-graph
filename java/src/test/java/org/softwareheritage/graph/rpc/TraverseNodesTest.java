@@ -146,4 +146,22 @@ public class TraverseNodesTest extends TraversalServiceTest {
                 fakeSWHID("rev", 9), fakeSWHID("rev", 13), fakeSWHID("rev", 18), fakeSWHID("snp", 20));
         GraphTest.assertEqualsAnyOrder(expected, actual);
     }
+
+    @Test
+    public void forwardMultipleSources() {
+        ArrayList<SWHID> actual = getSWHIDs(client.traverse(getTraversalRequestBuilder(fakeSWHID("snp", 20))
+                .addSrc(fakeSWHID("rel", 19).toString()).setMaxDepth(1).build()));
+        List<SWHID> expected = List.of(fakeSWHID("snp", 20), fakeSWHID("rel", 19), fakeSWHID("rel", 10),
+                fakeSWHID("rev", 9), fakeSWHID("rev", 18));
+        GraphTest.assertEqualsAnyOrder(expected, actual);
+    }
+
+    @Test
+    public void backwardMultipleSources() {
+        ArrayList<SWHID> actual = getSWHIDs(client.traverse(getTraversalRequestBuilder(fakeSWHID("cnt", 5))
+                .addSrc(fakeSWHID("dir", 16).toString()).setMaxDepth(2).setDirection(GraphDirection.BACKWARD).build()));
+        List<SWHID> expected = List.of(fakeSWHID("cnt", 5), fakeSWHID("dir", 16), fakeSWHID("dir", 6),
+                fakeSWHID("dir", 8), fakeSWHID("dir", 17), fakeSWHID("rev", 18));
+        GraphTest.assertEqualsAnyOrder(expected, actual);
+    }
 }
