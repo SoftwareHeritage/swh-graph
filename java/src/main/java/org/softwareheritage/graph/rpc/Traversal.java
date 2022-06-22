@@ -133,34 +133,35 @@ public class Traversal {
 
         public void visit() {
             visitSetup();
-            try {
-                while (!queue.isEmpty()) {
-                    visitStep();
-                }
-            } catch (StopTraversalException e) {
-                // Ignore
+            while (!queue.isEmpty()) {
+                visitStep();
             }
         }
 
         public void visitStep() {
-            assert !queue.isEmpty();
-            long curr = queue.poll();
-            if (curr == -1L) {
-                ++depth;
-                if (!queue.isEmpty()) {
-                    queue.add(-1L);
-                    visitStep();
+            try {
+                assert !queue.isEmpty();
+                long curr = queue.poll();
+                if (curr == -1L) {
+                    ++depth;
+                    if (!queue.isEmpty()) {
+                        queue.add(-1L);
+                        visitStep();
+                    }
+                    return;
                 }
-                return;
+                if (maxDepth >= 0 && depth > maxDepth) {
+                    throw new StopTraversalException();
+                }
+                edgesAccessed += g.outdegree(curr);
+                if (maxEdges >= 0 && edgesAccessed >= maxEdges) {
+                    throw new StopTraversalException();
+                }
+                visitNode(curr);
+            } catch (StopTraversalException e) {
+                // Traversal is over, clear the to-do queue.
+                queue.clear();
             }
-            if (maxDepth >= 0 && depth > maxDepth) {
-                throw new StopTraversalException();
-            }
-            edgesAccessed += g.outdegree(curr);
-            if (maxEdges >= 0 && edgesAccessed >= maxEdges) {
-                throw new StopTraversalException();
-            }
-            visitNode(curr);
         }
 
         protected ArcLabelledNodeIterator.LabelledArcIterator getSuccessors(long nodeId) {
@@ -380,19 +381,11 @@ public class Traversal {
             srcVisitor.visitSetup();
             dstVisitor.visitSetup();
             while (!srcVisitor.queue.isEmpty() || !dstVisitor.queue.isEmpty()) {
-                try {
-                    if (!srcVisitor.queue.isEmpty()) {
-                        srcVisitor.visitStep();
-                    }
-                } catch (StopTraversalException e) {
-                    srcVisitor.queue.clear();
+                if (!srcVisitor.queue.isEmpty()) {
+                    srcVisitor.visitStep();
                 }
-                try {
-                    if (!dstVisitor.queue.isEmpty()) {
-                        dstVisitor.visitStep();
-                    }
-                } catch (StopTraversalException e) {
-                    dstVisitor.queue.clear();
+                if (!dstVisitor.queue.isEmpty()) {
+                    dstVisitor.visitStep();
                 }
             }
         }
