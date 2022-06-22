@@ -350,7 +350,7 @@ public class Traversal {
 
                 @Override
                 public void visitNode(long node) {
-                    if (dstVisitor.parents.containsKey(node)) {
+                    if (srcVisitor.parents.containsKey(node)) {
                         middleNode = node;
                         throw new StopTraversalException();
                     }

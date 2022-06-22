@@ -1,5 +1,7 @@
 package org.softwareheritage.graph.rpc;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.softwareheritage.graph.SWHID;
@@ -95,5 +97,21 @@ public class FindPathBetweenTest extends TraversalServiceTest {
         List<SWHID> expected = List.of(fakeSWHID("cnt", 4), fakeSWHID("dir", 6), fakeSWHID("dir", 8),
                 fakeSWHID("rev", 9));
         Assertions.assertEquals(expected, actual);
+    }
+
+    // Impossible path between rev 9 and cnt 14
+    @Test
+    public void forwardImpossiblePath() {
+        StatusRuntimeException thrown = Assertions.assertThrows(StatusRuntimeException.class, () -> {
+            client.findPathBetween(getRequestBuilder(fakeSWHID("rev", 9), fakeSWHID("cnt", 14)).build());
+        });
+        Assertions.assertEquals(thrown.getStatus(), Status.NOT_FOUND);
+
+        // Reverse direction
+        thrown = Assertions.assertThrows(StatusRuntimeException.class, () -> {
+            client.findPathBetween(getRequestBuilder(fakeSWHID("cnt", 14), fakeSWHID("rev", 9))
+                    .setDirection(GraphDirection.BACKWARD).build());
+        });
+        Assertions.assertEquals(thrown.getStatus(), Status.NOT_FOUND);
     }
 }
