@@ -71,8 +71,10 @@ public class Traversal {
                 return g.getForwardGraph();
             case BACKWARD:
                 return g.getBackwardGraph();
-            case BOTH:
-                return new SwhUnidirectionalGraph(g.symmetrize(), g.getProperties());
+            /*
+             * TODO: add support for BOTH case BOTH: return new SwhUnidirectionalGraph(g.symmetrize(),
+             * g.getProperties());
+             */
             default :
                 throw new IllegalArgumentException("Unknown direction: " + direction);
         }
@@ -84,8 +86,9 @@ public class Traversal {
                 return GraphDirection.BACKWARD;
             case BACKWARD:
                 return GraphDirection.FORWARD;
-            case BOTH:
-                return GraphDirection.BOTH;
+            /*
+             * TODO: add support for BOTH case BOTH: return GraphDirection.BOTH;
+             */
             default :
                 throw new IllegalArgumentException("Unknown direction: " + direction);
         }

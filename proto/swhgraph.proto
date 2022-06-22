@@ -22,7 +22,6 @@ service TraversalService {
 enum GraphDirection {
     FORWARD = 0;
     BACKWARD = 1;
-    BOTH = 2;
 }
 
 message TraversalRequest {

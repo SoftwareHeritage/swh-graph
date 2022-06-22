@@ -64,8 +64,8 @@ public class SwhBidirectionalGraph extends BidirectionalImmutableGraph implement
 
     private SwhBidirectionalGraph(BidirectionalImmutableGraph graph, SwhGraphProperties properties) {
         super(graph.forward, graph.backward);
-        this.forwardGraph = (SwhUnidirectionalGraph) graph.forward;
-        this.backwardGraph = (SwhUnidirectionalGraph) graph.backward;
+        this.forwardGraph = new SwhUnidirectionalGraph(graph.forward, properties);
+        this.backwardGraph = new SwhUnidirectionalGraph(graph.backward, properties);
         this.properties = properties;
     }
 
