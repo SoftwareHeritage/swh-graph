@@ -126,7 +126,7 @@ public class FindPathToTest extends TraversalServiceTest {
         Assertions.assertEquals(thrown.getStatus(), Status.NOT_FOUND);
     }
 
-    // Path between rel 19 and cnt 15 with various max depths
+    // Path from cnt 15 to any rel with various max depths
     @Test
     public void maxDepth() {
         // Works with max_depth = 2
@@ -140,6 +140,22 @@ public class FindPathToTest extends TraversalServiceTest {
         StatusRuntimeException thrown = Assertions.assertThrows(StatusRuntimeException.class, () -> {
             client.findPathTo(getRequestBuilder(fakeSWHID("cnt", 15), "rel").setDirection(GraphDirection.BACKWARD)
                     .setMaxDepth(3).build());
+        });
+        Assertions.assertEquals(thrown.getStatus().getCode(), Status.NOT_FOUND.getCode());
+    }
+
+    // Path from cnt 15 to any rel with various max edges
+    @Test
+    public void maxEdges() {
+        ArrayList<SWHID> actual = getSWHIDs(client.findPathTo(getRequestBuilder(fakeSWHID("cnt", 15), "rel")
+                .setDirection(GraphDirection.BACKWARD).setMaxEdges(4).build()));
+        List<SWHID> expected = List.of(fakeSWHID("cnt", 15), fakeSWHID("dir", 16), fakeSWHID("dir", 17),
+                fakeSWHID("rev", 18), fakeSWHID("rel", 19));
+        Assertions.assertEquals(expected, actual);
+
+        StatusRuntimeException thrown = Assertions.assertThrows(StatusRuntimeException.class, () -> {
+            client.findPathTo(getRequestBuilder(fakeSWHID("cnt", 15), "rel").setDirection(GraphDirection.BACKWARD)
+                    .setMaxEdges(3).build());
         });
         Assertions.assertEquals(thrown.getStatus().getCode(), Status.NOT_FOUND.getCode());
     }

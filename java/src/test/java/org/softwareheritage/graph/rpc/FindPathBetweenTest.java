@@ -182,4 +182,22 @@ public class FindPathBetweenTest extends TraversalServiceTest {
         });
         Assertions.assertEquals(thrown.getStatus().getCode(), Status.NOT_FOUND.getCode());
     }
+
+    // Path between rel 19 and cnt 15 with various max edges
+    @Test
+    public void maxEdges() {
+        // Works with max_edges = 3
+        ArrayList<SWHID> actual = getSWHIDs(client
+                .findPathBetween(getRequestBuilder(fakeSWHID("rel", 19), fakeSWHID("cnt", 15)).setMaxEdges(3).build()));
+        List<SWHID> expected = List.of(fakeSWHID("rel", 19), fakeSWHID("rev", 18), fakeSWHID("dir", 17),
+                fakeSWHID("dir", 16), fakeSWHID("cnt", 15));
+        Assertions.assertEquals(expected, actual);
+
+        // Check that it throws NOT_FOUND with max_edges = 2
+        StatusRuntimeException thrown = Assertions.assertThrows(StatusRuntimeException.class, () -> {
+            client.findPathBetween(
+                    getRequestBuilder(fakeSWHID("rel", 19), fakeSWHID("cnt", 15)).setMaxEdges(2).build());
+        });
+        Assertions.assertEquals(thrown.getStatus().getCode(), Status.NOT_FOUND.getCode());
+    }
 }

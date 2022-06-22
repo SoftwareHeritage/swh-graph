@@ -154,7 +154,7 @@ public class Traversal {
                     throw new StopTraversalException();
                 }
                 edgesAccessed += g.outdegree(curr);
-                if (maxEdges >= 0 && edgesAccessed >= maxEdges) {
+                if (maxEdges >= 0 && edgesAccessed > maxEdges) {
                     throw new StopTraversalException();
                 }
                 visitNode(curr);
