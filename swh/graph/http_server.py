@@ -21,7 +21,7 @@ import grpc
 from swh.core.api.asynchronous import RPCServerApp
 from swh.core.config import read as config_read
 from swh.graph.rpc.swhgraph_pb2 import (
-    CheckSwhidRequest,
+    GetNodeRequest,
     NodeFilter,
     StatsRequest,
     TraversalRequest,
@@ -149,9 +149,13 @@ class GraphView(aiohttp.web.View):
 
     async def check_swhid(self, swhid):
         """Validate that the given SWHID exists in the graph"""
-        r = await self.rpc_client.CheckSwhid(CheckSwhidRequest(swhid=swhid))
-        if not r.exists:
-            raise aiohttp.web.HTTPBadRequest(text=str(r.details))
+        try:
+            await self.rpc_client.GetNode(
+                GetNodeRequest(swhid=swhid, mask=FieldMask(paths=["swhid"]))
+            )
+        except grpc.aio.AioRpcError as e:
+            if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
+                raise aiohttp.web.HTTPBadRequest(text=str(e.details()))
 
 
 class StreamingGraphView(GraphView):
@@ -266,7 +270,6 @@ class VisitEdgesView(SimpleTraversalView):
         # self.traversal_request.return_fields.successor = True
 
     async def stream_response(self):
-        print(self.traversal_request.mask)
         async for node in self.rpc_client.Traverse(self.traversal_request):
             for succ in node.successor:
                 await self.stream_line(node.swhid + " " + succ.swhid)

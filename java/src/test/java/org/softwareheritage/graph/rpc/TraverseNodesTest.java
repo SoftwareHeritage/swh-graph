@@ -24,21 +24,21 @@ public class TraverseNodesTest extends TraversalServiceTest {
                 () -> client.traverse(TraversalRequest.newBuilder().addSrc(fakeSWHID("cnt", 404).toString()).build())
                         .forEachRemaining((n) -> {
                         }));
-        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
         thrown = assertThrows(StatusRuntimeException.class,
                 () -> client
                         .traverse(TraversalRequest.newBuilder()
                                 .addSrc("swh:1:lol:0000000000000000000000000000000000000001").build())
                         .forEachRemaining((n) -> {
                         }));
-        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
         thrown = assertThrows(StatusRuntimeException.class,
                 () -> client
                         .traverse(TraversalRequest.newBuilder()
                                 .addSrc("swh:1:cnt:000000000000000000000000000000000000000z").build())
                         .forEachRemaining((n) -> {
                         }));
-        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
     }
 
     @Test

@@ -20,13 +20,11 @@ class _GraphDirectionEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper.
     DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
     FORWARD: _GraphDirection.ValueType  # 0
     BACKWARD: _GraphDirection.ValueType  # 1
-    BOTH: _GraphDirection.ValueType  # 2
 class GraphDirection(_GraphDirection, metaclass=_GraphDirectionEnumTypeWrapper):
     pass
 
 FORWARD: GraphDirection.ValueType  # 0
 BACKWARD: GraphDirection.ValueType  # 1
-BOTH: GraphDirection.ValueType  # 2
 global___GraphDirection = GraphDirection
 
 
@@ -43,8 +41,6 @@ class TraversalRequest(google.protobuf.message.Message):
     @property
     def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]: ...
     direction: global___GraphDirection.ValueType
-    """Traversal options"""
-
     edges: typing.Text
     max_edges: builtins.int
     min_depth: builtins.int
@@ -79,6 +75,100 @@ class TraversalRequest(google.protobuf.message.Message):
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_return_nodes",b"_return_nodes"]) -> typing.Optional[typing_extensions.Literal["return_nodes"]]: ...
 global___TraversalRequest = TraversalRequest
+
+class FindPathToRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    SRC_FIELD_NUMBER: builtins.int
+    TARGET_FIELD_NUMBER: builtins.int
+    DIRECTION_FIELD_NUMBER: builtins.int
+    EDGES_FIELD_NUMBER: builtins.int
+    MAX_EDGES_FIELD_NUMBER: builtins.int
+    MAX_DEPTH_FIELD_NUMBER: builtins.int
+    MASK_FIELD_NUMBER: builtins.int
+    @property
+    def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]: ...
+    @property
+    def target(self) -> global___NodeFilter: ...
+    direction: global___GraphDirection.ValueType
+    edges: typing.Text
+    max_edges: builtins.int
+    max_depth: builtins.int
+    @property
+    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask: ...
+    def __init__(self,
+        *,
+        src: typing.Optional[typing.Iterable[typing.Text]] = ...,
+        target: typing.Optional[global___NodeFilter] = ...,
+        direction: global___GraphDirection.ValueType = ...,
+        edges: typing.Optional[typing.Text] = ...,
+        max_edges: typing.Optional[builtins.int] = ...,
+        max_depth: typing.Optional[builtins.int] = ...,
+        mask: typing.Optional[google.protobuf.field_mask_pb2.FieldMask] = ...,
+        ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_target",b"_target","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","target",b"target"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_target",b"_target","direction",b"direction","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","src",b"src","target",b"target"]) -> None: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_edges",b"_edges"]) -> typing.Optional[typing_extensions.Literal["edges"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_mask",b"_mask"]) -> typing.Optional[typing_extensions.Literal["mask"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_max_depth",b"_max_depth"]) -> typing.Optional[typing_extensions.Literal["max_depth"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_max_edges",b"_max_edges"]) -> typing.Optional[typing_extensions.Literal["max_edges"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_target",b"_target"]) -> typing.Optional[typing_extensions.Literal["target"]]: ...
+global___FindPathToRequest = FindPathToRequest
+
+class FindPathBetweenRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    SRC_FIELD_NUMBER: builtins.int
+    DST_FIELD_NUMBER: builtins.int
+    DIRECTION_FIELD_NUMBER: builtins.int
+    DIRECTION_REVERSE_FIELD_NUMBER: builtins.int
+    EDGES_FIELD_NUMBER: builtins.int
+    EDGES_REVERSE_FIELD_NUMBER: builtins.int
+    MAX_EDGES_FIELD_NUMBER: builtins.int
+    MAX_DEPTH_FIELD_NUMBER: builtins.int
+    MASK_FIELD_NUMBER: builtins.int
+    @property
+    def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]: ...
+    @property
+    def dst(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]: ...
+    direction: global___GraphDirection.ValueType
+    direction_reverse: global___GraphDirection.ValueType
+    edges: typing.Text
+    edges_reverse: typing.Text
+    max_edges: builtins.int
+    max_depth: builtins.int
+    @property
+    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask: ...
+    def __init__(self,
+        *,
+        src: typing.Optional[typing.Iterable[typing.Text]] = ...,
+        dst: typing.Optional[typing.Iterable[typing.Text]] = ...,
+        direction: global___GraphDirection.ValueType = ...,
+        direction_reverse: typing.Optional[global___GraphDirection.ValueType] = ...,
+        edges: typing.Optional[typing.Text] = ...,
+        edges_reverse: typing.Optional[typing.Text] = ...,
+        max_edges: typing.Optional[builtins.int] = ...,
+        max_depth: typing.Optional[builtins.int] = ...,
+        mask: typing.Optional[google.protobuf.field_mask_pb2.FieldMask] = ...,
+        ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_direction_reverse",b"_direction_reverse","_edges",b"_edges","_edges_reverse",b"_edges_reverse","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","direction_reverse",b"direction_reverse","edges",b"edges","edges_reverse",b"edges_reverse","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_direction_reverse",b"_direction_reverse","_edges",b"_edges","_edges_reverse",b"_edges_reverse","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","direction",b"direction","direction_reverse",b"direction_reverse","dst",b"dst","edges",b"edges","edges_reverse",b"edges_reverse","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","src",b"src"]) -> None: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_direction_reverse",b"_direction_reverse"]) -> typing.Optional[typing_extensions.Literal["direction_reverse"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_edges",b"_edges"]) -> typing.Optional[typing_extensions.Literal["edges"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_edges_reverse",b"_edges_reverse"]) -> typing.Optional[typing_extensions.Literal["edges_reverse"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_mask",b"_mask"]) -> typing.Optional[typing_extensions.Literal["mask"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_max_depth",b"_max_depth"]) -> typing.Optional[typing_extensions.Literal["max_depth"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_max_edges",b"_max_edges"]) -> typing.Optional[typing_extensions.Literal["max_edges"]]: ...
+global___FindPathBetweenRequest = FindPathBetweenRequest
 
 class NodeFilter(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -136,6 +226,23 @@ class Node(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["cnt",b"cnt","data",b"data","ori",b"ori","rel",b"rel","rev",b"rev","successor",b"successor","swhid",b"swhid"]) -> None: ...
     def WhichOneof(self, oneof_group: typing_extensions.Literal["data",b"data"]) -> typing.Optional[typing_extensions.Literal["cnt","rev","rel","ori"]]: ...
 global___Node = Node
+
+class Path(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    NODE_FIELD_NUMBER: builtins.int
+    MIDDLE_NODE_INDEX_FIELD_NUMBER: builtins.int
+    @property
+    def node(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Node]: ...
+    middle_node_index: builtins.int
+    def __init__(self,
+        *,
+        node: typing.Optional[typing.Iterable[global___Node]] = ...,
+        middle_node_index: typing.Optional[builtins.int] = ...,
+        ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_middle_node_index",b"_middle_node_index","middle_node_index",b"middle_node_index"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_middle_node_index",b"_middle_node_index","middle_node_index",b"middle_node_index","node",b"node"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_middle_node_index",b"_middle_node_index"]) -> typing.Optional[typing_extensions.Literal["middle_node_index"]]: ...
+global___Path = Path
 
 class Successor(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -339,17 +446,6 @@ class StatsResponse(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["avg_locality",b"avg_locality","bits_per_edge",b"bits_per_edge","bits_per_node",b"bits_per_node","compression",b"compression","indegree_avg",b"indegree_avg","indegree_max",b"indegree_max","indegree_min",b"indegree_min","num_edges",b"num_edges","num_nodes",b"num_nodes","outdegree_avg",b"outdegree_avg","outdegree_max",b"outdegree_max","outdegree_min",b"outdegree_min"]) -> None: ...
 global___StatsResponse = StatsResponse
 
-class CheckSwhidRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-    SWHID_FIELD_NUMBER: builtins.int
-    swhid: typing.Text
-    def __init__(self,
-        *,
-        swhid: typing.Text = ...,
-        ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["swhid",b"swhid"]) -> None: ...
-global___CheckSwhidRequest = CheckSwhidRequest
-
 class GetNodeRequest(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     SWHID_FIELD_NUMBER: builtins.int
@@ -366,17 +462,3 @@ class GetNodeRequest(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["_mask",b"_mask","mask",b"mask","swhid",b"swhid"]) -> None: ...
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_mask",b"_mask"]) -> typing.Optional[typing_extensions.Literal["mask"]]: ...
 global___GetNodeRequest = GetNodeRequest
-
-class CheckSwhidResponse(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-    EXISTS_FIELD_NUMBER: builtins.int
-    DETAILS_FIELD_NUMBER: builtins.int
-    exists: builtins.bool
-    details: typing.Text
-    def __init__(self,
-        *,
-        exists: builtins.bool = ...,
-        details: typing.Text = ...,
-        ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["details",b"details","exists",b"exists"]) -> None: ...
-global___CheckSwhidResponse = CheckSwhidResponse

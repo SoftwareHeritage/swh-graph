@@ -129,19 +129,6 @@ public class GraphServer {
         }
 
         @Override
-        public void checkSwhid(CheckSwhidRequest request, StreamObserver<CheckSwhidResponse> responseObserver) {
-            CheckSwhidResponse.Builder builder = CheckSwhidResponse.newBuilder().setExists(true);
-            try {
-                graph.getNodeId(new SWHID(request.getSwhid()));
-            } catch (IllegalArgumentException e) {
-                builder.setExists(false);
-                builder.setDetails(e.getMessage());
-            }
-            responseObserver.onNext(builder.build());
-            responseObserver.onCompleted();
-        }
-
-        @Override
         public void stats(StatsRequest request, StreamObserver<StatsResponse> responseObserver) {
             StatsResponse.Builder response = StatsResponse.newBuilder();
             response.setNumNodes(graph.numNodes());
@@ -174,7 +161,8 @@ public class GraphServer {
             try {
                 nodeId = graph.getNodeId(new SWHID(request.getSwhid()));
             } catch (IllegalArgumentException e) {
-                responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asException());
+                responseObserver
+                        .onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).withCause(e).asException());
                 return;
             }
             Node.Builder builder = Node.newBuilder();
@@ -191,7 +179,8 @@ public class GraphServer {
             try {
                 t = new Traversal.SimpleTraversal(g, request, responseObserver::onNext);
             } catch (IllegalArgumentException e) {
-                responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asException());
+                responseObserver
+                        .onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).withCause(e).asException());
                 return;
             }
             t.visit();
@@ -205,7 +194,8 @@ public class GraphServer {
             try {
                 t = new Traversal.FindPathTo(g, request);
             } catch (IllegalArgumentException e) {
-                responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asException());
+                responseObserver
+                        .onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).withCause(e).asException());
                 return;
             }
             t.visit();
@@ -225,7 +215,8 @@ public class GraphServer {
             try {
                 t = new Traversal.FindPathBetween(g, request);
             } catch (IllegalArgumentException e) {
-                responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asException());
+                responseObserver
+                        .onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).withCause(e).asException());
                 return;
             }
             t.visit();

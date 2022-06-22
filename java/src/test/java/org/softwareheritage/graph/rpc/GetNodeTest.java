@@ -16,7 +16,7 @@ public class GetNodeTest extends TraversalServiceTest {
     public void testNotFound() {
         StatusRuntimeException thrown = assertThrows(StatusRuntimeException.class,
                 () -> client.getNode(GetNodeRequest.newBuilder().setSwhid(fakeSWHID("cnt", 404).toString()).build()));
-        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
     }
 
     @Test
@@ -24,10 +24,10 @@ public class GetNodeTest extends TraversalServiceTest {
         StatusRuntimeException thrown;
         thrown = assertThrows(StatusRuntimeException.class, () -> client.getNode(
                 GetNodeRequest.newBuilder().setSwhid("swh:1:lol:0000000000000000000000000000000000000001").build()));
-        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
         thrown = assertThrows(StatusRuntimeException.class, () -> client.getNode(
                 GetNodeRequest.newBuilder().setSwhid("swh:1:cnt:000000000000000000000000000000000000000z").build()));
-        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
     }
 
     @Test

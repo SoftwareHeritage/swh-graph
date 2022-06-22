@@ -15,7 +15,6 @@ service TraversalService {
   rpc CountNodes (TraversalRequest) returns (CountResponse);
   rpc CountEdges (TraversalRequest) returns (CountResponse);
   rpc Stats (StatsRequest) returns (StatsResponse);
-  rpc CheckSwhid (CheckSwhidRequest) returns (CheckSwhidResponse);
   rpc GetNode (GetNodeRequest) returns (Node);
 }
 
@@ -76,6 +75,7 @@ message Node {
 
 message Path {
     repeated Node node = 1;
+    optional int64 middle_node_index = 2;
 }
 
 message Successor {
@@ -139,16 +139,7 @@ message StatsResponse {
     double outdegree_avg = 12;
 }
 
-message CheckSwhidRequest {
-    string swhid = 1;
-}
-
 message GetNodeRequest {
     string swhid = 1;
     optional google.protobuf.FieldMask mask = 8;
-}
-
-message CheckSwhidResponse {
-    bool exists = 1;
-    string details = 2;
 }

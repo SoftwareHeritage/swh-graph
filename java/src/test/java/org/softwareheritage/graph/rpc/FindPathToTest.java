@@ -23,13 +23,13 @@ public class FindPathToTest extends TraversalServiceTest {
         StatusRuntimeException thrown;
         thrown = assertThrows(StatusRuntimeException.class, () -> client
                 .findPathTo(FindPathToRequest.newBuilder().addSrc(fakeSWHID("cnt", 404).toString()).build()));
-        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
         thrown = assertThrows(StatusRuntimeException.class, () -> client.findPathTo(
                 FindPathToRequest.newBuilder().addSrc("swh:1:lol:0000000000000000000000000000000000000001").build()));
-        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
         thrown = assertThrows(StatusRuntimeException.class, () -> client.findPathTo(
                 FindPathToRequest.newBuilder().addSrc("swh:1:cnt:000000000000000000000000000000000000000z").build()));
-        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
     }
 
     @Test
@@ -37,7 +37,7 @@ public class FindPathToTest extends TraversalServiceTest {
         StatusRuntimeException thrown;
         thrown = assertThrows(StatusRuntimeException.class, () -> client.findPathTo(
                 FindPathToRequest.newBuilder().addSrc(TEST_ORIGIN_ID).setEdges("batracien:reptile").build()));
-        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
     }
 
     @Test
@@ -46,7 +46,7 @@ public class FindPathToTest extends TraversalServiceTest {
         thrown = assertThrows(StatusRuntimeException.class,
                 () -> client.findPathTo(FindPathToRequest.newBuilder().addSrc(TEST_ORIGIN_ID)
                         .setTarget(NodeFilter.newBuilder().setTypes("argoumante,eglomatique").build()).build()));
-        assertEquals(Status.INVALID_ARGUMENT, thrown.getStatus());
+        assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
     }
 
     // Test path between ori 1 and any dir (forward graph)
