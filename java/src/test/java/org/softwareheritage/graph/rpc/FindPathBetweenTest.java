@@ -134,13 +134,52 @@ public class FindPathBetweenTest extends TraversalServiceTest {
         StatusRuntimeException thrown = Assertions.assertThrows(StatusRuntimeException.class, () -> {
             client.findPathBetween(getRequestBuilder(fakeSWHID("rev", 9), fakeSWHID("cnt", 14)).build());
         });
-        Assertions.assertEquals(thrown.getStatus(), Status.NOT_FOUND);
+        Assertions.assertEquals(thrown.getStatus().getCode(), Status.NOT_FOUND.getCode());
 
         // Reverse direction
         thrown = Assertions.assertThrows(StatusRuntimeException.class, () -> {
             client.findPathBetween(getRequestBuilder(fakeSWHID("cnt", 14), fakeSWHID("rev", 9))
                     .setDirection(GraphDirection.BACKWARD).build());
         });
-        Assertions.assertEquals(thrown.getStatus(), Status.NOT_FOUND);
+        Assertions.assertEquals(thrown.getStatus().getCode(), Status.NOT_FOUND.getCode());
+    }
+
+    // Common ancestor between cnt 4 and cnt 15 : rev 18
+    @Test
+    public void commonAncestorBackwardBackward() {
+        Path p = client.findPathBetween(getRequestBuilder(fakeSWHID("cnt", 4), fakeSWHID("cnt", 15))
+                .setDirection(GraphDirection.BACKWARD).setDirectionReverse(GraphDirection.BACKWARD).build());
+        ArrayList<SWHID> actual = getSWHIDs(p);
+        SWHID expected = fakeSWHID("rev", 18);
+        Assertions.assertEquals(expected, actual.get(p.getMiddleNodeIndex()));
+    }
+
+    // Common descendant between rev 13 and rev 3 : cnt 1 (with rev:dir,dir:dir,dir:cnt)
+    @Test
+    public void commonDescendantForwardForward() {
+        Path p = client.findPathBetween(
+                getRequestBuilder(fakeSWHID("rev", 13), fakeSWHID("rev", 3)).setDirection(GraphDirection.FORWARD)
+                        .setDirectionReverse(GraphDirection.FORWARD).setEdges("rev:dir,dir:dir,dir:cnt").build());
+        ArrayList<SWHID> actual = getSWHIDs(p);
+        SWHID expected = fakeSWHID("cnt", 1);
+        Assertions.assertEquals(expected, actual.get(p.getMiddleNodeIndex()));
+    }
+
+    // Path between rel 19 and cnt 15 with various max depths
+    @Test
+    public void maxDepth() {
+        // Works with max_depth = 2
+        ArrayList<SWHID> actual = getSWHIDs(client
+                .findPathBetween(getRequestBuilder(fakeSWHID("rel", 19), fakeSWHID("cnt", 15)).setMaxDepth(2).build()));
+        List<SWHID> expected = List.of(fakeSWHID("rel", 19), fakeSWHID("rev", 18), fakeSWHID("dir", 17),
+                fakeSWHID("dir", 16), fakeSWHID("cnt", 15));
+        Assertions.assertEquals(expected, actual);
+
+        // Check that it throws NOT_FOUND with max depth = 1
+        StatusRuntimeException thrown = Assertions.assertThrows(StatusRuntimeException.class, () -> {
+            client.findPathBetween(
+                    getRequestBuilder(fakeSWHID("rel", 19), fakeSWHID("cnt", 15)).setMaxDepth(1).build());
+        });
+        Assertions.assertEquals(thrown.getStatus().getCode(), Status.NOT_FOUND.getCode());
     }
 }

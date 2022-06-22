@@ -193,4 +193,30 @@ public class TraverseNodesTest extends TraversalServiceTest {
                 fakeSWHID("dir", 8), fakeSWHID("dir", 17), fakeSWHID("rev", 18));
         GraphTest.assertEqualsAnyOrder(expected, actual);
     }
+
+    // Go back from cnt 15 with various max depths
+    @Test
+    public void maxDepth() {
+        TraversalRequest.Builder builder = getTraversalRequestBuilder(fakeSWHID("rel", 19));
+
+        ArrayList<SWHID> actual;
+        List<SWHID> expected;
+
+        actual = getSWHIDs(client.traverse(builder.setMaxDepth(0).build()));
+        expected = List.of(fakeSWHID("rel", 19));
+        GraphTest.assertEqualsAnyOrder(expected, actual);
+
+        actual = getSWHIDs(client.traverse(builder.setMaxDepth(1).build()));
+        expected = List.of(fakeSWHID("rel", 19), fakeSWHID("rev", 18));
+        GraphTest.assertEqualsAnyOrder(expected, actual);
+
+        actual = getSWHIDs(client.traverse(builder.setMaxDepth(2).build()));
+        expected = List.of(fakeSWHID("rel", 19), fakeSWHID("rev", 18), fakeSWHID("rev", 13), fakeSWHID("dir", 17));
+        GraphTest.assertEqualsAnyOrder(expected, actual);
+
+        actual = getSWHIDs(client.traverse(builder.setMaxDepth(3).build()));
+        expected = List.of(fakeSWHID("rel", 19), fakeSWHID("rev", 18), fakeSWHID("rev", 13), fakeSWHID("dir", 17),
+                fakeSWHID("rev", 9), fakeSWHID("dir", 12), fakeSWHID("dir", 16), fakeSWHID("cnt", 14));
+        GraphTest.assertEqualsAnyOrder(expected, actual);
+    }
 }

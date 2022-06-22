@@ -76,7 +76,7 @@ message Node {
 
 message Path {
     repeated Node node = 1;
-    optional int64 middle_node_index = 2;
+    optional int32 middle_node_index = 2;
 }
 
 message Successor {

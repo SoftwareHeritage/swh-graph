@@ -319,14 +319,20 @@ public class Traversal {
             this.request = request;
             this.nodeDataMask = new NodePropertyBuilder.NodeDataMask(request.hasMask() ? request.getMask() : null);
             this.allowedEdgesSrc = new AllowedEdges(request.hasEdges() ? request.getEdges() : "*");
+
+            GraphDirection direction = request.getDirection();
+            GraphDirection directionReverse = request.hasDirectionReverse()
+                    ? request.getDirectionReverse()
+                    : reverseDirection(request.getDirection());
+            SwhUnidirectionalGraph srcGraph = getDirectedGraph(bidirectionalGraph, direction);
+            SwhUnidirectionalGraph dstGraph = getDirectedGraph(bidirectionalGraph, directionReverse);
             this.allowedEdgesDst = request.hasEdgesReverse()
                     ? new AllowedEdges(request.getEdgesReverse())
-                    : (request.hasEdges() ? new AllowedEdges(request.getEdges()).reverse() : new AllowedEdges("*"));
-            SwhUnidirectionalGraph srcGraph = getDirectedGraph(bidirectionalGraph, request.getDirection());
-            SwhUnidirectionalGraph dstGraph = getDirectedGraph(bidirectionalGraph,
-                    request.hasDirectionReverse()
-                            ? request.getDirectionReverse()
-                            : reverseDirection(request.getDirection()));
+                    : (request.hasEdges()
+                            ? (direction == directionReverse
+                                    ? new AllowedEdges(request.getEdges())
+                                    : new AllowedEdges(request.getEdges()).reverse())
+                            : new AllowedEdges("*"));
 
             this.srcVisitor = new BFSVisitor(srcGraph) {
                 @Override
@@ -401,6 +407,7 @@ public class Traversal {
                 path.add(curNode);
                 curNode = srcVisitor.parents.get(curNode);
             }
+            pathBuilder.setMiddleNodeIndex(path.size() - 1);
             Collections.reverse(path);
             curNode = dstVisitor.parents.get(middleNode);
             while (curNode != -1) {
