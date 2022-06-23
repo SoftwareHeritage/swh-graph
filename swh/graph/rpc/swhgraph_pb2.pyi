@@ -19,12 +19,21 @@ class _GraphDirection:
 class _GraphDirectionEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_GraphDirection.ValueType], builtins.type):
     DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
     FORWARD: _GraphDirection.ValueType  # 0
+    """Forward DAG: ori -> snp -> rel -> rev -> dir -> cnt"""
+
     BACKWARD: _GraphDirection.ValueType  # 1
+    """Transposed DAG: cnt -> dir -> rev -> rel -> snp -> ori"""
+
 class GraphDirection(_GraphDirection, metaclass=_GraphDirectionEnumTypeWrapper):
+    """Direction of the graph"""
     pass
 
 FORWARD: GraphDirection.ValueType  # 0
+"""Forward DAG: ori -> snp -> rel -> rev -> dir -> cnt"""
+
 BACKWARD: GraphDirection.ValueType  # 1
+"""Transposed DAG: cnt -> dir -> rev -> rel -> snp -> ori"""
+
 global___GraphDirection = GraphDirection
 
 
@@ -132,7 +141,7 @@ class TraversalRequest(google.protobuf.message.Message):
 global___TraversalRequest = TraversalRequest
 
 class FindPathToRequest(google.protobuf.message.Message):
-    """FindPathToRequest describes a request to find the shortest path between a
+    """FindPathToRequest describes a request to find a shortest path between a
     set of nodes and a given target criteria, as well as what should be returned
     in the path.
     """
@@ -199,7 +208,7 @@ class FindPathToRequest(google.protobuf.message.Message):
 global___FindPathToRequest = FindPathToRequest
 
 class FindPathBetweenRequest(google.protobuf.message.Message):
-    """FindPathToRequest describes a request to find the shortest path between a
+    """FindPathToRequest describes a request to find a shortest path between a
     set of source nodes and a set of destination nodes. It works by performing a
     bidirectional breadth-first traversal from both sets at the same time.
     """
@@ -293,7 +302,7 @@ class FindPathBetweenRequest(google.protobuf.message.Message):
 global___FindPathBetweenRequest = FindPathBetweenRequest
 
 class NodeFilter(google.protobuf.message.Message):
-    """Represents various criteria that make a given node is "valid". A node is
+    """Represents various criteria that make a given node "valid". A node is
     only valid if all the subcriteria present in this message are fulfilled.
     """
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -624,15 +633,39 @@ class StatsResponse(google.protobuf.message.Message):
     """Number of edges in the graph"""
 
     compression_ratio: builtins.float
+    """Ratio between the graph size and the information-theoretical lower
+    bound
+    """
+
     bits_per_node: builtins.float
+    """Number of bits per node (overall graph size in bits divided by the
+    number of nodes)
+    """
+
     bits_per_edge: builtins.float
+    """Number of bits per edge (overall graph size in bits divided by the
+    number of arcs).
+    """
+
     avg_locality: builtins.float
     indegree_min: builtins.int
+    """Smallest indegree"""
+
     indegree_max: builtins.int
+    """Largest indegree"""
+
     indegree_avg: builtins.float
+    """Average indegree"""
+
     outdegree_min: builtins.int
+    """Smallest outdegree"""
+
     outdegree_max: builtins.int
+    """Largest outdegree"""
+
     outdegree_avg: builtins.float
+    """Average outdegree"""
+
     def __init__(self,
         *,
         num_nodes: builtins.int = ...,

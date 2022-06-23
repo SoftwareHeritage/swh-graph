@@ -73,12 +73,12 @@ class TraversalServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def FindPathTo(self, request, context):
-        """FindPathTo searches for the shortest path between a set of source nodes
+        """FindPathTo searches for a shortest path between a set of source nodes
         and a node that matches a specific *criteria*.
 
         It does so by performing a breadth-first search from the source node,
         until any node that matches the given criteria is found, then follows
-        back its parents to return the shortest path from the source set to that
+        back its parents to return a shortest path from the source set to that
         node.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -86,7 +86,7 @@ class TraversalServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def FindPathBetween(self, request, context):
-        """FindPathBetween searches for the shortest path between a set of source
+        """FindPathBetween searches for a shortest path between a set of source
         nodes and a set of destination nodes.
 
         It does so by performing a *bidirectional breadth-first search*, i.e.,
@@ -94,14 +94,14 @@ class TraversalServiceServicer(object):
         and one from the destination set ("dst-BFS"), until both searches find a
         common node that joins their visited sets. This node is called the
         "midpoint node".
-        The path returned is the path src -> ... -> midpoint * -> ... -> dst,
-        which is the shortest path between src and dst.
+        The path returned is the path src -> ... -> midpoint -> ... -> dst,
+        which is always a shortest path between src and dst.
 
         The graph direction of both BFS can be configured separately. By
         default, the dst-BFS will use the graph in the opposite direction than
         the src-BFS (if direction = FORWARD, by default direction_reverse =
         BACKWARD, and vice-versa). The default behavior is thus to search for
-        the shortest path between two nodes in a given direction. However, one
+        a shortest path between two nodes in a given direction. However, one
         can also specify FORWARD or BACKWARD for *both* the src-BFS and the
         dst-BFS. This will search for a common descendant or a common ancestor
         between the two sets, respectively. These will be the midpoints of the
@@ -128,7 +128,7 @@ class TraversalServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def Stats(self, request, context):
-        """Stats returns various 
+        """Stats returns various statistics on the overall graph. 
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
