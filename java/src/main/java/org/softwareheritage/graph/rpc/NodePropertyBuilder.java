@@ -16,7 +16,13 @@ import org.softwareheritage.graph.labels.DirEntry;
 
 import java.util.*;
 
-/** NodePropertyBuilder is a helper class. */
+/**
+ * NodePropertyBuilder is a helper class to enrich {@link Node} messages with node and edge
+ * properties. It is used by {@link GraphServer.TraversalService} to build the response messages or
+ * streams. Because property access is disk-based and slow, particular care is taken to avoid
+ * loading unnecessary properties. We use a FieldMask object to check which properties are requested
+ * by the client, and only load these.
+ */
 public class NodePropertyBuilder {
     /**
      * NodeDataMask caches a FieldMask into a more efficient representation (booleans). This avoids the
@@ -75,6 +81,7 @@ public class NodePropertyBuilder {
         }
     }
 
+    /** Enrich a Node message with node properties requested in the NodeDataMask. */
     public static void buildNodeProperties(SwhUnidirectionalGraph graph, NodeDataMask mask, Node.Builder nodeBuilder,
             long node) {
         if (mask.swhid) {
@@ -157,12 +164,16 @@ public class NodePropertyBuilder {
         }
     }
 
+    /** Enrich a Node message with node properties requested in the FieldMask. */
     public static void buildNodeProperties(SwhUnidirectionalGraph graph, FieldMask mask, Node.Builder nodeBuilder,
             long node) {
         NodeDataMask nodeMask = new NodeDataMask(mask);
         buildNodeProperties(graph, nodeMask, nodeBuilder, node);
     }
 
+    /**
+     * Enrich a Node message with edge properties requested in the NodeDataMask, for a specific edge.
+     */
     public static void buildSuccessorProperties(SwhUnidirectionalGraph graph, NodeDataMask mask,
             Node.Builder nodeBuilder, long src, long dst, Label label) {
         if (nodeBuilder != null) {
@@ -190,6 +201,7 @@ public class NodePropertyBuilder {
         }
     }
 
+    /** Enrich a Node message with edge properties requested in the FieldMask, for a specific edge. */
     public static void buildSuccessorProperties(SwhUnidirectionalGraph graph, FieldMask mask, Node.Builder nodeBuilder,
             long src, long dst, Label label) {
         NodeDataMask nodeMask = new NodeDataMask(mask);

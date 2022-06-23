@@ -33,12 +33,18 @@ public class GraphServer {
     private final int threads;
     private Server server;
 
+    /**
+     * @param graphBasename the basename of the SWH graph to load
+     * @param port the port on which the GRPC server will listen
+     * @param threads the number of threads to use in the server threadpool
+     */
     public GraphServer(String graphBasename, int port, int threads) throws IOException {
         this.graph = loadGraph(graphBasename);
         this.port = port;
         this.threads = threads;
     }
 
+    /** Load a graph and all its properties. */
     public static SwhBidirectionalGraph loadGraph(String basename) throws IOException {
         // TODO: use loadLabelledMapped() when https://github.com/vigna/webgraph-big/pull/5 is merged
         SwhBidirectionalGraph g = SwhBidirectionalGraph.loadLabelled(basename, new ProgressLogger(logger));
@@ -53,6 +59,7 @@ public class GraphServer {
         return g;
     }
 
+    /** Start the RPC server. */
     private void start() throws IOException {
         server = NettyServerBuilder.forPort(port).withChildOption(ChannelOption.SO_REUSEADDR, true)
                 .executor(Executors.newFixedThreadPool(threads)).addService(new TraversalService(graph))
@@ -104,9 +111,7 @@ public class GraphServer {
         return config;
     }
 
-    /**
-     * Main launches the server from the command line.
-     */
+    /** Main launches the server from the command line. */
     public static void main(String[] args) throws IOException, InterruptedException {
         JSAPResult config = parseArgs(args);
         String graphBasename = config.getString("graphBasename");
@@ -121,6 +126,7 @@ public class GraphServer {
         server.blockUntilShutdown();
     }
 
+    /** Implementation of the Traversal service, which contains all the graph querying endpoints. */
     static class TraversalService extends TraversalServiceGrpc.TraversalServiceImplBase {
         SwhBidirectionalGraph graph;
 
@@ -128,6 +134,7 @@ public class GraphServer {
             this.graph = graph;
         }
 
+        /** Return various statistics on the overall graph. */
         @Override
         public void stats(StatsRequest request, StreamObserver<StatsResponse> responseObserver) {
             StatsResponse.Builder response = StatsResponse.newBuilder();
@@ -155,6 +162,7 @@ public class GraphServer {
             responseObserver.onCompleted();
         }
 
+        /** Return a single node and its properties. */
         @Override
         public void getNode(GetNodeRequest request, StreamObserver<Node> responseObserver) {
             long nodeId;
@@ -172,6 +180,7 @@ public class GraphServer {
             responseObserver.onCompleted();
         }
 
+        /** Perform a BFS traversal from a set of source nodes and stream the nodes encountered. */
         @Override
         public void traverse(TraversalRequest request, StreamObserver<Node> responseObserver) {
             SwhBidirectionalGraph g = graph.copy();
@@ -187,6 +196,10 @@ public class GraphServer {
             responseObserver.onCompleted();
         }
 
+        /**
+         * Find the shortest path between a set of source nodes and a node that matches a given criteria
+         * using a BFS.
+         */
         @Override
         public void findPathTo(FindPathToRequest request, StreamObserver<Path> responseObserver) {
             SwhBidirectionalGraph g = graph.copy();
@@ -208,6 +221,10 @@ public class GraphServer {
             }
         }
 
+        /**
+         * Find the shortest path between a set of source nodes and a set of destination nodes using a
+         * bidirectional BFS.
+         */
         @Override
         public void findPathBetween(FindPathBetweenRequest request, StreamObserver<Path> responseObserver) {
             SwhBidirectionalGraph g = graph.copy();
@@ -229,6 +246,7 @@ public class GraphServer {
             }
         }
 
+        /** Return the number of nodes traversed by a BFS traversal. */
         @Override
         public void countNodes(TraversalRequest request, StreamObserver<CountResponse> responseObserver) {
             AtomicLong count = new AtomicLong(0);
@@ -250,6 +268,7 @@ public class GraphServer {
             responseObserver.onCompleted();
         }
 
+        /** Return the number of edges traversed by a BFS traversal. */
         @Override
         public void countEdges(TraversalRequest request, StreamObserver<CountResponse> responseObserver) {
             AtomicLong count = new AtomicLong(0);

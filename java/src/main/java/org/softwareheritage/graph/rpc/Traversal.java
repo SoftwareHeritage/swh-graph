@@ -6,7 +6,12 @@ import org.softwareheritage.graph.*;
 
 import java.util.*;
 
+/** Traversal contains all the algorithms used for graph traversals */
 public class Traversal {
+    /**
+     * Wrapper around g.successors(), only follows edges that are allowed by the given
+     * {@link AllowedEdges} object.
+     */
     private static ArcLabelledNodeIterator.LabelledArcIterator filterLabelledSuccessors(SwhUnidirectionalGraph g,
             long nodeId, AllowedEdges allowedEdges) {
         if (allowedEdges.restrictedTo == null) {
@@ -42,6 +47,7 @@ public class Traversal {
         }
     }
 
+    /** Helper class to check that a given node is "valid" for some given {@link NodeFilter} */
     private static class NodeFilterChecker {
         private final SwhUnidirectionalGraph g;
         private final NodeFilter filter;
@@ -65,6 +71,7 @@ public class Traversal {
         }
     }
 
+    /** Returns the unidirectional graph from a bidirectional graph and a {@link GraphDirection}. */
     public static SwhUnidirectionalGraph getDirectedGraph(SwhBidirectionalGraph g, GraphDirection direction) {
         switch (direction) {
             case FORWARD:
@@ -80,6 +87,7 @@ public class Traversal {
         }
     }
 
+    /** Returns the opposite of a given {@link GraphDirection} (equivalent to a graph transposition). */
     public static GraphDirection reverseDirection(GraphDirection direction) {
         switch (direction) {
             case FORWARD:
@@ -94,43 +102,64 @@ public class Traversal {
         }
     }
 
+    /** Dummy exception to short-circuit and interrupt a graph traversal. */
     static class StopTraversalException extends RuntimeException {
     }
 
+    /** Generic BFS traversal algorithm. */
     static class BFSVisitor {
+        /** The graph to traverse. */
         protected final SwhUnidirectionalGraph g;
+        /** Depth of the node currently being visited */
         protected long depth = 0;
+        /**
+         * Number of traversal successors (i.e., successors that will be considered by the traversal) of the
+         * node currently being visited
+         */
         protected long traversalSuccessors = 0;
+        /** Number of edges accessed since the beginning of the traversal */
         protected long edgesAccessed = 0;
 
+        /**
+         * Map from a node ID to its parent node ID. The key set can be used as the set of all visited
+         * nodes.
+         */
         protected HashMap<Long, Long> parents = new HashMap<>();
+        /** Queue of nodes to visit (also called "frontier", "open set", "wavefront" etc.) */
         protected ArrayDeque<Long> queue = new ArrayDeque<>();
+        /** If > 0, the maximum depth of the traversal. */
         private long maxDepth = -1;
+        /** If > 0, the maximum number of edges to traverse. */
         private long maxEdges = -1;
 
         BFSVisitor(SwhUnidirectionalGraph g) {
             this.g = g;
         }
 
+        /** Add a new source node to the initial queue. */
         public void addSource(long nodeId) {
             queue.add(nodeId);
             parents.put(nodeId, -1L);
         }
 
+        /** Set the maximum depth of the traversal. */
         public void setMaxDepth(long depth) {
             maxDepth = depth;
         }
 
+        /** Set the maximum number of edges to traverse. */
         public void setMaxEdges(long edges) {
             maxEdges = edges;
         }
 
+        /** Setup the visit counters and depth sentinel. */
         public void visitSetup() {
             edgesAccessed = 0;
             depth = 0;
             queue.add(-1L); // depth sentinel
         }
 
+        /** Perform the visit */
         public void visit() {
             visitSetup();
             while (!queue.isEmpty()) {
@@ -138,6 +167,7 @@ public class Traversal {
             }
         }
 
+        /** Single "step" of a visit. Advance the frontier of exactly one node. */
         public void visitStep() {
             try {
                 assert !queue.isEmpty();
@@ -164,10 +194,15 @@ public class Traversal {
             }
         }
 
+        /**
+         * Get the successors of a node. Override this function if you want to filter which successors are
+         * considered during the traversal.
+         */
         protected ArcLabelledNodeIterator.LabelledArcIterator getSuccessors(long nodeId) {
             return g.labelledSuccessors(nodeId);
         }
 
+        /** Visit a node. Override to do additional processing on the node. */
         protected void visitNode(long node) {
             ArcLabelledNodeIterator.LabelledArcIterator it = getSuccessors(node);
             traversalSuccessors = 0;
@@ -177,6 +212,7 @@ public class Traversal {
             }
         }
 
+        /** Visit an edge. Override to do additional processing on the edge. */
         protected void visitEdge(long src, long dst, Label label) {
             if (!parents.containsKey(dst)) {
                 queue.add(dst);
@@ -185,6 +221,10 @@ public class Traversal {
         }
     }
 
+    /**
+     * SimpleTraversal is used by the Traverse endpoint. It extends BFSVisitor with additional
+     * processing, notably related to graph properties and filters.
+     */
     static class SimpleTraversal extends BFSVisitor {
         private final NodeFilterChecker nodeReturnChecker;
         private final AllowedEdges allowedEdges;
@@ -244,6 +284,11 @@ public class Traversal {
         }
     }
 
+    /**
+     * FindPathTo searches for a path from a source node to a node matching a given criteria It extends
+     * BFSVisitor with additional processing, and makes the traversal stop as soon as a node matching
+     * the given criteria is found.
+     */
     static class FindPathTo extends BFSVisitor {
         private final AllowedEdges allowedEdges;
         private final FindPathToRequest request;
@@ -283,11 +328,17 @@ public class Traversal {
             super.visitNode(node);
         }
 
+        /**
+         * Once the visit has been performed and a matching node has been found, return the shortest path
+         * from the source set to that node. To do so, we need to backtrack the parents of the node until we
+         * find one of the source nodes (whose parent is -1).
+         */
         public Path getPath() {
             if (targetNode == null) {
-                return null;
+                return null; // No path found.
             }
-            Path.Builder pathBuilder = Path.newBuilder();
+
+            /* Backtrack from targetNode to a source node */
             long curNode = targetNode;
             ArrayList<Long> path = new ArrayList<>();
             while (curNode != -1) {
@@ -295,6 +346,9 @@ public class Traversal {
                 curNode = parents.get(curNode);
             }
             Collections.reverse(path);
+
+            /* Enrich path with node properties */
+            Path.Builder pathBuilder = Path.newBuilder();
             for (long nodeId : path) {
                 Node.Builder nodeBuilder = Node.newBuilder();
                 NodePropertyBuilder.buildNodeProperties(g, nodeDataMask, nodeBuilder, nodeId);
@@ -304,6 +358,24 @@ public class Traversal {
         }
     }
 
+    /**
+     * FindPathBetween searches for a shortest path between a set of source nodes and a set of
+     * destination nodes.
+     *
+     * It does so by performing a *bidirectional breadth-first search*, i.e., two parallel breadth-first
+     * searches, one from the source set ("src-BFS") and one from the destination set ("dst-BFS"), until
+     * both searches find a common node that joins their visited sets. This node is called the "midpoint
+     * node". The path returned is the path src -> ... -> midpoint -> ... -> dst, which is always a
+     * shortest path between src and dst.
+     *
+     * The graph direction of both BFS can be configured separately. By default, the dst-BFS will use
+     * the graph in the opposite direction than the src-BFS (if direction = FORWARD, by default
+     * direction_reverse = BACKWARD, and vice-versa). The default behavior is thus to search for a
+     * shortest path between two nodes in a given direction. However, one can also specify FORWARD or
+     * BACKWARD for *both* the src-BFS and the dst-BFS. This will search for a common descendant or a
+     * common ancestor between the two sets, respectively. These will be the midpoints of the returned
+     * path.
+     */
     static class FindPathBetween extends BFSVisitor {
         private final FindPathBetweenRequest request;
         private final NodePropertyBuilder.NodeDataMask nodeDataMask;
@@ -320,12 +392,19 @@ public class Traversal {
             this.nodeDataMask = new NodePropertyBuilder.NodeDataMask(request.hasMask() ? request.getMask() : null);
 
             GraphDirection direction = request.getDirection();
+            // if direction_reverse is not specified, use the opposite direction of direction
             GraphDirection directionReverse = request.hasDirectionReverse()
                     ? request.getDirectionReverse()
                     : reverseDirection(request.getDirection());
             SwhUnidirectionalGraph srcGraph = getDirectedGraph(bidirectionalGraph, direction);
             SwhUnidirectionalGraph dstGraph = getDirectedGraph(bidirectionalGraph, directionReverse);
+
             this.allowedEdgesSrc = new AllowedEdges(request.hasEdges() ? request.getEdges() : "*");
+            /*
+             * If edges_reverse is not specified: - If `edges` is not specified either, defaults to "*" - If
+             * direction == direction_reverse, defaults to `edges` - If direction != direction_reverse, defaults
+             * to the reverse of `edges` (e.g. "rev:dir" becomes "dir:rev").
+             */
             this.allowedEdgesDst = request.hasEdgesReverse()
                     ? new AllowedEdges(request.getEdgesReverse())
                     : (request.hasEdges()
@@ -334,6 +413,10 @@ public class Traversal {
                                     : new AllowedEdges(request.getEdges()).reverse())
                             : new AllowedEdges("*"));
 
+            /*
+             * Source sub-visitor. Aborts as soon as it finds a node already visited by the destination
+             * sub-visitor.
+             */
             this.srcVisitor = new BFSVisitor(srcGraph) {
                 @Override
                 protected ArcLabelledNodeIterator.LabelledArcIterator getSuccessors(long nodeId) {
@@ -349,6 +432,11 @@ public class Traversal {
                     super.visitNode(node);
                 }
             };
+
+            /*
+             * Destination sub-visitor. Aborts as soon as it finds a node already visited by the source
+             * sub-visitor.
+             */
             this.dstVisitor = new BFSVisitor(dstGraph) {
                 @Override
                 protected ArcLabelledNodeIterator.LabelledArcIterator getSuccessors(long nodeId) {
@@ -384,6 +472,9 @@ public class Traversal {
 
         @Override
         public void visit() {
+            /*
+             * Bidirectional BFS: maintain two sub-visitors, and alternately run a visit step in each of them.
+             */
             srcVisitor.visitSetup();
             dstVisitor.visitSetup();
             while (!srcVisitor.queue.isEmpty() || !dstVisitor.queue.isEmpty()) {
@@ -398,10 +489,12 @@ public class Traversal {
 
         public Path getPath() {
             if (middleNode == null) {
-                return null;
+                return null; // No path found.
             }
             Path.Builder pathBuilder = Path.newBuilder();
             ArrayList<Long> path = new ArrayList<>();
+
+            /* First section of the path: src -> midpoint */
             long curNode = middleNode;
             while (curNode != -1) {
                 path.add(curNode);
@@ -409,11 +502,15 @@ public class Traversal {
             }
             pathBuilder.setMidpointIndex(path.size() - 1);
             Collections.reverse(path);
+
+            /* Second section of the path: midpoint -> dst */
             curNode = dstVisitor.parents.get(middleNode);
             while (curNode != -1) {
                 path.add(curNode);
                 curNode = dstVisitor.parents.get(curNode);
             }
+
+            /* Enrich path with node properties */
             for (long nodeId : path) {
                 Node.Builder nodeBuilder = Node.newBuilder();
                 NodePropertyBuilder.buildNodeProperties(g, nodeDataMask, nodeBuilder, nodeId);
