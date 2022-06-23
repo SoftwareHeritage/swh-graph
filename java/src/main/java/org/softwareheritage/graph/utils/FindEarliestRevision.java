@@ -84,8 +84,11 @@ public class FindEarliestRevision {
                     }
                 }
 
-                LazyLongIterator it = Traversal.filterSuccessors(graph, currentNodeId, edges);
+                LazyLongIterator it = graph.successors(currentNodeId);
                 for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
+                    if (!edges.isAllowed(graph.getNodeType(currentNodeId), graph.getNodeType(neighborNodeId))) {
+                        continue;
+                    }
                     if (!visited.contains(neighborNodeId)) {
                         stack.push(neighborNodeId);
                         visited.add(neighborNodeId);
