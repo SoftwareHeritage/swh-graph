@@ -334,7 +334,7 @@ To achieve this, the ``direction`` field can be used to specify a direction
 from the ``GraphDirection`` enum (either ``FORWARD`` or ``BACKWARD``).
 
 This query returns all the nodes reachable from a given directory in the
-*transposed* (or "backward") graph:
+*backward* (or "transposed") graph:
 
 .. code-block:: console
 
@@ -355,9 +355,9 @@ This query returns all the nodes reachable from a given directory in the
 Edge restrictions
 ~~~~~~~~~~~~~~~~~
 
-To constrain the kinds of edges can be followed during the graph traversal, it
-is possible to specify an edge restriction string in the ``edge`` field.
-It is a comma-separated list of edge types that will be followed (e.g.
+To constrain the types of edges that can be followed during the graph
+traversal, it is possible to specify an edge restriction string in the ``edge``
+field.  It is a comma-separated list of edge types that will be followed (e.g.
 ``"rev:dir,dir:cnt"`` to only follow revision → directory and directory →
 content edges).
 By default (or when ``"*"`` is provided), all edges can be followed.
