@@ -165,17 +165,18 @@ public class GraphServer {
         /** Return a single node and its properties. */
         @Override
         public void getNode(GetNodeRequest request, StreamObserver<Node> responseObserver) {
+            SwhBidirectionalGraph g = graph.copy();
             long nodeId;
             try {
-                nodeId = graph.getNodeId(new SWHID(request.getSwhid()));
+                nodeId = g.getNodeId(new SWHID(request.getSwhid()));
             } catch (IllegalArgumentException e) {
                 responseObserver
                         .onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).withCause(e).asException());
                 return;
             }
             Node.Builder builder = Node.newBuilder();
-            NodePropertyBuilder.buildNodeProperties(graph.getForwardGraph(),
-                    request.hasMask() ? request.getMask() : null, builder, nodeId);
+            NodePropertyBuilder.buildNodeProperties(g.getForwardGraph(), request.hasMask() ? request.getMask() : null,
+                    builder, nodeId);
             responseObserver.onNext(builder.build());
             responseObserver.onCompleted();
         }
