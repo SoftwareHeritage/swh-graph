@@ -96,7 +96,7 @@ public class GraphServer {
                     new Parameter[]{
                             new FlaggedOption("port", JSAP.INTEGER_PARSER, "50091", JSAP.NOT_REQUIRED, 'p', "port",
                                     "The port on which the server should listen."),
-                            new FlaggedOption("threads", JSAP.INTEGER_PARSER, "1", JSAP.NOT_REQUIRED, 't', "threads",
+                            new FlaggedOption("threads", JSAP.INTEGER_PARSER, "0", JSAP.NOT_REQUIRED, 't', "threads",
                                     "The number of concurrent threads. 0 = number of cores."),
                             new UnflaggedOption("graphBasename", JSAP.STRING_PARSER, JSAP.REQUIRED,
                                     "Basename of the output graph")});
