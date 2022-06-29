@@ -46,8 +46,7 @@ public class GraphServer {
 
     /** Load a graph and all its properties. */
     public static SwhBidirectionalGraph loadGraph(String basename) throws IOException {
-        // TODO: use loadLabelledMapped() when https://github.com/vigna/webgraph-big/pull/5 is merged
-        SwhBidirectionalGraph g = SwhBidirectionalGraph.loadLabelled(basename, new ProgressLogger(logger));
+        SwhBidirectionalGraph g = SwhBidirectionalGraph.loadLabelledMapped(basename, new ProgressLogger(logger));
         g.loadContentLength();
         g.loadContentIsSkipped();
         g.loadPersonIds();
