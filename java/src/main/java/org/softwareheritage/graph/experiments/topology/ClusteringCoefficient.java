@@ -16,7 +16,7 @@ import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.logging.ProgressLogger;
 import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
 import org.softwareheritage.graph.SwhBidirectionalGraph;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.SwhType;
 
 import java.io.*;
 import java.util.*;
@@ -139,7 +139,7 @@ public class ClusteringCoefficient {
         if (d < 2) {
             return;
         }
-        Node.Type nodeType = graph.getNodeType(node);
+        SwhType nodeType = graph.getNodeType(node);
 
         HashSet<Long> neighborhood = new HashSet<>();
         long succ;
@@ -155,26 +155,25 @@ public class ClusteringCoefficient {
         long triangles_orisnp = 0;
 
         for (Long neighbor : neighborhood) {
-            Node.Type neighborNodeType = graph.getNodeType(neighbor);
+            SwhType neighborNodeType = graph.getNodeType(neighbor);
             final LazyLongIterator it = graph.successors(neighbor);
             while ((succ = it.nextLong()) != -1) {
                 if (neighborhood.contains(succ)) {
-                    Node.Type succNodeType = graph.getNodeType(succ);
+                    SwhType succNodeType = graph.getNodeType(succ);
                     triangles_full++;
-                    if ((nodeType == Node.Type.DIR || nodeType == Node.Type.CNT)
-                            && (neighborNodeType == Node.Type.DIR || neighborNodeType == Node.Type.CNT)
-                            && (succNodeType == Node.Type.DIR || succNodeType == Node.Type.CNT)) {
+                    if ((nodeType == SwhType.DIR || nodeType == SwhType.CNT)
+                            && (neighborNodeType == SwhType.DIR || neighborNodeType == SwhType.CNT)
+                            && (succNodeType == SwhType.DIR || succNodeType == SwhType.CNT)) {
                         triangles_dircnt++;
-                    } else if ((nodeType == Node.Type.REV || nodeType == Node.Type.REL)
-                            && (neighborNodeType == Node.Type.REV || neighborNodeType == Node.Type.REL)
-                            && (succNodeType == Node.Type.REV || succNodeType == Node.Type.REL)) {
+                    } else if ((nodeType == SwhType.REV || nodeType == SwhType.REL)
+                            && (neighborNodeType == SwhType.REV || neighborNodeType == SwhType.REL)
+                            && (succNodeType == SwhType.REV || succNodeType == SwhType.REL)) {
                         triangles_revrel++;
-                        if (nodeType == Node.Type.REV && neighborNodeType == Node.Type.REV
-                                && succNodeType == Node.Type.REV)
+                        if (nodeType == SwhType.REV && neighborNodeType == SwhType.REV && succNodeType == SwhType.REV)
                             triangles_rev++;
-                    } else if ((nodeType == Node.Type.ORI || nodeType == Node.Type.SNP)
-                            && (neighborNodeType == Node.Type.ORI || neighborNodeType == Node.Type.SNP)
-                            && (succNodeType == Node.Type.ORI || succNodeType == Node.Type.SNP)) {
+                    } else if ((nodeType == SwhType.ORI || nodeType == SwhType.SNP)
+                            && (neighborNodeType == SwhType.ORI || neighborNodeType == SwhType.SNP)
+                            && (succNodeType == SwhType.ORI || succNodeType == SwhType.SNP)) {
                         triangles_orisnp++;
                     }
                 }

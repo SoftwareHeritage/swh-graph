@@ -19,7 +19,7 @@ import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
 import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
 import org.softwareheritage.graph.SwhBidirectionalGraph;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.SwhType;
 import org.softwareheritage.graph.experiments.forks.ForkCC;
 
 import java.io.*;
@@ -52,7 +52,7 @@ public class SubdatasetSizeFunction {
         pl.start("Running traversal starting from origins...");
         for (long j = 0; j < n; ++j) {
             long i = BigArrays.get(randomPerm, j);
-            if (visited.getBoolean(i) || graph.getNodeType(i) != Node.Type.ORI) {
+            if (visited.getBoolean(i) || graph.getNodeType(i) != SwhType.ORI) {
                 continue;
             }
             visitedOrigins++;
@@ -64,7 +64,7 @@ public class SubdatasetSizeFunction {
                 final long currentNode = Longs.fromByteArray(byteBuf);
 
                 visitedNodes++;
-                if (graph.getNodeType(currentNode) == Node.Type.CNT)
+                if (graph.getNodeType(currentNode) == SwhType.CNT)
                     visitedContents++;
 
                 final LazyLongIterator iterator = graph.successors(currentNode);

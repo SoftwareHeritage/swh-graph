@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.softwareheritage.graph.GraphTest;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.SwhType;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,7 +31,7 @@ public class ExtractNodesTest extends GraphTest {
         @Override
         public void readEdges(NodeCallback nodeCb, EdgeCallback edgeCb) throws IOException {
             // For each node type, write nodes {1..4} as present in the graph
-            for (Node.Type type : Node.Type.values()) {
+            for (SwhType type : SwhType.values()) {
                 for (int i = 1; i <= 4; i++) {
                     byte[] node = f(type.toString().toLowerCase(), i);
                     nodeCb.onNode(node);
@@ -89,7 +89,7 @@ public class ExtractNodesTest extends GraphTest {
 
         // Build ordered set of expected node IDs
         TreeSet<String> expectedNodes = new TreeSet<>();
-        for (Node.Type type : Node.Type.values()) {
+        for (SwhType type : SwhType.values()) {
             for (int i = 1; i <= 4; i++) {
                 byte[] node = f(type.toString().toLowerCase(), i);
                 expectedNodes.add(new String(node));

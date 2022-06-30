@@ -83,7 +83,7 @@ public class FindEarliestRevision {
             long minTimestamp = Long.MAX_VALUE;
             while (!stack.isEmpty()) {
                 long currentNodeId = stack.pop();
-                if (graph.getNodeType(currentNodeId) == Node.Type.REV) {
+                if (graph.getNodeType(currentNodeId) == SwhType.REV) {
                     long committerTs = graph.getCommitterTimestamp(currentNodeId);
                     if (committerTs < minTimestamp) {
                         minRevId = currentNodeId;

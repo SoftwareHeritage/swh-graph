@@ -20,8 +20,8 @@ import it.unimi.dsi.io.LineIterator;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.softwareheritage.graph.Node;
 import org.softwareheritage.graph.SWHID;
+import org.softwareheritage.graph.SwhType;
 import org.softwareheritage.graph.maps.NodeIdMap;
 import org.softwareheritage.graph.maps.NodeTypesMap;
 
@@ -126,7 +126,7 @@ public class NodeMapBuilder {
              * Type map from WebGraph node ID to SWH type. Used at runtime by pure Java graph traversals to
              * efficiently check edge restrictions.
              */
-            final int nbBitsPerNodeType = (int) Math.ceil(Math.log(Node.Type.values().length) / Math.log(2));
+            final int nbBitsPerNodeType = (int) Math.ceil(Math.log(SwhType.values().length) / Math.log(2));
             LongArrayBitVector nodeTypesBitVector = LongArrayBitVector.ofLength(nbBitsPerNodeType * nbIds);
             LongBigList nodeTypesMap = nodeTypesBitVector.asLongBigList(nbBitsPerNodeType);
 

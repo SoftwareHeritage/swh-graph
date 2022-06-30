@@ -12,7 +12,7 @@ import com.martiansoftware.jsap.*;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.SwhType;
 import org.softwareheritage.graph.utils.Sort;
 
 import java.io.*;
@@ -126,7 +126,7 @@ public class ExtractNodes {
             throws IOException, InterruptedException {
         // Read the dataset and write the nodes and labels to the sorting processes
         AtomicLong edgeCount = new AtomicLong(0);
-        AtomicLongArray edgeCountByType = new AtomicLongArray(Node.Type.values().length * Node.Type.values().length);
+        AtomicLongArray edgeCountByType = new AtomicLongArray(SwhType.values().length * SwhType.values().length);
 
         int numThreads = Runtime.getRuntime().availableProcessors();
         ForkJoinPool forkJoinPool = new ForkJoinPool(numThreads);
@@ -184,10 +184,10 @@ public class ExtractNodes {
                         // Extract type of src and dst from their SWHID: swh:1:XXX
                         byte[] srcTypeBytes = Arrays.copyOfRange(src, 6, 6 + 3);
                         byte[] dstTypeBytes = Arrays.copyOfRange(dst, 6, 6 + 3);
-                        int srcType = Node.Type.byteNameToInt(srcTypeBytes);
-                        int dstType = Node.Type.byteNameToInt(dstTypeBytes);
+                        int srcType = SwhType.byteNameToInt(srcTypeBytes);
+                        int dstType = SwhType.byteNameToInt(dstTypeBytes);
                         if (srcType != -1 && dstType != -1) {
-                            edgeCountByType.incrementAndGet(srcType * Node.Type.values().length + dstType);
+                            edgeCountByType.incrementAndGet(srcType * SwhType.values().length + dstType);
                         } else {
                             System.err.println("Invalid edge type: " + new String(srcTypeBytes) + " -> "
                                     + new String(dstTypeBytes));
@@ -266,10 +266,10 @@ public class ExtractNodes {
         nodesOutputThread.join();
         labelsOutputThread.join();
 
-        long[][] edgeCountByTypeArray = new long[Node.Type.values().length][Node.Type.values().length];
+        long[][] edgeCountByTypeArray = new long[SwhType.values().length][SwhType.values().length];
         for (int i = 0; i < edgeCountByTypeArray.length; i++) {
             for (int j = 0; j < edgeCountByTypeArray[i].length; j++) {
-                edgeCountByTypeArray[i][j] = edgeCountByType.get(i * Node.Type.values().length + j);
+                edgeCountByTypeArray[i][j] = edgeCountByType.get(i * SwhType.values().length + j);
             }
         }
 
@@ -296,9 +296,9 @@ public class ExtractNodes {
 
         PrintWriter nodeTypesCountWriter = new PrintWriter(basename + ".edges.stats.txt");
         TreeMap<String, Long> edgeTypeCountsMap = new TreeMap<>();
-        for (Node.Type src : Node.Type.values()) {
-            for (Node.Type dst : Node.Type.values()) {
-                long cnt = edgeTypeCounts[Node.Type.toInt(src)][Node.Type.toInt(dst)];
+        for (SwhType src : SwhType.values()) {
+            for (SwhType dst : SwhType.values()) {
+                long cnt = edgeTypeCounts[SwhType.toInt(src)][SwhType.toInt(dst)];
                 if (cnt > 0)
                     edgeTypeCountsMap.put(src.toString().toLowerCase() + ":" + dst.toString().toLowerCase(), cnt);
             }
@@ -316,8 +316,8 @@ public class ExtractNodes {
 
         PrintWriter nodeTypesCountWriter = new PrintWriter(basename + ".nodes.stats.txt");
         TreeMap<String, Long> nodeTypeCountsMap = new TreeMap<>();
-        for (Node.Type v : Node.Type.values()) {
-            nodeTypeCountsMap.put(v.toString().toLowerCase(), nodeTypeCounts[Node.Type.toInt(v)]);
+        for (SwhType v : SwhType.values()) {
+            nodeTypeCountsMap.put(v.toString().toLowerCase(), nodeTypeCounts[SwhType.toInt(v)]);
         }
         for (Map.Entry<String, Long> entry : nodeTypeCountsMap.entrySet()) {
             nodeTypesCountWriter.println(entry.getKey() + " " + entry.getValue());
@@ -336,7 +336,7 @@ public class ExtractNodes {
         private final OutputStream nodesOutputStream;
 
         private long nodeCount = 0;
-        private final long[] nodeTypeCounts = new long[Node.Type.values().length];
+        private final long[] nodeTypeCounts = new long[SwhType.values().length];
 
         NodesOutputThread(InputStream sortedNodesStream, OutputStream nodesOutputStream) {
             this.sortedNodesStream = sortedNodesStream;
@@ -354,8 +354,8 @@ public class ExtractNodes {
                     nodesOutputStream.write('\n');
                     nodeCount++;
                     try {
-                        Node.Type nodeType = Node.Type.fromStr(line.split(":")[2]);
-                        nodeTypeCounts[Node.Type.toInt(nodeType)]++;
+                        SwhType nodeType = SwhType.fromStr(line.split(":")[2]);
+                        nodeTypeCounts[SwhType.toInt(nodeType)]++;
                     } catch (ArrayIndexOutOfBoundsException e) {
                         System.err.println("Error parsing SWHID: " + line);
                         System.exit(1);

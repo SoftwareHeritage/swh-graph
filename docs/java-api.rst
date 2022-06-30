@@ -262,7 +262,7 @@ additionally contains the following methods:
   ``graph.order``. It does additional domain-checking by calling ``getSWHID()``
   on its own result to check that the input SWHID was valid.
 
-- ``Node.Type getNodeType(long nodeID)``: returns the type of a given node, as
+- ``SwhType getNodeType(long nodeID)``: returns the type of a given node, as
   an enum of all the different object types in the Software Heritage data
   model. It does so by looking up the value at offset *i* in the bit vector
   stored in ``graph.node2type.bin``.
@@ -283,10 +283,10 @@ destination node that has the "directory" type.
 
     public SWHID findDirectoryOfRevision(SwhUnidirectionalGraph graph, SWHID revSwhid) {
         long src = graph.getNodeId(revSwhid);
-        assert graph.getNodeType(src) == Node.Type.REV;
+        assert graph.getNodeType(src) == SwhType.REV;
         LazyLongIterator it = graph.successors(currentNodeId);
         for (long dst; (dst = it.nextLong()) != -1;) {
-            if (graph.getNodeType(dst) == Node.Type.DIR) {
+            if (graph.getNodeType(dst) == SwhType.DIR) {
                 return graph.getSWHID(dst);
             }
         }
@@ -495,7 +495,7 @@ containing a given object.
                 if (!visited.contains(neighborNodeId)) {
                     stack.push(neighborNodeId);
                     visited.add(neighborNodeId);
-                    if (g.getNodeType(neighborNodeId) == Node.Type.REV) {
+                    if (g.getNodeType(neighborNodeId) == SwhType.REV) {
                         Long ts = g.getCommitterTimestamp(neighborNodeId);
                         if (ts != null && ts < oldestRevTs) {
                             oldestRev = neighborNodeId;
@@ -637,15 +637,15 @@ find all the origins containing these root revisions, i.e., its *forks*.
             LazyLongIterator it = graph.successors(curr);
             boolean isRootRevision = true;
             for (long succ; (succ = it.nextLong()) != -1;) {
-                Node.Type nt = g.getNodeType(succ);
+                SwhType nt = g.getNodeType(succ);
                 if (!forwardVisited.contains(succ)
-                        && nt != Node.Type.DIR && nt != Node.Type.CNT) {
+                        && nt != SwhType.DIR && nt != SwhType.CNT) {
                     forwardStack.push(succ);
                     forwardVisited.add(succ);
                     isRootRevision = false;
                 }
             }
-            if (g.getNodeType(curr) == Node.Type.REV && isRootRevision) {
+            if (g.getNodeType(curr) == SwhType.REV && isRootRevision) {
                 // Found a root revision, add it to the second stack
                 backwardStack.push(curr);
                 backwardVisited.add(curr);
@@ -659,11 +659,11 @@ find all the origins containing these root revisions, i.e., its *forks*.
             LazyLongIterator it = graph.predecessors(curr);
             boolean isRootRevision = true;
             for (long succ; (succ = it.nextLong()) != -1;) {
-                Node.Type nt = g.getNodeType(succ);
+                SwhType nt = g.getNodeType(succ);
                 if (!backwardVisited.contains(succ)) {
                     backwardStack.push(succ);
                     backwardVisited.add(succ);
-                    if (nt == Node.Type.ORI) {
+                    if (nt == SwhType.ORI) {
                         // Found an origin, print it.
                         System.out.println(g.getSWHID(succ));
                     }

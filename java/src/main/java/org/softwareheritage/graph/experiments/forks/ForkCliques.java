@@ -16,7 +16,7 @@ import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.slf4j.LoggerFactory;
 import org.softwareheritage.graph.SwhBidirectionalGraph;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.SwhType;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -72,10 +72,10 @@ public class ForkCliques {
             long succ;
             while ((succ = iterator.nextLong()) != -1) {
                 if (!seen.contains(succ)) {
-                    Node.Type nt = this.graph.getNodeType(succ);
-                    if (nt == Node.Type.DIR || nt == Node.Type.CNT)
+                    SwhType nt = this.graph.getNodeType(succ);
+                    if (nt == SwhType.DIR || nt == SwhType.CNT)
                         continue;
-                    if (nt == Node.Type.ORI && (this.whitelist == null || this.whitelist.getBoolean(succ))) {
+                    if (nt == SwhType.ORI && (this.whitelist == null || this.whitelist.getBoolean(succ))) {
                         res.add(succ);
                     } else {
                         stack.push(succ);
@@ -90,13 +90,13 @@ public class ForkCliques {
     }
 
     private boolean isBaseRevision(Long node) {
-        if (this.graph.getNodeType(node) != Node.Type.REV)
+        if (this.graph.getNodeType(node) != SwhType.REV)
             return false;
 
         final LazyLongIterator iterator = this.graph.successors(node);
         long succ;
         while ((succ = iterator.nextLong()) != -1) {
-            if (this.graph.getNodeType(succ) == Node.Type.REV)
+            if (this.graph.getNodeType(succ) == SwhType.REV)
                 return false;
         }
         return true;

@@ -15,7 +15,7 @@ import it.unimi.dsi.fastutil.Arrays;
 import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.SwhBidirectionalGraph;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.SwhType;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -88,7 +88,7 @@ public class ForkCC {
     }
 
     private boolean nodeIsEmptySnapshot(Long node) {
-        if (this.emptySnapshot == null && this.graph.getNodeType(node) == Node.Type.SNP
+        if (this.emptySnapshot == null && this.graph.getNodeType(node) == SwhType.SNP
                 && this.graph.outdegree(node) == 0) {
             System.err.println("Found empty snapshot: " + node);
             this.emptySnapshot = node;
@@ -97,11 +97,11 @@ public class ForkCC {
     }
 
     private Boolean shouldVisit(Long node) {
-        Node.Type nt = this.graph.getNodeType(node);
-        if (nt == Node.Type.CNT) {
+        SwhType nt = this.graph.getNodeType(node);
+        if (nt == SwhType.CNT) {
             return false;
         }
-        if (nt == Node.Type.DIR && !includeRootDir)
+        if (nt == SwhType.DIR && !includeRootDir)
             return false;
         if (this.nodeIsEmptySnapshot(node))
             return false;
@@ -129,7 +129,7 @@ public class ForkCC {
         ArrayList<ArrayList<Long>> components = new ArrayList<>();
 
         for (long i = 0; i < n; i++) {
-            if (!shouldVisit(i) || this.graph.getNodeType(i) == Node.Type.DIR)
+            if (!shouldVisit(i) || this.graph.getNodeType(i) == SwhType.DIR)
                 continue;
 
             ArrayList<Long> component = new ArrayList<>();
@@ -140,8 +140,8 @@ public class ForkCC {
             while (!queue.isEmpty()) {
                 queue.dequeue(byteBuf);
                 final long currentNode = Longs.fromByteArray(byteBuf);
-                Node.Type cur_nt = this.graph.getNodeType(currentNode);
-                if (cur_nt == Node.Type.ORI && (this.whitelist == null || this.whitelist.getBoolean(currentNode))) {
+                SwhType cur_nt = this.graph.getNodeType(currentNode);
+                if (cur_nt == SwhType.ORI && (this.whitelist == null || this.whitelist.getBoolean(currentNode))) {
                     // TODO: add a check that the origin has >=1 non-empty snapshot
                     component.add(currentNode);
                 }
@@ -151,7 +151,7 @@ public class ForkCC {
                 while ((succ = iterator.nextLong()) != -1) {
                     if (!shouldVisit(succ))
                         continue;
-                    if (this.graph.getNodeType(succ) == Node.Type.DIR && cur_nt != Node.Type.REV)
+                    if (this.graph.getNodeType(succ) == SwhType.DIR && cur_nt != SwhType.REV)
                         continue;
                     visited.set(succ);
                     queue.enqueue(Longs.toByteArray(succ));

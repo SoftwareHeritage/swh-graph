@@ -26,7 +26,7 @@ public class SWHID {
     /** Full SWHID as a string */
     String swhid;
     /** SWHID node type */
-    Node.Type type;
+    SwhType type;
 
     /**
      * Constructor.
@@ -41,7 +41,7 @@ public class SWHID {
         if (parts.length != 4 || !parts[0].equals("swh") || !parts[1].equals("1")) {
             throw new IllegalArgumentException("malformed SWHID: " + swhid);
         }
-        this.type = Node.Type.fromStr(parts[2]);
+        this.type = SwhType.fromStr(parts[2]);
         if (!parts[3].matches("[0-9a-f]{" + HASH_LENGTH + "}")) {
             throw new IllegalArgumentException("malformed SWHID: " + swhid);
         }
@@ -56,7 +56,7 @@ public class SWHID {
         byte[] digest = new byte[20];
         System.arraycopy(input, 2, digest, 0, digest.length);
 
-        String swhidStr = String.format("swh:%d:%s:%s", input[0], Node.Type.fromInt(input[1]).toString().toLowerCase(),
+        String swhidStr = String.format("swh:%d:%s:%s", input[0], SwhType.fromInt(input[1]).toString().toLowerCase(),
                 Hex.encodeHexString(digest));
         return new SWHID(swhidStr);
     }
@@ -92,7 +92,7 @@ public class SWHID {
         byte[] digest;
 
         bytes[0] = (byte) 1; // namespace version
-        bytes[1] = (byte) Node.Type.toInt(this.type); // SWHID type
+        bytes[1] = (byte) SwhType.toInt(this.type); // SWHID type
         try {
             digest = Hex.decodeHex(this.swhid.substring(10)); // SHA1 hash
             System.arraycopy(digest, 0, bytes, 2, digest.length);
@@ -116,10 +116,10 @@ public class SWHID {
     /**
      * Returns SWHID node type.
      *
-     * @return SWHID corresponding {@link Node.Type}
-     * @see org.softwareheritage.graph.Node.Type
+     * @return SWHID corresponding {@link SwhType}
+     * @see SwhType
      */
-    public Node.Type getType() {
+    public SwhType getType() {
         return type;
     }
 }

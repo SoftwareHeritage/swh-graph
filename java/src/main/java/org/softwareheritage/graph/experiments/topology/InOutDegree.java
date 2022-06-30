@@ -23,27 +23,27 @@ import com.martiansoftware.jsap.UnflaggedOption;
 
 import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.SwhBidirectionalGraph;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.SwhType;
 
 public class InOutDegree {
     private InOutDegree() {
     }
 
-    private static final int NODE_ARRAY_SIZE = Node.Type.values().length + 1;
-    private static final int TYPE_ALL = Node.Type.values().length;
-    private static final int TYPE_CNT = Node.Type.toInt(Node.Type.CNT);
-    private static final int TYPE_DIR = Node.Type.toInt(Node.Type.DIR);
-    private static final int TYPE_REV = Node.Type.toInt(Node.Type.REV);
-    private static final int TYPE_REL = Node.Type.toInt(Node.Type.REL);
-    private static final int TYPE_SNP = Node.Type.toInt(Node.Type.SNP);
-    private static final int TYPE_ORI = Node.Type.toInt(Node.Type.ORI);
+    private static final int NODE_ARRAY_SIZE = SwhType.values().length + 1;
+    private static final int TYPE_ALL = SwhType.values().length;
+    private static final int TYPE_CNT = SwhType.toInt(SwhType.CNT);
+    private static final int TYPE_DIR = SwhType.toInt(SwhType.DIR);
+    private static final int TYPE_REV = SwhType.toInt(SwhType.REV);
+    private static final int TYPE_REL = SwhType.toInt(SwhType.REL);
+    private static final int TYPE_SNP = SwhType.toInt(SwhType.SNP);
+    private static final int TYPE_ORI = SwhType.toInt(SwhType.ORI);
 
     public static long[] outdegreeTypes(final SwhBidirectionalGraph graph, long node) {
         long[] out = new long[NODE_ARRAY_SIZE];
         var successors = graph.successors(node);
         long neighbor;
         while ((neighbor = successors.nextLong()) != -1) {
-            out[Node.Type.toInt(graph.getNodeType(neighbor))]++;
+            out[SwhType.toInt(graph.getNodeType(neighbor))]++;
             out[TYPE_ALL]++;
         }
         return out;

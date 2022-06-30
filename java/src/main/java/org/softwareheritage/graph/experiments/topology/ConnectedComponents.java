@@ -14,10 +14,7 @@ import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.Arrays;
 import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
-import org.softwareheritage.graph.AllowedNodes;
-import org.softwareheritage.graph.SwhBidirectionalGraph;
-import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.Subgraph;
+import org.softwareheritage.graph.*;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -101,7 +98,7 @@ public class ConnectedComponents {
                 final long currentNode = Longs.fromByteArray(byteBuf);
                 // component.add(currentNode);
 
-                if (!byOrigin || graph.getNodeType(currentNode) == Node.Type.ORI)
+                if (!byOrigin || graph.getNodeType(currentNode) == SwhType.ORI)
                     componentNodes += 1;
 
                 final LazyLongIterator iterator = graph.successors(currentNode);

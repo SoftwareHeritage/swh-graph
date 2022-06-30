@@ -36,7 +36,7 @@ public class AllowedEdges {
      *            edges</a>
      */
     public AllowedEdges(String edgesFmt) {
-        int nbNodeTypes = Node.Type.values().length;
+        int nbNodeTypes = SwhType.values().length;
         this.restrictedTo = new boolean[nbNodeTypes][nbNodeTypes];
         // Special values (null, empty, "*")
         if (edgesFmt == null || edgesFmt.isEmpty()) {
@@ -56,10 +56,10 @@ public class AllowedEdges {
                 throw new IllegalArgumentException("Cannot parse edge type: " + edgeType);
             }
 
-            ArrayList<Node.Type> srcTypes = Node.Type.parse(nodeTypes[0]);
-            ArrayList<Node.Type> dstTypes = Node.Type.parse(nodeTypes[1]);
-            for (Node.Type srcType : srcTypes) {
-                for (Node.Type dstType : dstTypes) {
+            ArrayList<SwhType> srcTypes = SwhType.parse(nodeTypes[0]);
+            ArrayList<SwhType> dstTypes = SwhType.parse(nodeTypes[1]);
+            for (SwhType srcType : srcTypes) {
+                for (SwhType dstType : dstTypes) {
                     restrictedTo[srcType.ordinal()][dstType.ordinal()] = true;
                 }
             }
@@ -73,7 +73,7 @@ public class AllowedEdges {
      * @param dstType edge destination type
      * @return true if allowed and false otherwise
      */
-    public boolean isAllowed(Node.Type srcType, Node.Type dstType) {
+    public boolean isAllowed(SwhType srcType, SwhType dstType) {
         if (restrictedTo == null)
             return true;
         return restrictedTo[srcType.ordinal()][dstType.ordinal()];

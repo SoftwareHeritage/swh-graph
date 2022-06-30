@@ -45,7 +45,7 @@ public interface SwhGraph {
     }
 
     /** @see SwhGraphProperties#getNodeType(long) */
-    default Node.Type getNodeType(long nodeId) {
+    default SwhType getNodeType(long nodeId) {
         return getProperties().getNodeType(nodeId);
     }
 

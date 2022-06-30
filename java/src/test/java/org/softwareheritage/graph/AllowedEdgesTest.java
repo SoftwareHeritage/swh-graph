@@ -14,10 +14,10 @@ import java.util.ArrayList;
 
 public class AllowedEdgesTest extends GraphTest {
     static class EdgeType {
-        Node.Type src;
-        Node.Type dst;
+        SwhType src;
+        SwhType dst;
 
-        public EdgeType(Node.Type src, Node.Type dst) {
+        public EdgeType(SwhType src, SwhType dst) {
             this.src = src;
             this.dst = dst;
         }
@@ -35,9 +35,9 @@ public class AllowedEdgesTest extends GraphTest {
     }
 
     void assertEdgeRestriction(AllowedEdges edges, ArrayList<EdgeType> expectedAllowed) {
-        Node.Type[] nodeTypes = Node.Type.values();
-        for (Node.Type src : nodeTypes) {
-            for (Node.Type dst : nodeTypes) {
+        SwhType[] nodeTypes = SwhType.values();
+        for (SwhType src : nodeTypes) {
+            for (SwhType dst : nodeTypes) {
                 EdgeType edge = new EdgeType(src, dst);
                 boolean isAllowed = edges.isAllowed(src, dst);
                 boolean isExpected = false;
@@ -57,8 +57,8 @@ public class AllowedEdgesTest extends GraphTest {
     public void dirToDirDirToCntEdges() {
         AllowedEdges edges = new AllowedEdges("dir:dir,dir:cnt");
         ArrayList<EdgeType> expected = new ArrayList<>();
-        expected.add(new EdgeType(Node.Type.DIR, Node.Type.DIR));
-        expected.add(new EdgeType(Node.Type.DIR, Node.Type.CNT));
+        expected.add(new EdgeType(SwhType.DIR, SwhType.DIR));
+        expected.add(new EdgeType(SwhType.DIR, SwhType.CNT));
         assertEdgeRestriction(edges, expected);
     }
 
@@ -66,9 +66,9 @@ public class AllowedEdgesTest extends GraphTest {
     public void relToRevRevToRevRevToDirEdges() {
         AllowedEdges edges = new AllowedEdges("rel:rev,rev:rev,rev:dir");
         ArrayList<EdgeType> expected = new ArrayList<>();
-        expected.add(new EdgeType(Node.Type.REL, Node.Type.REV));
-        expected.add(new EdgeType(Node.Type.REV, Node.Type.REV));
-        expected.add(new EdgeType(Node.Type.REV, Node.Type.DIR));
+        expected.add(new EdgeType(SwhType.REL, SwhType.REV));
+        expected.add(new EdgeType(SwhType.REV, SwhType.REV));
+        expected.add(new EdgeType(SwhType.REV, SwhType.DIR));
         assertEdgeRestriction(edges, expected);
     }
 
@@ -76,10 +76,10 @@ public class AllowedEdgesTest extends GraphTest {
     public void revToAllDirToDirEdges() {
         AllowedEdges edges = new AllowedEdges("rev:*,dir:dir");
         ArrayList<EdgeType> expected = new ArrayList<>();
-        for (Node.Type dst : Node.Type.values()) {
-            expected.add(new EdgeType(Node.Type.REV, dst));
+        for (SwhType dst : SwhType.values()) {
+            expected.add(new EdgeType(SwhType.REV, dst));
         }
-        expected.add(new EdgeType(Node.Type.DIR, Node.Type.DIR));
+        expected.add(new EdgeType(SwhType.DIR, SwhType.DIR));
         assertEdgeRestriction(edges, expected);
     }
 
@@ -87,8 +87,8 @@ public class AllowedEdgesTest extends GraphTest {
     public void allToCntEdges() {
         AllowedEdges edges = new AllowedEdges("*:cnt");
         ArrayList<EdgeType> expected = new ArrayList<>();
-        for (Node.Type src : Node.Type.values()) {
-            expected.add(new EdgeType(src, Node.Type.CNT));
+        for (SwhType src : SwhType.values()) {
+            expected.add(new EdgeType(src, SwhType.CNT));
         }
         assertEdgeRestriction(edges, expected);
     }
@@ -97,8 +97,8 @@ public class AllowedEdgesTest extends GraphTest {
     public void allEdges() {
         AllowedEdges edges = new AllowedEdges("*:*");
         ArrayList<EdgeType> expected = new ArrayList<>();
-        for (Node.Type src : Node.Type.values()) {
-            for (Node.Type dst : Node.Type.values()) {
+        for (SwhType src : SwhType.values()) {
+            for (SwhType dst : SwhType.values()) {
                 expected.add(new EdgeType(src, dst));
             }
         }

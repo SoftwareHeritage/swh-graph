@@ -223,9 +223,9 @@ public class Subgraph extends ImmutableGraph {
      *
      * @param nodeId node specified as a long id
      * @return corresponding node type
-     * @see Node.Type
+     * @see SwhType
      */
-    public Node.Type getNodeType(long nodeId) {
+    public SwhType getNodeType(long nodeId) {
         return underlyingGraph.getNodeType(nodeId);
     }
 }
