@@ -27,7 +27,7 @@ from swh.graph.rpc.swhgraph_pb2 import (
     TraversalRequest,
 )
 from swh.graph.rpc.swhgraph_pb2_grpc import TraversalServiceStub
-from swh.graph.rpc_server import spawn_java_rpc_server
+from swh.graph.rpc_server import spawn_java_rpc_server, stop_java_rpc_server
 from swh.model.swhids import EXTENDED_SWHID_TYPES
 
 try:
@@ -58,7 +58,7 @@ class GraphServerApp(RPCServerApp):
     async def _stop(app):
         await app["channel"].__aexit__(None, None, None)
         if app.get("local_server"):
-            app["local_server"].terminate()
+            stop_java_rpc_server(app["local_server"])
 
 
 async def index(request):
