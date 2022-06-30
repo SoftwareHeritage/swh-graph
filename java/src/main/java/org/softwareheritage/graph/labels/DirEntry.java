@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2021-2022 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph.labels;
 
 /**
@@ -16,13 +23,25 @@ public class DirEntry {
     }
 
     public DirEntry(long dirEntryEncoded) {
-        this.filenameId = dirEntryEncoded >> Permission.NB_BITS_PER_TYPE;
-        int dirBytes = (int) (dirEntryEncoded & ((1 << Permission.NB_BITS_PER_TYPE) - 1));
-        this.permission = Permission.Type.fromEncoded(dirBytes);
+        this.filenameId = labelNameFromEncoded(dirEntryEncoded);
+        this.permission = permissionFromEncoded(dirEntryEncoded);
+    }
+
+    public static long toEncoded(long filenameId, int permission) {
+        return (filenameId << Permission.NB_BITS_PER_TYPE) + Permission.Type.toEncoded(permission);
+    }
+
+    public static long labelNameFromEncoded(long labelEncoded) {
+        return labelEncoded >> Permission.NB_BITS_PER_TYPE;
+    }
+
+    public static int permissionFromEncoded(long labelEncoded) {
+        int dirBytes = (int) (labelEncoded & ((1 << Permission.NB_BITS_PER_TYPE) - 1));
+        return Permission.Type.fromEncoded(dirBytes);
     }
 
     public long toEncoded() {
-        return (filenameId << Permission.NB_BITS_PER_TYPE) + Permission.Type.toEncoded(permission);
+        return toEncoded(filenameId, permission);
     }
 
     public static int labelWidth(long numLabels) {

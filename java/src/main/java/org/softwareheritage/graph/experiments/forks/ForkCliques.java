@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2020 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph.experiments.forks;
 
 import ch.qos.logback.classic.Level;
@@ -8,8 +15,8 @@ import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.slf4j.LoggerFactory;
-import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
+import org.softwareheritage.graph.SwhType;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -19,12 +26,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class ForkCliques {
-    private Graph graph;
+    private SwhBidirectionalGraph graph;
     private LongArrayBitVector whitelist;
 
     private void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = Graph.loadMapped(graphBasename);
+        this.graph = SwhBidirectionalGraph.loadMapped(graphBasename);
         System.err.println("Graph loaded.");
         this.whitelist = null;
     }
@@ -65,10 +72,10 @@ public class ForkCliques {
             long succ;
             while ((succ = iterator.nextLong()) != -1) {
                 if (!seen.contains(succ)) {
-                    Node.Type nt = this.graph.getNodeType(succ);
-                    if (nt == Node.Type.DIR || nt == Node.Type.CNT)
+                    SwhType nt = this.graph.getNodeType(succ);
+                    if (nt == SwhType.DIR || nt == SwhType.CNT)
                         continue;
-                    if (nt == Node.Type.ORI && (this.whitelist == null || this.whitelist.getBoolean(succ))) {
+                    if (nt == SwhType.ORI && (this.whitelist == null || this.whitelist.getBoolean(succ))) {
                         res.add(succ);
                     } else {
                         stack.push(succ);
@@ -83,13 +90,13 @@ public class ForkCliques {
     }
 
     private boolean isBaseRevision(Long node) {
-        if (this.graph.getNodeType(node) != Node.Type.REV)
+        if (this.graph.getNodeType(node) != SwhType.REV)
             return false;
 
         final LazyLongIterator iterator = this.graph.successors(node);
         long succ;
         while ((succ = iterator.nextLong()) != -1) {
-            if (this.graph.getNodeType(succ) == Node.Type.REV)
+            if (this.graph.getNodeType(succ) == SwhType.REV)
                 return false;
         }
         return true;

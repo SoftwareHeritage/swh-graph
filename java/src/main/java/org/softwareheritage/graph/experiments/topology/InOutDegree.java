@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2020 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph.experiments.topology;
 
 import java.io.File;
@@ -15,34 +22,34 @@ import com.martiansoftware.jsap.SimpleJSAP;
 import com.martiansoftware.jsap.UnflaggedOption;
 
 import it.unimi.dsi.logging.ProgressLogger;
-import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
+import org.softwareheritage.graph.SwhType;
 
 public class InOutDegree {
     private InOutDegree() {
     }
 
-    private static final int NODE_ARRAY_SIZE = Node.Type.values().length + 1;
-    private static final int TYPE_ALL = Node.Type.values().length;
-    private static final int TYPE_CNT = Node.Type.toInt(Node.Type.CNT);
-    private static final int TYPE_DIR = Node.Type.toInt(Node.Type.DIR);
-    private static final int TYPE_REV = Node.Type.toInt(Node.Type.REV);
-    private static final int TYPE_REL = Node.Type.toInt(Node.Type.REL);
-    private static final int TYPE_SNP = Node.Type.toInt(Node.Type.SNP);
-    private static final int TYPE_ORI = Node.Type.toInt(Node.Type.ORI);
+    private static final int NODE_ARRAY_SIZE = SwhType.values().length + 1;
+    private static final int TYPE_ALL = SwhType.values().length;
+    private static final int TYPE_CNT = SwhType.toInt(SwhType.CNT);
+    private static final int TYPE_DIR = SwhType.toInt(SwhType.DIR);
+    private static final int TYPE_REV = SwhType.toInt(SwhType.REV);
+    private static final int TYPE_REL = SwhType.toInt(SwhType.REL);
+    private static final int TYPE_SNP = SwhType.toInt(SwhType.SNP);
+    private static final int TYPE_ORI = SwhType.toInt(SwhType.ORI);
 
-    public static long[] outdegreeTypes(final Graph graph, long node) {
+    public static long[] outdegreeTypes(final SwhBidirectionalGraph graph, long node) {
         long[] out = new long[NODE_ARRAY_SIZE];
         var successors = graph.successors(node);
         long neighbor;
         while ((neighbor = successors.nextLong()) != -1) {
-            out[Node.Type.toInt(graph.getNodeType(neighbor))]++;
+            out[SwhType.toInt(graph.getNodeType(neighbor))]++;
             out[TYPE_ALL]++;
         }
         return out;
     }
 
-    public static long[] indegreeTypes(final Graph graph, long node) {
+    public static long[] indegreeTypes(final SwhBidirectionalGraph graph, long node) {
         return outdegreeTypes(graph.transpose(), node);
     }
 
@@ -55,7 +62,7 @@ public class InOutDegree {
         f.close();
     }
 
-    public static void run(final Graph graph, String resultsDir) throws IOException {
+    public static void run(final SwhBidirectionalGraph graph, String resultsDir) throws IOException {
         // Per-type
         var cnt_in_dir = new HashMap<Long, Long>();
         var dir_in_dir = new HashMap<Long, Long>();
@@ -233,7 +240,7 @@ public class InOutDegree {
 
         final ProgressLogger pl = new ProgressLogger();
 
-        Graph graph = Graph.loadMapped(basename);
+        SwhBidirectionalGraph graph = SwhBidirectionalGraph.loadMapped(basename);
         run(graph, resultsDir);
     }
 }

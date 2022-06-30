@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2019-2022 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph;
 
 import java.util.ArrayList;
@@ -29,7 +36,7 @@ public class AllowedEdges {
      *            edges</a>
      */
     public AllowedEdges(String edgesFmt) {
-        int nbNodeTypes = Node.Type.values().length;
+        int nbNodeTypes = SwhType.values().length;
         this.restrictedTo = new boolean[nbNodeTypes][nbNodeTypes];
         // Special values (null, empty, "*")
         if (edgesFmt == null || edgesFmt.isEmpty()) {
@@ -49,10 +56,10 @@ public class AllowedEdges {
                 throw new IllegalArgumentException("Cannot parse edge type: " + edgeType);
             }
 
-            ArrayList<Node.Type> srcTypes = Node.Type.parse(nodeTypes[0]);
-            ArrayList<Node.Type> dstTypes = Node.Type.parse(nodeTypes[1]);
-            for (Node.Type srcType : srcTypes) {
-                for (Node.Type dstType : dstTypes) {
+            ArrayList<SwhType> srcTypes = SwhType.parse(nodeTypes[0]);
+            ArrayList<SwhType> dstTypes = SwhType.parse(nodeTypes[1]);
+            for (SwhType srcType : srcTypes) {
+                for (SwhType dstType : dstTypes) {
                     restrictedTo[srcType.ordinal()][dstType.ordinal()] = true;
                 }
             }
@@ -66,9 +73,26 @@ public class AllowedEdges {
      * @param dstType edge destination type
      * @return true if allowed and false otherwise
      */
-    public boolean isAllowed(Node.Type srcType, Node.Type dstType) {
+    public boolean isAllowed(SwhType srcType, SwhType dstType) {
         if (restrictedTo == null)
             return true;
         return restrictedTo[srcType.ordinal()][dstType.ordinal()];
+    }
+
+    /**
+     * Return a new AllowedEdges instance with reversed edge restrictions. e.g. "src1:dst1,src2:dst2"
+     * becomes "dst1:src1,dst2:src2"
+     *
+     * @return a new AllowedEdges instance with reversed edge restrictions
+     */
+    public AllowedEdges reverse() {
+        AllowedEdges reversed = new AllowedEdges(null);
+        reversed.restrictedTo = new boolean[restrictedTo.length][restrictedTo[0].length];
+        for (int i = 0; i < restrictedTo.length; i++) {
+            for (int j = 0; j < restrictedTo[0].length; j++) {
+                reversed.restrictedTo[i][j] = restrictedTo[j][i];
+            }
+        }
+        return reversed;
     }
 }

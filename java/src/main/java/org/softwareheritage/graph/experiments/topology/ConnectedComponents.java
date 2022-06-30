@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2020 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph.experiments.topology;
 
 import com.google.common.primitives.Longs;
@@ -7,10 +14,7 @@ import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.Arrays;
 import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
-import org.softwareheritage.graph.AllowedNodes;
-import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.Node;
-import org.softwareheritage.graph.Subgraph;
+import org.softwareheritage.graph.*;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -23,7 +27,7 @@ public class ConnectedComponents {
 
     private void load_graph(String graphBasename, String nodeTypes) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        var underlyingGraph = Graph.loadMapped(graphBasename);
+        var underlyingGraph = SwhBidirectionalGraph.loadMapped(graphBasename);
         var underlyingGraphSym = underlyingGraph.symmetrize();
         graph = new Subgraph(underlyingGraphSym, new AllowedNodes(nodeTypes));
         System.err.println("Graph loaded.");
@@ -94,7 +98,7 @@ public class ConnectedComponents {
                 final long currentNode = Longs.fromByteArray(byteBuf);
                 // component.add(currentNode);
 
-                if (!byOrigin || graph.getNodeType(currentNode) == Node.Type.ORI)
+                if (!byOrigin || graph.getNodeType(currentNode) == SwhType.ORI)
                     componentNodes += 1;
 
                 final LazyLongIterator iterator = graph.successors(currentNode);

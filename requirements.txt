@@ -2,3 +2,5 @@ aiohttp
 click
 py4j
 psutil
+grpcio-tools
+mypy-protobuf

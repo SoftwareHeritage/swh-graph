@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2022 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph;
 
 import java.util.*;
@@ -8,7 +15,7 @@ import org.junit.jupiter.api.Test;
 public class SubgraphTest extends GraphTest {
     @Test
     public void noFilter() {
-        Graph g = getGraph();
+        SwhBidirectionalGraph g = getGraph();
         Subgraph sg = new Subgraph(g, new AllowedNodes("*"));
 
         for (long i = 0; i < g.numNodes(); ++i) {
@@ -18,7 +25,7 @@ public class SubgraphTest extends GraphTest {
 
     @Test
     public void missingNode() {
-        Graph g = getGraph();
+        SwhBidirectionalGraph g = getGraph();
         Subgraph sg = new Subgraph(g, new AllowedNodes("dir,ori"));
 
         SWHID rev1 = fakeSWHID("rev", 18);
@@ -32,7 +39,7 @@ public class SubgraphTest extends GraphTest {
 
     @Test
     public void outdegreeOnlyDirOri() {
-        Graph g = getGraph();
+        SwhBidirectionalGraph g = getGraph();
         Subgraph sg = new Subgraph(g, new AllowedNodes("dir,ori"));
 
         SWHID dir1 = fakeSWHID("dir", 17);
@@ -43,14 +50,14 @@ public class SubgraphTest extends GraphTest {
         Assertions.assertEquals(2, g.outdegree(g.getNodeId(dir2)));
         Assertions.assertEquals(0, sg.outdegree(sg.getNodeId(dir2)));
 
-        SWHID ori1 = fakeSWHID("ori", 21);
+        SWHID ori1 = new SWHID(TEST_ORIGIN_ID);
         Assertions.assertEquals(1, g.outdegree(g.getNodeId(ori1)));
         Assertions.assertEquals(0, sg.outdegree(sg.getNodeId(ori1)));
     }
 
     @Test
     public void successorsOnlyDirOri() {
-        Graph g = getGraph();
+        SwhBidirectionalGraph g = getGraph();
         Subgraph sg = new Subgraph(g, new AllowedNodes("dir,ori"));
 
         SWHID dir1 = fakeSWHID("dir", 17);
@@ -60,18 +67,18 @@ public class SubgraphTest extends GraphTest {
         SWHID dir2 = fakeSWHID("dir", 6);
         assertEqualsAnyOrder(Collections.emptyList(), lazyLongIteratorToList(sg.successors(sg.getNodeId(dir2))));
 
-        SWHID ori1 = fakeSWHID("ori", 21);
+        SWHID ori1 = new SWHID(TEST_ORIGIN_ID);
         assertEqualsAnyOrder(Collections.emptyList(), lazyLongIteratorToList(sg.successors(sg.getNodeId(ori1))));
     }
 
     @Test
     public void nodeIteratorOnlyOriDir() {
-        Graph g = getGraph();
+        SwhBidirectionalGraph g = getGraph();
         Subgraph sg = new Subgraph(g, new AllowedNodes("dir,ori"));
         ArrayList<Long> nodeList = new ArrayList<>();
         Iterator<Long> nodeIt = sg.nodeIterator();
         nodeIt.forEachRemaining(nodeList::add);
-        assertEqualsAnyOrder(Arrays.asList(sg.getNodeId(fakeSWHID("ori", 21)), sg.getNodeId(fakeSWHID("dir", 2)),
+        assertEqualsAnyOrder(Arrays.asList(sg.getNodeId(new SWHID(TEST_ORIGIN_ID)), sg.getNodeId(fakeSWHID("dir", 2)),
                 sg.getNodeId(fakeSWHID("dir", 6)), sg.getNodeId(fakeSWHID("dir", 8)),
                 sg.getNodeId(fakeSWHID("dir", 12)), sg.getNodeId(fakeSWHID("dir", 16)),
                 sg.getNodeId(fakeSWHID("dir", 17))), nodeList);
