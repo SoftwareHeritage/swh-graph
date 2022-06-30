@@ -316,11 +316,11 @@ class CountVisitNodesView(CountView):
     pass
 
 
-def make_app(config=None, rpc_url=None, **kwargs):
+def make_app(config=None, rpc_url=None, spawn_rpc_port=50091, **kwargs):
     app = GraphServerApp(**kwargs)
 
     if rpc_url is None:
-        app["local_server"], port = spawn_java_rpc_server(config)
+        app["local_server"], port = spawn_java_rpc_server(config, port=spawn_rpc_port)
         rpc_url = f"localhost:{port}"
 
     app.add_routes(

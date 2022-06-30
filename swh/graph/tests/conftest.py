@@ -29,7 +29,7 @@ class GraphServerProcess(multiprocessing.Process):
         try:
             config = {"graph": {"path": TEST_GRAPH_PATH}}
             with loop_context() as loop:
-                app = make_app(config=config, debug=True)
+                app = make_app(config=config, debug=True, spawn_rpc_port=None)
                 client = TestClient(TestServer(app), loop=loop)
                 loop.run_until_complete(client.start_server())
                 url = client.make_url("/graph/")
