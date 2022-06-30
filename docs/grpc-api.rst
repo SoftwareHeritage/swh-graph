@@ -546,8 +546,11 @@ Protobuf API Reference
 ======================
 
 The GRPC API is specified in a single self-documenting
-`protobuf <https://developers.google.com/protocol-buffers>`_ file, reproduced
-here verbatim.
+`protobuf <https://developers.google.com/protocol-buffers>`_ file, which is
+available in the ``proto/swhgraph.proto`` file of the swh-graph repository:
 
-.. literalinclude:: ../proto/swhgraph.proto
-   :language: protobuf
+https://forge.softwareheritage.org/source/swh-graph/browse/master/proto/swhgraph.proto
+
+..
+    .. literalinclude:: swhgraph.proto
+       :language: protobuf
