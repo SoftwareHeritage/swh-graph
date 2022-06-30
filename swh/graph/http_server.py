@@ -27,7 +27,7 @@ from swh.graph.rpc.swhgraph_pb2 import (
     TraversalRequest,
 )
 from swh.graph.rpc.swhgraph_pb2_grpc import TraversalServiceStub
-from swh.graph.rpc_server import spawn_java_rpc_server
+from swh.graph.rpc_server import spawn_java_rpc_server, stop_java_rpc_server
 from swh.model.swhids import EXTENDED_SWHID_TYPES
 
 try:
@@ -58,7 +58,7 @@ class GraphServerApp(RPCServerApp):
     async def _stop(app):
         await app["channel"].__aexit__(None, None, None)
         if app.get("local_server"):
-            app["local_server"].terminate()
+            stop_java_rpc_server(app["local_server"])
 
 
 async def index(request):
@@ -316,11 +316,11 @@ class CountVisitNodesView(CountView):
     pass
 
 
-def make_app(config=None, rpc_url=None, **kwargs):
+def make_app(config=None, rpc_url=None, spawn_rpc_port=50091, **kwargs):
     app = GraphServerApp(**kwargs)
 
     if rpc_url is None:
-        app["local_server"], port = spawn_java_rpc_server(config)
+        app["local_server"], port = spawn_java_rpc_server(config, port=spawn_rpc_port)
         rpc_url = f"localhost:{port}"
 
     app.add_routes(

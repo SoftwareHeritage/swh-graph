@@ -59,7 +59,7 @@
     <dependency>
         <groupId>it.unimi.dsi</groupId>
         <artifactId>sux4j</artifactId>
-        <version>5.3.1</version>
+        <version>5.4.0</version>
     </dependency>
     <dependency>
       <groupId>it.unimi.dsi</groupId>
