@@ -8,7 +8,6 @@ A simple tool to start the swh-graph GRPC server in Java.
 """
 
 import logging
-import shlex
 import subprocess
 
 import aiohttp.test_utils
@@ -32,7 +31,9 @@ def spawn_java_rpc_server(config, port=None):
         str(config["graph"]["path"]),
     ]
     print(cmd)
-    logging.info("Starting RPC server: %s", shlex.join(cmd))
+    # XXX: shlex.join() is in 3.8
+    # logging.info("Starting RPC server: %s", shlex.join(cmd))
+    logging.info("Starting RPC server: %s", str(cmd))
     server = subprocess.Popen(cmd)
     return server, port
 
