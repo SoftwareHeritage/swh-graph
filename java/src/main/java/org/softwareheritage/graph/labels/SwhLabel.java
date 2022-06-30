@@ -1,6 +1,14 @@
+/*
+ * Copyright (c) 2021-2022 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph.labels;
 
 import it.unimi.dsi.big.webgraph.labelling.AbstractLabel;
+import it.unimi.dsi.big.webgraph.labelling.FixedWidthLongListLabel;
 import it.unimi.dsi.big.webgraph.labelling.Label;
 import it.unimi.dsi.io.InputBitStream;
 import it.unimi.dsi.io.OutputBitStream;
@@ -77,7 +85,7 @@ public class SwhLabel extends AbstractLabel {
 
     @Override
     public Object get(String s) {
-        if (this.key.equals(key))
+        if (this.key.equals(s))
             return value;
         throw new IllegalArgumentException();
     }

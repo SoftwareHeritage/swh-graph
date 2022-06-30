@@ -1,7 +1,16 @@
 .. _swh-graph-api:
 
-Graph RPC API
-=============
+Graph Querying HTTP API
+=======================
+
+The Graph Querying API is a high-level HTTP API intended to run common,
+relatively simple traversal queries on the compressed graph.
+
+The client/server architecture allows it to only load the graph in memory once
+then serve multiple different requests. However, it is limited in expressivity;
+more complex or resource-intensive queries should rather use the
+:ref:`Low-level Java API <swh-graph-java-api>` to run them as standalone
+programs.
 
 
 Terminology
@@ -53,8 +62,11 @@ Examples
 - ``"cnt,snp"`` accepted node types returned in the query results.
 
 
+Endpoints
+---------
+
 Leaves
-------
+~~~~~~
 
 .. http:get:: /graph/leaves/:src
 
@@ -97,7 +109,7 @@ Leaves
 
 
 Neighbors
----------
+~~~~~~~~~
 
 .. http:get:: /graph/neighbors/:src
 
@@ -138,7 +150,7 @@ Neighbors
 
 
 Walk
-----
+~~~~
 
 ..
   .. http:get:: /graph/walk/:src/:dst
@@ -246,7 +258,7 @@ Walk
 
 
 Visit
------
+~~~~~
 
 .. http:get:: /graph/visit/nodes/:src
 .. http:get:: /graph/visit/edges/:src
@@ -340,7 +352,7 @@ Visit
 
 
 Counting results
-----------------
+~~~~~~~~~~~~~~~~
 
 The following method variants, with trailing `/count` added, behave like their
 already discussed counterparts but, instead of returning results, return the
@@ -363,7 +375,7 @@ already discussed counterparts but, instead of returning results, return the
 
 
 Stats
------
+~~~~~
 
 .. http:get:: /graph/stats
 
@@ -405,3 +417,125 @@ Stats
                 "avg": 0.6107127825377487
             }
         }
+
+
+Use-case examples
+-----------------
+
+This section showcases how to leverage the endpoints of the HTTP API described
+above for some common use-cases.
+
+
+Browsing
+~~~~~~~~
+
+The following use cases require traversing the *forward graph*.
+
+- **ls**: given a directory node, list (non recursively) all linked nodes of
+  type directory and content
+
+  Endpoint::
+
+    /graph/neighbors/:DIR_ID?edges=dir:cnt,dir:dir
+
+- **ls -R**: given a directory node, recursively list all linked nodes of type
+  directory and content
+
+  Endpoint::
+
+    /graph/visit/paths/:DIR_ID?edges=dir:cnt,dir:dir
+
+- **git log**: given a revision node, recursively list all linked nodes of type
+  revision
+
+  Endpoint::
+
+    /graph/visit/nodes/:REV_ID?edges=rev:rev
+
+
+Vault
+~~~~~
+
+The following use cases require traversing the *forward graph*.
+
+- **tarball** (same as *ls -R* above)
+
+- **git bundle**: given a node, recursively list all linked nodes of any kind
+
+  Endpoint::
+
+     /graph/visit/nodes/:NODE_ID?edges=*
+
+
+Provenance
+~~~~~~~~~~
+
+The following use cases require traversing the *backward (transposed)
+graph*.
+
+- **commit provenance**: given a content or directory node, return *a* commit
+  whose directory (recursively) contains it
+
+  Endpoint::
+
+    /graph/walk/:NODE_ID/rev?direction=backward&edges=dir:dir,cnt:dir,dir:rev
+
+- **complete commit provenance**: given a content or directory node, return
+  *all* commits whose directory (recursively) contains it
+
+  Endpoint::
+
+    /graph/leaves/:NODE_ID?direction=backward&edges=dir:dir,cnt:dir,dir:rev
+
+- **origin provenance**: given a content, directory, or commit node, return
+  *an* origin that has at least one snapshot that (recursively) contains it
+
+  Endpoint::
+
+    /graph/walk/:NODE_ID/ori?direction=backward&edges=*
+
+- **complete origin provenance**: given a content, directory, or commit node,
+  return *all* origins that have at least one snapshot that (recursively)
+  contains it
+
+  Endpoint::
+
+    /graph/leaves/:NODE_ID?direction=backward&edges=*
+
+
+Provenance statistics
+~~~~~~~~~~~~~~~~~~~~~
+
+The following use cases require traversing the *backward (transposed)
+graph*.
+
+- **content popularity across commits**: count the number of commits (or
+  *commit popularity*) that link to a directory that (recursively) includes a
+  given content.
+
+  Endpoint::
+
+    /graph/count/leaves/:NODE_ID?direction=backward&edges=cnt:dir,dir:dir,dir:rev
+
+- **commit popularity across origins**: count the number of origins (or *origin
+  popularity*) that have a snapshot that (recursively) includes a given commit.
+
+  Endpoint::
+
+    /graph/count/leaves/:NODE_ID?direction=backward&edges=*
+
+The following use cases require traversing the *forward graph*.
+
+- **revision size** (as n. of contents) distribution: the number of contents
+  that are (recursively) reachable from a given revision.
+
+  Endpoint::
+
+    /graph/count/leaves/:NODE_ID?edges=*
+
+- **origin size** (as n. of revisions) distribution: count the number of
+  revisions that are (recursively) reachable from a given origin.
+
+  Endpoint::
+
+    /graph/count/leaves/:NODE_ID?edges=ori:snp,snp:rel,snp:rev,rel:rev,rev:rev

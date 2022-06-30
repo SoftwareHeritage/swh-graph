@@ -1,16 +1,23 @@
+/*
+ * Copyright (c) 2019 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph.experiments.forks;
 
 import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.ImmutableGraph;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
-import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
+import org.softwareheritage.graph.SwhType;
 
 import java.io.IOException;
 import java.util.ArrayList;
 
 public class ListEmptyOrigins {
-    private Graph graph;
+    private SwhBidirectionalGraph graph;
     private Long emptySnapshot;
 
     private static JSAPResult parse_args(String[] args) {
@@ -49,14 +56,14 @@ public class ListEmptyOrigins {
 
     private void load_graph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = Graph.loadMapped(graphBasename);
+        this.graph = SwhBidirectionalGraph.loadMapped(graphBasename);
         System.err.println("Graph loaded.");
         this.emptySnapshot = null;
     }
 
     private boolean nodeIsEmptySnapshot(Long node) {
         System.err.println(this.graph.getNodeType(node) + " " + this.graph.outdegree(node) + " " + node);
-        if (this.emptySnapshot == null && this.graph.getNodeType(node) == Node.Type.SNP
+        if (this.emptySnapshot == null && this.graph.getNodeType(node) == SwhType.SNP
                 && this.graph.outdegree(node) == 0) {
             System.err.println("Found empty snapshot: " + node);
             this.emptySnapshot = node;
@@ -68,8 +75,8 @@ public class ListEmptyOrigins {
         final long n = graph.numNodes();
         ArrayList<Long> bad = new ArrayList<>();
         for (long i = 0; i < n; i++) {
-            Node.Type nt = this.graph.getNodeType(i);
-            if (nt != Node.Type.ORI)
+            SwhType nt = this.graph.getNodeType(i);
+            if (nt != SwhType.ORI)
                 continue;
 
             final LazyLongIterator iterator = graph.successors(i);

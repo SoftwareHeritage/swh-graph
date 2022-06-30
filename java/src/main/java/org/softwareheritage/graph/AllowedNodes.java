@@ -1,7 +1,14 @@
+/*
+ * Copyright (c) 2020 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph;
 
 /**
- * TODO
+ * Node type restriction, useful to implement filtering of returned nodes during traversal.
  *
  * @author The Software Heritage developers
  */
@@ -15,7 +22,7 @@ public class AllowedNodes {
      * @param nodesFmt a formatted string describing allowed nodes
      */
     public AllowedNodes(String nodesFmt) {
-        int nbNodeTypes = Node.Type.values().length;
+        int nbNodeTypes = SwhType.values().length;
         this.restrictedTo = new boolean[nbNodeTypes];
         // Special values (null, empty, "*")
         if (nodesFmt == null || nodesFmt.isEmpty()) {
@@ -30,8 +37,8 @@ public class AllowedNodes {
         // Format: "nodeType1,nodeType2,[...]"
         String[] nodeTypesStr = nodesFmt.split(",");
         for (String nodeTypeStr : nodeTypesStr) {
-            for (Node.Type nodeType : Node.Type.parse(nodeTypeStr)) {
-                this.restrictedTo[Node.Type.toInt(nodeType)] = true;
+            for (SwhType nodeType : SwhType.parse(nodeTypeStr)) {
+                this.restrictedTo[SwhType.toInt(nodeType)] = true;
             }
         }
     }
@@ -42,9 +49,9 @@ public class AllowedNodes {
      * @param nodeType node type to check
      * @return true if allowed and false otherwise
      */
-    public boolean isAllowed(Node.Type nodeType) {
+    public boolean isAllowed(SwhType nodeType) {
         if (restrictedTo == null)
             return true;
-        return restrictedTo[Node.Type.toInt(nodeType)];
+        return restrictedTo[SwhType.toInt(nodeType)];
     }
 }

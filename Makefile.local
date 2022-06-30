@@ -9,6 +9,9 @@ java-doc:
 java-%:
 	mvn -f $(POM_PATH) $*
 
+protoc:
+	python -m grpc_tools.protoc -I. --python_out=. --mypy_out=. --grpc_python_out=. swh/graph/rpc/*.proto
+
 clean-java: java-clean
 
 .PHONY: java clean-java

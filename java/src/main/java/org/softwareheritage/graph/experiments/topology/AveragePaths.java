@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2020 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph.experiments.topology;
 
 import com.martiansoftware.jsap.*;
@@ -17,14 +24,14 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class AveragePaths {
-    private final Graph graph;
+    private final SwhBidirectionalGraph graph;
     private final Subgraph subgraph;
     private final ConcurrentHashMap<Long, Long> result;
     private final String outdir;
 
     public AveragePaths(String graphBasename, String allowedNodes, String outdir) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        this.graph = Graph.loadMapped(graphBasename);
+        this.graph = SwhBidirectionalGraph.loadMapped(graphBasename);
         this.subgraph = new Subgraph(this.graph, new AllowedNodes(allowedNodes));
         this.outdir = outdir;
         System.err.println("Graph loaded.");
@@ -64,7 +71,7 @@ public class AveragePaths {
 
         service.submit(() -> {
             try {
-                Graph thread_graph = graph.copy();
+                SwhBidirectionalGraph thread_graph = graph.copy();
                 Subgraph thread_subgraph = subgraph.copy();
 
                 long[][] randomPerm = Util.identity(thread_graph.numNodes());

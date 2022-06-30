@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2021 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph.utils;
 
 import com.google.common.primitives.Longs;
@@ -8,7 +15,7 @@ import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.io.FastBufferedReader;
 import it.unimi.dsi.io.LineIterator;
-import org.softwareheritage.graph.Graph;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
 import org.softwareheritage.graph.SWHID;
 import org.softwareheritage.graph.experiments.topology.ConnectedComponents;
 import org.softwareheritage.graph.maps.NodeIdMap;
@@ -22,7 +29,7 @@ public class ExportSubdataset {
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         System.err.print("Loading everything...");
         String graphPath = args[0];
-        Graph graph = Graph.loadMapped(graphPath);
+        SwhBidirectionalGraph graph = SwhBidirectionalGraph.loadMapped(graphPath);
         Object2LongFunction<byte[]> mphMap = NodeIdMap.loadMph(graphPath + ".mph");
         System.err.println(" done.");
 
