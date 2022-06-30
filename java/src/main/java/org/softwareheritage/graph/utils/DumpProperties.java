@@ -85,7 +85,7 @@ public class DumpProperties {
                     }
                     byte[] tagName = graph.getTagName(node);
                     if (tagName != null) {
-                        System.out.format("  message: %s\n", (new String(tagName)));
+                        System.out.format("  name: %s\n", (new String(tagName)));
                     }
                     break;
                 case ORI:
