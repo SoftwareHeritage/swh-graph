@@ -18,6 +18,7 @@ import it.unimi.dsi.fastutil.longs.LongBigList;
 import it.unimi.dsi.fastutil.longs.LongMappedBigList;
 import it.unimi.dsi.fastutil.shorts.ShortBigList;
 import it.unimi.dsi.fastutil.shorts.ShortMappedBigList;
+import it.unimi.dsi.lang.FlyweightPrototype;
 import it.unimi.dsi.sux4j.util.EliasFanoLongBigList;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.softwareheritage.graph.maps.NodeIdMap;
@@ -43,7 +44,7 @@ import java.util.Base64;
  * @see NodeIdMap
  * @see NodeTypesMap
  */
-public class SwhGraphProperties {
+public class SwhGraphProperties implements FlyweightPrototype<SwhGraphProperties> {
     private final String path;
 
     private final NodeIdMap nodeIdMap;
@@ -66,6 +67,66 @@ public class SwhGraphProperties {
         this.path = path;
         this.nodeIdMap = nodeIdMap;
         this.nodeTypesMap = nodeTypesMap;
+    }
+
+    protected SwhGraphProperties(String path, NodeIdMap nodeIdMap, NodeTypesMap nodeTypesMap,
+            LongBigList authorTimestamp, ShortBigList authorTimestampOffset, LongBigList committerTimestamp,
+            ShortBigList committerTimestampOffset, LongBigList contentLength, LongArrayBitVector contentIsSkipped,
+            IntBigList authorId, IntBigList committerId, ByteBigList messageBuffer, LongBigList messageOffsets,
+            ByteBigList tagNameBuffer, LongBigList tagNameOffsets, MappedFrontCodedStringBigList edgeLabelNames) {
+        this.path = path;
+        this.nodeIdMap = nodeIdMap;
+        this.nodeTypesMap = nodeTypesMap;
+        this.authorTimestamp = authorTimestamp;
+        this.authorTimestampOffset = authorTimestampOffset;
+        this.committerTimestamp = committerTimestamp;
+        this.committerTimestampOffset = committerTimestampOffset;
+        this.contentLength = contentLength;
+        this.contentIsSkipped = contentIsSkipped;
+        this.authorId = authorId;
+        this.committerId = committerId;
+        this.messageBuffer = messageBuffer;
+        this.messageOffsets = messageOffsets;
+        this.tagNameBuffer = tagNameBuffer;
+        this.tagNameOffsets = tagNameOffsets;
+        this.edgeLabelNames = edgeLabelNames;
+    }
+
+    public SwhGraphProperties copy() {
+        return new SwhGraphProperties(path, nodeIdMap.copy(), nodeTypesMap.copy(),
+                ((authorTimestamp instanceof LongMappedBigList)
+                        ? ((LongMappedBigList) authorTimestamp).copy()
+                        : authorTimestamp),
+                ((authorTimestampOffset instanceof ShortMappedBigList)
+                        ? ((ShortMappedBigList) authorTimestampOffset).copy()
+                        : authorTimestampOffset),
+                ((committerTimestamp instanceof LongMappedBigList)
+                        ? ((LongMappedBigList) committerTimestamp).copy()
+                        : committerTimestamp),
+                ((committerTimestampOffset instanceof ShortMappedBigList)
+                        ? ((ShortMappedBigList) committerTimestampOffset).copy()
+                        : committerTimestampOffset),
+                ((contentLength instanceof LongMappedBigList)
+                        ? ((LongMappedBigList) contentLength).copy()
+                        : contentLength),
+                (contentIsSkipped != null) ? contentIsSkipped.copy() : null,
+                ((authorId instanceof IntMappedBigList) ? ((IntMappedBigList) authorId).copy() : authorId),
+                ((committerId instanceof IntMappedBigList) ? ((IntMappedBigList) committerId).copy() : committerId),
+                ((messageBuffer instanceof ByteMappedBigList)
+                        ? ((ByteMappedBigList) messageBuffer).copy()
+                        : messageBuffer),
+                ((messageOffsets instanceof LongMappedBigList)
+                        ? ((LongMappedBigList) messageOffsets).copy()
+                        : messageOffsets),
+                ((tagNameBuffer instanceof ByteMappedBigList)
+                        ? ((ByteMappedBigList) tagNameBuffer).copy()
+                        : tagNameBuffer),
+                ((tagNameOffsets instanceof LongMappedBigList)
+                        ? ((LongMappedBigList) tagNameOffsets).copy()
+                        : tagNameOffsets),
+                // TODO: not thread safe!! see https://github.com/vigna/dsiutils/issues/5
+                // Once https://github.com/vigna/dsiutils/pull/6 is merged, add a .copy() here:
+                edgeLabelNames);
     }
 
     public static SwhGraphProperties load(String path) throws IOException {
