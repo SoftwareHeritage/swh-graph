@@ -8,10 +8,12 @@ from pathlib import Path
 import subprocess
 
 from aiohttp.test_utils import TestClient, TestServer, loop_context
+import grpc
 import pytest
 
 from swh.graph.http_client import RemoteGraphClient
 from swh.graph.http_naive_client import NaiveClient
+from swh.graph.rpc.swhgraph_pb2_grpc import TraversalServiceStub
 
 SWH_GRAPH_TESTS_ROOT = Path(__file__).parents[0]
 TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / "dataset/compressed/example"
@@ -33,10 +35,30 @@ class GraphServerProcess(multiprocessing.Process):
                 client = TestClient(TestServer(app), loop=loop)
                 loop.run_until_complete(client.start_server())
                 url = client.make_url("/graph/")
-                self.q.put(url)
+                self.q.put((url, app["rpc_url"]))
                 loop.run_forever()
         except Exception as e:
             self.q.put(e)
+
+
+@pytest.fixture(scope="module")
+def graph_grpc_server():
+    queue = multiprocessing.Queue()
+    server = GraphServerProcess(queue)
+    server.start()
+    res = queue.get()
+    if isinstance(res, Exception):
+        raise res
+    grpc_url = res[1]
+    yield grpc_url
+    server.terminate()
+
+
+@pytest.fixture(scope="module")
+def graph_grpc_stub(graph_grpc_server):
+    with grpc.insecure_channel(graph_grpc_server) as channel:
+        stub = TraversalServiceStub(channel)
+        yield stub
 
 
 @pytest.fixture(scope="module", params=["remote", "naive"])
@@ -48,7 +70,7 @@ def graph_client(request):
         res = queue.get()
         if isinstance(res, Exception):
             raise res
-        yield RemoteGraphClient(str(res))
+        yield RemoteGraphClient(str(res[0]))
         server.terminate()
     else:
 
