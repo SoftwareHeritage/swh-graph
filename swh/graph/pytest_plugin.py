@@ -15,7 +15,7 @@ from swh.graph.http_client import RemoteGraphClient
 from swh.graph.http_naive_client import NaiveClient
 from swh.graph.rpc.swhgraph_pb2_grpc import TraversalServiceStub
 
-SWH_GRAPH_TESTS_ROOT = Path(__file__).parents[0]
+SWH_GRAPH_TESTS_ROOT = Path(__file__).parents[0] / "tests"
 TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / "dataset/compressed/example"
 
 
