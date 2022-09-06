@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2021  The Software Heritage developers
+# Copyright (C) 2019-2022  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -20,8 +20,8 @@ TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / "dataset/compressed/example"
 
 
 class GraphServerProcess(multiprocessing.Process):
-    def __init__(self, q, *args, **kwargs):
-        self.q = q
+    def __init__(self, *args, **kwargs):
+        self.q = multiprocessing.Queue()
         super().__init__(*args, **kwargs)
 
     def run(self):
@@ -35,21 +35,23 @@ class GraphServerProcess(multiprocessing.Process):
                 client = TestClient(TestServer(app), loop=loop)
                 loop.run_until_complete(client.start_server())
                 url = client.make_url("/graph/")
-                self.q.put((url, app["rpc_url"]))
+                self.q.put({"server_url": url, "rpc_url": app["rpc_url"]})
                 loop.run_forever()
         except Exception as e:
             self.q.put(e)
 
+    def start(self, *args, **kwargs):
+        super().start()
+        self.result = self.q.get()
+
 
 @pytest.fixture(scope="module")
 def graph_grpc_server():
-    queue = multiprocessing.Queue()
-    server = GraphServerProcess(queue)
+    server = GraphServerProcess()
     server.start()
-    res = queue.get()
-    if isinstance(res, Exception):
-        raise res
-    grpc_url = res[1]
+    if isinstance(server.result, Exception):
+        raise server.result
+    grpc_url = server.result["rpc_url"]
     yield grpc_url
     server.terminate()
 
@@ -64,13 +66,11 @@ def graph_grpc_stub(graph_grpc_server):
 @pytest.fixture(scope="module", params=["remote", "naive"])
 def graph_client(request):
     if request.param == "remote":
-        queue = multiprocessing.Queue()
-        server = GraphServerProcess(queue)
+        server = GraphServerProcess()
         server.start()
-        res = queue.get()
-        if isinstance(res, Exception):
-            raise res
-        yield RemoteGraphClient(str(res[0]))
+        if isinstance(server.result, Exception):
+            raise server.result
+        yield RemoteGraphClient(str(server.result["server_url"]))
         server.terminate()
     else:
 
