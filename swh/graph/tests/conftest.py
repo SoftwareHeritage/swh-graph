@@ -53,7 +53,7 @@ def graph_grpc_server():
         raise server.result
     grpc_url = server.result["rpc_url"]
     yield grpc_url
-    server.terminate()
+    server.kill()
 
 
 @pytest.fixture(scope="module")
@@ -71,7 +71,7 @@ def graph_client(request):
         if isinstance(server.result, Exception):
             raise server.result
         yield RemoteGraphClient(str(server.result["server_url"]))
-        server.terminate()
+        server.kill()
     else:
 
         def zstdcat(*files):
