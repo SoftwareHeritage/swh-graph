@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020  The Software Heritage developers
+# Copyright (C) 2019-2022  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -41,9 +41,27 @@ except ImportError:
 RANDOM_RETRIES = 10  # TODO make this configurable via rpc-serve configuration
 
 
+async def _aiorpcerror_middleware(app, handler):
+    async def middleware_handler(request):
+        try:
+            return await handler(request)
+        except grpc.aio.AioRpcError as e:
+            # The default error handler of the RPC framework tries to serialize this
+            # with msgpack; which for some unknown reason causes it to raise
+            # ValueError("recursion limit exceeded") with a lot of context, causing
+            # Sentry to be overflowed with gigabytes of logs (160KB per event, with
+            # potentially hundreds of thousands of events per day).
+            # Instead, we simply serialize the exception to a string.
+            # https://sentry.softwareheritage.org/share/issue/d6d4db971e4b47728a6c1dd06cb9b8a5/
+            raise aiohttp.web.HTTPServiceUnavailable(text=str(e))
+
+    return middleware_handler
+
+
 class GraphServerApp(RPCServerApp):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, middlewares=(), **kwargs):
+        middlewares = (_aiorpcerror_middleware,) + middlewares
+        super().__init__(*args, middlewares=middlewares, **kwargs)
         self.on_startup.append(self._start)
         self.on_shutdown.append(self._stop)
 
@@ -240,12 +258,17 @@ class SimpleTraversalView(StreamingGraphView):
             self.traversal_request.max_edges = self.get_max_edges()
         await self.check_swhid(src)
         self.configure_request()
+        self.nodes_stream = self.rpc_client.Traverse(self.traversal_request)
+
+        # Force gRPC to query the server and fetch the first nodes; so errors
+        # are raised early, so we can return HTTP 503 before HTTP 200
+        await self.nodes_stream.wait_for_connection()
 
     def configure_request(self):
         pass
 
     async def stream_response(self):
-        async for node in self.rpc_client.Traverse(self.traversal_request):
+        async for node in self.nodes_stream:
             await self.stream_line(node.swhid)
 
 

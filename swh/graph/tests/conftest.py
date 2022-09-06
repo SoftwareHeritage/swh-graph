@@ -35,7 +35,13 @@ class GraphServerProcess(multiprocessing.Process):
                 client = TestClient(TestServer(app), loop=loop)
                 loop.run_until_complete(client.start_server())
                 url = client.make_url("/graph/")
-                self.q.put({"server_url": url, "rpc_url": app["rpc_url"]})
+                self.q.put(
+                    {
+                        "server_url": url,
+                        "rpc_url": app["rpc_url"],
+                        "pid": app["local_server"].pid,
+                    }
+                )
                 loop.run_forever()
         except Exception as e:
             self.q.put(e)
@@ -46,8 +52,17 @@ class GraphServerProcess(multiprocessing.Process):
 
 
 @pytest.fixture(scope="module")
-def graph_grpc_server():
+def graph_grpc_server_process():
     server = GraphServerProcess()
+
+    yield server
+
+    server.kill()
+
+
+@pytest.fixture(scope="module")
+def graph_grpc_server(graph_grpc_server_process):
+    server = graph_grpc_server_process
     server.start()
     if isinstance(server.result, Exception):
         raise server.result
@@ -66,7 +81,7 @@ def graph_grpc_stub(graph_grpc_server):
 @pytest.fixture(scope="module", params=["remote", "naive"])
 def graph_client(request):
     if request.param == "remote":
-        server = GraphServerProcess()
+        server = request.getfixturevalue("graph_grpc_server_process")
         server.start()
         if isinstance(server.result, Exception):
             raise server.result
