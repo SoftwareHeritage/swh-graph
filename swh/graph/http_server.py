@@ -141,13 +141,6 @@ class GraphView(aiohttp.web.View):
         else:
             return s
 
-    def get_traversal(self):
-        """Validate HTTP query parameter `traversal`, i.e., visit order"""
-        s = self.request.query.get("traversal", "dfs")
-        if s not in ("bfs", "dfs"):
-            raise aiohttp.web.HTTPBadRequest(text=f"invalid traversal order: {s}")
-        return s
-
     def get_limit(self):
         """Validate HTTP query parameter `limit`, i.e., number of results"""
         s = self.request.query.get("limit", "0")
