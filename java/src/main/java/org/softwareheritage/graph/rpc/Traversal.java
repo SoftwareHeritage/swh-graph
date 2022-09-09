@@ -238,6 +238,7 @@ public class Traversal {
         private final TraversalRequest request;
         private final NodePropertyBuilder.NodeDataMask nodeDataMask;
         private final NodeObserver nodeObserver;
+        private long remainingMatches;
 
         private Node.Builder nodeBuilder;
 
@@ -258,6 +259,11 @@ public class Traversal {
             if (request.hasMaxEdges()) {
                 setMaxEdges(request.getMaxEdges());
             }
+            if (request.hasMaxMatchingNodes() && request.getMaxMatchingNodes() > 0) {
+                this.remainingMatches = request.getMaxMatchingNodes();
+            } else {
+                this.remainingMatches = -1;
+            }
         }
 
         @Override
@@ -273,14 +279,28 @@ public class Traversal {
                 NodePropertyBuilder.buildNodeProperties(g, nodeDataMask, nodeBuilder, node);
             }
             super.visitNode(node);
-            if (request.getReturnNodes().hasMinTraversalSuccessors()
-                    && traversalSuccessors < request.getReturnNodes().getMinTraversalSuccessors()
-                    || request.getReturnNodes().hasMaxTraversalSuccessors()
-                            && traversalSuccessors > request.getReturnNodes().getMaxTraversalSuccessors()) {
-                nodeBuilder = null;
+
+            boolean nodeMatchesConstraints = true;
+
+            if (request.getReturnNodes().hasMinTraversalSuccessors()) {
+                nodeMatchesConstraints &= traversalSuccessors >= request.getReturnNodes().getMinTraversalSuccessors();
             }
-            if (nodeBuilder != null) {
-                nodeObserver.onNext(nodeBuilder.build());
+            if (request.getReturnNodes().hasMaxTraversalSuccessors()) {
+                nodeMatchesConstraints &= traversalSuccessors <= request.getReturnNodes().getMaxTraversalSuccessors();
+            }
+
+            if (nodeMatchesConstraints) {
+                if (nodeBuilder != null) {
+                    nodeObserver.onNext(nodeBuilder.build());
+                }
+
+                if (remainingMatches >= 0) {
+                    remainingMatches--;
+                    if (remainingMatches == 0) {
+                        // We matched as many nodes as allowed
+                        throw new StopTraversalException();
+                    }
+                }
             }
         }
 
