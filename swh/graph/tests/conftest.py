@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2021  The Software Heritage developers
+# Copyright (C) 2019-2022  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -8,18 +8,20 @@ from pathlib import Path
 import subprocess
 
 from aiohttp.test_utils import TestClient, TestServer, loop_context
+import grpc
 import pytest
 
 from swh.graph.http_client import RemoteGraphClient
 from swh.graph.http_naive_client import NaiveClient
+from swh.graph.rpc.swhgraph_pb2_grpc import TraversalServiceStub
 
 SWH_GRAPH_TESTS_ROOT = Path(__file__).parents[0]
 TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / "dataset/compressed/example"
 
 
 class GraphServerProcess(multiprocessing.Process):
-    def __init__(self, q, *args, **kwargs):
-        self.q = q
+    def __init__(self, *args, **kwargs):
+        self.q = multiprocessing.Queue()
         super().__init__(*args, **kwargs)
 
     def run(self):
@@ -33,23 +35,58 @@ class GraphServerProcess(multiprocessing.Process):
                 client = TestClient(TestServer(app), loop=loop)
                 loop.run_until_complete(client.start_server())
                 url = client.make_url("/graph/")
-                self.q.put(url)
+                self.q.put(
+                    {
+                        "server_url": url,
+                        "rpc_url": app["rpc_url"],
+                        "pid": app["local_server"].pid,
+                    }
+                )
                 loop.run_forever()
         except Exception as e:
             self.q.put(e)
+
+    def start(self, *args, **kwargs):
+        super().start()
+        self.result = self.q.get()
+
+
+@pytest.fixture(scope="module")
+def graph_grpc_server_process():
+    server = GraphServerProcess()
+
+    yield server
+
+    server.kill()
+
+
+@pytest.fixture(scope="module")
+def graph_grpc_server(graph_grpc_server_process):
+    server = graph_grpc_server_process
+    server.start()
+    if isinstance(server.result, Exception):
+        raise server.result
+    grpc_url = server.result["rpc_url"]
+    yield grpc_url
+    server.kill()
+
+
+@pytest.fixture(scope="module")
+def graph_grpc_stub(graph_grpc_server):
+    with grpc.insecure_channel(graph_grpc_server) as channel:
+        stub = TraversalServiceStub(channel)
+        yield stub
 
 
 @pytest.fixture(scope="module", params=["remote", "naive"])
 def graph_client(request):
     if request.param == "remote":
-        queue = multiprocessing.Queue()
-        server = GraphServerProcess(queue)
+        server = request.getfixturevalue("graph_grpc_server_process")
         server.start()
-        res = queue.get()
-        if isinstance(res, Exception):
-            raise res
-        yield RemoteGraphClient(str(res))
-        server.terminate()
+        if isinstance(server.result, Exception):
+            raise server.result
+        yield RemoteGraphClient(str(server.result["server_url"]))
+        server.kill()
     else:
 
         def zstdcat(*files):
