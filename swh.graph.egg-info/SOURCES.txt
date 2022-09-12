@@ -111,7 +111,7 @@ java/src/test/java/org/softwareheritage/graph/rpc/TraverseNodesPropertiesTest.ja
 java/src/test/java/org/softwareheritage/graph/rpc/TraverseNodesTest.java
 java/src/test/java/org/softwareheritage/graph/utils/ForkJoinBigQuickSort2Test.java
 java/src/test/java/org/softwareheritage/graph/utils/ForkJoinQuickSort3Test.java
-java/target/swh-graph-1.0.1.jar
+java/target/swh-graph-1.0.2.jar
 proto/swhgraph.proto
 reports/.gitignore
 reports/benchmarks/Makefile
@@ -150,7 +150,9 @@ swh/graph/rpc/swhgraph_pb2_grpc.py
 swh/graph/tests/__init__.py
 swh/graph/tests/conftest.py
 swh/graph/tests/test_cli.py
+swh/graph/tests/test_grpc.py
 swh/graph/tests/test_http_client.py
+swh/graph/tests/test_http_server_down.py
 swh/graph/tests/dataset/generate_dataset.py
 swh/graph/tests/dataset/compressed/example-labelled.labeloffsets
 swh/graph/tests/dataset/compressed/example-labelled.labels
