@@ -1,3 +1,14 @@
+swh.graph (1.0.2-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 1.0.2     - (tagged by Valentin Lorentz
+    <vlorentz@softwareheritage.org> on 2022-09-06 17:55:41 +0200)
+  * Upstream changes:     - v1.0.2     - * Return HTTP 503 on
+    AioRpcError     - * Remove documentation of deleted endpoint     - *
+    rpc_server: use shlex.quote() to print command     - * Minor test
+    improvements
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Mon, 12 Sep 2022 12:39:28 +0000
+
 swh.graph (1.0.1-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 1.0.1     - (tagged by Antoine Pietri
