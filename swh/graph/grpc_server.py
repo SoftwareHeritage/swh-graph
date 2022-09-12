@@ -1,4 +1,4 @@
-# Copyright (C) 2021  The Software Heritage developers
+# Copyright (C) 2021-2022  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -17,29 +17,30 @@ import aiohttp.web
 from swh.graph.config import check_config
 
 
-def spawn_java_rpc_server(config, port=None):
+def spawn_java_grpc_server(**config):
+    port = config.pop("port", None)
     if port is None:
         port = aiohttp.test_utils.unused_port()
-    config = check_config(config or {})
+    config = check_config(config)
     cmd = [
         "java",
-        "-cp",
+        "--class-path",
         config["classpath"],
         *config["java_tool_options"].split(),
         "org.softwareheritage.graph.rpc.GraphServer",
         "--port",
         str(port),
-        str(config["graph"]["path"]),
+        str(config["path"]),
     ]
     print(cmd)
     # XXX: shlex.join() is in 3.8
     # logging.info("Starting RPC server: %s", shlex.join(cmd))
-    logging.info("Starting RPC server: %s", " ".join(shlex.quote(x) for x in cmd))
+    logging.info("Starting GRPC server: %s", " ".join(shlex.quote(x) for x in cmd))
     server = subprocess.Popen(cmd)
     return server, port
 
 
-def stop_java_rpc_server(server: subprocess.Popen, timeout: int = 15):
+def stop_java_grpc_server(server: subprocess.Popen, timeout: int = 15):
     server.terminate()
     try:
         server.wait(timeout=timeout)

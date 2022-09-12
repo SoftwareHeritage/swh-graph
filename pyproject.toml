@@ -2,7 +2,7 @@
 target-version = ['py37']
 extend-exclude = '''
 /(
-    | swh/graph/rpc
+    | swh/graph/grpc
 )/
 '''
 

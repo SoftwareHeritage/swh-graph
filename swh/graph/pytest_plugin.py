@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import logging
 import multiprocessing
 from pathlib import Path
 import subprocess
@@ -11,12 +12,15 @@ from aiohttp.test_utils import TestClient, TestServer, loop_context
 import grpc
 import pytest
 
+from swh.graph.grpc.swhgraph_pb2_grpc import TraversalServiceStub
 from swh.graph.http_client import RemoteGraphClient
 from swh.graph.http_naive_client import NaiveClient
-from swh.graph.rpc.swhgraph_pb2_grpc import TraversalServiceStub
 
 SWH_GRAPH_TESTS_ROOT = Path(__file__).parents[0] / "tests"
 TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / "dataset/compressed/example"
+
+
+logger = logging.getLogger(__name__)
 
 
 class GraphServerProcess(multiprocessing.Process):
@@ -26,12 +30,18 @@ class GraphServerProcess(multiprocessing.Process):
 
     def run(self):
         # Lazy import to allow debian packaging
-        from swh.graph.http_server import make_app
+        from swh.graph.http_rpc_server import make_app
 
         try:
-            config = {"graph": {"path": TEST_GRAPH_PATH}}
+            config = {
+                "graph": {
+                    "cls": "local",
+                    "grpc_server": {"path": TEST_GRAPH_PATH},
+                    "http_rpc_server": {"debug": True},
+                }
+            }
             with loop_context() as loop:
-                app = make_app(config=config, debug=True, spawn_rpc_port=None)
+                app = make_app(config=config)
                 client = TestClient(TestServer(app), loop=loop)
                 loop.run_until_complete(client.start_server())
                 url = client.make_url("/graph/")
@@ -44,6 +54,7 @@ class GraphServerProcess(multiprocessing.Process):
                 )
                 loop.run_forever()
         except Exception as e:
+            logger.exception(e)
             self.q.put(e)
 
     def start(self, *args, **kwargs):

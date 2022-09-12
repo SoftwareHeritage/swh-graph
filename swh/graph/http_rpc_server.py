@@ -9,6 +9,7 @@ FIFO as a transport to stream integers between the two languages.
 """
 
 import json
+import logging
 import os
 from typing import Optional
 
@@ -20,14 +21,14 @@ import grpc
 
 from swh.core.api.asynchronous import RPCServerApp
 from swh.core.config import read as config_read
-from swh.graph.rpc.swhgraph_pb2 import (
+from swh.graph.grpc.swhgraph_pb2 import (
     GetNodeRequest,
     NodeFilter,
     StatsRequest,
     TraversalRequest,
 )
-from swh.graph.rpc.swhgraph_pb2_grpc import TraversalServiceStub
-from swh.graph.rpc_server import spawn_java_rpc_server, stop_java_rpc_server
+from swh.graph.grpc.swhgraph_pb2_grpc import TraversalServiceStub
+from swh.graph.grpc_server import spawn_java_grpc_server, stop_java_grpc_server
 from swh.model.swhids import EXTENDED_SWHID_TYPES
 
 try:
@@ -39,6 +40,8 @@ except ImportError:
 
 # maximum number of retries for random walks
 RANDOM_RETRIES = 10  # TODO make this configurable via rpc-serve configuration
+
+logger = logging.getLogger(__name__)
 
 
 async def _aiorpcerror_middleware(app, handler):
@@ -76,7 +79,7 @@ class GraphServerApp(RPCServerApp):
     async def _stop(app):
         await app["channel"].__aexit__(None, None, None)
         if app.get("local_server"):
-            stop_java_rpc_server(app["local_server"])
+            stop_java_grpc_server(app["local_server"])
 
 
 async def index(request):
@@ -332,13 +335,60 @@ class CountVisitNodesView(CountView):
     pass
 
 
-def make_app(config=None, rpc_url=None, spawn_rpc_port=50091, **kwargs):
-    app = GraphServerApp(**kwargs)
+def make_app(config=None):
+    """Create an aiohttp server for the HTTP RPC frontend to the swh-graph API.
 
-    if rpc_url is None:
-        app["local_server"], port = spawn_java_rpc_server(config, port=spawn_rpc_port)
+    It may either connect to an existing grpc server (cls="remote") or spawn a
+    local grpc server (cls="local").
+
+    ``config`` is expected to be a dict like::
+
+      graph:
+        cls: "local"
+        grpc_server:
+          port: 50091
+        http_rpc_server:
+          debug: true
+
+    or::
+
+      graph:
+        cls: "remote"
+        url: "localhost:50091"
+        http_rpc_server:
+          debug: true
+
+    See:
+
+    - :mod:`swh.graph.grpc_server` for more details of the content of the
+      grpc_server section,
+
+    - :class:`~.GraphServerApp` class for more details of the content of the
+      http_rpc_server section.
+
+    """
+    if config is None:
+        config = {}
+    if "graph" not in config:
+        logger.info(
+            "Missing 'graph' configuration; default to a locally spawn"
+            "grpc server listening on 0.0.0.0:50091"
+        )
+        cfg = {"cls": "local", "grpc_server": {"port": 50091}}
+    else:
+        cfg = config["graph"].copy()
+    cls = cfg.pop("cls")
+    grpc_cfg = cfg.pop("grpc_server", {})
+    app = GraphServerApp(**cfg.get("http_rpc_server", {}))
+    if cls == "remote":
+        if "url" not in cfg:
+            raise KeyError("Missing 'url' configuration entry in the [graph] section")
+        rpc_url = cfg["url"]
+    elif cls == "local":
+        app["local_server"], port = spawn_java_grpc_server(**grpc_cfg)
         rpc_url = f"localhost:{port}"
-
+    else:
+        raise ValueError(f"Unknown swh.graph class cls={cls}")
     app.add_routes(
         [
             aiohttp.web.get("/", index),

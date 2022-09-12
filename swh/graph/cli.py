@@ -124,7 +124,7 @@ def serve(ctx, host, port, graph):
     """run the graph RPC service"""
     import aiohttp.web
 
-    from swh.graph.http_server import make_app
+    from swh.graph.http_rpc_server import make_app
 
     config = ctx.obj["config"]
     config.setdefault("graph", {})
