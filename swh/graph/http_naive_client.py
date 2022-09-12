@@ -1,10 +1,11 @@
-# Copyright (C) 2021  The Software Heritage developers
+# Copyright (C) 2021-2022  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 import functools
 import inspect
+import itertools
 import re
 import statistics
 from typing import (
@@ -150,9 +151,10 @@ class NaiveClient:
         direction: str = "forward",
         max_edges: int = 0,
         return_types: str = "*",
+        max_matching_nodes: int = 0,
     ) -> Iterator[str]:
         # TODO: max_edges
-        yield from filter_node_types(
+        leaves = filter_node_types(
             return_types,
             [
                 node
@@ -160,6 +162,11 @@ class NaiveClient:
                 if not self.graph.get_filtered_neighbors(node, edges, direction)
             ],
         )
+
+        if max_matching_nodes > 0:
+            leaves = itertools.islice(leaves, max_matching_nodes)
+
+        return leaves
 
     @check_arguments
     def neighbors(
@@ -250,9 +257,19 @@ class NaiveClient:
 
     @check_arguments
     def count_leaves(
-        self, src: str, edges: str = "*", direction: str = "forward"
+        self,
+        src: str,
+        edges: str = "*",
+        direction: str = "forward",
+        max_matching_nodes: int = 0,
     ) -> int:
-        return len(list(self.leaves(src, edges, direction)))
+        return len(
+            list(
+                self.leaves(
+                    src, edges, direction, max_matching_nodes=max_matching_nodes
+                )
+            )
+        )
 
     @check_arguments
     def count_neighbors(
