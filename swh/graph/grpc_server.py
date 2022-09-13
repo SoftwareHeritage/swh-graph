@@ -17,7 +17,7 @@ import aiohttp.web
 from swh.graph.config import check_config
 
 
-def spawn_java_grpc_server(**config):
+def build_grpc_server_cmdline(**config):
     port = config.pop("port", None)
     if port is None:
         port = aiohttp.test_utils.unused_port()
@@ -32,6 +32,11 @@ def spawn_java_grpc_server(**config):
         str(port),
         str(config["path"]),
     ]
+    return cmd, port
+
+
+def spawn_java_grpc_server(**config):
+    cmd, port = build_grpc_server_cmdline(**config)
     print(cmd)
     # XXX: shlex.join() is in 3.8
     # logging.info("Starting RPC server: %s", shlex.join(cmd))

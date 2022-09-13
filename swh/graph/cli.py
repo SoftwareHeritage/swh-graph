@@ -134,6 +134,53 @@ def serve(ctx, host, port, graph):
     aiohttp.web.run_app(app, host=host, port=port)
 
 
+@graph_cli_group.command(name="grpc-serve")
+@click.option(
+    "--port",
+    "-p",
+    default=50091,
+    type=click.INT,
+    metavar="PORT",
+    show_default=True,
+    help=(
+        "port to bind the server on (note: host is not configurable "
+        "for now and will be 0.0.0.0)"
+    ),
+)
+@click.option(
+    "--java-home",
+    "-j",
+    default=None,
+    metavar="JAVA_HOME",
+    help="absolute path to the Java Runtime Environment (JRE)",
+)
+@click.option(
+    "--graph", "-g", required=True, metavar="GRAPH", help="compressed graph basename"
+)
+@click.pass_context
+def grpc_serve(ctx, host, port, java_home, graph):
+    """start the graph GRPC service
+
+    This command uses execve to execute the java GRPC service.
+    """
+    import os
+    from pathlib import Path
+
+    from swh.graph.grpc_server import build_grpc_server_cmdline
+
+    config = ctx.obj["config"]
+    config.setdefault("graph", {})
+    config["graph"]["path"] = graph
+    cmd, port = build_grpc_server_cmdline(**config["graph"])
+
+    java_bin = cmd[0]
+    if java_home is not None:
+        java_bin = str(Path(java_home) / "bin" / java_bin)
+
+    print(f"Starting the GRPC server on 0.0.0.0:{port}")
+    os.execvp(java_bin, cmd)
+
+
 @graph_cli_group.command()
 @click.option(
     "--input-dataset",
