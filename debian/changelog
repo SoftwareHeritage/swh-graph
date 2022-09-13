@@ -1,3 +1,13 @@
+swh.graph (2.0.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 2.0.0     - (tagged by Nicolas Dandrimont
+    <nicolas@dandrimont.eu> on 2022-09-13 18:18:14 +0200)
+  * Upstream changes:     - Release swh.graph 2.0.0     - Rename modules
+    to unconfuse them     - Allow separate deployment of the swh.graph
+    grpc server
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 13 Sep 2022 16:33:41 +0000
+
 swh.graph (1.0.2-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 1.0.2     - (tagged by Valentin Lorentz
