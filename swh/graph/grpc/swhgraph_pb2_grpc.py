@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-from swh.graph.rpc import swhgraph_pb2 as swh_dot_graph_dot_rpc_dot_swhgraph__pb2
+from swh.graph.grpc import swhgraph_pb2 as swh_dot_graph_dot_grpc_dot_swhgraph__pb2
 
 
 class TraversalServiceStub(object):
@@ -17,38 +17,38 @@ class TraversalServiceStub(object):
         """
         self.GetNode = channel.unary_unary(
                 '/swh.graph.TraversalService/GetNode',
-                request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.GetNodeRequest.SerializeToString,
-                response_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.FromString,
+                request_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.GetNodeRequest.SerializeToString,
+                response_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.Node.FromString,
                 )
         self.Traverse = channel.unary_stream(
                 '/swh.graph.TraversalService/Traverse',
-                request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
-                response_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.FromString,
+                request_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
+                response_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.Node.FromString,
                 )
         self.FindPathTo = channel.unary_unary(
                 '/swh.graph.TraversalService/FindPathTo',
-                request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.FindPathToRequest.SerializeToString,
-                response_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Path.FromString,
+                request_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.FindPathToRequest.SerializeToString,
+                response_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.Path.FromString,
                 )
         self.FindPathBetween = channel.unary_unary(
                 '/swh.graph.TraversalService/FindPathBetween',
-                request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.FindPathBetweenRequest.SerializeToString,
-                response_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Path.FromString,
+                request_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.FindPathBetweenRequest.SerializeToString,
+                response_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.Path.FromString,
                 )
         self.CountNodes = channel.unary_unary(
                 '/swh.graph.TraversalService/CountNodes',
-                request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
-                response_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.CountResponse.FromString,
+                request_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
+                response_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.CountResponse.FromString,
                 )
         self.CountEdges = channel.unary_unary(
                 '/swh.graph.TraversalService/CountEdges',
-                request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
-                response_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.CountResponse.FromString,
+                request_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
+                response_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.CountResponse.FromString,
                 )
         self.Stats = channel.unary_unary(
                 '/swh.graph.TraversalService/Stats',
-                request_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.StatsRequest.SerializeToString,
-                response_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.StatsResponse.FromString,
+                request_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.StatsRequest.SerializeToString,
+                response_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.StatsResponse.FromString,
                 )
 
 
@@ -139,38 +139,38 @@ def add_TraversalServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'GetNode': grpc.unary_unary_rpc_method_handler(
                     servicer.GetNode,
-                    request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.GetNodeRequest.FromString,
-                    response_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.SerializeToString,
+                    request_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.GetNodeRequest.FromString,
+                    response_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.Node.SerializeToString,
             ),
             'Traverse': grpc.unary_stream_rpc_method_handler(
                     servicer.Traverse,
-                    request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.TraversalRequest.FromString,
-                    response_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.SerializeToString,
+                    request_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.TraversalRequest.FromString,
+                    response_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.Node.SerializeToString,
             ),
             'FindPathTo': grpc.unary_unary_rpc_method_handler(
                     servicer.FindPathTo,
-                    request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.FindPathToRequest.FromString,
-                    response_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Path.SerializeToString,
+                    request_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.FindPathToRequest.FromString,
+                    response_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.Path.SerializeToString,
             ),
             'FindPathBetween': grpc.unary_unary_rpc_method_handler(
                     servicer.FindPathBetween,
-                    request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.FindPathBetweenRequest.FromString,
-                    response_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Path.SerializeToString,
+                    request_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.FindPathBetweenRequest.FromString,
+                    response_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.Path.SerializeToString,
             ),
             'CountNodes': grpc.unary_unary_rpc_method_handler(
                     servicer.CountNodes,
-                    request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.TraversalRequest.FromString,
-                    response_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.CountResponse.SerializeToString,
+                    request_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.TraversalRequest.FromString,
+                    response_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.CountResponse.SerializeToString,
             ),
             'CountEdges': grpc.unary_unary_rpc_method_handler(
                     servicer.CountEdges,
-                    request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.TraversalRequest.FromString,
-                    response_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.CountResponse.SerializeToString,
+                    request_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.TraversalRequest.FromString,
+                    response_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.CountResponse.SerializeToString,
             ),
             'Stats': grpc.unary_unary_rpc_method_handler(
                     servicer.Stats,
-                    request_deserializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.StatsRequest.FromString,
-                    response_serializer=swh_dot_graph_dot_rpc_dot_swhgraph__pb2.StatsResponse.SerializeToString,
+                    request_deserializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.StatsRequest.FromString,
+                    response_serializer=swh_dot_graph_dot_grpc_dot_swhgraph__pb2.StatsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -195,8 +195,8 @@ class TraversalService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/swh.graph.TraversalService/GetNode',
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.GetNodeRequest.SerializeToString,
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.FromString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.GetNodeRequest.SerializeToString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.Node.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -212,8 +212,8 @@ class TraversalService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_stream(request, target, '/swh.graph.TraversalService/Traverse',
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Node.FromString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.Node.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -229,8 +229,8 @@ class TraversalService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/swh.graph.TraversalService/FindPathTo',
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.FindPathToRequest.SerializeToString,
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Path.FromString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.FindPathToRequest.SerializeToString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.Path.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -246,8 +246,8 @@ class TraversalService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/swh.graph.TraversalService/FindPathBetween',
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.FindPathBetweenRequest.SerializeToString,
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.Path.FromString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.FindPathBetweenRequest.SerializeToString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.Path.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -263,8 +263,8 @@ class TraversalService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/swh.graph.TraversalService/CountNodes',
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.CountResponse.FromString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.CountResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -280,8 +280,8 @@ class TraversalService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/swh.graph.TraversalService/CountEdges',
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.CountResponse.FromString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.TraversalRequest.SerializeToString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.CountResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -297,7 +297,7 @@ class TraversalService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/swh.graph.TraversalService/Stats',
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.StatsRequest.SerializeToString,
-            swh_dot_graph_dot_rpc_dot_swhgraph__pb2.StatsResponse.FromString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.StatsRequest.SerializeToString,
+            swh_dot_graph_dot_grpc_dot_swhgraph__pb2.StatsResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
