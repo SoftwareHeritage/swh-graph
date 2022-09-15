@@ -49,4 +49,4 @@ repos:
         pass_filenames: false
         language: system
 
-exclude: ^swh/graph/rpc/
+exclude: ^swh/graph/grpc/
