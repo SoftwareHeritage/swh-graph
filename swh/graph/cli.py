@@ -158,7 +158,7 @@ def serve(ctx, host, port, graph):
     "--graph", "-g", required=True, metavar="GRAPH", help="compressed graph basename"
 )
 @click.pass_context
-def grpc_serve(ctx, host, port, java_home, graph):
+def grpc_serve(ctx, port, java_home, graph):
     """start the graph GRPC service
 
     This command uses execve to execute the java GRPC service.

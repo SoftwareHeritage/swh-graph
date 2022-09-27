@@ -8,6 +8,8 @@
 package org.softwareheritage.graph.rpc;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.softwareheritage.graph.GraphTest;
 import org.softwareheritage.graph.SWHID;
 
@@ -19,18 +21,38 @@ public class TraverseLeavesTest extends TraversalServiceTest {
                 .setReturnNodes(NodeFilter.newBuilder().setMaxTraversalSuccessors(0).build());
     }
 
-    @Test
-    public void forwardFromSnp() {
-        TraversalRequest request = getLeavesRequestBuilder(fakeSWHID("snp", 20)).build();
-
+    private void _checkForwardFromSnp(int limit, ArrayList<SWHID> actualLeaves) {
         ArrayList<SWHID> expectedLeaves = new ArrayList<>();
         expectedLeaves.add(new SWHID("swh:1:cnt:0000000000000000000000000000000000000001"));
         expectedLeaves.add(new SWHID("swh:1:cnt:0000000000000000000000000000000000000004"));
         expectedLeaves.add(new SWHID("swh:1:cnt:0000000000000000000000000000000000000005"));
         expectedLeaves.add(new SWHID("swh:1:cnt:0000000000000000000000000000000000000007"));
 
+        if (limit == 0) {
+            GraphTest.assertEqualsAnyOrder(expectedLeaves, actualLeaves);
+        } else {
+            GraphTest.assertContainsAll(expectedLeaves, actualLeaves);
+            GraphTest.assertLength(Math.max(0, Math.min(limit, 4)), actualLeaves);
+        }
+    }
+
+    @Test
+    public void forwardFromSnp() {
+        TraversalRequest request = getLeavesRequestBuilder(fakeSWHID("snp", 20)).build();
+
         ArrayList<SWHID> actualLeaves = getSWHIDs(client.traverse(request));
-        GraphTest.assertEqualsAnyOrder(expectedLeaves, actualLeaves);
+
+        _checkForwardFromSnp(0, actualLeaves);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 2, 3, 4, 5, Integer.MAX_VALUE})
+    public void forwardFromSnpWithLimit(int limit) {
+        TraversalRequest request = getLeavesRequestBuilder(fakeSWHID("snp", 20)).setMaxMatchingNodes(limit).build();
+
+        ArrayList<SWHID> actualLeaves = getSWHIDs(client.traverse(request));
+
+        _checkForwardFromSnp(limit, actualLeaves);
     }
 
     @Test
@@ -92,6 +114,17 @@ public class TraverseLeavesTest extends TraversalServiceTest {
     public void backwardCntToDirDirToDir() {
         TraversalRequest request = getLeavesRequestBuilder(fakeSWHID("cnt", 5)).setEdges("cnt:dir,dir:dir")
                 .setDirection(GraphDirection.BACKWARD).build();
+        ArrayList<SWHID> actualLeaves = getSWHIDs(client.traverse(request));
+        ArrayList<SWHID> expectedLeaves = new ArrayList<>();
+        expectedLeaves.add(new SWHID("swh:1:dir:0000000000000000000000000000000000000012"));
+        GraphTest.assertEqualsAnyOrder(expectedLeaves, actualLeaves);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 2, Integer.MAX_VALUE})
+    public void backwardCntToDirDirToDirWithLimit(int limit) {
+        TraversalRequest request = getLeavesRequestBuilder(fakeSWHID("cnt", 5)).setEdges("cnt:dir,dir:dir")
+                .setDirection(GraphDirection.BACKWARD).setMaxMatchingNodes(limit).build();
         ArrayList<SWHID> actualLeaves = getSWHIDs(client.traverse(request));
         ArrayList<SWHID> expectedLeaves = new ArrayList<>();
         expectedLeaves.add(new SWHID("swh:1:dir:0000000000000000000000000000000000000012"));

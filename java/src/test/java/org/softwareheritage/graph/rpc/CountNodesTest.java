@@ -15,6 +15,8 @@ import org.softwareheritage.graph.SWHID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class CountNodesTest extends TraversalServiceTest {
     private TraversalRequest.Builder getTraversalRequestBuilder(SWHID src) {
@@ -39,6 +41,19 @@ public class CountNodesTest extends TraversalServiceTest {
     public void forwardFromRoot() {
         CountResponse actual = client.countNodes(getTraversalRequestBuilder(new SWHID(TEST_ORIGIN_ID)).build());
         assertEquals(12, actual.getCount());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 2, 5, 11, 12, 13, 14, 15, Integer.MAX_VALUE})
+    public void forwardFromRootWithLimit(int limit) {
+        CountResponse actual = client
+                .countNodes(getTraversalRequestBuilder(new SWHID(TEST_ORIGIN_ID)).setMaxMatchingNodes(limit).build());
+
+        if (limit == 0) {
+            assertEquals(12, actual.getCount());
+        } else {
+            assertEquals(Math.min(limit, 12), actual.getCount());
+        }
     }
 
     @Test
@@ -73,6 +88,14 @@ public class CountNodesTest extends TraversalServiceTest {
         CountResponse actual = client.countNodes(getTraversalRequestBuilder(fakeSWHID("rev", 3))
                 .setEdges("rev:rev,rev:rel").setDirection(GraphDirection.BACKWARD).build());
         assertEquals(6, actual.getCount());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7})
+    public void backwardRevToRevRevToRelWithLimit(int limit) {
+        CountResponse actual = client.countNodes(getTraversalRequestBuilder(fakeSWHID("rev", 3))
+                .setEdges("rev:rev,rev:rel").setDirection(GraphDirection.BACKWARD).setMaxMatchingNodes(limit).build());
+        assertEquals(Math.min(limit, 6), actual.getCount());
     }
 
     @Test

@@ -22,6 +22,7 @@ import it.unimi.dsi.big.webgraph.LazyLongIterators;
 import org.junit.jupiter.api.BeforeAll;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class GraphTest {
     static SwhBidirectionalGraph graph;
@@ -51,6 +52,34 @@ public class GraphTest {
         expectedList.sort(Comparator.comparing(Object::toString));
         actualList.sort(Comparator.comparing(Object::toString));
         assertEquals(expectedList, actualList);
+    }
+
+    public static <T> void assertContainsAll(Collection<T> expected, Collection<T> actual) {
+        ArrayList<T> expectedList = new ArrayList<>(expected);
+        ArrayList<T> actualList = new ArrayList<>(actual);
+        expectedList.sort(Comparator.comparing(Object::toString));
+        Iterator<T> expectedIterator = expectedList.iterator();
+
+        actualList.sort(Comparator.comparing(Object::toString));
+
+        for (T actualItem : actualList) {
+            boolean found = false;
+            while (expectedIterator.hasNext()) {
+                if (expectedIterator.next().equals(actualItem)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                // TODO: better message when actualItem is present twice in actualList,
+                // but only once in expectedList
+                fail(String.format("%s not found in %s", actualItem, expectedList));
+            }
+        }
+    }
+
+    public static <T> void assertLength(int expected, Collection<T> actual) {
+        assertEquals(String.format("Size of collection %s:", actual), expected, actual.size());
     }
 
     public static ArrayList<Long> lazyLongIteratorToList(LazyLongIterator input) {

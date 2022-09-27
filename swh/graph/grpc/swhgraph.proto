@@ -106,6 +106,9 @@ message TraversalRequest {
     /* FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
      * By default, all fields are returned. */
     optional google.protobuf.FieldMask mask = 8;
+    /* Maximum number of matching results before stopping. For Traverse(), this is
+     * the total number of results. Defaults to infinite. */
+    optional int64 max_matching_nodes = 9;
 }
 
 /* FindPathToRequest describes a request to find a shortest path between a
