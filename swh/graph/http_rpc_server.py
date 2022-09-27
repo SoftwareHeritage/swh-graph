@@ -144,13 +144,15 @@ class GraphView(aiohttp.web.View):
         else:
             return s
 
-    def get_limit(self):
-        """Validate HTTP query parameter `limit`, i.e., number of results"""
-        s = self.request.query.get("limit", "0")
+    def get_max_matching_nodes(self):
+        """Validate HTTP query parameter `max_matching_nodes`, i.e., number of results"""
+        s = self.request.query.get("max_matching_nodes", "0")
         try:
             return int(s)
         except ValueError:
-            raise aiohttp.web.HTTPBadRequest(text=f"invalid limit value: {s}")
+            raise aiohttp.web.HTTPBadRequest(
+                text=f"invalid max_matching_nodes value: {s}"
+            )
 
     def get_max_edges(self):
         """Validate HTTP query parameter 'max_edges', i.e.,
@@ -249,6 +251,7 @@ class SimpleTraversalView(StreamingGraphView):
             direction=self.get_direction(),
             return_nodes=NodeFilter(types=self.get_return_types()),
             mask=FieldMask(paths=["swhid"]),
+            max_matching_nodes=self.get_max_matching_nodes(),
         )
         if self.get_max_edges():
             self.traversal_request.max_edges = self.get_max_edges()
@@ -307,6 +310,7 @@ class CountView(GraphView):
             direction=self.get_direction(),
             return_nodes=NodeFilter(types=self.get_return_types()),
             mask=FieldMask(paths=["swhid"]),
+            max_matching_nodes=self.get_max_matching_nodes(),
         )
         if self.get_max_edges():
             self.traversal_request.max_edges = self.get_max_edges()

@@ -15,6 +15,8 @@ import org.softwareheritage.graph.SWHID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class CountEdgesTest extends TraversalServiceTest {
     private TraversalRequest.Builder getTraversalRequestBuilder(SWHID src) {
@@ -39,6 +41,29 @@ public class CountEdgesTest extends TraversalServiceTest {
     public void forwardFromRoot() {
         CountResponse actual = client.countEdges(getTraversalRequestBuilder(new SWHID(TEST_ORIGIN_ID)).build());
         assertEquals(13, actual.getCount());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 2, 13, 14, 15, Integer.MAX_VALUE})
+    public void forwardFromRootWithLimit(int limit) {
+        CountResponse actual = client
+                .countEdges(getTraversalRequestBuilder(new SWHID(TEST_ORIGIN_ID)).setMaxMatchingNodes(limit).build());
+
+        switch (limit) {
+            case 1:
+                // 1. origin -> snp:20
+                assertEquals(1, actual.getCount());
+                break;
+            case 2:
+                // 1. origin -> snp:20
+                // 2. either snp:20 -> rev:9 or snp:20 -> rel:10
+                assertEquals(3, actual.getCount());
+                break;
+            default :
+                // Counts all edges
+                assertEquals(13, actual.getCount());
+                break;
+        }
     }
 
     @Test

@@ -43,6 +43,25 @@ def test_leaves(graph_client):
     assert set(actual) == set(expected)
 
 
+@pytest.mark.parametrize("max_matching_nodes", [0, 1, 2, 3, 4, 5, 10, 1 << 31])
+def test_leaves_with_limit(graph_client, max_matching_nodes):
+    actual = list(
+        graph_client.leaves(TEST_ORIGIN_ID, max_matching_nodes=max_matching_nodes)
+    )
+    expected = [
+        "swh:1:cnt:0000000000000000000000000000000000000001",
+        "swh:1:cnt:0000000000000000000000000000000000000004",
+        "swh:1:cnt:0000000000000000000000000000000000000005",
+        "swh:1:cnt:0000000000000000000000000000000000000007",
+    ]
+
+    if max_matching_nodes == 0:
+        assert set(actual) == set(expected)
+    else:
+        assert set(actual) <= set(expected)
+        assert len(actual) == min(4, max_matching_nodes)
+
+
 def test_neighbors(graph_client):
     actual = list(
         graph_client.neighbors(
@@ -324,6 +343,17 @@ def test_count(graph_client):
         "swh:1:rev:0000000000000000000000000000000000000009", direction="backward"
     )
     assert actual == 3
+
+
+@pytest.mark.parametrize("max_matching_nodes", [0, 1, 2, 3, 4, 5, 10, 1 << 31])
+def test_count_with_limit(graph_client, max_matching_nodes):
+    actual = graph_client.count_leaves(
+        TEST_ORIGIN_ID, max_matching_nodes=max_matching_nodes
+    )
+    if max_matching_nodes == 0:
+        assert actual == 4
+    else:
+        assert actual == min(4, max_matching_nodes)
 
 
 def test_param_validation(graph_client):

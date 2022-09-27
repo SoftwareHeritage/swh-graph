@@ -52,7 +52,13 @@ class RemoteGraphClient(RPCClient):
         return self.get("stats")
 
     def leaves(
-        self, src, edges="*", direction="forward", max_edges=0, return_types="*"
+        self,
+        src,
+        edges="*",
+        direction="forward",
+        max_edges=0,
+        return_types="*",
+        max_matching_nodes=0,
     ):
         return self.get_lines(
             "leaves/{}".format(src),
@@ -61,6 +67,7 @@ class RemoteGraphClient(RPCClient):
                 "direction": direction,
                 "max_edges": max_edges,
                 "return_types": return_types,
+                "max_matching_nodes": max_matching_nodes,
             },
         )
 
@@ -137,10 +144,14 @@ class RemoteGraphClient(RPCClient):
             },
         )
 
-    def count_leaves(self, src, edges="*", direction="forward"):
+    def count_leaves(self, src, edges="*", direction="forward", max_matching_nodes=0):
         return self.get(
             "leaves/count/{}".format(src),
-            params={"edges": edges, "direction": direction},
+            params={
+                "edges": edges,
+                "direction": direction,
+                "max_matching_nodes": max_matching_nodes,
+            },
         )
 
     def count_neighbors(self, src, edges="*", direction="forward"):
