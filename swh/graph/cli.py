@@ -175,6 +175,7 @@ def grpc_serve(ctx, port, java_home, graph):
     config = ctx.obj["config"]
     config.setdefault("graph", {})
     config["graph"]["path"] = graph
+    config["graph"]["port"] = port
 
     logger.debug("Building gPRC server command line")
     cmd, port = build_grpc_server_cmdline(**config["graph"])
