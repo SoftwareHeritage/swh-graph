@@ -91,6 +91,27 @@ def test_visit_nodes(graph_client):
     assert set(actual) == set(expected)
 
 
+@pytest.mark.parametrize("max_matching_nodes", [0, 1, 2, 3, 4, 5, 10, 1 << 31])
+def test_visit_nodes_limit(graph_client, max_matching_nodes):
+    actual = list(
+        graph_client.visit_nodes(
+            "swh:1:rel:0000000000000000000000000000000000000010",
+            edges="rel:rev,rev:rev",
+            max_matching_nodes=max_matching_nodes,
+        )
+    )
+    expected = [
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        "swh:1:rev:0000000000000000000000000000000000000009",
+        "swh:1:rev:0000000000000000000000000000000000000003",
+    ]
+    if max_matching_nodes == 0:
+        assert set(actual) == set(expected)
+    else:
+        assert set(actual) <= set(expected)
+        assert len(actual) == min(3, max_matching_nodes)
+
+
 def test_visit_nodes_filtered(graph_client):
     actual = list(
         graph_client.visit_nodes(

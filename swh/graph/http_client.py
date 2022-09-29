@@ -85,7 +85,13 @@ class RemoteGraphClient(RPCClient):
         )
 
     def visit_nodes(
-        self, src, edges="*", direction="forward", max_edges=0, return_types="*"
+        self,
+        src,
+        edges="*",
+        direction="forward",
+        max_edges=0,
+        return_types="*",
+        max_matching_nodes=0,
     ):
         return self.get_lines(
             "visit/nodes/{}".format(src),
@@ -94,6 +100,7 @@ class RemoteGraphClient(RPCClient):
                 "direction": direction,
                 "max_edges": max_edges,
                 "return_types": return_types,
+                "max_matching_nodes": max_matching_nodes,
             },
         )
 
@@ -160,8 +167,14 @@ class RemoteGraphClient(RPCClient):
             params={"edges": edges, "direction": direction},
         )
 
-    def count_visit_nodes(self, src, edges="*", direction="forward"):
+    def count_visit_nodes(
+        self, src, edges="*", direction="forward", max_matching_nodes=0
+    ):
         return self.get(
             "visit/nodes/count/{}".format(src),
-            params={"edges": edges, "direction": direction},
+            params={
+                "edges": edges,
+                "direction": direction,
+                "max_matching_nodes": max_matching_nodes,
+            },
         )
