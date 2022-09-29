@@ -292,13 +292,13 @@ public class Traversal {
             if (nodeMatchesConstraints) {
                 if (nodeBuilder != null) {
                     nodeObserver.onNext(nodeBuilder.build());
-                }
 
-                if (remainingMatches >= 0) {
-                    remainingMatches--;
-                    if (remainingMatches == 0) {
-                        // We matched as many nodes as allowed
-                        throw new StopTraversalException();
+                    if (remainingMatches >= 0) {
+                        remainingMatches--;
+                        if (remainingMatches == 0) {
+                            // We matched as many nodes as allowed
+                            throw new StopTraversalException();
+                        }
                     }
                 }
             }
