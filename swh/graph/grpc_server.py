@@ -16,12 +16,17 @@ import aiohttp.web
 
 from swh.graph.config import check_config
 
+logger = logging.getLogger(__name__)
+
 
 def build_grpc_server_cmdline(**config):
     port = config.pop("port", None)
     if port is None:
         port = aiohttp.test_utils.unused_port()
+        logger.debug("Port not configured, using random port %s", port)
+    logger.debug("Checking configuration and populating default values")
     config = check_config(config)
+    logger.debug("Configuration: %r", config)
     cmd = [
         "java",
         "--class-path",
@@ -39,8 +44,8 @@ def spawn_java_grpc_server(**config):
     cmd, port = build_grpc_server_cmdline(**config)
     print(cmd)
     # XXX: shlex.join() is in 3.8
-    # logging.info("Starting RPC server: %s", shlex.join(cmd))
-    logging.info("Starting GRPC server: %s", " ".join(shlex.quote(x) for x in cmd))
+    # logger.info("Starting gRPC server: %s", shlex.join(cmd))
+    logger.info("Starting gRPC server: %s", " ".join(shlex.quote(x) for x in cmd))
     server = subprocess.Popen(cmd)
     return server, port
 
@@ -50,5 +55,5 @@ def stop_java_grpc_server(server: subprocess.Popen, timeout: int = 15):
     try:
         server.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
-        logging.warning("Server did not terminate, sending kill signal...")
+        logger.warning("Server did not terminate, sending kill signal...")
         server.kill()

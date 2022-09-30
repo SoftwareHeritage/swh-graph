@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2022  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -9,6 +9,8 @@ import sys
 
 import psutil
 
+logger = logging.getLogger(__name__)
+
 
 def find_graph_jar():
     """find swh-graph.jar, containing the Java part of swh-graph
@@ -17,6 +19,7 @@ def find_graph_jar():
     deployments who fecthed the JAR from pypi)
 
     """
+    logger.debug("Looking for swh-graph JAR")
     swh_graph_root = Path(__file__).parents[2]
     try_paths = [
         swh_graph_root / "java/target/",
@@ -24,13 +27,14 @@ def find_graph_jar():
         Path(sys.prefix) / "local/share/swh-graph/",
     ]
     for path in try_paths:
+        logger.debug("Looking for swh-graph JAR in %s", path)
         glob = list(path.glob("swh-graph-*.jar"))
         if glob:
             if len(glob) > 1:
-                logging.warning(
+                logger.warning(
                     "found multiple swh-graph JARs, " "arbitrarily picking one"
                 )
-            logging.info("using swh-graph JAR: {0}".format(glob[0]))
+            logger.info("using swh-graph JAR: {0}".format(glob[0]))
             return str(glob[0])
     raise RuntimeError("swh-graph JAR not found. Have you run `make java`?")
 
@@ -42,10 +46,13 @@ def check_config(conf):
         # Use 0.1% of the RAM as a batch size:
         # ~1 billion for big servers, ~10 million for small desktop machines
         conf["batch_size"] = min(int(psutil.virtual_memory().total / 1000), 2**30 - 1)
+        logger.debug("batch_size not configured, defaulting to %s", conf["batch_size"])
     if "llp_gammas" not in conf:
         conf["llp_gammas"] = "-0,-1,-2,-3,-4"
+        logger.debug("llp_gammas not configured, defaulting to %s", conf["llp_gammas"])
     if "max_ram" not in conf:
         conf["max_ram"] = str(int(psutil.virtual_memory().total * 0.9))
+        logger.debug("max_ram not configured, defaulting to %s", conf["max_ram"])
     if "java_tool_options" not in conf:
         conf["java_tool_options"] = " ".join(
             [
@@ -58,6 +65,10 @@ def check_config(conf):
                 "-XX:+UseTLAB",
                 "-XX:+ResizeTLAB",
             ]
+        )
+        logger.debug(
+            "java_tool_options not providing, defaulting to %s",
+            conf["java_tool_options"],
         )
     conf["java_tool_options"] = conf["java_tool_options"].format(
         max_ram=conf["max_ram"]

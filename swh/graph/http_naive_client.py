@@ -190,11 +190,15 @@ class NaiveClient:
         direction: str = "forward",
         max_edges: int = 0,
         return_types: str = "*",
+        max_matching_nodes: int = 0,
     ) -> Iterator[str]:
         # TODO: max_edges
-        yield from filter_node_types(
+        res = filter_node_types(
             return_types, self.graph.get_subgraph(src, edges, direction)
         )
+        if max_matching_nodes > 0:
+            res = itertools.islice(res, max_matching_nodes)
+        return res
 
     @check_arguments
     def visit_edges(
@@ -279,9 +283,16 @@ class NaiveClient:
 
     @check_arguments
     def count_visit_nodes(
-        self, src: str, edges: str = "*", direction: str = "forward"
+        self,
+        src: str,
+        edges: str = "*",
+        direction: str = "forward",
+        max_matching_nodes: int = 0,
     ) -> int:
-        return len(self.graph.get_subgraph(src, edges, direction))
+        res = len(self.graph.get_subgraph(src, edges, direction))
+        if max_matching_nodes > 0:
+            res = min(max_matching_nodes, res)
+        return res
 
 
 class Graph:
