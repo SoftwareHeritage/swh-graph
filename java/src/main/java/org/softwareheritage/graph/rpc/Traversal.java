@@ -280,25 +280,23 @@ public class Traversal {
             }
             super.visitNode(node);
 
-            boolean nodeMatchesConstraints = true;
-
-            if (request.getReturnNodes().hasMinTraversalSuccessors()) {
-                nodeMatchesConstraints &= traversalSuccessors >= request.getReturnNodes().getMinTraversalSuccessors();
+            if (request.getReturnNodes().hasMinTraversalSuccessors()
+                    && traversalSuccessors < request.getReturnNodes().getMinTraversalSuccessors()) {
+                nodeBuilder = null;
             }
-            if (request.getReturnNodes().hasMaxTraversalSuccessors()) {
-                nodeMatchesConstraints &= traversalSuccessors <= request.getReturnNodes().getMaxTraversalSuccessors();
+            if (request.getReturnNodes().hasMaxTraversalSuccessors()
+                    && traversalSuccessors > request.getReturnNodes().getMaxTraversalSuccessors()) {
+                nodeBuilder = null;
             }
 
-            if (nodeMatchesConstraints) {
-                if (nodeBuilder != null) {
-                    nodeObserver.onNext(nodeBuilder.build());
+            if (nodeBuilder != null) {
+                nodeObserver.onNext(nodeBuilder.build());
 
-                    if (remainingMatches >= 0) {
-                        remainingMatches--;
-                        if (remainingMatches == 0) {
-                            // We matched as many nodes as allowed
-                            throw new StopTraversalException();
-                        }
+                if (remainingMatches >= 0) {
+                    remainingMatches--;
+                    if (remainingMatches == 0) {
+                        // We matched as many nodes as allowed
+                        throw new StopTraversalException();
                     }
                 }
             }
