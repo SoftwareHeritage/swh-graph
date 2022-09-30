@@ -1,3 +1,13 @@
+swh.graph (2.1.2-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 2.1.2     - (tagged by Valentin Lorentz
+    <vlorentz@softwareheritage.org> on 2022-09-30 17:06:48 +0200)
+  * Upstream changes:     - v2.1.2     - * Apply 'max_matching_nodes'
+    restriction after 'return_types' filter     - * http_client: Add
+    max_matching_nodes parameter to visit_nodes()
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Fri, 30 Sep 2022 15:24:55 +0000
+
 swh.graph (2.1.0-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 2.1.0     - (tagged by Valentin Lorentz
