@@ -1,9 +1,11 @@
-# Copyright (C) 2019-2020  The Software Heritage developers
+# Copyright (C) 2019-2022  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import logging
 from pathlib import Path
+import shlex
 from typing import TYPE_CHECKING, Any, Dict, Set, Tuple
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
@@ -15,6 +17,8 @@ from swh.core.cli import swh as swh_cli_group
 
 if TYPE_CHECKING:
     from swh.graph.webgraph import CompressionStep  # noqa
+
+logger = logging.getLogger(__name__)
 
 
 class StepOption(click.ParamType):
@@ -171,13 +175,18 @@ def grpc_serve(ctx, port, java_home, graph):
     config = ctx.obj["config"]
     config.setdefault("graph", {})
     config["graph"]["path"] = graph
+    config["graph"]["port"] = port
+
+    logger.debug("Building gPRC server command line")
     cmd, port = build_grpc_server_cmdline(**config["graph"])
 
     java_bin = cmd[0]
     if java_home is not None:
         java_bin = str(Path(java_home) / "bin" / java_bin)
 
-    print(f"Starting the GRPC server on 0.0.0.0:{port}")
+    # XXX: shlex.join() is in 3.8
+    # logger.info("Starting gRPC server: %s", shlex.join(cmd))
+    logger.info("Starting gRPC server: %s", " ".join(shlex.quote(x) for x in cmd))
     os.execvp(java_bin, cmd)
 
 

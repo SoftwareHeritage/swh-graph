@@ -83,6 +83,8 @@ Leaves
         default to 0 (not restricted)
     :query string return_types: only return the nodes matching this type;
         default to ``"*"``
+    :query integer max_matching_nodes: how many results to return before stopping;
+        default to 0 (not restricted)
 
     :statuscode 200: success
     :statuscode 400: invalid query string provided
@@ -207,6 +209,8 @@ Visit
         default to 0 (not restricted)
     :query string return_types: only return the nodes matching this type;
         default to ``"*"``
+    :query integer max_matching_nodes: how many nodes to return/visit before stopping;
+        default to 0 (not restricted)
 
     :statuscode 200: success
     :statuscode 400: invalid query string provided
