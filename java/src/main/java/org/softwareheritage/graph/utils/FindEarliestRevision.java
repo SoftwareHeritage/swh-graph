@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: (C) 2021 Antoine Pietri
+// SPDX-FileCopyrightText: (C) 2021 Stefano Zacchiroli
+
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package org.softwareheritage.graph.utils;
 
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
@@ -51,10 +56,13 @@ public class FindEarliestRevision {
         String rawSWHID = null;
         SWHID srcSWHID = null;
         long lineCount = 0;
+        long srcNodeId = -1;
         if (timing) {
             System.err.println("starting SWHID processing...");
             elapsed = Duration.ZERO;
         }
+        // print TSV header line
+        System.out.println("obj_swhid\tearliest_swhid\tearliest_ts\trev_occurrences");
         while (stdin.hasNextLine()) {
             if (timing)
                 ts = System.nanoTime();
@@ -66,7 +74,12 @@ public class FindEarliestRevision {
                 System.err.println(String.format("skipping invalid SWHID %s on line %d", rawSWHID, lineCount));
                 continue;
             }
-            long srcNodeId = graph.getNodeId(srcSWHID);
+            try {
+                srcNodeId = graph.getNodeId(srcSWHID);
+            } catch (IllegalArgumentException e) {
+                System.err.println(String.format("skipping unknown SWHID %s on line %d", rawSWHID, lineCount));
+                continue;
+            }
 
             if (timing)
                 System.err.println("starting traversal for: " + srcSWHID.toString());
@@ -77,11 +90,15 @@ public class FindEarliestRevision {
 
             long minRevId = -1;
             long minTimestamp = Long.MAX_VALUE;
+            long visitedRevisions = 0;
             while (!stack.isEmpty()) {
                 long currentNodeId = stack.pop();
                 if (graph.getNodeType(currentNodeId) == Node.Type.REV) {
+                    visitedRevisions++;
                     long committerTs = BigArrays.get(committerTimestamps, currentNodeId);
-                    if (committerTs < minTimestamp) {
+                    if (committerTs < minTimestamp && committerTs != Long.MIN_VALUE && committerTs != 0) {
+                        // exclude missing and zero (= epoch) as plausible earliest timestamps
+                        // as they are almost certainly bogus values
                         minRevId = currentNodeId;
                         minTimestamp = committerTs;
                     }
@@ -99,7 +116,8 @@ public class FindEarliestRevision {
             if (minRevId == -1) {
                 System.err.println("no revision found containing: " + srcSWHID.toString());
             } else {
-                System.out.println(srcSWHID.toString() + "\t" + graph.getSWHID(minRevId).toString());
+                System.out.println(srcSWHID.toString() + "\t" + graph.getSWHID(minRevId).toString() + "\t"
+                        + Long.toString(minTimestamp) + "\t" + Long.toString(visitedRevisions));
             }
             if (timing) {
                 elapsedNanos = System.nanoTime() - ts; // processing time for current SWHID
