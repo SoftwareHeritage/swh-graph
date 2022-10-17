@@ -187,7 +187,7 @@ message.
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.GetNode \
         'swhid: "invalidswhid"'
-    Rpc failed with status code 3, error message: malformed SWHID: swh:1:ori:ffffffffffffffffffffffffffffffffffffffff
+    Rpc failed with status code 3, error message: malformed SWHID: invalidswhid
 
 
 Selecting returned fields with FieldMask
@@ -379,17 +379,22 @@ Limiting the traversal
 ~~~~~~~~~~~~~~~~~~~~~~
 
 To avoid using up too much memory or resources, a traversal can be limited
-in two different ways:
+in three different ways:
 
 - the ``max_depth`` attribute defines the maximum depth of the traversal.
 - the ``max_edges`` attribute defines the maximum number of edges that can be
   fetched by the traversal.
+- the ``max_matching_nodes`` attribute defines how many nodes matching the
+  given constraints (see :ref:`swh-graph-grpc-api-return-nodes`) may be
+  visited by the traversal before halting.
+  This is typically used to limit the number of results in leaves requests.
 
 When these limits are reached, the traversal will simply stop. While these
 options have obvious use-cases for anti-abuse, they can also be semantically
 useful: for instance, specifying ``max_depth: 1`` will only return the
 *neighbors* of the source node.
 
+.. _swh-graph-grpc-api-return-nodes:
 
 Filtering returned nodes
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -534,9 +539,9 @@ restrictions.
     swhid: "swh:1:dir:0000000000000000000000000000000000000017"
     swhid: "swh:1:dir:0000000000000000000000000000000000000016"
     swhid: "swh:1:cnt:0000000000000000000000000000000000000015"
-    middle_node_index: 5
+    midpoint_index: 5
 
-Because ``middle_node_index = 5``, the common ancestor is
+Because ``midpoint_index = 5``, the common ancestor is
 ``swh:1:rev:0000000000000000000000000000000000000018``.
 
 
