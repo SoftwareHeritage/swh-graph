@@ -106,12 +106,22 @@ def fqswhid_of_traversal(response):
 @click.option(
     "-o",
     "--origin-url",
-    default="https://github.com/rdicosmo/parmap",
+    default='',
     metavar="ORIGINURL",
     show_default=True,
     help="URL of the origin where we look for a content",
 )
-def main(swh_bearer_token,content_swhid,origin_url):
+@click.option(
+    "--all-origins/-no-all-origins",
+    default=False,
+    help="Compute fqswhid for all origins",
+)
+@click.option(
+    "--random-origin/--no-random-origin",
+    default=False,
+    help="Compute fqswhid for a random origin",
+)
+def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin):
     global headers
     global swhcli
     if (swh_bearer_token):
@@ -122,68 +132,51 @@ def main(swh_bearer_token,content_swhid,origin_url):
 
     with grpc.insecure_channel(GRAPH_GRPC_SERVER) as channel:
         client = TraversalServiceStub(channel)
-        
-        # Stats request
-        if False:
-            print(client.Stats(StatsRequest()))
-        
-        # Traversal request
-        if False:
+
+        if all_origins:
+            # Traversal request: get all origins
             request = TraversalRequest(
-                src=["swh:1:cnt:3b997e8ef2e38d5b31fb353214a54686e72f0870"],
+                src=[content_swhid],
                 edges="cnt:dir,dir:dir,dir:rev,rev:rev,rev:rel,rel:snp,snp:ori",
                 direction="BACKWARD",
-                return_nodes=NodeFilter(types="cnt,dir,rev,rel,snp,ori"),
-                mask=FieldMask(paths=["swhid", "rel.message", "rel.author", "ori.url"]),
+                return_nodes=NodeFilter(types="ori"),
+                mask=FieldMask(paths=["swhid", "ori.url"]),
             )
             for node in client.Traverse(request):
-                # print(node)
-                print(node.swhid)
+                response = client.FindPathBetween(FindPathBetweenRequest(
+                    src=[content_swhid],
+                    dst=[node.swhid],
+                    direction="BACKWARD",
+                    mask=FieldMask(paths=["swhid","ori.url"]),
+                ))
+                print(fqswhid_of_traversal(response))
                 
-            print("-----------------")
+                print("-----------------")
+            
+        if random_origin:
+            # Traversal request to a (random) origin
+            
+            response = client.FindPathTo(FindPathToRequest(
+                src=[content_swhid],
+                target=NodeFilter(types="ori"),
+                direction="BACKWARD",
+                mask=FieldMask(paths=["swhid","ori.url"]),
+            ))
+            
+            print(fqswhid_of_traversal(response))
 
-        # Traversal request: get all origins
-        request = TraversalRequest(
-            src=["swh:1:cnt:8722d84d658e5e11519b807abb5c05bfbfc531f0"],
-            edges="cnt:dir,dir:dir,dir:rev,rev:rev,rev:rel,rel:snp,snp:ori",
-            direction="BACKWARD",
-            return_nodes=NodeFilter(types="ori"),
-            mask=FieldMask(paths=["swhid", "ori.url"]),
-        )
-        for node in client.Traverse(request):
+        # Traversal request to a given origin URL
+        if origin_url:
             response = client.FindPathBetween(FindPathBetweenRequest(
                 src=[content_swhid],
-                dst=[node.swhid],
+                dst=[str(ExtendedSWHID(
+                    object_type=ExtendedObjectType.ORIGIN,
+                    object_id=bytes.fromhex(sha1(bytes(origin_url,'UTF-8')).hexdigest())
+                ))],
                 direction="BACKWARD",
                 mask=FieldMask(paths=["swhid","ori.url"]),
             ))
             print(fqswhid_of_traversal(response))
-                
-            print("-----------------")
-            
-        # Traversal request to an origin
-        
-        response = client.FindPathTo(FindPathToRequest(
-            src=[content_swhid],
-            target=NodeFilter(types="ori"),
-            direction="BACKWARD",
-            mask=FieldMask(paths=["swhid","ori.url"]),
-        ))
-
-        print(fqswhid_of_traversal(response))
-
-        # Traversal request to a given origin URL
-        
-        response = client.FindPathBetween(FindPathBetweenRequest(
-            src=[content_swhid],
-            dst=[str(ExtendedSWHID(
-                object_type=ExtendedObjectType.ORIGIN,
-                object_id=bytes.fromhex(sha1(bytes(origin_url,'UTF-8')).hexdigest())
-            ))],
-            direction="BACKWARD",
-            mask=FieldMask(paths=["swhid","ori.url"]),
-        ))
-        print(fqswhid_of_traversal(response))
         
 if __name__ == "__main__":
     main()
