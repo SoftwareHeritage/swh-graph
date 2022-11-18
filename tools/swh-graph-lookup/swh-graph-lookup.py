@@ -11,6 +11,7 @@ from swh.model.swhids import ExtendedObjectType
 # from swh.model.swhids import ObjectType
 import grpc
 import click
+from hashlib import sha1
 
 # global variable holding headers parameters
 headers={}
@@ -171,6 +172,18 @@ def main(swh_bearer_token,content_swhid,origin_url):
 
         print(fqswhid_of_traversal(response))
 
+        # Traversal request to a given origin URL
+        
+        response = client.FindPathBetween(FindPathBetweenRequest(
+            src=[content_swhid],
+            dst=[str(ExtendedSWHID(
+                object_type=ExtendedObjectType.ORIGIN,
+                object_id=bytes.fromhex(sha1(bytes(origin_url,'UTF-8')).hexdigest())
+            ))],
+            direction="BACKWARD",
+            mask=FieldMask(paths=["swhid","ori.url"]),
+        ))
+        print(fqswhid_of_traversal(response))
         
 if __name__ == "__main__":
     main()
