@@ -80,8 +80,6 @@ def fqswhid_of_traversal(response):
         fqswhid.append('origin='+url)
     return(";".join(fqswhid))
 
-
-
 # Click docs: https://click.palletsprojects.com/en/8.0.x/options/
 @click.command(
     help="""Utility to get the fully qualified SWHID for a given content core SWHID.
@@ -145,6 +143,7 @@ def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,fil
         if filename:
             content_swhid=str(swhid_of_file(filename))
         
+        # Traversal request: get all origins
         if all_origins:
             random_origin=False
             # Traversal request: get all origins
@@ -163,8 +162,6 @@ def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,fil
                     mask=FieldMask(paths=["swhid","ori.url"]),
                 ))
                 print(fqswhid_of_traversal(response))
-                
-                print("-----------------")
             
         if random_origin:
             # Traversal request to a (random) origin
