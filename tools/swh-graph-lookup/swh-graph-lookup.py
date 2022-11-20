@@ -167,24 +167,21 @@ def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,fil
                     print(filename+" has SWHID "+content_swhid)
                 print("Failed to find "+content_swhid+" in the graph.")
                 exit(1)
+        # Traversal request to a (random) origin
+        if random_origin:
+            try:
+                response = client.FindPathTo(FindPathToRequest(
                     src=[content_swhid],
-                    dst=[node.swhid],
+                    target=NodeFilter(types="ori"),
                     direction="BACKWARD",
                     mask=FieldMask(paths=["swhid","ori.url"]),
                 ))
                 print(fqswhid_of_traversal(response))
-            
-        if random_origin:
-            # Traversal request to a (random) origin
-            
-            response = client.FindPathTo(FindPathToRequest(
-                src=[content_swhid],
-                target=NodeFilter(types="ori"),
-                direction="BACKWARD",
-                mask=FieldMask(paths=["swhid","ori.url"]),
-            ))
-            
-            print(fqswhid_of_traversal(response))
+            except:
+                if filename:
+                    print(filename+" has SWHID "+content_swhid)
+                print("Failed to find "+content_swhid+" in the graph.")
+                exit(1)
 
         # Traversal request to a given origin URL
         if origin_url:
