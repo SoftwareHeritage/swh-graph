@@ -95,6 +95,14 @@ def fqswhid_of_traversal(response):
     help="bearer token to bypass SWH API rate limit",
 )
 @click.option(
+    "-g",
+    "--graph-grpc-server",
+    default="localhost:50091",
+    metavar="GRAPH_GRPC_SERVER",
+    show_default=True,
+    help="Graph RPC server address: as host:port",
+)
+@click.option(
     "-c",
     "--content-swhid",
     default="swh:1:cnt:3b997e8ef2e38d5b31fb353214a54686e72f0870",
@@ -128,7 +136,7 @@ def fqswhid_of_traversal(response):
     default=True,
     help="Compute fqswhid for a random origin",
 )
-def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,filename):
+def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,filename,graph_grpc_server):
     global headers
     global swhcli
     if (swh_bearer_token):
@@ -137,7 +145,7 @@ def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,fil
     else:
        swhcli = WebAPIClient(api_url="https://archive.softwareheritage.org/api/1/")
 
-    with grpc.insecure_channel(GRAPH_GRPC_SERVER) as channel:
+    with grpc.insecure_channel(graph_grpc_server) as channel:
         client = TraversalServiceStub(channel)
 
         if filename:
