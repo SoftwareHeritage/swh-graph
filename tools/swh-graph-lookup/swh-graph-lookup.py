@@ -146,16 +146,27 @@ def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,fil
         # Traversal request: get all origins
         if all_origins:
             random_origin=False
-            # Traversal request: get all origins
-            request = TraversalRequest(
-                src=[content_swhid],
-                edges="cnt:dir,dir:dir,dir:rev,rev:rev,rev:rel,rel:snp,snp:ori",
-                direction="BACKWARD",
-                return_nodes=NodeFilter(types="ori"),
-                mask=FieldMask(paths=["swhid", "ori.url"]),
-            )
-            for node in client.Traverse(request):
-                response = client.FindPathBetween(FindPathBetweenRequest(
+            try:
+                response = client.Traverse(TraversalRequest(
+                    src=[content_swhid],
+                    edges="cnt:dir,dir:dir,dir:rev,rev:rev,rev:rel,rel:snp,snp:ori",
+                    direction="BACKWARD",
+                    return_nodes=NodeFilter(types="ori"),
+                    mask=FieldMask(paths=["swhid", "ori.url"]),
+                ))
+                for node in response:
+                    response = client.FindPathBetween(FindPathBetweenRequest(
+                        src=[content_swhid],
+                        dst=[node.swhid],
+                        direction="BACKWARD",
+                        mask=FieldMask(paths=["swhid","ori.url"]),
+                    ))
+                    print(fqswhid_of_traversal(response))
+            except:
+                if filename:
+                    print(filename+" has SWHID "+content_swhid)
+                print("Failed to find "+content_swhid+" in the graph.")
+                exit(1)
                     src=[content_swhid],
                     dst=[node.swhid],
                     direction="BACKWARD",
