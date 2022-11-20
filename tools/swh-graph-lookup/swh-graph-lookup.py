@@ -7,6 +7,7 @@ from swh.web.client.client import WebAPIClient
 # documentation: https://docs.softwareheritage.org/devel/apidoc/swh.model.swhids.html
 from swh.model.swhids import ExtendedSWHID
 from swh.model.swhids import ExtendedObjectType
+from swh.model.cli import swhid_of_file
 # from swh.model.swhids import CoreSWHID
 # from swh.model.swhids import ObjectType
 import grpc
@@ -104,6 +105,14 @@ def fqswhid_of_traversal(response):
     help="SWHID of the content",
 )
 @click.option(
+    "-f",
+    "--filename",
+    default='',
+    metavar="FILENAME",
+    show_default=True,
+    help="Name of file to search for",
+)
+@click.option(
     "-o",
     "--origin-url",
     default='',
@@ -118,10 +127,10 @@ def fqswhid_of_traversal(response):
 )
 @click.option(
     "--random-origin/--no-random-origin",
-    default=False,
+    default=True,
     help="Compute fqswhid for a random origin",
 )
-def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin):
+def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,filename):
     global headers
     global swhcli
     if (swh_bearer_token):
@@ -133,7 +142,11 @@ def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin):
     with grpc.insecure_channel(GRAPH_GRPC_SERVER) as channel:
         client = TraversalServiceStub(channel)
 
+        if filename:
+            content_swhid=str(swhid_of_file(filename))
+        
         if all_origins:
+            random_origin=False
             # Traversal request: get all origins
             request = TraversalRequest(
                 src=[content_swhid],
