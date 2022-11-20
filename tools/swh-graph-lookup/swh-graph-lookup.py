@@ -127,16 +127,21 @@ def fqswhid_of_traversal(response):
     help="URL of the origin where we look for a content",
 )
 @click.option(
-    "--all-origins/-no-all-origins",
+    "--all-origins/--no-all-origins",
     default=False,
     help="Compute fqswhid for all origins",
+)
+@click.option(
+    "--fqswhid/--no-fqswhid",
+    default=True,
+    help="Compute fqswhid. If disabled, print only the origins.",
 )
 @click.option(
     "--random-origin/--no-random-origin",
     default=True,
     help="Compute fqswhid for a random origin",
 )
-def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,filename,graph_grpc_server):
+def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,filename,graph_grpc_server,fqswhid):
     global headers
     global swhcli
     if (swh_bearer_token):
@@ -163,13 +168,16 @@ def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,fil
                     mask=FieldMask(paths=["swhid", "ori.url"]),
                 ))
                 for node in response:
-                    response = client.FindPathBetween(FindPathBetweenRequest(
-                        src=[content_swhid],
-                        dst=[node.swhid],
-                        direction="BACKWARD",
-                        mask=FieldMask(paths=["swhid","ori.url"]),
-                    ))
-                    print(fqswhid_of_traversal(response))
+                    if fqswhid:
+                        response = client.FindPathBetween(FindPathBetweenRequest(
+                            src=[content_swhid],
+                            dst=[node.swhid],
+                            direction="BACKWARD",
+                            mask=FieldMask(paths=["swhid","ori.url"]),
+                        ))
+                        print(fqswhid_of_traversal(response))
+                    else:
+                        print(node.ori.url)
             except:
                 print("Exception", e.__class__, " occurred.")
                 if filename:
@@ -185,7 +193,11 @@ def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,fil
                     direction="BACKWARD",
                     mask=FieldMask(paths=["swhid","ori.url"]),
                 ))
-                print(fqswhid_of_traversal(response))
+                if fqswhid:
+                    print(fqswhid_of_traversal(response))
+                else:
+                    for node in response.node:
+                        print(node.ori.url)
             except Exception as e:
                 print("Exception", e.__class__, " occurred.")
                 if filename:
