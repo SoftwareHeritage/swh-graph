@@ -171,6 +171,7 @@ def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,fil
                     ))
                     print(fqswhid_of_traversal(response))
             except:
+                print("Exception", e.__class__, " occurred.")
                 if filename:
                     print(filename+" has SWHID "+content_swhid)
                 print("Failed to find "+content_swhid+" in the graph.")
@@ -185,7 +186,8 @@ def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,fil
                     mask=FieldMask(paths=["swhid","ori.url"]),
                 ))
                 print(fqswhid_of_traversal(response))
-            except:
+            except Exception as e:
+                print("Exception", e.__class__, " occurred.")
                 if filename:
                     print(filename+" has SWHID "+content_swhid)
                 print("Failed to find "+content_swhid+" in the graph.")
