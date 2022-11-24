@@ -242,7 +242,7 @@ whose nodes and edges can be iterated sequentially as if it was any other
 standard graph. To do so, it puts all the edges in batches and sorts them in an
 aggressively parallel fashion, then stores them as ``.bitstream`` files, and
 returns a `BatchGraph
-<https://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.BatchGraph.html>`
+<https://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.BatchGraph.html>`_
 created from these batches.
 
 Finally, it uses the ``BVGraph.store()`` method, which compresses the input
