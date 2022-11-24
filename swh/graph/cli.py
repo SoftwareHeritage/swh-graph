@@ -132,7 +132,7 @@ def serve(ctx, host, port, graph):
 
     config = ctx.obj["config"]
     config.setdefault("graph", {})
-    config["graph"]["path"] = graph
+    config["graph"]["grpc_server"]["path"] = graph
     app = make_app(config=config)
 
     aiohttp.web.run_app(app, host=host, port=port)
