@@ -122,6 +122,12 @@ It is also possible to run single steps or step ranges from the CLI:
 
 See ``swh graph compress --help`` for syntax and usage details.
 
+For some steps, Java will try to allocate terabytes of memory in sub-gigabyte
+segments, so you should increase the number of allowed allocations first:
+
+.. code:: bash
+
+    sudo sysctl -w vm.max_map_count=1966080
 
 Compression steps
 =================
