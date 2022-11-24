@@ -74,19 +74,16 @@ public class TopoSort {
         }
         System.err.println("Leaves loaded, starting DFS.");
 
+        System.out.format("SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2\n");
         while (!ready.isEmpty()) {
             long currentNodeId = ready.pop();
             visited.add(currentNodeId);
 
-            /*
-             * Print the node TODO: print its depth too?
-             */
-            SWHID currentNodeSWHID = graph.getSWHID(currentNodeId);
-            System.out.format("%s\n", currentNodeSWHID);
-
             /* Find its successors which are ready */
             LazyLongIterator successors = transposedGraph.successors(currentNodeId);
+            long successorCount = 0;
             for (long successorNodeId; (successorNodeId = successors.nextLong()) != -1;) {
+                successorCount++;
                 LazyLongIterator successorAncestors = graph.successors(successorNodeId);
                 boolean isReady = true;
                 for (long successorAncestorNodeId; (successorAncestorNodeId = successorAncestors.nextLong()) != -1;) {
@@ -106,6 +103,23 @@ public class TopoSort {
                     ready.push(successorNodeId);
                 }
             }
+
+            String[] sampleAncestors = {"", ""};
+            long ancestorCount = 0;
+            LazyLongIterator ancestors = graph.successors(currentNodeId);
+            for (long ancestorNodeId; (ancestorNodeId = ancestors.nextLong()) != -1;) {
+                if (ancestorCount < sampleAncestors.length) {
+                    sampleAncestors[(int) ancestorCount] = graph.getSWHID(ancestorNodeId).toString();
+                }
+                ancestorCount++;
+            }
+
+            /*
+             * Print the node TODO: print its depth too?
+             */
+            SWHID currentNodeSWHID = graph.getSWHID(currentNodeId);
+            System.out.format("%s,%d,%d,%s,%s\n", currentNodeSWHID, ancestorCount, successorCount, sampleAncestors[0],
+                    sampleAncestors[1]);
         }
     }
 }
