@@ -14,12 +14,13 @@ import org.softwareheritage.graph.*;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.*;
 
 public class TopoSort {
     private Subgraph graph;
     private Subgraph transposedGraph;
 
-    public static void main(String[] args) throws IOException, ClassNotFoundException {
+    public static void main(String[] args) throws IOException, ClassNotFoundException, InterruptedException {
         if (args.length != 2) {
             System.err.println("Syntax: java org.softwareheritage.graph.utils.TopoSort <path/to/graph> <nodeTypes>");
             System.exit(1);
@@ -42,10 +43,12 @@ public class TopoSort {
         System.err.println("Graph loaded.");
     }
 
-    /* Prints nodes in topological order, based on a DFS. */
-    public void toposortDFS() {
-        HashSet<Long> visited = new HashSet<Long>();
-        Stack<Long> ready = new Stack<>();
+    /* Prints nodes in topological order, based on a BFS. */
+    public void toposortDFS() throws InterruptedException {
+        int numThreads = 100; // TODO: configurable
+        ExecutorService service = Executors.newFixedThreadPool(numThreads);
+        Set<Long> visited = Collections.newSetFromMap(new ConcurrentHashMap<Long, Boolean>());
+        LinkedBlockingDeque<Long> ready = new LinkedBlockingDeque<>();
 
         /* First, push all leaves to the stack */
         System.err.println("Listing leaves.");
@@ -64,7 +67,9 @@ public class TopoSort {
                 continue;
             }
             // System.err.format("is leaf: %s\n", currentNodeSWHID);
-            ready.push(currentNodeId);
+            // FIXME: not thread-safe, but not a big deal because it's only
+            // a progress report
+            ready.addLast(currentNodeId);
             if (ready.size() % 10000000 == 0) {
                 float ready_size_f = ready.size();
                 float total_nodes_f = total_nodes;
@@ -74,38 +79,54 @@ public class TopoSort {
         }
         System.err.println("Leaves loaded, starting DFS.");
 
-        while (!ready.isEmpty()) {
-            long currentNodeId = ready.pop();
-            visited.add(currentNodeId);
-
-            /*
-             * Print the node TODO: print its depth too?
-             */
-            SWHID currentNodeSWHID = graph.getSWHID(currentNodeId);
-            System.out.format("%s\n", currentNodeSWHID);
-
-            /* Find its successors which are ready */
-            LazyLongIterator successors = transposedGraph.successors(currentNodeId);
-            for (long successorNodeId; (successorNodeId = successors.nextLong()) != -1;) {
-                LazyLongIterator successorAncestors = graph.successors(successorNodeId);
-                boolean isReady = true;
-                for (long successorAncestorNodeId; (successorAncestorNodeId = successorAncestors.nextLong()) != -1;) {
-                    if (!visited.contains(successorAncestorNodeId)) {
-                        /*
-                         * This ancestor of the success is not yet visited, so the ancestor is not ready.
-                         */
-                        // SWHID successorNodeSWHID = graph.getSWHID(successorNodeId);
-                        // SWHID successorAncestorNodeSWHID = graph.getSWHID(successorAncestorNodeId);
-                        // System.err.format("successor %s of %s is not ready, has unvisited ancestor: %s\n",
-                        // successorNodeSWHID, currentNodeSWHID, successorAncestorNodeSWHID);
-                        isReady = false;
+        for (int i = 0; i < numThreads; ++i) {
+            service.submit(() -> {
+                Long currentNodeId;
+                Subgraph localGraph = graph.copy();
+                Subgraph localTransposedGraph = transposedGraph.copy();
+                while (true) {
+                    currentNodeId = ready.pollLast();
+                    if (currentNodeId == null) {
                         break;
                     }
+                    assert !visited.contains(currentNodeId);
+
+                    /*
+                     * Print the node TODO: print its depth too?
+                     */
+                    SWHID currentNodeSWHID = localGraph.getSWHID(currentNodeId);
+                    System.out.format("%s\n", currentNodeSWHID);
+
+                    visited.add(currentNodeId);
+
+                    /* Find its successors which are ready */
+                    LazyLongIterator successors = localTransposedGraph.successors(currentNodeId);
+                    for (long successorNodeId; (successorNodeId = successors.nextLong()) != -1;) {
+                        LazyLongIterator successorAncestors = localGraph.successors(successorNodeId);
+                        boolean isReady = true;
+                        for (long successorAncestorNodeId; (successorAncestorNodeId = successorAncestors
+                                .nextLong()) != -1;) {
+                            if (!visited.contains(successorAncestorNodeId)) {
+                                /*
+                                 * This ancestor of the success is not yet visited, so the ancestor is not ready.
+                                 */
+                                // SWHID successorNodeSWHID = graph.getSWHID(successorNodeId);
+                                // SWHID successorAncestorNodeSWHID = graph.getSWHID(successorAncestorNodeId);
+                                // System.err.format("successor %s of %s is not ready, has unvisited ancestor: %s\n",
+                                // successorNodeSWHID, currentNodeSWHID, successorAncestorNodeSWHID);
+                                isReady = false;
+                                break;
+                            }
+                        }
+                        if (isReady) {
+                            ready.addLast(successorNodeId);
+                        }
+                    }
                 }
-                if (isReady) {
-                    ready.push(successorNodeId);
-                }
-            }
+            });
         }
+
+        service.shutdown();
+        service.awaitTermination(365, TimeUnit.DAYS);
     }
 }
