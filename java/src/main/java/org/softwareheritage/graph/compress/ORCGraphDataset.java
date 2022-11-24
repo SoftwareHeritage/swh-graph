@@ -339,8 +339,11 @@ public class ORCGraphDataset implements GraphDataset {
 
                 for (int row = 0; row < batch.size; row++) {
                     byte[] id = idToSwhid(ORCTable.getBytesRow(idVector, row));
-                    byte[] value = Base64.getEncoder().encode(ORCTable.getBytesRow(valueVector, row));
-                    cb.onBytes(id, value);
+                    byte[] value = ORCTable.getBytesRow(valueVector, row);
+                    if (value != null) {
+                        byte[] encodedValue = Base64.getEncoder().encode(value);
+                        cb.onBytes(id, encodedValue);
+                    }
                 }
             }, Set.of(getIdColumn(), longColumn));
         }
