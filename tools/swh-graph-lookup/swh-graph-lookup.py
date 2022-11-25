@@ -8,8 +8,6 @@ from swh.web.client.client import WebAPIClient
 from swh.model.swhids import ExtendedSWHID
 from swh.model.swhids import ExtendedObjectType
 from swh.model.cli import swhid_of_file
-# from swh.model.swhids import CoreSWHID
-# from swh.model.swhids import ObjectType
 import grpc
 import click
 from hashlib import sha1
@@ -67,8 +65,8 @@ def fqswhid_of_traversal(response):
                 needrelease=False
         if parsedid.object_type == ExtendedObjectType.SNAPSHOT :
             snapshot=node.swhid
-    # Now we have all the elements to print a FQ
-    # TODO build a swh.model.swhids.QualifiedSWHID
+    # Now we have all the elements to print a FQ SWHID
+    # We could also build and return a swh.model.swhids.QualifiedSWHID
     fqswhid.append('path='+"/".join(path))
     if needrevision==False :
         fqswhid.append('anchor='+revision)
