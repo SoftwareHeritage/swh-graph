@@ -33,6 +33,7 @@ GRAPH_GRPC_SERVER = 'localhost:50091'
 def fqswhid_of_traversal(response):
     # Build the Fully qualified SWHID
     fqswhid=[]
+    coreswhidtype=""
     needrevision=True
     needrelease=True
     path=[]
@@ -47,42 +48,61 @@ def fqswhid_of_traversal(response):
             # print(swhcli.get(node.swhid))
             fqswhid.append(node.swhid)
             lastid=node.swhid
-            lasttype='file'
+            coreswhidtype="cnt"
         if parsedid.object_type == ExtendedObjectType.DIRECTORY :
             # print(parsedid.object_type)
             # print(swhcli.get(node.swhid))
-            pathids=[x['name'] for x in swhcli.get(node.swhid) if (str(x['target']) == lastid)]
-            path.insert(0,pathids[0]) # raises exception if pathids is empty!
+            if fqswhid: # empty list signals coreswhid not found yet
+                pathids=[x['name'] for x in swhcli.get(node.swhid) if (str(x['target']) == lastid)]
+                path.insert(0,pathids[0]) # raises exception if pathids is empty!
+            else:
+                fqswhid.append(node.swhid)
+                coreswhidtype="dir"
             lastid=node.swhid
-            lasttype='dir'
         if parsedid.object_type == ExtendedObjectType.REVISION :
-            if needrevision :
-                revision=node.swhid
-                needrevision=False
+            if fqswhid: # empty list signals coreswhid not found yet
+                if needrevision :
+                    revision=node.swhid
+                    needrevision=False
+            else:
+                fqswhid.append(node.swhid)
+                coreswhidtype="rev"
         if parsedid.object_type == ExtendedObjectType.RELEASE :
-            if needrelease :
-                release=node.swhid
-                needrelease=False
+            if fqswhid: # empty list signals coreswhid not found yet
+                if needrelease :
+                    release=node.swhid
+                    needrelease=False
+            else:
+                fqswhid.append(node.swhid)
+                coreswhidtype="rel"
         if parsedid.object_type == ExtendedObjectType.SNAPSHOT :
-            snapshot=node.swhid
+            if fqswhid: # empty list signals coreswhid not found yet
+                snapshot=node.swhid
+            else:
+                fqswhid.append(node.swhid)
+                coreswhidtype="snp"
     # Now we have all the elements to print a FQ SWHID
     # We could also build and return a swh.model.swhids.QualifiedSWHID
-    fqswhid.append('path='+"/".join(path))
-    if needrevision==False :
-        fqswhid.append('anchor='+revision)
-    elif  needrelease==False :
-        fqswhid.append('anchor='+revision)
-    if snapshot :
-        fqswhid.append('visit='+snapshot)
+    if coreswhidtype=="cnt" or coreswhidtype=="dir":
+        fqswhid.append('path='+"/".join(path))
+        if needrevision==False :
+            fqswhid.append('anchor='+revision)
+        elif  needrelease==False :
+            fqswhid.append('anchor='+release)
+        if snapshot :
+            fqswhid.append('visit='+snapshot)
+    elif coreswhidtype=="rev" or coreswhidtype=="rel":
+        if snapshot :
+            fqswhid.append('visit='+snapshot)
     if url:
         fqswhid.append('origin='+url)
     return(";".join(fqswhid))
 
 # Click docs: https://click.palletsprojects.com/en/8.0.x/options/
 @click.command(
-    help="""Utility to get the fully qualified SWHID for a given content core SWHID.
+    help="""Utility to get the fully qualified SWHID for a given core SWHID.
             Uses the graph traversal to find the shortest path to an origin, and
-            retains the first seen revision or release as anchor."""
+            retains the first seen revision or release as anchor for cnt and dir types."""
 )
 @click.option(
     "-t",
@@ -153,7 +173,7 @@ def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,fil
 
         if filename:
             content_swhid=str(swhid_of_file(filename))
-        
+
         # Traversal request: get all origins
         if all_origins:
             random_origin=False
@@ -215,8 +235,6 @@ def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,fil
                 mask=FieldMask(paths=["swhid","ori.url"]),
             ))
             print(fqswhid_of_traversal(response))
-        
+
 if __name__ == "__main__":
     main()
-
-        
