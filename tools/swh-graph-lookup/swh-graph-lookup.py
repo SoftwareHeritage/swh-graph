@@ -15,6 +15,7 @@ from hashlib import sha1
 # global variable holding headers parameters
 headers={}
 swhcli={}
+verbose=False
 
 from swh.graph.grpc.swhgraph_pb2 import (
     NodeFilter,
@@ -32,6 +33,7 @@ GRAPH_GRPC_SERVER = 'localhost:50091'
 
 def fqswhid_of_traversal(response):
     # Build the Fully qualified SWHID
+    global verbose
     fqswhid=[]
     coreswhidtype=""
     needrevision=True
@@ -40,6 +42,8 @@ def fqswhid_of_traversal(response):
     url=""
     for node in response.node:
         # response contains the nodes in the order content -> dir -> revision -> release -> snapshot -> origin
+        if verbose:
+            print(" examining node: "+node.swhid)
         if url == "" :
             url = node.ori.url
         parsedid=ExtendedSWHID.from_string(node.swhid)
@@ -155,13 +159,20 @@ def fqswhid_of_traversal(response):
     help="Compute fqswhid. If disabled, print only the origins.",
 )
 @click.option(
+    "--trace/--no-trace",
+    default=False,
+    help="Print nodes examined while building fully qualified SWHID.",
+)
+@click.option(
     "--random-origin/--no-random-origin",
     default=True,
     help="Compute fqswhid for a random origin",
 )
-def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,filename,graph_grpc_server,fqswhid):
+def main(swh_bearer_token,content_swhid,origin_url,all_origins,random_origin,filename,graph_grpc_server,fqswhid,trace):
     global headers
     global swhcli
+    global verbose
+    verbose=trace
     if (swh_bearer_token):
        swhcli = WebAPIClient(api_url="https://archive.softwareheritage.org/api/1/",
                              bearer_token=swh_bearer_token)
