@@ -15,6 +15,22 @@ import org.softwareheritage.graph.*;
 import java.io.IOException;
 import java.util.*;
 
+/* Lists all nodes nodes of the types given as argument, in topological order,
+ * from leaves (contents, if selected) to the top (origins, if selected).
+ *
+ * This uses a DFS, so nodes are likely to be close to their neighbors.
+ *
+ * Some extra information is provided to allow more efficient consumption
+ * of the output: number of ancestors, successors, and a sample of two ancestors.
+ *
+ * Sample invocation:
+ *
+ *   $ java -cp ~/swh-environment/swh-graph/java/target/swh-graph-*.jar -Xmx1000G -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:+UseTLAB -XX:+ResizeTLAB org.softwareheritage.graph.utils.TopoSort /dev/shm/swh-graph/default/graph 'rev,rel,snp,ori' \
+ *      | pv --line-mode --wait \
+ *      | zstdmt \
+ *      > /poolswh/softwareheritage/vlorentz/2022-04-25_toposort_rev,rel,snp,ori.txt.zst
+ */
+
 public class TopoSort {
     private Subgraph graph;
     private Subgraph transposedGraph;
@@ -54,16 +70,11 @@ public class TopoSort {
         for (long currentNodeId = nodeIterator.nextLong(); nodeIterator
                 .hasNext(); currentNodeId = nodeIterator.nextLong()) {
             total_nodes++;
-            // SWHID currentNodeSWHID = graph.getSWHID(currentNodeId);
-            // if (graph.outdegree(currentNodeId) > 0) {
             long firstSuccessor = graph.successors(currentNodeId).nextLong();
             if (firstSuccessor != -1) {
                 /* The node has ancestor, so it is not a leaf. */
-                // SWHID firstSuccessorNodeSWHID = graph.getSWHID(firstSuccessor);
-                // System.err.format("not leaf: %s, has succ: %s\n", currentNodeSWHID, firstSuccessorNodeSWHID);
                 continue;
             }
-            // System.err.format("is leaf: %s\n", currentNodeSWHID);
             ready.push(currentNodeId);
             if (ready.size() % 10000000 == 0) {
                 float ready_size_f = ready.size();
@@ -89,12 +100,8 @@ public class TopoSort {
                 for (long successorAncestorNodeId; (successorAncestorNodeId = successorAncestors.nextLong()) != -1;) {
                     if (!visited.contains(successorAncestorNodeId)) {
                         /*
-                         * This ancestor of the success is not yet visited, so the ancestor is not ready.
+                         * This ancestor of the successor is not yet visited, so the ancestor is not ready.
                          */
-                        // SWHID successorNodeSWHID = graph.getSWHID(successorNodeId);
-                        // SWHID successorAncestorNodeSWHID = graph.getSWHID(successorAncestorNodeId);
-                        // System.err.format("successor %s of %s is not ready, has unvisited ancestor: %s\n",
-                        // successorNodeSWHID, currentNodeSWHID, successorAncestorNodeSWHID);
                         isReady = false;
                         break;
                     }
@@ -115,7 +122,9 @@ public class TopoSort {
             }
 
             /*
-             * Print the node TODO: print its depth too?
+             * Print the node
+             *
+             * TODO: print its depth too?
              */
             SWHID currentNodeSWHID = graph.getSWHID(currentNodeId);
             System.out.format("%s,%d,%d,%s,%s\n", currentNodeSWHID, ancestorCount, successorCount, sampleAncestors[0],
