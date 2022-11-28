@@ -52,7 +52,10 @@ setup(
     tests_require=parse_requirements("test"),
     setup_requires=["setuptools-scm"],
     use_scm_version=True,
-    extras_require={"testing": parse_requirements("test")},
+    extras_require={
+        "testing": parse_requirements("test"),
+        "luigi": parse_requirements("luigi"),
+    },
     include_package_data=True,
     data_files=[("share/swh-graph", JAR_PATHS)],
     entry_points="""
