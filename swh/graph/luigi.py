@@ -11,10 +11,10 @@ This module contains `Luigi <https://luigi.readthedocs.io/>`_ tasks,
 as an alternative to the CLI that can be composed with other tasks,
 such as swh-dataset's.
 
+Unlike the CLI, this requires the graph to be named `graph`.
+
 File layout
 -----------
-
-(This section assumes a graph named `graph`.
 
 In addition to files documented in :ref:`graph-compression` (eg. :file:`graph.graph`,
 :file:`graph.mph`, ...), tasks in this module produce this directory structure:
@@ -23,7 +23,7 @@ In addition to files documented in :ref:`graph-compression` (eg. :file:`graph.gr
         graph.graph
         graph.mph
         ...
-        graph.meta/
+        meta/
             export.json
             compression.json
 
@@ -101,11 +101,11 @@ class CompressGraph(luigi.Task):
 
     def _export_meta(self) -> luigi.Target:
         """Returns the metadata on the dataset export"""
-        return luigi.LocalTarget(f"{self.local_graph_path}.meta/export.json")
+        return luigi.LocalTarget(self.local_graph_path / "meta/export.json")
 
     def _compression_meta(self) -> luigi.Target:
         """Returns the metadata on the compression pipeline"""
-        return luigi.LocalTarget(f"{self.local_graph_path}.meta/compression.json")
+        return luigi.LocalTarget(self.local_graph_path / "meta/compression.json")
 
     def run(self):
         import datetime
@@ -129,8 +129,8 @@ class CompressGraph(luigi.Task):
         if self._compression_meta().exists():
             self._compression_meta().remove()
 
-        output_directory = self.local_graph_path.parent
-        graph_name = self.local_graph_path.name
+        output_directory = self.local_graph_path
+        graph_name = "graph"
 
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
         webgraph.compress(
