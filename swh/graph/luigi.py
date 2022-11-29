@@ -137,6 +137,10 @@ class CompressGraph(luigi.Task):
         output_directory = self.local_graph_path
         graph_name = "graph"
 
+        def progress_cb(percentage: int, step: webgraph.CompressionStep):
+            self.set_progress_percentage(percentage)
+            self.set_status_message(f"Running {step.name} (step #{step.value})")
+
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
         webgraph.compress(
             graph_name,
