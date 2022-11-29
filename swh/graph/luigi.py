@@ -23,17 +23,9 @@ In addition to files documented in :ref:`graph-compression` (eg. :file:`graph.gr
         graph.graph
         graph.mph
         ...
-        graph.stamps/
-            origin
-            snapshot
-            ...
         graph.meta/
             export.json
             compression.json
-
-``stamps`` files are written after corresponding directories are written.
-Their presence indicates the corresponding graph was fully generated/copied,
-This allows skipping work that was already done, while ignoring interrupted jobs.
 
 ``graph.meta/export.json`` is copied from the ORC dataset exported by
 :mod:`swh.dataset.luigi`.
@@ -68,21 +60,16 @@ as an object in the root list.
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
-from pathlib import Path
 from typing import List
 
 import luigi
 
-from swh.dataset.luigi import Format, LocalExport, ObjectType, merge_lists
+from swh.dataset.luigi import Format, LocalExport, ObjectType
 
 
 class CompressGraph(luigi.Task):
     local_export_path = luigi.PathParameter()
-    object_types = luigi.EnumListParameter(
-        enum=ObjectType, default=list(ObjectType), batch_method=merge_lists
-    )
-    output_directory = luigi.PathParameter()
-    graph_name = luigi.Parameter("graph")
+    local_graph_path = luigi.PathParameter()
     batch_size = luigi.IntParameter(
         default=0,
         significant=False,
@@ -91,6 +78,14 @@ class CompressGraph(luigi.Task):
         Larger is faster, but consumes more resources.
         """,
     )
+
+    object_types = list(ObjectType)
+    # To make this configurable, we could use this:
+    #   object_types = luigi.EnumListParameter(
+    #       enum=ObjectType, default=list(ObjectType), batch_method=merge_lists
+    #   )
+    # then use swh.dataset.luigi._export_metadata_has_object_types to check in
+    # .meta/export.json that all objects are present before skipping the task
 
     def requires(self) -> List[luigi.Task]:
         return [
@@ -102,35 +97,19 @@ class CompressGraph(luigi.Task):
         ]
 
     def output(self) -> List[luigi.LocalTarget]:
-        return self._stamps() + [self._export_meta(), self._compression_meta()]
-
-    def _stamps_dir(self) -> Path:
-        # TODO: read export.json to use it as stamp for the list of object types
-        # (instead of adding one file per object type)
-        return self.output_directory / f"{self.graph_name}.stamps"
-
-    def _stamps(self) -> List[luigi.Target]:
-        return [
-            luigi.LocalTarget(self._stamps_dir() / object_type.name)
-            for object_type in self.object_types
-        ]
+        return [self._export_meta(), self._compression_meta()]
 
     def _export_meta(self) -> luigi.Target:
         """Returns the metadata on the dataset export"""
-        return luigi.LocalTarget(
-            self.output_directory / f"{self.graph_name}.meta" / "export.json"
-        )
+        return luigi.LocalTarget(f"{self.local_graph_path}.meta/export.json")
 
     def _compression_meta(self) -> luigi.Target:
         """Returns the metadata on the compression pipeline"""
-        return luigi.LocalTarget(
-            self.output_directory / f"{self.graph_name}.meta" / "compression.json"
-        )
+        return luigi.LocalTarget(f"{self.local_graph_path}.meta/compression.json")
 
     def run(self):
         import datetime
         import json
-        import shutil
         import socket
 
         import pkg_resources
@@ -145,28 +124,23 @@ class CompressGraph(luigi.Task):
 
         # Delete stamps. Otherwise interrupting this compression pipeline may leave
         # stamps from a previous successful compression
-        if self._stamps_dir().exists():
-            shutil.rmtree(self._stamps_dir())
         if self._export_meta().exists():
             self._export_meta().remove()
         if self._compression_meta().exists():
             self._compression_meta().remove()
 
+        output_directory = self.local_graph_path.parent
+        graph_name = self.local_graph_path.name
+
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
         webgraph.compress(
-            self.graph_name,
+            graph_name,
             self.local_export_path / "orc",
-            self.output_directory,
+            output_directory,
             steps,
             conf,
         )
         end_date = datetime.datetime.now(tz=datetime.timezone.utc)
-
-        # Create stamps
-        for output in self._stamps():
-            output.makedirs()
-            with output.open("w") as fd:
-                pass
 
         # Copy dataset export metadata
         with self._export_meta().open("w") as write_fd:

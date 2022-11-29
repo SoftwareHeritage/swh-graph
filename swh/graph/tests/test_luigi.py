@@ -17,9 +17,8 @@ def test_compressgraph(tmpdir):
     tmpdir = Path(tmpdir)
 
     task = CompressGraph(
-        local_export_path=DATA_DIR / "dataset",
-        output_directory=tmpdir / "compressed_graph",
-        graph_name="example",
+        local_export_path=DATA_DIR,
+        local_graph_path=tmpdir / "compressed_graph" / "example",
         batch_size=1000,  # go fast on the trivial dataset
     )
 
@@ -31,10 +30,7 @@ def test_compressgraph(tmpdir):
     assert int(properties["arcs"]) == 23
 
     export_meta_path = tmpdir / "compressed_graph/example.meta/export.json"
-    assert (
-        export_meta_path.read_bytes()
-        == (DATA_DIR / "dataset/meta/export.json").read_bytes()
-    )
+    assert export_meta_path.read_bytes() == (DATA_DIR / "meta/export.json").read_bytes()
 
     compression_meta_path = tmpdir / "compressed_graph/example.meta/compression.json"
     assert json.load(compression_meta_path.open())[0]["conf"] == {"batch_size": 1000}
