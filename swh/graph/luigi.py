@@ -49,7 +49,7 @@ For example:
             "conf": {},
             "tool": {
                 "name": "swh.graph",
-                "version": "2.2.0",
+                "version": "2.2.0"
             }
         }
     ]
@@ -88,6 +88,7 @@ class CompressGraph(luigi.Task):
     # .meta/export.json that all objects are present before skipping the task
 
     def requires(self) -> List[luigi.Task]:
+        """Returns a :class:`LocalExport` task."""
         return [
             LocalExport(
                 local_export_path=self.local_export_path,
@@ -97,6 +98,7 @@ class CompressGraph(luigi.Task):
         ]
 
     def output(self) -> List[luigi.LocalTarget]:
+        """Returns the ``meta/*.json`` targets"""
         return [self._export_meta(), self._compression_meta()]
 
     def _export_meta(self) -> luigi.Target:
@@ -108,6 +110,9 @@ class CompressGraph(luigi.Task):
         return luigi.LocalTarget(self.local_graph_path / "meta/compression.json")
 
     def run(self):
+        """Runs the full compression pipeline, then writes :file:`meta/compression.json`
+
+        This does not support running individual steps yet."""
         import datetime
         import json
         import socket
