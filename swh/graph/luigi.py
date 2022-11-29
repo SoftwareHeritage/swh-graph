@@ -17,7 +17,7 @@ File layout
 -----------
 
 In addition to files documented in :ref:`graph-compression` (eg. :file:`graph.graph`,
-:file:`graph.mph`, ...), tasks in this module produce this directory structure:
+:file:`graph.mph`, ...), tasks in this module produce this directory structure::
 
     swh_<date>[_<flavor>]/
         graph.graph
@@ -30,7 +30,7 @@ In addition to files documented in :ref:`graph-compression` (eg. :file:`graph.gr
 ``graph.meta/export.json`` is copied from the ORC dataset exported by
 :mod:`swh.dataset.luigi`.
 
-`graph.meta/compression.json``  contains information about the compression itself,
+``graph.meta/compression.json``  contains information about the compression itself,
 for provenance tracking.
 For example:
 
