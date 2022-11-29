@@ -115,6 +115,7 @@ class CompressGraph(luigi.Task):
         This does not support running individual steps yet."""
         import datetime
         import json
+        import shutil
         import socket
 
         import pkg_resources
@@ -133,6 +134,10 @@ class CompressGraph(luigi.Task):
             self._export_meta().remove()
         if self._compression_meta().exists():
             self._compression_meta().remove()
+
+        # Make sure we don't accidentally append to existing files
+        if self.local_graph_path.exists():
+            shutil.rmtree(self.local_graph_path)
 
         output_directory = self.local_graph_path
         graph_name = "graph"
