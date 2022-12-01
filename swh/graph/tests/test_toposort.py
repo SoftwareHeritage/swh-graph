@@ -11,7 +11,8 @@ from swh.graph.luigi import TopoSort
 DATA_DIR = Path(__file__).parents[0] / "dataset"
 
 
-EXPECTED_ROWS = """
+EXPECTED = """\
+SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2
 swh:1:rev:0000000000000000000000000000000000000003,0,1,,
 swh:1:rev:0000000000000000000000000000000000000009,1,3,swh:1:rev:0000000000000000000000000000000000000003,
 swh:1:rel:0000000000000000000000000000000000000010,1,1,swh:1:rev:0000000000000000000000000000000000000009,
@@ -38,14 +39,14 @@ def test_toposort(tmpdir):
 
     csv_text = subprocess.check_output(["zstdcat", topological_order_path]).decode()
 
-    lines = csv_text.split("\n")
-    (header, *rows) = lines
-    assert header == "SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2"
+    (header, *rows) = csv_text.split("\n")
+    (expected_header, *expected_lines) = EXPECTED.split("\n")
+    assert header == expected_header
 
     # The only possible first line
     assert rows[0] == "swh:1:rev:0000000000000000000000000000000000000003,0,1,,"
 
-    assert set(rows) == set(EXPECTED_ROWS.split("\n"))
+    assert set(rows) == set(expected_lines)
 
     assert rows.pop() == "", "Missing trailing newline"
 
