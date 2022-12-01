@@ -32,6 +32,10 @@ ORIGIN_CONTRIBUTORS = """\
 origin_SWHID,person_id
 swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,0
 swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,2
+swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,0
+swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,null
+swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,1
+swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,2
 """
 
 DEANONYMIZATION_TABLE = """\
@@ -51,6 +55,9 @@ DEANONYMIZED_ORIGIN_CONTRIBUTORS = """\
 origin_SWHID,person_base64,person_escaped
 swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
 swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
+swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
+swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5uZXQ+,Jane Doe <jdoe@example.net>
+swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
 """  # noqa
 
 

@@ -54,5 +54,5 @@ def test_pipeline():
         assert result.exit_code == 0, result
         properties = read_properties(Path(tmpdir) / "example.properties")
 
-    assert int(properties["nodes"]) == 21
-    assert int(properties["arcs"]) == 23
+    assert int(properties["nodes"]) == 24
+    assert int(properties["arcs"]) == 28

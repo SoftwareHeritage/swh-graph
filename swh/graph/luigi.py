@@ -641,6 +641,12 @@ class DeanonymizeOriginContributors(luigi.Task):
                 header = next(csv_reader)
                 assert header == ["origin_SWHID", "person_id"], header
                 for (origin_swhid, person_id) in csv_reader:
+                    if person_id == "null":
+                        # FIXME: workaround for a bug in contribution graphs generated
+                        # before 2022-12-01. Those were only used in tests and never
+                        # published, so the conditional can be removed when this is
+                        # productionized
+                        continue
                     (name, escaped_name) = person_id_to_names[int(person_id)]
                     base64_name = base64.b64encode(name).decode("ascii")
                     csv_writer.writerow((origin_swhid, base64_name, escaped_name))

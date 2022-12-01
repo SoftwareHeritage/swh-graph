@@ -26,8 +26,8 @@ def test_compressgraph(tmpdir):
 
     properties = read_properties(tmpdir / "compressed_graph" / "graph.properties")
 
-    assert int(properties["nodes"]) == 21
-    assert int(properties["arcs"]) == 23
+    assert int(properties["nodes"]) == 24
+    assert int(properties["arcs"]) == 28
 
     export_meta_path = tmpdir / "compressed_graph/meta/export.json"
     assert export_meta_path.read_bytes() == (DATA_DIR / "meta/export.json").read_bytes()

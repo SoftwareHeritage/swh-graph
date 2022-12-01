@@ -58,25 +58,34 @@ digraph "Software Heritage mini DAG" {
         node [shape=octagon];
         10 [label="rel:0x10"];
         19 [label="rel:0x19"];
+        21 [label="rel:0x21"];
 
         10 -> 09;
         19 -> 18;
+        21 -> 18;
     }
 
     subgraph cluster_snp {
         label="Snapshots";
         node [shape=doubleoctagon];
         20 [label="snp:0x20"];
+        22 [label="snp:0x22"];
 
         20 -> 09;
         20 -> 10;
+
+        22 -> 09;
+        22 -> 10;
+        22 -> 21;
     }
 
     subgraph cluster_ori {
         label="Origins";
         node [shape=egg];
-        21 [label="ori:0x21"];
+        ori1 [label="ori:8340"];
+        ori2 [label="ori:8f50"];
 
-        21 -> 20;
+        ori1 -> 20;
+        ori2 -> 22;
     }
 }

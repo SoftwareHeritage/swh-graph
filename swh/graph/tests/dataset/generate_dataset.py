@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2021  The Software Heritage developers
+# Copyright (C) 2021-2022  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -291,6 +291,16 @@ TEST_DATASET = [
         message=b"Version 2.0",
         synthetic=False,
     ),
+    Release(
+        id=h(21),
+        name=b"v2.0-anonymous",
+        date=None,
+        author=None,
+        target_type=ObjectType.REVISION,
+        target=h(18),
+        message=b"Version 2.0 but with no author",
+        synthetic=False,
+    ),
     Snapshot(
         id=h(20),
         branches={
@@ -322,6 +332,40 @@ TEST_DATASET = [
         metadata=None,
     ),
     Origin(url="https://example.com/swh/graph"),
+    Snapshot(
+        id=h(22),
+        branches={
+            b"refs/heads/master": SnapshotBranch(
+                target=h(9), target_type=TargetType.REVISION
+            ),
+            b"refs/tags/v1.0": SnapshotBranch(
+                target=h(10), target_type=TargetType.RELEASE
+            ),
+            b"refs/tags/v2.0-anonymous": SnapshotBranch(
+                target=h(21), target_type=TargetType.RELEASE
+            ),
+        },
+    ),
+    OriginVisit(
+        origin="https://example.com/swh/graph2",
+        date=datetime.datetime(
+            2013, 5, 7, 4, 20, 39, 369271, tzinfo=datetime.timezone.utc
+        ),
+        visit=1,
+        type="git",
+    ),
+    OriginVisitStatus(
+        origin="https://example.com/swh/graph2",
+        date=datetime.datetime(
+            2013, 5, 7, 4, 20, 41, 369271, tzinfo=datetime.timezone.utc
+        ),
+        visit=1,
+        type="git",
+        status="full",
+        snapshot=h(22),
+        metadata=None,
+    ),
+    Origin(url="https://example.com/swh/graph2"),
 ]
 
 
