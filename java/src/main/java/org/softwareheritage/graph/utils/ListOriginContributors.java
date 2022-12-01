@@ -87,11 +87,21 @@ public class ListOriginContributors {
                 nodeContributors = new HashSet<>();
             }
 
+            Long personId;
             if (nodeSWHID.getType() == SwhType.REV) {
-                nodeContributors.add(underlyingGraph.getAuthorId(nodeId));
-                nodeContributors.add(underlyingGraph.getCommitterId(nodeId));
+                personId = underlyingGraph.getAuthorId(nodeId);
+                if (personId != null) {
+                    nodeContributors.add(personId);
+                }
+                personId = underlyingGraph.getCommitterId(nodeId);
+                if (personId != null) {
+                    nodeContributors.add(personId);
+                }
             } else if (nodeSWHID.getType() == SwhType.REL) {
-                nodeContributors.add(underlyingGraph.getAuthorId(nodeId));
+                personId = underlyingGraph.getAuthorId(nodeId);
+                if (personId != null) {
+                    nodeContributors.add(personId);
+                }
             }
 
             if (!reuseAncestorSet) {
