@@ -6,7 +6,7 @@
 from pathlib import Path
 import subprocess
 
-from swh.graph.luigi import TopoSort
+from swh.graph.luigi.misc_datasets import TopoSort
 
 DATA_DIR = Path(__file__).parents[0] / "dataset"
 

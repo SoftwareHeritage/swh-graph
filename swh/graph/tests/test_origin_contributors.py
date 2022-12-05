@@ -7,7 +7,7 @@ import datetime
 from pathlib import Path
 import subprocess
 
-from swh.graph.luigi import (
+from swh.graph.luigi.origin_contributors import (
     DeanonymizeOriginContributors,
     ExportDeanonymizationTable,
     ListOriginContributors,

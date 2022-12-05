@@ -6,7 +6,7 @@
 import json
 from pathlib import Path
 
-from swh.graph.luigi import CompressGraph
+from swh.graph.luigi.compressed_graph import CompressGraph
 
 from .test_cli import read_properties
 
