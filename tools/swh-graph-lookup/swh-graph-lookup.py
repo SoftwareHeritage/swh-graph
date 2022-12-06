@@ -209,7 +209,7 @@ def main(
                 response = client.Traverse(
                     TraversalRequest(
                         src=[content_swhid],
-                        edges="cnt:dir,dir:dir,dir:rev,rev:rev,rev:rel,rel:snp,snp:ori",
+                        edges="cnt:dir,dir:dir,dir:rev,rev:rev,rev:snp,rev:rel,rel:snp,snp:ori",
                         direction="BACKWARD",
                         return_nodes=NodeFilter(types="ori"),
                         mask=FieldMask(paths=["swhid", "ori.url"]),
