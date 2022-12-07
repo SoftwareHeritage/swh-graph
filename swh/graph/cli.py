@@ -342,6 +342,7 @@ def luigi(
     """
     import configparser
     import os
+    import secrets
     import subprocess
     import tempfile
 
@@ -362,6 +363,7 @@ def luigi(
         local_graph_path=dataset_path / "compressed",
         topological_order_path=dataset_path / "topology/topological_order_dfs.csv.zst",
         origin_contributors_path=dataset_path / "datasets/contribution_graph.csv.zst",
+        export_id=f"{dataset_name}-{secrets.token_hex(10)}",
     )
 
     if graph_base_directory:
