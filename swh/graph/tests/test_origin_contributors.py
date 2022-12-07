@@ -148,7 +148,7 @@ def test_deanonymize_origin_contributors(tmpdir):
     origin_contributors_path = tmpdir / "origin_contributors.csv.zst"
     deanonymization_table_path = tmpdir / "person_sha256_to_names.csv.zst"
     deanonymized_origin_contributors_path = (
-        tmpdir / "origin_contributors.deanonymized.csv.zst"
+        tmpdir / "sensitive" / "origin_contributors.deanonymized.csv.zst"
     )
 
     subprocess.run(

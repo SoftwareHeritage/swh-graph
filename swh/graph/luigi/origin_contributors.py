@@ -168,6 +168,7 @@ class DeanonymizeOriginContributors(luigi.Task):
             ]
 
         tmp_output_path = Path(f"{self.deanonymized_origin_contributors_path}.tmp")
+        tmp_output_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Finally, write a new table of origin_contributors, by reading the anonymized
         # table line-by-line and deanonymizing each id
