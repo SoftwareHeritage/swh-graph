@@ -14,7 +14,7 @@ by default).
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, Iterable, List, Tuple, cast
 
 import luigi
 
@@ -148,7 +148,8 @@ class DeanonymizeOriginContributors(luigi.Task):
         # and escape(name)
         sha256_to_names: Dict[bytes, Tuple[bytes, str]] = {}
         with pyzstd.open(self.deanonymization_table_path, "rt") as fd:
-            csv_reader = csv.reader(fd)
+            # TODO: remove that cast once we dropped Python 3.7 support
+            csv_reader = csv.reader(cast(Iterable[str], fd))
             header = next(csv_reader)
             assert header == ["sha256_base64", "base64", "escaped"], header
             for line in csv_reader:
@@ -179,7 +180,8 @@ class DeanonymizeOriginContributors(luigi.Task):
 
             # Open input for reads as CSV
             with pyzstd.open(self.origin_contributors_path, "rt") as input_fd:
-                csv_reader = csv.reader(input_fd)
+                # TODO: remove that cast once we dropped Python 3.7 support
+                csv_reader = csv.reader(cast(Iterable[str], input_fd))
                 header = next(csv_reader)
                 assert header == ["origin_SWHID", "person_id"], header
                 for (origin_swhid, person_id) in csv_reader:
