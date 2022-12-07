@@ -82,7 +82,15 @@ class ExportDeanonymizationTable(luigi.Task):
 
         run_script(
             f"""
-            psql '{self.storage_dsn}' -c "COPY (select encode(digest(fullname, 'sha256'), 'base64') as sha256_base64, encode(fullname, 'base64') as base64, encode(fullname, 'escape') as escaped from person) TO STDOUT CSV HEADER" | zstdmt -19
+            psql '{self.storage_dsn}' -c "\
+                COPY (
+                    SELECT
+                        encode(digest(fullname, 'sha256'), 'base64') as sha256_base64, \
+                        encode(fullname, 'base64') as base64, \
+                        encode(fullname, 'escape') as escaped \
+                    FROM person  \
+                ) TO STDOUT CSV HEADER \
+            " | zstdmt -19
             """,  # noqa
             self.deanonymization_table_path,
         )
@@ -95,7 +103,7 @@ class DeanonymizeOriginContributors(luigi.Task):
 
     This assumes that :file:`graph.persons.csv.zst` is anonymized (SHA256 of names
     instead of names); which may not be true depending on how the swh-dataset export
-    cas configured.
+    was configured.
     """
 
     local_graph_path = luigi.PathParameter()

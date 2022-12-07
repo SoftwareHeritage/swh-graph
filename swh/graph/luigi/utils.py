@@ -26,9 +26,10 @@ def run_script(script: str, output_path: Path) -> None:
 
     tmp_output_path = Path(f"{output_path}.tmp")
 
-    subprocess.run(
-        ["bash", "-c", f"{script.strip()} > {tmp_output_path}"], env=env, check=True
-    )
+    with tmp_output_path.open("wb") as tmp_output:
+        subprocess.run(
+            ["bash", "-c", f"{script.strip()}"], stdout=tmp_output, env=env, check=True
+        )
 
     # Atomically write the output file
     tmp_output_path.replace(output_path)
