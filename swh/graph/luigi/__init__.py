@@ -51,22 +51,22 @@ from typing import List
 
 import luigi
 
-from . import compressed_graph, origin_contributors
+from . import compressed_graph
 
 
-class RunAll(luigi.Task):
+class RunExportCompressUpload(luigi.Task):
     """Runs dataset export, graph compression, and generates datasets using the graph."""
 
     def requires(self) -> List[luigi.Task]:
+        """Returns instances of :class:`swh.dataset.luigi.RunExportAll`
+        and :class:`swh.graph.luigi.compressed_graph.UploadGraphToS3`, which
+        recursively depend on the whole export and compression pipeline.
+        """
         from swh.dataset.luigi import RunExportAll
 
-        # Technically RunExportAll and DeanonymizeOriginContributors together depend
-        # on everything else, but it's best to be explicit
         return [
             RunExportAll(),
-            compressed_graph.LocalGraph(),
-            origin_contributors.ListOriginContributors(),
-            origin_contributors.DeanonymizeOriginContributors(),
+            compressed_graph.UploadGraphToS3(),
         ]
 
     def complete(self) -> bool:
