@@ -29,12 +29,12 @@ DATA_DIR = Path(__file__).parents[0] / "dataset"
 # FIXME: do not hardcode ids here; they should be dynamically loaded
 # from the test graph
 ORIGIN_CONTRIBUTORS = """\
-origin_SWHID,person_id
-swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,0
-swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,2
-swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,0
-swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,1
-swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,2
+origin_id,person_id
+2,0
+2,2
+0,0
+0,1
+0,2
 """
 
 DEANONYMIZATION_TABLE = """\
@@ -51,12 +51,12 @@ UaCrgAZBvn1LBd2sAinmdNvAX/G4sjo1aJA9GDd9UUs=
 """
 
 DEANONYMIZED_ORIGIN_CONTRIBUTORS = """\
-origin_SWHID,person_base64,person_escaped
-swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
-swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
-swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
-swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5uZXQ+,Jane Doe <jdoe@example.net>
-swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
+origin_id,person_base64,person_escaped
+2,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
+2,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
+0,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
+0,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5uZXQ+,Jane Doe <jdoe@example.net>
+0,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
 """  # noqa
 
 

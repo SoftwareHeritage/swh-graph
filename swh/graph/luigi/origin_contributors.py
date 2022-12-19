@@ -177,15 +177,15 @@ class DeanonymizeOriginContributors(luigi.Task):
         with pyzstd.open(tmp_output_path, "wt") as output_fd:
             csv_writer = csv.writer(output_fd, lineterminator="\n")
             # write header
-            csv_writer.writerow(("origin_SWHID", "person_base64", "person_escaped"))
+            csv_writer.writerow(("origin_id", "person_base64", "person_escaped"))
 
             # Open input for reads as CSV
             with pyzstd.open(self.origin_contributors_path, "rt") as input_fd:
                 # TODO: remove that cast once we dropped Python 3.7 support
                 csv_reader = csv.reader(cast(Iterable[str], input_fd))
                 header = next(csv_reader)
-                assert header == ["origin_SWHID", "person_id"], header
-                for (origin_swhid, person_id) in csv_reader:
+                assert header == ["origin_id", "person_id"], header
+                for (origin_id, person_id) in csv_reader:
                     if person_id == "null":
                         # FIXME: workaround for a bug in contribution graphs generated
                         # before 2022-12-01. Those were only used in tests and never
@@ -194,6 +194,6 @@ class DeanonymizeOriginContributors(luigi.Task):
                         continue
                     (name, escaped_name) = person_id_to_names[int(person_id)]
                     base64_name = base64.b64encode(name).decode("ascii")
-                    csv_writer.writerow((origin_swhid, base64_name, escaped_name))
+                    csv_writer.writerow((origin_id, base64_name, escaped_name))
 
         tmp_output_path.replace(self.deanonymized_origin_contributors_path)

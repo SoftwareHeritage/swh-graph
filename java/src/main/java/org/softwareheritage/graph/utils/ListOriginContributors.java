@@ -5,7 +5,7 @@
  * See top-level LICENSE file for more information
  */
 
-/* For each origin and each person, outputs a line "origin_swhid,person_id",
+/* For each origin and each person, outputs a line "origin_id,person_id",
  * if that person contributed to the origin.
  *
  * This takes the output of TopoSort on stdin.
@@ -60,7 +60,7 @@ public class ListOriginContributors {
          */
         HashMap<Long, Long> pendingSuccessors = new HashMap<>();
 
-        System.out.println("origin_SWHID,person_id");
+        System.out.println("origin_id,person_id");
         while (stdin.hasNextLine()) {
             String cells[] = stdin.nextLine().strip().split(",", -1);
             SWHID nodeSWHID = new SWHID(cells[0]);
@@ -135,7 +135,7 @@ public class ListOriginContributors {
 
             if (nodeSWHID.getType() == SwhType.ORI) {
                 nodeContributors.forEach((contributorId) -> {
-                    System.out.format("%s,%d\n", nodeSWHID.toString(), contributorId);
+                    System.out.format("%d,%d\n", nodeId, contributorId);
                 });
             }
 
