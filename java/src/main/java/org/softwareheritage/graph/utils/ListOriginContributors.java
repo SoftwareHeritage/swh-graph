@@ -8,6 +8,9 @@
 /* For each origin and each person, outputs a line "origin_id,person_id",
  * if that person contributed to the origin.
  *
+ * A .csv table containing "origin_id,origin_url_base64" is also written
+ * to the given path.
+ *
  * This takes the output of TopoSort on stdin.
  *
  */
@@ -17,6 +20,7 @@ package org.softwareheritage.graph.utils;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import org.softwareheritage.graph.*;
 
+import java.io.PrintWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,16 +34,20 @@ public class ListOriginContributors {
     private static boolean optimizeReuse = true;
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
-        if (args.length != 1) {
-            System.err.println("Syntax: java org.softwareheritage.graph.utils.FindEarliestRevision <path/to/graph>");
+        if (args.length != 2) {
+            System.err.println(
+                    "Syntax: java org.softwareheritage.graph.utils.FindEarliestRevision <path/to/graph> <path/to/origin_urls.csv>");
             System.exit(1);
         }
         String graphBasename = args[0];
+        PrintWriter originUrlsFileWriter = new PrintWriter(args[1]);
 
         System.err.println("Loading graph " + graphBasename + " ...");
         SwhBidirectionalGraph underlyingGraph = SwhBidirectionalGraph.loadMapped(graphBasename);
         System.err.println("Loading person ids");
         underlyingGraph.loadPersonIds();
+        System.err.println("Loading messages");
+        underlyingGraph.loadMessages();
         System.err.println("Selecting subgraph.");
         Subgraph graph = new Subgraph(underlyingGraph, new AllowedNodes("rev,rel,snp,ori"));
         System.err.println("Graph loaded.");
@@ -61,6 +69,7 @@ public class ListOriginContributors {
         HashMap<Long, Long> pendingSuccessors = new HashMap<>();
 
         System.out.println("origin_id,person_id");
+        originUrlsFileWriter.println("origin_id,origin_url_base64");
         while (stdin.hasNextLine()) {
             String cells[] = stdin.nextLine().strip().split(",", -1);
             SWHID nodeSWHID = new SWHID(cells[0]);
@@ -137,6 +146,10 @@ public class ListOriginContributors {
                 nodeContributors.forEach((contributorId) -> {
                     System.out.format("%d,%d\n", nodeId, contributorId);
                 });
+                byte[] url = underlyingGraph.getMessageBase64(nodeId);
+                if (url != null) {
+                    originUrlsFileWriter.format("%d,%s\n", nodeId, new String(url));
+                }
             }
 
             if (successorCount > 0) {
@@ -147,5 +160,7 @@ public class ListOriginContributors {
                 pendingSuccessors.put(nodeId, successorCount);
             }
         }
+
+        originUrlsFileWriter.flush();
     }
 }

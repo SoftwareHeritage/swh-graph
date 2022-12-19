@@ -274,6 +274,11 @@ public class SwhGraphProperties {
 
     /** Get the message of the given revision or release node */
     public byte[] getMessage(long nodeId) {
+        return Base64.getDecoder().decode(getMessageBase64(nodeId));
+    }
+
+    /** Get the message of the given revision or release node, encoded as a base64 byte array */
+    public byte[] getMessageBase64(long nodeId) {
         if (messageBuffer == null || messageOffsets == null) {
             throw new IllegalStateException("Messages not loaded");
         }
@@ -281,7 +286,7 @@ public class SwhGraphProperties {
         if (startOffset == -1) {
             return null;
         }
-        return Base64.getDecoder().decode(getLine(messageBuffer, startOffset));
+        return getLine(messageBuffer, startOffset);
     }
 
     /** Get the URL of the given origin node */

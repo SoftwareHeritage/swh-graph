@@ -30,6 +30,7 @@ class ListOriginContributors(luigi.Task):
     local_graph_path = luigi.PathParameter()
     topological_order_path = luigi.PathParameter()
     origin_contributors_path = luigi.PathParameter()
+    origin_urls_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
 
     def requires(self) -> List[luigi.Task]:
@@ -50,14 +51,23 @@ class ListOriginContributors(luigi.Task):
 
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.TopoSort and compresses"""
+        import tempfile
+
         class_name = "org.softwareheritage.graph.utils.ListOriginContributors"
-        script = f"""
-        zstdcat {self.topological_order_path} \
-            | java {class_name} '{self.local_graph_path}/{self.graph_name}' \
-            | pv --line-mode --wait \
-            | zstdmt -19
-        """
-        run_script(script, self.origin_contributors_path)
+        with tempfile.NamedTemporaryFile(
+            prefix="origin_urls_", suffix=".csv"
+        ) as origin_urls_fd:
+            script = f"""
+            zstdcat {self.topological_order_path} \
+                | java {class_name} '{self.local_graph_path}/{self.graph_name}' '{origin_urls_fd.name}' \
+                | pv --line-mode --wait \
+                | zstdmt -19
+            """  # noqa
+            run_script(script, self.origin_contributors_path)
+            run_script(
+                f"pv '{origin_urls_fd.name}' | zstdmt -19",
+                self.origin_urls_path,
+            )
 
 
 class ExportDeanonymizationTable(luigi.Task):

@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import base64
 import datetime
 from pathlib import Path
 import subprocess
@@ -37,6 +38,21 @@ origin_id,person_id
 0,2
 """
 
+assert (
+    base64.b64decode("aHR0cHM6Ly9leGFtcGxlLmNvbS9zd2gvZ3JhcGg=")
+    == b"https://example.com/swh/graph"
+)
+assert (
+    base64.b64decode("aHR0cHM6Ly9leGFtcGxlLmNvbS9zd2gvZ3JhcGgy")
+    == b"https://example.com/swh/graph2"
+)
+
+ORIGIN_URLS = """\
+origin_id,origin_url_base64
+2,aHR0cHM6Ly9leGFtcGxlLmNvbS9zd2gvZ3JhcGg=
+0,aHR0cHM6Ly9leGFtcGxlLmNvbS9zd2gvZ3JhcGgy
+"""
+
 DEANONYMIZATION_TABLE = """\
 sha256_base64,base64,escaped
 8qhF7WQ2bmeoRbZipAaqtNw6QdOCDcpggLWCQLzITsI=,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
@@ -65,6 +81,7 @@ def test_list_origin_contributors(tmpdir):
 
     topological_order_path = tmpdir / "topo_order.csv.zst"
     origin_contributors_path = tmpdir / "origin_contributors.csv.zst"
+    origin_urls_path = tmpdir / "origin_urls.csv.zst"
 
     subprocess.run(
         ["zstdmt", "-o", topological_order_path],
@@ -76,14 +93,17 @@ def test_list_origin_contributors(tmpdir):
         local_graph_path=DATA_DIR / "compressed",
         topological_order_path=topological_order_path,
         origin_contributors_path=origin_contributors_path,
+        origin_urls_path=origin_urls_path,
         graph_name="example",
     )
 
     task.run()
 
     csv_text = subprocess.check_output(["zstdcat", origin_contributors_path]).decode()
-
     assert csv_text == ORIGIN_CONTRIBUTORS
+
+    urls_text = subprocess.check_output(["zstdcat", origin_urls_path]).decode()
+    assert urls_text == ORIGIN_URLS
 
 
 def test_export_deanonymization_table(tmpdir, swh_storage_postgresql, swh_storage):
