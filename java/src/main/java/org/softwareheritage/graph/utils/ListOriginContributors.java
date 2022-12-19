@@ -5,8 +5,8 @@
  * See top-level LICENSE file for more information
  */
 
-/* For each origin and each person, outputs a line "origin_id,person_id",
- * if that person contributed to the origin.
+/* For each origin and each contributor, outputs a line "origin_id,contributor_id",
+ * if that contributor contributed to the origin.
  *
  * A .csv table containing "origin_id,origin_url_base64" is also written
  * to the given path.
@@ -68,7 +68,7 @@ public class ListOriginContributors {
          */
         HashMap<Long, Long> pendingSuccessors = new HashMap<>();
 
-        System.out.println("origin_id,person_id");
+        System.out.println("origin_id,contributor_id");
         originUrlsFileWriter.println("origin_id,origin_url_base64");
         while (stdin.hasNextLine()) {
             String cells[] = stdin.nextLine().strip().split(",", -1);

@@ -30,7 +30,7 @@ DATA_DIR = Path(__file__).parents[0] / "dataset"
 # FIXME: do not hardcode ids here; they should be dynamically loaded
 # from the test graph
 ORIGIN_CONTRIBUTORS = """\
-origin_id,person_id
+origin_id,contributor_id
 2,0
 2,2
 0,0
@@ -67,7 +67,7 @@ UaCrgAZBvn1LBd2sAinmdNvAX/G4sjo1aJA9GDd9UUs=
 """
 
 DEANONYMIZED_ORIGIN_CONTRIBUTORS = """\
-origin_id,person_base64,person_escaped
+origin_id,contributor_base64,contributor_escaped
 2,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
 2,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
 0,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
@@ -139,7 +139,7 @@ def test_export_deanonymization_table(tmpdir, swh_storage_postgresql, swh_storag
         ]
     )
 
-    deanonymization_table_path = tmpdir / "person_sha256_to_names.csv.zst"
+    deanonymization_table_path = tmpdir / "contributor_sha256_to_names.csv.zst"
 
     task = ExportDeanonymizationTable(
         storage_dsn=swh_storage_postgresql.dsn,
@@ -166,7 +166,7 @@ def test_deanonymize_origin_contributors(tmpdir):
 
     persons_path = tmpdir / "example.persons.csv.zst"
     origin_contributors_path = tmpdir / "origin_contributors.csv.zst"
-    deanonymization_table_path = tmpdir / "person_sha256_to_names.csv.zst"
+    deanonymization_table_path = tmpdir / "contributor_sha256_to_names.csv.zst"
     deanonymized_origin_contributors_path = (
         tmpdir / "sensitive" / "origin_contributors.deanonymized.csv.zst"
     )

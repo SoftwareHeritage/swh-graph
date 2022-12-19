@@ -108,8 +108,8 @@ class ExportDeanonymizationTable(luigi.Task):
 
 class DeanonymizeOriginContributors(luigi.Task):
     """Generates a .csv.zst file similar to :class:`ListOriginContributors`'s,
-    but with ``person_base64`` and ``person_escaped`` columns in addition to
-    ``person_id``.
+    but with ``contributor_base64`` and ``contributor_escaped`` columns in addition to
+    ``contributor_id``.
 
     This assumes that :file:`graph.persons.csv.zst` is anonymized (SHA256 of names
     instead of names); which may not be true depending on how the swh-dataset export
@@ -138,8 +138,8 @@ class DeanonymizeOriginContributors(luigi.Task):
 
     def output(self) -> luigi.Target:
         """.csv.zst file similar to :meth:`ListOriginContributors.output`'s,
-        but with ``person_base64`` and ``person_escaped`` columns in addition to
-        ``person_id``"""
+        but with ``contributor_base64`` and ``contributor_escaped`` columns in addition
+        to ``contributor_id``"""
         return luigi.LocalTarget(self.deanonymized_origin_contributors_path)
 
     def run(self) -> None:
@@ -187,14 +187,16 @@ class DeanonymizeOriginContributors(luigi.Task):
         with pyzstd.open(tmp_output_path, "wt") as output_fd:
             csv_writer = csv.writer(output_fd, lineterminator="\n")
             # write header
-            csv_writer.writerow(("origin_id", "person_base64", "person_escaped"))
+            csv_writer.writerow(
+                ("origin_id", "contributor_base64", "contributor_escaped")
+            )
 
             # Open input for reads as CSV
             with pyzstd.open(self.origin_contributors_path, "rt") as input_fd:
                 # TODO: remove that cast once we dropped Python 3.7 support
                 csv_reader = csv.reader(cast(Iterable[str], input_fd))
                 header = next(csv_reader)
-                assert header == ["origin_id", "person_id"], header
+                assert header == ["origin_id", "contributor_id"], header
                 for (origin_id, person_id) in csv_reader:
                     if person_id == "null":
                         # FIXME: workaround for a bug in contribution graphs generated
