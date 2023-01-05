@@ -130,13 +130,22 @@ public class NodePropertyBuilder {
             case REL:
                 ReleaseData.Builder relBuilder = ReleaseData.newBuilder();
                 if (mask.relAuthor) {
-                    relBuilder.setAuthor(graph.getAuthorId(node));
+                    Long author = graph.getAuthorId(node);
+                    if (author != null) {
+                        relBuilder.setAuthor(author);
+                    }
                 }
                 if (mask.relAuthorDate) {
-                    relBuilder.setAuthorDate(graph.getAuthorTimestamp(node));
+                    Long date = graph.getAuthorTimestamp(node);
+                    if (date != null) {
+                        relBuilder.setAuthorDate(date);
+                    }
                 }
                 if (mask.relAuthorDateOffset) {
-                    relBuilder.setAuthorDateOffset(graph.getAuthorTimestampOffset(node));
+                    Short offset = graph.getAuthorTimestampOffset(node);
+                    if (offset != null) {
+                        relBuilder.setAuthorDateOffset(offset);
+                    }
                 }
                 if (mask.relName) {
                     byte[] msg = graph.getMessage(node);

@@ -157,7 +157,7 @@ public class FindPathBetweenTest extends TraversalServiceTest {
         Path p = client.findPathBetween(getRequestBuilder(fakeSWHID("cnt", 4), fakeSWHID("cnt", 15))
                 .setDirection(GraphDirection.BACKWARD).setDirectionReverse(GraphDirection.BACKWARD).build());
         ArrayList<SWHID> actual = getSWHIDs(p);
-        SWHID expected = fakeSWHID("rev", 18);
+        SWHID expected = fakeSWHID("snp", 22); // FIXME: this changes any time to test dataset is regenerated
         Assertions.assertEquals(expected, actual.get(p.getMidpointIndex()));
     }
 
