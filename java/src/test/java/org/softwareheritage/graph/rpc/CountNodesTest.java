@@ -73,21 +73,21 @@ public class CountNodesTest extends TraversalServiceTest {
     public void backwardFromMiddle() {
         CountResponse actual = client.countNodes(
                 getTraversalRequestBuilder(fakeSWHID("dir", 12)).setDirection(GraphDirection.BACKWARD).build());
-        assertEquals(4, actual.getCount());
+        assertEquals(7, actual.getCount());
     }
 
     @Test
     public void backwardFromLeaf() {
         CountResponse actual = client.countNodes(
                 getTraversalRequestBuilder(fakeSWHID("cnt", 4)).setDirection(GraphDirection.BACKWARD).build());
-        assertEquals(11, actual.getCount());
+        assertEquals(14, actual.getCount());
     }
 
     @Test
     public void backwardRevToRevRevToRel() {
         CountResponse actual = client.countNodes(getTraversalRequestBuilder(fakeSWHID("rev", 3))
                 .setEdges("rev:rev,rev:rel").setDirection(GraphDirection.BACKWARD).build());
-        assertEquals(6, actual.getCount());
+        assertEquals(7, actual.getCount());
     }
 
     @ParameterizedTest
@@ -95,7 +95,7 @@ public class CountNodesTest extends TraversalServiceTest {
     public void backwardRevToRevRevToRelWithLimit(int limit) {
         CountResponse actual = client.countNodes(getTraversalRequestBuilder(fakeSWHID("rev", 3))
                 .setEdges("rev:rev,rev:rel").setDirection(GraphDirection.BACKWARD).setMaxMatchingNodes(limit).build());
-        assertEquals(Math.min(limit, 6), actual.getCount());
+        assertEquals(Math.min(limit, 7), actual.getCount());
     }
 
     @Test

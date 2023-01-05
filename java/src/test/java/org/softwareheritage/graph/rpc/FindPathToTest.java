@@ -81,7 +81,7 @@ public class FindPathToTest extends TraversalServiceTest {
         ArrayList<SWHID> actual = getSWHIDs(client.findPathTo(
                 getRequestBuilder(fakeSWHID("dir", 16), "rel").setDirection(GraphDirection.BACKWARD).build()));
         List<SWHID> expected = List.of(fakeSWHID("dir", 16), fakeSWHID("dir", 17), fakeSWHID("rev", 18),
-                fakeSWHID("rel", 19));
+                fakeSWHID("rel", 21)); // FIXME: rel:19 is valid too
         Assertions.assertEquals(expected, actual);
     }
 
@@ -118,9 +118,13 @@ public class FindPathToTest extends TraversalServiceTest {
                 .addSrc(fakeSWHID("dir", 6).toString()).addSrc(fakeSWHID("dir", 8).toString())
                 .addSrc(fakeSWHID("dir", 12).toString()).addSrc(fakeSWHID("dir", 16).toString())
                 .addSrc(fakeSWHID("dir", 17).toString()).setDirection(GraphDirection.BACKWARD).build()));
-        List<SWHID> expected = List.of(fakeSWHID("dir", 8), fakeSWHID("rev", 9), fakeSWHID("snp", 20),
+        List<SWHID> expected1 = List.of(fakeSWHID("dir", 8), fakeSWHID("rev", 9), fakeSWHID("snp", 20),
                 new SWHID(TEST_ORIGIN_ID));
-        Assertions.assertEquals(expected, actual);
+        List<SWHID> expected2 = List.of(fakeSWHID("dir", 8), fakeSWHID("rev", 9), fakeSWHID("snp", 22),
+                new SWHID(TEST_ORIGIN_ID2));
+        List<List<SWHID>> expected = List.of(expected1, expected2);
+        Assertions.assertTrue(expected.contains(actual), String.format("Expected either %s or %s, got %s",
+                expected1.toString(), expected2.toString(), actual.toString()));
     }
 
     // Impossible path between rev 9 and any release (forward graph)
@@ -140,7 +144,7 @@ public class FindPathToTest extends TraversalServiceTest {
         ArrayList<SWHID> actual = getSWHIDs(client.findPathTo(getRequestBuilder(fakeSWHID("cnt", 15), "rel")
                 .setDirection(GraphDirection.BACKWARD).setMaxDepth(4).build()));
         List<SWHID> expected = List.of(fakeSWHID("cnt", 15), fakeSWHID("dir", 16), fakeSWHID("dir", 17),
-                fakeSWHID("rev", 18), fakeSWHID("rel", 19));
+                fakeSWHID("rev", 18), fakeSWHID("rel", 21)); // FIXME: rel:19 is valid too
         Assertions.assertEquals(expected, actual);
 
         // Check that it throws NOT_FOUND with max depth = 1
@@ -154,15 +158,18 @@ public class FindPathToTest extends TraversalServiceTest {
     // Path from cnt 15 to any rel with various max edges
     @Test
     public void maxEdges() {
+        int backtracked_edges = 2; // FIXME: Number of edges traversed but backtracked from. it changes
+                                   // nondeterministically every time the test dataset is changed.
+
         ArrayList<SWHID> actual = getSWHIDs(client.findPathTo(getRequestBuilder(fakeSWHID("cnt", 15), "rel")
-                .setDirection(GraphDirection.BACKWARD).setMaxEdges(4).build()));
+                .setDirection(GraphDirection.BACKWARD).setMaxEdges(4 + backtracked_edges).build()));
         List<SWHID> expected = List.of(fakeSWHID("cnt", 15), fakeSWHID("dir", 16), fakeSWHID("dir", 17),
-                fakeSWHID("rev", 18), fakeSWHID("rel", 19));
+                fakeSWHID("rev", 18), fakeSWHID("rel", 21)); // FIXME: rel:19 is valid too
         Assertions.assertEquals(expected, actual);
 
         StatusRuntimeException thrown = Assertions.assertThrows(StatusRuntimeException.class, () -> {
             client.findPathTo(getRequestBuilder(fakeSWHID("cnt", 15), "rel").setDirection(GraphDirection.BACKWARD)
-                    .setMaxEdges(3).build());
+                    .setMaxEdges(3 + backtracked_edges).build());
         });
         Assertions.assertEquals(thrown.getStatus().getCode(), Status.NOT_FOUND.getCode());
     }

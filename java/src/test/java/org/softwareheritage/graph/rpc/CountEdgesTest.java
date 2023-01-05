@@ -83,21 +83,21 @@ public class CountEdgesTest extends TraversalServiceTest {
     public void backwardFromMiddle() {
         CountResponse actual = client.countEdges(
                 getTraversalRequestBuilder(fakeSWHID("dir", 12)).setDirection(GraphDirection.BACKWARD).build());
-        assertEquals(3, actual.getCount());
+        assertEquals(6, actual.getCount());
     }
 
     @Test
     public void backwardFromLeaf() {
         CountResponse actual = client.countEdges(
                 getTraversalRequestBuilder(fakeSWHID("cnt", 4)).setDirection(GraphDirection.BACKWARD).build());
-        assertEquals(12, actual.getCount());
+        assertEquals(17, actual.getCount());
     }
 
     @Test
     public void backwardRevToRevRevToRel() {
         CountResponse actual = client.countEdges(getTraversalRequestBuilder(fakeSWHID("rev", 3))
                 .setEdges("rev:rev,rev:rel").setDirection(GraphDirection.BACKWARD).build());
-        assertEquals(5, actual.getCount());
+        assertEquals(6, actual.getCount());
     }
 
     @Test

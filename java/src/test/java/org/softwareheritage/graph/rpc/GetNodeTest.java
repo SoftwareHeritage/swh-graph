@@ -17,6 +17,8 @@ import org.softwareheritage.graph.SWHID;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class GetNodeTest extends TraversalServiceTest {
     @Test
@@ -110,9 +112,9 @@ public class GetNodeTest extends TraversalServiceTest {
         }
     }
 
-    @Test
-    public void testReleases() {
-        List<Integer> expectedRels = List.of(10, 19);
+    @ParameterizedTest
+    @ValueSource(ints = {10, 19})
+    public void testReleases(Integer relId) {
         Map<Integer, String> expectedMessages = Map.of(10, "Version 1.0", 19, "Version 2.0");
         Map<Integer, String> expectedNames = Map.of(10, "v1.0", 19, "v2.0");
 
@@ -122,36 +124,42 @@ public class GetNodeTest extends TraversalServiceTest {
         Map<Integer, Integer> expectedAuthorTimestampOffsets = Map.of(3, 120);
 
         HashMap<Integer, String> personMapping = new HashMap<>();
-        for (Integer relId : expectedRels) {
-            Node n = client.getNode(GetNodeRequest.newBuilder().setSwhid(fakeSWHID("rel", relId).toString()).build());
-            assertTrue(n.hasRel());
-            assertTrue(n.getRel().hasMessage());
-            assertEquals(expectedMessages.get(relId), n.getRel().getMessage().toStringUtf8());
-            // FIXME: names are always empty?!
-            // System.err.println(relId + " " + n.getRel().getName());
-            // assertEquals(expectedNames.get(relId), n.getRel().getName().toStringUtf8());
 
-            // Persons are anonymized, we just need to check that the mapping is self-consistent
-            assertTrue(n.getRel().hasAuthor());
-            int actualPerson = (int) n.getRel().getAuthor();
-            String expectedPerson = expectedAuthors.get(relId);
-            assertTrue(actualPerson >= 0);
-            if (personMapping.containsKey(actualPerson)) {
-                assertEquals(personMapping.get(actualPerson), expectedPerson);
-            } else {
-                personMapping.put(actualPerson, expectedPerson);
-            }
+        Node n = client.getNode(GetNodeRequest.newBuilder().setSwhid(fakeSWHID("rel", relId).toString()).build());
+        assertTrue(n.hasRel());
+        assertTrue(n.getRel().hasMessage());
+        assertEquals(expectedMessages.get(relId), n.getRel().getMessage().toStringUtf8());
+        // FIXME: names are always empty?!
+        // System.err.println(relId + " " + n.getRel().getName());
+        // assertEquals(expectedNames.get(relId), n.getRel().getName().toStringUtf8());
 
+        // Persons are anonymized, we just need to check that the mapping is self-consistent
+        assertTrue(n.getRel().hasAuthor());
+        int actualPerson = (int) n.getRel().getAuthor();
+        String expectedPerson = expectedAuthors.get(relId);
+        assertTrue(actualPerson >= 0);
+        if (personMapping.containsKey(actualPerson)) {
+            assertEquals(personMapping.get(actualPerson), expectedPerson);
+        } else {
+            personMapping.put(actualPerson, expectedPerson);
+        }
+
+        if (relId == 10) {
             assertTrue(n.getRel().hasAuthorDate());
             assertTrue(n.getRel().hasAuthorDateOffset());
+        } else if (relId == 19) {
+            assertFalse(n.getRel().hasAuthorDate());
+            assertFalse(n.getRel().hasAuthorDateOffset());
+        } else {
+            assertTrue(false);
+        }
 
-            // FIXME: all the timestamps are one hour off?!
-            // if (expectedAuthorTimestamps.containsKey(relId)) {
-            // assertEquals(expectedAuthorTimestamps.get(revId), n.getRev().getAuthorDate());
-            // }
-            if (expectedAuthorTimestampOffsets.containsKey(relId)) {
-                assertEquals(expectedAuthorTimestampOffsets.get(relId), n.getRev().getAuthorDateOffset());
-            }
+        // FIXME: all the timestamps are one hour off?!
+        // if (expectedAuthorTimestamps.containsKey(relId)) {
+        // assertEquals(expectedAuthorTimestamps.get(revId), n.getRev().getAuthorDate());
+        // }
+        if (expectedAuthorTimestampOffsets.containsKey(relId)) {
+            assertEquals(expectedAuthorTimestampOffsets.get(relId), n.getRev().getAuthorDateOffset());
         }
     }
 
@@ -235,18 +243,26 @@ public class GetNodeTest extends TraversalServiceTest {
         }
     }
 
-    @Test
-    public void testRelMask() {
+    @ParameterizedTest
+    @ValueSource(ints = {10, 19})
+    public void testRelMask(Integer relId) {
         Node n;
-        String swhid = fakeSWHID("rel", 19).toString();
+        String swhid = fakeSWHID("rel", relId).toString();
 
         // No mask, all fields present
         n = client.getNode(GetNodeRequest.newBuilder().setSwhid(swhid).build());
         assertTrue(n.hasRel());
         assertTrue(n.getRel().hasMessage());
         assertTrue(n.getRel().hasAuthor());
-        assertTrue(n.getRel().hasAuthorDate());
-        assertTrue(n.getRel().hasAuthorDateOffset());
+        if (relId == 10) {
+            assertTrue(n.getRel().hasAuthorDate());
+            assertTrue(n.getRel().hasAuthorDateOffset());
+        } else if (relId == 19) {
+            assertFalse(n.getRel().hasAuthorDate());
+            assertFalse(n.getRel().hasAuthorDateOffset());
+        } else {
+            assertTrue(false);
+        }
 
         // Empty mask, no fields present
         n = client.getNode(GetNodeRequest.newBuilder().setSwhid(swhid).setMask(FieldMask.getDefaultInstance()).build());
