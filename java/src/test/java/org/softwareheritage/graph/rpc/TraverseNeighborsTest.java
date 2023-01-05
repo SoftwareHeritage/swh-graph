@@ -112,6 +112,7 @@ public class TraverseNeighborsTest extends TraversalServiceTest {
         ArrayList<SWHID> expectedNodes4 = new ArrayList<>();
         expectedNodes4.add(new SWHID("swh:1:snp:0000000000000000000000000000000000000020"));
         expectedNodes4.add(new SWHID("swh:1:rel:0000000000000000000000000000000000000010"));
+        expectedNodes4.add(new SWHID("swh:1:snp:0000000000000000000000000000000000000022"));
         GraphTest.assertEqualsAnyOrder(expectedNodes4, actuals4);
     }
 
@@ -132,6 +133,7 @@ public class TraverseNeighborsTest extends TraversalServiceTest {
         expectedNodes2.add(new SWHID("swh:1:snp:0000000000000000000000000000000000000020"));
         expectedNodes2.add(new SWHID("swh:1:rel:0000000000000000000000000000000000000010"));
         expectedNodes2.add(new SWHID("swh:1:rev:0000000000000000000000000000000000000013"));
+        expectedNodes2.add(new SWHID("swh:1:snp:0000000000000000000000000000000000000022"));
         GraphTest.assertEqualsAnyOrder(expectedNodes2, actuals2);
     }
 }

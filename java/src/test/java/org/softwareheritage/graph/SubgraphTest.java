@@ -78,15 +78,18 @@ public class SubgraphTest extends GraphTest {
         ArrayList<Long> nodeList = new ArrayList<>();
         Iterator<Long> nodeIt = sg.nodeIterator();
         nodeIt.forEachRemaining(nodeList::add);
-        assertEqualsAnyOrder(Arrays.asList(sg.getNodeId(new SWHID(TEST_ORIGIN_ID)), sg.getNodeId(fakeSWHID("dir", 2)),
-                sg.getNodeId(fakeSWHID("dir", 6)), sg.getNodeId(fakeSWHID("dir", 8)),
-                sg.getNodeId(fakeSWHID("dir", 12)), sg.getNodeId(fakeSWHID("dir", 16)),
-                sg.getNodeId(fakeSWHID("dir", 17))), nodeList);
+        assertEqualsAnyOrder(
+                Arrays.asList(sg.getNodeId(new SWHID(TEST_ORIGIN_ID)), sg.getNodeId(new SWHID(TEST_ORIGIN_ID2)),
+                        sg.getNodeId(fakeSWHID("dir", 2)), sg.getNodeId(fakeSWHID("dir", 6)),
+                        sg.getNodeId(fakeSWHID("dir", 8)), sg.getNodeId(fakeSWHID("dir", 12)),
+                        sg.getNodeId(fakeSWHID("dir", 16)), sg.getNodeId(fakeSWHID("dir", 17))),
+                nodeList);
         sg = new Subgraph(g, new AllowedNodes("snp,rel"));
         nodeList = new ArrayList<>();
         nodeIt = sg.nodeIterator();
         nodeIt.forEachRemaining(nodeList::add);
         assertEqualsAnyOrder(Arrays.asList(sg.getNodeId(fakeSWHID("snp", 20)), sg.getNodeId(fakeSWHID("rel", 10)),
-                sg.getNodeId(fakeSWHID("rel", 19))), nodeList);
+                sg.getNodeId(fakeSWHID("rel", 19)), sg.getNodeId(fakeSWHID("rel", 21)),
+                sg.getNodeId(fakeSWHID("snp", 22))), nodeList);
     }
 }
