@@ -78,6 +78,7 @@ public class TraverseLeavesTest extends TraversalServiceTest {
         ArrayList<SWHID> actualLeaves1 = getSWHIDs(client.traverse(request1));
         ArrayList<SWHID> expectedLeaves1 = new ArrayList<>();
         expectedLeaves1.add(new SWHID("swh:1:rel:0000000000000000000000000000000000000019"));
+        expectedLeaves1.add(new SWHID(TEST_ORIGIN_ID2));
         GraphTest.assertEqualsAnyOrder(expectedLeaves1, actualLeaves1);
 
         TraversalRequest request2 = getLeavesRequestBuilder(fakeSWHID("cnt", 4)).setDirection(GraphDirection.BACKWARD)
@@ -85,6 +86,7 @@ public class TraverseLeavesTest extends TraversalServiceTest {
         ArrayList<SWHID> actualLeaves2 = getSWHIDs(client.traverse(request2));
         ArrayList<SWHID> expectedLeaves2 = new ArrayList<>();
         expectedLeaves2.add(new SWHID(TEST_ORIGIN_ID));
+        expectedLeaves2.add(new SWHID(TEST_ORIGIN_ID2));
         expectedLeaves2.add(new SWHID("swh:1:rel:0000000000000000000000000000000000000019"));
         GraphTest.assertEqualsAnyOrder(expectedLeaves2, actualLeaves2);
     }

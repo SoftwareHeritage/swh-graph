@@ -15,10 +15,10 @@ public class StatsTest extends TraversalServiceTest {
     @Test
     public void testStats() {
         StatsResponse stats = client.stats(StatsRequest.getDefaultInstance());
-        assertEquals(stats.getNumNodes(), 21);
-        assertEquals(stats.getNumEdges(), 23);
+        assertEquals(stats.getNumNodes(), 24);
+        assertEquals(stats.getNumEdges(), 28);
         assertEquals(stats.getIndegreeMin(), 0);
-        assertEquals(stats.getIndegreeMax(), 3);
+        assertEquals(stats.getIndegreeMax(), 4);
         assertEquals(stats.getOutdegreeMin(), 0);
         assertEquals(stats.getOutdegreeMax(), 3);
     }
