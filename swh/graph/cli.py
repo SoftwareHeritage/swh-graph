@@ -291,6 +291,14 @@ def get_all_subclasses(cls):
     For example: ``s3://softwareheritage/graph/``.""",
 )
 @click.option(
+    "--s3-athena-output-location",
+    required=False,
+    type=str,
+    help="""The base S3 "directory" where all datasets and compressed graphs are.
+    Its subdirectories should be named after a date (and optional flavor).
+    For example: ``s3://softwareheritage/graph/``.""",
+)
+@click.option(
     "--graph-base-directory",
     required=False,
     type=PathlibPath(),
@@ -320,11 +328,12 @@ def luigi(
     base_sensitive_directory: Optional[Path],
     s3_prefix: Optional[str],
     athena_prefix: Optional[str],
+    s3_athena_output_location: Optional[str],
     dataset_name: str,
     luigi_config: Optional[Path],
     luigi_param: List[str],
 ):
-    """
+    r"""
     Calls Luigi with the given task and params, and automatically
     configures paths based on --base-directory and --dataset-name.
 
@@ -339,6 +348,20 @@ def luigi(
                 --local-scheduler
 
     to pass ``RunAll --local-scheduler`` as Luigi params
+
+    Or, to compute a derived dataset::
+
+        swh graph luigi \
+                --graph-base-directory /dev/shm/swh-graph/default/ \
+                --base-directory /poolswh/softwareheritage/vlorentz/ \
+                --athena-prefix swh \
+                --dataset-name 2022-04-25 \
+                --s3-athena-output-location s3://some-bucket/tmp/athena \
+                -- \
+                --log-level INFO \
+                FindEarliestRevisions \
+                --scheduler-url http://localhost:50092/ \
+                --blob-filter citation
     """
     import configparser
     import os
@@ -373,6 +396,9 @@ def luigi(
         dataset_s3_prefix = f"{s3_prefix.rstrip('/')}/{dataset_name}"
         default_values["s3_export_path"] = dataset_s3_prefix
         default_values["s3_graph_path"] = f"{dataset_s3_prefix}/compressed"
+
+    if s3_athena_output_location:
+        default_values["s3_athena_output_location"] = s3_athena_output_location
 
     if base_sensitive_directory:
         sensitive_path = base_sensitive_directory / dataset_name
