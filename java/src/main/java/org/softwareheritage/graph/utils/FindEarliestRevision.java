@@ -60,8 +60,8 @@ public class FindEarliestRevision {
             System.err.println("starting SWHID processing...");
             elapsed = Duration.ZERO;
         }
-        // print TSV header line
-        System.out.println("obj_swhid\tearliest_swhid\tearliest_ts\trev_occurrences");
+        // print CSV header line
+        System.out.println("swhid,earliest_swhid,earliest_ts,rev_occurrences");
         while (stdin.hasNextLine()) {
             if (timing)
                 ts = System.nanoTime();
@@ -114,8 +114,8 @@ public class FindEarliestRevision {
             if (minRevId == -1) {
                 System.err.println("no revision found containing: " + srcSWHID.toString());
             } else {
-                System.out.println(srcSWHID.toString() + "\t" + graph.getSWHID(minRevId).toString() + "\t"
-                        + Long.toString(minTimestamp) + "\t" + Long.toString(visitedRevisions));
+                System.out.println(srcSWHID.toString() + "," + graph.getSWHID(minRevId).toString() + ","
+                        + Long.toString(minTimestamp) + "," + Long.toString(visitedRevisions));
             }
             if (timing) {
                 elapsedNanos = System.nanoTime() - ts; // processing time for current SWHID
