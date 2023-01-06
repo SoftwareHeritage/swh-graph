@@ -37,6 +37,30 @@ BACKWARD: GraphDirection.ValueType  # 1
 global___GraphDirection = GraphDirection
 
 
+class _TraversalOrder:
+    ValueType = typing.NewType('ValueType', builtins.int)
+    V: typing_extensions.TypeAlias = ValueType
+class _TraversalOrderEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_TraversalOrder.ValueType], builtins.type):
+    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+    BFS: _TraversalOrder.ValueType  # 0
+    """Breadth-first search, the default"""
+
+    DFS: _TraversalOrder.ValueType  # 1
+    """Depth-first search"""
+
+class TraversalOrder(_TraversalOrder, metaclass=_TraversalOrderEnumTypeWrapper):
+    """Algorithm used by traversal requests"""
+    pass
+
+BFS: TraversalOrder.ValueType  # 0
+"""Breadth-first search, the default"""
+
+DFS: TraversalOrder.ValueType  # 1
+"""Depth-first search"""
+
+global___TraversalOrder = TraversalOrder
+
+
 class GetNodeRequest(google.protobuf.message.Message):
     """Describe a node to return"""
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -75,6 +99,7 @@ class TraversalRequest(google.protobuf.message.Message):
     RETURN_NODES_FIELD_NUMBER: builtins.int
     MASK_FIELD_NUMBER: builtins.int
     MAX_MATCHING_NODES_FIELD_NUMBER: builtins.int
+    TRAVERSAL_ORDER_FIELD_NUMBER: builtins.int
     @property
     def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]:
         """Set of source nodes (SWHIDs)"""
@@ -119,6 +144,9 @@ class TraversalRequest(google.protobuf.message.Message):
     the total number of results. Defaults to infinite.
     """
 
+    traversal_order: global___TraversalOrder.ValueType
+    """Algorithm used by the traversal request; defaults to BFS"""
+
     def __init__(self,
         *,
         src: typing.Optional[typing.Iterable[typing.Text]] = ...,
@@ -130,9 +158,10 @@ class TraversalRequest(google.protobuf.message.Message):
         return_nodes: typing.Optional[global___NodeFilter] = ...,
         mask: typing.Optional[google.protobuf.field_mask_pb2.FieldMask] = ...,
         max_matching_nodes: typing.Optional[builtins.int] = ...,
+        traversal_order: typing.Optional[global___TraversalOrder.ValueType] = ...,
         ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_max_matching_nodes",b"_max_matching_nodes","_min_depth",b"_min_depth","_return_nodes",b"_return_nodes","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","max_matching_nodes",b"max_matching_nodes","min_depth",b"min_depth","return_nodes",b"return_nodes"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_max_matching_nodes",b"_max_matching_nodes","_min_depth",b"_min_depth","_return_nodes",b"_return_nodes","direction",b"direction","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","max_matching_nodes",b"max_matching_nodes","min_depth",b"min_depth","return_nodes",b"return_nodes","src",b"src"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_max_matching_nodes",b"_max_matching_nodes","_min_depth",b"_min_depth","_return_nodes",b"_return_nodes","_traversal_order",b"_traversal_order","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","max_matching_nodes",b"max_matching_nodes","min_depth",b"min_depth","return_nodes",b"return_nodes","traversal_order",b"traversal_order"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_max_matching_nodes",b"_max_matching_nodes","_min_depth",b"_min_depth","_return_nodes",b"_return_nodes","_traversal_order",b"_traversal_order","direction",b"direction","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","max_matching_nodes",b"max_matching_nodes","min_depth",b"min_depth","return_nodes",b"return_nodes","src",b"src","traversal_order",b"traversal_order"]) -> None: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_edges",b"_edges"]) -> typing.Optional[typing_extensions.Literal["edges"]]: ...
     @typing.overload
@@ -147,6 +176,8 @@ class TraversalRequest(google.protobuf.message.Message):
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_min_depth",b"_min_depth"]) -> typing.Optional[typing_extensions.Literal["min_depth"]]: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_return_nodes",b"_return_nodes"]) -> typing.Optional[typing_extensions.Literal["return_nodes"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_traversal_order",b"_traversal_order"]) -> typing.Optional[typing_extensions.Literal["traversal_order"]]: ...
 global___TraversalRequest = TraversalRequest
 
 class FindPathToRequest(google.protobuf.message.Message):

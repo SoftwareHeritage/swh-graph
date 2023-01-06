@@ -113,8 +113,8 @@ public class Traversal {
     static class StopTraversalException extends RuntimeException {
     }
 
-    /** Generic BFS traversal algorithm. */
-    static class BFSVisitor {
+    /** Generic BFS/DFS traversal algorithm. */
+    static class Visitor {
         /** The graph to traverse. */
         protected final SwhUnidirectionalGraph g;
         /** Depth of the node currently being visited */
@@ -132,20 +132,25 @@ public class Traversal {
          * nodes.
          */
         protected HashMap<Long, Long> parents = new HashMap<>();
-        /** Queue of nodes to visit (also called "frontier", "open set", "wavefront" etc.) */
-        protected ArrayDeque<Long> queue = new ArrayDeque<>();
+        /**
+         * Queue (or stack in DFS mode) of nodes to visit (also called "frontier", "open set", "wavefront"
+         * etc.),
+         **/
+        protected ArrayDeque<Long> frontier = new ArrayDeque<>();
         /** If > 0, the maximum depth of the traversal. */
         private long maxDepth = -1;
         /** If > 0, the maximum number of edges to traverse. */
         private long maxEdges = -1;
+        /** Determines whether the traversal is performed as a BFS or a DFS. */
+        private TraversalOrder traversal_order;
 
-        BFSVisitor(SwhUnidirectionalGraph g) {
+        Visitor(SwhUnidirectionalGraph g) {
             this.g = g;
         }
 
-        /** Add a new source node to the initial queue. */
+        /** Add a new source node to the initial frontier. */
         public void addSource(long nodeId) {
-            queue.add(nodeId);
+            frontier.add(nodeId);
             parents.put(nodeId, -1L);
         }
 
@@ -159,17 +164,24 @@ public class Traversal {
             maxEdges = edges;
         }
 
+        /**
+         * Set whether the traversal will be performed as a DFS or a BFS (default is BFS).
+         **/
+        public void setTraversalOrder(TraversalOrder order) {
+            traversal_order = order;
+        }
+
         /** Setup the visit counters and depth sentinel. */
         public void visitSetup() {
             edgesAccessed = 0;
             depth = 0;
-            queue.add(-1L); // depth sentinel
+            frontier.add(-1L); // depth sentinel
         }
 
         /** Perform the visit */
         public void visit() {
             visitSetup();
-            while (!queue.isEmpty()) {
+            while (!frontier.isEmpty()) {
                 visitStep();
             }
         }
@@ -177,12 +189,12 @@ public class Traversal {
         /** Single "step" of a visit. Advance the frontier of exactly one node. */
         public void visitStep() {
             try {
-                assert !queue.isEmpty();
-                long curr = queue.poll();
+                assert !frontier.isEmpty();
+                long curr = traversal_order == TraversalOrder.DFS ? frontier.pop() : frontier.poll();
                 if (curr == -1L) {
                     ++depth;
-                    if (!queue.isEmpty()) {
-                        queue.add(-1L);
+                    if (!frontier.isEmpty()) {
+                        frontier.add(-1L);
                         visitStep();
                     }
                     return;
@@ -196,8 +208,8 @@ public class Traversal {
                 }
                 visitNode(curr);
             } catch (StopTraversalException e) {
-                // Traversal is over, clear the to-do queue.
-                queue.clear();
+                // Traversal is over, clear the to-do queue/stack.
+                frontier.clear();
             }
         }
 
@@ -222,17 +234,17 @@ public class Traversal {
         /** Visit an edge. Override to do additional processing on the edge. */
         protected void visitEdge(long src, long dst, Label label) {
             if (!parents.containsKey(dst)) {
-                queue.add(dst);
+                frontier.add(dst);
                 parents.put(dst, src);
             }
         }
     }
 
     /**
-     * SimpleTraversal is used by the Traverse endpoint. It extends BFSVisitor with additional
-     * processing, notably related to graph properties and filters.
+     * SimpleTraversal is used by the Traverse endpoint. It extends Visitor with additional processing,
+     * notably related to graph properties and filters.
      */
-    static class SimpleTraversal extends BFSVisitor {
+    static class SimpleTraversal extends Visitor {
         private final NodeFilterChecker nodeReturnChecker;
         private final AllowedEdges allowedEdges;
         private final TraversalRequest request;
@@ -258,6 +270,9 @@ public class Traversal {
             }
             if (request.hasMaxEdges()) {
                 setMaxEdges(request.getMaxEdges());
+            }
+            if (request.hasTraversalOrder()) {
+                setTraversalOrder(request.getTraversalOrder());
             }
             if (request.hasMaxMatchingNodes() && request.getMaxMatchingNodes() > 0) {
                 this.remainingMatches = request.getMaxMatchingNodes();
@@ -311,10 +326,10 @@ public class Traversal {
 
     /**
      * FindPathTo searches for a path from a source node to a node matching a given criteria It extends
-     * BFSVisitor with additional processing, and makes the traversal stop as soon as a node matching
-     * the given criteria is found.
+     * Visitor with additional processing, and makes the traversal stop as soon as a node matching the
+     * given criteria is found.
      */
-    static class FindPathTo extends BFSVisitor {
+    static class FindPathTo extends Visitor {
         private final AllowedEdges allowedEdges;
         private final FindPathToRequest request;
         private final NodePropertyBuilder.NodeDataMask nodeDataMask;
@@ -401,14 +416,14 @@ public class Traversal {
      * common ancestor between the two sets, respectively. These will be the midpoints of the returned
      * path.
      */
-    static class FindPathBetween extends BFSVisitor {
+    static class FindPathBetween extends Visitor {
         private final FindPathBetweenRequest request;
         private final NodePropertyBuilder.NodeDataMask nodeDataMask;
         private final AllowedEdges allowedEdgesSrc;
         private final AllowedEdges allowedEdgesDst;
 
-        private final BFSVisitor srcVisitor;
-        private final BFSVisitor dstVisitor;
+        private final Visitor srcVisitor;
+        private final Visitor dstVisitor;
         private Long middleNode = null;
 
         FindPathBetween(SwhBidirectionalGraph bidirectionalGraph, FindPathBetweenRequest request) {
@@ -442,7 +457,7 @@ public class Traversal {
              * Source sub-visitor. Aborts as soon as it finds a node already visited by the destination
              * sub-visitor.
              */
-            this.srcVisitor = new BFSVisitor(srcGraph) {
+            this.srcVisitor = new Visitor(srcGraph) {
                 @Override
                 protected ArcLabelledNodeIterator.LabelledArcIterator getSuccessors(long nodeId) {
                     return filterLabelledSuccessors(g, nodeId, allowedEdgesSrc);
@@ -462,7 +477,7 @@ public class Traversal {
              * Destination sub-visitor. Aborts as soon as it finds a node already visited by the source
              * sub-visitor.
              */
-            this.dstVisitor = new BFSVisitor(dstGraph) {
+            this.dstVisitor = new Visitor(dstGraph) {
                 @Override
                 protected ArcLabelledNodeIterator.LabelledArcIterator getSuccessors(long nodeId) {
                     return filterLabelledSuccessors(g, nodeId, allowedEdgesDst);
@@ -502,11 +517,11 @@ public class Traversal {
              */
             srcVisitor.visitSetup();
             dstVisitor.visitSetup();
-            while (!srcVisitor.queue.isEmpty() || !dstVisitor.queue.isEmpty()) {
-                if (!srcVisitor.queue.isEmpty()) {
+            while (!srcVisitor.frontier.isEmpty() || !dstVisitor.frontier.isEmpty()) {
+                if (!srcVisitor.frontier.isEmpty()) {
                     srcVisitor.visitStep();
                 }
-                if (!dstVisitor.queue.isEmpty()) {
+                if (!dstVisitor.frontier.isEmpty()) {
                     dstVisitor.visitStep();
                 }
             }
