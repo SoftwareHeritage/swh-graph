@@ -51,7 +51,10 @@ from typing import List
 
 import luigi
 
-from . import compressed_graph
+from .blobs_datasets import *  # noqa
+from .compressed_graph import *  # noqa
+from .misc_datasets import *  # noqa
+from .origin_contributors import *  # noqa
 
 
 class RunExportCompressUpload(luigi.Task):
@@ -64,9 +67,11 @@ class RunExportCompressUpload(luigi.Task):
         """
         from swh.dataset.luigi import RunExportAll
 
+        from .compressed_graph import UploadGraphToS3
+
         return [
             RunExportAll(),
-            compressed_graph.UploadGraphToS3(),
+            UploadGraphToS3(),
         ]
 
     def complete(self) -> bool:
