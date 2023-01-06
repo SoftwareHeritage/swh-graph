@@ -51,6 +51,7 @@ from typing import List
 
 import luigi
 
+from .blobs_datasets import *  # noqa
 from .compressed_graph import *  # noqa
 from .misc_datasets import *  # noqa
 from .origin_contributors import *  # noqa

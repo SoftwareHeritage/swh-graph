@@ -23,7 +23,8 @@ LOGBACK_CONF = b"""\
 """Overrides the default config, to log to stderr instead of stdout"""
 
 
-def run_script(script: str, output_path: Path) -> None:
+def run_script(script: str, output_path: Path, **kwargs) -> None:
+    """Passes ``kwargs`` to :func:`subprocess.run`."""
     import os
     import subprocess
     import tempfile
@@ -59,6 +60,7 @@ def run_script(script: str, output_path: Path) -> None:
                 stdout=tmp_output,
                 env=env,
                 check=True,
+                **kwargs,
             )
 
     # Atomically write the output file
