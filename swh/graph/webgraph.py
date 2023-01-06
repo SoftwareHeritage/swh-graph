@@ -272,6 +272,12 @@ def do_step(step, conf):
     log_dir.mkdir(exist_ok=True)
 
     step_logger = logger.getChild(f"steps.{step.name.lower()}")
+    if not step_logger.isEnabledFor(logging.INFO):
+        # Ensure that at least INFO messages are sent, because it is the level we use
+        # for the stdout of Java processes. These processes can take a long time to
+        # run, and it would be very annoying to have to run them again just because
+        # they crashed with no log.
+        step_logger.setLevel(logging.INFO)
     step_handler = logging.FileHandler(
         log_dir
         / (
