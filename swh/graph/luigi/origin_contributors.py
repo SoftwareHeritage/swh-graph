@@ -60,7 +60,7 @@ class ListOriginContributors(luigi.Task):
             script = f"""
             zstdcat {self.topological_order_path} \
                 | java {class_name} '{self.local_graph_path}/{self.graph_name}' '{origin_urls_fd.name}' \
-                | pv --line-mode --wait \
+                | pv --line-mode --wait --size $(zstdcat '{self.topological_order_path}' | wc -l) \
                 | zstdmt -19
             """  # noqa
             run_script(script, self.origin_contributors_path)
