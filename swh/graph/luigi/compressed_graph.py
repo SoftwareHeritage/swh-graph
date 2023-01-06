@@ -93,6 +93,7 @@ class CompressGraph(luigi.Task):
         Larger is faster, but consumes more resources.
         """,
     )
+    max_ram = luigi.Parameter(default=None, significant=False)
 
     object_types = list(ObjectType)
     # To make this configurable, we could use this:
@@ -142,6 +143,8 @@ class CompressGraph(luigi.Task):
 
         if self.batch_size:
             conf["batch_size"] = self.batch_size
+        if self.max_ram:
+            conf["max_ram"] = self.max_ram
 
         # Delete stamps. Otherwise interrupting this compression pipeline may leave
         # stamps from a previous successful compression
