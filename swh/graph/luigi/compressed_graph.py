@@ -313,8 +313,7 @@ class DownloadGraphFromS3(luigi.Task):
     s3_graph_path = S3PathParameter(significant=False)
 
     def requires(self) -> List[luigi.Task]:
-        """Returns a :class:`ExportGraph` task that writes local files at the
-        expected location."""
+        """Returns a :class:`UploadGraphToS3` task that writes local files to S3."""
         return [
             UploadGraphToS3(
                 local_graph_path=self.local_graph_path,
