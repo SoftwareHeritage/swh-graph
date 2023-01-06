@@ -381,11 +381,11 @@ def luigi(
 
     default_values = dict(
         local_export_path=dataset_path,
-        export_task_type="ExportGraph",
-        compression_task_type="CompressGraph",
         local_graph_path=dataset_path / "compressed",
+        derived_datasets_path=dataset_path,
         topological_order_path=dataset_path / "topology/topological_order_dfs.csv.zst",
         origin_contributors_path=dataset_path / "datasets/contribution_graph.csv.zst",
+        origin_urls_path=dataset_path / "datasets/origin_urls.csv.zst",
         export_id=f"{dataset_name}-{secrets.token_hex(10)}",
     )
 
