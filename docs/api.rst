@@ -48,6 +48,50 @@ Examples
 - ``"*:rel"`` node types allowing all edges to releases.
 
 
+Node & edge existence
+---------------------
+
+.. http:get:: /graph/node/:src
+
+    Check whether a given node exists in the graph or not.
+
+    :param string src: source node specified as a SWH PID
+
+    :statuscode 200: success
+    :statuscode 400: invalid PID
+    :statuscode 404: node not found
+
+    .. sourcecode:: http
+
+        GET /graph/node/swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35
+
+        HTTP/1.1 200 OK
+        Content-Type: text/plain
+
+        swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35
+
+
+.. http:get:: /graph/edge/:src/:dst
+
+    Check whether a given edge exists in the graph or not.
+
+    :param string src: source node specified as a SWH PID
+    :param string dst: destination node specified as a SWH PID
+
+    :statuscode 200: success
+    :statuscode 400: invalid PID(s)
+    :statuscode 404: node(s) not found
+
+    .. sourcecode:: http
+
+        GET /graph/node/swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35/swh:1:dir:b5d2aa0746b70300ebbca82a8132af386cc5986d
+
+        HTTP/1.1 200 OK
+        Content-Type: text/plain
+
+        swh:1:rev:f39d7d78b70e0f39facb1e4fab77ad3df5c52a35 swh:1:dir:b5d2aa0746b70300ebbca82a8132af386cc5986d
+
+
 Leaves
 ------
 

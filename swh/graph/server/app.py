@@ -105,6 +105,37 @@ def pid_of_node(node, backend):
             body=f'reverse lookup failed for node id: {node}')
 
 
+async def node(request):
+    """check if a node exists in the graph"""
+    backend = request.app['backend']
+    src = request.match_info['src']
+
+    node_of_pid(src, backend)  # will barf if node doesn't exist
+
+    return aiohttp.web.Response(body=f'{src}', content_type='text/plain')
+
+
+async def edge(request):
+    """check if an edge exists in the graph"""
+    backend = request.app['backend']
+
+    edges = get_edges(request)
+    direction = get_direction(request)
+    src = request.match_info['src']
+    dst = request.match_info['dst']
+    src_node = node_of_pid(src, backend)
+    dst_node = node_of_pid(dst, backend)
+
+    async for res_node in backend.simple_traversal(
+            'neighbors', direction, edges, src_node
+    ):
+        if res_node == dst_node:
+            return aiohttp.web.Response(body=f'{src} {dst}',
+                                        content_type='text/plain')
+
+    raise aiohttp.web.HTTPNotFound(body=f'edge not found: {src} -> {dst}')
+
+
 def get_simple_traversal_handler(ttype):
     async def simple_traversal(request):
         backend = request.app['backend']
@@ -198,6 +229,9 @@ def make_app(backend, **kwargs):
     app.router.add_get('/', index)
     app.router.add_get('/graph', index)
     app.router.add_get('/graph/stats', stats)
+
+    app.router.add_get('/graph/node/{src}', node)
+    app.router.add_get('/graph/edge/{src}/{dst}', edge)
 
     app.router.add_get('/graph/leaves/{src}',
                        get_simple_traversal_handler('leaves'))
