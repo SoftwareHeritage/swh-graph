@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 The Software Heritage developers
+ * Copyright (c) 2022-2023 The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -67,8 +67,8 @@ public class TopoSort {
         System.err.println("Listing leaves.");
         long total_nodes = 0;
         NodeIterator nodeIterator = graph.nodeIterator();
-        for (long currentNodeId = nodeIterator.nextLong(); nodeIterator
-                .hasNext(); currentNodeId = nodeIterator.nextLong()) {
+        while (nodeIterator.hasNext()) {
+            long currentNodeId = nodeIterator.nextLong();
             total_nodes++;
             long firstSuccessor = graph.successors(currentNodeId).nextLong();
             if (firstSuccessor != -1) {
