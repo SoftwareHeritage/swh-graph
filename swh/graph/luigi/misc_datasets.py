@@ -54,6 +54,7 @@ class TopoSort(luigi.Task):
     graph_name = luigi.Parameter(default="graph")
     object_types = luigi.Parameter()
     direction = luigi.ChoiceParameter(choices=["forward", "backward"])
+    algorithm = luigi.ChoiceParameter(choices=["dfs", "bfs"])
 
     def requires(self) -> List[luigi.Task]:
         """Returns an instance of :class:`LocalGraph`."""
@@ -63,7 +64,7 @@ class TopoSort(luigi.Task):
         """.csv.zst file that contains the topological order."""
         return luigi.LocalTarget(
             self.topological_order_dir
-            / f"topological_order_dfs_{self.direction}_{self.object_types}.csv.zst"
+            / f"topological_order_{self.algorithm}_{self.direction}_{self.object_types}.csv.zst"
         )
 
     def run(self) -> None:
@@ -73,7 +74,7 @@ class TopoSort(luigi.Task):
             raise ValueError(f"Invalid object types: {invalid_object_types}")
         class_name = "org.softwareheritage.graph.utils.TopoSort"
         script = f"""
-        java {class_name} '{self.local_graph_path}/{self.graph_name}' '{self.direction}' '{self.object_types}' \
+        java {class_name} '{self.local_graph_path}/{self.graph_name}' '{self.algorithm}' '{self.direction}' '{self.object_types}' \
             | pv --line-mode --wait \
             | zstdmt -19
         """  # noqa

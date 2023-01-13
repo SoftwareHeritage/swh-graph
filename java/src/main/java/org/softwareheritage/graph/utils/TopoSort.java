@@ -26,7 +26,7 @@ import java.util.*;
  *
  * Sample invocation:
  *
- *   $ java -cp ~/swh-environment/swh-graph/java/target/swh-graph-*.jar -Xmx1000G -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:+UseTLAB -XX:+ResizeTLAB org.softwareheritage.graph.utils.TopoSort /dev/shm/swh-graph/default/graph backward 'rev,rel,snp,ori' \
+ *   $ java -cp ~/swh-environment/swh-graph/java/target/swh-graph-*.jar -Xmx1000G -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:+UseTLAB -XX:+ResizeTLAB org.softwareheritage.graph.utils.TopoSort /dev/shm/swh-graph/default/graph dfs backward 'rev,rel,snp,ori' \
  *      | pv --line-mode --wait \
  *      | zstdmt \
  *      > /poolswh/softwareheritage/vlorentz/2022-04-25_toposort_rev,rel,snp,ori.txt.zst
@@ -35,16 +35,20 @@ import java.util.*;
 public class TopoSort {
     private Subgraph graph;
     private Subgraph transposedGraph;
+    private boolean dfs; // Whether to run in BFS or DFS
+    private Stack<Long> ready_stack; // For DFS
+    private Queue<Long> ready_queue; // For BFS
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
-        if (args.length != 3) {
+        if (args.length != 4) {
             System.err.println(
-                    "Syntax: java org.softwareheritage.graph.utils.TopoSort <path/to/graph> {forward|backward} <nodeTypes>");
+                    "Syntax: java org.softwareheritage.graph.utils.TopoSort <path/to/graph> {dfs|bfs} {forward|backward} <nodeTypes>");
             System.exit(1);
         }
         String graphPath = args[0];
-        String directionString = args[1];
-        String nodeTypes = args[2];
+        String algorithm = args[1];
+        String directionString = args[2];
+        String nodeTypes = args[3];
 
         TopoSort toposort = new TopoSort();
 
@@ -56,8 +60,18 @@ public class TopoSort {
             System.err.println("Invalid direction " + directionString);
             System.exit(1);
         }
+        if (algorithm.equals("dfs")) {
+            toposort.dfs = true;
+            toposort.ready_stack = new Stack<>();
+        } else if (algorithm.equals("bfs")) {
+            toposort.dfs = false;
+            toposort.ready_queue = new ArrayDeque<>();
+        } else {
+            System.err.println("Invalid algorithm " + algorithm);
+            System.exit(1);
+        }
 
-        toposort.toposortDFS();
+        toposort.toposort();
     }
 
     public void swapGraphs() {
@@ -76,10 +90,41 @@ public class TopoSort {
         System.err.println("Graph loaded.");
     }
 
-    /* Prints nodes in topological order, based on a DFS. */
-    public void toposortDFS() {
+    private void pushReady(long nodeId) {
+        if (dfs) {
+            ready_stack.push(nodeId);
+        } else {
+            ready_queue.add(nodeId);
+        }
+    }
+
+    private long popReady() {
+        if (dfs) {
+            return ready_stack.pop();
+        } else {
+            return ready_queue.poll();
+        }
+    }
+
+    private long readySize() {
+        if (dfs) {
+            return ready_stack.size();
+        } else {
+            return ready_queue.size();
+        }
+    }
+
+    private boolean readyNodes() {
+        if (dfs) {
+            return !ready_stack.isEmpty();
+        } else {
+            return !ready_queue.isEmpty();
+        }
+    }
+
+    /* Prints nodes in topological order, based on a DFS or BFS. */
+    public void toposort() {
         LongArrayBitVector visited = LongArrayBitVector.ofLength(graph.numNodes());
-        Stack<Long> ready = new Stack<>();
 
         /* First, push all leaves to the stack */
         System.err.println("Listing leaves.");
@@ -93,20 +138,20 @@ public class TopoSort {
                 /* The node has ancestor, so it is not a leaf. */
                 continue;
             }
-            ready.push(currentNodeId);
-            if (ready.size() % 10000000 == 0) {
-                float ready_size_f = ready.size();
+            pushReady(currentNodeId);
+            if (readySize() % 10000000 == 0) {
+                float ready_size_f = readySize();
                 float total_nodes_f = total_nodes;
                 System.err.printf("Listed %.02f B leaves (out of %.02f B nodes)\n", ready_size_f / 1000000000.,
                         total_nodes_f / 1000000000.);
             }
         }
-        System.err.println("Leaves loaded, starting DFS.");
+        System.err.println("Leaves listed, starting traversal.");
 
         System.out.format("SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2\n");
         long printed_nodes = 0;
-        while (!ready.isEmpty()) {
-            long currentNodeId = ready.pop();
+        while (readyNodes()) {
+            long currentNodeId = popReady();
             visited.set(currentNodeId);
 
             /* Find its successors which are ready */
@@ -126,7 +171,7 @@ public class TopoSort {
                     }
                 }
                 if (isReady) {
-                    ready.push(successorNodeId);
+                    pushReady(successorNodeId);
                 }
             }
 

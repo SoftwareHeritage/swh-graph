@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import itertools
 from pathlib import Path
 import subprocess
 
@@ -47,18 +48,21 @@ swh:1:rev:0000000000000000000000000000000000000003,1,0,swh:1:rev:000000000000000
 """
 
 
-@pytest.mark.parametrize("direction", ["backward", "forward"])
-def test_toposort(tmpdir, direction: str):
+@pytest.mark.parametrize(
+    "direction,algorithm", itertools.product(["backward", "forward"], ["bfs", "dfs"])
+)
+def test_toposort(tmpdir, direction: str, algorithm: str):
     tmpdir = Path(tmpdir)
 
     topological_order_path = (
-        tmpdir / f"topological_order_dfs_{direction}_rev,rel,snp,ori.csv.zst"
+        tmpdir / f"topological_order_{algorithm}_{direction}_rev,rel,snp,ori.csv.zst"
     )
 
     task = TopoSort(
         local_graph_path=DATA_DIR / "compressed",
         topological_order_dir=tmpdir,
         direction=direction,
+        algorithm=algorithm,
         object_types="rev,rel,snp,ori",
         graph_name="example",
     )
