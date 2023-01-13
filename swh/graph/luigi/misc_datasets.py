@@ -54,7 +54,7 @@ class TopoSort(luigi.Task):
     graph_name = luigi.Parameter(default="graph")
     object_types = luigi.Parameter()
     direction = luigi.ChoiceParameter(choices=["forward", "backward"])
-    algorithm = luigi.ChoiceParameter(choices=["dfs", "bfs"])
+    algorithm = luigi.ChoiceParameter(choices=["dfs", "bfs"], default="dfs")
 
     def requires(self) -> List[luigi.Task]:
         """Returns an instance of :class:`LocalGraph`."""
