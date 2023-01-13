@@ -103,6 +103,7 @@ public class TopoSort {
         System.err.println("Leaves loaded, starting DFS.");
 
         System.out.format("SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2\n");
+        long printed_nodes = 0;
         while (!ready.isEmpty()) {
             long currentNodeId = ready.pop();
             visited.add(currentNodeId);
@@ -146,6 +147,13 @@ public class TopoSort {
             SWHID currentNodeSWHID = graph.getSWHID(currentNodeId);
             System.out.format("%s,%d,%d,%s,%s\n", currentNodeSWHID, ancestorCount, successorCount, sampleAncestors[0],
                     sampleAncestors[1]);
+            printed_nodes += 1;
+            if (printed_nodes % 10000000 == 0) {
+                float printed_nodes_f = printed_nodes;
+                float total_nodes_f = total_nodes;
+                System.err.printf("Sorted %.02f B nodes (out of %.02f B)\n", printed_nodes_f / 1000000000.,
+                        total_nodes_f / 1000000000.);
+            }
         }
     }
 }
