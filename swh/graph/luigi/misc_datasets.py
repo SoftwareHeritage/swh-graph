@@ -34,6 +34,7 @@ And optionally::
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
+from pathlib import Path
 from typing import List
 
 import luigi
@@ -41,14 +42,18 @@ import luigi
 from .compressed_graph import LocalGraph
 from .utils import run_script
 
+OBJECT_TYPES = {"ori", "snp", "rel", "rev", "dir", "cnt"}
+
 
 class TopoSort(luigi.Task):
     """Creates a file that contains all SWHIDs in topological order from a compressed
     graph."""
 
     local_graph_path = luigi.PathParameter()
-    topological_order_path = luigi.PathParameter()
+    topological_order_dir = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
+    object_types = luigi.Parameter()
+    direction = luigi.ChoiceParameter(choices=["forward", "backward"])
 
     def requires(self) -> List[luigi.Task]:
         """Returns an instance of :class:`LocalGraph`."""
@@ -56,15 +61,20 @@ class TopoSort(luigi.Task):
 
     def output(self) -> luigi.Target:
         """.csv.zst file that contains the topological order."""
-        return luigi.LocalTarget(self.topological_order_path)
+        return luigi.LocalTarget(
+            self.topological_order_dir
+            / f"topological_order_dfs_{self.direction}_{self.object_types}.csv.zst"
+        )
 
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.TopoSort and compresses"""
-        object_types = "rev,rel,snp,ori"
+        invalid_object_types = set(self.object_types.split(",")) - OBJECT_TYPES
+        if invalid_object_types:
+            raise ValueError(f"Invalid object types: {invalid_object_types}")
         class_name = "org.softwareheritage.graph.utils.TopoSort"
         script = f"""
-        java {class_name} '{self.local_graph_path}/{self.graph_name}' '{object_types}' \
+        java {class_name} '{self.local_graph_path}/{self.graph_name}' '{self.direction}' '{self.object_types}' \
             | pv --line-mode --wait \
             | zstdmt -19
-        """
-        run_script(script, self.topological_order_path)
+        """  # noqa
+        run_script(script, Path(self.output().path))

@@ -22,7 +22,7 @@ from swh.model.model import (
     TimestampWithTimezone,
 )
 
-from .test_toposort import EXPECTED as TOPOLOGICAL_ORDER
+from .test_toposort import EXPECTED_BACKWARD as TOPOLOGICAL_ORDER
 
 DATA_DIR = Path(__file__).parents[0] / "dataset"
 
@@ -79,7 +79,10 @@ origin_id,contributor_base64,contributor_escaped
 def test_list_origin_contributors(tmpdir):
     tmpdir = Path(tmpdir)
 
-    topological_order_path = tmpdir / "topo_order.csv.zst"
+    topological_order_dir = tmpdir
+    topological_order_path = (
+        topological_order_dir / "topological_order_dfs_backward_rev,rel,snp,ori.csv.zst"
+    )
     origin_contributors_path = tmpdir / "origin_contributors.csv.zst"
     origin_urls_path = tmpdir / "origin_urls.csv.zst"
 
@@ -91,7 +94,7 @@ def test_list_origin_contributors(tmpdir):
 
     task = ListOriginContributors(
         local_graph_path=DATA_DIR / "compressed",
-        topological_order_path=topological_order_path,
+        topological_order_dir=topological_order_dir,
         origin_contributors_path=origin_contributors_path,
         origin_urls_path=origin_urls_path,
         graph_name="example",

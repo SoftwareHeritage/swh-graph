@@ -25,7 +25,7 @@ import java.util.*;
  *
  * Sample invocation:
  *
- *   $ java -cp ~/swh-environment/swh-graph/java/target/swh-graph-*.jar -Xmx1000G -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:+UseTLAB -XX:+ResizeTLAB org.softwareheritage.graph.utils.TopoSort /dev/shm/swh-graph/default/graph 'rev,rel,snp,ori' \
+ *   $ java -cp ~/swh-environment/swh-graph/java/target/swh-graph-*.jar -Xmx1000G -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:+UseTLAB -XX:+ResizeTLAB org.softwareheritage.graph.utils.TopoSort /dev/shm/swh-graph/default/graph backward 'rev,rel,snp,ori' \
  *      | pv --line-mode --wait \
  *      | zstdmt \
  *      > /poolswh/softwareheritage/vlorentz/2022-04-25_toposort_rev,rel,snp,ori.txt.zst
@@ -36,20 +36,37 @@ public class TopoSort {
     private Subgraph transposedGraph;
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
-        if (args.length != 2) {
-            System.err.println("Syntax: java org.softwareheritage.graph.utils.TopoSort <path/to/graph> <nodeTypes>");
+        if (args.length != 3) {
+            System.err.println(
+                    "Syntax: java org.softwareheritage.graph.utils.TopoSort <path/to/graph> {forward|backward} <nodeTypes>");
             System.exit(1);
         }
         String graphPath = args[0];
-        String nodeTypes = args[1];
+        String directionString = args[1];
+        String nodeTypes = args[2];
 
         TopoSort toposort = new TopoSort();
 
-        toposort.load_graph(graphPath, nodeTypes);
+        toposort.loadGraph(graphPath, nodeTypes);
+
+        if (directionString.equals("forward")) {
+            toposort.swapGraphs();
+        } else if (!directionString.equals("backward")) {
+            System.err.println("Invalid direction " + directionString);
+            System.exit(1);
+        }
+
         toposort.toposortDFS();
     }
 
-    public void load_graph(String graphBasename, String nodeTypes) throws IOException {
+    public void swapGraphs() {
+        Subgraph tmp;
+        tmp = graph;
+        graph = transposedGraph;
+        transposedGraph = tmp;
+    }
+
+    public void loadGraph(String graphBasename, String nodeTypes) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
         var underlyingGraph = SwhBidirectionalGraph.loadMapped(graphBasename);
         System.err.println("Selecting subgraphs.");

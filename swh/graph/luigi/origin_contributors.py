@@ -28,22 +28,24 @@ class ListOriginContributors(luigi.Task):
     graph."""
 
     local_graph_path = luigi.PathParameter()
-    topological_order_path = luigi.PathParameter()
+    topological_order_dir = luigi.PathParameter()
     origin_contributors_path = luigi.PathParameter()
     origin_urls_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
 
-    def requires(self) -> List[luigi.Task]:
+    def requires(self) -> Dict[str, luigi.Task]:
         """Returns an instance of :class:`swh.graph.luigi.compressed_graph.LocalGraph`
         and :class:`swh.graph.luigi.misc_datasets.TopoSort`."""
-        return [
-            LocalGraph(local_graph_path=self.local_graph_path),
-            TopoSort(
+        return {
+            "graph": LocalGraph(local_graph_path=self.local_graph_path),
+            "toposort": TopoSort(
                 local_graph_path=self.local_graph_path,
-                topological_order_path=self.topological_order_path,
+                topological_order_dir=self.topological_order_dir,
                 graph_name=self.graph_name,
+                direction="backward",
+                object_types="rev,rel,snp,ori",
             ),
-        ]
+        }
 
     def output(self) -> luigi.Target:
         """.csv.zst file that contains the topological order."""
@@ -53,14 +55,16 @@ class ListOriginContributors(luigi.Task):
         """Runs org.softwareheritage.graph.utils.TopoSort and compresses"""
         import tempfile
 
+        topological_order_path = Path(self.input()["toposort"].path)
+
         class_name = "org.softwareheritage.graph.utils.ListOriginContributors"
         with tempfile.NamedTemporaryFile(
             prefix="origin_urls_", suffix=".csv"
         ) as origin_urls_fd:
             script = f"""
-            zstdcat {self.topological_order_path} \
+            zstdcat {topological_order_path} \
                 | java {class_name} '{self.local_graph_path}/{self.graph_name}' '{origin_urls_fd.name}' \
-                | pv --line-mode --wait --size $(zstdcat '{self.topological_order_path}' | wc -l) \
+                | pv --line-mode --wait --size $(zstdcat '{topological_order_path}' | wc -l) \
                 | zstdmt -19
             """  # noqa
             run_script(script, self.origin_contributors_path)
