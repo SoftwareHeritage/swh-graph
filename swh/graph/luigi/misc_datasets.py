@@ -55,6 +55,7 @@ class TopoSort(luigi.Task):
     object_types = luigi.Parameter()
     direction = luigi.ChoiceParameter(choices=["forward", "backward"])
     algorithm = luigi.ChoiceParameter(choices=["dfs", "bfs"], default="dfs")
+    max_ram = luigi.Parameter(default="500G")
 
     def requires(self) -> List[luigi.Task]:
         """Returns an instance of :class:`LocalGraph`."""
@@ -73,8 +74,10 @@ class TopoSort(luigi.Task):
         if invalid_object_types:
             raise ValueError(f"Invalid object types: {invalid_object_types}")
         class_name = "org.softwareheritage.graph.utils.TopoSort"
+        # TODO: pass max_ram to run_script() correctly so it can pass it to
+        # check_config(), instead of hardcoding it on the command line here
         script = f"""
-        java {class_name} '{self.local_graph_path}/{self.graph_name}' '{self.algorithm}' '{self.direction}' '{self.object_types}' \
+        java -Xmx{self.max_ram} {class_name} '{self.local_graph_path}/{self.graph_name}' '{self.algorithm}' '{self.direction}' '{self.object_types}' \
             | pv --line-mode --wait \
             | zstdmt -19
         """  # noqa

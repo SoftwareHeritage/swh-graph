@@ -291,6 +291,10 @@ def get_all_subclasses(cls):
     For example: ``s3://softwareheritage/graph/``.""",
 )
 @click.option(
+    "--max-ram",
+    help="""Value to pass to -Xmx for Java processes""",
+)
+@click.option(
     "--s3-athena-output-location",
     required=False,
     type=str,
@@ -328,6 +332,7 @@ def luigi(
     base_sensitive_directory: Optional[Path],
     s3_prefix: Optional[str],
     athena_prefix: Optional[str],
+    max_ram: Optional[str],
     s3_athena_output_location: Optional[str],
     dataset_name: str,
     luigi_config: Optional[Path],
@@ -399,6 +404,9 @@ def luigi(
 
     if s3_athena_output_location:
         default_values["s3_athena_output_location"] = s3_athena_output_location
+
+    if max_ram:
+        default_values["max_ram"] = max_ram
 
     if base_sensitive_directory:
         sensitive_path = base_sensitive_directory / dataset_name
