@@ -10,6 +10,7 @@ package org.softwareheritage.graph.utils;
 import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.NodeIterator;
+import it.unimi.dsi.bits.LongArrayBitVector;
 import org.softwareheritage.graph.*;
 
 import java.io.IOException;
@@ -77,7 +78,7 @@ public class TopoSort {
 
     /* Prints nodes in topological order, based on a DFS. */
     public void toposortDFS() {
-        HashSet<Long> visited = new HashSet<Long>();
+        LongArrayBitVector visited = LongArrayBitVector.ofLength(graph.numNodes());
         Stack<Long> ready = new Stack<>();
 
         /* First, push all leaves to the stack */
@@ -106,7 +107,7 @@ public class TopoSort {
         long printed_nodes = 0;
         while (!ready.isEmpty()) {
             long currentNodeId = ready.pop();
-            visited.add(currentNodeId);
+            visited.set(currentNodeId);
 
             /* Find its successors which are ready */
             LazyLongIterator successors = transposedGraph.successors(currentNodeId);
@@ -116,7 +117,7 @@ public class TopoSort {
                 LazyLongIterator successorAncestors = graph.successors(successorNodeId);
                 boolean isReady = true;
                 for (long successorAncestorNodeId; (successorAncestorNodeId = successorAncestors.nextLong()) != -1;) {
-                    if (!visited.contains(successorAncestorNodeId)) {
+                    if (!visited.getBoolean(successorAncestorNodeId)) {
                         /*
                          * This ancestor of the successor is not yet visited, so the ancestor is not ready.
                          */
