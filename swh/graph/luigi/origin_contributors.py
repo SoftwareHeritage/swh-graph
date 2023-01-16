@@ -181,35 +181,35 @@ class DeanonymizeOriginContributors(luigi.Task):
                 for line in fd
             ]
 
+        # Read the set of person ids from the main table
+        person_ids = set()
+        with pyzstd.open(self.origin_contributors_path, "rt") as input_fd:
+            # TODO: remove that cast once we dropped Python 3.7 support
+            csv_reader = csv.reader(cast(Iterable[str], input_fd))
+            header = next(csv_reader)
+            assert header == ["origin_id", "contributor_id"], header
+            for (origin_id, person_id_str) in csv_reader:
+                if person_id_str == "null":
+                    # FIXME: workaround for a bug in contribution graphs generated
+                    # before 2022-12-01. Those were only used in tests and never
+                    # published, so the conditional can be removed when this is
+                    # productionized
+                    continue
+                person_ids.add(int(person_id_str))
+
+        # Finally, write a new table of all persons.
         tmp_output_path = Path(f"{self.deanonymized_origin_contributors_path}.tmp")
         tmp_output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Finally, write a new table of origin_contributors, by reading the anonymized
-        # table line-by-line and deanonymizing each id
-
-        # Open temporary output for writes as CSV
         with pyzstd.open(tmp_output_path, "wt") as output_fd:
             csv_writer = csv.writer(output_fd, lineterminator="\n")
             # write header
             csv_writer.writerow(
-                ("origin_id", "contributor_base64", "contributor_escaped")
+                ("contributor_id", "contributor_base64", "contributor_escaped")
             )
 
-            # Open input for reads as CSV
-            with pyzstd.open(self.origin_contributors_path, "rt") as input_fd:
-                # TODO: remove that cast once we dropped Python 3.7 support
-                csv_reader = csv.reader(cast(Iterable[str], input_fd))
-                header = next(csv_reader)
-                assert header == ["origin_id", "contributor_id"], header
-                for (origin_id, person_id) in csv_reader:
-                    if person_id == "null":
-                        # FIXME: workaround for a bug in contribution graphs generated
-                        # before 2022-12-01. Those were only used in tests and never
-                        # published, so the conditional can be removed when this is
-                        # productionized
-                        continue
-                    (name, escaped_name) = person_id_to_names[int(person_id)]
-                    base64_name = base64.b64encode(name).decode("ascii")
-                    csv_writer.writerow((origin_id, base64_name, escaped_name))
+            for person_id in sorted(person_ids):
+                (name, escaped_name) = person_id_to_names[person_id]
+                base64_name = base64.b64encode(name).decode("ascii")
+                csv_writer.writerow((person_id, base64_name, escaped_name))
 
         tmp_output_path.replace(self.deanonymized_origin_contributors_path)

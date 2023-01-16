@@ -67,12 +67,10 @@ UaCrgAZBvn1LBd2sAinmdNvAX/G4sjo1aJA9GDd9UUs=
 """
 
 DEANONYMIZED_ORIGIN_CONTRIBUTORS = """\
-origin_id,contributor_base64,contributor_escaped
-2,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
-2,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
+contributor_id,contributor_base64,contributor_escaped
 0,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
-0,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5uZXQ+,Jane Doe <jdoe@example.net>
-0,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
+1,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5uZXQ+,Jane Doe <jdoe@example.net>
+2,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
 """  # noqa
 
 
