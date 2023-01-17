@@ -11,6 +11,7 @@ import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.NodeIterator;
 import it.unimi.dsi.bits.LongArrayBitVector;
+import it.unimi.dsi.fastutil.longs.LongBigArrayBigList;
 import org.softwareheritage.graph.*;
 
 import java.io.IOException;
@@ -33,11 +34,13 @@ import java.util.*;
  */
 
 public class TopoSort {
+    private SwhBidirectionalGraph underlyingGraph;
     private Subgraph graph;
     private Subgraph transposedGraph;
     private boolean dfs; // Whether to run in BFS or DFS
-    private Stack<Long> ready_stack; // For DFS
-    private Queue<Long> ready_queue; // For BFS
+    private LongBigArrayBigList ready;
+    private long endIndex; // In BFS mode, index of the end of the queue where to pop from; in DFS mode, index of the
+                           // top of the stack
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         if (args.length != 4) {
@@ -62,15 +65,14 @@ public class TopoSort {
         }
         if (algorithm.equals("dfs")) {
             toposort.dfs = true;
-            toposort.ready_stack = new Stack<>();
         } else if (algorithm.equals("bfs")) {
             toposort.dfs = false;
-            toposort.ready_queue = new ArrayDeque<>();
         } else {
             System.err.println("Invalid algorithm " + algorithm);
             System.exit(1);
         }
 
+        toposort.endIndex = 0;
         toposort.toposort();
     }
 
@@ -83,48 +85,45 @@ public class TopoSort {
 
     public void loadGraph(String graphBasename, String nodeTypes) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        var underlyingGraph = SwhBidirectionalGraph.loadMapped(graphBasename);
+        underlyingGraph = SwhBidirectionalGraph.loadMapped(graphBasename);
         System.err.println("Selecting subgraphs.");
         graph = new Subgraph(underlyingGraph, new AllowedNodes(nodeTypes));
         transposedGraph = graph.transpose();
         System.err.println("Graph loaded.");
+
+        ready = new LongBigArrayBigList(graph.numNodes());
     }
 
     private void pushReady(long nodeId) {
         if (dfs) {
-            ready_stack.push(nodeId);
-        } else {
-            ready_queue.add(nodeId);
+            endIndex++;
         }
+        ready.add(nodeId);
     }
 
     private long popReady() {
         if (dfs) {
-            return ready_stack.pop();
+            return ready.removeLong(--endIndex);
         } else {
-            return ready_queue.poll();
+            return ready.getLong(endIndex++);
         }
     }
 
     private long readySize() {
         if (dfs) {
-            return ready_stack.size();
+            return endIndex;
         } else {
-            return ready_queue.size();
+            return ready.size64() - endIndex;
         }
     }
 
     private boolean readyNodes() {
-        if (dfs) {
-            return !ready_stack.isEmpty();
-        } else {
-            return !ready_queue.isEmpty();
-        }
+        return readySize() > 0;
     }
 
     /* Prints nodes in topological order, based on a DFS or BFS. */
     public void toposort() {
-        LongArrayBitVector visited = LongArrayBitVector.ofLength(graph.numNodes());
+        LongArrayBitVector visited = LongArrayBitVector.ofLength(underlyingGraph.numNodes());
 
         /* First, push all leaves to the stack */
         System.err.println("Listing leaves.");
