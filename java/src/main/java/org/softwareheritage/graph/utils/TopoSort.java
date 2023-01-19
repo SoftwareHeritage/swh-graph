@@ -10,7 +10,6 @@ package org.softwareheritage.graph.utils;
 import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.NodeIterator;
-import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.longs.LongBigArrayBigList;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.*;
@@ -36,12 +35,23 @@ import java.util.*;
 
 public class TopoSort {
     private SwhBidirectionalGraph underlyingGraph;
+    private SwhBidirectionalGraph transposedUnderlyingGraph;
     private Subgraph graph;
     private Subgraph transposedGraph;
     private boolean dfs; // Whether to run in BFS or DFS
     private LongBigArrayBigList ready;
     private long endIndex; // In BFS mode, index of the end of the queue where to pop from; in DFS mode, index of the
                            // top of the stack
+
+    private class MyLongBigArrayBigList extends LongBigArrayBigList {
+        public MyLongBigArrayBigList(long size) {
+            super(size);
+
+            // Allow setting directly in the array without repeatedly calling
+            // .add() first
+            this.size = size;
+        }
+    }
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         if (args.length != 4) {
@@ -82,11 +92,17 @@ public class TopoSort {
         tmp = graph;
         graph = transposedGraph;
         transposedGraph = tmp;
+
+        SwhBidirectionalGraph tmp2;
+        tmp2 = underlyingGraph;
+        underlyingGraph = transposedUnderlyingGraph;
+        transposedUnderlyingGraph = tmp2;
     }
 
     public void loadGraph(String graphBasename, String nodeTypes) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
         underlyingGraph = SwhBidirectionalGraph.loadMapped(graphBasename);
+        transposedUnderlyingGraph = underlyingGraph.transpose();
         System.err.println("Selecting subgraphs.");
         graph = new Subgraph(underlyingGraph, new AllowedNodes(nodeTypes));
         transposedGraph = graph.transpose();
@@ -124,7 +140,7 @@ public class TopoSort {
 
     /* Prints nodes in topological order, based on a DFS or BFS. */
     public void toposort() {
-        LongArrayBitVector visited = LongArrayBitVector.ofLength(underlyingGraph.numNodes());
+        MyLongBigArrayBigList unvisitedAncestors = new MyLongBigArrayBigList(underlyingGraph.numNodes());
 
         /* First, push all leaves to the stack */
         ProgressLogger pl = new ProgressLogger();
@@ -139,8 +155,10 @@ public class TopoSort {
             pl.update();
             long currentNodeId = nodeIterator.nextLong();
             total_nodes++;
-            long firstSuccessor = graph.successors(currentNodeId).nextLong();
-            if (firstSuccessor != -1) {
+            long nbAncestors = graph.outdegree(currentNodeId);
+            unvisitedAncestors.set(currentNodeId, nbAncestors);
+            total_edges += nbAncestors;
+            if (nbAncestors != 0) {
                 /* The node has ancestor, so it is not a leaf. */
                 continue;
             }
@@ -156,28 +174,26 @@ public class TopoSort {
         pl.start("Sorting...");
         while (readyNodes()) {
             long currentNodeId = popReady();
-            visited.set(currentNodeId);
 
             /* Find its successors which are ready */
-            LazyLongIterator successors = transposedGraph.successors(currentNodeId);
+            LazyLongIterator successors = transposedUnderlyingGraph.successors(currentNodeId);
             long successorCount = 0;
             for (long successorNodeId; (successorNodeId = successors.nextLong()) != -1;) {
+                if (!graph.nodeExists(successorNodeId)) {
+                    /* Arc destination is filtered out from the subgraph, ignore it */
+                    continue;
+                }
                 pl.update();
                 successorCount++;
-                LazyLongIterator successorAncestors = graph.successors(successorNodeId);
-                boolean isReady = true;
-                for (long successorAncestorNodeId; (successorAncestorNodeId = successorAncestors.nextLong()) != -1;) {
-                    if (!visited.getBoolean(successorAncestorNodeId)) {
-                        /*
-                         * This ancestor of the successor is not yet visited, so the ancestor is not ready.
-                         */
-                        isReady = false;
-                        break;
-                    }
-                }
-                if (isReady) {
+                long nbUnvisitedAncestors = unvisitedAncestors.getLong(successorNodeId);
+                nbUnvisitedAncestors--;
+                if (nbUnvisitedAncestors == 0) {
                     pushReady(successorNodeId);
+                } else if (nbUnvisitedAncestors < 0) {
+                    System.err.format("[BUG] %s has negative number of unvisited ancestors: %d\n",
+                            graph.getSWHID(successorNodeId), nbUnvisitedAncestors);
                 }
+                unvisitedAncestors.set(successorNodeId, nbUnvisitedAncestors);
             }
 
             String[] sampleAncestors = {"", ""};
