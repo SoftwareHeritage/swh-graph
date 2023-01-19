@@ -12,6 +12,7 @@ import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.big.webgraph.NodeIterator;
 import it.unimi.dsi.bits.LongArrayBitVector;
 import it.unimi.dsi.fastutil.longs.LongBigArrayBigList;
+import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.*;
 
 import java.io.IOException;
@@ -126,10 +127,16 @@ public class TopoSort {
         LongArrayBitVector visited = LongArrayBitVector.ofLength(underlyingGraph.numNodes());
 
         /* First, push all leaves to the stack */
-        System.err.println("Listing leaves.");
+        ProgressLogger pl = new ProgressLogger();
+        pl.itemsName = "nodes";
+        pl.expectedUpdates = graph.numNodes();
+        pl.start("Listing leaves...");
+
         long total_nodes = 0;
+        long total_edges = 0;
         NodeIterator nodeIterator = graph.nodeIterator();
         while (nodeIterator.hasNext()) {
+            pl.update();
             long currentNodeId = nodeIterator.nextLong();
             total_nodes++;
             long firstSuccessor = graph.successors(currentNodeId).nextLong();
@@ -138,17 +145,15 @@ public class TopoSort {
                 continue;
             }
             pushReady(currentNodeId);
-            if (readySize() % 10000000 == 0) {
-                float ready_size_f = readySize();
-                float total_nodes_f = total_nodes;
-                System.err.printf("Listed %.02f B leaves (out of %.02f B nodes)\n", ready_size_f / 1000000000.,
-                        total_nodes_f / 1000000000.);
-            }
         }
+        pl.done();
         System.err.println("Leaves listed, starting traversal.");
 
         System.out.format("SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2\n");
-        long printed_nodes = 0;
+        pl = new ProgressLogger();
+        pl.itemsName = "edges";
+        pl.expectedUpdates = total_edges;
+        pl.start("Sorting...");
         while (readyNodes()) {
             long currentNodeId = popReady();
             visited.set(currentNodeId);
@@ -157,6 +162,7 @@ public class TopoSort {
             LazyLongIterator successors = transposedGraph.successors(currentNodeId);
             long successorCount = 0;
             for (long successorNodeId; (successorNodeId = successors.nextLong()) != -1;) {
+                pl.update();
                 successorCount++;
                 LazyLongIterator successorAncestors = graph.successors(successorNodeId);
                 boolean isReady = true;
@@ -192,13 +198,7 @@ public class TopoSort {
             SWHID currentNodeSWHID = graph.getSWHID(currentNodeId);
             System.out.format("%s,%d,%d,%s,%s\n", currentNodeSWHID, ancestorCount, successorCount, sampleAncestors[0],
                     sampleAncestors[1]);
-            printed_nodes += 1;
-            if (printed_nodes % 10000000 == 0) {
-                float printed_nodes_f = printed_nodes;
-                float total_nodes_f = total_nodes;
-                System.err.printf("Sorted %.02f B nodes (out of %.02f B)\n", printed_nodes_f / 1000000000.,
-                        total_nodes_f / 1000000000.);
-            }
         }
+        pl.done();
     }
 }
