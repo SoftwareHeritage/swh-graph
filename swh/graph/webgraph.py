@@ -280,14 +280,12 @@ def do_step(step, conf):
         # run, and it would be very annoying to have to run them again just because
         # they crashed with no log.
         step_logger.setLevel(logging.INFO)
-    step_handler = logging.FileHandler(
-        log_dir
-        / (
-            f"{conf['graph_name']}"
-            f"-{int(datetime.now().timestamp() * 1000)}"
-            f"-{str(step).lower()}.log"
-        )
+    log_path = log_dir / (
+        f"{conf['graph_name']}"
+        f"-{int(datetime.now().timestamp() * 1000)}"
+        f"-{str(step).lower()}.log"
     )
+    step_handler = logging.FileHandler(log_path)
     step_logger.addHandler(step_handler)
 
     step_start_time = datetime.now()
@@ -311,7 +309,9 @@ def do_step(step, conf):
             step_logger.info(line.rstrip())
     rc = process.wait()
     if rc != 0:
-        raise RuntimeError(f"Compression step {step} returned non-zero exit code {rc}")
+        raise RuntimeError(
+            f"Compression step {step} returned non-zero exit code {rc}, see {log_path}"
+        )
     step_end_time = datetime.now()
     step_duration = step_end_time - step_start_time
     step_logger.info(
