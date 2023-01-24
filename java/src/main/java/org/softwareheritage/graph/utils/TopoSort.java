@@ -16,6 +16,8 @@ import org.softwareheritage.graph.*;
 
 import java.io.IOException;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /* Lists all nodes nodes of the types given as argument, in topological order,
  * from leaves (contents, if selected) to the top (origins, if selected).
@@ -42,6 +44,8 @@ public class TopoSort {
     private LongBigArrayBigList ready;
     private long endIndex; // In BFS mode, index of the end of the queue where to pop from; in DFS mode, index of the
                            // top of the stack
+
+    final static Logger logger = LoggerFactory.getLogger(TopoSort.class);
 
     private class MyLongBigArrayBigList extends LongBigArrayBigList {
         public MyLongBigArrayBigList(long size) {
@@ -143,7 +147,7 @@ public class TopoSort {
         MyLongBigArrayBigList unvisitedAncestors = new MyLongBigArrayBigList(underlyingGraph.numNodes());
 
         /* First, push all leaves to the stack */
-        ProgressLogger pl = new ProgressLogger();
+        ProgressLogger pl = new ProgressLogger(logger);
         pl.itemsName = "nodes";
         pl.expectedUpdates = graph.numNodes();
         pl.start("Listing leaves...");
@@ -168,7 +172,7 @@ public class TopoSort {
         System.err.println("Leaves listed, starting traversal.");
 
         System.out.format("SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2\n");
-        pl = new ProgressLogger();
+        pl = new ProgressLogger(logger);
         pl.itemsName = "edges";
         pl.expectedUpdates = total_edges;
         pl.start("Sorting...");
