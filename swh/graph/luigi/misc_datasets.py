@@ -35,7 +35,7 @@ And optionally::
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 import luigi
 
@@ -111,6 +111,60 @@ class PopularContents(luigi.Task):
         script = f"""
         java -Xmx{self.max_ram} {class_name} '{self.local_graph_path}/{self.graph_name}'  '{self.max_results_per_content}' '{self.popularity_threshold}' \
             | pv --line-mode --wait \
+            | zstdmt -19
+        """  # noqa
+        run_script(script, Path(self.output().path))
+
+
+class CountPaths(luigi.Task):
+    """Creates a file that lists:
+
+    * the number of paths leading to each node, and starting from all leaves, and
+    * the number of paths leading to each node, and starting from all other nodes
+
+    Singleton paths are not counted.
+    """
+
+    local_graph_path = luigi.PathParameter()
+    topological_order_dir = luigi.PathParameter()
+    graph_name = luigi.Parameter(default="graph")
+    object_types = luigi.Parameter()
+    direction = luigi.ChoiceParameter(choices=["forward", "backward"])
+    max_ram = luigi.Parameter(default="200G")
+
+    def requires(self) -> Dict[str, luigi.Task]:
+        """Returns an instance of :class:`LocalGraph` and one of :class:`TopoSort`."""
+        return {
+            "graph": LocalGraph(local_graph_path=self.local_graph_path),
+            "toposort": TopoSort(
+                local_graph_path=self.local_graph_path,
+                graph_name=self.graph_name,
+                topological_order_dir=self.topological_order_dir,
+                object_types=self.object_types,
+                direction=self.direction,
+            ),
+        }
+
+    def output(self) -> luigi.Target:
+        """.csv.zst file that contains the counts."""
+        return luigi.LocalTarget(
+            self.topological_order_dir
+            / f"path_counts_{self.direction}_{self.object_types}.csv.zst"
+        )
+
+    def run(self) -> None:
+        """Runs org.softwareheritage.graph.utils.CountPaths and compresses"""
+        invalid_object_types = set(self.object_types.split(",")) - OBJECT_TYPES
+        if invalid_object_types:
+            raise ValueError(f"Invalid object types: {invalid_object_types}")
+        class_name = "org.softwareheritage.graph.utils.CountPaths"
+        topological_order_path = self.input()["toposort"].path
+        # TODO: pass max_ram to run_script() correctly so it can pass it to
+        # check_config(), instead of hardcoding it on the command line here
+        script = f"""
+        zstdcat '{topological_order_path}' \
+            | pv --line-mode --wait --size $(zstdcat '{topological_order_path}' | wc -l) \
+            | java -Xmx{self.max_ram} {class_name} '{self.local_graph_path}/{self.graph_name}' '{self.direction}' \
             | zstdmt -19
         """  # noqa
         run_script(script, Path(self.output().path))
