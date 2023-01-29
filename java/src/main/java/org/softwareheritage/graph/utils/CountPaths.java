@@ -31,8 +31,6 @@ import org.slf4j.LoggerFactory;
 
 public class CountPaths {
     private SwhBidirectionalGraph graph;
-    private LongBigArrayBigList countsFromRoots;
-    private LongBigArrayBigList countsFromAll;
 
     final static Logger logger = LoggerFactory.getLogger(TopoSort.class);
 
@@ -76,8 +74,8 @@ public class CountPaths {
         }
 
         long numNodes = graph.numNodes();
-        countsFromRoots = new LongBigArrayBigList(numNodes);
-        countsFromAll = new LongBigArrayBigList(numNodes);
+        LongBigArrayBigList countsFromRoots = new LongBigArrayBigList(numNodes);
+        LongBigArrayBigList countsFromAll = new LongBigArrayBigList(numNodes);
 
         ProgressLogger pl = new ProgressLogger(logger);
         pl.logInterval = 60000;
