@@ -5,7 +5,7 @@
 
 """
 Luigi tasks for blob-centric datasets
-========================================
+=====================================
 
 This module contains `Luigi <https://luigi.readthedocs.io/>`_ tasks
 driving the creation of derived datasets centered around a subset of
@@ -845,6 +845,7 @@ class FindBlobOrigins(_ConcurrentCsvWritingTask):
         return (swhid, origin_url)
 
     def run(self) -> None:
+        pass
         # TODO: port support for reusing old results:
         """
         if len(sys.argv) == 2 and os.path.exists(sys.argv[1]):
