@@ -46,7 +46,18 @@ import logging
 import os
 from pathlib import Path
 import sys
-from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Tuple, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    ContextManager,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    TypeVar,
+    cast,
+)
 
 import luigi
 
@@ -65,7 +76,7 @@ if TYPE_CHECKING:
 
 
 def _s3_url_to_bucket_path(s3_url: str) -> Tuple[str, str]:
-    loc = s3_url.removeprefix("s3://")
+    loc = _removeprefix(s3_url, "s3://")
     bucket, path = loc.split("/", 1)
     return bucket, path
 
@@ -194,7 +205,7 @@ class _BaseTask(luigi.Task):
 
         last_sha1 = "" * 20
         with pyzstd.open(self.blob_list_path(), "rt") as fd:
-            reader = csv.reader(fd)
+            reader = csv.reader(cast(Iterator[str], fd))
             header = next(reader)
             if header != ["swhid", "sha1", "name"]:
                 raise ValueError(
@@ -371,7 +382,7 @@ def check_csv(csv_path: Path) -> None:
 
     import pyzstd
 
-    with pyzstd.open(csv_path, "rt") as fd:
+    with cast(ContextManager[Iterator[str]], pyzstd.open(csv_path, "rt")) as fd:
         try:
             header = next(fd)
         except StopIteration:
@@ -535,7 +546,10 @@ class DownloadBlobs(_BaseTask):
     def _compute_sha1(cls, path: Path) -> str:
         with path.open("rb") as fd:
             h = hashlib.sha1()
-            while data := fd.read(40960):
+            while True:
+                data = fd.read(40960)
+                if not data:
+                    break
                 h.update(data)
         return h.hexdigest()
 
@@ -704,7 +718,7 @@ class ComputeBlobFileinfo(_BaseTask):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.mime_guesser: magic.Magic = None  # set in child processes
+        self.mime_guesser: Optional[magic.Magic] = None  # set in child processes
 
     def requires(self) -> luigi.Task:
         """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
