@@ -66,6 +66,13 @@ public class NodeIdMap implements Size64 {
             this.nodeToSwhMap = ByteMappedBigList.map(raf.getChannel());
         }
 
+        long byte_size = this.nodeToSwhMap.size64();
+        if (byte_size % SWHID_BIN_SIZE != 0) {
+            throw new RuntimeException(
+                    String.format("%s%s has size %d bytes, which is not a multiple of SWHID_BIN_SIZE (%d)", graphPath,
+                            NODE_TO_SWHID, byte_size, SWHID_BIN_SIZE));
+        }
+
         // SWHID -> node
         this.mph = loadMph(graphPath + ".mph");
         try (RandomAccessFile mapFile = new RandomAccessFile(new File(graphPath + ".order"), "r")) {
@@ -190,12 +197,6 @@ public class NodeIdMap implements Size64 {
     /** Return the number of nodes in the map. */
     @Override
     public long size64() {
-        long byte_size = nodeToSwhMap.size64();
-        if (byte_size % SWHID_BIN_SIZE != 0) {
-            throw new RuntimeException(
-                    String.format("%s%s has size %d bytes, which is not a multiple of SWHID_BIN_SIZE (%d)", graphPath,
-                            NODE_TO_SWHID, byte_size, SWHID_BIN_SIZE));
-        }
-        return byte_size / SWHID_BIN_SIZE;
+        return nodeToSwhMap.size64() / SWHID_BIN_SIZE;
     }
 }
