@@ -15,8 +15,7 @@ import it.unimi.dsi.logging.ProgressLogger;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.IntStream;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +41,7 @@ public class PopularContents {
 
     final static Logger logger = LoggerFactory.getLogger(PopularContents.class);
 
-    public static void main(String[] args) throws IOException, ClassNotFoundException {
+    public static void main(String[] args) throws IOException, ClassNotFoundException, InterruptedException {
         if (args.length != 3) {
             System.err.println(
                     "Syntax: java org.softwareheritage.graph.utils.PopularContents <path/to/graph> <max_results_per_cnt> <popularity_threshold>");
@@ -67,131 +66,141 @@ public class PopularContents {
         System.err.println("Graph loaded.");
     }
 
-    public void run(int maxResults, long popularityThreshold) {
+    public void run(int maxResults, long popularityThreshold) throws InterruptedException {
         System.out.format("SWHID,length,filename,occurrences\n");
 
         long totalNodes = graph.numNodes();
-        AtomicLong totalVisited = new AtomicLong();
-        AtomicLong totalContentsVisited = new AtomicLong();
+        long numChunks = NUM_THREADS * 10000;
 
         ProgressLogger pl = new ProgressLogger(logger);
         pl.itemsName = "nodes";
         pl.expectedUpdates = graph.numNodes();
         pl.start("Listing contents...");
 
-        long chunkSize = totalNodes / NUM_THREADS;
-        IntStream.range(0, NUM_THREADS).parallel().forEach(threadId -> {
-            HashMap<Long, Long> names = new HashMap<>();
-            SwhUnidirectionalGraph backwardGraph = graph.getBackwardGraph().copy();
-            long chunkStart = chunkSize * threadId;
-            long chunkEnd = threadId == NUM_THREADS - 1 ? totalNodes : chunkSize * (threadId + 1);
+        ExecutorService service = Executors.newFixedThreadPool(NUM_THREADS);
+        for (long i = 0; i < numChunks; ++i) {
+            final long chunkId = i;
+            service.submit(() -> {
+                processChunk(numChunks, chunkId, maxResults, popularityThreshold, pl);
+            });
+        }
 
-            /*
-             * priority heap used to only print filenames with the most occurrences for each content
-             */
-            PriorityQueue<Long> heap = new PriorityQueue<Long>((maxResults > 0) ? maxResults : 1,
-                    new SortByHashmap(names));
-
-            for (long cntNode = chunkStart; cntNode < chunkEnd; cntNode++) {
-                pl.update();
-
-                if (graph.getNodeType(cntNode) != SwhType.CNT) {
-                    continue;
-                }
-
-                totalContentsVisited.incrementAndGet();
-
-                names.clear();
-
-                ArcLabelledNodeIterator.LabelledArcIterator s = backwardGraph.labelledSuccessors(cntNode);
-                long dirNode;
-                while ((dirNode = s.nextLong()) >= 0) {
-                    if (graph.getNodeType(dirNode) != SwhType.DIR) {
-                        continue;
-                    }
-                    DirEntry[] labels = (DirEntry[]) s.label().get();
-                    for (DirEntry label : labels) {
-                        names.put(label.filenameId, names.getOrDefault(label.filenameId, 0L) + 1);
-
-                    }
-                }
-
-                Long contentLength = graph.properties.getContentLength(cntNode);
-                if (contentLength == null) {
-                    contentLength = -1L;
-                }
-                if (names.size() == 0) {
-                    /* No filename at all */
-                    continue;
-                } else if (maxResults <= 0 || maxResults >= names.size()) {
-                    /* Print everything */
-                    for (Map.Entry<Long, Long> entry : names.entrySet()) {
-                        long filenameId = entry.getKey();
-                        Long count = entry.getValue();
-                        if (count < popularityThreshold) {
-                            continue;
-                        }
-                        String filename = getFilename(filenameId, dirNode);
-                        if (filename == null) {
-                            continue;
-                        }
-                        System.out.format("%s,%d,%s,%d\n", graph.getSWHID(cntNode), contentLength, filename, count);
-                    }
-                } else if (maxResults == 1) {
-                    /*
-                     * Print only the result with the most occurrence. This case could be merged with the one below, but
-                     * avoiding the priority heap has much better performance.
-                     */
-                    long maxFilenameId = 0;
-                    long maxCount = 0;
-
-                    for (Map.Entry<Long, Long> entry : names.entrySet()) {
-                        Long count = entry.getValue();
-                        if (count > maxCount) {
-                            maxFilenameId = entry.getKey();
-                            maxCount = count;
-                        }
-                    }
-
-                    if (maxCount > 0) {
-                        String filename = getFilename(maxFilenameId, dirNode);
-                        if (filename == null) {
-                            continue;
-                        }
-                        System.out.format("%s,%d,%s,%d\n", graph.getSWHID(cntNode), contentLength, filename, maxCount);
-                    }
-                } else {
-                    /* Print only results with the most occurrences */
-                    int nbResultsInHeap = 0;
-                    for (Map.Entry<Long, Long> entry : names.entrySet()) {
-                        Long filenameId = entry.getKey();
-                        Long count = entry.getValue();
-                        if (count < popularityThreshold) {
-                            continue;
-                        }
-                        heap.add(filenameId);
-                        if (nbResultsInHeap == maxResults) {
-                            heap.poll();
-                        } else {
-                            nbResultsInHeap++;
-                        }
-                    }
-
-                    for (Long filenameId : heap) {
-                        String filename = getFilename(filenameId, dirNode);
-                        if (filename == null) {
-                            continue;
-                        }
-                        System.out.format("%s,%d,%s,%d\n", graph.getSWHID(cntNode), contentLength, filename,
-                                names.get(filenameId));
-                    }
-                    heap.clear();
-                }
-            }
-        });
+        service.shutdown();
+        service.awaitTermination(365, TimeUnit.DAYS);
 
         pl.done();
 
+    }
+
+    private void processChunk(long numChunks, long chunkId, int maxResults, long popularityThreshold,
+            ProgressLogger pl) {
+        long totalNodes = graph.numNodes();
+        HashMap<Long, Long> names = new HashMap<>();
+        SwhUnidirectionalGraph backwardGraph = graph.getBackwardGraph().copy();
+
+        long chunkSize = totalNodes / numChunks;
+        long chunkStart = chunkSize * chunkId;
+        long chunkEnd = chunkId == numChunks - 1 ? totalNodes : chunkSize * (chunkId + 1);
+
+        /*
+         * priority heap used to only print filenames with the most occurrences for each content
+         */
+        PriorityQueue<Long> heap = new PriorityQueue<Long>((maxResults > 0) ? maxResults : 1, new SortByHashmap(names));
+
+        for (long cntNode = chunkStart; cntNode < chunkEnd; cntNode++) {
+            pl.update();
+
+            if (graph.getNodeType(cntNode) != SwhType.CNT) {
+                continue;
+            }
+
+            names.clear();
+
+            ArcLabelledNodeIterator.LabelledArcIterator s = backwardGraph.labelledSuccessors(cntNode);
+            long dirNode;
+            while ((dirNode = s.nextLong()) >= 0) {
+                if (graph.getNodeType(dirNode) != SwhType.DIR) {
+                    continue;
+                }
+                DirEntry[] labels = (DirEntry[]) s.label().get();
+                for (DirEntry label : labels) {
+                    names.put(label.filenameId, names.getOrDefault(label.filenameId, 0L) + 1);
+
+                }
+            }
+
+            Long contentLength = graph.properties.getContentLength(cntNode);
+            if (contentLength == null) {
+                contentLength = -1L;
+            }
+            if (names.size() == 0) {
+                /* No filename at all */
+                continue;
+            } else if (maxResults <= 0 || maxResults >= names.size()) {
+                /* Print everything */
+                for (Map.Entry<Long, Long> entry : names.entrySet()) {
+                    long filenameId = entry.getKey();
+                    Long count = entry.getValue();
+                    if (count < popularityThreshold) {
+                        continue;
+                    }
+                    String filename = getFilename(filenameId, dirNode);
+                    if (filename == null) {
+                        continue;
+                    }
+                    System.out.format("%s,%d,%s,%d\n", graph.getSWHID(cntNode), contentLength, filename, count);
+                }
+            } else if (maxResults == 1) {
+                /*
+                 * Print only the result with the most occurrence. This case could be merged with the one below, but
+                 * avoiding the priority heap has much better performance.
+                 */
+                long maxFilenameId = 0;
+                long maxCount = 0;
+
+                for (Map.Entry<Long, Long> entry : names.entrySet()) {
+                    Long count = entry.getValue();
+                    if (count > maxCount) {
+                        maxFilenameId = entry.getKey();
+                        maxCount = count;
+                    }
+                }
+
+                if (maxCount > 0) {
+                    String filename = getFilename(maxFilenameId, dirNode);
+                    if (filename == null) {
+                        continue;
+                    }
+                    System.out.format("%s,%d,%s,%d\n", graph.getSWHID(cntNode), contentLength, filename, maxCount);
+                }
+            } else {
+                /* Print only results with the most occurrences */
+                int nbResultsInHeap = 0;
+                for (Map.Entry<Long, Long> entry : names.entrySet()) {
+                    Long filenameId = entry.getKey();
+                    Long count = entry.getValue();
+                    if (count < popularityThreshold) {
+                        continue;
+                    }
+                    heap.add(filenameId);
+                    if (nbResultsInHeap == maxResults) {
+                        heap.poll();
+                    } else {
+                        nbResultsInHeap++;
+                    }
+                }
+
+                for (Long filenameId : heap) {
+                    String filename = getFilename(filenameId, dirNode);
+                    if (filename == null) {
+                        continue;
+                    }
+                    System.out.format("%s,%d,%s,%d\n", graph.getSWHID(cntNode), contentLength, filename,
+                            names.get(filenameId));
+                }
+                heap.clear();
+            }
+        }
     }
 
     private String getFilename(long filenameId, long dirNode) {
