@@ -178,9 +178,8 @@ public class NodeIdMap implements Size64 {
          * Each line in NODE_TO_SWHID is formatted as: swhid The file is ordered by nodeId, meaning node0's
          * swhid is at line 0, hence we can read the nodeId-th line to get corresponding swhid
          */
-        if (nodeId < 0 || nodeId >= nodeToSwhMap.size64()) {
-            throw new IllegalArgumentException(
-                    "Node id " + nodeId + " should be between 0 and " + nodeToSwhMap.size64());
+        if (nodeId < 0 || nodeId >= size64()) {
+            throw new IllegalArgumentException("Node id " + nodeId + " should be between 0 and " + size64());
         }
 
         byte[] swhid = new byte[SWHID_BIN_SIZE];
@@ -191,6 +190,12 @@ public class NodeIdMap implements Size64 {
     /** Return the number of nodes in the map. */
     @Override
     public long size64() {
-        return nodeToSwhMap.size64();
+        long byte_size = nodeToSwhMap.size64();
+        if (byte_size % SWHID_BIN_SIZE != 0) {
+            throw new RuntimeException(
+                    String.format("%s%s has size %d bytes, which is not a multiple of SWHID_BIN_SIZE (%d)", graphPath,
+                            NODE_TO_SWHID, byte_size, SWHID_BIN_SIZE));
+        }
+        return byte_size / SWHID_BIN_SIZE;
     }
 }
