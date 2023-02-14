@@ -82,3 +82,35 @@ class TopoSort(luigi.Task):
             | zstdmt -19
         """  # noqa
         run_script(script, Path(self.output().path))
+
+
+class PopularContents(luigi.Task):
+    """Creates a file that contains all SWHIDs in topological order from a compressed
+    graph."""
+
+    local_graph_path = luigi.PathParameter()
+    popular_contents_path = luigi.PathParameter()
+    graph_name = luigi.Parameter(default="graph")
+    max_results_per_content = luigi.IntParameter(default=0)
+    popularity_threshold = luigi.IntParameter(default=0)
+    max_ram = luigi.Parameter(default="300G")
+
+    def requires(self) -> List[luigi.Task]:
+        """Returns an instance of :class:`LocalGraph`."""
+        return [LocalGraph(local_graph_path=self.local_graph_path)]
+
+    def output(self) -> luigi.Target:
+        """.csv.zst file that contains the topological order."""
+        return luigi.LocalTarget(self.popular_contents_path)
+
+    def run(self) -> None:
+        """Runs org.softwareheritage.graph.utils.PopularContents and compresses"""
+        class_name = "org.softwareheritage.graph.utils.PopularContents"
+        # TODO: pass max_ram to run_script() correctly so it can pass it to
+        # check_config(), instead of hardcoding it on the command line here
+        script = f"""
+        java -Xmx{self.max_ram} {class_name} '{self.local_graph_path}/{self.graph_name}'  '{self.max_results_per_content}' '{self.popularity_threshold}' \
+            | pv --line-mode --wait \
+            | zstdmt -19
+        """  # noqa
+        run_script(script, Path(self.output().path))
