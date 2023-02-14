@@ -319,7 +319,9 @@ class Stats(_CompressionStepTask):
 
 class Transpose(_CompressionStepTask):
     STEP = CompressionStep.TRANSPOSE
-    INPUT_FILES = {".graph"}
+    # .obl is an optional input; but we need to make sure it's not being written
+    # while Transpose is starting, or Transpose would error with EOF while reading it
+    INPUT_FILES = {".graph", ".obl"}
     OUTPUT_FILES = {"-transposed.graph", "-transposed.properties"}
 
 
