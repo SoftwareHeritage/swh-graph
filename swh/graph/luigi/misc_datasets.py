@@ -171,12 +171,24 @@ class CountPaths(luigi.Task):
             raise ValueError(f"Invalid object types: {invalid_object_types}")
         class_name = "org.softwareheritage.graph.utils.CountPaths"
         topological_order_path = self.input()["toposort"].path
+
+        node_stats = (
+            self.local_graph_path / f"{self.graph_name}.nodes.stats.txt"
+        ).read_text()
+        nb_nodes_per_type = dict(
+            line.split() for line in node_stats.split("\n") if line
+        )
+        nb_nodes = sum(
+            int(nb_nodes_per_type[type_]) for type_ in self.object_types.split(",")
+        )
+        nb_lines = nb_nodes + 1  # CSV header
+
         # TODO: pass max_ram to run_script() correctly so it can pass it to
         # check_config(), instead of hardcoding it on the command line here
         script = f"""
         zstdcat '{topological_order_path}' \
-            | pv --line-mode --wait --size $(zstdcat '{topological_order_path}' | wc -l) \
             | java -Xmx{self.max_ram} {class_name} '{self.local_graph_path}/{self.graph_name}' '{self.direction}' \
+            | pv --line-mode --wait --size '{nb_lines}' \
             | zstdmt -19
         """  # noqa
         run_script(script, Path(self.output().path))
