@@ -295,6 +295,11 @@ def get_all_subclasses(cls):
     help="""Value to pass to -Xmx for Java processes""",
 )
 @click.option(
+    "--batch-size",
+    type=int,
+    help="""Default value for compression tasks handling objects in batch""",
+)
+@click.option(
     "--s3-athena-output-location",
     required=False,
     type=str,
@@ -333,6 +338,7 @@ def luigi(
     s3_prefix: Optional[str],
     athena_prefix: Optional[str],
     max_ram: Optional[str],
+    batch_size: Optional[int],
     s3_athena_output_location: Optional[str],
     dataset_name: str,
     luigi_config: Optional[Path],
@@ -382,6 +388,17 @@ def luigi(
 
     config = configparser.ConfigParser()
 
+    # By default, Luigi always returns code 0.
+    # See https://luigi.readthedocs.io/en/stable/configuration.html#retcode
+    config["retcode"] = {
+        "already_running": "128",
+        "missing_data": "129",
+        "not_run": "130",
+        "task_failed": "131",
+        "scheduling_error": "132",
+        "unhandled_exception": "133",
+    }
+
     dataset_path = base_directory / dataset_name
 
     default_values = dict(
@@ -407,6 +424,9 @@ def luigi(
 
     if max_ram:
         default_values["max_ram"] = max_ram
+
+    if batch_size:
+        default_values["batch_size"] = batch_size
 
     if base_sensitive_directory:
         sensitive_path = base_sensitive_directory / dataset_name

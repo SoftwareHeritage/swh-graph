@@ -129,6 +129,8 @@ segments, so you should increase the number of allowed allocations first:
 
     sudo sysctl -w vm.max_map_count=1966080
 
+.. _swh-graph-compression-steps:
+
 Compression steps
 =================
 

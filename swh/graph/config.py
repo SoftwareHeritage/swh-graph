@@ -7,6 +7,8 @@ import logging
 from pathlib import Path
 import sys
 
+# WARNING: do not import unnecessary things here to keep cli startup time under
+# control
 import psutil
 
 logger = logging.getLogger(__name__)

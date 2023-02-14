@@ -15,6 +15,8 @@ from pathlib import Path
 import subprocess
 from typing import Callable, Dict, List, Set
 
+# WARNING: do not import unnecessary things here to keep cli startup time under
+# control
 from swh.graph.config import check_config_compress
 
 logger = logging.getLogger(__name__)
