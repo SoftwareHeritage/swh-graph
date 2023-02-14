@@ -85,6 +85,28 @@ public class SwhGraphProperties {
     }
 
     /**
+     * Converts SWHID node to long.
+     *
+     * @param swhid node specified as a <code>byte[]</code>
+     * @return internal long node id
+     * @see SWHID
+     */
+    public long getNodeId(byte[] swhid) {
+        return nodeIdMap.getNodeId(swhid);
+    }
+
+    /**
+     * Converts SWHID node to long.
+     *
+     * @param swhid node specified as a <code>String</code>
+     * @return internal long node id
+     * @see SWHID
+     */
+    public long getNodeId(String swhid) {
+        return nodeIdMap.getNodeId(swhid);
+    }
+
+    /**
      * Converts {@link SWHID} node to long.
      *
      * @param swhid node specified as a {@link SWHID}

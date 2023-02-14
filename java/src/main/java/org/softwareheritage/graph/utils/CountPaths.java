@@ -98,8 +98,7 @@ public class CountPaths {
         while (stdin.hasNextLine()) {
             pl.lightUpdate();
             String cells[] = stdin.nextLine().strip().split(",", -1);
-            SWHID nodeSWHID = new SWHID(cells[0]);
-            long nodeId = graph.getNodeId(nodeSWHID);
+            long nodeId = graph.getNodeId(cells[0]);
             long countFromRoots = countsFromRoots.getLong(nodeId);
             long countFromAll = countsFromAll.getLong(nodeId);
 

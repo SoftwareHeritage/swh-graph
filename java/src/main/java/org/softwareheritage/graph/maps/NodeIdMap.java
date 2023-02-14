@@ -148,6 +148,17 @@ public class NodeIdMap implements Size64 {
     }
 
     /**
+     * Converts String-form SWHID to corresponding long node id. Low-level function, does not check if
+     * the SWHID is valid.
+     *
+     * @param swhid node represented as String
+     * @return corresponding node as a long id
+     */
+    public long getNodeId(String swhid) {
+        return getNodeId(swhid.getBytes(StandardCharsets.US_ASCII));
+    }
+
+    /**
      * Converts SWHID to corresponding long node id.
      *
      * @param swhid node represented as a {@link SWHID}
