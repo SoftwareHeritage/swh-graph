@@ -2,6 +2,6 @@ aiohttp
 click
 py4j
 psutil
-protobuf != 4.21.*  # https://github.com/protocolbuffers/protobuf/issues/10151
+protobuf >= 4.21.11
 grpcio-tools
 mypy-protobuf
