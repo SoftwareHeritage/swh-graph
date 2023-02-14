@@ -142,13 +142,13 @@ def serve(ctx, host, port, graph):
 @click.option(
     "--port",
     "-p",
-    default=50091,
+    default=None,
     type=click.INT,
     metavar="PORT",
     show_default=True,
     help=(
         "port to bind the server on (note: host is not configurable "
-        "for now and will be 0.0.0.0)"
+        "for now and will be 0.0.0.0). Defaults to 50091"
     ),
 )
 @click.option(
@@ -175,7 +175,10 @@ def grpc_serve(ctx, port, java_home, graph):
     config = ctx.obj["config"]
     config.setdefault("graph", {})
     config["graph"]["path"] = graph
-    config["graph"]["port"] = port
+    if port is None and "port" not in config["graph"]:
+        port = 50091
+    if port is not None:
+        config["graph"]["port"] = port
 
     logger.debug("Building gPRC server command line")
     cmd, port = build_grpc_server_cmdline(**config["graph"])
