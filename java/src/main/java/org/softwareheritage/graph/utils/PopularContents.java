@@ -37,6 +37,10 @@ import org.slf4j.LoggerFactory;
 
 public class PopularContents {
     private SwhBidirectionalGraph graph;
+    /*
+     * A copy of the graph for each thread to reuse between calls to processChunk
+     */
+    private ThreadLocal<SwhBidirectionalGraph> threadGraph;
     private int NUM_THREADS = 96;
 
     final static Logger logger = LoggerFactory.getLogger(PopularContents.class);
@@ -52,6 +56,7 @@ public class PopularContents {
         long popularityThreshold = Long.parseLong(args[2]);
 
         PopularContents popular_contents = new PopularContents();
+        popular_contents.threadGraph = new ThreadLocal<SwhBidirectionalGraph>();
 
         popular_contents.loadGraph(graphPath);
 
@@ -70,7 +75,7 @@ public class PopularContents {
         System.out.format("SWHID,length,filename,occurrences\n");
 
         long totalNodes = graph.numNodes();
-        long numChunks = NUM_THREADS * 10000;
+        long numChunks = NUM_THREADS * 1000;
 
         ProgressLogger pl = new ProgressLogger(logger);
         pl.itemsName = "nodes";
@@ -94,9 +99,13 @@ public class PopularContents {
 
     private void processChunk(long numChunks, long chunkId, int maxResults, long popularityThreshold,
             ProgressLogger pl) {
+        if (threadGraph.get() == null) {
+            threadGraph.set(this.graph.copy());
+        }
+        SwhBidirectionalGraph graph = threadGraph.get();
         long totalNodes = graph.numNodes();
         HashMap<Long, Long> names = new HashMap<>();
-        SwhUnidirectionalGraph backwardGraph = graph.getBackwardGraph().copy();
+        SwhUnidirectionalGraph backwardGraph = graph.getBackwardGraph();
 
         long chunkSize = totalNodes / numChunks;
         long chunkStart = chunkSize * chunkId;
