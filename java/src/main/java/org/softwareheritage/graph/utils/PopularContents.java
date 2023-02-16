@@ -14,8 +14,13 @@ import org.softwareheritage.graph.labels.DirEntry;
 import it.unimi.dsi.logging.ProgressLogger;
 
 import java.io.IOException;
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
+import java.io.UncheckedIOException;
 import java.util.*;
 import java.util.concurrent.*;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +47,7 @@ public class PopularContents {
      */
     private ThreadLocal<SwhBidirectionalGraph> threadGraph;
     private int NUM_THREADS = 96;
+    private CSVPrinter csvPrinter;
 
     final static Logger logger = LoggerFactory.getLogger(PopularContents.class);
 
@@ -54,13 +60,18 @@ public class PopularContents {
         String graphPath = args[0];
         int maxResults = Integer.parseInt(args[1]);
         long popularityThreshold = Long.parseLong(args[2]);
+        BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
 
         PopularContents popular_contents = new PopularContents();
         popular_contents.threadGraph = new ThreadLocal<SwhBidirectionalGraph>();
+        popular_contents.csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
 
         popular_contents.loadGraph(graphPath);
 
         popular_contents.run(maxResults, popularityThreshold);
+
+        popular_contents.csvPrinter.flush();
+        bufferedStdout.flush();
     }
 
     public void loadGraph(String graphBasename) throws IOException {
@@ -71,8 +82,8 @@ public class PopularContents {
         System.err.println("Graph loaded.");
     }
 
-    public void run(int maxResults, long popularityThreshold) throws InterruptedException {
-        System.out.format("SWHID,length,filename,occurrences\n");
+    public void run(int maxResults, long popularityThreshold) throws InterruptedException, IOException {
+        csvPrinter.printRecord("SWHID", "length", "filename", "occurrences");
 
         long totalNodes = graph.numNodes();
         long numChunks = NUM_THREADS * 1000;
@@ -86,7 +97,11 @@ public class PopularContents {
         for (long i = 0; i < numChunks; ++i) {
             final long chunkId = i;
             service.submit(() -> {
-                processChunk(numChunks, chunkId, maxResults, popularityThreshold, pl);
+                try {
+                    processChunk(numChunks, chunkId, maxResults, popularityThreshold, pl);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
             });
         }
 
@@ -97,8 +112,8 @@ public class PopularContents {
 
     }
 
-    private void processChunk(long numChunks, long chunkId, int maxResults, long popularityThreshold,
-            ProgressLogger pl) {
+    private void processChunk(long numChunks, long chunkId, int maxResults, long popularityThreshold, ProgressLogger pl)
+            throws IOException {
         if (threadGraph.get() == null) {
             threadGraph.set(this.graph.copy());
         }
@@ -157,7 +172,7 @@ public class PopularContents {
                     if (filename == null) {
                         continue;
                     }
-                    System.out.format("%s,%d,%s,%d\n", graph.getSWHID(cntNode), contentLength, filename, count);
+                    csvPrinter.printRecord(graph.getSWHID(cntNode), contentLength, filename, count);
                 }
             } else if (maxResults == 1) {
                 /*
@@ -180,7 +195,7 @@ public class PopularContents {
                     if (filename == null) {
                         continue;
                     }
-                    System.out.format("%s,%d,%s,%d\n", graph.getSWHID(cntNode), contentLength, filename, maxCount);
+                    csvPrinter.printRecord(graph.getSWHID(cntNode), contentLength, filename, maxCount);
                 }
             } else {
                 /* Print only results with the most occurrences */
@@ -204,8 +219,7 @@ public class PopularContents {
                     if (filename == null) {
                         continue;
                     }
-                    System.out.format("%s,%d,%s,%d\n", graph.getSWHID(cntNode), contentLength, filename,
-                            names.get(filenameId));
+                    csvPrinter.printRecord(graph.getSWHID(cntNode), contentLength, filename, names.get(filenameId));
                 }
                 heap.clear();
             }
