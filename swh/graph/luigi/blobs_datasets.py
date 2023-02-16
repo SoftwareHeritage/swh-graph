@@ -652,6 +652,7 @@ class MakeBlobTarball(_BaseTask):
         return [luigi.LocalTarget(self.blob_tarball_path())]
 
     def run(self) -> None:
+        """Run task."""
         approx_tarball_size = (
             self.blob_size()  # the content itself
             + 512 * self.blob_count()  # assuming one header per file
@@ -736,6 +737,7 @@ class ComputeBlobFileinfo(_BaseTask):
         ]
 
     def run(self) -> None:
+        """Run task."""
         import multiprocessing
 
         import tqdm
@@ -926,6 +928,7 @@ class FindEarliestRevisions(_BaseTask):
         ]
 
     def run(self) -> None:
+        """Run task."""
         class_name = "org.softwareheritage.graph.utils.FindEarliestRevision"
         (target,) = self.output()
         run_script(
@@ -969,6 +972,7 @@ class RunBlobDataset(luigi.Task):
         return False
 
     def run(self):
+        """Run task."""
         for csv_path in (self.derived_datasets_path / self.blob_filter).glob(
             "*.csv.zst"
         ):
