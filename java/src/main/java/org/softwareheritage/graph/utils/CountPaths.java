@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 public class CountPaths {
     private SwhBidirectionalGraph graph;
 
-    final static Logger logger = LoggerFactory.getLogger(TopoSort.class);
+    final static Logger logger = LoggerFactory.getLogger(CountPaths.class);
     private CSVParser csvParser;
     private CSVPrinter csvPrinter;
 
