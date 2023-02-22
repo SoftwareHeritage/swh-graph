@@ -93,6 +93,10 @@ class ExportDeanonymizationTable(luigi.Task):
 
     def run(self) -> None:
         """Runs a postgresql query to compute the table."""
+        import shutil
+
+        if shutil.which("psql") is None:
+            raise RuntimeError("psql CLI is not installed")
 
         run_script(
             f"""
