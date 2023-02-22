@@ -142,7 +142,7 @@ class CountPaths(luigi.Task):
     graph_name = luigi.Parameter(default="graph")
     object_types = luigi.Parameter()
     direction = luigi.ChoiceParameter(choices=["forward", "backward"])
-    max_ram = luigi.Parameter(default="200G")
+    max_ram = luigi.Parameter(default="500G")
 
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns an instance of :class:`LocalGraph` and one of :class:`TopoSort`."""
