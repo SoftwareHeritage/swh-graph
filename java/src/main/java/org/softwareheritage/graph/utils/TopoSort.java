@@ -15,9 +15,13 @@ import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.*;
 
 import java.io.IOException;
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 
 /* Lists all nodes nodes of the types given as argument, in topological order,
  * from leaves (contents, if selected) to the top (origins, if selected).
@@ -143,8 +147,11 @@ public class TopoSort {
     }
 
     /* Prints nodes in topological order, based on a DFS or BFS. */
-    public void toposort() {
+    public void toposort() throws IOException {
         MyLongBigArrayBigList unvisitedAncestors = new MyLongBigArrayBigList(underlyingGraph.numNodes());
+
+        BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
+        CSVPrinter csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
 
         /* First, push all leaves to the stack */
         ProgressLogger pl = new ProgressLogger(logger);
@@ -171,7 +178,7 @@ public class TopoSort {
         pl.done();
         System.err.println("Leaves listed, starting traversal.");
 
-        System.out.format("SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2\n");
+        csvPrinter.printRecord("SWHID", "ancestors", "successors", "sample_ancestor1", "sample_ancestor2");
         pl = new ProgressLogger(logger);
         pl.itemsName = "edges";
         pl.expectedUpdates = total_edges;
@@ -216,9 +223,12 @@ public class TopoSort {
              * TODO: print its depth too?
              */
             SWHID currentNodeSWHID = graph.getSWHID(currentNodeId);
-            System.out.format("%s,%d,%d,%s,%s\n", currentNodeSWHID, ancestorCount, successorCount, sampleAncestors[0],
+            csvPrinter.printRecord(currentNodeSWHID, ancestorCount, successorCount, sampleAncestors[0],
                     sampleAncestors[1]);
         }
         pl.done();
+
+        csvPrinter.flush();
+        bufferedStdout.flush();
     }
 }

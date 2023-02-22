@@ -14,7 +14,15 @@ import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.*;
 
 import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.util.*;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +41,8 @@ public class CountPaths {
     private SwhBidirectionalGraph graph;
 
     final static Logger logger = LoggerFactory.getLogger(TopoSort.class);
+    private CSVParser csvParser;
+    private CSVPrinter csvPrinter;
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         if (args.length != 2) {
@@ -56,7 +66,13 @@ public class CountPaths {
         }
         System.err.println("Starting...");
 
+        BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
+        countPaths.csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
+
         countPaths.countPaths();
+
+        countPaths.csvPrinter.flush();
+        bufferedStdout.flush();
     }
 
     public void loadGraph(String graphBasename) throws IOException {
@@ -64,14 +80,16 @@ public class CountPaths {
         graph = SwhBidirectionalGraph.loadMapped(graphBasename);
     }
 
-    public void countPaths() {
-        Scanner stdin = new Scanner(System.in);
+    public void countPaths() throws IOException {
+        BufferedReader bufferedStdin = new BufferedReader(new InputStreamReader(System.in));
 
-        String firstLine = stdin.nextLine().strip();
+        String firstLine = bufferedStdin.readLine().strip();
         if (!firstLine.equals("SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2")) {
             System.err.format("Unexpected header: %s\n", firstLine);
             System.exit(2);
         }
+
+        CSVParser parser = CSVParser.parse(bufferedStdin, CSVFormat.RFC4180);
 
         long numNodes = graph.numNodes();
         LongBigArrayBigList countsFromRoots = new LongBigArrayBigList(numNodes);
@@ -94,16 +112,16 @@ public class CountPaths {
         pl.expectedUpdates = graph.numNodes();
         pl.start("Counting paths...");
 
-        System.out.println("swhid,paths_from_roots,all_paths");
-        while (stdin.hasNextLine()) {
+        csvPrinter.printRecord("swhid", "paths_from_roots", "all_paths");
+        for (CSVRecord record : parser) {
             pl.lightUpdate();
-            String cells[] = stdin.nextLine().strip().split(",", -1);
-            long nodeId = graph.getNodeId(cells[0]);
+            String nodeSWHID = record.get(0);
+            long nodeId = graph.getNodeId(nodeSWHID);
             long countFromRoots = countsFromRoots.getLong(nodeId);
             long countFromAll = countsFromAll.getLong(nodeId);
 
             /* Print counts for this node */
-            System.out.format("%s,%d,%d\n", cells[0], countFromRoots, countFromAll);
+            csvPrinter.printRecord(nodeSWHID, countFromRoots, countFromAll);
 
             /* Add counts of paths coming from this node to all successors */
             countFromAll++;
