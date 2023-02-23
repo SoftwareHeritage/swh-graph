@@ -434,7 +434,7 @@ def luigi(
     if base_sensitive_directory:
         sensitive_path = base_sensitive_directory / dataset_name
         default_values["deanonymized_origin_contributors_path"] = (
-            sensitive_path / "datasets/contribution_graph.deanonymized.csv.zst"
+            sensitive_path / "datasets/contributors_deanonymized.csv.zst"
         )
         default_values["deanonymization_table_path"] = (
             sensitive_path / "persons_sha256_to_name.csv.zst"
