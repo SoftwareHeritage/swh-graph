@@ -90,7 +90,10 @@ public class FindEarliestRevision {
                 long currentNodeId = stack.pop();
                 if (graph.getNodeType(currentNodeId) == SwhType.REV) {
                     visitedRevisions++;
-                    long committerTs = graph.getCommitterTimestamp(currentNodeId);
+                    Long committerTs = graph.getCommitterTimestamp(currentNodeId);
+                    if (committerTs == null) {
+                        continue;
+                    }
                     if (committerTs < minTimestamp && committerTs != Long.MIN_VALUE && committerTs != 0) {
                         // exclude missing and zero (= epoch) as plausible earliest timestamps
                         // as they are almost certainly bogus values
