@@ -303,6 +303,9 @@ def get_all_subclasses(cls):
     help="""Default value for compression tasks handling objects in batch""",
 )
 @click.option(
+    "--grpc-api", help="""Default value for the <hostname>:<port> of the gRPC server"""
+)
+@click.option(
     "--s3-athena-output-location",
     required=False,
     type=str,
@@ -342,6 +345,7 @@ def luigi(
     athena_prefix: Optional[str],
     max_ram: Optional[str],
     batch_size: Optional[int],
+    grpc_api: Optional[str],
     s3_athena_output_location: Optional[str],
     dataset_name: str,
     luigi_config: Optional[Path],
@@ -430,6 +434,9 @@ def luigi(
 
     if batch_size:
         default_values["batch_size"] = batch_size
+
+    if grpc_api:
+        default_values["grpc_api"] = grpc_api
 
     if base_sensitive_directory:
         sensitive_path = base_sensitive_directory / dataset_name

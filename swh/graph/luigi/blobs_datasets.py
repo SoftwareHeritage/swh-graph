@@ -277,7 +277,7 @@ class _ConcurrentCsvWritingTask(_BaseTask):
 
     blob_filter = luigi.ChoiceParameter(choices=list(SELECTION_QUERIES))
     derived_datasets_path = luigi.PathParameter()
-    graph_api = luigi.Parameter("localhost:50091")
+    grpc_api = luigi.Parameter()
 
     stub: "TraversalServiceStub"
 
@@ -306,7 +306,7 @@ class _ConcurrentCsvWritingTask(_BaseTask):
         input_queue: asyncio.Queue[Tuple[str, str, str]] = asyncio.Queue(maxsize=20)
         result_queue: asyncio.Queue[Tuple[str, str]] = asyncio.Queue(maxsize=20)
 
-        async with grpc.aio.insecure_channel(self.graph_api) as channel:
+        async with grpc.aio.insecure_channel(self.grpc_api) as channel:
             self.stub = swhgraph_grpc.TraversalServiceStub(channel)
 
             fill_queue_task = asyncio.create_task(self._fill_input_queue(input_queue))
