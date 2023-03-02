@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -12,6 +12,7 @@ from enum import Enum
 import logging
 import os
 from pathlib import Path
+import shlex
 import subprocess
 from typing import Callable, Dict, List, Set
 
@@ -291,7 +292,9 @@ def do_step(step, conf):
     step_start_time = datetime.now()
     step_logger.info("Starting compression step %s at %s", step, step_start_time)
 
-    cmd = " ".join(STEP_ARGV[step]).format(**conf)
+    cmd = " ".join(STEP_ARGV[step]).format(
+        **{k: shlex.quote(str(v)) for (k, v) in conf.items()}
+    )
     cmd_env = os.environ.copy()
     cmd_env["JAVA_TOOL_OPTIONS"] = conf["java_tool_options"]
     cmd_env["CLASSPATH"] = conf["classpath"]
