@@ -1001,6 +1001,7 @@ class RunBlobDataset(luigi.Task):
             FindBlobOrigins(**kwargs),
             CountBlobOrigins(**kwargs),
             FindEarliestRevisions(**kwargs),
+            ComputeBlobFileinfo(**kwargs),
         ]
 
     def complete(self) -> bool:
