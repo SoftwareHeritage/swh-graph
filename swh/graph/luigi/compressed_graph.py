@@ -183,7 +183,7 @@ class _CompressionStepTask(luigi.Task):
 
     def output(self) -> List[luigi.LocalTarget]:
         """Returns a list of luigi targets matching :attr:`OUTPUT_FILES`."""
-        return [
+        return [luigi.LocalTarget(self._stamp())] + [
             luigi.LocalTarget(f"{self.local_graph_path / self.graph_name}{name}")
             for name in self.OUTPUT_FILES
         ]
