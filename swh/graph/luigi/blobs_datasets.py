@@ -527,6 +527,13 @@ class DownloadBlobs(_BaseTask):
         default="https://archive.softwareheritage.org/api/1/content/sha1:{sha1}/raw/",
         significant=False,
     )
+    decompression_algo = luigi.ChoiceParameter(
+        choices=["none", "gzip"],
+        default="none",
+        description="""The decompression algorithm to use after downloading.
+        Defaults to 'none' to match the SWH API. Should be 'gzip' when downloading from
+        s3://softwareheritage/""",
+    )
 
     def requires(self) -> luigi.Task:
         """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
@@ -577,6 +584,20 @@ class DownloadBlobs(_BaseTask):
         with tmp_path.open("wb") as fd:
             for chunk in resp.iter_content(chunk_size=40960):
                 fd.write(chunk)
+
+        if self.decompression_algo == "none":
+            pass  # Nothing to do
+        elif self.decompression_algo == "gzip":
+            import gzip
+            import shutil
+
+            tmp_path2 = Path(f"{tmp_path}_decompressed")
+            with gzip.open(tmp_path, "rb") as compressed_fd:
+                with open(tmp_path2, "wb") as decompressed_fd:
+                    shutil.copyfileobj(compressed_fd, decompressed_fd)
+            tmp_path2.replace(tmp_path)
+        else:
+            assert False, f"Unexpected decompression algo: {self.decompression_algo}"
 
         if self._compute_sha1(tmp_path) != sha1:
             logger.error("Blob downloaded to %s does not match its checksum", tmp_path)
