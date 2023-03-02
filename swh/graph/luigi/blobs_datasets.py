@@ -522,6 +522,7 @@ class SelectBlobs(_BaseTask):
 class DownloadBlobs(_BaseTask):
     blob_filter = luigi.ChoiceParameter(choices=list(SELECTION_QUERIES))
     derived_datasets_path = luigi.PathParameter()
+    parallel_downloads = luigi.IntParameter(default=10, significant=False)
     download_url = luigi.Parameter(
         default="https://archive.softwareheritage.org/api/1/content/sha1:{sha1}/raw/",
         significant=False,
@@ -631,7 +632,10 @@ class DownloadBlobs(_BaseTask):
         """Reads file SHA1 hashes from :file:`blobs.csv.zst` and downloads them
         to :file:`blobs/`."""
 
+        import multiprocessing.dummy
+
         import requests
+        import tqdm
 
         # Create sharded directories for the blobs
         for i in range(256):
@@ -649,9 +653,20 @@ class DownloadBlobs(_BaseTask):
         if auth_token:
             session.headers["Authorization"] = f"Bearer {auth_token}"
 
+        def worker(args):
+            (swhid, sha1, name) = args
+            return self._download_blob_if_missing(session, sha1)
+
         total_size = 0
-        for (swhid, sha1, name) in self.iter_blobs(unique_sha1=True):
-            total_size += self._download_blob_if_missing(session, sha1)
+        with multiprocessing.dummy.Pool(self.parallel_downloads) as pool:
+            for size in tqdm.tqdm(
+                pool.imap_unordered(
+                    worker,
+                    self.iter_blobs(unique_sha1=True, with_tqdm=False),
+                ),
+                total=self.blob_count(),
+            ):
+                total_size += size
 
         with self.blob_size_path().open("wt") as fd:
             fd.write(f"{total_size}\n")
