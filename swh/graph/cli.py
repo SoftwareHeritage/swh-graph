@@ -329,6 +329,15 @@ def get_all_subclasses(cls):
     as directory name. For example: ``2022-04-25`` or ``2022-11-12_staging``.""",
 )
 @click.option(
+    "--export-name",
+    required=False,
+    type=str,
+    help="""Should be a date and optionally a flavor, which will be used
+    as directory name for the export (not the compressed graph).
+    For example: ``2022-04-25`` or ``2022-11-12_staging``.
+    Defaults to the value of --dataset-name""",
+)
+@click.option(
     "--luigi-config",
     type=PathlibPath(),
     help="""Extra options to add to ``luigi.cfg``, following the same format.
@@ -348,6 +357,7 @@ def luigi(
     grpc_api: Optional[str],
     s3_athena_output_location: Optional[str],
     dataset_name: str,
+    export_name: Optional[str],
     luigi_config: Optional[Path],
     luigi_param: List[str],
 ):
@@ -406,10 +416,13 @@ def luigi(
         "unhandled_exception": "133",
     }
 
+    export_name = export_name or dataset_name
+
+    export_path = base_directory / export_name
     dataset_path = base_directory / dataset_name
 
     default_values = dict(
-        local_export_path=dataset_path,
+        local_export_path=export_path,
         local_graph_path=dataset_path / "compressed",
         derived_datasets_path=dataset_path,
         topological_order_dir=dataset_path / "topology/",
@@ -422,9 +435,10 @@ def luigi(
         default_values["local_graph_path"] = graph_base_directory
 
     if s3_prefix:
-        dataset_s3_prefix = f"{s3_prefix.rstrip('/')}/{dataset_name}"
-        default_values["s3_export_path"] = dataset_s3_prefix
-        default_values["s3_graph_path"] = f"{dataset_s3_prefix}/compressed"
+        default_values["s3_export_path"] = f"{s3_prefix.rstrip('/')}/{export_name}"
+        default_values[
+            "s3_graph_path"
+        ] = f"{s3_prefix.rstrip('/')}/{dataset_name}/compressed"
 
     if s3_athena_output_location:
         default_values["s3_athena_output_location"] = s3_athena_output_location
