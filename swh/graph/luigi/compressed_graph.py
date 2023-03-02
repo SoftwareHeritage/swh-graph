@@ -289,6 +289,22 @@ class _CompressionStepTask(luigi.Task):
             if path.stat().st_size == 0:
                 raise Exception(f"expected input {path} is empty")
 
+        if self.EXPORT_AS_INPUT:
+            export_meta = json.loads(
+                (self.local_export_path / "meta/export.json").read_text()
+            )
+            expected_tables = {
+                table.name for table in _tables_for_object_types(self.object_types)
+            }
+            missing_tables = expected_tables - set(export_meta["object_types"])
+            if missing_tables:
+                raise Exception(
+                    f"Want to compress graph with object types {self.object_types!r} "
+                    f"(meaning tables {expected_tables!r} are needed) "
+                    f"but export has only tables {export_meta['object_types']!r}. "
+                    f"Missing tables: {missing_tables!r}"
+                )
+
         conf = {
             "object_types": ",".join(self.object_types),
             # TODO: make this more configurable
