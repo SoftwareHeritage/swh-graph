@@ -45,7 +45,6 @@ import hashlib
 import logging
 import os
 from pathlib import Path
-import sys
 from typing import (
     TYPE_CHECKING,
     Callable,
@@ -569,15 +568,16 @@ class DownloadBlobs(_BaseTask):
 
                 rate_limit_reset = int(resp.headers["X-RateLimit-Reset"])
                 wait_seconds = max(10, rate_limit_reset - time.time())
-                logger.info("Waiting timeout for %d seconds", wait_seconds)
+                logger.warning("Waiting timeout for %d seconds", wait_seconds)
                 time.sleep(wait_seconds)
                 continue
             elif resp.status_code == 200:
                 break
             else:
-                logger.error("Unexpected status code: %s", resp.status_code)
+                msg = f"Unexpected status code: {resp.status_code}"
+                logger.error(msg)
                 logger.error(resp.text)
-                sys.exit(1)
+                raise Exception(msg)
 
         tmp_path = path.parent / f".tmp_{sha1}"
 
@@ -600,8 +600,9 @@ class DownloadBlobs(_BaseTask):
             assert False, f"Unexpected decompression algo: {self.decompression_algo}"
 
         if self._compute_sha1(tmp_path) != sha1:
-            logger.error("Blob downloaded to %s does not match its checksum", tmp_path)
-            sys.exit(1)
+            msg = f"Blob downloaded to {tmp_path} does not match its checksum"
+            logger.error(msg)
+            raise Exception(msg)
 
         # Atomically write to destination
         tmp_path.rename(path)
@@ -617,10 +618,9 @@ class DownloadBlobs(_BaseTask):
         for path in (sharded_path, unsharded_path):
             if path.exists():
                 if self._compute_sha1(path) != sha1:
-                    logger.error(
-                        "Existing blob at %s does not match its checksum", path
-                    )
-                    sys.exit(1)
+                    msg = f"Existing blob at {path} does not match its checksum"
+                    logger.error(msg)
+                    raise Exception(msg)
                 logger.debug("Skipping %s, already exists", sha1)
                 return path.stat().st_size
         else:
