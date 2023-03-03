@@ -30,6 +30,7 @@ def test_compressgraph(tmpdir, workers):
         "testdataset",
         "CompressGraph",
         "--batch-size=1000",  # small value, to go fast on the trivial dataset
+        "--max-ram=70M",
         "--",
         "--local-scheduler",
         "--CompressGraph-local-export-path",
