@@ -49,7 +49,7 @@ public class LabelMapBuilder {
     final static int DEFAULT_BATCH_SIZE = Math
             .min((int) (Runtime.getRuntime().maxMemory() * 0.4 / (numThreads * 8 * 3)), Arrays.MAX_ARRAY_SIZE);
 
-    String orcDatasetPath;
+    ORCGraphDataset dataset;
     String graphPath;
     String outputGraphPath;
     String tmpDir;
@@ -63,9 +63,9 @@ public class LabelMapBuilder {
     long numFilenames;
     int totalLabelWidth;
 
-    public LabelMapBuilder(String orcDatasetPath, String graphPath, String outputGraphPath, int batchSize,
+    public LabelMapBuilder(ORCGraphDataset dataset, String graphPath, String outputGraphPath, int batchSize,
             String tmpDir) throws IOException {
-        this.orcDatasetPath = orcDatasetPath;
+        this.dataset = dataset;
         this.graphPath = graphPath;
         this.outputGraphPath = (outputGraphPath == null) ? graphPath : outputGraphPath;
         this.batchSize = batchSize;
@@ -107,13 +107,15 @@ public class LabelMapBuilder {
 
     public static void main(String[] args) throws IOException, InterruptedException {
         JSAPResult config = parse_args(args);
-        String orcDataset = config.getString("dataset");
+        String datasetPath = config.getString("dataset");
         String graphPath = config.getString("graphPath");
         String outputGraphPath = config.getString("outputGraphPath");
         int batchSize = config.getInt("batchSize");
         String tmpDir = config.getString("tmpDir");
 
-        LabelMapBuilder builder = new LabelMapBuilder(orcDataset, graphPath, outputGraphPath, batchSize, tmpDir);
+        ORCGraphDataset dataset = new ORCGraphDataset(datasetPath);
+
+        LabelMapBuilder builder = new LabelMapBuilder(dataset, graphPath, outputGraphPath, batchSize, tmpDir);
 
         builder.computeLabelMap();
     }
@@ -205,7 +207,6 @@ public class LabelMapBuilder {
     }
 
     void readHashedEdgeLabels(GraphDataset.HashedEdgeCallback cb) throws IOException {
-        ORCGraphDataset dataset = new ORCGraphDataset(orcDatasetPath);
         ForkJoinPool forkJoinPool = new ForkJoinPool(numThreads);
         try {
             forkJoinPool.submit(() -> {

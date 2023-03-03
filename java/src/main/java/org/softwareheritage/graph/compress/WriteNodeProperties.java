@@ -45,8 +45,8 @@ public class WriteNodeProperties {
     private final NodeIdMap nodeIdMap;
     private final long numNodes;
 
-    public WriteNodeProperties(String dataset, String graphBasename, NodeIdMap nodeIdMap) {
-        this.dataset = new ORCGraphDataset(dataset);
+    public WriteNodeProperties(ORCGraphDataset dataset, String graphBasename, NodeIdMap nodeIdMap) {
+        this.dataset = dataset;
         this.graphBasename = graphBasename;
         this.nodeIdMap = nodeIdMap;
         this.numNodes = nodeIdMap.size64();
@@ -79,7 +79,7 @@ public class WriteNodeProperties {
     public static void main(String[] argv) throws IOException, ClassNotFoundException, NoSuchMethodException,
             InvocationTargetException, IllegalAccessException {
         JSAPResult args = parseArgs(argv);
-        String dataset = args.getString("dataset");
+        String datasetPath = args.getString("dataset");
         String graphBasename = args.getString("graphBasename");
         NodeIdMap nodeIdMap = new NodeIdMap(graphBasename);
 
@@ -90,6 +90,7 @@ public class WriteNodeProperties {
             properties = new HashSet<>(Arrays.asList(args.getString("properties").split(",")));
         }
 
+        ORCGraphDataset dataset = new ORCGraphDataset(datasetPath);
         WriteNodeProperties writer = new WriteNodeProperties(dataset, graphBasename, nodeIdMap);
         if (properties.contains("timestamps")) {
             writer.writeTimestamps();
