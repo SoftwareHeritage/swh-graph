@@ -45,7 +45,7 @@ For example:
             "steps": null,
             "export_start": "2022-11-08T11:00:54.998799+00:00",
             "export_end": "2022-11-08T11:05:53.105519+00:00",
-            "object_type": [
+            "object_types": [
                 "origin",
                 "origin_visit"
             ],

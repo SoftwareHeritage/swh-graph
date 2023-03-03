@@ -1,5 +1,5 @@
 {
-    "object_type": [
+    "object_types": [
         "origin_visit",
         "revision",
         "skipped_content",
@@ -9,5 +9,5 @@
         "release",
         "content",
         "origin_visit_status"
-]
+    ]
 }
