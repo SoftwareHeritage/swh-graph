@@ -140,6 +140,10 @@ def _tables_for_object_types(object_types: List[str]) -> List[Table]:
 
 
 class ObjectTypesParameter(luigi.Parameter):
+    """A parameter type whose value is either ``*`` or a set of comma-separated
+    object types (eg. ``ori,snp,rel,rev,dir,cnt``).
+    """
+
     def parse(self, s: str) -> List[str]:
         if s == "*":
             return self.parse(",".join(_TABLES_PER_OBJECT_TYPE))
