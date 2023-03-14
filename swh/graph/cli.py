@@ -74,7 +74,9 @@ class PathlibPath(click.Path):
         return Path(super().convert(value, param, ctx))
 
 
-DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {"graph": ("dict", {})}
+DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {
+    "graph": ("dict", {"cls": "local", "grpc_server": {}})
+}
 
 
 @swh_cli_group.group(name="graph", context_settings=CONTEXT_SETTINGS, cls=AliasedGroup)
@@ -131,7 +133,12 @@ def serve(ctx, host, port, graph):
     from swh.graph.http_rpc_server import make_app
 
     config = ctx.obj["config"]
-    config.setdefault("graph", {})
+    if "graph" not in config:
+        raise ValueError('no "graph" stanza found in configuration')
+    if "grpc_server" not in config["graph"]:
+        raise ValueError(
+            'no "grpc_server" stanza found in the "graph" section of configuration'
+        )
     config["graph"]["grpc_server"]["path"] = graph
     app = make_app(config=config)
 
@@ -173,7 +180,6 @@ def grpc_serve(ctx, port, java_home, graph):
     from swh.graph.grpc_server import build_grpc_server_cmdline
 
     config = ctx.obj["config"]
-    config.setdefault("graph", {})
     config["graph"]["path"] = graph
     if port is None and "port" not in config["graph"]:
         port = 50091
