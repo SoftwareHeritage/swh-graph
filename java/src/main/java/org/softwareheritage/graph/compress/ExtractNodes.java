@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 The Software Heritage developers
+ * Copyright (c) 2022-2023 The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
+
+import org.softwareheritage.graph.AllowedNodes;
 
 /**
  * Read a graph dataset and extract all the unique node SWHIDs it contains, including the ones that
@@ -84,7 +86,10 @@ public class ExtractNodes {
                             JSAP.NOT_REQUIRED, 'S', "sort-buffer-size",
                             "Size of the memory buffer used by each sort process"),
                     new FlaggedOption("sortTmpDir", JSAP.STRING_PARSER, null, JSAP.NOT_REQUIRED, 'T', "temp-dir",
-                            "Path to the temporary directory used by sort")});
+                            "Path to the temporary directory used by sort"),
+                    new FlaggedOption("allowedNodeTypes", JSAP.STRING_PARSER, "*", JSAP.NOT_REQUIRED, 'N',
+                            "allowed-node-types",
+                            "Node types to include in the graph, eg. 'ori,snp,rel,rev' to exclude directories and contents"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -105,6 +110,7 @@ public class ExtractNodes {
         String datasetFormat = parsedArgs.getString("format");
         String sortBufferSize = parsedArgs.getString("sortBufferSize");
         String sortTmpPath = parsedArgs.getString("sortTmpDir", null);
+        AllowedNodes allowedNodeTypes = new AllowedNodes(parsedArgs.getString("allowedNodeTypes"));
 
         File sortTmpDir = new File(sortTmpPath);
         sortTmpDir.mkdirs();
@@ -112,9 +118,9 @@ public class ExtractNodes {
         // Open edge dataset
         GraphDataset dataset;
         if (datasetFormat.equals("orc")) {
-            dataset = new ORCGraphDataset(datasetPath);
+            dataset = new ORCGraphDataset(datasetPath, allowedNodeTypes);
         } else if (datasetFormat.equals("csv")) {
-            dataset = new CSVEdgeDataset(datasetPath);
+            dataset = new CSVEdgeDataset(datasetPath, allowedNodeTypes);
         } else {
             throw new IllegalArgumentException("Unknown dataset format: " + datasetFormat);
         }
@@ -256,6 +262,11 @@ public class ExtractNodes {
         labelSortMerger.getOutputStream().close();
         OutputStream labelsFileOutputStream = new ZstdOutputStream(
                 new BufferedOutputStream(new FileOutputStream(outputBasename + ".labels.csv.zst")));
+        /*
+         * Workaround for <https://github.com/luben/zstd-jni/issues/249>, which happens when
+         * allowedNodeTypes does not contain REV or REL)
+         */
+        labelsFileOutputStream.write(new byte[]{});
         LabelsOutputThread labelsOutputThread = new LabelsOutputThread(
                 new BufferedInputStream(labelSortMerger.getInputStream()), labelsFileOutputStream);
         labelsOutputThread.start();

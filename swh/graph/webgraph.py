@@ -69,6 +69,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "orc",
         "--temp-dir",
         "{tmp_dir}",
+        "--allowed-node-types",
+        "{object_types}",
         "{in_dir}",
         "{out_dir}/{graph_name}",
     ],
@@ -88,6 +90,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "org.softwareheritage.graph.compress.ScatteredArcsORCGraph",
         "--temp-dir",
         "{tmp_dir}",
+        "--allowed-node-types",
+        "{object_types}",
         "--function",
         "{out_dir}/{graph_name}.mph",
         "{in_dir}",
@@ -189,6 +193,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "org.softwareheritage.graph.compress.ExtractPersons",
         "--temp-dir",
         "{tmp_dir}",
+        "--allowed-node-types",
+        "{object_types}",
         "{in_dir}",
         "{out_dir}/{graph_name}",
     ],
@@ -207,6 +213,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{java}",
         "org.softwareheritage.graph.compress.WriteNodeProperties",
         "{in_dir}",
+        "--allowed-node-types",
+        "{object_types}",
         "{out_dir}/{graph_name}",
     ],
     CompressionStep.MPH_LABELS: [
@@ -233,6 +241,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "org.softwareheritage.graph.compress.LabelMapBuilder",
         "--temp-dir",
         "{tmp_dir}",
+        "--allowed-node-types",
+        "{object_types}",
         "{in_dir}",
         "{out_dir}/{graph_name}",
     ],
@@ -360,6 +370,8 @@ def compress(
             virtual memory
           - tmp_dir: temporary directory, defaults to the "tmp" subdir of
             out_dir
+          - object_types: comma-separated list of object types to extract
+            (eg. ``ori,snp,rel,rev``). Defaults to ``*``.
         progress_cb: a callable taking a percentage and step as argument,
           which is called every time a step starts.
 

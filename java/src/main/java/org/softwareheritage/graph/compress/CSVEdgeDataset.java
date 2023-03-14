@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 The Software Heritage developers
+ * Copyright (c) 2022-2023 The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -17,6 +17,8 @@ import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+
+import org.softwareheritage.graph.AllowedNodes;
 
 /**
  * A graph dataset in (zstd-compressed) CSV format.
@@ -40,11 +42,26 @@ public class CSVEdgeDataset implements GraphDataset {
 
     final private File datasetDir;
 
+    /**
+     * Initializes with all node types allowed
+     */
     public CSVEdgeDataset(String datasetPath) {
-        this(new File(datasetPath));
+        this(datasetPath, new AllowedNodes("*"));
+    }
+
+    public CSVEdgeDataset(String datasetPath, AllowedNodes allowedNodeTypes) {
+        this(new File(datasetPath), allowedNodeTypes);
     }
 
     public CSVEdgeDataset(File datasetDir) {
+        this(datasetDir, new AllowedNodes("*"));
+    }
+
+    public CSVEdgeDataset(File datasetDir, AllowedNodes allowedNodeTypes) {
+        if (allowedNodeTypes.restrictedTo != null) {
+            // TODO: Implement support for allowedNodeTypes.
+            throw new IllegalArgumentException("allowedNodeTypes must be '*' when using a CSV edge dataset.");
+        }
         if (!datasetDir.exists()) {
             throw new IllegalArgumentException("Dataset " + datasetDir.getName() + " does not exist");
         }

@@ -15,6 +15,19 @@ It implements the task DAG described in :ref:`swh-graph-compression-steps`.
 
 Unlike the CLI, this requires the graph to be named `graph`.
 
+Filtering
+---------
+
+The ``object_types`` parameter (``--object-types`` on the CLI) specifies
+the set of node types to read from the dataset export, and it defaults to
+all types: ``ori,snp,rel,rev,dir,cnt``.
+
+Because the dataset export is keyed by edge sources, some objects
+without any of these types will be present in the input dataset. For example,
+if exporting ``ori,snp,rel,rev``, root Directory of every release and revision
+will be present, though without its labels (as well as a few Content objects
+pointed by some Releases).
+
 File layout
 -----------
 
@@ -76,6 +89,7 @@ The layout is otherwise the same as the file layout.
 """
 
 import collections
+import itertools
 from pathlib import Path
 from typing import Dict, List, Set
 
@@ -83,8 +97,61 @@ from typing import Dict, List, Set
 # control
 import luigi
 
-from swh.dataset.luigi import Format, LocalExport, ObjectType, S3PathParameter
+from swh.dataset.luigi import Format, LocalExport
+from swh.dataset.luigi import ObjectType as Table
+from swh.dataset.luigi import S3PathParameter
 from swh.graph.webgraph import CompressionStep, do_step
+
+# This mirrors the long switch statement in
+# java/src/main/java/org/softwareheritage/graph/compress/ORCGraphDataset.java
+# but maps only to the main tables (see swh/dataset/relational.py)
+#
+# Note that swh-dataset's "object type" (which we refer to as "table" in the module
+# to avoid confusion) corresponds to a "main table" of a relational DB, eg.
+# "directory" or "origin_visit", but not relational table like "directory_entries".
+#
+# In swh-graph, "object type" is cnt,dir,rev,rel,snp,ori; which roughly matches
+# main tables, but with some mashed together.
+_TABLES_PER_OBJECT_TYPE = {
+    "cnt": [Table.skipped_content, Table.content],  # type: ignore[attr-defined]
+    "dir": [Table.directory],  # type: ignore[attr-defined]
+    "rev": [Table.revision],  # type: ignore[attr-defined]
+    "rel": [Table.release],  # type: ignore[attr-defined]
+    "snp": [Table.snapshot],  # type: ignore[attr-defined]
+    "ori": [
+        Table.origin,  # type: ignore[attr-defined]
+        Table.origin_visit,  # type: ignore[attr-defined]
+        Table.origin_visit_status,  # type: ignore[attr-defined]
+    ],
+}
+
+assert set(itertools.chain.from_iterable(_TABLES_PER_OBJECT_TYPE.values())) == set(
+    Table
+)
+
+
+def _tables_for_object_types(object_types: List[str]) -> List[Table]:
+    """Returns the list of ORC tables required to produce a compressed graph with
+    the given object types."""
+    tables = []
+    for object_type in object_types:
+        tables.extend(_TABLES_PER_OBJECT_TYPE[object_type])
+    return tables
+
+
+class ObjectTypesParameter(luigi.Parameter):
+    def parse(self, s: str) -> List[str]:
+        if s == "*":
+            return self.parse(",".join(_TABLES_PER_OBJECT_TYPE))
+        else:
+            types = s.split(",")
+            invalid_types = set(types) - set(_TABLES_PER_OBJECT_TYPE)
+            if invalid_types:
+                raise ValueError(f"Invalid object types: {invalid_types!r}")
+            return types
+
+    def serialize(self, value: List[str]) -> str:
+        return ",".join(value)
 
 
 class _CompressionStepTask(luigi.Task):
@@ -120,6 +187,8 @@ class _CompressionStepTask(luigi.Task):
     # TODO: this could/should vary across steps
     max_ram = luigi.Parameter(default="", significant=False)
 
+    object_types = ObjectTypesParameter()
+
     def _stamp(self) -> Path:
         """Returns the path of this tasks's stamp file"""
         return self.local_graph_path / "meta" / "stamps" / f"{self.STEP}.json"
@@ -139,6 +208,17 @@ class _CompressionStepTask(luigi.Task):
             if not path.is_file():
                 raise Exception(f"expected output {path} is not a file")
             if path.stat().st_size == 0:
+                if (
+                    path.name.endswith(
+                        (".labels.fcl.bytearray", ".labels.fcl.pointers")
+                    )
+                    and "dir" not in self.object_types
+                    and "snp" not in self.object_types
+                ):
+                    # It's expected that .labels.fcl.bytearray is empty when both dir
+                    # and snp are excluded, because these are the only objects
+                    # with labels on their edges.
+                    continue
                 raise Exception(f"expected output {path} is empty")
 
         return True  # TODO: remove this early return
@@ -158,6 +238,7 @@ class _CompressionStepTask(luigi.Task):
                         local_export_path=self.local_export_path,
                         graph_name=self.graph_name,
                         local_graph_path=self.local_graph_path,
+                        object_types=self.object_types,
                     )
                     if self.batch_size:
                         kwargs["batch_size"] = self.batch_size
@@ -175,7 +256,7 @@ class _CompressionStepTask(luigi.Task):
                 LocalExport(
                     local_export_path=self.local_export_path,
                     formats=[Format.orc],  # type: ignore[attr-defined]
-                    object_types=list(ObjectType),
+                    object_types=_tables_for_object_types(self.object_types),
                 )
             )
 
@@ -208,7 +289,10 @@ class _CompressionStepTask(luigi.Task):
             if path.stat().st_size == 0:
                 raise Exception(f"expected input {path} is empty")
 
-        conf = {}  # TODO: make this configurable
+        conf = {
+            "object_types": ",".join(self.object_types),
+            # TODO: make this more configurable
+        }
         if self.batch_size:
             conf["batch_size"] = self.batch_size
         if self.max_ram:
@@ -232,6 +316,7 @@ class _CompressionStepTask(luigi.Task):
             "end": end_date.isoformat(),
             "runtime": end_time - start_time,
             "hostname": socket.getfqdn(),
+            "object_types": self.object_types,
             "conf": conf,
             "tool": {
                 "name": "swh.graph",
@@ -372,6 +457,41 @@ class NodeProperties(_CompressionStepTask):
         )
     }
 
+    def output(self) -> List[luigi.LocalTarget]:
+        """Returns a list of luigi targets matching :attr:`OUTPUT_FILES`."""
+        excluded_files = set()
+        if "cnt" not in self.object_types:
+            excluded_files |= {
+                "content.is_skipped",
+                "content.length",
+            }
+        if "rev" not in self.object_types and "rel" not in self.object_types:
+            excluded_files |= {
+                "author_id",
+                "author_timestamp",
+                "author_timestamp_offset",
+                "message",
+                "message.offset",
+            }
+        if "rel" not in self.object_types:
+            excluded_files |= {
+                "tag_name",
+                "tag_name.offset",
+            }
+        if "rev" not in self.object_types:
+            excluded_files |= {
+                "committer_id",
+                "committer_timestamp",
+                "committer_timestamp_offset",
+            }
+
+        excluded_files = {f".property.{name}.bin" for name in excluded_files}
+
+        return [luigi.LocalTarget(self._stamp())] + [
+            luigi.LocalTarget(f"{self.local_graph_path / self.graph_name}{name}")
+            for name in self.OUTPUT_FILES - excluded_files
+        ]
+
 
 class MphLabels(_CompressionStepTask):
     STEP = CompressionStep.MPH_LABELS
@@ -472,13 +592,7 @@ class CompressGraph(luigi.Task):
     )
     max_ram = luigi.Parameter(default="", significant=False)
 
-    object_types = list(ObjectType)
-    # To make this configurable, we could use this:
-    #   object_types = luigi.EnumListParameter(
-    #       enum=ObjectType, default=list(ObjectType), batch_method=merge_lists
-    #   )
-    # then use swh.dataset.luigi._export_metadata_has_object_types to check in
-    # .meta/export.json that all objects are present before skipping the task
+    object_types = ObjectTypesParameter(default=list(_TABLES_PER_OBJECT_TYPE))
 
     def requires(self) -> List[luigi.Task]:
         """Returns a :class:`LocalExport` task, and leaves of the compression dependency
@@ -487,12 +601,13 @@ class CompressGraph(luigi.Task):
             local_export_path=self.local_export_path,
             graph_name=self.graph_name,
             local_graph_path=self.local_graph_path,
+            object_types=self.object_types,
         )
         return [
             LocalExport(
                 local_export_path=self.local_export_path,
                 formats=[Format.orc],  # type: ignore[attr-defined]
-                object_types=self.object_types,
+                object_types=_tables_for_object_types(self.object_types),
             ),
             EdgeLabelsObl(**kwargs),
             EdgeLabelsTransposeObl(**kwargs),
@@ -527,7 +642,9 @@ class CompressGraph(luigi.Task):
 
         from swh.graph.config import check_config_compress
 
-        conf = {}
+        conf = {
+            "object_types": ",".join(self.object_types),
+        }
 
         if self.batch_size:
             conf["batch_size"] = self.batch_size
@@ -568,7 +685,7 @@ class CompressGraph(luigi.Task):
                 "start": min(step["start"] for step in steps),
                 "end": max(step["end"] for step in steps),
                 "total_runtime": sum(step["runtime"] for step in steps),
-                "object_type": [object_type.name for object_type in self.object_types],
+                "object_types": ",".join(self.object_types),
                 "hostname": socket.getfqdn(),
                 "conf": conf,
                 "tool": {

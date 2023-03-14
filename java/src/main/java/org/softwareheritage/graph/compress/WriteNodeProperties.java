@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 The Software Heritage developers
+ * Copyright (c) 2022-2023 The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -18,14 +18,16 @@ import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.fastutil.shorts.ShortBigArrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.softwareheritage.graph.maps.NodeIdMap;
-import org.softwareheritage.graph.compress.ORCGraphDataset.*;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+
+import org.softwareheritage.graph.maps.NodeIdMap;
+import org.softwareheritage.graph.compress.ORCGraphDataset.*;
+import org.softwareheritage.graph.AllowedNodes;
 
 /**
  * This class is used to extract the node properties from the graph dataset, and write them to a set
@@ -64,7 +66,10 @@ public class WriteNodeProperties {
                             "Basename of the output graph"),
                     new FlaggedOption("properties", JSAP.STRING_PARSER, "*", JSAP.NOT_REQUIRED, 'p', "properties",
                             "Properties to write, comma separated (default: all). Possible choices: "
-                                    + String.join(",", PROPERTY_WRITERS)),});
+                                    + String.join(",", PROPERTY_WRITERS)),
+                    new FlaggedOption("allowedNodeTypes", JSAP.STRING_PARSER, "*", JSAP.NOT_REQUIRED, 'N',
+                            "allowed-node-types",
+                            "Node types to include in the graph, eg. 'ori,snp,rel,rev' to exclude directories and contents"),});
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
                 System.exit(1);
@@ -81,6 +86,7 @@ public class WriteNodeProperties {
         JSAPResult args = parseArgs(argv);
         String datasetPath = args.getString("dataset");
         String graphBasename = args.getString("graphBasename");
+        AllowedNodes allowedNodeTypes = new AllowedNodes(args.getString("allowedNodeTypes"));
         NodeIdMap nodeIdMap = new NodeIdMap(graphBasename);
 
         Set<String> properties;
@@ -90,7 +96,7 @@ public class WriteNodeProperties {
             properties = new HashSet<>(Arrays.asList(args.getString("properties").split(",")));
         }
 
-        ORCGraphDataset dataset = new ORCGraphDataset(datasetPath);
+        ORCGraphDataset dataset = new ORCGraphDataset(datasetPath, allowedNodeTypes);
         WriteNodeProperties writer = new WriteNodeProperties(dataset, graphBasename, nodeIdMap);
         if (properties.contains("timestamps")) {
             writer.writeTimestamps();
@@ -144,9 +150,14 @@ public class WriteNodeProperties {
     }
 
     public void writeTimestamps() throws IOException {
-        logger.info("Writing author/committer timestamps for release + revision");
         SwhOrcTable releaseTable = dataset.getTable("release");
         SwhOrcTable revisionTable = dataset.getTable("revision");
+
+        if (releaseTable == null && revisionTable == null) {
+            return;
+        }
+
+        logger.info("Writing author/committer timestamps for release + revision");
 
         long[][] timestampArray = LongBigArrays.newBigArray(numNodes);
         short[][] timestampOffsetArray = ShortBigArrays.newBigArray(numNodes);
@@ -154,61 +165,85 @@ public class WriteNodeProperties {
         // Author timestamps
         BigArrays.fill(timestampArray, Long.MIN_VALUE);
         BigArrays.fill(timestampOffsetArray, Short.MIN_VALUE);
-        releaseTable.readTimestampColumn("date", "date_offset", (swhid, date, dateOffset) -> {
-            long id = nodeIdMap.getNodeId(swhid);
-            BigArrays.set(timestampArray, id, date);
-            BigArrays.set(timestampOffsetArray, id, dateOffset);
-        });
-        revisionTable.readTimestampColumn("date", "date_offset", (swhid, date, dateOffset) -> {
-            long id = nodeIdMap.getNodeId(swhid);
-            BigArrays.set(timestampArray, id, date);
-            BigArrays.set(timestampOffsetArray, id, dateOffset);
-        });
+        if (releaseTable != null) {
+            releaseTable.readTimestampColumn("date", "date_offset", (swhid, date, dateOffset) -> {
+                long id = nodeIdMap.getNodeId(swhid);
+                BigArrays.set(timestampArray, id, date);
+                BigArrays.set(timestampOffsetArray, id, dateOffset);
+            });
+        }
+        if (revisionTable != null) {
+            revisionTable.readTimestampColumn("date", "date_offset", (swhid, date, dateOffset) -> {
+                long id = nodeIdMap.getNodeId(swhid);
+                BigArrays.set(timestampArray, id, date);
+                BigArrays.set(timestampOffsetArray, id, dateOffset);
+            });
+        }
         BinIO.storeLongs(timestampArray, graphBasename + ".property.author_timestamp.bin");
         BinIO.storeShorts(timestampOffsetArray, graphBasename + ".property.author_timestamp_offset.bin");
 
         // Committer timestamps
-        BigArrays.fill(timestampArray, Long.MIN_VALUE);
-        BigArrays.fill(timestampOffsetArray, Short.MIN_VALUE);
-        revisionTable.readTimestampColumn("committer_date", "committer_offset", (swhid, date, dateOffset) -> {
-            long id = nodeIdMap.getNodeId(swhid);
-            BigArrays.set(timestampArray, id, date);
-            BigArrays.set(timestampOffsetArray, id, dateOffset);
-        });
-        BinIO.storeLongs(timestampArray, graphBasename + ".property.committer_timestamp.bin");
-        BinIO.storeShorts(timestampOffsetArray, graphBasename + ".property.committer_timestamp_offset.bin");
+        if (revisionTable != null) {
+            BigArrays.fill(timestampArray, Long.MIN_VALUE);
+            BigArrays.fill(timestampOffsetArray, Short.MIN_VALUE);
+            revisionTable.readTimestampColumn("committer_date", "committer_offset", (swhid, date, dateOffset) -> {
+                long id = nodeIdMap.getNodeId(swhid);
+                BigArrays.set(timestampArray, id, date);
+                BigArrays.set(timestampOffsetArray, id, dateOffset);
+            });
+            BinIO.storeLongs(timestampArray, graphBasename + ".property.committer_timestamp.bin");
+            BinIO.storeShorts(timestampOffsetArray, graphBasename + ".property.committer_timestamp_offset.bin");
+        }
     }
 
     public void writePersonIds() throws IOException {
-        logger.info("Writing author/committer IDs for release + revision");
-        Object2LongFunction<byte[]> personIdMap = NodeIdMap.loadMph(graphBasename + ".persons.mph");
         SwhOrcTable releaseTable = dataset.getTable("release");
         SwhOrcTable revisionTable = dataset.getTable("revision");
 
+        if (releaseTable == null && revisionTable == null) {
+            return;
+        }
+
+        logger.info("Writing author/committer IDs for release + revision");
+        Object2LongFunction<byte[]> personIdMap = NodeIdMap.loadMph(graphBasename + ".persons.mph");
         int[][] personArray = IntBigArrays.newBigArray(numNodes);
 
         // Author IDs
         BigArrays.fill(personArray, -1);
-        releaseTable.readBytes64Column("author", (swhid, personBase64) -> {
-            long id = nodeIdMap.getNodeId(swhid);
-            BigArrays.set(personArray, id, (int) personIdMap.getLong(personBase64));
-        });
-        revisionTable.readBytes64Column("author", (swhid, personBase64) -> {
-            long id = nodeIdMap.getNodeId(swhid);
-            BigArrays.set(personArray, id, (int) personIdMap.getLong(personBase64));
-        });
+        if (releaseTable != null) {
+            releaseTable.readBytes64Column("author", (swhid, personBase64) -> {
+                long id = nodeIdMap.getNodeId(swhid);
+                BigArrays.set(personArray, id, (int) personIdMap.getLong(personBase64));
+            });
+        }
+        if (revisionTable != null) {
+            revisionTable.readBytes64Column("author", (swhid, personBase64) -> {
+                long id = nodeIdMap.getNodeId(swhid);
+                BigArrays.set(personArray, id, (int) personIdMap.getLong(personBase64));
+            });
+        }
         BinIO.storeInts(personArray, graphBasename + ".property.author_id.bin");
 
         // Committer IDs
         BigArrays.fill(personArray, -1);
-        revisionTable.readBytes64Column("committer", (swhid, personBase64) -> {
-            long id = nodeIdMap.getNodeId(swhid);
-            BigArrays.set(personArray, id, (int) personIdMap.getLong(personBase64));
-        });
+        if (revisionTable != null) {
+            revisionTable.readBytes64Column("committer", (swhid, personBase64) -> {
+                long id = nodeIdMap.getNodeId(swhid);
+                BigArrays.set(personArray, id, (int) personIdMap.getLong(personBase64));
+            });
+        }
         BinIO.storeInts(personArray, graphBasename + ".property.committer_id.bin");
     }
 
     public void writeMessages() throws IOException {
+        SwhOrcTable releaseTable = dataset.getTable("release");
+        SwhOrcTable revisionTable = dataset.getTable("revision");
+        OriginOrcTable originTable = (OriginOrcTable) dataset.getTable("origin");
+
+        if (releaseTable == null && revisionTable == null && originTable == null) {
+            return;
+        }
+
         logger.info("Writing messages for release + revision, and URLs for origins");
 
         long[][] messageOffsetArray = LongBigArrays.newBigArray(numNodes);
@@ -218,32 +253,35 @@ public class WriteNodeProperties {
                 new FileOutputStream(graphBasename + ".property.message.bin"));
         AtomicLong offset = new AtomicLong(0L);
 
-        SwhOrcTable releaseTable = dataset.getTable("release");
-        releaseTable.readBytes64Column("message", (swhid, messageBase64) -> {
-            long id = nodeIdMap.getNodeId(swhid);
-            messageStream.write(messageBase64);
-            messageStream.write('\n');
-            BigArrays.set(messageOffsetArray, id, offset.longValue());
-            offset.addAndGet(messageBase64.length + 1);
-        });
+        if (releaseTable != null) {
+            releaseTable.readBytes64Column("message", (swhid, messageBase64) -> {
+                long id = nodeIdMap.getNodeId(swhid);
+                messageStream.write(messageBase64);
+                messageStream.write('\n');
+                BigArrays.set(messageOffsetArray, id, offset.longValue());
+                offset.addAndGet(messageBase64.length + 1);
+            });
+        }
 
-        SwhOrcTable revisionTable = dataset.getTable("revision");
-        revisionTable.readBytes64Column("message", (swhid, messageBase64) -> {
-            long id = nodeIdMap.getNodeId(swhid);
-            messageStream.write(messageBase64);
-            messageStream.write('\n');
-            BigArrays.set(messageOffsetArray, id, offset.longValue());
-            offset.addAndGet(messageBase64.length + 1);
-        });
+        if (revisionTable != null) {
+            revisionTable.readBytes64Column("message", (swhid, messageBase64) -> {
+                long id = nodeIdMap.getNodeId(swhid);
+                messageStream.write(messageBase64);
+                messageStream.write('\n');
+                BigArrays.set(messageOffsetArray, id, offset.longValue());
+                offset.addAndGet(messageBase64.length + 1);
+            });
+        }
 
-        OriginOrcTable originTable = (OriginOrcTable) dataset.getTable("origin");
-        originTable.readURLs((swhid, messageBase64) -> {
-            long id = nodeIdMap.getNodeId(swhid);
-            messageStream.write(messageBase64);
-            messageStream.write('\n');
-            BigArrays.set(messageOffsetArray, id, offset.longValue());
-            offset.addAndGet(messageBase64.length + 1);
-        });
+        if (originTable != null) {
+            originTable.readURLs((swhid, messageBase64) -> {
+                long id = nodeIdMap.getNodeId(swhid);
+                messageStream.write(messageBase64);
+                messageStream.write('\n');
+                BigArrays.set(messageOffsetArray, id, offset.longValue());
+                offset.addAndGet(messageBase64.length + 1);
+            });
+        }
 
         // TODO: check which one is optimal in terms of memory/disk usage, EF vs mapped file
         BinIO.storeLongs(messageOffsetArray, graphBasename + ".property.message.offset.bin");
@@ -254,6 +292,11 @@ public class WriteNodeProperties {
     }
 
     public void writeTagNames() throws IOException {
+        SwhOrcTable releaseTable = dataset.getTable("release");
+        if (releaseTable == null) {
+            return;
+        }
+
         logger.info("Writing tag names for release");
 
         long[][] tagNameOffsetArray = LongBigArrays.newBigArray(numNodes);
@@ -263,7 +306,6 @@ public class WriteNodeProperties {
                 new FileOutputStream(graphBasename + ".property.tag_name.bin"));
         AtomicLong offset = new AtomicLong(0L);
 
-        SwhOrcTable releaseTable = dataset.getTable("release");
         releaseTable.readBytes64Column("name", (swhid, tagNameBase64) -> {
             long id = nodeIdMap.getNodeId(swhid);
             tagNameStream.write(tagNameBase64);

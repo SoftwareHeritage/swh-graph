@@ -30,6 +30,7 @@ import org.softwareheritage.graph.labels.SwhLabel;
 import org.softwareheritage.graph.maps.NodeIdMap;
 import org.softwareheritage.graph.utils.ForkJoinBigQuickSort2;
 import org.softwareheritage.graph.utils.ForkJoinQuickSort3;
+import org.softwareheritage.graph.AllowedNodes;
 
 import java.io.*;
 import java.nio.file.Paths;
@@ -93,7 +94,10 @@ public class LabelMapBuilder {
                     new FlaggedOption("batchSize", JSAP.INTEGER_PARSER, String.valueOf(DEFAULT_BATCH_SIZE),
                             JSAP.NOT_REQUIRED, 'b', "batch-size", "Number of triplets held in memory in each batch"),
                     new FlaggedOption("tmpDir", JSAP.STRING_PARSER, "tmp", JSAP.NOT_REQUIRED, 'T', "temp-dir",
-                            "Temporary directory path"),});
+                            "Temporary directory path"),
+                    new FlaggedOption("allowedNodeTypes", JSAP.STRING_PARSER, "*", JSAP.NOT_REQUIRED, 'N',
+                            "allowed-node-types",
+                            "Node types to include in the graph, eg. 'ori,snp,rel,rev' to exclude directories and contents"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -109,11 +113,12 @@ public class LabelMapBuilder {
         JSAPResult config = parse_args(args);
         String datasetPath = config.getString("dataset");
         String graphPath = config.getString("graphPath");
+        AllowedNodes allowedNodeTypes = new AllowedNodes(config.getString("allowedNodeTypes"));
         String outputGraphPath = config.getString("outputGraphPath");
         int batchSize = config.getInt("batchSize");
         String tmpDir = config.getString("tmpDir");
 
-        ORCGraphDataset dataset = new ORCGraphDataset(datasetPath);
+        ORCGraphDataset dataset = new ORCGraphDataset(datasetPath, allowedNodeTypes);
 
         LabelMapBuilder builder = new LabelMapBuilder(dataset, graphPath, outputGraphPath, batchSize, tmpDir);
 
