@@ -144,6 +144,12 @@ class ObjectTypesParameter(luigi.Parameter):
     object types (eg. ``ori,snp,rel,rev,dir,cnt``).
     """
 
+    def __init__(self, *args, **kwargs):
+        """"""
+        # Only present to override the docstring defined by Luigi; which
+        # contains a reference to batch_method, which doesn't exist in SWH's doc
+        super().__init__(*args, **kwargs)
+
     def parse(self, s: str) -> List[str]:
         if s == "*":
             return self.parse(",".join(_TABLES_PER_OBJECT_TYPE))
