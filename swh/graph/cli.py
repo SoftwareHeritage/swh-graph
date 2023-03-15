@@ -464,7 +464,9 @@ def luigi(
         topological_order_dir=dataset_path / "topology/",
         origin_contributors_path=dataset_path / "datasets/contribution_graph.csv.zst",
         origin_urls_path=dataset_path / "datasets/origin_urls.csv.zst",
-        export_id=f"{dataset_name}-{secrets.token_hex(10)}",
+        export_id=f"{export_name}-{secrets.token_hex(10)}",
+        export_name=export_name,
+        dataset_name=dataset_name,
     )
 
     if graph_base_directory:
