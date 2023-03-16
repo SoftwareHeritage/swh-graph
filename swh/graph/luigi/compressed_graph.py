@@ -90,6 +90,7 @@ The layout is otherwise the same as the file layout.
 
 import collections
 import itertools
+import math
 from pathlib import Path
 from typing import Dict, List, Set
 
@@ -101,6 +102,23 @@ from swh.dataset.luigi import Format, LocalExport
 from swh.dataset.luigi import ObjectType as Table
 from swh.dataset.luigi import S3PathParameter
 from swh.graph.webgraph import CompressionStep, do_step
+
+_LOW_XMX = 128_000_000
+"""Arbitrary value that should work as -Xmx for Java processes which don't need
+much memory and as spare for processes which do"""
+
+
+def _govmph_bitarray_size(nb_nodes: int) -> int:
+    """Returns the size of the bitarray used by
+    it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction depending on the number of
+    nodes
+    """
+    # https://github.com/vigna/Sux4J/blob/e9fd7412204272a2796e3038e95beb1d8cbc244a/src/it/unimi/dsi/sux4j/mph/GOVMinimalPerfectHashFunction.java#L157-L160
+    c_times_256 = math.floor((1.09 + 0.01) * 256)
+
+    # https://github.com/vigna/Sux4J/blob/e9fd7412204272a2796e3038e95beb1d8cbc244a/src/it/unimi/dsi/sux4j/mph/GOVMinimalPerfectHashFunction.java#L355
+    return int(2 * (1 + (nb_nodes * c_times_256 >> 8)) / 8)
+
 
 # This mirrors the long switch statement in
 # java/src/main/java/org/softwareheritage/graph/compress/ORCGraphDataset.java
@@ -194,10 +212,101 @@ class _CompressionStepTask(luigi.Task):
         """,
     )
 
-    # TODO: this could/should vary across steps
-    max_ram = luigi.Parameter(default="", significant=False)
-
     object_types = ObjectTypesParameter()
+
+    def _get_count(self, count_name: str, task_name: str) -> int:
+        count_path = self.local_graph_path / f"{self.graph_name}.{count_name}.count.txt"
+        if not count_path.exists():
+            # ExtractNodes didn't run yet so we do not know how many there are.
+            # As it means this task cannot run right now anyway, pretend there are so
+            # many nodes the task wouldn't fit in memory
+            print(
+                f"warning: {self.__class__.__name__}._nb_{count_name} called but "
+                f"{task_name} did not run yet"
+            )
+            return 10**100
+        return int(count_path.read_text())
+
+    def _nb_nodes(self) -> int:
+        return self._get_count("nodes", "ExtractNodes")
+
+    def _nb_edges(self) -> int:
+        return self._get_count("edges", "ExtractNodes")
+
+    def _nb_labels(self) -> int:
+        return self._get_count("labels", "ExtractNodes")
+
+    def _nb_persons(self) -> int:
+        return self._get_count("persons", "ExtractPersons")
+
+    def _java_xmx_for_bvgraph(self):
+        """Returns the memory needed to load the input .graph of this task."""
+        # In reverse order of their generationg (and therefore size)
+        suffixes = [
+            "-transposed.graph",
+            ".graph",
+            "-bfs-simplified.graph",
+            "-bfs.graph",
+            "-base.graph",
+        ]
+        suffixes_in_input = set(suffixes) & self.INPUT_FILES
+        try:
+            (suffix_in_input,) = suffixes_in_input
+        except ValueError:
+            raise ValueError(
+                f"Expected {self.__class__.__name__} to have exactly one graph as "
+                f"input, got: {suffixes_in_input}"
+            ) from None
+
+        graph_path = self.local_graph_path / f"{self.graph_name}{suffix_in_input}"
+        if graph_path.exists():
+            graph_size = graph_path.stat().st_size
+        else:
+            # This graph wasn't generated yet.
+            # As it means this task cannot run right now anyway, assume it is the
+            # worst case: it's the same size as the previous graph.
+            for suffix in suffixes[suffixes.index(suffix_in_input) :]:
+                graph_path = self.local_graph_path / f"{self.graph_name}{suffix}"
+                if graph_path.exists():
+                    graph_size = graph_path.stat().st_size
+                    break
+            else:
+                # No graph was generated yet, so we have to assume the worst
+                # possible compression ratio (a whole long int for each edge in
+                # the adjacency lists)
+                graph_size = 8 * self._nb_edges()
+
+        bitvector_size = self._nb_nodes() / 8
+        # https://github.com/vigna/fastutil/blob/master/src/it/unimi/dsi/fastutil/io/FastMultiByteArrayInputStream.java
+        fis_size = 1 << 30
+
+        fis_size += graph_size
+
+        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/BVGraph.java#L1443
+        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/BVGraph.java#L1503
+        offsets_size = self._nb_nodes() * 8
+
+        return int(bitvector_size + fis_size + offsets_size)
+
+    def _mph_size(self):
+        # The 2022-12-07 export had 27 billion nodes and its .mph weighted 7.2GB.
+        # (so, about 0.25 bytes per node)
+        # We can reasonably assume it won't ever take more than 2 bytes per node.
+        return self._nb_nodes() * 2
+
+    def _persons_mph_size(self):
+        # ditto, but there were 3 billion labels and .mph was 8GB
+        # (about 2.6 bytes per node)
+        return self._nb_labels() * 8
+
+    def _labels_mph_size(self):
+        # ditto, but there were 3 billion labels and .mph was 8GB
+        # (about 2.6 bytes per node)
+        return self._nb_labels() * 8
+
+    def _java_xmx(self) -> int:
+        """Returns the value to set as the JVM's -Xmx parameter, in bytes"""
+        raise NotImplementedError(f"{self.__class__.__name__}._java_xmx")
 
     def _stamp(self) -> Path:
         """Returns the path of this tasks's stamp file"""
@@ -252,8 +361,6 @@ class _CompressionStepTask(luigi.Task):
                     )
                     if self.batch_size:
                         kwargs["batch_size"] = self.batch_size
-                    if self.max_ram:
-                        kwargs["max_ram"] = self.max_ram
                     requirements_d[cls.STEP] = cls(**kwargs)
                     break
             else:
@@ -317,12 +424,11 @@ class _CompressionStepTask(luigi.Task):
 
         conf = {
             "object_types": ",".join(self.object_types),
+            "max_ram": f"{self._java_xmx()//(1024*1024)}M",
             # TODO: make this more configurable
         }
         if self.batch_size:
             conf["batch_size"] = self.batch_size
-        if self.max_ram:
-            conf["max_ram"] = self.max_ram
 
         conf = check_config_compress(
             conf,
@@ -360,11 +466,29 @@ class ExtractNodes(_CompressionStepTask):
     INPUT_FILES: Set[str] = set()
     OUTPUT_FILES = {".labels.csv.zst", ".nodes.csv.zst"}
 
+    def _java_xmx(self) -> int:
+        import multiprocessing
+
+        # Memory usage is mostly in subprocesses; the JVM itself needs only to read
+        # ORC files
+        # 128MB is enough in practice, but let's play it safe. ExtractNodes can't
+        # run in parallel with anything else anyway, so we have plenty of available RAM
+        # to avoid stressing the GC
+        orc_buffers_size = 256_000_000
+
+        nb_orc_readers = multiprocessing.cpu_count()
+
+        return orc_buffers_size * nb_orc_readers + _LOW_XMX
+
 
 class Mph(_CompressionStepTask):
     STEP = CompressionStep.MPH
     INPUT_FILES = {".nodes.csv.zst"}
     OUTPUT_FILES = {".mph"}
+
+    def _java_xmx(self) -> int:
+        bitvector_size = _govmph_bitarray_size(self._nb_nodes())
+        return bitvector_size + _LOW_XMX
 
 
 class Bv(_CompressionStepTask):
@@ -373,11 +497,24 @@ class Bv(_CompressionStepTask):
     INPUT_FILES = {".mph"}
     OUTPUT_FILES = {"-base.graph"}
 
+    def _java_xmx(self) -> int:
+        import psutil
+
+        # TODO: deduplicate this formula with the one for DEFAULT_BATCH_SIZE in
+        # ScatteredArcsORCGraph.java
+        batch_size = psutil.virtual_memory().total * 0.4 / (8 * 2)
+        return int(self._mph_size() + batch_size + _LOW_XMX)
+
 
 class Bfs(_CompressionStepTask):
     STEP = CompressionStep.BFS
     INPUT_FILES = {"-base.graph"}
     OUTPUT_FILES = {"-bfs.order"}
+
+    def _java_xmx(self) -> int:
+        bvgraph_size = self._java_xmx_for_bvgraph()
+        visitorder_size = self._nb_nodes() * 8  # longarray in BFS.java
+        return bvgraph_size + visitorder_size + _LOW_XMX
 
 
 class PermuteBfs(_CompressionStepTask):
@@ -385,11 +522,57 @@ class PermuteBfs(_CompressionStepTask):
     INPUT_FILES = {"-base.graph", "-bfs.order"}
     OUTPUT_FILES = {"-bfs.graph"}
 
+    def _java_xmx(self) -> int:
+        bvgraph_size = self._java_xmx_for_bvgraph()
+
+        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L2196
+        permutation_size = self._nb_nodes() * 8
+
+        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L2064
+        # TODO: should we pass self.batch_size to the CLI instead?
+        batch_size = 1000000
+
+        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L2196
+        source_batch_size = target_batch_size = batch_size * 8  # longarrays
+
+        extra_size = self._nb_nodes() * 16  # FIXME: why is this needed?
+        return (
+            bvgraph_size
+            + permutation_size
+            + source_batch_size
+            + target_batch_size
+            + extra_size
+            + _LOW_XMX
+        )
+
 
 class TransposeBfs(_CompressionStepTask):
     STEP = CompressionStep.TRANSPOSE_BFS
     INPUT_FILES = {"-bfs.graph"}
     OUTPUT_FILES = {"-bfs-transposed.graph"}
+
+    def _java_xmx(self) -> int:
+        from swh.graph.config import check_config
+
+        permutation_size = self._nb_nodes() * 8  # longarray
+
+        if self.batch_size:
+            batch_size = self.batch_size
+        else:
+            batch_size = check_config({})["batch_size"]
+
+        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L1039
+        source_batch_size = target_batch_size = start_batch_size = (
+            batch_size * 8
+        )  # longarrays
+
+        return (
+            permutation_size
+            + source_batch_size
+            + target_batch_size
+            + start_batch_size
+            + _LOW_XMX
+        )
 
 
 class Simplify(_CompressionStepTask):
@@ -397,11 +580,37 @@ class Simplify(_CompressionStepTask):
     INPUT_FILES = {"-bfs.graph", "-bfs-transposed.graph"}
     OUTPUT_FILES = {"-bfs-simplified.graph"}
 
+    def _java_xmx(self) -> int:
+        bvgraph_size = self._java_xmx_for_bvgraph()
+        permutation_size = self._nb_nodes() * 8  # longarray
+        return bvgraph_size + permutation_size + _LOW_XMX
+
 
 class Llp(_CompressionStepTask):
     STEP = CompressionStep.LLP
     INPUT_FILES = {"-bfs-simplified.graph"}
     OUTPUT_FILES = {"-llp.order"}
+
+    def _java_xmx(self) -> int:
+        # actually it loads the simplified graph, but we reuse the size of the
+        # base BVGraph, to simplify this code
+        bvgraph_size = self._java_xmx_for_bvgraph()
+
+        label_array_size = volume_array_size = permutation_size = major_array_size = (
+            self._nb_nodes() * 8
+        )  # longarrays
+        canchange_array_size = (
+            self._nb_nodes() * 4
+        )  # bitarray, not optimized like a bitvector
+        return (
+            label_array_size
+            + bvgraph_size
+            + volume_array_size
+            + permutation_size
+            + major_array_size
+            + canchange_array_size
+            + _LOW_XMX
+        )
 
 
 class PermuteLlp(_CompressionStepTask):
@@ -409,11 +618,46 @@ class PermuteLlp(_CompressionStepTask):
     INPUT_FILES = {"-llp.order", "-bfs.graph"}
     OUTPUT_FILES = {".graph", ".offsets", ".properties"}
 
+    def _java_xmx(self) -> int:
+        from swh.graph.config import check_config
+
+        # TODO: deduplicate this with PermuteBfs; it runs the same code except for the
+        # batch size
+
+        if self.batch_size:
+            batch_size = self.batch_size
+        else:
+            batch_size = check_config({})["batch_size"]
+
+        # actually it loads the simplified graph, but we reuse the size of the
+        # base BVGraph, to simplify this code
+        bvgraph_size = self._java_xmx_for_bvgraph()
+
+        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L2196
+        permutation_size = self._nb_nodes() * 8
+
+        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L2196
+        source_batch_size = target_batch_size = batch_size * 8  # longarrays
+
+        extra_size = self._nb_nodes() * 16  # FIXME: why is this needed?
+        return (
+            bvgraph_size
+            + permutation_size
+            + source_batch_size
+            + target_batch_size
+            + extra_size
+            + _LOW_XMX
+        )
+
 
 class Obl(_CompressionStepTask):
     STEP = CompressionStep.OBL
     INPUT_FILES = {".graph"}
     OUTPUT_FILES = {".obl"}
+
+    def _java_xmx(self) -> int:
+        bvgraph_size = self._java_xmx_for_bvgraph()
+        return bvgraph_size + _LOW_XMX
 
 
 class ComposeOrders(_CompressionStepTask):
@@ -421,11 +665,20 @@ class ComposeOrders(_CompressionStepTask):
     INPUT_FILES = {"-llp.order", "-bfs.order"}
     OUTPUT_FILES = {".order"}
 
+    def _java_xmx(self) -> int:
+        permutation_size = self._nb_nodes() * 8  # longarray
+        return permutation_size * 3 + _LOW_XMX
+
 
 class Stats(_CompressionStepTask):
     STEP = CompressionStep.STATS
     INPUT_FILES = {".graph"}
     OUTPUT_FILES = {".stats"}
+
+    def _java_xmx(self) -> int:
+        indegree_array_size = self._nb_nodes() * 8  # longarray
+        bvgraph_size = self._java_xmx_for_bvgraph()
+        return indegree_array_size + bvgraph_size + _LOW_XMX
 
 
 class Transpose(_CompressionStepTask):
@@ -435,17 +688,47 @@ class Transpose(_CompressionStepTask):
     INPUT_FILES = {".graph", ".obl"}
     OUTPUT_FILES = {"-transposed.graph", "-transposed.properties"}
 
+    def _java_xmx(self) -> int:
+        from swh.graph.config import check_config
+
+        if self.batch_size:
+            batch_size = self.batch_size
+        else:
+            batch_size = check_config({})["batch_size"]
+
+        permutation_size = self._nb_nodes() * 8  # longarray
+        source_batch_size = target_batch_size = start_batch_size = (
+            batch_size * 8
+        )  # longarrays
+        return (
+            permutation_size
+            + source_batch_size
+            + target_batch_size
+            + start_batch_size
+            + _LOW_XMX
+        )
+
 
 class TransposeObl(_CompressionStepTask):
     STEP = CompressionStep.TRANSPOSE_OBL
     INPUT_FILES = {"-transposed.graph"}
     OUTPUT_FILES = {"-transposed.obl"}
 
+    def _java_xmx(self) -> int:
+        bvgraph_size = self._java_xmx_for_bvgraph()
+        return bvgraph_size + _LOW_XMX
+
 
 class Maps(_CompressionStepTask):
     STEP = CompressionStep.MAPS
     INPUT_FILES = {".graph", ".mph", ".order", ".nodes.csv.zst"}
     OUTPUT_FILES = {".node2swhid.bin"}
+
+    def _java_xmx(self) -> int:
+        mph_size = self._mph_size()
+
+        bfsmap_size = self._nb_nodes() * 8  # longarray
+        return mph_size + bfsmap_size + _LOW_XMX
 
 
 class ExtractPersons(_CompressionStepTask):
@@ -454,11 +737,18 @@ class ExtractPersons(_CompressionStepTask):
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {".persons.csv.zst"}
 
+    def _java_xmx(self) -> int:
+        return _LOW_XMX
+
 
 class MphPersons(_CompressionStepTask):
     STEP = CompressionStep.MPH_PERSONS
     INPUT_FILES = {".persons.csv.zst"}
     OUTPUT_FILES = {".persons.mph"}
+
+    def _java_xmx(self) -> int:
+        bitvector_size = _govmph_bitarray_size(self._nb_persons())
+        return bitvector_size + _LOW_XMX
 
 
 class NodeProperties(_CompressionStepTask):
@@ -518,11 +808,31 @@ class NodeProperties(_CompressionStepTask):
             for name in self.OUTPUT_FILES - excluded_files
         ]
 
+    def _java_xmx(self) -> int:
+        # each property has its own arrays, but they don't run at the same time.
+        # The biggest are:
+        # * content length/writeMessages/writeTagNames (long array)
+        # * writeTimestamps (long array + short array)
+        # * writePersonIds (int array, but also loads the person MPH)
+        subtask_size = max(
+            self._nb_nodes() * (8 + 2),  # writeTimestamps
+            self._nb_nodes() * 4 + self._persons_mph_size(),
+        )
+        return self._mph_size() + self._persons_mph_size() + subtask_size + _LOW_XMX
+
 
 class MphLabels(_CompressionStepTask):
     STEP = CompressionStep.MPH_LABELS
     INPUT_FILES = {".labels.csv.zst"}
     OUTPUT_FILES = {".labels.mph"}
+
+    def _java_xmx(self) -> int:
+        import multiprocessing
+
+        # TODO: compute memory_per_thread dynamically
+        memory_per_thread = 4_000_000
+
+        return memory_per_thread * multiprocessing.cpu_count() + _LOW_XMX
 
 
 class FclLabels(_CompressionStepTask):
@@ -533,6 +843,9 @@ class FclLabels(_CompressionStepTask):
         ".labels.fcl.pointers",
         ".labels.fcl.properties",
     }
+
+    def _java_xmx(self) -> int:
+        return self._labels_mph_size() + _LOW_XMX
 
 
 class EdgeLabels(_CompressionStepTask):
@@ -556,6 +869,21 @@ class EdgeLabels(_CompressionStepTask):
         "-transposed-labelled.properties",
     }
 
+    def _java_xmx(self) -> int:
+        import multiprocessing
+
+        # See ExtractNodes._java_xmx for this constant
+        orc_buffers_size = 256_000_000
+
+        nb_orc_readers = multiprocessing.cpu_count()
+
+        return (
+            orc_buffers_size * nb_orc_readers
+            + self._mph_size()
+            + self._labels_mph_size()
+            + _LOW_XMX
+        )
+
 
 class EdgeLabelsObl(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS_OBL
@@ -569,6 +897,9 @@ class EdgeLabelsObl(_CompressionStepTask):
         "-labelled.labelobl",
     }
 
+    def _java_xmx(self) -> int:
+        return _LOW_XMX
+
 
 class EdgeLabelsTransposeObl(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS_TRANSPOSE_OBL
@@ -581,6 +912,9 @@ class EdgeLabelsTransposeObl(_CompressionStepTask):
     OUTPUT_FILES = {
         "-transposed-labelled.labelobl",
     }
+
+    def _java_xmx(self) -> int:
+        return _LOW_XMX
 
 
 _duplicate_steps = [
@@ -616,7 +950,6 @@ class CompressGraph(luigi.Task):
         Larger is faster, but consumes more resources.
         """,
     )
-    max_ram = luigi.Parameter(default="", significant=False)
 
     object_types = ObjectTypesParameter(default=list(_TABLES_PER_OBJECT_TYPE))
 
@@ -674,8 +1007,6 @@ class CompressGraph(luigi.Task):
 
         if self.batch_size:
             conf["batch_size"] = self.batch_size
-        if self.max_ram:
-            conf["max_ram"] = self.max_ram
 
         conf = check_config_compress(
             conf,
