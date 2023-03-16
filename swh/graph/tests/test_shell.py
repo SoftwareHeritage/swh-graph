@@ -6,7 +6,7 @@
 import pytest
 import pyzstd
 
-from swh.graph.luigi.shell import AtomicFileSink, Command, CommandException, Sink
+from swh.graph.luigi.shell import AtomicFileSink, Command, CommandException, Sink, wc
 
 # fmt: off
 
@@ -64,6 +64,26 @@ def test_concat_command(tmp_path):
     assert (
         Command.echo("bar")
         | Command.cat(path, "-", Command.echo("baz"))
+        > Sink()
+    ).run() == b"foo\nbar\nbaz\n"
+
+
+def test_wc(tmp_path):
+    path = tmp_path / "foo.txt"
+    path.write_bytes(b"foo\nbar\nbaz\n")
+    assert wc(Command.cat(path), "-l") == 3
+
+
+def test_pv_wc(tmp_path):
+    path = tmp_path / "foo.txt"
+    path.write_bytes(b"foo\nbar\nbaz\n")
+    assert (
+        Command.cat(path)
+        | Command.pv(
+            "--line-mode",
+            "--size",
+            str(wc(Command.cat(path), "-l"))
+        )
         > Sink()
     ).run() == b"foo\nbar\nbaz\n"
 

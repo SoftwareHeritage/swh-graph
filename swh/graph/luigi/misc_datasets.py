@@ -34,13 +34,11 @@ And optionally::
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
-from pathlib import Path
 from typing import Dict, List
 
 import luigi
 
 from .compressed_graph import LocalGraph
-from .utils import run_script
 
 OBJECT_TYPES = {"ori", "snp", "rel", "rev", "dir", "cnt"}
 
@@ -70,6 +68,8 @@ class TopoSort(luigi.Task):
 
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.TopoSort and compresses"""
+        from .shell import AtomicFileSink, Command, Java
+
         invalid_object_types = set(self.object_types.split(",")) - OBJECT_TYPES
         if invalid_object_types:
             raise ValueError(f"Invalid object types: {invalid_object_types}")
@@ -86,14 +86,23 @@ class TopoSort(luigi.Task):
         )
         nb_lines = nb_nodes + 1  # CSV header
 
-        # TODO: pass max_ram to run_script() correctly so it can pass it to
+        # TODO: pass max_ram to Java() correctly so it can pass it to
         # check_config(), instead of hardcoding it on the command line here
-        script = f"""
-        java -Xmx{self.max_ram} {class_name} '{self.local_graph_path}/{self.graph_name}' '{self.algorithm}' '{self.direction}' '{self.object_types}' \
-            | pv --line-mode --wait --size '{nb_lines}' \
-            | zstdmt -19
-        """  # noqa
-        run_script(script, Path(self.output().path))
+        # fmt: off
+        (
+            Java(
+                f"-Xmx{self.max_ram}",
+                class_name,
+                self.local_graph_path / self.graph_name,
+                self.algorithm,
+                self.direction,
+                self.object_types,
+            )
+            | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
+            | Command.zstdmt("-19")
+            > AtomicFileSink(self.output())
+        ).run()
+        # fmt: on
 
 
 class PopularContents(luigi.Task):
@@ -117,15 +126,25 @@ class PopularContents(luigi.Task):
 
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.PopularContents and compresses"""
+        from .shell import AtomicFileSink, Command, Java
+
         class_name = "org.softwareheritage.graph.utils.PopularContents"
-        # TODO: pass max_ram to run_script() correctly so it can pass it to
+        # TODO: pass max_ram to Java() correctly so it can pass it to
         # check_config(), instead of hardcoding it on the command line here
-        script = f"""
-        java -Xmx{self.max_ram} {class_name} '{self.local_graph_path}/{self.graph_name}'  '{self.max_results_per_content}' '{self.popularity_threshold}' \
-            | pv --line-mode --wait \
-            | zstdmt -19
-        """  # noqa
-        run_script(script, Path(self.output().path))
+        # fmt: on
+        (
+            Java(
+                f"-Xmx{self.max_ram}",
+                class_name,
+                self.local_graph_path / self.graph_name,
+                str(self.max_results_per_content),
+                str(self.popularity_threshold),
+            )
+            | Command.pv("--line-mode", "--wait")
+            | Command.zstdmt("-19")
+            > AtomicFileSink(self.output())
+        ).run()
+        # fmt: off
 
 
 class CountPaths(luigi.Task):
@@ -166,6 +185,8 @@ class CountPaths(luigi.Task):
 
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.CountPaths and compresses"""
+        from .shell import AtomicFileSink, Command, Java
+
         invalid_object_types = set(self.object_types.split(",")) - OBJECT_TYPES
         if invalid_object_types:
             raise ValueError(f"Invalid object types: {invalid_object_types}")
@@ -183,12 +204,19 @@ class CountPaths(luigi.Task):
         )
         nb_lines = nb_nodes + 1  # CSV header
 
-        # TODO: pass max_ram to run_script() correctly so it can pass it to
+        # TODO: pass max_ram to Java() correctly so it can pass it to
         # check_config(), instead of hardcoding it on the command line here
-        script = f"""
-        zstdcat '{topological_order_path}' \
-            | java -Xmx{self.max_ram} {class_name} '{self.local_graph_path}/{self.graph_name}' '{self.direction}' \
-            | pv --line-mode --wait --size '{nb_lines}' \
-            | zstdmt -19
-        """  # noqa
-        run_script(script, Path(self.output().path))
+        # fmt: off
+        (
+            Command.zstdcat(topological_order_path)
+            | Java(
+                f"-Xmx{self.max_ram}",
+                class_name,
+                self.local_graph_path / self.graph_name,
+                self.direction
+            )
+            | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
+            | Command.zstdmt("-19")
+            > AtomicFileSink(self.output())
+        ).run()
+        # fmt: on

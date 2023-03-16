@@ -48,7 +48,21 @@ from typing import Any, Dict, List, NoReturn, TypeVar, Union
 
 import luigi
 
-from .utils import LOGBACK_CONF
+LOGBACK_CONF = b"""\
+<configuration>
+  <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+    <target>System.err</target>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <root level="debug">
+    <appender-ref ref="STDERR" />
+  </root>
+</configuration>
+"""
+"""Overrides the default config, to log to stderr instead of stdout"""
 
 
 class CommandException(Exception):
@@ -214,6 +228,10 @@ class Pipe:
     def __str__(self) -> str:
         children = "\n| ".join(map(str, self.children))
         return f"( {children}\n)"
+
+
+def wc(source: Union[Command, Pipe], *args: str) -> int:
+    return int((source | Command.wc(*args) > Sink()).run().strip())
 
 
 class _RunningPipe:

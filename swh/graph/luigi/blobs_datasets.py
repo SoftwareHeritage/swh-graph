@@ -63,7 +63,6 @@ import luigi
 from swh.dataset.luigi import CreateAthena, S3PathParameter
 
 from .compressed_graph import LocalGraph
-from .utils import run_script
 
 if TYPE_CHECKING:
     import asyncio
@@ -446,6 +445,8 @@ class SelectBlobs(_BaseTask):
 
         from swh.dataset.athena import query
 
+        from .shell import AtomicFileSink, Command
+
         athena = boto3.client("athena")
         athena.database_name = self.athena_db_name
         athena.output_location = (
@@ -501,15 +502,15 @@ class SelectBlobs(_BaseTask):
             # "swh:1:cnt:82714d7648eb4f6cda2ed88fc4768e7d05472fe6","f096063880f4d0329856d3fca51c6d8afa13af9b","LICENSE.txt
             # "
 
-            run_script(
-                rf"""
-                cat {athena_res_fd.name} \
-                    | egrep '^"[^"]*","[^"]*","[^"]*"$' \
-                    | sed 's/^"\([^"]*\)","\([^"]*\)",/\1,\2,/' \
-                    | zstdmt -
-                """,
-                output_path,
-            )
+            # fmt: off
+            (
+                Command.cat(athena_res_fd.name)
+                | Command.egrep('^"[^"]*","[^"]*","[^"]*"$')
+                | Command.sed(r's/^"\([^"]*\)","\([^"]*\)",/\1,\2,/')
+                | Command.zstdmt("-")
+                > AtomicFileSink(output_path)
+            ).run()
+            # fmt: on
 
             count = sum(1 for _ in self.iter_blobs(with_tqdm=False, unique_sha1=True))
             self.blob_count_path().parent.mkdir(exist_ok=True, parents=True)
@@ -689,19 +690,23 @@ class MakeBlobTarball(_BaseTask):
 
     def run(self) -> None:
         """Run task."""
+        from .shell import AtomicFileSink, Command
+
         approx_tarball_size = (
             self.blob_size()  # the content itself
             + 512 * self.blob_count()  # assuming one header per file
         )
-        run_script(
-            f"""
-            tar -c --sort=name blobs/ \
-                | pv --size {approx_tarball_size} \
-                | zstdmt -{COMPRESS_LEVEL}
-            """,
-            self.blob_tarball_path(),
-            cwd=self.derived_datasets_path / self.blob_filter,
-        )
+
+        cwd = self.derived_datasets_path / self.blob_filter
+
+        # fmt: off
+        (
+            Command.tar("-c", "--sort=name", "blobs/", cwd=cwd)
+            | Command.pv("--size", str(approx_tarball_size))
+            | Command.zstdmt(f"-{COMPRESS_LEVEL}")
+            > AtomicFileSink(self.blob_tarball_path())
+        ).run()
+        # fmt: on
 
 
 class MakeSampleBlobTarball(_BaseTask):
@@ -721,21 +726,28 @@ class MakeSampleBlobTarball(_BaseTask):
 
     def run(self) -> None:
         """Selects a sample of 20k random blobs and puts them in a tarball."""
-        run_script(
-            rf"""
-            zstdcat '{self.blob_list_path()}' \
-                | tail -n +2 \
-                | cut -d , -f 2 \
-                | uniq \
-                | shuf --head-count=20000 \
-                | sort \
-                | sed "s#\(\(..\)\(..\)\(..*\)\)#blobs/\2/\3/\1#" \
-                | tar -c --files-from=/dev/stdin --transform="s/^blobs/blobs-sample20k/" \
-                | zstdmt -{COMPRESS_LEVEL}
-            """,  # noqa
-            self.sample_blob_tarball_path(),
-            cwd=self.derived_datasets_path / self.blob_filter,
-        )
+        from .shell import AtomicFileSink, Command
+
+        cwd = (self.derived_datasets_path / self.blob_filter,)
+        # fmt: off
+        (
+            Command.zstdcat(self.blob_list_path())
+            | Command.tail("-n", "+2")
+            | Command.cut("-d", ",", "-f", "2")
+            | Command.uniq()
+            | Command.shuf("--head-count=20000")
+            | Command.sort()
+            | Command.sed(r"s#\(\(..\)\(..\)\(..*\)\)#blobs/\2/\3/\1#")
+            | Command.tar(
+                "-c",
+                "--files-from=/dev/stdin",
+                "--transform=s/^blobs/blobs-sample20k/",
+                cwd=cwd
+            )
+            | Command.zstdmt(f"-{COMPRESS_LEVEL}")
+            > AtomicFileSink(self.sample_blob_tarball_path())
+        ).run()
+        # fmt: on
 
 
 class ComputeBlobFileinfo(_BaseTask):
@@ -965,20 +977,22 @@ class FindEarliestRevisions(_BaseTask):
 
     def run(self) -> None:
         """Run task."""
+        from .shell import AtomicFileSink, Command, Java
+
         class_name = "org.softwareheritage.graph.utils.FindEarliestRevision"
-        (target,) = self.output()
-        run_script(
-            f"""
-            zstdcat '{self.blob_list_path()}' \
-                | sed "s/,.*//" \
-                | tail -n +2 \
-                | uniq \
-                | java {class_name} '{self.local_graph_path}/{self.graph_name}' \
-                | pv --wait --line-mode --size {self.blob_count()} \
-                | zstdmt -{COMPRESS_LEVEL}
-            """,
-            Path(target.path),
-        )
+
+        # fmt: off
+        (
+            Command.zstdcat(self.blob_list_path())
+            | Command.sed("s/,.*//")
+            | Command.tail("-n", "+2")  # skip the header
+            | Command.uniq()
+            | Java(class_name, self.local_graph_path / self.graph_name)
+            | Command.pv("--wait", "--line-mode", "--size", str(self.blob_count()))
+            | Command.zstdmt(f"-{COMPRESS_LEVEL}")
+            > AtomicFileSink(self.output())
+        ).run()
+        # fmt: on
 
 
 class RunBlobDataset(luigi.Task):

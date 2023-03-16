@@ -20,7 +20,6 @@ import luigi
 
 from .compressed_graph import LocalGraph
 from .misc_datasets import TopoSort
-from .utils import run_script
 
 
 class ListOriginContributors(luigi.Task):
@@ -47,13 +46,19 @@ class ListOriginContributors(luigi.Task):
             ),
         }
 
-    def output(self) -> luigi.Target:
-        """.csv.zst file that contains the topological order."""
-        return luigi.LocalTarget(self.origin_contributors_path)
+    def output(self) -> List[luigi.Target]:
+        """.csv.zst file that contains the origin_id<->contributor_id map
+        and the list of origins"""
+        return [
+            luigi.LocalTarget(self.origin_contributors_path),
+            luigi.LocalTarget(self.origin_urls_path),
+        ]
 
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.TopoSort and compresses"""
         import tempfile
+
+        from .shell import AtomicFileSink, Command, Java, wc
 
         topological_order_path = Path(self.input()["toposort"].path)
 
@@ -61,17 +66,21 @@ class ListOriginContributors(luigi.Task):
         with tempfile.NamedTemporaryFile(
             prefix="origin_urls_", suffix=".csv"
         ) as origin_urls_fd:
-            script = f"""
-            zstdcat {topological_order_path} \
-                | java {class_name} '{self.local_graph_path}/{self.graph_name}' '{origin_urls_fd.name}' \
-                | pv --line-mode --wait --size $(zstdcat '{topological_order_path}' | wc -l) \
-                | zstdmt -19
-            """  # noqa
-            run_script(script, self.origin_contributors_path)
-            run_script(
-                f"pv '{origin_urls_fd.name}' | zstdmt -19",
-                self.origin_urls_path,
-            )
+            # fmt: off
+            nb_lines = wc(Command.zstdcat(topological_order_path), "-l")
+            (
+                Command.zstdcat(topological_order_path)
+                | Java(class_name, self.local_graph_path / self.graph_name, origin_urls_fd.name)
+                | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
+                | Command.zstdmt("-19")
+                > AtomicFileSink(self.origin_contributors_path)
+            ).run()
+            (
+                Command.pv(origin_urls_fd.name)
+                | Command.zstdmt("-19")
+                > AtomicFileSink(self.origin_urls_path)
+            ).run()
+            # fmt: on
 
 
 class ExportDeanonymizationTable(luigi.Task):
@@ -95,23 +104,28 @@ class ExportDeanonymizationTable(luigi.Task):
         """Runs a postgresql query to compute the table."""
         import shutil
 
+        from .shell import AtomicFileSink, Command
+
         if shutil.which("psql") is None:
             raise RuntimeError("psql CLI is not installed")
 
-        run_script(
-            f"""
-            psql '{self.storage_dsn}' -c "\
-                COPY (
-                    SELECT
-                        encode(digest(fullname, 'sha256'), 'base64') as sha256_base64, \
-                        encode(fullname, 'base64') as base64, \
-                        encode(fullname, 'escape') as escaped \
-                    FROM person  \
-                ) TO STDOUT CSV HEADER \
-            " | zstdmt -19
-            """,  # noqa
-            self.deanonymization_table_path,
-        )
+        query = """
+            COPY (
+                SELECT
+                    encode(digest(fullname, 'sha256'), 'base64') as sha256_base64, \
+                    encode(fullname, 'base64') as base64, \
+                    encode(fullname, 'escape') as escaped \
+                FROM person  \
+            ) TO STDOUT CSV HEADER \
+        """
+
+        # fmt: off
+        (
+            Command.psql(self.storage_dsn, "-c", query)
+            | Command.zstdmt("-19")
+            > AtomicFileSink(self.deanonymization_table_path)
+        ).run()
+        # fmt: on
 
 
 class DeanonymizeOriginContributors(luigi.Task):
