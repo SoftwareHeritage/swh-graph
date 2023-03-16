@@ -349,6 +349,13 @@ def get_all_subclasses(cls):
     help="""Extra options to add to ``luigi.cfg``, following the same format.
     This overrides any option that would be other set automatically.""",
 )
+@click.option(
+    "--retry-luigi-delay",
+    type=int,
+    default=10,
+    help="""Time to wait before re-running Luigi, if some tasks are pending
+    but stuck.""",
+)
 @click.argument("luigi_param", nargs=-1)
 @click.pass_context
 def luigi(
@@ -364,6 +371,7 @@ def luigi(
     s3_athena_output_location: Optional[str],
     dataset_name: str,
     export_name: Optional[str],
+    retry_luigi_delay: int,
     luigi_config: Optional[Path],
     luigi_param: List[str],
 ):
@@ -403,6 +411,7 @@ def luigi(
     import socket
     import subprocess
     import tempfile
+    import time
 
     import luigi
     import psutil
@@ -514,20 +523,33 @@ def luigi(
         config.write(fd)
         fd.flush()
 
-        proc = subprocess.run(
-            [
-                "luigi",
-                "--module",
-                "swh.dataset.luigi",
-                "--module",
-                "swh.graph.luigi",
-                *luigi_param,
-            ],
-            env={
-                "LUIGI_CONFIG_PATH": fd.name,
-                **os.environ,
-            },
-        )
+        while True:
+            start_time = time.time()
+            proc = subprocess.run(
+                [
+                    "luigi",
+                    "--module",
+                    "swh.dataset.luigi",
+                    "--module",
+                    "swh.graph.luigi",
+                    *luigi_param,
+                ],
+                env={
+                    "LUIGI_CONFIG_PATH": fd.name,
+                    **os.environ,
+                },
+            )
+
+            # If all tasks are stuck, run another loop to wait for them to be unstuck.
+            # The normal way to do this would be to set config["worker"]["keep_alive"]
+            # to True, but we do it this way to force Luigi to recompute resources
+            # because most tasks in compressed_graph.py can only know their resource
+            # usage after ExtractNodes and ExtractPersons ran.
+            if proc.returncode != int(config["retcode"]["not_run"]):
+                break
+
+            # wait a few seconds between loops to avoid wasting CPU
+            time.sleep(max(0, retry_luigi_delay - (time.time() - start_time)))
         exit(proc.returncode)
 
 
