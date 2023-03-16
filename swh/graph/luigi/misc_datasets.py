@@ -268,6 +268,10 @@ class _CsvToOrcToS3ToAthenaTask(luigi.Task):
         paginator = s3.get_paginator("list_objects")
         pages = paginator.paginate(Bucket=self._s3_bucket(), Prefix=prefix)
         for page in pages:
+            if "Contents" not in page:
+                # no match at all
+                assert not page["IsTruncated"]
+                break
             for object_ in page["Contents"]:
                 key = object_["Key"]
                 assert key.startswith(prefix)
