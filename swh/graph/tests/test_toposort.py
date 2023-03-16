@@ -52,7 +52,7 @@ swh:1:rev:0000000000000000000000000000000000000003,1,0,swh:1:rev:000000000000000
 )
 
 PATH_COUNTS_BACKWARD = """\
-swhid,paths_from_roots,all_paths
+SWHID,paths_from_roots,all_paths
 swh:1:rev:0000000000000000000000000000000000000003,0.0,0.0
 swh:1:rev:0000000000000000000000000000000000000009,1.0,1.0
 swh:1:rel:0000000000000000000000000000000000000010,1.0,2.0
@@ -69,7 +69,7 @@ swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,3.0,11.0
 )
 
 PATH_COUNTS_FORWARD = """\
-swhid,paths_from_roots,all_paths
+SWHID,paths_from_roots,all_paths
 swh:1:rel:0000000000000000000000000000000000000019,0.0,0.0
 swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,0.0,0.0
 swh:1:snp:0000000000000000000000000000000000000020,1.0,1.0
@@ -259,7 +259,7 @@ def test_countpaths_contents(tmpdir, direction):
         # can't reuse PATH_COUNTS_BACKWARD because directories change the count
         # of other objects in this direction
         expected = """\
-            swhid,paths_from_roots,all_paths
+            SWHID,paths_from_roots,all_paths
             swh:1:cnt:0000000000000000000000000000000000000001,0.0,0.0
             swh:1:cnt:0000000000000000000000000000000000000004,0.0,0.0
             swh:1:cnt:0000000000000000000000000000000000000005,0.0,0.0

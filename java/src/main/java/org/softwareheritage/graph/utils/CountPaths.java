@@ -114,7 +114,7 @@ public class CountPaths {
         pl.expectedUpdates = graph.numNodes();
         pl.start("Counting paths...");
 
-        csvPrinter.printRecord("swhid", "paths_from_roots", "all_paths");
+        csvPrinter.printRecord("SWHID", "paths_from_roots", "all_paths");
         for (CSVRecord record : parser) {
             pl.lightUpdate();
             String nodeSWHID = record.get(0);
