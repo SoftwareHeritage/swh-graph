@@ -1,1 +1,1 @@
-swh.dataset[luigi] >= v1.1.0
+swh.dataset[luigi] >= v1.2.0
