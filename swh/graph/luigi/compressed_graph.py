@@ -382,7 +382,7 @@ class Bfs(_CompressionStepTask):
 
 class PermuteBfs(_CompressionStepTask):
     STEP = CompressionStep.PERMUTE_BFS
-    INPUT_FILES = {"-bfs.order"}
+    INPUT_FILES = {"-base.graph", "-bfs.order"}
     OUTPUT_FILES = {"-bfs.graph"}
 
 
