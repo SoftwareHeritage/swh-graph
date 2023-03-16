@@ -400,10 +400,12 @@ def luigi(
     import configparser
     import os
     import secrets
+    import socket
     import subprocess
     import tempfile
 
     import luigi
+    import psutil
 
     # Popular the list of subclasses of luigi.Task
     import swh.dataset.luigi  # noqa
@@ -420,6 +422,25 @@ def luigi(
         "task_failed": "131",
         "scheduling_error": "132",
         "unhandled_exception": "133",
+    }
+
+    if max_ram:
+        if max_ram.endswith("G"):
+            max_ram_mb = int(max_ram[:-1]) * 1024
+        elif max_ram.endswith("M"):
+            max_ram_mb = int(max_ram[:-1])
+        else:
+            raise click.ClickException(
+                "--max-ram must be an integer followed by M or G"
+            )
+    else:
+        max_ram_mb = psutil.virtual_memory().total // (1024 * 1024)
+
+    # Only used by the local scheduler; otherwise it needs to be configured
+    # in luigid.cfg
+    hostname = socket.getfqdn()
+    config["resources"] = {
+        f"{hostname}_ram_mb": str(max_ram_mb),
     }
 
     export_name = export_name or dataset_name

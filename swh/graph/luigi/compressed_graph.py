@@ -308,6 +308,21 @@ class _CompressionStepTask(luigi.Task):
         """Returns the value to set as the JVM's -Xmx parameter, in bytes"""
         raise NotImplementedError(f"{self.__class__.__name__}._java_xmx")
 
+    def _expected_memory(self) -> int:
+        """Returns the expected total memory usage of this task, in bytes."""
+        extra_memory_coef = 1.1  # accounts for the JVM using more than -Xmx
+        return int(self._java_xmx() * extra_memory_coef)
+
+    @property
+    def resources(self) -> Dict[str, int]:
+        import socket
+
+        hostname = socket.getfqdn()
+        d = {
+            f"{hostname}_ram_mb": self._expected_memory() // (1024 * 1024),
+        }
+        return d
+
     def _stamp(self) -> Path:
         """Returns the path of this tasks's stamp file"""
         return self.local_graph_path / "meta" / "stamps" / f"{self.STEP}.json"
