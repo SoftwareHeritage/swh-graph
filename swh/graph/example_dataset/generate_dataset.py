@@ -14,7 +14,7 @@ import shutil
 
 from swh.dataset.exporters.edges import GraphEdgesExporter
 from swh.dataset.exporters.orc import ORCExporter
-from swh.graph.tests.dataset import DATASET
+from swh.graph.example_dataset import DATASET
 from swh.graph.webgraph import compress
 
 

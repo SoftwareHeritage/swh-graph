@@ -9,6 +9,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from swh.graph.example_dataset import DATASET_DIR
 from swh.graph.luigi.origin_contributors import (
     DeanonymizeOriginContributors,
     ExportDeanonymizationTable,
@@ -24,9 +25,6 @@ from swh.model.model import (
 )
 
 from .test_topology import TOPO_ORDER_BACKWARD as TOPOLOGICAL_ORDER
-
-DATA_DIR = Path(__file__).parents[1] / "dataset"
-
 
 # FIXME: do not hardcode ids here; they should be dynamically loaded
 # from the test graph
@@ -100,7 +98,7 @@ def test_list_origin_contributors(tmpdir):
     )
 
     task = ListOriginContributors(
-        local_graph_path=DATA_DIR / "compressed",
+        local_graph_path=DATASET_DIR / "compressed",
         topological_order_dir=topological_order_dir,
         origin_contributors_path=origin_contributors_path,
         origin_urls_path=origin_urls_path,
@@ -180,7 +178,8 @@ def test_deanonymize_origin_contributors(tmpdir):
     tmpdir = Path(tmpdir)
 
     shutil.copyfile(
-        DATA_DIR / "compressed" / "example.persons.mph", tmpdir / "example.persons.mph"
+        DATASET_DIR / "compressed" / "example.persons.mph",
+        tmpdir / "example.persons.mph",
     )
 
     persons_path = tmpdir / "example.persons.csv.zst"

@@ -36,7 +36,7 @@ public class GraphTest {
     }
 
     public static Path getGraphPath() {
-        return Paths.get("..", "swh", "graph", "tests", "dataset", "compressed", "example");
+        return Paths.get("..", "swh", "graph", "example_dataset", "compressed", "example");
     }
 
     public static SwhBidirectionalGraph getGraph() {

@@ -5,20 +5,16 @@
 
 import logging
 import multiprocessing
-from pathlib import Path
 import subprocess
 
 from aiohttp.test_utils import TestClient, TestServer, loop_context
 import grpc
 import pytest
 
+from swh.graph.example_dataset import DATASET_DIR
 from swh.graph.grpc.swhgraph_pb2_grpc import TraversalServiceStub
 from swh.graph.http_client import RemoteGraphClient
 from swh.graph.http_naive_client import NaiveClient
-
-SWH_GRAPH_TESTS_ROOT = Path(__file__).parents[0] / "tests"
-TEST_GRAPH_PATH = SWH_GRAPH_TESTS_ROOT / "dataset/compressed/example"
-
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +32,7 @@ class GraphServerProcess(multiprocessing.Process):
             config = {
                 "graph": {
                     "cls": "local",
-                    "grpc_server": {"path": TEST_GRAPH_PATH},
+                    "grpc_server": {"path": DATASET_DIR / "compressed/example"},
                     "http_rpc_server": {"debug": True},
                 }
             }
@@ -108,7 +104,7 @@ def graph_client(request):
             p = subprocess.run(["zstdcat", *files], stdout=subprocess.PIPE)
             return p.stdout.decode()
 
-        edges_dataset = SWH_GRAPH_TESTS_ROOT / "dataset/edges"
+        edges_dataset = DATASET_DIR / "edges"
         edge_files = edges_dataset.glob("*/*.edges.csv.zst")
         node_files = edges_dataset.glob("*/*.nodes.csv.zst")
 

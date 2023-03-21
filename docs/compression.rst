@@ -81,7 +81,7 @@ Alternatively, any custom ORC dataset can be used as long as it respects
 
 **Note:** for testing purposes, a fake test dataset is available in the
 ``swh-graph`` repository, with just a few dozen nodes. The ORC tables are
-available in ``swh-graph/swh/graph/tests/dataset/orc/``.
+available in ``swh-graph/swh/graph/example_dataset/orc/``.
 
 
 Compression

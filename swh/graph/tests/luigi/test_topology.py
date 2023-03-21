@@ -9,10 +9,8 @@ import subprocess
 
 import pytest
 
+from swh.graph.example_dataset import DATASET_DIR
 from swh.graph.luigi.topology import CountPaths, TopoSort
-
-DATA_DIR = Path(__file__).parents[1] / "dataset"
-
 
 # FIXME: the order of sample ancestors should not be hardcoded
 # FIXME: swh:1:snp:0000000000000000000000000000000000000022,3,1,swh has three possible
@@ -97,7 +95,7 @@ def test_toposort(tmpdir, direction: str, algorithm: str):
     )
 
     task = TopoSort(
-        local_graph_path=DATA_DIR / "compressed",
+        local_graph_path=DATASET_DIR / "compressed",
         topological_order_dir=tmpdir,
         direction=direction,
         algorithm=algorithm,
@@ -161,7 +159,7 @@ def test_countpaths(tmpdir, direction: str):
     )
 
     task = CountPaths(
-        local_graph_path=DATA_DIR / "compressed",
+        local_graph_path=DATASET_DIR / "compressed",
         topological_order_dir=tmpdir,
         direction=direction,
         object_types="rev,rel,snp,ori",
@@ -221,7 +219,7 @@ def test_countpaths_contents(tmpdir, direction):
             fd.write(rest)
 
     task = CountPaths(
-        local_graph_path=DATA_DIR / "compressed",
+        local_graph_path=DATASET_DIR / "compressed",
         topological_order_dir=tmpdir,
         direction=direction,
         object_types="cnt,dir,rev,rel,snp,ori",

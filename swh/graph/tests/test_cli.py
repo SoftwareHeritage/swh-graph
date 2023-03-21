@@ -13,8 +13,7 @@ import pytest
 import yaml
 
 from swh.graph.cli import graph_cli_group
-
-DATA_DIR = Path(__file__).parents[0] / "dataset"
+from swh.graph.example_dataset import DATASET_DIR
 
 
 def read_properties(properties_fname) -> Dict[str, str]:
@@ -46,7 +45,7 @@ def test_pipeline():
                 config_path,
                 "compress",
                 "--input-dataset",
-                DATA_DIR / "orc",
+                DATASET_DIR / "orc",
                 "--output-directory",
                 tmpdir,
                 "--graph-name",

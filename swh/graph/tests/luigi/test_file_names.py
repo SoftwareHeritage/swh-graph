@@ -10,6 +10,7 @@ import subprocess
 import pytest
 import pyzstd
 
+from swh.graph.example_dataset import DATASET_DIR
 from swh.graph.luigi.file_names import PopularContentNames, PopularContentPaths
 
 EXPECTED_LINES_DEPTH1 = """\
@@ -32,8 +33,6 @@ swh:1:cnt:0000000000000000000000000000000000000015,404,old/TODO.txt,1
 swh:1:cnt:0000000000000000000000000000000000000014,14,TODO.txt,1
 """
 
-DATA_DIR = Path(__file__).parents[1] / "dataset"
-
 
 @pytest.mark.parametrize("popularity_threshold", [0, 1, 2])
 def test_popularcontentnames(tmpdir, popularity_threshold):
@@ -42,7 +41,7 @@ def test_popularcontentnames(tmpdir, popularity_threshold):
     popular_contents_path = tmpdir / "popcon.csv.zst"
 
     task = PopularContentNames(
-        local_graph_path=DATA_DIR / "compressed",
+        local_graph_path=DATASET_DIR / "compressed",
         popular_contents_path=popular_contents_path,
         popularity_threshold=popularity_threshold,
         max_results_per_content=0,
@@ -98,7 +97,7 @@ def test_popularcontentpaths(tmpdir, depth, subset):
     popular_contents_path = tmpdir / "popcon.csv.zst"
 
     task = PopularContentPaths(
-        local_graph_path=DATA_DIR / "compressed",
+        local_graph_path=DATASET_DIR / "compressed",
         input_swhids=input_swhids_dir,
         popular_contents_path=popular_contents_path,
         max_depth=depth,

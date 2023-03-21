@@ -10,10 +10,9 @@ from click.testing import CliRunner
 import pytest
 
 from swh.graph.cli import graph_cli_group
+from swh.graph.example_dataset import DATASET_DIR
 
 from ..test_cli import read_properties
-
-DATA_DIR = Path(__file__).parents[1] / "dataset"
 
 
 @pytest.mark.parametrize("workers", [None, 1, 2, 3, 4, 5, 100])
@@ -34,7 +33,7 @@ def test_compressgraph(tmpdir, workers):
         "--",
         "--local-scheduler",
         "--CompressGraph-local-export-path",
-        DATA_DIR,
+        DATASET_DIR,
         "--CompressGraph-local-graph-path",
         tmpdir / "compressed_graph",
     ]
@@ -51,7 +50,9 @@ def test_compressgraph(tmpdir, workers):
     assert int(properties["arcs"]) == 28
 
     export_meta_path = tmpdir / "compressed_graph/meta/export.json"
-    assert export_meta_path.read_bytes() == (DATA_DIR / "meta/export.json").read_bytes()
+    assert (
+        export_meta_path.read_bytes() == (DATASET_DIR / "meta/export.json").read_bytes()
+    )
 
     compression_meta_path = tmpdir / "compressed_graph/meta/compression.json"
     compression_meta = json.loads(compression_meta_path.read_text())
@@ -92,7 +93,7 @@ def test_compressgraph_partial(tmpdir, workers, object_types):
         "--",
         "--local-scheduler",
         "--CompressGraph-local-export-path",
-        DATA_DIR,
+        DATASET_DIR,
         "--CompressGraph-local-graph-path",
         tmpdir / "compressed_graph",
         f"--CompressGraph-object-types={object_types}",
@@ -140,7 +141,9 @@ def test_compressgraph_partial(tmpdir, workers, object_types):
         assert False, f"Unexpected object types {object_types}"
 
     export_meta_path = tmpdir / "compressed_graph/meta/export.json"
-    assert export_meta_path.read_bytes() == (DATA_DIR / "meta/export.json").read_bytes()
+    assert (
+        export_meta_path.read_bytes() == (DATASET_DIR / "meta/export.json").read_bytes()
+    )
 
     compression_meta_path = tmpdir / "compressed_graph/meta/compression.json"
     compression_meta = json.loads(compression_meta_path.read_text())

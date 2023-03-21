@@ -1,4 +1,5 @@
 JAVA_DIR = ../java
+APIDOC_SWH_EXCLUDES += ../swh/graph/example_dataset/generate_dataset.py
 
 sphinx/html: images
 # sphinx/clean: clean-images clean-javadoc
