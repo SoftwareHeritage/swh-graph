@@ -36,7 +36,9 @@ origin_id,contributor_id
 0,0
 0,1
 0,2
-"""
+""".replace(
+    "\n", "\r\n"
+)
 
 assert (
     base64.b64decode("aHR0cHM6Ly9leGFtcGxlLmNvbS9zd2gvZ3JhcGg=")
@@ -51,7 +53,9 @@ ORIGIN_URLS = """\
 origin_id,origin_url_base64
 2,aHR0cHM6Ly9leGFtcGxlLmNvbS9zd2gvZ3JhcGg=
 0,aHR0cHM6Ly9leGFtcGxlLmNvbS9zd2gvZ3JhcGgy
-"""
+""".replace(
+    "\n", "\r\n"
+)
 
 DEANONYMIZATION_TABLE = """\
 sha256_base64,base64,escaped
@@ -64,14 +68,18 @@ PERSONS = """\
 aZA9TeLhVzqVDQHQOd53UABAZYyek0tY3vTo6VSlA4U=
 UaCrgAZBvn1LBd2sAinmdNvAX/G4sjo1aJA9GDd9UUs=
 8qhF7WQ2bmeoRbZipAaqtNw6QdOCDcpggLWCQLzITsI=
-"""
+""".replace(
+    "\n", "\r\n"
+)
 
 DEANONYMIZED_ORIGIN_CONTRIBUTORS = """\
 contributor_id,contributor_base64,contributor_escaped
 0,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
 1,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5uZXQ+,Jane Doe <jdoe@example.net>
 2,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
-"""  # noqa
+""".replace(
+    "\n", "\r\n"
+)  # noqa
 
 
 def test_list_origin_contributors(tmpdir):

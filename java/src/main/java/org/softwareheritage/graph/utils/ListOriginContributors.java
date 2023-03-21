@@ -20,11 +20,20 @@ package org.softwareheritage.graph.utils;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import org.softwareheritage.graph.*;
 
-import java.io.PrintWriter;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Scanner;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.csv.CSVRecord;
 
 public class ListOriginContributors {
     /*
@@ -40,7 +49,8 @@ public class ListOriginContributors {
             System.exit(1);
         }
         String graphBasename = args[0];
-        PrintWriter originUrlsFileWriter = new PrintWriter(args[1]);
+        FileWriter originsFileWriter = new FileWriter(args[1]);
+        CSVPrinter originsCsvPrinter = new CSVPrinter(originsFileWriter, CSVFormat.RFC4180);
 
         System.err.println("Loading graph " + graphBasename + " ...");
         SwhBidirectionalGraph underlyingGraph = SwhBidirectionalGraph.loadMapped(graphBasename);
@@ -52,13 +62,10 @@ public class ListOriginContributors {
         Subgraph graph = new Subgraph(underlyingGraph, new AllowedNodes("rev,rel,snp,ori"));
         System.err.println("Graph loaded.");
 
-        Scanner stdin = new Scanner(System.in);
-
-        String firstLine = stdin.nextLine().strip();
-        if (!firstLine.equals("SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2")) {
-            System.err.format("Unexpected header: %s\n", firstLine);
-            System.exit(2);
-        }
+        BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
+        CSVPrinter csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
+        BufferedReader bufferedStdin = new BufferedReader(new InputStreamReader(System.in));
+        CSVParser csvParser = CSVParser.parse(bufferedStdin, CSVFormat.RFC4180);
 
         /* Map each node id to its set of contributor person ids */
         HashMap<Long, HashSet<Long>> contributors = new HashMap<>();
@@ -68,16 +75,24 @@ public class ListOriginContributors {
          */
         HashMap<Long, Long> pendingSuccessors = new HashMap<>();
 
-        System.out.println("origin_id,contributor_id");
-        originUrlsFileWriter.println("origin_id,origin_url_base64");
-        while (stdin.hasNextLine()) {
-            String cells[] = stdin.nextLine().strip().split(",", -1);
-            SWHID nodeSWHID = new SWHID(cells[0]);
+        csvPrinter.printRecord("origin_id", "contributor_id");
+        originsCsvPrinter.printRecord("origin_id", "origin_url_base64");
+        boolean seenHeader = false;
+        for (CSVRecord record : csvParser) {
+            if (!seenHeader) {
+                if (!Arrays.deepEquals(record.values(),
+                        new String[]{"SWHID", "ancestors", "successors", "sample_ancestor1", "sample_ancestor2"})) {
+                    System.err.format("Unexpected header: %s\n", record);
+                    System.exit(2);
+                }
+                seenHeader = true;
+                continue;
+            }
+            SWHID nodeSWHID = new SWHID(record.get(0));
             long nodeId = graph.getNodeId(nodeSWHID);
-            long ancestorCount = Long.parseLong(cells[1]);
-            long successorCount = Long.parseLong(cells[2]);
-            String sampleAncestor1SWHID = cells[3];
-            String sampleAncestor2SWHID = cells[4];
+            long ancestorCount = Long.parseLong(record.get(1));
+            long successorCount = Long.parseLong(record.get(2));
+            String sampleAncestor1SWHID = record.get(3);
 
             HashSet<Long> nodeContributors;
             boolean reuseAncestorSet = optimizeReuse && (ancestorCount == 1);
@@ -144,11 +159,15 @@ public class ListOriginContributors {
 
             if (nodeSWHID.getType() == SwhType.ORI) {
                 nodeContributors.forEach((contributorId) -> {
-                    System.out.format("%d,%d\n", nodeId, contributorId);
+                    try {
+                        csvPrinter.printRecord(nodeId, contributorId);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
                 });
                 byte[] url = underlyingGraph.getMessageBase64(nodeId);
                 if (url != null) {
-                    originUrlsFileWriter.format("%d,%s\n", nodeId, new String(url));
+                    originsCsvPrinter.printRecord(nodeId, new String(url));
                 }
             }
 
@@ -161,6 +180,9 @@ public class ListOriginContributors {
             }
         }
 
-        originUrlsFileWriter.flush();
+        csvPrinter.flush();
+        bufferedStdout.flush();
+        originsCsvPrinter.flush();
+        originsFileWriter.flush();
     }
 }

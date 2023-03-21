@@ -219,7 +219,7 @@ class DeanonymizeOriginContributors(luigi.Task):
         tmp_output_path = Path(f"{self.deanonymized_origin_contributors_path}.tmp")
         tmp_output_path.parent.mkdir(parents=True, exist_ok=True)
         with pyzstd.open(tmp_output_path, "wt") as output_fd:
-            csv_writer = csv.writer(output_fd, lineterminator="\n")
+            csv_writer = csv.writer(output_fd, lineterminator="\r\n")
             # write header
             csv_writer.writerow(
                 ("contributor_id", "contributor_base64", "contributor_escaped")

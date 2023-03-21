@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022 The Software Heritage developers
+ * Copyright (c) 2021-2023 The Software Heritage developers
  * Copyright (c) 2021 Antoine Pietri
  * Copyright (c) 2021 Stefano Zacchiroli
  * See the AUTHORS file at the top-level directory of this distribution
@@ -13,10 +13,17 @@ import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import org.softwareheritage.graph.*;
 
 import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.time.Duration;
 import java.util.HashSet;
-import java.util.Scanner;
 import java.util.Stack;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.csv.CSVRecord;
 
 /* sample invocation on granet.internal.softwareheritage.org for benchmarking
  * purposes, with the main swh-graph service already running:
@@ -50,7 +57,11 @@ public class FindEarliestRevision {
         elapsed = Duration.ofNanos(System.nanoTime() - ts);
         System.err.println(String.format("revision timestamps loaded (duration: %s).", elapsed));
 
-        Scanner stdin = new Scanner(System.in);
+        BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
+        CSVPrinter csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
+        BufferedReader bufferedStdin = new BufferedReader(new InputStreamReader(System.in));
+        CSVParser csvParser = CSVParser.parse(bufferedStdin, CSVFormat.RFC4180);
+
         AllowedEdges edges = new AllowedEdges("cnt:dir,dir:dir,dir:rev");
         String rawSWHID = null;
         SWHID srcSWHID = null;
@@ -61,11 +72,11 @@ public class FindEarliestRevision {
             elapsed = Duration.ZERO;
         }
         // print CSV header line
-        System.out.println("swhid,earliest_swhid,earliest_ts,rev_occurrences");
-        while (stdin.hasNextLine()) {
+        csvPrinter.printRecord("swhid", "earliest_swhid", "earliest_ts", "rev_occurrences");
+        for (CSVRecord record : csvParser) {
             if (timing)
                 ts = System.nanoTime();
-            rawSWHID = stdin.nextLine().strip();
+            rawSWHID = record.get(0);
             lineCount++;
             try {
                 srcSWHID = new SWHID(rawSWHID);
@@ -117,8 +128,7 @@ public class FindEarliestRevision {
             if (minRevId == -1) {
                 System.err.println("no revision found containing: " + srcSWHID.toString());
             } else {
-                System.out.println(srcSWHID.toString() + "," + graph.getSWHID(minRevId).toString() + ","
-                        + Long.toString(minTimestamp) + "," + Long.toString(visitedRevisions));
+                csvPrinter.printRecord(srcSWHID, graph.getSWHID(minRevId), minTimestamp, visitedRevisions);
             }
             if (timing) {
                 elapsedNanos = System.nanoTime() - ts; // processing time for current SWHID
@@ -128,5 +138,8 @@ public class FindEarliestRevision {
         }
         if (timing)
             System.err.printf("processed %d SWHIDs in %s (%s avg)\n", lineCount, elapsed, elapsed.dividedBy(lineCount));
+
+        csvPrinter.flush();
+        bufferedStdout.flush();
     }
 }
