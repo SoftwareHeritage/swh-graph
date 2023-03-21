@@ -3,24 +3,25 @@ digraph "Software Heritage mini DAG" {
     nodesep=0.5;
 
     subgraph cnt {
-        01 [label="cnt:0x01"];
-        04 [label="cnt:0x04"];
-        05 [label="cnt:0x05"];
-        07 [label="cnt:0x07"];
-        11 [label="cnt:0x11"];
-        14 [label="cnt:0x14"];
-        15 [label="cnt:0x15"];
+        node [style=filled, fillcolor=pink];
+        01 [label="cnt:…001"];
+        04 [label="cnt:…004"];
+        05 [label="cnt:…005"];
+        07 [label="cnt:…007"];
+        11 [label="cnt:…011"];
+        14 [label="cnt:…014"];
+        15 [label="cnt:…015"];
     }
 
     subgraph cluster_dir {
         label="File contents";
-        node [shape=folder];
-        02 [label="dir:0x02"];
-        06 [label="dir:0x06"];
-        08 [label="dir:0x08"];
-        12 [label="dir:0x12"];
-        16 [label="dir:0x16"];
-        17 [label="dir:0x17"];
+        node [shape=folder, style=filled, fillcolor=lightblue];
+        02 [label="dir:…002"];
+        06 [label="dir:…006"];
+        08 [label="dir:…008"];
+        12 [label="dir:…012"];
+        16 [label="dir:…016"];
+        17 [label="dir:…017"];
 
         02 -> 01;
         06 -> 04;
@@ -37,11 +38,11 @@ digraph "Software Heritage mini DAG" {
 
     subgraph cluster_rev {
         label="Revisions";
-        node [shape=diamond];
-        03 [label="rev:0x03"];
-        09 [label="rev:0x09"];
-        13 [label="rev:0x13"];
-        18 [label="rev:0x18"];
+        node [shape=diamond, style=filled, fillcolor=orchid];
+        03 [label="rev:…003"];
+        09 [label="rev:…009"];
+        13 [label="rev:…013"];
+        18 [label="rev:…018"];
 
         03 -> 02;
         09 -> 08;
@@ -55,10 +56,10 @@ digraph "Software Heritage mini DAG" {
 
     subgraph cluster_rel {
         label="Releases";
-        node [shape=octagon];
-        10 [label="rel:0x10"];
-        19 [label="rel:0x19"];
-        21 [label="rel:0x21"];
+        node [shape=octagon, style=filled, fillcolor=sandybrown];
+        10 [label="rel:…010"];
+        19 [label="rel:…019"];
+        21 [label="rel:…021"];
 
         10 -> 09;
         19 -> 18;
@@ -67,9 +68,9 @@ digraph "Software Heritage mini DAG" {
 
     subgraph cluster_snp {
         label="Snapshots";
-        node [shape=doubleoctagon];
-        20 [label="snp:0x20"];
-        22 [label="snp:0x22"];
+        node [shape=doubleoctagon, style=filled, fillcolor=aqua];
+        20 [label="snp:…020"];
+        22 [label="snp:…022"];
 
         20 -> 09;
         20 -> 10;
@@ -81,9 +82,9 @@ digraph "Software Heritage mini DAG" {
 
     subgraph cluster_ori {
         label="Origins";
-        node [shape=egg];
-        ori1 [label="ori:8340"];
-        ori2 [label="ori:8f50"];
+        node [shape=egg, style=filled, fillcolor=khaki];
+        ori1 [label="ori:8340…"];
+        ori2 [label="ori:8f50…"];
 
         ori1 -> 20;
         ori2 -> 22;
