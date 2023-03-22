@@ -14,6 +14,7 @@ import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigList;
 import it.unimi.dsi.fastutil.longs.LongMappedBigList;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
+import it.unimi.dsi.lang.FlyweightPrototype;
 import org.softwareheritage.graph.SWHID;
 import org.softwareheritage.graph.compress.NodeMapBuilder;
 
@@ -35,7 +36,7 @@ import java.nio.charset.StandardCharsets;
  * @see NodeMapBuilder
  */
 
-public class NodeIdMap implements Size64 {
+public class NodeIdMap implements Size64, FlyweightPrototype<NodeIdMap> {
     /** Fixed length of binary SWHID buffer */
     public static final int SWHID_BIN_SIZE = 22;
 
@@ -78,6 +79,23 @@ public class NodeIdMap implements Size64 {
         try (RandomAccessFile mapFile = new RandomAccessFile(new File(graphPath + ".order"), "r")) {
             this.orderMap = LongMappedBigList.map(mapFile.getChannel());
         }
+    }
+
+    protected NodeIdMap(String graphPath, ByteBigList nodeToSwhMap, Object2LongFunction<byte[]> mph,
+            LongBigList orderMap) {
+        this.graphPath = graphPath;
+        this.nodeToSwhMap = nodeToSwhMap;
+        this.mph = mph;
+        this.orderMap = orderMap;
+    }
+
+    @Override
+    public NodeIdMap copy() {
+        return new NodeIdMap(graphPath,
+                ((nodeToSwhMap instanceof ByteMappedBigList)
+                        ? ((ByteMappedBigList) nodeToSwhMap).copy()
+                        : nodeToSwhMap),
+                mph, ((orderMap instanceof LongMappedBigList) ? ((LongMappedBigList) orderMap).copy() : orderMap));
     }
 
     @SuppressWarnings("unchecked")
