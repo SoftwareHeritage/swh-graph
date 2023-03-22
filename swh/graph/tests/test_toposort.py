@@ -170,8 +170,123 @@ def test_countpaths(tmpdir, direction: str):
 
     task.run()
 
+    assert path_counts_path.exists()
     csv_text = subprocess.check_output(["zstdcat", path_counts_path]).decode()
 
     expected = PATH_COUNTS_BACKWARD if direction == "backward" else PATH_COUNTS_FORWARD
+
+    assert csv_text == expected
+
+
+@pytest.mark.parametrize("direction", ["backward", "forward"])
+def test_countpaths_contents(tmpdir, direction):
+    """Tests the edge case of counting paths from a toposort which doesn't include
+    contents (because they can be trivially added at the start/end of the order)
+    """
+    tmpdir = Path(tmpdir)
+
+    topological_order_path = (
+        tmpdir / f"topological_order_dfs_{direction}_dir,rev,rel,snp,ori.csv.zst"
+    )
+    path_counts_path = (
+        tmpdir / f"path_counts_{direction}_cnt,dir,rev,rel,snp,ori.csv.zst"
+    )
+
+    # headers: SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2
+    dir_order = """\
+        swh:1:dir:0000000000000000000000000000000000000012,1,2,,
+        swh:1:dir:0000000000000000000000000000000000000017,1,2,,
+        swh:1:dir:0000000000000000000000000000000000000002,1,1,,
+        swh:1:dir:0000000000000000000000000000000000000008,2,3,,
+        swh:1:dir:0000000000000000000000000000000000000016,1,1,,
+        swh:1:dir:0000000000000000000000000000000000000006,1,2,,
+        """.replace(
+        "        ", ""
+    )
+
+    if direction == "forward":
+        # teeeechnically we should concatenate them this ways, because revisions have
+        # successors=0 even though they have directory successors in this concatenation.
+        # but CountPaths doesn't care about that field, so it's good enough for a unit
+        # test
+        with topological_order_path.open("at") as fd:
+            fd.write(TOPO_ORDER_FORWARD)
+            fd.write(dir_order)
+    else:
+        # ditto (and we should also swap ancestors/successors for the directories)
+        with topological_order_path.open("at") as fd:
+            header, rest = TOPO_ORDER_BACKWARD.split("\r\n", 1)
+            fd.write(header)
+            fd.write("\n".join(reversed(dir_order.split("\n"))))
+            fd.write(rest)
+
+    task = CountPaths(
+        local_graph_path=DATA_DIR / "compressed",
+        topological_order_dir=tmpdir,
+        direction=direction,
+        object_types="cnt,dir,rev,rel,snp,ori",
+        graph_name="example",
+    )
+
+    task.run()
+
+    assert path_counts_path.exists()
+    csv_text = subprocess.check_output(["zstdcat", path_counts_path]).decode()
+
+    if direction == "forward":
+        expected = PATH_COUNTS_FORWARD
+        expected += """\
+            swh:1:dir:0000000000000000000000000000000000000012,2,6
+            swh:1:dir:0000000000000000000000000000000000000017,2,5
+            swh:1:dir:0000000000000000000000000000000000000002,6,17
+            swh:1:dir:0000000000000000000000000000000000000008,8,23
+            swh:1:dir:0000000000000000000000000000000000000016,2,6
+            swh:1:dir:0000000000000000000000000000000000000006,8,24
+            swh:1:cnt:0000000000000000000000000000000000000001,14,42
+            swh:1:cnt:0000000000000000000000000000000000000004,8,25
+            swh:1:cnt:0000000000000000000000000000000000000005,8,25
+            swh:1:cnt:0000000000000000000000000000000000000007,8,24
+            swh:1:cnt:0000000000000000000000000000000000000011,2,7
+            swh:1:cnt:0000000000000000000000000000000000000014,2,6
+            swh:1:cnt:0000000000000000000000000000000000000015,2,7
+            """.replace(
+            "            ", ""
+        ).replace(
+            "\n", "\r\n"
+        )
+
+    else:
+        # can't reuse PATH_COUNTS_BACKWARD because directories change the count
+        # of other objects in this direction
+        expected = """\
+            swhid,paths_from_roots,all_paths
+            swh:1:cnt:0000000000000000000000000000000000000001,0,0
+            swh:1:cnt:0000000000000000000000000000000000000004,0,0
+            swh:1:cnt:0000000000000000000000000000000000000005,0,0
+            swh:1:cnt:0000000000000000000000000000000000000007,0,0
+            swh:1:cnt:0000000000000000000000000000000000000011,0,0
+            swh:1:cnt:0000000000000000000000000000000000000014,0,0
+            swh:1:cnt:0000000000000000000000000000000000000015,0,0
+            swh:1:dir:0000000000000000000000000000000000000006,2,2
+            swh:1:dir:0000000000000000000000000000000000000016,1,1
+            swh:1:dir:0000000000000000000000000000000000000008,4,5
+            swh:1:dir:0000000000000000000000000000000000000002,1,1
+            swh:1:dir:0000000000000000000000000000000000000017,2,3
+            swh:1:dir:0000000000000000000000000000000000000012,5,7
+            swh:1:rev:0000000000000000000000000000000000000009,4,6
+            swh:1:rel:0000000000000000000000000000000000000010,4,7
+            swh:1:snp:0000000000000000000000000000000000000020,8,15
+            swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,8,16
+            swh:1:rev:0000000000000000000000000000000000000013,9,15
+            swh:1:rev:0000000000000000000000000000000000000018,11,20
+            swh:1:rel:0000000000000000000000000000000000000019,11,21
+            swh:1:rel:0000000000000000000000000000000000000021,11,21
+            swh:1:snp:0000000000000000000000000000000000000022,19,37
+            swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,19,38
+            """.replace(
+            "            ", ""
+        ).replace(
+            "\n", "\r\n"
+        )
 
     assert csv_text == expected

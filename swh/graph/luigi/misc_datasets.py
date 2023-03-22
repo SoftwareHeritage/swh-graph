@@ -494,7 +494,9 @@ class CountPaths(luigi.Task):
                 local_graph_path=self.local_graph_path,
                 graph_name=self.graph_name,
                 topological_order_dir=self.topological_order_dir,
-                object_types=self.object_types,
+                object_types=",".join(
+                    ty for ty in self.object_types.split(",") if ty != "cnt"
+                ),
                 direction=self.direction,
             ),
         }
@@ -527,11 +529,39 @@ class CountPaths(luigi.Task):
         )
         nb_lines = nb_nodes + 1  # CSV header
 
+        topo_order_command = Command.zstdcat(topological_order_path)
+
+        if "cnt" in self.object_types.split(","):
+            # The toposort does not include content; add them to the topo order.
+            #
+            # As it has this header:
+            #     SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2
+            # we have to use sed to add the extra columns. CountPath.java does not use
+            # them, so dummy values are fine.
+            content_input = Command.zstdcat(
+                self.local_graph_path / f"{self.graph_name}.nodes.csv.zst"
+            ) | Command.grep("^swh:1:cnt:")
+            if self.direction == "forward":
+                topo_order_command = Command.cat(
+                    topo_order_command,
+                    content_input | Command.sed("s/$/,1,0,,/"),
+                )
+            else:
+                # Extract the header
+                header_command = topo_order_command | Command.head("-n", "1")
+                topo_order_command = topo_order_command | Command.tail("-n", "+2")
+
+                topo_order_command = Command.cat(
+                    header_command,
+                    content_input | Command.sed("s/$/,0,1,,/"),
+                    topo_order_command,
+                )
+
         # TODO: pass max_ram to Java() correctly so it can pass it to
         # check_config(), instead of hardcoding it on the command line here
         # fmt: off
         (
-            Command.zstdcat(topological_order_path)
+            topo_order_command
             | Java(
                 f"-Xmx{self.max_ram}",
                 class_name,
