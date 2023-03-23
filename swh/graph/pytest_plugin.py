@@ -68,7 +68,11 @@ def graph_grpc_server_process():
 
     yield server
 
-    server.kill()
+    try:
+        server.kill()
+    except AttributeError:
+        # server was never started
+        pass
 
 
 @pytest.fixture(scope="module")
