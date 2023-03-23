@@ -163,7 +163,7 @@ public class PopularContentNames {
             }
             if (names.size() == 0) {
                 /* No filename at all */
-                continue;
+                csvPrinter.printRecord(graph.getSWHID(cntNode), contentLength, "", "");
             } else if (maxResults <= 0 || maxResults >= names.size()) {
                 /* Print everything */
                 for (Map.Entry<Long, Long> entry : names.entrySet()) {

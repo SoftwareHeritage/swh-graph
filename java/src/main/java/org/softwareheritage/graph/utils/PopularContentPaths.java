@@ -204,7 +204,7 @@ public class PopularContentPaths {
             }
 
             if (paths.size() == 0) {
-                continue;
+                csvPrinter.printRecord(graph.getSWHID(cntNode), contentLength, "", "");
             } else {
                 FilepathIds maxFilepathId = null;
                 long maxCount = 0;
