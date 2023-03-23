@@ -31,6 +31,9 @@ import org.slf4j.LoggerFactory;
 /* Reads a list of content and directory SWHIDs, and for each of them, returns
  * their most popular path among their parents, up to the maximum given depth.
  *
+ * Contents under 3 bytes are skipped, as they are too long to process (many references
+ * to them) and not interesting.
+ *
  * Syntax:
  *
  * <code>java org.softwareheritage.graph.utils.PopularContentPaths <path/to/graph>  <parent_depth></code>
@@ -59,6 +62,7 @@ public class PopularContentPaths {
     private ThreadLocal<SwhBidirectionalGraph> threadGraph;
     private int NUM_THREADS = 96;
     private final int BATCH_SIZE = 10000; /* Number of CSV records to read at once */
+    private final long MIN_CONTENT_SIZE = 3; /* Ignore all contents smaller than this */
     private CSVParser csvParser;
     private CSVPrinter csvPrinter;
 
@@ -192,12 +196,13 @@ public class PopularContentPaths {
 
             paths.clear();
 
-            pushNames(paths, backwardGraph, new FilepathIds(maxDepth), cntNode, maxDepth);
-
             Long contentLength = graph.properties.getContentLength(cntNode);
             if (contentLength == null) {
                 contentLength = -1L;
+            } else if (contentLength >= MIN_CONTENT_SIZE) {
+                pushNames(paths, backwardGraph, new FilepathIds(maxDepth), cntNode, maxDepth);
             }
+
             if (paths.size() == 0) {
                 continue;
             } else {
