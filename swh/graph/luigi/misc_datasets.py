@@ -81,17 +81,54 @@ class TopoSort(luigi.Task):
     def _max_ram(self):
         # see java/src/main/java/org/softwareheritage/graph/utils/TopoSort.java
         nb_nodes = count_nodes(
-            self.local_graph_path, self.graph_name, self.object_types
+            self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
         )
 
         seen_bitarray = nb_nodes // 8
 
         graph_size = nb_nodes * 8
 
-        ready_set_size = nb_nodes * 8  # longarray
+        # The ready set contains the frontier of the BFS. In the worst case,
+        # it contains every single node matched by self.object_types (which by default
+        # is all node types but contents).
+        #
+        # However, in practice it contains at most a negligeable fraction of
+        # revisions, because the revision subgraph is, topologically, made mostly
+        # of very long chains (see Antoine Pietri's thesis).
+        #
+        # And in the forward DFS case, we are guaranteed not to have more than one
+        # content node in the ready set at any time, because it would be visited
+        # immediately after and has no successors.
+        #
+        # TODO: also guess an upper bound on the number of directories? we can
+        # probably assume at most a third will be in the ready set at any time,
+        # considering their subgraph's topology.
+        max_nb_ready_set_nodes = count_nodes(
+            self.local_graph_path,
+            self.graph_name,
+            ",".join(
+                ty
+                for ty in self.object_types.split(",")
+                if ty != "rev"
+                and not (
+                    self.algorithm == "dfs"
+                    and self.direction == "forward"
+                    and ty == "cnt"
+                )
+            ),
+        )
+        ready_set_size = max_nb_ready_set_nodes * 8
 
-        spare_space = 100_000_000
-        return graph_size + seen_bitarray + ready_set_size + spare_space
+        unvisited_array_size = nb_nodes * 8  # longarray
+
+        spare_space = 1_000_000_000
+        return (
+            graph_size
+            + seen_bitarray
+            + ready_set_size
+            + unvisited_array_size
+            + spare_space
+        )
 
     @property
     def resources(self):
