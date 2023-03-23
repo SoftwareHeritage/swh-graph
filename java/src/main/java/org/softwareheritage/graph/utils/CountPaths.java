@@ -9,7 +9,7 @@ package org.softwareheritage.graph.utils;
 
 import com.martiansoftware.jsap.*;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
-import it.unimi.dsi.fastutil.longs.LongBigArrayBigList;
+import it.unimi.dsi.fastutil.doubles.DoubleBigArrayBigList;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.*;
 
@@ -27,6 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /* Counts the number of (non-singleton) paths reaching each node, from all other nodes.
+ *
+ * Counts in the output may be large enough to overflow long integer, so they are computed with double-precision floating point number and printed as such.
  *
  * Sample invocation:
  *
@@ -92,8 +94,8 @@ public class CountPaths {
         CSVParser parser = CSVParser.parse(bufferedStdin, CSVFormat.RFC4180);
 
         long numNodes = graph.numNodes();
-        LongBigArrayBigList countsFromRoots = new LongBigArrayBigList(numNodes);
-        LongBigArrayBigList countsFromAll = new LongBigArrayBigList(numNodes);
+        DoubleBigArrayBigList countsFromRoots = new DoubleBigArrayBigList(numNodes);
+        DoubleBigArrayBigList countsFromAll = new DoubleBigArrayBigList(numNodes);
 
         ProgressLogger pl = new ProgressLogger(logger);
         pl.logInterval = 60000;
@@ -117,8 +119,8 @@ public class CountPaths {
             pl.lightUpdate();
             String nodeSWHID = record.get(0);
             long nodeId = graph.getNodeId(nodeSWHID);
-            long countFromRoots = countsFromRoots.getLong(nodeId);
-            long countFromAll = countsFromAll.getLong(nodeId);
+            double countFromRoots = countsFromRoots.getDouble(nodeId);
+            double countFromAll = countsFromAll.getDouble(nodeId);
 
             /* Print counts for this node */
             csvPrinter.printRecord(nodeSWHID, countFromRoots, countFromAll);
@@ -131,8 +133,8 @@ public class CountPaths {
             }
             LazyLongIterator it = graph.successors(nodeId);
             for (long successorId; (successorId = it.nextLong()) != -1;) {
-                countsFromAll.set(successorId, countsFromAll.getLong(successorId) + countFromAll);
-                countsFromRoots.set(successorId, countsFromRoots.getLong(successorId) + countFromRoots);
+                countsFromAll.set(successorId, countsFromAll.getDouble(successorId) + countFromAll);
+                countsFromRoots.set(successorId, countsFromRoots.getDouble(successorId) + countFromRoots);
             }
 
         }
