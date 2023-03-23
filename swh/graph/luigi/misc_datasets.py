@@ -179,9 +179,8 @@ class TopoSort(luigi.Task):
         # fmt: on
 
 
-class PopularContents(luigi.Task):
-    """Creates a file that contains all SWHIDs in topological order from a compressed
-    graph."""
+class PopularContentNames(luigi.Task):
+    """Creates a CSV file that contains the most popular name(s) of each content"""
 
     local_graph_path = luigi.PathParameter()
     popular_contents_path = luigi.PathParameter()
@@ -218,7 +217,7 @@ class PopularContents(luigi.Task):
         return luigi.LocalTarget(self.popular_contents_path)
 
     def run(self) -> None:
-        """Runs org.softwareheritage.graph.utils.PopularContents and compresses"""
+        """Runs org.softwareheritage.graph.utils.PopularContentNames and compresses"""
         from .shell import AtomicFileSink, Command, Java
 
         if self.max_results_per_content == 1 and self.popularity_threshold == 0:
@@ -230,7 +229,7 @@ class PopularContents(luigi.Task):
         else:
             pv = Command.pv("--line-mode", "--wait")
 
-        class_name = "org.softwareheritage.graph.utils.PopularContents"
+        class_name = "org.softwareheritage.graph.utils.PopularContentNames"
         # fmt: on
         (
             Java(
@@ -488,22 +487,21 @@ class _CsvToOrcToS3ToAthenaTask(luigi.Task):
         # boto3 closes the FD itself
 
 
-class PopularContentsOrcToS3(_CsvToOrcToS3ToAthenaTask):
+class PopularContentNamesOrcToS3(_CsvToOrcToS3ToAthenaTask):
     """Reads the CSV from :class:`PopularContents`, converts it to ORC,
     upload the ORC to S3, and create an Athena table for it."""
-
     popular_contents_path = luigi.PathParameter()
     dataset_name = luigi.Parameter()
     s3_athena_output_location = S3PathParameter()
 
-    def requires(self) -> PopularContents:
-        """Returns corresponding PopularContents instance"""
+    def requires(self) -> PopularContentNames:
+        """Returns corresponding PopularContentNames instance"""
         if self.dataset_name not in str(self.popular_contents_path):
             raise Exception(
                 f"Dataset name {self.dataset_name!r} is not part of the "
                 f"popular_contents_path {self.popular_contents_path!r}"
             )
-        return PopularContents(
+        return PopularContentNames(
             popular_contents_path=self.popular_contents_path,
         )
 
@@ -705,8 +703,8 @@ class PathCountsOrcToS3(_CsvToOrcToS3ToAthenaTask):
     dataset_name = luigi.Parameter()
     s3_athena_output_location = S3PathParameter()
 
-    def requires(self) -> PopularContents:
-        """Returns corresponding PopularContents instance"""
+    def requires(self) -> CountPaths:
+        """Returns corresponding CountPaths instance"""
         if self.dataset_name not in str(self.topological_order_dir):
             raise Exception(
                 f"Dataset name {self.dataset_name!r} is not part of the "

@@ -24,23 +24,24 @@ import org.apache.commons.csv.CSVPrinter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/* Lists all nodes nodes of the types given as argument, in topological order,
- * from leaves (contents, if selected) to the top (origins, if selected).
+/* For every Content, returns it most popular name(s).
  *
- * This uses a DFS, so nodes are likely to be close to their neighbors.
+ * This only looks at the direct name. For paths (by recursively looking at parent
+ * directories), see PopularContentPaths.java
  *
- * Some extra information is provided to allow more efficient consumption
- * of the output: number of ancestors, successors, and a sample of two ancestors.
+ * Syntax:
+ *
+ * <code>java org.softwareheritage.graph.utils.PopularContentNames <path/to/graph> <max_results_per_cnt> <popularity_threshold></code>
  *
  * Sample invocation:
  *
- *   $ java -cp ~/swh-environment/swh-graph/java/target/swh-graph-*.jar -Xmx500G -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:+UseTLAB -XX:+ResizeTLAB org.softwareheritage.graph.utils.PopularContents /dev/shm/swh-graph/default/graph \
+ *   $ java -cp ~/swh-environment/swh-graph/java/target/swh-graph-*.jar -Xmx500G -XX:PretenureSizeThreshold=512M -XX:MaxNewSize=4G -XX:+UseLargePages -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:+UseTLAB -XX:+ResizeTLAB org.softwareheritage.graph.utils.PopularContentNames /dev/shm/swh-graph/default/graph \
  *      | pv --line-mode --wait \
  *      | zstdmt \
- *      > /poolswh/softwareheritage/vlorentz/2022-04-25_popular_contents.txt.zst
+ *      > /poolswh/softwareheritage/vlorentz/2022-04-25_popular_content_names.txt.zst
  */
 
-public class PopularContents {
+public class PopularContentNames {
     private SwhBidirectionalGraph graph;
     /*
      * A copy of the graph for each thread to reuse between calls to processChunk
@@ -49,12 +50,12 @@ public class PopularContents {
     private int NUM_THREADS = 96;
     private CSVPrinter csvPrinter;
 
-    final static Logger logger = LoggerFactory.getLogger(PopularContents.class);
+    final static Logger logger = LoggerFactory.getLogger(PopularContentNames.class);
 
     public static void main(String[] args) throws IOException, ClassNotFoundException, InterruptedException {
         if (args.length != 3) {
             System.err.println(
-                    "Syntax: java org.softwareheritage.graph.utils.PopularContents <path/to/graph> <max_results_per_cnt> <popularity_threshold>");
+                    "Syntax: java org.softwareheritage.graph.utils.PopularContentNames <path/to/graph> <max_results_per_cnt> <popularity_threshold>");
             System.exit(1);
         }
         String graphPath = args[0];
@@ -62,7 +63,7 @@ public class PopularContents {
         long popularityThreshold = Long.parseLong(args[2]);
         BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
 
-        PopularContents popular_contents = new PopularContents();
+        PopularContentNames popular_contents = new PopularContentNames();
         popular_contents.threadGraph = new ThreadLocal<SwhBidirectionalGraph>();
         popular_contents.csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
 
