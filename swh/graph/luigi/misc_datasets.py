@@ -173,7 +173,7 @@ class TopoSort(luigi.Task):
                 max_ram=self._max_ram(),
             )
             | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
-            | Command.zstdmt("-19")
+            | Command.zstdmt("-9")  # not -19 because of CPU usage + little gain
             > AtomicFileSink(self.output())
         ).run()
         # fmt: on
