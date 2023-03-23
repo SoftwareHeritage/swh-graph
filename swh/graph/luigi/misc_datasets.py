@@ -221,6 +221,15 @@ class PopularContents(luigi.Task):
         """Runs org.softwareheritage.graph.utils.PopularContents and compresses"""
         from .shell import AtomicFileSink, Command, Java
 
+        if self.max_results_per_content == 1 and self.popularity_threshold == 0:
+            # In this case, we know approximately how many results are expected:
+            # the same as the number of contents (minus contents not referenced by
+            # any directory, which should be negligeable)"
+            nb_contents = count_nodes(self.local_graph_path, self.graph_name, "cnt")
+            pv = Command.pv("--line-mode", "--wait", "--size", str(nb_contents))
+        else:
+            pv = Command.pv("--line-mode", "--wait")
+
         class_name = "org.softwareheritage.graph.utils.PopularContents"
         # fmt: on
         (
@@ -231,7 +240,7 @@ class PopularContents(luigi.Task):
                 str(self.popularity_threshold),
                 str(self.max_depth),
             )
-            | Command.pv("--line-mode", "--wait")
+            | pv
             | Command.zstdmt("-19")
             > AtomicFileSink(self.output())
         ).run()
