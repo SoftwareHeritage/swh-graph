@@ -44,7 +44,7 @@ import os
 from pathlib import Path
 import shlex
 import subprocess
-from typing import Any, Dict, List, NoReturn, TypeVar, Union
+from typing import Any, Dict, List, NoReturn, Optional, TypeVar, Union
 
 import luigi
 
@@ -124,13 +124,16 @@ class Command(metaclass=_MetaCommand):
 
 
 class Java(Command):
-    def __init__(self, *args: str):
+    def __init__(self, *args: str, max_ram: Optional[int] = None):
 
         import tempfile
 
         from ..config import check_config
 
         conf: Dict = {}  # TODO: configurable
+
+        if max_ram:
+            conf["max_ram"] = max_ram
 
         conf = check_config(conf)
 

@@ -482,7 +482,7 @@ def luigi(
         default_values["s3_athena_output_location"] = s3_athena_output_location
 
     if max_ram:
-        default_values["max_ram"] = max_ram
+        default_values["max_ram_mb"] = max_ram_mb
 
     if batch_size:
         default_values["batch_size"] = batch_size

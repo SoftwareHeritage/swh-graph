@@ -31,6 +31,14 @@ class ListOriginContributors(luigi.Task):
     origin_contributors_path = luigi.PathParameter()
     origin_urls_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
+    max_ram_mb = luigi.IntParameter(default=500_000)
+
+    @property
+    def resources(self):
+        """Returns the value of ``self.max_ram_mb``"""
+        import socket
+
+        return {f"{socket.getfqdn()}_ram_mb": self.max_ram_mb}
 
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns an instance of :class:`swh.graph.luigi.compressed_graph.LocalGraph`
@@ -70,7 +78,12 @@ class ListOriginContributors(luigi.Task):
             nb_lines = wc(Command.zstdcat(topological_order_path), "-l")
             (
                 Command.zstdcat(topological_order_path)
-                | Java(class_name, self.local_graph_path / self.graph_name, origin_urls_fd.name)
+                | Java(
+                    class_name,
+                    self.local_graph_path / self.graph_name,
+                    origin_urls_fd.name,
+                    max_ram=self.max_ram_mb * 1_000_000,
+                )
                 | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
                 | Command.zstdmt("-19")
                 > AtomicFileSink(self.origin_contributors_path)

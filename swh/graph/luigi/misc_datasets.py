@@ -77,7 +77,28 @@ class TopoSort(luigi.Task):
     object_types = luigi.Parameter()
     direction = luigi.ChoiceParameter(choices=["forward", "backward"])
     algorithm = luigi.ChoiceParameter(choices=["dfs", "bfs"], default="dfs")
-    max_ram = luigi.Parameter(default="500G")
+
+    def _max_ram(self):
+        # see java/src/main/java/org/softwareheritage/graph/utils/TopoSort.java
+        nb_nodes = count_nodes(
+            self.local_graph_path, self.graph_name, self.object_types
+        )
+
+        seen_bitarray = nb_nodes // 8
+
+        graph_size = nb_nodes * 8
+
+        ready_set_size = nb_nodes * 8  # longarray
+
+        spare_space = 100_000_000
+        return graph_size + seen_bitarray + ready_set_size + spare_space
+
+    @property
+    def resources(self):
+        """Return the estimated RAM use of this task."""
+        import socket
+
+        return {f"{socket.getfqdn()}_ram_mb": self._max_ram() / 1_000_000}
 
     def requires(self) -> List[luigi.Task]:
         """Returns an instance of :class:`LocalGraph`."""
@@ -99,28 +120,20 @@ class TopoSort(luigi.Task):
             raise ValueError(f"Invalid object types: {invalid_object_types}")
         class_name = "org.softwareheritage.graph.utils.TopoSort"
 
-        node_stats = (
-            self.local_graph_path / f"{self.graph_name}.nodes.stats.txt"
-        ).read_text()
-        nb_nodes_per_type = dict(
-            line.split() for line in node_stats.split("\n") if line
-        )
-        nb_nodes = sum(
-            int(nb_nodes_per_type[type_]) for type_ in self.object_types.split(",")
+        nb_nodes = count_nodes(
+            self.local_graph_path, self.graph_name, self.object_types
         )
         nb_lines = nb_nodes + 1  # CSV header
 
-        # TODO: pass max_ram to Java() correctly so it can pass it to
-        # check_config(), instead of hardcoding it on the command line here
         # fmt: off
         (
             Java(
-                f"-Xmx{self.max_ram}",
                 class_name,
                 self.local_graph_path / self.graph_name,
                 self.algorithm,
                 self.direction,
                 self.object_types,
+                max_ram=self._max_ram(),
             )
             | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
             | Command.zstdmt("-19")
@@ -138,7 +151,26 @@ class PopularContents(luigi.Task):
     graph_name = luigi.Parameter(default="graph")
     max_results_per_content = luigi.IntParameter(default=0)
     popularity_threshold = luigi.IntParameter(default=0)
-    max_ram = luigi.Parameter(default="300G")
+
+    def _max_ram(self):
+        nb_nodes = count_nodes(
+            self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
+        )
+
+        graph_size = nb_nodes * 8
+
+        # Does not keep any large array for all nodes, but uses temporary HashMaps
+        # to store counts of names locally.
+        # 10GB should be more than enough.
+        spare_space = 10_000_000_000
+        return graph_size + spare_space
+
+    @property
+    def resources(self):
+        """Return the estimated RAM use of this task."""
+        import socket
+
+        return {f"{socket.getfqdn()}_ram_mb": self._max_ram() / 1_000_000}
 
     def requires(self) -> List[luigi.Task]:
         """Returns an instance of :class:`LocalGraph`."""
@@ -153,16 +185,14 @@ class PopularContents(luigi.Task):
         from .shell import AtomicFileSink, Command, Java
 
         class_name = "org.softwareheritage.graph.utils.PopularContents"
-        # TODO: pass max_ram to Java() correctly so it can pass it to
-        # check_config(), instead of hardcoding it on the command line here
         # fmt: on
         (
             Java(
-                f"-Xmx{self.max_ram}",
                 class_name,
                 self.local_graph_path / self.graph_name,
                 str(self.max_results_per_content),
                 str(self.popularity_threshold),
+                str(self.max_depth),
             )
             | Command.pv("--line-mode", "--wait")
             | Command.zstdmt("-19")
@@ -517,7 +547,24 @@ class CountPaths(luigi.Task):
     graph_name = luigi.Parameter(default="graph")
     object_types = luigi.Parameter()
     direction = luigi.ChoiceParameter(choices=["forward", "backward"])
-    max_ram = luigi.Parameter(default="500G")
+
+    def _max_ram(self):
+        nb_nodes = count_nodes(
+            self.local_graph_path, self.graph_name, self.object_types
+        )
+        graph_size = nb_nodes * 8
+
+        # Two arrays of floats (countsFromRoots and countsFromAll)
+        count_doublearray = nb_nodes * 8
+        spare_space = 100_000_000
+        return graph_size + count_doublearray * 2 + spare_space
+
+    @property
+    def resources(self):
+        """Return the estimated RAM use of this task."""
+        import socket
+
+        return {f"{socket.getfqdn()}_ram_mb": self._max_ram() / 1_000_000}
 
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns an instance of :class:`LocalGraph` and one of :class:`TopoSort`."""
@@ -586,16 +633,14 @@ class CountPaths(luigi.Task):
                     topo_order_command,
                 )
 
-        # TODO: pass max_ram to Java() correctly so it can pass it to
-        # check_config(), instead of hardcoding it on the command line here
         # fmt: off
         (
             topo_order_command
             | Java(
-                f"-Xmx{self.max_ram}",
                 class_name,
                 self.local_graph_path / self.graph_name,
-                self.direction
+                self.direction,
+                max_ram=self._max_ram()
             )
             | Command.pv("--line-mode", "--wait", "--size", str(self.nb_lines()))
             | Command.zstdmt("-19")
