@@ -214,14 +214,14 @@ class _CsvToOrcToS3ToAthenaTask(luigi.Task):
     def _athena_db_name(self) -> str:
         raise NotImplementedError(f"{self.__class__.__name__}._athena_db_name")
 
-    def _athena_table_names(self) -> Set[str]:
-        raise NotImplementedError(f"{self.__class__.__name__}._athena_table_names")
+    def _athena_table_name(self) -> str:
+        raise NotImplementedError(f"{self.__class__.__name__}._athena_table_name")
 
     def _create_athena_tables(self) -> Set[str]:
         raise NotImplementedError(f"{self.__class__.__name__}._create_athena_tables")
 
     def output(self) -> luigi.Target:
-        return AthenaDatabaseTarget(self._athena_db_name(), self._athena_table_names())
+        return AthenaDatabaseTarget(self._athena_db_name(), {self._athena_table_name()})
 
     def run(self) -> None:
         """Copies all files: first the graph itself, then :file:`meta/compression.json`."""
@@ -409,6 +409,9 @@ class _CsvToOrcToS3ToAthenaTask(luigi.Task):
 
 
 class PopularContentsOrcToS3(_CsvToOrcToS3ToAthenaTask):
+    """Reads the CSV from :class:`PopularContents`, converts it to ORC,
+    upload the ORC to S3, and create an Athena table for it."""
+
     popular_contents_path = luigi.PathParameter()
     dataset_name = luigi.Parameter()
     s3_athena_output_location = S3PathParameter()
@@ -459,8 +462,8 @@ class PopularContentsOrcToS3(_CsvToOrcToS3ToAthenaTask):
     def _athena_db_name(self) -> str:
         return f"derived_{self.dataset_name.replace('-', '')}"
 
-    def _athena_table_names(self) -> Set[str]:
-        return {"popular_contents"}
+    def _athena_table_name(self) -> str:
+        return "popular_contents"
 
     def _create_athena_tables(self):
         import boto3
@@ -558,7 +561,7 @@ class CountPaths(luigi.Task):
             #
             # As it has this header:
             #     SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2
-            # we have to use sed to add the extra columns. CountPath.java does not use
+            # we have to use sed to add the extra columns. CountPaths.java does not use
             # them, so dummy values are fine.
             content_input = Command.zstdcat(
                 self.local_graph_path / f"{self.graph_name}.nodes.csv.zst"
@@ -595,3 +598,100 @@ class CountPaths(luigi.Task):
             > AtomicFileSink(self.output())
         ).run()
         # fmt: on
+
+
+class PathCountsOrcToS3(_CsvToOrcToS3ToAthenaTask):
+    """Reads the CSV from :class:`CountPaths`, converts it to ORC,
+    upload the ORC to S3, and create an Athena table for it."""
+
+    topological_order_dir = luigi.PathParameter()
+    object_types = luigi.Parameter()
+    direction = luigi.ChoiceParameter(choices=["forward", "backward"])
+    dataset_name = luigi.Parameter()
+    s3_athena_output_location = S3PathParameter()
+
+    def requires(self) -> PopularContents:
+        """Returns corresponding PopularContents instance"""
+        if self.dataset_name not in str(self.topological_order_dir):
+            raise Exception(
+                f"Dataset name {self.dataset_name!r} is not part of the "
+                f"topological_order_dir {self.topological_order_dir!r}"
+            )
+        return CountPaths(
+            topological_order_dir=self.topological_order_dir,
+            object_types=self.object_types,
+            direction=self.direction,
+        )
+
+    def _base_filename(self) -> str:
+        return f"path_counts_{self.direction}_{self.object_types}"
+
+    def _input_csv_path(self) -> Path:
+        return self.topological_order_dir / f"{self._base_filename()}.csv.zst"
+
+    def _s3_bucket(self) -> str:
+        # TODO: configurable
+        return "softwareheritage"
+
+    def _s3_prefix(self) -> str:
+        # TODO: configurable
+        return f"derived_datasets/{self.dataset_name}/{self._base_filename()}/"
+
+    def _orc_columns(self) -> List[Tuple[str, str]]:
+        return [
+            ("SWHID", "string"),
+            ("paths_from_roots", "double"),
+            ("all_paths", "double"),
+        ]
+
+    def _approx_nb_rows(self) -> int:
+        return self.requires().nb_lines() - 1  # -1 for the header
+
+    def _parse_row(self, row: List[str]) -> Tuple[Any, ...]:
+        (swhid, paths_from_roots, all_paths) = row
+        return (swhid, float(paths_from_roots), float(all_paths))
+
+    def _pyorc_writer_kwargs(self) -> Dict[str, Any]:
+        return {
+            **super()._pyorc_writer_kwargs(),
+            "bloom_filter_columns": ["SWHID"],
+        }
+
+    def _athena_db_name(self) -> str:
+        return f"derived_{self.dataset_name.replace('-', '')}"
+
+    def _athena_table_name(self) -> str:
+        return self._base_filename().replace(",", "")
+
+    def _create_athena_tables(self):
+        import boto3
+
+        from swh.dataset.athena import query
+
+        client = boto3.client("athena")
+        client.output_location = self.s3_athena_output_location
+
+        client.database_name = "default"  # we have to pick some existing database
+        query(
+            client,
+            f"CREATE DATABASE IF NOT EXISTS {self._athena_db_name()};",
+            desc=f"Creating {self._athena_db_name()} database",
+        )
+        client.database_name = self._athena_db_name()
+
+        query(
+            client,
+            f"""
+            CREATE EXTERNAL TABLE IF NOT EXISTS
+                {self._athena_db_name()}.{self._athena_table_name()}
+            (
+                SWHID string,
+                paths_from_roots double,
+                all_paths double
+            )
+            STORED AS ORC
+            LOCATION 's3://{self._s3_bucket()}/{self._s3_prefix()}'
+            TBLPROPERTIES ("orc.compress"="ZSTD");
+            """,
+            desc=f"Creating table {self._athena_table_name()}",
+        )
