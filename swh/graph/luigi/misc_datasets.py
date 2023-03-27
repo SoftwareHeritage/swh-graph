@@ -58,6 +58,15 @@ class _EndOfQueue:
 _ENF_OF_QUEUE = _EndOfQueue()
 
 
+def count_nodes(local_graph_path: Path, graph_name: str, object_types: str) -> int:
+    """Returns the number of nodes of the given types (in the 'cnt,dir,rev,rel,snp,ori'
+    format) in the graph.
+    """
+    node_stats = (local_graph_path / f"{graph_name}.nodes.stats.txt").read_text()
+    nb_nodes_per_type = dict(line.split() for line in node_stats.split("\n") if line)
+    return sum(int(nb_nodes_per_type[type_]) for type_ in object_types.split(","))
+
+
 class TopoSort(luigi.Task):
     """Creates a file that contains all SWHIDs in topological order from a compressed
     graph."""
@@ -178,6 +187,14 @@ class _CsvToOrcToS3ToAthenaTask(luigi.Task):
     def _orc_columns(self) -> List[Tuple[str, str]]:
         """Returns a list of ``(column_name, orc_type)``"""
         raise NotImplementedError(f"{self.__class__.__name__}._orc_columns")
+
+    def _approx_nb_rows(self) -> int:
+        """Returns number of rows in the CSV file. Used only for progress reporting"""
+        from .shell import Command, wc
+
+        # This is a rough estimate, because some rows can contain newlines;
+        # but it is good enough for a progress report
+        return wc(Command.zstdcat(self._input_csv_path()), "-l")
 
     def _parse_row(self, row: List[str]) -> Tuple[Any, ...]:
         """Parses a row from the CSV file"""
@@ -339,7 +356,13 @@ class _CsvToOrcToS3ToAthenaTask(luigi.Task):
         batch_size = self._pyorc_writer_kwargs().get("batch_size", 1024)
 
         for row_batch in grouper(
-            tqdm.tqdm(reader, desc="Reading CSV", unit_scale=True, unit="row"),
+            tqdm.tqdm(
+                reader,
+                desc="Reading CSV",
+                unit_scale=True,
+                unit="row",
+                total=self._approx_nb_rows(),
+            ),
             batch_size,
         ):
             row_batch = list(map(self._parse_row, row_batch))
@@ -419,6 +442,9 @@ class PopularContentsOrcToS3(_CsvToOrcToS3ToAthenaTask):
             ("filename", "binary"),
             ("occurrences", "bigint"),
         ]
+
+    def _approx_nb_rows(self) -> int:
+        return self.requires().nb_lines() - 1  # -1 for the header
 
     def _parse_row(self, row: List[str]) -> Tuple[Any, ...]:
         (swhid, length, filename, occurrences) = row
@@ -508,6 +534,13 @@ class CountPaths(luigi.Task):
             / f"path_counts_{self.direction}_{self.object_types}.csv.zst"
         )
 
+    def nb_lines(self):
+        nb_lines = count_nodes(
+            self.local_graph_path, self.graph_name, self.object_types
+        )
+        nb_lines += 1  # CSV header
+        return nb_lines
+
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.CountPaths and compresses"""
         from .shell import AtomicFileSink, Command, Java
@@ -517,17 +550,6 @@ class CountPaths(luigi.Task):
             raise ValueError(f"Invalid object types: {invalid_object_types}")
         class_name = "org.softwareheritage.graph.utils.CountPaths"
         topological_order_path = self.input()["toposort"].path
-
-        node_stats = (
-            self.local_graph_path / f"{self.graph_name}.nodes.stats.txt"
-        ).read_text()
-        nb_nodes_per_type = dict(
-            line.split() for line in node_stats.split("\n") if line
-        )
-        nb_nodes = sum(
-            int(nb_nodes_per_type[type_]) for type_ in self.object_types.split(",")
-        )
-        nb_lines = nb_nodes + 1  # CSV header
 
         topo_order_command = Command.zstdcat(topological_order_path)
 
@@ -568,7 +590,7 @@ class CountPaths(luigi.Task):
                 self.local_graph_path / self.graph_name,
                 self.direction
             )
-            | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
+            | Command.pv("--line-mode", "--wait", "--size", str(self.nb_lines()))
             | Command.zstdmt("-19")
             > AtomicFileSink(self.output())
         ).run()
