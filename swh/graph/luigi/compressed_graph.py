@@ -530,7 +530,8 @@ class Bfs(_CompressionStepTask):
     def _large_java_allocations(self) -> int:
         bvgraph_size = self._bvgraph_allocation()
         visitorder_size = self._nb_nodes() * 8  # longarray in BFS.java
-        return bvgraph_size + visitorder_size
+        extra_size = 500_000_000  # TODO: why is this needed?
+        return bvgraph_size + visitorder_size + extra_size
 
 
 class PermuteBfs(_CompressionStepTask):
@@ -592,9 +593,14 @@ class Simplify(_CompressionStepTask):
     OUTPUT_FILES = {"-bfs-simplified.graph"}
 
     def _large_java_allocations(self) -> int:
+        import multiprocessing
+
         bvgraph_size = self._bvgraph_allocation()
         permutation_size = self._nb_nodes() * 8  # longarray
-        return bvgraph_size + permutation_size
+        write_buffer = 100_000_000  # approx; used by the final ImmutableGraph.store()
+        return (
+            bvgraph_size + permutation_size + write_buffer * multiprocessing.cpu_count()
+        )
 
 
 class Llp(_CompressionStepTask):
@@ -617,7 +623,7 @@ class Llp(_CompressionStepTask):
             label_array_size
             + bvgraph_size
             + volume_array_size
-            + permutation_size
+            + permutation_size * 3  # 'intLabel', 'major', and next value of 'major'
             + major_array_size
             + canchange_array_size
         )
