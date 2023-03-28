@@ -1,6 +1,7 @@
 swh.graph (2.1.2-3~swh1) unstable-swh; urgency=medium
 
   * Add build-dependency on grpcio
+  * Add missing zstd build-dep
 
  -- Nicolas Dandrimont <olasd@debian.org>  Tue, 28 Mar 2023 10:18:45 +0200
 
