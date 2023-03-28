@@ -440,6 +440,7 @@ class _CsvToOrcToS3ToAthenaTask(luigi.Task):
                 orc_files.append(filename)
 
         for orc_file in orc_files:
+            print("Deleting", f"s3://{self._s3_bucket()}/{prefix}{orc_file}")
             s3.delete_object(Bucket=self._s3_bucket(), Key=f"{prefix}{orc_file}")
 
     def _convert_csv_to_orc_on_s3(self, reader) -> None:
