@@ -1,3 +1,15 @@
+swh.graph (2.2.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 2.2.0     - (tagged by Valentin Lorentz
+    <vlorentz@softwareheritage.org> on 2022-10-24 11:51:52 +0200)
+  * Upstream changes:     - v2.2.0     - * FindEarliestRevision: Add
+    earliest_ts and rev_occurrences columns     - * pre-commit, tox:
+    Bump pre-commit, codespell, black and flake8     - * docs/grpc-
+    api.rst: Update to match to current code     - * docs/grpc-api.rst:
+    Add Python examples
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 28 Mar 2023 09:05:55 +0000
+
 swh.graph (2.1.2-4~swh1) unstable-swh; urgency=medium
 
   * Build-depend on recent enough grpcio
