@@ -186,7 +186,7 @@ class PopularContents(luigi.Task):
     local_graph_path = luigi.PathParameter()
     popular_contents_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
-    max_results_per_content = luigi.IntParameter(default=0)
+    max_results_per_content = luigi.IntParameter(default=1)
     popularity_threshold = luigi.IntParameter(default=0)
 
     def _max_ram(self):
