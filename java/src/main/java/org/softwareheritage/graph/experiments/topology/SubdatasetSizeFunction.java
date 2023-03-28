@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2020 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph.experiments.topology;
 
 import com.google.common.primitives.Longs;
@@ -11,8 +18,8 @@ import it.unimi.dsi.fastutil.longs.LongBigArrays;
 import it.unimi.dsi.io.ByteDiskQueue;
 import it.unimi.dsi.logging.ProgressLogger;
 import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
-import org.softwareheritage.graph.Graph;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.SwhBidirectionalGraph;
+import org.softwareheritage.graph.SwhType;
 import org.softwareheritage.graph.experiments.forks.ForkCC;
 
 import java.io.*;
@@ -22,7 +29,7 @@ public class SubdatasetSizeFunction {
     private SubdatasetSizeFunction() {
     }
 
-    public static void run(final Graph graph) throws IOException {
+    public static void run(final SwhBidirectionalGraph graph) throws IOException {
         final ProgressLogger pl = new ProgressLogger();
         pl.itemsName = "nodes";
         pl.expectedUpdates = graph.numNodes();
@@ -45,7 +52,7 @@ public class SubdatasetSizeFunction {
         pl.start("Running traversal starting from origins...");
         for (long j = 0; j < n; ++j) {
             long i = BigArrays.get(randomPerm, j);
-            if (visited.getBoolean(i) || graph.getNodeType(i) != Node.Type.ORI) {
+            if (visited.getBoolean(i) || graph.getNodeType(i) != SwhType.ORI) {
                 continue;
             }
             visitedOrigins++;
@@ -57,7 +64,7 @@ public class SubdatasetSizeFunction {
                 final long currentNode = Longs.fromByteArray(byteBuf);
 
                 visitedNodes++;
-                if (graph.getNodeType(currentNode) == Node.Type.CNT)
+                if (graph.getNodeType(currentNode) == SwhType.CNT)
                     visitedContents++;
 
                 final LazyLongIterator iterator = graph.successors(currentNode);
@@ -92,7 +99,7 @@ public class SubdatasetSizeFunction {
 
         final String basename = jsapResult.getString("basename");
 
-        Graph graph = Graph.loadMapped(basename);
+        SwhBidirectionalGraph graph = SwhBidirectionalGraph.loadMapped(basename);
         run(graph);
     }
 }

@@ -1,5 +1,10 @@
 [tool.black]
 target-version = ['py37']
+extend-exclude = '''
+/(
+    | swh/graph/grpc
+)/
+'''
 
 [tool.isort]
 multi_line_output = 3

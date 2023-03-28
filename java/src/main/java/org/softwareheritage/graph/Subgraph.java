@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2020 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph;
 
 import it.unimi.dsi.big.webgraph.ImmutableGraph;
@@ -7,7 +14,7 @@ import it.unimi.dsi.big.webgraph.NodeIterator;
 import java.util.NoSuchElementException;
 
 public class Subgraph extends ImmutableGraph {
-    private final Graph underlyingGraph;
+    private final SwhBidirectionalGraph underlyingGraph;
     public final AllowedNodes allowedNodeTypes;
 
     private long nodeCount = -1;
@@ -16,7 +23,7 @@ public class Subgraph extends ImmutableGraph {
      * Constructor.
      *
      */
-    public Subgraph(Graph underlyingGraph, AllowedNodes allowedNodeTypes) {
+    public Subgraph(SwhBidirectionalGraph underlyingGraph, AllowedNodes allowedNodeTypes) {
         this.underlyingGraph = underlyingGraph.copy();
         this.allowedNodeTypes = allowedNodeTypes;
     }
@@ -216,9 +223,9 @@ public class Subgraph extends ImmutableGraph {
      *
      * @param nodeId node specified as a long id
      * @return corresponding node type
-     * @see Node.Type
+     * @see SwhType
      */
-    public Node.Type getNodeType(long nodeId) {
+    public SwhType getNodeType(long nodeId) {
         return underlyingGraph.getNodeType(nodeId);
     }
 }

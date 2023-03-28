@@ -1,8 +1,73 @@
-swh.graph (0.5.2-1~swh2~bpo10+1) buster-swh; urgency=medium
+swh.graph (2.1.2-3~swh1) unstable-swh; urgency=medium
 
-  * Rebuild for buster-swh
+  * Add build-dependency on grpcio
+  * Add missing zstd build-dep
+  * Add patch to work around test failures
 
- -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Wed, 06 Apr 2022 14:14:04 +0000
+ -- Nicolas Dandrimont <olasd@debian.org>  Tue, 28 Mar 2023 10:18:45 +0200
+
+swh.graph (2.1.2-2~swh1) unstable-swh; urgency=medium
+
+  * Drop pristine-tar
+
+ -- Nicolas Dandrimont <olasd@debian.org>  Tue, 20 Dec 2022 15:40:20 +0100
+
+swh.graph (2.1.2-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 2.1.2     - (tagged by Valentin Lorentz
+    <vlorentz@softwareheritage.org> on 2022-09-30 17:06:48 +0200)
+  * Upstream changes:     - v2.1.2     - * Apply 'max_matching_nodes'
+    restriction after 'return_types' filter     - * http_client: Add
+    max_matching_nodes parameter to visit_nodes()
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Fri, 30 Sep 2022 15:24:55 +0000
+
+swh.graph (2.1.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 2.1.0     - (tagged by Valentin Lorentz
+    <vlorentz@softwareheritage.org> on 2022-09-27 16:23:54 +0200)
+  * Upstream changes:     - v2.1.0     - * Add max_matching_nodes
+    parameter to /leaves     - * Add field 'max_matching_nodes' to
+    TraversalRequest     - * Exclude protobuf 4.21.*
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 27 Sep 2022 14:41:17 +0000
+
+swh.graph (2.0.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 2.0.0     - (tagged by Nicolas Dandrimont
+    <nicolas@dandrimont.eu> on 2022-09-13 18:18:14 +0200)
+  * Upstream changes:     - Release swh.graph 2.0.0     - Rename modules
+    to unconfuse them     - Allow separate deployment of the swh.graph
+    grpc server
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 13 Sep 2022 16:33:41 +0000
+
+swh.graph (1.0.2-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 1.0.2     - (tagged by Valentin Lorentz
+    <vlorentz@softwareheritage.org> on 2022-09-06 17:55:41 +0200)
+  * Upstream changes:     - v1.0.2     - * Return HTTP 503 on
+    AioRpcError     - * Remove documentation of deleted endpoint     - *
+    rpc_server: use shlex.quote() to print command     - * Minor test
+    improvements
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Mon, 12 Sep 2022 12:39:28 +0000
+
+swh.graph (1.0.1-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 1.0.1     - (tagged by Antoine Pietri
+    <antoine.pietri1@gmail.com> on 2022-06-30 20:32:53 +0200)
+  * Upstream changes:     - version 1.0.1
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Thu, 30 Jun 2022 18:51:23 +0000
+
+swh.graph (1.0.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 1.0.0     - (tagged by Antoine Pietri
+    <antoine.pietri1@gmail.com> on 2022-06-30 17:19:33 +0200)
+  * Upstream changes:     - version 1.0.0
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Thu, 30 Jun 2022 15:34:59 +0000
 
 swh.graph (0.5.2-1~swh2) unstable-swh; urgency=medium
 

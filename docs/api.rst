@@ -1,7 +1,16 @@
 .. _swh-graph-api:
 
-Graph RPC API
-=============
+Graph Querying HTTP API
+=======================
+
+The Graph Querying API is a high-level HTTP API intended to run common,
+relatively simple traversal queries on the compressed graph.
+
+The client/server architecture allows it to only load the graph in memory once
+then serve multiple different requests. However, it is limited in expressivity;
+more complex or resource-intensive queries should rather use the
+:ref:`Low-level Java API <swh-graph-java-api>` to run them as standalone
+programs.
 
 
 Terminology
@@ -53,8 +62,11 @@ Examples
 - ``"cnt,snp"`` accepted node types returned in the query results.
 
 
+Endpoints
+---------
+
 Leaves
-------
+~~~~~~
 
 .. http:get:: /graph/leaves/:src
 
@@ -71,6 +83,8 @@ Leaves
         default to 0 (not restricted)
     :query string return_types: only return the nodes matching this type;
         default to ``"*"``
+    :query integer max_matching_nodes: how many results to return before stopping;
+        default to 0 (not restricted)
 
     :statuscode 200: success
     :statuscode 400: invalid query string provided
@@ -97,7 +111,7 @@ Leaves
 
 
 Neighbors
----------
+~~~~~~~~~
 
 .. http:get:: /graph/neighbors/:src
 
@@ -138,7 +152,7 @@ Neighbors
 
 
 Walk
-----
+~~~~
 
 ..
   .. http:get:: /graph/walk/:src/:dst
@@ -176,77 +190,9 @@ Walk
           swh:1:rev:8d517bdfb57154b8a11d7f1682ecc0f79abf8e02
           ...
 
-.. http:get:: /graph/randomwalk/:src/:dst
-
-    Performs a graph *random* traversal, i.e., picking one random successor
-    node at each hop, from source to destination (final destination node
-    included).
-
-    :param string src: starting node specified as a SWHID
-    :param string dst: destination node, either as a node SWHID or a node type.
-        The traversal will stop at the first node encountered matching the
-        desired destination.
-
-    :query string edges: edges types the traversal can follow; default to
-        ``"*"``
-    :query string direction: direction in which graph edges will be followed;
-        can be either ``forward`` or ``backward``, default to ``forward``
-    :query int limit: limit the number of nodes returned. You can use positive
-        numbers to get the first N results, or negative numbers to get the last
-        N results starting from the tail;
-        default to ``0``, meaning no limit.
-    :query integer max_edges: how many edges can be traversed during the visit;
-        default to 0 (not restricted)
-    :query string return_types: only return the nodes matching this type;
-        default to ``"*"``
-
-    :statuscode 200: success
-    :statuscode 400: invalid query string provided
-    :statuscode 404: starting node cannot be found
-
-    **Example:**
-
-    .. sourcecode:: http
-
-        GET /graph/randomwalk/swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2/ori?direction=backward HTTP/1.1
-
-        Content-Type: text/plain
-        Transfer-Encoding: chunked
-
-    .. sourcecode:: http
-
-        HTTP/1.1 200 OK
-
-        swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2
-        swh:1:dir:8de8a8823a0780524529c94464ee6ef60b98e2ed
-        swh:1:dir:7146ea6cbd5ffbfec58cc8df5e0552da45e69cb7
-        swh:1:rev:b12563e00026b48b817fd3532fc3df2db2a0f460
-        swh:1:rev:13e8ebe80fb878bade776131e738d5772aa0ad1b
-        swh:1:rev:cb39b849f167c70c1f86d4356f02d1285d49ee13
-        ...
-        swh:1:rev:ff70949f336593d6c59b18e4989edf24d7f0f254
-        swh:1:snp:a511810642b7795e725033febdd82075064ed863
-        swh:1:ori:98aa0e71f5c789b12673717a97f6e9fa20aa1161
-
-    **Limit example:**
-
-    .. sourcecode:: http
-
-        GET /graph/randomwalk/swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2/ori?direction=backward&limit=-2 HTTP/1.1
-
-        Content-Type: text/plain
-        Transfer-Encoding: chunked
-
-    .. sourcecode:: http
-
-        HTTP/1.1 200 OK
-
-        swh:1:ori:98aa0e71f5c789b12673717a97f6e9fa20aa1161
-        swh:1:snp:a511810642b7795e725033febdd82075064ed863
-
 
 Visit
------
+~~~~~
 
 .. http:get:: /graph/visit/nodes/:src
 .. http:get:: /graph/visit/edges/:src
@@ -263,6 +209,8 @@ Visit
         default to 0 (not restricted)
     :query string return_types: only return the nodes matching this type;
         default to ``"*"``
+    :query integer max_matching_nodes: how many nodes to return/visit before stopping;
+        default to 0 (not restricted)
 
     :statuscode 200: success
     :statuscode 400: invalid query string provided
@@ -340,7 +288,7 @@ Visit
 
 
 Counting results
-----------------
+~~~~~~~~~~~~~~~~
 
 The following method variants, with trailing `/count` added, behave like their
 already discussed counterparts but, instead of returning results, return the
@@ -363,7 +311,7 @@ already discussed counterparts but, instead of returning results, return the
 
 
 Stats
------
+~~~~~
 
 .. http:get:: /graph/stats
 
@@ -405,3 +353,125 @@ Stats
                 "avg": 0.6107127825377487
             }
         }
+
+
+Use-case examples
+-----------------
+
+This section showcases how to leverage the endpoints of the HTTP API described
+above for some common use-cases.
+
+
+Browsing
+~~~~~~~~
+
+The following use cases require traversing the *forward graph*.
+
+- **ls**: given a directory node, list (non recursively) all linked nodes of
+  type directory and content
+
+  Endpoint::
+
+    /graph/neighbors/:DIR_ID?edges=dir:cnt,dir:dir
+
+- **ls -R**: given a directory node, recursively list all linked nodes of type
+  directory and content
+
+  Endpoint::
+
+    /graph/visit/paths/:DIR_ID?edges=dir:cnt,dir:dir
+
+- **git log**: given a revision node, recursively list all linked nodes of type
+  revision
+
+  Endpoint::
+
+    /graph/visit/nodes/:REV_ID?edges=rev:rev
+
+
+Vault
+~~~~~
+
+The following use cases require traversing the *forward graph*.
+
+- **tarball** (same as *ls -R* above)
+
+- **git bundle**: given a node, recursively list all linked nodes of any kind
+
+  Endpoint::
+
+     /graph/visit/nodes/:NODE_ID?edges=*
+
+
+Provenance
+~~~~~~~~~~
+
+The following use cases require traversing the *backward (transposed)
+graph*.
+
+- **commit provenance**: given a content or directory node, return *a* commit
+  whose directory (recursively) contains it
+
+  Endpoint::
+
+    /graph/walk/:NODE_ID/rev?direction=backward&edges=dir:dir,cnt:dir,dir:rev
+
+- **complete commit provenance**: given a content or directory node, return
+  *all* commits whose directory (recursively) contains it
+
+  Endpoint::
+
+    /graph/leaves/:NODE_ID?direction=backward&edges=dir:dir,cnt:dir,dir:rev
+
+- **origin provenance**: given a content, directory, or commit node, return
+  *an* origin that has at least one snapshot that (recursively) contains it
+
+  Endpoint::
+
+    /graph/walk/:NODE_ID/ori?direction=backward&edges=*
+
+- **complete origin provenance**: given a content, directory, or commit node,
+  return *all* origins that have at least one snapshot that (recursively)
+  contains it
+
+  Endpoint::
+
+    /graph/leaves/:NODE_ID?direction=backward&edges=*
+
+
+Provenance statistics
+~~~~~~~~~~~~~~~~~~~~~
+
+The following use cases require traversing the *backward (transposed)
+graph*.
+
+- **content popularity across commits**: count the number of commits (or
+  *commit popularity*) that link to a directory that (recursively) includes a
+  given content.
+
+  Endpoint::
+
+    /graph/count/leaves/:NODE_ID?direction=backward&edges=cnt:dir,dir:dir,dir:rev
+
+- **commit popularity across origins**: count the number of origins (or *origin
+  popularity*) that have a snapshot that (recursively) includes a given commit.
+
+  Endpoint::
+
+    /graph/count/leaves/:NODE_ID?direction=backward&edges=*
+
+The following use cases require traversing the *forward graph*.
+
+- **revision size** (as n. of contents) distribution: the number of contents
+  that are (recursively) reachable from a given revision.
+
+  Endpoint::
+
+    /graph/count/leaves/:NODE_ID?edges=*
+
+- **origin size** (as n. of revisions) distribution: count the number of
+  revisions that are (recursively) reachable from a given origin.
+
+  Endpoint::
+
+    /graph/count/leaves/:NODE_ID?edges=ori:snp,snp:rel,snp:rev,rel:rev,rev:rev

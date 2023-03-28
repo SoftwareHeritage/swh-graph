@@ -1,51 +1,38 @@
+.. _swh-graph-quickstart:
+
 Quickstart
 ==========
 
-This quick tutorial shows how to compress and browse a graph using ``swh.graph``.
-
-It does not cover the technical details behind the graph compression techniques
-(refer to :ref:`graph-compression`).
-
+This quick tutorial shows how to start the ``swh.graph`` service to query
+an existing compressed graph with the high-level HTTP API.
 
 Dependencies
 ------------
 
 In order to run the ``swh.graph`` tool, you will need Python (>= 3.7) and Java
-JRE, you do not need the JDK if you install the package from pypi, but may want
-to install it if you want to hack the code or install it from this git
-repository. To compress a graph, you will need zstd_ compression tools.
+JRE. On a Debian system:
 
-It is highly recommended to install this package in a virtualenv.
+.. code:: console
 
-On a Debian stable (buster) system:
+   $ sudo apt install python3 python3-venv default-jre
 
-.. code:: bash
-
-   $ sudo apt install python3-virtualenv default-jre zstd
-
-
-.. _zstd: https://facebook.github.io/zstd/
-
-
-Install
--------
+Installing swh.graph
+--------------------
 
 Create a virtualenv and activate it:
 
-.. code:: bash
+.. code:: console
 
-   ~/tmp$ mkdir swh-graph-tests
-   ~/tmp$ cd swh-graph-tests
-   ~/t/swh-graph-tests$ virtualenv swhenv
-   ~/t/swh-graph-tests$ . swhenv/bin/activate
+   $ python3 -m venv .venv
+   $ source .venv/bin/activate
 
 Install the ``swh.graph`` python package:
 
-.. code:: bash
+.. code:: console
 
-   (swhenv) ~/t/swh-graph-tests$ pip install swh.graph
+   (venv) $ pip install swh.graph
    [...]
-   (swhenv) ~/t/swh-graph-tests swh graph --help
+   (venv) $ swh graph --help
    Usage: swh graph [OPTIONS] COMMAND [ARGS]...
 
      Software Heritage graph tools.
@@ -55,105 +42,76 @@ Install the ``swh.graph`` python package:
      -h, --help              Show this message and exit.
 
    Commands:
-     api-client  client for the graph RPC service
-     cachemount  Cache the mmapped files of the compressed graph in a tmpfs.
      compress    Compress a graph using WebGraph Input: a pair of files...
-     map         Manage swh-graph on-disk maps
      rpc-serve   run the graph RPC service
 
-Compression
------------
 
-Existing datasets
-^^^^^^^^^^^^^^^^^
+.. _swh-graph-retrieving-compressed:
 
-You can directly use compressed graph datasets provided by Software Heritage.
-Here is a small and realistic dataset (3.1GB):
+Retrieving a compressed graph
+-----------------------------
 
-  https://annex.softwareheritage.org/public/dataset/graph/latest/popular-3k-python/python3kcompress.tar
+Software Heritage provides a list of off-the-shelf datasets that can be used
+for various research or prototyping purposes. Most of them are available in
+*compressed* representation, i.e., in a format suitable to be loaded and
+queried by the ``swh-graph`` library.
 
-.. code:: bash
+All the publicly available datasets are documented on this page:
+https://docs.softwareheritage.org/devel/swh-dataset/graph/dataset.html
 
-   (swhenv) ~/t/swh-graph-tests$ curl -O https://annex.softwareheritage.org/public/dataset/graph/latest/popular-3k-python/python3kcompress.tar
-   (swhenv) ~/t/swh-graph-tests$ tar xvf python3kcompress.tar
-   (swhenv) ~/t/swh-graph-tests$ touch python3kcompress/*.obl # fix the mtime of cached offset files to allow faster loading
+A good way of retrieving these datasets is to use the `AWS S3 CLI
+<https://docs.aws.amazon.com/cli/latest/reference/s3/>`_.
 
-Note: not for the faint heart, but the full dataset is available at:
+Here is an example with the dataset ``2021-03-23-popular-3k-python``, which has
+a relatively reasonable size (~15 GiB including property data, with
+the compressed graph itself being less than 700 MiB):
 
-  https://annex.softwareheritage.org/public/dataset/graph/latest/compressed/
+.. code:: console
 
-Own datasets
-^^^^^^^^^^^^
-
-A graph is described as both its adjacency list and the set of nodes
-identifiers in plain text format. Such graph example can be found in the
-``swh/graph/tests/dataset/`` folder.
-
-You can compress the example graph on the command line like this:
-
-.. code:: bash
+    (venv) $ pip install awscli
+    [...]
+    (venv) $ mkdir -p 2021-03-23-popular-3k-python/compressed
+    (venv) $ cd 2021-03-23-popular-3k-python/
+    (venv) $ aws s3 cp --recursive s3://softwareheritage/graph/2021-03-23-popular-3k-python/compressed/ compressed
 
 
-   (swhenv) ~/t/swh-graph-tests$ swh graph compress --graph swh/graph/tests/dataset/example --outdir output/
+You can also retrieve larger graphs, but note that these graphs are generally
+intended to be loaded fully in RAM, and do not fit on ordinary desktop
+machines. The server we use in production to run the graph service has more
+than 700 GiB of RAM. These memory considerations are discussed in more details
+in :ref:`swh-graph-memory`.
 
-   [...]
-
-   (swhenv) ~/t/swh-graph-tests$ ls output/
-    example-bv.properties  example.mph             example.obl      example.outdegree   example.swhid2node.bin    example-transposed.offsets
-    example.graph          example.node2swhid.bin  example.offsets  example.properties  example-transposed.graph  example-transposed.properties
-    example.indegree       example.node2type.map   example.order    example.stats       example-transposed.obl
+**Note:** for testing purposes, a fake test dataset is available in the
+``swh-graph`` repository, with just a few dozen nodes. Its basename is
+``swh-graph/swh/graph/tests/dataset/compressed/example``.
 
 
 API server
 ----------
 
-To start a ``swh.graph`` API server of a compressed graph dataset, run:
+To start a ``swh.graph`` API server of a compressed graph dataset, you need to
+use the ``rpc-serve`` command with the basename of the graph, which is the path prefix
+of all the graph files (e.g., with the basename ``compressed/graph``, it will
+attempt to load the files located at
+``compressed/graph.{graph,properties,offsets,...}``.
 
-.. code:: bash
+In our example:
 
-   (swhenv) ~/t/swh-graph-tests$ swh graph rpc-serve -g output/example
-   Loading graph output/example ...
+.. code:: console
+
+   (venv) $ swh graph rpc-serve -g compressed/graph
+   Loading graph compressed/graph ...
    Graph loaded.
    ======== Running on http://0.0.0.0:5009 ========
    (Press CTRL+C to quit)
 
 From there you can use this endpoint to query the compressed graph, for example
-with httpie_ (``sudo apt install``) from another terminal:
+with httpie_ (``sudo apt install httpie``):
 
 .. _httpie: https://httpie.org
 
 
 .. code:: bash
-
-   ~/tmp$ http :5009/graph/visit/nodes/swh:1:rel:0000000000000000000000000000000000000010
-    HTTP/1.1 200 OK
-    Content-Type: text/plain
-    Date: Tue, 15 Sep 2020 08:33:25 GMT
-    Server: Python/3.8 aiohttp/3.6.2
-    Transfer-Encoding: chunked
-
-    swh:1:rel:0000000000000000000000000000000000000010
-    swh:1:rev:0000000000000000000000000000000000000009
-    swh:1:rev:0000000000000000000000000000000000000003
-    swh:1:dir:0000000000000000000000000000000000000002
-    swh:1:cnt:0000000000000000000000000000000000000001
-    swh:1:dir:0000000000000000000000000000000000000008
-    swh:1:dir:0000000000000000000000000000000000000006
-    swh:1:cnt:0000000000000000000000000000000000000004
-    swh:1:cnt:0000000000000000000000000000000000000005
-    swh:1:cnt:0000000000000000000000000000000000000007
-
-
-Running the existing ``python3kcompress`` dataset:
-
-.. code:: bash
-
-   (swhenv) ~/t/swh-graph-tests$ swh graph rpc-serve -g python3kcompress/python3k
-   Loading graph python3kcompress/python3k ...
-   Graph loaded.
-   ======== Running on http://0.0.0.0:5009 ========
-   (Press CTRL+C to quit)
-
 
    ~/tmp$ http :5009/graph/leaves/swh:1:dir:432d1b21c1256f7408a07c577b6974bbdbcc1323
    HTTP/1.1 200 OK
@@ -170,5 +128,5 @@ Running the existing ``python3kcompress`` dataset:
    swh:1:cnt:a6b60e797063fef707bbaa4f90cfb4a2cbbddd4a
    swh:1:cnt:cc0a1deca559c1dd2240c08156d31cde1d8ed406
 
-
-See the documentation of the :ref:`API <swh-graph-api>` for more details.
+See the documentation of the :ref:`API <swh-graph-api>` for more details on how
+to use the HTTP graph querying API.

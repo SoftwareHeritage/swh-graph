@@ -1,14 +1,25 @@
+/*
+ * Copyright (c) 2019-2022 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph.maps;
 
 import it.unimi.dsi.fastutil.Size64;
+import it.unimi.dsi.fastutil.bytes.ByteBigList;
+import it.unimi.dsi.fastutil.bytes.ByteMappedBigList;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigList;
+import it.unimi.dsi.fastutil.longs.LongMappedBigList;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
-import it.unimi.dsi.util.ByteBufferLongBigList;
 import org.softwareheritage.graph.SWHID;
+import org.softwareheritage.graph.compress.NodeMapBuilder;
 
-import java.io.FileInputStream;
+import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -24,7 +35,7 @@ import java.nio.charset.StandardCharsets;
  * @see NodeMapBuilder
  */
 
-public class NodeIdMap {
+public class NodeIdMap implements Size64 {
     /** Fixed length of binary SWHID buffer */
     public static final int SWHID_BIN_SIZE = 22;
 
@@ -33,36 +44,33 @@ public class NodeIdMap {
 
     /** Graph path and basename */
     String graphPath;
-    /** Number of ids to map */
-    long nbIds;
 
     /** mmap()-ed NODE_TO_SWHID file */
-    MapFile nodeToSwhMap;
+    ByteBigList nodeToSwhMap;
 
     /** Minimal perfect hash (MPH) function SWHID -> initial order */
     Object2LongFunction<byte[]> mph;
     /** mmap()-ed long list with the permutation initial order -> graph order */
     LongBigList orderMap;
-    /** FileInputStream containing the permutation */
-    FileInputStream orderInputStream;
 
     /**
      * Constructor.
      *
      * @param graphPath full graph path
-     * @param nbNodes number of nodes in the graph
      */
-    public NodeIdMap(String graphPath, long nbNodes) throws IOException {
+    public NodeIdMap(String graphPath) throws IOException {
         this.graphPath = graphPath;
-        this.nbIds = nbNodes;
 
         // node -> SWHID
-        this.nodeToSwhMap = new MapFile(graphPath + NODE_TO_SWHID, SWHID_BIN_SIZE);
+        try (RandomAccessFile raf = new RandomAccessFile(graphPath + NODE_TO_SWHID, "r")) {
+            this.nodeToSwhMap = ByteMappedBigList.map(raf.getChannel());
+        }
 
         // SWHID -> node
         this.mph = loadMph(graphPath + ".mph");
-        this.orderInputStream = new FileInputStream(graphPath + ".order");
-        this.orderMap = ByteBufferLongBigList.map(orderInputStream.getChannel());
+        try (RandomAccessFile mapFile = new RandomAccessFile(new File(graphPath + ".order"), "r")) {
+            this.orderMap = LongMappedBigList.map(mapFile.getChannel());
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -95,6 +103,7 @@ public class NodeIdMap {
                     return legacyFunction.getLong(new String(bi, StandardCharsets.UTF_8));
                 }
 
+                @SuppressWarnings("deprecation")
                 @Override
                 public int size() {
                     return legacyFunction.size();
@@ -169,18 +178,19 @@ public class NodeIdMap {
          * Each line in NODE_TO_SWHID is formatted as: swhid The file is ordered by nodeId, meaning node0's
          * swhid is at line 0, hence we can read the nodeId-th line to get corresponding swhid
          */
-        if (nodeId < 0 || nodeId >= nbIds) {
-            throw new IllegalArgumentException("Node id " + nodeId + " should be between 0 and " + nbIds);
+        if (nodeId < 0 || nodeId >= nodeToSwhMap.size64()) {
+            throw new IllegalArgumentException(
+                    "Node id " + nodeId + " should be between 0 and " + nodeToSwhMap.size64());
         }
 
-        return SWHID.fromBytes(nodeToSwhMap.readAtLine(nodeId));
+        byte[] swhid = new byte[SWHID_BIN_SIZE];
+        nodeToSwhMap.getElements(nodeId * SWHID_BIN_SIZE, swhid, 0, SWHID_BIN_SIZE);
+        return SWHID.fromBytes(swhid);
     }
 
-    /**
-     * Closes the mapping files.
-     */
-    public void close() throws IOException {
-        orderInputStream.close();
-        nodeToSwhMap.close();
+    /** Return the number of nodes in the map. */
+    @Override
+    public long size64() {
+        return nodeToSwhMap.size64();
     }
 }

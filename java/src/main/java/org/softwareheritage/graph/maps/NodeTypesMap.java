@@ -1,8 +1,15 @@
+/*
+ * Copyright (c) 2019-2022 The Software Heritage developers
+ * See the AUTHORS file at the top-level directory of this distribution
+ * License: GNU General Public License version 3, or any later version
+ * See top-level LICENSE file for more information
+ */
+
 package org.softwareheritage.graph.maps;
 
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigList;
-import org.softwareheritage.graph.Node;
+import org.softwareheritage.graph.SwhType;
 
 import java.io.IOException;
 
@@ -10,10 +17,11 @@ import java.io.IOException;
  * Mapping between long node id and SWH node type as described in the
  * <a href="https://docs.softwareheritage.org/devel/swh-model/data-model.html">data model</a>.
  * <p>
- * The type mapping is pre-computed and dumped on disk in the {@link NodeMapBuilder} class, then it
- * is loaded in-memory here using <a href="http://fastutil.di.unimi.it/">fastutil</a> LongBigList.
- * To be space-efficient, the mapping is stored as a bitmap using minimum number of bits per
- * {@link Node.Type}.
+ * The type mapping is pre-computed and dumped on disk in the
+ * {@link org.softwareheritage.graph.compress.NodeMapBuilder} class, then it is loaded in-memory
+ * here using <a href="http://fastutil.di.unimi.it/">fastutil</a> LongBigList. To be
+ * space-efficient, the mapping is stored as a bitmap using minimum number of bits per
+ * {@link SwhType}.
  *
  * @author The Software Heritage developers
  */
@@ -44,11 +52,11 @@ public class NodeTypesMap {
      * Returns node type from a node long id.
      *
      * @param nodeId node as a long id
-     * @return corresponding {@link Node.Type} value
-     * @see org.softwareheritage.graph.Node.Type
+     * @return corresponding {@link SwhType} value
+     * @see SwhType
      */
-    public Node.Type getType(long nodeId) {
+    public SwhType getType(long nodeId) {
         long type = nodeTypesMap.getLong(nodeId);
-        return Node.Type.fromInt((int) type);
+        return SwhType.fromInt((int) type);
     }
 }

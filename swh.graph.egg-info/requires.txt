@@ -2,11 +2,18 @@ aiohttp
 click
 py4j
 psutil
+protobuf!=4.21.*
+grpcio-tools
+mypy-protobuf
 swh.core[http]>=0.3
 swh.model>=0.13.0
+swh.dataset
 
 [testing]
 pytest
+pytest-asyncio
 types-click
 types-pyyaml
 types-requests
+types-protobuf
+grpc-stubs

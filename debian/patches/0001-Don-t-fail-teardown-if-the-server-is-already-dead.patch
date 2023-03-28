@@ -1,0 +1,24 @@
+From: Nicolas Dandrimont <nicolas@dandrimont.eu>
+Date: Tue, 28 Mar 2023 10:27:08 +0200
+Subject: Don't fail teardown if the server is already dead
+
+---
+ swh/graph/pytest_plugin.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/swh/graph/pytest_plugin.py b/swh/graph/pytest_plugin.py
+index 77cb9d3..77e9525 100644
+--- a/swh/graph/pytest_plugin.py
++++ b/swh/graph/pytest_plugin.py
+@@ -68,7 +68,10 @@ def graph_grpc_server_process():
+ 
+     yield server
+ 
+-    server.kill()
++    try:
++        server.kill()
++    except AttributeError:
++        logger.warning("Could not kill server: already dead?", exc_info=1)
+ 
+ 
+ @pytest.fixture(scope="module")

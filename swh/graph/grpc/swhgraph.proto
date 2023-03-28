@@ -1,0 +1,319 @@
+syntax = "proto3";
+
+import "google/protobuf/field_mask.proto";
+
+option java_multiple_files = true;
+option java_package = "org.softwareheritage.graph.rpc";
+option java_outer_classname = "GraphService";
+
+package swh.graph;
+
+/* Graph traversal service */
+service TraversalService {
+    /* GetNode returns a single Node and its properties. */
+    rpc GetNode (GetNodeRequest) returns (Node);
+
+    /* Traverse performs a breadth-first graph traversal from a set of source
+     * nodes, then streams the nodes it encounters (if they match a given
+     * return filter), along with their properties.
+     */
+    rpc Traverse (TraversalRequest) returns (stream Node);
+
+    /* FindPathTo searches for a shortest path between a set of source nodes
+     * and a node that matches a specific *criteria*.
+     *
+     * It does so by performing a breadth-first search from the source node,
+     * until any node that matches the given criteria is found, then follows
+     * back its parents to return a shortest path from the source set to that
+     * node.
+     */
+    rpc FindPathTo (FindPathToRequest) returns (Path);
+
+    /* FindPathBetween searches for a shortest path between a set of source
+     * nodes and a set of destination nodes.
+     *
+     * It does so by performing a *bidirectional breadth-first search*, i.e.,
+     * two parallel breadth-first searches, one from the source set ("src-BFS")
+     * and one from the destination set ("dst-BFS"), until both searches find a
+     * common node that joins their visited sets. This node is called the
+     * "midpoint node".
+     * The path returned is the path src -> ... -> midpoint -> ... -> dst,
+     * which is always a shortest path between src and dst.
+     *
+     * The graph direction of both BFS can be configured separately. By
+     * default, the dst-BFS will use the graph in the opposite direction than
+     * the src-BFS (if direction = FORWARD, by default direction_reverse =
+     * BACKWARD, and vice-versa). The default behavior is thus to search for
+     * a shortest path between two nodes in a given direction. However, one
+     * can also specify FORWARD or BACKWARD for *both* the src-BFS and the
+     * dst-BFS. This will search for a common descendant or a common ancestor
+     * between the two sets, respectively. These will be the midpoints of the
+     * returned path.
+     */
+    rpc FindPathBetween (FindPathBetweenRequest) returns (Path);
+
+    /* CountNodes does the same as Traverse, but only returns the number of
+     * nodes accessed during the traversal. */
+    rpc CountNodes (TraversalRequest) returns (CountResponse);
+
+    /* CountEdges does the same as Traverse, but only returns the number of
+     * edges accessed during the traversal. */
+    rpc CountEdges (TraversalRequest) returns (CountResponse);
+
+    /* Stats returns various statistics on the overall graph. */
+    rpc Stats (StatsRequest) returns (StatsResponse);
+}
+
+/* Direction of the graph */
+enum GraphDirection {
+    /* Forward DAG: ori -> snp -> rel -> rev -> dir -> cnt */
+    FORWARD = 0;
+    /* Transposed DAG: cnt -> dir -> rev -> rel -> snp -> ori */
+    BACKWARD = 1;
+}
+
+/* Describe a node to return */
+message GetNodeRequest {
+    /* SWHID of the node to return */
+    string swhid = 1;
+    /* FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
+     * By default, all fields are returned. */
+    optional google.protobuf.FieldMask mask = 8;
+}
+
+/* TraversalRequest describes how a breadth-first traversal should be
+ * performed, and what should be returned to the client. */
+message TraversalRequest {
+    /* Set of source nodes (SWHIDs) */
+    repeated string src = 1;
+    /* Direction of the graph to traverse. Defaults to FORWARD. */
+    GraphDirection direction = 2;
+    /* Edge restriction string (e.g. "rev:dir,dir:cnt").
+     * Defaults to "*" (all).  */
+    optional string edges = 3;
+    /* Maximum number of edges accessed in the traversal, after which it stops.
+     * Defaults to infinite. */
+    optional int64 max_edges = 4;
+    /* Do not return nodes with a depth lower than this number.
+     * By default, all depths are returned. */
+    optional int64 min_depth = 5;
+    /* Maximum depth of the traversal, after which it stops.
+     * Defaults to infinite. */
+    optional int64 max_depth = 6;
+    /* Filter which nodes will be sent to the stream. By default, all nodes are
+     * returned. */
+    optional NodeFilter return_nodes = 7;
+    /* FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
+     * By default, all fields are returned. */
+    optional google.protobuf.FieldMask mask = 8;
+    /* Maximum number of matching results before stopping. For Traverse(), this is
+     * the total number of results. Defaults to infinite. */
+    optional int64 max_matching_nodes = 9;
+}
+
+/* FindPathToRequest describes a request to find a shortest path between a
+ * set of nodes and a given target criteria, as well as what should be returned
+ * in the path.
+ */
+message FindPathToRequest {
+    /* Set of source nodes (SWHIDs) */
+    repeated string src = 1;
+    /* Target criteria, i.e., what constitutes a valid path destination. */
+    NodeFilter target = 2;
+    /* Direction of the graph to traverse. Defaults to FORWARD. */
+    GraphDirection direction = 3;
+    /* Edge restriction string (e.g. "rev:dir,dir:cnt").
+     * Defaults to "*" (all).  */
+    optional string edges = 4;
+    /* Maximum number of edges accessed in the traversal, after which it stops.
+     * Defaults to infinite. */
+    optional int64 max_edges = 5;
+    /* Maximum depth of the traversal, after which it stops.
+     * Defaults to infinite. */
+    optional int64 max_depth = 6;
+    /* FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
+     * By default, all fields are returned. */
+    optional google.protobuf.FieldMask mask = 7;
+}
+
+/* FindPathToRequest describes a request to find a shortest path between a
+ * set of source nodes and a set of destination nodes. It works by performing a
+ * bidirectional breadth-first traversal from both sets at the same time.
+ */
+message FindPathBetweenRequest {
+    /* Set of source nodes (SWHIDs) */
+    repeated string src = 1;
+    /* Set of destination nodes (SWHIDs) */
+    repeated string dst = 2;
+    /* Direction of the graph to traverse from the source set. Defaults to
+     * FORWARD. */
+    GraphDirection direction = 3;
+    /* Direction of the graph to traverse from the destination set. Defaults to
+     * the opposite of `direction`. If direction and direction_reverse are
+     * identical, it will find the first common successor of both sets in the
+     * given direction. */
+    optional GraphDirection direction_reverse = 4;
+    /* Edge restriction string for the traversal from the source set.
+     * (e.g. "rev:dir,dir:cnt"). Defaults to "*" (all). */
+    optional string edges = 5;
+    /* Edge restriction string for the reverse traversal from the destination
+     * set.
+     * If not specified:
+     *   - If `edges` is not specified either, defaults to "*"
+     *   - If direction == direction_reverse, defaults to `edges`
+     *   - If direction != direction_reverse, defaults to the reverse of `edges`
+     *     (e.g. "rev:dir" becomes "dir:rev").
+     */
+    optional string edges_reverse = 6;
+    /* Maximum number of edges accessed in the traversal, after which it stops.
+     * Defaults to infinite. */
+    optional int64 max_edges = 7;
+    /* Maximum depth of the traversal, after which it stops.
+     * Defaults to infinite. */
+    optional int64 max_depth = 8;
+    /* FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
+     * By default, all fields are returned. */
+    optional google.protobuf.FieldMask mask = 9;
+}
+
+/* Represents various criteria that make a given node "valid". A node is
+ * only valid if all the subcriteria present in this message are fulfilled.
+ */
+message NodeFilter {
+    /* Node restriction string. (e.g. "dir,cnt,rev"). Defaults to "*" (all). */
+    optional string types = 1;
+    /* Minimum number of successors encountered *during the traversal*.
+     * Default: no constraint */
+    optional int64 min_traversal_successors = 2;
+    /* Maximum number of successors encountered *during the traversal*.
+     * Default: no constraint */
+    optional int64 max_traversal_successors = 3;
+}
+
+/* Represents a node in the graph. */
+message Node {
+    /* The SWHID of the graph node. */
+    string swhid = 1;
+    /* List of relevant successors of this node. */
+    repeated Successor successor = 2;
+    /* Number of relevant successors. */
+    optional int64 num_successors = 9;
+    /* Node properties */
+    oneof data {
+        ContentData cnt = 3;
+        RevisionData rev = 5;
+        ReleaseData rel = 6;
+        OriginData ori = 8;
+    };
+}
+
+/* Represents a path in the graph. */
+message Path {
+    /* List of nodes in the path, from source to destination */
+    repeated Node node = 1;
+    /* Index of the "midpoint" of the path. For paths obtained with
+     * bidirectional search queries, this is the node that joined the two
+     * sets together. When looking for a common ancestor between two nodes by
+     * performing a FindPathBetween search with two backward graphs, this will
+     * be the index of the common ancestor in the path. */
+    optional int32 midpoint_index = 2;
+}
+
+/* Represents a successor of a given node. */
+message Successor {
+    /* The SWHID of the successor */
+    optional string swhid = 1;
+    /* A list of edge labels for the given edge */
+    repeated EdgeLabel label = 2;
+}
+
+/* Content node properties */
+message ContentData {
+    /* Length of the blob, in bytes */
+    optional int64 length = 1;
+    /* Whether the content was skipped during ingestion. */
+    optional bool is_skipped = 2;
+}
+
+/* Revision node properties */
+message RevisionData {
+    /* Revision author ID (anonymized) */
+    optional int64 author = 1;
+    /* UNIX timestamp of the revision date (UTC) */
+    optional int64 author_date = 2;
+    /* Timezone of the revision author date as an offset from UTC */
+    optional int32 author_date_offset = 3;
+    /* Revision committer ID (anonymized) */
+    optional int64 committer = 4;
+    /* UNIX timestamp of the revision committer date (UTC) */
+    optional int64 committer_date = 5;
+    /* Timezone of the revision committer date as an offset from UTC */
+    optional int32 committer_date_offset = 6;
+    /* Revision message */
+    optional bytes message = 7;
+}
+
+/* Release node properties */
+message ReleaseData {
+    /* Release author ID (anonymized) */
+    optional int64 author = 1;
+    /* UNIX timestamp of the release date (UTC) */
+    optional int64 author_date = 2;
+    /* Timezone of the release author date as an offset from UTC */
+    optional int32 author_date_offset = 3;
+    /* Release name */
+    optional bytes name = 4;
+    /* Release message */
+    optional bytes message = 5;
+}
+
+/* Origin node properties */
+message OriginData {
+    /* URL of the origin */
+    optional string url = 1;
+}
+
+message EdgeLabel {
+    /* Directory entry name for directories, branch name for snapshots */
+    bytes name = 1;
+    /* Entry permission (only set for directories). */
+    int32 permission = 2;
+}
+
+message CountResponse {
+    int64 count = 1;
+}
+
+message StatsRequest {
+}
+
+message StatsResponse {
+    /* Number of nodes in the graph */
+    int64 num_nodes = 1;
+    /* Number of edges in the graph */
+    int64 num_edges = 2;
+
+    /* Ratio between the graph size and the information-theoretical lower
+     * bound */
+    double compression_ratio = 3;
+    /* Number of bits per node (overall graph size in bits divided by the
+     * number of nodes) */
+    double bits_per_node = 4;
+    /* Number of bits per edge (overall graph size in bits divided by the
+     * number of arcs). */
+    double bits_per_edge = 5;
+    double avg_locality = 6;
+
+    /* Smallest indegree */
+    int64 indegree_min = 7;
+    /* Largest indegree */
+    int64 indegree_max = 8;
+    /* Average indegree */
+    double indegree_avg = 9;
+    /* Smallest outdegree */
+    int64 outdegree_min = 10;
+    /* Largest outdegree */
+    int64 outdegree_max = 11;
+    /* Average outdegree */
+    double outdegree_avg = 12;
+}

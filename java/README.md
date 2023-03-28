@@ -15,13 +15,11 @@ Start RPC API
 
 ```bash
 $ java -cp target/swh-graph-*.jar \
-    org.softwareheritage.graph.server.App \
+    org.softwareheritage.graph.rpc.GraphServer \
     <compressed_graph_path>
 ```
 
-Default port is 5009 (use the `--port` option to change port number). If you
-need timings metadata send back to the client in addition to the result, use the
-`--timings` flag.
+Default port is 50091 (use the `--port` option to change port number).
 
 Tests
 -----
@@ -45,7 +43,7 @@ $ cd ../../../..
 $ mvn compile assembly:single
 # Dump mapping files
 $ java -cp target/swh-graph-*.jar \
-    org.softwareheritage.graph.maps.NodeMapBuilder \
+    org.softwareheritage.graph.compress.NodeMapBuilder \
     src/swh/graph/tests/dataset/example.nodes.csv.gz \
     src/swh/graph/tests/dataset/output/example
 ```
