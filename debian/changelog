@@ -1,3 +1,9 @@
+swh.graph (2.2.0-2~swh1) unstable-swh; urgency=medium
+
+  * Install swh-graph pytest plugin
+
+ -- Nicolas Dandrimont <olasd@debian.org>  Tue, 28 Mar 2023 11:11:06 +0200
+
 swh.graph (2.2.0-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 2.2.0     - (tagged by Valentin Lorentz

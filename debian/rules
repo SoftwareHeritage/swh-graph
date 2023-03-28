@@ -13,5 +13,6 @@ override_dh_auto_install:
 	    mkdir -p $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/swh/graph/ ; \
 	    cp -r $(CURDIR)/*.egg-info $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/ ; \
 	    cp $(CURDIR)/swh/graph/*client.py $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/swh/graph/ ; \
+	    cp $(CURDIR)/swh/graph/pytest_plugin.py $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/swh/graph/ ; \
 	    cp -r $(CURDIR)/swh/graph/tests/ $(CURDIR)/debian/python3-swh.graph.client/usr/lib/python$$pyvers/dist-packages/swh/graph/ ; \
 	done
