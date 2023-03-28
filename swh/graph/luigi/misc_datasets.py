@@ -597,7 +597,7 @@ class PopularContentNamesOrcToS3(_CsvToOrcToS3ToAthenaTask):
     def _orc_columns(self) -> List[Tuple[str, str]]:
         return [
             ("SWHID", "string"),
-            ("length", "int"),
+            ("length", "bigint"),
             ("filename", "binary"),
             ("occurrences", "bigint"),
         ]
