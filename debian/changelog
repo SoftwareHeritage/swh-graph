@@ -1,8 +1,8 @@
-swh.graph (2.2.0-1~swh1~bpo10+1) buster-swh; urgency=medium
+swh.graph (2.2.0-2~swh1) unstable-swh; urgency=medium
 
-  * Rebuild for buster-swh
+  * Install swh-graph pytest plugin
 
- -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 28 Mar 2023 09:06:56 +0000
+ -- Nicolas Dandrimont <olasd@debian.org>  Tue, 28 Mar 2023 11:11:06 +0200
 
 swh.graph (2.2.0-1~swh1) unstable-swh; urgency=medium
 
