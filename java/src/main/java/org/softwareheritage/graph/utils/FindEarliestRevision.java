@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2021 The Software Heritage developers
+ * Copyright (c) 2021-2022 The Software Heritage developers
+ * Copyright (c) 2021 Antoine Pietri
+ * Copyright (c) 2021 Stefano Zacchiroli
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -58,6 +60,8 @@ public class FindEarliestRevision {
             System.err.println("starting SWHID processing...");
             elapsed = Duration.ZERO;
         }
+        // print TSV header line
+        System.out.println("obj_swhid\tearliest_swhid\tearliest_ts\trev_occurrences");
         while (stdin.hasNextLine()) {
             if (timing)
                 ts = System.nanoTime();
@@ -81,11 +85,15 @@ public class FindEarliestRevision {
 
             long minRevId = -1;
             long minTimestamp = Long.MAX_VALUE;
+            long visitedRevisions = 0;
             while (!stack.isEmpty()) {
                 long currentNodeId = stack.pop();
                 if (graph.getNodeType(currentNodeId) == SwhType.REV) {
+                    visitedRevisions++;
                     long committerTs = graph.getCommitterTimestamp(currentNodeId);
-                    if (committerTs < minTimestamp) {
+                    if (committerTs < minTimestamp && committerTs != Long.MIN_VALUE && committerTs != 0) {
+                        // exclude missing and zero (= epoch) as plausible earliest timestamps
+                        // as they are almost certainly bogus values
                         minRevId = currentNodeId;
                         minTimestamp = committerTs;
                     }
@@ -106,7 +114,8 @@ public class FindEarliestRevision {
             if (minRevId == -1) {
                 System.err.println("no revision found containing: " + srcSWHID.toString());
             } else {
-                System.out.println(srcSWHID.toString() + "\t" + graph.getSWHID(minRevId).toString());
+                System.out.println(srcSWHID.toString() + "\t" + graph.getSWHID(minRevId).toString() + "\t"
+                        + Long.toString(minTimestamp) + "\t" + Long.toString(visitedRevisions));
             }
             if (timing) {
                 elapsedNanos = System.nanoTime() - ts; // processing time for current SWHID

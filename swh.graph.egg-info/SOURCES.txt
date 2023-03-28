@@ -112,7 +112,7 @@ java/src/test/java/org/softwareheritage/graph/rpc/TraverseNodesPropertiesTest.ja
 java/src/test/java/org/softwareheritage/graph/rpc/TraverseNodesTest.java
 java/src/test/java/org/softwareheritage/graph/utils/ForkJoinBigQuickSort2Test.java
 java/src/test/java/org/softwareheritage/graph/utils/ForkJoinQuickSort3Test.java
-java/target/swh-graph-2.1.2.jar
+java/target/swh-graph-2.2.0.jar
 proto/swhgraph.proto
 reports/.gitignore
 reports/benchmarks/Makefile
