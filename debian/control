@@ -5,7 +5,7 @@ Maintainer: SoftwareHeritage Developers <swh-devel@inria.fr>
 Build-Depends: debhelper (>= 11),
                dh-python (>= 2),
                python3-all,
-               python3-grpcio,
+               python3-grpcio (>= 1.30),
                python3-pytest,
                python3-setuptools,
                python3-setuptools-scm,
