@@ -85,6 +85,42 @@ parse.
     Rpc succeeded with OK status
 
 
+Or, in Python:
+
+.. code-block:: python
+
+    import grpc
+
+    import swh.graph.grpc.swhgraph_pb2 as swhgraph
+    import swh.graph.grpc.swhgraph_pb2_grpc as swhgraph_grpc
+
+    GRAPH_GRPC_SERVER = "granet.internal.softwareheritage.org:50091"
+
+    with grpc.insecure_channel(GRAPH_GRPC_SERVER) as channel:
+        stub = swhgraph_grpc.TraversalServiceStub(channel)
+        response = stub.Stats(swhgraph.StatsRequest())
+        print(response)
+        print("Compression ratio:", response.compression_ratio * 100, "%")
+
+
+which prints:
+
+.. code-block::
+
+    num_nodes: 25340003875
+    num_edges: 359467940510
+    compression_ratio: 0.096
+    bits_per_node: 43.993
+    bits_per_edge: 3.101
+    avg_locality: 1030367242.935
+    indegree_max: 381552037
+    indegree_avg: 14.185788695346046
+    outdegree_max: 1033207
+    outdegree_avg: 14.185788695346046
+
+    Compression ratio: 9.6 %
+
+
 **Note**: grpc_cli's outputs in this document are slightly modified for
 readability's sake.
 
@@ -93,6 +129,23 @@ Simple queries
 
 For a full documentation of all the endpoints, as well as the request and
 response messages, see :ref:`swh-graph-grpc-api-protobuf`.
+
+All Python examples below assume they are run in the following context:
+
+.. code-block:: python
+
+    import grpc
+
+    from google.protobuf.field_mask_pb2 import FieldMask
+
+    import swh.graph.grpc.swhgraph_pb2 as swhgraph
+    import swh.graph.grpc.swhgraph_pb2_grpc as swhgraph_grpc
+
+    GRAPH_GRPC_SERVER = "granet.internal.softwareheritage.org:50091"
+
+    with grpc.insecure_channel(GRAPH_GRPC_SERVER) as channel:
+        stub = swhgraph_grpc.TraversalServiceStub(channel)
+        pass  # <insert snippet here>
 
 Querying a single node
 ----------------------
@@ -108,6 +161,13 @@ Content
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.GetNode \
         'swhid: "swh:1:cnt:0000000000000000000000000000000000000001"'
+
+.. code-block:: python
+
+    swhid = "swh:1:cnt:0000000000000000000000000000000000000001"
+    response = stub.GetNode(swhgraph.GetNodeRequest(swhid=swhid))
+    print(response)
+    # results will be in response.cnt.length and response.cnt.is_skipped
 
 .. code-block:: javascript
 
@@ -125,6 +185,13 @@ Revision
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.GetNode \
         'swhid: "swh:1:rev:0000000000000000000000000000000000000009"'
 
+.. code-block:: python
+
+    swhid = "swh:1:rev:0000000000000000000000000000000000000009"
+    response = stub.GetNode(swhgraph.GetNodeRequest(swhid=swhid))
+    print(response)
+    # results will be in response.rev.author, response.rev.author_date, ...
+
 .. code-block:: javascript
 
     swhid: "swh:1:rev:0000000000000000000000000000000000000009"
@@ -138,6 +205,10 @@ Revision
       message: "Add parser"
     }
 
+Note that author and committer names are not available in the compressed graph,
+so you must use either the :swh_web:`public API <1/revision/>` or swh-storage
+directly to access them.
+
 Release
 ~~~~~~~
 
@@ -145,6 +216,13 @@ Release
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.GetNode \
         'swhid: "swh:1:rel:0000000000000000000000000000000000000010"'
+
+.. code-block:: python
+
+    swhid = "swh:1:rel:0000000000000000000000000000000000000010"
+    response = stub.GetNode(swhgraph.GetNodeRequest(swhid=swhid))
+    print(response)
+    # results will be in response.rel.author, response.rel.author_date, ...
 
 .. code-block:: javascript
 
@@ -164,6 +242,13 @@ Origin
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.GetNode \
         'swhid: "swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054"'
 
+.. code-block:: python
+
+    swhid = "swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054"
+    response = stub.GetNode(swhgraph.GetNodeRequest(swhid=swhid))
+    print(response)
+    # results will be in response.ori.url
+
 .. code-block:: javascript
 
     swhid: "swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054"
@@ -179,6 +264,8 @@ The **GetNode** endpoint can also be used to check if a node exists in the
 graph. The RPC will return the ``INVALID_ARGUMENT`` code, and a detailed error
 message.
 
+With ``grpc_cli``:
+
 .. code-block:: console
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.GetNode \
@@ -187,7 +274,23 @@ message.
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.GetNode \
         'swhid: "invalidswhid"'
-    Rpc failed with status code 3, error message: malformed SWHID: swh:1:ori:ffffffffffffffffffffffffffffffffffffffff
+    Rpc failed with status code 3, error message: malformed SWHID: invalidswhid
+
+
+With Python:
+
+.. code-block::
+
+    grpc._channel._InactiveRpcError: <_InactiveRpcError of RPC that terminated with:
+        status = StatusCode.INVALID_ARGUMENT
+        details = "Unknown SWHID: swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054"
+        debug_error_string = "{"created":"@1666018913.304633417","description":"Error received from peer ipv4:192.168.100.51:50091","file":"src/core/lib/surface/call.cc","file_line":966,"grpc_message":"Unknown SWHID: swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054","grpc_status":3}"
+
+    grpc._channel._InactiveRpcError: <_InactiveRpcError of RPC that terminated with:
+        status = StatusCode.INVALID_ARGUMENT
+        details = "malformed SWHID: malformedswhid"
+        debug_error_string = "{"created":"@1666019057.270929623","description":"Error received from peer ipv4:192.168.100.51:50091","file":"src/core/lib/surface/call.cc","file_line":966,"grpc_message":"malformed SWHID: malformedswhid","grpc_status":3}"
+
 
 
 Selecting returned fields with FieldMask
@@ -208,22 +311,54 @@ A FieldMask is represented as a set of "field paths" in dotted notation. For
 instance, ``paths: ["swhid", "rev.message"]`` will only request the swhid and
 the message of a given node. An empty mask will return an empty object.
 
-Example:
+Examples:
+
+**Just the SWHID**:
 
 .. code-block:: console
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.GetNode \
         'swhid: "swh:1:rev:0000000000000000000000000000000000000009", mask: {paths: ["swhid"]}'
+
+.. code-block:: python
+
+    response = stub.GetNode(swhgraph.GetNodeRequest(
+        swhid="swh:1:rev:0000000000000000000000000000000000000009",
+        mask=FieldMask(paths=["swhid"])
+    ))
+    print(response)
+    # Result is in response.swhid; other fields are omitted from the response as
+    # they are not part of the FieldMask.
+
+.. code-block:: javascript
+
     swhid: "swh:1:rev:0000000000000000000000000000000000000009"
+
+**Multiple fields**:
+
+.. code-block:: console
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.GetNode \
         'swhid: "swh:1:rev:0000000000000000000000000000000000000009", mask: {paths: ["swhid", "rev.message", "rev.author"]}'
+
+
+.. code-block:: python
+
+    response = stub.GetNode(swhgraph.GetNodeRequest(
+        swhid="swh:1:rev:0000000000000000000000000000000000000009",
+        mask=FieldMask(paths=["swhid", "rev.message", "rev.author"])
+    ))
+    print(response)
+    # Results are in response.swhid, response.rev.message, and response.rev.author;
+    # other fields are omitted from the response as they are not part of the FieldMask.
+
+.. code-block:: javascript
+
     swhid: "swh:1:rev:0000000000000000000000000000000000000009"
     rev {
       author: 2
       message: "Add parser"
     }
-
 
 Getting statistics on the graph
 -------------------------------
@@ -235,6 +370,11 @@ range of indegrees and outdegrees, and some compression-related statistics.
 .. code-block:: console
 
     $ grpc_cli --json_output call localhost:50091 swh.graph.TraversalService.Stats ""
+
+.. code-block:: python
+
+    response = stub.Stats(swhgraph.StatsRequest())
+    print(response)
 
 .. code-block:: json
 
@@ -272,6 +412,14 @@ contents:
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.Traverse \
        "src: 'swh:1:dir:0000000000000000000000000000000000000006'"
+
+.. code-block:: python
+
+    response = stub.Traverse(swhgraph.TraversalRequest(
+        src=["swh:1:dir:0000000000000000000000000000000000000006"]
+    ))
+    for item in response:
+        print(item)
 
 We get the following stream of nodes: first, the source directory (including
 its properties, successor list and their labels), then the contents themselves
@@ -319,6 +467,18 @@ For instance, if we only care about the SWHIDs:
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.Traverse \
         "src: 'swh:1:dir:0000000000000000000000000000000000000006', mask: {paths: ['swhid']}"
+
+.. code-block:: python
+
+    response = stub.Traverse(swhgraph.TraversalRequest(
+        src=["swh:1:dir:0000000000000000000000000000000000000006"],
+        mask=FieldMask(paths=["swhid"])
+    ))
+    for item in response:
+        print(f'swhid: "{item.swhid}"')
+
+.. code-block:: javascript
+
     swhid: "swh:1:dir:0000000000000000000000000000000000000006"
     swhid: "swh:1:cnt:0000000000000000000000000000000000000005"
     swhid: "swh:1:cnt:0000000000000000000000000000000000000004"
@@ -340,6 +500,19 @@ This query returns all the nodes reachable from a given directory in the
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.Traverse \
         "src: 'swh:1:dir:0000000000000000000000000000000000000006', direction: BACKWARD, mask: {paths: ['swhid']}"
+
+.. code-block:: python
+
+    response = stub.Traverse(swhgraph.TraversalRequest(
+        src=["swh:1:dir:0000000000000000000000000000000000000006"],
+        direction=swhgraph.GraphDirection.BACKWARD,
+        mask=FieldMask(paths=["swhid"]),
+    ))
+    for item in response:
+        print(f'swhid: "{item.swhid}"')
+
+.. code-block:: javascript
+
     swhid: "swh:1:dir:0000000000000000000000000000000000000006"
     swhid: "swh:1:dir:0000000000000000000000000000000000000008"
     swhid: "swh:1:dir:0000000000000000000000000000000000000012"
@@ -369,6 +542,19 @@ outputs the *commit log* from a given commit):
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.Traverse \
         "src: 'swh:1:rev:0000000000000000000000000000000000000018', edges: 'rev:rev', mask: {paths: ['swhid']}"
+
+.. code-block:: python
+
+    response = stub.Traverse(swhgraph.TraversalRequest(
+        src=["swh:1:rev:0000000000000000000000000000000000000018"],
+        edges="rev:rev",
+        mask=FieldMask(paths=["swhid"]),
+    ))
+    for item in response:
+        print(f'swhid: "{item.swhid}"')
+
+.. code-block:: javascript
+
     swhid: "swh:1:rev:0000000000000000000000000000000000000018"
     swhid: "swh:1:rev:0000000000000000000000000000000000000013"
     swhid: "swh:1:rev:0000000000000000000000000000000000000009"
@@ -379,17 +565,22 @@ Limiting the traversal
 ~~~~~~~~~~~~~~~~~~~~~~
 
 To avoid using up too much memory or resources, a traversal can be limited
-in two different ways:
+in three different ways:
 
 - the ``max_depth`` attribute defines the maximum depth of the traversal.
 - the ``max_edges`` attribute defines the maximum number of edges that can be
   fetched by the traversal.
+- the ``max_matching_nodes`` attribute defines how many nodes matching the
+  given constraints (see :ref:`swh-graph-grpc-api-return-nodes`) may be
+  visited by the traversal before halting.
+  This is typically used to limit the number of results in leaves requests.
 
 When these limits are reached, the traversal will simply stop. While these
 options have obvious use-cases for anti-abuse, they can also be semantically
 useful: for instance, specifying ``max_depth: 1`` will only return the
 *neighbors* of the source node.
 
+.. _swh-graph-grpc-api-return-nodes:
 
 Filtering returned nodes
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -409,6 +600,20 @@ found:
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.Traverse \
         "src: 'swh:1:dir:0000000000000000000000000000000000000006', return_nodes: {types: 'ori'}, direction: BACKWARD, mask: {paths: ['swhid']}"
+
+.. code-block:: python
+
+    response = stub.Traverse(swhgraph.TraversalRequest(
+        src=["swh:1:dir:0000000000000000000000000000000000000006"],
+        return_nodes=swhgraph.NodeFilter(types="ori"),
+        direction=swhgraph.GraphDirection.BACKWARD,
+        mask=FieldMask(paths=["swhid"]),
+    ))
+    for item in response:
+        print(f'swhid: "{item.swhid}"')
+
+.. code-block:: javascript
+
     swhid: "swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054"
 
 
@@ -424,6 +629,21 @@ points:
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.Traverse \
         "src: ['swh:1:dir:0000000000000000000000000000000000000006', 'swh:1:dir:0000000000000000000000000000000000000017'], mask: {paths: ['swhid']}"
+
+.. code-block:: python
+
+    response = stub.Traverse(swhgraph.TraversalRequest(
+        src=[
+            "swh:1:dir:0000000000000000000000000000000000000006",
+            "swh:1:dir:0000000000000000000000000000000000000017",
+        ],
+        mask=FieldMask(paths=["swhid"]),
+    ))
+    for item in response:
+        print(f'swhid: "{item.swhid}"')
+
+.. code-block:: javascript
+
     swhid: "swh:1:dir:0000000000000000000000000000000000000006"
     swhid: "swh:1:dir:0000000000000000000000000000000000000017"
     swhid: "swh:1:cnt:0000000000000000000000000000000000000005"
@@ -454,6 +674,20 @@ run like this:
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.FindPathTo \
         "src: 'swh:1:cnt:0000000000000000000000000000000000000001', target: {types: 'ori'}, direction: BACKWARD, mask: {paths: ['swhid']}"
+
+.. code-block:: python
+
+    response = stub.FindPathTo(swhgraph.FindPathToRequest(
+        src=["swh:1:cnt:0000000000000000000000000000000000000001"],
+        target=swhgraph.NodeFilter(types="ori"),
+        direction=swhgraph.GraphDirection.BACKWARD,
+        mask=FieldMask(paths=["swhid"]),
+    ))
+    for item in response.node:
+        print(f'swhid: "{item.swhid}"')
+
+.. code-block:: javascript
+
     swhid: "swh:1:cnt:0000000000000000000000000000000000000001"
     swhid: "swh:1:dir:0000000000000000000000000000000000000008"
     swhid: "swh:1:rev:0000000000000000000000000000000000000009"
@@ -500,6 +734,19 @@ restrictions.
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.FindPathBetween \
         "src: 'swh:1:snp:0000000000000000000000000000000000000020', dst: 'swh:1:cnt:0000000000000000000000000000000000000004', mask: {paths: ['swhid']}"
+
+.. code-block:: python
+
+    response = stub.FindPathBetween(swhgraph.FindPathBetweenRequest(
+        src=["swh:1:snp:0000000000000000000000000000000000000020"],
+        dst=["swh:1:cnt:0000000000000000000000000000000000000004"],
+        mask=FieldMask(paths=["swhid"]),
+    ))
+    for item in response.node:
+        print(f'swhid: "{item.swhid}"')
+
+.. code-block:: javascript
+
     swhid: "swh:1:snp:0000000000000000000000000000000000000020"
     swhid: "swh:1:rev:0000000000000000000000000000000000000009"
     swhid: "swh:1:dir:0000000000000000000000000000000000000008"
@@ -512,6 +759,20 @@ restrictions.
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.FindPathBetween \
         "src: 'swh:1:dir:0000000000000000000000000000000000000006', dst: 'swh:1:rel:0000000000000000000000000000000000000019', direction: BACKWARD, mask: {paths: ['swhid']}"
+
+.. code-block:: python
+
+    response = stub.FindPathBetween(swhgraph.FindPathBetweenRequest(
+        src=["swh:1:dir:0000000000000000000000000000000000000006"],
+        dst=["swh:1:rel:0000000000000000000000000000000000000019"],
+        direction=swhgraph.GraphDirection.BACKWARD,
+        mask=FieldMask(paths=["swhid"]),
+    ))
+    for item in response.node:
+        print(f'swhid: "{item.swhid}"')
+
+.. code-block:: javascript
+
     swhid: "swh:1:dir:0000000000000000000000000000000000000006"
     swhid: "swh:1:dir:0000000000000000000000000000000000000008"
     swhid: "swh:1:dir:0000000000000000000000000000000000000012"
@@ -525,6 +786,21 @@ restrictions.
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.FindPathBetween \
         "src: 'swh:1:cnt:0000000000000000000000000000000000000004', dst: 'swh:1:cnt:0000000000000000000000000000000000000015', direction: BACKWARD, direction_reverse: BACKWARD, mask: {paths: ['swhid']}"
+
+.. code-block:: python
+
+    response = stub.FindPathBetween(swhgraph.FindPathBetweenRequest(
+        src=["swh:1:cnt:0000000000000000000000000000000000000004"],
+        dst=["swh:1:cnt:0000000000000000000000000000000000000015"],
+        direction=swhgraph.GraphDirection.BACKWARD,
+        direction_reverse=swhgraph.GraphDirection.BACKWARD,
+        mask=FieldMask(paths=["swhid"]),
+    ))
+    for item in response.node:
+        print(f'swhid: "{item.swhid}"')
+
+.. code-block:: javascript
+
     swhid: "swh:1:cnt:0000000000000000000000000000000000000004"
     swhid: "swh:1:dir:0000000000000000000000000000000000000006"
     swhid: "swh:1:dir:0000000000000000000000000000000000000008"
@@ -534,9 +810,9 @@ restrictions.
     swhid: "swh:1:dir:0000000000000000000000000000000000000017"
     swhid: "swh:1:dir:0000000000000000000000000000000000000016"
     swhid: "swh:1:cnt:0000000000000000000000000000000000000015"
-    middle_node_index: 5
+    midpoint_index: 5
 
-Because ``middle_node_index = 5``, the common ancestor is
+Because ``midpoint_index = 5``, the common ancestor is
 ``swh:1:rev:0000000000000000000000000000000000000018``.
 
 
