@@ -1,3 +1,9 @@
+swh.graph (2.1.2-4~swh1~bpo10+1) buster-swh; urgency=medium
+
+  * Rebuild for buster-swh
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 28 Mar 2023 08:40:00 +0000
+
 swh.graph (2.1.2-4~swh1) unstable-swh; urgency=medium
 
   * Build-depend on recent enough grpcio
