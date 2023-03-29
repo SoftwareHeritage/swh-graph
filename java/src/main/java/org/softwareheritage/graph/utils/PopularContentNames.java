@@ -113,6 +113,9 @@ public class PopularContentNames {
 
     }
 
+    /*
+     * Worker task: divides the set of nodes into chunks, and processes one of them.
+     */
     private void processChunk(long numChunks, long chunkId, int maxResults, long popularityThreshold, ProgressLogger pl)
             throws IOException {
         if (threadGraph.get() == null) {
@@ -227,6 +230,9 @@ public class PopularContentNames {
         }
     }
 
+    /*
+     * Given a filename id, returns the corresponding file name if possible, or null in case of error.
+     */
     private String getFilename(long filenameId, long dirNode) {
         try {
             return new String(graph.properties.getLabelName(filenameId));
@@ -247,6 +253,7 @@ public class PopularContentNames {
         }
     }
 
+    /* Comparator which uses a HashMap indirection. */
     private class SortByHashmap implements Comparator<Long> {
         private HashMap<Long, Long> map;
         public SortByHashmap(HashMap<Long, Long> map) {
