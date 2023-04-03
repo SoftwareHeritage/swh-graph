@@ -908,7 +908,14 @@ class EdgeLabelsObl(_CompressionStepTask):
     }
 
     def _large_java_allocations(self) -> int:
-        return 0
+        # "an element occupies a number of bits bounded by two plus the logarithm of
+        # the average gap."
+        # https://sux4j.di.unimi.it/docs/it/unimi/dsi/sux4j/util/EliasFanoMonotoneLongBigList.html
+        # The number of elements is the number of nodes; and 22 should be way over
+        # the logarithm
+        offsets_size = self._nb_nodes() * 24
+
+        return offsets_size
 
 
 class EdgeLabelsTransposeObl(_CompressionStepTask):
@@ -924,7 +931,10 @@ class EdgeLabelsTransposeObl(_CompressionStepTask):
     }
 
     def _large_java_allocations(self) -> int:
-        return 0
+        # See EdgeLabelsObl._large_java_allocations
+        offsets_size = self._nb_nodes() * 24
+
+        return offsets_size
 
 
 _duplicate_steps = [
