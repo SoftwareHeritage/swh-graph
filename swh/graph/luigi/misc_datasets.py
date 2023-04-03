@@ -603,7 +603,11 @@ class PopularContentNamesOrcToS3(_CsvToOrcToS3ToAthenaTask):
         ]
 
     def _approx_nb_rows(self) -> int:
-        return self.requires().nb_lines() - 1  # -1 for the header
+        from .shell import Command, wc
+
+        # Approximates, by assuming few rows contain newline characters
+        n = wc(Command.zstdcat(self._input_csv_path()), "-l")
+        return n - 1  # -1 for the header
 
     def _parse_row(self, row: List[str]) -> Tuple[Any, ...]:
         (swhid, length, filename, occurrences) = row
