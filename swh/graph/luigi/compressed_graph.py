@@ -355,12 +355,11 @@ class _CompressionStepTask(luigi.Task):
                     continue
                 raise Exception(f"expected output {path} is empty")
 
-        return True  # TODO: remove this early return
-
         if not self._stamp().is_file():
-            return False
             with self._stamp().open() as fd:
                 json.load(fd)  # Check it was fully written
+
+        return True
 
     def requires(self) -> List[luigi.Task]:
         """Returns a list of luigi tasks matching :attr:`PREVIOUS_STEPS`."""
@@ -1035,14 +1034,16 @@ class CompressGraph(luigi.Task):
             out_dir=self.local_graph_path,
         )
 
-        steps = []
+        step_stamp_paths = []
         for step in CompressionStep:
             if step == CompressionStep.CLEAN_TMP:
                 # This step is not run as its own Luigi task
                 continue
-            path = self.local_graph_path / "meta" / "stamps" / f"{step}.json"
-            with path.open() as fd:
-                steps.append(json.load(fd))
+            step_stamp_paths.append(
+                self.local_graph_path / "meta" / "stamps" / f"{step}.json"
+            )
+
+        steps = [json.loads(path.read_text()) for path in step_stamp_paths]
 
         do_step(CompressionStep.CLEAN_TMP, conf=conf)
 
@@ -1074,7 +1075,8 @@ class CompressGraph(luigi.Task):
         with self._compression_meta().open("w") as fd:
             json.dump(meta, fd, indent=4)
 
-        # TODO: remove stamps
+        for path in step_stamp_paths:
+            path.unlink()
 
 
 class UploadGraphToS3(luigi.Task):
