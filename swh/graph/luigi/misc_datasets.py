@@ -370,7 +370,7 @@ class _CsvToOrcToS3ToAthenaTask(luigi.Task):
         raise NotImplementedError(f"{self.__class__.__name__}._athena_table_name")
 
     def _create_athena_tables(self) -> Set[str]:
-        raise NotImplementedError(f"{self.__class__.__name__}._create_athena_tables")
+        raise NotImplementedError(f"{self.__class__.__name__}._create_athena_table")
 
     def output(self) -> luigi.Target:
         return AthenaDatabaseTarget(self._athena_db_name(), {self._athena_table_name()})
@@ -404,7 +404,7 @@ class _CsvToOrcToS3ToAthenaTask(luigi.Task):
         finally:
             zstd_proc.kill()
 
-        self._create_athena_tables()
+        self._create_athena_table()
 
     def _clean_s3_directory(self) -> None:
         """Checks the S3 directory is either missing or contains aborted only .orc
@@ -564,6 +564,37 @@ class _CsvToOrcToS3ToAthenaTask(luigi.Task):
         s3.upload_fileobj(os.fdopen(read_fd, "rb"), self._s3_bucket(), path)
         # boto3 closes the FD itself
 
+    def _create_athena_table(self):
+        import boto3
+
+        from swh.dataset.athena import query
+
+        client = boto3.client("athena")
+        client.output_location = self.s3_athena_output_location
+
+        client.database_name = "default"  # we have to pick some existing database
+        query(
+            client,
+            f"CREATE DATABASE IF NOT EXISTS {self._athena_db_name()};",
+            desc=f"Creating {self._athena_db_name()} database",
+        )
+        client.database_name = self._athena_db_name()
+
+        columns = ", ".join(f"{col} {type_}" for (col, type_) in self._orc_columns())
+
+        query(
+            client,
+            f"""
+            CREATE EXTERNAL TABLE IF NOT EXISTS
+            {self._athena_db_name()}.{self._athena_table_name()}
+            ({columns})
+            STORED AS ORC
+            LOCATION 's3://{self._s3_bucket()}/{self._s3_prefix()}'
+            TBLPROPERTIES ("orc.compress"="ZSTD");
+            """,
+            desc="Creating table {self._athena_table_name()}",
+        )
+
 
 class PopularContentNamesOrcToS3(_CsvToOrcToS3ToAthenaTask):
     """Reads the CSV from :class:`PopularContents`, converts it to ORC,
@@ -625,39 +656,6 @@ class PopularContentNamesOrcToS3(_CsvToOrcToS3ToAthenaTask):
 
     def _athena_table_name(self) -> str:
         return "popular_contents"
-
-    def _create_athena_tables(self):
-        import boto3
-
-        from swh.dataset.athena import query
-
-        client = boto3.client("athena")
-        client.output_location = self.s3_athena_output_location
-
-        client.database_name = "default"  # we have to pick some existing database
-        query(
-            client,
-            f"CREATE DATABASE IF NOT EXISTS {self._athena_db_name()};",
-            desc=f"Creating {self._athena_db_name()} database",
-        )
-        client.database_name = self._athena_db_name()
-
-        query(
-            client,
-            f"""
-            CREATE EXTERNAL TABLE IF NOT EXISTS {self._athena_db_name()}.popular_content
-            (
-                SWHID string,
-                length int,
-                filename binary,
-                occurrences bigint
-            )
-            STORED AS ORC
-            LOCATION 's3://{self._s3_bucket()}/{self._s3_prefix()}'
-            TBLPROPERTIES ("orc.compress"="ZSTD");
-            """,
-            desc="Creating table popular_content",
-        )
 
 
 class CountPaths(luigi.Task):
@@ -838,36 +836,3 @@ class PathCountsOrcToS3(_CsvToOrcToS3ToAthenaTask):
 
     def _athena_table_name(self) -> str:
         return self._base_filename().replace(",", "")
-
-    def _create_athena_tables(self):
-        import boto3
-
-        from swh.dataset.athena import query
-
-        client = boto3.client("athena")
-        client.output_location = self.s3_athena_output_location
-
-        client.database_name = "default"  # we have to pick some existing database
-        query(
-            client,
-            f"CREATE DATABASE IF NOT EXISTS {self._athena_db_name()};",
-            desc=f"Creating {self._athena_db_name()} database",
-        )
-        client.database_name = self._athena_db_name()
-
-        query(
-            client,
-            f"""
-            CREATE EXTERNAL TABLE IF NOT EXISTS
-                {self._athena_db_name()}.{self._athena_table_name()}
-            (
-                SWHID string,
-                paths_from_roots double,
-                all_paths double
-            )
-            STORED AS ORC
-            LOCATION 's3://{self._s3_bucket()}/{self._s3_prefix()}'
-            TBLPROPERTIES ("orc.compress"="ZSTD");
-            """,
-            desc=f"Creating table {self._athena_table_name()}",
-        )
