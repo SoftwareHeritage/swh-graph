@@ -199,13 +199,13 @@ def main(
     with grpc.insecure_channel(graph_grpc_server) as channel:
         client = TraversalServiceStub(channel)
 
-        if filename:
-            content_swhid = str(swhid_of_file(filename))
+        try:
+            if filename:
+                content_swhid = str(swhid_of_file(filename))
 
-        # Traversal request: get all origins
-        if all_origins:
-            random_origin = False
-            try:
+            # Traversal request: get all origins
+            if all_origins:
+                random_origin = False
                 response = client.Traverse(
                     TraversalRequest(
                         src=[content_swhid],
@@ -228,15 +228,9 @@ def main(
                         print(fqswhid_of_traversal(response))
                     else:
                         print(node.ori.url)
-            except Exception as e:
-                print("Exception", e.__class__, " occurred.")
-                if filename:
-                    print(filename + " has SWHID " + content_swhid)
-                print("Failed to find " + content_swhid + " in the graph.")
-                exit(1)
-        # Traversal request to a (random) origin
-        if random_origin:
-            try:
+
+            # Traversal request to a (random) origin
+            if random_origin:
                 response = client.FindPathTo(
                     FindPathToRequest(
                         src=[content_swhid],
@@ -250,33 +244,34 @@ def main(
                 else:
                     for node in response.node:
                         print(node.ori.url)
-            except Exception as e:
-                print("Exception", e.__class__, " occurred.")
-                if filename:
-                    print(filename + " has SWHID " + content_swhid)
-                print("Failed to find " + content_swhid + " in the graph.")
-                exit(1)
 
-        # Traversal request to a given origin URL
-        if origin_url:
-            response = client.FindPathBetween(
-                FindPathBetweenRequest(
-                    src=[content_swhid],
-                    dst=[
-                        str(
-                            ExtendedSWHID(
-                                object_type=ExtendedObjectType.ORIGIN,
-                                object_id=bytes.fromhex(
-                                    sha1(bytes(origin_url, "UTF-8")).hexdigest()
-                                ),
+            # Traversal request to a given origin URL
+            if origin_url:
+                response = client.FindPathBetween(
+                    FindPathBetweenRequest(
+                        src=[content_swhid],
+                        dst=[
+                            str(
+                                ExtendedSWHID(
+                                    object_type=ExtendedObjectType.ORIGIN,
+                                    object_id=bytes.fromhex(
+                                        sha1(bytes(origin_url, "UTF-8")).hexdigest()
+                                    ),
+                                )
                             )
-                        )
-                    ],
-                    direction="BACKWARD",
-                    mask=FieldMask(paths=["swhid", "ori.url"]),
+                        ],
+                        direction="BACKWARD",
+                        mask=FieldMask(paths=["swhid", "ori.url"]),
+                    )
                 )
-            )
-            print(fqswhid_of_traversal(response))
+                print(fqswhid_of_traversal(response))
+
+        except grpc.RpcError as e:
+            print("Error from the GRPC API call: {}".format(e.details()))
+            if filename:
+                print(filename + " has SWHID " + content_swhid)
+        except Exception as e:
+            print("Unexpected error occurred: {}".format(e))
 
 
 if __name__ == "__main__":
