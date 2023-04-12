@@ -53,8 +53,9 @@ import luigi
 
 from .blobs_datasets import *  # noqa
 from .compressed_graph import *  # noqa
-from .misc_datasets import *  # noqa
+from .file_names import *  # noqa
 from .origin_contributors import *  # noqa
+from .topology import *  # noqa
 
 
 class RunExportCompressUpload(luigi.Task):

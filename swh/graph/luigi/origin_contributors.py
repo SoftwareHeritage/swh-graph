@@ -10,6 +10,27 @@ Luigi tasks for contribution graph
 This module contains `Luigi <https://luigi.readthedocs.io/>`_ tasks
 driving the creation of the graph of contributions of people (pseudonymized
 by default).
+
+File layout
+-----------
+
+This assumes a local compressed graph (from :mod:`swh.graph.luigi.compressed_graph`)
+is present, and generates/manipulates the following files::
+
+    base_dir/
+        <date>[_<flavor>]/
+            datasets/
+                contribution_graph.csv.zst
+            topology/
+                topological_order_dfs.csv.zst
+
+And optionally::
+
+    sensitive_base_dir/
+        <date>[_<flavor>]/
+            persons_sha256_to_name.csv.zst
+            datasets/
+                contribution_graph.deanonymized.csv.zst
 """
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -19,7 +40,7 @@ from typing import Dict, Iterable, List, Tuple, cast
 import luigi
 
 from .compressed_graph import LocalGraph
-from .misc_datasets import TopoSort
+from .topology import TopoSort
 
 
 class ListOriginContributors(luigi.Task):

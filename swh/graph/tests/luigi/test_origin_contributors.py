@@ -22,9 +22,9 @@ from swh.model.model import (
     TimestampWithTimezone,
 )
 
-from .test_toposort import TOPO_ORDER_BACKWARD as TOPOLOGICAL_ORDER
+from .test_topology import TOPO_ORDER_BACKWARD as TOPOLOGICAL_ORDER
 
-DATA_DIR = Path(__file__).parents[0] / "dataset"
+DATA_DIR = Path(__file__).parents[1] / "dataset"
 
 
 # FIXME: do not hardcode ids here; they should be dynamically loaded

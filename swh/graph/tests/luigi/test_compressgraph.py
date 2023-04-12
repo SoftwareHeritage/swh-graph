@@ -11,9 +11,9 @@ import pytest
 
 from swh.graph.cli import graph_cli_group
 
-from .test_cli import read_properties
+from ..test_cli import read_properties
 
-DATA_DIR = Path(__file__).parents[0] / "dataset"
+DATA_DIR = Path(__file__).parents[1] / "dataset"
 
 
 @pytest.mark.parametrize("workers", [None, 1, 2, 3, 4, 5, 100])

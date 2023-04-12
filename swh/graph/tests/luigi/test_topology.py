@@ -9,9 +9,9 @@ import subprocess
 
 import pytest
 
-from swh.graph.luigi.misc_datasets import CountPaths, TopoSort
+from swh.graph.luigi.topology import CountPaths, TopoSort
 
-DATA_DIR = Path(__file__).parents[0] / "dataset"
+DATA_DIR = Path(__file__).parents[1] / "dataset"
 
 
 # FIXME: the order of sample ancestors should not be hardcoded

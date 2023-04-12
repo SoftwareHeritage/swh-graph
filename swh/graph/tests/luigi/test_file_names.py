@@ -10,7 +10,7 @@ import subprocess
 import pytest
 import pyzstd
 
-from swh.graph.luigi.misc_datasets import PopularContentNames, PopularContentPaths
+from swh.graph.luigi.file_names import PopularContentNames, PopularContentPaths
 
 EXPECTED_LINES_DEPTH1 = """\
 swh:1:cnt:0000000000000000000000000000000000000005,1337,parser.c,1
@@ -32,7 +32,7 @@ swh:1:cnt:0000000000000000000000000000000000000015,404,old/TODO.txt,1
 swh:1:cnt:0000000000000000000000000000000000000014,14,TODO.txt,1
 """
 
-DATA_DIR = Path(__file__).parents[0] / "dataset"
+DATA_DIR = Path(__file__).parents[1] / "dataset"
 
 
 @pytest.mark.parametrize("popularity_threshold", [0, 1, 2])
