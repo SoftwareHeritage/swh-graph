@@ -108,8 +108,6 @@ public class PopularContentPaths {
 
     public void run(short maxDepth) throws InterruptedException, IOException {
 
-        csvPrinter.printRecord("SWHID", "length", "filepath", "occurrences");
-
         long totalNodes = graph.numNodes();
 
         Iterator<CSVRecord> recordIterator = csvParser.iterator();
@@ -118,6 +116,13 @@ public class PopularContentPaths {
         /* TODO: Remove support for 'swhid', it's deprecated. */
         if (!header.get(0).equals("SWHID") && !header.get(0).equals("swhid")) {
             throw new RuntimeException("First column of input is not 'SWHID'");
+        }
+        boolean withSha1 = header.size() >= 2 && header.get(1).equals("sha1");
+
+        if (withSha1) {
+            csvPrinter.printRecord("SWHID", "sha1", "length", "filepath", "occurrences");
+        } else {
+            csvPrinter.printRecord("SWHID", "length", "filepath", "occurrences");
         }
 
         ProgressLogger pl = new ProgressLogger(logger);
@@ -128,7 +133,7 @@ public class PopularContentPaths {
         for (long i = 0; i < NUM_THREADS; ++i) {
             service.submit(() -> {
                 try {
-                    process(recordIterator, maxDepth, pl);
+                    process(recordIterator, maxDepth, withSha1, pl);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -146,7 +151,8 @@ public class PopularContentPaths {
      * Worker thread, which reads the <code>recordIterator</code> in chunks in a synchronized block and
      * calls <code>processBatch</code> for each of them.
      */
-    private void process(Iterator<CSVRecord> recordIterator, short maxDepth, ProgressLogger pl) throws IOException {
+    private void process(Iterator<CSVRecord> recordIterator, short maxDepth, boolean withSha1, ProgressLogger pl)
+            throws IOException {
         SwhBidirectionalGraph graph = this.graph.copy();
 
         CSVRecord[] records = new CSVRecord[BATCH_SIZE];
@@ -168,7 +174,7 @@ public class PopularContentPaths {
             }
 
             // Do the actual work outside the critical section
-            processBatch(graph, records, maxDepth, pl);
+            processBatch(graph, records, maxDepth, withSha1, pl);
         }
     }
 
@@ -176,8 +182,8 @@ public class PopularContentPaths {
      * Given an array of CSV records, computes the most popular path of each record and prints it to the
      * shared <code>csvPrinter</code>.
      */
-    private void processBatch(SwhBidirectionalGraph graph, CSVRecord[] records, short maxDepth, ProgressLogger pl)
-            throws IOException {
+    private void processBatch(SwhBidirectionalGraph graph, CSVRecord[] records, short maxDepth, boolean withSha1,
+            ProgressLogger pl) throws IOException {
 
         long totalNodes = graph.numNodes();
         HashMap<FilepathIds, Long> paths = new HashMap<>();
@@ -189,6 +195,10 @@ public class PopularContentPaths {
                 break;
             }
             String nodeSWHID = record.get(0);
+            String sha1 = null;
+            if (withSha1) {
+                sha1 = record.get(1);
+            }
             long cntNode = graph.getNodeId(nodeSWHID);
 
             pl.lightUpdate();
@@ -220,7 +230,11 @@ public class PopularContentPaths {
                 if (filepath == null) {
                     continue;
                 }
-                csvPrinter.printRecord(graph.getSWHID(cntNode), contentLength, filepath, maxCount);
+                if (withSha1) {
+                    csvPrinter.printRecord(graph.getSWHID(cntNode), sha1, contentLength, filepath, maxCount);
+                } else {
+                    csvPrinter.printRecord(graph.getSWHID(cntNode), contentLength, filepath, maxCount);
+                }
             }
         }
     }
