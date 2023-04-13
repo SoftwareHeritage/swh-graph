@@ -190,7 +190,6 @@ public class PopularContentPaths {
             }
             String nodeSWHID = record.get(0);
             long cntNode = graph.getNodeId(nodeSWHID);
-            System.err.printf("swhid=%s cntNode=%d\n", nodeSWHID, cntNode);
 
             pl.lightUpdate();
 
