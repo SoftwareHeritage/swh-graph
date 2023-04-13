@@ -196,7 +196,6 @@ Visit
 
 .. http:get:: /graph/visit/nodes/:src
 .. http:get:: /graph/visit/edges/:src
-.. http:get:: /graph/visit/paths/:src
 
     Performs a graph traversal and returns explored nodes, edges or paths (in
     the order of the traversal).
@@ -264,26 +263,6 @@ Visit
         swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:19ba5d6203a040a39ecc4a77b165d3f097c1e662
         swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:9c56102eefea23c95405533e1de23da4b873ecc4
         swh:1:snp:40f9f177b8ab0b7b3d70ee14bbc8b214e2b2dcfc swh:1:rev:3f54e816b46c2e179cd164e17fea93b3013a9db4
-        ...
-
-    **Example:**
-
-    .. sourcecode:: http
-
-        GET /graph/visit/paths/swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb HTTP/1.1
-
-        Content-Type: application/x-ndjson
-        Transfer-Encoding: chunked
-
-    .. sourcecode:: http
-
-        HTTP/1.1 200 OK
-
-        ["swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb", "swh:1:cnt:acfb7cabd63b368a03a9df87670ece1488c8bce0"]
-        ["swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb", "swh:1:cnt:2a0837708151d76edf28fdbb90dc3eabc676cff3"]
-        ["swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb", "swh:1:cnt:eaf025ad54b94b2fdda26af75594cfae3491ec75"]
-        ...
-        ["swh:1:dir:644dd466d8ad527ea3a609bfd588a3244e6dafcb", "swh:1:dir:2ebd4b96fa5665ff74f2b27ae41aecdc43af4463", "swh:1:cnt:1d3b6575fb7bf2a147d228e78ffd77ea193c3639"]
         ...
 
 
@@ -373,13 +352,6 @@ The following use cases require traversing the *forward graph*.
   Endpoint::
 
     /graph/neighbors/:DIR_ID?edges=dir:cnt,dir:dir
-
-- **ls -R**: given a directory node, recursively list all linked nodes of type
-  directory and content
-
-  Endpoint::
-
-    /graph/visit/paths/:DIR_ID?edges=dir:cnt,dir:dir
 
 - **git log**: given a revision node, recursively list all linked nodes of type
   revision
