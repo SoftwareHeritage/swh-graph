@@ -211,6 +211,8 @@ class DeanonymizeOriginContributors(luigi.Task):
         import pyzstd
         import tqdm
 
+        from .shell import Command, Java, Sink
+
         # Load the deanonymization table, to map sha256(name) to base64(name)
         # and escape(name)
         sha256_to_names: Dict[bytes, Tuple[bytes, str]] = {}
@@ -229,12 +231,35 @@ class DeanonymizeOriginContributors(luigi.Task):
 
         # Combine with the list of sha256(name), to get the list of base64(name)
         # and escape(name)
+        print("Computing person ids using MPH...")
         persons_path = self.local_graph_path / f"{self.graph_name}.persons.csv.zst"
+        # fmt: off
+        person_ids = (
+            Command.pv(persons_path)
+            | Command.zstdcat()
+            | Java(
+                "org.softwareheritage.graph.utils.MPHTranslate",
+                self.local_graph_path / f"{self.graph_name}.persons.mph",
+                max_ram=100_000_000,
+            )
+            > Sink()
+        ).run()
+        nb_persons = person_ids.count(b"\n")
+        person_ids_it = iter(person_ids.decode("ascii").split("\n"))
+        # fmt: on
         with pyzstd.open(persons_path, "rb") as fd:
-            person_id_to_names: List[Tuple[bytes, str]] = [
-                sha256_to_names.pop(base64.b64decode(line.strip()), (b"", ""))
-                for line in tqdm.tqdm(fd, unit_scale=True, desc="Getting person ids")
-            ]
+            person_id_to_names: Dict[int, Tuple[bytes, str]] = {
+                int(next(person_ids_it)): sha256_to_names.pop(
+                    base64.b64decode(line.strip()), (b"", "")
+                )
+                for line in tqdm.tqdm(
+                    fd, unit_scale=True, total=nb_persons, desc="Getting person ids"
+                )
+            }
+
+        assert (
+            next(person_ids_it) == ""
+        ), "MPHTranslate output has fewer lines than its input"
 
         # Read the set of person ids from the main table
         person_ids = set()

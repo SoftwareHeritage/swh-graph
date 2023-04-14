@@ -6,6 +6,7 @@
 import base64
 import datetime
 from pathlib import Path
+import shutil
 import subprocess
 
 from swh.graph.luigi.origin_contributors import (
@@ -59,23 +60,23 @@ origin_id,origin_url_base64
 
 DEANONYMIZATION_TABLE = """\
 sha256_base64,base64,escaped
-8qhF7WQ2bmeoRbZipAaqtNw6QdOCDcpggLWCQLzITsI=,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
-aZA9TeLhVzqVDQHQOd53UABAZYyek0tY3vTo6VSlA4U=,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
-UaCrgAZBvn1LBd2sAinmdNvAX/G4sjo1aJA9GDd9UUs=,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5uZXQ+,Jane Doe <jdoe@example.net>
+YmFy,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
+YmF6,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
+Zm9v,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5uZXQ+,Jane Doe <jdoe@example.net>
 """  # noqa
 
 PERSONS = """\
-aZA9TeLhVzqVDQHQOd53UABAZYyek0tY3vTo6VSlA4U=
-UaCrgAZBvn1LBd2sAinmdNvAX/G4sjo1aJA9GDd9UUs=
-8qhF7WQ2bmeoRbZipAaqtNw6QdOCDcpggLWCQLzITsI=
+YmF6
+YmFy
+Zm9v
 """.replace(
     "\n", "\r\n"
 )
 
 DEANONYMIZED_ORIGIN_CONTRIBUTORS = """\
 contributor_id,contributor_base64,contributor_escaped
-0,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
-1,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5uZXQ+,Jane Doe <jdoe@example.net>
+0,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5uZXQ+,Jane Doe <jdoe@example.net>
+1,SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>
 2,Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>
 """.replace(
     "\n", "\r\n"
@@ -160,18 +161,27 @@ def test_export_deanonymization_table(tmpdir, swh_storage_postgresql, swh_storag
     csv_text = subprocess.check_output(["zstdcat", deanonymization_table_path]).decode()
 
     (header, *rows) = csv_text.split("\n")
-    (expected_header, *expected_rows) = DEANONYMIZATION_TABLE.split("\n")
-
-    assert header == expected_header
+    assert header == "sha256_base64,base64,escaped"
+    expected_rows = {
+        "8qhF7WQ2bmeoRbZipAaqtNw6QdOCDcpggLWCQLzITsI=,"
+        "Sm9obiBEb2UgPGpkb2VAZXhhbXBsZS5vcmc+,John Doe <jdoe@example.org>",
+        "aZA9TeLhVzqVDQHQOd53UABAZYyek0tY3vTo6VSlA4U=,"
+        "SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5jb20+,Jane Doe <jdoe@example.com>",
+        "UaCrgAZBvn1LBd2sAinmdNvAX/G4sjo1aJA9GDd9UUs=,"
+        "SmFuZSBEb2UgPGpkb2VAZXhhbXBsZS5uZXQ+,Jane Doe <jdoe@example.net>",
+    }
 
     assert rows.pop() == "", "Missing trailing newline"
-    expected_rows.pop()
 
-    assert set(rows) == set(expected_rows)
+    assert set(rows) == expected_rows
 
 
 def test_deanonymize_origin_contributors(tmpdir):
     tmpdir = Path(tmpdir)
+
+    shutil.copyfile(
+        DATA_DIR / "compressed" / "example.persons.mph", tmpdir / "example.persons.mph"
+    )
 
     persons_path = tmpdir / "example.persons.csv.zst"
     origin_contributors_path = tmpdir / "origin_contributors.csv.zst"
