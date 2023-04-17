@@ -112,7 +112,6 @@ SELECTION_QUERIES = {
         ON (t1.target=t2.sha1_git)
         ORDER BY sha1
     """,
-    # TODO: the query below was not tested yet
     "license": r"""
         SELECT
             concat('swh:1:cnt:', t1.target) AS swhid,
@@ -130,7 +129,7 @@ SELECTION_QUERIES = {
             )
         ) AS t1
         LEFT JOIN (SELECT sha1,sha1_git FROM content) AS t2
-        ON (t1.target=t2.sha1_git);
+        ON (t1.target=t2.sha1_git)
         ORDER BY sha1
     """,
 }
@@ -563,16 +562,20 @@ class DownloadBlobs(_BaseTask):
 
     def _download_blob(self, session: "Session", path: Path, sha1: str) -> int:
         """Returns the size in bytes."""
+        import time
+
         while True:
             resp = session.get(self.download_url.format(sha1=sha1), stream=True)
             if resp.status_code == 429:
-                import time
 
                 rate_limit_reset = int(resp.headers["X-RateLimit-Reset"])
                 wait_seconds = max(10, rate_limit_reset - time.time())
                 logger.warning("Waiting timeout for %d seconds", wait_seconds)
                 time.sleep(wait_seconds)
                 continue
+            elif 500 <= resp.status_code < 600:
+                logger.warning("Got %d error, retrying in 10 seconds", resp.status_code)
+                time.sleep(10)
             elif resp.status_code == 200:
                 break
             else:
@@ -728,7 +731,7 @@ class MakeSampleBlobTarball(_BaseTask):
         """Selects a sample of 20k random blobs and puts them in a tarball."""
         from .shell import AtomicFileSink, Command
 
-        cwd = (self.derived_datasets_path / self.blob_filter,)
+        cwd = self.derived_datasets_path / self.blob_filter
         # fmt: off
         (
             Command.zstdcat(self.blob_list_path())
@@ -777,7 +780,8 @@ class ComputeBlobFileinfo(_BaseTask):
         )
 
     def output(self) -> List[luigi.Target]:
-        """:file:`blobs.tar.zst` in ``self.derived_datasets_path / self.blob_filter``"""
+        """:file:`blobs-fileinfo.csv.zst` in
+        ``self.derived_datasets_path / self.blob_filter``"""
         return [
             luigi.LocalTarget(
                 self.derived_datasets_path / self.blob_filter / "blobs-fileinfo.csv.zst"
