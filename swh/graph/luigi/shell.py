@@ -43,6 +43,7 @@ import functools
 import os
 from pathlib import Path
 import shlex
+import signal
 import subprocess
 from typing import Any, Dict, List, NoReturn, Optional, TypeVar, Union
 
@@ -172,11 +173,17 @@ class _RunningCommand:
         self.proc = proc
         self.running_children = running_children
 
+    def stdout(self):
+        return self.proc.stdout
+
+    def is_alive(self) -> bool:
+        return self.proc.poll() is None
+
     def wait(self) -> None:
         try:
             self.proc.wait()
             self.command._cleanup()
-            if self.proc.returncode != 0:
+            if self.proc.returncode not in (0, -int(signal.SIGPIPE)):
                 raise CommandException(
                     f"{self.command.args[0]} returned: {self.proc.returncode}"
                 )
@@ -244,6 +251,12 @@ class _RunningPipe:
         self.pipe = pipe
         self.children = children
 
+    def stdout(self):
+        return self.children[-1].stdout()
+
+    def is_alive(self) -> bool:
+        return all(child.is_alive() for child in self.children)
+
     def wait(self) -> None:
         try:
             for child in self.children:
@@ -283,18 +296,22 @@ class _BaseSink:
 class Sink(_BaseSink):
     """Captures the final output instead of sending it to the process' stdout"""
 
-    def run(self) -> None:
+    def run(self) -> bytes:
         if self.source_pipe is None:
             raise TypeError("AtomicFileSink has no stdin")
 
         source = self.source_pipe._run(stdin=None, stdout=subprocess.PIPE)
+
+        chunks = []
+        while True:
+            new_chunk = source.stdout().read(10240)
+            if not new_chunk and not source.is_alive():
+                break
+            chunks.append(new_chunk)
+
         source.wait()
 
-        while isinstance(source, _RunningPipe):
-            source = source.children[-1]
-
-        assert source.proc.stdout is not None, source
-        return source.proc.stdout.read()
+        return b"".join(chunks)
 
 
 class AtomicFileSink(_BaseSink):

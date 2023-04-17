@@ -3,6 +3,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import threading
+
 import pytest
 import pyzstd
 
@@ -31,6 +33,25 @@ def test_pipe_stdout():
         > Sink()
     ).run()
     assert pyzstd.decompress(res) == b"foo\n", res
+
+
+def test_large_sink():
+    """Checks Sink() does not block"""
+    res = None
+
+    def f():
+        nonlocal res
+        res = (
+            Command.yes()
+            | Command.head("-n", "1000000")
+            > Sink()
+        ).run()
+        assert res == b"y\n" * 1000000, res
+
+    thread = threading.Thread(target=f)
+    thread.start()
+    thread.join(10)  # 0.1s should be enough, but let's avoid flaky tests
+    assert not thread.is_alive(), "blocked or took too long"
 
 
 def test_pipe_file(tmp_path):
