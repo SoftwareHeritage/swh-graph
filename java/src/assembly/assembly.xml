@@ -16,7 +16,6 @@
           <unpack>true</unpack>
           <scope>runtime</scope>
           <excludes>
-            <exclude>org.apache.hadoop:hadoop-client-runtime</exclude>
             <exclude>org.apache.hadoop:hadoop-auth</exclude>
             <exclude>org.apache.hadoop.thirdparty:hadoop-shaded-guava</exclude>
             <exclude>org.apache.zookeeper:zookeeper</exclude>
