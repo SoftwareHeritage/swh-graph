@@ -209,6 +209,7 @@ class DeanonymizeOriginContributors(luigi.Task):
         import csv
 
         import pyzstd
+        import tqdm
 
         # Load the deanonymization table, to map sha256(name) to base64(name)
         # and escape(name)
@@ -218,7 +219,9 @@ class DeanonymizeOriginContributors(luigi.Task):
             csv_reader = csv.reader(cast(Iterable[str], fd))
             header = next(csv_reader)
             assert header == ["sha256_base64", "base64", "escaped"], header
-            for line in csv_reader:
+            for line in tqdm.tqdm(
+                csv_reader, unit_scale=True, desc="Loading deanonymization table"
+            ):
                 (base64_sha256_name, base64_name, escaped_name) = line
                 sha256_name = base64.b64decode(base64_sha256_name)
                 name = base64.b64decode(base64_name)
@@ -230,7 +233,7 @@ class DeanonymizeOriginContributors(luigi.Task):
         with pyzstd.open(persons_path, "rb") as fd:
             person_id_to_names: List[Tuple[bytes, str]] = [
                 sha256_to_names.pop(base64.b64decode(line.strip()), (b"", ""))
-                for line in fd
+                for line in tqdm.tqdm(fd, unit_scale=True, desc="Getting person ids")
             ]
 
         # Read the set of person ids from the main table
@@ -240,7 +243,9 @@ class DeanonymizeOriginContributors(luigi.Task):
             csv_reader = csv.reader(cast(Iterable[str], input_fd))
             header = next(csv_reader)
             assert header == ["origin_id", "contributor_id"], header
-            for (origin_id, person_id_str) in csv_reader:
+            for (origin_id, person_id_str) in tqdm.tqdm(
+                csv_reader, unit_scale=True, desc="Reading set of contributor ids"
+            ):
                 if person_id_str == "null":
                     # FIXME: workaround for a bug in contribution graphs generated
                     # before 2022-12-01. Those were only used in tests and never
@@ -259,7 +264,9 @@ class DeanonymizeOriginContributors(luigi.Task):
                 ("contributor_id", "contributor_base64", "contributor_escaped")
             )
 
-            for person_id in sorted(person_ids):
+            for person_id in tqdm.tqdm(
+                sorted(person_ids), unit_scale=True, desc="Writing contributor names"
+            ):
                 (name, escaped_name) = person_id_to_names[person_id]
                 base64_name = base64.b64encode(name).decode("ascii")
                 csv_writer.writerow((person_id, base64_name, escaped_name))
