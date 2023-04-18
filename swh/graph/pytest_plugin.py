@@ -89,30 +89,39 @@ def graph_grpc_stub(graph_grpc_server):
         yield stub
 
 
+@pytest.fixture(scope="module")
+def remote_graph_client(graph_grpc_server_process):
+    server = graph_grpc_server_process
+    server.start()
+    if isinstance(server.result, Exception):
+        raise server.result
+    yield RemoteGraphClient(str(server.result["server_url"]))
+    server.kill()
+
+
+@pytest.fixture(scope="module")
+def naive_graph_client():
+    def zstdcat(*files):
+        p = subprocess.run(["zstdcat", *files], stdout=subprocess.PIPE)
+        return p.stdout.decode()
+
+    edges_dataset = DATASET_DIR / "edges"
+    edge_files = edges_dataset.glob("*/*.edges.csv.zst")
+    node_files = edges_dataset.glob("*/*.nodes.csv.zst")
+
+    nodes = set(zstdcat(*node_files).strip().split("\n"))
+    edge_lines = [line.split() for line in zstdcat(*edge_files).strip().split("\n")]
+    edges = [(src, dst) for src, dst, *_ in edge_lines]
+    for src, dst in edges:
+        nodes.add(src)
+        nodes.add(dst)
+
+    yield NaiveClient(nodes=list(nodes), edges=edges)
+
+
 @pytest.fixture(scope="module", params=["remote", "naive"])
 def graph_client(request):
     if request.param == "remote":
-        server = request.getfixturevalue("graph_grpc_server_process")
-        server.start()
-        if isinstance(server.result, Exception):
-            raise server.result
-        yield RemoteGraphClient(str(server.result["server_url"]))
-        server.kill()
+        yield request.getfixturevalue("remote_graph_client")
     else:
-
-        def zstdcat(*files):
-            p = subprocess.run(["zstdcat", *files], stdout=subprocess.PIPE)
-            return p.stdout.decode()
-
-        edges_dataset = DATASET_DIR / "edges"
-        edge_files = edges_dataset.glob("*/*.edges.csv.zst")
-        node_files = edges_dataset.glob("*/*.nodes.csv.zst")
-
-        nodes = set(zstdcat(*node_files).strip().split("\n"))
-        edge_lines = [line.split() for line in zstdcat(*edge_files).strip().split("\n")]
-        edges = [(src, dst) for src, dst, *_ in edge_lines]
-        for src, dst in edges:
-            nodes.add(src)
-            nodes.add(dst)
-
-        yield NaiveClient(nodes=list(nodes), edges=edges)
+        yield request.getfixturevalue("naive_graph_client")
