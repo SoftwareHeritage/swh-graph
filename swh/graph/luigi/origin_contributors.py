@@ -41,6 +41,7 @@ import luigi
 
 from .compressed_graph import LocalGraph
 from .topology import TopoSort
+from .utils import count_nodes
 
 
 class ListOriginContributors(luigi.Task):
@@ -297,3 +298,114 @@ class DeanonymizeOriginContributors(luigi.Task):
                 csv_writer.writerow((person_id, base64_name, escaped_name))
 
         tmp_output_path.replace(self.deanonymized_origin_contributors_path)
+
+
+class RunOriginContributors(luigi.Task):
+    local_graph_path = luigi.PathParameter()
+    graph_name = luigi.Parameter(default="graph")
+    origin_urls_path = luigi.PathParameter()
+    origin_contributors_path = luigi.PathParameter()
+    deanonymized_origin_contributors_path = luigi.PathParameter()
+    skip_integrity_check = luigi.BoolParameter()
+    test_origin = luigi.Parameter(
+        default="https://forge.softwareheritage.org/source/swh-graph.git"
+    )
+    test_person = luigi.Parameter(default="vlorentz")
+
+    def requires(self) -> List[luigi.Task]:
+        """Returns instances of :class:`LocalGraph`, :class:`ListOriginContributors`,
+        and :class:`ExportDeanonymizationTable`."""
+        return [
+            ListOriginContributors(
+                graph_name=self.graph_name,
+                origin_urls_path=self.origin_urls_path,
+                origin_contributors_path=self.origin_contributors_path,
+            ),
+            DeanonymizeOriginContributors(
+                graph_name=self.graph_name,
+                deanonymized_origin_contributors_path=self.deanonymized_origin_contributors_path,
+            ),
+        ]
+
+    def run(self) -> None:
+        """Checks integrity of the produced dataset using a well-known example"""
+        import base64
+        import csv
+
+        import pyzstd
+        import tqdm
+
+        if self.skip_integrity_check:
+            return
+
+        origin_count = count_nodes(self.local_graph_path, self.graph_name, "ori")
+        person_count = int(
+            (self.local_graph_path / f"{self.graph_name}.persons.count.txt")
+            .read_text()
+            .strip()
+        )
+
+        origin_id = None
+        with pyzstd.open(self.origin_urls_path, "rt") as fd:
+            reader = csv.reader(cast(Iterable[str], fd))
+            header = next(reader)
+            assert header == ["origin_id", "origin_url_base64"], header
+            encoded_origin_url = base64.b64encode(self.test_origin.encode()).decode()
+            for line in tqdm.tqdm(
+                reader, unit_scale=True, desc="Reading origin URLs", total=origin_count
+            ):
+                if line[1] == encoded_origin_url:
+                    assert (
+                        origin_id is None
+                    ), f"Duplicate origin {self.test_origin}: has ids {origin_id} and {line[0]}"
+                    origin_id = line[0]
+        if origin_id is None:
+            assert f"{self.test_origin} is absent from the list of origins"
+
+        approx_contributors_per_origin = 8.5  # in 2022-12-07
+
+        contributor_ids = set()
+        with pyzstd.open(self.origin_contributors_path, "rt") as fd:
+            reader = csv.reader(cast(Iterable[str], fd))
+            header = next(reader)
+            assert header == ["origin_id", "contributor_id"], header
+            for line in tqdm.tqdm(
+                reader,
+                unit_scale=True,
+                desc="Reading contributors",
+                total=origin_count * approx_contributors_per_origin,
+            ):
+                if line[0] == origin_id:
+                    contributor_ids.add(line[1])
+
+        assert (
+            len(contributor_ids) < 10000
+        ), "Unexpectedly many contributors to {self.test_origin}"
+        assert (
+            len(contributor_ids) > 10
+        ), f"Unexpectedly few contributors to {self.test_origin}: {contributor_ids}"
+
+        contributors = []
+        with pyzstd.open(self.deanonymized_origin_contributors_path, "rt") as fd:
+            reader = csv.reader(cast(Iterable[str], fd))
+            header = next(reader)
+            assert header == [
+                "contributor_id",
+                "contributor_base64",
+                "contributor_escaped",
+            ], header
+            for line in tqdm.tqdm(
+                reader,
+                unit_scale=True,
+                desc="Reading person names",
+                total=person_count,  # reasonably-tight upper bound
+            ):
+                if line[0] in contributor_ids:
+                    contributor_ids.remove(line[0])
+                    contributors.append(line[2])
+
+        assert not contributor_ids, f"Person ids with no person: {contributor_ids}"
+
+        assert any(
+            self.test_person in contributor for contributor in contributors
+        ), "{self.test_person} is not among the contributors to {self.test_origin}"
