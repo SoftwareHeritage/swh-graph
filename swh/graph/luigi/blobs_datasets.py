@@ -50,6 +50,7 @@ from typing import (
     Callable,
     ContextManager,
     Dict,
+    Iterable,
     Iterator,
     List,
     Optional,
@@ -159,6 +160,7 @@ def atomic_csv_zstd_writer(result_path: Path):
 class _BaseTask(luigi.Task):
     blob_filter: str
     derived_datasets_path: Path
+    previous_derived_datasets_path: Optional[Path]
 
     def blob_count(self) -> int:
         """Returns the total number of selected blobs"""
@@ -184,6 +186,14 @@ class _BaseTask(luigi.Task):
 
     def blob_tarball_path(self) -> Path:
         return self.derived_datasets_path / self.blob_filter / "blobs.tar.zst"
+
+    def previous_blob_tarball_path(self) -> Optional[Path]:
+        if self.previous_derived_datasets_path:
+            return (
+                self.previous_derived_datasets_path / self.blob_filter / "blobs.tar.zst"
+            )
+        else:
+            return None
 
     def sample_blob_tarball_path(self) -> Path:
         return self.derived_datasets_path / self.blob_filter / "blobs-sample20k.tar.zst"
@@ -522,6 +532,7 @@ class SelectBlobs(_BaseTask):
 class DownloadBlobs(_BaseTask):
     blob_filter = luigi.ChoiceParameter(choices=list(SELECTION_QUERIES))
     derived_datasets_path = luigi.PathParameter()
+    previous_derived_datasets_path = luigi.PathParameter(default=None)
     parallel_downloads = luigi.IntParameter(default=10, significant=False)
     download_url = luigi.Parameter(
         default="https://archive.softwareheritage.org/api/1/content/sha1:{sha1}/raw/",
@@ -641,12 +652,28 @@ class DownloadBlobs(_BaseTask):
         import requests
         import tqdm
 
+        from .shell import Command
+
         # Create sharded directories for the blobs
         for i in range(256):
             for j in range(256):
                 (self.blob_dir() / f"{i:02x}" / f"{j:02x}").mkdir(
                     exist_ok=True, parents=True
                 )
+
+        previous_blob_tarball_path = self.previous_blob_tarball_path()
+        if previous_blob_tarball_path:
+            # reuse blobs from a previous version of the dataset, so we don't have
+            # to download them one by one
+            print(f"Unpacking previous blobs from {previous_blob_tarball_path}")
+            # fmt: off
+            (
+                Command.pv(previous_blob_tarball_path)
+                | Command.zstdcat()
+                | Command.tar("-x", "-C", self.blob_dir().parent)  # tar root is blobs/
+            ).run()
+            # fmt: on
+            print("Done unpacking")
 
         session = requests.Session()
         session.headers[
@@ -852,6 +879,8 @@ class ComputeBlobFileinfo(_BaseTask):
 
 
 class FindBlobOrigins(_ConcurrentCsvWritingTask):
+    previous_derived_datasets_path = luigi.PathParameter(default=None)
+
     def output(self) -> List[luigi.Target]:
         """:file:`blobs.tar.zst` in ``self.derived_datasets_path / self.blob_filter``"""
         return [
@@ -899,24 +928,24 @@ class FindBlobOrigins(_ConcurrentCsvWritingTask):
         return (swhid, origin_url)
 
     def run(self) -> None:
-        pass
-        # TODO: port support for reusing old results:
-        """
-        if len(sys.argv) == 2 and os.path.exists(sys.argv[1]):
-            with open(sys.argv[1]) as fd:
-                existing_swhids = dict(
-                    line.strip().split("\t") for line in fd if line[-2] != "\t"
-                )
-        elif len(sys.argv) == 1:
-            existing_swhids = {}
-        else:
-            print(
-                "This command takes no argument; SWHIDs should be passed as stdin.",
-                file=sys.stderr
-            )
-            exit(1)
-        """
+        import pyzstd
+
         self.existing_swhids: Dict[str, str] = {}
+
+        if self.previous_derived_datasets_path:
+            # reuse blobs from a previous version of the dataset, so we don't have
+            # to recompute them all
+            path = (
+                self.previous_derived_datasets_path
+                / self.blob_filter
+                / "blobs-origins.csv.zst"
+            )
+            with pyzstd.open(path, "rt") as fd:
+                self.existing_swhids = dict(
+                    line.strip().split("\t")
+                    for line in cast(Iterable[str], fd)
+                    if line[-2] != "\t"
+                )
 
         super().run()
 

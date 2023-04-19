@@ -344,6 +344,15 @@ def get_all_subclasses(cls):
     Defaults to the value of --dataset-name""",
 )
 @click.option(
+    "--previous-dataset-name",
+    required=False,
+    type=str,
+    help="""When regenerating a derived dataset, this can be set to the name of
+    a previous dataset the derived dataset was generated for.
+    Some results from the previous generated dataset will be reused to speed-up
+    regeneration.""",
+)
+@click.option(
     "--luigi-config",
     type=PathlibPath(),
     help="""Extra options to add to ``luigi.cfg``, following the same format.
@@ -371,6 +380,7 @@ def luigi(
     s3_athena_output_location: Optional[str],
     dataset_name: str,
     export_name: Optional[str],
+    previous_dataset_name: Optional[str],
     retry_luigi_delay: int,
     luigi_config: Optional[Path],
     luigi_param: List[str],
@@ -467,6 +477,7 @@ def luigi(
         export_id=f"{export_name}-{secrets.token_hex(10)}",
         export_name=export_name,
         dataset_name=dataset_name,
+        previous_dataset_name=previous_dataset_name,
     )
 
     if graph_base_directory:
@@ -497,6 +508,11 @@ def luigi(
         )
         default_values["deanonymization_table_path"] = (
             sensitive_path / "persons_sha256_to_name.csv.zst"
+        )
+
+    if previous_dataset_name:
+        default_values["previous_derived_datasets_path"] = (
+            base_directory / previous_dataset_name
         )
 
     if athena_prefix:
