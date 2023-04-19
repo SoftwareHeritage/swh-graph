@@ -316,4 +316,9 @@ message StatsResponse {
     int64 outdegree_max = 11;
     /* Average outdegree */
     double outdegree_avg = 12;
+
+    /* Time when the export started */
+    optional int64 export_started_at = 13;
+    /* Time when the export ended */
+    optional int64 export_ended_at = 14;
 }

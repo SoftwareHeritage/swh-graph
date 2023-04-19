@@ -635,6 +635,8 @@ class StatsResponse(google.protobuf.message.Message):
     OUTDEGREE_MIN_FIELD_NUMBER: builtins.int
     OUTDEGREE_MAX_FIELD_NUMBER: builtins.int
     OUTDEGREE_AVG_FIELD_NUMBER: builtins.int
+    EXPORT_STARTED_AT_FIELD_NUMBER: builtins.int
+    EXPORT_ENDED_AT_FIELD_NUMBER: builtins.int
     num_nodes: builtins.int
     """Number of nodes in the graph"""
 
@@ -675,6 +677,12 @@ class StatsResponse(google.protobuf.message.Message):
     outdegree_avg: builtins.float
     """Average outdegree"""
 
+    export_started_at: builtins.int
+    """Time when the export started"""
+
+    export_ended_at: builtins.int
+    """Time when the export ended"""
+
     def __init__(self,
         *,
         num_nodes: builtins.int = ...,
@@ -689,6 +697,13 @@ class StatsResponse(google.protobuf.message.Message):
         outdegree_min: builtins.int = ...,
         outdegree_max: builtins.int = ...,
         outdegree_avg: builtins.float = ...,
+        export_started_at: typing.Optional[builtins.int] = ...,
+        export_ended_at: typing.Optional[builtins.int] = ...,
         ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["avg_locality",b"avg_locality","bits_per_edge",b"bits_per_edge","bits_per_node",b"bits_per_node","compression_ratio",b"compression_ratio","indegree_avg",b"indegree_avg","indegree_max",b"indegree_max","indegree_min",b"indegree_min","num_edges",b"num_edges","num_nodes",b"num_nodes","outdegree_avg",b"outdegree_avg","outdegree_max",b"outdegree_max","outdegree_min",b"outdegree_min"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_export_ended_at",b"_export_ended_at","_export_started_at",b"_export_started_at","export_ended_at",b"export_ended_at","export_started_at",b"export_started_at"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_export_ended_at",b"_export_ended_at","_export_started_at",b"_export_started_at","avg_locality",b"avg_locality","bits_per_edge",b"bits_per_edge","bits_per_node",b"bits_per_node","compression_ratio",b"compression_ratio","export_ended_at",b"export_ended_at","export_started_at",b"export_started_at","indegree_avg",b"indegree_avg","indegree_max",b"indegree_max","indegree_min",b"indegree_min","num_edges",b"num_edges","num_nodes",b"num_nodes","outdegree_avg",b"outdegree_avg","outdegree_max",b"outdegree_max","outdegree_min",b"outdegree_min"]) -> None: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_export_ended_at",b"_export_ended_at"]) -> typing.Optional[typing_extensions.Literal["export_ended_at"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_export_started_at",b"_export_started_at"]) -> typing.Optional[typing_extensions.Literal["export_started_at"]]: ...
 global___StatsResponse = StatsResponse

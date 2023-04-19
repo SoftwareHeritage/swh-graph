@@ -141,6 +141,8 @@ class NaiveClient:
             "outdegree_avg": statistics.mean(
                 map(len, self.graph.forward_edges.values())
             ),
+            "export_started_at": 1669888200,
+            "export_ended_at": 1669899600,
         }
 
     @check_arguments

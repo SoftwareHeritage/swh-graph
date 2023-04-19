@@ -30,6 +30,8 @@ def test_stats(graph_client):
     assert stats["outdegree_min"] == 0
     assert stats["outdegree_max"] == 3
     assert isinstance(stats["outdegree_avg"], float)
+    assert stats["export_started_at"] == 1669888200
+    assert stats["export_ended_at"] == 1669899600
 
 
 def test_leaves(graph_client):
