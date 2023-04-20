@@ -95,6 +95,8 @@ class Command(metaclass=_MetaCommand):
                 final_args.append(f"/dev/fd/{r}")
                 children.append(arg._run(None, w))
                 os.close(w)
+            elif isinstance(arg, luigi.LocalTarget):
+                final_args.append(arg.path)
             else:
                 final_args.append(arg)
 
