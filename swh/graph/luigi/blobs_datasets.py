@@ -1027,7 +1027,7 @@ class FindEarliestRevisions(_BaseTask):
             )
             | Command.pv("--wait", "--line-mode", "--size", str(self.blob_count()))
             | Command.zstdmt(f"-{COMPRESS_LEVEL}")
-            > AtomicFileSink(self.output())
+            > AtomicFileSink(self.output()[0])
         ).run()
         # fmt: on
 
