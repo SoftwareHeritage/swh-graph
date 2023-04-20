@@ -58,11 +58,6 @@ The ``--compress`` optionally performs a graph compression step.
 Content
 -------
 
-.. figure:: ../images/example-dataset.svg
-   :alt: A representation of the example dataset directed graph with nodes for
-         origins, snapshots, releases, revisions, directories and contents.
-
-   Dataset visualization
 """
 
 import datetime
