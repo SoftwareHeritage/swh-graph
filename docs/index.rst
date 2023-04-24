@@ -16,6 +16,7 @@
    cli
    docker
    git2graph
+   example-dataset
 
 .. only:: standalone_package_doc
 
