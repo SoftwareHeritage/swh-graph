@@ -554,11 +554,30 @@ ORIGIN_VISIT_STATUSES: List[OriginVisitStatus] = [
 """  # pylint: disable=W0105
 
 
-ORIGINS: List[Origin] = [
-    Origin(url="https://example.com/swh/graph"),
-    Origin(url="https://example.com/swh/graph2"),
-]
-"""Example :py:class:`swh.model.model.OriginVisit` instances
+INITIAL_ORIGIN: Origin = Origin(url="https://example.com/swh/graph")
+"""Origin where the development of the tiny project represented by this
+example dataset was initially made.
+
+:meta hide-value:
+
+- URL: ``https://example.com/swh/graph``
+- SWHID: ``swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054``
+"""  # pylint: disable=W0105
+
+
+FORKED_ORIGIN: Origin = Origin(url="https://example.com/swh/graph2")
+"""Origin that picked up (forked) the development of the tiny project
+represented by this example dataset.
+
+:meta hide-value:
+
+- URL: ``https://example.com/swh/graph2``
+- SWHID: ``swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165``
+"""  # pylint: disable=W0105
+
+
+ORIGINS: List[Origin] = [INITIAL_ORIGIN, FORKED_ORIGIN]
+"""Example :py:class:`swh.model.model.Origin` instances
 
   :meta hide-value:
 
@@ -597,6 +616,7 @@ DATASET: List[
 
   :meta hide-value:
 """  # pylint: disable=W0105
+
 
 DATASET_DIR: Path = Path(__file__).parent
 """Path to the dataset directory
