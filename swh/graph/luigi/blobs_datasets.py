@@ -47,6 +47,7 @@ import os
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     ContextManager,
     Dict,
@@ -54,6 +55,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Set,
     Tuple,
     TypeVar,
     cast,
@@ -136,24 +138,56 @@ SELECTION_QUERIES = {
 }
 
 
-@contextlib.contextmanager
-def atomic_csv_zstd_writer(result_path: Path):
-    """Returns a ``csv.writer`` object, which writes to a temporary file,
-    then atomically renames it to the ``result_path`` on success."""
-    import csv
+_mime_guesser = None
 
+
+def _init_mime_guesser():
+    global _mime_guesser
+    if _mime_guesser is None:
+        import magic
+
+        _mime_guesser = magic.Magic(mime=True, mime_encoding=True)
+
+    return _mime_guesser
+
+
+def _guess_mime(path: str) -> Tuple[str, str]:
+    _mime_guesser = _init_mime_guesser()
+    info = _mime_guesser.from_file(path)
+    mime_type, encoding = info.split()
+    mime_type, encoding = mime_type.rstrip(";"), _removeprefix(encoding, "charset=")
+
+    return (mime_type, encoding)
+
+
+@contextlib.contextmanager
+def atomic_zstd_writer(result_path: Path):
+    """Returns a file-like object, which writes to a temporary file,
+    then atomically renames it to the ``result_path`` on success."""
     import pyzstd
 
     tmp_result_path = Path(f"{result_path}.tmp")
     try:
-        with pyzstd.open(tmp_result_path, "wt") as output_fd:
-            yield csv.writer(output_fd, lineterminator="\n")
+        with pyzstd.open(
+            tmp_result_path, "wt", level_or_option=COMPRESS_LEVEL
+        ) as output_fd:
+            yield output_fd
 
         tmp_result_path.replace(result_path)
 
     except BaseException:
         tmp_result_path.unlink()
         raise
+
+
+@contextlib.contextmanager
+def atomic_csv_zstd_writer(result_path: Path):
+    """Returns a ``csv.writer`` object, which writes to a temporary file,
+    then atomically renames it to the ``result_path`` on success."""
+    import csv
+
+    with atomic_zstd_writer(result_path) as output_fd:
+        yield csv.writer(output_fd, lineterminator="\n")
 
 
 # luigi.Task with some helpers to get paths
@@ -794,11 +828,6 @@ class ComputeBlobFileinfo(_BaseTask):
     )
     READABLE_ENCODINGS = ("us-ascii", "utf-8", "iso-8859-1")
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.mime_guesser: Optional[magic.Magic] = None  # set in child processes
-
     def requires(self) -> luigi.Task:
         """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
         return DownloadBlobs(
@@ -842,7 +871,7 @@ class ComputeBlobFileinfo(_BaseTask):
         assert path.exists(), f"{path} does not exist"
 
         size = path.stat().st_size
-        mime_type, encoding = self.guess_mime(str(path))
+        mime_type, encoding = _guess_mime(str(path))
         line_count, word_count = None, None
 
         if mime_type == "text/plain" and encoding in self.READABLE_ENCODINGS:
@@ -866,16 +895,133 @@ class ComputeBlobFileinfo(_BaseTask):
             str(size),  # byte count
         )
 
-    def guess_mime(self, path) -> Tuple[str, str]:
-        if self.mime_guesser is None:
-            import magic
 
-            self.mime_guesser = magic.Magic(mime=True, mime_encoding=True)
-        info = self.mime_guesser.from_file(path)
-        mime_type, encoding = info.split()
-        mime_type, encoding = mime_type.rstrip(";"), _removeprefix(encoding, "charset=")
+class BlobScancode(_BaseTask):
+    """Runs scancode-toolkit on the blob dataset"""
 
-        return (mime_type, encoding)
+    blob_filter = luigi.ChoiceParameter(choices=list(SELECTION_QUERIES))
+    derived_datasets_path = luigi.PathParameter()
+
+    FIELDNAMES = [
+        "swhid",
+        "license",
+        "score",
+    ]
+
+    DEFAULT_MIN_SCORE = 0
+    DEFAULT_JOBS = 1
+    DEFAULT_TIMEOUT = 120
+    MAP_CHUNKSIZE = 1
+    WORKER_MAX_TASKS = 1000  # to workaround Scancode get_licenses() memory leaks
+    FIELD_SEP = ","
+    READABLE_ENCODINGS = ("us-ascii", "utf-8", "iso-8859-1")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.mime_guesser: Optional[magic.Magic] = None  # set in child processes
+
+    def requires(self) -> luigi.Task:
+        """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
+        return DownloadBlobs(
+            blob_filter=self.blob_filter,
+            derived_datasets_path=self.derived_datasets_path,
+        )
+
+    def _csv_path(self) -> Path:
+        return self.derived_datasets_path / self.blob_filter / "blobs-scancode.csv.zst"
+
+    def _json_path(self) -> Path:
+        return (
+            self.derived_datasets_path / self.blob_filter / "blobs-scancode.ndjson.zst"
+        )
+
+    def output(self) -> List[luigi.Target]:
+        """:file:`blobs-scancode.csv.zst` and :file:`blobs-scancode.ndjson.zst` in
+        ``self.derived_datasets_path / self.blob_filter``"""
+        return [
+            luigi.LocalTarget(self._csv_path()),
+            luigi.LocalTarget(self._json_path()),
+        ]
+
+    def _detect_licenses(self, row) -> Tuple[Set[Tuple[str, str, float]], str]:
+        import json
+        import time
+
+        # needs to be initialized before importing scancode:
+        # https://github.com/nexB/scancode-plugins/issues/30
+        _init_mime_guesser()
+
+        from scancode.api import get_copyrights, get_licenses
+
+        (swhid, sha1, name) = row
+        (path, _) = self.blob_paths(sha1)
+        assert path.exists(), f"{path} does not exist"
+
+        mime_type, encoding = _guess_mime(str(path))
+        license_rows = set()
+
+        res: Dict[str, Any] = {"swhid": swhid}
+
+        if mime_type == "text/plain" and encoding in self.READABLE_ENCODINGS:
+            deadline = time.time() + self.DEFAULT_TIMEOUT
+            res["licenses"] = get_licenses(
+                str(path), min_score=self.DEFAULT_MIN_SCORE, deadline=deadline
+            )
+            license_rows = {
+                (
+                    swhid,
+                    lic["spdx_license_key"],
+                    lic["score"],
+                )
+                for lic in res["licenses"]["licenses"]
+            }
+            res["copyrights"] = get_copyrights(str(path))
+
+        return (license_rows, json.dumps(res))
+
+    def run(self) -> None:
+        """Detect license(s) of license blobs located under blob_dir using scancode.
+
+        Save frequencies to csv_outfile in a 3-column (sha1, license, score) CSV format.
+
+        """
+        import csv
+        import multiprocessing
+        import multiprocessing.pool
+
+        import tqdm
+
+        # ensure clean slate
+        if self._csv_path().exists():
+            self._csv_path().unlink()
+        if self._json_path().exists():
+            self._json_path().unlink()
+
+        context = multiprocessing.get_context(method="spawn")
+        with atomic_zstd_writer(self._csv_path()) as csvfile, atomic_zstd_writer(
+            self._json_path()
+        ) as jsonfile:
+            csv_writer = csv.writer(csvfile, delimiter=self.FIELD_SEP)
+            csv_writer.writerow(self.FIELDNAMES)
+            with multiprocessing.pool.Pool(
+                maxtasksperchild=self.WORKER_MAX_TASKS,
+                context=context,
+            ) as pool:
+                for (license_rows, results) in tqdm.tqdm(
+                    pool.imap_unordered(
+                        self._detect_licenses,
+                        self.iter_blobs(unique_sha1=True, with_tqdm=False),
+                        chunksize=self.MAP_CHUNKSIZE,
+                    ),
+                    total=self.blob_count(),
+                ):
+                    # each detect() call can return multiple licenses, flatten them
+                    for (sha1, license, score) in license_rows:
+                        csv_writer.writerow([sha1, license, str(score)])
+                    assert "\n" not in results
+                    jsonfile.write(results + "\n")
+                print("Done")
 
 
 class FindBlobOrigins(_ConcurrentCsvWritingTask):
@@ -1045,7 +1191,7 @@ class RunBlobDataset(luigi.Task):
             blob_filter=self.blob_filter,
             derived_datasets_path=self.derived_datasets_path,
         )
-        return [
+        tasks = [
             DownloadBlobs(**kwargs),
             MakeBlobTarball(**kwargs),
             MakeSampleBlobTarball(**kwargs),
@@ -1054,6 +1200,15 @@ class RunBlobDataset(luigi.Task):
             FindEarliestRevisions(**kwargs),
             ComputeBlobFileinfo(**kwargs),
         ]
+
+        if self.blob_filter == "citation":
+            pass
+        elif self.blob_filter == "license":
+            tasks.append(BlobScancode(**kwargs))
+        else:
+            raise ValueError(f"Unexpected blob filter: {self.blob_filter}")
+
+        return tasks
 
     def complete(self) -> bool:
         """Always returns False; status is checked by dependencies."""
