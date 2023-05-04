@@ -646,20 +646,16 @@ class DownloadBlobs(_BaseTask):
 
         tmp_path = path.parent / f".tmp_{sha1}"
 
-        with tmp_path.open("wb") as fd:
-            for chunk in resp.iter_content(chunk_size=40960):
-                fd.write(chunk)
-
         if self.decompression_algo == "none":
-            pass  # Nothing to do
+            with tmp_path.open("wb") as fd:
+                for chunk in resp.iter_content(chunk_size=40960):
+                    fd.write(chunk)
         elif self.decompression_algo == "gzip":
             import gzip
 
-            tmp_path2 = Path(f"{tmp_path}_decompressed")
-            with gzip.open(tmp_path, "rb") as compressed_fd:
-                with open(tmp_path2, "wb") as decompressed_fd:
+            with gzip.open(resp.raw, "rb") as compressed_fd:
+                with tmp_path.open("wb") as decompressed_fd:
                     shutil.copyfileobj(compressed_fd, decompressed_fd)
-            tmp_path2.replace(tmp_path)
         else:
             assert False, f"Unexpected decompression algo: {self.decompression_algo}"
 
