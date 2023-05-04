@@ -136,6 +136,26 @@ SELECTION_QUERIES = {
         ON (t1.target=t2.sha1_git)
         ORDER BY sha1
     """,
+    "readme": r"""
+        SELECT
+            concat('swh:1:cnt:', t1.target) AS swhid,
+            t2.sha1 AS sha1,
+            t1.filename AS name
+        FROM (
+            SELECT DISTINCT target, lower(trim(from_utf8(name))) AS filename
+            FROM directory_entry
+            WHERE (
+                type = 'file' AND
+                regexp_like(
+                    lower(from_utf8(name)),
+                    '^(readme)(\.[a-z0-9\._-]+)?$'
+                )
+            )
+        ) AS t1
+        LEFT JOIN (SELECT sha1,sha1_git FROM content) AS t2
+        ON (t1.target=t2.sha1_git)
+        ORDER BY sha1
+    """,
 }
 
 
@@ -1244,7 +1264,7 @@ class RunBlobDataset(luigi.Task):
             ComputeBlobFileinfo(**kwargs),
         ]
 
-        if self.blob_filter == "citation":
+        if self.blob_filter in ("citation", "readme"):
             pass
         elif self.blob_filter == "license":
             tasks.append(BlobScancode(**kwargs))
