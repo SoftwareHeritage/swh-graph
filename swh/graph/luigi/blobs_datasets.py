@@ -92,6 +92,7 @@ logger = logging.getLogger(__name__)
 
 COMPRESS_LEVEL = 19
 GRAPH_REQUEST_CONCURRENCY = 70
+EMPTY_FILE_SHA1 = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
 
 
 SELECTION_QUERIES = {
@@ -653,7 +654,10 @@ class DownloadBlobs(_BaseTask):
             assert False, f"Unexpected decompression algo: {self.decompression_algo}"
 
         if self._compute_sha1(tmp_path) != sha1:
-            msg = f"Blob downloaded to {tmp_path} does not match its checksum"
+            if tmp_path.stat().st_size == 0 and sha1 != EMPTY_FILE_SHA1:
+                msg = f"Blob downloaded to {tmp_path} is empty"
+            else:
+                msg = f"Blob downloaded to {tmp_path} does not match its checksum"
             logger.error(msg)
             raise Exception(msg)
 
