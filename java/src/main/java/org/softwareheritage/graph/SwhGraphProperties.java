@@ -355,7 +355,11 @@ public class SwhGraphProperties implements FlyweightPrototype<SwhGraphProperties
 
     /** Get the message of the given revision or release node */
     public byte[] getMessage(long nodeId) {
-        return Base64.getDecoder().decode(getMessageBase64(nodeId));
+        byte[] messageBase64 = getMessageBase64(nodeId);
+        if (messageBase64 == null) {
+            return null;
+        }
+        return Base64.getDecoder().decode(messageBase64);
     }
 
     /** Get the message of the given revision or release node, encoded as a base64 byte array */
