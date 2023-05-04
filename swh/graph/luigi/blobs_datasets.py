@@ -611,12 +611,20 @@ class DownloadBlobs(_BaseTask):
 
     def _download_blob(self, session: "Session", path: Path, sha1: str) -> int:
         """Returns the size in bytes."""
+        import shutil
         import time
 
-        while True:
-            resp = session.get(self.download_url.format(sha1=sha1), stream=True)
-            if resp.status_code == 429:
+        import requests
 
+        while True:
+            url = self.download_url.format(sha1=sha1)
+            try:
+                resp = session.get(url, stream=True)
+            except requests.exceptions.ConnectionError:
+                logger.exception("Failed to query %s, retrying in 10 seconds:", url)
+                time.sleep(10)
+                continue
+            if resp.status_code == 429:
                 rate_limit_reset = int(resp.headers["X-RateLimit-Reset"])
                 wait_seconds = max(10, rate_limit_reset - time.time())
                 logger.warning("Waiting timeout for %d seconds", wait_seconds)
@@ -627,6 +635,9 @@ class DownloadBlobs(_BaseTask):
                 time.sleep(10)
             elif resp.status_code == 200:
                 break
+            elif resp.status_code == 404:
+                logger.error("%s returned 404", url)
+                return 0
             else:
                 msg = f"Unexpected status code: {resp.status_code}"
                 logger.error(msg)
@@ -643,7 +654,6 @@ class DownloadBlobs(_BaseTask):
             pass  # Nothing to do
         elif self.decompression_algo == "gzip":
             import gzip
-            import shutil
 
             tmp_path2 = Path(f"{tmp_path}_decompressed")
             with gzip.open(tmp_path, "rb") as compressed_fd:
