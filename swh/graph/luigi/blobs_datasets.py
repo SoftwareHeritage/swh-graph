@@ -580,6 +580,9 @@ class DownloadBlobs(_BaseTask):
         s3://softwareheritage/""",
     )
 
+    _session = None
+    _session_pid = None
+
     def requires(self) -> luigi.Task:
         """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
         return SelectBlobs(
@@ -681,9 +684,9 @@ class DownloadBlobs(_BaseTask):
         """Reads file SHA1 hashes from :file:`blobs.csv.zst` and downloads them
         to :file:`blobs/`."""
 
+        import multiprocessing
         import multiprocessing.dummy
 
-        import requests
         import tqdm
 
         from .shell import Command
@@ -709,25 +712,20 @@ class DownloadBlobs(_BaseTask):
             # fmt: on
             print("Done unpacking")
 
-        session = requests.Session()
-        session.headers[
-            "User-Agent"
-        ] = f"SWH {self.blob_filter} Dataset blob downloader"
-
-        auth_token = os.environ.get("SWH_AUTH_TOKEN")
-        if auth_token:
-            session.headers["Authorization"] = f"Bearer {auth_token}"
-
-        def worker(args):
-            (swhid, sha1, name) = args
-            return self._download_blob_if_missing(session, sha1)
-
         total_size = 0
-        with multiprocessing.dummy.Pool(self.parallel_downloads) as pool:
+
+        # Use a thread pool (more efficient because no IPC) if there is no compression
+        # (because then it's IO bound), and a process pool when there is (it would
+        # be single-thread CPU bound otherwise)
+        Pool = multiprocessing.Pool
+        if self.decompression_algo == "none":
+            Pool = multiprocessing.dummy.Pool  # type: ignore[assignment]
+        with Pool(self.parallel_downloads) as pool:
             for size in tqdm.tqdm(
                 pool.imap_unordered(
-                    worker,
+                    self._worker,
                     self.iter_blobs(unique_sha1=True, with_tqdm=False),
+                    chunksize=100,
                 ),
                 total=self.blob_count(),
             ):
@@ -735,6 +733,27 @@ class DownloadBlobs(_BaseTask):
 
         with self.blob_size_path().open("wt") as fd:
             fd.write(f"{total_size}\n")
+
+    def session(self):
+        if self._session_pid != os.getpid():
+            # we forked; create a new session for this process
+            import requests
+
+            self._session_pid = os.getpid()
+
+            self._session = requests.Session()
+            self._session.headers[
+                "User-Agent"
+            ] = f"SWH {self.blob_filter} Dataset blob downloader"
+
+            auth_token = os.environ.get("SWH_AUTH_TOKEN")
+            if auth_token:
+                self._session.headers["Authorization"] = f"Bearer {auth_token}"
+        return self._session
+
+    def _worker(self, args):
+        (swhid, sha1, name) = args
+        return self._download_blob_if_missing(self.session(), sha1)
 
 
 class MakeBlobTarball(_BaseTask):
