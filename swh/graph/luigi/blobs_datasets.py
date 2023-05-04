@@ -566,7 +566,7 @@ class SelectBlobs(_BaseTask):
 class DownloadBlobs(_BaseTask):
     blob_filter = luigi.ChoiceParameter(choices=list(SELECTION_QUERIES))
     derived_datasets_path = luigi.PathParameter()
-    previous_derived_datasets_path = luigi.PathParameter(default=None)
+    previous_derived_datasets_path = luigi.OptionalPathParameter(default=None)
     parallel_downloads = luigi.IntParameter(default=10, significant=False)
     download_url = luigi.Parameter(
         default="https://archive.softwareheritage.org/api/1/content/sha1:{sha1}/raw/",
@@ -1044,7 +1044,7 @@ class BlobScancode(_BaseTask):
 
 
 class FindBlobOrigins(_ConcurrentCsvWritingTask):
-    previous_derived_datasets_path = luigi.PathParameter(default=None)
+    previous_derived_datasets_path = luigi.OptionalPathParameter(default=None)
 
     def output(self) -> List[luigi.Target]:
         """:file:`blobs.tar.zst` in ``self.derived_datasets_path / self.blob_filter``"""
