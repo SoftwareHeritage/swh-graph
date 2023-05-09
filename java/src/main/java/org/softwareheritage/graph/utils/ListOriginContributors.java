@@ -53,13 +53,13 @@ public class ListOriginContributors {
         CSVPrinter originsCsvPrinter = new CSVPrinter(originsFileWriter, CSVFormat.RFC4180);
 
         System.err.println("Loading graph " + graphBasename + " ...");
-        SwhBidirectionalGraph underlyingGraph = SwhBidirectionalGraph.loadMapped(graphBasename);
+        SwhUnidirectionalGraph underlyingGraph = SwhUnidirectionalGraph.loadMapped(graphBasename);
         System.err.println("Loading person ids");
         underlyingGraph.loadPersonIds();
         System.err.println("Loading messages");
         underlyingGraph.loadMessages();
         System.err.println("Selecting subgraph.");
-        Subgraph graph = new Subgraph(underlyingGraph, new AllowedNodes("rev,rel,snp,ori"));
+        AllowedNodes allowedNodeTypes = new AllowedNodes("rev,rel,snp,ori");
         System.err.println("Graph loaded.");
 
         BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
@@ -89,7 +89,7 @@ public class ListOriginContributors {
                 continue;
             }
             SWHID nodeSWHID = new SWHID(record.get(0));
-            long nodeId = graph.getNodeId(nodeSWHID);
+            long nodeId = underlyingGraph.getNodeId(nodeSWHID);
             long ancestorCount = Long.parseLong(record.get(1));
             long successorCount = Long.parseLong(record.get(2));
             String sampleAncestor1SWHID = record.get(3);
@@ -130,8 +130,11 @@ public class ListOriginContributors {
 
             if (!reuseAncestorSet) {
                 long computedAncestorCount = 0;
-                LazyLongIterator it = graph.successors(nodeId);
+                LazyLongIterator it = underlyingGraph.successors(nodeId);
                 for (long ancestorNodeId; (ancestorNodeId = it.nextLong()) != -1;) {
+                    if (!allowedNodeTypes.isAllowed(underlyingGraph.getNodeType(ancestorNodeId))) {
+                        continue;
+                    }
                     computedAncestorCount++;
                     if (pendingSuccessors.get(ancestorNodeId) == 1) {
                         /*
