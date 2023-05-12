@@ -1244,8 +1244,119 @@ class RunBlobDataset(luigi.Task):
         return False
 
     def run(self):
-        """Run task."""
-        for csv_path in (self.derived_datasets_path / self.blob_filter).glob(
-            "*.csv.zst"
-        ):
+        """Checks all files are in the correct format and contain a well-known SWHID"""
+        dir_path = self.derived_datasets_path / self.blob_filter
+        for csv_path in dir_path.glob("*.csv.zst"):
             check_csv(csv_path)
+
+        if self.blob_filter == "license":
+            # Text of the GPLv3
+            swhid = "swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2"
+            expected_fileinfo = f"{swhid},text/plain,us-ascii,674,5644,35147\n"
+            min_expected_origins = 2_000_000
+        elif self.blob_filter == "citation":
+            # Codemeta's own codemeta.json
+            swhid = "swh:1:cnt:6daebd857f6f6a98dd9288ef7b942283f7fa4f0e"
+            expected_fileinfo = f"{swhid},application/json,us-ascii,,,7173\n"
+            min_expected_origins = 5
+        else:
+            assert False, f"Unexpected blob filter: {self.blob_filter}"
+
+        self._check_fileinfo(
+            swhid, expected_fileinfo, dir_path / "blobs-fileinfo.csv.zst"
+        )
+        if self.blob_filter == "license":
+            self._check_scancode(swhid, dir_path)
+        self._check_nb_origins(
+            swhid, min_expected_origins, dir_path / "blobs-nb-origins.csv.zst"
+        )
+        self._check_exactly_one_line(swhid, dir_path / "blobs-origins.csv.zst")
+        self._check_exactly_one_line(swhid, dir_path / "blobs-earliest.csv.zst")
+
+    def _check_fileinfo(self, swhid: str, expected_fileinfo: str, path: Path) -> None:
+        from .shell import Command, Sink
+
+        # fmt: off
+        results = (
+            Command.zstdcat(path)
+            | Command.grep("^" + swhid)
+            > Sink()
+        ).run()
+        # fmt: on
+
+        assert results.decode() == expected_fileinfo, f"Unexpected fileinfo for {swhid}"
+
+    def _check_scancode(self, swhid: str, dir_path: Path) -> None:
+        import json
+
+        from .shell import Command, Sink
+
+        assert swhid == "swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2"
+
+        # fmt: off
+        csv_results = (
+            Command.zstdcat(dir_path / "blobs-scancode.csv.zst")
+            | Command.grep("^" + swhid)
+            > Sink()
+        ).run().decode()
+        # fmt: on
+
+        assert csv_results == (
+            f"{swhid},GPL-3.0-only,100.0\r\n"
+        ), f"Unexpected scancode CSV for {swhid}: {csv_results!r}"
+
+        # fmt: off
+        json_results = (
+            Command.zstdcat(dir_path / "blobs-scancode.ndjson.zst")
+            | Command.grep(swhid)
+            > Sink()
+        ).run().decode()
+        # fmt: on
+        assert (
+            json_results.count("\n") == 1
+        ), f"Unexpectedly number of results for {swhid} in scancode NDJSON:\n{json_results}"
+        result = json.loads(json_results)
+        assert result["swhid"] == swhid, result
+        licenses = [license for license in result["licenses"]["licenses"]]
+        assert (
+            len(licenses) == 1
+        ), f"Unexpected number of licenses for {swhid}: {licenses}"
+        assert licenses[0]["key"] == "gpl-3.0"
+        assert licenses[0]["score"] == 100.0
+
+    def _check_exactly_one_line(self, swhid: str, path: Path) -> None:
+        from .shell import Command, Sink
+
+        # fmt: off
+        results = (
+            Command.zstdcat(path)
+            | Command.grep("^" + swhid)
+            > Sink()
+        ).run()
+        # fmt: on
+
+        assert (
+            results.count(b"\n") == 1
+        ), f"Unexpected number of line for {swhid} in {path}:\n{results}"
+
+    def _check_nb_origins(
+        self, swhid: str, min_expected_origins: int, path: Path
+    ) -> None:
+
+        from .shell import Command, Sink
+
+        # fmt: off
+        results = (
+            Command.zstdcat(path)
+            | Command.grep("^" + swhid)
+            > Sink()
+        ).run().decode()
+        # fmt: on
+
+        assert (
+            results.count("\n") == 1
+        ), f"Unexpected number of origin counts for {swhid}:\n{results}"
+        count = int(results.split("\n")[0].split(",")[1])
+        assert (
+            min_expected_origins <= count <= 1_000_000_000
+        ), f"Unexpected number of origins for {swhid}: {count}"
