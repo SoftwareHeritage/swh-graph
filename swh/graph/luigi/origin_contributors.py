@@ -100,13 +100,13 @@ class ListOriginContributors(luigi.Task):
             nb_lines = wc(Command.zstdcat(topological_order_path), "-l")
             (
                 Command.zstdcat(topological_order_path)
+                | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
                 | Java(
                     class_name,
                     self.local_graph_path / self.graph_name,
                     origin_urls_fd.name,
                     max_ram=self.max_ram_mb * 1_000_000,
                 )
-                | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
                 | Command.zstdmt("-19")
                 > AtomicFileSink(self.origin_contributors_path)
             ).run()
