@@ -315,6 +315,7 @@ class RunOriginContributors(luigi.Task):
         default="https://forge.softwareheritage.org/source/swh-graph.git"
     )
     test_person = luigi.Parameter(default="vlorentz")
+    test_years = luigi.Parameter(default="2021 2022")
 
     def requires(self) -> List[luigi.Task]:
         """Returns instances of :class:`LocalGraph`, :class:`ListOriginContributors`,
@@ -368,11 +369,11 @@ class RunOriginContributors(luigi.Task):
 
         approx_contributors_per_origin = 8.5  # in 2022-12-07
 
-        contributor_ids = set()
+        contributors_by_id = {}
         with pyzstd.open(self.origin_contributors_path, "rt") as fd:
             reader = csv.reader(cast(Iterable[str], fd))
             header = next(reader)
-            assert header == ["origin_id", "contributor_id"], header
+            assert header == ["origin_id", "contributor_id", "years"], header
             for line in tqdm.tqdm(
                 reader,
                 unit_scale=True,
@@ -380,15 +381,16 @@ class RunOriginContributors(luigi.Task):
                 total=origin_count * approx_contributors_per_origin,
             ):
                 if line[0] == origin_id:
-                    contributor_ids.add(line[1])
+                    contributors_by_id[line[1]] = line[2]
 
         assert (
-            len(contributor_ids) < 10000
+            len(contributors_by_id) < 10000
         ), "Unexpectedly many contributors to {self.test_origin}"
         assert (
-            len(contributor_ids) > 10
-        ), f"Unexpectedly few contributors to {self.test_origin}: {contributor_ids}"
+            len(contributors_by_id) > 10
+        ), f"Unexpectedly few contributors to {self.test_origin}: {contributors_by_id}"
 
+        years = set()
         contributors = []
         with pyzstd.open(self.deanonymized_origin_contributors_path, "rt") as fd:
             reader = csv.reader(cast(Iterable[str], fd))
@@ -404,12 +406,22 @@ class RunOriginContributors(luigi.Task):
                 desc="Reading person names",
                 total=person_count,  # reasonably-tight upper bound
             ):
-                if line[0] in contributor_ids:
-                    contributor_ids.remove(line[0])
+                if line[0] in contributors_by_id:
+                    if self.test_person in line[0]:
+                        years |= set(contributors_by_id.pop(line[0]).split(" "))
                     contributors.append(line[2])
+                    del contributors_by_id[line[0]]
 
-        assert not contributor_ids, f"Person ids with no person: {contributor_ids}"
+        assert (
+            not contributors_by_id
+        ), f"Person ids with no person: {contributors_by_id}"
 
         assert any(
             self.test_person in contributor for contributor in contributors
         ), "{self.test_person} is not among the contributors to {self.test_origin}"
+
+        missing_years = years - set(self.test_years.split())
+        assert not missing_years, (
+            f"{missing_years} absent from {self.test_person}'s years: {years!r} "
+            f"(contributor_id={line[0]}, origin_id={origin_id})"
+        )

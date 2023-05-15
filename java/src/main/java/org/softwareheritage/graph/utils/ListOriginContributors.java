@@ -5,8 +5,10 @@
  * See top-level LICENSE file for more information
  */
 
-/* For each origin and each contributor, outputs a line "origin_id,contributor_id",
+/* For each origin and each contributor, outputs a line "origin_id,contributor_id,years",
  * if that contributor contributed to the origin.
+ *
+ * Contributions outside the last 64 years, or on 1970-01-01T00:00:00Z are ignored.
  *
  * A .csv table containing "origin_id,origin_url_base64" is also written
  * to the given path.
@@ -27,9 +29,11 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.time.Year;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Vector;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
@@ -41,6 +45,13 @@ public class ListOriginContributors {
      * when that ancestor has no more pending successors.
      */
     private static boolean optimizeReuse = true;
+
+    /*
+     * Years inside this range will be stored in a bitset instead of a hashset, for more compact
+     * in-memory representation
+     */
+    private static final int MAX_YEAR = Year.now().getValue();
+    private static final int MIN_YEAR = MAX_YEAR - 63;
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         if (args.length != 2) {
@@ -58,6 +69,10 @@ public class ListOriginContributors {
         underlyingGraph.loadPersonIds();
         System.err.println("Loading messages");
         underlyingGraph.loadMessages();
+        System.err.println("Loading author timestamps");
+        underlyingGraph.loadAuthorTimestamps();
+        System.err.println("Loading committer timestamps");
+        underlyingGraph.loadCommitterTimestamps();
         System.err.println("Selecting subgraph.");
         AllowedNodes allowedNodeTypes = new AllowedNodes("rev,rel,snp,ori");
         System.err.println("Graph loaded.");
@@ -68,14 +83,16 @@ public class ListOriginContributors {
         CSVParser csvParser = CSVParser.parse(bufferedStdin, CSVFormat.RFC4180);
 
         /* Map each node id to its set of contributor person ids */
-        HashMap<Long, HashSet<Long>> contributors = new HashMap<>();
+        HashMap<Long, HashMap<Long, Long>> contributors = new HashMap<>();
+
+        Vector<String> yearStrings = new Vector<String>(MAX_YEAR - MIN_YEAR + 1);
 
         /*
          * For each node it, counts its number of direct successors that still need to be handled
          */
         HashMap<Long, Long> pendingSuccessors = new HashMap<>();
 
-        csvPrinter.printRecord("origin_id", "contributor_id");
+        csvPrinter.printRecord("origin_id", "contributor_id", "years");
         originsCsvPrinter.printRecord("origin_id", "origin_url_base64");
         boolean seenHeader = false;
         for (CSVRecord record : csvParser) {
@@ -94,7 +111,7 @@ public class ListOriginContributors {
             long successorCount = Long.parseLong(record.get(2));
             String sampleAncestor1SWHID = record.get(3);
 
-            HashSet<Long> nodeContributors;
+            HashMap<Long, Long> nodeContributors;
             boolean reuseAncestorSet = optimizeReuse && (ancestorCount == 1);
 
             if (reuseAncestorSet) {
@@ -105,26 +122,36 @@ public class ListOriginContributors {
                 } else {
                     /* Ancestor is not yet ready to be popped */
                     pendingSuccessors.put(ancestorNodeId, pendingSuccessors.get(ancestorNodeId) - 1);
-                    nodeContributors = new HashSet<>();
+                    nodeContributors = new HashMap<>();
                 }
             } else {
-                nodeContributors = new HashSet<>();
+                nodeContributors = new HashMap<>();
             }
 
             Long personId;
+            Long timestamp;
             if (nodeSWHID.getType() == SwhType.REV) {
                 personId = underlyingGraph.getAuthorId(nodeId);
                 if (personId != null) {
-                    nodeContributors.add(personId);
+                    timestamp = underlyingGraph.getAuthorTimestamp(nodeId);
+                    if (timestamp != null && timestamp != 0) {
+                        nodeContributors.put(personId, bitForTimestamp(timestamp));
+                    }
                 }
                 personId = underlyingGraph.getCommitterId(nodeId);
                 if (personId != null) {
-                    nodeContributors.add(personId);
+                    timestamp = underlyingGraph.getCommitterTimestamp(nodeId);
+                    if (timestamp != null && timestamp != 0) {
+                        nodeContributors.put(personId, bitForTimestamp(timestamp));
+                    }
                 }
             } else if (nodeSWHID.getType() == SwhType.REL) {
                 personId = underlyingGraph.getAuthorId(nodeId);
                 if (personId != null) {
-                    nodeContributors.add(personId);
+                    timestamp = underlyingGraph.getAuthorTimestamp(nodeId);
+                    if (timestamp != null && timestamp != 0) {
+                        nodeContributors.put(personId, bitForTimestamp(timestamp));
+                    }
                 }
             }
 
@@ -142,14 +169,14 @@ public class ListOriginContributors {
                          * as we won't need it anymore
                          */
                         pendingSuccessors.remove(ancestorNodeId);
-                        nodeContributors.addAll(contributors.remove(ancestorNodeId));
+                        mergeContributorSets(nodeContributors, contributors.remove(ancestorNodeId));
                     } else {
                         /*
                          * The ancestor has remaining successors to handle; decrement the counter and copy its set of
                          * contributors to the current set
                          */
                         pendingSuccessors.put(ancestorNodeId, pendingSuccessors.get(ancestorNodeId) - 1);
-                        nodeContributors.addAll(contributors.get(ancestorNodeId));
+                        mergeContributorSets(nodeContributors, contributors.get(ancestorNodeId));
                     }
                 }
 
@@ -161,9 +188,15 @@ public class ListOriginContributors {
             }
 
             if (nodeSWHID.getType() == SwhType.ORI) {
-                nodeContributors.forEach((contributorId) -> {
+                nodeContributors.forEach((contributorId, yearBits) -> {
+                    yearStrings.clear();
+                    for (int i = 0; i < 64; i++) {
+                        if ((yearBits & (1L << i)) != 0) {
+                            yearStrings.add(String.valueOf(MIN_YEAR + i));
+                        }
+                    }
                     try {
-                        csvPrinter.printRecord(nodeId, contributorId);
+                        csvPrinter.printRecord(nodeId, contributorId, String.join(" ", yearStrings));
                     } catch (IOException e) {
                         throw new UncheckedIOException(e);
                     }
@@ -187,5 +220,25 @@ public class ListOriginContributors {
         bufferedStdout.flush();
         originsCsvPrinter.flush();
         originsFileWriter.flush();
+    }
+
+    private static long bitForTimestamp(long timestamp) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(timestamp * 1000);
+        long year = cal.get(Calendar.YEAR);
+        if (year < MIN_YEAR || year > MAX_YEAR) {
+            return 0;
+        }
+
+        return 1L << (year - MIN_YEAR);
+    }
+
+    /* Adds every entry of 'src' to 'dst'; merging bit sets of entries present in both */
+    private static void mergeContributorSets(HashMap<Long, Long> dst, HashMap<Long, Long> src) {
+        Long key;
+        for (HashMap.Entry<Long, Long> entry : src.entrySet()) {
+            key = entry.getKey();
+            dst.put(key, dst.getOrDefault(key, 0L) | entry.getValue());
+        }
     }
 }
