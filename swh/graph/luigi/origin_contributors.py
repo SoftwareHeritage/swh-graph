@@ -88,16 +88,20 @@ class ListOriginContributors(luigi.Task):
         """Runs org.softwareheritage.graph.utils.TopoSort and compresses"""
         import tempfile
 
-        from .shell import AtomicFileSink, Command, Java, wc
+        from .shell import AtomicFileSink, Command, Java
+        from .utils import count_nodes
 
         topological_order_path = Path(self.input()["toposort"].path)
+
+        nb_lines = count_nodes(
+            self.local_graph_path, self.graph_name, "rev,rel,snp,ori"
+        )
 
         class_name = "org.softwareheritage.graph.utils.ListOriginContributors"
         with tempfile.NamedTemporaryFile(
             prefix="origin_urls_", suffix=".csv"
         ) as origin_urls_fd:
             # fmt: off
-            nb_lines = wc(Command.zstdcat(topological_order_path), "-l")
             (
                 Command.zstdcat(topological_order_path)
                 | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
