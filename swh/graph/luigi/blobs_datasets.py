@@ -653,9 +653,23 @@ class DownloadBlobs(_BaseTask):
         elif self.decompression_algo == "gzip":
             import gzip
 
-            with gzip.open(resp.raw, "rb") as compressed_fd:
-                with tmp_path.open("wb") as decompressed_fd:
-                    shutil.copyfileobj(compressed_fd, decompressed_fd)
+            if not hasattr(gzip, "BadGzipFile"):
+                # Python < 3.8
+                BadGzipFile = OSError
+            else:
+                BadGzipFile = gzip.BadGzipFile
+
+            try:
+                with gzip.open(resp.raw, "rb") as compressed_fd:
+                    with tmp_path.open("wb") as decompressed_fd:
+                        shutil.copyfileobj(compressed_fd, decompressed_fd)
+            except BadGzipFile as e:
+                if e.args[0] == r"Not a gzipped file (b'\x00\x00')":
+                    # WTF? https://gitlab.softwareheritage.org/swh/meta/-/issues/5034
+                    print(f"{sha1} has null bytes instead of magic value")
+                    return 0
+                else:
+                    raise
         else:
             assert False, f"Unexpected decompression algo: {self.decompression_algo}"
 
