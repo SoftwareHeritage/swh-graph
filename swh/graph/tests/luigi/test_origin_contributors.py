@@ -29,12 +29,12 @@ from .test_topology import TOPO_ORDER_BACKWARD as TOPOLOGICAL_ORDER
 # FIXME: do not hardcode ids here; they should be dynamically loaded
 # from the test graph
 ORIGIN_CONTRIBUTORS = """\
-origin_id,contributor_id
-2,0
-2,2
-0,0
-0,1
-0,2
+origin_id,contributor_id,years
+2,0,2005 2009
+2,2,2005
+0,0,2005 2009
+0,1,2005
+0,2,2005
 """.replace(
     "\n", "\r\n"
 )

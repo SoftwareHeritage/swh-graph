@@ -272,8 +272,8 @@ class DeanonymizeOriginContributors(luigi.Task):
             # TODO: remove that cast once we dropped Python 3.7 support
             csv_reader = csv.reader(cast(Iterable[str], input_fd))
             header = next(csv_reader)
-            assert header == ["origin_id", "contributor_id"], header
-            for (origin_id, person_id_str) in tqdm.tqdm(
+            assert header == ["origin_id", "contributor_id", "years"], header
+            for (origin_id, person_id_str, years) in tqdm.tqdm(
                 csv_reader, unit_scale=True, desc="Reading set of contributor ids"
             ):
                 if person_id_str == "null":
