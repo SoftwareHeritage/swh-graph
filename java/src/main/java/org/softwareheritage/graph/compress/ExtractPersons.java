@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 The Software Heritage developers
+ * Copyright (c) 2022-2023 The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -10,6 +10,8 @@ package org.softwareheritage.graph.compress;
 import com.github.luben.zstd.ZstdOutputStream;
 import com.martiansoftware.jsap.*;
 import org.softwareheritage.graph.utils.Sort;
+import org.softwareheritage.graph.AllowedNodes;
+import org.softwareheritage.graph.SwhType;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -35,7 +37,10 @@ public class ExtractPersons {
                     new FlaggedOption("sortBufferSize", JSAP.STRING_PARSER, "30%", JSAP.NOT_REQUIRED, 'S',
                             "sort-buffer-size", "Size of the memory buffer used by sort"),
                     new FlaggedOption("sortTmpDir", JSAP.STRING_PARSER, null, JSAP.NOT_REQUIRED, 'T', "temp-dir",
-                            "Path to the temporary directory used by sort")});
+                            "Path to the temporary directory used by sort"),
+                    new FlaggedOption("allowedNodeTypes", JSAP.STRING_PARSER, "*", JSAP.NOT_REQUIRED, 'N',
+                            "allowed-node-types",
+                            "Node types to include in the graph, eg. 'ori,snp,rel,rev' to exclude directories and contents"),});
 
             config = jsap.parse(args);
             if (jsap.messagePrinted()) {
@@ -63,8 +68,9 @@ public class ExtractPersons {
 
         String sortBufferSize = parsedArgs.getString("sortBufferSize");
         String sortTmpDir = parsedArgs.getString("sortTmpDir", null);
+        AllowedNodes allowedNodeTypes = new AllowedNodes(parsedArgs.getString("allowedNodeTypes"));
 
-        ORCGraphDataset dataset = new ORCGraphDataset(datasetPath);
+        ORCGraphDataset dataset = new ORCGraphDataset(datasetPath, allowedNodeTypes);
 
         extractPersons(dataset, outputBasename, sortBufferSize, sortTmpDir);
     }
@@ -82,9 +88,13 @@ public class ExtractPersons {
         PersonsOutputThread personsOutputThread = new PersonsOutputThread(personSortStdout, personsFileOutputStream);
         personsOutputThread.start();
 
-        processAuthorColumn(dataset.getTable("release"), "author", personSortStdin);
-        processAuthorColumn(dataset.getTable("revision"), "author", personSortStdin);
-        processAuthorColumn(dataset.getTable("revision"), "committer", personSortStdin);
+        if (dataset.allowedNodeTypes.isAllowed(SwhType.REL)) {
+            processAuthorColumn(dataset.getTable("release"), "author", personSortStdin);
+        }
+        if (dataset.allowedNodeTypes.isAllowed(SwhType.REV)) {
+            processAuthorColumn(dataset.getTable("revision"), "author", personSortStdin);
+            processAuthorColumn(dataset.getTable("revision"), "committer", personSortStdin);
+        }
 
         // Wait for sorting processes to finish
         personSortStdin.close();
@@ -117,6 +127,12 @@ public class ExtractPersons {
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader(sortedPersonsStream, StandardCharsets.UTF_8));
             try {
+                /*
+                 * Workaround for <https://github.com/luben/zstd-jni/issues/249>, which happens when
+                 * allowedNodeTypes does not contain REV or REL)
+                 */
+                personsOutputStream.write(new byte[]{});
+
                 String line;
                 while ((line = reader.readLine()) != null) {
                     personsOutputStream.write(line.getBytes(StandardCharsets.UTF_8));

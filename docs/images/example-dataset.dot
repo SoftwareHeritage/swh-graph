@@ -1,0 +1,92 @@
+digraph "Software Heritage mini DAG" {
+    ranksep=1;
+    nodesep=0.5;
+
+    subgraph cnt {
+        node [style=filled, fillcolor=pink];
+        01 [label="cnt:…001"];
+        04 [label="cnt:…004"];
+        05 [label="cnt:…005"];
+        07 [label="cnt:…007"];
+        11 [label="cnt:…011"];
+        14 [label="cnt:…014"];
+        15 [label="cnt:…015"];
+    }
+
+    subgraph cluster_dir {
+        label="File contents";
+        node [shape=folder, style=filled, fillcolor=lightblue];
+        02 [label="dir:…002"];
+        06 [label="dir:…006"];
+        08 [label="dir:…008"];
+        12 [label="dir:…012"];
+        16 [label="dir:…016"];
+        17 [label="dir:…017"];
+
+        02 -> 01;
+        06 -> 04;
+        06 -> 05;
+        08 -> 01;
+        08 -> 06;
+        08 -> 07;
+        12 -> 08;
+        12 -> 11;
+        16 -> 15;
+        17 -> 14;
+        17 -> 16;
+    }
+
+    subgraph cluster_rev {
+        label="Revisions";
+        node [shape=diamond, style=filled, fillcolor=orchid];
+        03 [label="rev:…003"];
+        09 [label="rev:…009"];
+        13 [label="rev:…013"];
+        18 [label="rev:…018"];
+
+        03 -> 02;
+        09 -> 08;
+        13 -> 12;
+        18 -> 17;
+        // horizontal rev -> rev edges
+        09 -> 03 [constraint=false];
+        13 -> 09 [constraint=false];
+        18 -> 13 [constraint=false];
+    }
+
+    subgraph cluster_rel {
+        label="Releases";
+        node [shape=octagon, style=filled, fillcolor=sandybrown];
+        10 [label="rel:…010"];
+        19 [label="rel:…019"];
+        21 [label="rel:…021"];
+
+        10 -> 09;
+        19 -> 18;
+        21 -> 18;
+    }
+
+    subgraph cluster_snp {
+        label="Snapshots";
+        node [shape=doubleoctagon, style=filled, fillcolor=aqua];
+        20 [label="snp:…020"];
+        22 [label="snp:…022"];
+
+        20 -> 09;
+        20 -> 10;
+
+        22 -> 09;
+        22 -> 10;
+        22 -> 21;
+    }
+
+    subgraph cluster_ori {
+        label="Origins";
+        node [shape=egg, style=filled, fillcolor=khaki];
+        ori1 [label="ori:8340…"];
+        ori2 [label="ori:8f50…"];
+
+        ori1 -> 20;
+        ori2 -> 22;
+    }
+}

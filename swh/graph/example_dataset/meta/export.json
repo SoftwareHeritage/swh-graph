@@ -1,0 +1,13 @@
+{
+    "object_types": [
+        "origin_visit",
+        "revision",
+        "skipped_content",
+        "directory",
+        "snapshot",
+        "origin",
+        "release",
+        "content",
+        "origin_visit_status"
+    ]
+}

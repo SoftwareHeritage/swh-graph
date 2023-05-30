@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2022  The Software Heritage developers
+# Copyright (C) 2019-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -19,7 +19,6 @@ from google.protobuf import json_format
 from google.protobuf.field_mask_pb2 import FieldMask
 import grpc
 
-from swh.core.api.asynchronous import RPCServerApp
 from swh.core.config import read as config_read
 from swh.graph.grpc.swhgraph_pb2 import (
     GetNodeRequest,
@@ -61,7 +60,7 @@ async def _aiorpcerror_middleware(app, handler):
     return middleware_handler
 
 
-class GraphServerApp(RPCServerApp):
+class GraphServerApp(aiohttp.web.Application):
     def __init__(self, *args, middlewares=(), **kwargs):
         middlewares = (_aiorpcerror_middleware,) + middlewares
         super().__init__(*args, middlewares=middlewares, **kwargs)

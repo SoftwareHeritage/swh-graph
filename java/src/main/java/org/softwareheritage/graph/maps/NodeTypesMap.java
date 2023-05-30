@@ -9,6 +9,8 @@ package org.softwareheritage.graph.maps;
 
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigList;
+import it.unimi.dsi.fastutil.longs.LongMappedBigList;
+import it.unimi.dsi.lang.FlyweightPrototype;
 import org.softwareheritage.graph.SwhType;
 
 import java.io.IOException;
@@ -26,7 +28,7 @@ import java.io.IOException;
  * @author The Software Heritage developers
  */
 
-public class NodeTypesMap {
+public class NodeTypesMap implements FlyweightPrototype<NodeTypesMap> {
     /** File extension for the long node id to node type map */
     public static final String NODE_TO_TYPE = ".node2type.map";
 
@@ -46,6 +48,16 @@ public class NodeTypesMap {
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException("Unknown class object: " + e);
         }
+    }
+
+    public NodeTypesMap(LongBigList nodeTypesMap) {
+        this.nodeTypesMap = nodeTypesMap;
+    }
+
+    @Override
+    public NodeTypesMap copy() {
+        return new NodeTypesMap(
+                (nodeTypesMap instanceof LongMappedBigList) ? ((LongMappedBigList) nodeTypesMap).copy() : nodeTypesMap);
     }
 
     /**

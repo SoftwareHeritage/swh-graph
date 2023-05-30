@@ -45,6 +45,12 @@ public class DirEntry {
     }
 
     public static int labelWidth(long numLabels) {
+        if (numLabels <= 1) {
+            /*
+             * Avoid edge cases when working on filtered datasets (eg. with no directory or snapshot)
+             */
+            numLabels = 2;
+        }
         int filenameIdWidth = (int) Math.ceil(Math.log(numLabels) / Math.log(2));
         if (filenameIdWidth > Long.SIZE - Permission.NB_BITS_PER_TYPE) {
             System.err.println("FIXME: Too many filenames, we can't handle more than 2^"

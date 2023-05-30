@@ -5,4 +5,5 @@
 
 pytest_plugins = [
     "swh.graph.pytest_plugin",
+    "swh.storage.pytest_plugin",
 ]

@@ -21,18 +21,20 @@ TEST_ORIGIN_ID = "swh:1:ori:{}".format(
 
 def test_stats(graph_grpc_stub):
     stats = graph_grpc_stub.Stats(StatsRequest())
-    assert stats.num_nodes == 21
-    assert stats.num_edges == 23
+    assert stats.num_nodes == 24
+    assert stats.num_edges == 28
     assert isinstance(stats.compression_ratio, float)
     assert isinstance(stats.bits_per_node, float)
     assert isinstance(stats.bits_per_edge, float)
     assert isinstance(stats.avg_locality, float)
     assert stats.indegree_min == 0
-    assert stats.indegree_max == 3
+    assert stats.indegree_max == 4
     assert isinstance(stats.indegree_avg, float)
     assert stats.outdegree_min == 0
     assert stats.outdegree_max == 3
     assert isinstance(stats.outdegree_avg, float)
+    assert stats.export_started_at == 1669888200
+    assert stats.export_ended_at == 1669899600
 
 
 def test_leaves(graph_grpc_stub):
@@ -65,6 +67,7 @@ def test_neighbors(graph_grpc_stub):
     )
     actual = [node.swhid for node in request]
     expected = [
+        "swh:1:snp:0000000000000000000000000000000000000022",
         "swh:1:snp:0000000000000000000000000000000000000020",
         "swh:1:rel:0000000000000000000000000000000000000010",
         "swh:1:rev:0000000000000000000000000000000000000013",

@@ -24,10 +24,17 @@ import org.softwareheritage.graph.compress.LabelMapBuilder;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+import javax.json.JsonReader;
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.stream.JsonParsingException;
 
 /**
  * Server that manages startup/shutdown of a {@code Greeter} server.
@@ -164,6 +171,20 @@ public class GraphServer {
             response.setOutdegreeMin(Long.parseLong(properties.getProperty("minoutdegree")));
             response.setOutdegreeMax(Long.parseLong(properties.getProperty("maxoutdegree")));
             response.setOutdegreeAvg(Double.parseDouble(properties.getProperty("avgoutdegree")));
+            try {
+                JsonReader jsonReader = Json.createReader(
+                        new FileInputStream(Paths.get(graph.getPath()).resolveSibling("meta/export.json").toString()));
+                JsonObject object = jsonReader.readObject();
+                jsonReader.close();
+                long exportStartedAt = OffsetDateTime.parse(object.getString("export_start")).toInstant()
+                        .getEpochSecond();
+                long exportEndedAt = OffsetDateTime.parse(object.getString("export_end")).toInstant().getEpochSecond();
+                response.setExportStartedAt(exportStartedAt);
+                response.setExportEndedAt(exportEndedAt);
+            } catch (IOException | JsonParsingException | DateTimeParseException e) {
+                // let’s leave exportStartedAt to 0 if we can’t figure out the right value
+                logger.warn("Unable to read or parse `export_start` or `export_end` in `meta/export.json`", e);
+            }
             responseObserver.onNext(response.build());
             responseObserver.onCompleted();
         }

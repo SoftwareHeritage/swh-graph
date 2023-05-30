@@ -2,6 +2,9 @@ aiohttp
 click
 py4j
 psutil
-protobuf != 4.21.*  # https://github.com/protocolbuffers/protobuf/issues/10151
+protobuf >= 4.21.11
 grpcio-tools
-mypy-protobuf
+# mypy-protobuf 3.3.0 switched to use PEP 604 Union
+# syntax (X | None) instead of Optional[X]. This makes
+# the output incompatible with Python 3.7
+mypy-protobuf < 3.3

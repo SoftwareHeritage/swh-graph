@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 The Software Heritage developers
+ * Copyright (c) 2022-2023 The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -36,6 +36,8 @@ import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.logging.ProgressLogger;
+
+import org.softwareheritage.graph.AllowedNodes;
 
 public class ScatteredArcsORCGraph extends ImmutableSequentialGraph {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScatteredArcsORCGraph.class);
@@ -208,6 +210,9 @@ public class ScatteredArcsORCGraph extends ImmutableSequentialGraph {
                                 "min-interval-length", "Minimum length of an interval (0 to disable)."),
                         new FlaggedOption("zetaK", JSAP.INTEGER_PARSER, String.valueOf(BVGraph.DEFAULT_ZETA_K),
                                 JSAP.NOT_REQUIRED, 'k', "zeta-k", "The k parameter for zeta-k codes."),
+                        new FlaggedOption("allowedNodeTypes", JSAP.STRING_PARSER, "*", JSAP.NOT_REQUIRED, 'N',
+                                "allowed-node-types",
+                                "Node types to include in the graph, eg. 'ori,snp,rel,rev' to exclude directories and contents"),
                         new UnflaggedOption("dataset", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
                                 JSAP.NOT_GREEDY, "The path to the ORC graph dataset."),
                         new UnflaggedOption("basename", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED,
@@ -219,7 +224,8 @@ public class ScatteredArcsORCGraph extends ImmutableSequentialGraph {
 
         String basename = jsapResult.getString("basename");
         String orcDatasetPath = jsapResult.getString("dataset");
-        ORCGraphDataset orcDataset = new ORCGraphDataset(orcDatasetPath);
+        AllowedNodes allowedNodeTypes = new AllowedNodes(jsapResult.getString("allowedNodeTypes"));
+        ORCGraphDataset orcDataset = new ORCGraphDataset(orcDatasetPath, allowedNodeTypes);
 
         int flags = 0;
         for (final String compressionFlag : jsapResult.getStringArray("comp")) {
