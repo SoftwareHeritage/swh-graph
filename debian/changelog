@@ -1,3 +1,12 @@
+swh.graph (3.0.1-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 3.0.1     - (tagged by Valentin Lorentz
+    <vlorentz@softwareheritage.org> on 2023-05-30 14:35:27 +0200)
+  * Upstream changes:     - v3.0.1     - * origin_contributors: Fix
+    deanonymization and tests
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 30 May 2023 13:31:21 +0000
+
 swh.graph (2.2.0-2~swh1) unstable-swh; urgency=medium
 
   * Install swh-graph pytest plugin
