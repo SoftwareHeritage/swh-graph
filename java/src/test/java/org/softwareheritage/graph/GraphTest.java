@@ -28,6 +28,7 @@ public class GraphTest {
     static SwhBidirectionalGraph graph;
 
     final protected String TEST_ORIGIN_ID = "swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054";
+    final protected String TEST_ORIGIN_ID2 = "swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165";
 
     @BeforeAll
     public static void setUp() throws IOException {
@@ -35,7 +36,7 @@ public class GraphTest {
     }
 
     public static Path getGraphPath() {
-        return Paths.get("..", "swh", "graph", "tests", "dataset", "compressed", "example");
+        return Paths.get("..", "swh", "graph", "example_dataset", "compressed", "example");
     }
 
     public static SwhBidirectionalGraph getGraph() {

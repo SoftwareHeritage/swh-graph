@@ -18,18 +18,20 @@ TEST_ORIGIN_ID = "swh:1:ori:{}".format(
 
 def test_stats(graph_client):
     stats = graph_client.stats()
-    assert stats["num_nodes"] == 21
-    assert stats["num_edges"] == 23
+    assert stats["num_nodes"] == 24
+    assert stats["num_edges"] == 28
     assert isinstance(stats["compression_ratio"], float)
     assert isinstance(stats["bits_per_node"], float)
     assert isinstance(stats["bits_per_edge"], float)
     assert isinstance(stats["avg_locality"], float)
     assert stats["indegree_min"] == 0
-    assert stats["indegree_max"] == 3
+    assert stats["indegree_max"] == 4
     assert isinstance(stats["indegree_avg"], float)
     assert stats["outdegree_min"] == 0
     assert stats["outdegree_max"] == 3
     assert isinstance(stats["outdegree_avg"], float)
+    assert stats["export_started_at"] == 1669888200
+    assert stats["export_ended_at"] == 1669899600
 
 
 def test_leaves(graph_client):
@@ -69,6 +71,7 @@ def test_neighbors(graph_client):
         )
     )
     expected = [
+        "swh:1:snp:0000000000000000000000000000000000000022",
         "swh:1:snp:0000000000000000000000000000000000000020",
         "swh:1:rel:0000000000000000000000000000000000000010",
         "swh:1:rev:0000000000000000000000000000000000000013",
@@ -224,10 +227,15 @@ def test_visit_edges_limited(graph_client):
             "swh:1:dir:0000000000000000000000000000000000000002",
         ),
     ]
+
     # As there are four valid answers (up to reordering), we cannot check for
-    # equality. Instead, we check the client returned all edges but one.
+    # equality. Instead, we check the client returned either
+    # * all edges but one, or
+    # * all edges
+    # and the right answer depends on which edges were traversed, which is
+    # non-deterministic
     assert set(actual).issubset(set(expected))
-    assert len(actual) == 3
+    assert 3 <= len(actual) <= 4
 
 
 def test_visit_edges_diamond_pattern(graph_client):
@@ -384,7 +392,7 @@ def test_count(graph_client):
     actual = graph_client.count_neighbors(
         "swh:1:rev:0000000000000000000000000000000000000009", direction="backward"
     )
-    assert actual == 3
+    assert actual == 4
 
 
 @pytest.mark.parametrize("max_matching_nodes", [0, 1, 2, 3, 4, 5, 10, 1 << 31])

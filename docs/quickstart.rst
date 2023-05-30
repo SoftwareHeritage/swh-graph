@@ -81,9 +81,12 @@ machines. The server we use in production to run the graph service has more
 than 700 GiB of RAM. These memory considerations are discussed in more details
 in :ref:`swh-graph-memory`.
 
-**Note:** for testing purposes, a fake test dataset is available in the
-``swh-graph`` repository, with just a few dozen nodes. Its basename is
-``swh-graph/swh/graph/tests/dataset/compressed/example``.
+.. note::
+
+   For testing purposes, a :ref:`synthetic test dataset <swh-graph-example-dataset>`
+   is available in the ``swh-graph`` repository,
+   with just a few dozen nodes. Its basename is
+   ``swh-graph/swh/graph/example_dataset/compressed/example``.
 
 
 API server

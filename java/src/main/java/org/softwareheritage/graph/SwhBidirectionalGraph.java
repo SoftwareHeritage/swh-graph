@@ -139,7 +139,7 @@ public class SwhBidirectionalGraph extends BidirectionalImmutableGraph implement
 
     @Override
     public SwhBidirectionalGraph copy() {
-        return new SwhBidirectionalGraph(forwardGraph.copy(), backwardGraph.copy(), this.properties);
+        return new SwhBidirectionalGraph(forwardGraph.copy(), backwardGraph.copy(), this.properties.copy());
     }
 
     @Override

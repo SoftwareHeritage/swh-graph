@@ -97,7 +97,7 @@ public class TraverseNodesTest extends TraversalServiceTest {
         ArrayList<SWHID> actual = getSWHIDs(client.traverse(
                 getTraversalRequestBuilder(fakeSWHID("dir", 12)).setDirection(GraphDirection.BACKWARD).build()));
         List<SWHID> expected = List.of(fakeSWHID("dir", 12), fakeSWHID("rel", 19), fakeSWHID("rev", 13),
-                fakeSWHID("rev", 18));
+                fakeSWHID("rev", 18), fakeSWHID("rel", 21), fakeSWHID("snp", 22), new SWHID(TEST_ORIGIN_ID2));
         GraphTest.assertEqualsAnyOrder(expected, actual);
     }
 
@@ -105,9 +105,10 @@ public class TraverseNodesTest extends TraversalServiceTest {
     public void backwardFromLeaf() {
         ArrayList<SWHID> actual = getSWHIDs(client.traverse(
                 getTraversalRequestBuilder(fakeSWHID("cnt", 4)).setDirection(GraphDirection.BACKWARD).build()));
-        List<SWHID> expected = List.of(new SWHID(TEST_ORIGIN_ID), fakeSWHID("cnt", 4), fakeSWHID("dir", 6),
-                fakeSWHID("dir", 8), fakeSWHID("dir", 12), fakeSWHID("rel", 10), fakeSWHID("rel", 19),
-                fakeSWHID("rev", 9), fakeSWHID("rev", 13), fakeSWHID("rev", 18), fakeSWHID("snp", 20));
+        List<SWHID> expected = List.of(new SWHID(TEST_ORIGIN_ID), new SWHID(TEST_ORIGIN_ID2), fakeSWHID("cnt", 4),
+                fakeSWHID("dir", 6), fakeSWHID("dir", 8), fakeSWHID("dir", 12), fakeSWHID("rel", 10),
+                fakeSWHID("rel", 19), fakeSWHID("rev", 9), fakeSWHID("rev", 13), fakeSWHID("rev", 18),
+                fakeSWHID("snp", 20), fakeSWHID("rel", 21), fakeSWHID("snp", 22));
         GraphTest.assertEqualsAnyOrder(expected, actual);
     }
 
@@ -160,7 +161,7 @@ public class TraverseNodesTest extends TraversalServiceTest {
         ArrayList<SWHID> actual = getSWHIDs(client.traverse(getTraversalRequestBuilder(fakeSWHID("rev", 3))
                 .setEdges("rev:rev,rev:rel").setDirection(GraphDirection.BACKWARD).build()));
         List<SWHID> expected = List.of(fakeSWHID("rel", 10), fakeSWHID("rel", 19), fakeSWHID("rev", 3),
-                fakeSWHID("rev", 9), fakeSWHID("rev", 13), fakeSWHID("rev", 18));
+                fakeSWHID("rev", 9), fakeSWHID("rev", 13), fakeSWHID("rev", 18), fakeSWHID("rel", 21));
         GraphTest.assertEqualsAnyOrder(expected, actual);
     }
 
@@ -179,7 +180,8 @@ public class TraverseNodesTest extends TraversalServiceTest {
         ArrayList<SWHID> actual = getSWHIDs(client.traverse(getTraversalRequestBuilder(fakeSWHID("rev", 3))
                 .setDirection(GraphDirection.BACKWARD).setEdges("rev:*").build()));
         List<SWHID> expected = List.of(fakeSWHID("rel", 10), fakeSWHID("rel", 19), fakeSWHID("rev", 3),
-                fakeSWHID("rev", 9), fakeSWHID("rev", 13), fakeSWHID("rev", 18), fakeSWHID("snp", 20));
+                fakeSWHID("rev", 9), fakeSWHID("rev", 13), fakeSWHID("rev", 18), fakeSWHID("snp", 20),
+                fakeSWHID("rel", 21), fakeSWHID("snp", 22));
         GraphTest.assertEqualsAnyOrder(expected, actual);
     }
 
@@ -244,14 +246,12 @@ public class TraverseNodesTest extends TraversalServiceTest {
         GraphTest.assertEqualsAnyOrder(expected, actual);
 
         actual = getSWHIDs(client.traverse(builder.setMaxEdges(7).build()));
-        expected = List.of(fakeSWHID("rel", 19), fakeSWHID("rev", 18), fakeSWHID("rev", 13), fakeSWHID("dir", 17),
-                fakeSWHID("cnt", 14));
+        expected = List.of(fakeSWHID("rel", 19), fakeSWHID("rev", 18), fakeSWHID("rev", 13), fakeSWHID("dir", 17));
         GraphTest.assertEqualsAnyOrder(expected, actual);
 
         actual = getSWHIDs(client.traverse(builder.setMaxEdges(12).build()));
         expected = List.of(fakeSWHID("rel", 19), fakeSWHID("rev", 18), fakeSWHID("rev", 13), fakeSWHID("dir", 17),
-                fakeSWHID("rev", 9), fakeSWHID("dir", 12), fakeSWHID("dir", 16), fakeSWHID("cnt", 14),
-                fakeSWHID("cnt", 15));
+                fakeSWHID("rev", 9), fakeSWHID("dir", 12), fakeSWHID("dir", 16), fakeSWHID("cnt", 14));
         GraphTest.assertEqualsAnyOrder(expected, actual);
     }
 }

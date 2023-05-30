@@ -150,7 +150,7 @@ public class SwhUnidirectionalGraph extends ImmutableGraph implements SwhGraph {
     @Override
     public SwhUnidirectionalGraph copy() {
         return new SwhUnidirectionalGraph(this.graph.copy(),
-                this.labelledGraph != null ? this.labelledGraph.copy() : null, this.properties);
+                this.labelledGraph != null ? this.labelledGraph.copy() : null, this.properties.copy());
     }
 
     @Override

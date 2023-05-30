@@ -6,7 +6,7 @@
 import logging
 from pathlib import Path
 import shlex
-from typing import TYPE_CHECKING, Any, Dict, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -74,7 +74,9 @@ class PathlibPath(click.Path):
         return Path(super().convert(value, param, ctx))
 
 
-DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {"graph": ("dict", {})}
+DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {
+    "graph": ("dict", {"cls": "local", "grpc_server": {}})
+}
 
 
 @swh_cli_group.group(name="graph", context_settings=CONTEXT_SETTINGS, cls=AliasedGroup)
@@ -131,8 +133,13 @@ def serve(ctx, host, port, graph):
     from swh.graph.http_rpc_server import make_app
 
     config = ctx.obj["config"]
-    config.setdefault("graph", {})
-    config["graph"]["path"] = graph
+    if "graph" not in config:
+        raise ValueError('no "graph" stanza found in configuration')
+    if "grpc_server" not in config["graph"]:
+        raise ValueError(
+            'no "grpc_server" stanza found in the "graph" section of configuration'
+        )
+    config["graph"]["grpc_server"]["path"] = graph
     app = make_app(config=config)
 
     aiohttp.web.run_app(app, host=host, port=port)
@@ -142,13 +149,13 @@ def serve(ctx, host, port, graph):
 @click.option(
     "--port",
     "-p",
-    default=50091,
+    default=None,
     type=click.INT,
     metavar="PORT",
     show_default=True,
     help=(
         "port to bind the server on (note: host is not configurable "
-        "for now and will be 0.0.0.0)"
+        "for now and will be 0.0.0.0). Defaults to 50091"
     ),
 )
 @click.option(
@@ -173,9 +180,11 @@ def grpc_serve(ctx, port, java_home, graph):
     from swh.graph.grpc_server import build_grpc_server_cmdline
 
     config = ctx.obj["config"]
-    config.setdefault("graph", {})
     config["graph"]["path"] = graph
-    config["graph"]["port"] = port
+    if port is None and "port" not in config["graph"]:
+        port = 50091
+    if port is not None:
+        config["graph"]["port"] = port
 
     logger.debug("Building gPRC server command line")
     cmd, port = build_grpc_server_cmdline(**config["graph"])
@@ -246,6 +255,320 @@ def compress(ctx, input_dataset, output_directory, graph_name, steps):
         conf = {}  # use defaults
 
     webgraph.compress(graph_name, input_dataset, output_directory, steps, conf)
+
+
+def get_all_subclasses(cls):
+    all_subclasses = []
+
+    for subclass in cls.__subclasses__():
+        all_subclasses.append(subclass)
+        all_subclasses.extend(get_all_subclasses(subclass))
+
+    return all_subclasses
+
+
+@graph_cli_group.command()
+@click.option(
+    "--base-directory",
+    required=True,
+    type=PathlibPath(),
+    help="""The base directory where all datasets and compressed graphs are.
+    Its subdirectories should be named after a date (and optional flavor).
+    For example: ``/poolswh/softwareheritage/``.""",
+)
+@click.option(
+    "--base-sensitive-directory",
+    required=False,
+    type=PathlibPath(),
+    help="""The base directory for any data that should not be publicly available
+    (eg. because it contains people's names).
+    For example: ``/poolswh/softwareheritage/``.""",
+)
+@click.option(
+    "--athena-prefix",
+    required=False,
+    type=str,
+    help="""A prefix for the Athena Database that will be created and/or used.
+    For example: ``swh``.""",
+)
+@click.option(
+    "--s3-prefix",
+    required=False,
+    type=str,
+    help="""The base S3 "directory" where all datasets and compressed graphs are.
+    Its subdirectories should be named after a date (and optional flavor).
+    For example: ``s3://softwareheritage/graph/``.""",
+)
+@click.option(
+    "--max-ram",
+    help="""Value to pass to -Xmx for Java processes""",
+)
+@click.option(
+    "--batch-size",
+    type=int,
+    help="""Default value for compression tasks handling objects in batch""",
+)
+@click.option(
+    "--grpc-api", help="""Default value for the <hostname>:<port> of the gRPC server"""
+)
+@click.option(
+    "--s3-athena-output-location",
+    required=False,
+    type=str,
+    help="""The base S3 "directory" where all datasets and compressed graphs are.
+    Its subdirectories should be named after a date (and optional flavor).
+    For example: ``s3://softwareheritage/graph/``.""",
+)
+@click.option(
+    "--graph-base-directory",
+    required=False,
+    type=PathlibPath(),
+    help="""Overrides the path of the graph to use. Defaults to the value of
+    ``{base_directory}/{dataset_name}/{compressed}/``.
+    For example: ``/dev/shm/swh-graph/default/``.""",
+)
+@click.option(
+    "--dataset-name",
+    required=True,
+    type=str,
+    help="""Should be a date and optionally a flavor, which will be used
+    as directory name. For example: ``2022-04-25`` or ``2022-11-12_staging``.""",
+)
+@click.option(
+    "--export-name",
+    required=False,
+    type=str,
+    help="""Should be a date and optionally a flavor, which will be used
+    as directory name for the export (not the compressed graph).
+    For example: ``2022-04-25`` or ``2022-11-12_staging``.
+    Defaults to the value of --dataset-name""",
+)
+@click.option(
+    "--previous-dataset-name",
+    required=False,
+    type=str,
+    help="""When regenerating a derived dataset, this can be set to the name of
+    a previous dataset the derived dataset was generated for.
+    Some results from the previous generated dataset will be reused to speed-up
+    regeneration.""",
+)
+@click.option(
+    "--luigi-config",
+    type=PathlibPath(),
+    help="""Extra options to add to ``luigi.cfg``, following the same format.
+    This overrides any option that would be other set automatically.""",
+)
+@click.option(
+    "--retry-luigi-delay",
+    type=int,
+    default=10,
+    help="""Time to wait before re-running Luigi, if some tasks are pending
+    but stuck.""",
+)
+@click.argument("luigi_param", nargs=-1)
+@click.pass_context
+def luigi(
+    ctx,
+    base_directory: Path,
+    graph_base_directory: Optional[Path],
+    base_sensitive_directory: Optional[Path],
+    s3_prefix: Optional[str],
+    athena_prefix: Optional[str],
+    max_ram: Optional[str],
+    batch_size: Optional[int],
+    grpc_api: Optional[str],
+    s3_athena_output_location: Optional[str],
+    dataset_name: str,
+    export_name: Optional[str],
+    previous_dataset_name: Optional[str],
+    retry_luigi_delay: int,
+    luigi_config: Optional[Path],
+    luigi_param: List[str],
+):
+    r"""
+    Calls Luigi with the given task and params, and automatically
+    configures paths based on --base-directory and --dataset-name.
+
+    The list of Luigi params should be prefixed with ``--`` so they are not interpreted
+    by the ``swh`` CLI. For example::
+
+        swh graph luigi \
+                --base-directory ~/tmp/ \
+                --dataset-name 2022-12-05_test ListOriginContributors \
+                -- \
+                RunAll \
+                --local-scheduler
+
+    to pass ``RunAll --local-scheduler`` as Luigi params
+
+    Or, to compute a derived dataset::
+
+        swh graph luigi \
+                --graph-base-directory /dev/shm/swh-graph/default/ \
+                --base-directory /poolswh/softwareheritage/vlorentz/ \
+                --athena-prefix swh \
+                --dataset-name 2022-04-25 \
+                --s3-athena-output-location s3://some-bucket/tmp/athena \
+                -- \
+                --log-level INFO \
+                FindEarliestRevisions \
+                --scheduler-url http://localhost:50092/ \
+                --blob-filter citation
+    """
+    import configparser
+    import os
+    import secrets
+    import socket
+    import subprocess
+    import tempfile
+    import time
+
+    import luigi
+    import psutil
+
+    # Popular the list of subclasses of luigi.Task
+    import swh.dataset.luigi  # noqa
+    import swh.graph.luigi  # noqa
+
+    config = configparser.ConfigParser()
+
+    # By default, Luigi always returns code 0.
+    # See https://luigi.readthedocs.io/en/stable/configuration.html#retcode
+    config["retcode"] = {
+        "already_running": "128",
+        "missing_data": "129",
+        "not_run": "130",
+        "task_failed": "131",
+        "scheduling_error": "132",
+        "unhandled_exception": "133",
+    }
+
+    if max_ram:
+        if max_ram.endswith("G"):
+            max_ram_mb = int(max_ram[:-1]) * 1024
+        elif max_ram.endswith("M"):
+            max_ram_mb = int(max_ram[:-1])
+        else:
+            raise click.ClickException(
+                "--max-ram must be an integer followed by M or G"
+            )
+    else:
+        max_ram_mb = psutil.virtual_memory().total // (1024 * 1024)
+
+    # Only used by the local scheduler; otherwise it needs to be configured
+    # in luigid.cfg
+    hostname = socket.getfqdn()
+    config["resources"] = {
+        f"{hostname}_ram_mb": str(max_ram_mb),
+    }
+
+    export_name = export_name or dataset_name
+
+    export_path = base_directory / export_name
+    dataset_path = base_directory / dataset_name
+
+    default_values = dict(
+        local_export_path=export_path,
+        local_graph_path=dataset_path / "compressed",
+        derived_datasets_path=dataset_path,
+        topological_order_dir=dataset_path / "topology/",
+        origin_contributors_path=dataset_path / "datasets/contribution_graph.csv.zst",
+        origin_urls_path=dataset_path / "datasets/origin_urls.csv.zst",
+        export_id=f"{export_name}-{secrets.token_hex(10)}",
+        export_name=export_name,
+        dataset_name=dataset_name,
+        previous_dataset_name=previous_dataset_name,
+    )
+
+    if graph_base_directory:
+        default_values["local_graph_path"] = graph_base_directory
+
+    if s3_prefix:
+        default_values["s3_export_path"] = f"{s3_prefix.rstrip('/')}/{export_name}"
+        default_values[
+            "s3_graph_path"
+        ] = f"{s3_prefix.rstrip('/')}/{dataset_name}/compressed"
+
+    if s3_athena_output_location:
+        default_values["s3_athena_output_location"] = s3_athena_output_location
+
+    if max_ram:
+        default_values["max_ram_mb"] = max_ram_mb
+
+    if batch_size:
+        default_values["batch_size"] = batch_size
+
+    if grpc_api:
+        default_values["grpc_api"] = grpc_api
+
+    if base_sensitive_directory:
+        sensitive_path = base_sensitive_directory / dataset_name
+        default_values["deanonymized_origin_contributors_path"] = (
+            sensitive_path / "datasets/contributors_deanonymized.csv.zst"
+        )
+        default_values["deanonymization_table_path"] = (
+            sensitive_path / "persons_sha256_to_name.csv.zst"
+        )
+
+    if previous_dataset_name:
+        default_values["previous_derived_datasets_path"] = (
+            base_directory / previous_dataset_name
+        )
+
+    if athena_prefix:
+        default_values[
+            "athena_db_name"
+        ] = f"{athena_prefix}_{dataset_name.replace('-', '')}"
+
+    for task_cls in get_all_subclasses(luigi.Task):
+        task_name = task_cls.__name__
+        # If the task has an argument with one of the known name, add the default value
+        # to its config.
+        task_config = {
+            arg_name: str(arg_value)
+            for arg_name, arg_value in default_values.items()
+            if hasattr(task_cls, arg_name)
+        }
+        if task_config:
+            config[task_name] = task_config
+
+    # If any config is provided, add it.
+    # This may override default arguments configured above.
+    if luigi_config is not None:
+        config.read(luigi_config)
+
+    with tempfile.NamedTemporaryFile(mode="w+t", prefix="luigi_", suffix=".cfg") as fd:
+        config.write(fd)
+        fd.flush()
+
+        while True:
+            start_time = time.time()
+            proc = subprocess.run(
+                [
+                    "luigi",
+                    "--module",
+                    "swh.dataset.luigi",
+                    "--module",
+                    "swh.graph.luigi",
+                    *luigi_param,
+                ],
+                env={
+                    "LUIGI_CONFIG_PATH": fd.name,
+                    **os.environ,
+                },
+            )
+
+            # If all tasks are stuck, run another loop to wait for them to be unstuck.
+            # The normal way to do this would be to set config["worker"]["keep_alive"]
+            # to True, but we do it this way to force Luigi to recompute resources
+            # because most tasks in compressed_graph.py can only know their resource
+            # usage after ExtractNodes and ExtractPersons ran.
+            if proc.returncode != int(config["retcode"]["not_run"]):
+                break
+
+            # wait a few seconds between loops to avoid wasting CPU
+            time.sleep(max(0, retry_luigi_delay - (time.time() - start_time)))
+        exit(proc.returncode)
 
 
 def main():

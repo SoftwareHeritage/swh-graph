@@ -1,4 +1,8 @@
-all: compression_steps.png compression_steps.svg
+GENERATED_IMAGES = \
+	compression_steps.png compression_steps.svg \
+	example-dataset.png example-dataset.svg
+
+all: $(GENERATED_IMAGES)
 
 %.png: %.dot
 	dot -Gdpi=150 -Tpng $< -o $@
@@ -9,5 +13,4 @@ all: compression_steps.png compression_steps.svg
 .PHONY: clean
 
 clean:
-	rm -f compression_steps.png
-	rm -f compression_steps.svg
+	rm -f $(GENERATED_IMAGES)

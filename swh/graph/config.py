@@ -7,6 +7,8 @@ import logging
 from pathlib import Path
 import sys
 
+# WARNING: do not import unnecessary things here to keep cli startup time under
+# control
 import psutil
 
 logger = logging.getLogger(__name__)
@@ -77,6 +79,8 @@ def check_config(conf):
         conf["java"] = "java"
     if "classpath" not in conf:
         conf["classpath"] = find_graph_jar()
+    if "object_types" not in conf:
+        conf["object_types"] = "*"
 
     return conf
 

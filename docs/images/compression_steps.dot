@@ -28,11 +28,11 @@ digraph "Compression steps" {
     persons_mph [label="graph.persons.mph"];
     node_properties [label="graph.property.*"];
     labels_mph [label="graph.labels.mph"];
-    labels_fcl [label="graph.labels.fcl"];
+    labels_fcl [label="graph.labels.fcl.*"];
     graph_labelled [label="graph-labelled.*"];
     graph_transposed_labelled [label="graph-transposed-labelled.*"];
     graph_labelled_obl [label="graph-labelled.labelobl"];
-    graph_transposed_labelled [label="graph-transposed-labelled.labelobl"];
+    graph_transposed_labelled_obl [label="graph-transposed-labelled.labelobl"];
 
     subgraph {
         node [shape=box, fontname="Courier New"];
@@ -95,6 +95,7 @@ digraph "Compression steps" {
     persons_mph -> NODE_PROPERTIES;
     graph_mph -> NODE_PROPERTIES;
     graph_order -> NODE_PROPERTIES;
+    swhidmap -> NODE_PROPERTIES;
     NODE_PROPERTIES -> node_properties;
     labels_csv -> MPH_LABELS -> labels_mph;
     labels_mph -> FCL_LABELS;
@@ -102,8 +103,10 @@ digraph "Compression steps" {
     orc_dataset -> EDGE_LABELS;
     labels_mph -> EDGE_LABELS;
     graph_llp -> EDGE_LABELS;
+    graph_llp_transposed -> EDGE_LABELS;
     graph_mph -> EDGE_LABELS;
     graph_order -> EDGE_LABELS;
+    swhidmap -> EDGE_LABELS;
     EDGE_LABELS -> graph_labelled;
     EDGE_LABELS -> graph_transposed_labelled;
     graph_labelled -> EDGE_LABELS_OBL -> graph_labelled_obl;

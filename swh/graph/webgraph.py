@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -12,9 +12,12 @@ from enum import Enum
 import logging
 import os
 from pathlib import Path
+import shlex
 import subprocess
-from typing import Dict, List, Set
+from typing import Callable, Dict, List, Set
 
+# WARNING: do not import unnecessary things here to keep cli startup time under
+# control
 from swh.graph.config import check_config_compress
 
 logger = logging.getLogger(__name__)
@@ -66,6 +69,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "orc",
         "--temp-dir",
         "{tmp_dir}",
+        "--allowed-node-types",
+        "{object_types}",
         "{in_dir}",
         "{out_dir}/{graph_name}",
     ],
@@ -85,6 +90,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "org.softwareheritage.graph.compress.ScatteredArcsORCGraph",
         "--temp-dir",
         "{tmp_dir}",
+        "--allowed-node-types",
+        "{object_types}",
         "--function",
         "{out_dir}/{graph_name}.mph",
         "{in_dir}",
@@ -186,6 +193,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "org.softwareheritage.graph.compress.ExtractPersons",
         "--temp-dir",
         "{tmp_dir}",
+        "--allowed-node-types",
+        "{object_types}",
         "{in_dir}",
         "{out_dir}/{graph_name}",
     ],
@@ -204,6 +213,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{java}",
         "org.softwareheritage.graph.compress.WriteNodeProperties",
         "{in_dir}",
+        "--allowed-node-types",
+        "{object_types}",
         "{out_dir}/{graph_name}",
     ],
     CompressionStep.MPH_LABELS: [
@@ -230,6 +241,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "org.softwareheritage.graph.compress.LabelMapBuilder",
         "--temp-dir",
         "{tmp_dir}",
+        "--allowed-node-types",
+        "{object_types}",
         "{in_dir}",
         "{out_dir}/{graph_name}",
     ],
@@ -272,20 +285,26 @@ def do_step(step, conf):
     log_dir.mkdir(exist_ok=True)
 
     step_logger = logger.getChild(f"steps.{step.name.lower()}")
-    step_handler = logging.FileHandler(
-        log_dir
-        / (
-            f"{conf['graph_name']}"
-            f"-{int(datetime.now().timestamp() * 1000)}"
-            f"-{str(step).lower()}.log"
-        )
+    if not step_logger.isEnabledFor(logging.INFO):
+        # Ensure that at least INFO messages are sent, because it is the level we use
+        # for the stdout of Java processes. These processes can take a long time to
+        # run, and it would be very annoying to have to run them again just because
+        # they crashed with no log.
+        step_logger.setLevel(logging.INFO)
+    log_path = log_dir / (
+        f"{conf['graph_name']}"
+        f"-{int(datetime.now().timestamp() * 1000)}"
+        f"-{str(step).lower()}.log"
     )
+    step_handler = logging.FileHandler(log_path)
     step_logger.addHandler(step_handler)
 
     step_start_time = datetime.now()
     step_logger.info("Starting compression step %s at %s", step, step_start_time)
 
-    cmd = " ".join(STEP_ARGV[step]).format(**conf)
+    cmd = " ".join(STEP_ARGV[step]).format(
+        **{k: shlex.quote(str(v)) for (k, v) in conf.items()}
+    )
     cmd_env = os.environ.copy()
     cmd_env["JAVA_TOOL_OPTIONS"] = conf["java_tool_options"]
     cmd_env["CLASSPATH"] = conf["classpath"]
@@ -303,7 +322,9 @@ def do_step(step, conf):
             step_logger.info(line.rstrip())
     rc = process.wait()
     if rc != 0:
-        raise RuntimeError(f"Compression step {step} returned non-zero exit code {rc}")
+        raise RuntimeError(
+            f"Compression step {step} returned non-zero exit code {rc}, see {log_path}"
+        )
     step_end_time = datetime.now()
     step_duration = step_end_time - step_start_time
     step_logger.info(
@@ -323,6 +344,7 @@ def compress(
     out_dir: Path,
     steps: Set[CompressionStep] = set(COMP_SEQ),
     conf: Dict[str, str] = {},
+    progress_cb: Callable[[int, CompressionStep], None] = lambda percentage, step: None,
 ):
     """graph compression pipeline driver from nodes/edges files to compressed
     on-disk representation
@@ -348,6 +370,10 @@ def compress(
             virtual memory
           - tmp_dir: temporary directory, defaults to the "tmp" subdir of
             out_dir
+          - object_types: comma-separated list of object types to extract
+            (eg. ``ori,snp,rel,rev``). Defaults to ``*``.
+        progress_cb: a callable taking a percentage and step as argument,
+          which is called every time a step starts.
 
     """
     if not steps:
@@ -364,6 +390,7 @@ def compress(
             continue
         seq_no += 1
         logger.info("Running compression step %s (%s/%s)", step, seq_no, len(steps))
+        progress_cb(seq_no * 100 // len(steps), step)
         do_step(step, conf)
     compression_end_time = datetime.now()
     compression_duration = compression_end_time - compression_start_time

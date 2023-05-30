@@ -117,6 +117,7 @@ which prints:
     indegree_avg: 14.185788695346046
     outdegree_max: 1033207
     outdegree_avg: 14.185788695346046
+    export_started_at: 1669888200
 
     Compression ratio: 9.6 %
 
@@ -376,7 +377,7 @@ range of indegrees and outdegrees, and some compression-related statistics.
     response = stub.Stats(swhgraph.StatsRequest())
     print(response)
 
-.. code-block:: json
+.. code-block:: python
 
     {
      "numNodes": "21",
@@ -388,9 +389,19 @@ range of indegrees and outdegrees, and some compression-related statistics.
      "indegreeMax": "3",
      "indegreeAvg": 1.0952380952380953,
      "outdegreeMax": "3",
-     "outdegreeAvg": 1.0952380952380953
+     "outdegreeAvg": 1.0952380952380953,
+     "exportStartedAt": 1669888200,
+     "exportEndedAt": 1669899600,
     }
 
+``exportStartedAt`` and ``exportEndedAt`` are optional and might not be present
+if the the information is not available to the server.
+
+.. note::
+
+   Objects inserted before ``exportStartedAt`` are guaranteed to be in the
+   export. Objects inserted after ``exportEndedAt`` are guaranteed not to be
+   in the export.
 
 Graph traversals
 ================

@@ -14,6 +14,7 @@ import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigList;
 import it.unimi.dsi.fastutil.longs.LongMappedBigList;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
+import it.unimi.dsi.lang.FlyweightPrototype;
 import org.softwareheritage.graph.SWHID;
 import org.softwareheritage.graph.compress.NodeMapBuilder;
 
@@ -35,7 +36,7 @@ import java.nio.charset.StandardCharsets;
  * @see NodeMapBuilder
  */
 
-public class NodeIdMap implements Size64 {
+public class NodeIdMap implements Size64, FlyweightPrototype<NodeIdMap> {
     /** Fixed length of binary SWHID buffer */
     public static final int SWHID_BIN_SIZE = 22;
 
@@ -66,11 +67,35 @@ public class NodeIdMap implements Size64 {
             this.nodeToSwhMap = ByteMappedBigList.map(raf.getChannel());
         }
 
+        long byte_size = this.nodeToSwhMap.size64();
+        if (byte_size % SWHID_BIN_SIZE != 0) {
+            throw new RuntimeException(
+                    String.format("%s%s has size %d bytes, which is not a multiple of SWHID_BIN_SIZE (%d)", graphPath,
+                            NODE_TO_SWHID, byte_size, SWHID_BIN_SIZE));
+        }
+
         // SWHID -> node
         this.mph = loadMph(graphPath + ".mph");
         try (RandomAccessFile mapFile = new RandomAccessFile(new File(graphPath + ".order"), "r")) {
             this.orderMap = LongMappedBigList.map(mapFile.getChannel());
         }
+    }
+
+    protected NodeIdMap(String graphPath, ByteBigList nodeToSwhMap, Object2LongFunction<byte[]> mph,
+            LongBigList orderMap) {
+        this.graphPath = graphPath;
+        this.nodeToSwhMap = nodeToSwhMap;
+        this.mph = mph;
+        this.orderMap = orderMap;
+    }
+
+    @Override
+    public NodeIdMap copy() {
+        return new NodeIdMap(graphPath,
+                ((nodeToSwhMap instanceof ByteMappedBigList)
+                        ? ((ByteMappedBigList) nodeToSwhMap).copy()
+                        : nodeToSwhMap),
+                mph, ((orderMap instanceof LongMappedBigList) ? ((LongMappedBigList) orderMap).copy() : orderMap));
     }
 
     @SuppressWarnings("unchecked")
@@ -141,6 +166,17 @@ public class NodeIdMap implements Size64 {
     }
 
     /**
+     * Converts String-form SWHID to corresponding long node id. Low-level function, does not check if
+     * the SWHID is valid.
+     *
+     * @param swhid node represented as String
+     * @return corresponding node as a long id
+     */
+    public long getNodeId(String swhid) {
+        return getNodeId(swhid.getBytes(StandardCharsets.US_ASCII));
+    }
+
+    /**
      * Converts SWHID to corresponding long node id.
      *
      * @param swhid node represented as a {@link SWHID}
@@ -178,9 +214,8 @@ public class NodeIdMap implements Size64 {
          * Each line in NODE_TO_SWHID is formatted as: swhid The file is ordered by nodeId, meaning node0's
          * swhid is at line 0, hence we can read the nodeId-th line to get corresponding swhid
          */
-        if (nodeId < 0 || nodeId >= nodeToSwhMap.size64()) {
-            throw new IllegalArgumentException(
-                    "Node id " + nodeId + " should be between 0 and " + nodeToSwhMap.size64());
+        if (nodeId < 0 || nodeId >= size64()) {
+            throw new IllegalArgumentException("Node id " + nodeId + " should be between 0 and " + size64());
         }
 
         byte[] swhid = new byte[SWHID_BIN_SIZE];
@@ -191,6 +226,6 @@ public class NodeIdMap implements Size64 {
     /** Return the number of nodes in the map. */
     @Override
     public long size64() {
-        return nodeToSwhMap.size64();
+        return nodeToSwhMap.size64() / SWHID_BIN_SIZE;
     }
 }

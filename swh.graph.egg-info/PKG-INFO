@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: swh.graph
-Version: 2.2.0
+Version: 3.0.1
 Summary: Software Heritage graph service
 Home-page: https://forge.softwareheritage.org/diffusion/DGRPH
 Author: Software Heritage developers
@@ -17,6 +17,7 @@ Classifier: Development Status :: 3 - Alpha
 Requires-Python: >=3.7
 Description-Content-Type: text/x-rst
 Provides-Extra: testing
+Provides-Extra: luigi
 License-File: LICENSE
 License-File: AUTHORS
 

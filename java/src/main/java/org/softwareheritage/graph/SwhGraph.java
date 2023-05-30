@@ -34,6 +34,16 @@ public interface SwhGraph {
         return getProperties().getPath();
     }
 
+    /** @see SwhGraphProperties#getNodeId(byte[]) */
+    default long getNodeId(byte[] swhid) {
+        return getProperties().getNodeId(swhid);
+    }
+
+    /** @see SwhGraphProperties#getNodeId(String) */
+    default long getNodeId(String swhid) {
+        return getProperties().getNodeId(swhid);
+    }
+
     /** @see SwhGraphProperties#getNodeId(SWHID) */
     default long getNodeId(SWHID swhid) {
         return getProperties().getNodeId(swhid);
@@ -122,6 +132,11 @@ public interface SwhGraph {
     /** @see SwhGraphProperties#getMessage(long) */
     default byte[] getMessage(long nodeId) {
         return getProperties().getMessage(nodeId);
+    }
+
+    /** @see SwhGraphProperties#getMessageBase64(long) */
+    default byte[] getMessageBase64(long nodeId) {
+        return getProperties().getMessageBase64(nodeId);
     }
 
     /** @see SwhGraphProperties#getUrl(long) */

@@ -16,4 +16,13 @@
    cli
    docker
    git2graph
-   /apidoc/swh.graph
+   example-dataset
+
+.. only:: standalone_package_doc
+
+   Indices and tables
+   ------------------
+
+   * :ref:`genindex`
+   * :ref:`modindex`
+   * :ref:`search`

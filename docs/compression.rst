@@ -81,7 +81,7 @@ Alternatively, any custom ORC dataset can be used as long as it respects
 
 **Note:** for testing purposes, a fake test dataset is available in the
 ``swh-graph`` repository, with just a few dozen nodes. The ORC tables are
-available in ``swh-graph/swh/graph/tests/dataset/orc/``.
+available in ``swh-graph/swh/graph/example_dataset/orc/``.
 
 
 Compression
@@ -122,6 +122,14 @@ It is also possible to run single steps or step ranges from the CLI:
 
 See ``swh graph compress --help`` for syntax and usage details.
 
+For some steps, Java will try to allocate terabytes of memory in sub-gigabyte
+segments, so you should increase the number of allowed allocations first:
+
+.. code:: bash
+
+    sudo sysctl -w vm.max_map_count=1966080
+
+.. _swh-graph-compression-steps:
 
 Compression steps
 =================
@@ -236,7 +244,7 @@ whose nodes and edges can be iterated sequentially as if it was any other
 standard graph. To do so, it puts all the edges in batches and sorts them in an
 aggressively parallel fashion, then stores them as ``.bitstream`` files, and
 returns a `BatchGraph
-<https://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.BatchGraph.html>`
+<https://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.BatchGraph.html>`_
 created from these batches.
 
 Finally, it uses the ``BVGraph.store()`` method, which compresses the input

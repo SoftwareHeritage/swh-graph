@@ -1,0 +1,28 @@
+    <assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.1"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.1 https://maven.apache.org/xsd/assembly-2.1.1.xsd">
+      <!-- TODO: a jarjar format would be better -->
+      <id>swh-graph-with-dependencies</id>
+      <formats>
+        <format>jar</format>
+      </formats>
+      <includeBaseDirectory>false</includeBaseDirectory>
+      <dependencySets>
+        <dependencySet>
+          <outputDirectory>/</outputDirectory>
+          <useProjectArtifact>true</useProjectArtifact>
+          <useStrictFiltering>true</useStrictFiltering>
+          <useTransitiveFiltering>true</useTransitiveFiltering>
+          <unpack>true</unpack>
+          <scope>runtime</scope>
+          <excludes>
+            <exclude>org.apache.hadoop:hadoop-auth</exclude>
+            <exclude>org.apache.hadoop.thirdparty:hadoop-shaded-guava</exclude>
+            <exclude>org.apache.zookeeper:zookeeper</exclude>
+            <exclude>org.apache.curator:*</exclude>
+            <exclude>org.eclipse.jetty:jetty*</exclude>
+            <exclude>org.apache.zookeeper:zookeeper</exclude>
+          </excludes>
+        </dependencySet>
+      </dependencySets>
+    </assembly>

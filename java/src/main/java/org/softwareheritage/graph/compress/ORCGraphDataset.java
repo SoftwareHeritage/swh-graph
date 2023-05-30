@@ -29,6 +29,9 @@ import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 
+import org.softwareheritage.graph.AllowedNodes;
+import org.softwareheritage.graph.SwhType;
+
 /**
  * A graph dataset in ORC format.
  *
@@ -47,19 +50,36 @@ public class ORCGraphDataset implements GraphDataset {
     final static public int ORC_BATCH_SIZE = 16 * 1024;
 
     private File datasetDir;
+    public final AllowedNodes allowedNodeTypes;
 
     protected ORCGraphDataset() {
+        this.allowedNodeTypes = new AllowedNodes("*");
     }
 
+    /**
+     * Initializes with all node types allowed
+     */
     public ORCGraphDataset(String datasetPath) {
-        this(new File(datasetPath));
+        this(datasetPath, new AllowedNodes("*"));
     }
 
+    public ORCGraphDataset(String datasetPath, AllowedNodes allowedNodeTypes) {
+        this(new File(datasetPath), allowedNodeTypes);
+    }
+
+    /**
+     * Initializes with all node types allowed
+     */
     public ORCGraphDataset(File datasetDir) {
+        this(datasetDir, new AllowedNodes("*"));
+    }
+
+    public ORCGraphDataset(File datasetDir, AllowedNodes allowedNodeTypes) {
         if (!datasetDir.exists()) {
             throw new IllegalArgumentException("Dataset " + datasetDir.getName() + " does not exist");
         }
         this.datasetDir = datasetDir;
+        this.allowedNodeTypes = allowedNodeTypes;
     }
 
     /**
@@ -71,30 +91,70 @@ public class ORCGraphDataset implements GraphDataset {
         if (!tableDir.exists()) {
             return null;
         }
+        /*
+         * Keep the map between table names and allowedNodeTypes in sync with
+         * swh/graph/luigi/compressed_graph.py and swh/dataset/relational.py
+         */
         switch (tableName) {
             case "skipped_content":
+                if (!allowedNodeTypes.isAllowed(SwhType.CNT)) {
+                    return null;
+                }
                 return new SkippedContentOrcTable(tableDir);
             case "content":
+                if (!allowedNodeTypes.isAllowed(SwhType.CNT)) {
+                    return null;
+                }
                 return new ContentOrcTable(tableDir);
             case "directory":
+                if (!allowedNodeTypes.isAllowed(SwhType.DIR)) {
+                    return null;
+                }
                 return new DirectoryOrcTable(tableDir);
             case "directory_entry":
+                if (!allowedNodeTypes.isAllowed(SwhType.DIR)) {
+                    return null;
+                }
                 return new DirectoryEntryOrcTable(tableDir);
             case "revision":
+                if (!allowedNodeTypes.isAllowed(SwhType.REV)) {
+                    return null;
+                }
                 return new RevisionOrcTable(tableDir);
             case "revision_history":
+                if (!allowedNodeTypes.isAllowed(SwhType.REV)) {
+                    return null;
+                }
                 return new RevisionHistoryOrcTable(tableDir);
             case "release":
+                if (!allowedNodeTypes.isAllowed(SwhType.REL)) {
+                    return null;
+                }
                 return new ReleaseOrcTable(tableDir);
             case "snapshot_branch":
+                if (!allowedNodeTypes.isAllowed(SwhType.SNP)) {
+                    return null;
+                }
                 return new SnapshotBranchOrcTable(tableDir);
             case "snapshot":
+                if (!allowedNodeTypes.isAllowed(SwhType.SNP)) {
+                    return null;
+                }
                 return new SnapshotOrcTable(tableDir);
             case "origin_visit_status":
+                if (!allowedNodeTypes.isAllowed(SwhType.ORI)) {
+                    return null;
+                }
                 return new OriginVisitStatusOrcTable(tableDir);
             case "origin_visit":
+                if (!allowedNodeTypes.isAllowed(SwhType.ORI)) {
+                    return null;
+                }
                 return new OriginVisitOrcTable(tableDir);
             case "origin":
+                if (!allowedNodeTypes.isAllowed(SwhType.ORI)) {
+                    return null;
+                }
                 return new OriginOrcTable(tableDir);
             default :
                 return null;
@@ -339,8 +399,11 @@ public class ORCGraphDataset implements GraphDataset {
 
                 for (int row = 0; row < batch.size; row++) {
                     byte[] id = idToSwhid(ORCTable.getBytesRow(idVector, row));
-                    byte[] value = Base64.getEncoder().encode(ORCTable.getBytesRow(valueVector, row));
-                    cb.onBytes(id, value);
+                    byte[] value = ORCTable.getBytesRow(valueVector, row);
+                    if (value != null) {
+                        byte[] encodedValue = Base64.getEncoder().encode(value);
+                        cb.onBytes(id, encodedValue);
+                    }
                 }
             }, Set.of(getIdColumn(), longColumn));
         }
