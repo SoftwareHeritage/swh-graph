@@ -273,3 +273,77 @@ class ListEarliestRevisions(luigi.Task):
             > AtomicFileSink(self._output_path())
         ).run()
         # fmt: on
+
+
+class ListDirectoryMaxLeafTimestamp(luigi.Task):
+    """Creates a file that contains all directory/content SWHIDs, along with the first
+    revision/release author date and SWHIDs they occur in.
+    """
+
+    local_export_path = luigi.PathParameter()
+    local_graph_path = luigi.PathParameter()
+    graph_name = luigi.Parameter(default="graph")
+    provenance_dir = luigi.PathParameter()
+
+    def _max_ram(self):
+        # see
+        # java/src/main/java/org/softwareheritage/graph/utils/ListDirectoryMaxLeafTimestamp.java
+        nb_nodes = count_nodes(
+            self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
+        )
+
+        unvisitedchildren_array = maxtimestamps_array = nb_nodes * 8
+
+        graph_size = nb_nodes * 8
+
+        spare_space = 1_000_000_000
+        return graph_size + unvisitedchildren_array + maxtimestamps_array + spare_space
+
+    @property
+    def resources(self):
+        """Returns the value of ``self.max_ram_mb``"""
+        import socket
+
+        return {f"{socket.getfqdn()}_ram_mb": self._max_ram() // 1_000_000}
+
+    def requires(self) -> Dict[str, luigi.Task]:
+        """Returns :class:`LocalGraph` and :class:`ListEarliestRevisions` instances."""
+        return {
+            "graph": LocalGraph(local_graph_path=self.local_graph_path),
+            "earliest_revisions": ListEarliestRevisions(
+                local_export_path=self.local_export_path,
+                local_graph_path=self.local_graph_path,
+                graph_name=self.graph_name,
+                provenance_dir=self.provenance_dir,
+            ),
+        }
+
+    def _output_path(self) -> Path:
+        return self.provenance_dir / "directory_max_leaf_timestamps.csv.zst"
+
+    def output(self) -> luigi.LocalTarget:
+        """Returns {provenance_dir}/directory_max_leaf_timestamps.csv.zst"""
+        return luigi.LocalTarget(self._output_path())
+
+    def run(self) -> None:
+        """Runs ``org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp``"""
+        from .shell import AtomicFileSink, Command, Java
+        from .utils import count_nodes
+
+        nb_nodes = count_nodes(self.local_graph_path, self.graph_name, "dir")
+
+        class_name = "org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp"
+
+        # fmt: off
+        (
+            Command.zstdcat(self.input()["earliest_revisions"])
+            | Java(
+                class_name,
+                self.local_graph_path / self.graph_name,
+                max_ram=self._max_ram(),
+            )
+            | Command.pv("--wait", "--line-mode", "--size", str(nb_nodes))
+            | Command.zstdmt("-10")
+            > AtomicFileSink(self._output_path())
+        ).run()
+        # fmt: on

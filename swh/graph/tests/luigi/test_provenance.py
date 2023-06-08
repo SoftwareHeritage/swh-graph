@@ -9,7 +9,11 @@ import subprocess
 import pytest
 
 from swh.graph.example_dataset import DATASET_DIR
-from swh.graph.luigi.provenance import ListEarliestRevisions, SortRevrelByDate
+from swh.graph.luigi.provenance import (
+    ListDirectoryMaxLeafTimestamp,
+    ListEarliestRevisions,
+    SortRevrelByDate,
+)
 from swh.graph.luigi.shell import CommandException
 
 SORTED_REVRELS = """\
@@ -41,6 +45,19 @@ author_date,revrel_SWHID,cntdir_SWHID
 """.replace(
     "\n", "\r\n"
 )  # noqa
+
+
+DIRECTORY_MAX_LEAF_TIMESTAMPS = """\
+max_author_date,dir_SWHID
+2005-03-18T05:03:40,swh:1:dir:0000000000000000000000000000000000000002
+2005-03-18T11:14:00,swh:1:dir:0000000000000000000000000000000000000008
+2005-03-18T11:14:00,swh:1:dir:0000000000000000000000000000000000000006
+2005-03-18T17:24:20,swh:1:dir:0000000000000000000000000000000000000012
+2005-03-18T20:29:30,swh:1:dir:0000000000000000000000000000000000000017
+2005-03-18T20:29:30,swh:1:dir:0000000000000000000000000000000000000016
+""".replace(
+    "\n", "\r\n"
+)
 
 
 def test_sort(tmpdir):
@@ -106,3 +123,28 @@ def test_listearliestrevisions_disordered(tmpdir):
 
     with pytest.raises(CommandException, match="java returned: 3"):
         task.run()
+
+
+def test_listdirectorymaxleaftimestamp(tmpdir):
+    tmpdir = Path(tmpdir)
+    provenance_dir = tmpdir / "provenance"
+    provenance_dir.mkdir()
+
+    (provenance_dir / "earliest_revrel_for_cntdir.csv.zst").write_text(
+        EARLIEST_REVREL_FOR_CNTDIR
+    )
+
+    task = ListDirectoryMaxLeafTimestamp(
+        local_export_path=DATASET_DIR,
+        local_graph_path=DATASET_DIR / "compressed",
+        graph_name="example",
+        provenance_dir=provenance_dir,
+    )
+
+    task.run()
+
+    csv_text = subprocess.check_output(
+        ["zstdcat", provenance_dir / "directory_max_leaf_timestamps.csv.zst"]
+    ).decode()
+
+    assert csv_text == DIRECTORY_MAX_LEAF_TIMESTAMPS
