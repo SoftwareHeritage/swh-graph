@@ -55,11 +55,11 @@ import org.slf4j.LoggerFactory;
  */
 
 public class PopularContentPaths {
-    private SwhBidirectionalGraph graph;
+    private SwhUnidirectionalGraph graph; // Labelled transposed graph
     /*
      * A copy of the graph for each thread to reuse between calls to processChunk
      */
-    private ThreadLocal<SwhBidirectionalGraph> threadGraph;
+    private ThreadLocal<SwhUnidirectionalGraph> threadGraph;
     private int NUM_THREADS = 96;
     private final int BATCH_SIZE = 10000; /* Number of CSV records to read at once */
     private final long MIN_CONTENT_SIZE = 3; /* Ignore all contents smaller than this */
@@ -86,7 +86,7 @@ public class PopularContentPaths {
         BufferedReader bufferedStdin = new BufferedReader(new InputStreamReader(System.in));
 
         PopularContentPaths popular_contents = new PopularContentPaths();
-        popular_contents.threadGraph = new ThreadLocal<SwhBidirectionalGraph>();
+        popular_contents.threadGraph = new ThreadLocal<SwhUnidirectionalGraph>();
         popular_contents.csvParser = CSVParser.parse(bufferedStdin, CSVFormat.RFC4180);
         popular_contents.csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
 
@@ -100,7 +100,9 @@ public class PopularContentPaths {
 
     public void loadGraph(String graphBasename) throws IOException {
         System.err.println("Loading graph " + graphBasename + " ...");
-        graph = SwhBidirectionalGraph.loadLabelledMapped(graphBasename);
+        graph = SwhUnidirectionalGraph.loadLabelledGraphOnly(SwhUnidirectionalGraph.LoadMethod.MAPPED,
+                graphBasename + "-transposed", null, null);
+        graph.loadProperties(graphBasename);
         graph.properties.loadLabelNames();
         graph.properties.loadContentLength();
         System.err.println("Graph loaded.");
@@ -153,7 +155,7 @@ public class PopularContentPaths {
      */
     private void process(Iterator<CSVRecord> recordIterator, short maxDepth, boolean withSha1, ProgressLogger pl)
             throws IOException {
-        SwhBidirectionalGraph graph = this.graph.copy();
+        SwhUnidirectionalGraph graph = this.graph.copy();
 
         CSVRecord[] records = new CSVRecord[BATCH_SIZE];
 
@@ -181,13 +183,15 @@ public class PopularContentPaths {
     /*
      * Given an array of CSV records, computes the most popular path of each record and prints it to the
      * shared <code>csvPrinter</code>.
+     *
+     * <code>graph</code> should be a thread-local copy of the transposed graph at
+     * <code>this.graph</code>
      */
-    private void processBatch(SwhBidirectionalGraph graph, CSVRecord[] records, short maxDepth, boolean withSha1,
+    private void processBatch(SwhUnidirectionalGraph graph, CSVRecord[] records, short maxDepth, boolean withSha1,
             ProgressLogger pl) throws IOException {
 
         long totalNodes = graph.numNodes();
         HashMap<FilepathIds, Long> paths = new HashMap<>();
-        SwhUnidirectionalGraph backwardGraph = graph.getBackwardGraph();
 
         for (CSVRecord record : records) {
             if (record == null) {
@@ -215,7 +219,7 @@ public class PopularContentPaths {
             if (contentLength == null) {
                 contentLength = -1L;
             } else if (contentLength >= MIN_CONTENT_SIZE) {
-                pushNames(paths, backwardGraph, new FilepathIds(maxDepth), cntNode, maxDepth);
+                pushNames(paths, graph, new FilepathIds(maxDepth), cntNode, maxDepth);
             }
 
             if (paths.size() == 0) {
@@ -249,10 +253,14 @@ public class PopularContentPaths {
      * For every ancestor path of the given child, appends <code>prefix + parentName[maxDepth-1] + "/" +
      * ... + "/" + parentName[0]</code> where parentName[0] is the id of name of the entry pointing
      * directly to the child.
+     *
+     * <code>graph</code> should be a thread-local copy of the transposed graph at
+     * <code>this.graph</code>
      */
-    private void pushNames(HashMap<FilepathIds, Long> names, SwhUnidirectionalGraph backwardGraph, FilepathIds prefix,
+    private void pushNames(HashMap<FilepathIds, Long> names, SwhUnidirectionalGraph graph, FilepathIds prefix,
             long childNodeId, int maxDepth) {
-        ArcLabelledNodeIterator.LabelledArcIterator s = backwardGraph.labelledSuccessors(childNodeId);
+        // 'graph' is the transposed graph, so this is a backward edge (cnt->dir or dir->*)
+        ArcLabelledNodeIterator.LabelledArcIterator s = graph.labelledSuccessors(childNodeId);
         boolean pushedAny = false;
 
         if (maxDepth > 0) {
@@ -268,7 +276,7 @@ public class PopularContentPaths {
                     path.add(label.filenameId);
 
                     /* If we can recurse further, also add paths containing the parent */
-                    pushNames(names, backwardGraph, path, parentNode, maxDepth - 1);
+                    pushNames(names, graph, path, parentNode, maxDepth - 1);
                 }
             }
         }
