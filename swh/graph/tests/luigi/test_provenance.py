@@ -18,6 +18,8 @@ from swh.graph.luigi.provenance import (
 )
 from swh.graph.luigi.shell import CommandException
 
+from .test_topology import TOPO_ORDER_BACKWARD
+
 SORTED_REVRELS = """\
 author_date,SWHID
 2005-03-18T05:03:40,swh:1:rev:0000000000000000000000000000000000000003
@@ -194,7 +196,14 @@ def test_listearliestrevisions_disordered(tmpdir):
 
 def test_listdirectorymaxleaftimestamp(tmpdir):
     tmpdir = Path(tmpdir)
+    topology_dir = tmpdir / "topology"
     provenance_dir = tmpdir / "provenance"
+
+    topology_dir.mkdir()
+    toposort_path = (
+        topology_dir / "topological_order_dfs_backward_dir,rev,rel,snp,ori.csv.zst"
+    )
+    toposort_path.write_text(TOPO_ORDER_BACKWARD)
 
     # Generate the binary file, used as input by ComputeDirectoryFrontier
     test_listearliestrevisions(tmpdir)
@@ -208,6 +217,7 @@ def test_listdirectorymaxleaftimestamp(tmpdir):
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
+        topological_order_dir=topology_dir,
     )
 
     task.run()
