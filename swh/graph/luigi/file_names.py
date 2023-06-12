@@ -134,19 +134,21 @@ class PopularContentPaths(luigi.Task):
 
         input_swhid_files = list(self.input_swhids.iterdir())
 
+        zstd_opts = ["--memory=1024MB"]  # Needed for Antonio's highly-compressed files
+
         with multiprocessing.dummy.Pool() as p:
             nb_contents = sum(
                 p.imap_unordered(
-                    lambda path: wc(Command.zstdcat(path), "-l") - 1,
+                    lambda path: wc(Command.zstdcat(*zstd_opts, path), "-l") - 1,
                     input_swhid_files,
                 )
             )
 
         # Stream the header from all inputs but the first
-        input_streams = [Command.zstdcat(input_swhid_files[0])]
+        input_streams = [Command.zstdcat(*zstd_opts, input_swhid_files[0])]
         for input_swhid_file in input_swhid_files[1:]:
             input_streams.append(
-                Command.zstdcat(input_swhid_file) | Command.tail("-n", "+2")
+                Command.zstdcat(*zstd_opts, input_swhid_file) | Command.tail("-n", "+2")
             )
 
         class_name = "org.softwareheritage.graph.utils.PopularContentPaths"
