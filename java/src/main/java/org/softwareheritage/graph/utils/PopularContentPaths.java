@@ -194,10 +194,16 @@ public class PopularContentPaths {
                 // Reached end of file
                 break;
             }
-            String nodeSWHID = record.get(0);
+            String nodeSWHID;
             String sha1 = null;
-            if (withSha1) {
-                sha1 = record.get(1);
+            try {
+                nodeSWHID = record.get(0);
+                if (withSha1) {
+                    sha1 = record.get(1);
+                }
+            } catch (ArrayIndexOutOfBoundsException e) {
+                System.err.format("Couldn't parse: %s\n", record);
+                throw e;
             }
             long cntNode = graph.getNodeId(nodeSWHID);
 
