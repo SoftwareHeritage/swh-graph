@@ -59,7 +59,8 @@ public class ListDirectoryMaxLeafTimestamp {
     private CSVPrinter csvPrinter;
     final static Logger logger = LoggerFactory.getLogger(ListDirectoryMaxLeafTimestamp.class);
 
-    public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
+    public static void main(String[] args)
+            throws IOException, InterruptedException, ClassNotFoundException, ExecutionException {
         if (args.length != 1) {
             System.err.println(
                     "Syntax: java org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp <path/to/graph>");
@@ -77,7 +78,7 @@ public class ListDirectoryMaxLeafTimestamp {
         ldmlt.run();
     }
 
-    public void run() throws IOException, InterruptedException {
+    public void run() throws IOException, InterruptedException, ExecutionException {
         BufferedReader bufferedStdin = new BufferedReader(new InputStreamReader(System.in));
         String firstLine = bufferedStdin.readLine().strip();
         if (!firstLine.equals("author_date,revrel_SWHID,cntdir_SWHID")) {
@@ -100,16 +101,22 @@ public class ListDirectoryMaxLeafTimestamp {
         final long numChunks = NUM_THREADS * 1000;
 
         ExecutorService service = Executors.newFixedThreadPool(NUM_THREADS);
+        Vector<Future> futures = new Vector<Future>();
         for (long i = 0; i < numChunks; ++i) {
             final long chunkId = i;
-            service.submit(() -> {
+            futures.add(service.submit(() -> {
                 initializeUnvisitedChildrenChunk(chunkId, numChunks, pl1);
-            });
+            }));
         }
 
         service.shutdown();
         service.awaitTermination(365, TimeUnit.DAYS);
         pl1.done();
+
+        // Error if any exception occurred
+        for (Future future : futures) {
+            future.get();
+        }
 
         System.err.println("Deallocating " + graphPath + " ...");
         SwhGraphProperties properties = graph.getProperties();

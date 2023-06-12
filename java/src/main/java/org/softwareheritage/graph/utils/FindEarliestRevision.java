@@ -48,7 +48,8 @@ public class FindEarliestRevision {
     private CSVParser csvParser;
     private CSVPrinter csvPrinter;
 
-    public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
+    public static void main(String[] args)
+            throws IOException, InterruptedException, ClassNotFoundException, ExecutionException {
         String graphPath = args[0];
         boolean timing = false;
 
@@ -67,7 +68,7 @@ public class FindEarliestRevision {
         lineCount = 0;
     }
 
-    public void run(String graphPath) throws IOException, InterruptedException {
+    public void run(String graphPath) throws IOException, InterruptedException, ExecutionException {
         long ts, elapsedNanos;
         System.err.println("loading transposed graph...");
         ts = System.nanoTime();
@@ -97,18 +98,24 @@ public class FindEarliestRevision {
         csvPrinter.printRecord("swhid", "earliest_swhid", "earliest_ts", "rev_occurrences");
 
         ExecutorService service = Executors.newFixedThreadPool(NUM_THREADS);
+        Vector<Future> futures = new Vector<Future>();
         for (long i = 0; i < NUM_THREADS; ++i) {
-            service.submit(() -> {
+            futures.add(service.submit(() -> {
                 try {
                     process(recordIterator);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
-            });
+            }));
         }
 
         service.shutdown();
         service.awaitTermination(365, TimeUnit.DAYS);
+
+        // Error if any exception occurred
+        for (Future future : futures) {
+            future.get();
+        }
 
         if (timing)
             System.err.printf("processed %d SWHIDs in %s (%s avg)\n", lineCount, elapsed, elapsed.dividedBy(lineCount));

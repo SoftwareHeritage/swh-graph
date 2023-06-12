@@ -52,7 +52,8 @@ public class PopularContentNames {
 
     final static Logger logger = LoggerFactory.getLogger(PopularContentNames.class);
 
-    public static void main(String[] args) throws IOException, ClassNotFoundException, InterruptedException {
+    public static void main(String[] args)
+            throws IOException, ClassNotFoundException, InterruptedException, ExecutionException {
         if (args.length != 3) {
             System.err.println(
                     "Syntax: java org.softwareheritage.graph.utils.PopularContentNames <path/to/graph> <max_results_per_cnt> <popularity_threshold>");
@@ -83,7 +84,8 @@ public class PopularContentNames {
         System.err.println("Graph loaded.");
     }
 
-    public void run(int maxResults, long popularityThreshold) throws InterruptedException, IOException {
+    public void run(int maxResults, long popularityThreshold)
+            throws InterruptedException, IOException, ExecutionException {
         csvPrinter.printRecord("SWHID", "length", "filename", "occurrences");
 
         long totalNodes = graph.numNodes();
@@ -95,15 +97,16 @@ public class PopularContentNames {
         pl.start("Listing contents...");
 
         ExecutorService service = Executors.newFixedThreadPool(NUM_THREADS);
+        Vector<Future> futures = new Vector<Future>();
         for (long i = 0; i < numChunks; ++i) {
             final long chunkId = i;
-            service.submit(() -> {
+            futures.add(service.submit(() -> {
                 try {
                     processChunk(numChunks, chunkId, maxResults, popularityThreshold, pl);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
-            });
+            }));
         }
 
         service.shutdown();
@@ -111,6 +114,10 @@ public class PopularContentNames {
 
         pl.done();
 
+        // Error if any exception occurred
+        for (Future future : futures) {
+            future.get();
+        }
     }
 
     /*

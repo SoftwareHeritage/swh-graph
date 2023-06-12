@@ -68,7 +68,8 @@ public class PopularContentPaths {
 
     final static Logger logger = LoggerFactory.getLogger(PopularContentPaths.class);
 
-    public static void main(String[] args) throws IOException, ClassNotFoundException, InterruptedException {
+    public static void main(String[] args)
+            throws IOException, ClassNotFoundException, InterruptedException, ExecutionException {
         if (args.length != 2) {
             System.err.println(
                     "Syntax: java org.softwareheritage.graph.utils.PopularContentPaths <path/to/graph> <parent_depth>");
@@ -108,7 +109,7 @@ public class PopularContentPaths {
         System.err.println("Graph loaded.");
     }
 
-    public void run(short maxDepth) throws InterruptedException, IOException {
+    public void run(short maxDepth) throws InterruptedException, IOException, ExecutionException {
 
         long totalNodes = graph.numNodes();
 
@@ -132,18 +133,24 @@ public class PopularContentPaths {
         pl.start("Listing contents...");
 
         ExecutorService service = Executors.newFixedThreadPool(NUM_THREADS);
+        Vector<Future> futures = new Vector<Future>();
         for (long i = 0; i < NUM_THREADS; ++i) {
-            service.submit(() -> {
+            futures.add(service.submit(() -> {
                 try {
                     process(recordIterator, maxDepth, withSha1, pl);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
-            });
+            }));
         }
 
         service.shutdown();
         service.awaitTermination(365, TimeUnit.DAYS);
+
+        // Error if any exception occurred
+        for (Future future : futures) {
+            future.get();
+        }
 
         pl.done();
 
