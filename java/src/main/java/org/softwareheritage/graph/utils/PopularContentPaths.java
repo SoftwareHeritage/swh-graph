@@ -218,8 +218,6 @@ public class PopularContentPaths {
             }
             long cntNode = graph.getNodeId(nodeSWHID);
 
-            pl.lightUpdate();
-
             paths.clear();
 
             Long contentLength = graph.properties.getContentLength(cntNode);
@@ -253,6 +251,10 @@ public class PopularContentPaths {
                     csvPrinter.printRecord(graph.getSWHID(cntNode), contentLength, filepath, maxCount);
                 }
             }
+        }
+
+        synchronized (pl) {
+            pl.update(records.length);
         }
     }
 
