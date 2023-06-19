@@ -219,11 +219,12 @@ class ListEarliestRevisions(luigi.Task):
         )
 
         visited_bitarray = nb_nodes // 8
+        timestamps_array = nb_nodes * 8
 
         graph_size = nb_nodes * 8
 
         spare_space = 1_000_000_000
-        return graph_size + visited_bitarray + spare_space
+        return graph_size + visited_bitarray + timestamps_array + spare_space
 
     @property
     def resources(self):
@@ -244,12 +245,19 @@ class ListEarliestRevisions(luigi.Task):
             ),
         }
 
-    def _output_path(self) -> Path:
+    def _csv_output_path(self) -> Path:
         return self.provenance_dir / "earliest_revrel_for_cntdir.csv.zst"
 
-    def output(self) -> luigi.LocalTarget:
-        """Returns {provenance_dir}/revrel_by_author_date.csv.zst"""
-        return luigi.LocalTarget(self._output_path())
+    def _bin_timestamps_output_path(self) -> Path:
+        return self.provenance_dir / "earliest_timestamps.bin"
+
+    def output(self) -> Dict[str, luigi.LocalTarget]:
+        """Returns :file:`{provenance_dir}/revrel_by_author_date.csv.zst`
+        and `:file:`{provenance_dir}/earliest_timestamps.bin`."""
+        return {
+            "csv": luigi.LocalTarget(self._csv_output_path()),
+            "bin_timestamps": luigi.LocalTarget(self._bin_timestamps_output_path()),
+        }
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListEarliestRevisions``"""
@@ -266,11 +274,12 @@ class ListEarliestRevisions(luigi.Task):
             | Java(
                 class_name,
                 self.local_graph_path / self.graph_name,
+                str(self._bin_timestamps_output_path()),
                 max_ram=self._max_ram(),
             )
             | Command.pv("--wait", "--line-mode", "--size", str(nb_nodes))
             | Command.zstdmt("-10")
-            > AtomicFileSink(self._output_path())
+            > AtomicFileSink(self._csv_output_path())
         ).run()
         # fmt: on
 
@@ -319,31 +328,26 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
         }
 
     def _output_path(self) -> Path:
-        return self.provenance_dir / "directory_max_leaf_timestamps.csv.zst"
+        return self.provenance_dir / "max_leaf_timestamps.bin"
 
     def output(self) -> luigi.LocalTarget:
-        """Returns {provenance_dir}/directory_max_leaf_timestamps.csv.zst"""
+        """Returns {provenance_dir}/max_leaf_timestamps.bin"""
         return luigi.LocalTarget(self._output_path())
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp``"""
-        from .shell import AtomicFileSink, Command, Java
-        from .utils import count_nodes
-
-        nb_nodes = count_nodes(self.local_graph_path, self.graph_name, "dir")
+        from .shell import Java
 
         class_name = "org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp"
 
         # fmt: off
         (
-            Command.zstdcat(self.input()["earliest_revisions"])
-            | Java(
+            Java(
                 class_name,
                 self.local_graph_path / self.graph_name,
+                self.input()["earliest_revisions"]["bin_timestamps"],
+                str(self._output_path()),
                 max_ram=self._max_ram(),
             )
-            | Command.pv("--wait", "--line-mode", "--size", str(nb_nodes))
-            | Command.zstdmt("-10")
-            > AtomicFileSink(self._output_path())
         ).run()
         # fmt: on

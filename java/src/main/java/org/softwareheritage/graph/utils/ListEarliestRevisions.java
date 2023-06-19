@@ -11,7 +11,9 @@ package org.softwareheritage.graph.utils;
 
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.fastutil.booleans.BooleanBigArrayBigList;
+import it.unimi.dsi.fastutil.longs.LongBigArrayBigList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.*;
 
@@ -20,6 +22,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import org.apache.commons.csv.CSVFormat;
@@ -36,15 +39,18 @@ import org.slf4j.LoggerFactory;
  */
 
 public class ListEarliestRevisions {
+
     private SwhUnidirectionalGraph graph;
     private BooleanBigArrayBigList visited;
-    private LongArrayList toVisit;
+    private LongBigArrayBigList timestamps;
     private CSVPrinter csvPrinter;
+    private String binOutputPath;
     final static Logger logger = LoggerFactory.getLogger(ListEarliestRevisions.class);
 
     public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
-        if (args.length != 1) {
-            System.err.println("Syntax: java org.softwareheritage.graph.utils.ListEarliestRevisions <path/to/graph>");
+        if (args.length < 1 || args.length > 2) {
+            System.err.println(
+                    "Syntax: java org.softwareheritage.graph.utils.ListEarliestRevisions <path/to/graph> [<path/to/earliest_timestamps.bin>]");
             System.exit(1);
         }
 
@@ -52,14 +58,20 @@ public class ListEarliestRevisions {
 
         ListEarliestRevisions ler = new ListEarliestRevisions();
 
+        ler.binOutputPath = null;
+        if (args.length >= 2) {
+            ler.binOutputPath = args[1];
+        }
+
         System.err.println("Loading graph " + graphPath + " ...");
         ler.graph = SwhUnidirectionalGraph.loadMapped(graphPath);
-        ler.toVisit = new LongArrayList();
+        ler.timestamps = null;
 
         ler.run();
     }
 
     public void run() throws IOException {
+
         BufferedReader bufferedStdin = new BufferedReader(new InputStreamReader(System.in));
         String firstLine = bufferedStdin.readLine().strip();
         if (!firstLine.equals("author_date,SWHID")) {
@@ -72,15 +84,21 @@ public class ListEarliestRevisions {
         System.err.println("Allocating memory...");
         long numNodes = graph.numNodes();
         visited = new BooleanBigArrayBigList(numNodes);
+        if (binOutputPath != null) {
+            timestamps = new LongBigArrayBigList(numNodes);
+        }
 
         ProgressLogger pl = new ProgressLogger(logger);
         pl.logInterval = 60000;
         pl.itemsName = "nodes";
         pl.expectedUpdates = numNodes;
-        pl.start("Initializing visited array...");
+        pl.start("Initializing arrays...");
         for (long i = 0; i < numNodes; i++) {
             pl.lightUpdate();
             visited.add(false);
+            if (timestamps != null) {
+                timestamps.add(Long.MIN_VALUE);
+            }
         }
         pl.done();
 
@@ -103,25 +121,36 @@ public class ListEarliestRevisions {
             }
             previousDate = date;
 
-            visitNode(date, nodeSWHID);
+            long timestamp = Instant.parse(date + "Z").getEpochSecond();
+            visitNode(date, timestamp, nodeSWHID);
         }
         pl.done();
 
         csvPrinter.flush();
         bufferedStdout.flush();
+
+        if (binOutputPath != null) {
+            System.err.format("Writing binary output to %s\n", binOutputPath);
+            BinIO.storeLongs(timestamps.elements(), binOutputPath);
+        }
     }
 
-    private void visitNode(String date, String revrelSWHID) throws IOException {
+    private void visitNode(String date, long timestamp, String revrelSWHID) throws IOException {
         long nodeId = graph.getNodeId(revrelSWHID);
         if (graph.getNodeType(nodeId) != SwhType.REV && graph.getNodeType(nodeId) != SwhType.REL) {
             System.err.format("%s has unexpected type %s\n", graph.getNodeType(nodeId).toString());
             return;
         }
 
+        LongArrayList toVisit = new LongArrayList(1000000);
         toVisit.push(nodeId);
 
         while (!toVisit.isEmpty()) {
             nodeId = toVisit.popLong();
+
+            if (graph.getNodeType(nodeId) == SwhType.DIR || graph.getNodeType(nodeId) == SwhType.CNT) {
+                timestamps.set(nodeId, timestamp);
+            }
 
             LazyLongIterator it = graph.successors(nodeId);
 

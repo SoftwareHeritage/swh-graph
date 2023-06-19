@@ -7,31 +7,29 @@
 
 package org.softwareheritage.graph.utils;
 
+import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.fastutil.longs.LongBigArrayBigList;
+import it.unimi.dsi.fastutil.longs.LongMappedBigList;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.*;
 
 import java.io.IOException;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.time.Instant;
+import java.io.RandomAccessFile;
+import java.io.UncheckedIOException;
 import java.util.*;
 import java.util.concurrent.*;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
-import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/* Given as stdin a CSV with header "author_date,revrel_SWHID,cntdir_SWHID"  containing all
- * directory and content SWHIDs along with the first revision/release they occur in
- * and its date (as produced by ListEarliestRevisions), produces a new CSV with header
- * "max_author_date,dir_SWHID", which contains, for every directory, the newest date
- * of any of the contents its subtree (well, sub-DAG) contains.
+/* Given as input a binary file containing an array of timestamps which is,
+ * for every content, the date of first occurrence of that content in a revision.
+ * Produces a binary file in the same format, which contains for each directory,
+ * the max of these values for all contents in that directory.
+ *
+ * If the <path/to/provenance_timestamps.bin> parameter is passed, then this file
+ * is written as an array of longs, which can be loaded with LongMappedBigList.
  *
  * This new date is guaranteed to be lower or equal to the one in the input.
  */
@@ -55,21 +53,36 @@ public class ListDirectoryMaxLeafTimestamp {
     private ThreadLocal<SwhUnidirectionalGraph> threadGraph;
     private SwhUnidirectionalGraph transposeGraph;
     private MyLongBigArrayBigList unvisitedChildren;
+    private LongMappedBigList timestamps;
     private LongBigArrayBigList maxTimestamps;
     private CSVPrinter csvPrinter;
+    private String binOutputPath;
     final static Logger logger = LoggerFactory.getLogger(ListDirectoryMaxLeafTimestamp.class);
+
+    // Queue of the DFS
+    private LongBigArrayBigList toVisit;
+    private long toVisitOffset;
 
     public static void main(String[] args)
             throws IOException, InterruptedException, ClassNotFoundException, ExecutionException {
-        if (args.length != 1) {
+        if (args.length < 2 || args.length > 3) {
             System.err.println(
-                    "Syntax: java org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp <path/to/graph>");
+                    "Syntax: java org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp <path/to/graph> <path/to/earliest_timestamps.bin> [<path/to/provenance_timestamps.bin>]");
             System.exit(1);
         }
 
         ListDirectoryMaxLeafTimestamp ldmlt = new ListDirectoryMaxLeafTimestamp();
 
         ldmlt.graphPath = args[0];
+        ldmlt.binOutputPath = null;
+        if (args.length >= 3) {
+            ldmlt.binOutputPath = args[2];
+        }
+
+        String timestampsPath = args[1];
+        System.err.println("Loading timestamps from " + timestampsPath + " ...");
+        RandomAccessFile raf = new RandomAccessFile(timestampsPath, "r");
+        ldmlt.timestamps = LongMappedBigList.map(raf.getChannel());
 
         System.err.println("Loading graph " + ldmlt.graphPath + " ...");
         ldmlt.graph = SwhUnidirectionalGraph.loadMapped(ldmlt.graphPath);
@@ -79,19 +92,9 @@ public class ListDirectoryMaxLeafTimestamp {
     }
 
     public void run() throws IOException, InterruptedException, ExecutionException {
-        BufferedReader bufferedStdin = new BufferedReader(new InputStreamReader(System.in));
-        String firstLine = bufferedStdin.readLine().strip();
-        if (!firstLine.equals("author_date,revrel_SWHID,cntdir_SWHID")) {
-            System.err.format("Unexpected header: %s\n", firstLine);
-            System.exit(2);
-        }
-
-        CSVParser parser = CSVParser.parse(bufferedStdin, CSVFormat.RFC4180);
-
         System.err.println("Allocating memory...");
         long numNodes = graph.numNodes();
         unvisitedChildren = new MyLongBigArrayBigList(numNodes);
-        maxTimestamps = new LongBigArrayBigList(numNodes);
 
         final ProgressLogger pl1 = new ProgressLogger(logger);
         pl1.logInterval = 60000;
@@ -117,52 +120,87 @@ public class ListDirectoryMaxLeafTimestamp {
         for (Future future : futures) {
             future.get();
         }
+        futures.clear();
+
+        service = Executors.newFixedThreadPool(NUM_THREADS);
 
         System.err.println("Deallocating " + graphPath + " ...");
         SwhGraphProperties properties = graph.getProperties();
         graph = null;
 
-        System.err.println("Loading graph " + graphPath + "-transposed ...");
-        transposeGraph = SwhUnidirectionalGraph.loadGraphOnly(SwhUnidirectionalGraph.LoadMethod.MAPPED,
-                graphPath + "-transposed", null, null);
-        transposeGraph.setProperties(properties);
-
-        ProgressLogger pl = new ProgressLogger(logger);
-        pl.logInterval = 60000;
-        pl.itemsName = "nodes";
-        pl.expectedUpdates = numNodes;
-        pl.start("Initializing maxTimestamps array...");
-        for (long i = 0; i < numNodes; i++) {
-            pl.lightUpdate();
-            maxTimestamps.add(Long.MIN_VALUE);
-        }
-        pl.done();
-
-        BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
-        csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
-        csvPrinter.printRecord("max_author_date", "dir_SWHID");
-        pl = new ProgressLogger(logger);
-        pl.logInterval = 60000;
-        pl.itemsName = "nodes";
-        pl.start("Visiting contents and directories...");
-        String previousDate = "";
-        for (CSVRecord record : parser) {
-            pl.lightUpdate();
-            String date = record.get(0);
-            String nodeSWHID = record.get(2);
-
-            if (date.compareTo(previousDate) < 0) {
-                System.err.format("Dates are not correctly ordered (%s follow %s)\n", date, previousDate);
-                System.exit(3);
+        futures.add(service.submit(() -> {
+            System.err.println("Loading graph " + graphPath + "-transposed ...");
+            try {
+                transposeGraph = SwhUnidirectionalGraph.loadGraphOnly(SwhUnidirectionalGraph.LoadMethod.MAPPED,
+                        graphPath + "-transposed", null, null);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
             }
-            previousDate = date;
+            transposeGraph.setProperties(properties);
+            System.err.println("Done loading graph " + graphPath + "-transposed.");
+        }));
 
-            visitNode(date, nodeSWHID);
+        futures.add(service.submit(() -> {
+            System.err.println("Allocating maxTimestamps array...");
+            maxTimestamps = new LongBigArrayBigList(numNodes);
+            for (long i = 0; i < numNodes; ++i) {
+                maxTimestamps.add(Long.MIN_VALUE);
+            }
+            System.err.println("Done allocating maxTimestamps array.");
+        }));
+
+        System.err.format("Initializing BFS (preallocated %d for toVisit)...\n", numNodes / 10);
+        toVisit = new LongBigArrayBigList(numNodes / 10);
+        ProgressLogger pl2 = new ProgressLogger(logger);
+        pl2.logInterval = 60000;
+        pl2.itemsName = "nodes";
+        pl2.expectedUpdates = numNodes;
+        pl2.start("Initializing BFS...");
+        ThreadLocal<LongBigArrayBigList> threadBuf = new ThreadLocal<LongBigArrayBigList>();
+        for (long i = 0; i < numChunks; ++i) {
+            final long chunkId = i;
+            futures.add(service.submit(() -> {
+                long chunkSize = numNodes / numChunks;
+                long chunkStart = chunkSize * chunkId;
+                long chunkEnd = chunkId == numChunks - 1 ? numNodes : chunkSize * (chunkId + 1);
+
+                if (threadBuf.get() == null) {
+                    threadBuf.set(new LongBigArrayBigList(chunkSize));
+                }
+                LongBigArrayBigList buf = threadBuf.get();
+
+                for (long j = chunkStart; j < chunkEnd; j++) {
+                    if (properties.getNodeType(j) == SwhType.CNT) {
+                        buf.add(j);
+                    }
+                }
+
+                // toVisit drops elements when multiple threads append at the same time
+                // at the same place
+                synchronized (toVisit) {
+                    pl2.update(chunkSize);
+                    toVisit.addAll(buf);
+                }
+                buf.clear();
+            }));
         }
-        pl.done();
+        service.shutdown();
+        service.awaitTermination(365, TimeUnit.DAYS);
 
-        csvPrinter.flush();
-        bufferedStdout.flush();
+        // Error if any exception occurred
+        for (Future future : futures) {
+            future.get();
+        }
+
+        System.err.format("Done initializing BFS (starting from %d contents).\n", toVisit.size64());
+
+        toVisitOffset = 0;
+        bfs();
+
+        if (binOutputPath != null) {
+            System.err.format("Writing binary output to %s\n", binOutputPath);
+            BinIO.storeLongs(maxTimestamps.elements(), binOutputPath);
+        }
     }
 
     private void initializeUnvisitedChildrenChunk(long chunkId, long numChunks, ProgressLogger pl) {
@@ -175,7 +213,6 @@ public class ListDirectoryMaxLeafTimestamp {
         long chunkStart = chunkSize * chunkId;
         long chunkEnd = chunkId == numChunks - 1 ? numNodes : chunkSize * (chunkId + 1);
         for (long i = chunkStart; i < chunkEnd; i++) {
-            pl.lightUpdate();
             long children = 0;
             if (graph.getNodeType(i) == SwhType.DIR) {
                 LazyLongIterator it = graph.successors(i);
@@ -191,18 +228,39 @@ public class ListDirectoryMaxLeafTimestamp {
 
             unvisitedChildren.set(i, children);
         }
+        pl.update(chunkSize);
     }
 
-    private void visitNode(String date, String nodeSWHID) throws IOException {
-        long nodeId = transposeGraph.getNodeId(nodeSWHID);
+    private void bfs() {
+        ProgressLogger pl = new ProgressLogger(logger);
+        pl.logInterval = 60000;
+        pl.itemsName = "nodes";
+        pl.expectedUpdates = Double.valueOf(transposeGraph.numNodes() / 1.2).longValue(); // rough estimate of the
+                                                                                          // number of contents and
+                                                                                          // directories
+        pl.start("Running BFS...");
+
+        long nodeId;
+        while (toVisitOffset < toVisit.size64()) {
+            pl.lightUpdate();
+            nodeId = toVisit.getLong(toVisitOffset++);
+
+            visitNode(nodeId);
+        }
+
+        System.err.format("BFS done (visited %d nodes).\n", toVisitOffset);
+    }
+
+    private void visitNode(long nodeId) {
         long nodeMaxTimestamp = Long.MIN_VALUE;
 
         if (transposeGraph.getNodeType(nodeId) == SwhType.CNT) {
-            nodeMaxTimestamp = Instant.parse(date + "Z").getEpochSecond();
+            nodeMaxTimestamp = timestamps.getLong(nodeId);
         } else if (transposeGraph.getNodeType(nodeId) == SwhType.DIR) {
             nodeMaxTimestamp = maxTimestamps.getLong(nodeId);
         } else {
-            System.err.format("%s has unexpected type %s\n", nodeSWHID, transposeGraph.getNodeType(nodeId).toString());
+            System.err.format("%s has unexpected type %s\n", transposeGraph.getSWHID(nodeId),
+                    transposeGraph.getNodeType(nodeId).toString());
             System.exit(4);
         }
 
@@ -223,11 +281,11 @@ public class ListDirectoryMaxLeafTimestamp {
 
                 if (ancestorUnvisitedChildren < 0) {
                     System.err.format("%s has more children visits than expected (current child: %s)\n",
-                            transposeGraph.getSWHID(ancestorId), nodeSWHID);
+                            transposeGraph.getSWHID(ancestorId), transposeGraph.getSWHID(nodeId));
                     System.exit(5);
                 } else if (ancestorUnvisitedChildren == 0) {
                     // We are visiting the last remaining child of this parent
-                    csvPrinter.printRecord(date, transposeGraph.getSWHID(ancestorId));
+                    toVisit.add(ancestorId);
                 }
             }
         }

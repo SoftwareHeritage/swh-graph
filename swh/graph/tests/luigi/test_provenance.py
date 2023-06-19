@@ -3,8 +3,10 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import datetime
 from pathlib import Path
 import subprocess
+from typing import List
 
 import pytest
 
@@ -59,6 +61,62 @@ max_author_date,dir_SWHID
     "\n", "\r\n"
 )
 
+CONTENT_TIMESTAMPS = """\
+2005-03-18T05:03:40,swh:1:cnt:0000000000000000000000000000000000000001
+2005-03-18T11:14:00,swh:1:cnt:0000000000000000000000000000000000000004
+2005-03-18T11:14:00,swh:1:cnt:0000000000000000000000000000000000000005
+2005-03-18T11:14:00,swh:1:cnt:0000000000000000000000000000000000000007
+2005-03-18T17:24:20,swh:1:cnt:0000000000000000000000000000000000000011
+2005-03-18T20:29:30,swh:1:cnt:0000000000000000000000000000000000000014
+2005-03-18T20:29:30,swh:1:cnt:0000000000000000000000000000000000000015
+""".replace(
+    "\n", "\r\n"
+)
+
+
+def timestamps_bin_to_csv(bin_timestamps_path: Path) -> List[str]:
+    """Given a .bin file containing timestamps, zips it with the graph's
+    .node2swhid.bin and convert timestamps to date, in order to get a CSV
+    containing equivalent data.
+    """
+
+    bin_timestamps = bin_timestamps_path.read_bytes()
+
+    assert (
+        len(bin_timestamps) % 8 == 0
+    ), f"{bin_timestamps_path}'s size is not a multiple of sizeof(long)"
+
+    bin_swhids = (DATASET_DIR / "compressed" / "example.node2swhid.bin").read_bytes()
+
+    assert (
+        len(bin_swhids) % 22 == 0
+    ), "example.node2swhid.bin's size is not a multiple of 22"
+
+    # See java/src/main/java/org/softwareheritage/graph/SwhType.java
+    type_map = {0: "cnt", 1: "dir", 2: "ori", 3: "rev", 4: "rel", 5: "snp"}
+    swhids = [
+        f"swh:{bin_swhids[i]}:{type_map[bin_swhids[i+1]]}:{bin_swhids[i+2:i+22].hex()}"
+        for i in range(0, len(bin_swhids), 22)
+    ]
+
+    dates = [
+        datetime.datetime.fromtimestamp(
+            int.from_bytes(bin_timestamps[i : i + 8], byteorder="big")
+        )
+        .astimezone(datetime.timezone.utc)
+        .isoformat()
+        .split("+")[0]
+        if bin_timestamps[i : i + 8] != b"\x80" + b"\x00" * 7  # min long, meaning no TS
+        else None
+        for i in range(0, len(bin_timestamps), 8)
+    ]
+
+    assert len(swhids) == len(dates)
+
+    return [
+        f"{date},{swhid}" for (date, swhid) in zip(dates, swhids) if date is not None
+    ]
+
 
 def test_sort(tmpdir):
     tmpdir = Path(tmpdir)
@@ -102,6 +160,15 @@ def test_listearliestrevisions(tmpdir):
 
     assert csv_text == EARLIEST_REVREL_FOR_CNTDIR
 
+    rows = set(timestamps_bin_to_csv(provenance_dir / "earliest_timestamps.bin"))
+    (header, *expected_rows) = [
+        f"{author_date},{cntdir_SWHID}"
+        for (author_date, revrel_SWHID, cntdir_SWHID) in (
+            row.split(",") for row in EARLIEST_REVREL_FOR_CNTDIR.rstrip().split("\r\n")
+        )
+    ]
+    assert rows == set(expected_rows)
+
 
 def test_listearliestrevisions_disordered(tmpdir):
     tmpdir = Path(tmpdir)
@@ -128,7 +195,9 @@ def test_listearliestrevisions_disordered(tmpdir):
 def test_listdirectorymaxleaftimestamp(tmpdir):
     tmpdir = Path(tmpdir)
     provenance_dir = tmpdir / "provenance"
-    provenance_dir.mkdir()
+
+    # Generate the binary file, used as input by ComputeDirectoryFrontier
+    test_listearliestrevisions(tmpdir)
 
     (provenance_dir / "earliest_revrel_for_cntdir.csv.zst").write_text(
         EARLIEST_REVREL_FOR_CNTDIR
@@ -143,8 +212,6 @@ def test_listdirectorymaxleaftimestamp(tmpdir):
 
     task.run()
 
-    csv_text = subprocess.check_output(
-        ["zstdcat", provenance_dir / "directory_max_leaf_timestamps.csv.zst"]
-    ).decode()
-
-    assert csv_text == DIRECTORY_MAX_LEAF_TIMESTAMPS
+    rows = set(timestamps_bin_to_csv(provenance_dir / "max_leaf_timestamps.bin"))
+    (header, *expected_rows) = DIRECTORY_MAX_LEAF_TIMESTAMPS.rstrip().split("\r\n")
+    assert rows == set(expected_rows)
