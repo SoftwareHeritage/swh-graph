@@ -7,6 +7,7 @@
 
 package org.softwareheritage.graph.utils;
 
+import it.unimi.dsi.big.webgraph.labelling.ArcLabelledNodeIterator;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
 import it.unimi.dsi.fastutil.longs.LongBigArrayBigList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -14,6 +15,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongMappedBigList;
 import it.unimi.dsi.logging.ProgressLogger;
 import org.softwareheritage.graph.*;
+import org.softwareheritage.graph.labels.DirEntry;
 
 import java.io.IOException;
 import java.io.BufferedWriter;
@@ -72,9 +74,11 @@ public class ComputeDirectoryFrontier {
         cdf.batchSize = Integer.parseInt(args[2]);
 
         System.err.println("Loading graph " + graphPath + " ...");
-        cdf.graph = SwhUnidirectionalGraph.loadMapped(graphPath);
+        cdf.graph = SwhUnidirectionalGraph.loadLabelledMapped(graphPath);
         System.err.println("Loading timestamps from " + graphPath + " ...");
         cdf.graph.loadAuthorTimestamps();
+        System.err.println("Loading label names from " + graphPath + " ...");
+        cdf.graph.loadLabelNames();
         cdf.threadGraph = new ThreadLocal<SwhUnidirectionalGraph>();
 
         System.err.println("Loading provenance timestamps from " + timestampsPath + " ...");
@@ -87,7 +91,7 @@ public class ComputeDirectoryFrontier {
     public void run() throws IOException, InterruptedException, ExecutionException {
         BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
         csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
-        csvPrinter.printRecord("max_author_date", "frontier_dir_SWHID", "rev_SWHID");
+        csvPrinter.printRecord("max_author_date", "frontier_dir_SWHID", "rev_SWHID", "path");
 
         csvPrinter.flush();
         bufferedStdout.flush();
@@ -304,21 +308,38 @@ public class ComputeDirectoryFrontier {
         LongArrayList stack = new LongArrayList();
         LongOpenHashSet visited = new LongOpenHashSet();
 
+        // For each item in the stack, stores a sequence of filenameId.
+        // Sequences are separated by -1 values.
+        LongArrayList pathStack = new LongArrayList();
+
         /*
          * Do not push the root directory directly on the stack, because it is not allowed to be considered
          * a frontier. Instead, we push the root directory's successors.
          */
-        it = graph.successors(rootDirectory);
-        for (long successorId; (successorId = it.nextLong()) != -1;) {
+        ArcLabelledNodeIterator.LabelledArcIterator itl = graph.labelledSuccessors(rootDirectory);
+        for (long successorId; (successorId = itl.nextLong()) != -1;) {
             if (graph.getNodeType(successorId) == SwhType.DIR) {
                 stack.push(successorId);
+
+                pathStack.push(-1L);
+                DirEntry[] labels = (DirEntry[]) itl.label().get();
+                if (labels.length != 0) {
+                    pathStack.push(labels[0].filenameId);
+                }
             }
         }
 
         long nodeId, maxTimestamp;
         boolean isFrontier;
+        LongArrayList path = new LongArrayList();
         while (!stack.isEmpty()) {
             nodeId = stack.popLong();
+            path.clear();
+            for (long filenameId; (filenameId = pathStack.popLong()) != -1L;) {
+                path.push(filenameId);
+            }
+            Collections.reverse(path);
+
             maxTimestamp = maxTimestamps.getLong(nodeId);
             if (maxTimestamp == Long.MIN_VALUE || visited.contains(nodeId)) {
                 continue;
@@ -343,13 +364,27 @@ public class ComputeDirectoryFrontier {
             }
 
             if (isFrontier) {
-                csvPrinter.printRecord(maxTimestamp, graph.getSWHID(nodeId), revSWHID);
+                Vector<String> pathParts = new Vector<String>(path.size());
+                for (long filenameId : path) {
+                    pathParts.add(new String(graph.getLabelName(filenameId)));
+                }
+                pathParts.add("");
+                String pathString = String.join("/", pathParts);
+                csvPrinter.printRecord(maxTimestamp, graph.getSWHID(nodeId), revSWHID, pathString);
             } else {
                 /* Look if the subdirectories are frontiers */
-                it = graph.successors(nodeId);
-                for (long successorId; (successorId = it.nextLong()) != -1;) {
+                itl = graph.labelledSuccessors(nodeId);
+                for (long successorId; (successorId = itl.nextLong()) != -1;) {
                     if (graph.getNodeType(successorId) == SwhType.DIR && !visited.contains(successorId)) {
                         stack.add(successorId);
+                        pathStack.push(-1L);
+                        for (long filenameId : path) {
+                            pathStack.push(filenameId);
+                        }
+                        DirEntry[] labels = (DirEntry[]) itl.label().get();
+                        if (labels.length != 0) {
+                            pathStack.push(labels[0].filenameId);
+                        }
                         break;
                     }
                 }
