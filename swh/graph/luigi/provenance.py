@@ -451,3 +451,78 @@ class ComputeDirectoryFrontier(luigi.Task):
             > AtomicFileSink(self._output_path())
         ).run()
         # fmt: on
+
+
+class ListContentsInFrontierDirectories(luigi.Task):
+    """Enumerates all contents in all directories returned by
+    :class:`ComputeDirectoryFrontier`."""
+
+    local_export_path = luigi.PathParameter()
+    local_graph_path = luigi.PathParameter()
+    graph_name = luigi.Parameter(default="graph")
+    provenance_dir = luigi.PathParameter()
+    topological_order_dir = luigi.PathParameter()
+
+    def _max_ram(self):
+        # see java/src/main/java/org/softwareheritage/graph/utils/ComputeDirectoryFrontier.java
+        nb_nodes = count_nodes(
+            self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
+        )
+
+        num_threads = 96
+        thread_buf_size = 1_000_000_000  # rough overestimate of the average size
+        buf_size = num_threads * thread_buf_size
+
+        graph_size = nb_nodes * 8
+
+        spare_space = 1_000_000_000
+        return graph_size + buf_size + spare_space
+
+    @property
+    def resources(self):
+        """Returns the value of ``self.max_ram_mb``"""
+        import socket
+
+        return {f"{socket.getfqdn()}_ram_mb": self._max_ram() // 1_000_000}
+
+    def requires(self) -> Dict[str, luigi.Task]:
+        """Returns :class:`LocalGraph` and :class:`ComputeDirectoryFrontier`
+        instances."""
+        return {
+            "graph": LocalGraph(local_graph_path=self.local_graph_path),
+            "directory_frontier": ComputeDirectoryFrontier(
+                local_export_path=self.local_export_path,
+                local_graph_path=self.local_graph_path,
+                graph_name=self.graph_name,
+                provenance_dir=self.provenance_dir,
+                topological_order_dir=self.topological_order_dir,
+            ),
+        }
+
+    def _output_path(self) -> Path:
+        return self.provenance_dir / "contents_in_frontier_directories.csv.zst"
+
+    def output(self) -> luigi.LocalTarget:
+        """Returns {provenance_dir}/contents_in_frontier_directories.csv.zst"""
+        return luigi.LocalTarget(self._output_path())
+
+    def run(self) -> None:
+        """Runs ``org.softwareheritage.graph.utils.ListContentsInDirectories``"""
+        from .shell import AtomicFileSink, Command, Java
+
+        class_name = "org.softwareheritage.graph.utils.ListContentsInDirectories"
+
+        # fmt: off
+        (
+            Command.pv("--wait", self.input()["directory_frontier"])
+            | Command.zstdcat()
+            | Java(
+                class_name,
+                self.local_graph_path / self.graph_name,
+                "2",  # ComputeDirectoryFrontier's 2nd column contains directory SWHIDs
+                max_ram=self._max_ram(),
+            )
+            | Command.zstdmt("-14")
+            > AtomicFileSink(self._output_path())
+        ).run()
+        # fmt: on

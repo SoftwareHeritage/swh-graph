@@ -6,7 +6,7 @@
 import datetime
 from pathlib import Path
 import subprocess
-import sys
+import textwrap
 from typing import List
 
 import pytest
@@ -14,6 +14,7 @@ import pytest
 from swh.graph.example_dataset import DATASET_DIR
 from swh.graph.luigi.provenance import (
     ComputeDirectoryFrontier,
+    ListContentsInFrontierDirectories,
     ListDirectoryMaxLeafTimestamp,
     ListEarliestRevisions,
     SortRevrelByDate,
@@ -80,6 +81,16 @@ CONTENT_TIMESTAMPS = """\
 FRONTIER_DIRECTORIES = """\
 max_author_date,frontier_dir_SWHID,rev_SWHID,path
 1111144440,swh:1:dir:0000000000000000000000000000000000000008,swh:1:rev:0000000000000000000000000000000000000013,oldproject/
+""".replace(
+    "\n", "\r\n"
+)
+
+CONTENTS_IN_FRONTIER_DIRECTORIES = """\
+cnt_SWHID,dir_SWHID,path
+swh:1:cnt:0000000000000000000000000000000000000001,swh:1:dir:0000000000000000000000000000000000000008,README.md
+swh:1:cnt:0000000000000000000000000000000000000007,swh:1:dir:0000000000000000000000000000000000000008,parser.c
+swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000000000000000000000008,tests/parser.c
+swh:1:cnt:0000000000000000000000000000000000000004,swh:1:dir:0000000000000000000000000000000000000008,tests/README.md
 """.replace(
     "\n", "\r\n"
 )
@@ -244,9 +255,6 @@ def test_computedirectoryfrontier(tmpdir):
     # Generate the binary file, used as input by ComputeDirectoryFrontier
     test_listdirectorymaxleaftimestamp(tmpdir)
 
-    print("=" * 100)
-    print("=" * 100, file=sys.stderr)
-
     task = ComputeDirectoryFrontier(
         local_export_path=DATASET_DIR,
         local_graph_path=DATASET_DIR / "compressed",
@@ -263,3 +271,85 @@ def test_computedirectoryfrontier(tmpdir):
     ).decode()
 
     assert csv_text == FRONTIER_DIRECTORIES
+
+
+def test_listcontentsindirectories(tmpdir):
+    tmpdir = Path(tmpdir)
+
+    provenance_dir = tmpdir / "provenance"
+    topology_dir = tmpdir / "topology"
+
+    provenance_dir.mkdir()
+
+    (provenance_dir / "directory_frontier.csv.zst").write_text(FRONTIER_DIRECTORIES)
+
+    task = ListContentsInFrontierDirectories(
+        local_export_path=DATASET_DIR,
+        local_graph_path=DATASET_DIR / "compressed",
+        graph_name="example",
+        provenance_dir=provenance_dir,
+        topological_order_dir=topology_dir,
+    )
+
+    task.run()
+
+    csv_text = subprocess.check_output(
+        ["zstdcat", provenance_dir / "contents_in_frontier_directories.csv.zst"]
+    ).decode()
+
+    (header, *rows) = csv_text.split("\r\n")
+    (expected_header, *expected_rows) = CONTENTS_IN_FRONTIER_DIRECTORIES.split("\r\n")
+    assert header == expected_header
+    assert sorted(rows) == sorted(expected_rows)
+
+
+@pytest.mark.parametrize("duplicates", [True, False])
+def test_listcontentsindirectories_root(tmpdir, duplicates):
+    """Tests ListContentsInFrontierDirectories but on root directories instead
+    of frontier directories"""
+    tmpdir = Path(tmpdir)
+
+    provenance_dir = tmpdir / "provenance"
+    topology_dir = tmpdir / "topology"
+
+    provenance_dir.mkdir()
+
+    (provenance_dir / "directory_frontier.csv.zst").write_text(
+        ",dir_SWHID,,\r\n"
+        + (
+            ",swh:1:dir:0000000000000000000000000000000000000012,,\r\n"
+            ",swh:1:dir:0000000000000000000000000000000000000017,,\r\n"
+        )
+        * (2 if duplicates else 1)
+    )
+
+    task = ListContentsInFrontierDirectories(
+        local_export_path=DATASET_DIR,
+        local_graph_path=DATASET_DIR / "compressed",
+        graph_name="example",
+        provenance_dir=provenance_dir,
+        topological_order_dir=topology_dir,
+    )
+
+    task.run()
+
+    csv_text = subprocess.check_output(
+        ["zstdcat", provenance_dir / "contents_in_frontier_directories.csv.zst"]
+    ).decode()
+
+    (header, *rows) = csv_text.split("\r\n")
+
+    assert header == "cnt_SWHID,dir_SWHID,path"
+    assert sorted(rows) == sorted(
+        textwrap.dedent(
+            """\
+            swh:1:cnt:0000000000000000000000000000000000000011,swh:1:dir:0000000000000000000000000000000000000012,README.md
+            swh:1:cnt:0000000000000000000000000000000000000001,swh:1:dir:0000000000000000000000000000000000000012,oldproject/README.md
+            swh:1:cnt:0000000000000000000000000000000000000007,swh:1:dir:0000000000000000000000000000000000000012,oldproject/parser.c
+            swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000000000000000000000012,oldproject/tests/parser.c
+            swh:1:cnt:0000000000000000000000000000000000000004,swh:1:dir:0000000000000000000000000000000000000012,oldproject/tests/README.md
+            swh:1:cnt:0000000000000000000000000000000000000014,swh:1:dir:0000000000000000000000000000000000000017,TODO.txt
+            swh:1:cnt:0000000000000000000000000000000000000015,swh:1:dir:0000000000000000000000000000000000000017,old/TODO.txt
+            """  # noqa
+        ).split("\n")
+    )
