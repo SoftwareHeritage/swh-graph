@@ -141,7 +141,7 @@ for the ORC dataset.
 .. _swh-graph-luigi-LocalExport:
 
 LocalExport
-^^^^^^^^^^
+^^^^^^^^^^^
 
 Implemented by :class:`swh.graph.dataset.LocalExport`.
 
