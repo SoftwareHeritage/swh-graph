@@ -7,8 +7,8 @@ Luigi workflows
 
 The preferred way to create and transfer swh-graph data is through
 `Luigi <https://luigi.readthedocs.io/>`_ tasks/workflows rather than a regular CLI.
-Those include all common operations in swh-graph, except :ref:`running the gRPC server
-<swh-graph-grpc-serve>`.
+Those include all common operations in swh-graph, except running the gRPC server (
+:program:`swh graph grpc-serve`).
 
 Using Luigi allows automatically building missing prerequisites datasets in order
 to build a new dataset, which is common when working with swh-graph data.
@@ -83,7 +83,7 @@ ExportGraph
 
 Implemented by :class:`swh.dataset.luigi.ExportGraph`.
 
-This consumes from the :ref:`journal <swh-journal`>, and to write a bunch of ORC
+This consumes from the :ref:`journal <swh-journal>`, and to write a bunch of ORC
 (and/or edges CSV) files which contain all data in the |swh| archive.
 
 Example invocation::
@@ -136,6 +136,21 @@ Implemented by :class:`swh.dataset.luigi.CreateAthena`.
 
 Depends on :ref:`swh-graph-luigi-UploadExportToS3` and creates Amazon Athena tables
 for the ORC dataset.
+
+
+.. _swh-graph-luigi-LocalExport:
+
+LocalExport
+^^^^^^^^^^
+
+Implemented by :class:`swh.graph.dataset.LocalExport`.
+
+This is a pseudo-task used as a dependency by other tasks which need a graph,
+but do not care whether it should be generated locally or downloading if missing.
+
+It is configured through either ``--LocalExport-export-task-type DownloadExportFromS3``
+(the default) or ``--LocalExport-export-task-type ExportGraph`` (to locally compress a new
+graph from scratch).
 
 .. _swh-graph-luigi-RunExportAll:
 
