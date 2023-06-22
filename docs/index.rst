@@ -13,6 +13,7 @@
    java-api
    memory
    compression
+   luigi
    cli
    docker
    git2graph

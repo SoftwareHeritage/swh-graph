@@ -1,3 +1,5 @@
+.. _swh-graph-cli:
+
 Command-line interface
 ======================
 
