@@ -7,7 +7,7 @@ use anyhow::Result;
 use dsi_progress_logger::ProgressLogger;
 use log::info;
 use std::io::prelude::*;
-use swh::map::{Node2SWHID, Order};
+use swh_graph::map::{Node2SWHID, Order};
 use webgraph::prelude::*;
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";

@@ -8,7 +8,7 @@ use bitvec::prelude::*;
 use dsi_progress_logger::ProgressLogger;
 use log::info;
 use std::collections::VecDeque;
-use swh::map::Order;
+use swh_graph::map::Order;
 use webgraph::prelude::*;
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
