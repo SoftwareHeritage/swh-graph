@@ -50,6 +50,59 @@ The ``--compress`` optionally performs a graph compression step.
    from a run to the next. Creating a new compressed graph would require to update many
    constants in the ``swh.graph`` test suite given the current implementation.
 
+Regenerating the dataset for the Rust implementation
+----------------------------------------------------
+The rust implementation needs different files to be generated,
+the following sections describe how to generate them.
+
+
+.cmph file
+~~~~~~~~~~
+The older Java version used to serialize the MPH structure using Java serialize 
+which stores integers in big-endian order. 
+As we do not need to depend on the java serialization format, we moved to the ``.cmph`` 
+format which stores data in a little-endian order. This allows reading the file from C, 
+Rust, or any other language.
+
+The older Java version used to serialize the MPH structure using Java serialize
+which stores integers in big-endian order, for this reason, we moved to a new
+format ``.cmph`` which stores data in a little-endian order and without the Java
+serialization format. This allows this file to be read from C, Rust, or any 
+other language without worrying about Java object deserialization.
+
+Subsequently, this allows the file to be mmapped on little-endian machines.
+
+To convert from ``.mph`` to the new ``.cmph`` file with the swh-graph utility:
+
+.. code:: console
+
+   $ java -classpath ~/src/swh-graph/java/target/swh-graph-3.0.1.jar ~/src/swh-graph/java/src/main/java/org/softwareheritage/graph/utils/Mph2Cmph.java graph.mph graph.cmph
+
+or just with ``webgraph-big`` you can use ``jshell`` to call the ``dump`` mehtod:
+
+.. code:: console
+
+   $ echo '((it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction)it.unimi.dsi.fastutil.io.BinIO.loadObject("test.mph")).dump("test.cmph");' | jshell -classpath /path/to/webgraph-big.jar
+
+
+.ef file
+~~~~~~~~
+The older Java version used the ``.offests`` file to build at runtime the elias-fano
+structure. The offsets are just a contiguous big-endian bitstream of the 
+gaps between successive offsets written as elias-gamma-codes.
+To avoid re-building this structure every time we added the ``.ef`` file which 
+can be memory-mapped with little parsing at the cost of being endianess dependent.
+The ``.ef`` file is in little-endian,
+
+To generate the ``.ef`` file from either a ``.offsets`` file or a ``.graph`` file,
+you can use the ``webgraph-rs`` bin utility:
+
+.. code:: console
+
+   $ cargo run --release --bin build_eliasfano -- $BASENAME
+
+this will create a ``$BASENAME.ef`` file in the same directory. 
+
 Content
 -------
 
