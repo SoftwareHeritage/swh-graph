@@ -44,6 +44,7 @@ impl Node2SWHID {
     }
 
     /// Return how many node_ids are in this map
+    #[allow(clippy::len_without_is_empty)] // rationale: we don't care about empty maps
     pub fn len(&self) -> usize {
         self.data.len() / SWHID::BYTES_SIZE
     }
