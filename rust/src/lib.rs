@@ -1,14 +1,7 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+mod swhid;
+pub use swhid::SWHID;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+mod swhtype;
+pub use swhtype::SWHType;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod map;
