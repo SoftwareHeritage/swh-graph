@@ -55,7 +55,7 @@ impl core::ops::Index<usize> for Node2SWHID {
         let offset = index * SWHID::BYTES_SIZE;
         let bytes = &self.data[offset..offset + SWHID::BYTES_SIZE];
         debug_assert!(core::mem::size_of::<SWHID>() == SWHID::BYTES_SIZE);
-        // unsafe :( but it's ok because SWHID does not depends on endianess
+        // unsafe :( but it's ok because SWHID does not depends on endianness
         // also TODO!: check for version
         unsafe { &*(bytes.as_ptr() as *const SWHID) }
     }
