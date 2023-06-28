@@ -29,22 +29,26 @@ pub fn main() -> Result<()> {
     // something like:
     //
     // $ java -classpath ~/src/swh-graph/java/target/swh-graph-3.0.1.jar ~/src/swh-graph/java/src/main/java/org/softwareheritage/graph/utils/Mph2Cmph.java graph.mph graph.cmph
-    info!("loading MPH...");
-    let mph = webgraph::utils::mph::GOVMPH::load(format!("{}.cmph", BASENAME))?;
+    let mph_file = format!("{}.cmph", BASENAME);
+    info!("loading MPH from {mph_file} ...");
+    let mph = webgraph::utils::mph::GOVMPH::load(mph_file)?;
 
     // Lookup SWHID
     //
     // See: https://archive.softwareheritage.org/swh:1:snp:fffe49ca41c0a9d777cdeb6640922422dc379b33
-    info!("looking up SWHID...");
     let swhid = "swh:1:snp:fffe49ca41c0a9d777cdeb6640922422dc379b33";
+    info!("looking up SWHID {swhid} ...");
     let node_id = mph.get_byte_array(swhid.as_bytes()) as usize;
+    info!("obtained node ID {node_id} ...");
 
     // Load the order permutation
     // since the mph is create before the BFS and LLP steps, this is needed to
     // get the post-order node_id
-    info!("loading order...");
-    let order = Order::load(format!("{}.order", BASENAME))?;
+    let order_file = format!("{}.order", BASENAME);
+    info!("loading order permutation from {order_file} ...");
+    let order = Order::load(order_file)?;
     let node_id = order.get(node_id).unwrap();
+    info!("obtained node ID {node_id} ...");
 
     // Load a default bvgraph with memory mapping,
     //
@@ -57,14 +61,14 @@ pub fn main() -> Result<()> {
     // Example:
     // $ cargo run --release --bin build_eliasfano --  ~/graph/latest/compressed/graph
     // $ cargo run --release --bin build_eliasfano -- ~/graph/latest/compressed/graph-transposed
-    info!("loading compressed graph into memory (with mmap)...");
+    info!("loading compressed graph from {}.graph ...", BASENAME);
     let graph = webgraph::bvgraph::load(BASENAME)?;
 
     info!("visiting graph...");
     // Setup a queue and a visited bitmap for the visit
     let num_nodes = graph.num_nodes();
     let mut visited = bitvec![u64, Lsb0; 0; num_nodes];
-    let mut queue = VecDeque::new();
+    let mut queue: VecDeque<usize> = VecDeque::new();
     assert!(node_id < num_nodes);
     queue.push_back(node_id);
 
@@ -74,7 +78,7 @@ pub fn main() -> Result<()> {
     pl.item_name = "node";
     pl.local_speed = true;
     pl.expected_updates = Some(num_nodes);
-    pl.start("Visiting graph...");
+    pl.start("visiting graph ...");
 
     // Standard BFS
     //
