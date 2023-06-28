@@ -6,18 +6,19 @@
 use anyhow::Result;
 use bitvec::prelude::*;
 use dsi_progress_logger::ProgressLogger;
-use log::info;
+use log::{debug, info};
 use std::collections::VecDeque;
-use swh_graph::map::Order;
+use swh_graph::map::{Node2SWHID, Order};
 use webgraph::prelude::*;
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
+// const BASENAME: &str = "/home/zack/graph/2022-12-07/compressed/graph";
 
 pub fn main() -> Result<()> {
     // Setup a stderr logger because ProgressLogger uses the `log` crate
     // to printout
     stderrlog::new()
-        .verbosity(2)
+        .verbosity(3)
         .timestamp(stderrlog::Timestamp::Second)
         .init()
         .unwrap();
@@ -64,7 +65,10 @@ pub fn main() -> Result<()> {
     info!("loading compressed graph from {}.graph ...", BASENAME);
     let graph = webgraph::bvgraph::load(BASENAME)?;
 
-    info!("visiting graph...");
+    let node2swhid_file = format!("{}.node2swhid.bin", BASENAME);
+    info!("loading node ID -> SWHID map from {node2swhid_file} ...");
+    let node2swhid = Node2SWHID::load(node2swhid_file)?;
+
     // Setup a queue and a visited bitmap for the visit
     let num_nodes = graph.num_nodes();
     let mut visited = bitvec![u64, Lsb0; 0; num_nodes];
@@ -87,6 +91,8 @@ pub fn main() -> Result<()> {
     // https://archive.softwareheritage.org/api/1/graph/visit/nodes/swh:1:snp:fffe49ca41c0a9d777cdeb6640922422dc379b33/
     // It consists of 344 nodes.
     while let Some(current_node) = queue.pop_front() {
+        let visited_swhid = node2swhid.get(current_node).unwrap();
+        debug!("{visited_swhid}");
         visited_nodes += 1;
         for succ in graph.successors(current_node) {
             if !visited[succ] {
