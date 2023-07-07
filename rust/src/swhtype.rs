@@ -83,6 +83,21 @@ impl TryFrom<u8> for SWHType {
 }
 
 impl SWHType {
+    /// Get the number of possible types.
+    ///
+    /// To avoid having to update this when adding a new type
+    /// we can use the unstable function `std::mem::variant_count`
+    /// or the `variant_count` crate.
+    /// But for now we just hardcode it while we decide how to
+    /// deal with this.
+    pub const NUMBER_OF_TYPES: usize = 6;
+
+    /// The number of bits needed to store the node type as integers
+    /// This is `ceil(log2(NUMBER_OF_TYPES))`  which can be arithmetized into
+    /// `floor(log2(NUMBER_OF_TYPES))` plus one if it's not a power of two.
+    pub const BITWIDTH: usize = Self::NUMBER_OF_TYPES.ilog2() as usize
+        + (!Self::NUMBER_OF_TYPES.is_power_of_two()) as usize;
+
     /// Convert a type to the str used in the SWHID
     pub fn to_str(&self) -> &'static str {
         match self {

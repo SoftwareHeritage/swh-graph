@@ -34,6 +34,22 @@ impl Node2SWHID {
 
 impl Node2SWHID {
     /// Convert a node_it to a SWHID
+    ///
+    /// # Safety
+    /// This function is unsafe because it does not check that `node_id` is
+    /// within bounds of the array if debug asserts are disabled
+    #[inline]
+    pub unsafe fn get_unchecked(&self, node_id: usize) -> SWHID {
+        let offset = node_id * SWHID::BYTES_SIZE;
+        let bytes = self.data.get_unchecked(offset..offset + SWHID::BYTES_SIZE);
+        // this unwrap is always safe because we use the same const
+        let bytes: [u8; SWHID::BYTES_SIZE] = bytes.try_into().unwrap();
+        // this unwrap can only fail on a corrupted file, so it's ok to panic
+        SWHID::try_from(bytes).unwrap()
+    }
+
+    /// Convert a node_it to a SWHID
+    #[inline]
     pub fn get(&self, node_id: usize) -> Option<SWHID> {
         let offset = node_id * SWHID::BYTES_SIZE;
         let bytes = self.data.get(offset..offset + SWHID::BYTES_SIZE)?;
@@ -45,6 +61,7 @@ impl Node2SWHID {
 
     /// Return how many node_ids are in this map
     #[allow(clippy::len_without_is_empty)] // rationale: we don't care about empty maps
+    #[inline]
     pub fn len(&self) -> usize {
         self.data.len() / SWHID::BYTES_SIZE
     }

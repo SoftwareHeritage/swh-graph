@@ -13,7 +13,6 @@ use webgraph::prelude::*;
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
 #[test]
-#[allow(dead_code)]
 fn test_order_mph() -> Result<()> {
     // Setup a stderr logger because ProgressLogger uses the `log` crate
     // to printout
