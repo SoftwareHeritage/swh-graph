@@ -1,6 +1,7 @@
 pytest
 pytest-asyncio
 pytest-mock
+swh.core[testing]
 
 types-click
 types-pyyaml
