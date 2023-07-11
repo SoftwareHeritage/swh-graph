@@ -6,12 +6,14 @@
 import datetime
 from pathlib import Path
 import subprocess
+import sys
 from typing import List
 
 import pytest
 
 from swh.graph.example_dataset import DATASET_DIR
 from swh.graph.luigi.provenance import (
+    ComputeDirectoryFrontier,
     ListDirectoryMaxLeafTimestamp,
     ListEarliestRevisions,
     SortRevrelByDate,
@@ -71,6 +73,13 @@ CONTENT_TIMESTAMPS = """\
 2005-03-18T17:24:20,swh:1:cnt:0000000000000000000000000000000000000011
 2005-03-18T20:29:30,swh:1:cnt:0000000000000000000000000000000000000014
 2005-03-18T20:29:30,swh:1:cnt:0000000000000000000000000000000000000015
+""".replace(
+    "\n", "\r\n"
+)
+
+FRONTIER_DIRECTORIES = """\
+max_author_date,frontier_dir_SWHID,rev_SWHID
+1111144440,swh:1:dir:0000000000000000000000000000000000000008,swh:1:rev:0000000000000000000000000000000000000013
 """.replace(
     "\n", "\r\n"
 )
@@ -225,3 +234,32 @@ def test_listdirectorymaxleaftimestamp(tmpdir):
     rows = set(timestamps_bin_to_csv(provenance_dir / "max_leaf_timestamps.bin"))
     (header, *expected_rows) = DIRECTORY_MAX_LEAF_TIMESTAMPS.rstrip().split("\r\n")
     assert rows == set(expected_rows)
+
+
+def test_computedirectoryfrontier(tmpdir):
+    tmpdir = Path(tmpdir)
+    topology_dir = tmpdir / "topology"
+    provenance_dir = tmpdir / "provenance"
+
+    # Generate the binary file, used as input by ComputeDirectoryFrontier
+    test_listdirectorymaxleaftimestamp(tmpdir)
+
+    print("=" * 100)
+    print("=" * 100, file=sys.stderr)
+
+    task = ComputeDirectoryFrontier(
+        local_export_path=DATASET_DIR,
+        local_graph_path=DATASET_DIR / "compressed",
+        graph_name="example",
+        provenance_dir=provenance_dir,
+        topological_order_dir=topology_dir,
+        batch_size=100,  # faster
+    )
+
+    task.run()
+
+    csv_text = subprocess.check_output(
+        ["zstdcat", provenance_dir / "directory_frontier.csv.zst"]
+    ).decode()
+
+    assert csv_text == FRONTIER_DIRECTORIES
