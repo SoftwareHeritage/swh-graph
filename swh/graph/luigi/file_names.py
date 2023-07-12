@@ -4,10 +4,10 @@
 # See top-level LICENSE file for more information
 
 """
-Luigi tasks for producing the most common names of every content
-================================================================
+Luigi tasks for producing the most common names of every content and datasets based on file names
+=================================================================================================
 
-"""
+"""  # noqa
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -80,6 +80,7 @@ class PopularContentNames(luigi.Task):
                 self.local_graph_path / self.graph_name,
                 str(self.max_results_per_content),
                 str(self.popularity_threshold),
+                max_ram=self._max_ram(),
             )
             | pv
             | Command.zstdmt("-19")
@@ -228,3 +229,69 @@ class PopularContentNamesOrcToS3(_CsvToOrcToS3ToAthenaTask):
 
     def _athena_table_name(self) -> str:
         return "popular_contents"
+
+
+class ListFilesByName(luigi.Task):
+    """Creates a CSV file that contains the most popular name(s) of each content"""
+
+    local_graph_path = luigi.PathParameter()
+    graph_name = luigi.Parameter(default="graph")
+    output_path = luigi.PathParameter()
+    file_name = luigi.Parameter()
+    num_threads = luigi.IntParameter(96)
+    batch_size = luigi.IntParameter(10000)
+
+    def _max_ram(self):
+        nb_nodes = count_nodes(
+            self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
+        )
+
+        graph_size = nb_nodes * 8
+
+        num_threads = 96
+
+        # see listFilesInSnapshotChunk
+        csv_buffers = self.batch_size * num_threads * 1000000
+
+        # Does not keep any large array for all nodes, but uses temporary stacks
+        # and hash sets.
+        # 1GB per thread should be more than enough.
+        bfs_buffers = 1_000_000_000 * num_threads
+
+        spare_space = 1_000_000_000
+        return graph_size + csv_buffers + bfs_buffers + spare_space
+
+    @property
+    def resources(self):
+        """Return the estimated RAM use of this task."""
+        import socket
+
+        return {f"{socket.getfqdn()}_ram_mb": self._max_ram() / 1_000_000}
+
+    def requires(self) -> List[luigi.Task]:
+        """Returns an instance of :class:`LocalGraph`."""
+        return [LocalGraph(local_graph_path=self.local_graph_path)]
+
+    def output(self) -> luigi.Target:
+        """.csv.zst file that contains the topological order."""
+        return luigi.LocalTarget(self.output_path)
+
+    def run(self) -> None:
+        """Runs org.softwareheritage.graph.utils.PopularContentNames and compresses"""
+        from .shell import AtomicFileSink, Command, Java
+
+        class_name = "org.softwareheritage.graph.utils.ListFilesByName"
+        # fmt: on
+        (
+            Java(
+                class_name,
+                self.local_graph_path / self.graph_name,
+                self.file_name,
+                str(self.num_threads),
+                str(self.batch_size),
+                max_ram=self._max_ram(),
+            )
+            | Command.zstdmt("-19")
+            > AtomicFileSink(self.output())
+        ).run()
+        # fmt: off

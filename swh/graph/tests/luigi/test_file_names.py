@@ -6,12 +6,17 @@
 import itertools
 from pathlib import Path
 import subprocess
+import textwrap
 
 import pytest
 import pyzstd
 
 from swh.graph.example_dataset import DATASET_DIR
-from swh.graph.luigi.file_names import PopularContentNames, PopularContentPaths
+from swh.graph.luigi.file_names import (
+    ListFilesByName,
+    PopularContentNames,
+    PopularContentPaths,
+)
 
 EXPECTED_LINES_DEPTH1 = """\
 swh:1:cnt:0000000000000000000000000000000000000005,1337,parser.c,1
@@ -129,3 +134,58 @@ def test_popularcontentpaths(tmpdir, depth, subset):
         assert False, depth
 
     assert list(sorted(rows)) == list(sorted(expected_lines))
+
+
+@pytest.mark.parametrize("file_name", ["README.md", "parser.c", "TODO.txt", "tests"])
+def test_listfilesbyname(tmpdir, file_name):
+    tmpdir = Path(tmpdir)
+
+    output_path = tmpdir / "files.csv.zst"
+
+    task = ListFilesByName(
+        local_graph_path=DATASET_DIR / "compressed",
+        graph_name="example",
+        output_path=output_path,
+        file_name=file_name,
+        batch_size=100,  # faster
+        num_threads=1,  # faster and uses less RAM
+    )
+
+    task.run()
+
+    csv_text = subprocess.check_output(["zstdcat", output_path]).decode()
+
+    (header, *rows) = csv_text.split("\r\n")
+
+    assert header == "snp_SWHID,branch_name,dir_SWHID,file_name,cnt_SWHID"
+
+    if file_name == "README.md":
+        assert set(rows) == set(
+            textwrap.dedent(
+                """\
+                swh:1:snp:0000000000000000000000000000000000000022,refs/heads/master,swh:1:dir:0000000000000000000000000000000000000008,README.md,swh:1:cnt:0000000000000000000000000000000000000001
+                swh:1:snp:0000000000000000000000000000000000000022,refs/heads/master,swh:1:dir:0000000000000000000000000000000000000006,README.md,swh:1:cnt:0000000000000000000000000000000000000004
+                swh:1:snp:0000000000000000000000000000000000000020,refs/heads/master,swh:1:dir:0000000000000000000000000000000000000008,README.md,swh:1:cnt:0000000000000000000000000000000000000001
+                swh:1:snp:0000000000000000000000000000000000000020,refs/heads/master,swh:1:dir:0000000000000000000000000000000000000006,README.md,swh:1:cnt:0000000000000000000000000000000000000004
+                """
+            ).split(  # noqa
+                "\n"
+            )
+        )
+    elif file_name == "parser.c":
+        assert set(rows) == set(
+            textwrap.dedent(
+                """\
+                swh:1:snp:0000000000000000000000000000000000000022,refs/heads/master,swh:1:dir:0000000000000000000000000000000000000008,parser.c,swh:1:cnt:0000000000000000000000000000000000000007
+                swh:1:snp:0000000000000000000000000000000000000022,refs/heads/master,swh:1:dir:0000000000000000000000000000000000000006,parser.c,swh:1:cnt:0000000000000000000000000000000000000005
+                swh:1:snp:0000000000000000000000000000000000000020,refs/heads/master,swh:1:dir:0000000000000000000000000000000000000008,parser.c,swh:1:cnt:0000000000000000000000000000000000000007
+                swh:1:snp:0000000000000000000000000000000000000020,refs/heads/master,swh:1:dir:0000000000000000000000000000000000000006,parser.c,swh:1:cnt:0000000000000000000000000000000000000005
+                """
+            ).split(  # noqa
+                "\n"
+            )
+        )
+    elif file_name == "TODO.txt":
+        assert rows == [""]
+    else:
+        assert rows == [""]
