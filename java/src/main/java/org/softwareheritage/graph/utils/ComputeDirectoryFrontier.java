@@ -309,7 +309,6 @@ public class ComputeDirectoryFrontier {
                         if (labels.length != 0) {
                             pathStack.push(labels[0].filenameId);
                         }
-                        break;
                     }
                 }
             }
