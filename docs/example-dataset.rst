@@ -58,16 +58,16 @@ the following sections describe how to generate them.
 
 .cmph file
 ~~~~~~~~~~
-The older Java version used to serialize the MPH structure using Java serialize 
-which stores integers in big-endian order. 
-As we do not need to depend on the java serialization format, we moved to the ``.cmph`` 
-format which stores data in a little-endian order. This allows reading the file from C, 
+The older Java version used to serialize the MPH structure using Java serialize
+which stores integers in big-endian order.
+As we do not need to depend on the java serialization format, we moved to the ``.cmph``
+format which stores data in a little-endian order. This allows reading the file from C,
 Rust, or any other language.
 
 The older Java version used to serialize the MPH structure using Java serialize
 which stores integers in big-endian order, for this reason, we moved to a new
 format ``.cmph`` which stores data in a little-endian order and without the Java
-serialization format. This allows this file to be read from C, Rust, or any 
+serialization format. This allows this file to be read from C, Rust, or any
 other language without worrying about Java object deserialization.
 
 Subsequently, this allows the file to be mmapped on little-endian machines.
@@ -78,7 +78,7 @@ To convert from ``.mph`` to the new ``.cmph`` file with the swh-graph utility:
 
    $ java -classpath ~/src/swh-graph/java/target/swh-graph-3.0.1.jar ~/src/swh-graph/java/src/main/java/org/softwareheritage/graph/utils/Mph2Cmph.java graph.mph graph.cmph
 
-or just with ``webgraph-big`` you can use ``jshell`` to call the ``dump`` mehtod:
+or just with ``webgraph-big`` you can use ``jshell`` to call the ``dump`` method:
 
 .. code:: console
 
@@ -88,10 +88,10 @@ or just with ``webgraph-big`` you can use ``jshell`` to call the ``dump`` mehtod
 .ef file
 ~~~~~~~~
 The older Java version used the ``.offests`` file to build at runtime the elias-fano
-structure. The offsets are just a contiguous big-endian bitstream of the 
+structure. The offsets are just a contiguous big-endian bitstream of the
 gaps between successive offsets written as elias-gamma-codes.
-To avoid re-building this structure every time we added the ``.ef`` file which 
-can be memory-mapped with little parsing at the cost of being endianess dependent.
+To avoid re-building this structure every time we added the ``.ef`` file which
+can be memory-mapped with little parsing at the cost of being endianness dependent.
 The ``.ef`` file is in little-endian,
 
 To generate the ``.ef`` file from either a ``.offsets`` file or a ``.graph`` file,
@@ -101,7 +101,7 @@ you can use the ``webgraph-rs`` bin utility:
 
    $ cargo run --release --bin build_eliasfano -- $BASENAME
 
-this will create a ``$BASENAME.ef`` file in the same directory. 
+this will create a ``$BASENAME.ef`` file in the same directory.
 
 Content
 -------
