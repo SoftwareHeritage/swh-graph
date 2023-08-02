@@ -14,7 +14,9 @@ import pytest
 from swh.graph.example_dataset import DATASET_DIR
 from swh.graph.luigi.provenance import (
     ComputeDirectoryFrontier,
+    DeduplicateFrontierDirectories,
     ListContentsInFrontierDirectories,
+    ListContentsInRevisionsWithoutFrontier,
     ListDirectoryMaxLeafTimestamp,
     ListEarliestRevisions,
     SortRevrelByDate,
@@ -81,6 +83,21 @@ CONTENT_TIMESTAMPS = """\
 FRONTIER_DIRECTORIES = """\
 max_author_date,frontier_dir_SWHID,rev_SWHID,path
 1111144440,swh:1:dir:0000000000000000000000000000000000000008,swh:1:rev:0000000000000000000000000000000000000013,oldproject/
+""".replace(
+    "\n", "\r\n"
+)
+
+DEDUPLICATED_FRONTIER_DIRECTORIES = """\
+frontier_dir_SWHID
+swh:1:dir:0000000000000000000000000000000000000008
+"""
+
+CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS = """\
+cnt_SWHID,rev_SWHID,path
+swh:1:cnt:0000000000000000000000000000000000000001,swh:1:rev:0000000000000000000000000000000000000003,README.md
+swh:1:cnt:0000000000000000000000000000000000000011,swh:1:rev:0000000000000000000000000000000000000013,README.md
+swh:1:cnt:0000000000000000000000000000000000000014,swh:1:rev:0000000000000000000000000000000000000018,TODO.txt
+swh:1:cnt:0000000000000000000000000000000000000015,swh:1:rev:0000000000000000000000000000000000000018,old/TODO.txt
 """.replace(
     "\n", "\r\n"
 )
@@ -273,6 +290,71 @@ def test_computedirectoryfrontier(tmpdir):
     assert csv_text == FRONTIER_DIRECTORIES
 
 
+@pytest.mark.parametrize("duplicates_in_input", [True, False])
+def test_deduplicatefrontierdirectories(tmpdir, duplicates_in_input):
+    tmpdir = Path(tmpdir)
+
+    provenance_dir = tmpdir / "provenance"
+    topology_dir = tmpdir / "topology"
+
+    provenance_dir.mkdir()
+
+    (provenance_dir / "directory_frontier.csv.zst").write_text(
+        FRONTIER_DIRECTORIES * (3 if duplicates_in_input else 1)
+    )
+
+    task = DeduplicateFrontierDirectories(
+        local_export_path=DATASET_DIR,
+        local_graph_path=DATASET_DIR / "compressed",
+        graph_name="example",
+        provenance_dir=provenance_dir,
+        topological_order_dir=topology_dir,
+    )
+
+    task.run()
+
+    csv_text = subprocess.check_output(
+        ["zstdcat", provenance_dir / "directory_frontier.deduplicated.csv.zst"]
+    ).decode()
+
+    assert csv_text == DEDUPLICATED_FRONTIER_DIRECTORIES
+
+
+def test_listcontentsinrevisionswithoutfrontier(tmpdir):
+    tmpdir = Path(tmpdir)
+
+    provenance_dir = tmpdir / "provenance"
+    topology_dir = tmpdir / "topology"
+
+    provenance_dir.mkdir()
+
+    (provenance_dir / "directory_frontier.deduplicated.csv.zst").write_text(
+        DEDUPLICATED_FRONTIER_DIRECTORIES
+    )
+
+    task = ListContentsInRevisionsWithoutFrontier(
+        local_export_path=DATASET_DIR,
+        local_graph_path=DATASET_DIR / "compressed",
+        graph_name="example",
+        provenance_dir=provenance_dir,
+        topological_order_dir=topology_dir,
+        batch_size=100,  # faster
+    )
+
+    task.run()
+
+    csv_text = subprocess.check_output(
+        ["zstdcat", provenance_dir / "contents_in_revisions_without_frontiers.csv.zst"]
+    ).decode()
+
+    (header, *rows) = csv_text.split("\r\n")
+    (expected_header, *expected_rows) = CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS.split(
+        "\r\n"
+    )
+    assert header == expected_header
+    assert sorted(rows) == sorted(expected_rows)
+
+
 def test_listcontentsindirectories(tmpdir):
     tmpdir = Path(tmpdir)
 
@@ -281,7 +363,9 @@ def test_listcontentsindirectories(tmpdir):
 
     provenance_dir.mkdir()
 
-    (provenance_dir / "directory_frontier.csv.zst").write_text(FRONTIER_DIRECTORIES)
+    (provenance_dir / "directory_frontier.deduplicated.csv.zst").write_text(
+        DEDUPLICATED_FRONTIER_DIRECTORIES
+    )
 
     task = ListContentsInFrontierDirectories(
         local_export_path=DATASET_DIR,
@@ -314,11 +398,11 @@ def test_listcontentsindirectories_root(tmpdir, duplicates):
 
     provenance_dir.mkdir()
 
-    (provenance_dir / "directory_frontier.csv.zst").write_text(
-        ",dir_SWHID,,\r\n"
+    (provenance_dir / "directory_frontier.deduplicated.csv.zst").write_text(
+        "dir_SWHID\r\n"
         + (
-            ",swh:1:dir:0000000000000000000000000000000000000012,,\r\n"
-            ",swh:1:dir:0000000000000000000000000000000000000017,,\r\n"
+            "swh:1:dir:0000000000000000000000000000000000000012\n"
+            "swh:1:dir:0000000000000000000000000000000000000017\n"
         )
         * (2 if duplicates else 1)
     )
