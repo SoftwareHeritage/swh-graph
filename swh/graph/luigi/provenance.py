@@ -447,7 +447,7 @@ class ComputeDirectoryFrontier(luigi.Task):
                 str(self.batch_size),
                 max_ram=self._max_ram(),
             )
-            | Command.zstdmt("-10")
+            | Command.zstdmt("-12")
             > AtomicFileSink(self._output_path())
         ).run()
         # fmt: on
