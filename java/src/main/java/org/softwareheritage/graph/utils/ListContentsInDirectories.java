@@ -63,7 +63,7 @@ public class ListContentsInDirectories {
     private CSVParser csvParser;
     private MyBooleanBigArrayBigList processedDirectories;
 
-    final static Logger logger = LoggerFactory.getLogger(PopularContentPaths.class);
+    final static Logger logger = LoggerFactory.getLogger(ListContentsInDirectories.class);
 
     public static void main(String[] args)
             throws IOException, ClassNotFoundException, InterruptedException, ExecutionException {
