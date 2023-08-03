@@ -21,6 +21,7 @@ libc = "0.2.147"
 stderrlog = "0.5.4"
 dsi-progress-logger = "0.1.0"
 clap = { version = "4.1.6", features = ["derive"] }
+orcxx = { path = "../../../../rust/orcxx/orcxx/", optional = true }
 
 [dev-dependencies]
 bitvec = { version = "1.0.1", features = ["atomic"] }
@@ -28,6 +29,9 @@ zstd = "0.12"
 
 [features]
 default = []
+
+# Reads dataset from ORC files and produces a compressed graph
+compression = ["orcxx"]
 
 [profile.release] # Used for the examples
 opt-level = 3             # like --release
