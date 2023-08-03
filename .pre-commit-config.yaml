@@ -49,4 +49,14 @@ repos:
         pass_filenames: false
         language: system
 
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+    - id: fmt
+    - id: cargo-check
+      args: ["--all-features"]
+    - id: clippy
+      args: ["--all-features"]
+
+
 exclude: ^swh/graph/grpc/
