@@ -486,6 +486,8 @@ class DeduplicateFrontierDirectories(luigi.Task):
         return luigi.LocalTarget(self._output_path())
 
     def run(self):
+        """Runs ``cut | sort --uniq`` to produce unique directory SWHIDs from
+        ``directory_frontier.csv.zst``."""
         from .shell import AtomicFileSink, Command
 
         sort_env = {"LC_ALL": "C"}  # fastest locale to sort
