@@ -478,7 +478,15 @@ class ExtractNodes(_CompressionStepTask):
     STEP = CompressionStep.EXTRACT_NODES
     EXPORT_AS_INPUT = True
     INPUT_FILES: Set[str] = set()
-    OUTPUT_FILES = {".labels.csv.zst", ".nodes.csv.zst"}
+    OUTPUT_FILES = {
+        ".labels.csv.zst",
+        ".nodes.csv.zst",
+        ".edges.count.txt",
+        ".edges.stats.txt",
+        ".nodes.count.txt",
+        ".nodes.stats.txt",
+        ".labels.count.txt",
+    }
 
     def _large_java_allocations(self) -> int:
         import multiprocessing
