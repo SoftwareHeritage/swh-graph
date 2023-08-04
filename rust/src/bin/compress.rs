@@ -19,10 +19,13 @@ use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use faster_hex::hex_decode;
 use log::info;
+use orcxx;
 use ph::fmph;
 use swh_graph::{SWHType, SWHID};
 
-const ORC_BATCH_SIZE: NonZeroU64 = unsafe { NonZeroU64::new_unchecked(1024) }; // TODO: tune this?
+const ORC_BATCH_SIZE: usize = 1024; // TODO: tune this?
+const ORC_BATCH_SIZE_U64: NonZeroU64 = unsafe { NonZeroU64::new_unchecked(ORC_BATCH_SIZE as u64) }; // TODO: tune this?
+const SHA1_BIN_SIZE: usize = 20;
 
 #[derive(Parser, Debug)]
 #[command(about = "Commands to run individual steps of the pipeline from ORC files to compressed graph", long_about = None)]
@@ -61,30 +64,54 @@ fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
 }
 
 macro_rules! iter_swhids {
-    ($struct:ty, $type:expr, $column:ident, $readers:expr) => {
+    ($type:expr, $column:ident, $readers:expr) => {
         Box::new(
             $readers
                 .iter()
-                .flat_map(|reader| {
-                    let row_reader = reader
+                .map(|reader| {
+                    use orcxx::structured_reader::ColumnTree;
+                    use orcxx::structured_reader::StructuredRowReader;
+
+                    let mut row_reader = reader
                         .row_reader(
                             RowReaderOptions::default().include_names([stringify!($column)]),
                         )
                         .expect("Could not read rows");
-                    <$struct>::check_kind(&row_reader.selected_kind())
-                        .expect("Unexpected ORC structure");
-                    RowIterator::new(row_reader, ORC_BATCH_SIZE)
+                    let mut structured_row_reader = StructuredRowReader::new(&mut row_reader, ORC_BATCH_SIZE_U64.into());
+                    let mut buffer = [0; ORC_BATCH_SIZE*SHA1_BIN_SIZE];
+                    let row_count_usize: usize = reader.row_count().try_into().expect("could not convert u64 to usize");
+                    let mut hashes = Vec::with_capacity(SHA1_BIN_SIZE*row_count_usize);
+                    while let Some(columns) = structured_row_reader.next() {
+                        let ColumnTree::Struct { not_null: None, num_elements: num_elements, elements } = columns else { panic!("expected non-nullable structure") };
+                        assert_eq!(elements.len(), 1);
+                        let column_name = &elements.last().unwrap().0;
+                        assert!(
+                            column_name == "id" || column_name == "sha1_git",
+                            "expected column name to be 'id' or 'sha1_git', not {:?}",
+                            column_name
+                        );
+                        let ColumnTree::String(ref vector) = elements.last().unwrap().1 else {
+                            panic!("expected string")
+                        };
+
+                        assert!(vector.bytes().len() <= buffer.len()*2, "vector has {} bytes, buffer should have at least half but has {}", vector.bytes().len(), buffer.len());
+                        let num_elements: usize = num_elements.try_into().unwrap();
+                        hex_decode(vector.bytes(), &mut buffer[..num_elements*SHA1_BIN_SIZE]).expect("Failed to decode hexadecimal id");
+                        hashes.extend_from_slice(&buffer[0..num_elements*SHA1_BIN_SIZE]);
+                    }
+
+                    hashes
                 })
-                .map(|node: $struct| {
-                    let mut swhid = SWHID {
-                        namespace_version: 1,
-                        node_type: $type,
-                        hash: unsafe { std::mem::MaybeUninit::zeroed().assume_init() },
-                    };
-                    hex_decode(&node.$column.as_bytes(), &mut swhid.hash).unwrap_or_else(|e| {
-                        panic!("{:x?} is not a valid sha1 hash: {:?}", node.$column, e)
-                    });
-                    swhid
+                .flat_map(|hashes: Vec<u8>| {
+                    hashes.chunks(SHA1_BIN_SIZE).map(|hash: &[u8]| {
+                        let hash: [u8; SHA1_BIN_SIZE] = hash.try_into().unwrap();
+                        assert_ne!(hash, [0; SHA1_BIN_SIZE]);
+                        SWHID {
+                            namespace_version: 1,
+                            node_type: $type,
+                            hash: hash.clone()
+                        }
+                    }).collect::<Vec<_>>().into_iter()
                 }),
         )
     };
@@ -197,16 +224,6 @@ pub fn main() -> Result<()> {
             })
             .sum::<usize>();
 
-            // Build parsers
-            #[derive(OrcDeserialize, Clone, Default)]
-            struct Content {
-                sha1_git: String,
-            }
-            #[derive(OrcDeserialize, Clone, Default)]
-            struct NormalNode {
-                id: String,
-            }
-
             let get_key_iter_calls = Arc::new(Mutex::new(0));
 
             let get_key_iter = || SwhidsIterator {
@@ -221,12 +238,12 @@ pub fn main() -> Result<()> {
                     pl
                 },
 
-                cnt_iterator: iter_swhids!(Content, SWHType::Content, sha1_git, &cnt_readers),
-                dir_iterator: iter_swhids!(NormalNode, SWHType::Directory, id, &dir_readers),
-                ori_iterator: iter_swhids!(NormalNode, SWHType::Origin, id, &ori_readers),
-                rel_iterator: iter_swhids!(NormalNode, SWHType::Release, id, &rel_readers),
-                rev_iterator: iter_swhids!(NormalNode, SWHType::Revision, id, &rev_readers),
-                snp_iterator: iter_swhids!(NormalNode, SWHType::Snapshot, id, &snp_readers),
+                cnt_iterator: iter_swhids!(SWHType::Content, sha1_git, &cnt_readers),
+                dir_iterator: iter_swhids!(SWHType::Directory, id, &dir_readers),
+                ori_iterator: iter_swhids!(SWHType::Origin, id, &ori_readers),
+                rel_iterator: iter_swhids!(SWHType::Release, id, &rel_readers),
+                rev_iterator: iter_swhids!(SWHType::Revision, id, &rev_readers),
+                snp_iterator: iter_swhids!(SWHType::Snapshot, id, &snp_readers),
                 current_type: SWHType::Content,
             };
 

@@ -22,8 +22,8 @@ stderrlog = "0.5.4"
 dsi-progress-logger = "0.1.0"
 clap = { version = "4.1.6", features = ["derive"] }
 ph = { version = "0.7.3" }
-orcxx = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true }
-orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true }
+orcxx = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "ae13a8e9a4b0ea66049af99423e52e03af62b17d" }
+orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "ae13a8e9a4b0ea66049af99423e52e03af62b17d" }
 #orcxx = { path = "../../../../rust/orcxx/orcxx/", optional = true }
 #orcxx_derive = { path = "../../../../rust/orcxx/orcxx_derive/", optional = true }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false, optional = true }
