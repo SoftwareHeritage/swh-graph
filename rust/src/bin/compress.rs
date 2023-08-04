@@ -248,7 +248,7 @@ pub fn main() -> Result<()> {
             };
 
             let conf = fmph::BuildConf::default();
-            let clone_threshold = 1024; // TODO: tune this
+            let clone_threshold = 10240; // seems to be the fastest in practic
             let keys = fmph::keyset::CachedKeySet::dynamic_with_len(
                 get_key_iter,
                 len,
