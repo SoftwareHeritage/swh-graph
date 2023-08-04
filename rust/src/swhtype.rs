@@ -109,6 +109,18 @@ impl SWHType {
             Self::Snapshot => "snp",
         }
     }
+
+    /// Returns a vector containing all possible `SWHType` values.
+    pub fn all() -> Vec<Self> {
+        vec![
+            SWHType::Content,
+            SWHType::Directory,
+            SWHType::Origin,
+            SWHType::Release,
+            SWHType::Revision,
+            SWHType::Snapshot,
+        ]
+    }
 }
 
 impl core::fmt::Display for SWHType {
