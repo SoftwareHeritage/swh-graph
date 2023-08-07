@@ -83,7 +83,6 @@ digraph "Compression steps" {
     graph_llp -> OBL -> graph_obl;
     graph_llp_transposed -> TRANSPOSE_OBL -> graph_transposed_obl;
     graph_llp -> STATS -> stats;
-    graph_llp -> NODE_MAP;
     nodes_csv -> NODE_MAP;
     graph_mph -> NODE_MAP;
     graph_order -> NODE_MAP;

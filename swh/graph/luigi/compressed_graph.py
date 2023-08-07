@@ -739,7 +739,7 @@ class TransposeObl(_CompressionStepTask):
 
 class Maps(_CompressionStepTask):
     STEP = CompressionStep.MAPS
-    INPUT_FILES = {".graph", ".mph", ".order", ".nodes.csv.zst"}
+    INPUT_FILES = {".mph", ".order", ".nodes.csv.zst"}
     OUTPUT_FILES = {".node2swhid.bin"}
 
     def _large_java_allocations(self) -> int:
