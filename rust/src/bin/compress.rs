@@ -49,6 +49,10 @@ enum Commands {
         dataset_dir: PathBuf,
         out_mph: PathBuf,
     },
+    HashSwhid {
+        mph: PathBuf,
+        hash: String,
+    },
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
@@ -452,6 +456,18 @@ pub fn main() -> Result<()> {
             let mut file =
                 File::create(&out_mph).expect(&format!("Cannot create {}", out_mph.display()));
             mph.write(&mut file).unwrap();
+        }
+        Commands::HashSwhid { hash, mph } => {
+            let mut file = File::open(&mph).expect(&format!("Cannot read {}", mph.display()));
+            let mph = fmph::Function::read(&mut file).expect("Count not parse mph");
+            let mut swhid = SWHID {
+                namespace_version: 1,
+                node_type: SWHType::Content,
+                hash: Default::default(),
+            };
+            hex_decode(&hash.as_bytes(), &mut swhid.hash).expect("Could not decode swhid");
+
+            println!("{}", mph.get(&swhid).expect("Could not hash swhid"));
         }
     }
 
