@@ -21,12 +21,14 @@ libc = "0.2.147"
 stderrlog = "0.5.4"
 dsi-progress-logger = "0.1.0"
 clap = { version = "4.1.6", features = ["derive"] }
-ph = { version = "0.7.3" }
-orcxx = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "ae13a8e9a4b0ea66049af99423e52e03af62b17d" }
-orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "ae13a8e9a4b0ea66049af99423e52e03af62b17d" }
+ph = { git = "https://github.com/beling/bsuccinct-rs.git", rev = "f6636350a8149bc8deca83527ca195fe22311a4e" }
+#ph = { version = "0.7.3" }
+orcxx = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "6e5f72b2fc48db929008800965b45c9c456212c9" }
+orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "6e5f72b2fc48db929008800965b45c9c456212c9" }
 #orcxx = { path = "../../../../rust/orcxx/orcxx/", optional = true }
 #orcxx_derive = { path = "../../../../rust/orcxx/orcxx_derive/", optional = true }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false, optional = true }
+rayon = { version = "1.7.0", optional = true }
 
 [dev-dependencies]
 bitvec = { version = "1.0.1", features = ["atomic"] }
@@ -36,7 +38,7 @@ zstd = "0.12"
 default = []
 
 # Reads dataset from ORC files and produces a compressed graph
-compression = ["orcxx", "orcxx_derive", "faster-hex"]
+compression = ["orcxx", "orcxx_derive", "faster-hex", "rayon"]
 
 [profile.release] # Used for the examples
 opt-level = 3             # like --release
