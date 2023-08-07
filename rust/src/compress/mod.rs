@@ -3,13 +3,4 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-mod swhid;
-pub use swhid::SWHID;
-
-mod swhtype;
-pub use swhtype::SWHType;
-
-pub mod map;
-
-#[cfg(feature = "compression")]
-pub mod compress;
+pub mod orc;
