@@ -43,6 +43,17 @@ enum Commands {
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
+    /// Reads the list of arcs from the ORC directory and counts the number of arcs
+    /// of each type
+    EdgeStats {
+        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
+        format: DatasetFormat,
+        #[arg(long, default_value = "*")]
+        allowed_nodes_types: String,
+        dataset_dir: PathBuf,
+        target_stats: PathBuf,
+        target_count: PathBuf,
+    },
     /// Reads the list of unique SWHIDs from the ORC directory and produces a Minimal Perfect Hash function
     Mph {
         swhids_dir: PathBuf,
@@ -234,6 +245,72 @@ pub fn main() -> Result<()> {
             merge.wait().expect("merger crashed");
             split.wait().expect("split/zstdmt crashed");
         }
+        Commands::EdgeStats {
+            format: DatasetFormat::Orc,
+            allowed_nodes_types,
+            dataset_dir,
+            target_stats,
+            target_count,
+        } => {
+            let _ = parse_allowed_node_types(&allowed_nodes_types);
+
+            use std::io::Write;
+
+            let mut stats_file = File::create(&target_stats)
+                .unwrap_or_else(|e| panic!("Could not open {}: {:?}", target_stats.display(), e));
+            let mut count_file = File::create(&target_count)
+                .unwrap_or_else(|e| panic!("Could not open {}: {:?}", target_count.display(), e));
+
+            let pl = Arc::new(Mutex::new(ProgressLogger::default().display_memory()));
+            {
+                let mut pl = pl.lock().unwrap();
+                pl.item_name = "arc";
+                pl.local_speed = true;
+                pl.expected_updates = Some(
+                    (swh_graph::compress::orc::estimate_node_count(&dataset_dir)
+                        + swh_graph::compress::orc::estimate_edge_count(&dataset_dir))
+                        as usize,
+                );
+                pl.start("Computing edge stats");
+            }
+
+            let stats = swh_graph::compress::orc::count_edge_types(&dataset_dir)
+                .map(|stats_2d| {
+                    pl.lock().unwrap().update_with_count(
+                        stats_2d.map(|stats_1d| stats_1d.iter().sum()).iter().sum(),
+                    );
+                    stats_2d
+                })
+                .reduce(Default::default, |mut left_2d, right_2d| {
+                    for (left_1d, right_1d) in left_2d.iter_mut().zip(right_2d.into_iter()) {
+                        for (left, right) in left_1d.into_iter().zip(right_1d.into_iter()) {
+                            *left += right;
+                        }
+                    }
+                    left_2d
+                });
+
+            let mut stats_lines = Vec::new();
+            let mut total = 0;
+            for src_type in SWHType::all() {
+                for dst_type in SWHType::all() {
+                    let count = stats[src_type as usize][dst_type as usize];
+                    if count != 0 {
+                        stats_lines.push(format!("{}:{} {}\n", src_type, dst_type, count));
+                        total += count;
+                    }
+                }
+            }
+            stats_lines.sort();
+
+            stats_file
+                .write_all(&stats_lines.join("").as_bytes())
+                .expect("Could not write edge stats");
+            count_file
+                .write_all(&format!("{}\n", total).as_bytes())
+                .expect("Could not write edge count");
+        }
+
         Commands::Mph { .. } => {
 
             /*

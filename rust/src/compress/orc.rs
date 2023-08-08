@@ -12,6 +12,8 @@ use orcxx::row_iterator::RowIterator;
 use orcxx_derive::OrcDeserialize;
 use rayon::prelude::*;
 
+use crate::SWHType;
+
 const SWHID_TXT_SIZE: usize = 50;
 type TextSwhid = [u8; SWHID_TXT_SIZE];
 
@@ -317,4 +319,177 @@ fn iter_swhids_from_snp_branch(reader: Reader) -> impl Iterator<Item = TextSwhid
                 _ => panic!("Unexpected snapshot target type: {:?}", entry.target_type),
             })
     })
+}
+
+type EdgeStats = [[usize; SWHType::NUMBER_OF_TYPES]; SWHType::NUMBER_OF_TYPES];
+
+pub fn count_edge_types(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = EdgeStats> {
+    [].into_par_iter()
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "directory_entry")
+                .into_par_iter()
+                .map(count_edge_types_from_dir),
+        )
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "origin_visit_status")
+                .into_par_iter()
+                .map(count_edge_types_from_ovs),
+        )
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "release")
+                .into_par_iter()
+                .map(count_edge_types_from_rel),
+        )
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "revision")
+                .into_par_iter()
+                .map(count_dir_edge_types_from_rev),
+        )
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "revision_history")
+                .into_par_iter()
+                .map(count_parent_edge_types_from_rev),
+        )
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "snapshot_branch")
+                .into_par_iter()
+                .map(count_edge_types_from_snp),
+        )
+}
+
+fn for_each_edge<T: OrcDeserialize + CheckableKind + OrcStruct + Clone, F>(reader: Reader, f: F)
+where
+    F: FnMut(T),
+{
+    RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
+        .expect("Could not open row reader")
+        .expect("Unexpected schema")
+        .for_each(f)
+}
+
+fn inc(stats: &mut EdgeStats, src_type: SWHType, dst_type: SWHType) {
+    stats[src_type as usize][dst_type as usize] += 1;
+}
+
+fn count_edge_types_from_dir(reader: Reader) -> EdgeStats {
+    let mut stats = EdgeStats::default();
+
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct DirectoryEntry {
+        r#type: String,
+    }
+
+    for_each_edge(reader, |entry: Option<DirectoryEntry>| {
+        if let Some(entry) = entry {
+            match entry.r#type.as_bytes() {
+                b"file" => {
+                    inc(&mut stats, SWHType::Directory, SWHType::Content);
+                }
+                b"dir" => {
+                    inc(&mut stats, SWHType::Directory, SWHType::Directory);
+                }
+                b"rev" => {
+                    inc(&mut stats, SWHType::Directory, SWHType::Revision);
+                }
+                _ => panic!("Unexpected directory entry type: {:?}", entry.r#type),
+            }
+        }
+    });
+
+    stats
+}
+
+fn count_edge_types_from_ovs(reader: Reader) -> EdgeStats {
+    let mut stats = EdgeStats::default();
+
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct OriginVisitStatus {
+        snapshot: Option<String>,
+    }
+
+    for_each_edge(reader, |ovs: OriginVisitStatus| {
+        if ovs.snapshot.is_some() {
+            inc(&mut stats, SWHType::Origin, SWHType::Snapshot)
+        }
+    });
+
+    stats
+}
+
+fn count_dir_edge_types_from_rev(reader: Reader) -> EdgeStats {
+    let mut stats = EdgeStats::default();
+
+    stats[SWHType::Revision as usize][SWHType::Directory as usize] += reader.row_count() as usize;
+
+    stats
+}
+
+fn count_parent_edge_types_from_rev(reader: Reader) -> EdgeStats {
+    let mut stats = EdgeStats::default();
+
+    stats[SWHType::Revision as usize][SWHType::Revision as usize] += reader.row_count() as usize;
+
+    stats
+}
+
+fn count_edge_types_from_rel(reader: Reader) -> EdgeStats {
+    let mut stats = EdgeStats::default();
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct Release {
+        target_type: String,
+    }
+
+    for_each_edge(reader, |entry: Option<Release>| {
+        if let Some(entry) = entry {
+            match entry.target_type.as_bytes() {
+                b"content" => {
+                    inc(&mut stats, SWHType::Release, SWHType::Content);
+                }
+                b"directory" => {
+                    inc(&mut stats, SWHType::Release, SWHType::Directory);
+                }
+                b"revision" => {
+                    inc(&mut stats, SWHType::Release, SWHType::Revision);
+                }
+                b"release" => {
+                    inc(&mut stats, SWHType::Release, SWHType::Release);
+                }
+                _ => panic!("Unexpected directory entry type: {:?}", entry.target_type),
+            }
+        }
+    });
+
+    stats
+}
+
+fn count_edge_types_from_snp(reader: Reader) -> EdgeStats {
+    let mut stats = EdgeStats::default();
+
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct SnapshotBranch {
+        target_type: String,
+    }
+
+    for_each_edge(reader, |branch: Option<SnapshotBranch>| {
+        if let Some(branch) = branch {
+            match branch.target_type.as_bytes() {
+                b"content" => {
+                    inc(&mut stats, SWHType::Snapshot, SWHType::Content);
+                }
+                b"directory" => {
+                    inc(&mut stats, SWHType::Snapshot, SWHType::Directory);
+                }
+                b"revision" => {
+                    inc(&mut stats, SWHType::Snapshot, SWHType::Revision);
+                }
+                b"release" => {
+                    inc(&mut stats, SWHType::Snapshot, SWHType::Release);
+                }
+                b"alias" => {}
+                _ => panic!("Unexpected snapshot branch type: {:?}", branch.target_type),
+            }
+        }
+    });
+
+    stats
 }
