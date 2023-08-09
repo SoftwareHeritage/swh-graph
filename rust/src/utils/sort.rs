@@ -123,21 +123,11 @@ pub trait Sortable<const N: usize>: ParallelIterator<Item = [u8; N]> {
         target_path_prefix.push(format!("{}.", target_prefix));
 
         if target_dir.exists() {
-            std::fs::remove_dir(&target_dir).unwrap_or_else(|e| {
-                panic!(
-                    "Could not delete directory {}: {:?}",
-                    target_dir.display(),
-                    e
-                )
-            });
+            std::fs::remove_dir(&target_dir)
+                .with_context(|| format!("Could not delete directory {}", target_dir.display()))?;
         }
-        std::fs::create_dir(&target_dir).unwrap_or_else(|e| {
-            panic!(
-                "Could not create directory {}: {:?}",
-                target_dir.display(),
-                e
-            )
-        });
+        std::fs::create_dir(&target_dir)
+            .with_context(|| format!("Could not create directory {}", target_dir.display()))?;
 
         // TODO: this is the longest step, we need to log progress here.
         // also, it would be nice to start merging without waiting for all sorters

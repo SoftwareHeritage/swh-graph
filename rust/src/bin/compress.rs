@@ -123,9 +123,9 @@ pub fn main() -> Result<()> {
             use std::io::Write;
 
             let mut stats_file = File::create(&target_stats)
-                .unwrap_or_else(|e| panic!("Could not open {}: {:?}", target_stats.display(), e));
+                .with_context(|| format!("Could not open {}", target_stats.display()))?;
             let mut count_file = File::create(&target_count)
-                .unwrap_or_else(|e| panic!("Could not open {}: {:?}", target_count.display(), e));
+                .with_context(|| format!("Could not open {}", target_count.display()))?;
 
             let pl = Arc::new(Mutex::new(ProgressLogger::default().display_memory()));
             {
@@ -225,20 +225,20 @@ pub fn main() -> Result<()> {
 
             let mut file =
                 File::create(&out_mph).expect(&format!("Cannot create {}", out_mph.display()));
-            mph.write(&mut file).unwrap();
+            mph.write(&mut file).context("Could not write MPH file")?;
         }
         Commands::HashSwhid { hash, mph } => {
-            let mut file = File::open(&mph)
-                .unwrap_or_else(|e| panic!("Cannot read {}: {:?}", mph.display(), e));
-            let mph = fmph::Function::read(&mut file).expect("Count not parse mph");
+            let mut file =
+                File::open(&mph).with_context(|| format!("Cannot read {}", mph.display()))?;
+            let mph = fmph::Function::read(&mut file).context("Count not parse mph")?;
             let mut swhid = SWHID {
                 namespace_version: 1,
                 node_type: SWHType::Content,
                 hash: Default::default(),
             };
-            hex_decode(hash.as_bytes(), &mut swhid.hash).expect("Could not decode swhid");
+            hex_decode(hash.as_bytes(), &mut swhid.hash).context("Could not decode swhid")?;
 
-            println!("{}", mph.get(&swhid).expect("Could not hash swhid"));
+            println!("{}", mph.get(&swhid).context("Could not hash swhid")?);
         }
     }
 
