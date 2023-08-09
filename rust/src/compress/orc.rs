@@ -55,10 +55,12 @@ pub fn estimate_edge_count(dataset_dir: &PathBuf) -> u64 {
     [].into_par_iter()
         .chain(get_dataset_readers(dataset_dir.clone(), "directory_entry"))
         .chain(get_dataset_readers(
+            // Count the source...
             dataset_dir.clone(),
             "origin_visit_status",
         ))
         .chain(get_dataset_readers(
+            // ... and destination of each arc
             dataset_dir.clone(),
             "origin_visit_status",
         ))
@@ -95,12 +97,8 @@ pub fn iter_swhids(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = TextSw
         .chain(
             get_dataset_readers(dataset_dir.clone(), "origin_visit_status")
                 .into_par_iter()
-                .flat_map_iter(iter_ori_swhids_from_ovs),
-        )
-        .chain(
-            get_dataset_readers(dataset_dir.clone(), "origin_visit_status")
-                .into_par_iter()
-                .flat_map_iter(iter_snp_swhids_from_ovs),
+                .flat_map_iter(iter_arcs_from_ovs)
+                .flat_map_iter(|(src, dst)| [src, dst].into_iter()),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "release")
@@ -153,6 +151,25 @@ where
         .map(|swhid| swhid.as_bytes().try_into().unwrap())
 }
 
+fn map_arcs<T: OrcDeserialize + CheckableKind + OrcStruct + Clone, F>(
+    reader: Reader,
+    f: F,
+) -> impl Iterator<Item = (TextSwhid, TextSwhid)>
+where
+    F: Fn(T) -> Option<(String, String)>,
+{
+    RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
+        .expect("Could not open row reader")
+        .expect("Unexpected schema")
+        .flat_map(f)
+        .map(|(src_swhid, dst_swhid)| {
+            (
+                src_swhid.as_bytes().try_into().unwrap(),
+                dst_swhid.as_bytes().try_into().unwrap(),
+            )
+        })
+}
+
 fn iter_swhids_from_dir_entry(reader: Reader) -> impl Iterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct DirectoryEntry {
@@ -201,29 +218,25 @@ fn iter_swhids_from_ori(reader: Reader) -> impl Iterator<Item = TextSwhid> {
     map_swhids(reader, |ori: Origin| Some(format!("swh:1:ori:{}", ori.id)))
 }
 
-fn iter_ori_swhids_from_ovs(reader: Reader) -> impl Iterator<Item = TextSwhid> {
+fn iter_arcs_from_ovs(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct OriginVisitStatus {
         origin: String,
-    }
-
-    map_swhids(reader, |ovs: OriginVisitStatus| {
-        use sha1::Digest;
-        let mut hasher = sha1::Sha1::new();
-        hasher.update(ovs.origin.as_bytes());
-        Some(format!("swh:1:ori:{:x}", hasher.finalize()))
-    })
-}
-
-fn iter_snp_swhids_from_ovs(reader: Reader) -> impl Iterator<Item = TextSwhid> {
-    #[derive(OrcDeserialize, Default, Clone)]
-    struct OriginVisitStatus {
         snapshot: Option<String>,
     }
 
-    map_swhids(reader, |ovs: OriginVisitStatus| match ovs.snapshot {
-        None => None,
-        Some(ref snapshot) => Some(format!("swh:1:snp:{}", snapshot)),
+    map_arcs(reader, |ovs: OriginVisitStatus| {
+        use sha1::Digest;
+        let mut hasher = sha1::Sha1::new();
+        hasher.update(ovs.origin.as_bytes());
+
+        match ovs.snapshot {
+            None => None,
+            Some(ref snapshot) => Some((
+                format!("swh:1:ori:{:x}", hasher.finalize(),),
+                format!("swh:1:snp:{}", snapshot),
+            )),
+        }
     })
 }
 
