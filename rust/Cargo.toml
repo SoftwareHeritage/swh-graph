@@ -33,10 +33,10 @@ sha1 = { version = "0.10.1", optional = true }
 itertools = { version = "0.11.0", optional = true }
 thread_local = "1.1.7"
 tempfile = "3.7.1"
+zstd = "0.12"
 
 [dev-dependencies]
 bitvec = { version = "1.0.1", features = ["atomic"] }
-zstd = "0.12"
 
 [features]
 default = []

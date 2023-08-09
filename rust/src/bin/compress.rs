@@ -34,6 +34,7 @@ struct Args {
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Reads the list of nodes and arcs from the ORC directory and produces lists of unique SWHIDs
+    /// in the given directory
     ExtractNodes {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
@@ -184,10 +185,24 @@ pub fn main() -> Result<()> {
 
             assert!(sorted_files.len() > 0, "Sorters did not run");
 
-            let mut unique_swhids_path = target_dir.clone();
-            unique_swhids_path.push("swhids.txt");
-            let file = std::fs::File::create(&unique_swhids_path).unwrap_or_else(|e| {
-                panic!("Could not create {}: {:?}", unique_swhids_path.display(), e)
+            let mut unique_swhids_prefix = target_dir.clone();
+            unique_swhids_prefix.push("swhids.txt.");
+
+            if target_dir.exists() {
+                std::fs::remove_dir(&target_dir).unwrap_or_else(|e| {
+                    panic!(
+                        "Could not delete directory {}: {:?}",
+                        target_dir.display(),
+                        e
+                    )
+                });
+            }
+            std::fs::create_dir(&target_dir).unwrap_or_else(|e| {
+                panic!(
+                    "Could not create directory {}: {:?}",
+                    target_dir.display(),
+                    e
+                )
             });
 
             let mut merge = std::process::Command::new("sort")
@@ -204,14 +219,20 @@ pub fn main() -> Result<()> {
                 .expect("Could not start merging 'sort' process");
             let merge_out = merge.stdout.take().unwrap();
 
-            let mut zstd = std::process::Command::new("zstdmt")
+            let mut split = std::process::Command::new("split")
+                .arg("--lines=100000000") // 100M
+                .arg("--suffix-length=6")
+                .arg("--numeric-suffixes")
+                .arg("--filter=zstdmt > $FILE")
+                .arg("--additional-suffix=.zst")
+                .arg("-")
+                .arg(&unique_swhids_prefix)
                 .stdin(Stdio::from(merge_out))
-                .stdout(file)
                 .spawn()
                 .expect("Could not start zstdmt");
 
             merge.wait().expect("merger crashed");
-            zstd.wait().expect("zstdmt crashed");
+            split.wait().expect("split/zstdmt crashed");
         }
         Commands::Mph { .. } => {
 
