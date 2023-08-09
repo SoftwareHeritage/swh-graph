@@ -16,10 +16,9 @@ use std::sync::Mutex;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
-use faster_hex::hex_decode;
 use ph::fmph;
 use rayon::prelude::*;
-use swh_graph::{SWHType, SWHID};
+use swh_graph::SWHType;
 
 #[derive(Parser, Debug)]
 #[command(about = "Commands to run individual steps of the pipeline from ORC files to compressed graph", long_about = None)]
@@ -61,7 +60,7 @@ enum Commands {
     },
     HashSwhid {
         mph: PathBuf,
-        hash: String,
+        swhid: String,
     },
 }
 
@@ -227,16 +226,11 @@ pub fn main() -> Result<()> {
                 File::create(&out_mph).expect(&format!("Cannot create {}", out_mph.display()));
             mph.write(&mut file).context("Could not write MPH file")?;
         }
-        Commands::HashSwhid { hash, mph } => {
+        Commands::HashSwhid { swhid, mph } => {
             let mut file =
                 File::open(&mph).with_context(|| format!("Cannot read {}", mph.display()))?;
             let mph = fmph::Function::read(&mut file).context("Count not parse mph")?;
-            let mut swhid = SWHID {
-                namespace_version: 1,
-                node_type: SWHType::Content,
-                hash: Default::default(),
-            };
-            hex_decode(hash.as_bytes(), &mut swhid.hash).context("Could not decode swhid")?;
+            let swhid: [u8; 50] = swhid.as_bytes().try_into().context("Invalid SWHID size")?;
 
             println!("{}", mph.get(&swhid).context("Could not hash swhid")?);
         }
