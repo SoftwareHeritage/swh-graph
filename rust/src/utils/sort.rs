@@ -10,7 +10,7 @@ use std::cell::UnsafeCell;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use anyhow::{Context, Result};
 use dsi_progress_logger::ProgressLogger;
@@ -21,7 +21,7 @@ use rayon::prelude::*;
 /// # Panics
 ///
 /// If files cannot be created in `temp_dir`.
-pub trait Sortable<const N: usize>: ParallelIterator<Item = [u8; N]> {
+pub trait Sortable<Line: IntoIterator<Item = u8>>: ParallelIterator<Item = Line> {
     /// Drains a [`ParallelIterator`], sorts its values, deduplicates them, and write them
     /// to multiple newline-separated ZSTD-compressed files in the given directory.
     fn unique_sort_to_dir(
@@ -31,12 +31,15 @@ pub trait Sortable<const N: usize>: ParallelIterator<Item = [u8; N]> {
         temp_dir: &Path,
         pl: ProgressLogger,
     ) -> Result<()> {
-        let pl = Arc::new(Mutex::new(pl));
+        let pl = Mutex::new(pl);
         let sorted_files = Mutex::new(Vec::new());
         let mut sorter_buffers = thread_local::ThreadLocal::new();
         let mut sorters = thread_local::ThreadLocal::new();
-        let line_size = N + 1; // +1 for the trailing newline
-        let buffer_size = line_size * 1_000_000;
+        let global_counter = Mutex::new(0);
+
+        // thread-local "buffers" to avoid contention on the global_counter's lock
+        let counters = thread_local::ThreadLocal::new();
+        let buffer_size = 5_000_000;
 
         let flush_buffer = |buffer: &mut Vec<u8>| {
             // Flush to the sorter
@@ -70,21 +73,30 @@ pub trait Sortable<const N: usize>: ParallelIterator<Item = [u8; N]> {
                 .write_all(&buffer)
                 .expect("Could not write to sort's stdin");
 
-            pl.lock()
-                .unwrap()
-                .update_with_count(buffer.len() / line_size);
+            // Ditto
+            let counter = counters.get_or(|| UnsafeCell::new(0));
+            let counter: &mut usize = unsafe { &mut *counter.get() };
+
+            pl.lock().unwrap().update_with_count(*counter);
+
+            *global_counter.lock().unwrap() += *counter;
+            *counter = 0;
 
             buffer.clear();
         };
 
-        self.for_each(|swhid| {
+        self.for_each(|item| {
+            let counter: &UnsafeCell<usize> = counters.get_or(|| UnsafeCell::new(0));
             let buffer: &UnsafeCell<Vec<_>> =
                 sorter_buffers.get_or(|| UnsafeCell::new(Vec::<u8>::with_capacity(buffer_size)));
             // This is safe because the main thread won't access this until this
             // one ends, and other threads don't access it.
-            let buffer: &mut Vec<_> = unsafe { &mut *buffer.get() };
+            let counter: &mut usize = unsafe { &mut *counter.get() };
+            let buffer: &mut Vec<u8> = unsafe { &mut *buffer.get() };
 
-            buffer.extend(swhid);
+            *counter += 1;
+
+            buffer.extend(item);
             buffer.push(b'\n');
 
             if buffer.len() >= buffer_size {
@@ -166,4 +178,4 @@ pub trait Sortable<const N: usize>: ParallelIterator<Item = [u8; N]> {
     }
 }
 
-impl<const N: usize, T: ParallelIterator<Item = [u8; N]>> Sortable<N> for T {}
+impl<Line: IntoIterator<Item = u8>, T: ParallelIterator<Item = Line>> Sortable<Line> for T {}
