@@ -143,7 +143,7 @@ pub trait Sortable<Line: IntoIterator<Item = u8>>: ParallelIterator<Item = Line>
         // -> rewrite the merger in-process?
         let mut merge = std::process::Command::new("sort")
             .arg("--buffer-size=100M")
-            .arg("--compress-program=zstd")
+            .arg("--compress-program=zstdmt")
             .env("TMPDIR", temp_dir)
             .env("LC_ALL", "C")
             .arg("--merge")
