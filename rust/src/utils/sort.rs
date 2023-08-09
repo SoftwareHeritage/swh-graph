@@ -35,9 +35,6 @@ pub trait Sortable<Line: IntoIterator<Item = u8>>: ParallelIterator<Item = Line>
         let sorted_files = Mutex::new(Vec::new());
         let mut sorter_buffers = thread_local::ThreadLocal::new();
         let mut sorters = thread_local::ThreadLocal::new();
-        let global_counter = Mutex::new(0);
-
-        // thread-local "buffers" to avoid contention on the global_counter's lock
         let counters = thread_local::ThreadLocal::new();
         let buffer_size = 5_000_000;
 
@@ -79,7 +76,6 @@ pub trait Sortable<Line: IntoIterator<Item = u8>>: ParallelIterator<Item = Line>
 
             pl.lock().unwrap().update_with_count(*counter);
 
-            *global_counter.lock().unwrap() += *counter;
             *counter = 0;
 
             buffer.clear();
