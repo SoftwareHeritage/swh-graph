@@ -3,5 +3,5 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-pub mod list_swhids;
 pub mod orc;
+pub mod zst_dir;

@@ -5,7 +5,7 @@
  * See top-level LICENSE file for more information
  */
 
-//! Iterators on newline-separated ZSTD-compressed file containing textual SWHIDs.
+//! Iterators on newline-separated ZSTD-compressed files.
 
 use dsi_progress_logger::ProgressLogger;
 use rayon::prelude::*;
@@ -14,11 +14,49 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-/// Yields textual swhids from a newline-separated ZSTD-compressed file
-pub fn iter_swhids_from_file<'a>(
+// Inspired from https://archive.softwareheritage.org/swh:1:cnt:5c1d2d8f46cd47edf2adb15f5b7642098e03883f;origin=https://github.com/rust-lang/rust;visit=swh:1:snp:e93a6ff91a26c85dfe1d515afa437ab63e290357;anchor=swh:1:rev:c67cb3e577bdd4de640eb11d96cd5ef5afe0eb0b;path=/library/std/src/io/mod.rs;lines=2847-2871
+pub struct ByteLines<B: std::io::BufRead> {
+    buf: B,
+}
+
+impl<B: BufRead> Iterator for ByteLines<B> {
+    type Item = std::io::Result<Vec<u8>>;
+
+    fn next(&mut self) -> Option<std::io::Result<Vec<u8>>> {
+        let mut buf = Vec::new();
+        match self.buf.read_until(b'\n', &mut buf) {
+            Ok(0) => None,
+            Ok(_n) => {
+                if buf.last() == Some(&b'\n') {
+                    buf.pop();
+                    if buf.last() == Some(&b'\r') {
+                        buf.pop();
+                    }
+                }
+                Some(Ok(buf))
+            }
+            Err(e) => Some(Err(e)),
+        }
+    }
+}
+
+pub trait ToByteLines: std::io::BufRead + Sized {
+    fn byte_lines(self) -> ByteLines<Self> {
+        ByteLines { buf: self }
+    }
+}
+
+impl<B: std::io::BufRead> ToByteLines for B {}
+
+/// Yields textual lines from a newline-separated ZSTD-compressed file
+pub fn iter_lines_from_file<'a, Line>(
     path: &Path,
     pl: Arc<Mutex<ProgressLogger<'a>>>,
-) -> impl Iterator<Item = [u8; 50]> + 'a {
+) -> impl Iterator<Item = Line> + 'a
+where
+    Line: TryFrom<Vec<u8>>,
+    <Line as TryFrom<Vec<u8>>>::Error: std::fmt::Debug,
+{
     std::io::BufReader::new(
         zstd::stream::read::Decoder::new(
             std::fs::File::open(&path).unwrap_or_else(|e| {
@@ -27,7 +65,7 @@ pub fn iter_swhids_from_file<'a>(
         )
         .unwrap_or_else(|e| panic!("{} is not a ZSTD file: {:?}", path.display(), e)),
     )
-    .lines()
+    .byte_lines()
     .enumerate()
     .map(move |(i, line)| {
         if i % 32768 == 0 {
@@ -36,26 +74,26 @@ pub fn iter_swhids_from_file<'a>(
             // end of each file)
             pl.lock().unwrap().update_with_count(32768);
         }
-        let line: [u8; 50] = line
-            .as_ref()
-            .unwrap_or_else(|_| panic!("Could not parse swhid {:?}", &line))
-            .as_bytes()
+        line.unwrap_or_else(|line| panic!("Could not parse swhid {:?}", &line))
             .try_into()
-            .unwrap_or_else(|_| panic!("Could not parse swhid {:?}", &line));
-        line
+            .unwrap_or_else(|line| panic!("Could not parse swhid {:?}", &line))
     })
 }
 
 /// Yields textual swhids from a directory of newline-separated ZSTD-compressed files
-pub fn iter_swhids_from_dir<'a>(
+pub fn iter_lines_from_dir<'a, Line>(
     path: &'a Path,
     pl: Arc<Mutex<ProgressLogger<'a>>>,
-) -> impl Iterator<Item = [u8; 50]> + 'a {
+) -> impl Iterator<Item = Line> + 'a
+where
+    Line: TryFrom<Vec<u8>>,
+    <Line as TryFrom<Vec<u8>>>::Error: std::fmt::Debug,
+{
     std::fs::read_dir(path)
         .unwrap_or_else(|e| panic!("Could not list {}: {:?}", path.display(), e))
-        .flat_map(move |swhids_path| {
-            iter_swhids_from_file(
-                swhids_path
+        .flat_map(move |file_path| {
+            iter_lines_from_file(
+                file_path
                     .as_ref()
                     .unwrap_or_else(|e| panic!("Could not read {} entry: {:?}", path.display(), e))
                     .path()
@@ -66,16 +104,20 @@ pub fn iter_swhids_from_dir<'a>(
 }
 
 /// Yields textual swhids from a directory of newline-separated ZSTD-compressed files
-pub fn par_iter_swhids_from_dir<'a>(
+pub fn par_iter_lines_from_dir<'a, Line: Send>(
     path: &'a Path,
     pl: Arc<Mutex<ProgressLogger<'a>>>,
-) -> impl ParallelIterator<Item = [u8; 50]> + 'a {
+) -> impl ParallelIterator<Item = Line> + 'a
+where
+    Line: TryFrom<Vec<u8>>,
+    <Line as TryFrom<Vec<u8>>>::Error: std::fmt::Debug,
+{
     std::fs::read_dir(path)
         .unwrap_or_else(|e| panic!("Could not list {}: {:?}", path.display(), e))
         .par_bridge()
-        .flat_map_iter(move |swhids_path| {
-            iter_swhids_from_file(
-                swhids_path
+        .flat_map_iter(move |file_path| {
+            iter_lines_from_file(
+                file_path
                     .as_ref()
                     .unwrap_or_else(|e| panic!("Could not read {} entry: {:?}", path.display(), e))
                     .path()
@@ -85,10 +127,11 @@ pub fn par_iter_swhids_from_dir<'a>(
         })
 }
 
-pub struct GetParallelSwhidIterator<
+pub struct GetParallelLineIterator<
     'a,
-    I: Iterator<Item = [u8; 50]>,
-    PI: ParallelIterator<Item = [u8; 50]>,
+    Line: Send,
+    I: Iterator<Item = Line>,
+    PI: ParallelIterator<Item = Line>,
     GI: Fn() -> I,
     GPI: Fn() -> PI,
 > {
@@ -99,13 +142,14 @@ pub struct GetParallelSwhidIterator<
 
 impl<
         'a,
-        I: Iterator<Item = [u8; 50]>,
-        PI: ParallelIterator<Item = [u8; 50]>,
+        Line: Send,
+        I: Iterator<Item = Line>,
+        PI: ParallelIterator<Item = Line>,
         GI: Fn() -> I,
         GPI: Fn() -> PI,
-    > ph::fmph::keyset::GetIterator for GetParallelSwhidIterator<'a, I, PI, GI, GPI>
+    > ph::fmph::keyset::GetIterator for GetParallelLineIterator<'a, Line, I, PI, GI, GPI>
 {
-    type Item = [u8; 50];
+    type Item = Line;
     type Iterator = I;
     type ParallelIterator = PI;
 

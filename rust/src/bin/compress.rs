@@ -180,7 +180,7 @@ pub fn main() -> Result<()> {
             swhids_dir,
             out_mph,
         } => {
-            use swh_graph::compress::list_swhids::*;
+            use swh_graph::compress::zst_dir::*;
 
             let clone_threshold = 10240; // TODO: tune this
             let conf = fmph::BuildConf::default();
@@ -206,13 +206,13 @@ pub fn main() -> Result<()> {
                 Arc::new(Mutex::new(pl))
             };
 
-            let get_key_iter = || iter_swhids_from_dir(&swhids_dir, get_pl(false));
-            let get_par_key_iter = || par_iter_swhids_from_dir(&swhids_dir, get_pl(true));
+            let get_key_iter = || iter_lines_from_dir(&swhids_dir, get_pl(false));
+            let get_par_key_iter = || par_iter_lines_from_dir(&swhids_dir, get_pl(true));
 
             *len.lock().unwrap() = Some(get_par_key_iter().count());
 
             let keys = fmph::keyset::CachedKeySet::<[u8; 50], _>::dynamic(
-                GetParallelSwhidIterator {
+                GetParallelLineIterator {
                     len: len.lock().unwrap().unwrap(),
                     get_key_iter: &get_key_iter,
                     get_par_key_iter: &get_par_key_iter,
