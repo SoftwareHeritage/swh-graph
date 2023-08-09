@@ -110,7 +110,7 @@ pub fn main() -> Result<()> {
                         + swh_graph::compress::orc::estimate_edge_count(&dataset_dir))
                         as usize,
                 );
-                pl.start("sorting SWHIDs (pass 1)");
+                pl.start("sorting SWHIDs");
             }
 
             let sorted_files = Mutex::new(Vec::new());
@@ -311,25 +311,145 @@ pub fn main() -> Result<()> {
                 .expect("Could not write edge count");
         }
 
-        Commands::Mph { .. } => {
+        Commands::Mph {
+            swhids_dir,
+            out_mph,
+        } => {
+            use std::io::BufRead;
 
-            /*
-            let conf = fmph::BuildConf::default();
             let clone_threshold = 10240; // TODO: tune this
-            let keys = fmph::keyset::CachedKeySet::dynamic_par(
+            let conf = fmph::BuildConf::default();
+            let call_counts = Mutex::new(0);
+            let len = Mutex::new(None);
+
+            macro_rules! get_key_iter {
+                ($adjective:expr, $iter:expr, $flat_map_iter:ident) => {
+                    || {
+                        let mut call_counts = call_counts.lock().unwrap();
+                        *call_counts += 1;
+                        let pl = Arc::new(Mutex::new(ProgressLogger::default().display_memory()));
+                        {
+                            let mut pl = pl.lock().unwrap();
+                            pl.item_name = "SWHID";
+                            pl.local_speed = true;
+                            pl.expected_updates = *len.lock().unwrap();
+                            pl.start(&format!(
+                                "{} reading SWHIDs (pass {})",
+                                $adjective, call_counts
+                            ));
+                        }
+
+                        let swhids_dir = swhids_dir.clone();
+
+                        ($iter)(std::fs::read_dir(&swhids_dir).unwrap_or_else(|e| {
+                            panic!("Could not list {}: {:?}", swhids_dir.display(), e)
+                        }))
+                        .$flat_map_iter(move |swhids_path| {
+                            let swhids_path = swhids_path
+                                .as_ref()
+                                .unwrap_or_else(|e| {
+                                    panic!("Could not read {} entry: {:?}", swhids_dir.display(), e)
+                                })
+                                .path();
+                            let pl = pl.clone();
+                            std::io::BufReader::new(
+                                zstd::stream::read::Decoder::new(
+                                    std::fs::File::open(&swhids_path).unwrap_or_else(|e| {
+                                        panic!(
+                                            "Could not open {} for reading: {:?}",
+                                            swhids_path.display(),
+                                            e
+                                        )
+                                    }),
+                                )
+                                .unwrap_or_else(|e| {
+                                    panic!("{} is not a ZSTD file: {:?}", swhids_path.display(), e)
+                                }),
+                            )
+                            .lines()
+                            .enumerate()
+                            .map(move |(i, line)| {
+                                if i % 32768 == 0 {
+                                    // Update but avoid lock contention at the expense
+                                    // of precision (counts at most 32768 too many at the
+                                    // end of each file)
+                                    pl.clone().lock().unwrap().update_with_count(32768);
+                                }
+                                let line: [u8; 50] = line
+                                    .as_ref()
+                                    .unwrap_or_else(|_| panic!("Could not parse swhid {:?}", &line))
+                                    .as_bytes()
+                                    .try_into()
+                                    .unwrap_or_else(|_| {
+                                        panic!("Could not parse swhid {:?}", &line)
+                                    });
+                                line
+                            })
+                        })
+                    }
+                };
+            }
+
+            let get_key_iter = get_key_iter!("sequentially", |files| files, flat_map);
+            let get_par_key_iter = get_key_iter!(
+                "parallelly",
+                |files: std::fs::ReadDir| files.par_bridge(),
+                flat_map_iter
+            );
+
+            struct MyGetParallelIterator<
+                'a,
+                I: Iterator<Item = [u8; 50]>,
+                PI: ParallelIterator<Item = [u8; 50]>,
+                GI: Fn() -> I,
+                GPI: Fn() -> PI,
+            > {
+                len: usize,
+                get_key_iter: &'a GI,
+                get_par_key_iter: &'a GPI,
+            }
+            impl<
+                    'a,
+                    I: Iterator<Item = [u8; 50]>,
+                    PI: ParallelIterator<Item = [u8; 50]>,
+                    GI: Fn() -> I,
+                    GPI: Fn() -> PI,
+                > fmph::keyset::GetIterator for MyGetParallelIterator<'a, I, PI, GI, GPI>
+            {
+                type Item = [u8; 50];
+                type Iterator = I;
+                type ParallelIterator = PI;
+
+                fn iter(&self) -> Self::Iterator {
+                    (self.get_key_iter)()
+                }
+                fn par_iter(&self) -> Option<Self::ParallelIterator> {
+                    Some((self.get_par_key_iter)())
+                }
+                fn has_par_iter(&self) -> bool {
+                    true
+                }
+                fn len(&self) -> usize {
+                    self.len
+                }
+            }
+
+            *len.lock().unwrap() = Some(get_par_key_iter().count());
+
+            let keys = fmph::keyset::CachedKeySet::<[u8; 50], _>::dynamic(
                 MyGetParallelIterator {
-                    len,
+                    len: len.lock().unwrap().unwrap(),
                     get_key_iter: &get_key_iter,
                     get_par_key_iter: &get_par_key_iter,
                 },
                 clone_threshold,
             );
+            //let keys = fmph::keyset::CachedKeySet::dynamic(&get_key_iter, clone_threshold);
             let mph = fmph::Function::with_conf(keys, conf);
 
             let mut file =
                 File::create(&out_mph).expect(&format!("Cannot create {}", out_mph.display()));
             mph.write(&mut file).unwrap();
-            */
         }
         Commands::HashSwhid { hash, mph } => {
             let mut file = File::open(&mph)
