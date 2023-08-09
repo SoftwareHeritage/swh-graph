@@ -42,6 +42,18 @@ enum Commands {
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
+    /// Reads the list of nodes from the generated unique SWHIDS and counts the number
+    /// of nodes of each type
+    NodeStats {
+        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
+        format: DatasetFormat,
+        #[arg(long, default_value = "*")]
+        allowed_nodes_types: String,
+        #[arg(long)]
+        swhids_dir: PathBuf,
+        target_stats: PathBuf,
+        target_count: PathBuf,
+    },
     /// Reads the list of arcs from the ORC directory and counts the number of arcs
     /// of each type
     EdgeStats {
@@ -110,6 +122,71 @@ pub fn main() -> Result<()> {
                 .unique_sort_to_dir(target_dir, "swhids.txt", &args.temp_dir, pl)
                 .expect("Sorting failed");
         }
+        Commands::NodeStats {
+            format: DatasetFormat::Orc,
+            allowed_nodes_types,
+            swhids_dir,
+            target_stats,
+            target_count,
+        } => {
+            use swh_graph::compress::zst_dir::*;
+
+            let _ = parse_allowed_node_types(&allowed_nodes_types);
+
+            use std::io::Write;
+
+            let mut stats_file = File::create(&target_stats)
+                .with_context(|| format!("Could not open {}", target_stats.display()))?;
+            let mut count_file = File::create(&target_count)
+                .with_context(|| format!("Could not open {}", target_count.display()))?;
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "node";
+            pl.local_speed = true;
+            let bits_per_line = 20; // A little more than this, actually
+            pl.expected_updates = Some(swh_graph::utils::dir_size(&swhids_dir)? / bits_per_line);
+            pl.start("Computing node stats");
+
+            let stats = par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(pl)))
+                .map(|line: [u8; 50]| {
+                    let ty = match &line[6..9] {
+                        b"cnt" => SWHType::Content,
+                        b"dir" => SWHType::Directory,
+                        b"rev" => SWHType::Revision,
+                        b"rel" => SWHType::Release,
+                        b"snp" => SWHType::Snapshot,
+                        b"ori" => SWHType::Origin,
+                        _ => panic!(
+                            "Unexpected SWHID type: {}",
+                            std::str::from_utf8(&line).unwrap_or(&format!("{:?}", line))
+                        ),
+                    };
+                    let mut stats = [0usize; SWHType::NUMBER_OF_TYPES];
+                    stats[ty as usize] += 1;
+                    stats
+                })
+                .reduce(Default::default, |mut left_1d, right_1d| {
+                    for (left, right) in left_1d.iter_mut().zip(right_1d.into_iter()) {
+                        *left += right;
+                    }
+                    left_1d
+                });
+
+            let mut stats_lines = Vec::new();
+            let mut total = 0;
+            for ty in SWHType::all() {
+                stats_lines.push(format!("{} {}\n", ty, stats[ty as usize]));
+                total += stats[ty as usize];
+            }
+            stats_lines.sort();
+
+            stats_file
+                .write_all(&stats_lines.join("").as_bytes())
+                .context("Could not write node stats")?;
+            count_file
+                .write_all(&format!("{}\n", total).as_bytes())
+                .context("Could not write node count")?;
+        }
         Commands::EdgeStats {
             format: DatasetFormat::Orc,
             allowed_nodes_types,
@@ -126,18 +203,13 @@ pub fn main() -> Result<()> {
             let mut count_file = File::create(&target_count)
                 .with_context(|| format!("Could not open {}", target_count.display()))?;
 
-            let pl = Arc::new(Mutex::new(ProgressLogger::default().display_memory()));
-            {
-                let mut pl = pl.lock().unwrap();
-                pl.item_name = "arc";
-                pl.local_speed = true;
-                pl.expected_updates = Some(
-                    (swh_graph::compress::orc::estimate_node_count(&dataset_dir)
-                        + swh_graph::compress::orc::estimate_edge_count(&dataset_dir))
-                        as usize,
-                );
-                pl.start("Computing edge stats");
-            }
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "arc";
+            pl.local_speed = true;
+            pl.expected_updates =
+                Some(swh_graph::compress::orc::estimate_edge_count(&dataset_dir) as usize);
+            pl.start("Computing edge stats");
+            let pl = Mutex::new(pl);
 
             let stats = swh_graph::compress::orc::count_edge_types(&dataset_dir)
                 .map(|stats_2d| {
@@ -170,10 +242,10 @@ pub fn main() -> Result<()> {
 
             stats_file
                 .write_all(&stats_lines.join("").as_bytes())
-                .expect("Could not write edge stats");
+                .context("Could not write edge stats")?;
             count_file
                 .write_all(&format!("{}\n", total).as_bytes())
-                .expect("Could not write edge count");
+                .context("Could not write edge count")?;
         }
 
         Commands::Mph {
