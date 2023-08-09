@@ -84,3 +84,41 @@ pub fn par_iter_swhids_from_dir<'a>(
             )
         })
 }
+
+pub struct GetParallelSwhidIterator<
+    'a,
+    I: Iterator<Item = [u8; 50]>,
+    PI: ParallelIterator<Item = [u8; 50]>,
+    GI: Fn() -> I,
+    GPI: Fn() -> PI,
+> {
+    pub len: usize,
+    pub get_key_iter: &'a GI,
+    pub get_par_key_iter: &'a GPI,
+}
+
+impl<
+        'a,
+        I: Iterator<Item = [u8; 50]>,
+        PI: ParallelIterator<Item = [u8; 50]>,
+        GI: Fn() -> I,
+        GPI: Fn() -> PI,
+    > ph::fmph::keyset::GetIterator for GetParallelSwhidIterator<'a, I, PI, GI, GPI>
+{
+    type Item = [u8; 50];
+    type Iterator = I;
+    type ParallelIterator = PI;
+
+    fn iter(&self) -> Self::Iterator {
+        (self.get_key_iter)()
+    }
+    fn par_iter(&self) -> Option<Self::ParallelIterator> {
+        Some((self.get_par_key_iter)())
+    }
+    fn has_par_iter(&self) -> bool {
+        true
+    }
+    fn len(&self) -> usize {
+        self.len
+    }
+}

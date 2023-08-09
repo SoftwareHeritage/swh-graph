@@ -315,81 +315,39 @@ pub fn main() -> Result<()> {
             swhids_dir,
             out_mph,
         } => {
+            use swh_graph::compress::list_swhids::*;
+
             let clone_threshold = 10240; // TODO: tune this
             let conf = fmph::BuildConf::default();
             let call_counts = Mutex::new(0);
             let len = Mutex::new(None);
 
-            macro_rules! get_key_iter {
-                ($adjective:expr, $iter_swhids_from_dir:path) => {
-                    || {
-                        let mut call_counts = call_counts.lock().unwrap();
-                        *call_counts += 1;
-                        let mut pl = ProgressLogger::default().display_memory();
-                        pl.item_name = "SWHID";
-                        pl.local_speed = true;
-                        pl.expected_updates = *len.lock().unwrap();
-                        pl.start(&format!(
-                            "{} reading SWHIDs (pass {})",
-                            $adjective, call_counts
-                        ));
-                        let pl = Arc::new(Mutex::new(pl));
+            let get_pl = |parallel| {
+                let mut call_counts = call_counts.lock().unwrap();
+                *call_counts += 1;
+                let mut pl = ProgressLogger::default().display_memory();
+                pl.item_name = "SWHID";
+                pl.local_speed = true;
+                pl.expected_updates = *len.lock().unwrap();
+                pl.start(&format!(
+                    "{} reading SWHIDs (pass {})",
+                    if parallel {
+                        "parallelly"
+                    } else {
+                        "sequentially"
+                    },
+                    call_counts
+                ));
+                Arc::new(Mutex::new(pl))
+            };
 
-                        $iter_swhids_from_dir(&swhids_dir, pl)
-                    }
-                };
-            }
-
-            let get_key_iter = get_key_iter!(
-                "sequentially",
-                swh_graph::compress::list_swhids::iter_swhids_from_dir
-            );
-            let get_par_key_iter = get_key_iter!(
-                "parallelly",
-                swh_graph::compress::list_swhids::par_iter_swhids_from_dir
-            );
-
-            struct MyGetParallelIterator<
-                'a,
-                I: Iterator<Item = [u8; 50]>,
-                PI: ParallelIterator<Item = [u8; 50]>,
-                GI: Fn() -> I,
-                GPI: Fn() -> PI,
-            > {
-                len: usize,
-                get_key_iter: &'a GI,
-                get_par_key_iter: &'a GPI,
-            }
-            impl<
-                    'a,
-                    I: Iterator<Item = [u8; 50]>,
-                    PI: ParallelIterator<Item = [u8; 50]>,
-                    GI: Fn() -> I,
-                    GPI: Fn() -> PI,
-                > fmph::keyset::GetIterator for MyGetParallelIterator<'a, I, PI, GI, GPI>
-            {
-                type Item = [u8; 50];
-                type Iterator = I;
-                type ParallelIterator = PI;
-
-                fn iter(&self) -> Self::Iterator {
-                    (self.get_key_iter)()
-                }
-                fn par_iter(&self) -> Option<Self::ParallelIterator> {
-                    Some((self.get_par_key_iter)())
-                }
-                fn has_par_iter(&self) -> bool {
-                    true
-                }
-                fn len(&self) -> usize {
-                    self.len
-                }
-            }
+            let get_key_iter = || iter_swhids_from_dir(&swhids_dir, get_pl(false));
+            let get_par_key_iter = || par_iter_swhids_from_dir(&swhids_dir, get_pl(true));
 
             *len.lock().unwrap() = Some(get_par_key_iter().count());
 
             let keys = fmph::keyset::CachedKeySet::<[u8; 50], _>::dynamic(
-                MyGetParallelIterator {
+                GetParallelSwhidIterator {
                     len: len.lock().unwrap().unwrap(),
                     get_key_iter: &get_key_iter,
                     get_par_key_iter: &get_par_key_iter,
