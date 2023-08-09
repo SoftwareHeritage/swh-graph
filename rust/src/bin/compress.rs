@@ -94,156 +94,22 @@ pub fn main() -> Result<()> {
             dataset_dir,
             target_dir,
         } => {
+            use swh_graph::utils::sort::Sortable;
             let _ = parse_allowed_node_types(&allowed_nodes_types);
 
-            use std::cell::UnsafeCell;
-            use std::io::Write;
-            use std::process::Stdio;
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "arc";
+            pl.local_speed = true;
+            pl.expected_updates = Some(
+                (swh_graph::compress::orc::estimate_node_count(&dataset_dir)
+                    + swh_graph::compress::orc::estimate_edge_count(&dataset_dir))
+                    as usize,
+            );
+            pl.start("Extracting and sorting SWHIDs");
 
-            let pl = Arc::new(Mutex::new(ProgressLogger::default().display_memory()));
-            {
-                let mut pl = pl.lock().unwrap();
-                pl.item_name = "SWHID";
-                pl.local_speed = true;
-                pl.expected_updates = Some(
-                    (swh_graph::compress::orc::estimate_node_count(&dataset_dir)
-                        + swh_graph::compress::orc::estimate_edge_count(&dataset_dir))
-                        as usize,
-                );
-                pl.start("sorting SWHIDs");
-            }
-
-            let sorted_files = Mutex::new(Vec::new());
-            let mut sorter_buffers = thread_local::ThreadLocal::new();
-            let mut sorters = thread_local::ThreadLocal::new();
-
-            let flush_buffer = |buffer: &mut Vec<u8>| {
-                // Flush to the sorter
-                let sort = sorters
-                    .get_or(|| {
-                        let file = tempfile::NamedTempFile::new_in(&args.temp_dir)
-                            .expect("Could not open temporary sorted file");
-                        let path: PathBuf = file.path().into();
-                        sorted_files.lock().unwrap().push(file);
-
-                        let sort = std::process::Command::new("sort")
-                            .arg("--buffer-size=100M")
-                            .arg("--compress-program=zstd")
-                            .arg("--unique") // Removes duplicates early to save space
-                            .arg("--parallel=1") // Slightly faster as we already max out the CPU
-                            .env("TMPDIR", &args.temp_dir)
-                            .env("LC_ALL", "C")
-                            .stdout(std::fs::File::create(path).unwrap())
-                            .stdin(std::process::Stdio::piped())
-                            .spawn()
-                            .expect("Could not start 'sort' process");
-                        UnsafeCell::new(sort)
-                    })
-                    .get();
-                // This is safe because the main thread won't access this until this
-                // one ends, and other threads don't access it.
-                let sort: &mut std::process::Child = unsafe { &mut *sort };
-
-                let stdin = sort.stdin.as_mut().unwrap();
-                stdin
-                    .write_all(&buffer)
-                    .expect("Could not write to sort's stdin");
-
-                pl.lock().unwrap().update_with_count(buffer.len() / 51); // SWHID length + '\n' = 51
-
-                buffer.clear();
-            };
-
-            swh_graph::compress::orc::iter_swhids(&dataset_dir).for_each(|swhid| {
-                let buffer: &UnsafeCell<Vec<_>> =
-                    sorter_buffers.get_or(|| UnsafeCell::new(Vec::<u8>::with_capacity(51_000_000)));
-                // This is safe because the main thread won't access this until this
-                // one ends, and other threads don't access it.
-                let buffer: &mut Vec<_> = unsafe { &mut *buffer.get() };
-
-                buffer.extend(swhid);
-                buffer.push(b'\n');
-
-                if buffer.len() >= 51_000_000 {
-                    flush_buffer(buffer);
-                }
-            });
-
-            // Write remaining buffers
-            for buffer in sorter_buffers.iter_mut() {
-                // This is safe because other threads ended
-                let buffer = unsafe { &mut *buffer.get() };
-                flush_buffer(buffer)
-            }
-
-            // Notify sorters they reached the end of their inputs
-            for sorter in &mut sorters {
-                // This is safe because other threads ended
-                let sorter = unsafe { &mut *sorter.get() };
-                drop(sorter.stdin.take().unwrap());
-            }
-
-            // Wait for sorters to finish
-            for sorter in sorters {
-                // This is safe because other threads ended
-                let sorter = unsafe { &mut *sorter.get() };
-                sorter.wait().expect("Sorter crashed");
-            }
-
-            pl.lock().unwrap().done();
-
-            let sorted_files = sorted_files.lock().unwrap();
-
-            assert!(sorted_files.len() > 0, "Sorters did not run");
-
-            let mut unique_swhids_prefix = target_dir.clone();
-            unique_swhids_prefix.push("swhids.txt.");
-
-            if target_dir.exists() {
-                std::fs::remove_dir(&target_dir).unwrap_or_else(|e| {
-                    panic!(
-                        "Could not delete directory {}: {:?}",
-                        target_dir.display(),
-                        e
-                    )
-                });
-            }
-            std::fs::create_dir(&target_dir).unwrap_or_else(|e| {
-                panic!(
-                    "Could not create directory {}: {:?}",
-                    target_dir.display(),
-                    e
-                )
-            });
-
-            let mut merge = std::process::Command::new("sort")
-                .arg("--buffer-size=100M")
-                .arg("--compress-program=zstd")
-                .env("TMPDIR", &args.temp_dir)
-                .env("LC_ALL", "C")
-                .arg("--merge")
-                .arg("--unique")
-                .args(sorted_files.iter().map(|file| file.path()))
-                .stdin(Stdio::null())
-                .stdout(Stdio::piped())
-                .spawn()
-                .expect("Could not start merging 'sort' process");
-            let merge_out = merge.stdout.take().unwrap();
-
-            let mut split = std::process::Command::new("split")
-                .arg("--lines=100000000") // 100M
-                .arg("--suffix-length=6")
-                .arg("--numeric-suffixes")
-                .arg("--filter=zstdmt > $FILE")
-                .arg("--additional-suffix=.zst")
-                .arg("-")
-                .arg(&unique_swhids_prefix)
-                .stdin(Stdio::from(merge_out))
-                .spawn()
-                .expect("Could not start zstdmt");
-
-            merge.wait().expect("merger crashed");
-            split.wait().expect("split/zstdmt crashed");
+            swh_graph::compress::orc::iter_swhids(&dataset_dir)
+                .unique_sort_to_dir(target_dir, "swhids.txt", &args.temp_dir, pl)
+                .expect("Sorting failed");
         }
         Commands::EdgeStats {
             format: DatasetFormat::Orc,

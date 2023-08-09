@@ -28,7 +28,7 @@ orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.g
 #orcxx = { path = "../../../../rust/orcxx/orcxx/", optional = true }
 #orcxx_derive = { path = "../../../../rust/orcxx/orcxx_derive/", optional = true }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false, optional = true }
-rayon = { version = "1.7.0", optional = true }
+rayon = { version = "1.7.0" }
 sha1 = { version = "0.10.1", optional = true }
 itertools = { version = "0.11.0", optional = true }
 thread_local = "1.1.7"
@@ -42,7 +42,7 @@ bitvec = { version = "1.0.1", features = ["atomic"] }
 default = []
 
 # Reads dataset from ORC files and produces a compressed graph
-compression = ["orcxx", "orcxx_derive", "faster-hex", "rayon", "sha1", "itertools"]
+compression = ["orcxx", "orcxx_derive", "faster-hex", "sha1", "itertools"]
 
 [profile.release] # Used for the examples
 opt-level = 3             # like --release
