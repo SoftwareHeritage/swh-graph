@@ -30,6 +30,7 @@ pub trait Sortable<Line: IntoIterator<Item = u8>>: ParallelIterator<Item = Line>
         target_prefix: &str,
         temp_dir: &Path,
         pl: ProgressLogger,
+        args: &[&str],
     ) -> Result<()> {
         let pl = Mutex::new(pl);
         let sorted_files = Mutex::new(Vec::new());
@@ -52,6 +53,7 @@ pub trait Sortable<Line: IntoIterator<Item = u8>>: ParallelIterator<Item = Line>
                         .arg("--compress-program=zstd")
                         .arg("--unique") // Removes duplicates early to save space
                         .arg("--parallel=1") // Slightly faster as we already max out the CPU
+                        .args(args)
                         .env("TMPDIR", temp_dir)
                         .env("LC_ALL", "C")
                         .stdout(std::fs::File::create(path).unwrap())

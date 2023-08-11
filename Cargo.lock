@@ -1528,9 +1528,11 @@ dependencies = [
  "libc",
  "log",
  "mmap-rs",
+ "num_cpus",
  "orcxx",
  "orcxx_derive",
  "ph",
+ "rand",
  "rayon",
  "sha1",
  "stderrlog",
@@ -1789,7 +1791,7 @@ checksum = "ca6ad05a4870b2bf5fe995117d3728437bd27d7cd5f06f13c17443ef369775a1"
 [[package]]
 name = "webgraph"
 version = "0.1.0"
-source = "git+https://github.com/vigna/webgraph-rs?rev=5587a3dc712c84a3f88b66e996256f8faf368382#5587a3dc712c84a3f88b66e996256f8faf368382"
+source = "git+https://github.com/vigna/webgraph-rs?rev=f6ea50101debeec132dfe64fd3fef924b71d583e#f6ea50101debeec132dfe64fd3fef924b71d583e"
 dependencies = [
  "anyhow",
  "bindgen",

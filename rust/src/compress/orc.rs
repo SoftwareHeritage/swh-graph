@@ -152,25 +152,6 @@ where
         .map(|swhid| swhid.as_bytes().try_into().unwrap())
 }
 
-fn map_arcs<T: OrcDeserialize + CheckableKind + OrcStruct + Clone, F>(
-    reader: Reader,
-    f: F,
-) -> impl Iterator<Item = (TextSwhid, TextSwhid)>
-where
-    F: Fn(T) -> Option<(String, String)>,
-{
-    RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
-        .expect("Could not open row reader")
-        .expect("Unexpected schema")
-        .flat_map(f)
-        .map(|(src_swhid, dst_swhid)| {
-            (
-                src_swhid.as_bytes().try_into().unwrap(),
-                dst_swhid.as_bytes().try_into().unwrap(),
-            )
-        })
-}
-
 fn iter_swhids_from_dir_entry(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct DirectoryEntry {
@@ -217,28 +198,6 @@ fn iter_swhids_from_ori(reader: Reader) -> impl ParallelIterator<Item = TextSwhi
     }
 
     map_swhids(reader, |ori: Origin| Some(format!("swh:1:ori:{}", ori.id)))
-}
-
-fn iter_arcs_from_ovs(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
-    #[derive(OrcDeserialize, Default, Clone)]
-    struct OriginVisitStatus {
-        origin: String,
-        snapshot: Option<String>,
-    }
-
-    map_arcs(reader, |ovs: OriginVisitStatus| {
-        use sha1::Digest;
-        let mut hasher = sha1::Sha1::new();
-        hasher.update(ovs.origin.as_bytes());
-
-        match ovs.snapshot {
-            None => None,
-            Some(ref snapshot) => Some((
-                format!("swh:1:ori:{:x}", hasher.finalize(),),
-                format!("swh:1:snp:{}", snapshot),
-            )),
-        }
-    })
 }
 
 fn iter_rel_swhids_from_rel(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
@@ -332,6 +291,180 @@ fn iter_swhids_from_snp_branch(reader: Reader) -> impl ParallelIterator<Item = T
                 b"alias" => None,
                 _ => panic!("Unexpected snapshot target type: {:?}", branch.target_type),
             })
+    })
+}
+pub fn iter_arcs(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = (TextSwhid, TextSwhid)> {
+    [].into_par_iter()
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "directory_entry")
+                .into_par_iter()
+                .flat_map_iter(iter_arcs_from_dir_entry),
+        )
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "origin_visit_status")
+                .into_par_iter()
+                .flat_map_iter(iter_arcs_from_ovs),
+        )
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "release")
+                .into_par_iter()
+                .flat_map_iter(iter_arcs_from_rel),
+        )
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "revision")
+                .into_par_iter()
+                .flat_map_iter(iter_arcs_from_rev),
+        )
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "revision_history")
+                .into_par_iter()
+                .flat_map_iter(iter_arcs_from_rev_history),
+        )
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "snapshot_branch")
+                .into_par_iter()
+                .flat_map_iter(iter_arcs_from_snp_branch),
+        )
+}
+
+fn map_arcs<T: OrcDeserialize + CheckableKind + OrcStruct + Clone, F>(
+    reader: Reader,
+    f: F,
+) -> impl Iterator<Item = (TextSwhid, TextSwhid)>
+where
+    F: Fn(T) -> Option<(String, String)>,
+{
+    RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
+        .expect("Could not open row reader")
+        .expect("Unexpected schema")
+        .flat_map(f)
+        .map(|(src_swhid, dst_swhid)| {
+            (
+                src_swhid.as_bytes().try_into().unwrap(),
+                dst_swhid.as_bytes().try_into().unwrap(),
+            )
+        })
+}
+
+fn iter_arcs_from_dir_entry(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct DirectoryEntry {
+        directory_id: String,
+        r#type: String,
+        target: String,
+    }
+
+    map_arcs(reader, |entry: Option<DirectoryEntry>| {
+        entry.as_ref().map(|entry| {
+            (
+                format!("swh:1:dir:{}", entry.directory_id),
+                match entry.r#type.as_bytes() {
+                    b"file" => format!("swh:1:cnt:{}", entry.target),
+                    b"dir" => format!("swh:1:dir:{}", entry.target),
+                    b"rev" => format!("swh:1:rev:{}", entry.target),
+                    _ => panic!("Unexpected directory entry type: {:?}", entry.r#type),
+                },
+            )
+        })
+    })
+}
+
+fn iter_arcs_from_ovs(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct OriginVisitStatus {
+        origin: String,
+        snapshot: Option<String>,
+    }
+
+    map_arcs(reader, |ovs: OriginVisitStatus| {
+        use sha1::Digest;
+        let mut hasher = sha1::Sha1::new();
+        hasher.update(ovs.origin.as_bytes());
+
+        match ovs.snapshot {
+            None => None,
+            Some(ref snapshot) => Some((
+                format!("swh:1:ori:{:x}", hasher.finalize(),),
+                format!("swh:1:snp:{}", snapshot),
+            )),
+        }
+    })
+}
+
+fn iter_arcs_from_rel(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct Release {
+        id: String,
+        target: String,
+        target_type: String,
+    }
+
+    map_arcs(reader, |entry: Option<Release>| {
+        entry.as_ref().map(|entry| {
+            (
+                format!("swh:1:rel:{}", entry.id),
+                match entry.target_type.as_bytes() {
+                    b"content" => format!("swh:1:cnt:{}", entry.target),
+                    b"directory" => format!("swh:1:dir:{}", entry.target),
+                    b"revision" => format!("swh:1:rev:{}", entry.target),
+                    b"release" => format!("swh:1:rel:{}", entry.target),
+                    _ => panic!("Unexpected release target type: {:?}", entry.target_type),
+                },
+            )
+        })
+    })
+}
+
+fn iter_arcs_from_rev(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct Revision {
+        id: String,
+        directory: String,
+    }
+
+    map_arcs(reader, |rev: Revision| {
+        Some((
+            format!("swh:1:rev:{}", rev.id),
+            format!("swh:1:dir:{}", rev.directory),
+        ))
+    })
+}
+
+fn iter_arcs_from_rev_history(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct RevisionParent {
+        id: String,
+        parent_id: String,
+    }
+
+    map_arcs(reader, |rev: RevisionParent| {
+        Some((
+            format!("swh:1:rev:{}", rev.id),
+            format!("swh:1:rev:{}", rev.parent_id),
+        ))
+    })
+}
+
+fn iter_arcs_from_snp_branch(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct SnapshotBranch {
+        snapshot_id: String,
+        target: String,
+        target_type: String,
+    }
+
+    map_arcs(reader, |entry: Option<SnapshotBranch>| {
+        entry.as_ref().and_then(|branch| {
+            let dst = match branch.target_type.as_bytes() {
+                b"content" => Some(format!("swh:1:cnt:{}", branch.target)),
+                b"directory" => Some(format!("swh:1:dir:{}", branch.target)),
+                b"revision" => Some(format!("swh:1:rev:{}", branch.target)),
+                b"release" => Some(format!("swh:1:rel:{}", branch.target)),
+                b"alias" => None,
+                _ => panic!("Unexpected snapshot target type: {:?}", branch.target_type),
+            };
+            dst.map(|dst| (format!("swh:1:snp:{}", branch.snapshot_id), dst))
+        })
     })
 }
 

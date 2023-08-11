@@ -19,6 +19,7 @@ use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
 use rayon::prelude::*;
 use swh_graph::SWHType;
+use webgraph::prelude::*;
 
 #[derive(Parser, Debug)]
 #[command(about = "Commands to run individual steps of the pipeline from ORC files to compressed graph", long_about = None)]
@@ -70,9 +71,22 @@ enum Commands {
         swhids_dir: PathBuf,
         out_mph: PathBuf,
     },
-    HashSwhid {
+    /// First actual compression step
+    Bv {
+        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
+        format: DatasetFormat,
+        #[arg(long, default_value = "*")]
+        allowed_nodes_types: String,
+        #[arg(long)]
         mph: PathBuf,
-        swhid: String,
+        num_nodes: usize,
+        dataset_dir: PathBuf,
+        target_dir: PathBuf,
+    },
+
+    HashSwhids {
+        mph: PathBuf,
+        swhids: Vec<String>,
     },
 }
 
@@ -119,7 +133,7 @@ pub fn main() -> Result<()> {
             pl.start("Extracting and sorting SWHIDs");
 
             swh_graph::compress::orc::iter_swhids(&dataset_dir)
-                .unique_sort_to_dir(target_dir, "swhids.txt", &args.temp_dir, pl)
+                .unique_sort_to_dir(target_dir, "swhids.txt", &args.temp_dir, pl, &[])
                 .expect("Sorting failed");
         }
         Commands::NodeStats {
@@ -298,11 +312,222 @@ pub fn main() -> Result<()> {
                 File::create(&out_mph).expect(&format!("Cannot create {}", out_mph.display()));
             mph.write(&mut file).context("Could not write MPH file")?;
         }
-        Commands::HashSwhid { swhid, mph } => {
+        Commands::Bv {
+            format: DatasetFormat::Orc,
+            allowed_nodes_types,
+            mph,
+            num_nodes,
+            dataset_dir,
+            target_dir,
+        } => {
+            use std::cell::UnsafeCell;
+            use swh_graph::compress::orc::*;
+            let file =
+                File::open(&mph).with_context(|| format!("Cannot read {}", mph.display()))?;
+            println!("Reading MPH");
+            let mph = fmph::Function::read(&mut std::io::BufReader::new(file))
+                .context("Could not parse mph")?;
+            println!("MPH loaded, sorting arcs");
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "arc";
+            pl.local_speed = true;
+            pl.expected_updates =
+                Some(swh_graph::compress::orc::estimate_edge_count(&dataset_dir) as usize);
+            pl.start("Reading arcs");
+
+            // Sort in parallel in a bunch of SortPairs instances
+            let pl = Mutex::new(pl);
+            let batch_size = 1_000_000; // TODO: tune this
+            let counters = thread_local::ThreadLocal::new();
+            let sorted_arc_lists: Vec<SortPairs<()>> = iter_arcs(&dataset_dir)
+                .inspect(|_| {
+                    // This is safe because only this thread accesses this and only from
+                    // here.
+                    let counter = counters.get_or(|| UnsafeCell::new(0));
+                    let counter: &mut usize = unsafe { &mut *counter.get() };
+                    *counter += 1;
+                    if *counter % 32768 == 0 {
+                        // Update but avoid lock contention at the expense
+                        // of precision (counts at most 32768 too many at the
+                        // end of each file)
+                        pl.lock().unwrap().update_with_count(32768);
+                        *counter = 0
+                    }
+                })
+                .fold(
+                    || {
+                        use rand::Rng;
+                        let sorter_id = rand::thread_rng().gen::<u64>();
+                        let mut sorter_temp_dir = args.temp_dir.clone();
+                        sorter_temp_dir.push(format!("sort-arcs-{}", sorter_id));
+                        std::fs::create_dir(&sorter_temp_dir).unwrap_or_else(|_| {
+                            panic!(
+                                "Could not create temporary directory {}",
+                                sorter_temp_dir.display()
+                            )
+                        });
+
+                        (
+                            sorter_id,
+                            SortPairs::new(batch_size, &sorter_temp_dir)
+                                .expect("Could not create SortPairs"),
+                        )
+                    },
+                    |(sorter_id, mut sorter), (src, dst)| {
+                        let src = mph.get(&src).unwrap_or_else(|| {
+                            panic!(
+                                "Could not hash {}",
+                                std::str::from_utf8(&src).unwrap_or(&format!("{:?}", src))
+                            )
+                        }) as usize;
+                        let dst = mph.get(&dst).unwrap_or_else(|| {
+                            panic!(
+                                "Could not hash {}",
+                                std::str::from_utf8(&dst).unwrap_or(&format!("{:?}", dst))
+                            )
+                        }) as usize;
+                        assert!(src < num_nodes, "src node id is greater than {}", num_nodes);
+                        assert!(dst < num_nodes, "dst node id is greater than {}", num_nodes);
+                        sorter
+                            .push(src, dst, ())
+                            .expect("Could not push arc to sorter");
+                        (sorter_id, sorter)
+                    },
+                )
+                .map(|(_sorter_id, sorter)| sorter)
+                .collect();
+            pl.lock().unwrap().done();
+
+            // Merge sorted arc lists into a single sorted arc list
+            let sorted_arcs = itertools::kmerge(sorted_arc_lists.into_iter().map(
+                | mut arc_list| {
+                    arc_list
+                        .iter()
+                        .expect("Could not get sorted arc lists")
+                },
+            ));
+
+            /*
+
+            use swh_graph::utils::sort::Sortable;
+
+            let mut arcs_dir = args.temp_dir.clone();
+            arcs_dir.push("sorted_arcs");
+            swh_graph::compress::orc::iter_arcs(&dataset_dir)
+                .map(|(src, dst)| {
+                    let src = mph.get(&src).unwrap_or_else(|| {
+                        panic!(
+                            "Could not hash {}",
+                            std::str::from_utf8(&src).unwrap_or(&format!("{:?}", src))
+                        )
+                    }) as usize;
+                    let dst = mph.get(&dst).unwrap_or_else(|| {
+                        panic!(
+                            "Could not hash {}",
+                            std::str::from_utf8(&dst).unwrap_or(&format!("{:?}", dst))
+                        )
+                    }) as usize;
+                    assert!(src < num_nodes, "src node id is greater than {}", num_nodes);
+                    assert!(dst < num_nodes, "dst node id is greater than {}", num_nodes);
+
+                    format!("{} {}", src, dst).as_bytes().to_vec()
+                })
+                .unique_sort_to_dir(
+                    arcs_dir.clone(),
+                    "arcs.csv",
+                    &args.temp_dir,
+                    pl,
+                    &["-k1n", "-k2n", "-t,"],
+                )
+                .expect("Sorting failed");
+
+            let sorted_arcs = swh_graph::compress::zst_dir::iter_lines_from_dir(
+                &arcs_dir,
+                Arc::new(Mutex::new(pl)),
+            ).map(|line: Vec<u8>| {
+                let arc = line.split(|c| *c == b',');
+                let src = arc.next().expect("Empty line");
+                let dst = arc.next().expect("No , on line");
+                let src = unsafe { std::str::from_utf8_unchecked(src) };
+                let dst = unsafe { std::str::from_utf8_unchecked(dst) };
+                let src: usize = src.parse().expect("Could not parse src");
+                let dst: usize = dst.parse().expect("Could not parse dst");
+                (src, dst, ())
+            });
+            */
+
+            /*
+            // Convert iterator of (src, dst, ()) to an iterator of (src, [dst1, dst2, ...])
+            let sorted_adjacency_lists = sorted_arcs.group_by(|(src, _dst)| *src);
+
+            // Add nodes with no outgoing arcs
+            let sorted_adjacency_lists = sorted_adjacency_lists.into_iter().exhaustive(
+                0,
+                num_nodes,
+                |(src, _dsts)| *src,
+                |_src| Vec::new(),
+            );
+            */
+
+            /*
+            let sorted_arcs = KMergeIters::new(
+                sorted_edges_lists
+                    .into_iter()
+                    .map(|sorter| sorter.iter().expect("Failed to get sorted edge lists")),
+            );*/
+
+            /*
+            let sorted_arcs: Vec<_> = sorted_arcs.collect();
+            println!("{:?}", sorted_arcs);
+            let sorted_arcs = sorted_arcs.into_iter();
+            */
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "node";
+            pl.local_speed = true;
+            pl.expected_updates = Some(num_nodes);
+            pl.start("Building BVGraph");
+            let pl = Mutex::new(pl);
+            let counters = thread_local::ThreadLocal::new();
+
+            let sequential_graph = COOIterToLabelledGraph::new(num_nodes, sorted_arcs);
+            let adjacency_lists = sequential_graph.iter_nodes().inspect(|_| {
+                let counter = counters.get_or(|| UnsafeCell::new(0));
+                let counter: &mut usize = unsafe { &mut *counter.get() };
+                *counter += 1;
+                if *counter % 32768 == 0 {
+                    // Update but avoid lock contention at the expense
+                    // of precision (counts at most 32768 too many at the
+                    // end of each file)
+                    pl.lock().unwrap().update_with_count(32768);
+                    *counter = 0
+                }
+            });
+            let comp_flags = Default::default();
+            let num_threads = num_cpus::get();
+
+            webgraph::graph::bvgraph::parallel_compress_sequential_iter(
+                target_dir,
+                adjacency_lists,
+                comp_flags,
+                num_threads,
+            )
+            .context("Could not build BVGraph from arcs")?;
+
+            pl.lock().unwrap().done();
+        }
+
+        Commands::HashSwhids { swhids, mph } => {
             let mut file =
                 File::open(&mph).with_context(|| format!("Cannot read {}", mph.display()))?;
             let mph = fmph::Function::read(&mut file).context("Count not parse mph")?;
-            let swhid: [u8; 50] = swhid.as_bytes().try_into().context("Invalid SWHID size")?;
+            for swhid in swhids {
+                let swhid: [u8; 50] = swhid.as_bytes().try_into().context("Invalid SWHID size")?;
+
+                println!("{}", mph.get(&swhid).context("Could not hash swhid")?);
+            }
+        }
 
             println!("{}", mph.get(&swhid).context("Could not hash swhid")?);
         }

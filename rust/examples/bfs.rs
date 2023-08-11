@@ -8,6 +8,7 @@ use bitvec::prelude::*;
 use dsi_progress_logger::ProgressLogger;
 use log::{debug, info};
 use std::collections::VecDeque;
+use sux::prelude::gov::GOVMPH;
 use swh_graph::map::{Node2SWHID, Order};
 use webgraph::prelude::*;
 
@@ -32,7 +33,7 @@ pub fn main() -> Result<()> {
     // $ java -classpath ~/src/swh-graph/java/target/swh-graph-3.0.1.jar ~/src/swh-graph/java/src/main/java/org/softwareheritage/graph/utils/Mph2Cmph.java graph.mph graph.cmph
     let mph_file = format!("{}.cmph", BASENAME);
     info!("loading MPH from {mph_file} ...");
-    let mph = webgraph::utils::mph::GOVMPH::load(mph_file)?;
+    let mph = GOVMPH::load(mph_file)?;
 
     // Lookup SWHID
     //
@@ -63,7 +64,7 @@ pub fn main() -> Result<()> {
     // $ cargo run --release --bin build_eliasfano --  ~/graph/latest/compressed/graph
     // $ cargo run --release --bin build_eliasfano -- ~/graph/latest/compressed/graph-transposed
     info!("loading compressed graph from {}.graph ...", BASENAME);
-    let graph = webgraph::bvgraph::load(BASENAME)?;
+    let graph = webgraph::graph::bvgraph::load(BASENAME)?;
 
     let node2swhid_file = format!("{}.node2swhid.bin", BASENAME);
     info!("loading node ID -> SWHID map from {node2swhid_file} ...");

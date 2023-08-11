@@ -7,6 +7,7 @@ use anyhow::Result;
 use dsi_progress_logger::ProgressLogger;
 use log::info;
 use std::io::prelude::*;
+use sux::prelude::gov::GOVMPH;
 use swh_graph::map::{Node2SWHID, Order};
 use webgraph::prelude::*;
 
@@ -23,7 +24,7 @@ fn test_order_mph() -> Result<()> {
         .unwrap();
 
     info!("loading MPH...");
-    let mph = webgraph::utils::mph::GOVMPH::load(format!("{}.cmph", BASENAME))?;
+    let mph = GOVMPH::load(format!("{}.cmph", BASENAME))?;
 
     info!("loading node2swhid...");
     let node2swhid = Node2SWHID::load(format!("{}.node2swhid.bin", BASENAME))?;
@@ -41,7 +42,7 @@ fn test_order_mph() -> Result<()> {
     );
 
     info!("loading compressed graph into memory (with mmap)...");
-    let graph = webgraph::bvgraph::load(BASENAME)?;
+    let graph = webgraph::graph::bvgraph::load(BASENAME)?;
 
     // Setup the progress logger for
     let mut pl = ProgressLogger::default().display_memory();
