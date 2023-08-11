@@ -77,22 +77,22 @@ pub fn iter_swhids(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = TextSw
         .chain(
             get_dataset_readers(dataset_dir.clone(), "directory")
                 .into_par_iter()
-                .flat_map_iter(iter_swhids_from_dir),
+                .flat_map(iter_swhids_from_dir),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "directory_entry")
                 .into_par_iter()
-                .flat_map_iter(iter_swhids_from_dir_entry),
+                .flat_map(iter_swhids_from_dir_entry),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "content")
                 .into_par_iter()
-                .flat_map_iter(iter_swhids_from_cnt),
+                .flat_map(iter_swhids_from_cnt),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "origin")
                 .into_par_iter()
-                .flat_map_iter(iter_swhids_from_ori),
+                .flat_map(iter_swhids_from_ori),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "origin_visit_status")
@@ -103,50 +103,51 @@ pub fn iter_swhids(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = TextSw
         .chain(
             get_dataset_readers(dataset_dir.clone(), "release")
                 .into_par_iter()
-                .flat_map_iter(iter_rel_swhids_from_rel),
+                .flat_map(iter_rel_swhids_from_rel),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "release")
                 .into_par_iter()
-                .flat_map_iter(iter_target_swhids_from_rel),
+                .flat_map(iter_target_swhids_from_rel),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "revision")
                 .into_par_iter()
-                .flat_map_iter(iter_rev_swhids_from_rev),
+                .flat_map(iter_rev_swhids_from_rev),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "revision")
                 .into_par_iter()
-                .flat_map_iter(iter_dir_swhids_from_rev),
+                .flat_map(iter_dir_swhids_from_rev),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "revision_history")
                 .into_par_iter()
-                .flat_map_iter(iter_parent_swhids_from_rev),
+                .flat_map(iter_parent_swhids_from_rev),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "snapshot")
                 .into_par_iter()
-                .flat_map_iter(iter_swhids_from_snp),
+                .flat_map(iter_swhids_from_snp),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "snapshot_branch")
                 .into_par_iter()
-                .flat_map_iter(iter_swhids_from_snp_branch),
+                .flat_map(iter_swhids_from_snp_branch),
         )
 }
 
-fn map_swhids<T: OrcDeserialize + CheckableKind + OrcStruct + Clone, F>(
+fn map_swhids<T: OrcDeserialize + CheckableKind + OrcStruct + Clone + Send, F>(
     reader: Reader,
     f: F,
-) -> impl Iterator<Item = TextSwhid>
+) -> impl ParallelIterator<Item = TextSwhid>
 where
-    F: Fn(T) -> Option<String>,
+    F: Fn(T) -> Option<String> + Send + Sync,
 {
     RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
         .expect("Could not open row reader")
         .expect("Unexpected schema")
+        .par_bridge()
         .flat_map(f)
         .map(|swhid| swhid.as_bytes().try_into().unwrap())
 }
@@ -170,7 +171,7 @@ where
         })
 }
 
-fn iter_swhids_from_dir_entry(reader: Reader) -> impl Iterator<Item = TextSwhid> {
+fn iter_swhids_from_dir_entry(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct DirectoryEntry {
         r#type: String,
@@ -187,7 +188,7 @@ fn iter_swhids_from_dir_entry(reader: Reader) -> impl Iterator<Item = TextSwhid>
     })
 }
 
-fn iter_swhids_from_dir(reader: Reader) -> impl Iterator<Item = TextSwhid> {
+fn iter_swhids_from_dir(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct Directory {
         id: String,
@@ -198,7 +199,7 @@ fn iter_swhids_from_dir(reader: Reader) -> impl Iterator<Item = TextSwhid> {
     })
 }
 
-fn iter_swhids_from_cnt(reader: Reader) -> impl Iterator<Item = TextSwhid> {
+fn iter_swhids_from_cnt(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct Content {
         sha1_git: String,
@@ -209,7 +210,7 @@ fn iter_swhids_from_cnt(reader: Reader) -> impl Iterator<Item = TextSwhid> {
     })
 }
 
-fn iter_swhids_from_ori(reader: Reader) -> impl Iterator<Item = TextSwhid> {
+fn iter_swhids_from_ori(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct Origin {
         id: String,
@@ -240,7 +241,7 @@ fn iter_arcs_from_ovs(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSw
     })
 }
 
-fn iter_rel_swhids_from_rel(reader: Reader) -> impl Iterator<Item = TextSwhid> {
+fn iter_rel_swhids_from_rel(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct Release {
         id: String,
@@ -249,7 +250,7 @@ fn iter_rel_swhids_from_rel(reader: Reader) -> impl Iterator<Item = TextSwhid> {
     map_swhids(reader, |rel: Release| Some(format!("swh:1:rel:{}", rel.id)))
 }
 
-fn iter_target_swhids_from_rel(reader: Reader) -> impl Iterator<Item = TextSwhid> {
+fn iter_target_swhids_from_rel(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct Release {
         target: String,
@@ -269,7 +270,7 @@ fn iter_target_swhids_from_rel(reader: Reader) -> impl Iterator<Item = TextSwhid
     })
 }
 
-fn iter_rev_swhids_from_rev(reader: Reader) -> impl Iterator<Item = TextSwhid> {
+fn iter_rev_swhids_from_rev(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct Revision {
         id: String,
@@ -280,7 +281,7 @@ fn iter_rev_swhids_from_rev(reader: Reader) -> impl Iterator<Item = TextSwhid> {
     })
 }
 
-fn iter_dir_swhids_from_rev(reader: Reader) -> impl Iterator<Item = TextSwhid> {
+fn iter_dir_swhids_from_rev(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct Revision {
         directory: String,
@@ -291,7 +292,7 @@ fn iter_dir_swhids_from_rev(reader: Reader) -> impl Iterator<Item = TextSwhid> {
     })
 }
 
-fn iter_parent_swhids_from_rev(reader: Reader) -> impl Iterator<Item = TextSwhid> {
+fn iter_parent_swhids_from_rev(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct RevisionParent {
         parent_id: String,
@@ -302,7 +303,7 @@ fn iter_parent_swhids_from_rev(reader: Reader) -> impl Iterator<Item = TextSwhid
     })
 }
 
-fn iter_swhids_from_snp(reader: Reader) -> impl Iterator<Item = TextSwhid> {
+fn iter_swhids_from_snp(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct Snapshot {
         id: String,
@@ -313,7 +314,7 @@ fn iter_swhids_from_snp(reader: Reader) -> impl Iterator<Item = TextSwhid> {
     })
 }
 
-fn iter_swhids_from_snp_branch(reader: Reader) -> impl Iterator<Item = TextSwhid> {
+fn iter_swhids_from_snp_branch(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct SnapshotBranch {
         target: String,
