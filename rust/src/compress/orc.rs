@@ -294,11 +294,11 @@ fn iter_dir_swhids_from_rev(reader: Reader) -> impl Iterator<Item = TextSwhid> {
 fn iter_parent_swhids_from_rev(reader: Reader) -> impl Iterator<Item = TextSwhid> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct RevisionParent {
-        id: String,
+        parent_id: String,
     }
 
     map_swhids(reader, |rev: RevisionParent| {
-        Some(format!("swh:1:rev:{}", rev.id))
+        Some(format!("swh:1:rev:{}", rev.parent_id))
     })
 }
 
@@ -320,16 +320,16 @@ fn iter_swhids_from_snp_branch(reader: Reader) -> impl Iterator<Item = TextSwhid
         target_type: String,
     }
 
-    map_swhids(reader, |entry: Option<SnapshotBranch>| {
-        entry
+    map_swhids(reader, |branch: Option<SnapshotBranch>| {
+        branch
             .as_ref()
-            .and_then(|entry| match entry.target_type.as_bytes() {
-                b"content" => Some(format!("swh:1:cnt:{}", entry.target)),
-                b"directory" => Some(format!("swh:1:dir:{}", entry.target)),
-                b"revision" => Some(format!("swh:1:rev:{}", entry.target)),
-                b"release" => Some(format!("swh:1:rel:{}", entry.target)),
+            .and_then(|branch| match branch.target_type.as_bytes() {
+                b"content" => Some(format!("swh:1:cnt:{}", branch.target)),
+                b"directory" => Some(format!("swh:1:dir:{}", branch.target)),
+                b"revision" => Some(format!("swh:1:rev:{}", branch.target)),
+                b"release" => Some(format!("swh:1:rel:{}", branch.target)),
                 b"alias" => None,
-                _ => panic!("Unexpected snapshot target type: {:?}", entry.target_type),
+                _ => panic!("Unexpected snapshot target type: {:?}", branch.target_type),
             })
     })
 }
