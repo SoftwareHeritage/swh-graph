@@ -528,9 +528,6 @@ pub fn main() -> Result<()> {
                 println!("{}", mph.get(&swhid).context("Could not hash swhid")?);
             }
         }
-
-            println!("{}", mph.get(&swhid).context("Could not hash swhid")?);
-        }
     }
 
     Ok(())
