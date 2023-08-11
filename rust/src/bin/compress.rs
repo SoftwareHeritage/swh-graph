@@ -400,13 +400,11 @@ pub fn main() -> Result<()> {
             pl.lock().unwrap().done();
 
             // Merge sorted arc lists into a single sorted arc list
-            let sorted_arcs = itertools::kmerge(sorted_arc_lists.into_iter().map(
-                | mut arc_list| {
-                    arc_list
-                        .iter()
-                        .expect("Could not get sorted arc lists")
-                },
-            ));
+            let sorted_arcs = itertools::kmerge(
+                sorted_arc_lists
+                    .into_iter()
+                    .map(|mut arc_list| arc_list.iter().expect("Could not get sorted arc lists")),
+            );
 
             /*
 
