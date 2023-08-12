@@ -510,7 +510,7 @@ class Mph(_CompressionStepTask):
 
     def _large_java_allocations(self) -> int:
         bitvector_size = _govmph_bitarray_size(self._nb_nodes())
-        extra_size = 500_000_000  # TODO: why is this needed?
+        extra_size = self._nb_nodes()  # TODO: why is this needed?
         return bitvector_size + extra_size
 
 
@@ -859,7 +859,14 @@ class MphLabels(_CompressionStepTask):
         # https://github.com/vigna/Sux4J/blob/e9fd7412204272a2796e3038e95beb1d8cbc244a/src/it/unimi/dsi/sux4j/mph/GOV3Function.java#L519
         offsets_and_seeds_size = num_buckets * 8
 
-        return memory_per_thread * multiprocessing.cpu_count() + offsets_and_seeds_size
+        # why is this needed?
+        extra_size = self._nb_nodes()
+
+        return (
+            memory_per_thread * multiprocessing.cpu_count()
+            + offsets_and_seeds_size
+            + extra_size
+        )
 
 
 class FclLabels(_CompressionStepTask):
