@@ -850,7 +850,16 @@ class MphLabels(_CompressionStepTask):
         # TODO: compute memory_per_thread dynamically
         memory_per_thread = 4_000_000
 
-        return memory_per_thread * multiprocessing.cpu_count()
+        # https://github.com/vigna/Sux4J/blob/e9fd7412204272a2796e3038e95beb1d8cbc244a/src/it/unimi/dsi/sux4j/mph/GOV3Function.java#L425
+        bucket_size = 1500
+
+        # https://github.com/vigna/Sux4J/blob/e9fd7412204272a2796e3038e95beb1d8cbc244a/src/it/unimi/dsi/sux4j/mph/GOV3Function.java#L514
+        num_buckets = int(self._nb_nodes() / bucket_size) + 1
+
+        # https://github.com/vigna/Sux4J/blob/e9fd7412204272a2796e3038e95beb1d8cbc244a/src/it/unimi/dsi/sux4j/mph/GOV3Function.java#L519
+        offsets_and_seeds_size = num_buckets * 8
+
+        return memory_per_thread * multiprocessing.cpu_count() + offsets_and_seeds_size
 
 
 class FclLabels(_CompressionStepTask):
