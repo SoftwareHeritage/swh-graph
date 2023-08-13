@@ -338,7 +338,7 @@ pub fn main() -> Result<()> {
 
             // Sort in parallel in a bunch of SortPairs instances
             let pl = Mutex::new(pl);
-            let batch_size = 100_000;
+            let batch_size = 10_000_000; // SortPairs creates one file per batch
             let counters = thread_local::ThreadLocal::new();
             let sorted_arc_lists: Vec<SortPairs<()>> = iter_arcs(&dataset_dir)
                 .inspect(|_| {
