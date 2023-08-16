@@ -320,6 +320,7 @@ pub fn main() -> Result<()> {
             dataset_dir,
             target_dir,
         } => {
+            use itertools::Itertools;
             use std::cell::UnsafeCell;
             use swh_graph::compress::orc::*;
             let file =
@@ -404,7 +405,8 @@ pub fn main() -> Result<()> {
                 sorted_arc_lists
                     .into_iter()
                     .map(|mut arc_list| arc_list.iter().expect("Could not get sorted arc lists")),
-            );
+            )
+            .dedup();
 
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "node";
