@@ -134,7 +134,7 @@ pub fn main() -> Result<()> {
 
             swh_graph::compress::orc::iter_swhids(&dataset_dir)
                 .unique_sort_to_dir(target_dir, "swhids.txt", &args.temp_dir, pl, &[])
-                .expect("Sorting failed");
+                .context("Sorting failed")?;
         }
         Commands::NodeStats {
             format: DatasetFormat::Orc,
@@ -308,8 +308,8 @@ pub fn main() -> Result<()> {
             //let keys = fmph::keyset::CachedKeySet::dynamic(&get_key_iter, clone_threshold);
             let mph = fmph::Function::with_conf(keys, conf);
 
-            let mut file =
-                File::create(&out_mph).expect(&format!("Cannot create {}", out_mph.display()));
+            let mut file = File::create(&out_mph)
+                .with_context(|| format!("Cannot create {}", out_mph.display()))?;
             mph.write(&mut file).context("Could not write MPH file")?;
         }
         Commands::Bv {
@@ -341,7 +341,7 @@ pub fn main() -> Result<()> {
             let pl = Mutex::new(pl);
             let batch_size = 10_000_000; // SortPairs creates one file per batch
             let counters = thread_local::ThreadLocal::new();
-            let sorted_arc_lists: Vec<SortPairs<()>> = iter_arcs(&dataset_dir)
+            let sorters: Vec<Result<(u64, SortPairs<()>)>> = iter_arcs(&dataset_dir)
                 .inspect(|_| {
                     // This is safe because only this thread accesses this and only from
                     // here.
@@ -362,51 +362,52 @@ pub fn main() -> Result<()> {
                         let sorter_id = rand::thread_rng().gen::<u64>();
                         let mut sorter_temp_dir = args.temp_dir.clone();
                         sorter_temp_dir.push(format!("sort-arcs-{}", sorter_id));
-                        std::fs::create_dir(&sorter_temp_dir).unwrap_or_else(|_| {
-                            panic!(
+                        std::fs::create_dir(&sorter_temp_dir).with_context(|| {
+                            format!(
                                 "Could not create temporary directory {}",
                                 sorter_temp_dir.display()
                             )
-                        });
+                        })?;
 
-                        (
+                        Ok((
                             sorter_id,
                             SortPairs::new(batch_size, &sorter_temp_dir)
-                                .expect("Could not create SortPairs"),
-                        )
+                                .context("Could not create SortPairs")?,
+                        ))
                     },
-                    |(sorter_id, mut sorter), (src, dst)| {
-                        let src = mph.get(&src).unwrap_or_else(|| {
-                            panic!(
+                    |acc, (src, dst)| {
+                        let (sorter_id, mut sorter) = acc?;
+                        let src = mph.get(&src).with_context(|| {
+                            format!(
                                 "Could not hash {}",
                                 std::str::from_utf8(&src).unwrap_or(&format!("{:?}", src))
                             )
-                        }) as usize;
-                        let dst = mph.get(&dst).unwrap_or_else(|| {
-                            panic!(
+                        })? as usize;
+                        let dst = mph.get(&dst).with_context(|| {
+                            format!(
                                 "Could not hash {}",
                                 std::str::from_utf8(&dst).unwrap_or(&format!("{:?}", dst))
                             )
-                        }) as usize;
+                        })? as usize;
                         assert!(src < num_nodes, "src node id is greater than {}", num_nodes);
                         assert!(dst < num_nodes, "dst node id is greater than {}", num_nodes);
                         sorter
                             .push(src, dst, ())
-                            .expect("Could not push arc to sorter");
-                        (sorter_id, sorter)
+                            .context("Could not push arc to sorter")?;
+                        Ok((sorter_id, sorter))
                     },
                 )
-                .map(|(_sorter_id, sorter)| sorter)
                 .collect();
             pl.lock().unwrap().done();
 
+            let mut sorted_arc_lists = Vec::new();
+            for acc in sorters {
+                let (_sorter_id, mut sorter) = acc?;
+                sorted_arc_lists.push(sorter.iter().context("Could not get sorted arc lists")?);
+            }
+
             // Merge sorted arc lists into a single sorted arc list
-            let sorted_arcs = itertools::kmerge(
-                sorted_arc_lists
-                    .into_iter()
-                    .map(|mut arc_list| arc_list.iter().expect("Could not get sorted arc lists")),
-            )
-            .dedup();
+            let sorted_arcs = itertools::kmerge(sorted_arc_lists).dedup();
 
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "node";
