@@ -5,6 +5,7 @@
  * See top-level LICENSE file for more information
  */
 
+use std::env::temp_dir;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -21,9 +22,6 @@ use webgraph::prelude::*;
 #[derive(Parser, Debug)]
 #[command(about = "Commands to run individual steps of the pipeline from ORC files to compressed graph", long_about = None)]
 struct Args {
-    #[arg(long)]
-    temp_dir: PathBuf,
-
     #[command(subcommand)]
     command: Commands,
 }
@@ -130,7 +128,7 @@ pub fn main() -> Result<()> {
             pl.start("Extracting and sorting SWHIDs");
 
             swh_graph::compress::orc::iter_swhids(&dataset_dir)
-                .unique_sort_to_dir(target_dir, "swhids.txt", &args.temp_dir, pl, &[])
+                .unique_sort_to_dir(target_dir, "swhids.txt", &temp_dir(), pl, &[])
                 .context("Sorting failed")?;
         }
         Commands::NodeStats {
@@ -357,7 +355,7 @@ pub fn main() -> Result<()> {
                     || {
                         use rand::Rng;
                         let sorter_id = rand::thread_rng().gen::<u64>();
-                        let mut sorter_temp_dir = args.temp_dir.clone();
+                        let mut sorter_temp_dir = temp_dir();
                         sorter_temp_dir.push(format!("sort-arcs-{}", sorter_id));
                         std::fs::create_dir(&sorter_temp_dir).with_context(|| {
                             format!(
