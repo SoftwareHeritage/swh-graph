@@ -47,6 +47,10 @@ default = []
 # Reads dataset from ORC files and produces a compressed graph
 compression = ["orcxx", "orcxx_derive", "faster-hex", "sha1", "itertools"]
 
+[[bin]]
+name = "compress"
+required-features = ["compression"]
+
 [profile.release] # Used for the examples
 opt-level = 3             # like --release
 lto = "fat"               # Full LTO

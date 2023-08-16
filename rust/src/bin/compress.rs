@@ -5,9 +5,6 @@
  * See top-level LICENSE file for more information
  */
 
-#[cfg(not(feature = "compression"))]
-compile_error!("Feature 'compression' must be enabled for this executable to be available.");
-
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::Arc;
