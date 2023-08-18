@@ -28,9 +28,19 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Reads the list of nodes and arcs from the ORC directory and produces lists of unique SWHIDs
-    /// in the given directory
+    /// Reads the list of nodes and arcs from the ORC directory and produces lists of
+    /// unique SWHIDs in the given directory
     ExtractNodes {
+        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
+        format: DatasetFormat,
+        #[arg(long, default_value = "*")]
+        allowed_nodes_types: String,
+        dataset_dir: PathBuf,
+        target_dir: PathBuf,
+    },
+    /// Reads the list of nodes and arcs from the ORC directory and produces lists of
+    /// unique labels in the given directory
+    ExtractLabels {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
         #[arg(long, default_value = "*")]
@@ -129,6 +139,29 @@ pub fn main() -> Result<()> {
 
             swh_graph::compress::orc::iter_swhids(&dataset_dir)
                 .unique_sort_to_dir(target_dir, "swhids.txt", &temp_dir(), pl, &[])
+                .context("Sorting failed")?;
+        }
+        Commands::ExtractLabels {
+            format: DatasetFormat::Orc,
+            allowed_nodes_types,
+            dataset_dir,
+            target_dir,
+        } => {
+            use swh_graph::utils::sort::Sortable;
+            let _ = parse_allowed_node_types(&allowed_nodes_types);
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "arc";
+            pl.local_speed = true;
+            pl.expected_updates =
+                Some(swh_graph::compress::orc::estimate_edge_count(&dataset_dir) as usize);
+            pl.start("Extracting and sorting labels");
+
+            let base64 = base64_simd::STANDARD;
+
+            swh_graph::compress::orc::iter_labels(&dataset_dir)
+                .map(|label| base64.encode_to_string(label).into_bytes())
+                .unique_sort_to_dir(target_dir, "labels.txt", &temp_dir(), pl, &[])
                 .context("Sorting failed")?;
         }
         Commands::NodeStats {
