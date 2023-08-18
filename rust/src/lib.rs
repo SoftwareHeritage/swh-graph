@@ -14,4 +14,6 @@ pub mod map;
 #[cfg(feature = "compression")]
 pub mod compress;
 
+pub mod approximate_bfs;
+
 pub mod utils;

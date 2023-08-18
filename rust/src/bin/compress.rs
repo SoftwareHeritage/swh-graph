@@ -559,11 +559,7 @@ pub fn main() -> Result<()> {
             let graph = webgraph::graph::bvgraph::load(graph_dir)?;
             println!("Graph loaded");
 
-            let order = webgraph::algorithms::BfsOrder::new(&graph);
-
-            // This should be safe because the BFS produces all node exactly once.
-            let permutation: Vec<usize> =
-                unsafe { webgraph::algorithms::invert_permutation_unchecked(order) };
+            let permutation = swh_graph::approximate_bfs::almost_bfs_order(&graph);
 
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "byte";
