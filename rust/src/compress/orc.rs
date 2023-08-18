@@ -97,7 +97,7 @@ pub fn iter_swhids(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = TextSw
         .chain(
             get_dataset_readers(dataset_dir.clone(), "origin_visit_status")
                 .into_par_iter()
-                .flat_map(iter_arcs_from_ovs)
+                .flat_map_iter(iter_arcs_from_ovs)
                 .flat_map_iter(|(src, dst)| [src, dst].into_iter()),
         )
         .chain(
@@ -294,46 +294,45 @@ pub fn iter_arcs(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = (TextSwh
         .chain(
             get_dataset_readers(dataset_dir.clone(), "directory_entry")
                 .into_par_iter()
-                .flat_map(iter_arcs_from_dir_entry),
+                .flat_map_iter(iter_arcs_from_dir_entry),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "origin_visit_status")
                 .into_par_iter()
-                .flat_map(iter_arcs_from_ovs),
+                .flat_map_iter(iter_arcs_from_ovs),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "release")
                 .into_par_iter()
-                .flat_map(iter_arcs_from_rel),
+                .flat_map_iter(iter_arcs_from_rel),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "revision")
                 .into_par_iter()
-                .flat_map(iter_arcs_from_rev),
+                .flat_map_iter(iter_arcs_from_rev),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "revision_history")
                 .into_par_iter()
-                .flat_map(iter_arcs_from_rev_history),
+                .flat_map_iter(iter_arcs_from_rev_history),
         )
         .chain(
             get_dataset_readers(dataset_dir.clone(), "snapshot_branch")
                 .into_par_iter()
-                .flat_map(iter_arcs_from_snp_branch),
+                .flat_map_iter(iter_arcs_from_snp_branch),
         )
 }
 
-fn map_arcs<T: OrcDeserialize + CheckableKind + OrcStruct + Clone + Send, F>(
+fn map_arcs<T: OrcDeserialize + CheckableKind + OrcStruct + Clone, F>(
     reader: Reader,
     f: F,
-) -> impl ParallelIterator<Item = (TextSwhid, TextSwhid)>
+) -> impl Iterator<Item = (TextSwhid, TextSwhid)>
 where
-    F: Fn(T) -> Option<(String, String)> + Send + Sync,
+    F: Fn(T) -> Option<(String, String)>,
 {
     RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
         .expect("Could not open row reader")
         .expect("Unexpected schema")
-        .par_bridge()
         .flat_map(f)
         .map(|(src_swhid, dst_swhid)| {
             (
@@ -343,9 +342,7 @@ where
         })
 }
 
-fn iter_arcs_from_dir_entry(
-    reader: Reader,
-) -> impl ParallelIterator<Item = (TextSwhid, TextSwhid)> {
+fn iter_arcs_from_dir_entry(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct DirectoryEntry {
         directory_id: String,
@@ -366,7 +363,7 @@ fn iter_arcs_from_dir_entry(
     })
 }
 
-fn iter_arcs_from_ovs(reader: Reader) -> impl ParallelIterator<Item = (TextSwhid, TextSwhid)> {
+fn iter_arcs_from_ovs(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct OriginVisitStatus {
         origin: String,
@@ -388,7 +385,7 @@ fn iter_arcs_from_ovs(reader: Reader) -> impl ParallelIterator<Item = (TextSwhid
     })
 }
 
-fn iter_arcs_from_rel(reader: Reader) -> impl ParallelIterator<Item = (TextSwhid, TextSwhid)> {
+fn iter_arcs_from_rel(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct Release {
         id: String,
@@ -410,7 +407,7 @@ fn iter_arcs_from_rel(reader: Reader) -> impl ParallelIterator<Item = (TextSwhid
     })
 }
 
-fn iter_arcs_from_rev(reader: Reader) -> impl ParallelIterator<Item = (TextSwhid, TextSwhid)> {
+fn iter_arcs_from_rev(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct Revision {
         id: String,
@@ -425,9 +422,7 @@ fn iter_arcs_from_rev(reader: Reader) -> impl ParallelIterator<Item = (TextSwhid
     })
 }
 
-fn iter_arcs_from_rev_history(
-    reader: Reader,
-) -> impl ParallelIterator<Item = (TextSwhid, TextSwhid)> {
+fn iter_arcs_from_rev_history(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct RevisionParent {
         id: String,
@@ -442,9 +437,7 @@ fn iter_arcs_from_rev_history(
     })
 }
 
-fn iter_arcs_from_snp_branch(
-    reader: Reader,
-) -> impl ParallelIterator<Item = (TextSwhid, TextSwhid)> {
+fn iter_arcs_from_snp_branch(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(OrcDeserialize, Default, Clone)]
     struct SnapshotBranch {
         snapshot_id: String,
