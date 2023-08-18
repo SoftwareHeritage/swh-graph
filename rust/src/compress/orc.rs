@@ -159,8 +159,8 @@ fn iter_swhids_from_dir_entry(reader: Reader) -> impl ParallelIterator<Item = Te
         target: String,
     }
 
-    map_swhids(reader, |entry: Option<DirectoryEntry>| {
-        entry.as_ref().map(|entry| match entry.r#type.as_bytes() {
+    map_swhids(reader, |entry: DirectoryEntry| {
+        Some(match entry.r#type.as_bytes() {
             b"file" => format!("swh:1:cnt:{}", entry.target),
             b"dir" => format!("swh:1:dir:{}", entry.target),
             b"rev" => format!("swh:1:rev:{}", entry.target),
@@ -216,16 +216,14 @@ fn iter_target_swhids_from_rel(reader: Reader) -> impl ParallelIterator<Item = T
         target_type: String,
     }
 
-    map_swhids(reader, |entry: Option<Release>| {
-        entry
-            .as_ref()
-            .map(|entry| match entry.target_type.as_bytes() {
-                b"content" => format!("swh:1:cnt:{}", entry.target),
-                b"directory" => format!("swh:1:dir:{}", entry.target),
-                b"revision" => format!("swh:1:rev:{}", entry.target),
-                b"release" => format!("swh:1:rel:{}", entry.target),
-                _ => panic!("Unexpected release target type: {:?}", entry.target_type),
-            })
+    map_swhids(reader, |entry: Release| {
+        Some(match entry.target_type.as_bytes() {
+            b"content" => format!("swh:1:cnt:{}", entry.target),
+            b"directory" => format!("swh:1:dir:{}", entry.target),
+            b"revision" => format!("swh:1:rev:{}", entry.target),
+            b"release" => format!("swh:1:rel:{}", entry.target),
+            _ => panic!("Unexpected release target type: {:?}", entry.target_type),
+        })
     })
 }
 
@@ -280,17 +278,15 @@ fn iter_swhids_from_snp_branch(reader: Reader) -> impl ParallelIterator<Item = T
         target_type: String,
     }
 
-    map_swhids(reader, |branch: Option<SnapshotBranch>| {
-        branch
-            .as_ref()
-            .and_then(|branch| match branch.target_type.as_bytes() {
-                b"content" => Some(format!("swh:1:cnt:{}", branch.target)),
-                b"directory" => Some(format!("swh:1:dir:{}", branch.target)),
-                b"revision" => Some(format!("swh:1:rev:{}", branch.target)),
-                b"release" => Some(format!("swh:1:rel:{}", branch.target)),
-                b"alias" => None,
-                _ => panic!("Unexpected snapshot target type: {:?}", branch.target_type),
-            })
+    map_swhids(reader, |branch: SnapshotBranch| {
+        match branch.target_type.as_bytes() {
+            b"content" => Some(format!("swh:1:cnt:{}", branch.target)),
+            b"directory" => Some(format!("swh:1:dir:{}", branch.target)),
+            b"revision" => Some(format!("swh:1:rev:{}", branch.target)),
+            b"release" => Some(format!("swh:1:rel:{}", branch.target)),
+            b"alias" => None,
+            _ => panic!("Unexpected snapshot target type: {:?}", branch.target_type),
+        }
     })
 }
 pub fn iter_arcs(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = (TextSwhid, TextSwhid)> {
@@ -354,18 +350,16 @@ fn iter_arcs_from_dir_entry(reader: Reader) -> impl Iterator<Item = (TextSwhid, 
         target: String,
     }
 
-    map_arcs(reader, |entry: Option<DirectoryEntry>| {
-        entry.as_ref().map(|entry| {
-            (
-                format!("swh:1:dir:{}", entry.directory_id),
-                match entry.r#type.as_bytes() {
-                    b"file" => format!("swh:1:cnt:{}", entry.target),
-                    b"dir" => format!("swh:1:dir:{}", entry.target),
-                    b"rev" => format!("swh:1:rev:{}", entry.target),
-                    _ => panic!("Unexpected directory entry type: {:?}", entry.r#type),
-                },
-            )
-        })
+    map_arcs(reader, |entry: DirectoryEntry| {
+        Some((
+            format!("swh:1:dir:{}", entry.directory_id),
+            match entry.r#type.as_bytes() {
+                b"file" => format!("swh:1:cnt:{}", entry.target),
+                b"dir" => format!("swh:1:dir:{}", entry.target),
+                b"rev" => format!("swh:1:rev:{}", entry.target),
+                _ => panic!("Unexpected directory entry type: {:?}", entry.r#type),
+            },
+        ))
     })
 }
 
@@ -399,19 +393,17 @@ fn iter_arcs_from_rel(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSw
         target_type: String,
     }
 
-    map_arcs(reader, |entry: Option<Release>| {
-        entry.as_ref().map(|entry| {
-            (
-                format!("swh:1:rel:{}", entry.id),
-                match entry.target_type.as_bytes() {
-                    b"content" => format!("swh:1:cnt:{}", entry.target),
-                    b"directory" => format!("swh:1:dir:{}", entry.target),
-                    b"revision" => format!("swh:1:rev:{}", entry.target),
-                    b"release" => format!("swh:1:rel:{}", entry.target),
-                    _ => panic!("Unexpected release target type: {:?}", entry.target_type),
-                },
-            )
-        })
+    map_arcs(reader, |entry: Release| {
+        Some((
+            format!("swh:1:rel:{}", entry.id),
+            match entry.target_type.as_bytes() {
+                b"content" => format!("swh:1:cnt:{}", entry.target),
+                b"directory" => format!("swh:1:dir:{}", entry.target),
+                b"revision" => format!("swh:1:rev:{}", entry.target),
+                b"release" => format!("swh:1:rel:{}", entry.target),
+                _ => panic!("Unexpected release target type: {:?}", entry.target_type),
+            },
+        ))
     })
 }
 
@@ -453,18 +445,16 @@ fn iter_arcs_from_snp_branch(reader: Reader) -> impl Iterator<Item = (TextSwhid,
         target_type: String,
     }
 
-    map_arcs(reader, |entry: Option<SnapshotBranch>| {
-        entry.as_ref().and_then(|branch| {
-            let dst = match branch.target_type.as_bytes() {
-                b"content" => Some(format!("swh:1:cnt:{}", branch.target)),
-                b"directory" => Some(format!("swh:1:dir:{}", branch.target)),
-                b"revision" => Some(format!("swh:1:rev:{}", branch.target)),
-                b"release" => Some(format!("swh:1:rel:{}", branch.target)),
-                b"alias" => None,
-                _ => panic!("Unexpected snapshot target type: {:?}", branch.target_type),
-            };
-            dst.map(|dst| (format!("swh:1:snp:{}", branch.snapshot_id), dst))
-        })
+    map_arcs(reader, |branch: SnapshotBranch| {
+        let dst = match branch.target_type.as_bytes() {
+            b"content" => Some(format!("swh:1:cnt:{}", branch.target)),
+            b"directory" => Some(format!("swh:1:dir:{}", branch.target)),
+            b"revision" => Some(format!("swh:1:rev:{}", branch.target)),
+            b"release" => Some(format!("swh:1:rel:{}", branch.target)),
+            b"alias" => None,
+            _ => panic!("Unexpected snapshot target type: {:?}", branch.target_type),
+        };
+        dst.map(|dst| (format!("swh:1:snp:{}", branch.snapshot_id), dst))
     })
 }
 
@@ -526,20 +516,18 @@ fn count_edge_types_from_dir(reader: Reader) -> EdgeStats {
         r#type: String,
     }
 
-    for_each_edge(reader, |entry: Option<DirectoryEntry>| {
-        if let Some(entry) = entry {
-            match entry.r#type.as_bytes() {
-                b"file" => {
-                    inc(&mut stats, SWHType::Directory, SWHType::Content);
-                }
-                b"dir" => {
-                    inc(&mut stats, SWHType::Directory, SWHType::Directory);
-                }
-                b"rev" => {
-                    inc(&mut stats, SWHType::Directory, SWHType::Revision);
-                }
-                _ => panic!("Unexpected directory entry type: {:?}", entry.r#type),
+    for_each_edge(reader, |entry: DirectoryEntry| {
+        match entry.r#type.as_bytes() {
+            b"file" => {
+                inc(&mut stats, SWHType::Directory, SWHType::Content);
             }
+            b"dir" => {
+                inc(&mut stats, SWHType::Directory, SWHType::Directory);
+            }
+            b"rev" => {
+                inc(&mut stats, SWHType::Directory, SWHType::Revision);
+            }
+            _ => panic!("Unexpected directory entry type: {:?}", entry.r#type),
         }
     });
 
@@ -586,23 +574,21 @@ fn count_edge_types_from_rel(reader: Reader) -> EdgeStats {
         target_type: String,
     }
 
-    for_each_edge(reader, |entry: Option<Release>| {
-        if let Some(entry) = entry {
-            match entry.target_type.as_bytes() {
-                b"content" => {
-                    inc(&mut stats, SWHType::Release, SWHType::Content);
-                }
-                b"directory" => {
-                    inc(&mut stats, SWHType::Release, SWHType::Directory);
-                }
-                b"revision" => {
-                    inc(&mut stats, SWHType::Release, SWHType::Revision);
-                }
-                b"release" => {
-                    inc(&mut stats, SWHType::Release, SWHType::Release);
-                }
-                _ => panic!("Unexpected directory entry type: {:?}", entry.target_type),
+    for_each_edge(reader, |entry: Release| {
+        match entry.target_type.as_bytes() {
+            b"content" => {
+                inc(&mut stats, SWHType::Release, SWHType::Content);
             }
+            b"directory" => {
+                inc(&mut stats, SWHType::Release, SWHType::Directory);
+            }
+            b"revision" => {
+                inc(&mut stats, SWHType::Release, SWHType::Revision);
+            }
+            b"release" => {
+                inc(&mut stats, SWHType::Release, SWHType::Release);
+            }
+            _ => panic!("Unexpected directory entry type: {:?}", entry.target_type),
         }
     });
 
@@ -617,24 +603,22 @@ fn count_edge_types_from_snp(reader: Reader) -> EdgeStats {
         target_type: String,
     }
 
-    for_each_edge(reader, |branch: Option<SnapshotBranch>| {
-        if let Some(branch) = branch {
-            match branch.target_type.as_bytes() {
-                b"content" => {
-                    inc(&mut stats, SWHType::Snapshot, SWHType::Content);
-                }
-                b"directory" => {
-                    inc(&mut stats, SWHType::Snapshot, SWHType::Directory);
-                }
-                b"revision" => {
-                    inc(&mut stats, SWHType::Snapshot, SWHType::Revision);
-                }
-                b"release" => {
-                    inc(&mut stats, SWHType::Snapshot, SWHType::Release);
-                }
-                b"alias" => {}
-                _ => panic!("Unexpected snapshot branch type: {:?}", branch.target_type),
+    for_each_edge(reader, |branch: SnapshotBranch| {
+        match branch.target_type.as_bytes() {
+            b"content" => {
+                inc(&mut stats, SWHType::Snapshot, SWHType::Content);
             }
+            b"directory" => {
+                inc(&mut stats, SWHType::Snapshot, SWHType::Directory);
+            }
+            b"revision" => {
+                inc(&mut stats, SWHType::Snapshot, SWHType::Revision);
+            }
+            b"release" => {
+                inc(&mut stats, SWHType::Snapshot, SWHType::Release);
+            }
+            b"alias" => {}
+            _ => panic!("Unexpected snapshot branch type: {:?}", branch.target_type),
         }
     });
 
