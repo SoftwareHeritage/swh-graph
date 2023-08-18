@@ -16,7 +16,7 @@ rand = "0.8.5"
 anyhow = {version="1.0.71", features=["backtrace"]}
 mmap-rs = "0.5.0"
 sux = {git = "https://github.com/vigna/sux-rs", rev = "e7c965c4bf6d79998d923c05922b2d231a55b608" }
-webgraph = {git = "https://github.com/vigna/webgraph-rs", rev = "f6ea50101debeec132dfe64fd3fef924b71d583e" }
+webgraph = {git = "https://github.com/progval/webgraph-rs", rev = "2d55f07beb7f0757e945ed3352e56f189b1c86f8" }
 #webgraph = { path = "../../../webgraph-rs" }
 log = "0.4.17"
 libc = "0.2.147"
@@ -37,6 +37,8 @@ thread_local = "1.1.7"
 tempfile = "3.7.1"
 zstd = "0.12"
 num_cpus = "1.16.0"
+byteorder = "1.4.3"
+java-properties = "1.4.1"
 base64-simd = "0.8.0"
 
 [dev-dependencies]

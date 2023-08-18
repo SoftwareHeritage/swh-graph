@@ -17,7 +17,7 @@ use crate::SWHType;
 const SWHID_TXT_SIZE: usize = 50;
 type TextSwhid = [u8; SWHID_TXT_SIZE];
 
-const ORC_BATCH_SIZE: usize = 10_000; // Larger values don't seem to improve throughput
+const ORC_BATCH_SIZE: usize = 1_024; // Larger values don't seem to improve throughput
 
 fn get_dataset_readers(mut dataset_dir: PathBuf, subdirectory: &str) -> Vec<orcxx::reader::Reader> {
     dataset_dir.push("orc");
@@ -623,4 +623,57 @@ fn count_edge_types_from_snp(reader: Reader) -> EdgeStats {
     });
 
     stats
+}
+
+pub fn iter_labels(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = Vec<u8>> {
+    [].into_par_iter()
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "directory_entry")
+                .into_par_iter()
+                .flat_map(iter_labels_from_dir_entry),
+        )
+        .chain(
+            get_dataset_readers(dataset_dir.clone(), "snapshot_branch")
+                .into_par_iter()
+                .flat_map(iter_labels_from_snp_branch),
+        )
+}
+
+fn map_labels<T: OrcDeserialize + CheckableKind + OrcStruct + Clone + Send, F>(
+    reader: Reader,
+    f: F,
+) -> impl ParallelIterator<Item = Vec<u8>>
+where
+    F: Fn(T) -> Option<Vec<u8>> + Send + Sync,
+{
+    RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
+        .expect("Could not open row reader")
+        .expect("Unexpected schema")
+        .par_bridge()
+        .flat_map(f)
+}
+
+fn iter_labels_from_dir_entry(reader: Reader) -> impl ParallelIterator<Item = Vec<u8>> {
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct DirectoryEntry {
+        name: Vec<u8>,
+    }
+
+    map_labels(reader, |entry: DirectoryEntry| Some(entry.name))
+}
+
+fn iter_labels_from_snp_branch(reader: Reader) -> impl ParallelIterator<Item = Vec<u8>> {
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct SnapshotBranch {
+        name: Vec<u8>,
+        target_type: String,
+    }
+
+    map_labels(reader, |branch: SnapshotBranch| {
+        match branch.target_type.as_bytes() {
+            b"content" | b"directory" | b"revision" | b"release" => Some(branch.name),
+            b"alias" => None,
+            _ => panic!("Unexpected snapshot branch type: {:?}", branch.target_type),
+        }
+    })
 }

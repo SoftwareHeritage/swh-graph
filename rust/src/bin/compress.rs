@@ -12,6 +12,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
+use byteorder::{ByteOrder, LittleEndian};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
@@ -84,9 +85,20 @@ enum Commands {
         allowed_nodes_types: String,
         #[arg(long)]
         mph: PathBuf,
+        #[arg(long)]
         num_nodes: usize,
         dataset_dir: PathBuf,
         target_dir: PathBuf,
+    },
+    /// Computes the .offsets and .ef files for the given BVGraph
+    BvOffsets {
+        graph_dir: PathBuf,
+        ef_path: PathBuf,
+    },
+    /// Runs a BFS on the initial BVGraph to group similar node ids together
+    Bfs {
+        graph_dir: PathBuf,
+        target_order: PathBuf,
     },
 
     HashSwhids {
@@ -351,6 +363,9 @@ pub fn main() -> Result<()> {
             use itertools::Itertools;
             use std::cell::UnsafeCell;
             use swh_graph::compress::orc::*;
+
+            let _ = parse_allowed_node_types(&allowed_nodes_types);
+
             let file =
                 File::open(&mph).with_context(|| format!("Cannot read {}", mph.display()))?;
             println!("Reading MPH");
@@ -470,6 +485,109 @@ pub fn main() -> Result<()> {
             .context("Could not build BVGraph from arcs")?;
 
             pl.lock().unwrap().done();
+        }
+
+        Commands::BvOffsets { graph_dir, ef_path } => {
+            use std::io::BufReader;
+            use std::io::{BufWriter, Seek};
+            use sux::prelude::*;
+            let graph_dir2 = graph_dir.to_string_lossy();
+            // Adapted from https://github.com/vigna/webgraph-rs/blob/c43563de15e30d4ee1f7a4f0096f6479b81eb26a/src/bin/build_eliasfano.rs
+            let f = File::open(format!("{}.properties", graph_dir2))
+                .context("Could not open .properties")?;
+            let map =
+                java_properties::read(BufReader::new(f)).context("Could not parse .properties")?;
+            let num_nodes = map
+                .get("nodes")
+                .unwrap()
+                .parse::<u64>()
+                .context("Could not get number of nodes")?;
+
+            let mut file =
+                File::open(format!("{}.graph", graph_dir2)).context("Could not open .graph")?;
+            let file_len = 8 * file
+                .seek(std::io::SeekFrom::End(0))
+                .context("Could not seek through .graph")?;
+
+            let mut efb = EliasFanoBuilder::new(file_len, num_nodes + 1);
+
+            let mut ef_file = BufWriter::new(File::create(ef_path).context("Could not open .ef")?);
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.expected_updates = Some(num_nodes as _);
+            pl.item_name = "offset";
+
+            let seq_graph =
+                webgraph::graph::bvgraph::load_seq(&graph_dir).context("Could not load BVGraph")?;
+            let seq_graph =
+                seq_graph.map_codes_reader_builder(DynamicCodesReaderSkipperBuilder::from);
+            pl.start("Building EliasFano...");
+            // read the graph a write the offsets
+            for (new_offset, _node_id, _degree) in seq_graph.iter_degrees() {
+                // write where
+                efb.push(new_offset as _)
+                    .context("Could not push EF offset")?;
+                // decode the next nodes so we know where the next node_id starts
+                pl.light_update();
+            }
+            pl.done();
+
+            let ef = efb.build();
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.start("Building the Index over the ones in the high-bits...");
+            let ef: EliasFano<SparseIndex<BitMap<_>, _, 8>, CompactArray<_>> =
+                ef.convert_to().unwrap();
+            pl.done();
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.start("Writing to disk...");
+            ef.serialize(&mut ef_file)?;
+            pl.done();
+        }
+
+        Commands::Bfs {
+            graph_dir,
+            target_order,
+        } => {
+            use std::io::Write;
+
+            let mut permut_file = File::create(&target_order)
+                .with_context(|| format!("Could not open {}", target_order.display()))?;
+
+            println!("Loading graph");
+            let graph = webgraph::graph::bvgraph::load(graph_dir)?;
+            println!("Graph loaded");
+
+            let order = webgraph::algorithms::BfsOrder::new(&graph);
+
+            // This should be safe because the BFS produces all node exactly once.
+            let permutation: Vec<usize> =
+                unsafe { webgraph::algorithms::invert_permutation_unchecked(order) };
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "byte";
+            pl.local_speed = true;
+            pl.expected_updates = Some(graph.num_nodes() * 8);
+            pl.start("Writing permutation");
+
+            let chunk_size = 1_000_000; // 1M of u64 -> 8MB
+            let mut buf = vec![0u8; chunk_size * 8];
+            for chunk in permutation.chunks(chunk_size) {
+                let buf_slice = &mut buf[..chunk.len() * 8]; // no-op except for the last chunk
+                if usize::BITS == u64::BITS {
+                    LittleEndian::write_u64_into(unsafe { std::mem::transmute(chunk) }, buf_slice);
+                } else if usize::BITS == u32::BITS {
+                    LittleEndian::write_u32_into(unsafe { std::mem::transmute(chunk) }, buf_slice);
+                } else {
+                    todo!("usize::BITS == {}", usize::BITS);
+                }
+                permut_file
+                    .write_all(buf_slice)
+                    .context("Could not write permutation")?;
+                pl.update_with_count(chunk.len() * 8);
+            }
+            pl.done();
         }
 
         Commands::HashSwhids { swhids, mph } => {

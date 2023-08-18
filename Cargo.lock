@@ -1538,10 +1538,12 @@ dependencies = [
  "anyhow",
  "base64-simd",
  "bitvec",
+ "byteorder",
  "clap",
  "dsi-progress-logger",
  "faster-hex",
  "itertools",
+ "java-properties",
  "libc",
  "log",
  "mmap-rs",
@@ -1814,7 +1816,7 @@ checksum = "ca6ad05a4870b2bf5fe995117d3728437bd27d7cd5f06f13c17443ef369775a1"
 [[package]]
 name = "webgraph"
 version = "0.1.0"
-source = "git+https://github.com/vigna/webgraph-rs?rev=f6ea50101debeec132dfe64fd3fef924b71d583e#f6ea50101debeec132dfe64fd3fef924b71d583e"
+source = "git+https://github.com/progval/webgraph-rs?rev=2d55f07beb7f0757e945ed3352e56f189b1c86f8#2d55f07beb7f0757e945ed3352e56f189b1c86f8"
 dependencies = [
  "anyhow",
  "bindgen",
