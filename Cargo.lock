@@ -1540,6 +1540,7 @@ dependencies = [
  "bitvec",
  "byteorder",
  "clap",
+ "dsi-bitstream",
  "dsi-progress-logger",
  "faster-hex",
  "itertools",
@@ -1816,7 +1817,7 @@ checksum = "ca6ad05a4870b2bf5fe995117d3728437bd27d7cd5f06f13c17443ef369775a1"
 [[package]]
 name = "webgraph"
 version = "0.1.0"
-source = "git+https://github.com/progval/webgraph-rs?rev=2d55f07beb7f0757e945ed3352e56f189b1c86f8#2d55f07beb7f0757e945ed3352e56f189b1c86f8"
+source = "git+https://github.com/vigna/webgraph-rs?rev=5c3b70736fa9a41fac22c98a435df67fd9b31663#5c3b70736fa9a41fac22c98a435df67fd9b31663"
 dependencies = [
  "anyhow",
  "bindgen",

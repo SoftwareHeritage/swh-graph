@@ -7,6 +7,7 @@
 
 use std::env::temp_dir;
 use std::fs::File;
+use std::io::{BufReader, BufWriter, Read, Seek, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -18,6 +19,7 @@ use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
 use rayon::prelude::*;
 use swh_graph::SWHType;
+use tempfile;
 use webgraph::prelude::*;
 
 #[derive(Parser, Debug)]
@@ -99,6 +101,15 @@ enum Commands {
     Bfs {
         graph_dir: PathBuf,
         target_order: PathBuf,
+    },
+    /// Uses the permutation produced by the BFS to reorder nodes in the graph
+    /// to get a more compressible graph
+    PermuteBfs {
+        #[arg(long)]
+        batch_size: usize,
+        graph_dir: PathBuf,
+        permutation: PathBuf,
+        target_dir: PathBuf,
     },
 
     HashSwhids {
@@ -187,8 +198,6 @@ pub fn main() -> Result<()> {
 
             let _ = parse_allowed_node_types(&allowed_nodes_types);
 
-            use std::io::Write;
-
             let mut stats_file = File::create(&target_stats)
                 .with_context(|| format!("Could not open {}", target_stats.display()))?;
             let mut count_file = File::create(&target_count)
@@ -249,8 +258,6 @@ pub fn main() -> Result<()> {
             target_count,
         } => {
             let _ = parse_allowed_node_types(&allowed_nodes_types);
-
-            use std::io::Write;
 
             let mut stats_file = File::create(&target_stats)
                 .with_context(|| format!("Could not open {}", target_stats.display()))?;
@@ -369,8 +376,8 @@ pub fn main() -> Result<()> {
             let file =
                 File::open(&mph).with_context(|| format!("Cannot read {}", mph.display()))?;
             println!("Reading MPH");
-            let mph = fmph::Function::read(&mut std::io::BufReader::new(file))
-                .context("Could not parse mph")?;
+            let mph =
+                fmph::Function::read(&mut BufReader::new(file)).context("Could not parse mph")?;
             println!("MPH loaded, sorting arcs");
 
             let mut pl = ProgressLogger::default().display_memory();
@@ -384,7 +391,8 @@ pub fn main() -> Result<()> {
             let pl = Mutex::new(pl);
             let batch_size = 10_000_000; // SortPairs creates one file per batch
             let counters = thread_local::ThreadLocal::new();
-            let sorters: Vec<Result<(u64, SortPairs<()>)>> = iter_arcs(&dataset_dir)
+            let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
+            let sorters: Vec<Result<SortPairs<()>>> = iter_arcs(&dataset_dir)
                 .inspect(|_| {
                     // This is safe because only this thread accesses this and only from
                     // here.
@@ -403,8 +411,8 @@ pub fn main() -> Result<()> {
                     || {
                         use rand::Rng;
                         let sorter_id = rand::thread_rng().gen::<u64>();
-                        let mut sorter_temp_dir = temp_dir();
-                        sorter_temp_dir.push(format!("sort-arcs-{}", sorter_id));
+                        let mut sorter_temp_dir = temp_dir.path().to_owned();
+                        sorter_temp_dir.push(format!("sort-arcs-{:#x}", sorter_id));
                         std::fs::create_dir(&sorter_temp_dir).with_context(|| {
                             format!(
                                 "Could not create temporary directory {}",
@@ -412,14 +420,11 @@ pub fn main() -> Result<()> {
                             )
                         })?;
 
-                        Ok((
-                            sorter_id,
-                            SortPairs::new(batch_size, &sorter_temp_dir)
-                                .context("Could not create SortPairs")?,
-                        ))
+                        Ok(SortPairs::new(batch_size, &sorter_temp_dir)
+                            .context("Could not create SortPairs")?)
                     },
                     |acc, (src, dst)| {
-                        let (sorter_id, mut sorter) = acc?;
+                        let mut sorter = acc?;
                         let src = mph.get(&src).with_context(|| {
                             format!(
                                 "Could not hash {}",
@@ -437,7 +442,7 @@ pub fn main() -> Result<()> {
                         sorter
                             .push(src, dst, ())
                             .context("Could not push arc to sorter")?;
-                        Ok((sorter_id, sorter))
+                        Ok(sorter)
                     },
                 )
                 .collect();
@@ -445,7 +450,7 @@ pub fn main() -> Result<()> {
 
             let mut sorted_arc_lists = Vec::new();
             for acc in sorters {
-                let (_sorter_id, mut sorter) = acc?;
+                let mut sorter = acc?;
                 sorted_arc_lists.push(sorter.iter().context("Could not get sorted arc lists")?);
             }
 
@@ -485,11 +490,11 @@ pub fn main() -> Result<()> {
             .context("Could not build BVGraph from arcs")?;
 
             pl.lock().unwrap().done();
+
+            drop(temp_dir); // Prevent early deletion
         }
 
         Commands::BvOffsets { graph_dir, ef_path } => {
-            use std::io::BufReader;
-            use std::io::{BufWriter, Seek};
             use sux::prelude::*;
             let graph_dir2 = graph_dir.to_string_lossy();
             // Adapted from https://github.com/vigna/webgraph-rs/blob/c43563de15e30d4ee1f7a4f0096f6479b81eb26a/src/bin/build_eliasfano.rs
@@ -550,8 +555,6 @@ pub fn main() -> Result<()> {
             graph_dir,
             target_order,
         } => {
-            use std::io::Write;
-
             let mut permut_file = File::create(&target_order)
                 .with_context(|| format!("Could not open {}", target_order.display()))?;
 
@@ -571,19 +574,150 @@ pub fn main() -> Result<()> {
             let mut buf = vec![0u8; chunk_size * 8];
             for chunk in permutation.chunks(chunk_size) {
                 let buf_slice = &mut buf[..chunk.len() * 8]; // no-op except for the last chunk
-                if usize::BITS == u64::BITS {
-                    BigEndian::write_u64_into(unsafe { std::mem::transmute(chunk) }, buf_slice);
-                } else if usize::BITS == u32::BITS {
-                    BigEndian::write_u32_into(unsafe { std::mem::transmute(chunk) }, buf_slice);
-                } else {
-                    todo!("usize::BITS == {}", usize::BITS);
-                }
+                assert_eq!(
+                    usize::BITS,
+                    u64::BITS,
+                    "Only 64-bits architectures are supported"
+                );
+                BigEndian::write_u64_into(
+                    unsafe { std::mem::transmute::<&[usize], &[u64]>(chunk) },
+                    buf_slice,
+                );
                 permut_file
                     .write_all(buf_slice)
                     .context("Could not write permutation")?;
                 pl.update_with_count(chunk.len() * 8);
             }
             pl.done();
+        }
+        Commands::PermuteBfs {
+            batch_size,
+            graph_dir,
+            permutation,
+            target_dir,
+        } => {
+            use dsi_bitstream::prelude::{BufferedBitStreamWrite, FileBackend, LE};
+
+            // Adapted from https://github.com/vigna/webgraph-rs/blob/08969fb1ac4ea59aafdbae976af8e026a99c9ac5/src/bin/perm.rs
+            println!("Loading graph...");
+            let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
+            let num_nodes = graph.num_nodes();
+
+            println!("Allocating permutation...");
+            assert_eq!(
+                usize::BITS,
+                u64::BITS,
+                "Only 64-bits architectures are supported"
+            );
+            let mut perm = vec![usize::MAX; num_nodes];
+            println!("Loading permutation...");
+            std::fs::File::open(&permutation)
+                .context("Could not open permutation")?
+                .read_exact(unsafe {
+                    std::slice::from_raw_parts_mut(
+                        perm.as_mut_ptr() as *mut u8,
+                        num_nodes * ((usize::BITS / 8) as usize),
+                    )
+                })
+                .context("Could not read permutation")?;
+
+            println!("Decoding permutation...");
+            byteorder::BigEndian::from_slice_u64(unsafe {
+                std::mem::transmute::<&mut [usize], &mut [u64]>(&mut perm[..])
+            });
+
+            println!("Checking permutation...");
+            if let Some((old, new)) = perm
+                .par_iter()
+                .enumerate()
+                .find_any(|&(_old, &new)| new >= num_nodes)
+            {
+                panic!(
+                    "Found node {} has id {} in permutation, graph size is {}",
+                    old, new, num_nodes
+                );
+            }
+            println!("Done.");
+
+            let bit_write =
+                <BufferedBitStreamWrite<LE, _>>::new(<FileBackend<u64, _>>::new(BufWriter::new(
+                    std::fs::File::create(target_dir)
+                        .context("Could not create target graph file")?,
+                )));
+
+            let codes_writer = DynamicCodesWriter::new(bit_write, &CompFlags::default());
+
+            let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "node";
+            pl.expected_updates = Some(num_nodes);
+            pl.local_speed = true;
+            pl.start("Reading and sorting...");
+            let pl = Mutex::new(pl);
+
+            let sorters: Vec<Result<SortPairs<()>>> = (0usize..=((num_nodes - 1) / batch_size))
+                .into_par_iter()
+                .fold(
+                    || {
+                        use rand::Rng;
+                        let sorter_id = rand::thread_rng().gen::<u64>();
+                        let mut sorter_temp_dir = temp_dir.path().to_owned();
+                        sorter_temp_dir.push(format!("sort-arcs-permute-{:#x}", sorter_id));
+                        std::fs::create_dir(&sorter_temp_dir).with_context(|| {
+                            format!(
+                                "Could not create temporary directory {}",
+                                sorter_temp_dir.display()
+                            )
+                        })?;
+
+                        Ok(SortPairs::new(batch_size, &sorter_temp_dir)
+                            .context("Could not create SortPairs")?)
+                    },
+                    |acc, batch_id| {
+                        let mut sorter = acc?;
+                        let start = batch_id * batch_size;
+                        let end = (batch_id + 1) * batch_size;
+                        graph // Not using PermutedGraph in order to avoid blanket iter_nodes_from
+                            .iter_nodes_from(start)
+                            .take_while(|(node_id, _successors)| *node_id < end)
+                            .for_each(|(x, succ)| {
+                                succ.for_each(|s| {
+                                    sorter.push(perm[x], perm[s], ()).unwrap();
+                                })
+                            });
+                        pl.lock().unwrap().update_with_count(end - start);
+                        Ok(sorter)
+                    },
+                )
+                .collect();
+
+            pl.lock().unwrap().done();
+
+            let mut sorted_arc_lists = Vec::new();
+            for acc in sorters {
+                let mut sorter = acc?;
+                sorted_arc_lists.push(sorter.iter().context("Could not get sorted arc lists")?);
+            }
+
+            // Merge sorted arc lists into a single sorted arc list
+            let sorted_arcs = itertools::kmerge(sorted_arc_lists).map(|(src, dst, ())| (src, dst));
+
+            let g = COOIterToGraph::new(num_nodes, sorted_arcs);
+
+            let mut bvcomp = BVComp::new(codes_writer, 1, 4, 3, 0);
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "node";
+            pl.expected_updates = Some(num_nodes);
+            pl.local_speed = true;
+            pl.start("Writing...");
+            bvcomp
+                .extend(g.iter_nodes())
+                .context("Could not write to BVGraph")?;
+            bvcomp.flush().context("Could not flush BVGraph")?;
+            pl.done();
+
+            drop(temp_dir); // Prevent early deletion
         }
 
         Commands::HashSwhids { swhids, mph } => {
