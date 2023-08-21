@@ -82,22 +82,30 @@ pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(graph: &'a G) ->
 
         // "Concatenate" orders from each thread.
         let mut order = vec![usize::MAX; num_nodes];
-        let mut offset = 0;
+        let mut i = 0;
         for handle in handles {
             let thread_order: Vec<usize> = handle.join().expect("Error in BFS thread");
-            let next_offset = offset + thread_order.len();
-            for (i, node) in thread_order.into_iter().enumerate() {
-                order[node] = offset + i;
+            for node in thread_order.into_iter() {
+                if order[node] == usize::MAX {
+                    order[node] = i;
+                    i += 1
+                }
             }
-            offset = next_offset;
         }
 
-        if let Some(uninitialized_node) = order
+        if let Some((uninitialized_node, _)) = order
             .par_iter()
-            .find_any(|&&node_order| node_order == usize::MAX)
+            .enumerate()
+            .find_any(|&(_node, &node_order)| node_order == usize::MAX)
         {
             panic!("Node {} was not initialized by the BFS", uninitialized_node);
         }
+
+        assert_eq!(
+            i, num_nodes,
+            "graph has {} nodes, permutation has {}",
+            num_nodes, i
+        );
 
         pl.lock().unwrap().done();
 
