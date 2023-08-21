@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex};
 
 use dsi_progress_logger::ProgressLogger;
 use num_cpus;
+use rayon::prelude::*;
 use webgraph::prelude::*;
 
 pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(graph: &'a G) -> Vec<usize> {
@@ -89,6 +90,13 @@ pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(graph: &'a G) ->
                 order[node] = offset + i;
             }
             offset = next_offset;
+        }
+
+        if let Some(uninitialized_node) = order
+            .par_iter()
+            .find_any(|&&node_order| node_order == usize::MAX)
+        {
+            panic!("Node {} was not initialized by the BFS", uninitialized_node);
         }
 
         pl.lock().unwrap().done();

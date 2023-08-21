@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::{BigEndian, ByteOrder};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
@@ -572,9 +572,9 @@ pub fn main() -> Result<()> {
             for chunk in permutation.chunks(chunk_size) {
                 let buf_slice = &mut buf[..chunk.len() * 8]; // no-op except for the last chunk
                 if usize::BITS == u64::BITS {
-                    LittleEndian::write_u64_into(unsafe { std::mem::transmute(chunk) }, buf_slice);
+                    BigEndian::write_u64_into(unsafe { std::mem::transmute(chunk) }, buf_slice);
                 } else if usize::BITS == u32::BITS {
-                    LittleEndian::write_u32_into(unsafe { std::mem::transmute(chunk) }, buf_slice);
+                    BigEndian::write_u32_into(unsafe { std::mem::transmute(chunk) }, buf_slice);
                 } else {
                     todo!("usize::BITS == {}", usize::BITS);
                 }
