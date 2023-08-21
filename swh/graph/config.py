@@ -1,9 +1,10 @@
-# Copyright (C) 2019-2022  The Software Heritage developers
+# Copyright (C) 2019-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 import logging
+import os.path
 from pathlib import Path
 import sys
 
@@ -76,7 +77,10 @@ def check_config(conf):
         max_ram=conf["max_ram"]
     )
     if "java" not in conf:
-        conf["java"] = "java"
+        if "JAVA_HOME" in os.environ:
+            conf["java"] = os.path.join(os.environ["JAVA_HOME"], "bin", "java")
+        else:
+            conf["java"] = "java"
     if "classpath" not in conf:
         conf["classpath"] = find_graph_jar()
     if "object_types" not in conf:
