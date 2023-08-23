@@ -181,6 +181,10 @@ impl<Line: IntoIterator<Item = u8>, T: ParallelIterator<Item = Line>> Sortable<L
 
 /// Given an iterator and a function to insert its items to [`SortPairs`], returns an
 /// iterator of pairs.
+///
+/// # Panics
+///
+/// When the temp_dir is not writeable
 pub fn par_sort_arcs<Item, Iter, F>(
     temp_dir: &Path,
     iter: Iter,
@@ -190,34 +194,43 @@ where
     F: Fn(&mut SortPairs<()>, Item) -> Result<()> + Send + Sync,
     Iter: ParallelIterator<Item = Item>,
 {
+    let sorters = thread_local::ThreadLocal::new();
     let batch_size = 10_000_000; // SortPairs creates one file per batch
-    let sorters: Vec<Result<SortPairs<()>>> = iter
-        .fold(
-            || {
+    iter.try_for_each(|item| {
+        let sorter = sorters
+            .get_or(|| {
                 use rand::Rng;
                 let sorter_id = rand::thread_rng().gen::<u64>();
                 let mut sorter_temp_dir = temp_dir.to_owned();
                 sorter_temp_dir.push(format!("sort-arcs-permute-{:#x}", sorter_id));
-                std::fs::create_dir(&sorter_temp_dir).with_context(|| {
-                    format!(
-                        "Could not create temporary directory {}",
-                        sorter_temp_dir.display()
-                    )
-                })?;
+                std::fs::create_dir(&sorter_temp_dir)
+                    .with_context(|| {
+                        format!(
+                            "Could not create temporary directory {}",
+                            sorter_temp_dir.display()
+                        )
+                    })
+                    .unwrap();
 
-                Ok(SortPairs::new(batch_size, &sorter_temp_dir)
-                    .context("Could not create SortPairs")?)
-            },
-            |acc, item| {
-                let mut sorter = acc?;
-                f(&mut sorter, item)?;
-                Ok(sorter)
-            },
-        )
-        .collect();
+                UnsafeCell::new(
+                    SortPairs::new(batch_size, &sorter_temp_dir)
+                        .context("Could not create SortPairs")
+                        .unwrap(),
+                )
+            })
+            .get();
+
+        // This is safe because the main thread won't access this until this
+        // one ends, and other threads don't access it.
+        let sorter: &mut SortPairs<()> = unsafe { &mut *sorter };
+        f(sorter, item)?;
+        Ok::<(), anyhow::Error>(())
+    })?;
     let mut sorted_arc_lists = Vec::new();
-    for acc in sorters {
-        let mut sorter = acc?;
+    for sorter in sorters {
+        // This is safe because other threads ended
+        let sorter = unsafe { &mut *sorter.get() };
+
         sorted_arc_lists.push(sorter.iter().context("Could not get sorted arc lists")?);
     }
 
