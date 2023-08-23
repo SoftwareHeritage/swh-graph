@@ -4,4 +4,5 @@
 // See top-level LICENSE file for more information
 
 pub mod orc;
+pub mod transform;
 pub mod zst_dir;

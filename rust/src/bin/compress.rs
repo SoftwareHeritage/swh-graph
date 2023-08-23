@@ -113,6 +113,13 @@ enum Commands {
         permutation: PathBuf,
         target_dir: PathBuf,
     },
+    /// Produces a new graph by inverting the direction of all arcs in the source graph
+    Transpose {
+        #[arg(long)]
+        batch_size: usize,
+        graph_dir: PathBuf,
+        target_dir: PathBuf,
+    },
 
     HashSwhids {
         mph: PathBuf,
@@ -573,10 +580,8 @@ pub fn main() -> Result<()> {
             permutation,
             target_dir,
         } => {
-            use dsi_bitstream::prelude::{BufferedBitStreamWrite, FileBackend, LE};
+            use swh_graph::compress::transform::transform;
 
-            // Adapted from https://github.com/vigna/webgraph-rs/blob/08969fb1ac4ea59aafdbae976af8e026a99c9ac5/src/bin/perm.rs
-            println!("Loading graph...");
             let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
             let num_nodes = graph.num_nodes();
 
@@ -613,58 +618,23 @@ pub fn main() -> Result<()> {
             }
             println!("Done.");
 
-            let bit_write =
-                <BufferedBitStreamWrite<LE, _>>::new(<FileBackend<u64, _>>::new(BufWriter::new(
-                    std::fs::File::create(target_dir)
-                        .context("Could not create target graph file")?,
-                )));
-
-            let codes_writer = DynamicCodesWriter::new(bit_write, &CompFlags::default());
-
-            let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
-
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "node";
-            pl.expected_updates = Some(num_nodes);
-            pl.local_speed = true;
-            pl.start("Reading and sorting...");
-            let pl = Mutex::new(pl);
-
-            // Merge sorted arc lists into a single sorted arc list
-            let sorted_arcs = par_sort_arcs(
-                temp_dir.path(),
-                (0usize..=((num_nodes - 1) / batch_size)).into_par_iter(),
-                |sorter, batch_id| {
-                    let start = batch_id * batch_size;
-                    let end = (batch_id + 1) * batch_size;
-                    graph // Not using PermutedGraph in order to avoid blanket iter_nodes_from
-                        .iter_nodes_from(start)
-                        .take_while(|(node_id, _successors)| *node_id < end)
-                        .for_each(|(x, succ)| {
-                            succ.for_each(|s| {
-                                sorter.push(perm[x], perm[s], ()).unwrap();
-                            })
-                        });
-                    pl.lock().unwrap().update_with_count(end - start);
-                    Ok(())
-                },
+            transform(
+                batch_size,
+                graph,
+                |src, dst| (perm[src], perm[dst]),
+                target_dir,
             )?;
+        }
+        Commands::Transpose {
+            batch_size,
+            graph_dir,
+            target_dir,
+        } => {
+            use swh_graph::compress::transform::transform;
 
-            let g = COOIterToGraph::new(num_nodes, sorted_arcs);
+            let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
 
-            let mut bvcomp = BVComp::new(codes_writer, 1, 4, 3, 0);
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "node";
-            pl.expected_updates = Some(num_nodes);
-            pl.local_speed = true;
-            pl.start("Writing...");
-            bvcomp
-                .extend(g.iter_nodes())
-                .context("Could not write to BVGraph")?;
-            bvcomp.flush().context("Could not flush BVGraph")?;
-            pl.done();
-
-            drop(temp_dir); // Prevent early deletion
+            transform(batch_size, graph, |src, dst| (dst, src), target_dir)?;
         }
 
         Commands::HashSwhids { swhids, mph } => {
