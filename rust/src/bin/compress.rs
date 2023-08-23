@@ -102,9 +102,9 @@ enum Commands {
         graph_dir: PathBuf,
         target_order: PathBuf,
     },
-    /// Uses the permutation produced by the BFS to reorder nodes in the graph
+    /// Uses the permutation produced by the BFS or LLP to reorder nodes in the graph
     /// to get a more compressible graph
-    PermuteBfs {
+    Permute {
         #[arg(long)]
         batch_size: usize,
         graph_dir: PathBuf,
@@ -590,7 +590,7 @@ pub fn main() -> Result<()> {
             }
             pl.done();
         }
-        Commands::PermuteBfs {
+        Commands::Permute {
             batch_size,
             graph_dir,
             permutation,
