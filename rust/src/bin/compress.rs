@@ -579,23 +579,26 @@ pub fn main() -> Result<()> {
             let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
             let num_nodes = graph.num_nodes();
 
-            println!("Allocating permutation...");
             assert_eq!(
                 usize::BITS,
                 u64::BITS,
                 "Only 64-bits architectures are supported"
             );
-            let mut perm = vec![usize::MAX; num_nodes];
+            let mut perm = Vec::with_capacity(num_nodes);
+
             println!("Loading permutation...");
             std::fs::File::open(&permutation)
                 .context("Could not open permutation")?
                 .read_exact(unsafe {
                     std::slice::from_raw_parts_mut(
-                        perm.as_mut_ptr() as *mut u8,
+                        perm.spare_capacity_mut().as_mut_ptr() as *mut u8,
                         num_nodes * ((usize::BITS / 8) as usize),
                     )
                 })
                 .context("Could not read permutation")?;
+
+            // read_exact() checked the length
+            unsafe { perm.set_len(num_nodes) };
 
             println!("Decoding permutation...");
             byteorder::BigEndian::from_slice_u64(unsafe {
