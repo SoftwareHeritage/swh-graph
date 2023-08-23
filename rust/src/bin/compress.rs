@@ -18,6 +18,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
 use rayon::prelude::*;
+use swh_graph::utils::sort::par_sort_arcs;
 use swh_graph::SWHType;
 use tempfile;
 use webgraph::prelude::*;
@@ -389,11 +390,11 @@ pub fn main() -> Result<()> {
 
             // Sort in parallel in a bunch of SortPairs instances
             let pl = Mutex::new(pl);
-            let batch_size = 10_000_000; // SortPairs creates one file per batch
             let counters = thread_local::ThreadLocal::new();
             let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
-            let sorters: Vec<Result<SortPairs<()>>> = iter_arcs(&dataset_dir)
-                .inspect(|_| {
+            let sorted_arcs = par_sort_arcs(
+                temp_dir.path(),
+                iter_arcs(&dataset_dir).inspect(|_| {
                     // This is safe because only this thread accesses this and only from
                     // here.
                     let counter = counters.get_or(|| UnsafeCell::new(0));
@@ -406,56 +407,31 @@ pub fn main() -> Result<()> {
                         pl.lock().unwrap().update_with_count(32768);
                         *counter = 0
                     }
-                })
-                .fold(
-                    || {
-                        use rand::Rng;
-                        let sorter_id = rand::thread_rng().gen::<u64>();
-                        let mut sorter_temp_dir = temp_dir.path().to_owned();
-                        sorter_temp_dir.push(format!("sort-arcs-{:#x}", sorter_id));
-                        std::fs::create_dir(&sorter_temp_dir).with_context(|| {
-                            format!(
-                                "Could not create temporary directory {}",
-                                sorter_temp_dir.display()
-                            )
-                        })?;
-
-                        Ok(SortPairs::new(batch_size, &sorter_temp_dir)
-                            .context("Could not create SortPairs")?)
-                    },
-                    |acc, (src, dst)| {
-                        let mut sorter = acc?;
-                        let src = mph.get(&src).with_context(|| {
-                            format!(
-                                "Could not hash {}",
-                                std::str::from_utf8(&src).unwrap_or(&format!("{:?}", src))
-                            )
-                        })? as usize;
-                        let dst = mph.get(&dst).with_context(|| {
-                            format!(
-                                "Could not hash {}",
-                                std::str::from_utf8(&dst).unwrap_or(&format!("{:?}", dst))
-                            )
-                        })? as usize;
-                        assert!(src < num_nodes, "src node id is greater than {}", num_nodes);
-                        assert!(dst < num_nodes, "dst node id is greater than {}", num_nodes);
-                        sorter
-                            .push(src, dst, ())
-                            .context("Could not push arc to sorter")?;
-                        Ok(sorter)
-                    },
-                )
-                .collect();
+                }),
+                |sorter, (src, dst)| {
+                    let src = mph.get(&src).with_context(|| {
+                        format!(
+                            "Could not hash {}",
+                            std::str::from_utf8(&src).unwrap_or(&format!("{:?}", src))
+                        )
+                    })? as usize;
+                    let dst = mph.get(&dst).with_context(|| {
+                        format!(
+                            "Could not hash {}",
+                            std::str::from_utf8(&dst).unwrap_or(&format!("{:?}", dst))
+                        )
+                    })? as usize;
+                    assert!(src < num_nodes, "src node id is greater than {}", num_nodes);
+                    assert!(dst < num_nodes, "dst node id is greater than {}", num_nodes);
+                    sorter
+                        .push(src, dst, ())
+                        .context("Could not push arc to sorter")?;
+                    Ok(())
+                },
+            )?
+            .dedup()
+            .map(|(src, dst)| (src, dst, ()));
             pl.lock().unwrap().done();
-
-            let mut sorted_arc_lists = Vec::new();
-            for acc in sorters {
-                let mut sorter = acc?;
-                sorted_arc_lists.push(sorter.iter().context("Could not get sorted arc lists")?);
-            }
-
-            // Merge sorted arc lists into a single sorted arc list
-            let sorted_arcs = itertools::kmerge(sorted_arc_lists).dedup();
 
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "node";
@@ -656,52 +632,25 @@ pub fn main() -> Result<()> {
             pl.start("Reading and sorting...");
             let pl = Mutex::new(pl);
 
-            let sorters: Vec<Result<SortPairs<()>>> = (0usize..=((num_nodes - 1) / batch_size))
-                .into_par_iter()
-                .fold(
-                    || {
-                        use rand::Rng;
-                        let sorter_id = rand::thread_rng().gen::<u64>();
-                        let mut sorter_temp_dir = temp_dir.path().to_owned();
-                        sorter_temp_dir.push(format!("sort-arcs-permute-{:#x}", sorter_id));
-                        std::fs::create_dir(&sorter_temp_dir).with_context(|| {
-                            format!(
-                                "Could not create temporary directory {}",
-                                sorter_temp_dir.display()
-                            )
-                        })?;
-
-                        Ok(SortPairs::new(batch_size, &sorter_temp_dir)
-                            .context("Could not create SortPairs")?)
-                    },
-                    |acc, batch_id| {
-                        let mut sorter = acc?;
-                        let start = batch_id * batch_size;
-                        let end = (batch_id + 1) * batch_size;
-                        graph // Not using PermutedGraph in order to avoid blanket iter_nodes_from
-                            .iter_nodes_from(start)
-                            .take_while(|(node_id, _successors)| *node_id < end)
-                            .for_each(|(x, succ)| {
-                                succ.for_each(|s| {
-                                    sorter.push(perm[x], perm[s], ()).unwrap();
-                                })
-                            });
-                        pl.lock().unwrap().update_with_count(end - start);
-                        Ok(sorter)
-                    },
-                )
-                .collect();
-
-            pl.lock().unwrap().done();
-
-            let mut sorted_arc_lists = Vec::new();
-            for acc in sorters {
-                let mut sorter = acc?;
-                sorted_arc_lists.push(sorter.iter().context("Could not get sorted arc lists")?);
-            }
-
             // Merge sorted arc lists into a single sorted arc list
-            let sorted_arcs = itertools::kmerge(sorted_arc_lists).map(|(src, dst, ())| (src, dst));
+            let sorted_arcs = par_sort_arcs(
+                temp_dir.path(),
+                (0usize..=((num_nodes - 1) / batch_size)).into_par_iter(),
+                |sorter, batch_id| {
+                    let start = batch_id * batch_size;
+                    let end = (batch_id + 1) * batch_size;
+                    graph // Not using PermutedGraph in order to avoid blanket iter_nodes_from
+                        .iter_nodes_from(start)
+                        .take_while(|(node_id, _successors)| *node_id < end)
+                        .for_each(|(x, succ)| {
+                            succ.for_each(|s| {
+                                sorter.push(perm[x], perm[s], ()).unwrap();
+                            })
+                        });
+                    pl.lock().unwrap().update_with_count(end - start);
+                    Ok(())
+                },
+            )?;
 
             let g = COOIterToGraph::new(num_nodes, sorted_arcs);
 

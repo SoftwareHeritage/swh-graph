@@ -15,6 +15,7 @@ use std::sync::Mutex;
 use anyhow::{Context, Result};
 use dsi_progress_logger::ProgressLogger;
 use rayon::prelude::*;
+use webgraph::prelude::SortPairs;
 
 /// Provides a `unique_sort_to_dir` method to deduplicate, sort, and write to disk
 ///
@@ -177,3 +178,49 @@ pub trait Sortable<Line: IntoIterator<Item = u8>>: ParallelIterator<Item = Line>
 }
 
 impl<Line: IntoIterator<Item = u8>, T: ParallelIterator<Item = Line>> Sortable<Line> for T {}
+
+/// Given an iterator and a function to insert its items to [`SortPairs`], returns an
+/// iterator of pairs.
+pub fn par_sort_arcs<Item, Iter, F>(
+    temp_dir: &Path,
+    iter: Iter,
+    f: F,
+) -> Result<impl Iterator<Item = (usize, usize)> + Clone>
+where
+    F: Fn(&mut SortPairs<()>, Item) -> Result<()> + Send + Sync,
+    Iter: ParallelIterator<Item = Item>,
+{
+    let batch_size = 10_000_000; // SortPairs creates one file per batch
+    let sorters: Vec<Result<SortPairs<()>>> = iter
+        .fold(
+            || {
+                use rand::Rng;
+                let sorter_id = rand::thread_rng().gen::<u64>();
+                let mut sorter_temp_dir = temp_dir.to_owned();
+                sorter_temp_dir.push(format!("sort-arcs-permute-{:#x}", sorter_id));
+                std::fs::create_dir(&sorter_temp_dir).with_context(|| {
+                    format!(
+                        "Could not create temporary directory {}",
+                        sorter_temp_dir.display()
+                    )
+                })?;
+
+                Ok(SortPairs::new(batch_size, &sorter_temp_dir)
+                    .context("Could not create SortPairs")?)
+            },
+            |acc, item| {
+                let mut sorter = acc?;
+                f(&mut sorter, item)?;
+                Ok(sorter)
+            },
+        )
+        .collect();
+    let mut sorted_arc_lists = Vec::new();
+    for acc in sorters {
+        let mut sorter = acc?;
+        sorted_arc_lists.push(sorter.iter().context("Could not get sorted arc lists")?);
+    }
+
+    // Merge sorted arc lists into a single sorted arc list
+    Ok(itertools::kmerge(sorted_arc_lists).map(|(src, dst, ())| (src, dst)))
+}
