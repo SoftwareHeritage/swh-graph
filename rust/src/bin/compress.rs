@@ -7,13 +7,14 @@
 
 use std::env::temp_dir;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Read, Seek, Write};
+use std::io::{BufReader, BufWriter, Seek, Write};
+use std::mem::MaybeUninit;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
-use byteorder::{BigEndian, ByteOrder};
+use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
@@ -589,21 +590,15 @@ pub fn main() -> Result<()> {
             println!("Loading permutation...");
             std::fs::File::open(&permutation)
                 .context("Could not open permutation")?
-                .read_exact(unsafe {
-                    std::slice::from_raw_parts_mut(
-                        perm.spare_capacity_mut().as_mut_ptr() as *mut u8,
-                        num_nodes * ((usize::BITS / 8) as usize),
+                .read_u64_into::<BigEndian>(unsafe {
+                    std::mem::transmute::<&mut [MaybeUninit<usize>], &mut [u64]>(
+                        perm.spare_capacity_mut(),
                     )
                 })
                 .context("Could not read permutation")?;
 
-            // read_exact() checked the length
+            // read_u64_into() called read_exact(), which checked the length
             unsafe { perm.set_len(num_nodes) };
-
-            println!("Decoding permutation...");
-            byteorder::BigEndian::from_slice_u64(unsafe {
-                std::mem::transmute::<&mut [usize], &mut [u64]>(&mut perm[..])
-            });
 
             println!("Checking permutation...");
             if let Some((old, new)) = perm
