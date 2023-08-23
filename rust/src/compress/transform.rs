@@ -17,14 +17,15 @@ use crate::utils::sort::par_sort_arcs;
 
 /// Writes a new graph on disk, obtained by applying the function to all arcs
 /// on the source graph.
-pub fn transform<F, G>(
+pub fn transform<F, G, Iter>(
     batch_size: usize,
     graph: G,
     transformation: F,
     target_dir: PathBuf,
 ) -> Result<()>
 where
-    F: Fn(usize, usize) -> (usize, usize) + Send + Sync,
+    F: Fn(usize, usize) -> Iter + Send + Sync,
+    Iter: IntoIterator<Item = (usize, usize)>,
     G: RandomAccessGraph + Sync,
 {
     // Adapted from https://github.com/vigna/webgraph-rs/blob/08969fb1ac4ea59aafdbae976af8e026a99c9ac5/src/bin/perm.rs
@@ -58,8 +59,9 @@ where
                 .take_while(|(node_id, _successors)| *node_id < end)
                 .for_each(|(x, succ)| {
                     succ.for_each(|s| {
-                        let (x, s) = transformation(x, s);
-                        sorter.push(x, s, ()).unwrap();
+                        for (x, s) in transformation(x, s).into_iter() {
+                            sorter.push(x, s, ()).unwrap();
+                        }
                     })
                 });
             pl.lock().unwrap().update_with_count(end - start);

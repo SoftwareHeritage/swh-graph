@@ -8,13 +8,12 @@
 use std::env::temp_dir;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Seek, Write};
-use std::mem::MaybeUninit;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
-use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
+use byteorder::{BigEndian, ByteOrder};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
@@ -118,6 +117,25 @@ enum Commands {
         #[arg(long)]
         batch_size: usize,
         graph_dir: PathBuf,
+        target_dir: PathBuf,
+    },
+    /// Combines a graph and its transposed graph into a single symmetric graph
+    Simplify {
+        #[arg(long)]
+        batch_size: usize,
+        graph_dir: PathBuf,
+        transposed_graph_dir: PathBuf,
+        target_dir: PathBuf,
+    },
+    /// Reads a directed graph, transposes, and produces the corresponding symmetric graph.
+    ///
+    /// This is equivalent to Permute + Transpose + Simplify without generating temporary
+    /// graphs
+    PermuteAndSymmetrize {
+        #[arg(long)]
+        batch_size: usize,
+        graph_dir: PathBuf,
+        permutation: PathBuf,
         target_dir: PathBuf,
     },
 
@@ -581,50 +599,21 @@ pub fn main() -> Result<()> {
             target_dir,
         } => {
             use swh_graph::compress::transform::transform;
+            use swh_graph::permutation::Permutation;
 
             let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
             let num_nodes = graph.num_nodes();
 
-            assert_eq!(
-                usize::BITS,
-                u64::BITS,
-                "Only 64-bits architectures are supported"
-            );
-            let mut perm = Vec::with_capacity(num_nodes);
-
-            println!("Loading permutation...");
-            std::fs::File::open(&permutation)
-                .context("Could not open permutation")?
-                .read_u64_into::<BigEndian>(unsafe {
-                    std::mem::transmute::<&mut [MaybeUninit<usize>], &mut [u64]>(
-                        perm.spare_capacity_mut(),
-                    )
-                })
-                .context("Could not read permutation")?;
-
-            // read_u64_into() called read_exact(), which checked the length
-            unsafe { perm.set_len(num_nodes) };
-
-            println!("Checking permutation...");
-            if let Some((old, new)) = perm
-                .par_iter()
-                .enumerate()
-                .find_any(|&(_old, &new)| new >= num_nodes)
-            {
-                panic!(
-                    "Found node {} has id {} in permutation, graph size is {}",
-                    old, new, num_nodes
-                );
-            }
-            println!("Done.");
+            let permutation = Permutation::new(num_nodes, permutation.as_path())?;
 
             transform(
                 batch_size,
                 graph,
-                |src, dst| (perm[src], perm[dst]),
+                |src, dst| [(permutation[src], permutation[dst])],
                 target_dir,
             )?;
         }
+
         Commands::Transpose {
             batch_size,
             graph_dir,
@@ -634,7 +623,39 @@ pub fn main() -> Result<()> {
 
             let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
 
-            transform(batch_size, graph, |src, dst| (dst, src), target_dir)?;
+            transform(batch_size, graph, |src, dst| [(dst, src)], target_dir)?;
+        }
+
+        Commands::Simplify { .. } => {
+            unimplemented!("simplify step (use PermuteAndSymmetrize instead)");
+        }
+
+        Commands::PermuteAndSymmetrize {
+            batch_size,
+            graph_dir,
+            permutation,
+            target_dir,
+        } => {
+            use swh_graph::compress::transform::transform;
+            use swh_graph::permutation::Permutation;
+
+            let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
+            let num_nodes = graph.num_nodes();
+
+            let permutation = Permutation::new(num_nodes, permutation.as_path())?;
+
+            transform(
+                batch_size,
+                graph,
+                |src, dst| {
+                    assert_ne!(src, dst);
+                    [
+                        (permutation[src], permutation[dst]),
+                        (permutation[dst], permutation[src]),
+                    ]
+                },
+                target_dir,
+            )?;
         }
 
         Commands::HashSwhids { swhids, mph } => {
