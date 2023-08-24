@@ -5,6 +5,7 @@
 
 use std::io::BufWriter;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
@@ -13,7 +14,7 @@ use dsi_progress_logger::ProgressLogger;
 use rayon::prelude::*;
 use webgraph::prelude::*;
 
-use crate::utils::sort::SortedArcsIterator;
+use crate::utils::sort::par_sort_arcs;
 
 /// Writes a new graph on disk, obtained by applying the function to all arcs
 /// on the source graph.
@@ -45,10 +46,11 @@ where
     pl.expected_updates = Some(num_nodes);
     pl.local_speed = true;
     pl.start("Reading and sorting...");
+    let num_arcs = AtomicUsize::new(0);
     let pl = Mutex::new(pl);
 
     // Merge sorted arc lists into a single sorted arc list
-    let sorted_arcs = SortedArcsIterator::new(
+    let sorted_arcs = par_sort_arcs(
         temp_dir.path(),
         (0usize..=((num_nodes - 1) / batch_size)).into_par_iter(),
         |sorter, batch_id| {
@@ -60,15 +62,16 @@ where
                 .for_each(|(x, succ)| {
                     succ.for_each(|s| {
                         for (x, s) in transformation(x, s).into_iter() {
-                            sorter.push(x, s, ()).unwrap();
+                            num_arcs.fetch_add(1, Ordering::Relaxed);
+                            sorter.push((x, s, ()));
                         }
                     })
                 });
             pl.lock().unwrap().update_with_count(end - start);
             Ok(())
         },
-    )?
-    .iter()?;
+    )?;
+    pl.lock().unwrap().done();
 
     let g = COOIterToGraph::new(num_nodes, sorted_arcs);
 

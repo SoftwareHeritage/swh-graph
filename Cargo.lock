@@ -1817,7 +1817,7 @@ checksum = "ca6ad05a4870b2bf5fe995117d3728437bd27d7cd5f06f13c17443ef369775a1"
 [[package]]
 name = "webgraph"
 version = "0.1.0"
-source = "git+https://github.com/vigna/webgraph-rs?rev=c9d7a910fd7fbf26764b23ca02453178946868c0#c9d7a910fd7fbf26764b23ca02453178946868c0"
+source = "git+https://github.com/vigna/webgraph-rs?rev=32b41a04e0b01cb337c94c4366dd4da5262700d0#32b41a04e0b01cb337c94c4366dd4da5262700d0"
 dependencies = [
  "anyhow",
  "bindgen",

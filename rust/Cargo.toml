@@ -16,7 +16,7 @@ rand = "0.8.5"
 anyhow = {version="1.0.71", features=["backtrace"]}
 mmap-rs = "0.5.0"
 sux = {git = "https://github.com/vigna/sux-rs", rev = "e7c965c4bf6d79998d923c05922b2d231a55b608" }
-webgraph = {git = "https://github.com/vigna/webgraph-rs", rev = "c9d7a910fd7fbf26764b23ca02453178946868c0" }
+webgraph = {git = "https://github.com/vigna/webgraph-rs", rev = "32b41a04e0b01cb337c94c4366dd4da5262700d0" }
 #webgraph = { path = "../../../webgraph-rs" }
 log = "0.4.17"
 libc = "0.2.147"
