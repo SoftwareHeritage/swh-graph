@@ -5,7 +5,6 @@
 
 use std::io::BufWriter;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
@@ -46,7 +45,6 @@ where
     pl.expected_updates = Some(num_nodes);
     pl.local_speed = true;
     pl.start("Reading and sorting...");
-    let num_arcs = AtomicUsize::new(0);
     let pl = Mutex::new(pl);
 
     // Merge sorted arc lists into a single sorted arc list
@@ -62,7 +60,6 @@ where
                 .for_each(|(x, succ)| {
                     succ.for_each(|s| {
                         for (x, s) in transformation(x, s).into_iter() {
-                            num_arcs.fetch_add(1, Ordering::Relaxed);
                             sorter.push((x, s, ()));
                         }
                     })
