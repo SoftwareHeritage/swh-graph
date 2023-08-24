@@ -38,7 +38,7 @@ enum Commands {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
         #[arg(long, default_value = "*")]
-        allowed_nodes_types: String,
+        allowed_node_types: String,
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
@@ -48,7 +48,7 @@ enum Commands {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
         #[arg(long, default_value = "*")]
-        allowed_nodes_types: String,
+        allowed_node_types: String,
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
@@ -58,7 +58,7 @@ enum Commands {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
         #[arg(long, default_value = "*")]
-        allowed_nodes_types: String,
+        allowed_node_types: String,
         #[arg(long)]
         swhids_dir: PathBuf,
         target_stats: PathBuf,
@@ -70,7 +70,7 @@ enum Commands {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
         #[arg(long, default_value = "*")]
-        allowed_nodes_types: String,
+        allowed_node_types: String,
         dataset_dir: PathBuf,
         target_stats: PathBuf,
         target_count: PathBuf,
@@ -85,7 +85,7 @@ enum Commands {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
         #[arg(long, default_value = "*")]
-        allowed_nodes_types: String,
+        allowed_node_types: String,
         #[arg(long)]
         mph: PathBuf,
         #[arg(long)]
@@ -151,7 +151,7 @@ enum DatasetFormat {
 }
 
 fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
-    if s == "*" {
+    if s == "*" || s == "cnt,dir,rev,rel,snp,ori" {
         return Ok(SWHType::all());
     } else {
         unimplemented!("--allowed-node-types");
@@ -170,12 +170,12 @@ pub fn main() -> Result<()> {
     match args.command {
         Commands::ExtractNodes {
             format: DatasetFormat::Orc,
-            allowed_nodes_types,
+            allowed_node_types,
             dataset_dir,
             target_dir,
         } => {
             use swh_graph::utils::sort::Sortable;
-            let _ = parse_allowed_node_types(&allowed_nodes_types);
+            let _ = parse_allowed_node_types(&allowed_node_types);
 
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "arc";
@@ -193,12 +193,12 @@ pub fn main() -> Result<()> {
         }
         Commands::ExtractLabels {
             format: DatasetFormat::Orc,
-            allowed_nodes_types,
+            allowed_node_types,
             dataset_dir,
             target_dir,
         } => {
             use swh_graph::utils::sort::Sortable;
-            let _ = parse_allowed_node_types(&allowed_nodes_types);
+            let _ = parse_allowed_node_types(&allowed_node_types);
 
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "arc";
@@ -216,14 +216,14 @@ pub fn main() -> Result<()> {
         }
         Commands::NodeStats {
             format: DatasetFormat::Orc,
-            allowed_nodes_types,
+            allowed_node_types,
             swhids_dir,
             target_stats,
             target_count,
         } => {
             use swh_graph::compress::zst_dir::*;
 
-            let _ = parse_allowed_node_types(&allowed_nodes_types);
+            let _ = parse_allowed_node_types(&allowed_node_types);
 
             let mut stats_file = File::create(&target_stats)
                 .with_context(|| format!("Could not open {}", target_stats.display()))?;
@@ -279,12 +279,12 @@ pub fn main() -> Result<()> {
         }
         Commands::EdgeStats {
             format: DatasetFormat::Orc,
-            allowed_nodes_types,
+            allowed_node_types,
             dataset_dir,
             target_stats,
             target_count,
         } => {
-            let _ = parse_allowed_node_types(&allowed_nodes_types);
+            let _ = parse_allowed_node_types(&allowed_node_types);
 
             let mut stats_file = File::create(&target_stats)
                 .with_context(|| format!("Could not open {}", target_stats.display()))?;
@@ -388,7 +388,7 @@ pub fn main() -> Result<()> {
         }
         Commands::Bv {
             format: DatasetFormat::Orc,
-            allowed_nodes_types,
+            allowed_node_types,
             mph,
             num_nodes,
             dataset_dir,
@@ -398,7 +398,7 @@ pub fn main() -> Result<()> {
             use std::cell::UnsafeCell;
             use swh_graph::compress::orc::*;
 
-            let _ = parse_allowed_node_types(&allowed_nodes_types);
+            let _ = parse_allowed_node_types(&allowed_node_types);
 
             let file =
                 File::open(&mph).with_context(|| format!("Cannot read {}", mph.display()))?;

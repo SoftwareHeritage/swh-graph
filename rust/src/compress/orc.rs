@@ -20,7 +20,6 @@ type TextSwhid = [u8; SWHID_TXT_SIZE];
 const ORC_BATCH_SIZE: usize = 1_024; // Larger values don't seem to improve throughput
 
 fn get_dataset_readers(mut dataset_dir: PathBuf, subdirectory: &str) -> Vec<orcxx::reader::Reader> {
-    dataset_dir.push("orc");
     dataset_dir.push(subdirectory);
     std::fs::read_dir(&dataset_dir)
         .expect(&format!("Could not list {}", dataset_dir.display()))
