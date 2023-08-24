@@ -13,11 +13,11 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
-use byteorder::{BigEndian, ByteOrder};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
 use rayon::prelude::*;
+use swh_graph::permutation::Permutation;
 use swh_graph::utils::sort::par_sort_arcs;
 use swh_graph::SWHType;
 use tempfile;
@@ -137,6 +137,29 @@ enum Commands {
         graph_dir: PathBuf,
         permutation: PathBuf,
         target_dir: PathBuf,
+    },
+    /// Runs the Layered Labels Propagation algorithm on a symmetric graph to
+    /// reorder nodes to get a much more compressible graph.
+    Llp {
+        #[arg(short, long, default_value_t = 100)]
+        /// The maximum number of LLP iterations for each gamma
+        max_iters: usize,
+
+        #[arg(short, long, default_value_t = 1000)]
+        /// The size of the chunks each thread processes for the LLP
+        granularity: usize,
+
+        #[arg(short, long, default_value_t = 100000)]
+        /// The size of the cnunks each thread processes for the random permutation
+        /// at the start of each iteration
+        chunk_size: usize,
+
+        #[arg(short, long, default_value = "-0,-1,-2,-3,-4")]
+        /// The gamma to use in LLP
+        gammas: String,
+
+        graph_dir: PathBuf,
+        target_order: PathBuf,
     },
 
     HashSwhids {
@@ -562,33 +585,9 @@ pub fn main() -> Result<()> {
             let graph = webgraph::graph::bvgraph::load(graph_dir)?;
             println!("Graph loaded");
 
-            let permutation = swh_graph::approximate_bfs::almost_bfs_order(&graph);
-
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "byte";
-            pl.local_speed = true;
-            pl.expected_updates = Some(graph.num_nodes() * 8);
-            pl.start("Writing permutation");
-
-            let chunk_size = 1_000_000; // 1M of u64 -> 8MB
-            let mut buf = vec![0u8; chunk_size * 8];
-            for chunk in permutation.chunks(chunk_size) {
-                let buf_slice = &mut buf[..chunk.len() * 8]; // no-op except for the last chunk
-                assert_eq!(
-                    usize::BITS,
-                    u64::BITS,
-                    "Only 64-bits architectures are supported"
-                );
-                BigEndian::write_u64_into(
-                    unsafe { std::mem::transmute::<&[usize], &[u64]>(chunk) },
-                    buf_slice,
-                );
-                permut_file
-                    .write_all(buf_slice)
-                    .context("Could not write permutation")?;
-                pl.update_with_count(chunk.len() * 8);
-            }
-            pl.done();
+            swh_graph::approximate_bfs::almost_bfs_order(&graph)
+                .dump(&mut permut_file)
+                .context("Could not write permutation")?;
         }
         Commands::Permute {
             batch_size,
@@ -597,13 +596,12 @@ pub fn main() -> Result<()> {
             target_dir,
         } => {
             use swh_graph::compress::transform::transform;
-            use swh_graph::permutation::Permutation;
 
             let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
             let num_nodes = graph.num_nodes();
 
             println!("Loading permutation...");
-            let permutation = Permutation::new(num_nodes, permutation.as_path())?;
+            let permutation = Permutation::load(num_nodes, permutation.as_path())?;
 
             transform(
                 batch_size,
@@ -636,12 +634,11 @@ pub fn main() -> Result<()> {
             target_dir,
         } => {
             use swh_graph::compress::transform::transform;
-            use swh_graph::permutation::Permutation;
 
             let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
             let num_nodes = graph.num_nodes();
 
-            let permutation = Permutation::new(num_nodes, permutation.as_path())?;
+            let permutation = Permutation::load(num_nodes, permutation.as_path())?;
 
             transform(
                 batch_size,
@@ -655,6 +652,50 @@ pub fn main() -> Result<()> {
                 },
                 target_dir,
             )?;
+        }
+
+        Commands::Llp {
+            max_iters,
+            granularity,
+            chunk_size,
+            gammas,
+            graph_dir,
+            target_order,
+        } => {
+            let mut permut_file = File::create(&target_order)
+                .with_context(|| format!("Could not open {}", target_order.display()))?;
+
+            println!("Loading graph");
+            let graph = webgraph::graph::bvgraph::load(graph_dir)?;
+            println!("Graph loaded");
+
+            let mut perm = vec![0usize; graph.num_nodes()];
+
+            let mut parsed_gammas = Vec::new();
+            for gamma in gammas.split(',') {
+                parsed_gammas.push(gamma.parse().context("Could not parse gamma")?);
+            }
+
+            let mut gammas_iter = parsed_gammas.into_iter();
+
+            let gamma = gammas_iter.next().expect("No gamma provided");
+            let seed = 0;
+            layered_label_propagation(
+                &graph,
+                &mut perm[..],
+                gamma,
+                None,
+                max_iters,
+                chunk_size,
+                granularity,
+                seed,
+            )
+            .context("LLP failed")?;
+
+            Permutation::new(perm)
+                .context("LLP generated invalid permutation")?
+                .dump(&mut permut_file)
+                .context("Could not write permutation")?;
         }
 
         Commands::HashSwhids { swhids, mph } => {

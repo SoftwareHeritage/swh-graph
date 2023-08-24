@@ -12,10 +12,11 @@ use std::sync::{Arc, Mutex};
 
 use dsi_progress_logger::ProgressLogger;
 use num_cpus;
-use rayon::prelude::*;
 use webgraph::prelude::*;
 
-pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(graph: &'a G) -> Vec<usize> {
+use crate::permutation::Permutation;
+
+pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(graph: &'a G) -> Permutation {
     let num_nodes = graph.num_nodes();
 
     println!("Allocating array");
@@ -93,14 +94,6 @@ pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(graph: &'a G) ->
             }
         }
 
-        if let Some((uninitialized_node, _)) = order
-            .par_iter()
-            .enumerate()
-            .find_any(|&(_node, &node_order)| node_order == usize::MAX)
-        {
-            panic!("Node {} was not initialized by the BFS", uninitialized_node);
-        }
-
         assert_eq!(
             i, num_nodes,
             "graph has {} nodes, permutation has {}",
@@ -109,6 +102,6 @@ pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(graph: &'a G) ->
 
         pl.lock().unwrap().done();
 
-        order
+        Permutation::new(order).unwrap()
     })
 }
