@@ -18,7 +18,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
 use rayon::prelude::*;
-use swh_graph::utils::sort::par_sort_arcs;
+use swh_graph::utils::sort::SortedArcsIterator;
 use swh_graph::SWHType;
 use tempfile;
 use webgraph::prelude::*;
@@ -418,7 +418,7 @@ pub fn main() -> Result<()> {
             let pl = Mutex::new(pl);
             let counters = thread_local::ThreadLocal::new();
             let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
-            let sorted_arcs = par_sort_arcs(
+            let sorted_arcs = SortedArcsIterator::new(
                 temp_dir.path(),
                 iter_arcs(&dataset_dir).inspect(|_| {
                     // This is safe because only this thread accesses this and only from
@@ -455,6 +455,7 @@ pub fn main() -> Result<()> {
                     Ok(())
                 },
             )?
+            .iter()?
             .dedup()
             .map(|(src, dst)| (src, dst, ()));
             pl.lock().unwrap().done();

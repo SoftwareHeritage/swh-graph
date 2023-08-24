@@ -13,7 +13,7 @@ use dsi_progress_logger::ProgressLogger;
 use rayon::prelude::*;
 use webgraph::prelude::*;
 
-use crate::utils::sort::par_sort_arcs;
+use crate::utils::sort::SortedArcsIterator;
 
 /// Writes a new graph on disk, obtained by applying the function to all arcs
 /// on the source graph.
@@ -48,7 +48,7 @@ where
     let pl = Mutex::new(pl);
 
     // Merge sorted arc lists into a single sorted arc list
-    let sorted_arcs = par_sort_arcs(
+    let sorted_arcs = SortedArcsIterator::new(
         temp_dir.path(),
         (0usize..=((num_nodes - 1) / batch_size)).into_par_iter(),
         |sorter, batch_id| {
@@ -67,7 +67,8 @@ where
             pl.lock().unwrap().update_with_count(end - start);
             Ok(())
         },
-    )?;
+    )?
+    .iter()?;
 
     let g = COOIterToGraph::new(num_nodes, sorted_arcs);
 
