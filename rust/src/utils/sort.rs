@@ -6,7 +6,7 @@
  */
 
 /// Parallel string sorting and deduplication for data that doesn't fit in RAM
-use std::cell::UnsafeCell;
+use std::cell::{RefCell, UnsafeCell};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -205,11 +205,11 @@ where
                 // +2 to the capacity to avoid growing the vector when f()
                 // writes two past the batch_size; and f() pushes at most 2 arcs
                 // in practice.
-                let buffer = buffers.get_or(|| UnsafeCell::new(Vec::with_capacity(batch_size + 2)));
+                let buffer = buffers.get_or(|| RefCell::new(Vec::with_capacity(batch_size + 2)));
 
                 // This is safe because other threads don't access it before
                 // the fork-join point below
-                let buffer: &mut Vec<(usize, usize, ())> = unsafe { &mut *buffer.get() };
+                let buffer: &mut Vec<(usize, usize, ())> = &mut buffer.borrow_mut();
 
                 f(buffer, item)?;
                 if buffer.len() > batch_size {
@@ -230,10 +230,10 @@ where
         buffers
             .into_iter()
             .par_bridge()
-            .map(|buffer: UnsafeCell<Vec<(usize, usize, ())>>| {
+            .map(|buffer: RefCell<Vec<(usize, usize, ())>>| {
                 // This is safe because other threads don't access it after the
                 // fork-join point above
-                let buffer: &mut Vec<(usize, usize, ())> = unsafe { &mut *buffer.get() };
+                let buffer: &mut Vec<(usize, usize, ())> = &mut buffer.borrow_mut();
 
                 Ok(vec![flush(temp_dir, &mut (*buffer)[..])?])
             })
