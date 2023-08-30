@@ -144,7 +144,7 @@ public class ListContentsInRevisionsWithoutFrontier {
             final long chunkId = i;
             futures.add(service.submit(() -> {
                 try {
-                    listContentsInRevisionChunk(chunkId, numChunks, pl);
+                    listContentsInReleaseChunk(chunkId, numChunks, pl);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -166,7 +166,7 @@ public class ListContentsInRevisionsWithoutFrontier {
         }
     }
 
-    private void listContentsInRevisionChunk(long chunkId, long numChunks, ProgressLogger pl) throws IOException {
+    private void listContentsInReleaseChunk(long chunkId, long numChunks, ProgressLogger pl) throws IOException {
         if (threadGraph.get() == null) {
             threadGraph.set(this.graph.copy());
         }
@@ -187,12 +187,12 @@ public class ListContentsInRevisionsWithoutFrontier {
         long previousLength = 0;
         long newLength;
         for (long i = chunkStart; i < chunkEnd; i++) {
-            if (graph.getNodeType(i) != SwhType.REV) {
+            if (graph.getNodeType(i) != SwhType.REL) {
                 continue;
             }
 
             try {
-                listContentsInRevision(graph, i, csvPrinter);
+                listContentsInRelease(graph, i, csvPrinter);
             } catch (OutOfMemoryError e) {
                 newLength = buf.length();
                 System.err.format("OOMed while processing %s (buffer grew from %d to %d): %s\n", graph.getSWHID(i),
@@ -224,7 +224,7 @@ public class ListContentsInRevisionsWithoutFrontier {
     }
 
     /* Performs a BFS, stopping at frontier directories. */
-    private void listContentsInRevision(SwhUnidirectionalGraph graph, long revId, CSVPrinter csvPrinter)
+    private void listContentsInRelease(SwhUnidirectionalGraph graph, long revId, CSVPrinter csvPrinter)
             throws IOException {
         SWHID revSWHID = graph.getSWHID(revId);
 

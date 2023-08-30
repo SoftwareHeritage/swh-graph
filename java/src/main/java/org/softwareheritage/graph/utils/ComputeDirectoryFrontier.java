@@ -123,7 +123,7 @@ public class ComputeDirectoryFrontier {
             final long chunkId = i;
             futures.add(service.submit(() -> {
                 try {
-                    findFrontiersInRevisionChunk(chunkId, numChunks, pl);
+                    findFrontiersInReleaseChunk(chunkId, numChunks, pl);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -145,7 +145,7 @@ public class ComputeDirectoryFrontier {
         }
     }
 
-    private void findFrontiersInRevisionChunk(long chunkId, long numChunks, ProgressLogger pl) throws IOException {
+    private void findFrontiersInReleaseChunk(long chunkId, long numChunks, ProgressLogger pl) throws IOException {
         if (threadGraph.get() == null) {
             threadGraph.set(this.graph.copy());
         }
@@ -166,12 +166,12 @@ public class ComputeDirectoryFrontier {
         long previousLength = 0;
         long newLength;
         for (long i = chunkStart; i < chunkEnd; i++) {
-            if (graph.getNodeType(i) != SwhType.REV) {
+            if (graph.getNodeType(i) != SwhType.REL) {
                 continue;
             }
 
             try {
-                findFrontiersInRevision(graph, i, csvPrinter);
+                findFrontiersInRelease(graph, i, csvPrinter);
             } catch (OutOfMemoryError e) {
                 newLength = buf.length();
                 System.err.format("OOMed while processing %s (buffer grew from %d to %d): %s\n", graph.getSWHID(i),
@@ -203,18 +203,18 @@ public class ComputeDirectoryFrontier {
     }
 
     /* Performs a BFS, stopping at frontier directories. */
-    private void findFrontiersInRevision(SwhUnidirectionalGraph graph, long revId, CSVPrinter csvPrinter)
+    private void findFrontiersInRelease(SwhUnidirectionalGraph graph, long relId, CSVPrinter csvPrinter)
             throws IOException {
-        SWHID revSWHID = graph.getSWHID(revId);
+        SWHID relSWHID = graph.getSWHID(relId);
 
-        Long boxedRevisionTimestamp = graph.getAuthorTimestamp(revId);
-        if (boxedRevisionTimestamp == null) {
+        Long boxedReleaseTimestamp = graph.getAuthorTimestamp(relId);
+        if (boxedReleaseTimestamp == null) {
             return;
         }
-        long revisionTimestamp = boxedRevisionTimestamp;
+        long revisionTimestamp = boxedReleaseTimestamp;
 
         long rootDirectory = -1;
-        LazyLongIterator it = graph.successors(revId);
+        LazyLongIterator it = graph.successors(relId);
         for (long successorId; (successorId = it.nextLong()) != -1;) {
             if (graph.getNodeType(successorId) != SwhType.DIR) {
                 continue;
@@ -223,9 +223,42 @@ public class ComputeDirectoryFrontier {
                 rootDirectory = successorId;
                 continue;
             }
-            System.err.format("%s has more than one directory successor: %s and %s\n", revSWHID,
+            System.err.format("%s has more than one directory successor: %s and %s\n", relSWHID,
                     graph.getSWHID(rootDirectory), graph.getSWHID(successorId));
             System.exit(6);
+        }
+
+        if (rootDirectory == -1) {
+            // Release does not have a direct directory successor, try with a revision
+            // in-between
+            it = graph.successors(relId);
+            long rootRevision = -1;
+            for (long successorId; (successorId = it.nextLong()) != -1;) {
+                if (graph.getNodeType(successorId) != SwhType.REV) {
+                    continue;
+                }
+                if (rootRevision == -1) {
+                    rootRevision = successorId;
+                    continue;
+                }
+                System.err.format("%s has more than one revision successor: %s and %s\n", relSWHID,
+                        graph.getSWHID(rootRevision), graph.getSWHID(successorId));
+                System.exit(6);
+            }
+            SWHID revSWHID = graph.getSWHID(rootRevision);
+            it = graph.successors(relId);
+            for (long successorId; (successorId = it.nextLong()) != -1;) {
+                if (graph.getNodeType(successorId) != SwhType.DIR) {
+                    continue;
+                }
+                if (rootDirectory == -1) {
+                    rootDirectory = successorId;
+                    continue;
+                }
+                System.err.format("%s (via %s) has more than one directory successor: %s and %s\n", relSWHID, revSWHID,
+                        graph.getSWHID(rootDirectory), graph.getSWHID(successorId));
+                System.exit(6);
+            }
         }
 
         // TODO: reuse these across calls instead of reallocating?
@@ -294,7 +327,7 @@ public class ComputeDirectoryFrontier {
                 }
                 pathParts.add("");
                 String pathString = String.join("/", pathParts);
-                csvPrinter.printRecord(maxTimestamp, graph.getSWHID(nodeId), revSWHID, pathString);
+                csvPrinter.printRecord(maxTimestamp, graph.getSWHID(nodeId), relSWHID, pathString);
             } else {
                 /* Look if the subdirectories are frontiers */
                 itl = graph.labelledSuccessors(nodeId);

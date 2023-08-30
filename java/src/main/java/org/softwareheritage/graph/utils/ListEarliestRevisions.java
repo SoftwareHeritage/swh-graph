@@ -137,8 +137,12 @@ public class ListEarliestRevisions {
 
     private void visitNode(String date, long timestamp, String revrelSWHID) throws IOException {
         long nodeId = graph.getNodeId(revrelSWHID);
-        if (graph.getNodeType(nodeId) != SwhType.REV && graph.getNodeType(nodeId) != SwhType.REL) {
-            System.err.format("%s has unexpected type %s\n", graph.getNodeType(nodeId).toString());
+        if (graph.getNodeType(nodeId) == SwhType.REV) {
+            // Temporary (2023-08-30): Ignore revisions in provenance computation
+            return;
+        }
+        if (graph.getNodeType(nodeId) != SwhType.REL) {
+            System.err.format("%s has unexpected type\n", graph.getNodeType(nodeId).toString());
             return;
         }
 
