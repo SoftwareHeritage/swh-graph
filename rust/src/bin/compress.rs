@@ -17,7 +17,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
 use rayon::prelude::*;
-use swh_graph::permutation::Permutation;
+use swh_graph::permutation::{MappedPermutation, OwnedPermutation, Permutation};
 use swh_graph::utils::sort::par_sort_arcs;
 use swh_graph::SWHType;
 use tempfile;
@@ -601,12 +601,12 @@ pub fn main() -> Result<()> {
             let num_nodes = graph.num_nodes();
 
             println!("Loading permutation...");
-            let permutation = Permutation::load(num_nodes, permutation.as_path())?;
+            let permutation = OwnedPermutation::load(num_nodes, permutation.as_path())?;
 
             transform(
                 batch_size,
                 graph,
-                |src, dst| [(permutation[src], permutation[dst])],
+                |src, dst| [(permutation.get(src), permutation.get(dst))],
                 target_dir,
             )?;
         }
@@ -638,7 +638,7 @@ pub fn main() -> Result<()> {
             let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
             let num_nodes = graph.num_nodes();
 
-            let permutation = Permutation::load(num_nodes, permutation.as_path())?;
+            let permutation = OwnedPermutation::load(num_nodes, permutation.as_path())?;
 
             transform(
                 batch_size,
@@ -646,8 +646,8 @@ pub fn main() -> Result<()> {
                 |src, dst| {
                     assert_ne!(src, dst);
                     [
-                        (permutation[src], permutation[dst]),
-                        (permutation[dst], permutation[src]),
+                        (permutation.get(src), permutation.get(dst)),
+                        (permutation.get(dst), permutation.get(src)),
                     ]
                 },
                 target_dir,
@@ -692,7 +692,7 @@ pub fn main() -> Result<()> {
             )
             .context("LLP failed")?;
 
-            Permutation::new(perm)
+            OwnedPermutation::new(perm)
                 .context("LLP generated invalid permutation")?
                 .dump(&mut permut_file)
                 .context("Could not write permutation")?;

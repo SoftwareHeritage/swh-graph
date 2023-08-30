@@ -14,9 +14,9 @@ use dsi_progress_logger::ProgressLogger;
 use num_cpus;
 use webgraph::prelude::*;
 
-use crate::permutation::Permutation;
+use crate::permutation::OwnedPermutation;
 
-pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(graph: &'a G) -> Permutation {
+pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(graph: &'a G) -> OwnedPermutation {
     let num_nodes = graph.num_nodes();
 
     println!("Allocating array");
@@ -102,6 +102,6 @@ pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(graph: &'a G) ->
 
         pl.lock().unwrap().done();
 
-        Permutation::new(order).unwrap()
+        OwnedPermutation::new(order).unwrap()
     })
 }

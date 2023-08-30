@@ -11,12 +11,19 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use anyhow::{bail, Context, Result};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use dsi_progress_logger::ProgressLogger;
+use mmap_rs::Mmap;
 use rayon::prelude::*;
 
 /// An array of `n` unique integers in the `0..n` range.
-pub struct Permutation(Vec<usize>);
+pub trait Permutation {
+    fn len(&self) -> usize;
+    fn get(&self, old_node: usize) -> usize;
+}
 
-impl Permutation {
+/// A [`Permutation`] backed by an `usize` vector
+pub struct OwnedPermutation(Vec<usize>);
+
+impl OwnedPermutation {
     /// Creates a permutation
     ///
     /// # Safety
@@ -26,7 +33,7 @@ impl Permutation {
     /// of other unsafe functions down the line.
     #[inline(always)]
     pub unsafe fn new_unchecked(perm: Vec<usize>) -> Self {
-        Permutation(perm)
+        OwnedPermutation(perm)
     }
 
     /// Creates a permutation, or returns an error in case the permutation is
@@ -66,7 +73,7 @@ impl Permutation {
 
         // Therefore, the permutation is bijective.
 
-        Ok(Permutation(perm))
+        Ok(OwnedPermutation(perm))
     }
 
     /// Loads a permutation from disk and returns IO errors if any.
@@ -77,7 +84,7 @@ impl Permutation {
     /// permutation's image are correct or unique, which will violate assumptions
     /// of other unsafe functions down the line.
     #[inline]
-    pub unsafe fn load_unchecked(num_nodes: usize, path: &Path) -> Result<Permutation> {
+    pub unsafe fn load_unchecked(num_nodes: usize, path: &Path) -> Result<Self> {
         assert_eq!(
             usize::BITS,
             u64::BITS,
@@ -97,22 +104,22 @@ impl Permutation {
         // read_u64_into() called read_exact(), which checked the length
         unsafe { perm.set_len(num_nodes) };
 
-        Ok(Permutation(perm))
+        Ok(OwnedPermutation(perm))
     }
 
     /// Loads a permutation from disk, and returns errors in case of IO errors
     /// or incorrect permutations.
     #[inline]
-    pub fn load(num_nodes: usize, path: &Path) -> Result<Permutation> {
-        let perm = unsafe { Permutation::load_unchecked(num_nodes, path) }?;
-        Permutation::new(perm.0)
+    pub fn load(num_nodes: usize, path: &Path) -> Result<Self> {
+        let perm = unsafe { Self::load_unchecked(num_nodes, path) }?;
+        Self::new(perm.0)
     }
 
     pub fn dump<W: Write>(&self, file: &mut W) -> std::io::Result<()> {
         let mut pl = ProgressLogger::default().display_memory();
         pl.item_name = "byte";
         pl.local_speed = true;
-        pl.expected_updates = Some(self.0.len() * 8);
+        pl.expected_updates = Some(self.len() * 8);
         pl.start("Writing permutation");
 
         let chunk_size = 1_000_000; // 1M of u64 -> 8MB
@@ -136,18 +143,162 @@ impl Permutation {
     }
 }
 
-impl AsRef<[usize]> for Permutation {
+impl AsRef<[usize]> for OwnedPermutation {
     #[inline(always)]
     fn as_ref(&self) -> &[usize] {
         self.0.as_ref()
     }
 }
 
-impl std::ops::Index<usize> for Permutation {
+impl std::ops::Index<usize> for OwnedPermutation {
     type Output = usize;
 
     #[inline(always)]
     fn index(&self, old_node: usize) -> &Self::Output {
         &self.0[old_node]
+    }
+}
+
+impl Permutation for OwnedPermutation {
+    fn len(&self) -> usize {
+        self.as_ref().len()
+    }
+
+    fn get(&self, old_node: usize) -> usize {
+        self[old_node]
+    }
+}
+
+/// A [`Permutation`] backed by a big-endian mmapped file
+pub struct MappedPermutation(Mmap);
+
+impl MappedPermutation {
+    /// Creates a permutation
+    ///
+    /// # Safety
+    ///
+    /// This function is not unsafe per-se, but it does not check node ids in the
+    /// permutation's image are correct or unique, which will violate assumptions
+    /// of other unsafe functions down the line.
+    #[inline(always)]
+    pub unsafe fn new_unchecked(perm: Mmap) -> Self {
+        MappedPermutation(perm)
+    }
+
+    /// Creates a permutation, or returns an error in case the permutation is
+    /// incorrect
+    #[inline]
+    pub fn new(perm: Mmap) -> Result<Self> {
+        assert_eq!(
+            perm.size() % 8,
+            0,
+            "mmap has size {}, which is not a multiple of 8",
+            perm.size()
+        );
+
+        // Check the permutation's image has the same size as the preimage
+        if let Some((old, new)) = perm
+            .par_iter()
+            .chunks(8)
+            .map(|bytes| {
+                BigEndian::read_u64(bytes.into_iter().cloned().collect::<Vec<_>>().as_slice())
+                    as usize
+            })
+            .enumerate()
+            .find_any(|&(_old, new)| new >= perm.len())
+        {
+            bail!(
+                "Found node {} has id {} in permutation, graph size is {}",
+                old,
+                new,
+                perm.len()
+            );
+        }
+
+        // Check the permutation is injective
+        let mut seen = Vec::with_capacity(perm.len() as _);
+        seen.extend((0..perm.len()).map(|_| AtomicBool::new(false)));
+        if let Some((old, _)) = perm
+            .par_iter()
+            .chunks(8)
+            .map(|bytes| {
+                BigEndian::read_u64(bytes.into_iter().cloned().collect::<Vec<_>>().as_slice())
+                    as usize
+            })
+            .map(|node| seen[node].fetch_or(true, Ordering::SeqCst))
+            .enumerate()
+            .find_any(|&(_node, is_duplicated)| is_duplicated)
+        {
+            let new = perm[old];
+            bail!(
+                "At least two nodes are mapped to {}; one of them is {}",
+                new,
+                old,
+            );
+        }
+
+        // Therefore, the permutation is bijective.
+
+        Ok(MappedPermutation(perm))
+    }
+
+    /// Loads a permutation from disk and returns IO errors if any.
+    ///
+    /// # Safety
+    ///
+    /// This function is not unsafe per-se, but it does not check node ids in the
+    /// permutation's image are correct or unique, which will violate assumptions
+    /// of other unsafe functions down the line.
+    #[inline]
+    pub unsafe fn load_unchecked(path: &Path) -> Result<Self> {
+        assert_eq!(
+            usize::BITS,
+            u64::BITS,
+            "Only 64-bits architectures are supported"
+        );
+
+        let file_len = path.metadata()?.len();
+        assert_eq!(
+            file_len % 8,
+            0,
+            "{} has size {}, which is not a multiple of 8",
+            path.display(),
+            file_len
+        );
+
+        let file = std::fs::File::open(&path).context("Could not open permutation")?;
+        let perm = mmap_rs::MmapOptions::new(file_len as _)
+            .context("Could not initialize permutation mmap")?
+            .with_flags((sux::prelude::Flags::TRANSPARENT_HUGE_PAGES).mmap_flags())
+            .with_file(file, 0)
+            .map()
+            .context("Could not mmap permutation")?;
+
+        Ok(MappedPermutation(perm))
+    }
+
+    /// Loads a permutation from disk, and returns errors in case of IO errors
+    /// or incorrect permutations.
+    #[inline]
+    pub fn load(num_nodes: usize, path: &Path) -> Result<Self> {
+        let perm = unsafe { Self::load_unchecked(path) }?;
+        assert_eq!(
+            perm.len(),
+            num_nodes,
+            "Expected permutation to have length {}, got {}",
+            num_nodes,
+            perm.len()
+        );
+        Self::new(perm.0)
+    }
+}
+
+impl Permutation for MappedPermutation {
+    fn len(&self) -> usize {
+        self.0.size() / 8
+    }
+
+    fn get(&self, old_node: usize) -> usize {
+        BigEndian::read_u64(&self.0[(old_node * 8)..((old_node + 1) * 8)]) as usize
     }
 }
