@@ -252,7 +252,7 @@ public class ComputeDirectoryFrontier {
             }
 
             SWHID revSWHID = graph.getSWHID(rootRevision);
-            it = graph.successors(relId);
+            it = graph.successors(rootRevision);
             for (long successorId; (successorId = it.nextLong()) != -1;) {
                 if (graph.getNodeType(successorId) != SwhType.DIR) {
                     continue;
