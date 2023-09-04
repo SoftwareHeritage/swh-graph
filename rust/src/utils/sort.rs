@@ -207,13 +207,13 @@ where
                 // in practice.
                 let buffer = buffers.get_or(|| RefCell::new(Vec::with_capacity(batch_size + 2)));
 
-                // This is safe because other threads don't access it before
-                // the fork-join point below
+                // Won't panic because other threads don't access it before the
+                // fork-join point below.
                 let buffer: &mut Vec<(usize, usize, ())> = &mut buffer.borrow_mut();
 
                 f(buffer, item)?;
                 if buffer.len() > batch_size {
-                    sorted_iterators.push(flush(temp_dir, &mut (*buffer)[..])?);
+                    sorted_iterators.push(flush(temp_dir, &mut buffer[..])?);
                     buffer.clear();
                     Ok(sorted_iterators)
                 } else {
@@ -224,6 +224,7 @@ where
         .collect();
 
     // join-fork point
+    log::info!("Flushing remaining buffers to BatchIterator...");
 
     // Flush all buffers even if not full
     sorted_iterators.extend(
@@ -231,15 +232,14 @@ where
             .into_iter()
             .par_bridge()
             .map(|buffer: RefCell<Vec<(usize, usize, ())>>| {
-                // This is safe because other threads don't access it after the
-                // fork-join point above
-                let buffer: &mut Vec<(usize, usize, ())> = &mut buffer.borrow_mut();
-
-                Ok(vec![flush(temp_dir, &mut (*buffer)[..])?])
+                let mut buffer = buffer.borrow_mut();
+                let sorted_iterator = flush(temp_dir, &mut (*buffer)[..])?;
+                Ok(vec![sorted_iterator])
             })
             .collect::<Vec<_>>()
             .into_iter(),
     );
+    log::info!("Done sorting all buffers. Merging...");
 
     let mut sorted_arc_lists = Vec::new();
     for iterators in sorted_iterators {
@@ -258,5 +258,10 @@ fn flush(temp_dir: &Path, buffer: &mut [(usize, usize, ())]) -> Result<BatchIter
     let mut sorter_temp_file = temp_dir.to_owned();
     sorter_temp_file.push(format!("sort-arcs-permute-{:#x}", sorter_id));
 
-    BatchIterator::new_from_vec(&sorter_temp_file, buffer).context("Could not create BatchIterator")
+    // This is equivalent to BatchIterator::new_from_vec(&sorter_temp_file, buffer),
+    // but without parallelism, which would cause Rayon to re-enter
+    // par_sort_arcs and cause deadlocks: https://github.com/rayon-rs/rayon/issues/1083
+    buffer.sort_unstable_by_key(|(src, dst, _)| (*src, *dst));
+    unsafe { BatchIterator::new_from_vec_sorted(&sorter_temp_file, buffer) }
+        .context("Could not create BatchIterator")
 }
