@@ -245,6 +245,12 @@ public class ComputeDirectoryFrontier {
                         graph.getSWHID(rootRevision), graph.getSWHID(successorId));
                 System.exit(6);
             }
+
+            if (rootRevision == -1) {
+                System.err.format("Could not find the root revision for %s\n", relSWHID);
+                System.exit(7);
+            }
+
             SWHID revSWHID = graph.getSWHID(rootRevision);
             it = graph.successors(relId);
             for (long successorId; (successorId = it.nextLong()) != -1;) {
@@ -259,6 +265,16 @@ public class ComputeDirectoryFrontier {
                         graph.getSWHID(rootDirectory), graph.getSWHID(successorId));
                 System.exit(6);
             }
+
+            if (rootDirectory == -1) {
+                System.err.format("Could not find the root directory for %s (root rev of %s)\n", revSWHID, relSWHID);
+                System.exit(7);
+            }
+        }
+
+        if (rootDirectory == -1) {
+            System.err.format("Could not find the root directory for %s\n", relSWHID);
+            System.exit(7);
         }
 
         // TODO: reuse these across calls instead of reallocating?
