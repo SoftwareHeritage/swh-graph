@@ -247,8 +247,8 @@ public class ComputeDirectoryFrontier {
             }
 
             if (rootRevision == -1) {
-                System.err.format("Could not find the root revision for %s\n", relSWHID);
-                System.exit(7);
+                // points neither to a directory or a revision, ignore
+                return;
             }
 
             SWHID revSWHID = graph.getSWHID(rootRevision);
@@ -267,8 +267,8 @@ public class ComputeDirectoryFrontier {
             }
 
             if (rootDirectory == -1) {
-                System.err.format("Could not find the root directory for %s (root rev of %s)\n", revSWHID, relSWHID);
-                System.exit(7);
+                // probably unknown revision
+                return;
             }
         }
 
