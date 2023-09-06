@@ -183,6 +183,7 @@ impl<Line: IntoIterator<Item = u8>, T: ParallelIterator<Item = Line>> Sortable<L
 /// iterator of pairs.
 pub fn par_sort_arcs<Item, Iter, F>(
     temp_dir: &Path,
+    batch_size: usize,
     iter: Iter,
     f: F,
 ) -> Result<impl Iterator<Item = (usize, usize)> + Clone>
@@ -191,8 +192,6 @@ where
     Iter: ParallelIterator<Item = Item>,
 {
     let buffers = thread_local::ThreadLocal::new();
-
-    let batch_size = 10_000_000; // Maximum number of arcs in each file
 
     // Read the input to buffers, and flush buffer to disk (through BatchIterator)
     // from time to time

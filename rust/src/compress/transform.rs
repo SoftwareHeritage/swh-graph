@@ -18,7 +18,8 @@ use crate::utils::sort::par_sort_arcs;
 /// Writes a new graph on disk, obtained by applying the function to all arcs
 /// on the source graph.
 pub fn transform<F, G, Iter>(
-    batch_size: usize,
+    input_batch_size: usize,
+    sort_batch_size: usize,
     graph: G,
     transformation: F,
     target_dir: PathBuf,
@@ -50,10 +51,11 @@ where
     // Merge sorted arc lists into a single sorted arc list
     let sorted_arcs = par_sort_arcs(
         temp_dir.path(),
-        (0usize..=((num_nodes - 1) / batch_size)).into_par_iter(),
+        sort_batch_size,
+        (0usize..=((num_nodes - 1) / input_batch_size)).into_par_iter(),
         |sorter, batch_id| {
-            let start = batch_id * batch_size;
-            let end = (batch_id + 1) * batch_size;
+            let start = batch_id * input_batch_size;
+            let end = (batch_id + 1) * input_batch_size;
             graph // Not using PermutedGraph in order to avoid blanket iter_nodes_from
                 .iter_nodes_from(start)
                 .take_while(|(node_id, _successors)| *node_id < end)

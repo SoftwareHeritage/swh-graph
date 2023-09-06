@@ -84,6 +84,8 @@ enum Commands {
     Bv {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
+        #[arg(long, default_value_t = 100_000_000)]
+        sort_batch_size: usize,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
         #[arg(long)]
@@ -106,23 +108,29 @@ enum Commands {
     /// Uses the permutation produced by the BFS or LLP to reorder nodes in the graph
     /// to get a more compressible graph
     Permute {
-        #[arg(long)]
-        batch_size: usize,
+        #[arg(long, default_value_t = 102400)]
+        input_batch_size: usize,
+        #[arg(long, default_value_t = 100_000_000)]
+        sort_batch_size: usize,
         graph_dir: PathBuf,
         permutation: PathBuf,
         target_dir: PathBuf,
     },
     /// Produces a new graph by inverting the direction of all arcs in the source graph
     Transpose {
-        #[arg(long)]
-        batch_size: usize,
+        #[arg(long, default_value_t = 102400)]
+        input_batch_size: usize,
+        #[arg(long, default_value_t = 100_000_000)]
+        sort_batch_size: usize,
         graph_dir: PathBuf,
         target_dir: PathBuf,
     },
     /// Combines a graph and its transposed graph into a single symmetric graph
     Simplify {
-        #[arg(long)]
-        batch_size: usize,
+        #[arg(long, default_value_t = 102400)]
+        input_batch_size: usize,
+        #[arg(long, default_value_t = 100_000_000)]
+        sort_batch_size: usize,
         graph_dir: PathBuf,
         transposed_graph_dir: PathBuf,
         target_dir: PathBuf,
@@ -132,8 +140,12 @@ enum Commands {
     /// This is equivalent to Permute + Transpose + Simplify without generating temporary
     /// graphs
     PermuteAndSymmetrize {
-        #[arg(long)]
-        batch_size: usize,
+        #[arg(long, default_value_t = 102400)]
+        input_batch_size: usize,
+        #[arg(long, default_value_t = 800_000_000)]
+        /// On the 2022-12-07 dataset, --sort-batch-size 800000000 produces
+        /// ~1k files, ~2.8GB each; and uses 2TB of RAM.
+        sort_batch_size: usize,
         graph_dir: PathBuf,
         permutation: PathBuf,
         target_dir: PathBuf,
@@ -411,6 +423,7 @@ pub fn main() -> Result<()> {
         }
         Commands::Bv {
             format: DatasetFormat::Orc,
+            sort_batch_size,
             allowed_node_types,
             mph,
             num_nodes,
@@ -443,6 +456,7 @@ pub fn main() -> Result<()> {
             let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
             let sorted_arcs = par_sort_arcs(
                 temp_dir.path(),
+                sort_batch_size,
                 iter_arcs(&dataset_dir).inspect(|_| {
                     // This is safe because only this thread accesses this and only from
                     // here.
@@ -590,7 +604,8 @@ pub fn main() -> Result<()> {
                 .context("Could not write permutation")?;
         }
         Commands::Permute {
-            batch_size,
+            sort_batch_size,
+            input_batch_size,
             graph_dir,
             permutation,
             target_dir,
@@ -600,11 +615,13 @@ pub fn main() -> Result<()> {
             let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
             let num_nodes = graph.num_nodes();
 
-            println!("Loading permutation...");
+            log::info!("Loading permutation...");
             let permutation = OwnedPermutation::load(num_nodes, permutation.as_path())?;
 
+            log::info!("Permuting...");
             transform(
-                batch_size,
+                sort_batch_size,
+                input_batch_size,
                 graph,
                 |src, dst| [(permutation.get(src), permutation.get(dst))],
                 target_dir,
@@ -612,7 +629,8 @@ pub fn main() -> Result<()> {
         }
 
         Commands::Transpose {
-            batch_size,
+            sort_batch_size,
+            input_batch_size,
             graph_dir,
             target_dir,
         } => {
@@ -620,7 +638,14 @@ pub fn main() -> Result<()> {
 
             let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
 
-            transform(batch_size, graph, |src, dst| [(dst, src)], target_dir)?;
+            log::info!("Transposing...");
+            transform(
+                sort_batch_size,
+                input_batch_size,
+                graph,
+                |src, dst| [(dst, src)],
+                target_dir,
+            )?;
         }
 
         Commands::Simplify { .. } => {
@@ -628,7 +653,8 @@ pub fn main() -> Result<()> {
         }
 
         Commands::PermuteAndSymmetrize {
-            batch_size,
+            sort_batch_size,
+            input_batch_size,
             graph_dir,
             permutation,
             target_dir,
@@ -643,7 +669,8 @@ pub fn main() -> Result<()> {
 
             log::info!("Permuting, transposing, and symmetrizing...");
             transform(
-                batch_size,
+                input_batch_size,
+                sort_batch_size,
                 graph,
                 |src, dst| {
                     assert_ne!(src, dst);
