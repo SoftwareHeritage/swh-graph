@@ -239,7 +239,7 @@ where
             .collect::<Vec<_>>()
             .into_iter(),
     );
-    log::info!("Done sorting all buffers. Merging...");
+    log::info!("Done sorting all buffers.");
 
     let mut sorted_arc_lists = Vec::new();
     for iterators in sorted_iterators {

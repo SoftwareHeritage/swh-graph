@@ -17,7 +17,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
 use rayon::prelude::*;
-use swh_graph::permutation::{MappedPermutation, OwnedPermutation, Permutation};
+use swh_graph::permutation::{OwnedPermutation, Permutation};
 use swh_graph::utils::sort::par_sort_arcs;
 use swh_graph::SWHType;
 use tempfile;
@@ -638,8 +638,10 @@ pub fn main() -> Result<()> {
             let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
             let num_nodes = graph.num_nodes();
 
+            log::info!("Loading permutation...");
             let permutation = OwnedPermutation::load(num_nodes, permutation.as_path())?;
 
+            log::info!("Permuting, transposing, and symmetrizing...");
             transform(
                 batch_size,
                 graph,

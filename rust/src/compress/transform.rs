@@ -78,11 +78,18 @@ where
     pl.expected_updates = Some(num_nodes);
     pl.local_speed = true;
     pl.start("Writing...");
+    let pl = std::cell::RefCell::new(pl);
+
     bvcomp
-        .extend(g.iter_nodes())
+        .extend(g.iter_nodes().enumerate().map(|(i, node)| {
+            if i % 32768 == 0 {
+                pl.borrow_mut().update_with_count(32768)
+            }
+            node
+        }))
         .context("Could not write to BVGraph")?;
     bvcomp.flush().context("Could not flush BVGraph")?;
-    pl.done();
+    pl.borrow_mut().done();
 
     drop(temp_dir); // Prevent early deletion
 
