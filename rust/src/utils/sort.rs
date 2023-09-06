@@ -15,7 +15,7 @@ use std::sync::Mutex;
 use anyhow::{Context, Result};
 use dsi_progress_logger::ProgressLogger;
 use rayon::prelude::*;
-use webgraph::prelude::BatchIterator;
+use webgraph::prelude::{BatchIterator, KMergeIters};
 
 /// Provides a `unique_sort_to_dir` method to deduplicate, sort, and write to disk
 ///
@@ -249,7 +249,7 @@ where
     }
 
     // Merge sorted arc lists into a single sorted arc list
-    Ok(itertools::kmerge(sorted_arc_lists).map(|(src, dst, ())| (src, dst)))
+    Ok(KMergeIters::new(sorted_arc_lists.into_iter()).map(|(src, dst, ())| (src, dst)))
 }
 
 fn flush(temp_dir: &Path, buffer: &mut [(usize, usize, ())]) -> Result<BatchIterator<()>> {
