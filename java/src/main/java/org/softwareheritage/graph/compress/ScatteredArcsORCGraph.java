@@ -9,8 +9,10 @@ package org.softwareheritage.graph.compress;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
@@ -72,6 +74,7 @@ public class ScatteredArcsORCGraph extends ImmutableSequentialGraph {
             throws IOException {
         final ObjectArrayList<File> batches = new ObjectArrayList<>();
         ForkJoinPool forkJoinPool = new ForkJoinPool(numThreads);
+        ForkJoinPool webgraphForkJoinPool = new ForkJoinPool(numThreads);
 
         long[][] srcArrays = new long[numThreads][batchSize];
         long[][] dstArrays = new long[numThreads][batchSize];
@@ -101,8 +104,25 @@ public class ScatteredArcsORCGraph extends ImmutableSequentialGraph {
                         dstArrays[threadId][idx] = t;
 
                         if (idx == batchSize - 1) {
-                            pairs.addAndGet(Transform.processBatch(batchSize, srcArrays[threadId], dstArrays[threadId],
-                                    tempDir, batches));
+                            /*
+                             * webgraph reuses the existing thread pool if there is one:
+                             * https://github.com/vigna/fastutil/blob/134cee3f42d02746058770ca8e06def0de70198c/drv/
+                             * Arrays.drv#L680
+                             *
+                             * However, this means that during our call to Transform.processBatch, the threadpool can
+                             * schedule another call to this function in the same thread, while this very function is
+                             * already running in this thread, causing concurrent access to the thread-local arrays.
+                             *
+                             * Therefore, we need to force webgraph to use its own thread pool.
+                             */
+                            webgraphForkJoinPool.invoke(ForkJoinTask.adapt(() -> {
+                                try {
+                                    pairs.addAndGet(Transform.processBatch(batchSize, srcArrays[threadId],
+                                            dstArrays[threadId], tempDir, batches));
+                                } catch (IOException e) {
+                                    throw new UncheckedIOException(e);
+                                }
+                            }));
                             indexes[threadId] = 0;
                         }
 
