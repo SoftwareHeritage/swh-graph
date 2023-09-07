@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
-use dsi_bitstream::prelude::{BufferedBitStreamWrite, FileBackend, LE};
+use dsi_bitstream::prelude::{BufferedBitStreamWrite, FileBackend, BE};
 use dsi_progress_logger::ProgressLogger;
 use rayon::prelude::*;
 use webgraph::prelude::*;
@@ -33,8 +33,9 @@ where
     let num_nodes = graph.num_nodes();
 
     let bit_write =
-        <BufferedBitStreamWrite<LE, _>>::new(<FileBackend<u64, _>>::new(BufWriter::new(
-            std::fs::File::create(target_dir).context("Could not create target graph file")?,
+        <BufferedBitStreamWrite<BE, _>>::new(<FileBackend<u64, _>>::new(BufWriter::new(
+            std::fs::File::create(&format!("{}.graph", target_dir.to_string_lossy()))
+                .context("Could not create target graph file")?,
         )));
 
     let codes_writer = DynamicCodesWriter::new(bit_write, &CompFlags::default());
@@ -74,7 +75,17 @@ where
 
     let g = COOIterToGraph::new(num_nodes, sorted_arcs);
 
-    let mut bvcomp = BVComp::new(codes_writer, 1, 4, 3, 0);
+    let mut compression_flags = CompFlags::default();
+    compression_flags.compression_window = 1;
+    compression_flags.min_interval_length = 4;
+    compression_flags.max_ref_count = 3;
+    let mut bvcomp = BVComp::new(
+        codes_writer,
+        compression_flags.compression_window,
+        compression_flags.min_interval_length,
+        compression_flags.max_ref_count,
+        0,
+    );
     let mut pl = ProgressLogger::default().display_memory();
     pl.item_name = "node";
     pl.expected_updates = Some(num_nodes);
@@ -94,6 +105,14 @@ where
     pl.borrow_mut().done();
 
     drop(temp_dir); // Prevent early deletion
+
+    log::info!("Writing the .properties file");
+    let properties = compression_flags.to_properties(num_nodes, graph.num_arcs());
+    std::fs::write(
+        format!("{}.properties", target_dir.to_string_lossy()),
+        properties,
+    )
+    .context("Could not write .properties file")?;
 
     Ok(())
 }
