@@ -1092,7 +1092,6 @@ source = "git+https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git?rev=276
 dependencies = [
  "cxx",
  "cxx-build",
- "rayon",
  "rust_decimal",
  "unsafe_unwrap",
 ]

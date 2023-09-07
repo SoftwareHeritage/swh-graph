@@ -25,8 +25,8 @@ dsi-progress-logger = "0.1.0"
 clap = { version = "4.1.6", features = ["derive"] }
 #ph = { git = "https://github.com/beling/bsuccinct-rs.git", rev = "f6636350a8149bc8deca83527ca195fe22311a4e" }
 ph = { version = "0.8.0" }
-orcxx = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "2765108b17bed3a030acd76735e48667d198b867", features = ["rayon"] }
-orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "2765108b17bed3a030acd76735e48667d198b867", features = ["rayon"] }
+orcxx = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "2765108b17bed3a030acd76735e48667d198b867" }
+orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "2765108b17bed3a030acd76735e48667d198b867" }
 #orcxx = { path = "../../../../rust/orcxx/orcxx/", optional = true }
 #orcxx_derive = { path = "../../../../rust/orcxx/orcxx_derive/", optional = true }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false, optional = true }
