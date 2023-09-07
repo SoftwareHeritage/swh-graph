@@ -153,20 +153,20 @@ enum Commands {
     /// Runs the Layered Labels Propagation algorithm on a symmetric graph to
     /// reorder nodes to get a much more compressible graph.
     Llp {
-        #[arg(short, long, default_value_t = 100)]
+        #[arg(long, default_value_t = 100)]
         /// The maximum number of LLP iterations for each gamma
         max_iters: usize,
 
-        #[arg(short, long, default_value_t = 1000)]
+        #[arg(long, default_value_t = 1000)]
         /// The size of the chunks each thread processes for the LLP
         granularity: usize,
 
-        #[arg(short, long, default_value_t = 100000)]
+        #[arg(long, default_value_t = 100000)]
         /// The size of the cnunks each thread processes for the random permutation
         /// at the start of each iteration
         chunk_size: usize,
 
-        #[arg(short, long, default_value = "-0,-1,-2,-3,-4")]
+        #[arg(long, allow_hyphen_values = true, default_value = "-0,-1,-2,-3,-4")]
         /// The gamma to use in LLP
         gammas: String,
 
