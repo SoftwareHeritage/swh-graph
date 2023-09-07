@@ -18,9 +18,7 @@ use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
 use rayon::prelude::*;
 use swh_graph::permutation::{OwnedPermutation, Permutation};
-use swh_graph::utils::sort::par_sort_arcs;
 use swh_graph::SWHType;
-use tempfile;
 use webgraph::prelude::*;
 
 #[derive(Parser, Debug)]
@@ -88,6 +86,8 @@ enum Commands {
         sort_batch_size: usize,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
+        #[arg(value_enum, long, default_value_t = MphAlgorithm::Fmph)]
+        mph_algo: MphAlgorithm,
         #[arg(long)]
         mph: PathBuf,
         #[arg(long)]
@@ -178,6 +178,12 @@ enum Commands {
         mph: PathBuf,
         swhids: Vec<String>,
     },
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum)]
+enum MphAlgorithm {
+    Fmph,
+    Cmph,
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
@@ -421,19 +427,17 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Cannot create {}", out_mph.display()))?;
             mph.write(&mut file).context("Could not write MPH file")?;
         }
+
         Commands::Bv {
             format: DatasetFormat::Orc,
             sort_batch_size,
             allowed_node_types,
+            mph_algo: MphAlgorithm::Fmph,
             mph,
             num_nodes,
             dataset_dir,
             target_dir,
         } => {
-            use itertools::Itertools;
-            use std::cell::UnsafeCell;
-            use swh_graph::compress::orc::*;
-
             let _ = parse_allowed_node_types(&allowed_node_types);
 
             let file =
@@ -443,92 +447,48 @@ pub fn main() -> Result<()> {
                 fmph::Function::read(&mut BufReader::new(file)).context("Could not parse mph")?;
             println!("MPH loaded, sorting arcs");
 
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "arc";
-            pl.local_speed = true;
-            pl.expected_updates =
-                Some(swh_graph::compress::orc::estimate_edge_count(&dataset_dir) as usize);
-            pl.start("Reading arcs");
-
-            // Sort in parallel in a bunch of SortPairs instances
-            let pl = Mutex::new(pl);
-            let counters = thread_local::ThreadLocal::new();
-            let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
-            let sorted_arcs = par_sort_arcs(
-                temp_dir.path(),
+            swh_graph::compress::bv::bv(
                 sort_batch_size,
-                iter_arcs(&dataset_dir).inspect(|_| {
-                    // This is safe because only this thread accesses this and only from
-                    // here.
-                    let counter = counters.get_or(|| UnsafeCell::new(0));
-                    let counter: &mut usize = unsafe { &mut *counter.get() };
-                    *counter += 1;
-                    if *counter % 32768 == 0 {
-                        // Update but avoid lock contention at the expense
-                        // of precision (counts at most 32768 too many at the
-                        // end of each file)
-                        pl.lock().unwrap().update_with_count(32768);
-                        *counter = 0
-                    }
-                }),
-                |sorter, (src, dst)| {
-                    let src = mph.get(&src).with_context(|| {
+                |swhid| {
+                    mph.get(swhid).with_context(|| {
                         format!(
                             "Could not hash {}",
-                            std::str::from_utf8(&src).unwrap_or(&format!("{:?}", src))
+                            std::str::from_utf8(swhid).unwrap_or(&format!("{:?}", swhid))
                         )
-                    })? as usize;
-                    let dst = mph.get(&dst).with_context(|| {
-                        format!(
-                            "Could not hash {}",
-                            std::str::from_utf8(&dst).unwrap_or(&format!("{:?}", dst))
-                        )
-                    })? as usize;
-                    assert!(src < num_nodes, "src node id is greater than {}", num_nodes);
-                    assert!(dst < num_nodes, "dst node id is greater than {}", num_nodes);
-                    sorter.push((src, dst, ()));
-                    Ok(())
+                    })
                 },
-            )?
-            .dedup()
-            .map(|(src, dst)| (src, dst, ()));
-            pl.lock().unwrap().done();
-
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "node";
-            pl.local_speed = true;
-            pl.expected_updates = Some(num_nodes);
-            pl.start("Building BVGraph");
-            let pl = Mutex::new(pl);
-            let counters = thread_local::ThreadLocal::new();
-
-            let sequential_graph = COOIterToLabelledGraph::new(num_nodes, sorted_arcs);
-            let adjacency_lists = sequential_graph.iter_nodes().inspect(|_| {
-                let counter = counters.get_or(|| UnsafeCell::new(0));
-                let counter: &mut usize = unsafe { &mut *counter.get() };
-                *counter += 1;
-                if *counter % 32768 == 0 {
-                    // Update but avoid lock contention at the expense
-                    // of precision (counts at most 32768 too many at the
-                    // end of each file)
-                    pl.lock().unwrap().update_with_count(32768);
-                    *counter = 0
-                }
-            });
-            let comp_flags = Default::default();
-            let num_threads = num_cpus::get();
-
-            webgraph::graph::bvgraph::parallel_compress_sequential_iter(
+                num_nodes,
+                dataset_dir,
                 target_dir,
-                adjacency_lists,
-                comp_flags,
-                num_threads,
-            )
-            .context("Could not build BVGraph from arcs")?;
+            )?;
+        }
 
-            pl.lock().unwrap().done();
+        Commands::Bv {
+            format: DatasetFormat::Orc,
+            sort_batch_size,
+            allowed_node_types,
+            mph_algo: MphAlgorithm::Cmph,
+            mph,
+            num_nodes,
+            dataset_dir,
+            target_dir,
+        } => {
+            use sux::prelude::gov::GOVMPH;
 
-            drop(temp_dir); // Prevent early deletion
+            let _ = parse_allowed_node_types(&allowed_node_types);
+
+            println!("Reading MPH");
+            let mph =
+                GOVMPH::load(&mph).with_context(|| format!("Cannot read {}", mph.display()))?;
+            println!("MPH loaded, sorting arcs");
+
+            swh_graph::compress::bv::bv(
+                sort_batch_size,
+                |swhid| Ok(mph.get_byte_array(swhid)),
+                num_nodes,
+                dataset_dir,
+                target_dir,
+            )?;
         }
 
         Commands::BvOffsets { graph_dir, ef_path } => {

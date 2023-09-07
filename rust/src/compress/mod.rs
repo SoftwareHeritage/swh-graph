@@ -3,6 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+pub mod bv;
 pub mod orc;
 pub mod transform;
 pub mod zst_dir;
