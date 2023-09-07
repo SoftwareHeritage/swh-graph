@@ -36,6 +36,8 @@ def test_compressgraph(tmpdir, workers):
         DATASET_DIR,
         "--CompressGraph-local-graph-path",
         tmpdir / "compressed_graph",
+        "--CompressGraph-rust-executable",
+        "./target/debug/compress",
     ]
 
     if workers is not None:
@@ -97,6 +99,8 @@ def test_compressgraph_partial(tmpdir, workers, object_types):
         "--CompressGraph-local-graph-path",
         tmpdir / "compressed_graph",
         f"--CompressGraph-object-types={object_types}",
+        "--CompressGraph-rust-executable",
+        "./target/debug/compress",
     ]
 
     if workers is not None:

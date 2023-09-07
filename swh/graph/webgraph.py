@@ -48,6 +48,8 @@ class CompressionStep(Enum):
     EDGE_LABELS_OBL = 22
     EDGE_LABELS_TRANSPOSE_OBL = 23
     CLEAN_TMP = 24
+    CONVERT_MPH = 25
+    BV_OFFSETS = 26
 
     def __str__(self):
         return self.name
@@ -85,16 +87,28 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}.mph",
         "{out_dir}/{graph_name}.nodes.csv.zst",
     ],
-    CompressionStep.BV: [
+    CompressionStep.CONVERT_MPH: [
         "{java}",
-        "org.softwareheritage.graph.compress.ScatteredArcsORCGraph",
-        "--temp-dir",
-        "{tmp_dir}",
+        "org.softwareheritage.graph.utils.Mph2Cmph",
+        "{out_dir}/{graph_name}.mph",
+        "{out_dir}/{graph_name}.cmph",
+    ],
+    CompressionStep.BV: [
+        "{rust_executable}",
+        "bv",
         "--allowed-node-types",
         "{object_types}",
+        "--mph-algo",
+        "cmph",
         "--function",
-        "{out_dir}/{graph_name}.mph",
+        "{out_dir}/{graph_name}.cmph",
+        "--num-nodes",
+        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
         "{in_dir}",
+        "{out_dir}/{graph_name}-base",
+    ],
+    CompressionStep.BV_OFFSETS: [
+        "build_offsets",  # 'cargo install webgraph' to get it
         "{out_dir}/{graph_name}-base",
     ],
     CompressionStep.BFS: [
@@ -308,6 +322,7 @@ def do_step(step, conf):
     cmd_env = os.environ.copy()
     cmd_env["JAVA_TOOL_OPTIONS"] = conf["java_tool_options"]
     cmd_env["CLASSPATH"] = conf["classpath"]
+    cmd_env["TMPDIR"] = conf["tmp_dir"]
     process = subprocess.Popen(
         ["/bin/bash", "-c", cmd],
         env=cmd_env,

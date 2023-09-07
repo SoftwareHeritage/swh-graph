@@ -89,7 +89,7 @@ enum Commands {
         #[arg(value_enum, long, default_value_t = MphAlgorithm::Fmph)]
         mph_algo: MphAlgorithm,
         #[arg(long)]
-        mph: PathBuf,
+        function: PathBuf,
         #[arg(long)]
         num_nodes: usize,
         dataset_dir: PathBuf,
@@ -433,15 +433,15 @@ pub fn main() -> Result<()> {
             sort_batch_size,
             allowed_node_types,
             mph_algo: MphAlgorithm::Fmph,
-            mph,
+            function,
             num_nodes,
             dataset_dir,
             target_dir,
         } => {
             let _ = parse_allowed_node_types(&allowed_node_types);
 
-            let file =
-                File::open(&mph).with_context(|| format!("Cannot read {}", mph.display()))?;
+            let file = File::open(&function)
+                .with_context(|| format!("Cannot read {}", function.display()))?;
             println!("Reading MPH");
             let mph =
                 fmph::Function::read(&mut BufReader::new(file)).context("Could not parse mph")?;
@@ -468,7 +468,7 @@ pub fn main() -> Result<()> {
             sort_batch_size,
             allowed_node_types,
             mph_algo: MphAlgorithm::Cmph,
-            mph,
+            function,
             num_nodes,
             dataset_dir,
             target_dir,
@@ -478,8 +478,8 @@ pub fn main() -> Result<()> {
             let _ = parse_allowed_node_types(&allowed_node_types);
 
             println!("Reading MPH");
-            let mph =
-                GOVMPH::load(&mph).with_context(|| format!("Cannot read {}", mph.display()))?;
+            let mph = GOVMPH::load(&function)
+                .with_context(|| format!("Cannot read {}", function.display()))?;
             println!("MPH loaded, sorting arcs");
 
             swh_graph::compress::bv::bv(

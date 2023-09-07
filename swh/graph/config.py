@@ -81,6 +81,8 @@ def check_config(conf):
             conf["java"] = os.path.join(os.environ["JAVA_HOME"], "bin", "java")
         else:
             conf["java"] = "java"
+    if "rust_executable" not in conf:
+        conf["rust_executable"] = "./target/release/compress"
     if "classpath" not in conf:
         conf["classpath"] = find_graph_jar()
     if "object_types" not in conf:

@@ -194,8 +194,8 @@ class _CompressionStepTask(luigi.Task):
 
     EXPORT_AS_INPUT: bool = False
     """Whether this task should depend directly on :class:`LocalExport`.
-    If not, it is assumed it depends transitiviely via one of the
-    :attr:`PREVIOUS_STEPS`.
+    If not, it is assumed it depends transitiviely via one of the tasks returned
+    by :meth:`requires`.
     """
 
     local_export_path = luigi.PathParameter(significant=False)
@@ -210,6 +210,12 @@ class _CompressionStepTask(luigi.Task):
         Size of work batches to use while compressing.
         Larger is faster, but consumes more resources.
         """,
+    )
+
+    rust_executable = luigi.Parameter(
+        default="./target/release/compress",
+        significant=False,
+        description="Path to the Rust executable used to manipulate the graph.",
     )
 
     object_types = ObjectTypesParameter()
@@ -372,6 +378,7 @@ class _CompressionStepTask(luigi.Task):
                         graph_name=self.graph_name,
                         local_graph_path=self.local_graph_path,
                         object_types=self.object_types,
+                        rust_executable=self.rust_executable,
                     )
                     if self.batch_size:
                         kwargs["batch_size"] = self.batch_size
@@ -443,6 +450,7 @@ class _CompressionStepTask(luigi.Task):
         }
         if self.batch_size:
             conf["batch_size"] = self.batch_size
+        conf["rust_executable"] = self.rust_executable
 
         conf = check_config_compress(
             conf,
@@ -514,10 +522,21 @@ class Mph(_CompressionStepTask):
         return bitvector_size + extra_size
 
 
+class ConvertMph(_CompressionStepTask):
+    STEP = CompressionStep.CONVERT_MPH
+    INPUT_FILES = {".mph"}
+    OUTPUT_FILES = {".cmph"}
+
+    def _large_java_allocations(self) -> int:
+        bitvector_size = _govmph_bitarray_size(self._nb_nodes())
+        extra_size = self._nb_nodes()  # TODO: why is this needed?
+        return bitvector_size + extra_size
+
+
 class Bv(_CompressionStepTask):
     STEP = CompressionStep.BV
     EXPORT_AS_INPUT = True
-    INPUT_FILES = {".mph"}
+    INPUT_FILES = {".cmph"}
     OUTPUT_FILES = {"-base.graph"}
 
     def _large_java_allocations(self) -> int:
@@ -529,9 +548,18 @@ class Bv(_CompressionStepTask):
         return int(self._mph_size() + batch_size)
 
 
+class BvOffsets(_CompressionStepTask):
+    STEP = CompressionStep.BV_OFFSETS
+    INPUT_FILES = {"-base.graph"}
+    OUTPUT_FILES = {"-base.offsets"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
 class Bfs(_CompressionStepTask):
     STEP = CompressionStep.BFS
-    INPUT_FILES = {"-base.graph"}
+    INPUT_FILES = {"-base.graph", "-base.offsets"}
     OUTPUT_FILES = {"-bfs.order"}
 
     def _large_java_allocations(self) -> int:
@@ -994,6 +1022,12 @@ class CompressGraph(luigi.Task):
         """,
     )
 
+    rust_executable = luigi.Parameter(
+        default="./target/release/compress",
+        significant=False,
+        description="Path to the Rust executable used to manipulate the graph.",
+    )
+
     object_types = ObjectTypesParameter(default=list(_TABLES_PER_OBJECT_TYPE))
 
     def requires(self) -> List[luigi.Task]:
@@ -1004,6 +1038,7 @@ class CompressGraph(luigi.Task):
             graph_name=self.graph_name,
             local_graph_path=self.local_graph_path,
             object_types=self.object_types,
+            rust_executable=self.rust_executable,
         )
         return [
             LocalExport(
