@@ -150,29 +150,6 @@ enum Commands {
         permutation: PathBuf,
         target_dir: PathBuf,
     },
-    /// Runs the Layered Labels Propagation algorithm on a symmetric graph to
-    /// reorder nodes to get a much more compressible graph.
-    Llp {
-        #[arg(long, default_value_t = 100)]
-        /// The maximum number of LLP iterations for each gamma
-        max_iters: usize,
-
-        #[arg(long, default_value_t = 1000)]
-        /// The size of the chunks each thread processes for the LLP
-        granularity: usize,
-
-        #[arg(long, default_value_t = 100000)]
-        /// The size of the cnunks each thread processes for the random permutation
-        /// at the start of each iteration
-        chunk_size: usize,
-
-        #[arg(long, allow_hyphen_values = true, default_value = "-0,-1,-2,-3,-4")]
-        /// The gamma to use in LLP
-        gammas: String,
-
-        graph_dir: PathBuf,
-        target_order: PathBuf,
-    },
 
     HashSwhids {
         mph: PathBuf,
@@ -492,6 +469,7 @@ pub fn main() -> Result<()> {
         }
 
         Commands::BvOffsets { graph_dir, ef_path } => {
+            use epserde::ser::Serialize;
             use sux::prelude::*;
             let graph_dir2 = graph_dir.to_string_lossy();
             // Adapted from https://github.com/vigna/webgraph-rs/blob/c43563de15e30d4ee1f7a4f0096f6479b81eb26a/src/bin/build_eliasfano.rs
@@ -525,21 +503,21 @@ pub fn main() -> Result<()> {
                 seq_graph.map_codes_reader_builder(DynamicCodesReaderSkipperBuilder::from);
             pl.start("Building EliasFano...");
             // read the graph a write the offsets
-            for (new_offset, _node_id, _degree) in seq_graph.iter_degrees() {
+            let mut iter = seq_graph.iter_degrees();
+            while let Some((new_offset, _node_id, _degree)) = iter.next() {
                 // write where
                 efb.push(new_offset as _)
                     .context("Could not push EF offset")?;
                 // decode the next nodes so we know where the next node_id starts
                 pl.light_update();
             }
+            efb.push(iter.get_pos() as _)?;
             pl.done();
 
             let ef = efb.build();
 
             let mut pl = ProgressLogger::default().display_memory();
             pl.start("Building the Index over the ones in the high-bits...");
-            let ef: EliasFano<SparseIndex<BitMap<_>, _, 8>, CompactArray<_>> =
-                ef.convert_to().unwrap();
             pl.done();
 
             let mut pl = ProgressLogger::default().display_memory();
@@ -641,50 +619,6 @@ pub fn main() -> Result<()> {
                 },
                 target_dir,
             )?;
-        }
-
-        Commands::Llp {
-            max_iters,
-            granularity,
-            chunk_size,
-            gammas,
-            graph_dir,
-            target_order,
-        } => {
-            let mut permut_file = File::create(&target_order)
-                .with_context(|| format!("Could not open {}", target_order.display()))?;
-
-            println!("Loading graph");
-            let graph = webgraph::graph::bvgraph::load(graph_dir)?;
-            println!("Graph loaded");
-
-            let mut perm = vec![0usize; graph.num_nodes()];
-
-            let mut parsed_gammas = Vec::new();
-            for gamma in gammas.split(',') {
-                parsed_gammas.push(gamma.parse().context("Could not parse gamma")?);
-            }
-
-            let mut gammas_iter = parsed_gammas.into_iter();
-
-            let gamma = gammas_iter.next().expect("No gamma provided");
-            let seed = 0;
-            layered_label_propagation(
-                &graph,
-                &mut perm[..],
-                gamma,
-                None,
-                max_iters,
-                chunk_size,
-                granularity,
-                seed,
-            )
-            .context("LLP failed")?;
-
-            OwnedPermutation::new(perm)
-                .context("LLP generated invalid permutation")?
-                .dump(&mut permut_file)
-                .context("Could not write permutation")?;
         }
 
         Commands::HashSwhids { swhids, mph } => {

@@ -15,8 +15,8 @@ categories = ["compression", "graph"]
 rand = "0.8.5"
 anyhow = {version="1.0.71", features=["backtrace"]}
 mmap-rs = "0.5.0"
-sux = {git = "https://github.com/vigna/sux-rs", rev = "e7c965c4bf6d79998d923c05922b2d231a55b608" }
-webgraph = {git = "https://github.com/vigna/webgraph-rs", rev = "32b41a04e0b01cb337c94c4366dd4da5262700d0" }
+sux = {git = "https://github.com/vigna/sux-rs", rev = "1549a84f308270bd5531421d8879841275eb2c89" }
+webgraph = {git = "https://github.com/vigna/webgraph-rs", rev = "62b2a462e27bcb279168114bcf63b27e3f4b5e87" }
 #webgraph = { path = "../../../webgraph-rs" }
 log = "0.4.17"
 libc = "0.2.147"
@@ -41,6 +41,7 @@ byteorder = "1.4.3"
 java-properties = "1.4.1"
 base64-simd = "0.8.0"
 dsi-bitstream = {git = "https://github.com/vigna/dsi-bitstream-rs"}
+epserde = {git = "https://github.com/vigna/epserde-rs.git"}
 
 [dev-dependencies]
 bitvec = { version = "1.0.1", features = ["atomic"] }

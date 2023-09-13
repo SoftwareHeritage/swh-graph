@@ -5,7 +5,7 @@
 
 use crate::SWHID;
 use anyhow::Result;
-use mmap_rs::Mmap;
+use mmap_rs::{Mmap, MmapFlags};
 
 /// Struct to load a `.node2swhid.bin` file and convert node ids to SWHIDs.
 pub struct Node2SWHID {
@@ -20,7 +20,7 @@ impl Node2SWHID {
         let file = std::fs::File::open(path)?;
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)?
-                .with_flags((sux::prelude::Flags::TRANSPARENT_HUGE_PAGES).mmap_flags())
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
                 .with_file(file, 0)
                 .map()?
         };

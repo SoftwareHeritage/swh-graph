@@ -1,7 +1,7 @@
 use crate::SWHType;
 use anyhow::{Context, Result};
 use log::info;
-use mmap_rs::{Mmap, MmapMut};
+use mmap_rs::{Mmap, MmapFlags, MmapMut};
 use std::path::Path;
 use sux::prelude::CompactArray;
 use sux::traits::*;
@@ -97,7 +97,7 @@ impl Node2Type<MmapMut> {
         let file = std::fs::File::open(path)?;
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)?
-                .with_flags((sux::prelude::Flags::TRANSPARENT_HUGE_PAGES).mmap_flags())
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
                 .with_file(file, 0)
                 .map_mut()?
         };
@@ -120,7 +120,7 @@ impl Node2Type<Mmap> {
         let file = std::fs::File::open(path)?;
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)?
-                .with_flags((sux::prelude::Flags::TRANSPARENT_HUGE_PAGES).mmap_flags())
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
                 .with_file(file, 0)
                 .map()?
         };

@@ -4,7 +4,7 @@
 // See top-level LICENSE file for more information
 
 use anyhow::Result;
-use mmap_rs::Mmap;
+use mmap_rs::{Mmap, MmapFlags};
 
 /// A struct that stores a permutation and is used for the mapping
 /// of initial order -> graph order.
@@ -20,7 +20,7 @@ impl Order {
         let file = std::fs::File::open(path)?;
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)?
-                .with_flags((sux::prelude::Flags::TRANSPARENT_HUGE_PAGES).mmap_flags())
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
                 .with_file(file, 0)
                 .map()?
         };

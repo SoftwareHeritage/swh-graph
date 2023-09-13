@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use anyhow::{bail, Context, Result};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use dsi_progress_logger::ProgressLogger;
-use mmap_rs::Mmap;
+use mmap_rs::{Mmap, MmapFlags};
 use rayon::prelude::*;
 
 /// An array of `n` unique integers in the `0..n` range.
@@ -21,9 +21,9 @@ pub trait Permutation {
 }
 
 /// A [`Permutation`] backed by an `usize` vector
-pub struct OwnedPermutation(Vec<usize>);
+pub struct OwnedPermutation<T: Sync + AsRef<[usize]>>(T);
 
-impl OwnedPermutation {
+impl<T: Sync + AsRef<[usize]>> OwnedPermutation<T> {
     /// Creates a permutation
     ///
     /// # Safety
@@ -32,38 +32,40 @@ impl OwnedPermutation {
     /// permutation's image are correct or unique, which will violate assumptions
     /// of other unsafe functions down the line.
     #[inline(always)]
-    pub unsafe fn new_unchecked(perm: Vec<usize>) -> Self {
+    pub unsafe fn new_unchecked(perm: T) -> Self {
         OwnedPermutation(perm)
     }
 
     /// Creates a permutation, or returns an error in case the permutation is
     /// incorrect
     #[inline]
-    pub fn new(perm: Vec<usize>) -> Result<Self> {
+    pub fn new(perm: T) -> Result<Self> {
         // Check the permutation's image has the same size as the preimage
         if let Some((old, new)) = perm
+            .as_ref()
             .par_iter()
             .enumerate()
-            .find_any(|&(_old, &new)| new >= perm.len())
+            .find_any(|&(_old, &new)| new >= perm.as_ref().len())
         {
             bail!(
                 "Found node {} has id {} in permutation, graph size is {}",
                 old,
                 new,
-                perm.len()
+                perm.as_ref().len()
             );
         }
 
         // Check the permutation is injective
-        let mut seen = Vec::with_capacity(perm.len() as _);
-        seen.extend((0..perm.len()).map(|_| AtomicBool::new(false)));
+        let mut seen = Vec::with_capacity(perm.as_ref().len() as _);
+        seen.extend((0..perm.as_ref().len()).map(|_| AtomicBool::new(false)));
         if let Some((old, _)) = perm
+            .as_ref()
             .par_iter()
             .map(|&node| seen[node].fetch_or(true, Ordering::SeqCst))
             .enumerate()
             .find_any(|&(_node, is_duplicated)| is_duplicated)
         {
-            let new = perm[old];
+            let new = perm.as_ref()[old];
             bail!(
                 "At least two nodes are mapped to {}; one of them is {}",
                 new,
@@ -76,6 +78,35 @@ impl OwnedPermutation {
         Ok(OwnedPermutation(perm))
     }
 
+    pub fn dump<W: Write>(&self, file: &mut W) -> std::io::Result<()> {
+        let mut pl = ProgressLogger::default().display_memory();
+        pl.item_name = "byte";
+        pl.local_speed = true;
+        pl.expected_updates = Some(self.len() * 8);
+        pl.start("Writing permutation");
+
+        let chunk_size = 1_000_000; // 1M of u64 -> 8MB
+        let mut buf = vec![0u8; chunk_size * 8];
+        for chunk in self.0.as_ref().chunks(chunk_size) {
+            let buf_slice = &mut buf[..chunk.len() * 8]; // no-op except for the last chunk
+            assert_eq!(
+                usize::BITS,
+                u64::BITS,
+                "Only 64-bits architectures are supported"
+            );
+            BigEndian::write_u64_into(
+                unsafe { std::mem::transmute::<&[usize], &[u64]>(chunk) },
+                buf_slice,
+            );
+            file.write_all(buf_slice)?;
+            pl.update_with_count(chunk.len() * 8);
+        }
+        pl.done();
+        Ok(())
+    }
+}
+
+impl OwnedPermutation<Vec<usize>> {
     /// Loads a permutation from disk and returns IO errors if any.
     ///
     /// # Safety
@@ -114,52 +145,25 @@ impl OwnedPermutation {
         let perm = unsafe { Self::load_unchecked(num_nodes, path) }?;
         Self::new(perm.0)
     }
-
-    pub fn dump<W: Write>(&self, file: &mut W) -> std::io::Result<()> {
-        let mut pl = ProgressLogger::default().display_memory();
-        pl.item_name = "byte";
-        pl.local_speed = true;
-        pl.expected_updates = Some(self.len() * 8);
-        pl.start("Writing permutation");
-
-        let chunk_size = 1_000_000; // 1M of u64 -> 8MB
-        let mut buf = vec![0u8; chunk_size * 8];
-        for chunk in self.0.chunks(chunk_size) {
-            let buf_slice = &mut buf[..chunk.len() * 8]; // no-op except for the last chunk
-            assert_eq!(
-                usize::BITS,
-                u64::BITS,
-                "Only 64-bits architectures are supported"
-            );
-            BigEndian::write_u64_into(
-                unsafe { std::mem::transmute::<&[usize], &[u64]>(chunk) },
-                buf_slice,
-            );
-            file.write_all(buf_slice)?;
-            pl.update_with_count(chunk.len() * 8);
-        }
-        pl.done();
-        Ok(())
-    }
 }
 
-impl AsRef<[usize]> for OwnedPermutation {
+impl<T: Sync + AsRef<[usize]>> AsRef<[usize]> for OwnedPermutation<T> {
     #[inline(always)]
     fn as_ref(&self) -> &[usize] {
         self.0.as_ref()
     }
 }
 
-impl std::ops::Index<usize> for OwnedPermutation {
+impl<T: Sync + AsRef<[usize]>> std::ops::Index<usize> for OwnedPermutation<T> {
     type Output = usize;
 
     #[inline(always)]
     fn index(&self, old_node: usize) -> &Self::Output {
-        &self.0[old_node]
+        &self.0.as_ref()[old_node]
     }
 }
 
-impl Permutation for OwnedPermutation {
+impl<T: Sync + AsRef<[usize]>> Permutation for OwnedPermutation<T> {
     fn len(&self) -> usize {
         self.as_ref().len()
     }
@@ -269,7 +273,7 @@ impl MappedPermutation {
         let file = std::fs::File::open(&path).context("Could not open permutation")?;
         let perm = mmap_rs::MmapOptions::new(file_len as _)
             .context("Could not initialize permutation mmap")?
-            .with_flags((sux::prelude::Flags::TRANSPARENT_HUGE_PAGES).mmap_flags())
+            .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
             .with_file(file, 0)
             .map()
             .context("Could not mmap permutation")?;

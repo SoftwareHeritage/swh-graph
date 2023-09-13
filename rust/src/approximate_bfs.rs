@@ -16,7 +16,9 @@ use webgraph::prelude::*;
 
 use crate::permutation::OwnedPermutation;
 
-pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(graph: &'a G) -> OwnedPermutation {
+pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(
+    graph: &'a G,
+) -> OwnedPermutation<Vec<usize>> {
     let num_nodes = graph.num_nodes();
 
     println!("Allocating array");
