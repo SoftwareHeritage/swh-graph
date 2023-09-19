@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 
 public class ListEarliestRevisions {
 
-    private SwhUnidirectionalGraph graph;
+    private SwhBidirectionalGraph graph;
     private BooleanBigArrayBigList visited;
     private LongBigArrayBigList timestamps;
     private CSVPrinter csvPrinter;
@@ -64,7 +64,7 @@ public class ListEarliestRevisions {
         }
 
         System.err.println("Loading graph " + graphPath + " ...");
-        ler.graph = SwhUnidirectionalGraph.loadMapped(graphPath);
+        ler.graph = SwhBidirectionalGraph.loadMapped(graphPath);
         ler.timestamps = null;
 
         ler.run();
@@ -137,11 +137,22 @@ public class ListEarliestRevisions {
 
     private void visitNode(String date, long timestamp, String revrelSWHID) throws IOException {
         long nodeId = graph.getNodeId(revrelSWHID);
-        if (graph.getNodeType(nodeId) == SwhType.REV) {
-            // Temporary (2023-08-30): Ignore revisions in provenance computation
-            return;
-        }
-        if (graph.getNodeType(nodeId) != SwhType.REL) {
+
+        if (graph.getNodeType(nodeId) == SwhType.REL) {
+            // Allow releases
+        } else if (graph.getNodeType(nodeId) == SwhType.REV) {
+            // Allow revisions if they are a snapshot head
+            boolean isSnapshotHead = false;
+            LazyLongIterator it = graph.predecessors(nodeId);
+            for (long predecessorId; (predecessorId = it.nextLong()) != -1;) {
+                if (graph.getNodeType(predecessorId) == SwhType.SNP) {
+                    isSnapshotHead = true;
+                }
+            }
+            if (!isSnapshotHead) {
+                return;
+            }
+        } else {
             System.err.format("%s has unexpected type\n", graph.getNodeType(nodeId).toString());
             return;
         }
