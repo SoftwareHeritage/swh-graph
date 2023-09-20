@@ -10,7 +10,7 @@ mod node2swhid;
 pub use node2swhid::Node2SWHID;
 
 mod node2type;
-pub use node2type::{BorrowedNode2Type, MappedNode2Type, Node2Type, Node2TypeMut};
+pub use node2type::Node2Type;
 
 mod order;
 pub use order::Order;

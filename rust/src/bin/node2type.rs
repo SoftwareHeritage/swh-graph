@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use dsi_progress_logger::ProgressLogger;
 use log::info;
-use swh_graph::map::{MappedNode2Type, Node2SWHID, Node2TypeMut};
+use swh_graph::map::{Node2SWHID, Node2Type};
 
 #[derive(Parser, Debug)]
 #[command(about = "Build `.node2type.bin` from `.node2swhid.bin`. Example usage:  cargo run --bin node2type -- swh/graph/example_dataset/compressed/example ", long_about = None)]
@@ -41,7 +41,7 @@ pub fn main() -> Result<()> {
         args.dst_basename.unwrap_or(args.basename)
     );
     // create a new node2type file that can index `num_nodes` nodes
-    let mut node2type = MappedNode2Type::new(&node2type_path, num_nodes)
+    let mut node2type = Node2Type::new(&node2type_path, num_nodes)
         .with_context(|| format!("While creating the .node2type.bin file: {}", node2type_path))?;
 
     // init the progress logger

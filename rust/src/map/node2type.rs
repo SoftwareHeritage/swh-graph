@@ -5,100 +5,71 @@ use mmap_rs::{Mmap, MmapFlags, MmapMut};
 use std::path::Path;
 use sux::prelude::{CompactArray, VSlice, VSliceMut};
 
-pub trait Node2Type {
-    type Buf: AsRef<[usize]> + ?Sized;
+/// Struct to create and load a `.node2type.bin` file and convert node ids to types.
+pub struct Node2Type<B> {
+    data: CompactArray<B>,
+}
 
-    fn as_array(&self) -> CompactArray<&Self::Buf>;
-
+impl<B: AsRef<[usize]>> Node2Type<B> {
     #[inline]
     /// Get the type of a node with id `node_id` without bounds checking
     ///
     /// # Safety
     /// This function is unsafe because it does not check that `node_id` is
     /// within bounds of the array if debug asserts are disabled
-    unsafe fn get_unchecked(&self, node_id: usize) -> SWHType {
-        SWHType::try_from(self.as_array().get_unchecked(node_id) as u8).unwrap()
+    pub unsafe fn get_unchecked(&self, node_id: usize) -> SWHType {
+        SWHType::try_from(self.data.get_unchecked(node_id) as u8).unwrap()
     }
 
     #[inline]
     /// Get the type of a node with id `node_id`
-    fn get(&self, node_id: usize) -> Option<SWHType> {
-        SWHType::try_from(self.as_array().get(node_id) as u8).ok()
+    pub fn get(&self, node_id: usize) -> Option<SWHType> {
+        SWHType::try_from(self.data.get(node_id) as u8).ok()
     }
 }
 
-pub trait Node2TypeMut {
-    type Buf: AsRef<[usize]> + AsMut<[usize]> + ?Sized;
-
-    fn as_array_mut(&mut self) -> CompactArray<&mut Self::Buf>;
-
+impl<B: AsRef<[usize]> + AsMut<[usize]>> Node2Type<B> {
     #[inline]
     /// Get the type of a node with id `node_id` without bounds checking
     ///
     /// # Safety
     /// This function is unsafe because it does not check that `node_id` is
     /// within bounds of the array if debug asserts are disabled
-    unsafe fn set_unchecked(&mut self, node_id: usize, node_type: SWHType) {
-        self.as_array_mut()
-            .set_unchecked(node_id, node_type as usize);
+    pub unsafe fn set_unchecked(&mut self, node_id: usize, node_type: SWHType) {
+        self.data.set_unchecked(node_id, node_type as usize);
     }
 
     #[inline]
     /// Set the type of a node with id `node_id`
-    fn set(&mut self, node_id: usize, node_type: SWHType) {
-        self.as_array_mut().set(node_id, node_type as usize);
+    pub fn set(&mut self, node_id: usize, node_type: SWHType) {
+        self.data.set(node_id, node_type as usize);
     }
 }
 
-/// Alternative to [`MappedNode2Type`] backed by a slice instead of a mmap.
-pub struct BorrowedNode2Type<B> {
-    data: B,
-    num_nodes: usize,
-}
+/// Newtype for [`Mmap`]/[`MmapMut`] which can be dereferenced as slices of usize
+///
+/// instead of slices of u8, so it can be used as backend for [`CompactArray`].
+pub struct UsizeMmap<B>(B);
 
-impl<B: AsRef<[usize]>> Node2Type for BorrowedNode2Type<B> {
-    type Buf = B;
-
-    fn as_array(&self) -> CompactArray<&Self::Buf> {
-        unsafe { CompactArray::from_raw_parts(&self.data, SWHType::BITWIDTH, self.num_nodes) }
+impl AsRef<[usize]> for UsizeMmap<Mmap> {
+    fn as_ref(&self) -> &[usize] {
+        bytemuck::cast_slice(&self.0)
     }
 }
 
-impl<B: AsRef<[usize]> + AsMut<[usize]>> Node2TypeMut for BorrowedNode2Type<B> {
-    type Buf = B;
-
-    fn as_array_mut(&mut self) -> CompactArray<&mut Self::Buf> {
-        unsafe { CompactArray::from_raw_parts(&mut self.data, SWHType::BITWIDTH, self.num_nodes) }
+impl AsMut<[usize]> for UsizeMmap<MmapMut> {
+    fn as_mut(&mut self) -> &mut [usize] {
+        bytemuck::cast_slice_mut(&mut self.0)
     }
 }
 
-/// Struct to create and load a `.node2type.bin` file and convert node ids to types.
-pub struct MappedNode2Type<B> {
-    data: B,
-    num_nodes: usize,
-}
-
-impl<B: AsRef<[u8]>> Node2Type for MappedNode2Type<B> {
-    type Buf = [usize];
-
-    fn as_array(&self) -> CompactArray<&Self::Buf> {
-        // Cast padded &[u8] to &[usize]
-        let data = bytemuck::cast_slice(self.data.as_ref());
-        unsafe { CompactArray::from_raw_parts(data, SWHType::BITWIDTH, self.num_nodes) }
+impl AsRef<[usize]> for UsizeMmap<MmapMut> {
+    fn as_ref(&self) -> &[usize] {
+        bytemuck::cast_slice(&self.0)
     }
 }
 
-impl<B: AsMut<[u8]>> Node2TypeMut for MappedNode2Type<B> {
-    type Buf = [usize];
-
-    fn as_array_mut(&mut self) -> CompactArray<&mut Self::Buf> {
-        // Cast padded &mut [u8] to &mut [usize]
-        let data = bytemuck::cast_slice_mut(self.data.as_mut());
-        unsafe { CompactArray::from_raw_parts(data, SWHType::BITWIDTH, self.num_nodes) }
-    }
-}
-
-impl MappedNode2Type<MmapMut> {
+impl Node2Type<UsizeMmap<MmapMut>> {
     /// Create a new `.node2type.bin` file
     pub fn new<P: AsRef<Path>>(path: P, num_nodes: usize) -> Result<Self> {
         let path = path.as_ref();
@@ -134,11 +105,12 @@ impl MappedNode2Type<MmapMut> {
                 .map_mut()
                 .with_context(|| "While mmapping the file")?
         };
+        // use the CompactArray over the mmap
+        let mmap = UsizeMmap(mmap);
+        let node2type =
+            unsafe { CompactArray::from_raw_parts(mmap, SWHType::BITWIDTH, num_nodes as usize) };
 
-        Ok(Self {
-            data: mmap,
-            num_nodes,
-        })
+        Ok(Self { data: node2type })
     }
 
     /// Load a mutable `.node2type.bin` file
@@ -157,11 +129,15 @@ impl MappedNode2Type<MmapMut> {
             libc::madvise(data.as_ptr() as *mut _, data.len(), libc::MADV_RANDOM)
         };
 
-        Ok(Self { data, num_nodes })
+        // use the CompactArray over the mmap
+        let data = UsizeMmap(data);
+        let node2type =
+            unsafe { CompactArray::from_raw_parts(data, SWHType::BITWIDTH, num_nodes as usize) };
+        Ok(Self { data: node2type })
     }
 }
 
-impl MappedNode2Type<Mmap> {
+impl Node2Type<UsizeMmap<Mmap>> {
     /// Load a read-only `.node2type.bin` file
     pub fn load<P: AsRef<Path>>(path: P, num_nodes: usize) -> Result<Self> {
         let path = path.as_ref();
@@ -178,6 +154,10 @@ impl MappedNode2Type<Mmap> {
             libc::madvise(data.as_ptr() as *mut _, data.len(), libc::MADV_RANDOM)
         };
 
-        Ok(Self { data, num_nodes })
+        // use the CompactArray over the mmap
+        let data = UsizeMmap(data);
+        let node2type =
+            unsafe { CompactArray::from_raw_parts(data, SWHType::BITWIDTH, num_nodes as usize) };
+        Ok(Self { data: node2type })
     }
 }
