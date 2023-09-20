@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use log::info;
-use swh_graph::map::{Node2SWHID, Node2Type};
+use swh_graph::map::{MappedNode2Type, Node2SWHID, Node2Type};
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
@@ -20,7 +20,7 @@ fn test_node2type() -> Result<()> {
     // load the node2type file
     let node2type_path = format!("{}.node2type.bin", BASENAME);
     info!("loading node ID -> type map from {node2type_path} ...");
-    let node2type = Node2Type::load(&node2type_path, num_nodes as u64)
+    let node2type = MappedNode2Type::load(&node2type_path, num_nodes)
         .with_context(|| format!("While loading the .node2type.bin file: {}", node2type_path))?;
 
     // check that the the node2type matches with the node2swhid

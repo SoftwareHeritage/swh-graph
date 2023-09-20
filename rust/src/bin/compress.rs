@@ -17,7 +17,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
 use rayon::prelude::*;
-use swh_graph::permutation::{OwnedPermutation, Permutation};
+use swh_graph::permutation::{MappedPermutation, OwnedPermutation, Permutation};
 use swh_graph::SWHType;
 use webgraph::prelude::*;
 
@@ -480,7 +480,7 @@ pub fn main() -> Result<()> {
             let num_nodes = map
                 .get("nodes")
                 .unwrap()
-                .parse::<u64>()
+                .parse::<usize>()
                 .context("Could not get number of nodes")?;
 
             let mut file =
@@ -489,7 +489,7 @@ pub fn main() -> Result<()> {
                 .seek(std::io::SeekFrom::End(0))
                 .context("Could not seek through .graph")?;
 
-            let mut efb = EliasFanoBuilder::new(file_len, num_nodes + 1);
+            let mut efb = EliasFanoBuilder::new(file_len as usize, num_nodes + 1);
 
             let mut ef_file = BufWriter::new(File::create(ef_path).context("Could not open .ef")?);
 
