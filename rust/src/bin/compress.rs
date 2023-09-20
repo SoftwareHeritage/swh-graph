@@ -112,8 +112,9 @@ enum Commands {
         input_batch_size: usize,
         #[arg(long, default_value_t = 100_000_000)]
         sort_batch_size: usize,
+        #[arg(long)]
+        permutation: Vec<PathBuf>,
         graph_dir: PathBuf,
-        permutation: PathBuf,
         target_dir: PathBuf,
     },
     /// Produces a new graph by inverting the direction of all arcs in the source graph
@@ -146,8 +147,9 @@ enum Commands {
         /// On the 2022-12-07 dataset, --sort-batch-size 800000000 produces
         /// ~1k files, ~2.8GB each; and uses 2TB of RAM.
         sort_batch_size: usize,
-        graph_dir: PathBuf,
+        #[arg(long)]
         permutation: PathBuf,
+        graph_dir: PathBuf,
         target_dir: PathBuf,
     },
 
@@ -554,7 +556,22 @@ pub fn main() -> Result<()> {
             let num_nodes = graph.num_nodes();
 
             log::info!("Loading permutation...");
-            let permutation = OwnedPermutation::load(num_nodes, permutation.as_path())?;
+            let mut permutations_iter = permutation.into_iter();
+            let permutation_path = permutations_iter.next().expect("No permutation provided");
+            let mut permutation = OwnedPermutation::load(num_nodes, permutation_path.as_path())
+                .with_context(|| format!("Could not load {}", permutation_path.display()))?;
+            for next_permutation_path in permutations_iter {
+                let next_permutation =
+                    MappedPermutation::load(num_nodes, next_permutation_path.as_path())
+                        .with_context(|| {
+                            format!("Could not load {}", next_permutation_path.display())
+                        })?;
+                permutation
+                    .compose_in_place(next_permutation)
+                    .with_context(|| {
+                        format!("Could not apply {}", next_permutation_path.display())
+                    })?;
+            }
 
             log::info!("Permuting...");
             transform(

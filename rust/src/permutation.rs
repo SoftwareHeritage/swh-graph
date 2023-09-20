@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::io::Write;
+use std::io::{Read, Seek, Write};
 use std::mem::MaybeUninit;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -106,6 +106,24 @@ impl<T: Sync + AsRef<[usize]>> OwnedPermutation<T> {
     }
 }
 
+impl<T: Sync + AsRef<[usize]> + AsMut<[usize]>> OwnedPermutation<T> {
+    /// Applies the other permutation to `self`, so `self` becomes a new permutation.
+    pub fn compose_in_place<T2: Permutation + Sync>(&mut self, other: T2) -> Result<()> {
+        if self.as_mut().len() != other.len() {
+            bail!(
+                "Cannot compose permutation of size {} with permutation of size {}",
+                self.as_ref().len(),
+                other.len()
+            );
+        }
+        self.as_mut()
+            .par_iter_mut()
+            .for_each(|x| *x = other.get(*x));
+
+        Ok(())
+    }
+}
+
 impl OwnedPermutation<Vec<usize>> {
     /// Loads a permutation from disk and returns IO errors if any.
     ///
@@ -121,21 +139,32 @@ impl OwnedPermutation<Vec<usize>> {
             u64::BITS,
             "Only 64-bits architectures are supported"
         );
-        let mut perm = Vec::with_capacity(num_nodes);
 
-        std::fs::File::open(&path)
-            .context("Could not open permutation")?
-            .read_u64_into::<BigEndian>(unsafe {
+        let mut file = std::fs::File::open(&path).context("Could not open permutation")?;
+
+        let mut buf = [0u8; 8];
+        file.read_exact(&mut buf)?;
+        let epserde = &buf == b"epserde ";
+        if epserde {
+            use epserde::prelude::*;
+
+            let perm = <Vec<usize>>::load_full(&path)?;
+            Ok(OwnedPermutation(perm))
+        } else {
+            let mut perm = Vec::with_capacity(num_nodes);
+            file.rewind()?;
+            file.read_u64_into::<BigEndian>(unsafe {
                 std::mem::transmute::<&mut [MaybeUninit<usize>], &mut [u64]>(
                     perm.spare_capacity_mut(),
                 )
             })
             .context("Could not read permutation")?;
 
-        // read_u64_into() called read_exact(), which checked the length
-        unsafe { perm.set_len(num_nodes) };
+            // read_u64_into() called read_exact(), which checked the length
+            unsafe { perm.set_len(num_nodes) };
 
-        Ok(OwnedPermutation(perm))
+            Ok(OwnedPermutation(perm))
+        }
     }
 
     /// Loads a permutation from disk, and returns errors in case of IO errors
@@ -151,6 +180,13 @@ impl<T: Sync + AsRef<[usize]>> AsRef<[usize]> for OwnedPermutation<T> {
     #[inline(always)]
     fn as_ref(&self) -> &[usize] {
         self.0.as_ref()
+    }
+}
+
+impl<T: Sync + AsRef<[usize]> + AsMut<[usize]>> AsMut<[usize]> for OwnedPermutation<T> {
+    #[inline(always)]
+    fn as_mut(&mut self) -> &mut [usize] {
+        self.0.as_mut()
     }
 }
 
