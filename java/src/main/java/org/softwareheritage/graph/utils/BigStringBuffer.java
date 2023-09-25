@@ -6,6 +6,7 @@ import java.io.IOException;
 // Like {@class StringBuffer}, but can grow over 2^31 bytes.
 class BigStringBuffer implements Appendable {
     Vector<StringBuffer> buffers;
+    final long MAX_BYTES_PER_CHAR = 4;
 
     BigStringBuffer(int capacity) {
         buffers = new Vector<StringBuffer>();
@@ -13,7 +14,8 @@ class BigStringBuffer implements Appendable {
     }
 
     void ensureCanAppend(int length) {
-        if (buffers.lastElement().length() + length + 3 < 0) {
+        if ((((long) buffers.lastElement().length()) + ((long) length) + 3L)
+                * MAX_BYTES_PER_CHAR < ((long) Integer.MAX_VALUE)) {
             // System.err.format("adding new buffer. buffers.length()==%d, buffers.lastElement().size()==%d\n",
             // buffers.size(), buffers.lastElement().length());
             buffers.add(new StringBuffer(Integer.MAX_VALUE - 2));
