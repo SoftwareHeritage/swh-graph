@@ -152,6 +152,15 @@ enum Commands {
         graph_dir: PathBuf,
         target_dir: PathBuf,
     },
+    /// Combines multiple permutations
+    ComposeOrders {
+        #[arg(long)]
+        num_nodes: usize,
+        #[arg(long)]
+        input: Vec<PathBuf>,
+        #[arg(long)]
+        output: PathBuf,
+    },
 
     HashSwhids {
         mph: PathBuf,
@@ -636,6 +645,30 @@ pub fn main() -> Result<()> {
                 },
                 target_dir,
             )?;
+        }
+
+        Commands::ComposeOrders {
+            num_nodes,
+            input,
+            output,
+        } => {
+            log::info!("Loading permutations...");
+            let mut output_file = File::create(&output)
+                .with_context(|| format!("Could not open {}", output.display()))?;
+            let mut inputs_iter = input.into_iter();
+            let input_path = inputs_iter.next().expect("No permutation provided");
+            let mut permutation = OwnedPermutation::load(num_nodes, input_path.as_path())
+                .with_context(|| format!("Could not load {}", input_path.display()))?;
+            for next_input_path in inputs_iter {
+                let next_permutation =
+                    MappedPermutation::load(num_nodes, next_input_path.as_path())
+                        .with_context(|| format!("Could not load {}", next_input_path.display()))?;
+                permutation
+                    .compose_in_place(next_permutation)
+                    .with_context(|| format!("Could not apply {}", next_input_path.display()))?;
+            }
+
+            permutation.dump(&mut output_file)?;
         }
 
         Commands::HashSwhids { swhids, mph } => {
