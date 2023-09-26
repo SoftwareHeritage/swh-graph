@@ -4,25 +4,31 @@
 // See top-level LICENSE file for more information
 
 use crate::SWHID;
-use anyhow::Result;
-use mmap_rs::{Mmap, MmapFlags};
+use anyhow::{Context, Result};
+use mmap_rs::{Mmap, MmapFlags, MmapMut};
 
 /// Struct to load a `.node2swhid.bin` file and convert node ids to SWHIDs.
-pub struct Node2SWHID {
-    data: Mmap,
+pub struct Node2SWHID<B> {
+    data: B,
 }
 
-impl Node2SWHID {
+impl Node2SWHID<Mmap> {
     /// Load a `.node2swhid.bin` file
     pub fn load<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
         let path = path.as_ref();
-        let file_len = path.metadata()?.len();
-        let file = std::fs::File::open(path)?;
+        let file_len = path
+            .metadata()
+            .with_context(|| format!("Could not read {} stats", path.display()))?
+            .len();
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("Could not open {}", path.display()))?;
         let data = unsafe {
-            mmap_rs::MmapOptions::new(file_len as _)?
+            mmap_rs::MmapOptions::new(file_len as _)
+                .context("Could not initialize mmap")?
                 .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
                 .with_file(file, 0)
-                .map()?
+                .map()
+                .with_context(|| format!("Could not mmap {}", path.display()))?
         };
         #[cfg(target_os = "linux")]
         unsafe {
@@ -32,7 +38,37 @@ impl Node2SWHID {
     }
 }
 
-impl Node2SWHID {
+impl Node2SWHID<MmapMut> {
+    /// Create a new `.node2swhid.bin` file
+    pub fn new<P: AsRef<std::path::Path>>(path: P, num_nodes: usize) -> Result<Self> {
+        let path = path.as_ref();
+        let file_len = (num_nodes * SWHID::BYTES_SIZE)
+            .try_into()
+            .context("File size overflowed u64")?;
+        let file = std::fs::File::options()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(path)
+            .with_context(|| format!("Could not create {}", path.display()))?;
+
+        // fallocate the file with zeros so we can fill it without ever resizing it
+        file.set_len(file_len)
+            .with_context(|| format!("Could not fallocate {} with zeros", path.display()))?;
+
+        let data = unsafe {
+            mmap_rs::MmapOptions::new(file_len as _)
+                .context("Could not initialize mmap")?
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
+                .with_file(file, 0)
+                .map_mut()
+                .with_context(|| format!("Could not mmap {}", path.display()))?
+        };
+        Ok(Self { data })
+    }
+}
+
+impl<B: AsRef<[u8]>> Node2SWHID<B> {
     /// Convert a node_it to a SWHID
     ///
     /// # Safety
@@ -41,7 +77,10 @@ impl Node2SWHID {
     #[inline]
     pub unsafe fn get_unchecked(&self, node_id: usize) -> SWHID {
         let offset = node_id * SWHID::BYTES_SIZE;
-        let bytes = self.data.get_unchecked(offset..offset + SWHID::BYTES_SIZE);
+        let bytes = self
+            .data
+            .as_ref()
+            .get_unchecked(offset..offset + SWHID::BYTES_SIZE);
         // this unwrap is always safe because we use the same const
         let bytes: [u8; SWHID::BYTES_SIZE] = bytes.try_into().unwrap();
         // this unwrap can only fail on a corrupted file, so it's ok to panic
@@ -52,7 +91,7 @@ impl Node2SWHID {
     #[inline]
     pub fn get(&self, node_id: usize) -> Option<SWHID> {
         let offset = node_id * SWHID::BYTES_SIZE;
-        let bytes = self.data.get(offset..offset + SWHID::BYTES_SIZE)?;
+        let bytes = self.data.as_ref().get(offset..offset + SWHID::BYTES_SIZE)?;
         // this unwrap is always safe because we use the same const
         let bytes: [u8; SWHID::BYTES_SIZE] = bytes.try_into().unwrap();
         // this unwrap can only fail on a corrupted file, so it's ok to panic
@@ -63,15 +102,44 @@ impl Node2SWHID {
     #[allow(clippy::len_without_is_empty)] // rationale: we don't care about empty maps
     #[inline]
     pub fn len(&self) -> usize {
-        self.data.len() / SWHID::BYTES_SIZE
+        self.data.as_ref().len() / SWHID::BYTES_SIZE
     }
 }
 
-impl core::ops::Index<usize> for Node2SWHID {
+impl<B: AsMut<[u8]> + AsRef<[u8]>> Node2SWHID<B> {
+    /// Convert a node_it to a SWHID
+    ///
+    /// # Safety
+    /// This function is unsafe because it does not check that `node_id` is
+    /// within bounds of the array if debug asserts are disabled
+    #[inline]
+    pub unsafe fn set_unchecked(&mut self, node_id: usize, swhid: SWHID) {
+        let bytes: [u8; SWHID::BYTES_SIZE] = swhid.into();
+        let offset = node_id * SWHID::BYTES_SIZE;
+        self.data
+            .as_mut()
+            .get_unchecked_mut(offset..offset + SWHID::BYTES_SIZE)
+            .copy_from_slice(&bytes[..]);
+    }
+
+    /// Convert a node_it to a SWHID
+    #[inline]
+    pub fn set(&mut self, node_id: usize, swhid: SWHID) {
+        let bytes: [u8; SWHID::BYTES_SIZE] = swhid.into();
+        let offset = node_id * SWHID::BYTES_SIZE;
+        self.data
+            .as_mut()
+            .get_mut(offset..offset + SWHID::BYTES_SIZE)
+            .expect(&format!("Tried to write past the end of Node2SWHID map"))
+            .copy_from_slice(&bytes[..]);
+    }
+}
+
+impl<B: AsRef<[u8]>> core::ops::Index<usize> for Node2SWHID<B> {
     type Output = SWHID;
     fn index(&self, index: usize) -> &Self::Output {
         let offset = index * SWHID::BYTES_SIZE;
-        let bytes = &self.data[offset..offset + SWHID::BYTES_SIZE];
+        let bytes = &self.data.as_ref()[offset..offset + SWHID::BYTES_SIZE];
         debug_assert!(core::mem::size_of::<SWHID>() == SWHID::BYTES_SIZE);
         // unsafe :( but it's ok because SWHID does not depends on endianness
         // also TODO!: check for version
