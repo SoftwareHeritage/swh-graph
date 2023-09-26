@@ -30,7 +30,7 @@ orcxx = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", op
 orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "2765108b17bed3a030acd76735e48667d198b867" }
 #orcxx = { path = "../../../../rust/orcxx/orcxx/", optional = true }
 #orcxx_derive = { path = "../../../../rust/orcxx/orcxx_derive/", optional = true }
-faster-hex = { version = "0.8.0", features = ["std"], default-features = false, optional = true }
+faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
 rayon = { version = "1.7.0" }
 sha1 = { version = "0.10.1", optional = true }
 itertools = { version = "0.11.0" }
@@ -52,7 +52,7 @@ bitvec = { version = "1.0.1", features = ["atomic"] }
 default = []
 
 # Reads dataset from ORC files and produces a compressed graph
-compression = ["orcxx", "orcxx_derive", "faster-hex", "sha1"]
+compression = ["orcxx", "orcxx_derive", "sha1"]
 
 [[bin]]
 name = "compress"

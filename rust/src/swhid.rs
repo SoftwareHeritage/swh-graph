@@ -4,7 +4,7 @@
 // See top-level LICENSE file for more information
 
 use crate::SWHType;
-use anyhow::bail;
+use anyhow::{bail, Context};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
@@ -65,6 +65,53 @@ impl TryFrom<[u8; SWHID::BYTES_SIZE]> for SWHID {
         hash.copy_from_slice(&value[2..]);
         Ok(Self {
             namespace_version,
+            node_type,
+            hash,
+        })
+    }
+}
+
+/// Parse a SWHID from the string representation
+impl TryFrom<&str> for SWHID {
+    type Error = anyhow::Error;
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        let mut tokens = value.splitn(4, ":");
+        let Some(namespace) = tokens.next() else {
+            bail!("SWHID is empty");
+        };
+        if namespace != "swh" {
+            bail!("Unsupported SWHID namespace: {}", namespace);
+        }
+        let Some(namespace_version) = tokens.next() else {
+            bail!("SWHID is too short (no namespace version)")
+        };
+        if namespace_version != "1" {
+            bail!("Unsupported SWHID namespace version: {}", namespace_version);
+        }
+        let Some(node_type) = tokens.next() else {
+            bail!("SWHID is too short (no object type)")
+        };
+        let Some(hex_hash) = tokens.next() else {
+            bail!("SWHID is too short (no object hash)")
+        };
+        if hex_hash.len() < 40 {
+            bail!(
+                "SWHID is too short (object hash has {} digits instead of 40)",
+                hex_hash.len()
+            )
+        }
+        if hex_hash.len() > 40 {
+            bail!(
+                "SWHID is too long (object hash has {} digits instead of 40)",
+                hex_hash.len()
+            )
+        }
+        let node_type = SWHType::try_from(node_type)?;
+        let mut hash = [0u8; 20];
+        faster_hex::hex_decode(hex_hash.as_bytes(), &mut hash)
+            .with_context(|| format!("SWHID hash is not hexadecimal: {}", hex_hash))?;
+        Ok(Self {
+            namespace_version: 1,
             node_type,
             hash,
         })

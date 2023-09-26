@@ -67,6 +67,21 @@ pub enum SWHType {
     Snapshot = 5,
 }
 
+impl TryFrom<&str> for SWHType {
+    type Error = anyhow::Error;
+    fn try_from(value: &str) -> Result<Self> {
+        Ok(match value {
+            "cnt" => Self::Content,
+            "dir" => Self::Directory,
+            "ori" => Self::Origin,
+            "rel" => Self::Release,
+            "rev" => Self::Revision,
+            "snp" => Self::Snapshot,
+            _ => bail!("Invalid SWHType {}.", value),
+        })
+    }
+}
+
 impl TryFrom<u8> for SWHType {
     type Error = anyhow::Error;
     fn try_from(value: u8) -> Result<Self> {
