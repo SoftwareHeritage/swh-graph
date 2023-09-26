@@ -162,6 +162,26 @@ enum Commands {
         output: PathBuf,
     },
 
+    /// Reads the list of SWHIDs and produces node2swhid.bin and node2type.bin
+    Maps {
+        #[arg(long, default_value = "*")]
+        allowed_node_types: String,
+        #[arg(long)]
+        num_nodes: usize,
+        #[arg(long)]
+        swhids_dir: PathBuf,
+        #[arg(long)]
+        mph_algo: MphAlgorithm,
+        #[arg(long)]
+        function: PathBuf,
+        #[arg(long)]
+        order: PathBuf,
+        #[arg(long)]
+        node2swhid: PathBuf,
+        #[arg(long)]
+        node2type: PathBuf,
+    },
+
     HashSwhids {
         mph: PathBuf,
         swhids: Vec<String>,
@@ -669,6 +689,68 @@ pub fn main() -> Result<()> {
             }
 
             permutation.dump(&mut output_file)?;
+        }
+
+        Commands::Maps {
+            allowed_node_types,
+            num_nodes,
+            swhids_dir,
+            mph_algo,
+            function,
+            order,
+            node2swhid,
+            node2type,
+        } => {
+            use swh_graph::compress::zst_dir::*;
+            use swh_graph::map::{Node2SWHID, Node2Type};
+            use swh_graph::SWHID;
+
+            let _ = parse_allowed_node_types(&allowed_node_types);
+
+            let order = MappedPermutation::load(num_nodes, order.as_path())
+                .with_context(|| format!("Could not load {}", order.display()))?;
+            match mph_algo {
+                MphAlgorithm::Fmph => {}
+                _ => panic!("Only --mph-algo fmph is supported"),
+            }
+            let file = File::open(&function)
+                .with_context(|| format!("Cannot read {}", function.display()))?;
+            println!("Reading MPH");
+            let mph =
+                fmph::Function::read(&mut BufReader::new(file)).context("Could not parse mph")?;
+            println!("MPH loaded, sorting arcs");
+
+            let node2swhid = Mutex::new(Node2SWHID::new(node2swhid, num_nodes)?);
+            let node2type = Mutex::new(Node2Type::new(node2type, num_nodes)?);
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "node";
+            pl.local_speed = true;
+            pl.expected_updates = Some(num_nodes);
+            pl.start("Computing node2swhid");
+
+            // TODO: Keep parallelism low? the mutexes are a tight bottleneck
+            par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(pl))).for_each(
+                |line: [u8; 50]| {
+                    let node_id = order.get(mph.get(&line).expect("Failed to hash line") as usize);
+                    let swhid =
+                        SWHID::try_from(unsafe { std::str::from_utf8_unchecked(&line[..]) })
+                            .expect("Invalid SWHID");
+                    assert!(
+                        node_id < num_nodes,
+                        "hashing {} returned {}, which is greater than the number of nodes ({})",
+                        swhid,
+                        node_id,
+                        num_nodes
+                    );
+
+                    let mut node2swhid = node2swhid.lock().unwrap();
+                    let mut node2type = node2type.lock().unwrap();
+                    // Safe because we just checked it does not write past the end.
+                    unsafe { node2swhid.set_unchecked(node_id, swhid) };
+                    unsafe { node2type.set_unchecked(node_id, swhid.node_type) };
+                },
+            );
         }
 
         Commands::HashSwhids { swhids, mph } => {
