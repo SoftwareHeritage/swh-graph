@@ -1525,6 +1525,27 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 [[package]]
 name = "sux"
 version = "0.1.0"
+source = "git+https://github.com/vigna/sux-rs?rev=efd89123fc22f255214a9f1b86aad68550fc6494#efd89123fc22f255214a9f1b86aad68550fc6494"
+dependencies = [
+ "anyhow",
+ "bitflags 2.4.0",
+ "bitvec",
+ "bytemuck",
+ "common_traits",
+ "epserde",
+ "libc",
+ "log",
+ "mmap-rs",
+ "num-traits",
+ "num_cpus",
+ "rayon",
+ "stable_deref_trait",
+ "yoke",
+]
+
+[[package]]
+name = "sux"
+version = "0.1.0"
 source = "git+https://github.com/vigna/sux-rs#efd89123fc22f255214a9f1b86aad68550fc6494"
 dependencies = [
  "anyhow",
@@ -1570,7 +1591,7 @@ dependencies = [
  "rayon",
  "sha1",
  "stderrlog",
- "sux",
+ "sux 0.1.0 (git+https://github.com/vigna/sux-rs?rev=efd89123fc22f255214a9f1b86aad68550fc6494)",
  "tempfile",
  "thread_local",
  "webgraph",
@@ -1851,7 +1872,7 @@ dependencies = [
  "rand",
  "rayon",
  "stderrlog",
- "sux",
+ "sux 0.1.0 (git+https://github.com/vigna/sux-rs)",
  "tempfile",
 ]
 
