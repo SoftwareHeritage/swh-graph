@@ -707,6 +707,7 @@ pub fn main() -> Result<()> {
 
             let _ = parse_allowed_node_types(&allowed_node_types);
 
+            println!("Loading permutation");
             let order = MappedPermutation::load(num_nodes, order.as_path())
                 .with_context(|| format!("Could not load {}", order.display()))?;
             match mph_algo {
@@ -715,13 +716,13 @@ pub fn main() -> Result<()> {
             }
             let file = File::open(&function)
                 .with_context(|| format!("Cannot read {}", function.display()))?;
-            println!("Reading MPH");
+            println!("Permutation loaded, reading MPH");
             let mph =
                 fmph::Function::read(&mut BufReader::new(file)).context("Could not parse mph")?;
             println!("MPH loaded, sorting arcs");
 
-            let node2swhid = Mutex::new(Node2SWHID::new(node2swhid, num_nodes)?);
-            let node2type = Mutex::new(Node2Type::new(node2type, num_nodes)?);
+            let mut swhids: Vec<SWHID> = Vec::with_capacity(num_nodes);
+            let swhids_uninit = swhids.spare_capacity_mut();
 
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "node";
@@ -729,7 +730,6 @@ pub fn main() -> Result<()> {
             pl.expected_updates = Some(num_nodes);
             pl.start("Computing node2swhid");
 
-            // TODO: Keep parallelism low? the mutexes are a tight bottleneck
             par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(pl))).for_each(
                 |line: [u8; 50]| {
                     let node_id = order.get(mph.get(&line).expect("Failed to hash line") as usize);
@@ -744,13 +744,50 @@ pub fn main() -> Result<()> {
                         num_nodes
                     );
 
-                    let mut node2swhid = node2swhid.lock().unwrap();
-                    let mut node2type = node2type.lock().unwrap();
-                    // Safe because we just checked it does not write past the end.
-                    unsafe { node2swhid.set_unchecked(node_id, swhid) };
-                    unsafe { node2type.set_unchecked(node_id, swhid.node_type) };
+                    // Safe because we checked node_id < num_nodes
+                    unsafe {
+                        swhids_uninit
+                            .as_ptr()
+                            .offset(node_id as isize)
+                            .cast_mut()
+                            .write(std::mem::MaybeUninit::new(swhid));
+                    }
                 },
             );
+
+            // Assuming the MPH and permutation are correct, we wrote an item at every
+            // index.
+            unsafe { swhids.set_len(num_nodes) };
+
+            let mut node2swhid = Node2SWHID::new(node2swhid, num_nodes)?;
+            let mut node2type = Node2Type::new(node2type, num_nodes)?;
+            std::thread::scope(|s| {
+                s.spawn(|| {
+                    let mut pl = ProgressLogger::default().display_memory();
+                    pl.item_name = "swhid";
+                    pl.local_speed = true;
+                    pl.expected_updates = Some(num_nodes);
+                    pl.start("Writing node2swhid");
+                    for i in 0..num_nodes {
+                        pl.light_update();
+                        unsafe { node2swhid.set_unchecked(i, *swhids.get_unchecked(i)) }
+                    }
+                    pl.done();
+                });
+
+                s.spawn(|| {
+                    let mut pl = ProgressLogger::default().display_memory();
+                    pl.item_name = "type";
+                    pl.local_speed = true;
+                    pl.expected_updates = Some(num_nodes);
+                    pl.start("Writing node2type");
+                    for i in 0..num_nodes {
+                        pl.light_update();
+                        unsafe { node2type.set_unchecked(i, swhids.get_unchecked(i).node_type) }
+                    }
+                    pl.done();
+                });
+            });
         }
 
         Commands::HashSwhids { swhids, mph } => {

@@ -107,7 +107,7 @@ impl<B: AsRef<[u8]>> Node2SWHID<B> {
 }
 
 impl<B: AsMut<[u8]> + AsRef<[u8]>> Node2SWHID<B> {
-    /// Convert a node_it to a SWHID
+    /// Set a node_id to map to a given SWHID, without checking bounds
     ///
     /// # Safety
     /// This function is unsafe because it does not check that `node_id` is
@@ -122,7 +122,7 @@ impl<B: AsMut<[u8]> + AsRef<[u8]>> Node2SWHID<B> {
             .copy_from_slice(&bytes[..]);
     }
 
-    /// Convert a node_it to a SWHID
+    /// Set a node_id to map to a given SWHID
     #[inline]
     pub fn set(&mut self, node_id: usize, swhid: SWHID) {
         let bytes: [u8; SWHID::BYTES_SIZE] = swhid.into();
