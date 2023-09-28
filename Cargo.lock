@@ -1525,7 +1525,7 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 [[package]]
 name = "sux"
 version = "0.1.0"
-source = "git+https://github.com/vigna/sux-rs?rev=efd89123fc22f255214a9f1b86aad68550fc6494#efd89123fc22f255214a9f1b86aad68550fc6494"
+source = "git+https://github.com/vigna/sux-rs?rev=9cafac06c95c2d916b76dc374a6f9d976bf65456#9cafac06c95c2d916b76dc374a6f9d976bf65456"
 dependencies = [
  "anyhow",
  "bitflags 2.4.0",
@@ -1591,7 +1591,7 @@ dependencies = [
  "rayon",
  "sha1",
  "stderrlog",
- "sux 0.1.0 (git+https://github.com/vigna/sux-rs?rev=efd89123fc22f255214a9f1b86aad68550fc6494)",
+ "sux 0.1.0 (git+https://github.com/vigna/sux-rs?rev=9cafac06c95c2d916b76dc374a6f9d976bf65456)",
  "tempfile",
  "thread_local",
  "webgraph",
@@ -1852,7 +1852,7 @@ checksum = "ca6ad05a4870b2bf5fe995117d3728437bd27d7cd5f06f13c17443ef369775a1"
 [[package]]
 name = "webgraph"
 version = "0.1.0"
-source = "git+https://github.com/vigna/webgraph-rs?rev=b4e417637dfc9e8d309aaefcebab6b88c9f4564e#b4e417637dfc9e8d309aaefcebab6b88c9f4564e"
+source = "git+https://github.com/vigna/webgraph-rs?rev=522488685e0a8131590f2fdb42b0708188da4784#522488685e0a8131590f2fdb42b0708188da4784"
 dependencies = [
  "anyhow",
  "bindgen",

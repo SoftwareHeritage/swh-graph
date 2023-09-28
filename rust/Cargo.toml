@@ -15,9 +15,9 @@ categories = ["compression", "graph"]
 rand = "0.8.5"
 anyhow = {version="1.0.71", features=["backtrace"]}
 mmap-rs = "0.5.0"
-sux = {git = "https://github.com/vigna/sux-rs", rev = "efd89123fc22f255214a9f1b86aad68550fc6494" }
+sux = {git = "https://github.com/vigna/sux-rs", rev = "9cafac06c95c2d916b76dc374a6f9d976bf65456" }
 #sux = {path = "../../../sux-rs" }
-webgraph = {git = "https://github.com/vigna/webgraph-rs", rev = "b4e417637dfc9e8d309aaefcebab6b88c9f4564e" }
+webgraph = {git = "https://github.com/vigna/webgraph-rs", rev = "522488685e0a8131590f2fdb42b0708188da4784" }
 #webgraph = { path = "../../../webgraph-rs" }
 log = "0.4.17"
 libc = "0.2.147"
