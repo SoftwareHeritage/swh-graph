@@ -101,7 +101,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--mph-algo",
         "cmph",
         "--function",
-        "{out_dir}/{graph_name}.cmph",
+        "{out_dir}/{graph_name}",
         "--num-nodes",
         "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
         "{in_dir}",
