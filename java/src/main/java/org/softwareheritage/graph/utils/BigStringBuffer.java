@@ -14,11 +14,14 @@ class BigStringBuffer implements Appendable {
     }
 
     void ensureCanAppend(int length) {
-        if ((((long) buffers.lastElement().length()) + ((long) length) + 3L)
-                * MAX_BYTES_PER_CHAR > ((long) Integer.MAX_VALUE)) {
-            // System.err.format("adding new buffer. buffers.length()==%d, buffers.lastElement().size()==%d\n",
-            // buffers.size(), buffers.lastElement().length());
-            buffers.add(new StringBuffer(Integer.MAX_VALUE - 2));
+        if ((((long) buffers.lastElement().length()) + ((long) length) + 3L) * MAX_BYTES_PER_CHAR
+                * 2 > ((long) Integer.MAX_VALUE)) {
+            // Why /2? Who knows. Without it, we get
+            // "java.lang.OutOfMemoryError: UTF16 String size is 2147483643, should be less than 1073741823"
+            // and
+            // "append3 OOMed. buffers.length()==2, buffers.lastElement().length()==10072857, start=0, end=15:
+            // java.lang.OutOfMemoryError: UTF16 String size is 2147483643, should be less than 1073741823"
+            buffers.add(new StringBuffer(Integer.MAX_VALUE / 2 - 4));
         }
     }
 
