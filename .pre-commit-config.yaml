@@ -17,7 +17,9 @@ repos:
     hooks:
       - id: codespell
         name: Check source code spelling
-        args: ["-L te,wth,alledges,afterall,mmapped,crate"]
+        args:
+          - "-L te,wth,alledges,afterall,mmapped,crate"
+          - "--skip=rust/tests/data/"
         stages: [commit]
 
   - repo: local

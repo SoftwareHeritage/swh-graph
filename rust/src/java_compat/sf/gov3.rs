@@ -78,7 +78,7 @@ impl GOV3 {
                 unsafe { Vec::from_raw_parts(ptr as *mut $type, len, len) }
             }};
         }
-        // actually lod the data :)
+        // actually load the data :)
         let size = read!(file, u64);
         let width = read!(file, u64);
         let multiplier = read!(file, u64);
