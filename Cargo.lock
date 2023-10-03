@@ -701,7 +701,21 @@ dependencies = [
  "anyhow",
  "bitflags 2.4.0",
  "bytemuck",
- "epserde-derive",
+ "epserde-derive 0.1.0",
+ "mmap-rs",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "epserde"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5682a0ecd831cdfdbef6525a159d42393ec4fb3369ab0b254f6c927e75e0a975"
+dependencies = [
+ "anyhow",
+ "bitflags 2.4.0",
+ "bytemuck",
+ "epserde-derive 0.1.1",
  "mmap-rs",
  "xxhash-rust",
 ]
@@ -710,6 +724,17 @@ dependencies = [
 name = "epserde-derive"
 version = "0.1.0"
 source = "git+https://github.com/vigna/epserde-rs.git#cc466e23da207191b11f3e8ff1e54d9973c0117e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.37",
+]
+
+[[package]]
+name = "epserde-derive"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7de4f41918ad43756b6e58e20acfce47717b9677572d1035a86e5a70e2b0490"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1525,22 +1550,28 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 [[package]]
 name = "sux"
 version = "0.1.0"
-source = "git+https://github.com/vigna/sux-rs?rev=9cafac06c95c2d916b76dc374a6f9d976bf65456#9cafac06c95c2d916b76dc374a6f9d976bf65456"
+source = "git+https://github.com/vigna/sux-rs?rev=77717a0a66b63f85c0884e979b0b64a5e8ed2a6a#77717a0a66b63f85c0884e979b0b64a5e8ed2a6a"
 dependencies = [
  "anyhow",
  "bitflags 2.4.0",
  "bitvec",
  "bytemuck",
+ "clap",
  "common_traits",
- "epserde",
+ "dsi-progress-logger",
+ "epserde 0.1.2",
  "libc",
  "log",
  "mmap-rs",
  "num-traits",
  "num_cpus",
+ "rand",
  "rayon",
  "stable_deref_trait",
+ "stderrlog",
+ "tempfile",
  "yoke",
+ "zstd",
 ]
 
 [[package]]
@@ -1553,7 +1584,7 @@ dependencies = [
  "bitvec",
  "bytemuck",
  "common_traits",
- "epserde",
+ "epserde 0.1.0",
  "libc",
  "log",
  "mmap-rs",
@@ -1576,7 +1607,7 @@ dependencies = [
  "clap",
  "dsi-bitstream",
  "dsi-progress-logger",
- "epserde",
+ "epserde 0.1.2",
  "faster-hex",
  "itertools",
  "java-properties",
@@ -1591,7 +1622,7 @@ dependencies = [
  "rayon",
  "sha1",
  "stderrlog",
- "sux 0.1.0 (git+https://github.com/vigna/sux-rs?rev=9cafac06c95c2d916b76dc374a6f9d976bf65456)",
+ "sux 0.1.0 (git+https://github.com/vigna/sux-rs?rev=77717a0a66b63f85c0884e979b0b64a5e8ed2a6a)",
  "tempfile",
  "thread_local",
  "webgraph",
@@ -1862,7 +1893,7 @@ dependencies = [
  "clap",
  "dsi-bitstream",
  "dsi-progress-logger",
- "epserde",
+ "epserde 0.1.0",
  "itertools",
  "java-properties",
  "libc",
