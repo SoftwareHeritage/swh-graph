@@ -40,7 +40,7 @@ class BigStringBuffer implements Appendable {
             buffers.lastElement().append(csq);
         } catch (OutOfMemoryError e) {
             System.err.format(
-                    "append2 OOMed. buffers.length()==%d, buffers.lastElement().size()==%d, csq.length()==%d: %s\n",
+                    "append2 OOMed. buffers.length()==%d, buffers.lastElement().length()==%d, csq.length()==%d: %s\n",
                     buffers.size(), buffers.lastElement().length(), csq.length(), e);
             throw new RuntimeException(e);
         }
@@ -53,7 +53,7 @@ class BigStringBuffer implements Appendable {
             buffers.lastElement().append(csq, start, end);
         } catch (OutOfMemoryError e) {
             System.err.format(
-                    "append3 OOMed. buffers.length()==%d, buffers.lastElement().size()==%d, start=%d, end=%d: %s\n",
+                    "append3 OOMed. buffers.length()==%d, buffers.lastElement().length()==%d, start=%d, end=%d: %s\n",
                     buffers.size(), buffers.lastElement().length(), start, end, e);
             throw new RuntimeException(e);
         }
