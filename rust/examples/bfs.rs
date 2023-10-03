@@ -8,7 +8,7 @@ use bitvec::prelude::*;
 use dsi_progress_logger::ProgressLogger;
 use log::{debug, info};
 use std::collections::VecDeque;
-use sux::prelude::gov::GOVMPH;
+use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::map::{Node2SWHID, Order};
 use webgraph::prelude::*;
 

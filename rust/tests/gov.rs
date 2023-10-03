@@ -15,7 +15,7 @@ use std::io::BufReader;
 
 #[test]
 fn test_gov_mph() -> Result<()> {
-    let m = sux::mph::gov::GOVMPH::load("tests/data/test.cmph")?;
+    let m = swh_graph::java_compat::mph::gov::GOVMPH::load("tests/data/test.cmph")?;
     let reader = BufReader::new(File::open("tests/data/mph.txt")?);
     let mut s = HashSet::new();
     for line in reader.lines() {
@@ -30,7 +30,7 @@ fn test_gov_mph() -> Result<()> {
 
 #[test]
 fn test_gov3_sf() -> Result<()> {
-    let m = sux::sf::gov3::GOV3::load("tests/data/test.csf")?;
+    let m = swh_graph::java_compat::sf::gov3::GOV3::load("tests/data/test.csf")?;
     let reader = BufReader::new(File::open("tests/data/mph.txt")?);
     for (idx, line) in reader.lines().enumerate() {
         let line = line?;

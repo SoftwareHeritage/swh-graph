@@ -7,7 +7,7 @@ use anyhow::Result;
 use dsi_progress_logger::ProgressLogger;
 use log::info;
 use std::io::prelude::*;
-use sux::prelude::gov::GOVMPH;
+use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::map::{Node2SWHID, Order};
 use webgraph::prelude::*;
 
