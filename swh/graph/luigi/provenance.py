@@ -392,9 +392,9 @@ class ComputeDirectoryFrontier(luigi.Task):
 
         num_threads = 96
         min_buf_size = 1140  # see findFrontiersInRevisionChunk
-        # it's unlikely to have 20000 times more dirs than expected (averaged over
+        # it's unlikely to have 5000 more dirs than expected (averaged over
         # all threads running at any given time)
-        worst_case_buf_size_ratio = 20000
+        worst_case_buf_size_ratio = 5000
         buf_size = (
             num_threads * self.batch_size * min_buf_size * worst_case_buf_size_ratio
         )

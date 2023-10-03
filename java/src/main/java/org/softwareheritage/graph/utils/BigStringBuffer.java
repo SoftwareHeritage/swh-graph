@@ -15,7 +15,7 @@ class BigStringBuffer implements Appendable {
 
     void ensureCanAppend(int length) {
         if ((((long) buffers.lastElement().length()) + ((long) length) + 3L)
-                * MAX_BYTES_PER_CHAR < ((long) Integer.MAX_VALUE)) {
+                * MAX_BYTES_PER_CHAR > ((long) Integer.MAX_VALUE)) {
             // System.err.format("adding new buffer. buffers.length()==%d, buffers.lastElement().size()==%d\n",
             // buffers.size(), buffers.lastElement().length());
             buffers.add(new StringBuffer(Integer.MAX_VALUE - 2));

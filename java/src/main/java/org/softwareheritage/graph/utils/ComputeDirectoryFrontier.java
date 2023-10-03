@@ -195,7 +195,7 @@ public class ComputeDirectoryFrontier {
                 newLength = buf.length();
                 System.err.format("OOMed while processing %s (buffer grew from %d to %d): %s\n", graph.getSWHID(i),
                         previousLength, newLength, e);
-                throw e;
+                throw new RuntimeException(e);
             }
 
             newLength = buf.length();
