@@ -15,6 +15,7 @@ pub mod map;
 pub mod compress;
 
 pub mod approximate_bfs;
+pub mod java_compat;
 pub mod permutation;
 
 pub mod utils;
