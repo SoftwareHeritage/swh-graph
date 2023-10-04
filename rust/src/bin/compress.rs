@@ -182,6 +182,17 @@ enum Commands {
         node2type: PathBuf,
     },
 
+    /// Reads a zstd-compressed stream containing sorted lines, and compresses it
+    /// as a single rear-coded list.
+    Rcl {
+        #[arg(long)]
+        num_lines: usize,
+        #[arg(long, default_value_t = 10000)]
+        stripe_length: usize,
+        input_dir: PathBuf,
+        rcl: PathBuf,
+    },
+
     HashSwhids {
         mph: PathBuf,
         swhids: Vec<String>,
@@ -260,7 +271,7 @@ pub fn main() -> Result<()> {
 
             swh_graph::compress::orc::iter_labels(&dataset_dir)
                 .map(|label| base64.encode_to_string(label).into_bytes())
-                .unique_sort_to_dir(target_dir, "labels.txt", &temp_dir(), pl, &[])
+                .unique_sort_to_dir(target_dir, "labels.csv", &temp_dir(), pl, &[])
                 .context("Sorting failed")?;
         }
         Commands::NodeStats {
@@ -788,6 +799,48 @@ pub fn main() -> Result<()> {
                     pl.done();
                 });
             });
+        }
+        Commands::Rcl {
+            num_lines,
+            stripe_length,
+            input_dir,
+            rcl,
+        } => {
+            use epserde::ser::Serialize;
+            use sux::prelude::*;
+
+            let rcl_path = rcl;
+
+            use swh_graph::compress::zst_dir::*;
+
+            let mut rclb = RearCodedListBuilder::new(stripe_length);
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "label";
+            pl.local_speed = true;
+            pl.expected_updates = Some(num_lines);
+            pl.start("Reading labels");
+            let pl = Arc::new(Mutex::new(pl));
+            iter_lines_from_dir(&input_dir, pl.clone()).for_each(|line: Vec<u8>| {
+                // Each line is base64-encode, so it is guaranteed to be ASCII.
+                let line = unsafe { std::str::from_utf8_unchecked(&line[..]) };
+                println!("Feeding {}", line);
+                rclb.push(line);
+            });
+            pl.lock().unwrap().done();
+
+            rclb.print_stats();
+
+            log::info!("Building RCL...");
+            let rcl = rclb.build();
+
+            log::info!("Writing RCL...");
+            let mut rcl_file = BufWriter::new(
+                File::create(&rcl_path)
+                    .with_context(|| format!("Could not create {}", rcl_path.display()))?,
+            );
+            rcl.serialize(&mut rcl_file)
+                .context("Could not write RCL")?;
         }
 
         Commands::HashSwhids { swhids, mph } => {

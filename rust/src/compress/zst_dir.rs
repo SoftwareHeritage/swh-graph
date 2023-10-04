@@ -80,7 +80,9 @@ where
     })
 }
 
-/// Yields textual swhids from a directory of newline-separated ZSTD-compressed files
+/// Yields textual swhids from a directory of newline-separated ZSTD-compressed files.
+///
+/// Files are read in alphabetical order of their name.
 pub fn iter_lines_from_dir<'a, Line>(
     path: &'a Path,
     pl: Arc<Mutex<ProgressLogger<'a>>>,
@@ -89,21 +91,24 @@ where
     Line: TryFrom<Vec<u8>>,
     <Line as TryFrom<Vec<u8>>>::Error: std::fmt::Debug,
 {
-    std::fs::read_dir(path)
+    let mut file_paths: Vec<_> = std::fs::read_dir(path)
         .unwrap_or_else(|e| panic!("Could not list {}: {:?}", path.display(), e))
-        .flat_map(move |file_path| {
-            iter_lines_from_file(
-                file_path
-                    .as_ref()
-                    .unwrap_or_else(|e| panic!("Could not read {} entry: {:?}", path.display(), e))
-                    .path()
-                    .as_path(),
-                pl.clone(),
-            )
+        .map(|entry| {
+            entry
+                .as_ref()
+                .unwrap_or_else(|e| panic!("Could not read {} entry: {:?}", path.display(), e))
+                .path()
         })
+        .collect();
+    file_paths.sort();
+    file_paths
+        .into_iter()
+        .flat_map(move |file_path| iter_lines_from_file(&file_path, pl.clone()))
 }
 
 /// Yields textual swhids from a directory of newline-separated ZSTD-compressed files
+///
+/// Files are read in alphabetical order of their name.
 pub fn par_iter_lines_from_dir<'a, Line: Send>(
     path: &'a Path,
     pl: Arc<Mutex<ProgressLogger<'a>>>,
@@ -112,19 +117,19 @@ where
     Line: TryFrom<Vec<u8>>,
     <Line as TryFrom<Vec<u8>>>::Error: std::fmt::Debug,
 {
-    std::fs::read_dir(path)
+    let mut file_paths: Vec<_> = std::fs::read_dir(path)
         .unwrap_or_else(|e| panic!("Could not list {}: {:?}", path.display(), e))
-        .par_bridge()
-        .flat_map_iter(move |file_path| {
-            iter_lines_from_file(
-                file_path
-                    .as_ref()
-                    .unwrap_or_else(|e| panic!("Could not read {} entry: {:?}", path.display(), e))
-                    .path()
-                    .as_path(),
-                pl.clone(),
-            )
+        .map(|entry| {
+            entry
+                .as_ref()
+                .unwrap_or_else(|e| panic!("Could not read {} entry: {:?}", path.display(), e))
+                .path()
         })
+        .collect();
+    file_paths.sort();
+    file_paths
+        .into_par_iter()
+        .flat_map_iter(move |file_path| iter_lines_from_file(&file_path, pl.clone()))
 }
 
 pub struct GetParallelLineIterator<
