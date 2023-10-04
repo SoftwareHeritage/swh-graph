@@ -186,9 +186,14 @@ pub fn par_sort_arcs<Item, Iter, F>(
     batch_size: usize,
     iter: Iter,
     f: F,
-) -> Result<impl Iterator<Item = (usize, usize)> + Clone>
+) -> Result<
+    std::iter::Map<
+        KMergeIters<impl Iterator<Item = (usize, usize, ())> + Clone + Send + Sync>,
+        impl FnMut((usize, usize, ())) -> (usize, usize) + Clone + Send + Sync,
+    >,
+>
 where
-    F: Fn(&mut Vec<(usize, usize, ())>, Item) -> Result<()> + Send + Sync,
+    F: Fn(&mut Vec<(usize, usize)>, Item) -> Result<()> + Send + Sync,
     Iter: ParallelIterator<Item = Item>,
 {
     let buffers = thread_local::ThreadLocal::new();
@@ -208,7 +213,7 @@ where
 
                 // Won't panic because other threads don't access it before the
                 // fork-join point below.
-                let buffer: &mut Vec<(usize, usize, ())> = &mut buffer.borrow_mut();
+                let buffer: &mut Vec<(usize, usize)> = &mut buffer.borrow_mut();
 
                 f(buffer, item)?;
                 if buffer.len() > batch_size {
@@ -230,7 +235,7 @@ where
         buffers
             .into_iter()
             .par_bridge()
-            .map(|buffer: RefCell<Vec<(usize, usize, ())>>| {
+            .map(|buffer: RefCell<Vec<(usize, usize)>>| {
                 let mut buffer = buffer.borrow_mut();
                 let sorted_iterator = flush(temp_dir, &mut (*buffer)[..])?;
                 Ok(vec![sorted_iterator])
@@ -251,7 +256,7 @@ where
     Ok(KMergeIters::new(sorted_arc_lists.into_iter()).map(|(src, dst, ())| (src, dst)))
 }
 
-fn flush(temp_dir: &Path, buffer: &mut [(usize, usize, ())]) -> Result<BatchIterator<()>> {
+fn flush(temp_dir: &Path, buffer: &mut [(usize, usize)]) -> Result<BatchIterator<()>> {
     use rand::Rng;
     let sorter_id = rand::thread_rng().gen::<u64>();
     let mut sorter_temp_file = temp_dir.to_owned();
@@ -260,7 +265,7 @@ fn flush(temp_dir: &Path, buffer: &mut [(usize, usize, ())]) -> Result<BatchIter
     // This is equivalent to BatchIterator::new_from_vec(&sorter_temp_file, buffer),
     // but without parallelism, which would cause Rayon to re-enter
     // par_sort_arcs and cause deadlocks: https://github.com/rayon-rs/rayon/issues/1083
-    buffer.sort_unstable_by_key(|(src, dst, _)| (*src, *dst));
+    buffer.sort_unstable_by_key(|(src, dst)| (*src, *dst));
     BatchIterator::new_from_vec_sorted(&sorter_temp_file, buffer)
         .context("Could not create BatchIterator")
 }

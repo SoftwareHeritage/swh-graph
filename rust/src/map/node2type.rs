@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use log::info;
 use mmap_rs::{Mmap, MmapFlags, MmapMut};
 use std::path::Path;
-use sux::prelude::{CompactArray, BitFieldSlice, BitFieldSliceMut};
+use sux::prelude::{BitFieldSlice, BitFieldSliceMut, CompactArray};
 
 /// Struct to create and load a `.node2type.bin` file and convert node ids to types.
 pub struct Node2Type<B> {

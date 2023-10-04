@@ -12,8 +12,7 @@ use dsi_progress_logger::ProgressLogger;
 use itertools::Itertools;
 use rayon::prelude::*;
 use tempfile;
-use webgraph::prelude::COOIterToLabelledGraph;
-use webgraph::traits::SequentialGraph;
+use webgraph::traits::LendingIterator;
 
 use super::orc::*;
 use crate::utils::sort::par_sort_arcs;
@@ -60,12 +59,11 @@ where
             let dst = mph(&dst)? as usize;
             assert!(src < num_nodes, "src node id is greater than {}", num_nodes);
             assert!(dst < num_nodes, "dst node id is greater than {}", num_nodes);
-            sorter.push((src, dst, ()));
+            sorter.push((src, dst));
             Ok(())
         },
     )?
-    .dedup()
-    .map(|(src, dst)| (src, dst, ()));
+    .dedup();
     pl.lock().unwrap().done();
 
     let mut pl = ProgressLogger::default().display_memory();
@@ -76,8 +74,7 @@ where
     let pl = Mutex::new(pl);
     let counters = thread_local::ThreadLocal::new();
 
-    let sequential_graph = COOIterToLabelledGraph::new(num_nodes, sorted_arcs);
-    let adjacency_lists = sequential_graph.iter_nodes().inspect(|_| {
+    let mut adjacency_lists = NodeIterator::new(num_nodes, sorted_arcs).inspect(|_| {
         let counter = counters.get_or(|| UnsafeCell::new(0));
         let counter: &mut usize = unsafe { &mut *counter.get() };
         *counter += 1;
@@ -92,9 +89,12 @@ where
     let comp_flags = Default::default();
     let num_threads = num_cpus::get();
 
-    webgraph::graph::bvgraph::parallel_compress_sequential_iter(
+    use webgraph::graph::arc_list_graph::NodeIterator;
+    use webgraph::traits::iter::Inspect;
+    webgraph::graph::bvgraph::parallel_compress_sequential_iter::<Inspect<_, _>>(
         target_dir,
-        adjacency_lists,
+        &mut adjacency_lists,
+        num_nodes,
         comp_flags,
         num_threads,
     )

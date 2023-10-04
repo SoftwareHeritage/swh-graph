@@ -8,9 +8,10 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
-use dsi_bitstream::prelude::{BufferedBitStreamWrite, FileBackend, BE};
+use dsi_bitstream::prelude::{BufBitWriter, WordAdapter, BE};
 use dsi_progress_logger::ProgressLogger;
 use rayon::prelude::*;
+use webgraph::graph::arc_list_graph::NodeIterator;
 use webgraph::prelude::*;
 
 use crate::utils::sort::par_sort_arcs;
@@ -32,13 +33,12 @@ where
     // Adapted from https://github.com/vigna/webgraph-rs/blob/08969fb1ac4ea59aafdbae976af8e026a99c9ac5/src/bin/perm.rs
     let num_nodes = graph.num_nodes();
 
-    let bit_write =
-        <BufferedBitStreamWrite<BE, _>>::new(<FileBackend<u64, _>>::new(BufWriter::new(
-            std::fs::File::create(&format!("{}.graph", target_dir.to_string_lossy()))
-                .context("Could not create target graph file")?,
-        )));
+    let bit_write = <BufBitWriter<BE, _>>::new(WordAdapter::new(BufWriter::new(
+        std::fs::File::create(&format!("{}.graph", target_dir.to_string_lossy()))
+            .context("Could not create target graph file")?,
+    )));
 
-    let codes_writer = DynamicCodesWriter::new(bit_write, &CompFlags::default());
+    let codes_writer = <DynamicCodesWriter<BE, _>>::new(bit_write, &CompFlags::default());
 
     let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
 
@@ -58,12 +58,12 @@ where
             let start = batch_id * input_batch_size;
             let end = (batch_id + 1) * input_batch_size;
             graph // Not using PermutedGraph in order to avoid blanket iter_nodes_from
-                .iter_nodes_from(start)
+                .iter_from(start)
                 .take_while(|(node_id, _successors)| *node_id < end)
                 .for_each(|(x, succ)| {
-                    succ.for_each(|s| {
+                    succ.into_iter().for_each(|s| {
                         for (x, s) in transformation(x, s).into_iter() {
-                            sorter.push((x, s, ()));
+                            sorter.push((x, s));
                         }
                     })
                 });
@@ -72,8 +72,6 @@ where
         },
     )?;
     pl.lock().unwrap().done();
-
-    let g = COOIterToGraph::new(num_nodes, sorted_arcs);
 
     let mut compression_flags = CompFlags::default();
     compression_flags.compression_window = 1;
@@ -91,18 +89,16 @@ where
     pl.expected_updates = Some(num_nodes);
     pl.local_speed = true;
     pl.start("Writing...");
-    let pl = std::cell::RefCell::new(pl);
+
+    let mut adjacency_lists = NodeIterator::new(num_nodes, sorted_arcs).inspect(|_node| {
+        pl.light_update();
+    });
 
     bvcomp
-        .extend(g.iter_nodes().enumerate().map(|(i, node)| {
-            if i % 32768 == 0 {
-                pl.borrow_mut().update_with_count(32768)
-            }
-            node
-        }))
+        .extend::<Inspect<_, _>>(&mut adjacency_lists)
         .context("Could not write to BVGraph")?;
     bvcomp.flush().context("Could not flush BVGraph")?;
-    pl.borrow_mut().done();
+    pl.done();
 
     drop(temp_dir); // Prevent early deletion
 
