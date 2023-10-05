@@ -1586,7 +1586,7 @@ dependencies = [
 [[package]]
 name = "sux"
 version = "0.1.0"
-source = "git+https://github.com/vigna/sux-rs?rev=77717a0a66b63f85c0884e979b0b64a5e8ed2a6a#77717a0a66b63f85c0884e979b0b64a5e8ed2a6a"
+source = "git+https://github.com/vigna/sux-rs?rev=5646ace31bd9964b6bed1e4af0e47a71080ced77#5646ace31bd9964b6bed1e4af0e47a71080ced77"
 dependencies = [
  "anyhow",
  "bitflags 2.4.0",
@@ -1606,6 +1606,7 @@ dependencies = [
  "stable_deref_trait",
  "stderrlog",
  "tempfile",
+ "xxh3",
  "yoke",
  "zstd",
 ]
@@ -1637,7 +1638,7 @@ dependencies = [
  "rayon",
  "sha1",
  "stderrlog",
- "sux 0.1.0 (git+https://github.com/vigna/sux-rs?rev=77717a0a66b63f85c0884e979b0b64a5e8ed2a6a)",
+ "sux 0.1.0 (git+https://github.com/vigna/sux-rs?rev=5646ace31bd9964b6bed1e4af0e47a71080ced77)",
  "tempfile",
  "thread_local",
  "webgraph",
@@ -2130,6 +2131,12 @@ checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
 dependencies = [
  "tap",
 ]
+
+[[package]]
+name = "xxh3"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a291e51a49d327a9e7edbf9db6e320fdd1aa7ae06afcddc252f3e041e5aed01"
 
 [[package]]
 name = "xxhash-rust"

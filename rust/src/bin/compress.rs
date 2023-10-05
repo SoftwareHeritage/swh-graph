@@ -492,7 +492,7 @@ pub fn main() -> Result<()> {
             dataset_dir,
             target_dir,
         } => {
-            use sux::prelude::gov::GOVMPH;
+            use swh_graph::java_compat::mph::gov::GOVMPH;
 
             let _ = parse_allowed_node_types(&allowed_node_types);
 
