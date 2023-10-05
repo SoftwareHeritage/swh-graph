@@ -829,7 +829,8 @@ pub fn main() -> Result<()> {
             });
             pl.lock().unwrap().done();
 
-            rclb.print_stats();
+            // Disabled because of https://github.com/vigna/sux-rs/issues/18
+            // rclb.print_stats();
 
             log::info!("Building RCL...");
             let rcl = rclb.build();
