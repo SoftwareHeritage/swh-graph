@@ -7,8 +7,9 @@ use anyhow::Result;
 use dsi_progress_logger::ProgressLogger;
 use log::info;
 use std::io::prelude::*;
+use std::path::PathBuf;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::map::{Node2SWHID, Order};
+use swh_graph::map::{MappedPermutation, Node2SWHID, Permutation};
 use webgraph::prelude::*;
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
@@ -29,9 +30,6 @@ fn test_order_mph() -> Result<()> {
     info!("loading node2swhid...");
     let node2swhid = Node2SWHID::load(format!("{}.node2swhid.bin", BASENAME))?;
 
-    info!("loading order...");
-    let order = Order::load(format!("{}.order", BASENAME))?;
-
     info!("opening graph.nodes.csv...");
     let file = std::io::BufReader::with_capacity(
         1 << 20,
@@ -43,6 +41,12 @@ fn test_order_mph() -> Result<()> {
 
     info!("loading compressed graph into memory (with mmap)...");
     let graph = webgraph::graph::bvgraph::load(BASENAME)?;
+
+    info!("loading order...");
+    let order = MappedPermutation::load(
+        graph.num_nodes(),
+        &PathBuf::from(format!("{}.order", BASENAME)),
+    )?;
 
     // Setup the progress logger for
     let mut pl = ProgressLogger::default().display_memory();

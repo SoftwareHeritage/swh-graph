@@ -17,7 +17,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
 use rayon::prelude::*;
-use swh_graph::permutation::{MappedPermutation, OwnedPermutation, Permutation};
+use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
 use swh_graph::SWHType;
 use webgraph::prelude::*;
 
@@ -618,7 +618,12 @@ pub fn main() -> Result<()> {
                 sort_batch_size,
                 input_batch_size,
                 graph,
-                |src, dst| [(permutation.get(src), permutation.get(dst))],
+                |src, dst| unsafe {
+                    [(
+                        permutation.get_unchecked(src),
+                        permutation.get_unchecked(dst),
+                    )]
+                },
                 target_dir,
             )?;
         }
@@ -669,10 +674,18 @@ pub fn main() -> Result<()> {
                 graph,
                 |src, dst| {
                     assert_ne!(src, dst);
-                    [
-                        (permutation.get(src), permutation.get(dst)),
-                        (permutation.get(dst), permutation.get(src)),
-                    ]
+                    unsafe {
+                        [
+                            (
+                                permutation.get_unchecked(src),
+                                permutation.get_unchecked(dst),
+                            ),
+                            (
+                                permutation.get_unchecked(dst),
+                                permutation.get_unchecked(src),
+                            ),
+                        ]
+                    }
                 },
                 target_dir,
             )?;
@@ -743,7 +756,9 @@ pub fn main() -> Result<()> {
 
             par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(pl))).for_each(
                 |line: [u8; 50]| {
-                    let node_id = order.get(mph.get(&line).expect("Failed to hash line") as usize);
+                    let node_id = order
+                        .get(mph.get(&line).expect("Failed to hash line") as usize)
+                        .unwrap();
                     let swhid =
                         SWHID::try_from(unsafe { std::str::from_utf8_unchecked(&line[..]) })
                             .expect("Invalid SWHID");

@@ -8,8 +8,9 @@ use bitvec::prelude::*;
 use dsi_progress_logger::ProgressLogger;
 use log::{debug, info};
 use std::collections::VecDeque;
+use std::path::PathBuf;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::map::{Node2SWHID, Order};
+use swh_graph::map::{MappedPermutation, Node2SWHID, Permutation};
 use webgraph::prelude::*;
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
@@ -43,15 +44,6 @@ pub fn main() -> Result<()> {
     let node_id = mph.get_byte_array(swhid.as_bytes()) as usize;
     info!("obtained node ID {node_id} ...");
 
-    // Load the order permutation
-    // since the mph is create before the BFS and LLP steps, this is needed to
-    // get the post-order node_id
-    let order_file = format!("{}.order", BASENAME);
-    info!("loading order permutation from {order_file} ...");
-    let order = Order::load(order_file)?;
-    let node_id = order.get(node_id).unwrap();
-    info!("obtained node ID {node_id} ...");
-
     // Load a default bvgraph with memory mapping,
     //
     // To make this work on the old (java-compressed) version of the graph,
@@ -69,6 +61,18 @@ pub fn main() -> Result<()> {
     let node2swhid_file = format!("{}.node2swhid.bin", BASENAME);
     info!("loading node ID -> SWHID map from {node2swhid_file} ...");
     let node2swhid = Node2SWHID::load(node2swhid_file)?;
+
+    // Load the order permutation
+    // since the mph is create before the BFS and LLP steps, this is needed to
+    // get the post-order node_id
+    let order_file = PathBuf::from(format!("{}.order", BASENAME));
+    info!(
+        "loading order permutation from {} ...",
+        order_file.display()
+    );
+    let order = MappedPermutation::load(graph.num_nodes(), &order_file)?;
+    let node_id = order.get(node_id).unwrap();
+    info!("obtained node ID {node_id} ...");
 
     // Setup a queue and a visited bitmap for the visit
     let num_nodes = graph.num_nodes();

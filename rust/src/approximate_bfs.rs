@@ -14,7 +14,7 @@ use dsi_progress_logger::ProgressLogger;
 use num_cpus;
 use webgraph::prelude::*;
 
-use crate::permutation::OwnedPermutation;
+use crate::map::OwnedPermutation;
 
 pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(
     graph: &'a G,

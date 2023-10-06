@@ -17,7 +17,8 @@ use rayon::prelude::*;
 /// An array of `n` unique integers in the `0..n` range.
 pub trait Permutation {
     fn len(&self) -> usize;
-    fn get(&self, old_node: usize) -> usize;
+    fn get(&self, old_node: usize) -> Option<usize>;
+    unsafe fn get_unchecked(&self, old_node: usize) -> usize;
 }
 
 /// A [`Permutation`] backed by an `usize` vector
@@ -118,7 +119,7 @@ impl<T: Sync + AsRef<[usize]> + AsMut<[usize]>> OwnedPermutation<T> {
         }
         self.as_mut()
             .par_iter_mut()
-            .for_each(|x| *x = other.get(*x));
+            .for_each(|x| *x = unsafe { other.get_unchecked(*x) });
 
         Ok(())
     }
@@ -204,8 +205,12 @@ impl<T: Sync + AsRef<[usize]>> Permutation for OwnedPermutation<T> {
         self.as_ref().len()
     }
 
-    fn get(&self, old_node: usize) -> usize {
-        self[old_node]
+    fn get(&self, old_node: usize) -> Option<usize> {
+        self.0.as_ref().get(old_node).copied()
+    }
+
+    unsafe fn get_unchecked(&self, old_node: usize) -> usize {
+        *self.0.as_ref().get_unchecked(old_node)
     }
 }
 
@@ -314,6 +319,11 @@ impl MappedPermutation {
             .map()
             .context("Could not mmap permutation")?;
 
+        #[cfg(target_os = "linux")]
+        unsafe {
+            libc::madvise(perm.as_ptr() as *mut _, perm.len(), libc::MADV_RANDOM)
+        };
+
         Ok(MappedPermutation(perm))
     }
 
@@ -338,7 +348,13 @@ impl Permutation for MappedPermutation {
         self.0.size() / 8
     }
 
-    fn get(&self, old_node: usize) -> usize {
-        BigEndian::read_u64(&self.0[(old_node * 8)..((old_node + 1) * 8)]) as usize
+    fn get(&self, old_node: usize) -> Option<usize> {
+        let range = (old_node * 8)..((old_node + 1) * 8);
+        Some(BigEndian::read_u64(&self.0.get(range)?) as usize)
+    }
+
+    unsafe fn get_unchecked(&self, old_node: usize) -> usize {
+        let range = (old_node * 8)..((old_node + 1) * 8);
+        BigEndian::read_u64(&self.0.get_unchecked(range)) as usize
     }
 }
