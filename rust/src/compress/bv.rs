@@ -7,7 +7,7 @@ use std::cell::UnsafeCell;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use dsi_progress_logger::ProgressLogger;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -15,18 +15,20 @@ use tempfile;
 use webgraph::traits::LendingIterator;
 
 use super::orc::*;
+use crate::properties::SwhidMphf;
 use crate::utils::sort::par_sort_arcs;
 
-pub fn bv<MPHF>(
+pub fn bv<MPHF: SwhidMphf + Sync>(
     sort_batch_size: usize,
-    mph: MPHF,
+    mph_basepath: PathBuf,
     num_nodes: usize,
     dataset_dir: PathBuf,
     target_dir: PathBuf,
-) -> Result<()>
-where
-    MPHF: Fn(&[u8; 50]) -> Result<u64> + Send + Sync,
-{
+) -> Result<()> {
+    println!("Reading MPH");
+    let mph = MPHF::load(mph_basepath).context("Could not load MPHF")?;
+    println!("MPH loaded, sorting arcs");
+
     let mut pl = ProgressLogger::default().display_memory();
     pl.item_name = "arc";
     pl.local_speed = true;
@@ -55,8 +57,12 @@ where
             }
         }),
         |sorter, (src, dst)| {
-            let src = mph(&src)? as usize;
-            let dst = mph(&dst)? as usize;
+            let src = mph
+                .hash_str_array(&src)
+                .ok_or_else(|| anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&src)))?;
+            let dst = mph
+                .hash_str_array(&dst)
+                .ok_or_else(|| anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&dst)))?;
             assert!(src < num_nodes, "src node id is greater than {}", num_nodes);
             assert!(dst < num_nodes, "dst node id is greater than {}", num_nodes);
             sorter.push((src, dst));

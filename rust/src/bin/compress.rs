@@ -451,7 +451,7 @@ pub fn main() -> Result<()> {
             format: DatasetFormat::Orc,
             sort_batch_size,
             allowed_node_types,
-            mph_algo: MphAlgorithm::Fmph,
+            mph_algo,
             function,
             num_nodes,
             dataset_dir,
@@ -459,55 +459,24 @@ pub fn main() -> Result<()> {
         } => {
             let _ = parse_allowed_node_types(&allowed_node_types);
 
-            let file = File::open(&function)
-                .with_context(|| format!("Cannot read {}", function.display()))?;
-            println!("Reading MPH");
-            let mph =
-                fmph::Function::read(&mut BufReader::new(file)).context("Could not parse mph")?;
-            println!("MPH loaded, sorting arcs");
-
-            swh_graph::compress::bv::bv(
-                sort_batch_size,
-                |swhid| {
-                    mph.get(swhid).with_context(|| {
-                        format!(
-                            "Could not hash {}",
-                            std::str::from_utf8(swhid).unwrap_or(&format!("{:?}", swhid))
-                        )
-                    })
-                },
-                num_nodes,
-                dataset_dir,
-                target_dir,
-            )?;
-        }
-
-        Commands::Bv {
-            format: DatasetFormat::Orc,
-            sort_batch_size,
-            allowed_node_types,
-            mph_algo: MphAlgorithm::Cmph,
-            function,
-            num_nodes,
-            dataset_dir,
-            target_dir,
-        } => {
-            use swh_graph::java_compat::mph::gov::GOVMPH;
-
-            let _ = parse_allowed_node_types(&allowed_node_types);
-
-            println!("Reading MPH");
-            let mph = GOVMPH::load(&function)
-                .with_context(|| format!("Cannot read {}", function.display()))?;
-            println!("MPH loaded, sorting arcs");
-
-            swh_graph::compress::bv::bv(
-                sort_batch_size,
-                |swhid| Ok(mph.get_byte_array(swhid)),
-                num_nodes,
-                dataset_dir,
-                target_dir,
-            )?;
+            match mph_algo {
+                MphAlgorithm::Fmph => swh_graph::compress::bv::bv::<ph::fmph::Function>(
+                    sort_batch_size,
+                    function,
+                    num_nodes,
+                    dataset_dir,
+                    target_dir,
+                )?,
+                MphAlgorithm::Cmph => {
+                    swh_graph::compress::bv::bv::<swh_graph::java_compat::mph::gov::GOVMPH>(
+                        sort_batch_size,
+                        function,
+                        num_nodes,
+                        dataset_dir,
+                        target_dir,
+                    )?
+                }
+            }
         }
 
         Commands::BvOffsets { graph_dir, ef_path } => {
@@ -815,6 +784,7 @@ pub fn main() -> Result<()> {
                 });
             });
         }
+
         Commands::Rcl {
             num_lines,
             stripe_length,
