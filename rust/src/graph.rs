@@ -11,7 +11,8 @@ use anyhow::Result;
 use webgraph::prelude::*;
 //use webgraph::traits::{RandomAccessGraph, SequentialGraph};
 
-use crate::properties::{SwhGraphProperties, SwhidMphf};
+use crate::mph::SwhidMphf;
+use crate::properties::SwhGraphProperties;
 use crate::utils::suffix_path;
 
 /// Alias for [`usize`], which may become a newtype in a future version.

@@ -11,6 +11,7 @@ pub use swhtype::SWHType;
 
 pub mod graph;
 pub mod map;
+pub mod mph;
 pub mod properties;
 
 #[cfg(feature = "compression")]

@@ -15,7 +15,7 @@ use tempfile;
 use webgraph::traits::LendingIterator;
 
 use super::orc::*;
-use crate::properties::SwhidMphf;
+use crate::mph::SwhidMphf;
 use crate::utils::sort::par_sort_arcs;
 
 pub fn bv<MPHF: SwhidMphf + Sync>(
