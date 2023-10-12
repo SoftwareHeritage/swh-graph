@@ -237,8 +237,12 @@ where
             .par_bridge()
             .map(|buffer: RefCell<Vec<(usize, usize)>>| {
                 let mut buffer = buffer.borrow_mut();
-                let sorted_iterator = flush(temp_dir, &mut (*buffer)[..])?;
-                Ok(vec![sorted_iterator])
+                if buffer.len() > 0 {
+                    let sorted_iterator = flush(temp_dir, &mut (*buffer)[..])?;
+                    Ok(vec![sorted_iterator])
+                } else {
+                    Ok(vec![])
+                }
             })
             .collect::<Vec<_>>()
             .into_iter(),
