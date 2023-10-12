@@ -27,8 +27,24 @@ pub trait SwhidMphf {
     fn load(basepath: impl AsRef<Path>) -> Result<Self>
     where
         Self: Sized;
-    fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId>;
-    fn hash_swhid(&self, swhid: &SWHID) -> Option<NodeId>;
+
+    /// Hashes a SWHID's binary representation
+    #[inline(always)]
+    fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
+        self.hash_swhid(&swhid.clone().try_into().ok()?)
+    }
+
+    /// Hashes a SWHID's textual representation
+    fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId>;
+
+    /// Hashes a SWHID's textual representation
+    fn hash_str_array(&self, swhid: &[u8; 50]) -> Option<NodeId>;
+
+    /// Hashes a [`SWHID`]
+    #[inline(always)]
+    fn hash_swhid(&self, swhid: &SWHID) -> Option<NodeId> {
+        self.hash_str(swhid.to_string())
+    }
 }
 
 impl SwhidMphf for ph::fmph::Function {
@@ -41,11 +57,15 @@ impl SwhidMphf for ph::fmph::Function {
             File::open(&path).with_context(|| format!("Could not read {}", path.display()))?;
         ph::fmph::Function::read(&mut BufReader::new(file)).context("Could not parse mph")
     }
-    fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
-        self.get(swhid).map(|node_id| node_id as usize)
+
+    #[inline(always)]
+    fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
+        Some(self.get(swhid.as_ref().as_bytes())? as usize)
     }
-    fn hash_swhid(&self, swhid: &SWHID) -> Option<NodeId> {
-        self.hash_array(&(*swhid).into())
+
+    #[inline(always)]
+    fn hash_str_array(&self, swhid: &[u8; 50]) -> Option<NodeId> {
+        Some(self.get(swhid)? as usize)
     }
 }
 
@@ -58,11 +78,15 @@ impl SwhidMphf for crate::java_compat::mph::gov::GOVMPH {
         crate::java_compat::mph::gov::GOVMPH::load(&path)
             .with_context(|| format!("Could not load {}", path.display()))
     }
-    fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
-        self.hash_swhid(&swhid.clone().try_into().ok()?)
+
+    #[inline(always)]
+    fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
+        Some(self.get_byte_array(swhid.as_ref().as_bytes()) as usize)
     }
-    fn hash_swhid(&self, swhid: &SWHID) -> Option<NodeId> {
-        Some(self.get_byte_array(swhid.to_string().as_bytes()) as usize)
+
+    #[inline(always)]
+    fn hash_str_array(&self, swhid: &[u8; 50]) -> Option<NodeId> {
+        Some(self.get_byte_array(swhid) as usize)
     }
 }
 
@@ -104,12 +128,32 @@ impl SwhidMphf for DynMphf {
             gov_path.display()
         );
     }
+
+    #[inline(always)]
     fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
         match self {
             Self::Fmph(mphf) => mphf.hash_array(swhid),
             Self::GOV(mphf) => mphf.hash_array(swhid),
         }
     }
+
+    #[inline(always)]
+    fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
+        match self {
+            Self::Fmph(mphf) => mphf.hash_str(swhid),
+            Self::GOV(mphf) => mphf.hash_str(swhid),
+        }
+    }
+
+    #[inline(always)]
+    fn hash_str_array(&self, swhid: &[u8; 50]) -> Option<NodeId> {
+        match self {
+            Self::Fmph(mphf) => mphf.hash_str_array(swhid),
+            Self::GOV(mphf) => mphf.hash_str_array(swhid),
+        }
+    }
+
+    #[inline(always)]
     fn hash_swhid(&self, swhid: &SWHID) -> Option<NodeId> {
         match self {
             Self::Fmph(mphf) => mphf.hash_swhid(swhid),
