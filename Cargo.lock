@@ -457,6 +457,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "common_traits"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05693dcdecfe1a5cde4eff650cdd33adfcb7a67afcfa23a454801bcb503c9345"
+dependencies = [
+ "anyhow",
+ "half",
+]
+
+[[package]]
 name = "core-foundation-sys"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -580,7 +590,7 @@ version = "0.1.0"
 source = "git+https://github.com/vigna/dsi-bitstream-rs?branch=traits#07ed036834b52e74f7e257fc3afb6cc603fb4a87"
 dependencies = [
  "anyhow",
- "common_traits",
+ "common_traits 0.7.8",
  "rand",
 ]
 
@@ -1566,7 +1576,7 @@ dependencies = [
  "bitvec",
  "bytemuck",
  "clap",
- "common_traits",
+ "common_traits 0.7.8",
  "dsi-progress-logger",
  "epserde",
  "libc",
@@ -1593,7 +1603,7 @@ dependencies = [
  "bitvec",
  "bytemuck",
  "clap",
- "common_traits",
+ "common_traits 0.7.8",
  "dsi-progress-logger",
  "epserde",
  "libc",
@@ -1621,6 +1631,7 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "clap",
+ "common_traits 0.8.0",
  "dsi-bitstream",
  "dsi-progress-logger",
  "epserde",

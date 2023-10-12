@@ -9,7 +9,9 @@ pub use swhid::SWHID;
 mod swhtype;
 pub use swhtype::SWHType;
 
+pub mod graph;
 pub mod map;
+pub mod properties;
 
 #[cfg(feature = "compression")]
 pub mod compress;

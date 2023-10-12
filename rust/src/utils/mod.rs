@@ -5,10 +5,11 @@
  * See top-level LICENSE file for more information
  */
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
+pub mod mmap;
 pub mod sort;
 
 pub fn dir_size(path: &Path) -> Result<usize> {
@@ -23,4 +24,22 @@ pub fn dir_size(path: &Path) -> Result<usize> {
                 .len() as usize
         })
         .sum::<usize>())
+}
+
+/// Appends a string to a path
+///
+/// ```
+/// # use std::path::{Path, PathBuf};
+/// # use swh_graph::utils::suffix_path;
+///
+/// assert_eq!(
+///     suffix_path(Path::new("/tmp/graph"), "-transposed"),
+///     Path::new("/tmp/graph-transposed").to_owned()
+/// );
+/// ```
+#[inline(always)]
+pub fn suffix_path<P: AsRef<Path>, S: AsRef<std::ffi::OsStr>>(path: P, suffix: S) -> PathBuf {
+    let mut path = path.as_ref().as_os_str().to_owned();
+    path.push(suffix);
+    path.into()
 }

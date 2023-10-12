@@ -42,3 +42,14 @@ For this reason, this is enabled by default in the `.cargo/config.toml` file.
 Be aware that a file compiled with `pdep` enabled will not run on a CPU that does not support it.
 Generally, **running a binary compiled with a given set of CPU features on another one
 will result in SIGILL (illegal instruction) error**.
+
+## Loading old graphs
+
+The original Java (and C++) implementation of webgraph used slightly different
+data structures dans the Rust implementation.
+Therefore, you need to generate new files in order to load old graphs with the Rust
+implementation; this takes a few hours for graphs representing full SWH exports.
+
+1. Convert the GOV minimal-perfect-hash function from `.mph` to `.cmph`: `java -classpath ~/src/swh-graph/java/target/swh-graph-3.0.1.jar ~/src/swh-graph/java/src/main/java/org/softwareheritage/graph/utils/Mph2Cmph.java graph.mph graph.cmph`
+2. Generate Elias-Fano-encoded offsets of the graph: `cargo run --release --bin build_eliasfano --  ~/graph/latest/compressed/graph`
+3. Generate Elias-Fano-encoded offsets of the transposed graph: `cargo run --release --bin build_eliasfano --  ~/graph/latest/compressed/graph-transposed`
