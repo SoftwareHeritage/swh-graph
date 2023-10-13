@@ -7,7 +7,7 @@
 
 use std::env::temp_dir;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Seek, Write};
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -94,11 +94,6 @@ enum Commands {
         num_nodes: usize,
         dataset_dir: PathBuf,
         target_dir: PathBuf,
-    },
-    /// Computes the .offsets and .ef files for the given BVGraph
-    BvOffsets {
-        graph_dir: PathBuf,
-        ef_path: PathBuf,
     },
     /// Runs a BFS on the initial BVGraph to group similar node ids together
     Bfs {
@@ -477,64 +472,6 @@ pub fn main() -> Result<()> {
                     )?
                 }
             }
-        }
-
-        Commands::BvOffsets { graph_dir, ef_path } => {
-            use epserde::ser::Serialize;
-            use sux::prelude::*;
-            let graph_dir2 = graph_dir.to_string_lossy();
-            // Adapted from https://github.com/vigna/webgraph-rs/blob/c43563de15e30d4ee1f7a4f0096f6479b81eb26a/src/bin/build_eliasfano.rs
-            let f = File::open(format!("{}.properties", graph_dir2))
-                .context("Could not open .properties")?;
-            let map =
-                java_properties::read(BufReader::new(f)).context("Could not parse .properties")?;
-            let num_nodes = map
-                .get("nodes")
-                .unwrap()
-                .parse::<usize>()
-                .context("Could not get number of nodes")?;
-
-            let mut file =
-                File::open(format!("{}.graph", graph_dir2)).context("Could not open .graph")?;
-            let file_len = 8 * file
-                .seek(std::io::SeekFrom::End(0))
-                .context("Could not seek through .graph")?;
-
-            let mut efb = EliasFanoBuilder::new(file_len as usize, num_nodes + 1);
-
-            let mut ef_file = BufWriter::new(File::create(ef_path).context("Could not open .ef")?);
-
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.expected_updates = Some(num_nodes as _);
-            pl.item_name = "offset";
-
-            let seq_graph =
-                webgraph::graph::bvgraph::load_seq(&graph_dir).context("Could not load BVGraph")?;
-            let seq_graph =
-                seq_graph.map_codes_reader_builder(DynamicCodesReaderSkipperBuilder::from);
-            pl.start("Building EliasFano...");
-            // read the graph a write the offsets
-            let mut iter = seq_graph.iter_degrees();
-            while let Some((new_offset, _node_id, _degree)) = iter.next() {
-                // write where
-                efb.push(new_offset as _)
-                    .context("Could not push EF offset")?;
-                // decode the next nodes so we know where the next node_id starts
-                pl.light_update();
-            }
-            efb.push(iter.get_pos() as _)?;
-            pl.done();
-
-            let ef = efb.build();
-
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.start("Building the Index over the ones in the high-bits...");
-            pl.done();
-
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.start("Writing to disk...");
-            ef.serialize(&mut ef_file)?;
-            pl.done();
         }
 
         Commands::Bfs {
