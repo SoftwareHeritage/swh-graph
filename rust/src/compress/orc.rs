@@ -145,7 +145,6 @@ where
 {
     RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
         .expect("Could not open row reader")
-        .expect("Unexpected schema")
         .par_bridge()
         .flat_map(f)
         .map(|swhid| swhid.as_bytes().try_into().unwrap())
@@ -331,7 +330,6 @@ where
 {
     RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
         .expect("Could not open row reader")
-        .expect("Unexpected schema")
         .flat_map(f)
         .map(|(src_swhid, dst_swhid)| {
             (
@@ -499,7 +497,6 @@ where
 {
     RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
         .expect("Could not open row reader")
-        .expect("Unexpected schema")
         .for_each(f)
 }
 
@@ -647,7 +644,6 @@ where
 {
     RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
         .expect("Could not open row reader")
-        .expect("Unexpected schema")
         .par_bridge()
         .flat_map(f)
 }

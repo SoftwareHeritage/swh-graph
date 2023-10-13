@@ -1145,19 +1145,19 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 
 [[package]]
 name = "orcxx"
-version = "0.2.3"
-source = "git+https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git?rev=2765108b17bed3a030acd76735e48667d198b867#2765108b17bed3a030acd76735e48667d198b867"
+version = "0.4.1"
+source = "git+https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git?rev=59eeb8868764f2fd8a77f9b985d98672f03e0ed3#59eeb8868764f2fd8a77f9b985d98672f03e0ed3"
 dependencies = [
  "cxx",
  "cxx-build",
  "rust_decimal",
- "unsafe_unwrap",
+ "thiserror",
 ]
 
 [[package]]
 name = "orcxx_derive"
-version = "0.2.3"
-source = "git+https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git?rev=2765108b17bed3a030acd76735e48667d198b867#2765108b17bed3a030acd76735e48667d198b867"
+version = "0.4.1"
+source = "git+https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git?rev=59eeb8868764f2fd8a77f9b985d98672f03e0ed3#59eeb8868764f2fd8a77f9b985d98672f03e0ed3"
 dependencies = [
  "orcxx",
  "proc-macro2",
