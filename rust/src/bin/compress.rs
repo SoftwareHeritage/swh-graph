@@ -694,6 +694,8 @@ pub fn main() -> Result<()> {
             node2swhid,
             node2type,
         } => {
+            use swh_graph::mph::SwhidMphf;
+
             use swh_graph::compress::zst_dir::*;
             use swh_graph::map::{Node2SWHID, Node2Type};
             use swh_graph::SWHID;
@@ -705,13 +707,10 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Could not load {}", order.display()))?;
             match mph_algo {
                 MphAlgorithm::Fmph => {}
-                _ => panic!("Only --mph-algo fmph is supported"),
+                _ => unimplemented!("Only --mph-algo fmph is supported"),
             }
-            let file = File::open(&function)
-                .with_context(|| format!("Cannot read {}", function.display()))?;
             println!("Permutation loaded, reading MPH");
-            let mph =
-                fmph::Function::read(&mut BufReader::new(file)).context("Could not parse mph")?;
+            let mph = fmph::Function::load(function).context("Cannot load mph")?;
             println!("MPH loaded, sorting arcs");
 
             let mut swhids: Vec<SWHID> = Vec::with_capacity(num_nodes);
@@ -726,7 +725,7 @@ pub fn main() -> Result<()> {
             par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(pl))).for_each(
                 |line: [u8; 50]| {
                     let node_id = order
-                        .get(mph.get(&line).expect("Failed to hash line") as usize)
+                        .get(mph.hash_str_array(&line).expect("Failed to hash line") as usize)
                         .unwrap();
                     let swhid =
                         SWHID::try_from(unsafe { std::str::from_utf8_unchecked(&line[..]) })
