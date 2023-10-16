@@ -17,9 +17,12 @@ use crate::SWHType;
 const SWHID_TXT_SIZE: usize = 50;
 type TextSwhid = [u8; SWHID_TXT_SIZE];
 
-const ORC_BATCH_SIZE: usize = 1_024; // Larger values don't seem to improve throughput
+pub(crate) const ORC_BATCH_SIZE: usize = 1_024; // Larger values don't seem to improve throughput
 
-fn get_dataset_readers(mut dataset_dir: PathBuf, subdirectory: &str) -> Vec<orcxx::reader::Reader> {
+pub(crate) fn get_dataset_readers(
+    mut dataset_dir: PathBuf,
+    subdirectory: &str,
+) -> Vec<orcxx::reader::Reader> {
     dataset_dir.push(subdirectory);
     std::fs::read_dir(&dataset_dir)
         .expect(&format!("Could not list {}", dataset_dir.display()))

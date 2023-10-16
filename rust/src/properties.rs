@@ -19,6 +19,15 @@ use crate::utils::mmap::NumberMmap;
 use crate::utils::suffix_path;
 use crate::{SWHType, SWHID};
 
+pub(crate) mod suffixes {
+    pub const NODE2SWHID: &str = ".node2swhid.bin";
+    pub const NODE2TYPE: &str = ".node2type.bin";
+    pub const AUTHOR_TIMESTAMP: &str = ".property.author_timestamp.bin";
+    pub const AUTHOR_TIMESTAMP_OFFSET: &str = ".property.author_timestamp_offset.bin";
+}
+
+use suffixes::*;
+
 pub struct SwhGraphProperties<MPHF: SwhidMphf> {
     mphf: MPHF,
     order: MappedPermutation,
@@ -34,17 +43,14 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
             mphf: MPHF::load(&path)?,
             order: unsafe { MappedPermutation::load_unchecked(&suffix_path(&path, ".order")) }
                 .context("Could not load order")?,
-            node2swhid: Node2SWHID::load(suffix_path(&path, ".node2swhid.bin"))
+            node2swhid: Node2SWHID::load(suffix_path(&path, NODE2SWHID))
                 .context("Could not load node2swhid")?,
-            node2type: Node2Type::load(suffix_path(&path, ".node2type.bin"), num_nodes)
+            node2type: Node2Type::load(suffix_path(&path, NODE2TYPE), num_nodes)
                 .context("Could not load node2type")?,
-            author_timestamp: NumberMmap::new(
-                suffix_path(&path, ".property.author_timestamp.bin"),
-                num_nodes,
-            )
-            .context("Could not load author_timestamp")?,
+            author_timestamp: NumberMmap::new(suffix_path(&path, AUTHOR_TIMESTAMP), num_nodes)
+                .context("Could not load author_timestamp")?,
             author_timestamp_offset: NumberMmap::new(
-                suffix_path(&path, ".property.author_timestamp_offset.bin"),
+                suffix_path(&path, AUTHOR_TIMESTAMP_OFFSET),
                 num_nodes,
             )
             .context("Could not load author_timestamp_offset")?,

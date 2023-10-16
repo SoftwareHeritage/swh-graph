@@ -177,6 +177,25 @@ enum Commands {
         node2type: PathBuf,
     },
 
+    /// Reads the list of nodes from the ORC directory and writes properties of each
+    /// node to dedicated files
+    NodeProperties {
+        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
+        format: DatasetFormat,
+        #[arg(long, default_value = "*")]
+        allowed_node_types: String,
+        #[arg(value_enum, long, default_value_t = MphAlgorithm::Fmph)]
+        mph_algo: MphAlgorithm,
+        #[arg(long)]
+        function: PathBuf,
+        #[arg(long)]
+        order: PathBuf,
+        #[arg(long)]
+        num_nodes: usize,
+        dataset_dir: PathBuf,
+        target: PathBuf,
+    },
+
     /// Reads a zstd-compressed stream containing sorted lines, and compresses it
     /// as a single rear-coded list.
     Rcl {
@@ -719,6 +738,93 @@ pub fn main() -> Result<()> {
                     pl.done();
                 });
             });
+        }
+
+        Commands::NodeProperties {
+            format: DatasetFormat::Orc,
+            allowed_node_types,
+            mph_algo,
+            function,
+            order,
+            num_nodes,
+            dataset_dir,
+            target,
+        } => {
+            use log::info;
+            use swh_graph::compress::properties::*;
+            use swh_graph::mph::SwhidMphf;
+
+            let _ = parse_allowed_node_types(&allowed_node_types);
+
+            println!("Loading permutation");
+            let order = unsafe { MappedPermutation::load_unchecked(order.as_path()) }
+                .with_context(|| format!("Could not load {}", order.display()))?;
+            assert_eq!(order.len(), num_nodes);
+            println!("Permutation loaded, reading MPH");
+
+            fn f<MPHF: SwhidMphf + Sync>(property_writer: PropertyWriter<MPHF>) -> Result<()> {
+                println!("MPH loaded, writing properties");
+                info!("[ 0/ 8] writing author timestamps");
+                property_writer
+                    .write_author_timestamps()
+                    .context("Failed to write author timestamps")?;
+                info!("[ 1/ 8] writing committer timestamps");
+                property_writer
+                    .write_committer_timestamps()
+                    .context("Failed to write committer timestamps")?;
+                info!("[ 2/ 8] writing content lengths");
+                property_writer
+                    .write_content_lengths()
+                    .context("Failed to write content lengths")?;
+                info!("[ 3/ 8] writing content_is_skipped");
+                property_writer
+                    .write_content_is_skipped()
+                    .context("Failed to write content_is_skipped")?;
+                info!("[ 4/ 8] writing author ids");
+                property_writer
+                    .write_author_ids()
+                    .context("Failed to write author ids")?;
+                info!("[ 5/ 8] writing committer ids");
+                property_writer
+                    .write_committer_ids()
+                    .context("Failed to write committer ids")?;
+                info!("[ 6/ 8] writing messages");
+                property_writer
+                    .write_messages()
+                    .context("Failed to write messages")?;
+                info!("[ 7/ 8] writing tag names");
+                property_writer
+                    .write_tag_names()
+                    .context("Failed to write tag names")?;
+                info!("[ 8/ 8] done");
+
+                Ok(())
+            }
+
+            match mph_algo {
+                MphAlgorithm::Fmph => {
+                    let mph = SwhidMphf::load(function).context("Cannot load mph")?;
+                    let property_writer = PropertyWriter {
+                        mph,
+                        order,
+                        num_nodes,
+                        dataset_dir,
+                        target,
+                    };
+                    f::<fmph::Function>(property_writer)?;
+                }
+                MphAlgorithm::Cmph => {
+                    let mph = SwhidMphf::load(function).context("Cannot load mph")?;
+                    let property_writer = PropertyWriter {
+                        mph,
+                        order,
+                        num_nodes,
+                        dataset_dir,
+                        target,
+                    };
+                    f::<swh_graph::java_compat::mph::gov::GOVMPH>(property_writer)?;
+                }
+            };
         }
 
         Commands::Rcl {

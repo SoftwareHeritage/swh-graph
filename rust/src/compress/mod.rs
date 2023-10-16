@@ -5,5 +5,6 @@
 
 pub mod bv;
 pub mod orc;
+pub mod properties;
 pub mod transform;
 pub mod zst_dir;
