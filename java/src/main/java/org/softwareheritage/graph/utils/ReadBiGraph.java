@@ -31,7 +31,7 @@ public class ReadBiGraph {
         while (it.hasNext()) {
             long srcNode = it.nextLong();
 
-            var s = it.successors();
+            var s = graph.successors(srcNode);
             long dstNode;
             while ((dstNode = s.nextLong()) >= 0) {
                 System.out.format("  %2d (%s) -> %2d (%s)\n", srcNode, graph.getSWHID(srcNode), dstNode,
