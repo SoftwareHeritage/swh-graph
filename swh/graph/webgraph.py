@@ -323,6 +323,7 @@ def do_step(step, conf):
     cmd_env["JAVA_TOOL_OPTIONS"] = conf["java_tool_options"]
     cmd_env["CLASSPATH"] = conf["classpath"]
     cmd_env["TMPDIR"] = conf["tmp_dir"]
+    cmd_env["TZ"] = "UTC"
     process = subprocess.Popen(
         ["/bin/bash", "-c", cmd],
         env=cmd_env,

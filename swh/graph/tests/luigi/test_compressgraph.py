@@ -10,7 +10,7 @@ from click.testing import CliRunner
 import pytest
 
 from swh.graph.cli import graph_cli_group
-from swh.graph.example_dataset import DATASET_DIR
+from swh.graph.example_dataset import DATASET_DIR, RELEASES, REVISIONS
 
 from ..test_cli import read_properties
 
@@ -64,6 +64,26 @@ def test_compressgraph(tmpdir, workers):
         assert step["conf"]["batch_size"] == 1000
 
     assert compression_meta[0]["object_types"] == "cnt,dir,rev,rel,snp,ori"
+
+    with open(
+        "swh/graph/example_dataset/compressed/example.property.author_timestamp.bin",
+        "rb",
+    ) as f:
+        timestamps = [
+            int.from_bytes(f.read(8), byteorder="big")
+            for _ in range(int(properties["nodes"]))
+        ]
+
+    # remove non revision/releases
+    timestamps = [timestamp for timestamp in timestamps if timestamp != 2**63]
+    timestamps.sort()
+
+    expected_timestamps = [
+        rel.date.timestamp.seconds for rel in RELEASES if rel.date is not None
+    ] + [rev.date.timestamp.seconds for rev in REVISIONS if rev.date is not None]
+    expected_timestamps.sort()
+
+    assert timestamps == expected_timestamps
 
 
 @pytest.mark.parametrize(
