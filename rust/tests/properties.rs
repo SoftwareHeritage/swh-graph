@@ -78,13 +78,7 @@ fn test_author_timestamp() -> Result<()> {
         )
         .unwrap();
 
-    // Should be 1111122220, but timestamps in the dataset are incorrect because of
-    // https://gitlab.softwareheritage.org/swh/devel/swh-dataset/-/issues/4751
-    // and the dataset was exported on a UTC+1 machine (Europe/Paris in ST)
-    assert_eq!(
-        graph.properties().author_timestamp(node),
-        Some(1111122220 - 1 * 60 * 60)
-    );
+    assert_eq!(graph.properties().author_timestamp(node), Some(1111122220));
     assert_eq!(
         graph.properties().author_timestamp_offset(node),
         Some(2 * 60)
