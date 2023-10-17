@@ -53,6 +53,10 @@ public class ORCGraphDataset implements GraphDataset {
     public final AllowedNodes allowedNodeTypes;
 
     protected ORCGraphDataset() {
+        if (!TimeZone.getDefault().getID().equals("UTC")) {
+            throw new RuntimeException(
+                    "ORCGraphDataset cannot be used in non-UTC timezones (try setting the $TZ environment variable to 'UTC')");
+        }
         this.allowedNodeTypes = new AllowedNodes("*");
     }
 
@@ -77,6 +81,10 @@ public class ORCGraphDataset implements GraphDataset {
     public ORCGraphDataset(File datasetDir, AllowedNodes allowedNodeTypes) {
         if (!datasetDir.exists()) {
             throw new IllegalArgumentException("Dataset " + datasetDir.getName() + " does not exist");
+        }
+        if (!TimeZone.getDefault().getID().equals("UTC")) {
+            throw new RuntimeException(
+                    "ORCGraphDataset cannot be used in non-UTC timezones (try setting the $TZ environment variable to 'UTC')");
         }
         this.datasetDir = datasetDir;
         this.allowedNodeTypes = allowedNodeTypes;
