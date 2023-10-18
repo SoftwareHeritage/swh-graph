@@ -106,6 +106,33 @@ impl<MPHF: SwhidMphf + Sync> PropertyWriter<MPHF> {
         Ok(())
     }
     pub fn write_committer_timestamps(&self) -> Result<()> {
+        #[derive(OrcDeserialize, Default, Clone)]
+        struct Revision {
+            id: String,
+            committer_date: Option<orcxx::Timestamp>,
+            committer_offset: Option<i16>,
+        }
+
+        log::info!("Initializing...");
+        let timestamps = vec![i64::MIN.to_be(); self.num_nodes];
+        let timestamp_offsets = vec![i16::MIN.to_be(); self.num_nodes];
+
+        log::info!("Reading...");
+        self.for_each_row("revision", |rev: Revision| {
+            if let Some(date) = rev.committer_date {
+                let swhid = format!("swh:1:rev:{}", rev.id);
+                self.set(&timestamps, &swhid, date.seconds.to_be());
+                if let Some(date_offset) = rev.committer_offset {
+                    self.set(&timestamp_offsets, &swhid, date_offset.to_be());
+                }
+            }
+        })
+        .for_each(|()| ());
+
+        log::info!("Writing...");
+        self.write(suffixes::COMMITTER_TIMESTAMP, timestamps)?;
+        self.write(suffixes::COMMITTER_TIMESTAMP_OFFSET, timestamp_offsets)?;
+
         Ok(())
     }
     pub fn write_content_lengths(&self) -> Result<()> {

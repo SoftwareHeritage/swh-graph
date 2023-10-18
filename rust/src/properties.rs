@@ -24,6 +24,8 @@ pub(crate) mod suffixes {
     pub const NODE2TYPE: &str = ".node2type.bin";
     pub const AUTHOR_TIMESTAMP: &str = ".property.author_timestamp.bin";
     pub const AUTHOR_TIMESTAMP_OFFSET: &str = ".property.author_timestamp_offset.bin";
+    pub const COMMITTER_TIMESTAMP: &str = ".property.committer_timestamp.bin";
+    pub const COMMITTER_TIMESTAMP_OFFSET: &str = ".property.committer_timestamp_offset.bin";
 }
 
 use suffixes::*;
@@ -35,6 +37,8 @@ pub struct SwhGraphProperties<MPHF: SwhidMphf> {
     node2type: Node2Type<UsizeMmap<Mmap>>,
     author_timestamp: NumberMmap<BigEndian, i64, Mmap>,
     author_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
+    committer_timestamp: NumberMmap<BigEndian, i64, Mmap>,
+    committer_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
 }
 
 impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
@@ -54,6 +58,16 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
                 num_nodes,
             )
             .context("Could not load author_timestamp_offset")?,
+            committer_timestamp: NumberMmap::new(
+                suffix_path(&path, COMMITTER_TIMESTAMP),
+                num_nodes,
+            )
+            .context("Could not load committer_timestamp")?,
+            committer_timestamp_offset: NumberMmap::new(
+                suffix_path(&path, COMMITTER_TIMESTAMP_OFFSET),
+                num_nodes,
+            )
+            .context("Could not load committer_timestamp_offset")?,
         };
         Ok(properties)
     }
@@ -101,11 +115,33 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
     /// Returns the number of seconds since Epoch that a release or revision was
     /// authored at
     pub fn author_timestamp(&self, node_id: NodeId) -> Option<i64> {
-        self.author_timestamp.get(node_id)
+        match self.author_timestamp.get(node_id) {
+            Some(i64::MIN) => None,
+            ts => ts,
+        }
     }
 
     /// Returns the UTC offset in minutes of a release or revision's authorship date
     pub fn author_timestamp_offset(&self, node_id: NodeId) -> Option<i16> {
-        self.author_timestamp_offset.get(node_id)
+        match self.author_timestamp_offset.get(node_id) {
+            Some(i16::MIN) => None,
+            offset => offset,
+        }
+    }
+
+    /// Returns the number of seconds since Epoch that a revision was committed at
+    pub fn committer_timestamp(&self, node_id: NodeId) -> Option<i64> {
+        match self.committer_timestamp.get(node_id) {
+            Some(i64::MIN) => None,
+            ts => ts,
+        }
+    }
+
+    /// Returns the UTC offset in minutes of a revision's committer date
+    pub fn committer_timestamp_offset(&self, node_id: NodeId) -> Option<i16> {
+        match self.committer_timestamp_offset.get(node_id) {
+            Some(i16::MIN) => None,
+            offset => offset,
+        }
     }
 }

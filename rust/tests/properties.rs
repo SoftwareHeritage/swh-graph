@@ -90,19 +90,55 @@ fn test_node_id() -> Result<()> {
 }
 
 #[test]
-fn test_author_timestamp() -> Result<()> {
+fn test_revision_properties() -> Result<()> {
     let graph = graph()?;
 
     let node = graph
         .properties()
-        .node_id("swh:1:rev:0000000000000000000000000000000000000003")
+        .node_id("swh:1:rev:0000000000000000000000000000000000000009")
         .unwrap();
 
-    assert_eq!(graph.properties().author_timestamp(node), Some(1111122220));
-    assert_eq!(
-        graph.properties().author_timestamp_offset(node),
-        Some(2 * 60)
-    );
+    let properties = graph.properties();
+    assert_eq!(properties.author_timestamp(node), Some(1111144440));
+    assert_eq!(properties.author_timestamp_offset(node), Some(2 * 60));
+    assert_eq!(properties.committer_timestamp(node), Some(1111155550));
+    assert_eq!(properties.committer_timestamp_offset(node), Some(2 * 60));
+
+    Ok(())
+}
+
+#[test]
+fn test_release_properties() -> Result<()> {
+    let graph = graph()?;
+
+    let node = graph
+        .properties()
+        .node_id("swh:1:rel:0000000000000000000000000000000000000010")
+        .unwrap();
+
+    let properties = graph.properties();
+    assert_eq!(properties.author_timestamp(node), Some(1234567890));
+    assert_eq!(properties.author_timestamp_offset(node), Some(2 * 60));
+    assert_eq!(properties.committer_timestamp(node), None);
+    assert_eq!(properties.committer_timestamp_offset(node), None);
+
+    Ok(())
+}
+
+#[test]
+fn test_snapshot_properties() -> Result<()> {
+    let graph = graph()?;
+
+    let node = graph
+        .properties()
+        .node_id("swh:1:snp:0000000000000000000000000000000000000020")
+        .unwrap();
+
+    let properties = graph.properties();
+    assert_eq!(properties.author_timestamp(node), None);
+    assert_eq!(properties.author_timestamp_offset(node), None);
+    assert_eq!(properties.committer_timestamp(node), None);
+    assert_eq!(properties.committer_timestamp_offset(node), None);
 
     Ok(())
 }
