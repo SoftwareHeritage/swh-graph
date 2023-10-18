@@ -11,6 +11,7 @@ use webgraph::prelude::RandomAccessGraph;
 use swh_graph::graph::SwhUnidirectionalGraph;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::properties::SwhGraphProperties;
+use swh_graph::SWHID;
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
@@ -66,16 +67,35 @@ fn test_swhids() -> Result<()> {
 }
 
 #[test]
+fn test_node_id() -> Result<()> {
+    let graph = graph()?;
+
+    assert_eq!(
+        graph
+            .properties()
+            .node_id("swh:1:rev:0000000000000000000000000000000000000003")
+            .unwrap(),
+        6
+    );
+
+    assert_eq!(
+        graph
+            .properties()
+            .node_id(SWHID::try_from("swh:1:rev:0000000000000000000000000000000000000003").unwrap())
+            .unwrap(),
+        6
+    );
+
+    Ok(())
+}
+
+#[test]
 fn test_author_timestamp() -> Result<()> {
     let graph = graph()?;
 
     let node = graph
         .properties()
-        .node_id(
-            &"swh:1:rev:0000000000000000000000000000000000000003"
-                .try_into()
-                .unwrap(),
-        )
+        .node_id("swh:1:rev:0000000000000000000000000000000000000003")
         .unwrap();
 
     assert_eq!(graph.properties().author_timestamp(node), Some(1111122220));

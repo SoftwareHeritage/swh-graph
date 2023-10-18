@@ -76,9 +76,10 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
 
     /// Returns the node id of the given SWHID, or `None` if it does not exist.
     #[inline]
-    pub fn node_id(&self, swhid: &SWHID) -> Option<NodeId> {
-        let node_id = self.order.get(self.mphf.hash_swhid(swhid)?)?;
-        if self.node2swhid.get(node_id)? == *swhid {
+    pub fn node_id<T: TryInto<SWHID>>(&self, swhid: T) -> Option<NodeId> {
+        let swhid = swhid.try_into().ok()?;
+        let node_id = self.order.get(self.mphf.hash_swhid(&swhid)?)?;
+        if self.node2swhid.get(node_id)? == swhid {
             Some(node_id)
         } else {
             None

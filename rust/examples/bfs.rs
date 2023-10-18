@@ -10,7 +10,6 @@ use log::{debug, info};
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::SWHID;
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 // const BASENAME: &str = "/home/zack/graph/2022-12-07/compressed/graph";
@@ -34,10 +33,7 @@ pub fn main() -> Result<()> {
     // See: https://archive.softwareheritage.org/swh:1:snp:fffe49ca41c0a9d777cdeb6640922422dc379b33
     let swhid = "swh:1:snp:fffe49ca41c0a9d777cdeb6640922422dc379b33";
     info!("looking up SWHID {swhid} ...");
-    let node_id = graph
-        .properties()
-        .node_id(&SWHID::try_from(swhid).unwrap())
-        .expect("Unknown SWHID");
+    let node_id = graph.properties().node_id(swhid).expect("Unknown SWHID");
     info!("obtained node ID {node_id} ...");
 
     // Setup a queue and a visited bitmap for the visit
