@@ -90,6 +90,69 @@ fn test_node_id() -> Result<()> {
 }
 
 #[test]
+fn test_out_of_bound_properties() -> Result<()> {
+    let graph = graph()?;
+
+    let node = graph.num_nodes(); // Non-existent node
+
+    let properties = graph.properties();
+    assert_eq!(properties.author_timestamp(node), None);
+    assert_eq!(properties.author_timestamp_offset(node), None);
+    assert_eq!(properties.committer_timestamp(node), None);
+    assert_eq!(properties.committer_timestamp_offset(node), None);
+    assert_eq!(properties.is_skipped_content(node), None);
+    assert_eq!(properties.content_length(node), None);
+    assert_eq!(properties.message(node), None);
+    assert_eq!(properties.tag_name(node), None);
+
+    Ok(())
+}
+
+#[test]
+fn test_content_properties() -> Result<()> {
+    let graph = graph()?;
+
+    let node = graph
+        .properties()
+        .node_id("swh:1:cnt:0000000000000000000000000000000000000001")
+        .unwrap();
+
+    let properties = graph.properties();
+    assert_eq!(properties.author_timestamp(node), None);
+    assert_eq!(properties.author_timestamp_offset(node), None);
+    assert_eq!(properties.committer_timestamp(node), None);
+    assert_eq!(properties.committer_timestamp_offset(node), None);
+    assert_eq!(properties.is_skipped_content(node), Some(false));
+    assert_eq!(properties.content_length(node), Some(42));
+    assert_eq!(properties.message(node), None);
+    assert_eq!(properties.tag_name(node), None);
+
+    Ok(())
+}
+
+#[test]
+fn test_skipped_content_properties() -> Result<()> {
+    let graph = graph()?;
+
+    let node = graph
+        .properties()
+        .node_id("swh:1:cnt:0000000000000000000000000000000000000015")
+        .unwrap();
+
+    let properties = graph.properties();
+    assert_eq!(properties.author_timestamp(node), None);
+    assert_eq!(properties.author_timestamp_offset(node), None);
+    assert_eq!(properties.committer_timestamp(node), None);
+    assert_eq!(properties.committer_timestamp_offset(node), None);
+    assert_eq!(properties.is_skipped_content(node), Some(true));
+    assert_eq!(properties.content_length(node), Some(404));
+    assert_eq!(properties.message(node), None);
+    assert_eq!(properties.tag_name(node), None);
+
+    Ok(())
+}
+
+#[test]
 fn test_revision_properties() -> Result<()> {
     let graph = graph()?;
 
@@ -103,6 +166,10 @@ fn test_revision_properties() -> Result<()> {
     assert_eq!(properties.author_timestamp_offset(node), Some(2 * 60));
     assert_eq!(properties.committer_timestamp(node), Some(1111155550));
     assert_eq!(properties.committer_timestamp_offset(node), Some(2 * 60));
+    assert_eq!(properties.is_skipped_content(node), Some(false));
+    assert_eq!(properties.content_length(node), None);
+    assert_eq!(properties.message(node), Some(b"Add parser".to_vec()));
+    assert_eq!(properties.tag_name(node), None);
 
     Ok(())
 }
@@ -121,6 +188,10 @@ fn test_release_properties() -> Result<()> {
     assert_eq!(properties.author_timestamp_offset(node), Some(2 * 60));
     assert_eq!(properties.committer_timestamp(node), None);
     assert_eq!(properties.committer_timestamp_offset(node), None);
+    assert_eq!(properties.is_skipped_content(node), Some(false));
+    assert_eq!(properties.content_length(node), None);
+    assert_eq!(properties.message(node), Some(b"Version 1.0".to_vec()));
+    assert_eq!(properties.tag_name(node), Some(b"v1.0".to_vec()));
 
     Ok(())
 }
@@ -139,6 +210,10 @@ fn test_snapshot_properties() -> Result<()> {
     assert_eq!(properties.author_timestamp_offset(node), None);
     assert_eq!(properties.committer_timestamp(node), None);
     assert_eq!(properties.committer_timestamp_offset(node), None);
+    assert_eq!(properties.is_skipped_content(node), Some(false));
+    assert_eq!(properties.content_length(node), None);
+    assert_eq!(properties.message(node), None);
+    assert_eq!(properties.tag_name(node), None);
 
     Ok(())
 }

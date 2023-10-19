@@ -8,10 +8,11 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use byteorder::BigEndian;
+use byteorder::{BigEndian, LittleEndian};
 use mmap_rs::Mmap;
 
 use crate::graph::NodeId;
+use crate::java_compat::bit_vector::LongArrayBitVector;
 use crate::map::{MappedPermutation, Permutation};
 use crate::map::{Node2SWHID, Node2Type, UsizeMmap};
 use crate::mph::SwhidMphf;
@@ -26,6 +27,14 @@ pub(crate) mod suffixes {
     pub const AUTHOR_TIMESTAMP_OFFSET: &str = ".property.author_timestamp_offset.bin";
     pub const COMMITTER_TIMESTAMP: &str = ".property.committer_timestamp.bin";
     pub const COMMITTER_TIMESTAMP_OFFSET: &str = ".property.committer_timestamp_offset.bin";
+    // pub const AUTHOR_ID: &str = ".property.author_id.bin";
+    // pub const COMMITTER_ID: &str = ".property.committer_id.bin";
+    pub const CONTENT_IS_SKIPPED: &str = ".property.content.is_skipped.bin";
+    pub const CONTENT_LENGTH: &str = ".property.content.length.bin";
+    pub const MESSAGE: &str = ".property.message.bin";
+    pub const MESSAGE_OFFSET: &str = ".property.message.offset.bin";
+    pub const TAG_NAME: &str = ".property.tag_name.bin";
+    pub const TAG_NAME_OFFSET: &str = ".property.tag_name.offset.bin";
 }
 
 use suffixes::*;
@@ -39,6 +48,34 @@ pub struct SwhGraphProperties<MPHF: SwhidMphf> {
     author_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
     committer_timestamp: NumberMmap<BigEndian, i64, Mmap>,
     committer_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
+    is_skipped_content: LongArrayBitVector<NumberMmap<LittleEndian, u64, Mmap>>,
+    content_length: NumberMmap<BigEndian, u64, Mmap>,
+    message: Mmap,
+    message_offset: NumberMmap<BigEndian, u64, Mmap>,
+    tag_name: Mmap,
+    tag_name_offset: NumberMmap<BigEndian, u64, Mmap>,
+}
+
+fn mmap(path: &Path) -> Result<Mmap> {
+    let file_len = path
+        .metadata()
+        .with_context(|| format!("Could not stat {}", path.display()))?
+        .len();
+    let file =
+        std::fs::File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
+    let data = unsafe {
+        mmap_rs::MmapOptions::new(file_len as _)
+            .with_context(|| format!("Could not initialize mmap of size {}", file_len))?
+            .with_flags(mmap_rs::MmapFlags::TRANSPARENT_HUGE_PAGES)
+            .with_file(file, 0)
+            .map()
+            .with_context(|| format!("Could not mmap {}", path.display()))?
+    };
+    #[cfg(target_os = "linux")]
+    unsafe {
+        libc::madvise(data.as_ptr() as *mut _, data.len(), libc::MADV_RANDOM)
+    };
+    Ok(data)
 }
 
 impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
@@ -68,6 +105,19 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
                 num_nodes,
             )
             .context("Could not load committer_timestamp_offset")?,
+            is_skipped_content: LongArrayBitVector::new_from_path(
+                suffix_path(&path, CONTENT_IS_SKIPPED),
+                num_nodes,
+            )
+            .context("Could not load is_skipped_content")?,
+            content_length: NumberMmap::new(suffix_path(&path, CONTENT_LENGTH), num_nodes)
+                .context("Could not load content_length")?,
+            message: mmap(&suffix_path(&path, MESSAGE)).context("Could not load messages")?,
+            message_offset: NumberMmap::new(suffix_path(&path, MESSAGE_OFFSET), num_nodes)
+                .context("Could not load message_offset")?,
+            tag_name: mmap(&suffix_path(&path, TAG_NAME)).context("Could not load tag names")?,
+            tag_name_offset: NumberMmap::new(suffix_path(&path, TAG_NAME_OFFSET), num_nodes)
+                .context("Could not load tag_name_offset")?,
         };
         Ok(properties)
     }
@@ -143,5 +193,78 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
             Some(i16::MIN) => None,
             offset => offset,
         }
+    }
+
+    /// Returns whether the node is a skipped content
+    ///
+    /// Non-content objects get a `false` value, like non-skipped contents.
+    pub fn is_skipped_content(&self, node_id: NodeId) -> Option<bool> {
+        self.is_skipped_content.get(node_id)
+    }
+
+    /// Returns the length of the given content None.
+    ///
+    /// May be `None` for skipped contents
+    pub fn content_length(&self, node_id: NodeId) -> Option<u64> {
+        match self.content_length.get(node_id) {
+            Some(u64::MAX) => None,
+            length => length,
+        }
+    }
+
+    #[inline(always)]
+    fn message_or_tag_name_base64<'a>(
+        what: &'static str,
+        data: &'a Mmap,
+        offsets: &NumberMmap<BigEndian, u64, Mmap>,
+        node_id: NodeId,
+    ) -> Option<&'a [u8]> {
+        match offsets.get(node_id) {
+            Some(u64::MAX) => None,
+            None => None,
+            Some(offset) => {
+                let offset = offset as usize;
+                let slice: &[u8] = data.get(offset..).expect(&format!(
+                    "Missing {} for node {} at offset {}",
+                    what, node_id, offset
+                ));
+                slice
+                    .iter()
+                    .position(|&c| c == b'\n')
+                    .map(|end| &slice[..end])
+            }
+        }
+    }
+
+    /// Returns the message of a revision or release, base64-encoded
+    pub fn message_base64(&self, node_id: NodeId) -> Option<&[u8]> {
+        Self::message_or_tag_name_base64("message", &self.message, &self.message_offset, node_id)
+    }
+
+    /// Returns the message of a revision or release
+    pub fn message(&self, node_id: NodeId) -> Option<Vec<u8>> {
+        let base64 = base64_simd::STANDARD;
+        self.message_base64(node_id).map(|message| {
+            base64.decode_to_vec(message).expect(&format!(
+                "Could not decode message of node {}: {:?}",
+                node_id, message
+            ))
+        })
+    }
+
+    /// Returns the tag name of a release, base64-encoded
+    pub fn tag_name_base64(&self, node_id: NodeId) -> Option<&[u8]> {
+        Self::message_or_tag_name_base64("tag_name", &self.tag_name, &self.tag_name_offset, node_id)
+    }
+
+    /// Returns the tag name of a release
+    pub fn tag_name(&self, node_id: NodeId) -> Option<Vec<u8>> {
+        let base64 = base64_simd::STANDARD;
+        self.tag_name_base64(node_id).map(|tag_name| {
+            base64.decode_to_vec(tag_name).expect(&format!(
+                "Could not decode tag_name of node {}: {:?}",
+                node_id, tag_name
+            ))
+        })
     }
 }

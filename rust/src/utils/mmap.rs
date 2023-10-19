@@ -3,6 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::fs::File;
 use std::marker::PhantomData;
 use std::path::Path;
 
@@ -17,6 +18,7 @@ use mmap_rs::{Mmap, MmapFlags};
 pub struct NumberMmap<E: ByteOrder, N: Number, B> {
     data: B,
     len: usize,
+    offset: usize,
     _number: PhantomData<N>,
     _endianness: PhantomData<E>,
 }
@@ -39,8 +41,19 @@ impl<E: ByteOrder, N: Number> NumberMmap<E, N, Mmap> {
                 file_len,
             );
         }
-        let file = std::fs::File::open(path)
-            .with_context(|| format!("Could not open {}", path.display()))?;
+        let file =
+            File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
+        Self::new_with_file_and_offset(path, len, file, 0)
+    }
+
+    pub fn new_with_file_and_offset<P: AsRef<Path>>(
+        path: P,
+        len: usize,
+        file: File,
+        offset: usize,
+    ) -> Result<NumberMmap<E, N, Mmap>> {
+        let path = path.as_ref();
+        let file_len = len * N::BYTES;
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)
                 .with_context(|| format!("Could not initialize mmap of size {}", file_len))?
@@ -64,6 +77,7 @@ impl<E: ByteOrder, N: Number> NumberMmap<E, N, Mmap> {
         Ok(NumberMmap {
             data,
             len,
+            offset,
             _number: PhantomData,
             _endianness: PhantomData,
         })
@@ -76,12 +90,13 @@ impl<E: ByteOrder, N: Number> NumberMmap<E, N, Mmap> {
 
 impl<E: ByteOrder, N: Number> NumberMmap<E, N, Mmap> {
     fn get_slice(&self, index: usize) -> Option<&[u8]> {
-        self.data.get((index * N::BYTES)..((index + 1) * N::BYTES))
+        let start = (index * N::BYTES) + self.offset;
+        self.data.get(start..(start + N::BYTES))
     }
 
     unsafe fn get_slice_unchecked(&self, index: usize) -> &[u8] {
-        self.data
-            .get_unchecked((index * N::BYTES)..((index + 1) * N::BYTES))
+        let start = (index * N::BYTES) + self.offset;
+        self.data.get_unchecked(start..(start + N::BYTES))
     }
 }
 
@@ -101,3 +116,4 @@ macro_rules! impl_number_mmap {
 
 impl_number_mmap!(i16, read_i16);
 impl_number_mmap!(i64, read_i64);
+impl_number_mmap!(u64, read_u64);

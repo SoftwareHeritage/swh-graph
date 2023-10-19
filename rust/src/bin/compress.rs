@@ -764,35 +764,35 @@ pub fn main() -> Result<()> {
 
             fn f<MPHF: SwhidMphf + Sync>(property_writer: PropertyWriter<MPHF>) -> Result<()> {
                 println!("MPH loaded, writing properties");
-                info!("[ 0/ 8] writing author timestamps");
+                info!("[ 0/ 8] author timestamps");
                 property_writer
                     .write_author_timestamps()
                     .context("Failed to write author timestamps")?;
-                info!("[ 1/ 8] writing committer timestamps");
+                info!("[ 1/ 8] committer timestamps");
                 property_writer
                     .write_committer_timestamps()
                     .context("Failed to write committer timestamps")?;
-                info!("[ 2/ 8] writing content lengths");
+                info!("[ 2/ 8] content lengths");
                 property_writer
                     .write_content_lengths()
                     .context("Failed to write content lengths")?;
-                info!("[ 3/ 8] writing content_is_skipped");
+                info!("[ 3/ 8] content_is_skipped");
                 property_writer
                     .write_content_is_skipped()
                     .context("Failed to write content_is_skipped")?;
-                info!("[ 4/ 8] writing author ids");
+                info!("[ 4/ 8] author ids");
                 property_writer
                     .write_author_ids()
                     .context("Failed to write author ids")?;
-                info!("[ 5/ 8] writing committer ids");
+                info!("[ 5/ 8] committer ids");
                 property_writer
                     .write_committer_ids()
                     .context("Failed to write committer ids")?;
-                info!("[ 6/ 8] writing messages");
+                info!("[ 6/ 8] messages");
                 property_writer
                     .write_messages()
                     .context("Failed to write messages")?;
-                info!("[ 7/ 8] writing tag names");
+                info!("[ 7/ 8] tag names");
                 property_writer
                     .write_tag_names()
                     .context("Failed to write tag names")?;
