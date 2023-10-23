@@ -55,8 +55,6 @@ enum Commands {
     NodeStats {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
-        #[arg(long, default_value = "*")]
-        allowed_node_types: String,
         #[arg(long)]
         swhids_dir: PathBuf,
         target_stats: PathBuf,
@@ -159,8 +157,6 @@ enum Commands {
 
     /// Reads the list of SWHIDs and produces node2swhid.bin and node2type.bin
     Maps {
-        #[arg(long, default_value = "*")]
-        allowed_node_types: String,
         #[arg(long)]
         num_nodes: usize,
         #[arg(long)]
@@ -225,10 +221,18 @@ enum DatasetFormat {
 }
 
 fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
-    if s == "*" || s == "cnt,dir,rev,rel,snp,ori" {
+    if s == "*" {
         return Ok(SWHType::all());
     } else {
-        unimplemented!("--allowed-node-types");
+        let mut types = Vec::new();
+        for type_ in s.split(",") {
+            types.push(
+                type_
+                    .try_into()
+                    .context("Could not parse --allowed-node-types")?,
+            );
+        }
+        Ok(types)
     }
 }
 
@@ -249,19 +253,21 @@ pub fn main() -> Result<()> {
             target_dir,
         } => {
             use swh_graph::utils::sort::Sortable;
-            let _ = parse_allowed_node_types(&allowed_node_types);
+            let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "arc";
             pl.local_speed = true;
             pl.expected_updates = Some(
-                (swh_graph::compress::orc::estimate_node_count(&dataset_dir)
-                    + swh_graph::compress::orc::estimate_edge_count(&dataset_dir))
-                    as usize,
+                (swh_graph::compress::orc::estimate_node_count(&dataset_dir, &allowed_node_types)
+                    + swh_graph::compress::orc::estimate_edge_count(
+                        &dataset_dir,
+                        &allowed_node_types,
+                    )) as usize,
             );
             pl.start("Extracting and sorting SWHIDs");
 
-            swh_graph::compress::orc::iter_swhids(&dataset_dir)
+            swh_graph::compress::orc::iter_swhids(&dataset_dir, &allowed_node_types)
                 .unique_sort_to_dir(target_dir, "swhids.txt", &temp_dir(), pl, &[])
                 .context("Sorting failed")?;
         }
@@ -272,32 +278,31 @@ pub fn main() -> Result<()> {
             target_dir,
         } => {
             use swh_graph::utils::sort::Sortable;
-            let _ = parse_allowed_node_types(&allowed_node_types);
+            let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "arc";
             pl.local_speed = true;
-            pl.expected_updates =
-                Some(swh_graph::compress::orc::estimate_edge_count(&dataset_dir) as usize);
+            pl.expected_updates = Some(swh_graph::compress::orc::estimate_edge_count(
+                &dataset_dir,
+                &allowed_node_types,
+            ) as usize);
             pl.start("Extracting and sorting labels");
 
             let base64 = base64_simd::STANDARD;
 
-            swh_graph::compress::orc::iter_labels(&dataset_dir)
+            swh_graph::compress::orc::iter_labels(&dataset_dir, &allowed_node_types)
                 .map(|label| base64.encode_to_string(label).into_bytes())
                 .unique_sort_to_dir(target_dir, "labels.csv", &temp_dir(), pl, &[])
                 .context("Sorting failed")?;
         }
         Commands::NodeStats {
             format: DatasetFormat::Orc,
-            allowed_node_types,
             swhids_dir,
             target_stats,
             target_count,
         } => {
             use swh_graph::compress::zst_dir::*;
-
-            let _ = parse_allowed_node_types(&allowed_node_types);
 
             let mut stats_file = File::create(&target_stats)
                 .with_context(|| format!("Could not open {}", target_stats.display()))?;
@@ -358,7 +363,7 @@ pub fn main() -> Result<()> {
             target_stats,
             target_count,
         } => {
-            let _ = parse_allowed_node_types(&allowed_node_types);
+            let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             let mut stats_file = File::create(&target_stats)
                 .with_context(|| format!("Could not open {}", target_stats.display()))?;
@@ -368,26 +373,29 @@ pub fn main() -> Result<()> {
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "arc";
             pl.local_speed = true;
-            pl.expected_updates =
-                Some(swh_graph::compress::orc::estimate_edge_count(&dataset_dir) as usize);
+            pl.expected_updates = Some(swh_graph::compress::orc::estimate_edge_count(
+                &dataset_dir,
+                &allowed_node_types,
+            ) as usize);
             pl.start("Computing edge stats");
             let pl = Mutex::new(pl);
 
-            let stats = swh_graph::compress::orc::count_edge_types(&dataset_dir)
-                .map(|stats_2d| {
-                    pl.lock().unwrap().update_with_count(
-                        stats_2d.map(|stats_1d| stats_1d.iter().sum()).iter().sum(),
-                    );
-                    stats_2d
-                })
-                .reduce(Default::default, |mut left_2d, right_2d| {
-                    for (left_1d, right_1d) in left_2d.iter_mut().zip(right_2d.into_iter()) {
-                        for (left, right) in left_1d.into_iter().zip(right_1d.into_iter()) {
-                            *left += right;
+            let stats =
+                swh_graph::compress::orc::count_edge_types(&dataset_dir, &allowed_node_types)
+                    .map(|stats_2d| {
+                        pl.lock().unwrap().update_with_count(
+                            stats_2d.map(|stats_1d| stats_1d.iter().sum()).iter().sum(),
+                        );
+                        stats_2d
+                    })
+                    .reduce(Default::default, |mut left_2d, right_2d| {
+                        for (left_1d, right_1d) in left_2d.iter_mut().zip(right_2d.into_iter()) {
+                            for (left, right) in left_1d.into_iter().zip(right_1d.into_iter()) {
+                                *left += right;
+                            }
                         }
-                    }
-                    left_2d
-                });
+                        left_2d
+                    });
 
             let mut stats_lines = Vec::new();
             let mut total = 0;
@@ -471,7 +479,7 @@ pub fn main() -> Result<()> {
             dataset_dir,
             target_dir,
         } => {
-            let _ = parse_allowed_node_types(&allowed_node_types);
+            let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             match mph_algo {
                 MphAlgorithm::Fmph => swh_graph::compress::bv::bv::<ph::fmph::Function>(
@@ -479,6 +487,7 @@ pub fn main() -> Result<()> {
                     function,
                     num_nodes,
                     dataset_dir,
+                    &allowed_node_types,
                     target_dir,
                 )?,
                 MphAlgorithm::Cmph => {
@@ -487,6 +496,7 @@ pub fn main() -> Result<()> {
                         function,
                         num_nodes,
                         dataset_dir,
+                        &allowed_node_types,
                         target_dir,
                     )?
                 }
@@ -641,7 +651,6 @@ pub fn main() -> Result<()> {
         }
 
         Commands::Maps {
-            allowed_node_types,
             num_nodes,
             swhids_dir,
             mph_algo,
@@ -655,8 +664,6 @@ pub fn main() -> Result<()> {
             use swh_graph::compress::zst_dir::*;
             use swh_graph::map::{Node2SWHID, Node2Type};
             use swh_graph::SWHID;
-
-            let _ = parse_allowed_node_types(&allowed_node_types);
 
             println!("Loading permutation");
             let order = MappedPermutation::load(num_nodes, order.as_path())
@@ -754,7 +761,7 @@ pub fn main() -> Result<()> {
             use swh_graph::compress::properties::*;
             use swh_graph::mph::SwhidMphf;
 
-            let _ = parse_allowed_node_types(&allowed_node_types);
+            let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             println!("Loading permutation");
             let order = unsafe { MappedPermutation::load_unchecked(order.as_path()) }
@@ -809,6 +816,7 @@ pub fn main() -> Result<()> {
                         order,
                         num_nodes,
                         dataset_dir,
+                        allowed_node_types,
                         target,
                     };
                     f::<fmph::Function>(property_writer)?;
@@ -820,6 +828,7 @@ pub fn main() -> Result<()> {
                         order,
                         num_nodes,
                         dataset_dir,
+                        allowed_node_types,
                         target,
                     };
                     f::<swh_graph::java_compat::mph::gov::GOVMPH>(property_writer)?;

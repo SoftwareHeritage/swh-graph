@@ -23,6 +23,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     mph_basepath: PathBuf,
     num_nodes: usize,
     dataset_dir: PathBuf,
+    allowed_node_types: &[crate::SWHType],
     target_dir: PathBuf,
 ) -> Result<()> {
     println!("Reading MPH");
@@ -32,7 +33,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     let mut pl = ProgressLogger::default().display_memory();
     pl.item_name = "arc";
     pl.local_speed = true;
-    pl.expected_updates = Some(estimate_edge_count(&dataset_dir) as usize);
+    pl.expected_updates = Some(estimate_edge_count(&dataset_dir, allowed_node_types) as usize);
     pl.start("Reading arcs");
 
     // Sort in parallel in a bunch of SortPairs instances
@@ -42,7 +43,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     let sorted_arcs = par_sort_arcs(
         temp_dir.path(),
         sort_batch_size,
-        iter_arcs(&dataset_dir).inspect(|_| {
+        iter_arcs(&dataset_dir, allowed_node_types).inspect(|_| {
             // This is safe because only this thread accesses this and only from
             // here.
             let counter = counters.get_or(|| UnsafeCell::new(0));

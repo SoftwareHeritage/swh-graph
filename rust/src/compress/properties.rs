@@ -20,12 +20,14 @@ use crate::map::{MappedPermutation, Permutation};
 use crate::mph::SwhidMphf;
 use crate::properties::suffixes;
 use crate::utils::suffix_path;
+use crate::SWHType;
 
 pub struct PropertyWriter<MPHF: SwhidMphf> {
     pub mph: MPHF,
     pub order: MappedPermutation,
     pub num_nodes: usize,
     pub dataset_dir: PathBuf,
+    pub allowed_node_types: Vec<SWHType>,
     pub target: PathBuf,
 }
 
@@ -97,6 +99,14 @@ impl<MPHF: SwhidMphf + Sync> PropertyWriter<MPHF> {
             date_offset: Option<i16>,
         }
 
+        let read_rev = self.allowed_node_types.contains(&SWHType::Revision);
+        let read_rel = self.allowed_node_types.contains(&SWHType::Release);
+
+        if !read_rev && !read_rel {
+            log::info!("Excluded");
+            return Ok(());
+        }
+
         log::info!("Initializing...");
         let timestamps = vec![i64::MIN.to_be(); self.num_nodes];
         let timestamp_offsets = vec![i16::MIN.to_be(); self.num_nodes];
@@ -111,10 +121,21 @@ impl<MPHF: SwhidMphf + Sync> PropertyWriter<MPHF> {
                 }
             }
         };
-        [].into_par_iter()
-            .chain(self.par_for_each_row("revision", |rev: Revrel| f("rev", rev)))
-            .chain(self.par_for_each_row("release", |rel: Revrel| f("rel", rel)))
-            .for_each(|()| ());
+
+        if read_rev && read_rel {
+            [].into_par_iter()
+                .chain(self.par_for_each_row("revision", |rev: Revrel| f("rev", rev)))
+                .chain(self.par_for_each_row("release", |rel: Revrel| f("rel", rel)))
+                .for_each(|()| ());
+        } else if read_rev {
+            self.par_for_each_row("revision", |rev: Revrel| f("rev", rev))
+                .for_each(|()| ());
+        } else if read_rel {
+            self.par_for_each_row("release", |rel: Revrel| f("rel", rel))
+                .for_each(|()| ());
+        } else {
+            unreachable!("!read_rev && !read_rel");
+        }
 
         log::info!("Writing...");
         self.write(suffixes::AUTHOR_TIMESTAMP, timestamps)?;
@@ -128,6 +149,11 @@ impl<MPHF: SwhidMphf + Sync> PropertyWriter<MPHF> {
             id: String,
             committer_date: Option<orcxx::Timestamp>,
             committer_offset: Option<i16>,
+        }
+
+        if !self.allowed_node_types.contains(&SWHType::Revision) {
+            log::info!("Excluded");
+            return Ok(());
         }
 
         log::info!("Initializing...");
@@ -159,6 +185,11 @@ impl<MPHF: SwhidMphf + Sync> PropertyWriter<MPHF> {
             length: Option<i64>,
         }
 
+        if !self.allowed_node_types.contains(&SWHType::Content) {
+            log::info!("Excluded");
+            return Ok(());
+        }
+
         log::info!("Initializing...");
         let lengths = vec![u64::MAX.to_be(); self.num_nodes];
 
@@ -185,6 +216,11 @@ impl<MPHF: SwhidMphf + Sync> PropertyWriter<MPHF> {
         #[derive(OrcDeserialize, Default, Clone)]
         struct SkippedContent {
             sha1_git: Option<String>,
+        }
+
+        if !self.allowed_node_types.contains(&SWHType::Revision) {
+            log::info!("Excluded");
+            return Ok(());
         }
 
         log::info!("Initializing...");
@@ -236,6 +272,15 @@ impl<MPHF: SwhidMphf + Sync> PropertyWriter<MPHF> {
             url: String,
         }
 
+        let read_rev = self.allowed_node_types.contains(&SWHType::Revision);
+        let read_rel = self.allowed_node_types.contains(&SWHType::Release);
+        let read_ori = self.allowed_node_types.contains(&SWHType::Origin);
+
+        if !read_rev && !read_rel && !read_ori {
+            log::info!("Excluded");
+            return Ok(());
+        }
+
         log::info!("Initializing...");
         let offsets = vec![u64::MAX.to_be(); self.num_nodes];
         let path = suffix_path(&self.target, suffixes::MESSAGE);
@@ -260,14 +305,20 @@ impl<MPHF: SwhidMphf + Sync> PropertyWriter<MPHF> {
         };
 
         // Can't do it in parallel because we are writing to a single file
-        log::info!("Reading and writing release messages...");
-        self.for_each_row("release", |rel: Revrel| f("rel", rel.id, rel.message))?;
-        log::info!("Reading and writing revision messages...");
-        self.for_each_row("revision", |rev: Revrel| f("rev", rev.id, rev.message))?;
-        log::info!("Reading and writing origin URLs...");
-        self.for_each_row("origin", |ori: Origin| {
-            f("ori", ori.id, Some(ori.url.as_bytes().to_vec()))
-        })?;
+        if read_rel {
+            log::info!("Reading and writing release messages...");
+            self.for_each_row("release", |rel: Revrel| f("rel", rel.id, rel.message))?;
+        }
+        if read_rev {
+            log::info!("Reading and writing revision messages...");
+            self.for_each_row("revision", |rev: Revrel| f("rev", rev.id, rev.message))?;
+        }
+        if read_ori {
+            log::info!("Reading and writing origin URLs...");
+            self.for_each_row("origin", |ori: Origin| {
+                f("ori", ori.id, Some(ori.url.as_bytes().to_vec()))
+            })?;
+        }
 
         log::info!("Writing offsets...");
         self.write(suffixes::MESSAGE_OFFSET, offsets)?;
@@ -278,6 +329,11 @@ impl<MPHF: SwhidMphf + Sync> PropertyWriter<MPHF> {
         struct Release {
             id: String,
             name: Vec<u8>,
+        }
+
+        if !self.allowed_node_types.contains(&SWHType::Release) {
+            log::info!("Excluded");
+            return Ok(());
         }
 
         log::info!("Initializing...");

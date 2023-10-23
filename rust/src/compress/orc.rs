@@ -41,99 +41,136 @@ pub(crate) fn get_dataset_readers(
         .collect()
 }
 
-pub fn estimate_node_count(dataset_dir: &PathBuf) -> u64 {
-    [].into_par_iter()
-        .chain(get_dataset_readers(dataset_dir.clone(), "directory"))
-        .chain(get_dataset_readers(dataset_dir.clone(), "content"))
-        .chain(get_dataset_readers(dataset_dir.clone(), "origin"))
-        .chain(get_dataset_readers(dataset_dir.clone(), "release"))
-        .chain(get_dataset_readers(dataset_dir.clone(), "revision"))
-        .chain(get_dataset_readers(dataset_dir.clone(), "snapshot"))
+pub fn estimate_node_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]) -> u64 {
+    let mut readers = Vec::new();
+    if allowed_node_types.contains(&SWHType::Directory) {
+        readers.extend(get_dataset_readers(dataset_dir.clone(), "directory"));
+    }
+    if allowed_node_types.contains(&SWHType::Content) {
+        readers.extend(get_dataset_readers(dataset_dir.clone(), "content"));
+    }
+    if allowed_node_types.contains(&SWHType::Origin) {
+        readers.extend(get_dataset_readers(dataset_dir.clone(), "origin"));
+    }
+    if allowed_node_types.contains(&SWHType::Release) {
+        readers.extend(get_dataset_readers(dataset_dir.clone(), "release"));
+    }
+    if allowed_node_types.contains(&SWHType::Revision) {
+        readers.extend(get_dataset_readers(dataset_dir.clone(), "revision"));
+    }
+    if allowed_node_types.contains(&SWHType::Snapshot) {
+        readers.extend(get_dataset_readers(dataset_dir.clone(), "snapshot"));
+    }
+    readers
+        .into_par_iter()
         .map(|reader| reader.row_count())
         .sum()
 }
 
-pub fn estimate_edge_count(dataset_dir: &PathBuf) -> u64 {
-    [].into_par_iter()
-        .chain(get_dataset_readers(dataset_dir.clone(), "directory_entry"))
-        .chain(get_dataset_readers(
+pub fn estimate_edge_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]) -> u64 {
+    let mut readers = Vec::new();
+    if allowed_node_types.contains(&SWHType::Directory) {
+        readers.extend(get_dataset_readers(dataset_dir.clone(), "directory_entry"))
+    }
+    if allowed_node_types.contains(&SWHType::Origin) {
+        readers.extend(get_dataset_readers(
             // Count the source...
             dataset_dir.clone(),
             "origin_visit_status",
-        ))
-        .chain(get_dataset_readers(
+        ));
+        readers.extend(get_dataset_readers(
             // ... and destination of each arc
             dataset_dir.clone(),
             "origin_visit_status",
-        ))
-        .chain(get_dataset_readers(dataset_dir.clone(), "release"))
-        .chain(get_dataset_readers(dataset_dir.clone(), "revision"))
-        .chain(get_dataset_readers(dataset_dir.clone(), "revision_history"))
-        .chain(get_dataset_readers(dataset_dir.clone(), "snapshot_branch"))
+        ));
+    }
+    if allowed_node_types.contains(&SWHType::Release) {
+        readers.extend(get_dataset_readers(dataset_dir.clone(), "release"));
+    }
+    if allowed_node_types.contains(&SWHType::Revision) {
+        readers.extend(get_dataset_readers(dataset_dir.clone(), "revision"));
+        readers.extend(get_dataset_readers(dataset_dir.clone(), "revision_history"));
+    }
+    if allowed_node_types.contains(&SWHType::Snapshot) {
+        readers.extend(get_dataset_readers(dataset_dir.clone(), "snapshot_branch"));
+    }
+    readers
+        .into_par_iter()
         .map(|reader| reader.row_count())
         .sum()
 }
 
-pub fn iter_swhids(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = TextSwhid> {
+pub fn iter_swhids(
+    dataset_dir: &PathBuf,
+    allowed_node_types: &[SWHType],
+) -> impl ParallelIterator<Item = TextSwhid> {
+    let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
+        if allowed_node_types.contains(&node_type) {
+            get_dataset_readers(dataset_dir, subdirectory)
+        } else {
+            Vec::new()
+        }
+    };
+
     [].into_par_iter()
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "directory")
+            maybe_get_dataset_readers(dataset_dir.clone(), "directory", SWHType::Directory)
                 .into_par_iter()
                 .flat_map(iter_swhids_from_dir),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "directory_entry")
+            maybe_get_dataset_readers(dataset_dir.clone(), "directory_entry", SWHType::Directory)
                 .into_par_iter()
                 .flat_map(iter_swhids_from_dir_entry),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "content")
+            maybe_get_dataset_readers(dataset_dir.clone(), "content", SWHType::Content)
                 .into_par_iter()
                 .flat_map(iter_swhids_from_cnt),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "origin")
+            maybe_get_dataset_readers(dataset_dir.clone(), "origin", SWHType::Origin)
                 .into_par_iter()
                 .flat_map(iter_swhids_from_ori),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "origin_visit_status")
+            maybe_get_dataset_readers(dataset_dir.clone(), "origin_visit_status", SWHType::Origin)
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_ovs)
                 .flat_map_iter(|(src, dst)| [src, dst].into_iter()),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "release")
+            maybe_get_dataset_readers(dataset_dir.clone(), "release", SWHType::Release)
                 .into_par_iter()
                 .flat_map(iter_rel_swhids_from_rel),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "release")
+            maybe_get_dataset_readers(dataset_dir.clone(), "release", SWHType::Release)
                 .into_par_iter()
                 .flat_map(iter_target_swhids_from_rel),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "revision")
+            maybe_get_dataset_readers(dataset_dir.clone(), "revision", SWHType::Revision)
                 .into_par_iter()
                 .flat_map(iter_rev_swhids_from_rev),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "revision")
+            maybe_get_dataset_readers(dataset_dir.clone(), "revision", SWHType::Revision)
                 .into_par_iter()
                 .flat_map(iter_dir_swhids_from_rev),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "revision_history")
+            maybe_get_dataset_readers(dataset_dir.clone(), "revision_history", SWHType::Revision)
                 .into_par_iter()
                 .flat_map(iter_parent_swhids_from_rev),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "snapshot")
+            maybe_get_dataset_readers(dataset_dir.clone(), "snapshot", SWHType::Snapshot)
                 .into_par_iter()
                 .flat_map(iter_swhids_from_snp),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "snapshot_branch")
+            maybe_get_dataset_readers(dataset_dir.clone(), "snapshot_branch", SWHType::Snapshot)
                 .into_par_iter()
                 .flat_map(iter_swhids_from_snp_branch),
         )
@@ -290,35 +327,46 @@ fn iter_swhids_from_snp_branch(reader: Reader) -> impl ParallelIterator<Item = T
         }
     })
 }
-pub fn iter_arcs(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = (TextSwhid, TextSwhid)> {
+pub fn iter_arcs(
+    dataset_dir: &PathBuf,
+    allowed_node_types: &[SWHType],
+) -> impl ParallelIterator<Item = (TextSwhid, TextSwhid)> {
+    let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
+        if allowed_node_types.contains(&node_type) {
+            get_dataset_readers(dataset_dir, subdirectory)
+        } else {
+            Vec::new()
+        }
+    };
+
     [].into_par_iter()
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "directory_entry")
+            maybe_get_dataset_readers(dataset_dir.clone(), "directory_entry", SWHType::Directory)
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_dir_entry),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "origin_visit_status")
+            maybe_get_dataset_readers(dataset_dir.clone(), "origin_visit_status", SWHType::Origin)
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_ovs),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "release")
+            maybe_get_dataset_readers(dataset_dir.clone(), "release", SWHType::Release)
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_rel),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "revision")
+            maybe_get_dataset_readers(dataset_dir.clone(), "revision", SWHType::Revision)
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_rev),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "revision_history")
+            maybe_get_dataset_readers(dataset_dir.clone(), "revision_history", SWHType::Revision)
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_rev_history),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "snapshot_branch")
+            maybe_get_dataset_readers(dataset_dir.clone(), "snapshot_branch", SWHType::Snapshot)
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_snp_branch),
         )
@@ -460,35 +508,46 @@ fn iter_arcs_from_snp_branch(reader: Reader) -> impl Iterator<Item = (TextSwhid,
 
 type EdgeStats = [[usize; SWHType::NUMBER_OF_TYPES]; SWHType::NUMBER_OF_TYPES];
 
-pub fn count_edge_types(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = EdgeStats> {
+pub fn count_edge_types(
+    dataset_dir: &PathBuf,
+    allowed_node_types: &[SWHType],
+) -> impl ParallelIterator<Item = EdgeStats> {
+    let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
+        if allowed_node_types.contains(&node_type) {
+            get_dataset_readers(dataset_dir, subdirectory)
+        } else {
+            Vec::new()
+        }
+    };
+
     [].into_par_iter()
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "directory_entry")
+            maybe_get_dataset_readers(dataset_dir.clone(), "directory_entry", SWHType::Directory)
                 .into_par_iter()
                 .map(count_edge_types_from_dir),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "origin_visit_status")
+            maybe_get_dataset_readers(dataset_dir.clone(), "origin_visit_status", SWHType::Origin)
                 .into_par_iter()
                 .map(count_edge_types_from_ovs),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "release")
+            maybe_get_dataset_readers(dataset_dir.clone(), "release", SWHType::Release)
                 .into_par_iter()
                 .map(count_edge_types_from_rel),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "revision")
+            maybe_get_dataset_readers(dataset_dir.clone(), "revision", SWHType::Revision)
                 .into_par_iter()
                 .map(count_dir_edge_types_from_rev),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "revision_history")
+            maybe_get_dataset_readers(dataset_dir.clone(), "revision_history", SWHType::Revision)
                 .into_par_iter()
                 .map(count_parent_edge_types_from_rev),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "snapshot_branch")
+            maybe_get_dataset_readers(dataset_dir.clone(), "snapshot_branch", SWHType::Snapshot)
                 .into_par_iter()
                 .map(count_edge_types_from_snp),
         )
@@ -624,15 +683,26 @@ fn count_edge_types_from_snp(reader: Reader) -> EdgeStats {
     stats
 }
 
-pub fn iter_labels(dataset_dir: &PathBuf) -> impl ParallelIterator<Item = Vec<u8>> {
+pub fn iter_labels(
+    dataset_dir: &PathBuf,
+    allowed_node_types: &[SWHType],
+) -> impl ParallelIterator<Item = Vec<u8>> {
+    let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
+        if allowed_node_types.contains(&node_type) {
+            get_dataset_readers(dataset_dir, subdirectory)
+        } else {
+            Vec::new()
+        }
+    };
+
     [].into_par_iter()
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "directory_entry")
+            maybe_get_dataset_readers(dataset_dir.clone(), "directory_entry", SWHType::Directory)
                 .into_par_iter()
                 .flat_map(iter_labels_from_dir_entry),
         )
         .chain(
-            get_dataset_readers(dataset_dir.clone(), "snapshot_branch")
+            maybe_get_dataset_readers(dataset_dir.clone(), "snapshot_branch", SWHType::Snapshot)
                 .into_par_iter()
                 .flat_map(iter_labels_from_snp_branch),
         )
