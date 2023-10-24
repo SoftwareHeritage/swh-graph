@@ -25,7 +25,8 @@ pub fn main() -> Result<()> {
 
     let graph = swh_graph::graph::load_unidirectional(PathBuf::from(BASENAME))
         .context("Could not load graph")?
-        .load_properties::<GOVMPH>()
+        .init_properties()
+        .load_properties(|properties| properties.load_maps::<GOVMPH>())
         .context("Could not load graph properties")?;
 
     // Lookup SWHID

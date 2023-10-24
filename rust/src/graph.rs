@@ -12,7 +12,7 @@ use webgraph::prelude::*;
 //use webgraph::traits::{RandomAccessGraph, SequentialGraph};
 
 use crate::mph::SwhidMphf;
-use crate::properties::SwhGraphProperties;
+use crate::properties;
 use crate::utils::suffix_path;
 
 /// Alias for [`usize`], which may become a newtype in a future version.
@@ -52,20 +52,111 @@ impl<G: RandomAccessGraph, P> SwhUnidirectionalGraph<G, P> {
     }
 }
 
-impl<G: RandomAccessGraph> SwhUnidirectionalGraph<G, ()> {
-    pub fn load_properties<MPHF: SwhidMphf>(
+impl<
+        G: RandomAccessGraph,
+        M: properties::MapsOption,
+        T: properties::TimestampsOption,
+        P: properties::PersonsOption,
+        C: properties::ContentsOption,
+        S: properties::StringsOption,
+    > SwhUnidirectionalGraph<G, properties::SwhGraphProperties<M, T, P, C, S>>
+{
+    /// Enriches the graph with more properties mmapped from disk
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    ///
+    /// swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+    ///     .expect("Could not load graph")
+    ///     .init_properties()
+    ///     .load_properties(|properties| properties.load_maps::<GOVMPH>())
+    ///     .expect("Could not load SWHID maps")
+    ///     .load_properties(|properties| properties.load_timestamps())
+    ///     .expect("Could not load timestamps");
+    /// ```
+    pub fn load_properties<
+        M2: properties::MapsOption,
+        T2: properties::TimestampsOption,
+        P2: properties::PersonsOption,
+        C2: properties::ContentsOption,
+        S2: properties::StringsOption,
+    >(
         self,
-    ) -> Result<SwhUnidirectionalGraph<G, SwhGraphProperties<MPHF>>> {
+        loader: impl Fn(
+            properties::SwhGraphProperties<M, T, P, C, S>,
+        ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2>>,
+    ) -> Result<SwhUnidirectionalGraph<G, properties::SwhGraphProperties<M2, T2, P2, C2, S2>>> {
         Ok(SwhUnidirectionalGraph {
-            properties: SwhGraphProperties::new(&self.basepath, self.graph.num_nodes())?,
+            properties: loader(self.properties)?,
             basepath: self.basepath,
             graph: self.graph,
         })
     }
 }
 
-impl<G: RandomAccessGraph, MPHF: SwhidMphf> SwhUnidirectionalGraph<G, SwhGraphProperties<MPHF>> {
-    pub fn properties(&self) -> &SwhGraphProperties<MPHF> {
+impl<G: RandomAccessGraph> SwhUnidirectionalGraph<G, ()> {
+    /// Prerequisite for `load_properties`
+    pub fn init_properties(
+        self,
+    ) -> SwhUnidirectionalGraph<G, properties::SwhGraphProperties<(), (), (), (), ()>> {
+        SwhUnidirectionalGraph {
+            properties: properties::SwhGraphProperties::new(&self.basepath, self.graph.num_nodes()),
+            basepath: self.basepath,
+            graph: self.graph,
+        }
+    }
+
+    /// Enriches the graph with more properties mmapped from disk
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    ///
+    /// swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+    ///     .expect("Could not load graph")
+    ///     .load_all_properties::<GOVMPH>()
+    ///     .expect("Could not load properties");
+    /// ```
+    pub fn load_all_properties<MPHF: SwhidMphf>(
+        self,
+    ) -> Result<
+        SwhUnidirectionalGraph<
+            G,
+            properties::SwhGraphProperties<
+                properties::Maps<MPHF>,
+                properties::Timestamps,
+                properties::Persons,
+                properties::Contents,
+                properties::Strings,
+            >,
+        >,
+    > {
+        self.init_properties()
+            .load_properties(|properties| properties.load_all())
+    }
+}
+
+impl<
+        G: RandomAccessGraph,
+        MAPS: properties::MapsOption,
+        TIMESTAMPS: properties::TimestampsOption,
+        PERSONS: properties::PersonsOption,
+        CONTENTS: properties::ContentsOption,
+        STRINGS: properties::StringsOption,
+    >
+    SwhUnidirectionalGraph<
+        G,
+        properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>,
+    >
+{
+    pub fn properties(
+        &self,
+    ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS> {
         &self.properties
     }
 }
@@ -115,12 +206,46 @@ impl<G: RandomAccessGraph, P> SwhBidirectionalGraph<G, P> {
     }
 }
 
-impl<G: RandomAccessGraph> SwhBidirectionalGraph<G, ()> {
-    pub fn load_properties<MPHF: SwhidMphf>(
+impl<
+        G: RandomAccessGraph,
+        M: properties::MapsOption,
+        T: properties::TimestampsOption,
+        P: properties::PersonsOption,
+        C: properties::ContentsOption,
+        S: properties::StringsOption,
+    > SwhBidirectionalGraph<G, properties::SwhGraphProperties<M, T, P, C, S>>
+{
+    /// Enriches the graph with more properties mmapped from disk
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    /// use swh_graph::properties::SwhGraphProperties;
+    ///
+    /// swh_graph::graph::load_bidirectional(PathBuf::from("./graph"))
+    ///     .expect("Could not load graph")
+    ///     .init_properties()
+    ///     .load_properties(SwhGraphProperties::load_maps::<GOVMPH>)
+    ///     .expect("Could not load SWHID maps")
+    ///     .load_properties(SwhGraphProperties::load_timestamps)
+    ///     .expect("Could not load timestamps");
+    /// ```
+    pub fn load_properties<
+        M2: properties::MapsOption,
+        T2: properties::TimestampsOption,
+        P2: properties::PersonsOption,
+        C2: properties::ContentsOption,
+        S2: properties::StringsOption,
+    >(
         self,
-    ) -> Result<SwhBidirectionalGraph<G, SwhGraphProperties<MPHF>>> {
+        loader: impl Fn(
+            properties::SwhGraphProperties<M, T, P, C, S>,
+        ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2>>,
+    ) -> Result<SwhBidirectionalGraph<G, properties::SwhGraphProperties<M2, T2, P2, C2, S2>>> {
         Ok(SwhBidirectionalGraph {
-            properties: SwhGraphProperties::new(&self.basepath, self.forward_graph.num_nodes())?,
+            properties: loader(self.properties)?,
             basepath: self.basepath,
             forward_graph: self.forward_graph,
             backward_graph: self.backward_graph,
@@ -128,8 +253,70 @@ impl<G: RandomAccessGraph> SwhBidirectionalGraph<G, ()> {
     }
 }
 
-impl<G: RandomAccessGraph, MPHF: SwhidMphf> SwhBidirectionalGraph<G, SwhGraphProperties<MPHF>> {
-    pub fn properties(&self) -> &SwhGraphProperties<MPHF> {
+impl<G: RandomAccessGraph> SwhBidirectionalGraph<G, ()> {
+    /// Prerequisite for `load_properties`
+    pub fn init_properties(
+        self,
+    ) -> SwhBidirectionalGraph<G, properties::SwhGraphProperties<(), (), (), (), ()>> {
+        SwhBidirectionalGraph {
+            properties: properties::SwhGraphProperties::new(
+                &self.basepath,
+                self.forward_graph.num_nodes(),
+            ),
+            basepath: self.basepath,
+            forward_graph: self.forward_graph,
+            backward_graph: self.backward_graph,
+        }
+    }
+
+    /// Enriches the graph with more properties mmapped from disk
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    ///
+    /// swh_graph::graph::load_bidirectional(PathBuf::from("./graph"))
+    ///     .expect("Could not load graph")
+    ///     .load_all_properties::<GOVMPH>()
+    ///     .expect("Could not load properties");
+    /// ```
+    pub fn load_all_properties<MPHF: SwhidMphf>(
+        self,
+    ) -> Result<
+        SwhBidirectionalGraph<
+            G,
+            properties::SwhGraphProperties<
+                properties::Maps<MPHF>,
+                properties::Timestamps,
+                properties::Persons,
+                properties::Contents,
+                properties::Strings,
+            >,
+        >,
+    > {
+        self.init_properties()
+            .load_properties(|properties| properties.load_all())
+    }
+}
+
+impl<
+        G: RandomAccessGraph,
+        MAPS: properties::MapsOption,
+        TIMESTAMPS: properties::TimestampsOption,
+        PERSONS: properties::PersonsOption,
+        CONTENTS: properties::ContentsOption,
+        STRINGS: properties::StringsOption,
+    >
+    SwhBidirectionalGraph<
+        G,
+        properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>,
+    >
+{
+    pub fn properties(
+        &self,
+    ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS> {
         &self.properties
     }
 }

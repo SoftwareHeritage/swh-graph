@@ -5,7 +5,7 @@
 
 //! Node labels
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use byteorder::{BigEndian, LittleEndian};
@@ -39,24 +39,81 @@ pub(crate) mod suffixes {
 
 use suffixes::*;
 
-pub struct SwhGraphProperties<MPHF: SwhidMphf> {
+pub trait MapsOption {}
+
+pub struct Maps<MPHF: SwhidMphf> {
     mphf: MPHF,
     order: MappedPermutation,
     node2swhid: Node2SWHID<Mmap>,
     node2type: Node2Type<UsizeMmap<Mmap>>,
+}
+impl<MPHF: SwhidMphf> MapsOption for Maps<MPHF> {}
+impl MapsOption for () {}
+
+pub trait TimestampsOption {}
+
+pub struct Timestamps {
     author_timestamp: NumberMmap<BigEndian, i64, Mmap>,
     author_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
     committer_timestamp: NumberMmap<BigEndian, i64, Mmap>,
     committer_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
+}
+impl TimestampsOption for Timestamps {}
+impl TimestampsOption for () {}
+
+pub trait PersonsOption {}
+
+pub struct Persons {
     author_id: NumberMmap<BigEndian, u32, Mmap>,
     committer_id: NumberMmap<BigEndian, u32, Mmap>,
+}
+impl PersonsOption for Persons {}
+impl PersonsOption for () {}
+
+pub trait ContentsOption {}
+
+pub struct Contents {
     is_skipped_content: LongArrayBitVector<NumberMmap<LittleEndian, u64, Mmap>>,
     content_length: NumberMmap<BigEndian, u64, Mmap>,
+}
+impl ContentsOption for Contents {}
+impl ContentsOption for () {}
+
+pub trait StringsOption {}
+
+pub struct Strings {
     message: Mmap,
     message_offset: NumberMmap<BigEndian, u64, Mmap>,
     tag_name: Mmap,
     tag_name_offset: NumberMmap<BigEndian, u64, Mmap>,
 }
+impl StringsOption for Strings {}
+impl StringsOption for () {}
+
+/// Properties on graph nodes
+///
+/// This structures has many type parameters, to allow loading only some properties,
+/// and checking at compile time that only loaded properties are accessed.
+///
+/// Extra properties can be loaded, following the builder pattern.
+pub struct SwhGraphProperties<
+    MAPS: MapsOption,
+    TIMESTAMPS: TimestampsOption,
+    PERSONS: PersonsOption,
+    CONTENTS: ContentsOption,
+    STRINGS: StringsOption,
+> {
+    path: PathBuf,
+    num_nodes: usize,
+    maps: MAPS,
+    timestamps: TIMESTAMPS,
+    persons: PERSONS,
+    contents: CONTENTS,
+    strings: STRINGS,
+}
+
+pub type AllSwhGraphProperties<MPHF> =
+    SwhGraphProperties<Maps<MPHF>, Timestamps, Persons, Contents, Strings>;
 
 fn mmap(path: &Path) -> Result<Mmap> {
     let file_len = path
@@ -80,54 +137,71 @@ fn mmap(path: &Path) -> Result<Mmap> {
     Ok(data)
 }
 
-impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
-    pub fn new(path: impl AsRef<Path>, num_nodes: usize) -> Result<Self> {
-        let properties = SwhGraphProperties {
-            mphf: MPHF::load(&path)?,
-            order: unsafe { MappedPermutation::load_unchecked(&suffix_path(&path, ".order")) }
-                .context("Could not load order")?,
-            node2swhid: Node2SWHID::load(suffix_path(&path, NODE2SWHID))
-                .context("Could not load node2swhid")?,
-            node2type: Node2Type::load(suffix_path(&path, NODE2TYPE), num_nodes)
-                .context("Could not load node2type")?,
-            author_timestamp: NumberMmap::new(suffix_path(&path, AUTHOR_TIMESTAMP), num_nodes)
-                .context("Could not load author_timestamp")?,
-            author_timestamp_offset: NumberMmap::new(
-                suffix_path(&path, AUTHOR_TIMESTAMP_OFFSET),
-                num_nodes,
-            )
-            .context("Could not load author_timestamp_offset")?,
-            committer_timestamp: NumberMmap::new(
-                suffix_path(&path, COMMITTER_TIMESTAMP),
-                num_nodes,
-            )
-            .context("Could not load committer_timestamp")?,
-            committer_timestamp_offset: NumberMmap::new(
-                suffix_path(&path, COMMITTER_TIMESTAMP_OFFSET),
-                num_nodes,
-            )
-            .context("Could not load committer_timestamp_offset")?,
-            author_id: NumberMmap::new(suffix_path(&path, AUTHOR_ID), num_nodes)
-                .context("Could not load author_id")?,
-            committer_id: NumberMmap::new(suffix_path(&path, COMMITTER_ID), num_nodes)
-                .context("Could not load committer_id")?,
-            is_skipped_content: LongArrayBitVector::new_from_path(
-                suffix_path(&path, CONTENT_IS_SKIPPED),
-                num_nodes,
-            )
-            .context("Could not load is_skipped_content")?,
-            content_length: NumberMmap::new(suffix_path(&path, CONTENT_LENGTH), num_nodes)
-                .context("Could not load content_length")?,
-            message: mmap(&suffix_path(&path, MESSAGE)).context("Could not load messages")?,
-            message_offset: NumberMmap::new(suffix_path(&path, MESSAGE_OFFSET), num_nodes)
-                .context("Could not load message_offset")?,
-            tag_name: mmap(&suffix_path(&path, TAG_NAME)).context("Could not load tag names")?,
-            tag_name_offset: NumberMmap::new(suffix_path(&path, TAG_NAME_OFFSET), num_nodes)
-                .context("Could not load tag_name_offset")?,
-        };
-        Ok(properties)
+impl SwhGraphProperties<(), (), (), (), ()> {
+    pub fn new(path: impl AsRef<Path>, num_nodes: usize) -> Self {
+        SwhGraphProperties {
+            path: path.as_ref().to_owned(),
+            num_nodes,
+            maps: (),
+            timestamps: (),
+            persons: (),
+            contents: (),
+            strings: (),
+        }
     }
+    pub fn load_all<MPHF: SwhidMphf>(self) -> Result<AllSwhGraphProperties<MPHF>> {
+        Ok(self
+            .load_maps()?
+            .load_timestamps()?
+            .load_persons()?
+            .load_contents()?
+            .load_strings()?)
+    }
+}
 
+/**************************************************************************************
+ * maps
+ **************************************************************************************/
+impl<
+        TIMESTAMPS: TimestampsOption,
+        PERSONS: PersonsOption,
+        CONTENTS: ContentsOption,
+        STRINGS: StringsOption,
+    > SwhGraphProperties<(), TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
+{
+    pub fn load_maps<MPHF: SwhidMphf>(
+        self,
+    ) -> Result<SwhGraphProperties<Maps<MPHF>, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>> {
+        Ok(SwhGraphProperties {
+            maps: Maps {
+                mphf: MPHF::load(&self.path)?,
+                order: unsafe {
+                    MappedPermutation::load_unchecked(&suffix_path(&self.path, ".order"))
+                }
+                .context("Could not load order")?,
+                node2swhid: Node2SWHID::load(suffix_path(&self.path, NODE2SWHID))
+                    .context("Could not load node2swhid")?,
+                node2type: Node2Type::load(suffix_path(&self.path, NODE2TYPE), self.num_nodes)
+                    .context("Could not load node2type")?,
+            },
+            timestamps: self.timestamps,
+            persons: self.persons,
+            contents: self.contents,
+            strings: self.strings,
+            path: self.path,
+            num_nodes: self.num_nodes,
+        })
+    }
+}
+
+impl<
+        MPHF: SwhidMphf,
+        TIMESTAMPS: TimestampsOption,
+        PERSONS: PersonsOption,
+        CONTENTS: ContentsOption,
+        STRINGS: StringsOption,
+    > SwhGraphProperties<Maps<MPHF>, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
+{
     /// Returns the node id of the given SWHID
     ///
     /// May return the id of a random node if the SWHID does not exist in the graph.
@@ -137,8 +211,9 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
     /// May panic if the SWHID does not exist in the graph.
     #[inline]
     pub unsafe fn node_id_unchecked(&self, swhid: &SWHID) -> NodeId {
-        self.order.get_unchecked(
-            self.mphf
+        self.maps.order.get_unchecked(
+            self.maps
+                .mphf
                 .hash_swhid(swhid)
                 .unwrap_or_else(|| panic!("Unknown SWHID {}", swhid)),
         )
@@ -148,8 +223,8 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
     #[inline]
     pub fn node_id<T: TryInto<SWHID>>(&self, swhid: T) -> Option<NodeId> {
         let swhid = swhid.try_into().ok()?;
-        let node_id = self.order.get(self.mphf.hash_swhid(&swhid)?)?;
-        if self.node2swhid.get(node_id)? == swhid {
+        let node_id = self.maps.order.get(self.maps.mphf.hash_swhid(&swhid)?)?;
+        if self.maps.node2swhid.get(node_id)? == swhid {
             Some(node_id)
         } else {
             None
@@ -159,19 +234,73 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
     /// Returns the SWHID of a given node
     #[inline]
     pub fn swhid(&self, node_id: NodeId) -> Option<SWHID> {
-        self.node2swhid.get(node_id)
+        self.maps.node2swhid.get(node_id)
     }
 
     /// Returns the type of a given node
     #[inline]
     pub fn node_type(&self, node_id: NodeId) -> Option<SWHType> {
-        self.node2type.get(node_id)
+        self.maps.node2type.get(node_id)
     }
+}
 
+/**************************************************************************************
+ * timestamps
+ **************************************************************************************/
+impl<
+        MAPS: MapsOption,
+        PERSONS: PersonsOption,
+        CONTENTS: ContentsOption,
+        STRINGS: StringsOption,
+    > SwhGraphProperties<MAPS, (), PERSONS, CONTENTS, STRINGS>
+{
+    pub fn load_timestamps(
+        self,
+    ) -> Result<SwhGraphProperties<MAPS, Timestamps, PERSONS, CONTENTS, STRINGS>> {
+        Ok(SwhGraphProperties {
+            maps: self.maps,
+            timestamps: Timestamps {
+                author_timestamp: NumberMmap::new(
+                    suffix_path(&self.path, AUTHOR_TIMESTAMP),
+                    self.num_nodes,
+                )
+                .context("Could not load author_timestamp")?,
+                author_timestamp_offset: NumberMmap::new(
+                    suffix_path(&self.path, AUTHOR_TIMESTAMP_OFFSET),
+                    self.num_nodes,
+                )
+                .context("Could not load author_timestamp_offset")?,
+                committer_timestamp: NumberMmap::new(
+                    suffix_path(&self.path, COMMITTER_TIMESTAMP),
+                    self.num_nodes,
+                )
+                .context("Could not load committer_timestamp")?,
+                committer_timestamp_offset: NumberMmap::new(
+                    suffix_path(&self.path, COMMITTER_TIMESTAMP_OFFSET),
+                    self.num_nodes,
+                )
+                .context("Could not load committer_timestamp_offset")?,
+            },
+            persons: self.persons,
+            contents: self.contents,
+            strings: self.strings,
+            path: self.path,
+            num_nodes: self.num_nodes,
+        })
+    }
+}
+
+impl<
+        MAPS: MapsOption,
+        PERSONS: PersonsOption,
+        CONTENTS: ContentsOption,
+        STRINGS: StringsOption,
+    > SwhGraphProperties<MAPS, Timestamps, PERSONS, CONTENTS, STRINGS>
+{
     /// Returns the number of seconds since Epoch that a release or revision was
     /// authored at
     pub fn author_timestamp(&self, node_id: NodeId) -> Option<i64> {
-        match self.author_timestamp.get(node_id) {
+        match self.timestamps.author_timestamp.get(node_id) {
             Some(i64::MIN) => None,
             ts => ts,
         }
@@ -179,7 +308,7 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
 
     /// Returns the UTC offset in minutes of a release or revision's authorship date
     pub fn author_timestamp_offset(&self, node_id: NodeId) -> Option<i16> {
-        match self.author_timestamp_offset.get(node_id) {
+        match self.timestamps.author_timestamp_offset.get(node_id) {
             Some(i16::MIN) => None,
             offset => offset,
         }
@@ -187,7 +316,7 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
 
     /// Returns the number of seconds since Epoch that a revision was committed at
     pub fn committer_timestamp(&self, node_id: NodeId) -> Option<i64> {
-        match self.committer_timestamp.get(node_id) {
+        match self.timestamps.committer_timestamp.get(node_id) {
             Some(i64::MIN) => None,
             ts => ts,
         }
@@ -195,15 +324,56 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
 
     /// Returns the UTC offset in minutes of a revision's committer date
     pub fn committer_timestamp_offset(&self, node_id: NodeId) -> Option<i16> {
-        match self.committer_timestamp_offset.get(node_id) {
+        match self.timestamps.committer_timestamp_offset.get(node_id) {
             Some(i16::MIN) => None,
             offset => offset,
         }
     }
+}
 
+/**************************************************************************************
+ * persons
+ **************************************************************************************/
+impl<
+        MAPS: MapsOption,
+        TIMESTAMPS: TimestampsOption,
+        CONTENTS: ContentsOption,
+        STRINGS: StringsOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, (), CONTENTS, STRINGS>
+{
+    pub fn load_persons(
+        self,
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, Persons, CONTENTS, STRINGS>> {
+        Ok(SwhGraphProperties {
+            maps: self.maps,
+            timestamps: self.timestamps,
+            persons: Persons {
+                author_id: NumberMmap::new(suffix_path(&self.path, AUTHOR_ID), self.num_nodes)
+                    .context("Could not load author_id")?,
+                committer_id: NumberMmap::new(
+                    suffix_path(&self.path, COMMITTER_ID),
+                    self.num_nodes,
+                )
+                .context("Could not load committer_id")?,
+            },
+            contents: self.contents,
+            strings: self.strings,
+            path: self.path,
+            num_nodes: self.num_nodes,
+        })
+    }
+}
+
+impl<
+        MAPS: MapsOption,
+        TIMESTAMPS: TimestampsOption,
+        CONTENTS: ContentsOption,
+        STRINGS: StringsOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, Persons, CONTENTS, STRINGS>
+{
     /// Returns the id of the author of a revision or release, if any
     pub fn author_id(&self, node_id: NodeId) -> Option<u32> {
-        match self.author_id.get(node_id) {
+        match self.persons.author_id.get(node_id) {
             Some(u32::MAX) => None,
             id => id,
         }
@@ -211,29 +381,121 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
 
     /// Returns the id of the committer of a revision, if any
     pub fn committer_id(&self, node_id: NodeId) -> Option<u32> {
-        match self.committer_id.get(node_id) {
+        match self.persons.committer_id.get(node_id) {
             Some(u32::MAX) => None,
             id => id,
         }
     }
+}
 
+/**************************************************************************************
+ * contents
+ **************************************************************************************/
+impl<
+        MAPS: MapsOption,
+        TIMESTAMPS: TimestampsOption,
+        PERSONS: PersonsOption,
+        STRINGS: StringsOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, (), STRINGS>
+{
+    pub fn load_contents(
+        self,
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, Contents, STRINGS>> {
+        Ok(SwhGraphProperties {
+            maps: self.maps,
+            timestamps: self.timestamps,
+            persons: self.persons,
+            contents: Contents {
+                is_skipped_content: LongArrayBitVector::new_from_path(
+                    suffix_path(&self.path, CONTENT_IS_SKIPPED),
+                    self.num_nodes,
+                )
+                .context("Could not load is_skipped_content")?,
+                content_length: NumberMmap::new(
+                    suffix_path(&self.path, CONTENT_LENGTH),
+                    self.num_nodes,
+                )
+                .context("Could not load content_length")?,
+            },
+            strings: self.strings,
+            path: self.path,
+            num_nodes: self.num_nodes,
+        })
+    }
+}
+
+impl<
+        MAPS: MapsOption,
+        TIMESTAMPS: TimestampsOption,
+        PERSONS: PersonsOption,
+        STRINGS: StringsOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, Contents, STRINGS>
+{
     /// Returns whether the node is a skipped content
     ///
     /// Non-content objects get a `false` value, like non-skipped contents.
     pub fn is_skipped_content(&self, node_id: NodeId) -> Option<bool> {
-        self.is_skipped_content.get(node_id)
+        self.contents.is_skipped_content.get(node_id)
     }
 
     /// Returns the length of the given content None.
     ///
     /// May be `None` for skipped contents
     pub fn content_length(&self, node_id: NodeId) -> Option<u64> {
-        match self.content_length.get(node_id) {
+        match self.contents.content_length.get(node_id) {
             Some(u64::MAX) => None,
             length => length,
         }
     }
+}
 
+/**************************************************************************************
+ * messages
+ **************************************************************************************/
+impl<
+        MAPS: MapsOption,
+        TIMESTAMPS: TimestampsOption,
+        PERSONS: PersonsOption,
+        CONTENTS: ContentsOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, ()>
+{
+    pub fn load_strings(
+        self,
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, Strings>> {
+        Ok(SwhGraphProperties {
+            maps: self.maps,
+            timestamps: self.timestamps,
+            persons: self.persons,
+            contents: self.contents,
+            strings: Strings {
+                message: mmap(&suffix_path(&self.path, MESSAGE))
+                    .context("Could not load messages")?,
+                message_offset: NumberMmap::new(
+                    suffix_path(&self.path, MESSAGE_OFFSET),
+                    self.num_nodes,
+                )
+                .context("Could not load message_offset")?,
+                tag_name: mmap(&suffix_path(&self.path, TAG_NAME))
+                    .context("Could not load tag names")?,
+                tag_name_offset: NumberMmap::new(
+                    suffix_path(&self.path, TAG_NAME_OFFSET),
+                    self.num_nodes,
+                )
+                .context("Could not load tag_name_offset")?,
+            },
+            path: self.path,
+            num_nodes: self.num_nodes,
+        })
+    }
+}
+
+impl<
+        MAPS: MapsOption,
+        TIMESTAMPS: TimestampsOption,
+        PERSONS: PersonsOption,
+        CONTENTS: ContentsOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, Strings>
+{
     #[inline(always)]
     fn message_or_tag_name_base64<'a>(
         what: &'static str,
@@ -260,7 +522,12 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
 
     /// Returns the message of a revision or release, base64-encoded
     pub fn message_base64(&self, node_id: NodeId) -> Option<&[u8]> {
-        Self::message_or_tag_name_base64("message", &self.message, &self.message_offset, node_id)
+        Self::message_or_tag_name_base64(
+            "message",
+            &self.strings.message,
+            &self.strings.message_offset,
+            node_id,
+        )
     }
 
     /// Returns the message of a revision or release
@@ -276,7 +543,12 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
 
     /// Returns the tag name of a release, base64-encoded
     pub fn tag_name_base64(&self, node_id: NodeId) -> Option<&[u8]> {
-        Self::message_or_tag_name_base64("tag_name", &self.tag_name, &self.tag_name_offset, node_id)
+        Self::message_or_tag_name_base64(
+            "tag_name",
+            &self.strings.tag_name,
+            &self.strings.tag_name_offset,
+            node_id,
+        )
     }
 
     /// Returns the tag name of a release
