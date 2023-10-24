@@ -22,8 +22,9 @@ use crate::properties::suffixes;
 use crate::utils::suffix_path;
 use crate::SWHType;
 
-pub struct PropertyWriter<MPHF: SwhidMphf> {
-    pub mph: MPHF,
+pub struct PropertyWriter<SWHIDMPHF: SwhidMphf> {
+    pub swhid_mph: SWHIDMPHF,
+    pub person_mph: Option<ph::fmph::Function>,
     pub order: MappedPermutation,
     pub num_nodes: usize,
     pub dataset_dir: PathBuf,
@@ -31,7 +32,7 @@ pub struct PropertyWriter<MPHF: SwhidMphf> {
     pub target: PathBuf,
 }
 
-impl<MPHF: SwhidMphf + Sync> PropertyWriter<MPHF> {
+impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
     fn for_each_row<Row: OrcDeserialize + Clone + OrcStruct>(
         &self,
         subdirectory: &str,
@@ -64,7 +65,7 @@ impl<MPHF: SwhidMphf + Sync> PropertyWriter<MPHF> {
     fn node_id(&self, swhid: &str) -> usize {
         self.order
             .get(
-                self.mph
+                self.swhid_mph
                     .hash_str(&swhid)
                     .unwrap_or_else(|| panic!("unknown SWHID {}", swhid)),
             )
@@ -255,9 +256,102 @@ impl<MPHF: SwhidMphf + Sync> PropertyWriter<MPHF> {
         Ok(())
     }
     pub fn write_author_ids(&self) -> Result<()> {
+        #[derive(OrcDeserialize, Default, Clone)]
+        struct Revrel {
+            id: String,
+            author: Option<Vec<u8>>,
+        }
+
+        let read_rev = self.allowed_node_types.contains(&SWHType::Revision);
+        let read_rel = self.allowed_node_types.contains(&SWHType::Release);
+
+        if !read_rev && !read_rel {
+            log::info!("Excluded");
+            return Ok(());
+        }
+
+        let Some(person_mph) = self.person_mph.as_ref() else {
+            panic!("write_author_ids is missing person MPH but allowed_node_types = {:?}", self.allowed_node_types);
+        };
+
+        log::info!("Initializing...");
+        let authors = vec![u32::MAX.to_be(); self.num_nodes];
+
+        log::info!("Reading...");
+        let f = |type_: &str, r: Revrel| {
+            if let Some(person) = r.author {
+                let swhid = format!("swh:1:{}:{}", type_, r.id);
+                let base64 = base64_simd::STANDARD;
+                let person = base64.encode_to_string(person).into_bytes();
+                let person_id: u32 = person_mph
+                    .get(&person)
+                    .unwrap_or_else(|| {
+                        panic!("Author id for {} is None (person = {:?})", swhid, person)
+                    })
+                    .try_into()
+                    .expect("Person id overflows u32");
+                self.set(&authors, &swhid, person_id.to_be());
+            }
+        };
+
+        if read_rev && read_rel {
+            [].into_par_iter()
+                .chain(self.par_for_each_row("revision", |rev: Revrel| f("rev", rev)))
+                .chain(self.par_for_each_row("release", |rel: Revrel| f("rel", rel)))
+                .for_each(|()| ());
+        } else if read_rev {
+            self.par_for_each_row("revision", |rev: Revrel| f("rev", rev))
+                .for_each(|()| ());
+        } else if read_rel {
+            self.par_for_each_row("release", |rel: Revrel| f("rel", rel))
+                .for_each(|()| ());
+        } else {
+            unreachable!("!read_rev && !read_rel");
+        }
+
+        log::info!("Writing...");
+        self.write(suffixes::AUTHOR_ID, authors)?;
         Ok(())
     }
     pub fn write_committer_ids(&self) -> Result<()> {
+        #[derive(OrcDeserialize, Default, Clone)]
+        struct Revision {
+            id: String,
+            committer: Option<Vec<u8>>,
+        }
+
+        if !self.allowed_node_types.contains(&SWHType::Revision) {
+            log::info!("Excluded");
+            return Ok(());
+        }
+
+        let Some(person_mph) = self.person_mph.as_ref() else {
+            panic!("write_committer_ids is missing person MPH but allowed_node_types = {:?}", self.allowed_node_types);
+        };
+
+        log::info!("Initializing...");
+        let committers = vec![u32::MAX.to_be(); self.num_nodes];
+
+        log::info!("Reading...");
+        self.par_for_each_row("revision", |rev: Revision| {
+            if let Some(person) = rev.committer {
+                let swhid = format!("swh:1:rev:{}", rev.id);
+                let base64 = base64_simd::STANDARD;
+                let person = base64.encode_to_string(person).into_bytes();
+                let person_id: u32 = person_mph
+                    .get(&person)
+                    .unwrap_or_else(|| {
+                        panic!("Committer id for {} is None (person = {:?})", swhid, person)
+                    })
+                    .try_into()
+                    .expect("Person id overflows u32");
+                self.set(&committers, &swhid, person_id.to_be());
+            }
+        })
+        .for_each(|()| ());
+
+        log::info!("Writing...");
+        self.write(suffixes::COMMITTER_ID, committers)?;
         Ok(())
     }
     pub fn write_messages(&self) -> Result<()> {

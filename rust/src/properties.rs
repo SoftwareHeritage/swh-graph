@@ -27,8 +27,8 @@ pub(crate) mod suffixes {
     pub const AUTHOR_TIMESTAMP_OFFSET: &str = ".property.author_timestamp_offset.bin";
     pub const COMMITTER_TIMESTAMP: &str = ".property.committer_timestamp.bin";
     pub const COMMITTER_TIMESTAMP_OFFSET: &str = ".property.committer_timestamp_offset.bin";
-    // pub const AUTHOR_ID: &str = ".property.author_id.bin";
-    // pub const COMMITTER_ID: &str = ".property.committer_id.bin";
+    pub const AUTHOR_ID: &str = ".property.author_id.bin";
+    pub const COMMITTER_ID: &str = ".property.committer_id.bin";
     pub const CONTENT_IS_SKIPPED: &str = ".property.content.is_skipped.bin";
     pub const CONTENT_LENGTH: &str = ".property.content.length.bin";
     pub const MESSAGE: &str = ".property.message.bin";
@@ -48,6 +48,8 @@ pub struct SwhGraphProperties<MPHF: SwhidMphf> {
     author_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
     committer_timestamp: NumberMmap<BigEndian, i64, Mmap>,
     committer_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
+    author_id: NumberMmap<BigEndian, u32, Mmap>,
+    committer_id: NumberMmap<BigEndian, u32, Mmap>,
     is_skipped_content: LongArrayBitVector<NumberMmap<LittleEndian, u64, Mmap>>,
     content_length: NumberMmap<BigEndian, u64, Mmap>,
     message: Mmap,
@@ -105,6 +107,10 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
                 num_nodes,
             )
             .context("Could not load committer_timestamp_offset")?,
+            author_id: NumberMmap::new(suffix_path(&path, AUTHOR_ID), num_nodes)
+                .context("Could not load author_id")?,
+            committer_id: NumberMmap::new(suffix_path(&path, COMMITTER_ID), num_nodes)
+                .context("Could not load committer_id")?,
             is_skipped_content: LongArrayBitVector::new_from_path(
                 suffix_path(&path, CONTENT_IS_SKIPPED),
                 num_nodes,
@@ -192,6 +198,22 @@ impl<MPHF: SwhidMphf> SwhGraphProperties<MPHF> {
         match self.committer_timestamp_offset.get(node_id) {
             Some(i16::MIN) => None,
             offset => offset,
+        }
+    }
+
+    /// Returns the id of the author of a revision or release, if any
+    pub fn author_id(&self, node_id: NodeId) -> Option<u32> {
+        match self.author_id.get(node_id) {
+            Some(u32::MAX) => None,
+            id => id,
+        }
+    }
+
+    /// Returns the id of the committer of a revision, if any
+    pub fn committer_id(&self, node_id: NodeId) -> Option<u32> {
+        match self.committer_id.get(node_id) {
+            Some(u32::MAX) => None,
+            id => id,
         }
     }
 

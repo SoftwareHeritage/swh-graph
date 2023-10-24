@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
@@ -50,6 +50,16 @@ enum Commands {
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
+    /// Reads the list of authors and committers from the ORC directory and produces lists
+    /// unique names (based64-encoded) in the given directory
+    ExtractPersons {
+        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
+        format: DatasetFormat,
+        #[arg(long, default_value = "*")]
+        allowed_node_types: String,
+        dataset_dir: PathBuf,
+        target_dir: PathBuf,
+    },
     /// Reads the list of nodes from the generated unique SWHIDS and counts the number
     /// of nodes of each type
     NodeStats {
@@ -71,9 +81,16 @@ enum Commands {
         target_stats: PathBuf,
         target_count: PathBuf,
     },
-    /// Reads the list of unique SWHIDs from the ORC directory and produces a Minimal Perfect Hash function
-    Mph {
+    /// Reads the list of unique SWHIDs from a directory of .zstd files
+    /// and produces a Minimal Perfect Hash function
+    MphSwhids {
         swhids_dir: PathBuf,
+        out_mph: PathBuf,
+    },
+    /// Reads the list of unique persons from a directory of .zstd files
+    /// and produces a Minimal Perfect Hash function
+    MphPersons {
+        persons_dir: PathBuf,
         out_mph: PathBuf,
     },
     /// First actual compression step
@@ -185,6 +202,8 @@ enum Commands {
         #[arg(long)]
         function: PathBuf,
         #[arg(long)]
+        person_function: Option<PathBuf>,
+        #[arg(long)]
         order: PathBuf,
         #[arg(long)]
         num_nodes: usize,
@@ -294,6 +313,35 @@ pub fn main() -> Result<()> {
             swh_graph::compress::orc::iter_labels(&dataset_dir, &allowed_node_types)
                 .map(|label| base64.encode_to_string(label).into_bytes())
                 .unique_sort_to_dir(target_dir, "labels.csv", &temp_dir(), pl, &[])
+                .context("Sorting failed")?;
+        }
+        Commands::ExtractPersons {
+            format: DatasetFormat::Orc,
+            allowed_node_types,
+            dataset_dir,
+            target_dir,
+        } => {
+            use swh_graph::utils::sort::Sortable;
+            let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "node";
+            pl.local_speed = true;
+            pl.expected_updates = Some(swh_graph::compress::orc::estimate_node_count(
+                &dataset_dir,
+                &allowed_node_types
+                    .iter()
+                    .cloned()
+                    .filter(|t| [SWHType::Revision, SWHType::Release].contains(t))
+                    .collect::<Vec<_>>(),
+            ) as usize);
+            pl.start("Extracting and sorting labels");
+
+            let base64 = base64_simd::STANDARD;
+
+            swh_graph::compress::orc::iter_persons(&dataset_dir, &allowed_node_types)
+                .map(|label| base64.encode_to_string(label).into_bytes())
+                .unique_sort_to_dir(target_dir, "persons.csv", &temp_dir(), pl, &[])
                 .context("Sorting failed")?;
         }
         Commands::NodeStats {
@@ -418,55 +466,18 @@ pub fn main() -> Result<()> {
                 .context("Could not write edge count")?;
         }
 
-        Commands::Mph {
+        Commands::MphSwhids {
             swhids_dir,
             out_mph,
         } => {
-            use swh_graph::compress::zst_dir::*;
+            swh_graph::compress::mph::build_mph::<[u8; 50]>(swhids_dir, out_mph, "SWHID")?;
+        }
 
-            let clone_threshold = 10240; // TODO: tune this
-            let conf = fmph::BuildConf::default();
-            let call_counts = Mutex::new(0);
-            let len = Mutex::new(None);
-
-            let get_pl = |parallel| {
-                let mut call_counts = call_counts.lock().unwrap();
-                *call_counts += 1;
-                let mut pl = ProgressLogger::default().display_memory();
-                pl.item_name = "SWHID";
-                pl.local_speed = true;
-                pl.expected_updates = *len.lock().unwrap();
-                pl.start(&format!(
-                    "{} reading SWHIDs (pass {})",
-                    if parallel {
-                        "parallelly"
-                    } else {
-                        "sequentially"
-                    },
-                    call_counts
-                ));
-                Arc::new(Mutex::new(pl))
-            };
-
-            let get_key_iter = || iter_lines_from_dir(&swhids_dir, get_pl(false));
-            let get_par_key_iter = || par_iter_lines_from_dir(&swhids_dir, get_pl(true));
-
-            *len.lock().unwrap() = Some(get_par_key_iter().count());
-
-            let keys = fmph::keyset::CachedKeySet::<[u8; 50], _>::dynamic(
-                GetParallelLineIterator {
-                    len: len.lock().unwrap().unwrap(),
-                    get_key_iter: &get_key_iter,
-                    get_par_key_iter: &get_par_key_iter,
-                },
-                clone_threshold,
-            );
-            //let keys = fmph::keyset::CachedKeySet::dynamic(&get_key_iter, clone_threshold);
-            let mph = fmph::Function::with_conf(keys, conf);
-
-            let mut file = File::create(&out_mph)
-                .with_context(|| format!("Cannot create {}", out_mph.display()))?;
-            mph.write(&mut file).context("Could not write MPH file")?;
+        Commands::MphPersons {
+            persons_dir,
+            out_mph,
+        } => {
+            swh_graph::compress::mph::build_mph::<Vec<u8>>(persons_dir, out_mph, "person")?;
         }
 
         Commands::Bv {
@@ -752,6 +763,7 @@ pub fn main() -> Result<()> {
             allowed_node_types,
             mph_algo,
             function,
+            person_function,
             order,
             num_nodes,
             dataset_dir,
@@ -808,11 +820,26 @@ pub fn main() -> Result<()> {
                 Ok(())
             }
 
+            let person_mph = if allowed_node_types.contains(&SWHType::Revision)
+                || allowed_node_types.contains(&SWHType::Release)
+            {
+                let Some(person_function) = person_function else {
+                    bail!("--person-mph must be provided unless --allowed-node-types is set to contain neither 'rev' nor 'rel'.");
+                };
+                Some(
+                    ph::fmph::Function::load(&person_function)
+                        .with_context(|| format!("Could not load {}", person_function.display()))?,
+                )
+            } else {
+                None
+            };
+
             match mph_algo {
                 MphAlgorithm::Fmph => {
-                    let mph = SwhidMphf::load(function).context("Cannot load mph")?;
+                    let swhid_mph = SwhidMphf::load(function).context("Cannot load mph")?;
                     let property_writer = PropertyWriter {
-                        mph,
+                        swhid_mph,
+                        person_mph,
                         order,
                         num_nodes,
                         dataset_dir,
@@ -822,9 +849,10 @@ pub fn main() -> Result<()> {
                     f::<fmph::Function>(property_writer)?;
                 }
                 MphAlgorithm::Cmph => {
-                    let mph = SwhidMphf::load(function).context("Cannot load mph")?;
+                    let swhid_mph = SwhidMphf::load(function).context("Cannot load mph")?;
                     let property_writer = PropertyWriter {
-                        mph,
+                        swhid_mph,
+                        person_mph,
                         order,
                         num_nodes,
                         dataset_dir,

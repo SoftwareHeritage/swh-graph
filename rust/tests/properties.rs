@@ -104,6 +104,8 @@ fn test_out_of_bound_properties() -> Result<()> {
     assert_eq!(properties.content_length(node), None);
     assert_eq!(properties.message(node), None);
     assert_eq!(properties.tag_name(node), None);
+    assert_eq!(properties.author_id(node), None);
+    assert_eq!(properties.committer_id(node), None);
 
     Ok(())
 }
@@ -126,6 +128,8 @@ fn test_content_properties() -> Result<()> {
     assert_eq!(properties.content_length(node), Some(42));
     assert_eq!(properties.message(node), None);
     assert_eq!(properties.tag_name(node), None);
+    assert_eq!(properties.author_id(node), None);
+    assert_eq!(properties.committer_id(node), None);
 
     Ok(())
 }
@@ -148,6 +152,8 @@ fn test_skipped_content_properties() -> Result<()> {
     assert_eq!(properties.content_length(node), Some(404));
     assert_eq!(properties.message(node), None);
     assert_eq!(properties.tag_name(node), None);
+    assert_eq!(properties.author_id(node), None);
+    assert_eq!(properties.committer_id(node), None);
 
     Ok(())
 }
@@ -170,6 +176,8 @@ fn test_revision_properties() -> Result<()> {
     assert_eq!(properties.content_length(node), None);
     assert_eq!(properties.message(node), Some(b"Add parser".to_vec()));
     assert_eq!(properties.tag_name(node), None);
+    assert_eq!(properties.author_id(node), Some(2));
+    assert_eq!(properties.committer_id(node), Some(2));
 
     Ok(())
 }
@@ -192,6 +200,8 @@ fn test_release_properties() -> Result<()> {
     assert_eq!(properties.content_length(node), None);
     assert_eq!(properties.message(node), Some(b"Version 1.0".to_vec()));
     assert_eq!(properties.tag_name(node), Some(b"v1.0".to_vec()));
+    assert_eq!(properties.author_id(node), Some(0));
+    assert_eq!(properties.committer_id(node), None);
 
     Ok(())
 }
@@ -214,6 +224,8 @@ fn test_snapshot_properties() -> Result<()> {
     assert_eq!(properties.content_length(node), None);
     assert_eq!(properties.message(node), None);
     assert_eq!(properties.tag_name(node), None);
+    assert_eq!(properties.author_id(node), None);
+    assert_eq!(properties.committer_id(node), None);
 
     Ok(())
 }

@@ -745,3 +745,75 @@ fn iter_labels_from_snp_branch(reader: Reader) -> impl ParallelIterator<Item = V
         }
     })
 }
+
+pub fn iter_persons(
+    dataset_dir: &PathBuf,
+    allowed_node_types: &[SWHType],
+) -> impl ParallelIterator<Item = Vec<u8>> {
+    let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
+        if allowed_node_types.contains(&node_type) {
+            get_dataset_readers(dataset_dir, subdirectory)
+        } else {
+            Vec::new()
+        }
+    };
+
+    [].into_par_iter()
+        .chain(
+            maybe_get_dataset_readers(dataset_dir.clone(), "revision", SWHType::Revision)
+                .into_par_iter()
+                .flat_map(iter_persons_from_rev),
+        )
+        .chain(
+            maybe_get_dataset_readers(dataset_dir.clone(), "release", SWHType::Release)
+                .into_par_iter()
+                .flat_map(iter_persons_from_rel),
+        )
+}
+
+fn map_persons<T: OrcDeserialize + CheckableKind + OrcStruct + Clone + Send, F>(
+    reader: Reader,
+    f: F,
+) -> impl ParallelIterator<Item = Vec<u8>>
+where
+    F: Fn(T) -> Vec<Vec<u8>> + Send + Sync,
+{
+    RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
+        .expect("Could not open row reader")
+        .par_bridge()
+        .flat_map(f)
+}
+
+fn iter_persons_from_rev(reader: Reader) -> impl ParallelIterator<Item = Vec<u8>> {
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct Revision {
+        author: Option<Vec<u8>>,
+        committer: Option<Vec<u8>>,
+    }
+
+    map_persons(reader, |revision: Revision| {
+        let mut persons = vec![];
+        if let Some(author) = revision.author {
+            persons.push(author);
+        }
+        if let Some(committer) = revision.committer {
+            persons.push(committer);
+        }
+        persons
+    })
+}
+
+fn iter_persons_from_rel(reader: Reader) -> impl ParallelIterator<Item = Vec<u8>> {
+    #[derive(OrcDeserialize, Default, Clone)]
+    struct Release {
+        author: Option<Vec<u8>>,
+    }
+
+    map_persons(reader, |release: Release| {
+        let mut persons = vec![];
+        if let Some(author) = release.author {
+            persons.push(author);
+        }
+        persons
+    })
+}
