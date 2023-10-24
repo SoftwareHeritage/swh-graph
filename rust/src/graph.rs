@@ -13,10 +13,38 @@ use webgraph::prelude::*;
 
 use crate::mph::SwhidMphf;
 use crate::properties;
+use crate::properties::SwhGraphProperties;
 use crate::utils::suffix_path;
 
 /// Alias for [`usize`], which may become a newtype in a future version.
 pub type NodeId = usize;
+
+pub trait SwhGraph {
+    /// Return the number of nodes in the graph.
+    fn num_nodes(&self) -> usize;
+
+    /// Return the number of arcs in the graph.
+    fn num_arcs(&self) -> usize;
+}
+
+pub trait SwhGraphWithProperties: SwhGraph {
+    type Maps: properties::MapsOption;
+    type Timestamps: properties::TimestampsOption;
+    type Persons: properties::PersonsOption;
+    type Contents: properties::ContentsOption;
+    type Strings: properties::StringsOption;
+
+    /// Returns the graph's [`SwhGraphProperties`]
+    fn properties(
+        &self,
+    ) -> &SwhGraphProperties<
+        Self::Maps,
+        Self::Timestamps,
+        Self::Persons,
+        Self::Contents,
+        Self::Strings,
+    >;
+}
 
 /// Class representing the compressed Software Heritage graph in a single direction.
 pub struct SwhUnidirectionalGraph<G: RandomAccessGraph, P> {
@@ -26,16 +54,6 @@ pub struct SwhUnidirectionalGraph<G: RandomAccessGraph, P> {
 }
 
 impl<G: RandomAccessGraph, P> SwhUnidirectionalGraph<G, P> {
-    /// Return the number of nodes in the graph.
-    pub fn num_nodes(&self) -> usize {
-        self.graph.num_nodes()
-    }
-
-    /// Return the number of arcs in the graph.
-    pub fn num_arcs(&self) -> usize {
-        self.graph.num_arcs()
-    }
-
     /// Return an [`IntoIterator`] over the successors of a node.
     pub fn successors(&self, node_id: NodeId) -> <G as RandomAccessGraph>::Successors<'_> {
         self.graph.successors(node_id)
@@ -52,6 +70,37 @@ impl<G: RandomAccessGraph, P> SwhUnidirectionalGraph<G, P> {
     }
 }
 
+impl<G: RandomAccessGraph, P> SwhGraph for SwhUnidirectionalGraph<G, P> {
+    fn num_nodes(&self) -> usize {
+        self.graph.num_nodes()
+    }
+
+    fn num_arcs(&self) -> usize {
+        self.graph.num_arcs()
+    }
+}
+
+impl<
+        G: RandomAccessGraph,
+        MAPS: properties::MapsOption,
+        TIMESTAMPS: properties::TimestampsOption,
+        PERSONS: properties::PersonsOption,
+        CONTENTS: properties::ContentsOption,
+        STRINGS: properties::StringsOption,
+    > SwhGraphWithProperties
+    for SwhUnidirectionalGraph<G, SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>>
+{
+    type Maps = MAPS;
+    type Timestamps = TIMESTAMPS;
+    type Persons = PERSONS;
+    type Contents = CONTENTS;
+    type Strings = STRINGS;
+
+    fn properties(&self) -> &SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS> {
+        &self.properties
+    }
+}
+
 impl<
         G: RandomAccessGraph,
         M: properties::MapsOption,
@@ -59,7 +108,7 @@ impl<
         P: properties::PersonsOption,
         C: properties::ContentsOption,
         S: properties::StringsOption,
-    > SwhUnidirectionalGraph<G, properties::SwhGraphProperties<M, T, P, C, S>>
+    > SwhUnidirectionalGraph<G, SwhGraphProperties<M, T, P, C, S>>
 {
     /// Enriches the graph with more properties mmapped from disk
     ///
@@ -86,9 +135,9 @@ impl<
     >(
         self,
         loader: impl Fn(
-            properties::SwhGraphProperties<M, T, P, C, S>,
-        ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2>>,
-    ) -> Result<SwhUnidirectionalGraph<G, properties::SwhGraphProperties<M2, T2, P2, C2, S2>>> {
+            SwhGraphProperties<M, T, P, C, S>,
+        ) -> Result<SwhGraphProperties<M2, T2, P2, C2, S2>>,
+    ) -> Result<SwhUnidirectionalGraph<G, SwhGraphProperties<M2, T2, P2, C2, S2>>> {
         Ok(SwhUnidirectionalGraph {
             properties: loader(self.properties)?,
             basepath: self.basepath,
@@ -101,9 +150,9 @@ impl<G: RandomAccessGraph> SwhUnidirectionalGraph<G, ()> {
     /// Prerequisite for `load_properties`
     pub fn init_properties(
         self,
-    ) -> SwhUnidirectionalGraph<G, properties::SwhGraphProperties<(), (), (), (), ()>> {
+    ) -> SwhUnidirectionalGraph<G, SwhGraphProperties<(), (), (), (), ()>> {
         SwhUnidirectionalGraph {
-            properties: properties::SwhGraphProperties::new(&self.basepath, self.graph.num_nodes()),
+            properties: SwhGraphProperties::new(&self.basepath, self.graph.num_nodes()),
             basepath: self.basepath,
             graph: self.graph,
         }
@@ -127,7 +176,7 @@ impl<G: RandomAccessGraph> SwhUnidirectionalGraph<G, ()> {
     ) -> Result<
         SwhUnidirectionalGraph<
             G,
-            properties::SwhGraphProperties<
+            SwhGraphProperties<
                 properties::Maps<MPHF>,
                 properties::Timestamps,
                 properties::Persons,
@@ -141,26 +190,6 @@ impl<G: RandomAccessGraph> SwhUnidirectionalGraph<G, ()> {
     }
 }
 
-impl<
-        G: RandomAccessGraph,
-        MAPS: properties::MapsOption,
-        TIMESTAMPS: properties::TimestampsOption,
-        PERSONS: properties::PersonsOption,
-        CONTENTS: properties::ContentsOption,
-        STRINGS: properties::StringsOption,
-    >
-    SwhUnidirectionalGraph<
-        G,
-        properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>,
-    >
-{
-    pub fn properties(
-        &self,
-    ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS> {
-        &self.properties
-    }
-}
-
 /// Class representing the compressed Software Heritage graph in both directions.
 pub struct SwhBidirectionalGraph<G: RandomAccessGraph, P> {
     basepath: PathBuf,
@@ -169,17 +198,17 @@ pub struct SwhBidirectionalGraph<G: RandomAccessGraph, P> {
     properties: P,
 }
 
-impl<G: RandomAccessGraph, P> SwhBidirectionalGraph<G, P> {
-    /// Return the number of nodes in the graph.
-    pub fn num_nodes(&self) -> usize {
+impl<G: RandomAccessGraph, P> SwhGraph for SwhBidirectionalGraph<G, P> {
+    fn num_nodes(&self) -> usize {
         self.forward_graph.num_nodes()
     }
 
-    /// Return the number of arcs in the graph.
-    pub fn num_arcs(&self) -> usize {
+    fn num_arcs(&self) -> usize {
         self.forward_graph.num_arcs()
     }
+}
 
+impl<G: RandomAccessGraph, P> SwhBidirectionalGraph<G, P> {
     /// Return an [`IntoIterator`] over the successors of a node.
     pub fn successors(&self, node_id: NodeId) -> <G as RandomAccessGraph>::Successors<'_> {
         self.forward_graph.successors(node_id)
@@ -213,7 +242,7 @@ impl<
         P: properties::PersonsOption,
         C: properties::ContentsOption,
         S: properties::StringsOption,
-    > SwhBidirectionalGraph<G, properties::SwhGraphProperties<M, T, P, C, S>>
+    > SwhBidirectionalGraph<G, SwhGraphProperties<M, T, P, C, S>>
 {
     /// Enriches the graph with more properties mmapped from disk
     ///
@@ -222,7 +251,7 @@ impl<
     /// ```no_run
     /// # use std::path::PathBuf;
     /// use swh_graph::java_compat::mph::gov::GOVMPH;
-    /// use swh_graph::properties::SwhGraphProperties;
+    /// use swh_graph::SwhGraphProperties;
     ///
     /// swh_graph::graph::load_bidirectional(PathBuf::from("./graph"))
     ///     .expect("Could not load graph")
@@ -241,9 +270,9 @@ impl<
     >(
         self,
         loader: impl Fn(
-            properties::SwhGraphProperties<M, T, P, C, S>,
-        ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2>>,
-    ) -> Result<SwhBidirectionalGraph<G, properties::SwhGraphProperties<M2, T2, P2, C2, S2>>> {
+            SwhGraphProperties<M, T, P, C, S>,
+        ) -> Result<SwhGraphProperties<M2, T2, P2, C2, S2>>,
+    ) -> Result<SwhBidirectionalGraph<G, SwhGraphProperties<M2, T2, P2, C2, S2>>> {
         Ok(SwhBidirectionalGraph {
             properties: loader(self.properties)?,
             basepath: self.basepath,
@@ -257,12 +286,9 @@ impl<G: RandomAccessGraph> SwhBidirectionalGraph<G, ()> {
     /// Prerequisite for `load_properties`
     pub fn init_properties(
         self,
-    ) -> SwhBidirectionalGraph<G, properties::SwhGraphProperties<(), (), (), (), ()>> {
+    ) -> SwhBidirectionalGraph<G, SwhGraphProperties<(), (), (), (), ()>> {
         SwhBidirectionalGraph {
-            properties: properties::SwhGraphProperties::new(
-                &self.basepath,
-                self.forward_graph.num_nodes(),
-            ),
+            properties: SwhGraphProperties::new(&self.basepath, self.forward_graph.num_nodes()),
             basepath: self.basepath,
             forward_graph: self.forward_graph,
             backward_graph: self.backward_graph,
@@ -287,7 +313,7 @@ impl<G: RandomAccessGraph> SwhBidirectionalGraph<G, ()> {
     ) -> Result<
         SwhBidirectionalGraph<
             G,
-            properties::SwhGraphProperties<
+            SwhGraphProperties<
                 properties::Maps<MPHF>,
                 properties::Timestamps,
                 properties::Persons,
@@ -308,15 +334,9 @@ impl<
         PERSONS: properties::PersonsOption,
         CONTENTS: properties::ContentsOption,
         STRINGS: properties::StringsOption,
-    >
-    SwhBidirectionalGraph<
-        G,
-        properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>,
-    >
+    > SwhBidirectionalGraph<G, SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>>
 {
-    pub fn properties(
-        &self,
-    ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS> {
+    pub fn properties(&self) -> &SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS> {
         &self.properties
     }
 }

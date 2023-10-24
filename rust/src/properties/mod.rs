@@ -4,6 +4,11 @@
 // See top-level LICENSE file for more information
 
 //! Node labels
+//!
+//! [`SwhGraphProperties`] is populated by the `load_properties` and `load_all_properties`
+//! of [`SwhUnidirectionalGraph`](swh_graph::graph::SwhUnidirectionalGraph) and
+//! [`SwhBidirectionalGraph`](swh_graph::graph::SwhBidirectionalGraph) and returned by
+//! [`SwhGraphWithProperties::properties`](swh_graph::graph::SwhGraphWithProperties::properties)
 
 use std::path::{Path, PathBuf};
 
