@@ -24,9 +24,11 @@ logger = logging.getLogger(__name__)
 
 
 class CompressionStep(Enum):
-    EXTRACT_NODES = 1
-    MPH = 2
-    BV = 3
+    EXTRACT_NODES = -1
+    MPH = 0
+    CONVERT_MPH = 1
+    BV = 2
+    BV_OFFSETS = 3
     BFS = 4
     PERMUTE_BFS = 5
     TRANSPOSE_BFS = 6
@@ -48,8 +50,6 @@ class CompressionStep(Enum):
     EDGE_LABELS_OBL = 22
     EDGE_LABELS_TRANSPOSE_OBL = 23
     CLEAN_TMP = 24
-    CONVERT_MPH = 25
-    BV_OFFSETS = 26
 
     def __str__(self):
         return self.name

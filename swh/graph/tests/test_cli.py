@@ -31,7 +31,14 @@ def test_pipeline():
     """run full compression pipeline"""
     # bare bone configuration, to allow testing the compression pipeline
     # with minimum RAM requirements on trivial graphs
-    config = {"graph": {"compress": {"batch_size": 1000}}}
+    config = {
+        "graph": {
+            "compress": {
+                "batch_size": 1000,
+                "rust_executable": "./target/debug/compress",
+            }
+        }
+    }
     runner = CliRunner()
 
     with TemporaryDirectory(suffix=".swh-graph-test") as tmpdir:
