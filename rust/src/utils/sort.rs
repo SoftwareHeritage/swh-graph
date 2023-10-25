@@ -179,7 +179,7 @@ pub trait Sortable<Line: IntoIterator<Item = u8>>: ParallelIterator<Item = Line>
 
 impl<Line: IntoIterator<Item = u8>, T: ParallelIterator<Item = Line>> Sortable<Line> for T {}
 
-/// Given an iterator and a function to insert its items to [`SortPairs`], returns an
+/// Given an iterator and a function to insert its items to [`BatchIterator`]s, returns an
 /// iterator of pairs.
 pub fn par_sort_arcs<Item, Iter, F>(
     temp_dir: &Path,

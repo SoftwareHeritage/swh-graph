@@ -12,7 +12,7 @@ use byteorder::ByteOrder;
 use common_traits::Number;
 use mmap_rs::{Mmap, MmapFlags};
 
-/// Newtype for [`Mmap`]/[`MmapMut`] used to store arrays of any integers
+/// Newtype for [`Mmap`] used to store arrays of any integers
 ///
 /// instead of slices of u8
 pub struct NumberMmap<E: ByteOrder, N: Number, B> {

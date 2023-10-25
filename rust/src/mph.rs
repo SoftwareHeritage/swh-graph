@@ -17,7 +17,8 @@ use crate::SWHID;
 
 /// Minimal-perfect hash function over [`SWHID`].
 ///
-/// See [`load_swhid_mphf`] to dynamically choose which implementor struct to use.
+/// See [`DynMphf`] which wraps all implementor structs in an enum to dynamically choose
+/// which MPH algorithm to use with less overhead than `dyn SwhidMphf`.
 pub trait SwhidMphf {
     fn load(basepath: impl AsRef<Path>) -> Result<Self>
     where
@@ -87,7 +88,7 @@ impl SwhidMphf for crate::java_compat::mph::gov::GOVMPH {
 
 /// Enum of possible implementations of [`SwhidMphf`].
 ///
-/// Loads either [`ph::fmph::Function`] or [`swh_graph::java_compat::mph::gov::GOVMPH`]
+/// Loads either [`ph::fmph::Function`] or [`crate::java_compat::mph::gov::GOVMPH`]
 /// depending on which file is available at the given path.
 pub enum DynMphf {
     Fmph(ph::fmph::Function),

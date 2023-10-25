@@ -30,7 +30,7 @@ use std::path::Path;
 /// echo '((it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction)it.unimi.dsi.fastutil.io.BinIO.loadObject("test.mph")).dump("test.cmph");' | jshell
 /// ```
 ///
-/// You can now load the dumped file with the [`load`](crate::mph::gov::GOVMPH::load) method.
+/// You can now load the dumped file with the [`load`](GOVMPH::load) method.
 ///
 /// # Reference:
 /// - [Marco Genuzio, Giuseppe Ottaviano, and Sebastiano Vigna, Fast Scalable Construction of (Minimal Perfect Hash) Functions](https://arxiv.org/pdf/1603.04330.pdf)
