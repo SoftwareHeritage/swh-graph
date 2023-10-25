@@ -7,16 +7,16 @@ use std::cell::UnsafeCell;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use anyhow::{anyhow, Context, Result};
-use dsi_progress_logger::ProgressLogger;
-use itertools::Itertools;
-use rayon::prelude::*;
-use tempfile;
-use webgraph::traits::LendingIterator;
-
 use super::orc::*;
 use crate::mph::SwhidMphf;
 use crate::utils::sort::par_sort_arcs;
+use anyhow::{anyhow, Context, Result};
+use dsi_progress_logger::ProgressLogger;
+use itertools::Itertools;
+use lender::Lender;
+use rayon::prelude::*;
+use tempfile;
+use webgraph::graph::arc_list_graph;
 
 pub fn bv<MPHF: SwhidMphf + Sync>(
     sort_batch_size: usize,
@@ -81,7 +81,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     let pl = Mutex::new(pl);
     let counters = thread_local::ThreadLocal::new();
 
-    let mut adjacency_lists = NodeIterator::new(num_nodes, sorted_arcs).inspect(|_| {
+    let adjacency_lists = arc_list_graph::Iterator::new(num_nodes, sorted_arcs).inspect(|_| {
         let counter = counters.get_or(|| UnsafeCell::new(0));
         let counter: &mut usize = unsafe { &mut *counter.get() };
         *counter += 1;
@@ -96,11 +96,9 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     let comp_flags = Default::default();
     let num_threads = num_cpus::get();
 
-    use webgraph::graph::arc_list_graph::NodeIterator;
-    use webgraph::traits::iter::Inspect;
-    webgraph::graph::bvgraph::parallel_compress_sequential_iter::<Inspect<_, _>>(
+    webgraph::graph::bvgraph::parallel_compress_sequential_iter::<lender::Inspect<_, _>>(
         target_dir,
-        &mut adjacency_lists,
+        adjacency_lists,
         num_nodes,
         comp_flags,
         num_threads,

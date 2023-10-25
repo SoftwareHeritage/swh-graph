@@ -10,8 +10,9 @@ use std::sync::Mutex;
 use anyhow::{Context, Result};
 use dsi_bitstream::prelude::{BufBitWriter, WordAdapter, BE};
 use dsi_progress_logger::ProgressLogger;
+use lender::Lender;
 use rayon::prelude::*;
-use webgraph::graph::arc_list_graph::NodeIterator;
+use webgraph::graph::arc_list_graph;
 use webgraph::prelude::*;
 
 use crate::utils::sort::par_sort_arcs;
@@ -33,7 +34,7 @@ where
     // Adapted from https://github.com/vigna/webgraph-rs/blob/08969fb1ac4ea59aafdbae976af8e026a99c9ac5/src/bin/perm.rs
     let num_nodes = graph.num_nodes();
 
-    let bit_write = <BufBitWriter<BE, _>>::new(WordAdapter::new(BufWriter::new(
+    let bit_write = <BufBitWriter<BE, _>>::new(WordAdapter::<usize, _>::new(BufWriter::new(
         std::fs::File::create(&format!("{}.graph", target_dir.to_string_lossy()))
             .context("Could not create target graph file")?,
     )));
@@ -90,12 +91,12 @@ where
     pl.local_speed = true;
     pl.start("Writing...");
 
-    let mut adjacency_lists = NodeIterator::new(num_nodes, sorted_arcs).inspect(|_node| {
+    let adjacency_lists = arc_list_graph::Iterator::new(num_nodes, sorted_arcs).inspect(|_node| {
         pl.light_update();
     });
 
     bvcomp
-        .extend::<Inspect<_, _>>(&mut adjacency_lists)
+        .extend::<lender::Inspect<_, _>>(adjacency_lists)
         .context("Could not write to BVGraph")?;
     bvcomp.flush().context("Could not flush BVGraph")?;
     pl.done();
