@@ -33,6 +33,13 @@ impl<
         STRINGS: StringsOption,
     > SwhGraphProperties<(), TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
 {
+    /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
+    /// available:
+    ///
+    /// * [`SwhGraphProperties::node_id_unchecked`]
+    /// * [`SwhGraphProperties::node_id`]
+    /// * [`SwhGraphProperties::swhid`]
+    /// * [`SwhGraphProperties::node_type`]
     pub fn load_maps<MPHF: SwhidMphf>(
         self,
     ) -> Result<SwhGraphProperties<Maps<MPHF>, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>> {

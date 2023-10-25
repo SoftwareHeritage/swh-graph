@@ -10,7 +10,7 @@ use webgraph::prelude::RandomAccessGraph;
 
 use swh_graph::graph::SwhUnidirectionalGraph;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::properties::AllSwhGraphProperties;
+use swh_graph::AllSwhGraphProperties;
 use swh_graph::SWHID;
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";

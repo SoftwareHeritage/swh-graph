@@ -27,6 +27,11 @@ impl<
         STRINGS: StringsOption,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, (), STRINGS>
 {
+    /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
+    /// available:
+    ///
+    /// * [`SwhGraphProperties::is_skipped_content`]
+    /// * [`SwhGraphProperties::content_length`]
     pub fn load_contents(
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, Contents, STRINGS>> {

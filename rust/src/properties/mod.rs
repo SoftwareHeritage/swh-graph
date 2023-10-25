@@ -4,6 +4,24 @@
 // See top-level LICENSE file for more information
 
 //! Node labels
+//!
+//! [`SwhGraphProperties`] is populated by the `load_properties` and `load_all_properties`
+//! of [`SwhUnidirectionalGraph`](swh_graph::graph::SwhUnidirectionalGraph) and
+//! [`SwhBidirectionalGraph`](swh_graph::graph::SwhBidirectionalGraph) and returned by
+//! their `properties` method.
+//!
+//! ```no_run
+//! # use std::path::PathBuf;
+//! use swh_graph::java_compat::mph::gov::GOVMPH;
+//! use swh_graph::SwhGraphProperties;
+//!
+//! let properties: &SwhGraphProperties<_, _, _, _, _> =
+//!     swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+//!     .expect("Could not load graph")
+//!     .load_all_properties::<GOVMPH>()
+//!     .expect("Could not load properties")
+//!     .properties();
+//! ```
 
 use std::path::{Path, PathBuf};
 
@@ -37,7 +55,36 @@ pub(crate) mod suffixes {
 /// This structures has many type parameters, to allow loading only some properties,
 /// and checking at compile time that only loaded properties are accessed.
 ///
-/// Extra properties can be loaded, following the builder pattern.
+/// Extra properties can be loaded, following the builder pattern on the owning graph.
+/// For example, this does not compile:
+///
+/// ```compile_fail
+/// # use std::path::PathBuf;
+/// use swh_graph::java_compat::mph::gov::GOVMPH;
+/// use swh_graph::SwhGraphProperties;
+///
+/// swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+///     .expect("Could not load graph")
+///     .init_properties()
+///     .properties()
+///     .author_timestamp(42);
+/// ```
+///
+/// but this does:
+///
+/// ```no_run
+/// # use std::path::PathBuf;
+/// use swh_graph::java_compat::mph::gov::GOVMPH;
+/// use swh_graph::SwhGraphProperties;
+///
+/// swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+///     .expect("Could not load graph")
+///     .init_properties()
+///     .load_properties(SwhGraphProperties::load_timestamps)
+///     .expect("Could not load timestamp properties")
+///     .properties()
+///     .author_timestamp(42);
+/// ```
 pub struct SwhGraphProperties<
     MAPS: MapsOption,
     TIMESTAMPS: TimestampsOption,
@@ -80,6 +127,8 @@ fn mmap(path: &Path) -> Result<Mmap> {
 }
 
 impl SwhGraphProperties<(), (), (), (), ()> {
+    /// Creates an empty [`SwhGraphProperties`] instance, which will load properties
+    /// from the given path prefix.
     pub fn new(path: impl AsRef<Path>, num_nodes: usize) -> Self {
         SwhGraphProperties {
             path: path.as_ref().to_owned(),
@@ -91,6 +140,39 @@ impl SwhGraphProperties<(), (), (), (), ()> {
             strings: (),
         }
     }
+
+    /// Consumes an empty [`SwhGraphProperties`] instance and returns a new one
+    /// with all properties loaded and all methods available.
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    /// use swh_graph::SwhGraphProperties;
+    ///
+    /// SwhGraphProperties::new(PathBuf::from("./graph"), 123)
+    ///     .load_all::<GOVMPH>()
+    ///     .expect("Could not load properties");
+    /// ```
+    ///
+    /// is equivalent to:
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    /// use swh_graph::SwhGraphProperties;
+    ///
+    /// SwhGraphProperties::new(PathBuf::from("./graph"), 123)
+    ///     .load_maps::<GOVMPH>()
+    ///     .expect("Could not load node2swhid/swhid2node")
+    ///     .load_timestamps()
+    ///     .expect("Could not load timestamp properties")
+    ///     .load_persons()
+    ///     .expect("Could not load person properties")
+    ///     .load_contents()
+    ///     .expect("Could not load content properties")
+    ///     .load_strings()
+    ///     .expect("Could not load string properties");
+    /// ```
     pub fn load_all<MPHF: SwhidMphf>(self) -> Result<AllSwhGraphProperties<MPHF>> {
         Ok(self
             .load_maps()?
@@ -102,16 +184,16 @@ impl SwhGraphProperties<(), (), (), (), ()> {
 }
 
 mod maps;
-pub use maps::{Maps, MapsOption};
+pub(crate) use maps::{Maps, MapsOption};
 
 mod timestamps;
-pub use timestamps::{Timestamps, TimestampsOption};
+pub(crate) use timestamps::{Timestamps, TimestampsOption};
 
 mod persons;
-pub use persons::{Persons, PersonsOption};
+pub(crate) use persons::{Persons, PersonsOption};
 
 mod contents;
-pub use contents::{Contents, ContentsOption};
+pub(crate) use contents::{Contents, ContentsOption};
 
 mod strings;
-pub use strings::{Strings, StringsOption};
+pub(crate) use strings::{Strings, StringsOption};

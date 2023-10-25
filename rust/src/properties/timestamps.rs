@@ -29,6 +29,13 @@ impl<
         STRINGS: StringsOption,
     > SwhGraphProperties<MAPS, (), PERSONS, CONTENTS, STRINGS>
 {
+    /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
+    /// available:
+    ///
+    /// * [`SwhGraphProperties::author_timestamp`]
+    /// * [`SwhGraphProperties::author_timestamp_offset`]
+    /// * [`SwhGraphProperties::committer_timestamp`]
+    /// * [`SwhGraphProperties::committer_timestamp_offset`]
     pub fn load_timestamps(
         self,
     ) -> Result<SwhGraphProperties<MAPS, Timestamps, PERSONS, CONTENTS, STRINGS>> {

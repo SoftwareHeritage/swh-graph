@@ -29,6 +29,13 @@ impl<
         CONTENTS: ContentsOption,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, ()>
 {
+    /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
+    /// available:
+    ///
+    /// * [`SwhGraphProperties::message_base64`]
+    /// * [`SwhGraphProperties::message`]
+    /// * [`SwhGraphProperties::tag_name_base64`]
+    /// * [`SwhGraphProperties::tag_name`]
     pub fn load_strings(
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, Strings>> {

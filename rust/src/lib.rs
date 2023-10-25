@@ -12,7 +12,8 @@ pub use swhtype::SWHType;
 pub mod graph;
 pub mod map;
 pub mod mph;
-pub mod properties;
+mod properties;
+pub use properties::{AllSwhGraphProperties, SwhGraphProperties};
 
 #[cfg(feature = "compression")]
 pub mod compress;

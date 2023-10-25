@@ -19,6 +19,8 @@ use crate::utils::suffix_path;
 pub type NodeId = usize;
 
 /// Class representing the compressed Software Heritage graph in a single direction.
+///
+/// Created using [`load_unidirectional`]
 pub struct SwhUnidirectionalGraph<G: RandomAccessGraph, P> {
     basepath: PathBuf,
     graph: G,
@@ -162,6 +164,8 @@ impl<
 }
 
 /// Class representing the compressed Software Heritage graph in both directions.
+///
+/// Created using [`load_bidirectional`]
 pub struct SwhBidirectionalGraph<G: RandomAccessGraph, P> {
     basepath: PathBuf,
     forward_graph: G,
@@ -222,7 +226,7 @@ impl<
     /// ```no_run
     /// # use std::path::PathBuf;
     /// use swh_graph::java_compat::mph::gov::GOVMPH;
-    /// use swh_graph::properties::SwhGraphProperties;
+    /// use swh_graph::SwhGraphProperties;
     ///
     /// swh_graph::graph::load_bidirectional(PathBuf::from("./graph"))
     ///     .expect("Could not load graph")
@@ -321,6 +325,7 @@ impl<
     }
 }
 
+/// Returns a new [`SwhUnidirectionalGraph`]
 pub fn load_unidirectional(
     basepath: impl AsRef<Path>,
 ) -> Result<
@@ -341,6 +346,7 @@ pub fn load_unidirectional(
     })
 }
 
+/// Returns a new [`SwhBidirectionalGraph`]
 pub fn load_bidirectional(
     basepath: impl AsRef<Path>,
 ) -> Result<
