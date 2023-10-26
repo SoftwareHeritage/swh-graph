@@ -110,12 +110,16 @@ impl SwhidMphf for DynMphf {
 
         let fmph_path = suffix_path(basepath, ".fmph");
         if fmph_path.exists() {
-            return ph::fmph::Function::load(basepath).map(Self::Fmph);
+            return SwhidMphf::load(basepath)
+                .map(Self::Fmph)
+                .with_context(|| format!("Could not load {}", fmph_path.display()));
         }
 
         let gov_path = suffix_path(basepath, ".cmph");
         if gov_path.exists() {
-            return crate::java_compat::mph::gov::GOVMPH::load(basepath).map(Self::GOV);
+            return SwhidMphf::load(basepath)
+                .map(Self::GOV)
+                .with_context(|| format!("Could not load {}", gov_path.display()));
         }
 
         bail!(
