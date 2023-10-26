@@ -18,6 +18,52 @@ use crate::utils::suffix_path;
 /// Alias for [`usize`], which may become a newtype in a future version.
 pub type NodeId = usize;
 
+pub trait SwhGraph {
+    /// Return the number of nodes in the graph.
+    fn num_nodes(&self) -> usize;
+    /// Return the number of arcs in the graph.
+    fn num_arcs(&self) -> usize;
+    /// Return whether there is an arc going from `src_node_id` to `dst_node_id`.
+    fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool;
+}
+pub trait SwhForwardGraph: SwhGraph {
+    type Successors<'succ>: IntoIterator<Item = usize>
+    where
+        Self: 'succ;
+
+    /// Return an [`IntoIterator`] over the successors of a node.
+    fn successors(&self, node_id: NodeId) -> Self::Successors<'_>;
+    /// Return the number of successors of a node.
+    fn outdegree(&self, node_id: NodeId) -> usize;
+}
+pub trait SwhBackwardGraph: SwhGraph {
+    type Predecessors<'succ>: IntoIterator<Item = usize>
+    where
+        Self: 'succ;
+
+    /// Return an [`IntoIterator`] over the predecessors of a node.
+    fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_>;
+    /// Return the number of predecessors of a node.
+    fn indegree(&self, node_id: NodeId) -> usize;
+}
+pub trait SwhGraphWithProperties: SwhGraph {
+    type Maps: properties::MapsOption;
+    type Timestamps: properties::TimestampsOption;
+    type Persons: properties::PersonsOption;
+    type Contents: properties::ContentsOption;
+    type Strings: properties::StringsOption;
+
+    fn properties(
+        &self,
+    ) -> &properties::SwhGraphProperties<
+        Self::Maps,
+        Self::Timestamps,
+        Self::Persons,
+        Self::Contents,
+        Self::Strings,
+    >;
+}
+
 /// Class representing the compressed Software Heritage graph in a single direction.
 ///
 /// Created using [`load_unidirectional`]
@@ -33,30 +79,31 @@ pub struct SwhUnidirectionalGraph<
     properties: P,
 }
 
-impl<P, G: RandomAccessGraph> SwhUnidirectionalGraph<P, G> {
-    /// Return the number of nodes in the graph.
-    pub fn num_nodes(&self) -> usize {
+impl<P, G: RandomAccessGraph> SwhGraph for SwhUnidirectionalGraph<P, G> {
+    fn num_nodes(&self) -> usize {
         self.graph.num_nodes()
     }
 
-    /// Return the number of arcs in the graph.
-    pub fn num_arcs(&self) -> usize {
+    fn num_arcs(&self) -> usize {
         self.graph.num_arcs()
     }
 
+    fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
+        self.graph.has_arc(src_node_id, dst_node_id)
+    }
+}
+
+impl<P, G: RandomAccessGraph> SwhForwardGraph for SwhUnidirectionalGraph<P, G> {
+    type Successors<'succ> = <G as RandomAccessGraph>::Successors<'succ> where Self: 'succ;
+
     /// Return an [`IntoIterator`] over the successors of a node.
-    pub fn successors(&self, node_id: NodeId) -> <G as RandomAccessGraph>::Successors<'_> {
+    fn successors(&self, node_id: NodeId) -> <G as RandomAccessGraph>::Successors<'_> {
         self.graph.successors(node_id)
     }
 
     /// Return the number of successors of a node.
-    pub fn outdegree(&self, node_id: NodeId) -> usize {
+    fn outdegree(&self, node_id: NodeId) -> usize {
         self.graph.outdegree(node_id)
-    }
-
-    /// Return whether there is an arc going from `src_node_id` to `dst_node_id`.
-    pub fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
-        self.graph.has_arc(src_node_id, dst_node_id)
     }
 }
 
@@ -156,13 +203,19 @@ impl<
         CONTENTS: properties::ContentsOption,
         STRINGS: properties::StringsOption,
         G: RandomAccessGraph,
-    >
-    SwhUnidirectionalGraph<
+    > SwhGraphWithProperties
+    for SwhUnidirectionalGraph<
         properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>,
         G,
     >
 {
-    pub fn properties(
+    type Maps = MAPS;
+    type Timestamps = TIMESTAMPS;
+    type Persons = PERSONS;
+    type Contents = CONTENTS;
+    type Strings = STRINGS;
+
+    fn properties(
         &self,
     ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS> {
         &self.properties
@@ -185,40 +238,39 @@ pub struct SwhBidirectionalGraph<
     properties: P,
 }
 
-impl<P, G: RandomAccessGraph> SwhBidirectionalGraph<P, G> {
-    /// Return the number of nodes in the graph.
-    pub fn num_nodes(&self) -> usize {
+impl<P, G: RandomAccessGraph> SwhGraph for SwhBidirectionalGraph<P, G> {
+    fn num_nodes(&self) -> usize {
         self.forward_graph.num_nodes()
     }
 
-    /// Return the number of arcs in the graph.
-    pub fn num_arcs(&self) -> usize {
+    fn num_arcs(&self) -> usize {
         self.forward_graph.num_arcs()
     }
 
-    /// Return an [`IntoIterator`] over the successors of a node.
-    pub fn successors(&self, node_id: NodeId) -> <G as RandomAccessGraph>::Successors<'_> {
+    fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
+        self.forward_graph.has_arc(src_node_id, dst_node_id)
+    }
+}
+
+impl<P, G: RandomAccessGraph> SwhForwardGraph for SwhBidirectionalGraph<P, G> {
+    type Successors<'succ> = <G as RandomAccessGraph>::Successors<'succ> where Self: 'succ;
+    fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         self.forward_graph.successors(node_id)
     }
+    fn outdegree(&self, node_id: NodeId) -> usize {
+        self.forward_graph.outdegree(node_id)
+    }
+}
 
-    /// Return an [`IntoIterator`] over the ancestors of a node.
-    pub fn ancestors(&self, node_id: NodeId) -> <G as RandomAccessGraph>::Successors<'_> {
+impl<P, G: RandomAccessGraph> SwhBackwardGraph for SwhBidirectionalGraph<P, G> {
+    type Predecessors<'succ> = <G as RandomAccessGraph>::Successors<'succ> where Self: 'succ;
+
+    fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
         self.backward_graph.successors(node_id)
     }
 
-    /// Return the number of successors of a node.
-    pub fn outdegree(&self, node_id: NodeId) -> usize {
-        self.forward_graph.outdegree(node_id)
-    }
-
-    /// Return the number of ancestors of a node.
-    pub fn indegree(&self, node_id: NodeId) -> usize {
+    fn indegree(&self, node_id: NodeId) -> usize {
         self.backward_graph.outdegree(node_id)
-    }
-
-    /// Return whether there is an arc going from `src_node_id` to `dst_node_id`.
-    pub fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
-        self.forward_graph.has_arc(src_node_id, dst_node_id)
     }
 }
 
@@ -324,13 +376,19 @@ impl<
         CONTENTS: properties::ContentsOption,
         STRINGS: properties::StringsOption,
         G: RandomAccessGraph,
-    >
-    SwhBidirectionalGraph<
+    > SwhGraphWithProperties
+    for SwhBidirectionalGraph<
         properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>,
         G,
     >
 {
-    pub fn properties(
+    type Maps = MAPS;
+    type Timestamps = TIMESTAMPS;
+    type Persons = PERSONS;
+    type Contents = CONTENTS;
+    type Strings = STRINGS;
+
+    fn properties(
         &self,
     ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS> {
         &self.properties

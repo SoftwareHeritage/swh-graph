@@ -1781,7 +1781,6 @@ dependencies = [
 name = "swh_graph_pyo3"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "pyo3",
  "swh-graph",
 ]

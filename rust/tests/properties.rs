@@ -6,7 +6,7 @@
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 
-use swh_graph::graph::SwhUnidirectionalGraph;
+use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::AllSwhGraphProperties;
 use swh_graph::SWHID;
@@ -14,12 +14,10 @@ use swh_graph::SWHID;
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
 fn graph() -> Result<SwhUnidirectionalGraph<AllSwhGraphProperties<GOVMPH>>> {
-    Ok(
-        swh_graph::graph::load_unidirectional(PathBuf::from(BASENAME))
-            .context("Could not load graph")?
-            .load_all_properties()
-            .context("Could not load graph properties")?,
-    )
+    Ok(load_unidirectional(PathBuf::from(BASENAME))
+        .context("Could not load graph")?
+        .load_all_properties()
+        .context("Could not load graph properties")?)
 }
 
 #[test]

@@ -9,6 +9,7 @@ use dsi_progress_logger::ProgressLogger;
 use log::{debug, info};
 use std::collections::VecDeque;
 use std::path::PathBuf;
+use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
@@ -23,7 +24,7 @@ pub fn main() -> Result<()> {
         .init()
         .unwrap();
 
-    let graph = swh_graph::graph::load_unidirectional(PathBuf::from(BASENAME))
+    let graph = load_unidirectional(PathBuf::from(BASENAME))
         .context("Could not load graph")?
         .init_properties()
         .load_properties(|properties| properties.load_maps::<GOVMPH>())

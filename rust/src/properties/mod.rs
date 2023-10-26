@@ -12,6 +12,7 @@
 //!
 //! ```no_run
 //! # use std::path::PathBuf;
+//! use swh_graph::graph::SwhGraphWithProperties;
 //! use swh_graph::java_compat::mph::gov::GOVMPH;
 //! use swh_graph::SwhGraphProperties;
 //!
@@ -60,6 +61,7 @@ pub(crate) mod suffixes {
 ///
 /// ```compile_fail
 /// # use std::path::PathBuf;
+/// use swh_graph::graph::SwhGraphWithProperties;
 /// use swh_graph::java_compat::mph::gov::GOVMPH;
 /// use swh_graph::SwhGraphProperties;
 ///
@@ -74,6 +76,7 @@ pub(crate) mod suffixes {
 ///
 /// ```no_run
 /// # use std::path::PathBuf;
+/// use swh_graph::graph::SwhGraphWithProperties;
 /// use swh_graph::java_compat::mph::gov::GOVMPH;
 /// use swh_graph::SwhGraphProperties;
 ///
@@ -146,6 +149,7 @@ impl SwhGraphProperties<(), (), (), (), ()> {
     ///
     /// ```no_run
     /// # use std::path::PathBuf;
+    ///  use swh_graph::graph::SwhGraphWithProperties;
     /// use swh_graph::java_compat::mph::gov::GOVMPH;
     /// use swh_graph::SwhGraphProperties;
     ///

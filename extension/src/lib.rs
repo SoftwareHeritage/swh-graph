@@ -9,7 +9,7 @@ use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 
-use swh_graph::graph;
+use swh_graph::graph::*;
 use swh_graph::mph::DynMphf;
 
 create_exception!(
@@ -20,28 +20,27 @@ create_exception!(
 );
 
 #[pyclass]
-struct BidirectionalGraph(graph::SwhBidirectionalGraph<swh_graph::AllSwhGraphProperties<DynMphf>>);
+struct BidirectionalGraph(SwhBidirectionalGraph<swh_graph::AllSwhGraphProperties<DynMphf>>);
 
 #[pymethods]
 impl BidirectionalGraph {
     #[new]
     fn new(path: PathBuf) -> PyResult<BidirectionalGraph> {
-        Ok(BidirectionalGraph(
-            graph::load_bidirectional(&path)
-                .map_err(|e| {
-                    SwhGraphError::new_err(format!(
-                        "Could not initialize BidirectionalGraph properties: {:?}",
-                        e
-                    ))
-                })?
-                .load_all_properties::<DynMphf>()
-                .map_err(|e| {
-                    SwhGraphError::new_err(format!(
-                        "Could not load BidirectionalGraph properties: {:?}",
-                        e
-                    ))
-                })?,
-        ))
+        let g = load_bidirectional(&path)
+            .map_err(|e| {
+                SwhGraphError::new_err(format!(
+                    "Could not initialize BidirectionalGraph properties: {:?}",
+                    e
+                ))
+            })?
+            .load_all_properties::<DynMphf>()
+            .map_err(|e| {
+                SwhGraphError::new_err(format!(
+                    "Could not load BidirectionalGraph properties: {:?}",
+                    e
+                ))
+            })?;
+        Ok(BidirectionalGraph(g))
     }
 
     #[getter]
@@ -66,8 +65,8 @@ impl BidirectionalGraph {
         self.0.has_arc(src_node_id, dst_node_id)
     }
 
-    fn ancestors(&self, node_id: usize) -> Vec<usize> {
-        self.0.ancestors(node_id).collect()
+    fn predecessors(&self, node_id: usize) -> Vec<usize> {
+        self.0.predecessors(node_id).collect()
     }
 
     fn indegree(&self, node_id: usize) -> usize {
