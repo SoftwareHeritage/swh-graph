@@ -4,7 +4,11 @@ resolver = "2"
 
 members = [
     "rust",
+    "extension"
 ]
+
+[workspace.package]
+version = "0.1.0"
 
 [profile.release] # Used for the examples
 opt-level = 3             # like --release
