@@ -21,13 +21,19 @@ pub type NodeId = usize;
 /// Class representing the compressed Software Heritage graph in a single direction.
 ///
 /// Created using [`load_unidirectional`]
-pub struct SwhUnidirectionalGraph<G: RandomAccessGraph, P> {
+pub struct SwhUnidirectionalGraph<
+    P,
+    G: RandomAccessGraph = BVGraph<
+        DynamicCodesReaderBuilder<dsi_bitstream::prelude::BE, MmapBackend<u32>>,
+        webgraph::EF<&'static [usize]>,
+    >,
+> {
     basepath: PathBuf,
     graph: G,
     properties: P,
 }
 
-impl<G: RandomAccessGraph, P> SwhUnidirectionalGraph<G, P> {
+impl<P, G: RandomAccessGraph> SwhUnidirectionalGraph<P, G> {
     /// Return the number of nodes in the graph.
     pub fn num_nodes(&self) -> usize {
         self.graph.num_nodes()
@@ -55,13 +61,13 @@ impl<G: RandomAccessGraph, P> SwhUnidirectionalGraph<G, P> {
 }
 
 impl<
-        G: RandomAccessGraph,
         M: properties::MapsOption,
         T: properties::TimestampsOption,
         P: properties::PersonsOption,
         C: properties::ContentsOption,
         S: properties::StringsOption,
-    > SwhUnidirectionalGraph<G, properties::SwhGraphProperties<M, T, P, C, S>>
+        G: RandomAccessGraph,
+    > SwhUnidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S>, G>
 {
     /// Enriches the graph with more properties mmapped from disk
     ///
@@ -90,7 +96,7 @@ impl<
         loader: impl Fn(
             properties::SwhGraphProperties<M, T, P, C, S>,
         ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2>>,
-    ) -> Result<SwhUnidirectionalGraph<G, properties::SwhGraphProperties<M2, T2, P2, C2, S2>>> {
+    ) -> Result<SwhUnidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2>, G>> {
         Ok(SwhUnidirectionalGraph {
             properties: loader(self.properties)?,
             basepath: self.basepath,
@@ -99,11 +105,11 @@ impl<
     }
 }
 
-impl<G: RandomAccessGraph> SwhUnidirectionalGraph<G, ()> {
+impl<G: RandomAccessGraph> SwhUnidirectionalGraph<(), G> {
     /// Prerequisite for `load_properties`
     pub fn init_properties(
         self,
-    ) -> SwhUnidirectionalGraph<G, properties::SwhGraphProperties<(), (), (), (), ()>> {
+    ) -> SwhUnidirectionalGraph<properties::SwhGraphProperties<(), (), (), (), ()>, G> {
         SwhUnidirectionalGraph {
             properties: properties::SwhGraphProperties::new(&self.basepath, self.graph.num_nodes()),
             basepath: self.basepath,
@@ -128,7 +134,6 @@ impl<G: RandomAccessGraph> SwhUnidirectionalGraph<G, ()> {
         self,
     ) -> Result<
         SwhUnidirectionalGraph<
-            G,
             properties::SwhGraphProperties<
                 properties::Maps<MPHF>,
                 properties::Timestamps,
@@ -136,6 +141,7 @@ impl<G: RandomAccessGraph> SwhUnidirectionalGraph<G, ()> {
                 properties::Contents,
                 properties::Strings,
             >,
+            G,
         >,
     > {
         self.init_properties()
@@ -144,16 +150,16 @@ impl<G: RandomAccessGraph> SwhUnidirectionalGraph<G, ()> {
 }
 
 impl<
-        G: RandomAccessGraph,
         MAPS: properties::MapsOption,
         TIMESTAMPS: properties::TimestampsOption,
         PERSONS: properties::PersonsOption,
         CONTENTS: properties::ContentsOption,
         STRINGS: properties::StringsOption,
+        G: RandomAccessGraph,
     >
     SwhUnidirectionalGraph<
-        G,
         properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>,
+        G,
     >
 {
     pub fn properties(
@@ -166,14 +172,20 @@ impl<
 /// Class representing the compressed Software Heritage graph in both directions.
 ///
 /// Created using [`load_bidirectional`]
-pub struct SwhBidirectionalGraph<G: RandomAccessGraph, P> {
+pub struct SwhBidirectionalGraph<
+    P,
+    G: RandomAccessGraph = BVGraph<
+        DynamicCodesReaderBuilder<dsi_bitstream::prelude::BE, MmapBackend<u32>>,
+        webgraph::EF<&'static [usize]>,
+    >,
+> {
     basepath: PathBuf,
     forward_graph: G,
     backward_graph: G,
     properties: P,
 }
 
-impl<G: RandomAccessGraph, P> SwhBidirectionalGraph<G, P> {
+impl<P, G: RandomAccessGraph> SwhBidirectionalGraph<P, G> {
     /// Return the number of nodes in the graph.
     pub fn num_nodes(&self) -> usize {
         self.forward_graph.num_nodes()
@@ -211,13 +223,13 @@ impl<G: RandomAccessGraph, P> SwhBidirectionalGraph<G, P> {
 }
 
 impl<
-        G: RandomAccessGraph,
         M: properties::MapsOption,
         T: properties::TimestampsOption,
         P: properties::PersonsOption,
         C: properties::ContentsOption,
         S: properties::StringsOption,
-    > SwhBidirectionalGraph<G, properties::SwhGraphProperties<M, T, P, C, S>>
+        G: RandomAccessGraph,
+    > SwhBidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S>, G>
 {
     /// Enriches the graph with more properties mmapped from disk
     ///
@@ -247,7 +259,7 @@ impl<
         loader: impl Fn(
             properties::SwhGraphProperties<M, T, P, C, S>,
         ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2>>,
-    ) -> Result<SwhBidirectionalGraph<G, properties::SwhGraphProperties<M2, T2, P2, C2, S2>>> {
+    ) -> Result<SwhBidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2>, G>> {
         Ok(SwhBidirectionalGraph {
             properties: loader(self.properties)?,
             basepath: self.basepath,
@@ -257,11 +269,11 @@ impl<
     }
 }
 
-impl<G: RandomAccessGraph> SwhBidirectionalGraph<G, ()> {
+impl<G: RandomAccessGraph> SwhBidirectionalGraph<(), G> {
     /// Prerequisite for `load_properties`
     pub fn init_properties(
         self,
-    ) -> SwhBidirectionalGraph<G, properties::SwhGraphProperties<(), (), (), (), ()>> {
+    ) -> SwhBidirectionalGraph<properties::SwhGraphProperties<(), (), (), (), ()>, G> {
         SwhBidirectionalGraph {
             properties: properties::SwhGraphProperties::new(
                 &self.basepath,
@@ -290,7 +302,6 @@ impl<G: RandomAccessGraph> SwhBidirectionalGraph<G, ()> {
         self,
     ) -> Result<
         SwhBidirectionalGraph<
-            G,
             properties::SwhGraphProperties<
                 properties::Maps<MPHF>,
                 properties::Timestamps,
@@ -298,6 +309,7 @@ impl<G: RandomAccessGraph> SwhBidirectionalGraph<G, ()> {
                 properties::Contents,
                 properties::Strings,
             >,
+            G,
         >,
     > {
         self.init_properties()
@@ -306,16 +318,16 @@ impl<G: RandomAccessGraph> SwhBidirectionalGraph<G, ()> {
 }
 
 impl<
-        G: RandomAccessGraph,
         MAPS: properties::MapsOption,
         TIMESTAMPS: properties::TimestampsOption,
         PERSONS: properties::PersonsOption,
         CONTENTS: properties::ContentsOption,
         STRINGS: properties::StringsOption,
+        G: RandomAccessGraph,
     >
     SwhBidirectionalGraph<
-        G,
         properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>,
+        G,
     >
 {
     pub fn properties(
@@ -326,17 +338,7 @@ impl<
 }
 
 /// Returns a new [`SwhUnidirectionalGraph`]
-pub fn load_unidirectional(
-    basepath: impl AsRef<Path>,
-) -> Result<
-    SwhUnidirectionalGraph<
-        BVGraph<
-            DynamicCodesReaderBuilder<dsi_bitstream::prelude::BE, MmapBackend<u32>>,
-            webgraph::EF<&'static [usize]>,
-        >,
-        (),
-    >,
-> {
+pub fn load_unidirectional(basepath: impl AsRef<Path>) -> Result<SwhUnidirectionalGraph<()>> {
     let basepath = basepath.as_ref().to_owned();
     let graph = webgraph::graph::bvgraph::load(&basepath)?;
     Ok(SwhUnidirectionalGraph {
@@ -347,17 +349,7 @@ pub fn load_unidirectional(
 }
 
 /// Returns a new [`SwhBidirectionalGraph`]
-pub fn load_bidirectional(
-    basepath: impl AsRef<Path>,
-) -> Result<
-    SwhBidirectionalGraph<
-        BVGraph<
-            DynamicCodesReaderBuilder<dsi_bitstream::prelude::BE, MmapBackend<u32>>,
-            webgraph::EF<&'static [usize]>,
-        >,
-        (),
-    >,
-> {
+pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectionalGraph<()>> {
     let basepath = basepath.as_ref().to_owned();
     let forward_graph = webgraph::graph::bvgraph::load(&basepath)?;
     let backward_graph = webgraph::graph::bvgraph::load(suffix_path(&basepath, "-transposed"))?;
