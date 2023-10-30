@@ -46,9 +46,24 @@ epserde = "0.1.2"
 bytemuck = "1.14.0"
 common_traits = "0.8.0"
 lender = {git = "https://github.com/WanderLanz/Lender"}
+serde_json = { version = "1.0", optional = true }
+serde = { version = "1.0.189", optional = true }
+serde_derive = { version = "1.0.189", optional = true }
+chrono = { version = "0.4.31", features = ["serde"], optional = true }
+
+# grpc
+prost = { version = "0.12", optional = true }
+prost-types = { version = "0.12", optional = true }
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"], optional = true }
+tokio-stream = "0.1"
+tonic = { version = "0.10.2", optional = true }
+tonic-reflection = { version = "0.10.2", optional = true }
 
 [dev-dependencies]
 bitvec = { version = "1.0.1", features = ["atomic"] }
+
+[build-dependencies]
+tonic-build = { version = "0.10.2", optional = true }
 
 [features]
 default = []
@@ -56,6 +71,23 @@ default = []
 # Reads dataset from ORC files and produces a compressed graph
 compression = ["orcxx", "orcxx_derive", "sha1"]
 
+grpc-server = [
+    "chrono",
+    "serde",
+    "serde_derive",
+    "serde_json",
+    "tonic",
+    "tonic-build",
+    "tonic-reflection",
+    "prost",
+    "prost-types",
+    "tokio"
+]
+
 [[bin]]
 name = "compress"
 required-features = ["compression"]
+
+[[bin]]
+name = "grpc-serve"
+required-features = ["grpc-server"]

@@ -93,7 +93,7 @@ impl LongArrayBitVector<NumberMmap<LittleEndian, u64, Mmap>> {
         file.read(&mut buf)
             .with_context(|| format!("Could not read length field of {}", path.display()))?;
         let num_bits = BigEndian::read_u64(&buf);
-        if num_bits != expected_num_bits.try_into().unwrap() {
+        if num_bits != u64::try_from(expected_num_bits).unwrap() {
             bail!(
                 "expected {} bits in {}, got {}",
                 num_bits,
@@ -112,10 +112,11 @@ impl LongArrayBitVector<NumberMmap<LittleEndian, u64, Mmap>> {
 
         assert_eq!(
             OFFSET_BYTES,
-            file.stream_position()
-                .with_context(|| format!("Could not get position in {}", path.display()))?
-                .try_into()
-                .unwrap()
+            usize::try_from(
+                file.stream_position()
+                    .with_context(|| format!("Could not get position in {}", path.display()))?
+            )
+            .unwrap()
         );
 
         // Seek to end, read and check footer

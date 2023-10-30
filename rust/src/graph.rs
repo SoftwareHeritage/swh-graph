@@ -19,6 +19,8 @@ use crate::utils::suffix_path;
 pub type NodeId = usize;
 
 pub trait SwhGraph {
+    /// Return the base path of the graph
+    fn path(&self) -> &Path;
     /// Return the number of nodes in the graph.
     fn num_nodes(&self) -> usize;
     /// Return the number of arcs in the graph.
@@ -80,6 +82,10 @@ pub struct SwhUnidirectionalGraph<
 }
 
 impl<P, G: RandomAccessGraph> SwhGraph for SwhUnidirectionalGraph<P, G> {
+    fn path(&self) -> &Path {
+        self.basepath.as_path()
+    }
+
     fn num_nodes(&self) -> usize {
         self.graph.num_nodes()
     }
@@ -239,6 +245,10 @@ pub struct SwhBidirectionalGraph<
 }
 
 impl<P, G: RandomAccessGraph> SwhGraph for SwhBidirectionalGraph<P, G> {
+    fn path(&self) -> &Path {
+        self.basepath.as_path()
+    }
+
     fn num_nodes(&self) -> usize {
         self.forward_graph.num_nodes()
     }
