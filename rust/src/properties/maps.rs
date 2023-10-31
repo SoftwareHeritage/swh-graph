@@ -26,6 +26,33 @@ pub struct Maps<MPHF: SwhidMphf> {
 impl<MPHF: SwhidMphf> MapsOption for Maps<MPHF> {}
 impl MapsOption for () {}
 
+/// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
+pub trait MapsTrait {
+    type MPHF: SwhidMphf;
+
+    fn mphf(&self) -> &Self::MPHF;
+    fn order(&self) -> &MappedPermutation;
+    fn node2swhid(&self) -> &Node2SWHID<Mmap>;
+    fn node2type(&self) -> &Node2Type<UsizeMmap<Mmap>>;
+}
+
+impl<MPHF: SwhidMphf> MapsTrait for Maps<MPHF> {
+    type MPHF = MPHF;
+
+    fn mphf(&self) -> &Self::MPHF {
+        &self.mphf
+    }
+    fn order(&self) -> &MappedPermutation {
+        &self.order
+    }
+    fn node2swhid(&self) -> &Node2SWHID<Mmap> {
+        &self.node2swhid
+    }
+    fn node2type(&self) -> &Node2Type<UsizeMmap<Mmap>> {
+        &self.node2type
+    }
+}
+
 impl<
         TIMESTAMPS: TimestampsOption,
         PERSONS: PersonsOption,
@@ -66,12 +93,12 @@ impl<
 }
 
 impl<
-        MPHF: SwhidMphf,
+        MAPS: MapsOption + MapsTrait,
         TIMESTAMPS: TimestampsOption,
         PERSONS: PersonsOption,
         CONTENTS: ContentsOption,
         STRINGS: StringsOption,
-    > SwhGraphProperties<Maps<MPHF>, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
 {
     /// Returns the node id of the given SWHID
     ///
@@ -82,9 +109,9 @@ impl<
     /// May panic if the SWHID does not exist in the graph.
     #[inline]
     pub unsafe fn node_id_unchecked(&self, swhid: &SWHID) -> NodeId {
-        self.maps.order.get_unchecked(
+        self.maps.order().get_unchecked(
             self.maps
-                .mphf
+                .mphf()
                 .hash_swhid(swhid)
                 .unwrap_or_else(|| panic!("Unknown SWHID {}", swhid)),
         )
@@ -94,8 +121,11 @@ impl<
     #[inline]
     pub fn node_id<T: TryInto<SWHID>>(&self, swhid: T) -> Option<NodeId> {
         let swhid = swhid.try_into().ok()?;
-        let node_id = self.maps.order.get(self.maps.mphf.hash_swhid(&swhid)?)?;
-        if self.maps.node2swhid.get(node_id)? == swhid {
+        let node_id = self
+            .maps
+            .order()
+            .get(self.maps.mphf().hash_swhid(&swhid)?)?;
+        if self.maps.node2swhid().get(node_id)? == swhid {
             Some(node_id)
         } else {
             None
@@ -105,12 +135,12 @@ impl<
     /// Returns the SWHID of a given node
     #[inline]
     pub fn swhid(&self, node_id: NodeId) -> Option<SWHID> {
-        self.maps.node2swhid.get(node_id)
+        self.maps.node2swhid().get(node_id)
     }
 
     /// Returns the type of a given node
     #[inline]
     pub fn node_type(&self, node_id: NodeId) -> Option<SWHType> {
-        self.maps.node2type.get(node_id)
+        self.maps.node2type().get(node_id)
     }
 }

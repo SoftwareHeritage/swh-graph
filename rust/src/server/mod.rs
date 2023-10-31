@@ -5,15 +5,21 @@
 
 use std::collections::HashMap;
 use std::io::Read;
+use std::ops::Deref;
 use std::path::Path;
 use std::str::FromStr;
+use std::sync::Arc;
 
+use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::Server;
 use tonic::{Request, Response};
 
-use crate::graph::{SwhBidirectionalGraph, SwhGraph};
+use crate::graph::{
+    SwhBidirectionalGraph, SwhForwardGraph, SwhGraph, SwhGraphWithProperties, Transposed,
+};
 use crate::mph::SwhidMphf;
+use crate::properties;
 use crate::utils::suffix_path;
 use crate::AllSwhGraphProperties;
 
@@ -24,50 +30,177 @@ pub mod proto {
         tonic::include_file_descriptor_set!("swhgraph_descriptor");
 }
 
+pub mod traversal;
+
 type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
+pub struct TraversalService<MPHF: SwhidMphf>(
+    Arc<SwhBidirectionalGraph<AllSwhGraphProperties<MPHF>>>,
+);
+
+impl<MPHF: SwhidMphf> TraversalService<MPHF> {
+    fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status> {
+        let swhid: crate::SWHID = swhid
+            .try_into()
+            .map_err(|e| tonic::Status::invalid_argument(format!("Invalid SWHID: {e}")))?;
+        self.0
+            .properties()
+            .node_id(swhid)
+            .ok_or_else(|| tonic::Status::not_found(format!("Unknown SWHID: {swhid}")))
+    }
+
+    async fn undirected_traverse<G: Deref + Clone + Send + Sync + 'static>(
+        &self,
+        request: Request<proto::TraversalRequest>,
+        graph: G,
+    ) -> TonicResult<ReceiverStream<Result<proto::Node, tonic::Status>>>
+    where
+        G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
+        <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait + properties::MapsOption,
+    {
+        let request = request.get_ref().clone();
+        let allowed_edges = request.edges.unwrap_or("*".to_owned());
+        let return_nodes = request.return_nodes.unwrap_or_default();
+        if allowed_edges != "*" {
+            return Err(tonic::Status::unimplemented("edges filter"));
+        }
+        if request.max_edges.is_some() {
+            return Err(tonic::Status::unimplemented("max_edge filter"));
+        }
+        if request.min_depth.is_some() {
+            return Err(tonic::Status::unimplemented("min_depth filter"));
+        }
+        if request.max_depth.is_some() {
+            return Err(tonic::Status::unimplemented("max_depth filter"));
+        }
+        if return_nodes.types.unwrap_or("*".to_owned()) != "*" {
+            return Err(tonic::Status::unimplemented("return_nodes.types filter"));
+        }
+        let max_matching_nodes = match request.max_matching_nodes {
+            None => usize::MAX,
+            Some(0) => usize::MAX, // Quirk-compatibility with the Java implementation
+            Some(max_nodes) => max_nodes.try_into().map_err(|_| {
+                tonic::Status::invalid_argument("max_matching_nodes must be a positive integer")
+            })?,
+        };
+        let min_traversal_successors = match return_nodes.min_traversal_successors {
+            None => 0,
+            Some(min_succ) => min_succ.try_into().map_err(|_| {
+                tonic::Status::invalid_argument(
+                    "min_traversal_successors must be a positive integer",
+                )
+            })?,
+        };
+        let max_traversal_successors = match return_nodes.max_traversal_successors {
+            None => usize::MAX,
+            Some(max_succ) => max_succ.try_into().map_err(|_| {
+                tonic::Status::invalid_argument(
+                    "max_traversal_successors must be a positive integer",
+                )
+            })?,
+        };
+        let mut num_matching_nodes = 0;
+        let (tx, rx) = mpsc::channel(1_000);
+        let mut visitor = traversal::SimpleBfsVisitor::new(
+            graph.clone(),
+            move |node| {
+                if graph.outdegree(node) < min_traversal_successors {
+                    return Ok(true);
+                }
+                if graph.outdegree(node) > max_traversal_successors {
+                    return Ok(true);
+                }
+                num_matching_nodes += 1;
+                if num_matching_nodes > max_matching_nodes {
+                    return Err(None);
+                }
+                tx.blocking_send(Ok(proto::Node {
+                    swhid: graph
+                        .properties()
+                        .swhid(node)
+                        .expect("Unknown node id")
+                        .to_string(),
+                    successor: Vec::new(),
+                    num_successors: None,
+                    data: None,
+                }))
+                .map(|()| true)
+                .map_err(Some)
+            },
+            |_src, _dst| Ok(true),
+        );
+        for src in &request.src {
+            visitor.push(self.try_get_node_id(src)?);
+        }
+        // Spawning a thread because it's too annoying to add async support in
+        // SimpleBfsVisitor
+        tokio::spawn(async move { std::thread::spawn(|| visitor.visit()).join() });
+
+        Ok(Response::new(ReceiverStream::new(rx)))
+    }
+}
+
 #[tonic::async_trait]
-impl<MPHF: SwhidMphf + Send + Sync + 'static> proto::traversal_service_server::TraversalService
-    for SwhBidirectionalGraph<AllSwhGraphProperties<MPHF>>
+impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::TraversalService
+    for TraversalService<MPHF>
 {
     async fn get_node(&self, _request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
-        unimplemented!("oh no");
+        Err(tonic::Status::unimplemented(
+            "get_node is not implemented yet",
+        ))
     }
 
     type TraverseStream = ReceiverStream<Result<proto::Node, tonic::Status>>;
     async fn traverse(
         &self,
-        _request: Request<proto::TraversalRequest>,
+        request: Request<proto::TraversalRequest>,
     ) -> TonicResult<Self::TraverseStream> {
-        Err(tonic::Status::unimplemented("oh no"))
+        let graph = self.0.clone();
+
+        match request.get_ref().direction.try_into() {
+            Ok(proto::GraphDirection::Forward) => self.undirected_traverse(request, graph).await,
+            Ok(proto::GraphDirection::Backward) => {
+                self.undirected_traverse(request, Arc::new(Transposed(graph)))
+                    .await
+            }
+            Err(_) => Err(tonic::Status::invalid_argument("Invalid direction")),
+        }
     }
 
     async fn find_path_to(
         &self,
         _request: Request<proto::FindPathToRequest>,
     ) -> TonicResult<proto::Path> {
-        Err(tonic::Status::unimplemented("oh no"))
+        Err(tonic::Status::unimplemented(
+            "find_path_to is not implemented yet",
+        ))
     }
 
     async fn find_path_between(
         &self,
         _request: Request<proto::FindPathBetweenRequest>,
     ) -> TonicResult<proto::Path> {
-        Err(tonic::Status::unimplemented("oh no"))
+        Err(tonic::Status::unimplemented(
+            "find_path_between is not implemented yet",
+        ))
     }
 
     async fn count_nodes(
         &self,
         _request: Request<proto::TraversalRequest>,
     ) -> TonicResult<proto::CountResponse> {
-        Err(tonic::Status::unimplemented("oh no"))
+        Err(tonic::Status::unimplemented(
+            "count_nodes is not implemented yet",
+        ))
     }
 
     async fn count_edges(
         &self,
         _request: Request<proto::TraversalRequest>,
     ) -> TonicResult<proto::CountResponse> {
-        Err(tonic::Status::unimplemented("oh no"))
+        Err(tonic::Status::unimplemented(
+            "count_edges is not implemented yet",
+        ))
     }
 
     async fn stats(
@@ -75,23 +208,24 @@ impl<MPHF: SwhidMphf + Send + Sync + 'static> proto::traversal_service_server::T
         _request: Request<proto::StatsRequest>,
     ) -> TonicResult<proto::StatsResponse> {
         // Load properties
-        let properties_path = suffix_path(self.path(), ".properties");
+        let properties_path = suffix_path(self.0.path(), ".properties");
         let properties_path = properties_path.as_path();
         let properties = load_properties(properties_path, ".stats")?;
 
         // Load stats
-        let stats_path = suffix_path(self.path(), ".stats");
+        let stats_path = suffix_path(self.0.path(), ".stats");
         let stats_path = stats_path.as_path();
         let stats = load_properties(stats_path, ".stats")?;
 
         // Load export metadata
         let export_meta_path = self
+            .0
             .path()
             .parent()
             .ok_or_else(|| {
                 log::error!(
                     "Could not get path to meta/export.json from {}",
-                    self.path().display()
+                    self.0.path().display()
                 );
                 tonic::Status::internal("Could not find meta/export.json file")
             })?
@@ -102,8 +236,8 @@ impl<MPHF: SwhidMphf + Send + Sync + 'static> proto::traversal_service_server::T
         let export_meta = export_meta.as_ref();
 
         Ok(Response::new(proto::StatsResponse {
-            num_nodes: self.num_nodes() as i64,
-            num_edges: self.num_arcs() as i64,
+            num_nodes: self.0.num_nodes() as i64,
+            num_edges: self.0.num_arcs() as i64,
             compression_ratio: get_property(&properties, properties_path, "compratio")?,
             bits_per_node: get_property(&properties, properties_path, "bitspernode")?,
             bits_per_edge: get_property(&properties, properties_path, "bitsperlink")?,
@@ -187,8 +321,11 @@ pub async fn serve<MPHF: SwhidMphf + Send + Sync + 'static>(
     graph: SwhBidirectionalGraph<AllSwhGraphProperties<MPHF>>,
     bind_addr: std::net::SocketAddr,
 ) -> Result<(), tonic::transport::Error> {
+    let graph = Arc::new(graph);
     Server::builder()
-        .add_service(proto::traversal_service_server::TraversalServiceServer::new(graph))
+        .add_service(
+            proto::traversal_service_server::TraversalServiceServer::new(TraversalService(graph)),
+        )
         .add_service(
             tonic_reflection::server::Builder::configure()
                 //.register_encoded_file_descriptor_set(tonic_reflection::pb::FILE_DESCRIPTOR_SET)

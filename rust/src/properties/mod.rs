@@ -188,7 +188,7 @@ impl SwhGraphProperties<(), (), (), (), ()> {
 }
 
 mod maps;
-pub(crate) use maps::{Maps, MapsOption};
+pub(crate) use maps::{Maps, MapsOption, MapsTrait};
 
 mod timestamps;
 pub(crate) use timestamps::{Timestamps, TimestampsOption};

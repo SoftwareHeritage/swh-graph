@@ -35,8 +35,6 @@ def test_stats(graph_client):
 
 
 def test_leaves(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = list(graph_client.leaves(TEST_ORIGIN_ID))
     expected = [
         "swh:1:cnt:0000000000000000000000000000000000000001",
@@ -51,8 +49,6 @@ def test_leaves(graph_client, graph_grpc_backend_implementation):
 def test_leaves_with_limit(
     graph_client, max_matching_nodes, graph_grpc_backend_implementation
 ):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.leaves(TEST_ORIGIN_ID, max_matching_nodes=max_matching_nodes)
     )
