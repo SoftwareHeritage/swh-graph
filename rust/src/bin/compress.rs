@@ -642,14 +642,16 @@ pub fn main() -> Result<()> {
             input,
             output,
         } => {
-            log::info!("Loading permutations...");
+            let num_permutations = input.len();
+            log::info!("Loading permutation 1/{}...", num_permutations);
             let mut output_file = File::create(&output)
                 .with_context(|| format!("Could not open {}", output.display()))?;
             let mut inputs_iter = input.into_iter();
             let input_path = inputs_iter.next().expect("No permutation provided");
             let mut permutation = OwnedPermutation::load(num_nodes, input_path.as_path())
                 .with_context(|| format!("Could not load {}", input_path.display()))?;
-            for next_input_path in inputs_iter {
+            for (i, next_input_path) in inputs_iter.enumerate() {
+                log::info!("Composing permutation {}/{}...", i + 2, num_permutations);
                 let next_permutation =
                     MappedPermutation::load(num_nodes, next_input_path.as_path())
                         .with_context(|| format!("Could not load {}", next_input_path.display()))?;
