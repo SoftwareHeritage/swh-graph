@@ -1,4 +1,4 @@
-# Copyright (C) 2021-2022  The Software Heritage developers
+# Copyright (C) 2021-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -19,7 +19,7 @@ from swh.graph.config import check_config
 logger = logging.getLogger(__name__)
 
 
-def build_grpc_server_cmdline(**config):
+def build_java_grpc_server_cmdline(**config):
     port = config.pop("port", None)
     if port is None:
         port = aiohttp.test_utils.unused_port()
@@ -40,8 +40,34 @@ def build_grpc_server_cmdline(**config):
     return cmd, port
 
 
+def build_rust_grpc_server_cmdline(**config):
+    port = config.pop("port", None)
+    if port is None:
+        port = aiohttp.test_utils.unused_port()
+        logger.debug("Port not configured, using random port %s", port)
+    if config.get("debug", False):
+        cmd = ["./target/debug/grpc-serve"]
+    else:
+        cmd = ["./target/release/grpc-serve"]
+    logger.debug("Checking configuration and populating default values")
+    config = check_config(config)
+    logger.debug("Configuration: %r", config)
+    cmd.extend(["--bind", f"[::]:{port}", str(config["path"])])
+    return cmd, port
+
+
 def spawn_java_grpc_server(**config):
-    cmd, port = build_grpc_server_cmdline(**config)
+    cmd, port = build_java_grpc_server_cmdline(**config)
+    print(cmd)
+    # XXX: shlex.join() is in 3.8
+    # logger.info("Starting gRPC server: %s", shlex.join(cmd))
+    logger.info("Starting gRPC server: %s", " ".join(shlex.quote(x) for x in cmd))
+    server = subprocess.Popen(cmd)
+    return server, port
+
+
+def spawn_rust_grpc_server(**config):
+    cmd, port = build_rust_grpc_server_cmdline(**config)
     print(cmd)
     # XXX: shlex.join() is in 3.8
     # logger.info("Starting gRPC server: %s", shlex.join(cmd))

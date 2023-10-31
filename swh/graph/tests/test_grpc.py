@@ -1,4 +1,4 @@
-# Copyright (c) 2022 The Software Heritage developers
+# Copyright (c) 2022-2023 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -6,6 +6,7 @@
 import hashlib
 
 from google.protobuf.field_mask_pb2 import FieldMask
+import pytest
 
 from swh.graph.grpc.swhgraph_pb2 import (
     GraphDirection,
@@ -37,7 +38,9 @@ def test_stats(graph_grpc_stub):
     assert stats.export_ended_at == 1669899600
 
 
-def test_leaves(graph_grpc_stub):
+def test_leaves(graph_grpc_stub, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=[TEST_ORIGIN_ID],
@@ -55,7 +58,9 @@ def test_leaves(graph_grpc_stub):
     assert set(actual) == set(expected)
 
 
-def test_neighbors(graph_grpc_stub):
+def test_neighbors(graph_grpc_stub, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rev:0000000000000000000000000000000000000009"],
@@ -75,7 +80,9 @@ def test_neighbors(graph_grpc_stub):
     assert set(actual) == set(expected)
 
 
-def test_visit_nodes(graph_grpc_stub):
+def test_visit_nodes(graph_grpc_stub, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],
@@ -92,7 +99,9 @@ def test_visit_nodes(graph_grpc_stub):
     assert set(actual) == set(expected)
 
 
-def test_visit_nodes_filtered(graph_grpc_stub):
+def test_visit_nodes_filtered(graph_grpc_stub, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],
@@ -109,7 +118,9 @@ def test_visit_nodes_filtered(graph_grpc_stub):
     assert set(actual) == set(expected)
 
 
-def test_visit_nodes_filtered_star(graph_grpc_stub):
+def test_visit_nodes_filtered_star(graph_grpc_stub, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],

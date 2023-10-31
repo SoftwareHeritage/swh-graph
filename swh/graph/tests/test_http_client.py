@@ -34,7 +34,9 @@ def test_stats(graph_client):
     assert stats["export_ended_at"] == 1669899600
 
 
-def test_leaves(graph_client):
+def test_leaves(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = list(graph_client.leaves(TEST_ORIGIN_ID))
     expected = [
         "swh:1:cnt:0000000000000000000000000000000000000001",
@@ -46,7 +48,11 @@ def test_leaves(graph_client):
 
 
 @pytest.mark.parametrize("max_matching_nodes", [0, 1, 2, 3, 4, 5, 10, 1 << 31])
-def test_leaves_with_limit(graph_client, max_matching_nodes):
+def test_leaves_with_limit(
+    graph_client, max_matching_nodes, graph_grpc_backend_implementation
+):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.leaves(TEST_ORIGIN_ID, max_matching_nodes=max_matching_nodes)
     )
@@ -64,7 +70,9 @@ def test_leaves_with_limit(graph_client, max_matching_nodes):
         assert len(actual) == min(4, max_matching_nodes)
 
 
-def test_neighbors(graph_client):
+def test_neighbors(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.neighbors(
             "swh:1:rev:0000000000000000000000000000000000000009", direction="backward"
@@ -79,7 +87,9 @@ def test_neighbors(graph_client):
     assert set(actual) == set(expected)
 
 
-def test_visit_nodes(graph_client):
+def test_visit_nodes(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_nodes(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -95,7 +105,11 @@ def test_visit_nodes(graph_client):
 
 
 @pytest.mark.parametrize("max_matching_nodes", [0, 1, 2, 3, 4, 5, 10, 1 << 31])
-def test_visit_nodes_limit(graph_client, max_matching_nodes):
+def test_visit_nodes_limit(
+    graph_client, max_matching_nodes, graph_grpc_backend_implementation
+):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_nodes(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -115,7 +129,9 @@ def test_visit_nodes_limit(graph_client, max_matching_nodes):
         assert len(actual) == min(3, max_matching_nodes)
 
 
-def test_visit_nodes_filtered(graph_client):
+def test_visit_nodes_filtered(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_nodes(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -131,7 +147,11 @@ def test_visit_nodes_filtered(graph_client):
 
 
 @pytest.mark.parametrize("max_matching_nodes", [0, 1, 2, 3, 4, 5, 10, 1 << 31])
-def test_visit_nodes_filtered_limit(graph_client, max_matching_nodes):
+def test_visit_nodes_filtered_limit(
+    graph_client, max_matching_nodes, graph_grpc_backend_implementation
+):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_nodes(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -151,7 +171,9 @@ def test_visit_nodes_filtered_limit(graph_client, max_matching_nodes):
         assert len(actual) == min(3, max_matching_nodes)
 
 
-def test_visit_nodes_filtered_star(graph_client):
+def test_visit_nodes_filtered_star(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_nodes(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -173,7 +195,9 @@ def test_visit_nodes_filtered_star(graph_client):
     assert set(actual) == set(expected)
 
 
-def test_visit_edges(graph_client):
+def test_visit_edges(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_edges(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -201,7 +225,9 @@ def test_visit_edges(graph_client):
     assert set(actual) == set(expected)
 
 
-def test_visit_edges_limited(graph_client):
+def test_visit_edges_limited(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_edges(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -238,7 +264,9 @@ def test_visit_edges_limited(graph_client):
     assert 3 <= len(actual) <= 4
 
 
-def test_visit_edges_diamond_pattern(graph_client):
+def test_visit_edges_diamond_pattern(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_edges(
             "swh:1:rev:0000000000000000000000000000000000000009",
@@ -287,7 +315,9 @@ def test_visit_edges_diamond_pattern(graph_client):
 
 
 @pytest.mark.skip(reason="currently disabled due to T1969")
-def test_walk(graph_client):
+def test_walk(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     args = ("swh:1:dir:0000000000000000000000000000000000000016", "rel")
     kwargs = {
         "edges": "dir:dir,dir:rev,rev:*",
@@ -321,7 +351,9 @@ def test_walk(graph_client):
 
 
 @pytest.mark.skip(reason="Random walk is deprecated")
-def test_random_walk_dst_is_type(graph_client):
+def test_random_walk_dst_is_type(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     """as the walk is random, we test a visit from a cnt node to a release
     reachable from every single path in the backward graph, and only check the
     final node of the path (i.e., the release)
@@ -351,7 +383,9 @@ def test_random_walk_dst_is_type(graph_client):
 
 
 @pytest.mark.skip(reason="Random walk is deprecated")
-def test_random_walk_dst_is_node(graph_client):
+def test_random_walk_dst_is_node(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     """Same as test_random_walk_dst_is_type, but we target the specific release
     node instead of a type
     """
@@ -382,7 +416,9 @@ def test_random_walk_dst_is_node(graph_client):
     assert len(actual) == 3
 
 
-def test_count(graph_client):
+def test_count(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = graph_client.count_leaves(TEST_ORIGIN_ID)
     assert actual == 4
     actual = graph_client.count_visit_nodes(
@@ -396,7 +432,11 @@ def test_count(graph_client):
 
 
 @pytest.mark.parametrize("max_matching_nodes", [0, 1, 2, 3, 4, 5, 10, 1 << 31])
-def test_count_with_limit(graph_client, max_matching_nodes):
+def test_count_with_limit(
+    graph_client, max_matching_nodes, graph_grpc_backend_implementation
+):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     actual = graph_client.count_leaves(
         TEST_ORIGIN_ID, max_matching_nodes=max_matching_nodes
     )
@@ -406,7 +446,9 @@ def test_count_with_limit(graph_client, max_matching_nodes):
         assert actual == min(4, max_matching_nodes)
 
 
-def test_param_validation(graph_client):
+def test_param_validation(graph_client, graph_grpc_backend_implementation):
+    if graph_grpc_backend_implementation == "rust":
+        pytest.skip("Not yet implemented in Rust backend")
     with raises(GraphArgumentException) as exc_info:  # SWHID not found
         list(graph_client.leaves("swh:1:rel:00ffffffff000000000000000000000000000010"))
     if exc_info.value.response:

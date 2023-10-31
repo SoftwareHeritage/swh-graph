@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2022  The Software Heritage developers
+# Copyright (C) 2019-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 class GraphServerProcess(multiprocessing.Process):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, backend_impl, *args, **kwargs):
+        self.backend_impl = backend_impl
         self.q = multiprocessing.Queue()
         super().__init__(*args, **kwargs)
 
@@ -31,8 +32,11 @@ class GraphServerProcess(multiprocessing.Process):
         try:
             config = {
                 "graph": {
-                    "cls": "local",
-                    "grpc_server": {"path": DATASET_DIR / "compressed/example"},
+                    "cls": f"local_{self.backend_impl}",
+                    "grpc_server": {
+                        "path": DATASET_DIR / "compressed/example",
+                        "debug": True,
+                    },
                     "http_rpc_server": {"debug": True},
                 }
             }
@@ -58,9 +62,14 @@ class GraphServerProcess(multiprocessing.Process):
         self.result = self.q.get()
 
 
+@pytest.fixture(scope="module", params=["java", "rust"])
+def graph_grpc_backend_implementation(request):
+    return request.param
+
+
 @pytest.fixture(scope="module")
-def graph_grpc_server_process():
-    server = GraphServerProcess()
+def graph_grpc_server_process(graph_grpc_backend_implementation):
+    server = GraphServerProcess(graph_grpc_backend_implementation)
 
     yield server
 
@@ -120,7 +129,7 @@ def naive_graph_client():
 
 
 @pytest.fixture(scope="module", params=["remote", "naive"])
-def graph_client(request):
+def graph_client(request, graph_grpc_backend_implementation):
     if request.param == "remote":
         yield request.getfixturevalue("remote_graph_client")
     else:
