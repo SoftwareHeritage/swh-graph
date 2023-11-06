@@ -22,6 +22,7 @@ use crate::mph::SwhidMphf;
 use crate::properties;
 use crate::utils::suffix_path;
 use crate::AllSwhGraphProperties;
+use crate::SWHType;
 
 pub mod proto {
     tonic::include_proto!("swh.graph");
@@ -33,6 +34,77 @@ pub mod proto {
 pub mod traversal;
 
 type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
+
+fn parse_node_type(type_name: &str) -> Result<SWHType, tonic::Status> {
+    SWHType::try_from(type_name)
+        .map_err(|_| tonic::Status::invalid_argument(format!("Invalid node type: {}", type_name)))
+}
+
+struct NodeFilterChecker<G: Deref + Clone + Send + Sync + 'static> {
+    graph: G,
+    types: u8, // Bit mask
+    min_traversal_successors: usize,
+    max_traversal_successors: usize,
+}
+
+impl<G: Deref + Clone + Send + Sync + 'static> NodeFilterChecker<G>
+where
+    G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
+    <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait + properties::MapsOption,
+{
+    fn new(graph: G, filter: proto::NodeFilter) -> Result<Self, tonic::Status> {
+        let proto::NodeFilter {
+            types,
+            min_traversal_successors,
+            max_traversal_successors,
+        } = filter;
+        let types = types.unwrap_or("*".to_owned());
+        Ok(NodeFilterChecker {
+            graph,
+            types: if types == "*" {
+                u8::MAX // all bits set
+            } else {
+                types
+                    .split(",")
+                    .map(parse_node_type)
+                    .collect::<Result<Vec<_>, _>>()? // Fold errors
+                    .into_iter()
+                    .map(|type_| {
+                        let type_id = type_ as u8;
+                        assert!(type_id < (u8::BITS as u8)); // fits in bit mask
+                        1u8 << type_id
+                    })
+                    .sum()
+            },
+            min_traversal_successors: match min_traversal_successors {
+                None => 0,
+                Some(min_succ) => min_succ.try_into().map_err(|_| {
+                    tonic::Status::invalid_argument(
+                        "min_traversal_successors must be a positive integer",
+                    )
+                })?,
+            },
+            max_traversal_successors: match max_traversal_successors {
+                None => usize::MAX,
+                Some(max_succ) => max_succ.try_into().map_err(|_| {
+                    tonic::Status::invalid_argument(
+                        "max_traversal_successors must be a positive integer",
+                    )
+                })?,
+            },
+        })
+    }
+
+    fn matches(&self, node: usize) -> bool {
+        let outdegree = self.graph.outdegree(node);
+        self.min_traversal_successors <= outdegree
+            && outdegree <= self.max_traversal_successors
+            && (self.types == u8::MAX
+                || (((1u8 << (self.graph.properties().node_type(node).unwrap() as u8))
+                    & self.types)
+                    != 0))
+    }
+}
 
 pub struct TraversalService<MPHF: SwhidMphf>(
     Arc<SwhBidirectionalGraph<AllSwhGraphProperties<MPHF>>>,
@@ -60,7 +132,6 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
     {
         let request = request.get_ref().clone();
         let allowed_edges = request.edges.unwrap_or("*".to_owned());
-        let return_nodes = request.return_nodes.unwrap_or_default();
         if allowed_edges != "*" {
             return Err(tonic::Status::unimplemented("edges filter"));
         }
@@ -73,9 +144,6 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
         if request.max_depth.is_some() {
             return Err(tonic::Status::unimplemented("max_depth filter"));
         }
-        if return_nodes.types.unwrap_or("*".to_owned()) != "*" {
-            return Err(tonic::Status::unimplemented("return_nodes.types filter"));
-        }
         let max_matching_nodes = match request.max_matching_nodes {
             None => usize::MAX,
             Some(0) => usize::MAX, // Quirk-compatibility with the Java implementation
@@ -83,31 +151,14 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
                 tonic::Status::invalid_argument("max_matching_nodes must be a positive integer")
             })?,
         };
-        let min_traversal_successors = match return_nodes.min_traversal_successors {
-            None => 0,
-            Some(min_succ) => min_succ.try_into().map_err(|_| {
-                tonic::Status::invalid_argument(
-                    "min_traversal_successors must be a positive integer",
-                )
-            })?,
-        };
-        let max_traversal_successors = match return_nodes.max_traversal_successors {
-            None => usize::MAX,
-            Some(max_succ) => max_succ.try_into().map_err(|_| {
-                tonic::Status::invalid_argument(
-                    "max_traversal_successors must be a positive integer",
-                )
-            })?,
-        };
+        let return_node_checker =
+            NodeFilterChecker::new(graph.clone(), request.return_nodes.unwrap_or_default())?;
         let mut num_matching_nodes = 0;
         let (tx, rx) = mpsc::channel(1_000);
         let mut visitor = traversal::SimpleBfsVisitor::new(
             graph.clone(),
             move |node| {
-                if graph.outdegree(node) < min_traversal_successors {
-                    return Ok(true);
-                }
-                if graph.outdegree(node) > max_traversal_successors {
+                if !return_node_checker.matches(node) {
                     return Ok(true);
                 }
                 num_matching_nodes += 1;

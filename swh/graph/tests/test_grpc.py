@@ -39,8 +39,6 @@ def test_stats(graph_grpc_stub):
 
 
 def test_leaves(graph_grpc_stub, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=[TEST_ORIGIN_ID],
@@ -100,8 +98,6 @@ def test_visit_nodes(graph_grpc_stub, graph_grpc_backend_implementation):
 
 
 def test_visit_nodes_filtered(graph_grpc_stub, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],
