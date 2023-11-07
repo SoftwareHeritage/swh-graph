@@ -225,7 +225,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         }
 
         log::info!("Initializing...");
-        let is_skipped = sux::bits::bit_vec::BitVec::new_atomic(self.num_nodes);
+        let is_skipped = sux::bits::bit_vec::AtomicBitVec::new(self.num_nodes);
 
         log::info!("Reading...");
         self.par_for_each_row("skipped_content", |cnt: SkippedContent| {

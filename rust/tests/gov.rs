@@ -35,7 +35,7 @@ fn test_gov3_sf() -> Result<()> {
     for (idx, line) in reader.lines().enumerate() {
         let line = line?;
         let p = m.get_byte_array(line.as_bytes());
-        assert_eq!(p, idx as _);
+        assert_eq!(p, idx as u64);
     }
     Ok(())
 }

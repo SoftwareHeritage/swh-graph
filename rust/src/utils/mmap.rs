@@ -9,13 +9,12 @@ use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use byteorder::ByteOrder;
-use common_traits::Number;
 use mmap_rs::{Mmap, MmapFlags};
 
 /// Newtype for [`Mmap`] used to store arrays of any integers
 ///
 /// instead of slices of u8
-pub struct NumberMmap<E: ByteOrder, N: Number, B> {
+pub struct NumberMmap<E: ByteOrder, N: common_traits::AsBytes, B> {
     data: B,
     len: usize,
     offset: usize,
@@ -23,7 +22,7 @@ pub struct NumberMmap<E: ByteOrder, N: Number, B> {
     _endianness: PhantomData<E>,
 }
 
-impl<E: ByteOrder, N: Number> NumberMmap<E, N, Mmap> {
+impl<E: ByteOrder, N: common_traits::AsBytes> NumberMmap<E, N, Mmap> {
     pub fn new<P: AsRef<Path>>(path: P, len: usize) -> Result<NumberMmap<E, N, Mmap>> {
         let path = path.as_ref();
         let file_len = path
@@ -88,7 +87,7 @@ impl<E: ByteOrder, N: Number> NumberMmap<E, N, Mmap> {
     }
 }
 
-impl<E: ByteOrder, N: Number> NumberMmap<E, N, Mmap> {
+impl<E: ByteOrder, N: common_traits::AsBytes> NumberMmap<E, N, Mmap> {
     fn get_slice(&self, index: usize) -> Option<&[u8]> {
         let start = (index * N::BYTES) + self.offset;
         self.data.get(start..(start + N::BYTES))

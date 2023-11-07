@@ -3,11 +3,11 @@ use anyhow::{Context, Result};
 use log::info;
 use mmap_rs::{Mmap, MmapFlags, MmapMut};
 use std::path::Path;
-use sux::prelude::{BitFieldSlice, BitFieldSliceMut, CompactArray};
+use sux::prelude::{BitFieldSlice, BitFieldSliceMut, BitFieldVec};
 
 /// Struct to create and load a `.node2type.bin` file and convert node ids to types.
 pub struct Node2Type<B> {
-    data: CompactArray<B>,
+    data: BitFieldVec<usize, B>,
 }
 
 impl<B: AsRef<[usize]>> Node2Type<B> {
@@ -48,7 +48,7 @@ impl<B: AsRef<[usize]> + AsMut<[usize]>> Node2Type<B> {
 
 /// Newtype for [`Mmap`]/[`MmapMut`] which can be dereferenced as slices of usize
 ///
-/// instead of slices of u8, so it can be used as backend for [`CompactArray`].
+/// instead of slices of u8, so it can be used as backend for [`BitFieldVec`].
 pub struct UsizeMmap<B>(B);
 
 impl AsRef<[usize]> for UsizeMmap<Mmap> {
@@ -75,7 +75,7 @@ impl Node2Type<UsizeMmap<MmapMut>> {
         let path = path.as_ref();
         // compute the size of the file we are creating in bytes
         let mut file_len = ((num_nodes * SWHType::BITWIDTH) as u64 + 7) / 8;
-        // make the file dimension a multiple of 8 bytes so CompactArray can
+        // make the file dimension a multiple of 8 bytes so BitFieldVec can
         // read u64 words from it
         file_len += 8 - (file_len % 8);
         info!("The resulting file will be {} bytes long.", file_len);
@@ -105,10 +105,10 @@ impl Node2Type<UsizeMmap<MmapMut>> {
                 .map_mut()
                 .with_context(|| "While mmapping the file")?
         };
-        // use the CompactArray over the mmap
+        // use the BitFieldVec over the mmap
         let mmap = UsizeMmap(mmap);
         let node2type =
-            unsafe { CompactArray::from_raw_parts(mmap, SWHType::BITWIDTH, num_nodes as usize) };
+            unsafe { BitFieldVec::from_raw_parts(mmap, SWHType::BITWIDTH, num_nodes as usize) };
 
         Ok(Self { data: node2type })
     }
@@ -129,10 +129,10 @@ impl Node2Type<UsizeMmap<MmapMut>> {
             libc::madvise(data.as_ptr() as *mut _, data.len(), libc::MADV_RANDOM)
         };
 
-        // use the CompactArray over the mmap
+        // use the BitFieldVec over the mmap
         let data = UsizeMmap(data);
         let node2type =
-            unsafe { CompactArray::from_raw_parts(data, SWHType::BITWIDTH, num_nodes as usize) };
+            unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes as usize) };
         Ok(Self { data: node2type })
     }
 }
@@ -154,10 +154,10 @@ impl Node2Type<UsizeMmap<Mmap>> {
             libc::madvise(data.as_ptr() as *mut _, data.len(), libc::MADV_RANDOM)
         };
 
-        // use the CompactArray over the mmap
+        // use the BitFieldVec over the mmap
         let data = UsizeMmap(data);
         let node2type =
-            unsafe { CompactArray::from_raw_parts(data, SWHType::BITWIDTH, num_nodes as usize) };
+            unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes as usize) };
         Ok(Self { data: node2type })
     }
 }
