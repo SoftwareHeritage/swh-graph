@@ -84,8 +84,6 @@ def test_neighbors(graph_client, graph_grpc_backend_implementation):
 
 
 def test_visit_nodes(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_nodes(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -104,8 +102,6 @@ def test_visit_nodes(graph_client, graph_grpc_backend_implementation):
 def test_visit_nodes_limit(
     graph_client, max_matching_nodes, graph_grpc_backend_implementation
 ):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_nodes(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -126,8 +122,6 @@ def test_visit_nodes_limit(
 
 
 def test_visit_nodes_filtered(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_nodes(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -146,8 +140,6 @@ def test_visit_nodes_filtered(graph_client, graph_grpc_backend_implementation):
 def test_visit_nodes_filtered_limit(
     graph_client, max_matching_nodes, graph_grpc_backend_implementation
 ):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_nodes(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -168,8 +160,6 @@ def test_visit_nodes_filtered_limit(
 
 
 def test_visit_nodes_filtered_star(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_nodes(
             "swh:1:rel:0000000000000000000000000000000000000010",

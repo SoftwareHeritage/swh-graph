@@ -9,17 +9,19 @@ use crate::graph::SwhForwardGraph;
 
 #[derive(Debug)]
 pub enum VisitFlow {
+    /// Keep browsing after this node/arc
     Continue,
+    /// Ignore this node/arc for traversal (ie. don't visit its successors, at least
+    /// not yet)
+    Ignore,
+    /// End the visit immediately
     Stop,
 }
 
 /// A simple traversal.
 ///
-/// For each node (resp. arc), `on_node` (resp. `on_arc`) is called. If it returns
-/// `Err`, the traversal is immediately stopped and this error is returned.
-/// If it returns `true`, the traversal recurses.
-/// If it returns `false`, this node (resp. arc) is ignored for the traversal
-/// (ie. its successors are not traversed, at least not yet).
+/// For each node (resp. arc), `on_node` (resp. `on_arc`) is called, and it affects the
+/// next visited node based on which [`VisitFlow`] it returns.
 #[derive(Debug)]
 pub struct SimpleBfsVisitor<
     IG: SwhForwardGraph,
@@ -50,7 +52,7 @@ impl<
     /// * `g`: the graph to be visited
     /// * `item_tx`: a channel where to send the result of callback functions
     /// * `on_node`/`on_arc`: function called on each visited node or arc, which returns
-    ///   whether keep going or stop the visit.
+    ///   whether to add an item to the channel (and keep going), keep going, or stop the visit.
     pub fn new(graph: G, on_node: OnNode, on_arc: OnArc) -> Self {
         SimpleBfsVisitor {
             graph,
@@ -89,6 +91,7 @@ impl<
         while let Some(node) = self.pop() {
             match self.visit_step(node)? {
                 VisitFlow::Continue => {}
+                VisitFlow::Ignore => panic!("visit_step returned Ignore"),
                 VisitFlow::Stop => break,
             }
         }
@@ -108,11 +111,13 @@ impl<
     pub fn visit_node(&mut self, node: usize) -> Result<VisitFlow, Error> {
         match (self.on_node)(node)? {
             VisitFlow::Continue => {}
+            VisitFlow::Ignore => return Ok(VisitFlow::Continue),
             VisitFlow::Stop => return Ok(VisitFlow::Stop),
         }
         for successor in self.graph.clone().successors(node) {
             match self.visit_arc(node, successor)? {
                 VisitFlow::Continue => {}
+                VisitFlow::Ignore => panic!("visit_arc returned Ignore"),
                 VisitFlow::Stop => return Ok(VisitFlow::Stop),
             }
         }
@@ -124,8 +129,9 @@ impl<
     /// Returns `Err` if the visit should stop after this step
     pub fn visit_arc(&mut self, src: usize, dst: usize) -> Result<VisitFlow, Error> {
         match (self.on_arc)(src, dst)? {
-            VisitFlow::Stop => return Ok(VisitFlow::Stop),
             VisitFlow::Continue => {}
+            VisitFlow::Ignore => return Ok(VisitFlow::Continue),
+            VisitFlow::Stop => return Ok(VisitFlow::Stop),
         }
         if !self.was_seen(dst) {
             self.mark_seen(dst);

@@ -40,6 +40,23 @@ fn parse_node_type(type_name: &str) -> Result<SWHType, tonic::Status> {
         .map_err(|_| tonic::Status::invalid_argument(format!("Invalid node type: {}", type_name)))
 }
 
+fn parse_arc_type(type_name: &str) -> Result<(SWHType, SWHType), tonic::Status> {
+    let mut splits = type_name.splitn(2, ':');
+    let Some(src_type_name) = splits.next() else {
+        return Err(tonic::Status::invalid_argument(format!("Invalid arc type: {} (should not be empty)", type_name)));
+    };
+    let Some(dst_type_name) = splits.next() else {
+        return Err(tonic::Status::invalid_argument(format!("Invalid arc type: {} (should have a colon)", type_name)));
+    };
+    let src_type = SWHType::try_from(src_type_name).map_err(|_| {
+        tonic::Status::invalid_argument(format!("Invalid node type: {}", src_type_name))
+    })?;
+    let dst_type = SWHType::try_from(dst_type_name).map_err(|_| {
+        tonic::Status::invalid_argument(format!("Invalid node type: {}", dst_type_name))
+    })?;
+    Ok((src_type, dst_type))
+}
+
 #[derive(Clone)]
 struct NodeFilterChecker<G: Deref + Clone + Send + Sync + 'static> {
     graph: G,
@@ -70,11 +87,7 @@ where
                     .map(parse_node_type)
                     .collect::<Result<Vec<_>, _>>()? // Fold errors
                     .into_iter()
-                    .map(|type_| {
-                        let type_id = type_ as u8;
-                        assert!(type_id < (u8::BITS as u8)); // fits in bit mask
-                        1u8 << type_id
-                    })
+                    .map(Self::bit_mask)
                     .sum()
             },
             min_traversal_successors: match min_traversal_successors {
@@ -101,9 +114,61 @@ where
         self.min_traversal_successors <= outdegree
             && outdegree <= self.max_traversal_successors
             && (self.types == u8::MAX
-                || (((1u8 << (self.graph.properties().node_type(node).unwrap() as u8))
-                    & self.types)
-                    != 0))
+                || (Self::bit_mask(self.graph.properties().node_type(node).unwrap()) & self.types)
+                    != 0)
+    }
+
+    fn bit_mask(node_type: SWHType) -> u8 {
+        let type_id = node_type as u8;
+        assert!(type_id < (u8::BITS as u8)); // fits in bit mask
+        1u8 << type_id
+    }
+}
+
+#[derive(Clone)]
+struct ArcFilterChecker<G: Deref + Clone + Send + Sync + 'static> {
+    graph: G,
+    types: u64, // Bit mask on a SWHType::NUMBER_OF_TYPES × SWHType::NUMBER_OF_TYPES matrix
+}
+
+impl<G: Deref + Clone + Send + Sync + 'static> ArcFilterChecker<G>
+where
+    G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
+    <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait + properties::MapsOption,
+{
+    fn new(graph: G, types: Option<String>) -> Result<Self, tonic::Status> {
+        let types = types.unwrap_or("*".to_owned());
+        Ok(ArcFilterChecker {
+            graph,
+            types: if types == "*" {
+                u64::MAX // all bits set
+            } else {
+                types
+                    .split(",")
+                    .map(parse_arc_type)
+                    .collect::<Result<Vec<_>, _>>()? // Fold errors
+                    .into_iter()
+                    .map(|(src, dst)| Self::bit_mask(src, dst))
+                    .sum()
+            },
+        })
+    }
+
+    fn matches(&self, src_node: usize, dst_node: usize) -> bool {
+        self.types == u64::MAX
+            || ((Self::bit_mask(
+                self.graph.properties().node_type(src_node).unwrap(),
+                self.graph.properties().node_type(dst_node).unwrap(),
+            ) & self.types)
+                != 0)
+    }
+
+    fn bit_mask(src_node_type: SWHType, dst_node_type: SWHType) -> u64 {
+        let src_type_id = src_node_type as u64;
+        let dst_type_id = dst_node_type as u64;
+        let arc_type_id = src_type_id * (SWHType::NUMBER_OF_TYPES as u64) + dst_type_id;
+        assert!(arc_type_id < (u64::BITS as u64)); // fits in bit mask
+        1u64 << arc_type_id
     }
 }
 
@@ -132,10 +197,6 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
         <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait + properties::MapsOption,
     {
         let request = request.get_ref().clone();
-        let allowed_edges = request.edges.unwrap_or("*".to_owned());
-        if allowed_edges != "*" {
-            return Err(tonic::Status::unimplemented("edges filter"));
-        }
         if request.max_edges.is_some() {
             return Err(tonic::Status::unimplemented("max_edge filter"));
         }
@@ -154,6 +215,7 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
         };
         let return_node_checker =
             NodeFilterChecker::new(graph.clone(), request.return_nodes.unwrap_or_default())?;
+        let arc_checker = ArcFilterChecker::new(graph.clone(), request.edges)?;
         let mut num_matching_nodes = 0;
         let (tx, rx) = mpsc::channel(1_000);
         let mut visitor = traversal::SimpleBfsVisitor::new(
@@ -178,7 +240,13 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
                 }))?;
                 Ok(VisitFlow::Continue)
             },
-            |_src, _dst| Ok::<_, mpsc::error::SendError<_>>(VisitFlow::Continue),
+            move |src, dst| {
+                if arc_checker.matches(src, dst) {
+                    Ok::<_, mpsc::error::SendError<_>>(VisitFlow::Continue)
+                } else {
+                    Ok(VisitFlow::Ignore)
+                }
+            },
         );
         for src in &request.src {
             visitor.push(self.try_get_node_id(src)?);
