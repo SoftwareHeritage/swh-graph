@@ -6,7 +6,6 @@
 import hashlib
 
 from google.protobuf.field_mask_pb2 import FieldMask
-import pytest
 
 from swh.graph.grpc.swhgraph_pb2 import (
     GraphDirection,
@@ -57,8 +56,6 @@ def test_leaves(graph_grpc_stub, graph_grpc_backend_implementation):
 
 
 def test_neighbors(graph_grpc_stub, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rev:0000000000000000000000000000000000000009"],

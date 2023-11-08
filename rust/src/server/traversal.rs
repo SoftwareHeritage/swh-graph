@@ -18,21 +18,26 @@ pub enum VisitFlow {
     Stop,
 }
 
+const DEPTH_SENTINEL: usize = usize::MAX;
+
 /// A simple traversal.
 ///
-/// For each node (resp. arc), `on_node` (resp. `on_arc`) is called, and it affects the
-/// next visited node based on which [`VisitFlow`] it returns.
+/// For each node (resp. arc), `on_node` (resp. `on_arc`) is called with each node (resp. arc)
+/// and the current depth, and it affects the next visited node based on which
+/// [`VisitFlow`] it returns.
 #[derive(Debug)]
 pub struct SimpleBfsVisitor<
     IG: SwhForwardGraph,
     G: Deref<Target = IG> + Clone,
     Error,
-    OnNode: FnMut(usize) -> Result<VisitFlow, Error>,
-    OnArc: FnMut(usize, usize) -> Result<VisitFlow, Error>,
+    OnNode: FnMut(usize, u64) -> Result<VisitFlow, Error>,
+    OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
 > {
     graph: G,
     queue: std::collections::VecDeque<usize>,
     seen: std::collections::HashSet<usize>,
+    depth: u64,
+    max_depth: u64,
     on_node: OnNode,
     on_arc: OnArc,
 }
@@ -41,8 +46,8 @@ impl<
         IG: SwhForwardGraph,
         G: Deref<Target = IG> + Clone,
         Error,
-        OnNode: FnMut(usize) -> Result<VisitFlow, Error>,
-        OnArc: FnMut(usize, usize) -> Result<VisitFlow, Error>,
+        OnNode: FnMut(usize, u64) -> Result<VisitFlow, Error>,
+        OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
     > SimpleBfsVisitor<IG, G, Error, OnNode, OnArc>
 {
     /// Initializes a new visit
@@ -50,14 +55,16 @@ impl<
     /// Arguments:
     ///
     /// * `g`: the graph to be visited
-    /// * `item_tx`: a channel where to send the result of callback functions
+    /// * `max_depth` how deep inside the graph to recurse
     /// * `on_node`/`on_arc`: function called on each visited node or arc, which returns
     ///   whether to add an item to the channel (and keep going), keep going, or stop the visit.
-    pub fn new(graph: G, on_node: OnNode, on_arc: OnArc) -> Self {
+    pub fn new(graph: G, max_depth: u64, on_node: OnNode, on_arc: OnArc) -> Self {
         SimpleBfsVisitor {
             graph,
             queue: Default::default(),
             seen: Default::default(),
+            depth: 0,
+            max_depth,
             on_node,
             on_arc,
         }
@@ -88,7 +95,18 @@ impl<
     where
         Self: Sized,
     {
+        self.push(DEPTH_SENTINEL);
         while let Some(node) = self.pop() {
+            if node == DEPTH_SENTINEL {
+                self.depth += 1;
+                if self.depth > self.max_depth {
+                    break;
+                }
+                if !self.queue.is_empty() {
+                    self.push(DEPTH_SENTINEL);
+                }
+                continue;
+            }
             match self.visit_step(node)? {
                 VisitFlow::Continue => {}
                 VisitFlow::Ignore => panic!("visit_step returned Ignore"),
@@ -109,7 +127,7 @@ impl<
     ///
     /// Returns `Err` if the visit should stop after this step
     pub fn visit_node(&mut self, node: usize) -> Result<VisitFlow, Error> {
-        match (self.on_node)(node)? {
+        match (self.on_node)(node, self.depth)? {
             VisitFlow::Continue => {}
             VisitFlow::Ignore => return Ok(VisitFlow::Continue),
             VisitFlow::Stop => return Ok(VisitFlow::Stop),
@@ -128,7 +146,7 @@ impl<
     ///
     /// Returns `Err` if the visit should stop after this step
     pub fn visit_arc(&mut self, src: usize, dst: usize) -> Result<VisitFlow, Error> {
-        match (self.on_arc)(src, dst)? {
+        match (self.on_arc)(src, dst, self.depth)? {
             VisitFlow::Continue => {}
             VisitFlow::Ignore => return Ok(VisitFlow::Continue),
             VisitFlow::Stop => return Ok(VisitFlow::Stop),

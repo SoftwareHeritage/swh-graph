@@ -67,8 +67,6 @@ def test_leaves_with_limit(
 
 
 def test_neighbors(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.neighbors(
             "swh:1:rev:0000000000000000000000000000000000000009", direction="backward"

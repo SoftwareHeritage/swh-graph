@@ -196,17 +196,33 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
         G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
         <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait + properties::MapsOption,
     {
-        let request = request.get_ref().clone();
-        if request.max_edges.is_some() {
+        let proto::TraversalRequest {
+            src,
+            direction: _, // Handled by caller
+            edges,
+            max_edges,
+            min_depth,
+            max_depth,
+            return_nodes,
+            mask: _, // Not supported by Tonic
+            max_matching_nodes,
+        } = request.get_ref().clone();
+        let min_depth = match min_depth {
+            None => 0,
+            Some(i) => i.try_into().map_err(|_| {
+                tonic::Status::invalid_argument("min_depth must be a positive integer")
+            })?,
+        };
+        let max_depth = match max_depth {
+            None => u64::MAX,
+            Some(i) => i.try_into().map_err(|_| {
+                tonic::Status::invalid_argument("max_depth must be a positive integer")
+            })?,
+        };
+        if max_edges.is_some() {
             return Err(tonic::Status::unimplemented("max_edge filter"));
         }
-        if request.min_depth.is_some() {
-            return Err(tonic::Status::unimplemented("min_depth filter"));
-        }
-        if request.max_depth.is_some() {
-            return Err(tonic::Status::unimplemented("max_depth filter"));
-        }
-        let max_matching_nodes = match request.max_matching_nodes {
+        let max_matching_nodes = match max_matching_nodes {
             None => usize::MAX,
             Some(0) => usize::MAX, // Quirk-compatibility with the Java implementation
             Some(max_nodes) => max_nodes.try_into().map_err(|_| {
@@ -214,13 +230,14 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
             })?,
         };
         let return_node_checker =
-            NodeFilterChecker::new(graph.clone(), request.return_nodes.unwrap_or_default())?;
-        let arc_checker = ArcFilterChecker::new(graph.clone(), request.edges)?;
+            NodeFilterChecker::new(graph.clone(), return_nodes.unwrap_or_default())?;
+        let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
         let mut num_matching_nodes = 0;
         let (tx, rx) = mpsc::channel(1_000);
         let mut visitor = traversal::SimpleBfsVisitor::new(
             graph.clone(),
-            move |node| {
+            max_depth,
+            move |node, depth| {
                 if !return_node_checker.matches(node) {
                     return Ok(VisitFlow::Continue);
                 }
@@ -228,19 +245,21 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
                 if num_matching_nodes > max_matching_nodes {
                     return Ok(VisitFlow::Stop);
                 }
-                tx.blocking_send(Ok(proto::Node {
-                    swhid: graph
-                        .properties()
-                        .swhid(node)
-                        .expect("Unknown node id")
-                        .to_string(),
-                    successor: Vec::new(),
-                    num_successors: None,
-                    data: None,
-                }))?;
+                if depth >= min_depth {
+                    tx.blocking_send(Ok(proto::Node {
+                        swhid: graph
+                            .properties()
+                            .swhid(node)
+                            .expect("Unknown node id")
+                            .to_string(),
+                        successor: Vec::new(),
+                        num_successors: None,
+                        data: None,
+                    }))?;
+                }
                 Ok(VisitFlow::Continue)
             },
-            move |src, dst| {
+            move |src, dst, _depth| {
                 if arc_checker.matches(src, dst) {
                     Ok::<_, mpsc::error::SendError<_>>(VisitFlow::Continue)
                 } else {
@@ -248,8 +267,8 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
                 }
             },
         );
-        for src in &request.src {
-            visitor.push(self.try_get_node_id(src)?);
+        for src_item in &src {
+            visitor.push(self.try_get_node_id(src_item)?);
         }
         // Spawning a thread because Tonic currently only supports Tokio, which requires
         // futures to be sendable between threads, and webgraph's successor iterators cannot
