@@ -15,12 +15,11 @@ use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::Server;
 use tonic::{Request, Response};
 
-use crate::graph::{
-    SwhBidirectionalGraph, SwhForwardGraph, SwhGraph, SwhGraphWithProperties, Transposed,
-};
+use crate::graph::{SwhBidirectionalGraph, SwhForwardGraph, SwhGraph, SwhGraphWithProperties};
 use crate::mph::SwhidMphf;
 use crate::properties;
 use crate::utils::suffix_path;
+use crate::views::Transposed;
 use crate::AllSwhGraphProperties;
 use crate::SWHType;
 
@@ -32,6 +31,7 @@ pub mod proto {
 }
 
 pub mod traversal;
+use traversal::VisitFlow;
 
 type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
@@ -40,6 +40,7 @@ fn parse_node_type(type_name: &str) -> Result<SWHType, tonic::Status> {
         .map_err(|_| tonic::Status::invalid_argument(format!("Invalid node type: {}", type_name)))
 }
 
+#[derive(Clone)]
 struct NodeFilterChecker<G: Deref + Clone + Send + Sync + 'static> {
     graph: G,
     types: u8, // Bit mask
@@ -159,11 +160,11 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
             graph.clone(),
             move |node| {
                 if !return_node_checker.matches(node) {
-                    return Ok(true);
+                    return Ok(VisitFlow::Continue);
                 }
                 num_matching_nodes += 1;
                 if num_matching_nodes > max_matching_nodes {
-                    return Err(None);
+                    return Ok(VisitFlow::Stop);
                 }
                 tx.blocking_send(Ok(proto::Node {
                     swhid: graph
@@ -174,17 +175,16 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
                     successor: Vec::new(),
                     num_successors: None,
                     data: None,
-                }))
-                .map(|()| true)
-                .map_err(Some)
+                }))?;
+                Ok(VisitFlow::Continue)
             },
-            |_src, _dst| Ok(true),
+            |_src, _dst| Ok::<_, mpsc::error::SendError<_>>(VisitFlow::Continue),
         );
         for src in &request.src {
             visitor.push(self.try_get_node_id(src)?);
         }
-        // Spawning a thread because it's too annoying to add async support in
-        // SimpleBfsVisitor
+        // Spawning a thread because Tonic currently only supports Tokio, which requires
+        // futures to be sendable between threads, and webgraph's successor iterators cannot
         tokio::spawn(async move { std::thread::spawn(|| visitor.visit()).join() });
 
         Ok(Response::new(ReceiverStream::new(rx)))

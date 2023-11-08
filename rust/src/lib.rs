@@ -19,6 +19,7 @@ pub use properties::{AllSwhGraphProperties, SwhGraphProperties};
 pub mod compress;
 #[cfg(feature = "grpc-server")]
 pub mod server;
+pub mod views;
 
 pub mod approximate_bfs;
 pub mod java_compat;

@@ -7,6 +7,12 @@ use std::ops::Deref;
 
 use crate::graph::SwhForwardGraph;
 
+#[derive(Debug)]
+pub enum VisitFlow {
+    Continue,
+    Stop,
+}
+
 /// A simple traversal.
 ///
 /// For each node (resp. arc), `on_node` (resp. `on_arc`) is called. If it returns
@@ -19,8 +25,8 @@ pub struct SimpleBfsVisitor<
     IG: SwhForwardGraph,
     G: Deref<Target = IG> + Clone,
     Error,
-    OnNode: FnMut(usize) -> Result<bool, Error>,
-    OnArc: FnMut(usize, usize) -> Result<bool, Error>,
+    OnNode: FnMut(usize) -> Result<VisitFlow, Error>,
+    OnArc: FnMut(usize, usize) -> Result<VisitFlow, Error>,
 > {
     graph: G,
     queue: std::collections::VecDeque<usize>,
@@ -33,10 +39,18 @@ impl<
         IG: SwhForwardGraph,
         G: Deref<Target = IG> + Clone,
         Error,
-        OnNode: FnMut(usize) -> Result<bool, Error>,
-        OnArc: FnMut(usize, usize) -> Result<bool, Error>,
+        OnNode: FnMut(usize) -> Result<VisitFlow, Error>,
+        OnArc: FnMut(usize, usize) -> Result<VisitFlow, Error>,
     > SimpleBfsVisitor<IG, G, Error, OnNode, OnArc>
 {
+    /// Initializes a new visit
+    ///
+    /// Arguments:
+    ///
+    /// * `g`: the graph to be visited
+    /// * `item_tx`: a channel where to send the result of callback functions
+    /// * `on_node`/`on_arc`: function called on each visited node or arc, which returns
+    ///   whether keep going or stop the visit.
     pub fn new(graph: G, on_node: OnNode, on_arc: OnArc) -> Self {
         SimpleBfsVisitor {
             graph,
@@ -73,7 +87,10 @@ impl<
         Self: Sized,
     {
         while let Some(node) = self.pop() {
-            self.visit_step(node)?;
+            match self.visit_step(node)? {
+                VisitFlow::Continue => {}
+                VisitFlow::Stop => break,
+            }
         }
         Ok(())
     }
@@ -81,34 +98,39 @@ impl<
     /// Calls [`Self::visit_node`] for the given node.
     ///
     /// Returns `Err` if the visit should stop after this step
-    pub fn visit_step(&mut self, node: usize) -> Result<(), Error> {
+    pub fn visit_step(&mut self, node: usize) -> Result<VisitFlow, Error> {
         self.visit_node(node)
     }
 
     /// Called on each node and calls [`Self::visit_arc`] for each outgoing arcs
     ///
     /// Returns `Err` if the visit should stop after this step
-    pub fn visit_node(&mut self, node: usize) -> Result<(), Error> {
-        if (self.on_node)(node)? {
-            for successor in self.graph.clone().successors(node) {
-                self.visit_arc(node, successor)?;
+    pub fn visit_node(&mut self, node: usize) -> Result<VisitFlow, Error> {
+        match (self.on_node)(node)? {
+            VisitFlow::Continue => {}
+            VisitFlow::Stop => return Ok(VisitFlow::Stop),
+        }
+        for successor in self.graph.clone().successors(node) {
+            match self.visit_arc(node, successor)? {
+                VisitFlow::Continue => {}
+                VisitFlow::Stop => return Ok(VisitFlow::Stop),
             }
         }
-
-        Ok(())
+        Ok(VisitFlow::Continue)
     }
 
     /// Called on each arc, and queues the destination.
     ///
     /// Returns `Err` if the visit should stop after this step
-    pub fn visit_arc(&mut self, src: usize, dst: usize) -> Result<(), Error> {
-        if (self.on_arc)(src, dst)? {
-            if !self.was_seen(dst) {
-                self.mark_seen(dst);
-                self.push(dst);
-            }
+    pub fn visit_arc(&mut self, src: usize, dst: usize) -> Result<VisitFlow, Error> {
+        match (self.on_arc)(src, dst)? {
+            VisitFlow::Stop => return Ok(VisitFlow::Stop),
+            VisitFlow::Continue => {}
         }
-
-        Ok(())
+        if !self.was_seen(dst) {
+            self.mark_seen(dst);
+            self.push(dst);
+        }
+        Ok(VisitFlow::Continue)
     }
 }
