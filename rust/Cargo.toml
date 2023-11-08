@@ -26,8 +26,10 @@ dsi-progress-logger = "0.1.0"
 clap = { version = "4.1.6", features = ["derive"] }
 #ph = { git = "https://github.com/beling/bsuccinct-rs.git", rev = "f6636350a8149bc8deca83527ca195fe22311a4e" }
 ph = { version = "0.8.0" }
-orcxx = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "b7c739231ff84fce956c04ce33072b8c56c3a731" }
-orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "b7c739231ff84fce956c04ce33072b8c56c3a731" }
+#orcxx = { version = "0.4.2", optional = true }
+#orcxx_derive = { version = "0.4.2", optional = true }
+orcxx = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "6a6cad58ce620c17cc793032f94e3ce60652f614" }
+orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "6a6cad58ce620c17cc793032f94e3ce60652f614" }
 #orcxx = { path = "../../../../rust/orcxx/orcxx/", optional = true }
 #orcxx_derive = { path = "../../../../rust/orcxx/orcxx_derive/", optional = true }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
@@ -49,9 +51,9 @@ lender = "0.2.0"
 serde_json = { version = "1.0", optional = true }
 serde = { version = "1.0.189", optional = true }
 serde_derive = { version = "1.0.189", optional = true }
-chrono = { version = "0.4.31", features = ["serde"], optional = true }
 
 # grpc
+chrono = { version = "0.4.31", features = ["serde"], optional = true }
 prost = { version = "0.12", optional = true }
 prost-types = { version = "0.12", optional = true }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"], optional = true }
