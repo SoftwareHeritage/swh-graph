@@ -291,7 +291,7 @@ class VisitEdgesView(SimpleTraversalView):
         # self.traversal_request.return_fields.successor = True
 
     async def stream_response(self):
-        async for node in self.rpc_client.Traverse(self.traversal_request):
+        async for node in self.nodes_stream:
             for succ in node.successor:
                 await self.stream_line(node.swhid + " " + succ.swhid)
 
