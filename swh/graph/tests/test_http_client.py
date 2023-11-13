@@ -210,8 +210,6 @@ def test_visit_edges(graph_client, graph_grpc_backend_implementation):
 
 
 def test_visit_edges_limited(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_edges(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -244,7 +242,15 @@ def test_visit_edges_limited(graph_client, graph_grpc_backend_implementation):
     # * all edges
     # and the right answer depends on which edges were traversed, which is
     # non-deterministic
-    assert set(actual).issubset(set(expected))
+    extras = set(actual) - set(expected)
+    assert not extras, (
+        "Returned unexpected arcs:\n    "
+        + "\n    ".join(map(str, extras))
+        + "\nExpected:\n    "
+        + "\n    ".join(map(str, expected))
+        + "\nGot:\n    "
+        + "\n    ".join(map(str, actual))
+    )
     assert 3 <= len(actual) <= 4
 
 

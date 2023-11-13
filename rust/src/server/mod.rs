@@ -219,9 +219,12 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
                 tonic::Status::invalid_argument("max_depth must be a positive integer")
             })?,
         };
-        if max_edges.is_some() {
-            return Err(tonic::Status::unimplemented("max_edge filter"));
-        }
+        let mut max_edges = match max_edges {
+            None => u64::MAX,
+            Some(i) => i.try_into().map_err(|_| {
+                tonic::Status::invalid_argument("max_edges must be a positive integer")
+            })?,
+        };
         let max_matching_nodes = match max_matching_nodes {
             None => usize::MAX,
             Some(0) => usize::MAX, // Quirk-compatibility with the Java implementation
@@ -241,6 +244,12 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
                 if !return_node_checker.matches(node) {
                     return Ok(VisitFlow::Continue);
                 }
+
+                if (graph.outdegree(node) as u64) > max_edges {
+                    return Ok(VisitFlow::Stop);
+                }
+                max_edges -= graph.outdegree(node) as u64;
+
                 num_matching_nodes += 1;
                 if num_matching_nodes > max_matching_nodes {
                     return Ok(VisitFlow::Stop);
