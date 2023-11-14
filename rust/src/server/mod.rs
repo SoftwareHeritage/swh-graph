@@ -40,7 +40,8 @@ fn parse_node_type(type_name: &str) -> Result<SWHType, tonic::Status> {
         .map_err(|_| tonic::Status::invalid_argument(format!("Invalid node type: {}", type_name)))
 }
 
-fn parse_arc_type(type_name: &str) -> Result<(SWHType, SWHType), tonic::Status> {
+// Returns `*` if the node type is `*`
+fn parse_arc_type(type_name: &str) -> Result<(Option<SWHType>, Option<SWHType>), tonic::Status> {
     let mut splits = type_name.splitn(2, ':');
     let Some(src_type_name) = splits.next() else {
         return Err(tonic::Status::invalid_argument(format!("Invalid arc type: {} (should not be empty)", type_name)));
@@ -48,12 +49,18 @@ fn parse_arc_type(type_name: &str) -> Result<(SWHType, SWHType), tonic::Status> 
     let Some(dst_type_name) = splits.next() else {
         return Err(tonic::Status::invalid_argument(format!("Invalid arc type: {} (should have a colon)", type_name)));
     };
-    let src_type = SWHType::try_from(src_type_name).map_err(|_| {
-        tonic::Status::invalid_argument(format!("Invalid node type: {}", src_type_name))
-    })?;
-    let dst_type = SWHType::try_from(dst_type_name).map_err(|_| {
-        tonic::Status::invalid_argument(format!("Invalid node type: {}", dst_type_name))
-    })?;
+    let src_type = match src_type_name {
+        "*" => None,
+        _ => Some(SWHType::try_from(src_type_name).map_err(|_| {
+            tonic::Status::invalid_argument(format!("Invalid node type: {}", src_type_name))
+        })?),
+    };
+    let dst_type = match dst_type_name {
+        "*" => None,
+        _ => Some(SWHType::try_from(dst_type_name).map_err(|_| {
+            tonic::Status::invalid_argument(format!("Invalid node type: {}", dst_type_name))
+        })?),
+    };
     Ok((src_type, dst_type))
 }
 
@@ -140,16 +147,29 @@ where
         let types = types.unwrap_or("*".to_owned());
         Ok(ArcFilterChecker {
             graph,
-            types: if types == "*" {
-                u64::MAX // all bits set
-            } else {
-                types
-                    .split(",")
-                    .map(parse_arc_type)
-                    .collect::<Result<Vec<_>, _>>()? // Fold errors
-                    .into_iter()
-                    .map(|(src, dst)| Self::bit_mask(src, dst))
-                    .sum()
+            types: match types.as_str() {
+                "*" => u64::MAX, // all bits set, match any arc
+                "" => 0,         // no bits set, match no arc
+                _ => {
+                    types
+                        .split(",")
+                        .map(parse_arc_type)
+                        .collect::<Result<Vec<_>, _>>()? // Fold errors
+                        .into_iter()
+                        .map(|(src, dst)| match (src, dst) {
+                            (None, None) => u64::MAX, // arc '*:*' -> set all bits
+                            (None, Some(dst)) => SWHType::all()
+                                .into_iter()
+                                .map(|src| Self::bit_mask(src, dst))
+                                .sum(),
+                            (Some(src), None) => SWHType::all()
+                                .into_iter()
+                                .map(|dst| Self::bit_mask(src, dst))
+                                .sum(),
+                            (Some(src), Some(dst)) => Self::bit_mask(src, dst),
+                        })
+                        .sum()
+                }
             },
         })
     }
