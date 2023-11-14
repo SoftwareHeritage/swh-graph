@@ -72,7 +72,7 @@ class RemoteGraphClient(RPCClient):
     # Web API endpoints
 
     def stats(self):
-        return self.get("stats")
+        return self._get("stats")
 
     def leaves(
         self,
@@ -175,7 +175,7 @@ class RemoteGraphClient(RPCClient):
         )
 
     def count_leaves(self, src, edges="*", direction="forward", max_matching_nodes=0):
-        return self.get(
+        return self._get(
             "leaves/count/{}".format(src),
             params={
                 "edges": edges,
@@ -185,7 +185,7 @@ class RemoteGraphClient(RPCClient):
         )
 
     def count_neighbors(self, src, edges="*", direction="forward"):
-        return self.get(
+        return self._get(
             "neighbors/count/{}".format(src),
             params={"edges": edges, "direction": direction},
         )
@@ -193,7 +193,7 @@ class RemoteGraphClient(RPCClient):
     def count_visit_nodes(
         self, src, edges="*", direction="forward", max_matching_nodes=0
     ):
-        return self.get(
+        return self._get(
             "visit/nodes/count/{}".format(src),
             params={
                 "edges": edges,
