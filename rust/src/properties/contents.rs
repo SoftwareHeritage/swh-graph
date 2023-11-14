@@ -20,6 +20,23 @@ pub struct Contents {
 impl ContentsOption for Contents {}
 impl ContentsOption for () {}
 
+/// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
+pub trait ContentsTrait {
+    fn is_skipped_content(&self) -> &LongArrayBitVector<NumberMmap<LittleEndian, u64, Mmap>>;
+    fn content_length(&self) -> &NumberMmap<BigEndian, u64, Mmap>;
+}
+
+impl ContentsTrait for Contents {
+    #[inline(always)]
+    fn is_skipped_content(&self) -> &LongArrayBitVector<NumberMmap<LittleEndian, u64, Mmap>> {
+        &self.is_skipped_content
+    }
+    #[inline(always)]
+    fn content_length(&self) -> &NumberMmap<BigEndian, u64, Mmap> {
+        &self.content_length
+    }
+}
+
 impl<
         MAPS: MapsOption,
         TIMESTAMPS: TimestampsOption,
@@ -62,21 +79,24 @@ impl<
         MAPS: MapsOption,
         TIMESTAMPS: TimestampsOption,
         PERSONS: PersonsOption,
+        CONTENTS: ContentsOption + ContentsTrait,
         STRINGS: StringsOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, Contents, STRINGS>
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
 {
     /// Returns whether the node is a skipped content
     ///
     /// Non-content objects get a `false` value, like non-skipped contents.
+    #[inline]
     pub fn is_skipped_content(&self, node_id: NodeId) -> Option<bool> {
-        self.contents.is_skipped_content.get(node_id)
+        self.contents.is_skipped_content().get(node_id)
     }
 
     /// Returns the length of the given content None.
     ///
     /// May be `None` for skipped contents
+    #[inline]
     pub fn content_length(&self, node_id: NodeId) -> Option<u64> {
-        match self.contents.content_length.get(node_id) {
+        match self.contents.content_length().get(node_id) {
             Some(u64::MAX) => None,
             length => length,
         }

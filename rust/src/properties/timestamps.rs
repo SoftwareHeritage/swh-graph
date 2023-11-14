@@ -22,6 +22,33 @@ pub struct Timestamps {
 impl TimestampsOption for Timestamps {}
 impl TimestampsOption for () {}
 
+/// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
+pub trait TimestampsTrait {
+    fn author_timestamp(&self) -> &NumberMmap<BigEndian, i64, Mmap>;
+    fn author_timestamp_offset(&self) -> &NumberMmap<BigEndian, i16, Mmap>;
+    fn committer_timestamp(&self) -> &NumberMmap<BigEndian, i64, Mmap>;
+    fn committer_timestamp_offset(&self) -> &NumberMmap<BigEndian, i16, Mmap>;
+}
+
+impl TimestampsTrait for Timestamps {
+    #[inline(always)]
+    fn author_timestamp(&self) -> &NumberMmap<BigEndian, i64, Mmap> {
+        &self.author_timestamp
+    }
+    #[inline(always)]
+    fn author_timestamp_offset(&self) -> &NumberMmap<BigEndian, i16, Mmap> {
+        &self.author_timestamp_offset
+    }
+    #[inline(always)]
+    fn committer_timestamp(&self) -> &NumberMmap<BigEndian, i64, Mmap> {
+        &self.committer_timestamp
+    }
+    #[inline(always)]
+    fn committer_timestamp_offset(&self) -> &NumberMmap<BigEndian, i16, Mmap> {
+        &self.committer_timestamp_offset
+    }
+}
+
 impl<
         MAPS: MapsOption,
         PERSONS: PersonsOption,
@@ -74,39 +101,44 @@ impl<
 
 impl<
         MAPS: MapsOption,
+        TIMESTAMPS: TimestampsOption + TimestampsTrait,
         PERSONS: PersonsOption,
         CONTENTS: ContentsOption,
         STRINGS: StringsOption,
-    > SwhGraphProperties<MAPS, Timestamps, PERSONS, CONTENTS, STRINGS>
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
 {
     /// Returns the number of seconds since Epoch that a release or revision was
     /// authored at
+    #[inline]
     pub fn author_timestamp(&self, node_id: NodeId) -> Option<i64> {
-        match self.timestamps.author_timestamp.get(node_id) {
+        match self.timestamps.author_timestamp().get(node_id) {
             Some(i64::MIN) => None,
             ts => ts,
         }
     }
 
     /// Returns the UTC offset in minutes of a release or revision's authorship date
+    #[inline]
     pub fn author_timestamp_offset(&self, node_id: NodeId) -> Option<i16> {
-        match self.timestamps.author_timestamp_offset.get(node_id) {
+        match self.timestamps.author_timestamp_offset().get(node_id) {
             Some(i16::MIN) => None,
             offset => offset,
         }
     }
 
     /// Returns the number of seconds since Epoch that a revision was committed at
+    #[inline]
     pub fn committer_timestamp(&self, node_id: NodeId) -> Option<i64> {
-        match self.timestamps.committer_timestamp.get(node_id) {
+        match self.timestamps.committer_timestamp().get(node_id) {
             Some(i64::MIN) => None,
             ts => ts,
         }
     }
 
     /// Returns the UTC offset in minutes of a revision's committer date
+    #[inline]
     pub fn committer_timestamp_offset(&self, node_id: NodeId) -> Option<i16> {
-        match self.timestamps.committer_timestamp_offset.get(node_id) {
+        match self.timestamps.committer_timestamp_offset().get(node_id) {
             Some(i16::MIN) => None,
             offset => offset,
         }

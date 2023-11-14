@@ -20,6 +20,23 @@ pub struct Persons {
 impl PersonsOption for Persons {}
 impl PersonsOption for () {}
 
+/// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
+pub trait PersonsTrait {
+    fn author_id(&self) -> &NumberMmap<BigEndian, u32, Mmap>;
+    fn committer_id(&self) -> &NumberMmap<BigEndian, u32, Mmap>;
+}
+
+impl PersonsTrait for Persons {
+    #[inline(always)]
+    fn author_id(&self) -> &NumberMmap<BigEndian, u32, Mmap> {
+        &self.author_id
+    }
+    #[inline(always)]
+    fn committer_id(&self) -> &NumberMmap<BigEndian, u32, Mmap> {
+        &self.committer_id
+    }
+}
+
 impl<
         MAPS: MapsOption,
         TIMESTAMPS: TimestampsOption,
@@ -58,21 +75,24 @@ impl<
 impl<
         MAPS: MapsOption,
         TIMESTAMPS: TimestampsOption,
+        PERSONS: PersonsOption + PersonsTrait,
         CONTENTS: ContentsOption,
         STRINGS: StringsOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, Persons, CONTENTS, STRINGS>
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
 {
     /// Returns the id of the author of a revision or release, if any
+    #[inline]
     pub fn author_id(&self, node_id: NodeId) -> Option<u32> {
-        match self.persons.author_id.get(node_id) {
+        match self.persons.author_id().get(node_id) {
             Some(u32::MAX) => None,
             id => id,
         }
     }
 
     /// Returns the id of the committer of a revision, if any
+    #[inline]
     pub fn committer_id(&self, node_id: NodeId) -> Option<u32> {
-        match self.persons.committer_id.get(node_id) {
+        match self.persons.committer_id().get(node_id) {
             Some(u32::MAX) => None,
             id => id,
         }

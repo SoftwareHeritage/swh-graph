@@ -39,15 +39,19 @@ pub trait MapsTrait {
 impl<MPHF: SwhidMphf> MapsTrait for Maps<MPHF> {
     type MPHF = MPHF;
 
+    #[inline(always)]
     fn mphf(&self) -> &Self::MPHF {
         &self.mphf
     }
+    #[inline(always)]
     fn order(&self) -> &MappedPermutation {
         &self.order
     }
+    #[inline(always)]
     fn node2swhid(&self) -> &Node2SWHID<Mmap> {
         &self.node2swhid
     }
+    #[inline(always)]
     fn node2type(&self) -> &Node2Type<UsizeMmap<Mmap>> {
         &self.node2type
     }

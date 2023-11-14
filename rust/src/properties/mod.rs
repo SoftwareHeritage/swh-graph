@@ -191,13 +191,13 @@ mod maps;
 pub(crate) use maps::{Maps, MapsOption, MapsTrait};
 
 mod timestamps;
-pub(crate) use timestamps::{Timestamps, TimestampsOption};
+pub(crate) use timestamps::{Timestamps, TimestampsOption, TimestampsTrait};
 
 mod persons;
-pub(crate) use persons::{Persons, PersonsOption};
+pub(crate) use persons::{Persons, PersonsOption, PersonsTrait};
 
 mod contents;
-pub(crate) use contents::{Contents, ContentsOption};
+pub(crate) use contents::{Contents, ContentsOption, ContentsTrait};
 
 mod strings;
-pub(crate) use strings::{Strings, StringsOption};
+pub(crate) use strings::{Strings, StringsOption, StringsTrait};

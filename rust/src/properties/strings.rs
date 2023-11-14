@@ -22,6 +22,33 @@ pub struct Strings {
 impl StringsOption for Strings {}
 impl StringsOption for () {}
 
+/// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
+pub trait StringsTrait {
+    fn message(&self) -> &Mmap;
+    fn message_offset(&self) -> &NumberMmap<BigEndian, u64, Mmap>;
+    fn tag_name(&self) -> &Mmap;
+    fn tag_name_offset(&self) -> &NumberMmap<BigEndian, u64, Mmap>;
+}
+
+impl StringsTrait for Strings {
+    #[inline(always)]
+    fn message(&self) -> &Mmap {
+        &self.message
+    }
+    #[inline(always)]
+    fn message_offset(&self) -> &NumberMmap<BigEndian, u64, Mmap> {
+        &self.message_offset
+    }
+    #[inline(always)]
+    fn tag_name(&self) -> &Mmap {
+        &self.tag_name
+    }
+    #[inline(always)]
+    fn tag_name_offset(&self) -> &NumberMmap<BigEndian, u64, Mmap> {
+        &self.tag_name_offset
+    }
+}
+
 impl<
         MAPS: MapsOption,
         TIMESTAMPS: TimestampsOption,
@@ -71,7 +98,8 @@ impl<
         TIMESTAMPS: TimestampsOption,
         PERSONS: PersonsOption,
         CONTENTS: ContentsOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, Strings>
+        STRINGS: StringsOption + StringsTrait,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
 {
     #[inline(always)]
     fn message_or_tag_name_base64<'a>(
@@ -98,16 +126,18 @@ impl<
     }
 
     /// Returns the message of a revision or release, base64-encoded
+    #[inline]
     pub fn message_base64(&self, node_id: NodeId) -> Option<&[u8]> {
         Self::message_or_tag_name_base64(
             "message",
-            &self.strings.message,
-            &self.strings.message_offset,
+            &self.strings.message(),
+            &self.strings.message_offset(),
             node_id,
         )
     }
 
     /// Returns the message of a revision or release
+    #[inline]
     pub fn message(&self, node_id: NodeId) -> Option<Vec<u8>> {
         let base64 = base64_simd::STANDARD;
         self.message_base64(node_id).map(|message| {
@@ -119,16 +149,18 @@ impl<
     }
 
     /// Returns the tag name of a release, base64-encoded
+    #[inline]
     pub fn tag_name_base64(&self, node_id: NodeId) -> Option<&[u8]> {
         Self::message_or_tag_name_base64(
             "tag_name",
-            &self.strings.tag_name,
-            &self.strings.tag_name_offset,
+            &self.strings.tag_name(),
+            &self.strings.tag_name_offset(),
             node_id,
         )
     }
 
     /// Returns the tag name of a release
+    #[inline]
     pub fn tag_name(&self, node_id: NodeId) -> Option<Vec<u8>> {
         let base64 = base64_simd::STANDARD;
         self.tag_name_base64(node_id).map(|tag_name| {
