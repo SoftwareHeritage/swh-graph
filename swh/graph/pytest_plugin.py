@@ -72,13 +72,12 @@ def graph_grpc_server_process():
 
 
 @pytest.fixture(scope="module")
-def graph_grpc_server(graph_grpc_server_process):
+def graph_grpc_server_started(graph_grpc_server_process):
     server = graph_grpc_server_process
     server.start()
     if isinstance(server.result, Exception):
         raise server.result
-    grpc_url = server.result["rpc_url"]
-    yield grpc_url
+    yield server
     server.kill()
 
 
@@ -90,13 +89,18 @@ def graph_grpc_stub(graph_grpc_server):
 
 
 @pytest.fixture(scope="module")
-def remote_graph_client(graph_grpc_server_process):
-    server = graph_grpc_server_process
-    server.start()
-    if isinstance(server.result, Exception):
-        raise server.result
-    yield RemoteGraphClient(str(server.result["server_url"]))
-    server.kill()
+def graph_grpc_server(graph_grpc_server_started):
+    yield graph_grpc_server_started.result["rpc_url"]
+
+
+@pytest.fixture(scope="module")
+def remote_graph_client_url(graph_grpc_server_started):
+    yield str(graph_grpc_server_started.result["server_url"])
+
+
+@pytest.fixture(scope="module")
+def remote_graph_client(graph_grpc_server_started):
+    yield RemoteGraphClient(str(graph_grpc_server_started.result["server_url"]))
 
 
 @pytest.fixture(scope="module")
