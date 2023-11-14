@@ -106,6 +106,19 @@ def test_leaves_with_limit(graph_client, max_matching_nodes):
         assert len(actual) == min(4, max_matching_nodes)
 
 
+def test_empty_neighbors(graph_client):
+    # https://gitlab.softwareheritage.org/swh/devel/swh-graph/-/issues/4790
+    actual = list(
+        graph_client.neighbors(
+            "swh:1:rev:0000000000000000000000000000000000000009",
+            direction="forward",
+            # We are guaranteed no results because no ori→snp edges exist from a rev
+            edges="ori:snp",
+        )
+    )
+    assert actual == []
+
+
 def test_neighbors(graph_client):
     actual = list(
         graph_client.neighbors(
