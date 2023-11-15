@@ -602,32 +602,28 @@ impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::T
         let graph = self.0.clone();
 
         let mut count = 0i64;
-        {
-            let count_ref = &mut count;
-            let on_node = move |_node| match count_ref.checked_add(1) {
-                Some(new_count) => {
-                    *count_ref = new_count;
-                    Ok(())
-                }
-                None => Err(tonic::Status::resource_exhausted(
-                    "Node count overflowed i64",
-                )),
-            };
-            let on_arc = |_src, _dst| Ok(());
-
-            // Spawning a thread because Tonic currently only supports Tokio, which requires
-            // futures to be sendable between threads, and webgraph's successor iterators cannot
-            match request.get_ref().direction.try_into() {
-                Ok(proto::GraphDirection::Forward) => {
-                    self.make_visitor(request, graph, on_node, on_arc)?
-                        .visit()?;
-                }
-                Ok(proto::GraphDirection::Backward) => {
-                    self.make_visitor(request, Arc::new(Transposed(graph)), on_node, on_arc)?
-                        .visit()?;
-                }
-                Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
+        let count_ref = &mut count;
+        let on_node = move |_node| match count_ref.checked_add(1) {
+            Some(new_count) => {
+                *count_ref = new_count;
+                Ok(())
             }
+            None => Err(tonic::Status::resource_exhausted(
+                "Node count overflowed i64",
+            )),
+        };
+        let on_arc = |_src, _dst| Ok(());
+
+        match request.get_ref().direction.try_into() {
+            Ok(proto::GraphDirection::Forward) => {
+                self.make_visitor(request, graph, on_node, on_arc)?
+                    .visit()?;
+            }
+            Ok(proto::GraphDirection::Backward) => {
+                self.make_visitor(request, Arc::new(Transposed(graph)), on_node, on_arc)?
+                    .visit()?;
+            }
+            Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
         }
 
         Ok(Response::new(proto::CountResponse { count }))
@@ -635,11 +631,36 @@ impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::T
 
     async fn count_edges(
         &self,
-        _request: Request<proto::TraversalRequest>,
+        request: Request<proto::TraversalRequest>,
     ) -> TonicResult<proto::CountResponse> {
-        Err(tonic::Status::unimplemented(
-            "count_edges is not implemented yet",
-        ))
+        let graph = self.0.clone();
+
+        let mut count = 0i64;
+        let count_ref = &mut count;
+        let on_node = |_node| Ok(());
+        let on_arc = move |_src, _dst| match count_ref.checked_add(1) {
+            Some(new_count) => {
+                *count_ref = new_count;
+                Ok(())
+            }
+            None => Err(tonic::Status::resource_exhausted(
+                "Edge count overflowed i64",
+            )),
+        };
+
+        match request.get_ref().direction.try_into() {
+            Ok(proto::GraphDirection::Forward) => {
+                self.make_visitor(request, graph, on_node, on_arc)?
+                    .visit()?;
+            }
+            Ok(proto::GraphDirection::Backward) => {
+                self.make_visitor(request, Arc::new(Transposed(graph)), on_node, on_arc)?
+                    .visit()?;
+            }
+            Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
+        }
+
+        Ok(Response::new(proto::CountResponse { count }))
     }
 
     async fn stats(
