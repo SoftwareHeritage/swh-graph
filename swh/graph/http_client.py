@@ -38,7 +38,7 @@ class RemoteGraphClient(RPCClient):
             if e.response.status_code == 404:
                 raise ValueError(
                     "URL is incorrect (got 404 while trying to retrieve stats)"
-                )
+                ) from None
             raise
         if "num_nodes" not in stats:
             raise ValueError("stats returned unexpected results (no `num_nodes` entry)")
