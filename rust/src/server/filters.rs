@@ -47,8 +47,8 @@ fn parse_arc_type(type_name: &str) -> Result<(Option<SWHType>, Option<SWHType>),
 pub struct NodeFilterChecker<G: Deref + Clone + Send + Sync + 'static> {
     graph: G,
     types: u8, // Bit mask
-    min_traversal_successors: usize,
-    max_traversal_successors: usize,
+    min_traversal_successors: u64,
+    max_traversal_successors: u64,
 }
 
 impl<G: Deref + Clone + Send + Sync + 'static> NodeFilterChecker<G>
@@ -85,7 +85,7 @@ where
                 })?,
             },
             max_traversal_successors: match max_traversal_successors {
-                None => usize::MAX,
+                None => u64::MAX,
                 Some(max_succ) => max_succ.try_into().map_err(|_| {
                     tonic::Status::invalid_argument(
                         "max_traversal_successors must be a positive integer",
@@ -95,10 +95,9 @@ where
         })
     }
 
-    pub fn matches(&self, node: usize) -> bool {
-        let outdegree = self.graph.outdegree(node);
-        self.min_traversal_successors <= outdegree
-            && outdegree <= self.max_traversal_successors
+    pub fn matches(&self, node: usize, num_traversal_successors: u64) -> bool {
+        self.min_traversal_successors <= num_traversal_successors
+            && num_traversal_successors <= self.max_traversal_successors
             && (self.types == u8::MAX
                 || (Self::bit_mask(self.graph.properties().node_type(node).unwrap()) & self.types)
                     != 0)

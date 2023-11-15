@@ -23,14 +23,16 @@ const DEPTH_SENTINEL: usize = usize::MAX;
 /// A simple traversal.
 ///
 /// For each node (resp. arc), `on_node` (resp. `on_arc`) is called with each node (resp. arc)
-/// and the current depth, and it affects the next visited node based on which
-/// [`VisitFlow`] it returns.
+/// the current depth, and it affects the next visited node based on which [`VisitFlow`] it returns.
+///
+/// For each node, `on_arc` is first called on all outgoing edges, then `on_node` is called
+/// for that node, with the number of arcs that were not ignored by `on_arc` as last parameter.
 #[derive(Debug)]
 pub struct SimpleBfsVisitor<
     IG: SwhForwardGraph,
     G: Deref<Target = IG> + Clone,
     Error,
-    OnNode: FnMut(usize, u64) -> Result<VisitFlow, Error>,
+    OnNode: FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
     OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
 > {
     graph: G,
@@ -46,7 +48,7 @@ impl<
         IG: SwhForwardGraph,
         G: Deref<Target = IG> + Clone,
         Error,
-        OnNode: FnMut(usize, u64) -> Result<VisitFlow, Error>,
+        OnNode: FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
         OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
     > SimpleBfsVisitor<IG, G, Error, OnNode, OnArc>
 {
@@ -127,19 +129,19 @@ impl<
     ///
     /// Returns `Err` if the visit should stop after this step
     pub fn visit_node(&mut self, node: usize) -> Result<VisitFlow, Error> {
-        match (self.on_node)(node, self.depth)? {
-            VisitFlow::Continue => {}
-            VisitFlow::Ignore => return Ok(VisitFlow::Continue),
-            VisitFlow::Stop => return Ok(VisitFlow::Stop),
-        }
+        let mut num_successors = 0;
         for successor in self.graph.clone().successors(node) {
             match self.visit_arc(node, successor)? {
-                VisitFlow::Continue => {}
-                VisitFlow::Ignore => panic!("visit_arc returned Ignore"),
+                VisitFlow::Continue => num_successors += 1,
+                VisitFlow::Ignore => {}
                 VisitFlow::Stop => return Ok(VisitFlow::Stop),
             }
         }
-        Ok(VisitFlow::Continue)
+        match (self.on_node)(node, self.depth, num_successors)? {
+            VisitFlow::Continue => Ok(VisitFlow::Continue),
+            VisitFlow::Ignore => panic!("on_node returned VisitFlow::Ignore"),
+            VisitFlow::Stop => return Ok(VisitFlow::Stop),
+        }
     }
 
     /// Called on each arc, and queues the destination.
@@ -148,7 +150,7 @@ impl<
     pub fn visit_arc(&mut self, src: usize, dst: usize) -> Result<VisitFlow, Error> {
         match (self.on_arc)(src, dst, self.depth)? {
             VisitFlow::Continue => {}
-            VisitFlow::Ignore => return Ok(VisitFlow::Continue),
+            VisitFlow::Ignore => return Ok(VisitFlow::Ignore),
             VisitFlow::Stop => return Ok(VisitFlow::Stop),
         }
         if !self.was_seen(dst) {

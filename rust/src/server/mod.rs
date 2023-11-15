@@ -59,14 +59,14 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
         &'a self,
         request: Request<proto::TraversalRequest>,
         graph: G,
-        mut on_node: impl FnMut(usize) -> Result<(), Error> + Send + 'a,
+        mut on_node: impl FnMut(usize, u64) -> Result<(), Error> + Send + 'a,
         mut on_arc: impl FnMut(usize, usize) -> Result<(), Error> + Send + 'a,
     ) -> Result<
         traversal::SimpleBfsVisitor<
             G::Target,
             G,
             Error,
-            impl FnMut(usize, u64) -> Result<VisitFlow, Error>,
+            impl FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
             impl FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
         >,
         tonic::Status,
@@ -119,22 +119,22 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
         let mut visitor = traversal::SimpleBfsVisitor::new(
             graph.clone(),
             max_depth,
-            move |node, depth| {
-                if !return_node_checker.matches(node) {
+            move |node, depth, num_successors| {
+                if !return_node_checker.matches(node, num_successors) {
                     return Ok(VisitFlow::Continue);
                 }
 
-                if (graph.outdegree(node) as u64) > max_edges {
+                if num_successors > max_edges {
                     return Ok(VisitFlow::Stop);
                 }
-                max_edges -= graph.outdegree(node) as u64;
+                max_edges -= num_successors;
 
-                num_matching_nodes += 1;
-                if num_matching_nodes > max_matching_nodes {
-                    return Ok(VisitFlow::Stop);
-                }
                 if depth >= min_depth {
-                    on_node(node)?;
+                    on_node(node, num_successors)?;
+                    num_matching_nodes += 1;
+                    if num_matching_nodes >= max_matching_nodes {
+                        return Ok(VisitFlow::Stop);
+                    }
                 }
                 Ok(VisitFlow::Continue)
             },
@@ -173,7 +173,8 @@ impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::T
 
         let node_builder = NodeBuilder::new(graph.clone(), request.get_ref().mask.clone())?;
         let (tx, rx) = mpsc::channel(1_000);
-        let on_node = move |node| tx.blocking_send(Ok(node_builder.build_node(node)));
+        let on_node =
+            move |node, _num_successors| tx.blocking_send(Ok(node_builder.build_node(node)));
         let on_arc = |_src, _dst| Ok(());
 
         // Spawning a thread because Tonic currently only supports Tokio, which requires
@@ -219,7 +220,7 @@ impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::T
 
         let mut count = 0i64;
         let count_ref = &mut count;
-        let on_node = move |_node| match count_ref.checked_add(1) {
+        let on_node = move |_node, _num_successors| match count_ref.checked_add(1) {
             Some(new_count) => {
                 *count_ref = new_count;
                 Ok(())
@@ -253,7 +254,7 @@ impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::T
 
         let mut count = 0i64;
         let count_ref = &mut count;
-        let on_node = |_node| Ok(());
+        let on_node = |_node, _num_successors| Ok(());
         let on_arc = move |_src, _dst| match count_ref.checked_add(1) {
             Some(new_count) => {
                 *count_ref = new_count;
