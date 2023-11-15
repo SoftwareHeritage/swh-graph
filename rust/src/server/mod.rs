@@ -439,22 +439,25 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
             .ok_or_else(|| tonic::Status::not_found(format!("Unknown SWHID: {swhid}")))
     }
 
-    async fn undirected_traverse<G: Deref + Clone + Send + Sync + 'static>(
-        &self,
+    fn make_visitor<'a, G: Deref + Clone + Send + Sync + 'static, Error: Send + 'a>(
+        &'a self,
         request: Request<proto::TraversalRequest>,
         graph: G,
-    ) -> TonicResult<ReceiverStream<Result<proto::Node, tonic::Status>>>
+        mut on_node: impl FnMut(usize) -> Result<(), Error> + Send + 'a,
+        mut on_arc: impl FnMut(usize, usize) -> Result<(), Error> + Send + 'a,
+    ) -> Result<
+        traversal::SimpleBfsVisitor<
+            G::Target,
+            G,
+            Error,
+            impl FnMut(usize, u64) -> Result<VisitFlow, Error>,
+            impl FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
+        >,
+        tonic::Status,
+    >
     where
         G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
         <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait + properties::MapsOption,
-        <G::Target as SwhGraphWithProperties>::Timestamps:
-            properties::TimestampsTrait + properties::TimestampsOption,
-        <G::Target as SwhGraphWithProperties>::Persons:
-            properties::PersonsTrait + properties::PersonsOption,
-        <G::Target as SwhGraphWithProperties>::Contents:
-            properties::ContentsTrait + properties::ContentsOption,
-        <G::Target as SwhGraphWithProperties>::Strings:
-            properties::StringsTrait + properties::StringsOption,
     {
         let proto::TraversalRequest {
             src,
@@ -464,7 +467,7 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
             min_depth,
             max_depth,
             return_nodes,
-            mask,
+            mask: _, // Handled by caller
             max_matching_nodes,
         } = request.get_ref().clone();
         let min_depth = match min_depth {
@@ -495,10 +498,8 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
 
         let return_node_checker =
             NodeFilterChecker::new(graph.clone(), return_nodes.unwrap_or_default())?;
-        let node_builder = NodeBuilder::new(graph.clone(), mask)?;
         let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
         let mut num_matching_nodes = 0;
-        let (tx, rx) = mpsc::channel(1_000);
         let mut visitor = traversal::SimpleBfsVisitor::new(
             graph.clone(),
             max_depth,
@@ -517,13 +518,14 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
                     return Ok(VisitFlow::Stop);
                 }
                 if depth >= min_depth {
-                    tx.blocking_send(Ok(node_builder.build_node(node)))?;
+                    on_node(node)?;
                 }
                 Ok(VisitFlow::Continue)
             },
             move |src, dst, _depth| {
                 if arc_checker.matches(src, dst) {
-                    Ok::<_, mpsc::error::SendError<_>>(VisitFlow::Continue)
+                    on_arc(src, dst)?;
+                    Ok(VisitFlow::Continue)
                 } else {
                     Ok(VisitFlow::Ignore)
                 }
@@ -532,11 +534,7 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
         for src_item in &src {
             visitor.push(self.try_get_node_id(src_item)?);
         }
-        // Spawning a thread because Tonic currently only supports Tokio, which requires
-        // futures to be sendable between threads, and webgraph's successor iterators cannot
-        tokio::spawn(async move { std::thread::spawn(|| visitor.visit()).join() });
-
-        Ok(Response::new(ReceiverStream::new(rx)))
+        Ok(visitor)
     }
 }
 
@@ -557,14 +555,26 @@ impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::T
     ) -> TonicResult<Self::TraverseStream> {
         let graph = self.0.clone();
 
+        let node_builder = NodeBuilder::new(graph.clone(), request.get_ref().mask.clone())?;
+        let (tx, rx) = mpsc::channel(1_000);
+        let on_node = move |node| tx.blocking_send(Ok(node_builder.build_node(node)));
+        let on_arc = |_src, _dst| Ok(());
+
+        // Spawning a thread because Tonic currently only supports Tokio, which requires
+        // futures to be sendable between threads, and webgraph's successor iterators cannot
         match request.get_ref().direction.try_into() {
-            Ok(proto::GraphDirection::Forward) => self.undirected_traverse(request, graph).await,
-            Ok(proto::GraphDirection::Backward) => {
-                self.undirected_traverse(request, Arc::new(Transposed(graph)))
-                    .await
+            Ok(proto::GraphDirection::Forward) => {
+                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                tokio::spawn(async move { std::thread::spawn(|| visitor.visit()).join() });
             }
-            Err(_) => Err(tonic::Status::invalid_argument("Invalid direction")),
+            Ok(proto::GraphDirection::Backward) => {
+                let visitor =
+                    self.make_visitor(request, Arc::new(Transposed(graph)), on_node, on_arc)?;
+                tokio::spawn(async move { std::thread::spawn(|| visitor.visit()).join() });
+            }
+            Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
         }
+        Ok(Response::new(ReceiverStream::new(rx)))
     }
 
     async fn find_path_to(
@@ -587,11 +597,40 @@ impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::T
 
     async fn count_nodes(
         &self,
-        _request: Request<proto::TraversalRequest>,
+        request: Request<proto::TraversalRequest>,
     ) -> TonicResult<proto::CountResponse> {
-        Err(tonic::Status::unimplemented(
-            "count_nodes is not implemented yet",
-        ))
+        let graph = self.0.clone();
+
+        let mut count = 0i64;
+        {
+            let count_ref = &mut count;
+            let on_node = move |_node| match count_ref.checked_add(1) {
+                Some(new_count) => {
+                    *count_ref = new_count;
+                    Ok(())
+                }
+                None => Err(tonic::Status::resource_exhausted(
+                    "Node count overflowed i64",
+                )),
+            };
+            let on_arc = |_src, _dst| Ok(());
+
+            // Spawning a thread because Tonic currently only supports Tokio, which requires
+            // futures to be sendable between threads, and webgraph's successor iterators cannot
+            match request.get_ref().direction.try_into() {
+                Ok(proto::GraphDirection::Forward) => {
+                    self.make_visitor(request, graph, on_node, on_arc)?
+                        .visit()?;
+                }
+                Ok(proto::GraphDirection::Backward) => {
+                    self.make_visitor(request, Arc::new(Transposed(graph)), on_node, on_arc)?
+                        .visit()?;
+                }
+                Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
+            }
+        }
+
+        Ok(Response::new(proto::CountResponse { count }))
     }
 
     async fn count_edges(

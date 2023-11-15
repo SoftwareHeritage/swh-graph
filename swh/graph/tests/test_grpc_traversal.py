@@ -34,6 +34,16 @@ def test_src_errors(graph_grpc_stub, graph_grpc_backend_implementation):
 
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
+            src=["swh:1:lol:0000000000000000000000000000000000000001"],
+            direction=GraphDirection.FORWARD,
+        )
+    )
+    with pytest.raises(grpc.RpcError) as exc_info:
+        list(request)
+    assert exc_info.value.code() == grpc.StatusCode.INVALID_ARGUMENT
+
+    request = graph_grpc_stub.Traverse(
+        TraversalRequest(
             src=["swh:1:cnt:000000000000000000000000000000000000000z"],
             direction=GraphDirection.FORWARD,
         )

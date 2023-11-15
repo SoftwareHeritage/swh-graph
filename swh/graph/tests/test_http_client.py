@@ -407,8 +407,6 @@ def test_random_walk_dst_is_node(graph_client, graph_grpc_backend_implementation
 
 
 def test_count(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = graph_client.count_leaves(TEST_ORIGIN_ID)
     assert actual == 4
     actual = graph_client.count_visit_nodes(
@@ -425,8 +423,6 @@ def test_count(graph_client, graph_grpc_backend_implementation):
 def test_count_with_limit(
     graph_client, max_matching_nodes, graph_grpc_backend_implementation
 ):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = graph_client.count_leaves(
         TEST_ORIGIN_ID, max_matching_nodes=max_matching_nodes
     )
