@@ -14,6 +14,8 @@ struct Args {
     graph_path: PathBuf,
     #[arg(long, default_value = "[::]:5009")]
     bind: std::net::SocketAddr,
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    verbose: u8,
 }
 
 #[tokio::main]
@@ -21,7 +23,7 @@ pub async fn main() -> Result<()> {
     let args = Args::parse();
 
     stderrlog::new()
-        .verbosity(2)
+        .verbosity(args.verbose as usize)
         .timestamp(stderrlog::Timestamp::Second)
         .init()
         .context("While Initializing the stderrlog")?;

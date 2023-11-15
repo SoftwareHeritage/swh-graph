@@ -49,6 +49,10 @@ def build_rust_grpc_server_cmdline(**config):
         cmd = ["./target/debug/grpc-serve"]
     else:
         cmd = ["./target/release/grpc-serve"]
+    if config.get("debug"):
+        cmd.append("-vvvvv")
+    else:
+        cmd.append("-vv")
     logger.debug("Checking configuration and populating default values")
     config = check_config(config)
     logger.debug("Configuration: %r", config)
