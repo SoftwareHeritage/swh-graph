@@ -23,10 +23,16 @@ fn parse_node_type(type_name: &str) -> Result<SWHType, tonic::Status> {
 fn parse_arc_type(type_name: &str) -> Result<(Option<SWHType>, Option<SWHType>), tonic::Status> {
     let mut splits = type_name.splitn(2, ':');
     let Some(src_type_name) = splits.next() else {
-        return Err(tonic::Status::invalid_argument(format!("Invalid arc type: {} (should not be empty)", type_name)));
+        return Err(tonic::Status::invalid_argument(format!(
+            "Invalid arc type: {} (should not be empty)",
+            type_name
+        )));
     };
     let Some(dst_type_name) = splits.next() else {
-        return Err(tonic::Status::invalid_argument(format!("Invalid arc type: {} (should have a colon)", type_name)));
+        return Err(tonic::Status::invalid_argument(format!(
+            "Invalid arc type: {} (should have a colon)",
+            type_name
+        )));
     };
     let src_type = match src_type_name {
         "*" => None,

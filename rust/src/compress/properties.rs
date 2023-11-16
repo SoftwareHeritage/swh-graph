@@ -271,7 +271,10 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         }
 
         let Some(person_mph) = self.person_mph.as_ref() else {
-            panic!("write_author_ids is missing person MPH but allowed_node_types = {:?}", self.allowed_node_types);
+            panic!(
+                "write_author_ids is missing person MPH but allowed_node_types = {:?}",
+                self.allowed_node_types
+            );
         };
 
         log::info!("Initializing...");
@@ -326,7 +329,10 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         }
 
         let Some(person_mph) = self.person_mph.as_ref() else {
-            panic!("write_committer_ids is missing person MPH but allowed_node_types = {:?}", self.allowed_node_types);
+            panic!(
+                "write_committer_ids is missing person MPH but allowed_node_types = {:?}",
+                self.allowed_node_types
+            );
         };
 
         log::info!("Initializing...");

@@ -17,7 +17,7 @@ TEST_ORIGIN_ID2 = "swh:1:ori:{}".format(
 )
 
 
-def get_leaves_request_builder(
+def get_leaves(
     graph_grpc_stub, src, direction=None, edges=None, max_matching_nodes=None
 ):
     request = graph_grpc_stub.Traverse(
@@ -50,7 +50,7 @@ def _check_forward_from_snp(limit, actual_leaves):
 
 
 def test_forward_from_snp(graph_grpc_stub, graph_grpc_backend_implementation):
-    actual_leaves = get_leaves_request_builder(
+    actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:snp:0000000000000000000000000000000000000020"],
         GraphDirection.FORWARD,
@@ -62,7 +62,7 @@ def test_forward_from_snp(graph_grpc_stub, graph_grpc_backend_implementation):
 def test_forward_from_snp_with_limit(
     graph_grpc_stub, graph_grpc_backend_implementation, limit
 ):
-    actual_leaves = get_leaves_request_builder(
+    actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:snp:0000000000000000000000000000000000000020"],
         max_matching_nodes=limit,
@@ -71,7 +71,7 @@ def test_forward_from_snp_with_limit(
 
 
 def test_forward_from_rel(graph_grpc_stub, graph_grpc_backend_implementation):
-    actual_leaves = get_leaves_request_builder(
+    actual_leaves = get_leaves(
         graph_grpc_stub, ["swh:1:rel:0000000000000000000000000000000000000019"]
     )
     expected_leaves = [
@@ -87,7 +87,7 @@ def test_forward_from_rel(graph_grpc_stub, graph_grpc_backend_implementation):
 
 
 def test_backward_from_leaf(graph_grpc_stub, graph_grpc_backend_implementation):
-    actual_leaves = get_leaves_request_builder(
+    actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:cnt:0000000000000000000000000000000000000015"],
         direction=GraphDirection.BACKWARD,
@@ -98,7 +98,7 @@ def test_backward_from_leaf(graph_grpc_stub, graph_grpc_backend_implementation):
     ]
     assert set(expected_leaves) == set(actual_leaves)
 
-    actual_leaves2 = get_leaves_request_builder(
+    actual_leaves2 = get_leaves(
         graph_grpc_stub,
         ["swh:1:cnt:0000000000000000000000000000000000000004"],
         direction=GraphDirection.BACKWARD,
@@ -112,7 +112,7 @@ def test_backward_from_leaf(graph_grpc_stub, graph_grpc_backend_implementation):
 
 
 def test_forward_rev_to_rev_only(graph_grpc_stub, graph_grpc_backend_implementation):
-    actual_leaves = get_leaves_request_builder(
+    actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:rev:0000000000000000000000000000000000000018"],
         edges="rev:rev",
@@ -122,7 +122,7 @@ def test_forward_rev_to_rev_only(graph_grpc_stub, graph_grpc_backend_implementat
 
 
 def test_forward_dir_to_all(graph_grpc_stub, graph_grpc_backend_implementation):
-    actual_leaves = get_leaves_request_builder(
+    actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:dir:0000000000000000000000000000000000000008"],
         edges="dir:*",
@@ -139,7 +139,7 @@ def test_forward_dir_to_all(graph_grpc_stub, graph_grpc_backend_implementation):
 def test_backward_cnt_to_dir_dir_to_dir(
     graph_grpc_stub, graph_grpc_backend_implementation
 ):
-    actual_leaves = get_leaves_request_builder(
+    actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:cnt:0000000000000000000000000000000000000005"],
         edges="cnt:dir,dir:dir",
@@ -153,7 +153,7 @@ def test_backward_cnt_to_dir_dir_to_dir(
 def test_backward_cnt_to_dir_dir_to_dir_with_limit(
     graph_grpc_stub, graph_grpc_backend_implementation, limit
 ):
-    actual_leaves = get_leaves_request_builder(
+    actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:cnt:0000000000000000000000000000000000000005"],
         edges="cnt:dir,dir:dir",

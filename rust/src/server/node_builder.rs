@@ -80,7 +80,10 @@ where
 {
     pub fn new(graph: G, mask: Option<prost_types::FieldMask>) -> Result<Self, tonic::Status> {
         let Some(mask) = mask else {
-            return Ok(NodeBuilder { graph, bitmask: u32::MAX }); // All bits set
+            return Ok(NodeBuilder {
+                graph,
+                bitmask: u32::MAX,
+            }); // All bits set
         };
         let mut node_builder = NodeBuilder {
             graph,
