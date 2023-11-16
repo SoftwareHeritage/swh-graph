@@ -4,159 +4,223 @@
 // See top-level LICENSE file for more information
 
 use std::ops::Deref;
+use std::sync::Arc;
 
-use crate::graph::SwhForwardGraph;
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::ReceiverStream;
+use tonic::{Request, Response};
 
-#[derive(Debug)]
-pub enum VisitFlow {
-    /// Keep browsing after this node/arc
-    Continue,
-    /// Ignore this node/arc for traversal (ie. don't visit its successors, at least
-    /// not yet)
-    Ignore,
-    /// End the visit immediately
-    Stop,
+use crate::graph::{SwhForwardGraph, SwhGraphWithProperties};
+use crate::mph::SwhidMphf;
+use crate::properties;
+use crate::views::Transposed;
+
+use super::filters::{ArcFilterChecker, NodeFilterChecker};
+use super::node_builder::NodeBuilder;
+use super::proto;
+use super::visitor::{SimpleBfsVisitor, VisitFlow};
+
+type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
+
+/// Implementation of `Traverse`, `CountNodes`, and `CountEdges` methods of the
+/// [`TraversalService`](super::proto::TraversalService)
+pub struct SimpleTraversal<'s, MPHF: SwhidMphf> {
+    pub service: &'s super::TraversalService<MPHF>,
 }
 
-const DEPTH_SENTINEL: usize = usize::MAX;
-
-/// A simple traversal.
-///
-/// For each node (resp. arc), `on_node` (resp. `on_arc`) is called with each node (resp. arc)
-/// the current depth, and it affects the next visited node based on which [`VisitFlow`] it returns.
-///
-/// For each node, `on_arc` is first called on all outgoing edges, then `on_node` is called
-/// for that node, with the number of arcs that were not ignored by `on_arc` as last parameter.
-#[derive(Debug)]
-pub struct SimpleBfsVisitor<
-    IG: SwhForwardGraph,
-    G: Deref<Target = IG> + Clone,
-    Error,
-    OnNode: FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
-    OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
-> {
-    graph: G,
-    queue: std::collections::VecDeque<usize>,
-    seen: std::collections::HashSet<usize>,
-    depth: u64,
-    max_depth: u64,
-    on_node: OnNode,
-    on_arc: OnArc,
-}
-
-impl<
-        IG: SwhForwardGraph,
-        G: Deref<Target = IG> + Clone,
-        Error,
-        OnNode: FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
-        OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
-    > SimpleBfsVisitor<IG, G, Error, OnNode, OnArc>
-{
-    /// Initializes a new visit
-    ///
-    /// Arguments:
-    ///
-    /// * `g`: the graph to be visited
-    /// * `max_depth` how deep inside the graph to recurse
-    /// * `on_node`/`on_arc`: function called on each visited node or arc, which returns
-    ///   whether to add an item to the channel (and keep going), keep going, or stop the visit.
-    pub fn new(graph: G, max_depth: u64, on_node: OnNode, on_arc: OnArc) -> Self {
-        SimpleBfsVisitor {
-            graph,
-            queue: Default::default(),
-            seen: Default::default(),
-            depth: 0,
-            max_depth,
-            on_node,
-            on_arc,
-        }
-    }
-
-    /// Add a node to the list of nodes to visit
-    pub fn push(&mut self, node: usize) {
-        self.queue.push_back(node)
-    }
-    /// Remove a node from the list of nodes to visit and return it
-    pub fn pop(&mut self) -> Option<usize> {
-        self.queue.pop_front()
-    }
-
-    /// Returns whether the given node was already visited
-    pub fn was_seen(&self, node: usize) -> bool {
-        self.seen.contains(&node)
-    }
-    /// Mark the given node as visited
-    pub fn mark_seen(&mut self, node: usize) {
-        self.seen.insert(node);
-    }
-
-    /// Calls [`Self::visit_step`] until the queue/stack is empty.
-    ///
-    /// Returns `Some` if the traversal exited before visiting all nodes.
-    pub fn visit(mut self) -> Result<(), Error>
+impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> SimpleTraversal<'s, MPHF> {
+    fn make_visitor<'a, G: Deref + Clone + Send + Sync + 'static, Error: Send + 'a>(
+        &'a self,
+        request: Request<proto::TraversalRequest>,
+        graph: G,
+        mut on_node: impl FnMut(usize, u64) -> Result<(), Error> + Send + 'a,
+        mut on_arc: impl FnMut(usize, usize) -> Result<(), Error> + Send + 'a,
+    ) -> Result<
+        SimpleBfsVisitor<
+            G::Target,
+            G,
+            Error,
+            impl FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
+            impl FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
+        >,
+        tonic::Status,
+    >
     where
-        Self: Sized,
+        G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
+        <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait + properties::MapsOption,
     {
-        self.push(DEPTH_SENTINEL);
-        while let Some(node) = self.pop() {
-            if node == DEPTH_SENTINEL {
-                self.depth += 1;
-                if self.depth > self.max_depth {
-                    break;
+        let proto::TraversalRequest {
+            src,
+            direction: _, // Handled by caller
+            edges,
+            max_edges,
+            min_depth,
+            max_depth,
+            return_nodes,
+            mask: _, // Handled by caller
+            max_matching_nodes,
+        } = request.get_ref().clone();
+        let min_depth = match min_depth {
+            None => 0,
+            Some(i) => i.try_into().map_err(|_| {
+                tonic::Status::invalid_argument("min_depth must be a positive integer")
+            })?,
+        };
+        let max_depth = match max_depth {
+            None => u64::MAX,
+            Some(i) => i.try_into().map_err(|_| {
+                tonic::Status::invalid_argument("max_depth must be a positive integer")
+            })?,
+        };
+        let mut max_edges = match max_edges {
+            None => u64::MAX,
+            Some(i) => i.try_into().map_err(|_| {
+                tonic::Status::invalid_argument("max_edges must be a positive integer")
+            })?,
+        };
+        let max_matching_nodes = match max_matching_nodes {
+            None => usize::MAX,
+            Some(0) => usize::MAX, // Quirk-compatibility with the Java implementation
+            Some(max_nodes) => max_nodes.try_into().map_err(|_| {
+                tonic::Status::invalid_argument("max_matching_nodes must be a positive integer")
+            })?,
+        };
+
+        let return_node_checker =
+            NodeFilterChecker::new(graph.clone(), return_nodes.unwrap_or_default())?;
+        let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
+        let mut num_matching_nodes = 0;
+        let mut visitor = SimpleBfsVisitor::new(
+            graph.clone(),
+            max_depth,
+            move |node, depth, num_successors| {
+                if !return_node_checker.matches(node, num_successors) {
+                    return Ok(VisitFlow::Continue);
                 }
-                if !self.queue.is_empty() {
-                    self.push(DEPTH_SENTINEL);
+
+                if num_successors > max_edges {
+                    return Ok(VisitFlow::Stop);
                 }
-                continue;
-            }
-            match self.visit_step(node)? {
-                VisitFlow::Continue => {}
-                VisitFlow::Ignore => panic!("visit_step returned Ignore"),
-                VisitFlow::Stop => break,
-            }
+                max_edges -= num_successors;
+
+                if depth >= min_depth {
+                    on_node(node, num_successors)?;
+                    num_matching_nodes += 1;
+                    if num_matching_nodes >= max_matching_nodes {
+                        return Ok(VisitFlow::Stop);
+                    }
+                }
+                Ok(VisitFlow::Continue)
+            },
+            move |src, dst, _depth| {
+                if arc_checker.matches(src, dst) {
+                    on_arc(src, dst)?;
+                    Ok(VisitFlow::Continue)
+                } else {
+                    Ok(VisitFlow::Ignore)
+                }
+            },
+        );
+        for src_item in &src {
+            visitor.push(self.service.try_get_node_id(src_item)?);
         }
-        Ok(())
+        Ok(visitor)
     }
 
-    /// Calls [`Self::visit_node`] for the given node.
-    ///
-    /// Returns `Err` if the visit should stop after this step
-    pub fn visit_step(&mut self, node: usize) -> Result<VisitFlow, Error> {
-        self.visit_node(node)
-    }
+    pub async fn traverse(
+        &self,
+        request: Request<proto::TraversalRequest>,
+    ) -> TonicResult<ReceiverStream<Result<proto::Node, tonic::Status>>> {
+        let graph = self.service.0.clone();
 
-    /// Called on each node and calls [`Self::visit_arc`] for each outgoing arcs
-    ///
-    /// Returns `Err` if the visit should stop after this step
-    pub fn visit_node(&mut self, node: usize) -> Result<VisitFlow, Error> {
-        let mut num_successors = 0;
-        for successor in self.graph.clone().successors(node) {
-            match self.visit_arc(node, successor)? {
-                VisitFlow::Continue => num_successors += 1,
-                VisitFlow::Ignore => {}
-                VisitFlow::Stop => return Ok(VisitFlow::Stop),
+        let node_builder = NodeBuilder::new(graph.clone(), request.get_ref().mask.clone())?;
+        let (tx, rx) = mpsc::channel(1_000);
+        let on_node =
+            move |node, _num_successors| tx.blocking_send(Ok(node_builder.build_node(node)));
+        let on_arc = |_src, _dst| Ok(());
+
+        // Spawning a thread because Tonic currently only supports Tokio, which requires
+        // futures to be sendable between threads, and webgraph's successor iterators cannot
+        match request.get_ref().direction.try_into() {
+            Ok(proto::GraphDirection::Forward) => {
+                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                tokio::spawn(async move { std::thread::spawn(|| visitor.visit()).join() });
             }
+            Ok(proto::GraphDirection::Backward) => {
+                let visitor =
+                    self.make_visitor(request, Arc::new(Transposed(graph)), on_node, on_arc)?;
+                tokio::spawn(async move { std::thread::spawn(|| visitor.visit()).join() });
+            }
+            Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
         }
-        match (self.on_node)(node, self.depth, num_successors)? {
-            VisitFlow::Continue => Ok(VisitFlow::Continue),
-            VisitFlow::Ignore => panic!("on_node returned VisitFlow::Ignore"),
-            VisitFlow::Stop => return Ok(VisitFlow::Stop),
-        }
+        Ok(Response::new(ReceiverStream::new(rx)))
     }
 
-    /// Called on each arc, and queues the destination.
-    ///
-    /// Returns `Err` if the visit should stop after this step
-    pub fn visit_arc(&mut self, src: usize, dst: usize) -> Result<VisitFlow, Error> {
-        match (self.on_arc)(src, dst, self.depth)? {
-            VisitFlow::Continue => {}
-            VisitFlow::Ignore => return Ok(VisitFlow::Ignore),
-            VisitFlow::Stop => return Ok(VisitFlow::Stop),
+    pub async fn count_nodes(
+        &self,
+        request: Request<proto::TraversalRequest>,
+    ) -> TonicResult<proto::CountResponse> {
+        let graph = self.service.0.clone();
+
+        let mut count = 0i64;
+        let count_ref = &mut count;
+        let on_node = move |_node, _num_successors| match count_ref.checked_add(1) {
+            Some(new_count) => {
+                *count_ref = new_count;
+                Ok(())
+            }
+            None => Err(tonic::Status::resource_exhausted(
+                "Node count overflowed i64",
+            )),
+        };
+        let on_arc = |_src, _dst| Ok(());
+
+        match request.get_ref().direction.try_into() {
+            Ok(proto::GraphDirection::Forward) => {
+                self.make_visitor(request, graph, on_node, on_arc)?
+                    .visit()?;
+            }
+            Ok(proto::GraphDirection::Backward) => {
+                self.make_visitor(request, Arc::new(Transposed(graph)), on_node, on_arc)?
+                    .visit()?;
+            }
+            Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
         }
-        if !self.was_seen(dst) {
-            self.mark_seen(dst);
-            self.push(dst);
+
+        Ok(Response::new(proto::CountResponse { count }))
+    }
+
+    pub async fn count_edges(
+        &self,
+        request: Request<proto::TraversalRequest>,
+    ) -> TonicResult<proto::CountResponse> {
+        let graph = self.service.0.clone();
+
+        let mut count = 0i64;
+        let count_ref = &mut count;
+        let on_node = |_node, _num_successors| Ok(());
+        let on_arc = move |_src, _dst| match count_ref.checked_add(1) {
+            Some(new_count) => {
+                *count_ref = new_count;
+                Ok(())
+            }
+            None => Err(tonic::Status::resource_exhausted(
+                "Edge count overflowed i64",
+            )),
+        };
+
+        match request.get_ref().direction.try_into() {
+            Ok(proto::GraphDirection::Forward) => {
+                self.make_visitor(request, graph, on_node, on_arc)?
+                    .visit()?;
+            }
+            Ok(proto::GraphDirection::Backward) => {
+                self.make_visitor(request, Arc::new(Transposed(graph)), on_node, on_arc)?
+                    .visit()?;
+            }
+            Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
         }
-        Ok(VisitFlow::Continue)
+
+        Ok(Response::new(proto::CountResponse { count }))
     }
 }
