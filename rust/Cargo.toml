@@ -28,8 +28,8 @@ clap = { version = "4.1.6", features = ["derive"] }
 ph = { version = "0.8.0" }
 #orcxx = { version = "0.4.2", optional = true }
 #orcxx_derive = { version = "0.4.2", optional = true }
-orcxx = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "dea8859d3ade2bee57f37e1c79d07eb8680b8571" }
-orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "dea8859d3ade2bee57f37e1c79d07eb8680b8571" }
+orcxx = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "a8101cabab6267dad5916a4937228b71d6fe8263" }
+orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git", optional = true, rev = "a8101cabab6267dad5916a4937228b71d6fe8263" }
 #orcxx = { path = "../../../../rust/orcxx/orcxx/", optional = true }
 #orcxx_derive = { path = "../../../../rust/orcxx/orcxx_derive/", optional = true }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
