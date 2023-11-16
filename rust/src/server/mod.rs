@@ -53,10 +53,16 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
 impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::TraversalService
     for TraversalService<MPHF>
 {
-    async fn get_node(&self, _request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
-        Err(tonic::Status::unimplemented(
-            "get_node is not implemented yet",
-        ))
+    async fn get_node(&self, request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
+        let proto::GetNodeRequest { swhid, mask } = request.get_ref().clone();
+        let node_builder = node_builder::NodeBuilder::new(
+            self.0.clone(),
+            mask.map(|mask| prost_types::FieldMask {
+                paths: mask.paths.iter().map(|field| field.to_owned()).collect(),
+            }),
+        )?;
+        let node_id = self.try_get_node_id(&swhid)?;
+        Ok(Response::new(node_builder.build_node(node_id)))
     }
 
     type TraverseStream = ReceiverStream<Result<proto::Node, tonic::Status>>;

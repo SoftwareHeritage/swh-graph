@@ -199,13 +199,13 @@ where
             author_date_offset: self.if_mask(REV_AUTHOR_DATE_OFFSET, || {
                 Some(properties.author_timestamp_offset(node_id)?.into())
             }),
-            committer: self.if_mask(
-                REV_AUTHOR,
-                || Some(properties.committer_id(node_id)? as i64),
-            ),
-            committer_date: self
-                .if_mask(REV_AUTHOR_DATE, || properties.committer_timestamp(node_id)),
-            committer_date_offset: self.if_mask(REV_AUTHOR_DATE_OFFSET, || {
+            committer: self.if_mask(REV_COMMITTER, || {
+                Some(properties.committer_id(node_id)? as i64)
+            }),
+            committer_date: self.if_mask(REV_COMMITTER_DATE, || {
+                properties.committer_timestamp(node_id)
+            }),
+            committer_date_offset: self.if_mask(REV_COMMITTER_DATE_OFFSET, || {
                 Some(properties.committer_timestamp_offset(node_id)?.into())
             }),
             message: self.if_mask(REV_MESSAGE, || properties.message(node_id)),

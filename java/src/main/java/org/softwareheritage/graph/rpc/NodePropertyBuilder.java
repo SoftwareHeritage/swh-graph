@@ -148,9 +148,9 @@ public class NodePropertyBuilder {
                     }
                 }
                 if (mask.relName) {
-                    byte[] msg = graph.getMessage(node);
+                    byte[] msg = graph.getTagName(node);
                     if (msg != null) {
-                        relBuilder.setMessage(ByteString.copyFrom(msg));
+                        relBuilder.setName(ByteString.copyFrom(msg));
                     }
                 }
                 if (mask.relMessage) {
