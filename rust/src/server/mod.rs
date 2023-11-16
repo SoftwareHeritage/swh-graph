@@ -26,6 +26,7 @@ pub mod proto {
 }
 
 mod filters;
+mod find_path;
 mod node_builder;
 mod traversal;
 pub mod visitor;
@@ -70,11 +71,11 @@ impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::T
 
     async fn find_path_to(
         &self,
-        _request: Request<proto::FindPathToRequest>,
+        request: Request<proto::FindPathToRequest>,
     ) -> TonicResult<proto::Path> {
-        Err(tonic::Status::unimplemented(
-            "find_path_to is not implemented yet",
-        ))
+        find_path::FindPath { service: self }
+            .find_path_to(request)
+            .await
     }
 
     async fn find_path_between(
