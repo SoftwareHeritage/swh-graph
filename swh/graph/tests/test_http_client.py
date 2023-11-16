@@ -180,8 +180,6 @@ def test_visit_nodes_filtered_star(graph_client, graph_grpc_backend_implementati
 
 
 def test_visit_edges(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_edges(
             "swh:1:rel:0000000000000000000000000000000000000010",
@@ -255,8 +253,6 @@ def test_visit_edges_limited(graph_client, graph_grpc_backend_implementation):
 
 
 def test_visit_edges_diamond_pattern(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     actual = list(
         graph_client.visit_edges(
             "swh:1:rev:0000000000000000000000000000000000000009",
@@ -306,8 +302,6 @@ def test_visit_edges_diamond_pattern(graph_client, graph_grpc_backend_implementa
 
 @pytest.mark.skip(reason="currently disabled due to T1969")
 def test_walk(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     args = ("swh:1:dir:0000000000000000000000000000000000000016", "rel")
     kwargs = {
         "edges": "dir:dir,dir:rev,rev:*",
@@ -342,8 +336,6 @@ def test_walk(graph_client, graph_grpc_backend_implementation):
 
 @pytest.mark.skip(reason="Random walk is deprecated")
 def test_random_walk_dst_is_type(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     """as the walk is random, we test a visit from a cnt node to a release
     reachable from every single path in the backward graph, and only check the
     final node of the path (i.e., the release)
@@ -374,8 +366,6 @@ def test_random_walk_dst_is_type(graph_client, graph_grpc_backend_implementation
 
 @pytest.mark.skip(reason="Random walk is deprecated")
 def test_random_walk_dst_is_node(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     """Same as test_random_walk_dst_is_type, but we target the specific release
     node instead of a type
     """
@@ -433,8 +423,6 @@ def test_count_with_limit(
 
 
 def test_param_validation(graph_client, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     with raises(GraphArgumentException) as exc_info:  # SWHID not found
         list(graph_client.leaves("swh:1:rel:00ffffffff000000000000000000000000000010"))
     if exc_info.value.response:
