@@ -41,7 +41,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     let counters = thread_local::ThreadLocal::new();
     let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
     let sorted_arcs = par_sort_arcs(
-        temp_dir.path(),
+        &temp_dir.path().join("sorted_arcs"),
         sort_batch_size,
         iter_arcs(&dataset_dir, allowed_node_types).inspect(|_| {
             // This is safe because only this thread accesses this and only from
@@ -96,12 +96,13 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     let comp_flags = Default::default();
     let num_threads = num_cpus::get();
 
-    webgraph::graph::bvgraph::parallel_compress_sequential_iter::<lender::Inspect<_, _>>(
+    webgraph::graph::bvgraph::parallel_compress_sequential_iter::<lender::Inspect<_, _>, _>(
         target_dir,
         adjacency_lists,
         num_nodes,
         comp_flags,
         num_threads,
+        temp_dir.path().join("bv"),
     )
     .context("Could not build BVGraph from arcs")?;
 
