@@ -63,7 +63,7 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
     >
     where
         G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
-        <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait + properties::MapsOption,
+        <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait,
     {
         let VisitorConfig {
             src,

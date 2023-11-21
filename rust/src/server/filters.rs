@@ -60,7 +60,7 @@ pub struct NodeFilterChecker<G: Deref + Clone + Send + Sync + 'static> {
 impl<G: Deref + Clone + Send + Sync + 'static> NodeFilterChecker<G>
 where
     G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
-    <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait + properties::MapsOption,
+    <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait,
 {
     pub fn new(graph: G, filter: proto::NodeFilter) -> Result<Self, tonic::Status> {
         let proto::NodeFilter {
@@ -125,7 +125,7 @@ pub(super) struct ArcFilterChecker<G: Deref + Clone + Send + Sync + 'static> {
 impl<G: Deref + Clone + Send + Sync + 'static> ArcFilterChecker<G>
 where
     G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
-    <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait + properties::MapsOption,
+    <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait,
 {
     pub fn new(graph: G, types: Option<String>) -> Result<Self, tonic::Status> {
         let types = types.unwrap_or("*".to_owned());

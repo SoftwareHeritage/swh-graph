@@ -47,7 +47,7 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> SimpleTraversal<'s, MPHF> {
     >
     where
         G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
-        <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait + properties::MapsOption,
+        <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait,
     {
         let proto::TraversalRequest {
             src,

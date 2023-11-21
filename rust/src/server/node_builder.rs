@@ -68,15 +68,11 @@ pub struct NodeBuilder<G: Deref + Clone + Send + Sync + 'static> {
 impl<G: Deref + Clone + Send + Sync + 'static> NodeBuilder<G>
 where
     G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
-    <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait + properties::MapsOption,
-    <G::Target as SwhGraphWithProperties>::Timestamps:
-        properties::TimestampsTrait + properties::TimestampsOption,
-    <G::Target as SwhGraphWithProperties>::Persons:
-        properties::PersonsTrait + properties::PersonsOption,
-    <G::Target as SwhGraphWithProperties>::Contents:
-        properties::ContentsTrait + properties::ContentsOption,
-    <G::Target as SwhGraphWithProperties>::Strings:
-        properties::StringsTrait + properties::StringsOption,
+    <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait,
+    <G::Target as SwhGraphWithProperties>::Timestamps: properties::TimestampsTrait,
+    <G::Target as SwhGraphWithProperties>::Persons: properties::PersonsTrait,
+    <G::Target as SwhGraphWithProperties>::Contents: properties::ContentsTrait,
+    <G::Target as SwhGraphWithProperties>::Strings: properties::StringsTrait,
 {
     pub fn new(graph: G, mask: Option<prost_types::FieldMask>) -> Result<Self, tonic::Status> {
         let Some(mask) = mask else {
