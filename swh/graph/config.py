@@ -6,7 +6,6 @@
 import logging
 import os.path
 from pathlib import Path
-import sys
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -15,7 +14,7 @@ import psutil
 logger = logging.getLogger(__name__)
 
 
-def find_graph_jar():
+def find_graph_jar() -> str:
     """find swh-graph.jar, containing the Java part of swh-graph
 
     look both in development directories and installed data (for in-production
@@ -23,23 +22,9 @@ def find_graph_jar():
 
     """
     logger.debug("Looking for swh-graph JAR")
-    swh_graph_root = Path(__file__).parents[2]
-    try_paths = [
-        swh_graph_root / "java/target/",
-        Path(sys.prefix) / "share/swh-graph/",
-        Path(sys.prefix) / "local/share/swh-graph/",
-    ]
-    for path in try_paths:
-        logger.debug("Looking for swh-graph JAR in %s", path)
-        glob = list(path.glob("swh-graph-*.jar"))
-        if glob:
-            if len(glob) > 1:
-                logger.warning(
-                    "found multiple swh-graph JARs, " "arbitrarily picking one"
-                )
-            logger.info("using swh-graph JAR: {0}".format(glob[0]))
-            return str(glob[0])
-    raise RuntimeError("swh-graph JAR not found. Have you run `make java`?")
+    swh_graph_jar = Path(__file__).parent / "swh-graph.jar"
+    logger.info("using swh-graph JAR: %s", swh_graph_jar)
+    return str(swh_graph_jar)
 
 
 def check_config(conf):
