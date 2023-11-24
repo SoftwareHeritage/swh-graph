@@ -114,7 +114,10 @@ where
                 "rel.message" => REL_MESSAGE,
                 "ori" => ORI,
                 "ori.url" => ORI_URL,
-                _ => 0, // Ignore unknown fields
+                field => {
+                    log::warn!("Unknown field {:?}", field);
+                    0 // Ignore unknown fields
+                }
             }
         }
 

@@ -86,11 +86,11 @@ impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::T
 
     async fn find_path_between(
         &self,
-        _request: Request<proto::FindPathBetweenRequest>,
+        request: Request<proto::FindPathBetweenRequest>,
     ) -> TonicResult<proto::Path> {
-        Err(tonic::Status::unimplemented(
-            "find_path_between is not implemented yet",
-        ))
+        find_path::FindPath { service: self }
+            .find_path_between(request)
+            .await
     }
 
     async fn count_nodes(

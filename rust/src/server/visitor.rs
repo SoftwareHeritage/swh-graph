@@ -91,9 +91,24 @@ impl<
     }
 
     /// Calls [`Self::visit_step`] until the queue/stack is empty.
-    ///
-    /// Returns `Some` if the traversal exited before visiting all nodes.
     pub fn visit(mut self) -> Result<(), Error>
+    where
+        Self: Sized,
+    {
+        while self.visit_layer()? {}
+
+        Ok(())
+    }
+
+    /// Calls [`Self::visit_step`] on each value **already** in the stack
+    ///
+    /// but not on values added to the stack by `visit_step` within this call.
+    ///
+    /// This corresponds to visiting all nodes at the same distance from the sources.
+    ///
+    /// Returns whether there are still node to visit, in the next layer (by calling
+    /// `visit_layer()` again)
+    pub fn visit_layer(&mut self) -> Result<bool, Error>
     where
         Self: Sized,
     {
@@ -101,21 +116,15 @@ impl<
         while let Some(node) = self.pop() {
             if node == DEPTH_SENTINEL {
                 self.depth += 1;
-                if self.depth > self.max_depth {
-                    break;
-                }
-                if !self.queue.is_empty() {
-                    self.push(DEPTH_SENTINEL);
-                }
-                continue;
+                return Ok(!self.queue.is_empty() && self.depth <= self.max_depth);
             }
             match self.visit_step(node)? {
                 VisitFlow::Continue => {}
                 VisitFlow::Ignore => panic!("visit_step returned Ignore"),
-                VisitFlow::Stop => break,
+                VisitFlow::Stop => self.queue.clear(),
             }
         }
-        Ok(())
+        Ok(false)
     }
 
     /// Calls [`Self::visit_node`] for the given node.
