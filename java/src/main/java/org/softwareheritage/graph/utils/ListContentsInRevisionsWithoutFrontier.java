@@ -31,11 +31,10 @@ import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/* Given as stdin a CSV with header "frontier_dir_SWHID" containing, for each
- * directory, the newest date of first occurrence of any of the content in its subtree
- * (well, DAG), ie., max_{for all content} (min_{for all occurrence of content} occurrence).
- * Produces the "provenance frontier", as defined in
- * https://gitlab.softwareheritage.org/swh/devel/swh-provenance/-/blob/ae09086a3bd45c7edbc22691945b9d61200ec3c2/swh/provenance/algos/revision.py#L210
+/* Given as stdin a CSV with header "frontier_dir_SWHID" containing a single column
+ * with frontier directories, produces a CSV with header "cnt_SWHID,rev_SWHID,path",
+ * listing contents reachable from release/revisions without going through any frontier
+ * directory.
  */
 
 public class ListContentsInRevisionsWithoutFrontier {
@@ -53,8 +52,8 @@ public class ListContentsInRevisionsWithoutFrontier {
     private int NUM_THREADS = 96;
     private int batchSize; /* Number of revisions to process in each task */
 
-    private SwhUnidirectionalGraph graph;
-    private ThreadLocal<SwhUnidirectionalGraph> threadGraph;
+    private SwhBidirectionalGraph graph;
+    private ThreadLocal<SwhBidirectionalGraph> threadGraph;
     private CSVPrinter csvPrinter;
     private MyBooleanBigArrayBigList frontierDirectories;
     final static Logger logger = LoggerFactory.getLogger(ListContentsInRevisionsWithoutFrontier.class);
@@ -73,10 +72,10 @@ public class ListContentsInRevisionsWithoutFrontier {
         lcirwf.batchSize = Integer.parseInt(args[1]);
 
         System.err.println("Loading graph " + graphPath + " ...");
-        lcirwf.graph = SwhUnidirectionalGraph.loadLabelledMapped(graphPath);
+        lcirwf.graph = SwhBidirectionalGraph.loadLabelledMapped(graphPath);
         System.err.println("Loading label names from " + graphPath + " ...");
         lcirwf.graph.loadLabelNames();
-        lcirwf.threadGraph = new ThreadLocal<SwhUnidirectionalGraph>();
+        lcirwf.threadGraph = new ThreadLocal<SwhBidirectionalGraph>();
 
         lcirwf.run();
     }
@@ -144,7 +143,7 @@ public class ListContentsInRevisionsWithoutFrontier {
             final long chunkId = i;
             futures.add(service.submit(() -> {
                 try {
-                    listContentsInRevisionChunk(chunkId, numChunks, pl);
+                    listContentsInRevrelChunk(chunkId, numChunks, pl);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -166,11 +165,11 @@ public class ListContentsInRevisionsWithoutFrontier {
         }
     }
 
-    private void listContentsInRevisionChunk(long chunkId, long numChunks, ProgressLogger pl) throws IOException {
+    private void listContentsInRevrelChunk(long chunkId, long numChunks, ProgressLogger pl) throws IOException {
         if (threadGraph.get() == null) {
             threadGraph.set(this.graph.copy());
         }
-        SwhUnidirectionalGraph graph = threadGraph.get();
+        SwhBidirectionalGraph graph = threadGraph.get();
         long numNodes = graph.numNodes();
         long chunkSize = numNodes / numChunks;
         long chunkStart = chunkSize * chunkId;
@@ -187,12 +186,28 @@ public class ListContentsInRevisionsWithoutFrontier {
         long previousLength = 0;
         long newLength;
         for (long i = chunkStart; i < chunkEnd; i++) {
-            if (graph.getNodeType(i) != SwhType.REV) {
+            if (graph.getNodeType(i) == SwhType.REL) {
+                // Allow releases
+            } else if (graph.getNodeType(i) == SwhType.REV) {
+                // Allow revisions if they are a snapshot head
+                boolean isSnapshotHead = false;
+                LazyLongIterator it = graph.predecessors(i);
+                for (long predecessorId; (predecessorId = it.nextLong()) != -1;) {
+                    if (graph.getNodeType(predecessorId) == SwhType.SNP
+                            || graph.getNodeType(predecessorId) == SwhType.REL) {
+                        isSnapshotHead = true;
+                    }
+                }
+                if (!isSnapshotHead) {
+                    continue;
+                }
+            } else {
+                // Reject all other objects
                 continue;
             }
 
             try {
-                listContentsInRevision(graph, i, csvPrinter);
+                listContentsInRevrel(graph.getForwardGraph(), i, csvPrinter);
             } catch (OutOfMemoryError e) {
                 newLength = buf.length();
                 System.err.format("OOMed while processing %s (buffer grew from %d to %d): %s\n", graph.getSWHID(i),
@@ -224,9 +239,9 @@ public class ListContentsInRevisionsWithoutFrontier {
     }
 
     /* Performs a BFS, stopping at frontier directories. */
-    private void listContentsInRevision(SwhUnidirectionalGraph graph, long revId, CSVPrinter csvPrinter)
+    private void listContentsInRevrel(SwhUnidirectionalGraph graph, long revrelId, CSVPrinter csvPrinter)
             throws IOException {
-        SWHID revSWHID = graph.getSWHID(revId);
+        SWHID revrelSWHID = graph.getSWHID(revrelId);
 
         // TODO: reuse these across calls instead of reallocating?
         LongArrayList stack = new LongArrayList();
@@ -236,8 +251,8 @@ public class ListContentsInRevisionsWithoutFrontier {
         // Sequences are separated by -1 values.
         LongArrayList pathStack = new LongArrayList();
 
-        // Initialize traversal with the revision's root directory
-        LazyLongIterator it = graph.successors(revId);
+        // Initialize traversal with the revision's/release's root directory
+        LazyLongIterator it = graph.successors(revrelId);
         for (long successorId; (successorId = it.nextLong()) != -1;) {
             if (graph.getNodeType(successorId) == SwhType.DIR && !frontierDirectories.getBoolean(successorId)) {
                 stack.push(successorId);
@@ -295,7 +310,7 @@ public class ListContentsInRevisionsWithoutFrontier {
                     }
 
                     String pathString = pathLength < 1000000 ? String.join("/", pathParts) : "";
-                    csvPrinter.printRecord(graph.getSWHID(successorId), revSWHID, pathString);
+                    csvPrinter.printRecord(graph.getSWHID(successorId), revrelSWHID, pathString);
                 }
             }
         }

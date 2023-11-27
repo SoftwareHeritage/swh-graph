@@ -685,3 +685,26 @@ class ListContentsInFrontierDirectories(luigi.Task):
             > AtomicFileSink(self._output_path())
         ).run()
         # fmt: on
+
+
+class RunProvenance(luigi.WrapperTask):
+    """(Transitively) depends on all provenance tasks"""
+
+    local_export_path = luigi.PathParameter()
+    local_graph_path = luigi.PathParameter()
+    graph_name = luigi.Parameter(default="graph")
+    provenance_dir = luigi.PathParameter()
+    topological_order_dir = luigi.PathParameter()
+
+    def requires(self):
+        kwargs = dict(
+            local_export_path=self.local_export_path,
+            local_graph_path=self.local_graph_path,
+            graph_name=self.graph_name,
+            provenance_dir=self.provenance_dir,
+            topological_order_dir=self.topological_order_dir,
+        )
+        return [
+            ListContentsInFrontierDirectories(**kwargs),
+            ListContentsInRevisionsWithoutFrontier(**kwargs),
+        ]
