@@ -193,7 +193,8 @@ public class ListContentsInRevisionsWithoutFrontier {
                 boolean isSnapshotHead = false;
                 LazyLongIterator it = graph.predecessors(i);
                 for (long predecessorId; (predecessorId = it.nextLong()) != -1;) {
-                    if (graph.getNodeType(predecessorId) == SwhType.SNP) {
+                    if (graph.getNodeType(predecessorId) == SwhType.SNP
+                            || graph.getNodeType(predecessorId) == SwhType.REL) {
                         isSnapshotHead = true;
                     }
                 }

@@ -169,11 +169,12 @@ public class ComputeDirectoryFrontier {
             if (graph.getNodeType(i) == SwhType.REL) {
                 // Allow releases
             } else if (graph.getNodeType(i) == SwhType.REV) {
-                // Allow revisions if they are a snapshot head
+                // Allow revisions if they are a snapshot head or are pointed by a revision
                 boolean isSnapshotHead = false;
                 LazyLongIterator it = graph.predecessors(i);
                 for (long predecessorId; (predecessorId = it.nextLong()) != -1;) {
-                    if (graph.getNodeType(predecessorId) == SwhType.SNP) {
+                    if (graph.getNodeType(predecessorId) == SwhType.SNP
+                            || graph.getNodeType(predecessorId) == SwhType.REL) {
                         isSnapshotHead = true;
                     }
                 }
