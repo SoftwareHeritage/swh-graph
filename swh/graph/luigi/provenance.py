@@ -697,6 +697,8 @@ class RunProvenance(luigi.WrapperTask):
     topological_order_dir = luigi.PathParameter()
 
     def requires(self):
+        """Returns :class:`ListContentsInFrontierDirectories` and
+        :class:`ListContentsInRevisionsWithoutFrontier`"""
         kwargs = dict(
             local_export_path=self.local_export_path,
             local_graph_path=self.local_graph_path,
