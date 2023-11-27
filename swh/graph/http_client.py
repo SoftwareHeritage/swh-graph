@@ -4,8 +4,11 @@
 # See top-level LICENSE file for more information
 
 import json
+import logging
 
 from swh.core.api import RPCClient
+
+logger = logging.getLogger(__name__)
 
 
 class GraphAPIError(Exception):
@@ -29,12 +32,34 @@ class RemoteGraphClient(RPCClient):
 
     def __init__(self, url, timeout=None):
         super().__init__(api_exception=GraphAPIError, url=url, timeout=timeout)
+        try:
+            stats = self.stats()
+        except GraphArgumentException as e:
+            if e.response.status_code == 404:
+                raise ValueError(
+                    "URL is incorrect (got 404 while trying to retrieve stats)"
+                ) from None
+            raise
+        if "num_nodes" not in stats:
+            raise ValueError("stats returned unexpected results (no `num_nodes` entry)")
+        if "export_started_at" in stats:
+            from datetime import datetime, timezone
+
+            logger.debug(
+                "Graph export started at %s (%d nodes)",
+                datetime.fromtimestamp(
+                    int(stats["export_started_at"]), tz=timezone.utc
+                ).isoformat(),
+                stats["num_nodes"],
+            )
 
     def raw_verb_lines(self, verb, endpoint, **kwargs):
         response = self.raw_verb(verb, endpoint, stream=True, **kwargs)
         self.raise_for_status(response)
         for line in response.iter_lines():
-            yield line.decode().lstrip("\n")
+            content = line.decode().lstrip("\n")
+            if content:
+                yield content
 
     def get_lines(self, endpoint, **kwargs):
         yield from self.raw_verb_lines("get", endpoint, **kwargs)
@@ -49,7 +74,7 @@ class RemoteGraphClient(RPCClient):
     # Web API endpoints
 
     def stats(self):
-        return self.get("stats")
+        return self._get("stats")
 
     def leaves(
         self,
@@ -152,7 +177,7 @@ class RemoteGraphClient(RPCClient):
         )
 
     def count_leaves(self, src, edges="*", direction="forward", max_matching_nodes=0):
-        return self.get(
+        return self._get(
             "leaves/count/{}".format(src),
             params={
                 "edges": edges,
@@ -162,7 +187,7 @@ class RemoteGraphClient(RPCClient):
         )
 
     def count_neighbors(self, src, edges="*", direction="forward"):
-        return self.get(
+        return self._get(
             "neighbors/count/{}".format(src),
             params={"edges": edges, "direction": direction},
         )
@@ -170,7 +195,7 @@ class RemoteGraphClient(RPCClient):
     def count_visit_nodes(
         self, src, edges="*", direction="forward", max_matching_nodes=0
     ):
-        return self.get(
+        return self._get(
             "visit/nodes/count/{}".format(src),
             params={
                 "edges": edges,

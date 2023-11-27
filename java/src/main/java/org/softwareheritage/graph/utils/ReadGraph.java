@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022 The Software Heritage developers
+ * Copyright (c) 2020-2023 The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -16,6 +16,10 @@ import org.softwareheritage.graph.SwhUnidirectionalGraph;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Read a compressed Software Heritage graph (as a unidirectional graph corresponding to the
+ * original Merkle DAG) and print all its edges to stdout.
+ */
 public class ReadGraph {
     final static Logger logger = LoggerFactory.getLogger(ReadLabelledGraph.class);
 

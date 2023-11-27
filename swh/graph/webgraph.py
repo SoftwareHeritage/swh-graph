@@ -308,6 +308,7 @@ def do_step(step, conf):
     cmd_env = os.environ.copy()
     cmd_env["JAVA_TOOL_OPTIONS"] = conf["java_tool_options"]
     cmd_env["CLASSPATH"] = conf["classpath"]
+    cmd_env["TZ"] = "UTC"
     process = subprocess.Popen(
         ["/bin/bash", "-c", cmd],
         env=cmd_env,
