@@ -366,18 +366,7 @@ pub fn main() -> Result<()> {
 
             let stats = par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(pl)))
                 .map(|line: [u8; 50]| {
-                    let ty = match &line[6..9] {
-                        b"cnt" => SWHType::Content,
-                        b"dir" => SWHType::Directory,
-                        b"rev" => SWHType::Revision,
-                        b"rel" => SWHType::Release,
-                        b"snp" => SWHType::Snapshot,
-                        b"ori" => SWHType::Origin,
-                        _ => panic!(
-                            "Unexpected SWHID type: {}",
-                            std::str::from_utf8(&line).unwrap_or(&format!("{:?}", line))
-                        ),
-                    };
+                    let ty = SWHType::try_from(&line[6..9]).expect("Unexpected SWHID type");
                     let mut stats = [0usize; SWHType::NUMBER_OF_TYPES];
                     stats[ty as usize] += 1;
                     stats
