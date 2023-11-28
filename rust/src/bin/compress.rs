@@ -815,7 +815,7 @@ pub fn main() -> Result<()> {
                 || allowed_node_types.contains(&SWHType::Release)
             {
                 let Some(person_function) = person_function else {
-                    bail!("--person-mph must be provided unless --allowed-node-types is set to contain neither 'rev' nor 'rel'.");
+                    bail!("--person-function must be provided unless --allowed-node-types is set to contain neither 'rev' nor 'rel'.");
                 };
                 Some(
                     ph::fmph::Function::load(&person_function)

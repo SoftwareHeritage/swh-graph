@@ -270,6 +270,10 @@ fn flush(temp_dir: &Path, buffer: &mut [(usize, usize)]) -> Result<BatchIterator
     // but without parallelism, which would cause Rayon to re-enter
     // par_sort_arcs and cause deadlocks: https://github.com/rayon-rs/rayon/issues/1083
     buffer.sort_unstable_by_key(|(src, dst)| (*src, *dst));
-    BatchIterator::new_from_vec_sorted(&sorter_temp_file, buffer)
-        .context("Could not create BatchIterator")
+    BatchIterator::new_from_vec_sorted(&sorter_temp_file, buffer).with_context(|| {
+        format!(
+            "Could not create BatchIterator in {}",
+            sorter_temp_file.display()
+        )
+    })
 }
