@@ -22,6 +22,7 @@ import java.io.BufferedWriter;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.UncheckedIOException;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import org.apache.commons.csv.CSVFormat;
@@ -75,6 +76,7 @@ public class ListContentsInRevisionsWithoutFrontier {
         lcirwf.graph = SwhBidirectionalGraph.loadLabelledMapped(graphPath);
         System.err.println("Loading label names from " + graphPath + " ...");
         lcirwf.graph.loadLabelNames();
+        lcirwf.graph.loadAuthorTimestamps();
         lcirwf.threadGraph = new ThreadLocal<SwhBidirectionalGraph>();
 
         lcirwf.run();
@@ -86,7 +88,7 @@ public class ListContentsInRevisionsWithoutFrontier {
 
         BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
         csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
-        csvPrinter.printRecord("cnt_SWHID", "rev_SWHID", "path");
+        csvPrinter.printRecord("cnt_SWHID", "rev_author_date", "rev_SWHID", "path");
 
         csvPrinter.flush();
         bufferedStdout.flush();
@@ -262,6 +264,8 @@ public class ListContentsInRevisionsWithoutFrontier {
 
         long nodeId, maxTimestamp;
         boolean isFrontier;
+        Long revrelTimestamp = graph.properties.getAuthorTimestamp(revrelId);
+        String revrelDate = revrelTimestamp == null ? "" : Instant.ofEpochSecond(revrelTimestamp).toString();
         LongArrayList path = new LongArrayList();
         ArcLabelledNodeIterator.LabelledArcIterator itl;
         while (!stack.isEmpty()) {
@@ -310,7 +314,7 @@ public class ListContentsInRevisionsWithoutFrontier {
                     }
 
                     String pathString = pathLength < 1000000 ? String.join("/", pathParts) : "";
-                    csvPrinter.printRecord(graph.getSWHID(successorId), revrelSWHID, pathString);
+                    csvPrinter.printRecord(graph.getSWHID(successorId), revrelDate, revrelSWHID, pathString);
                 }
             }
         }

@@ -22,6 +22,7 @@ import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 import java.io.UncheckedIOException;
 import java.io.RandomAccessFile;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import org.apache.commons.csv.CSVFormat;
@@ -91,7 +92,7 @@ public class ComputeDirectoryFrontier {
     public void run() throws IOException, InterruptedException, ExecutionException {
         BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
         csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
-        csvPrinter.printRecord("max_author_date", "frontier_dir_SWHID", "rev_SWHID", "path");
+        csvPrinter.printRecord("max_author_date", "frontier_dir_SWHID", "rev_author_date", "rev_SWHID", "path");
 
         csvPrinter.flush();
         bufferedStdout.flush();
@@ -401,7 +402,8 @@ public class ComputeDirectoryFrontier {
                 }
                 pathParts.add("");
                 String pathString = String.join("/", pathParts);
-                csvPrinter.printRecord(maxTimestamp, graph.getSWHID(nodeId), revrelSWHID, pathString);
+                csvPrinter.printRecord(maxTimestamp, graph.getSWHID(nodeId), Instant.ofEpochSecond(revrelTimestamp),
+                        revrelSWHID, pathString);
             } else {
                 /* Look if the subdirectories are frontiers */
                 itl = graph.labelledSuccessors(nodeId);
