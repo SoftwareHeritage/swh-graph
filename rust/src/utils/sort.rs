@@ -22,7 +22,10 @@ use webgraph::prelude::{BatchIterator, KMergeIters};
 /// # Panics
 ///
 /// If files cannot be created in `temp_dir`.
-pub trait Sortable<Line: IntoIterator<Item = u8>>: ParallelIterator<Item = Line> {
+pub trait Sortable<Line: IntoIterator<Item = u8>>: ParallelIterator<Item = Line>
+where
+    <Line as IntoIterator>::IntoIter: ExactSizeIterator,
+{
     /// Drains a [`ParallelIterator`], sorts its values, deduplicates them, and write them
     /// to multiple newline-separated ZSTD-compressed files in the given directory.
     fn unique_sort_to_dir(
@@ -88,19 +91,21 @@ pub trait Sortable<Line: IntoIterator<Item = u8>>: ParallelIterator<Item = Line>
             let counter: &UnsafeCell<usize> = counters.get_or(|| UnsafeCell::new(0));
             let buffer: &UnsafeCell<Vec<_>> =
                 sorter_buffers.get_or(|| UnsafeCell::new(Vec::<u8>::with_capacity(buffer_size)));
+            let item = item.into_iter();
+
             // This is safe because the main thread won't access this until this
             // one ends, and other threads don't access it.
             let counter: &mut usize = unsafe { &mut *counter.get() };
             let buffer: &mut Vec<u8> = unsafe { &mut *buffer.get() };
 
+            if buffer.len() + item.len() + 1 >= buffer_size {
+                flush_buffer(buffer);
+            }
+
             *counter += 1;
 
             buffer.extend(item);
             buffer.push(b'\n');
-
-            if buffer.len() >= buffer_size {
-                flush_buffer(buffer);
-            }
         });
 
         // Write remaining buffers
@@ -177,7 +182,10 @@ pub trait Sortable<Line: IntoIterator<Item = u8>>: ParallelIterator<Item = Line>
     }
 }
 
-impl<Line: IntoIterator<Item = u8>, T: ParallelIterator<Item = Line>> Sortable<Line> for T {}
+impl<Line: IntoIterator<Item = u8>, T: ParallelIterator<Item = Line>> Sortable<Line> for T where
+    <Line as IntoIterator>::IntoIter: ExactSizeIterator
+{
+}
 
 /// Given an iterator and a function to insert its items to [`BatchIterator`]s, returns an
 /// iterator of pairs.
