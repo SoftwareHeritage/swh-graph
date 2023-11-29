@@ -42,94 +42,89 @@ where
     ) -> Result<()> {
         let pl = Mutex::new(pl);
         let sorted_files = Mutex::new(Vec::new());
-        let mut sorter_buffers = thread_local::ThreadLocal::new();
-        let mut sorters = thread_local::ThreadLocal::new();
-        let counters = thread_local::ThreadLocal::new();
 
-        let flush_buffer = |buffer: &mut Vec<u8>| {
-            // Flush to the sorter
-            let sort = sorters
-                .get_or(|| {
-                    let file = tempfile::NamedTempFile::new_in(temp_dir)
-                        .expect("Could not open temporary sorted file");
-                    let path: PathBuf = file.path().into();
-                    sorted_files.lock().unwrap().push(file);
+        struct ThreadState {
+            buffer: Vec<u8>,
+            sort: std::process::Child,
+            counter: usize,
+        }
 
-                    let sort = std::process::Command::new("sort")
-                        .arg("--buffer-size=100M")
-                        .arg("--compress-program=zstd")
-                        .arg("--unique") // Removes duplicates early to save space
-                        .arg("--parallel=1") // Slightly faster as we already max out the CPU
-                        .args(args)
-                        .env("TMPDIR", temp_dir)
-                        .env("LC_ALL", "C")
-                        .stdout(std::fs::File::create(path).unwrap())
-                        .stdin(std::process::Stdio::piped())
-                        .spawn()
-                        .expect("Could not start 'sort' process");
-                    UnsafeCell::new(sort)
-                })
-                .get();
-            // This is safe because the main thread won't access this until this
-            // one ends, and other threads don't access it.
-            let sort: &mut std::process::Child = unsafe { &mut *sort };
+        let new_thread_state = || {
+            let file = tempfile::NamedTempFile::new_in(temp_dir)
+                .expect("Could not open temporary sorted file");
+            let path: PathBuf = file.path().into();
+            sorted_files.lock().unwrap().push(file);
 
-            let stdin = sort.stdin.as_mut().unwrap();
+            let sort = std::process::Command::new("sort")
+                .arg("--buffer-size=100M")
+                .arg("--compress-program=zstd")
+                .arg("--unique") // Removes duplicates early to save space
+                .arg("--parallel=1") // Slightly faster as we already max out the CPU
+                .args(args)
+                .env("TMPDIR", temp_dir)
+                .env("LC_ALL", "C")
+                .stdout(std::fs::File::create(path).unwrap())
+                .stdin(std::process::Stdio::piped())
+                .spawn()
+                .expect("Could not start 'sort' process");
+            UnsafeCell::new(ThreadState {
+                buffer: Vec::<u8>::with_capacity(buffer_size),
+                sort,
+                counter: 0,
+            })
+        };
+        let mut thread_states = thread_local::ThreadLocal::new();
+
+        let flush_buffer = |state: &mut ThreadState| {
+            let stdin = state.sort.stdin.as_mut().unwrap();
             stdin
-                .write_all(&buffer)
+                .write_all(&state.buffer)
                 .expect("Could not write to sort's stdin");
 
-            // Ditto
-            let counter = counters.get_or(|| UnsafeCell::new(0));
-            let counter: &mut usize = unsafe { &mut *counter.get() };
+            pl.lock().unwrap().update_with_count(state.counter);
 
-            pl.lock().unwrap().update_with_count(*counter);
+            state.counter = 0;
 
-            *counter = 0;
-
-            buffer.clear();
+            state.buffer.clear();
         };
 
         self.for_each(|item| {
-            let counter: &UnsafeCell<usize> = counters.get_or(|| UnsafeCell::new(0));
-            let buffer: &UnsafeCell<Vec<_>> =
-                sorter_buffers.get_or(|| UnsafeCell::new(Vec::<u8>::with_capacity(buffer_size)));
+            let state = thread_states.get_or(&new_thread_state).get();
             let item = item.into_iter();
 
             // This is safe because the main thread won't access this until this
             // one ends, and other threads don't access it.
-            let counter: &mut usize = unsafe { &mut *counter.get() };
-            let buffer: &mut Vec<u8> = unsafe { &mut *buffer.get() };
+            let state = unsafe { &mut *state };
 
-            if buffer.len() + item.len() + 1 >= buffer_size {
-                flush_buffer(buffer);
+            if state.buffer.len() + item.len() + 1 >= buffer_size {
+                flush_buffer(state);
             }
 
-            *counter += 1;
+            state.counter += 1;
 
-            buffer.extend(item);
-            buffer.push(b'\n');
+            state.buffer.extend(item);
+            state.buffer.push(b'\n');
         });
 
         // Write remaining buffers
-        for buffer in sorter_buffers.iter_mut() {
+        for state in thread_states.iter_mut() {
             // This is safe because other threads ended
-            let buffer = unsafe { &mut *buffer.get() };
-            flush_buffer(buffer)
+            let state = unsafe { &mut *state.get() };
+            flush_buffer(state)
         }
 
         // Notify sorters they reached the end of their inputs
-        for sorter in &mut sorters {
+        for state in thread_states.iter_mut() {
             // This is safe because other threads ended
-            let sorter = unsafe { &mut *sorter.get() };
-            drop(sorter.stdin.take().unwrap());
+            let state = unsafe { &mut *state.get() };
+            drop(state.sort.stdin.take().unwrap());
         }
 
         // Wait for sorters to finish
-        for sorter in sorters {
+        for state in thread_states.iter_mut() {
             // This is safe because other threads ended
-            let sorter = unsafe { &mut *sorter.get() };
-            sorter.wait().with_context(|| "Sorter crashed")?;
+            let state = unsafe { &mut *state.get() };
+            state.sort.wait().with_context(|| "Sorter crashed")?;
         }
 
         pl.lock().unwrap().done();
