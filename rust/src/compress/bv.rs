@@ -33,7 +33,10 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     let mut pl = ProgressLogger::default().display_memory();
     pl.item_name = "arc";
     pl.local_speed = true;
-    pl.expected_updates = Some(estimate_edge_count(&dataset_dir, allowed_node_types) as usize);
+    pl.expected_updates = Some(
+        estimate_edge_count(&dataset_dir, allowed_node_types)
+            .context("Could not estimate edge count")? as usize,
+    );
     pl.start("Reading arcs");
 
     // Sort in parallel in a bunch of SortPairs instances
@@ -46,20 +49,22 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     let sorted_arcs = par_sort_arcs(
         &sorted_arcs_path,
         sort_batch_size,
-        iter_arcs(&dataset_dir, allowed_node_types).inspect(|_| {
-            // This is safe because only this thread accesses this and only from
-            // here.
-            let counter = counters.get_or(|| UnsafeCell::new(0));
-            let counter: &mut usize = unsafe { &mut *counter.get() };
-            *counter += 1;
-            if *counter % 32768 == 0 {
-                // Update but avoid lock contention at the expense
-                // of precision (counts at most 32768 too many at the
-                // end of each file)
-                pl.lock().unwrap().update_with_count(32768);
-                *counter = 0
-            }
-        }),
+        iter_arcs(&dataset_dir, allowed_node_types)
+            .context("Could not open input files to read arcs")?
+            .inspect(|_| {
+                // This is safe because only this thread accesses this and only from
+                // here.
+                let counter = counters.get_or(|| UnsafeCell::new(0));
+                let counter: &mut usize = unsafe { &mut *counter.get() };
+                *counter += 1;
+                if *counter % 32768 == 0 {
+                    // Update but avoid lock contention at the expense
+                    // of precision (counts at most 32768 too many at the
+                    // end of each file)
+                    pl.lock().unwrap().update_with_count(32768);
+                    *counter = 0
+                }
+            }),
         |sorter, (src, dst)| {
             let src = mph
                 .hash_str_array(&src)

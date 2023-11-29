@@ -38,7 +38,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         subdirectory: &str,
         f: impl Fn(Row) -> Result<()>,
     ) -> Result<()> {
-        get_dataset_readers(self.dataset_dir.clone(), subdirectory)
+        get_dataset_readers(self.dataset_dir.clone(), subdirectory)?
             .into_iter()
             .flat_map(|reader: Reader| {
                 RowIterator::<Row>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
@@ -51,15 +51,15 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         &self,
         subdirectory: &str,
         f: impl Fn(Row) + Send + Sync,
-    ) -> impl ParallelIterator<Item = ()> {
-        get_dataset_readers(self.dataset_dir.clone(), subdirectory)
+    ) -> Result<impl ParallelIterator<Item = ()>> {
+        Ok(get_dataset_readers(self.dataset_dir.clone(), subdirectory)?
             .into_par_iter()
             .flat_map(|reader: Reader| {
                 RowIterator::<Row>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
                     .expect("Could not open row reader")
                     .par_bridge()
             })
-            .map(f)
+            .map(f))
     }
 
     fn node_id(&self, swhid: &str) -> usize {
@@ -125,14 +125,14 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
 
         if read_rev && read_rel {
             [].into_par_iter()
-                .chain(self.par_for_each_row("revision", |rev: Revrel| f("rev", rev)))
-                .chain(self.par_for_each_row("release", |rel: Revrel| f("rel", rel)))
+                .chain(self.par_for_each_row("revision", |rev: Revrel| f("rev", rev))?)
+                .chain(self.par_for_each_row("release", |rel: Revrel| f("rel", rel))?)
                 .for_each(|()| ());
         } else if read_rev {
-            self.par_for_each_row("revision", |rev: Revrel| f("rev", rev))
+            self.par_for_each_row("revision", |rev: Revrel| f("rev", rev))?
                 .for_each(|()| ());
         } else if read_rel {
-            self.par_for_each_row("release", |rel: Revrel| f("rel", rel))
+            self.par_for_each_row("release", |rel: Revrel| f("rel", rel))?
                 .for_each(|()| ());
         } else {
             unreachable!("!read_rev && !read_rel");
@@ -170,7 +170,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
                     self.set(&timestamp_offsets, &swhid, date_offset.to_be());
                 }
             }
-        })
+        })?
         .for_each(|()| ());
 
         log::info!("Writing...");
@@ -204,8 +204,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             }
         };
         [].into_par_iter()
-            .chain(self.par_for_each_row("content", f))
-            .chain(self.par_for_each_row("skipped_content", f))
+            .chain(self.par_for_each_row("content", f)?)
+            .chain(self.par_for_each_row("skipped_content", f)?)
             .for_each(|()| ());
 
         log::info!("Writing...");
@@ -237,7 +237,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
                     std::sync::atomic::Ordering::Relaxed,
                 );
             }
-        })
+        })?
         .for_each(|()| ());
 
         // We need to be compatible with graphs generated with Java, which used Java's
@@ -299,14 +299,14 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
 
         if read_rev && read_rel {
             [].into_par_iter()
-                .chain(self.par_for_each_row("revision", |rev: Revrel| f("rev", rev)))
-                .chain(self.par_for_each_row("release", |rel: Revrel| f("rel", rel)))
+                .chain(self.par_for_each_row("revision", |rev: Revrel| f("rev", rev))?)
+                .chain(self.par_for_each_row("release", |rel: Revrel| f("rel", rel))?)
                 .for_each(|()| ());
         } else if read_rev {
-            self.par_for_each_row("revision", |rev: Revrel| f("rev", rev))
+            self.par_for_each_row("revision", |rev: Revrel| f("rev", rev))?
                 .for_each(|()| ());
         } else if read_rel {
-            self.par_for_each_row("release", |rel: Revrel| f("rel", rel))
+            self.par_for_each_row("release", |rel: Revrel| f("rel", rel))?
                 .for_each(|()| ());
         } else {
             unreachable!("!read_rev && !read_rel");
@@ -353,7 +353,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
                     .expect("Person id overflows u32");
                 self.set(&committers, &swhid, person_id.to_be());
             }
-        })
+        })?
         .for_each(|()| ());
 
         log::info!("Writing...");

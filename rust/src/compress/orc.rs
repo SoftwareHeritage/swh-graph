@@ -4,8 +4,9 @@
 // See top-level LICENSE file for more information
 
 /// Readers for the ORC dataset.
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use anyhow::{Context, Result};
 use orcxx::deserialize::{CheckableKind, OrcDeserialize, OrcStruct};
 use orcxx::reader::Reader;
 use orcxx::row_iterator::RowIterator;
@@ -19,13 +20,14 @@ type TextSwhid = [u8; SWHID_TXT_SIZE];
 
 pub(crate) const ORC_BATCH_SIZE: usize = 1_024; // Larger values don't seem to improve throughput
 
-pub(crate) fn get_dataset_readers(
-    mut dataset_dir: PathBuf,
+pub(crate) fn get_dataset_readers<P: AsRef<Path>>(
+    dataset_dir: P,
     subdirectory: &str,
-) -> Vec<orcxx::reader::Reader> {
+) -> Result<Vec<orcxx::reader::Reader>> {
+    let mut dataset_dir = dataset_dir.as_ref().to_owned();
     dataset_dir.push(subdirectory);
     std::fs::read_dir(&dataset_dir)
-        .expect(&format!("Could not list {}", dataset_dir.display()))
+        .with_context(|| format!("Could not list {}", dataset_dir.display()))?
         .map(|file_path| {
             let file_path = file_path
                 .expect(&format!("Failed to list {}", dataset_dir.display()))
@@ -33,147 +35,149 @@ pub(crate) fn get_dataset_readers(
             let input_stream = orcxx::reader::InputStream::from_local_file(
                 file_path
                     .to_str()
-                    .expect(&format!("Error decoding {}", file_path.display())),
+                    .with_context(|| format!("Error decoding {}", file_path.display()))?,
             )
-            .expect(&format!("Could not open {}", file_path.display()));
-            Reader::new(input_stream).expect(&format!("Could not read {}", file_path.display()))
+            .with_context(|| format!("Could not open {}", file_path.display()))?;
+            Reader::new(input_stream)
+                .with_context(|| format!("Could not read {}", file_path.display()))
         })
         .collect()
 }
 
-pub fn estimate_node_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]) -> u64 {
+pub fn estimate_node_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]) -> Result<u64> {
     let mut readers = Vec::new();
     if allowed_node_types.contains(&SWHType::Directory) {
-        readers.extend(get_dataset_readers(dataset_dir.clone(), "directory"));
+        readers.extend(get_dataset_readers(dataset_dir, "directory")?);
     }
     if allowed_node_types.contains(&SWHType::Content) {
-        readers.extend(get_dataset_readers(dataset_dir.clone(), "content"));
+        readers.extend(get_dataset_readers(dataset_dir, "content")?);
     }
     if allowed_node_types.contains(&SWHType::Origin) {
-        readers.extend(get_dataset_readers(dataset_dir.clone(), "origin"));
+        readers.extend(get_dataset_readers(dataset_dir, "origin")?);
     }
     if allowed_node_types.contains(&SWHType::Release) {
-        readers.extend(get_dataset_readers(dataset_dir.clone(), "release"));
+        readers.extend(get_dataset_readers(dataset_dir, "release")?);
     }
     if allowed_node_types.contains(&SWHType::Revision) {
-        readers.extend(get_dataset_readers(dataset_dir.clone(), "revision"));
+        readers.extend(get_dataset_readers(dataset_dir, "revision")?);
     }
     if allowed_node_types.contains(&SWHType::Snapshot) {
-        readers.extend(get_dataset_readers(dataset_dir.clone(), "snapshot"));
+        readers.extend(get_dataset_readers(dataset_dir, "snapshot")?);
     }
-    readers
+    Ok(readers
         .into_par_iter()
         .map(|reader| reader.row_count())
-        .sum()
+        .sum())
 }
 
-pub fn estimate_edge_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]) -> u64 {
+pub fn estimate_edge_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]) -> Result<u64> {
     let mut readers = Vec::new();
     if allowed_node_types.contains(&SWHType::Directory) {
-        readers.extend(get_dataset_readers(dataset_dir.clone(), "directory_entry"))
+        readers.extend(get_dataset_readers(dataset_dir, "directory_entry")?)
     }
     if allowed_node_types.contains(&SWHType::Origin) {
         readers.extend(get_dataset_readers(
             // Count the source...
             dataset_dir.clone(),
             "origin_visit_status",
-        ));
+        )?);
         readers.extend(get_dataset_readers(
             // ... and destination of each arc
             dataset_dir.clone(),
             "origin_visit_status",
-        ));
+        )?);
     }
     if allowed_node_types.contains(&SWHType::Release) {
-        readers.extend(get_dataset_readers(dataset_dir.clone(), "release"));
+        readers.extend(get_dataset_readers(dataset_dir, "release")?);
     }
     if allowed_node_types.contains(&SWHType::Revision) {
-        readers.extend(get_dataset_readers(dataset_dir.clone(), "revision"));
-        readers.extend(get_dataset_readers(dataset_dir.clone(), "revision_history"));
+        readers.extend(get_dataset_readers(dataset_dir, "revision")?);
+        readers.extend(get_dataset_readers(dataset_dir, "revision_history")?);
     }
     if allowed_node_types.contains(&SWHType::Snapshot) {
-        readers.extend(get_dataset_readers(dataset_dir.clone(), "snapshot_branch"));
+        readers.extend(get_dataset_readers(dataset_dir, "snapshot_branch")?);
     }
-    readers
+    Ok(readers
         .into_par_iter()
         .map(|reader| reader.row_count())
-        .sum()
+        .sum())
 }
 
 pub fn iter_swhids(
     dataset_dir: &PathBuf,
     allowed_node_types: &[SWHType],
-) -> impl ParallelIterator<Item = TextSwhid> {
-    let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
+) -> Result<impl ParallelIterator<Item = TextSwhid>> {
+    let maybe_get_dataset_readers = |dataset_dir: &PathBuf, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
             get_dataset_readers(dataset_dir, subdirectory)
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     };
 
-    [].into_par_iter()
+    Ok([]
+        .into_par_iter()
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "directory", SWHType::Directory)
+            maybe_get_dataset_readers(dataset_dir, "directory", SWHType::Directory)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_dir),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "directory_entry", SWHType::Directory)
+            maybe_get_dataset_readers(dataset_dir, "directory_entry", SWHType::Directory)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_dir_entry),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "content", SWHType::Content)
+            maybe_get_dataset_readers(dataset_dir, "content", SWHType::Content)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_cnt),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "origin", SWHType::Origin)
+            maybe_get_dataset_readers(dataset_dir, "origin", SWHType::Origin)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_ori),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "origin_visit_status", SWHType::Origin)
+            maybe_get_dataset_readers(dataset_dir, "origin_visit_status", SWHType::Origin)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_ovs)
                 .flat_map_iter(|(src, dst)| [src, dst].into_iter()),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "release", SWHType::Release)
+            maybe_get_dataset_readers(dataset_dir, "release", SWHType::Release)?
                 .into_par_iter()
                 .flat_map(iter_rel_swhids_from_rel),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "release", SWHType::Release)
+            maybe_get_dataset_readers(dataset_dir, "release", SWHType::Release)?
                 .into_par_iter()
                 .flat_map(iter_target_swhids_from_rel),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "revision", SWHType::Revision)
+            maybe_get_dataset_readers(dataset_dir, "revision", SWHType::Revision)?
                 .into_par_iter()
                 .flat_map(iter_rev_swhids_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "revision", SWHType::Revision)
+            maybe_get_dataset_readers(dataset_dir, "revision", SWHType::Revision)?
                 .into_par_iter()
                 .flat_map(iter_dir_swhids_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "revision_history", SWHType::Revision)
+            maybe_get_dataset_readers(dataset_dir, "revision_history", SWHType::Revision)?
                 .into_par_iter()
                 .flat_map(iter_parent_swhids_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "snapshot", SWHType::Snapshot)
+            maybe_get_dataset_readers(dataset_dir, "snapshot", SWHType::Snapshot)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_snp),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "snapshot_branch", SWHType::Snapshot)
+            maybe_get_dataset_readers(dataset_dir, "snapshot_branch", SWHType::Snapshot)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_snp_branch),
-        )
+        ))
 }
 
 fn map_swhids<T: OrcDeserialize + CheckableKind + OrcStruct + Clone + Send, F>(
@@ -330,46 +334,47 @@ fn iter_swhids_from_snp_branch(reader: Reader) -> impl ParallelIterator<Item = T
 pub fn iter_arcs(
     dataset_dir: &PathBuf,
     allowed_node_types: &[SWHType],
-) -> impl ParallelIterator<Item = (TextSwhid, TextSwhid)> {
+) -> Result<impl ParallelIterator<Item = (TextSwhid, TextSwhid)>> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
             get_dataset_readers(dataset_dir, subdirectory)
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     };
 
-    [].into_par_iter()
+    Ok([]
+        .into_par_iter()
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "directory_entry", SWHType::Directory)
+            maybe_get_dataset_readers(dataset_dir, "directory_entry", SWHType::Directory)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_dir_entry),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "origin_visit_status", SWHType::Origin)
+            maybe_get_dataset_readers(dataset_dir, "origin_visit_status", SWHType::Origin)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_ovs),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "release", SWHType::Release)
+            maybe_get_dataset_readers(dataset_dir, "release", SWHType::Release)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_rel),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "revision", SWHType::Revision)
+            maybe_get_dataset_readers(dataset_dir, "revision", SWHType::Revision)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "revision_history", SWHType::Revision)
+            maybe_get_dataset_readers(dataset_dir, "revision_history", SWHType::Revision)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_rev_history),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "snapshot_branch", SWHType::Snapshot)
+            maybe_get_dataset_readers(dataset_dir, "snapshot_branch", SWHType::Snapshot)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_snp_branch),
-        )
+        ))
 }
 
 fn map_arcs<T: OrcDeserialize + CheckableKind + OrcStruct + Clone, F>(
@@ -511,46 +516,47 @@ type EdgeStats = [[usize; SWHType::NUMBER_OF_TYPES]; SWHType::NUMBER_OF_TYPES];
 pub fn count_edge_types(
     dataset_dir: &PathBuf,
     allowed_node_types: &[SWHType],
-) -> impl ParallelIterator<Item = EdgeStats> {
+) -> Result<impl ParallelIterator<Item = EdgeStats>> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
             get_dataset_readers(dataset_dir, subdirectory)
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     };
 
-    [].into_par_iter()
+    Ok([]
+        .into_par_iter()
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "directory_entry", SWHType::Directory)
+            maybe_get_dataset_readers(dataset_dir, "directory_entry", SWHType::Directory)?
                 .into_par_iter()
                 .map(count_edge_types_from_dir),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "origin_visit_status", SWHType::Origin)
+            maybe_get_dataset_readers(dataset_dir, "origin_visit_status", SWHType::Origin)?
                 .into_par_iter()
                 .map(count_edge_types_from_ovs),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "release", SWHType::Release)
+            maybe_get_dataset_readers(dataset_dir, "release", SWHType::Release)?
                 .into_par_iter()
                 .map(count_edge_types_from_rel),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "revision", SWHType::Revision)
+            maybe_get_dataset_readers(dataset_dir, "revision", SWHType::Revision)?
                 .into_par_iter()
                 .map(count_dir_edge_types_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "revision_history", SWHType::Revision)
+            maybe_get_dataset_readers(dataset_dir, "revision_history", SWHType::Revision)?
                 .into_par_iter()
                 .map(count_parent_edge_types_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "snapshot_branch", SWHType::Snapshot)
+            maybe_get_dataset_readers(dataset_dir, "snapshot_branch", SWHType::Snapshot)?
                 .into_par_iter()
                 .map(count_edge_types_from_snp),
-        )
+        ))
 }
 
 fn for_each_edge<T: OrcDeserialize + CheckableKind + OrcStruct + Clone, F>(reader: Reader, f: F)
@@ -686,26 +692,27 @@ fn count_edge_types_from_snp(reader: Reader) -> EdgeStats {
 pub fn iter_labels(
     dataset_dir: &PathBuf,
     allowed_node_types: &[SWHType],
-) -> impl ParallelIterator<Item = Vec<u8>> {
+) -> Result<impl ParallelIterator<Item = Vec<u8>>> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
             get_dataset_readers(dataset_dir, subdirectory)
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     };
 
-    [].into_par_iter()
+    Ok([]
+        .into_par_iter()
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "directory_entry", SWHType::Directory)
+            maybe_get_dataset_readers(dataset_dir, "directory_entry", SWHType::Directory)?
                 .into_par_iter()
                 .flat_map(iter_labels_from_dir_entry),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "snapshot_branch", SWHType::Snapshot)
+            maybe_get_dataset_readers(dataset_dir, "snapshot_branch", SWHType::Snapshot)?
                 .into_par_iter()
                 .flat_map(iter_labels_from_snp_branch),
-        )
+        ))
 }
 
 fn map_labels<T: OrcDeserialize + CheckableKind + OrcStruct + Clone + Send, F>(
@@ -749,26 +756,27 @@ fn iter_labels_from_snp_branch(reader: Reader) -> impl ParallelIterator<Item = V
 pub fn iter_persons(
     dataset_dir: &PathBuf,
     allowed_node_types: &[SWHType],
-) -> impl ParallelIterator<Item = Vec<u8>> {
+) -> Result<impl ParallelIterator<Item = Vec<u8>>> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
             get_dataset_readers(dataset_dir, subdirectory)
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     };
 
-    [].into_par_iter()
+    Ok([]
+        .into_par_iter()
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "revision", SWHType::Revision)
+            maybe_get_dataset_readers(dataset_dir, "revision", SWHType::Revision)?
                 .into_par_iter()
                 .flat_map(iter_persons_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir.clone(), "release", SWHType::Release)
+            maybe_get_dataset_readers(dataset_dir, "release", SWHType::Release)?
                 .into_par_iter()
                 .flat_map(iter_persons_from_rel),
-        )
+        ))
 }
 
 fn map_persons<T: OrcDeserialize + CheckableKind + OrcStruct + Clone + Send, F>(
