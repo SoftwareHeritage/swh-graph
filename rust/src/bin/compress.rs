@@ -37,6 +37,10 @@ enum Commands {
         format: DatasetFormat,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
+        /// Size (in bytes) of each thread's buffer in memory before it sorts and
+        /// flushes it to disk.
+        #[arg(long, default_value = "5000000")]
+        buffer_size: usize,
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
@@ -47,6 +51,10 @@ enum Commands {
         format: DatasetFormat,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
+        /// Size (in bytes) of each thread's buffer in memory before it sorts and
+        /// flushes it to disk.
+        #[arg(long, default_value = "5000000")]
+        buffer_size: usize,
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
@@ -57,6 +65,10 @@ enum Commands {
         format: DatasetFormat,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
+        /// Size (in bytes) of each thread's buffer in memory before it sorts and
+        /// flushes it to disk.
+        #[arg(long, default_value = "5000000")]
+        buffer_size: usize,
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
@@ -268,6 +280,7 @@ pub fn main() -> Result<()> {
         Commands::ExtractNodes {
             format: DatasetFormat::Orc,
             allowed_node_types,
+            buffer_size,
             dataset_dir,
             target_dir,
         } => {
@@ -290,12 +303,13 @@ pub fn main() -> Result<()> {
 
             swh_graph::compress::orc::iter_swhids(&dataset_dir, &allowed_node_types)
                 .context("Could not read nodes from input dataset")?
-                .unique_sort_to_dir(target_dir, "swhids.txt", &temp_dir(), pl, &[])
+                .unique_sort_to_dir(target_dir, "swhids.txt", &temp_dir(), pl, &[], buffer_size)
                 .context("Sorting failed")?;
         }
         Commands::ExtractLabels {
             format: DatasetFormat::Orc,
             allowed_node_types,
+            buffer_size,
             dataset_dir,
             target_dir,
         } => {
@@ -317,12 +331,13 @@ pub fn main() -> Result<()> {
             swh_graph::compress::orc::iter_labels(&dataset_dir, &allowed_node_types)
                 .context("Could not read labels from input dataset")?
                 .map(|label| base64.encode_to_string(label).into_bytes())
-                .unique_sort_to_dir(target_dir, "labels.csv", &temp_dir(), pl, &[])
+                .unique_sort_to_dir(target_dir, "labels.csv", &temp_dir(), pl, &[], buffer_size)
                 .context("Sorting failed")?;
         }
         Commands::ExtractPersons {
             format: DatasetFormat::Orc,
             allowed_node_types,
+            buffer_size,
             dataset_dir,
             target_dir,
         } => {
@@ -351,7 +366,7 @@ pub fn main() -> Result<()> {
             swh_graph::compress::orc::iter_persons(&dataset_dir, &allowed_node_types)
                 .context("Could not read persons from input dataset")?
                 .map(|label| base64.encode_to_string(label).into_bytes())
-                .unique_sort_to_dir(target_dir, "persons.csv", &temp_dir(), pl, &[])
+                .unique_sort_to_dir(target_dir, "persons.csv", &temp_dir(), pl, &[], buffer_size)
                 .context("Sorting failed")?;
         }
         Commands::NodeStats {

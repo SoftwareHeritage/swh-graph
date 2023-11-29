@@ -28,6 +28,9 @@ where
 {
     /// Drains a [`ParallelIterator`], sorts its values, deduplicates them, and write them
     /// to multiple newline-separated ZSTD-compressed files in the given directory.
+    ///
+    /// `buffer_size` is the RAM used by each of this process' threads before flushing
+    /// to `sort`.
     fn unique_sort_to_dir(
         self,
         target_dir: PathBuf,
@@ -35,13 +38,13 @@ where
         temp_dir: &Path,
         pl: ProgressLogger,
         args: &[&str],
+        buffer_size: usize,
     ) -> Result<()> {
         let pl = Mutex::new(pl);
         let sorted_files = Mutex::new(Vec::new());
         let mut sorter_buffers = thread_local::ThreadLocal::new();
         let mut sorters = thread_local::ThreadLocal::new();
         let counters = thread_local::ThreadLocal::new();
-        let buffer_size = 5_000_000;
 
         let flush_buffer = |buffer: &mut Vec<u8>| {
             // Flush to the sorter
