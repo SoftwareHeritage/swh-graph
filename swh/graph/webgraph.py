@@ -23,6 +23,10 @@ from swh.graph.config import check_config_compress
 logger = logging.getLogger(__name__)
 
 
+class CompressionSubprocessError(Exception):
+    pass
+
+
 class CompressionStep(Enum):
     EXTRACT_NODES = 1
     MPH = 2
@@ -323,7 +327,7 @@ def do_step(step, conf):
             step_logger.info(line.rstrip())
     rc = process.wait()
     if rc != 0:
-        raise RuntimeError(
+        raise CompressionSubprocessError(
             f"Compression step {step} returned non-zero exit code {rc}, see {log_path}"
         )
     step_end_time = datetime.now()

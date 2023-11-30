@@ -254,7 +254,10 @@ def compress(ctx, input_dataset, output_directory, graph_name, steps):
     except KeyError:
         conf = {}  # use defaults
 
-    webgraph.compress(graph_name, input_dataset, output_directory, steps, conf)
+    try:
+        webgraph.compress(graph_name, input_dataset, output_directory, steps, conf)
+    except webgraph.CompressionSubprocessError as e:
+        raise click.ClickException(e.args[0])
 
 
 def get_all_subclasses(cls):
