@@ -24,7 +24,10 @@ logger = logging.getLogger(__name__)
 
 
 class CompressionSubprocessError(Exception):
-    pass
+    def __init__(self, message: str, log_path: Path):
+        super().__init__(f"{message}; full logs at {log_path}")
+        self.message = message
+        self.log_path = log_path
 
 
 class CompressionStep(Enum):
@@ -328,7 +331,7 @@ def do_step(step, conf):
     rc = process.wait()
     if rc != 0:
         raise CompressionSubprocessError(
-            f"Compression step {step} returned non-zero exit code {rc}, see {log_path}"
+            f"Compression step {step} returned non-zero exit code {rc}", log_path
         )
     step_end_time = datetime.now()
     step_duration = step_end_time - step_start_time
