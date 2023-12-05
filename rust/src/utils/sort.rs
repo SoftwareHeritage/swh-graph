@@ -39,6 +39,7 @@ where
         pl: ProgressLogger,
         args: &[&str],
         buffer_size: usize,
+        expected_lines: usize,
     ) -> Result<()> {
         let pl = Mutex::new(pl);
         let sorted_files = Mutex::new(Vec::new());
@@ -143,10 +144,10 @@ where
         std::fs::create_dir(&target_dir)
             .with_context(|| format!("Could not create directory {}", target_dir.display()))?;
 
-        // TODO: this is the longest step, we need to log progress here.
-        // also, it would be nice to start merging without waiting for all sorters
-        // to be done.
-        // -> rewrite the merger in-process?
+        // Spawn sort * | pv | split
+
+        // TODO: it would be nice to start merging without waiting for all sorters
+        // to be done. -> rewrite the merger in-process?
         let mut merge = std::process::Command::new("sort")
             .arg("--buffer-size=100M")
             .arg("--compress-program=zstdmt")
@@ -161,6 +162,15 @@ where
             .with_context(|| "Could not start merging 'sort' process")?;
         let merge_out = merge.stdout.take().unwrap();
 
+        let mut pv = std::process::Command::new("pv")
+            .arg("--line-mode")
+            .arg(&format!("--size={}", expected_lines))
+            .stdin(Stdio::from(merge_out))
+            .stdout(Stdio::piped())
+            .spawn()
+            .with_context(|| "Could not start pv")?;
+        let pv_out = pv.stdout.take().unwrap();
+
         let mut split = std::process::Command::new("split")
             .arg("--lines=100000000") // 100M
             .arg("--suffix-length=6")
@@ -169,11 +179,12 @@ where
             .arg("--additional-suffix=.zst")
             .arg("-")
             .arg(&target_path_prefix)
-            .stdin(Stdio::from(merge_out))
+            .stdin(Stdio::from(pv_out))
             .spawn()
             .with_context(|| "Could not start zstdmt")?;
 
         merge.wait().with_context(|| "merger crashed")?;
+        merge.wait().with_context(|| "pv crashed")?;
         split.wait().with_context(|| "split/zstdmt crashed")?;
 
         Ok(())

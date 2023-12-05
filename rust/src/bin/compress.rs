@@ -287,23 +287,30 @@ pub fn main() -> Result<()> {
             use swh_graph::utils::sort::Sortable;
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
+            let expected_node_count =
+                swh_graph::compress::orc::estimate_node_count(&dataset_dir, &allowed_node_types)
+                    .context("Could not estimate node count")? as usize;
+            let expected_edge_count =
+                swh_graph::compress::orc::estimate_edge_count(&dataset_dir, &allowed_node_types)
+                    .context("Could not estimate edge count")? as usize;
+
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "arc";
             pl.local_speed = true;
-            pl.expected_updates = Some(
-                (swh_graph::compress::orc::estimate_node_count(&dataset_dir, &allowed_node_types)
-                    .context("Could not estimate node count")?
-                    + swh_graph::compress::orc::estimate_edge_count(
-                        &dataset_dir,
-                        &allowed_node_types,
-                    )
-                    .context("Could not estimate edge count")?) as usize,
-            );
+            pl.expected_updates = Some(expected_node_count + expected_edge_count);
             pl.start("Extracting and sorting SWHIDs");
 
             swh_graph::compress::orc::iter_swhids(&dataset_dir, &allowed_node_types)
                 .context("Could not read nodes from input dataset")?
-                .unique_sort_to_dir(target_dir, "swhids.txt", &temp_dir(), pl, &[], buffer_size)
+                .unique_sort_to_dir(
+                    target_dir,
+                    "swhids.txt",
+                    &temp_dir(),
+                    pl,
+                    &[],
+                    buffer_size,
+                    expected_node_count,
+                )
                 .context("Sorting failed")?;
         }
         Commands::ExtractLabels {
@@ -316,14 +323,14 @@ pub fn main() -> Result<()> {
             use swh_graph::utils::sort::Sortable;
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
+            let expected_edge_count =
+                swh_graph::compress::orc::estimate_edge_count(&dataset_dir, &allowed_node_types)
+                    .context("Could not estimate edge count")? as usize;
+
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "arc";
             pl.local_speed = true;
-            pl.expected_updates = Some(
-                swh_graph::compress::orc::estimate_edge_count(&dataset_dir, &allowed_node_types)
-                    .context("Could not estimate edge count from input dataset")?
-                    as usize,
-            );
+            pl.expected_updates = Some(expected_edge_count);
             pl.start("Extracting and sorting labels");
 
             let base64 = base64_simd::STANDARD;
@@ -331,7 +338,15 @@ pub fn main() -> Result<()> {
             swh_graph::compress::orc::iter_labels(&dataset_dir, &allowed_node_types)
                 .context("Could not read labels from input dataset")?
                 .map(|label| base64.encode_to_string(label).into_bytes())
-                .unique_sort_to_dir(target_dir, "labels.csv", &temp_dir(), pl, &[], buffer_size)
+                .unique_sort_to_dir(
+                    target_dir,
+                    "labels.csv",
+                    &temp_dir(),
+                    pl,
+                    &[],
+                    buffer_size,
+                    expected_edge_count / 131, // approximation, based on 2023-09-06 graph
+                )
                 .context("Sorting failed")?;
         }
         Commands::ExtractPersons {
@@ -344,21 +359,21 @@ pub fn main() -> Result<()> {
             use swh_graph::utils::sort::Sortable;
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
+            let expected_node_count = swh_graph::compress::orc::estimate_node_count(
+                &dataset_dir,
+                &allowed_node_types
+                    .iter()
+                    .cloned()
+                    .filter(|t| [SWHType::Revision, SWHType::Release].contains(t))
+                    .collect::<Vec<_>>(),
+            )
+            .context("Could not estimate node count from input dataset")?
+                as usize;
+
             let mut pl = ProgressLogger::default().display_memory();
             pl.item_name = "node";
             pl.local_speed = true;
-            pl.expected_updates = Some(
-                swh_graph::compress::orc::estimate_node_count(
-                    &dataset_dir,
-                    &allowed_node_types
-                        .iter()
-                        .cloned()
-                        .filter(|t| [SWHType::Revision, SWHType::Release].contains(t))
-                        .collect::<Vec<_>>(),
-                )
-                .context("Could not estimate node count from input dataset")?
-                    as usize,
-            );
+            pl.expected_updates = Some(expected_node_count);
             pl.start("Extracting and sorting labels");
 
             let base64 = base64_simd::STANDARD;
@@ -366,7 +381,15 @@ pub fn main() -> Result<()> {
             swh_graph::compress::orc::iter_persons(&dataset_dir, &allowed_node_types)
                 .context("Could not read persons from input dataset")?
                 .map(|label| base64.encode_to_string(label).into_bytes())
-                .unique_sort_to_dir(target_dir, "persons.csv", &temp_dir(), pl, &[], buffer_size)
+                .unique_sort_to_dir(
+                    target_dir,
+                    "persons.csv",
+                    &temp_dir(),
+                    pl,
+                    &[],
+                    buffer_size,
+                    expected_node_count / 56, // approximation, based on 2023-09-06 graph
+                )
                 .context("Sorting failed")?;
         }
         Commands::NodeStats {
