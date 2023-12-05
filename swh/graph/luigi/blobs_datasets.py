@@ -509,7 +509,7 @@ class SelectBlobs(_BaseTask):
 
         from swh.dataset.athena import query
 
-        from .shell import AtomicFileSink, Command
+        from ..shell import AtomicFileSink, Command
 
         athena = boto3.client("athena")
         athena.database_name = self.athena_db_name
@@ -733,7 +733,7 @@ class DownloadBlobs(_BaseTask):
 
         import tqdm
 
-        from .shell import Command
+        from ..shell import Command
 
         # Create sharded directories for the blobs
         for i in range(256):
@@ -817,7 +817,7 @@ class MakeBlobTarball(_BaseTask):
 
     def run(self) -> None:
         """Run task."""
-        from .shell import AtomicFileSink, Command
+        from ..shell import AtomicFileSink, Command
 
         approx_tarball_size = (
             self.blob_size()  # the content itself
@@ -853,7 +853,7 @@ class MakeSampleBlobTarball(_BaseTask):
 
     def run(self) -> None:
         """Selects a sample of 20k random blobs and puts them in a tarball."""
-        from .shell import AtomicFileSink, Command
+        from ..shell import AtomicFileSink, Command
 
         cwd = self.derived_datasets_path / self.blob_filter
         # fmt: off
@@ -1219,7 +1219,7 @@ class FindEarliestRevisions(_BaseTask):
 
     def run(self) -> None:
         """Run task."""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
 
         class_name = "org.softwareheritage.graph.utils.FindEarliestRevision"
 
@@ -1308,7 +1308,7 @@ class RunBlobDataset(luigi.Task):
         self._check_exactly_one_line(swhid, dir_path / "blobs-earliest.csv.zst")
 
     def _check_fileinfo(self, swhid: str, expected_fileinfo: str, path: Path) -> None:
-        from .shell import Command, Sink
+        from ..shell import Command, Sink
 
         # fmt: off
         results = (
@@ -1323,7 +1323,7 @@ class RunBlobDataset(luigi.Task):
     def _check_scancode(self, swhid: str, dir_path: Path) -> None:
         import json
 
-        from .shell import Command, Sink
+        from ..shell import Command, Sink
 
         assert swhid == "swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2"
 
@@ -1359,7 +1359,7 @@ class RunBlobDataset(luigi.Task):
         assert licenses[0]["score"] == 100.0
 
     def _check_exactly_one_line(self, swhid: str, path: Path) -> None:
-        from .shell import Command, Sink
+        from ..shell import Command, Sink
 
         # fmt: off
         results = (
@@ -1377,7 +1377,7 @@ class RunBlobDataset(luigi.Task):
         self, swhid: str, min_expected_origins: int, path: Path
     ) -> None:
 
-        from .shell import Command, Sink
+        from ..shell import Command, Sink
 
         # fmt: off
         results = (

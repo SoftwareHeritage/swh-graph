@@ -1219,10 +1219,11 @@ class UploadGraphToS3(luigi.Task):
             )
 
     def _upload_file(self, path):
-        import subprocess
         import tempfile
 
         import luigi.contrib.s3
+
+        from ..shell import Command
 
         client = luigi.contrib.s3.S3Client()
 
@@ -1231,9 +1232,9 @@ class UploadGraphToS3(luigi.Task):
             # Large sparse file; store it compressed on S3.
             with tempfile.NamedTemporaryFile(prefix=path.stem, suffix=".bin.zst") as fd:
                 self.__status_messages[path] = f"Compressing {relative_path}"
-                subprocess.run(
-                    ["zstdmt", "--force", "--keep", path, "-o", fd.name], check=True
-                )
+                Command.zstdmt(
+                    "--force", "--force", "--keep", path, "-o", fd.name
+                ).run()
                 self.__status_messages[path] = f"Uploading {relative_path} (compressed)"
                 client.put_multipart(
                     fd.name,
@@ -1284,11 +1285,12 @@ class DownloadGraphFromS3(luigi.Task):
 
     def run(self) -> None:
         """Copies all files: first the graph itself, then :file:`meta/compression.json`."""
-        import subprocess
         import tempfile
 
         import luigi.contrib.s3
         import tqdm
+
+        from ..shell import Command
 
         client = luigi.contrib.s3.S3Client()
 
@@ -1320,17 +1322,13 @@ class DownloadGraphFromS3(luigi.Task):
                         fd.name,
                     )
                     self.set_status_message(f"Decompressing {file_}")
-                    subprocess.run(
-                        [
-                            "zstdmt",
-                            "--force",
-                            "-d",
-                            fd.name,
-                            "-o",
-                            str(local_path)[0:-4],
-                        ],
-                        check=True,
-                    )
+                    Command.zstdmt(
+                        "--force",
+                        "-d",
+                        fd.name,
+                        "-o",
+                        str(local_path)[0:-4],
+                    ).run()
             else:
                 self.set_status_message(f"Downloading {file_}")
                 client.get(

@@ -21,7 +21,7 @@ from swh.graph.luigi.provenance import (
     ListEarliestRevisions,
     SortRevrelByDate,
 )
-from swh.graph.luigi.shell import CommandException
+from swh.graph.shell import CommandException
 
 from .test_topology import TOPO_ORDER_BACKWARD
 

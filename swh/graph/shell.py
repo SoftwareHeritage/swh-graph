@@ -8,7 +8,7 @@ pure-Python.
 
 Pipelines are built like this:
 
->>> from swh.graph.luigi.shell import Command, Sink
+>>> from swh.graph.shell import Command, Sink
 >>> (
 ...     Command.echo("foo")
 ...     | Command.zstdmt()
@@ -47,7 +47,15 @@ import signal
 import subprocess
 from typing import Any, Dict, List, NoReturn, Optional, TypeVar, Union
 
-import luigi
+try:
+    from luigi import LocalTarget
+except ImportError:
+
+    class LocalTarget:  # type: ignore
+        """Placeholder for ``luigi.LocalTarget`` if it could not be imported"""
+
+        pass
+
 
 LOGBACK_CONF = b"""\
 <configuration>
@@ -95,7 +103,7 @@ class Command(metaclass=_MetaCommand):
                 final_args.append(f"/dev/fd/{r}")
                 children.append(arg._run(None, w))
                 os.close(w)
-            elif isinstance(arg, luigi.LocalTarget):
+            elif isinstance(arg, LocalTarget):
                 final_args.append(arg.path)
             else:
                 final_args.append(arg)
@@ -131,7 +139,7 @@ class Java(Command):
 
         import tempfile
 
-        from ..config import check_config
+        from .config import check_config
 
         conf: Dict = {}  # TODO: configurable
 
@@ -320,9 +328,9 @@ class AtomicFileSink(_BaseSink):
     """Similar to ``> path`` at the end of a command, but writes only if the whole
     command succeeded."""
 
-    def __init__(self, path: Union[Path, luigi.LocalTarget]):
+    def __init__(self, path: Union[Path, LocalTarget]):
         super().__init__()
-        if isinstance(path, luigi.LocalTarget):
+        if isinstance(path, LocalTarget):
             path = Path(path.path)
         self.path = path
 

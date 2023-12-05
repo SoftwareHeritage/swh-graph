@@ -75,7 +75,7 @@ class SortRevrelByDate(luigi.Task):
 
         import tqdm
 
-        from .shell import AtomicFileSink, Command
+        from ..shell import AtomicFileSink, Command
         from .utils import count_nodes
 
         sort_env = {"LC_ALL": "C"}  # fastest locale to sort
@@ -141,7 +141,7 @@ class SortRevrelByDate(luigi.Task):
         import sys
         import uuid
 
-        from .shell import AtomicFileSink, Command
+        from ..shell import AtomicFileSink, Command
 
         (swhid_object_type, orc_path, tempdir, sort_env) = args
 
@@ -261,7 +261,7 @@ class ListEarliestRevisions(luigi.Task):
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListEarliestRevisions``"""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
         from .utils import count_nodes
 
         nb_nodes = count_nodes(self.local_graph_path, self.graph_name, "cnt,dir")
@@ -347,7 +347,7 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp``"""
-        from .shell import Command, Java
+        from ..shell import Command, Java
 
         class_name = "org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp"
 
@@ -434,7 +434,7 @@ class ComputeDirectoryFrontier(luigi.Task):
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ComputeDirectoryFrontier``"""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
 
         class_name = "org.softwareheritage.graph.utils.ComputeDirectoryFrontier"
 
@@ -488,7 +488,7 @@ class DeduplicateFrontierDirectories(luigi.Task):
     def run(self):
         """Runs ``cut | sort --uniq`` to produce unique directory SWHIDs from
         ``directory_frontier.csv.zst``."""
-        from .shell import AtomicFileSink, Command
+        from ..shell import AtomicFileSink, Command
 
         sort_env = {"LC_ALL": "C"}  # fastest locale to sort
         if os.environ.get("TMPDIR"):
@@ -590,7 +590,7 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListContentsInRevisionsWithoutFrontier``"""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
 
         class_name = (
             "org.softwareheritage.graph.utils.ListContentsInRevisionsWithoutFrontier"
@@ -667,7 +667,7 @@ class ListContentsInFrontierDirectories(luigi.Task):
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListContentsInDirectories``"""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
 
         class_name = "org.softwareheritage.graph.utils.ListContentsInDirectories"
 

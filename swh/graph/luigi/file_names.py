@@ -61,7 +61,7 @@ class PopularContentNames(luigi.Task):
 
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.PopularContentNames and compresses"""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
 
         if self.max_results_per_content == 1 and self.popularity_threshold == 0:
             # In this case, we know approximately how many results are expected:
@@ -131,7 +131,7 @@ class PopularContentPaths(luigi.Task):
         """Runs org.softwareheritage.graph.utils.PopularContentPaths and compresses"""
         import multiprocessing.dummy
 
-        from .shell import AtomicFileSink, Command, Java, wc
+        from ..shell import AtomicFileSink, Command, Java, wc
 
         input_swhid_files = list(self.input_swhids.iterdir())
 
@@ -208,7 +208,7 @@ class PopularContentNamesOrcToS3(_CsvToOrcToS3ToAthenaTask):
         ]
 
     def _approx_nb_rows(self) -> int:
-        from .shell import Command, wc
+        from ..shell import Command, wc
 
         # Approximates, by assuming few rows contain newline characters
         n = wc(Command.zstdcat(self._input_csv_path()), "-l")
@@ -278,7 +278,7 @@ class ListFilesByName(luigi.Task):
 
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.PopularContentNames and compresses"""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
 
         class_name = "org.softwareheritage.graph.utils.ListFilesByName"
         # fmt: on
