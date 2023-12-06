@@ -75,7 +75,10 @@ LOGBACK_CONF = b"""\
 
 
 class CommandException(Exception):
-    pass
+    def __init__(self, args, returncode):
+        super().__init__(f"{args[0]} returned: {returncode}")
+        self.args = args
+        self.returncode = returncode
 
 
 class _MetaCommand(type):
@@ -194,9 +197,7 @@ class _RunningCommand:
             self.proc.wait()
             self.command._cleanup()
             if self.proc.returncode not in (0, -int(signal.SIGPIPE)):
-                raise CommandException(
-                    f"{self.command.args[0]} returned: {self.proc.returncode}"
-                )
+                raise CommandException(self.command.args, self.proc.returncode)
 
             for child in self.running_children:
                 child.wait()

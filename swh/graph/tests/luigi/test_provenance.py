@@ -289,8 +289,9 @@ def test_listearliestrevisions_disordered(tmpdir):
         provenance_dir=provenance_dir,
     )
 
-    with pytest.raises(CommandException, match="java returned: 3"):
+    with pytest.raises(CommandException) as excinfo:
         task.run()
+    assert excinfo.value.returncode == 3
 
 
 def test_listdirectorymaxleaftimestamp(tmpdir):
