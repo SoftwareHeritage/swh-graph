@@ -14,11 +14,14 @@ import os
 from pathlib import Path
 import shlex
 import subprocess
-from typing import Callable, Dict, List, Set
+from typing import TYPE_CHECKING, Callable, Dict, List, Set
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 from swh.graph.config import check_config_compress
+
+if TYPE_CHECKING:
+    from .shell import RunResult
 
 logger = logging.getLogger(__name__)
 
@@ -303,7 +306,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
 }
 
 
-def do_step(step, conf) -> None:
+def do_step(step, conf) -> "List[RunResult]":
     from .shell import Command, CommandException
 
     log_dir = Path(conf["out_dir"]) / "logs"
@@ -348,7 +351,7 @@ def do_step(step, conf) -> None:
         for line in stdout:
             step_logger.info(line.rstrip())
     try:
-        command.wait()
+        results = command.wait()
     except CommandException as e:
         raise CompressionSubprocessError(
             f"Compression step {step} returned non-zero exit code {e.returncode}",
@@ -364,6 +367,7 @@ def do_step(step, conf) -> None:
     )
     step_logger.removeHandler(step_handler)
     step_handler.close()
+    return results
 
 
 def compress(

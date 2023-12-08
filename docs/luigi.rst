@@ -54,6 +54,42 @@ where:
    Progress report for most tasks is currently displayed only to the standard output,
    and not to the luigi scheduler dashboard.
 
+Statistics
+----------
+
+Tasks may write statistics of commands they ran, such as CPU time and memory usage.
+For example, the compression pipeline writes this for each task in :file:`meta/compression.json` file::
+
+    "cgroup_stats": {
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+        "memory.events.local": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+        "memory.swap.current": "0",
+        "memory.zswap.current": "0",
+        "memory.swap.events": "high 0\nmax 0\nfail 0",
+        "cpu.stat": "usage_usec 531350\nuser_usec 424286\nsystem_usec 107063\n...",
+        "memory.current": "614400",
+        "memory.stat": "anon 0\nfile 110592\nkernel 176128\nkernel_stack 0\n...",
+        "memory.numa_stat": "anon N0=0\nfile N0=110592\nkernel_stack N0=0\n...",
+        "memory.peak": "49258496"
+    }
+
+
+
+These rely on the parent `control group <https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html>`_
+allowing creation of sub-control groups.
+
+This is generally not the case, as processes run in the :file:`/user.slice/user-XXXX.slice/session-YYYYY.scope`
+cgroup, and systemd does not allow creation of sub-groups directly in :file:`/user.slice/user-XXXX.slice/`.
+
+A workaround is to start an interactive systemd container using ``systemd-run --user -S``,
+which creates a new cgroup :file:`/user.slice/user-XXXX.slice/user@XXXX.service/app.slice/run-uZZZ.service`
+and run swh-graph in that.
+
+The user also needs permission to use some controllers, which can be configured with
+``systemctl edit user@XXXX.service`` by adding:
+
+    [Service]
+    Delegate=pids memory cpu cpuacct io
 
 .. _swh-graph-luigi-graph-export:
 

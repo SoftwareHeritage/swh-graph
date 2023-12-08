@@ -1,9 +1,9 @@
-# Copyright (C) 2022 The Software Heritage developers
+# Copyright (C) 2022-2023 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-"""
+r"""
 Luigi tasks for compression
 ===========================
 
@@ -67,7 +67,29 @@ For example:
             "tool": {
                 "name": "swh.graph",
                 "version": "2.2.0"
-            }
+            },
+            "commands": [
+                {
+                    "command": [
+                        "bash",
+                        "-c",
+                        "java it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph --list ..."
+                    ],
+                    "cgroup": "/sys/fs/cgroup/user.slice/user-1002.slice/user@1002.service/app.slice/swh.graph@103038/bash@0",
+                    "cgroup_stats": {
+                        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+                        "memory.events.local": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+                        "memory.swap.current": "0",
+                        "memory.zswap.current": "0",
+                        "memory.swap.events": "high 0\nmax 0\nfail 0",
+                        "cpu.stat": "usage_usec 531350\nuser_usec 424286\nsystem_usec 107063\n...",
+                        "memory.current": "614400",
+                        "memory.stat": "anon 0\nfile 110592\nkernel 176128\nkernel_stack 0\n...",
+                        "memory.numa_stat": "anon N0=0\nfile N0=110592\nkernel_stack N0=0\n...",
+                        "memory.peak": "49258496"
+                    }
+                }
+            ]
         }
     ]
 
@@ -86,7 +108,7 @@ Therefore, these files are compressed to ``.bin.zst``, and need to be decompress
 when downloading.
 
 The layout is otherwise the same as the file layout.
-"""
+"""  # noqa
 
 import collections
 import itertools
@@ -461,7 +483,7 @@ class _CompressionStepTask(luigi.Task):
 
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
         start_time = time.monotonic()
-        do_step(step=self.STEP, conf=conf)
+        run_results = do_step(step=self.STEP, conf=conf)
         end_time = time.monotonic()
         end_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
@@ -476,6 +498,14 @@ class _CompressionStepTask(luigi.Task):
                 "name": "swh.graph",
                 "version": pkg_resources.get_distribution("swh.graph").version,
             },
+            "commands": [
+                {
+                    "command": res.command,
+                    "cgroup": str(res.cgroup) if res.cgroup else None,
+                    "cgroup_stats": res.cgroup_stats,
+                }
+                for res in run_results
+            ],
         }
         self._stamp().parent.mkdir(parents=True, exist_ok=True)
         with self._stamp().open("w") as fd:
