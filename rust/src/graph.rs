@@ -73,7 +73,7 @@ pub struct SwhUnidirectionalGraph<
     P,
     G: RandomAccessGraph = BVGraph<
         DynamicCodesReaderBuilder<dsi_bitstream::prelude::BE, MmapBackend<u32>>,
-        webgraph::EF<&'static [usize]>,
+        webgraph::EF<&'static [usize], &'static [u64]>,
     >,
 > {
     basepath: PathBuf,
@@ -235,7 +235,7 @@ pub struct SwhBidirectionalGraph<
     P,
     G: RandomAccessGraph = BVGraph<
         DynamicCodesReaderBuilder<dsi_bitstream::prelude::BE, MmapBackend<u32>>,
-        webgraph::EF<&'static [usize]>,
+        webgraph::EF<&'static [usize], &'static [u64]>,
     >,
 > {
     basepath: PathBuf,
