@@ -8,8 +8,11 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
+use lender::{Lender, Lending};
 use webgraph::prelude::*;
 //use webgraph::traits::{RandomAccessGraph, SequentialGraph};
+use webgraph::EF;
+use webgraph::label::swh_labels::{Labels, MmapReaderBuilder, SwhLabels};
 
 use crate::mph::SwhidMphf;
 use crate::properties;
@@ -17,6 +20,9 @@ use crate::utils::suffix_path;
 
 /// Alias for [`usize`], which may become a newtype in a future version.
 pub type NodeId = usize;
+
+type SwhGraphLabelsInner = SwhLabels<MmapReaderBuilder, EF<&'static [usize], &'static [u64]>>;
+pub struct SwhGraphLabels(SwhGraphLabelsInner);
 
 pub trait SwhGraph {
     /// Return the base path of the graph
@@ -28,6 +34,7 @@ pub trait SwhGraph {
     /// Return whether there is an arc going from `src_node_id` to `dst_node_id`.
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool;
 }
+
 pub trait SwhForwardGraph: SwhGraph {
     type Successors<'succ>: IntoIterator<Item = usize>
     where
@@ -38,6 +45,18 @@ pub trait SwhForwardGraph: SwhGraph {
     /// Return the number of successors of a node.
     fn outdegree(&self, node_id: NodeId) -> usize;
 }
+
+pub trait SwhLabelledForwardGraph: SwhForwardGraph {
+    type Labels<'succ>: IntoIterator<Item = Vec<u64>>;
+    type LabelledSuccessors<'node>: Lender
+        + for<'succ> Lending<'succ, Lend = (usize, Self::Labels<'succ>)>
+    where
+        Self: 'node;
+
+    /// Return an [`IntoIterator`] over the successors of a node.
+    fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_>;
+}
+
 pub trait SwhBackwardGraph: SwhGraph {
     type Predecessors<'succ>: IntoIterator<Item = usize>
     where
@@ -48,6 +67,7 @@ pub trait SwhBackwardGraph: SwhGraph {
     /// Return the number of predecessors of a node.
     fn indegree(&self, node_id: NodeId) -> usize;
 }
+
 pub trait SwhGraphWithProperties: SwhGraph {
     type Maps: properties::MapsOption;
     type Timestamps: properties::TimestampsOption;
@@ -71,6 +91,7 @@ pub trait SwhGraphWithProperties: SwhGraph {
 /// Created using [`load_unidirectional`]
 pub struct SwhUnidirectionalGraph<
     P,
+    L,
     G: RandomAccessGraph = BVGraph<
         DynamicCodesReaderBuilder<dsi_bitstream::prelude::BE, MmapBackend<u32>>,
         webgraph::EF<&'static [usize], &'static [u64]>,
@@ -79,9 +100,10 @@ pub struct SwhUnidirectionalGraph<
     basepath: PathBuf,
     graph: G,
     properties: P,
+    labels: L,
 }
 
-impl<P, G: RandomAccessGraph> SwhGraph for SwhUnidirectionalGraph<P, G> {
+impl<P, G: RandomAccessGraph, L> SwhGraph for SwhUnidirectionalGraph<P, L, G> {
     fn path(&self) -> &Path {
         self.basepath.as_path()
     }
@@ -99,17 +121,30 @@ impl<P, G: RandomAccessGraph> SwhGraph for SwhUnidirectionalGraph<P, G> {
     }
 }
 
-impl<P, G: RandomAccessGraph> SwhForwardGraph for SwhUnidirectionalGraph<P, G> {
-    type Successors<'succ> = <G as RandomAccessGraph>::Successors<'succ> where Self: 'succ;
+impl<P, G: RandomAccessGraph, L> SwhForwardGraph for SwhUnidirectionalGraph<P, L, G> {
+    type Successors<'succ> = <G as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
 
     /// Return an [`IntoIterator`] over the successors of a node.
-    fn successors(&self, node_id: NodeId) -> <G as RandomAccessGraph>::Successors<'_> {
+    fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         self.graph.successors(node_id)
     }
 
     /// Return the number of successors of a node.
     fn outdegree(&self, node_id: NodeId) -> usize {
         self.graph.outdegree(node_id)
+    }
+}
+
+impl<P, G: RandomAccessGraph> SwhLabelledForwardGraph for SwhUnidirectionalGraph<P, SwhGraphLabels, G> {
+    type Labels<'succ> = <SwhGraphLabelsInner as webgraph::traits::SequentialLabelling>::Successors<'succ>;
+    type LabelledSuccessors<'succ> = <SwhGraphLabelsInner as webgraph::traits::SequentialLabelling>::Iterator<'succ> where Self: 'succ;
+
+    fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
+        let labels: Vec<_> = self.labels.0.successors(node_id).collect();
+        for x in labels {
+            println!("succ {:?}", x);
+        }
+        todo!("return successors");
     }
 }
 
@@ -120,7 +155,8 @@ impl<
         C: properties::ContentsOption,
         S: properties::StringsOption,
         G: RandomAccessGraph,
-    > SwhUnidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S>, G>
+        L,
+    > SwhUnidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S>, L, G>
 {
     /// Enriches the graph with more properties mmapped from disk
     ///
@@ -149,22 +185,25 @@ impl<
         loader: impl Fn(
             properties::SwhGraphProperties<M, T, P, C, S>,
         ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2>>,
-    ) -> Result<SwhUnidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2>, G>> {
+    ) -> Result<SwhUnidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2>, L, G>>
+    {
         Ok(SwhUnidirectionalGraph {
             properties: loader(self.properties)?,
+            labels: self.labels,
             basepath: self.basepath,
             graph: self.graph,
         })
     }
 }
 
-impl<G: RandomAccessGraph> SwhUnidirectionalGraph<(), G> {
+impl<G: RandomAccessGraph, L> SwhUnidirectionalGraph<(), L, G> {
     /// Prerequisite for `load_properties`
     pub fn init_properties(
         self,
-    ) -> SwhUnidirectionalGraph<properties::SwhGraphProperties<(), (), (), (), ()>, G> {
+    ) -> SwhUnidirectionalGraph<properties::SwhGraphProperties<(), (), (), (), ()>, L, G> {
         SwhUnidirectionalGraph {
             properties: properties::SwhGraphProperties::new(&self.basepath, self.graph.num_nodes()),
+            labels: self.labels,
             basepath: self.basepath,
             graph: self.graph,
         }
@@ -194,6 +233,7 @@ impl<G: RandomAccessGraph> SwhUnidirectionalGraph<(), G> {
                 properties::Contents,
                 properties::Strings,
             >,
+            L,
             G,
         >,
     > {
@@ -208,10 +248,12 @@ impl<
         PERSONS: properties::PersonsOption,
         CONTENTS: properties::ContentsOption,
         STRINGS: properties::StringsOption,
+        L,
         G: RandomAccessGraph,
     > SwhGraphWithProperties
     for SwhUnidirectionalGraph<
         properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>,
+        L,
         G,
     >
 {
@@ -225,6 +267,19 @@ impl<
         &self,
     ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS> {
         &self.properties
+    }
+}
+
+impl<P, G: RandomAccessGraph> SwhUnidirectionalGraph<P, (), G> {
+    pub fn load_labels(
+        self,
+    ) -> Result<SwhUnidirectionalGraph<P, SwhGraphLabels, G>> {
+        Ok(SwhUnidirectionalGraph {
+            properties: self.properties,
+            labels: SwhGraphLabels(SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?),
+            basepath: self.basepath,
+            graph: self.graph,
+        })
     }
 }
 
@@ -263,7 +318,7 @@ impl<P, G: RandomAccessGraph> SwhGraph for SwhBidirectionalGraph<P, G> {
 }
 
 impl<P, G: RandomAccessGraph> SwhForwardGraph for SwhBidirectionalGraph<P, G> {
-    type Successors<'succ> = <G as RandomAccessGraph>::Successors<'succ> where Self: 'succ;
+    type Successors<'succ> = <G as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         self.forward_graph.successors(node_id)
     }
@@ -273,7 +328,7 @@ impl<P, G: RandomAccessGraph> SwhForwardGraph for SwhBidirectionalGraph<P, G> {
 }
 
 impl<P, G: RandomAccessGraph> SwhBackwardGraph for SwhBidirectionalGraph<P, G> {
-    type Predecessors<'succ> = <G as RandomAccessGraph>::Successors<'succ> where Self: 'succ;
+    type Predecessors<'succ> = <G as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
 
     fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
         self.backward_graph.successors(node_id)
@@ -406,13 +461,14 @@ impl<
 }
 
 /// Returns a new [`SwhUnidirectionalGraph`]
-pub fn load_unidirectional(basepath: impl AsRef<Path>) -> Result<SwhUnidirectionalGraph<()>> {
+pub fn load_unidirectional(basepath: impl AsRef<Path>) -> Result<SwhUnidirectionalGraph<(), ()>> {
     let basepath = basepath.as_ref().to_owned();
     let graph = webgraph::graph::bvgraph::load(&basepath)?;
     Ok(SwhUnidirectionalGraph {
         basepath,
         graph,
         properties: (),
+        labels: (),
     })
 }
 
