@@ -87,6 +87,9 @@ where
         };
         for field in mask.paths {
             node_builder.bitmask |= match field.as_str() {
+                // Tonic does not allow omitting non-optional fields, so we have to
+                // include "swhid" unconditionally
+                "swhid" => 0,
                 "successor" => SUCCESSOR,
                 "successor.swhid" => SUCCESSOR_SWHID,
                 "successor.label" => {
@@ -138,6 +141,7 @@ where
                 .collect()
         });
         proto::Node {
+            // TODO: omit swhid if excluded from field mask
             swhid: self
                 .graph
                 .properties()
