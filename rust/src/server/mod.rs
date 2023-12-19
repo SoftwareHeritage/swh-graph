@@ -54,9 +54,11 @@ impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::T
     for TraversalService<MPHF>
 {
     async fn get_node(&self, request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
+        let arc_checker = filters::ArcFilterChecker::new(self.0.clone(), None)?;
         let proto::GetNodeRequest { swhid, mask } = request.get_ref().clone();
         let node_builder = node_builder::NodeBuilder::new(
             self.0.clone(),
+            arc_checker,
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask.paths.iter().map(|field| field.to_owned()).collect(),
             }),

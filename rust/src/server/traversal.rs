@@ -132,7 +132,9 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> SimpleTraversal<'s, MPHF> {
     ) -> TonicResult<ReceiverStream<Result<proto::Node, tonic::Status>>> {
         let graph = self.service.0.clone();
 
-        let node_builder = NodeBuilder::new(graph.clone(), request.get_ref().mask.clone())?;
+        let arc_checker = ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
+        let node_builder =
+            NodeBuilder::new(graph.clone(), arc_checker, request.get_ref().mask.clone())?;
         let (tx, rx) = mpsc::channel(1_000);
         let on_node =
             move |node, _num_successors| tx.blocking_send(Ok(node_builder.build_node(node)));

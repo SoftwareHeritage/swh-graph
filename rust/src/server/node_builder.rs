@@ -5,6 +5,7 @@
 
 use std::ops::Deref;
 
+use super::filters::ArcFilterChecker;
 use super::proto;
 use crate::graph::{SwhForwardGraph, SwhGraphWithProperties};
 use crate::properties;
@@ -61,6 +62,7 @@ use node_builder_bitmasks::*;
 #[derive(Clone)]
 pub struct NodeBuilder<G: Deref + Clone + Send + Sync + 'static> {
     graph: G,
+    arc_filter: ArcFilterChecker<G>,
     // Which fields to include, based on the [`FieldMask`](proto::FieldMask)
     bitmask: u32,
 }
@@ -74,15 +76,21 @@ where
     <G::Target as SwhGraphWithProperties>::Contents: properties::ContentsTrait,
     <G::Target as SwhGraphWithProperties>::Strings: properties::StringsTrait,
 {
-    pub fn new(graph: G, mask: Option<prost_types::FieldMask>) -> Result<Self, tonic::Status> {
+    pub fn new(
+        graph: G,
+        arc_filter: ArcFilterChecker<G>,
+        mask: Option<prost_types::FieldMask>,
+    ) -> Result<Self, tonic::Status> {
         let Some(mask) = mask else {
             return Ok(NodeBuilder {
                 graph,
+                arc_filter,
                 bitmask: u32::MAX,
             }); // All bits set
         };
         let mut node_builder = NodeBuilder {
             graph,
+            arc_filter,
             bitmask: 0u32, // No bits set
         };
         for field in mask.paths {
@@ -132,6 +140,7 @@ where
             self.graph
                 .successors(node_id)
                 .into_iter()
+                .filter(|&succ| self.arc_filter.matches(node_id, succ))
                 .map(|succ| proto::Successor {
                     swhid: self.if_mask(SUCCESSOR_SWHID, || {
                         Some(self.graph.properties().swhid(succ)?.to_string())

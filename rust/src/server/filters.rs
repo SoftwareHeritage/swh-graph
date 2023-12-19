@@ -117,7 +117,7 @@ where
 }
 
 #[derive(Clone)]
-pub(super) struct ArcFilterChecker<G: Deref + Clone + Send + Sync + 'static> {
+pub struct ArcFilterChecker<G: Deref + Clone + Send + Sync + 'static> {
     graph: G,
     types: u64, // Bit mask on a SWHType::NUMBER_OF_TYPES × SWHType::NUMBER_OF_TYPES matrix
 }

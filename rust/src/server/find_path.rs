@@ -175,9 +175,11 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
 
         let graph = self.service.0.clone();
 
+        let arc_checker = ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
         let target_checker = NodeFilterChecker::new(graph.clone(), target)?;
         let node_builder = NodeBuilder::new(
             graph.clone(),
+            arc_checker,
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask
                     .paths
@@ -341,8 +343,10 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
 
         let graph = self.service.0.clone();
 
+        let arc_checker = ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
         let node_builder = NodeBuilder::new(
             graph.clone(),
+            arc_checker,
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask
                     .paths
