@@ -53,7 +53,6 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
         mut on_arc: impl FnMut(usize, usize) -> Result<VisitFlow, Error> + Send + 'a,
     ) -> Result<
         SimpleBfsVisitor<
-            G::Target,
             G,
             Error,
             impl FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,

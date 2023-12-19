@@ -29,12 +29,13 @@ const DEPTH_SENTINEL: usize = usize::MAX;
 /// for that node, with the number of arcs that were not ignored by `on_arc` as last parameter.
 #[derive(Debug)]
 pub struct SimpleBfsVisitor<
-    IG: SwhForwardGraph,
-    G: Deref<Target = IG> + Clone,
+    G: Deref + Clone,
     Error,
     OnNode: FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
     OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
-> {
+> where
+    G::Target: SwhForwardGraph,
+{
     graph: G,
     queue: std::collections::VecDeque<usize>,
     seen: std::collections::HashSet<usize>,
@@ -45,12 +46,13 @@ pub struct SimpleBfsVisitor<
 }
 
 impl<
-        IG: SwhForwardGraph,
-        G: Deref<Target = IG> + Clone,
+        G: Deref + Clone,
         Error,
         OnNode: FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
         OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
-    > SimpleBfsVisitor<IG, G, Error, OnNode, OnArc>
+    > SimpleBfsVisitor<G, Error, OnNode, OnArc>
+where
+    G::Target: SwhForwardGraph,
 {
     /// Initializes a new visit
     ///

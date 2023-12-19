@@ -37,7 +37,6 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> SimpleTraversal<'s, MPHF> {
         mut on_arc: impl FnMut(usize, usize) -> Result<(), Error> + Send + 'a,
     ) -> Result<
         SimpleBfsVisitor<
-            G::Target,
             G,
             Error,
             impl FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
