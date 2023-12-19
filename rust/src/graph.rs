@@ -274,6 +274,9 @@ impl<P, G: RandomAccessGraph> SwhUnidirectionalGraph<P, (), G> {
     pub fn load_labels(
         self,
     ) -> Result<SwhUnidirectionalGraph<P, SwhGraphLabels, G>> {
+        let labels = SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?;
+        assert!(webgraph::prelude::Zip(self.graph, labels).verify());
+        todo!("load_labels");
         Ok(SwhUnidirectionalGraph {
             properties: self.properties,
             labels: SwhGraphLabels(SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?),
