@@ -22,6 +22,7 @@ import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 import java.io.UncheckedIOException;
 import java.io.RandomAccessFile;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import org.apache.commons.csv.CSVFormat;
@@ -51,8 +52,8 @@ public class ComputeDirectoryFrontier {
     private int NUM_THREADS = 96;
     private int batchSize; /* Number of revisions to process in each task */
 
-    private SwhUnidirectionalGraph graph;
-    private ThreadLocal<SwhUnidirectionalGraph> threadGraph;
+    private SwhBidirectionalGraph graph;
+    private ThreadLocal<SwhBidirectionalGraph> threadGraph;
     private LongMappedBigList maxTimestamps; /*
                                               * The parsed input.
                                               */
@@ -74,12 +75,12 @@ public class ComputeDirectoryFrontier {
         cdf.batchSize = Integer.parseInt(args[2]);
 
         System.err.println("Loading graph " + graphPath + " ...");
-        cdf.graph = SwhUnidirectionalGraph.loadLabelledMapped(graphPath);
+        cdf.graph = SwhBidirectionalGraph.loadLabelledMapped(graphPath);
         System.err.println("Loading timestamps from " + graphPath + " ...");
         cdf.graph.loadAuthorTimestamps();
         System.err.println("Loading label names from " + graphPath + " ...");
         cdf.graph.loadLabelNames();
-        cdf.threadGraph = new ThreadLocal<SwhUnidirectionalGraph>();
+        cdf.threadGraph = new ThreadLocal<SwhBidirectionalGraph>();
 
         System.err.println("Loading provenance timestamps from " + timestampsPath + " ...");
         RandomAccessFile raf = new RandomAccessFile(timestampsPath, "r");
@@ -91,7 +92,7 @@ public class ComputeDirectoryFrontier {
     public void run() throws IOException, InterruptedException, ExecutionException {
         BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
         csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
-        csvPrinter.printRecord("max_author_date", "frontier_dir_SWHID", "rev_SWHID", "path");
+        csvPrinter.printRecord("max_author_date", "frontier_dir_SWHID", "rev_author_date", "rev_SWHID", "path");
 
         csvPrinter.flush();
         bufferedStdout.flush();
@@ -123,7 +124,7 @@ public class ComputeDirectoryFrontier {
             final long chunkId = i;
             futures.add(service.submit(() -> {
                 try {
-                    findFrontiersInRevisionChunk(chunkId, numChunks, pl);
+                    findFrontiersInRevrelChunk(chunkId, numChunks, pl);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -145,11 +146,11 @@ public class ComputeDirectoryFrontier {
         }
     }
 
-    private void findFrontiersInRevisionChunk(long chunkId, long numChunks, ProgressLogger pl) throws IOException {
+    private void findFrontiersInRevrelChunk(long chunkId, long numChunks, ProgressLogger pl) throws IOException {
         if (threadGraph.get() == null) {
             threadGraph.set(this.graph.copy());
         }
-        SwhUnidirectionalGraph graph = threadGraph.get();
+        SwhBidirectionalGraph graph = threadGraph.get();
         long numNodes = graph.numNodes();
         long chunkSize = numNodes / numChunks;
         long chunkStart = chunkSize * chunkId;
@@ -166,18 +167,39 @@ public class ComputeDirectoryFrontier {
         long previousLength = 0;
         long newLength;
         for (long i = chunkStart; i < chunkEnd; i++) {
-            if (graph.getNodeType(i) != SwhType.REV) {
+            if (graph.getNodeType(i) == SwhType.REL) {
+                // Allow releases
+            } else if (graph.getNodeType(i) == SwhType.REV) {
+                // Allow revisions if they are a snapshot head or are pointed by a revision
+                boolean isSnapshotHead = false;
+                LazyLongIterator it = graph.predecessors(i);
+                for (long predecessorId; (predecessorId = it.nextLong()) != -1;) {
+                    if (graph.getNodeType(predecessorId) == SwhType.SNP
+                            || graph.getNodeType(predecessorId) == SwhType.REL) {
+                        isSnapshotHead = true;
+                    }
+                }
+                if (!isSnapshotHead) {
+                    continue;
+                }
+            } else {
+                // Reject all other objects
                 continue;
             }
 
             try {
-                findFrontiersInRevision(graph, i, csvPrinter);
+                if (graph.getNodeType(i) == SwhType.REL) {
+                    findFrontiersInRelease(graph.getForwardGraph(), i, csvPrinter);
+                } else {
+                    findFrontiersInRevision(graph.getForwardGraph(), i, csvPrinter);
+                }
             } catch (OutOfMemoryError e) {
                 newLength = buf.length();
                 System.err.format("OOMed while processing %s (buffer grew from %d to %d): %s\n", graph.getSWHID(i),
                         previousLength, newLength, e);
                 throw new RuntimeException(e);
             }
+
             newLength = buf.length();
             if (newLength - previousLength > (2L << 30)) {
                 System.err.format("Frontier CSV for %s is suspiciously large: %d GB\n", graph.getSWHID(i),
@@ -202,7 +224,85 @@ public class ComputeDirectoryFrontier {
         }
     }
 
-    /* Performs a BFS, stopping at frontier directories. */
+    /* Calls findFrontiersInDirectory on the root directory of a release */
+    private void findFrontiersInRelease(SwhUnidirectionalGraph graph, long relId, CSVPrinter csvPrinter)
+            throws IOException {
+        SWHID relSWHID = graph.getSWHID(relId);
+
+        Long boxedReleaseTimestamp = graph.getAuthorTimestamp(relId);
+        if (boxedReleaseTimestamp == null) {
+            return;
+        }
+        long releaseTimestamp = boxedReleaseTimestamp;
+
+        long rootDirectory = -1;
+        LazyLongIterator it = graph.successors(relId);
+        for (long successorId; (successorId = it.nextLong()) != -1;) {
+            if (graph.getNodeType(successorId) != SwhType.DIR) {
+                continue;
+            }
+            if (rootDirectory == -1) {
+                rootDirectory = successorId;
+                continue;
+            }
+            System.err.format("%s has more than one directory successor: %s and %s\n", relSWHID,
+                    graph.getSWHID(rootDirectory), graph.getSWHID(successorId));
+            System.exit(6);
+        }
+
+        if (rootDirectory == -1) {
+            // Release does not have a direct directory successor, try with a revision
+            // in-between
+            it = graph.successors(relId);
+            long rootRevision = -1;
+            for (long successorId; (successorId = it.nextLong()) != -1;) {
+                if (graph.getNodeType(successorId) != SwhType.REV) {
+                    continue;
+                }
+                if (rootRevision == -1) {
+                    rootRevision = successorId;
+                    continue;
+                }
+                System.err.format("%s has more than one revision successor: %s and %s\n", relSWHID,
+                        graph.getSWHID(rootRevision), graph.getSWHID(successorId));
+                System.exit(6);
+            }
+
+            if (rootRevision == -1) {
+                // points neither to a directory or a revision, ignore
+                return;
+            }
+
+            SWHID revSWHID = graph.getSWHID(rootRevision);
+            it = graph.successors(rootRevision);
+            for (long successorId; (successorId = it.nextLong()) != -1;) {
+                if (graph.getNodeType(successorId) != SwhType.DIR) {
+                    continue;
+                }
+                if (rootDirectory == -1) {
+                    rootDirectory = successorId;
+                    continue;
+                }
+                System.err.format("%s (via %s) has more than one directory successor: %s and %s\n", relSWHID, revSWHID,
+                        graph.getSWHID(rootDirectory), graph.getSWHID(successorId));
+                System.exit(6);
+            }
+
+            if (rootDirectory == -1) {
+                // probably unknown revision
+                return;
+            }
+        }
+
+        if (rootDirectory == -1) {
+            System.err.format("Could not find the root directory for %s\n", relSWHID);
+            System.exit(7);
+        }
+
+        findFrontiersInDirectory(graph, relId, relSWHID, releaseTimestamp, rootDirectory, csvPrinter);
+    }
+
+    /* Calls findFrontiersInDirectory on the root directory of a revision */
     private void findFrontiersInRevision(SwhUnidirectionalGraph graph, long revId, CSVPrinter csvPrinter)
             throws IOException {
         SWHID revSWHID = graph.getSWHID(revId);
@@ -227,6 +327,13 @@ public class ComputeDirectoryFrontier {
                     graph.getSWHID(rootDirectory), graph.getSWHID(successorId));
             System.exit(6);
         }
+
+        findFrontiersInDirectory(graph, revId, revSWHID, revisionTimestamp, rootDirectory, csvPrinter);
+    }
+
+    /* Performs a BFS, stopping at frontier directories. */
+    private void findFrontiersInDirectory(SwhUnidirectionalGraph graph, long revrelId, SWHID revrelSWHID,
+            long revrelTimestamp, long rootDirectory, CSVPrinter csvPrinter) throws IOException {
 
         // TODO: reuse these across calls instead of reallocating?
         LongArrayList stack = new LongArrayList();
@@ -256,6 +363,7 @@ public class ComputeDirectoryFrontier {
         long nodeId, maxTimestamp;
         boolean isFrontier;
         LongArrayList path = new LongArrayList();
+        LazyLongIterator it;
         while (!stack.isEmpty()) {
             nodeId = stack.popLong();
             path.clear();
@@ -276,7 +384,7 @@ public class ComputeDirectoryFrontier {
              * ae09086a3bd45c7edbc22691945b9d61200ec3c2/swh/provenance/algos/revision.py#L210
              */
             isFrontier = false;
-            if (maxTimestamp < revisionTimestamp) {
+            if (maxTimestamp < revrelTimestamp) {
                 /* No need to check if it's depth > 1, given that we excluded the root dir above */
                 it = graph.successors(nodeId);
                 for (long successorId; (successorId = it.nextLong()) != -1;) {
@@ -294,7 +402,8 @@ public class ComputeDirectoryFrontier {
                 }
                 pathParts.add("");
                 String pathString = String.join("/", pathParts);
-                csvPrinter.printRecord(maxTimestamp, graph.getSWHID(nodeId), revSWHID, pathString);
+                csvPrinter.printRecord(maxTimestamp, graph.getSWHID(nodeId), Instant.ofEpochSecond(revrelTimestamp),
+                        revrelSWHID, pathString);
             } else {
                 /* Look if the subdirectories are frontiers */
                 itl = graph.labelledSuccessors(nodeId);

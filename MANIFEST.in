@@ -1,6 +1,0 @@
-include Makefile
-include requirements*.txt
-include version.txt
-include README.md
-recursive-include swh py.typed
-recursive-include swh/graph/example_dataset *
