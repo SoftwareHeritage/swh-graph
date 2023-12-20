@@ -5,6 +5,8 @@
 
 //! Structures to manipulate the Software Heritage graph
 
+#![allow(clippy::type_complexity)]
+
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;

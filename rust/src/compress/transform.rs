@@ -74,10 +74,12 @@ where
     )?;
     pl.lock().unwrap().done();
 
-    let mut compression_flags = CompFlags::default();
-    compression_flags.compression_window = 1;
-    compression_flags.min_interval_length = 4;
-    compression_flags.max_ref_count = 3;
+    let compression_flags = CompFlags {
+        compression_window: 1,
+        min_interval_length: 4,
+        max_ref_count: 3,
+        ..CompFlags::default()
+    };
     let mut bvcomp = BVComp::new(
         codes_writer,
         compression_flags.compression_window,

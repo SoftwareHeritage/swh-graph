@@ -15,9 +15,17 @@ use mmap_rs::{Mmap, MmapFlags};
 use rayon::prelude::*;
 
 /// An array of `n` unique integers in the `0..n` range.
+#[allow(clippy::len_without_is_empty)]
 pub trait Permutation {
+    /// Returns the number of items
     fn len(&self) -> usize;
+    /// Returns an item
     fn get(&self, old_node: usize) -> Option<usize>;
+    /// Returns an item without checking it is within the bounds
+    ///
+    /// # Safety
+    ///
+    /// Undefined behavior if `old_node >= len()`
     unsafe fn get_unchecked(&self, old_node: usize) -> usize;
 }
 

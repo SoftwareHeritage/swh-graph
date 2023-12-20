@@ -31,6 +31,7 @@ where
     ///
     /// `buffer_size` is the RAM used by each of this process' threads before flushing
     /// to `sort`.
+    #[allow(clippy::too_many_arguments)]
     fn unique_sort_to_dir(
         self,
         target_dir: PathBuf,
