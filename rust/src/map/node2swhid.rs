@@ -130,7 +130,7 @@ impl<B: AsMut<[u8]> + AsRef<[u8]>> Node2SWHID<B> {
         self.data
             .as_mut()
             .get_mut(offset..offset + SWHID::BYTES_SIZE)
-            .expect(&format!("Tried to write past the end of Node2SWHID map"))
+            .expect("Tried to write past the end of Node2SWHID map")
             .copy_from_slice(&bytes[..]);
     }
 }

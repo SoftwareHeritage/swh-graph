@@ -21,7 +21,7 @@ use crate::AllSwhGraphProperties;
 pub mod proto {
     tonic::include_proto!("swh.graph");
 
-    pub(crate) const FILE_DESCRIPTOR_SET: &'static [u8] =
+    pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
         tonic::include_file_descriptor_set!("swhgraph_descriptor");
 }
 
@@ -170,7 +170,7 @@ struct ExportMeta {
     export_end: chrono::DateTime<chrono::Utc>,
 }
 fn load_export_meta(path: &Path) -> Option<ExportMeta> {
-    let file = std::fs::File::open(&path)
+    let file = std::fs::File::open(path)
         .map_err(|e| {
             log::error!("Could not open {}: {}", path.display(), e);
         })
@@ -191,7 +191,7 @@ fn load_export_meta(path: &Path) -> Option<ExportMeta> {
 }
 
 fn load_properties(path: &Path, suffix: &str) -> Result<HashMap<String, String>, tonic::Status> {
-    let file = std::fs::File::open(&path).map_err(|e| {
+    let file = std::fs::File::open(path).map_err(|e| {
         log::error!("Could not open {}: {}", path.display(), e);
         tonic::Status::internal(format!("Could not open {} file", suffix))
     })?;

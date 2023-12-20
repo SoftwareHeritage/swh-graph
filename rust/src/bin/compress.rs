@@ -265,10 +265,10 @@ enum DatasetFormat {
 
 fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
     if s == "*" {
-        return Ok(SWHType::all());
+        Ok(SWHType::all())
     } else {
         let mut types = Vec::new();
-        for type_ in s.split(",") {
+        for type_ in s.split(',') {
             types.push(
                 type_
                     .try_into()
@@ -447,10 +447,10 @@ pub fn main() -> Result<()> {
             stats_lines.sort();
 
             stats_file
-                .write_all(&stats_lines.join("").as_bytes())
+                .write_all(stats_lines.join("").as_bytes())
                 .context("Could not write node stats")?;
             count_file
-                .write_all(&format!("{}\n", total).as_bytes())
+                .write_all(format!("{}\n", total).as_bytes())
                 .context("Could not write node count")?;
         }
         Commands::EdgeStats {
@@ -489,7 +489,7 @@ pub fn main() -> Result<()> {
                     })
                     .reduce(Default::default, |mut left_2d, right_2d| {
                         for (left_1d, right_1d) in left_2d.iter_mut().zip(right_2d.into_iter()) {
-                            for (left, right) in left_1d.into_iter().zip(right_1d.into_iter()) {
+                            for (left, right) in left_1d.iter_mut().zip(right_1d.into_iter()) {
                                 *left += right;
                             }
                         }
@@ -510,10 +510,10 @@ pub fn main() -> Result<()> {
             stats_lines.sort();
 
             stats_file
-                .write_all(&stats_lines.join("").as_bytes())
+                .write_all(stats_lines.join("").as_bytes())
                 .context("Could not write edge stats")?;
             count_file
-                .write_all(&format!("{}\n", total).as_bytes())
+                .write_all(format!("{}\n", total).as_bytes())
                 .context("Could not write edge count")?;
         }
 
@@ -794,7 +794,7 @@ pub fn main() -> Result<()> {
             par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(pl))).for_each(
                 |line: [u8; 50]| {
                     let node_id = order
-                        .get(mph.hash_str_array(&line).expect("Failed to hash line") as usize)
+                        .get(mph.hash_str_array(&line).expect("Failed to hash line"))
                         .unwrap();
                     let swhid =
                         SWHID::try_from(unsafe { std::str::from_utf8_unchecked(&line[..]) })
@@ -811,7 +811,7 @@ pub fn main() -> Result<()> {
                     unsafe {
                         swhids_uninit
                             .as_ptr()
-                            .offset(node_id as isize)
+                            .add(node_id)
                             .cast_mut()
                             .write(std::mem::MaybeUninit::new(swhid));
                     }

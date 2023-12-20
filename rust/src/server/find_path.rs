@@ -331,7 +331,6 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
                     edges.map(|edges| {
                         edges
                             .split(',')
-                            .into_iter()
                             .map(|s| s.split(':').rev().join(":"))
                             .join(",")
                     })
@@ -520,8 +519,7 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
                         max_midpoint_depth,
                     )?
                     .into_iter()
-                    .skip(1) // skip the midpoint, it's included in the first part
-                    .into_iter()
+                    .skip(1)
                     .map(|node_id| node_builder.build_node(node_id)),
                 );
 

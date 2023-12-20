@@ -47,7 +47,7 @@ impl LongArrayBitVector<Vec<u64>> {
 
         LongArrayBitVector {
             data: vec,
-            num_bits: num_bits,
+            num_bits,
         }
     }
 

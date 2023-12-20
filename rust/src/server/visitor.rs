@@ -151,7 +151,7 @@ where
         match (self.on_node)(node, self.depth, num_successors)? {
             VisitFlow::Continue => Ok(VisitFlow::Continue),
             VisitFlow::Ignore => panic!("on_node returned VisitFlow::Ignore"),
-            VisitFlow::Stop => return Ok(VisitFlow::Stop),
+            VisitFlow::Stop => Ok(VisitFlow::Stop),
         }
     }
 

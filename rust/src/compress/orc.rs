@@ -30,7 +30,7 @@ pub(crate) fn get_dataset_readers<P: AsRef<Path>>(
         .with_context(|| format!("Could not list {}", dataset_dir.display()))?
         .map(|file_path| {
             let file_path = file_path
-                .expect(&format!("Failed to list {}", dataset_dir.display()))
+                .unwrap_or_else(|_| panic!("Failed to list {}", dataset_dir.display()))
                 .path();
             let input_stream = orcxx::reader::InputStream::from_local_file(
                 file_path
@@ -428,13 +428,12 @@ fn iter_arcs_from_ovs(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSw
         let mut hasher = sha1::Sha1::new();
         hasher.update(ovs.origin.as_bytes());
 
-        match ovs.snapshot {
-            None => None,
-            Some(ref snapshot) => Some((
+        ovs.snapshot.as_ref().map(|snapshot| {
+            (
                 format!("swh:1:ori:{:x}", hasher.finalize(),),
                 format!("swh:1:snp:{}", snapshot),
-            )),
-        }
+            )
+        })
     })
 }
 

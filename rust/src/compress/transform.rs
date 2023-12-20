@@ -35,7 +35,7 @@ where
     let num_nodes = graph.num_nodes();
 
     let bit_write = <BufBitWriter<BE, _>>::new(WordAdapter::<usize, _>::new(BufWriter::new(
-        std::fs::File::create(&format!("{}.graph", target_dir.to_string_lossy()))
+        std::fs::File::create(format!("{}.graph", target_dir.to_string_lossy()))
             .context("Could not create target graph file")?,
     )));
 

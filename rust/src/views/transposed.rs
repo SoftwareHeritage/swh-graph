@@ -76,6 +76,6 @@ where
         Self::Contents,
         Self::Strings,
     > {
-        &self.0.properties()
+        self.0.properties()
     }
 }

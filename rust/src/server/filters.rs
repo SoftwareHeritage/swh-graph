@@ -75,7 +75,7 @@ where
                 u8::MAX // all bits set
             } else {
                 types
-                    .split(",")
+                    .split(',')
                     .map(parse_node_type)
                     .collect::<Result<Vec<_>, _>>()? // Fold errors
                     .into_iter()
@@ -136,7 +136,7 @@ where
                 "" => 0,         // no bits set, match no arc
                 _ => {
                     types
-                        .split(",")
+                        .split(',')
                         .map(parse_arc_type)
                         .collect::<Result<Vec<_>, _>>()? // Fold errors
                         .into_iter()

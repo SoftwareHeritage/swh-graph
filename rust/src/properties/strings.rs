@@ -113,10 +113,9 @@ impl<
             None => None,
             Some(offset) => {
                 let offset = offset as usize;
-                let slice: &[u8] = data.get(offset..).expect(&format!(
-                    "Missing {} for node {} at offset {}",
-                    what, node_id, offset
-                ));
+                let slice: &[u8] = data.get(offset..).unwrap_or_else(|| {
+                    panic!("Missing {} for node {} at offset {}", what, node_id, offset)
+                });
                 slice
                     .iter()
                     .position(|&c| c == b'\n')
@@ -130,8 +129,8 @@ impl<
     pub fn message_base64(&self, node_id: NodeId) -> Option<&[u8]> {
         Self::message_or_tag_name_base64(
             "message",
-            &self.strings.message(),
-            &self.strings.message_offset(),
+            self.strings.message(),
+            self.strings.message_offset(),
             node_id,
         )
     }
@@ -141,10 +140,12 @@ impl<
     pub fn message(&self, node_id: NodeId) -> Option<Vec<u8>> {
         let base64 = base64_simd::STANDARD;
         self.message_base64(node_id).map(|message| {
-            base64.decode_to_vec(message).expect(&format!(
-                "Could not decode message of node {}: {:?}",
-                node_id, message
-            ))
+            base64.decode_to_vec(message).unwrap_or_else(|_| {
+                panic!(
+                    "Could not decode message of node {}: {:?}",
+                    node_id, message
+                )
+            })
         })
     }
 
@@ -153,8 +154,8 @@ impl<
     pub fn tag_name_base64(&self, node_id: NodeId) -> Option<&[u8]> {
         Self::message_or_tag_name_base64(
             "tag_name",
-            &self.strings.tag_name(),
-            &self.strings.tag_name_offset(),
+            self.strings.tag_name(),
+            self.strings.tag_name_offset(),
             node_id,
         )
     }
@@ -164,10 +165,12 @@ impl<
     pub fn tag_name(&self, node_id: NodeId) -> Option<Vec<u8>> {
         let base64 = base64_simd::STANDARD;
         self.tag_name_base64(node_id).map(|tag_name| {
-            base64.decode_to_vec(tag_name).expect(&format!(
-                "Could not decode tag_name of node {}: {:?}",
-                node_id, tag_name
-            ))
+            base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
+                panic!(
+                    "Could not decode tag_name of node {}: {:?}",
+                    node_id, tag_name
+                )
+            })
         })
     }
 }

@@ -59,7 +59,7 @@ where
 {
     std::io::BufReader::new(
         zstd::stream::read::Decoder::new(
-            std::fs::File::open(&path).unwrap_or_else(|e| {
+            std::fs::File::open(path).unwrap_or_else(|e| {
                 panic!("Could not open {} for reading: {:?}", path.display(), e)
             }),
         )
