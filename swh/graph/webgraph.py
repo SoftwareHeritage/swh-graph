@@ -115,8 +115,10 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-base",
     ],
     CompressionStep.BV_OFFSETS: [
-        "build_offsets",  # 'cargo install webgraph' to get it
+        "{rust_executable}",
+        "build-offsets",
         "{out_dir}/{graph_name}-base",
+        "{out_dir}/{graph_name}-base.offsets",
     ],
     CompressionStep.BFS: [
         "{java}",

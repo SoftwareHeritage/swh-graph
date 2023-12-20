@@ -72,6 +72,7 @@ enum Commands {
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
+
     /// Reads the list of nodes from the generated unique SWHIDS and counts the number
     /// of nodes of each type
     NodeStats {
@@ -93,6 +94,7 @@ enum Commands {
         target_stats: PathBuf,
         target_count: PathBuf,
     },
+
     /// Reads the list of unique SWHIDs from a directory of .zstd files
     /// and produces a Minimal Perfect Hash function
     MphSwhids {
@@ -105,6 +107,14 @@ enum Commands {
         persons_dir: PathBuf,
         out_mph: PathBuf,
     },
+
+    /// Reads a graph file linearly and produce a .offsets file which can be used
+    /// by the Java backend to randomly access the graph.
+    BuildOffsets {
+        graph: PathBuf,
+        target: PathBuf,
+    },
+
     /// First actual compression step
     Bv {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
@@ -122,11 +132,13 @@ enum Commands {
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
+
     /// Runs a BFS on the initial BVGraph to group similar node ids together
     Bfs {
         graph_dir: PathBuf,
         target_order: PathBuf,
     },
+
     /// Uses the permutation produced by the BFS or LLP to reorder nodes in the graph
     /// to get a more compressible graph
     Permute {
@@ -517,6 +529,48 @@ pub fn main() -> Result<()> {
             out_mph,
         } => {
             swh_graph::compress::mph::build_mph::<Vec<u8>>(persons_dir, out_mph, "person")?;
+        }
+
+        Commands::BuildOffsets { graph, target } => {
+            // Adapted from https://github.com/vigna/webgraph-rs/blob/90704d6f7e77b22796757144af6fef89109f33a1/src/bin/build_offsets.rs
+            use dsi_bitstream::prelude::*;
+            use dsi_progress_logger::*;
+            use webgraph::prelude::*;
+
+            // Create the sequential iterator over the graph
+            let seq_graph = webgraph::graph::bvgraph::load_seq(&graph)?;
+            let seq_graph =
+                seq_graph.map_codes_reader_builder(DynamicCodesReaderSkipperBuilder::from);
+            // Create the offsets file
+            let file = std::fs::File::create(&target)
+                .with_context(|| format!("Could not create {}", target.display()))?;
+            // create a bit writer on the file
+            let mut writer = <BufBitWriter<BE, _>>::new(<WordAdapter<u64, _>>::new(
+                BufWriter::with_capacity(1 << 20, file),
+            ));
+            // progress bar
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "offset";
+            pl.expected_updates = Some(seq_graph.num_nodes());
+            pl.start("Computing offsets...");
+            // read the graph a write the offsets
+            let mut offset = 0;
+            let mut degs_iter = seq_graph.iter_degrees();
+            for (new_offset, _node_id, _degree) in &mut degs_iter {
+                // write where
+                writer
+                    .write_gamma((new_offset - offset) as _)
+                    .context("Could not write gamma")?;
+                offset = new_offset;
+                // decode the next nodes so we know where the next node_id starts
+                pl.light_update();
+            }
+            // write the last offset, this is done to avoid decoding the last node
+            writer
+                .write_gamma((degs_iter.get_pos() - offset) as _)
+                .context("Could not write final gamma")?;
+            pl.light_update();
+            pl.done();
         }
 
         Commands::Bv {
