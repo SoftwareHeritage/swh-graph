@@ -12,7 +12,7 @@ use dsi_bitstream::prelude::{BufBitWriter, WordAdapter, BE};
 use dsi_progress_logger::ProgressLogger;
 use lender::Lender;
 use rayon::prelude::*;
-use webgraph::graph::arc_list_graph;
+use webgraph::graph::arc_list_graph::ArcListGraph;
 use webgraph::prelude::*;
 
 use crate::utils::sort::par_sort_arcs;
@@ -92,16 +92,24 @@ where
     pl.expected_updates = Some(num_nodes);
     pl.local_speed = true;
     pl.start("Writing...");
+    let pl = std::cell::RefCell::new(pl);
 
-    let adjacency_lists = arc_list_graph::Iterator::new(num_nodes, sorted_arcs).inspect(|_node| {
-        pl.light_update();
-    });
+    let adjacency_lists = ArcListGraph::new(
+        num_nodes,
+        sorted_arcs.enumerate().map(|(i, node)| {
+            if i % 32768 == 0 {
+                // Avoid taking the lock too often at the expense of precision
+                pl.borrow_mut().update_with_count(32768);
+            }
+            node
+        }),
+    );
 
     bvcomp
-        .extend::<lender::Inspect<_, _>>(adjacency_lists)
+        .extend(&adjacency_lists)
         .context("Could not write to BVGraph")?;
     bvcomp.flush().context("Could not flush BVGraph")?;
-    pl.done();
+    pl.into_inner().done();
 
     drop(temp_dir); // Prevent early deletion
 
