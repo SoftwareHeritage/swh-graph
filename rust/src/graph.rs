@@ -102,10 +102,10 @@ impl<P, G: RandomAccessGraph> SwhGraph for SwhUnidirectionalGraph<P, G> {
 }
 
 impl<P, G: RandomAccessGraph> SwhForwardGraph for SwhUnidirectionalGraph<P, G> {
-    type Successors<'succ> = <G as RandomAccessGraph>::Successors<'succ> where Self: 'succ;
+    type Successors<'succ> = <G as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
 
     /// Return an [`IntoIterator`] over the successors of a node.
-    fn successors(&self, node_id: NodeId) -> <G as RandomAccessGraph>::Successors<'_> {
+    fn successors(&self, node_id: NodeId) -> <G as RandomAccessLabelling>::Successors<'_> {
         self.graph.successors(node_id)
     }
 
@@ -265,7 +265,7 @@ impl<P, G: RandomAccessGraph> SwhGraph for SwhBidirectionalGraph<P, G> {
 }
 
 impl<P, G: RandomAccessGraph> SwhForwardGraph for SwhBidirectionalGraph<P, G> {
-    type Successors<'succ> = <G as RandomAccessGraph>::Successors<'succ> where Self: 'succ;
+    type Successors<'succ> = <G as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         self.forward_graph.successors(node_id)
     }
@@ -275,7 +275,7 @@ impl<P, G: RandomAccessGraph> SwhForwardGraph for SwhBidirectionalGraph<P, G> {
 }
 
 impl<P, G: RandomAccessGraph> SwhBackwardGraph for SwhBidirectionalGraph<P, G> {
-    type Predecessors<'succ> = <G as RandomAccessGraph>::Successors<'succ> where Self: 'succ;
+    type Predecessors<'succ> = <G as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
 
     fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
         self.backward_graph.successors(node_id)
