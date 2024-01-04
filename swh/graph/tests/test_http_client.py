@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import hashlib
+import logging
 
 import pytest
 from pytest import raises
@@ -14,6 +15,47 @@ from swh.graph.http_client import GraphArgumentException
 TEST_ORIGIN_ID = "swh:1:ori:{}".format(
     hashlib.sha1(b"https://example.com/swh/graph").hexdigest()
 )
+
+
+def test_remote_graph_client_with_bad_url(remote_graph_client_url):
+    from ..http_client import RemoteGraphClient
+
+    with pytest.raises(ValueError, match="URL is incorrect"):
+        _ = RemoteGraphClient(f"{remote_graph_client_url}/GARBAGE/")
+
+
+def test_remote_graph_client_with_service_down():
+    from ..http_client import GraphAPIError, RemoteGraphClient
+
+    with pytest.raises(GraphAPIError):
+        _ = RemoteGraphClient("http://localhost:9/graph/")
+
+
+def test_remote_graph_client_errors_on_unexpected_stats(
+    mocker, remote_graph_client_url
+):
+    from ..http_client import RemoteGraphClient
+
+    mocker.patch.object(RemoteGraphClient, "stats", return_value={})
+    with pytest.raises(ValueError, match="unexpected results"):
+        _ = RemoteGraphClient(remote_graph_client_url)
+
+
+def test_remote_graph_client_log_export_started_at(
+    mocker, caplog, remote_graph_client_url
+):
+    from ..http_client import RemoteGraphClient
+
+    caplog.set_level(logging.DEBUG, logger="swh.graph.http_client")
+    mocker.patch.object(
+        RemoteGraphClient,
+        "stats",
+        return_value={"num_nodes": 42, "export_started_at": 1700000000},
+    )
+    _ = RemoteGraphClient(remote_graph_client_url)
+    assert "Graph export started at 2023-11-14T22:13:20+00:00 (42 nodes)" in [
+        rec.message for rec in caplog.records
+    ]
 
 
 def test_stats(graph_client):
@@ -64,6 +106,19 @@ def test_leaves_with_limit(
     else:
         assert set(actual) <= set(expected)
         assert len(actual) == min(4, max_matching_nodes)
+
+
+def test_empty_neighbors(graph_client, graph_grpc_backend_implementation):
+    # https://gitlab.softwareheritage.org/swh/devel/swh-graph/-/issues/4790
+    actual = list(
+        graph_client.neighbors(
+            "swh:1:rev:0000000000000000000000000000000000000009",
+            direction="forward",
+            # We are guaranteed no results because no ori→snp edges exist from a rev
+            edges="ori:snp",
+        )
+    )
+    assert actual == []
 
 
 def test_neighbors(graph_client, graph_grpc_backend_implementation):

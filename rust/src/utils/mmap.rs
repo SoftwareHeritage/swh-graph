@@ -82,6 +82,7 @@ impl<E: ByteOrder, N: common_traits::AsBytes> NumberMmap<E, N, Mmap> {
         })
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.len
     }
@@ -102,10 +103,16 @@ impl<E: ByteOrder, N: common_traits::AsBytes> NumberMmap<E, N, Mmap> {
 macro_rules! impl_number_mmap {
     ($ty:ty, $fn:ident) => {
         impl<E: ByteOrder> NumberMmap<E, $ty, Mmap> {
+            /// Returns an item
             pub fn get(&self, index: usize) -> Option<$ty> {
                 self.get_slice(index).map(E::$fn)
             }
 
+            /// Returns an item
+            ///
+            /// # Safety
+            ///
+            /// Undefined behavior if `index >= len()`
             pub unsafe fn get_unchecked(&self, index: usize) -> $ty {
                 E::$fn(self.get_slice_unchecked(index))
             }

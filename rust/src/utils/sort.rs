@@ -31,6 +31,7 @@ where
     ///
     /// `buffer_size` is the RAM used by each of this process' threads before flushing
     /// to `sort`.
+    #[allow(clippy::too_many_arguments)]
     fn unique_sort_to_dir(
         self,
         target_dir: PathBuf,
@@ -218,30 +219,27 @@ where
     // Read the input to buffers, and flush buffer to disk (through BatchIterator)
     // from time to time
     let mut sorted_iterators: Vec<Result<Vec<BatchIterator<()>>>> = iter
-        .try_fold(
-            || Vec::new(),
-            |acc, item| {
-                let mut sorted_iterators = acc;
+        .try_fold(Vec::new, |acc, item| {
+            let mut sorted_iterators = acc;
 
-                // +2 to the capacity to avoid growing the vector when f()
-                // writes two past the batch_size; and f() pushes at most 2 arcs
-                // in practice.
-                let buffer = buffers.get_or(|| RefCell::new(Vec::with_capacity(batch_size + 2)));
+            // +2 to the capacity to avoid growing the vector when f()
+            // writes two past the batch_size; and f() pushes at most 2 arcs
+            // in practice.
+            let buffer = buffers.get_or(|| RefCell::new(Vec::with_capacity(batch_size + 2)));
 
-                // Won't panic because other threads don't access it before the
-                // fork-join point below.
-                let buffer: &mut Vec<(usize, usize)> = &mut buffer.borrow_mut();
+            // Won't panic because other threads don't access it before the
+            // fork-join point below.
+            let buffer: &mut Vec<(usize, usize)> = &mut buffer.borrow_mut();
 
-                f(buffer, item)?;
-                if buffer.len() > batch_size {
-                    sorted_iterators.push(flush(temp_dir, &mut buffer[..])?);
-                    buffer.clear();
-                    Ok(sorted_iterators)
-                } else {
-                    Ok(sorted_iterators)
-                }
-            },
-        )
+            f(buffer, item)?;
+            if buffer.len() > batch_size {
+                sorted_iterators.push(flush(temp_dir, &mut buffer[..])?);
+                buffer.clear();
+                Ok(sorted_iterators)
+            } else {
+                Ok(sorted_iterators)
+            }
+        })
         .collect();
 
     // join-fork point
@@ -261,8 +259,7 @@ where
                     Ok(vec![])
                 }
             })
-            .collect::<Vec<_>>()
-            .into_iter(),
+            .collect::<Vec<_>>(),
     );
     log::info!("Done sorting all buffers.");
 

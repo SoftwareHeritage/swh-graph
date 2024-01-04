@@ -27,7 +27,7 @@ pub trait SwhidMphf {
     /// Hashes a SWHID's binary representation
     #[inline(always)]
     fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
-        self.hash_swhid(&swhid.clone().try_into().ok()?)
+        self.hash_swhid(&(*swhid).try_into().ok()?)
     }
 
     /// Hashes a SWHID's textual representation

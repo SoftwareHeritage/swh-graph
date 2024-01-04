@@ -53,7 +53,6 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
         mut on_arc: impl FnMut(usize, usize) -> Result<VisitFlow, Error> + Send + 'a,
     ) -> Result<
         SimpleBfsVisitor<
-            G::Target,
             G,
             Error,
             impl FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
@@ -176,9 +175,11 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
 
         let graph = self.service.0.clone();
 
+        let arc_checker = ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
         let target_checker = NodeFilterChecker::new(graph.clone(), target)?;
         let node_builder = NodeBuilder::new(
             graph.clone(),
+            arc_checker,
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask
                     .paths
@@ -330,7 +331,6 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
                     edges.map(|edges| {
                         edges
                             .split(',')
-                            .into_iter()
                             .map(|s| s.split(':').rev().join(":"))
                             .join(",")
                     })
@@ -342,8 +342,10 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
 
         let graph = self.service.0.clone();
 
+        let arc_checker = ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
         let node_builder = NodeBuilder::new(
             graph.clone(),
+            arc_checker,
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask
                     .paths
@@ -517,8 +519,7 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
                         max_midpoint_depth,
                     )?
                     .into_iter()
-                    .skip(1) // skip the midpoint, it's included in the first part
-                    .into_iter()
+                    .skip(1)
                     .map(|node_id| node_builder.build_node(node_id)),
                 );
 

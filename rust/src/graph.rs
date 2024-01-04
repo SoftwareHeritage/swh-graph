@@ -5,14 +5,15 @@
 
 //! Structures to manipulate the Software Heritage graph
 
+#![allow(clippy::type_complexity)]
+
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use lender::{Lender, Lending};
 use webgraph::prelude::*;
 //use webgraph::traits::{RandomAccessGraph, SequentialGraph};
+use webgraph::label::swh_labels::{MmapReaderBuilder, SwhLabels};
 use webgraph::EF;
-use webgraph::label::swh_labels::{Labels, MmapReaderBuilder, SwhLabels};
 
 use crate::mph::SwhidMphf;
 use crate::properties;
@@ -47,9 +48,8 @@ pub trait SwhForwardGraph: SwhGraph {
 }
 
 pub trait SwhLabelledForwardGraph: SwhForwardGraph {
-    type Labels<'succ>: IntoIterator<Item = Vec<u64>>;
-    type LabelledSuccessors<'node>: Lender
-        + for<'succ> Lending<'succ, Lend = (usize, Self::Labels<'succ>)>
+    type Labels<'succ>: Iterator<Item = Vec<u64>>;
+    type LabelledSuccessors<'node>: IntoIterator<Item = (usize, Vec<u64>)>
     where
         Self: 'node;
 
@@ -135,9 +135,12 @@ impl<P, G: RandomAccessGraph, L> SwhForwardGraph for SwhUnidirectionalGraph<P, L
     }
 }
 
-impl<P, G: RandomAccessGraph> SwhLabelledForwardGraph for SwhUnidirectionalGraph<P, SwhGraphLabels, G> {
-    type Labels<'succ> = <SwhGraphLabelsInner as webgraph::traits::SequentialLabelling>::Successors<'succ>;
-    type LabelledSuccessors<'succ> = <SwhGraphLabelsInner as webgraph::traits::SequentialLabelling>::Iterator<'succ> where Self: 'succ;
+impl<P, G: RandomAccessGraph> SwhLabelledForwardGraph
+    for SwhUnidirectionalGraph<P, SwhGraphLabels, G>
+{
+    type Labels<'succ> =
+        <SwhGraphLabelsInner as webgraph::traits::RandomAccessLabelling>::Successors<'succ>;
+    type LabelledSuccessors<'succ> = <Zip<G, SwhGraphLabelsInner> as webgraph::traits::RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
 
     fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
         let labels: Vec<_> = self.labels.0.successors(node_id).collect();
@@ -271,15 +274,16 @@ impl<
 }
 
 impl<P, G: RandomAccessGraph> SwhUnidirectionalGraph<P, (), G> {
-    pub fn load_labels(
-        self,
-    ) -> Result<SwhUnidirectionalGraph<P, SwhGraphLabels, G>> {
+    pub fn load_labels(self) -> Result<SwhUnidirectionalGraph<P, SwhGraphLabels, G>> {
         let labels = SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?;
         assert!(webgraph::prelude::Zip(self.graph, labels).verify());
         todo!("load_labels");
         Ok(SwhUnidirectionalGraph {
             properties: self.properties,
-            labels: SwhGraphLabels(SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?),
+            labels: SwhGraphLabels(SwhLabels::load_from_file(
+                7,
+                suffix_path(&self.basepath, "-labelled"),
+            )?),
             basepath: self.basepath,
             graph: self.graph,
         })

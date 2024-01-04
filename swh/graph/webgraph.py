@@ -23,6 +23,13 @@ from swh.graph.config import check_config_compress
 logger = logging.getLogger(__name__)
 
 
+class CompressionSubprocessError(Exception):
+    def __init__(self, message: str, log_path: Path):
+        super().__init__(f"{message}; full logs at {log_path}")
+        self.message = message
+        self.log_path = log_path
+
+
 class CompressionStep(Enum):
     EXTRACT_NODES = -1
     MPH = 0
@@ -108,8 +115,10 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-base",
     ],
     CompressionStep.BV_OFFSETS: [
-        "build_offsets",  # 'cargo install webgraph' to get it
+        "{rust_executable}",
+        "build-offsets",
         "{out_dir}/{graph_name}-base",
+        "{out_dir}/{graph_name}-base.offsets",
     ],
     CompressionStep.BFS: [
         "{java}",
@@ -338,8 +347,8 @@ def do_step(step, conf):
             step_logger.info(line.rstrip())
     rc = process.wait()
     if rc != 0:
-        raise RuntimeError(
-            f"Compression step {step} returned non-zero exit code {rc}, see {log_path}"
+        raise CompressionSubprocessError(
+            f"Compression step {step} returned non-zero exit code {rc}", log_path
         )
     step_end_time = datetime.now()
     step_duration = step_end_time - step_start_time

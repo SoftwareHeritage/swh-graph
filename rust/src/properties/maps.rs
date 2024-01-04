@@ -108,9 +108,9 @@ impl<
     ///
     /// May return the id of a random node if the SWHID does not exist in the graph.
     ///
-    /// # Panic
+    /// # Safety
     ///
-    /// May panic if the SWHID does not exist in the graph.
+    /// Undefined behavior if the swhid does not exist.
     #[inline]
     pub unsafe fn node_id_unchecked(&self, swhid: &SWHID) -> NodeId {
         self.maps.order().get_unchecked(

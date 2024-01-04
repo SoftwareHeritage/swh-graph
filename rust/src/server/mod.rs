@@ -21,7 +21,7 @@ use crate::AllSwhGraphProperties;
 pub mod proto {
     tonic::include_proto!("swh.graph");
 
-    pub(crate) const FILE_DESCRIPTOR_SET: &'static [u8] =
+    pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
         tonic::include_file_descriptor_set!("swhgraph_descriptor");
 }
 
@@ -54,9 +54,11 @@ impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::T
     for TraversalService<MPHF>
 {
     async fn get_node(&self, request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
+        let arc_checker = filters::ArcFilterChecker::new(self.0.clone(), None)?;
         let proto::GetNodeRequest { swhid, mask } = request.get_ref().clone();
         let node_builder = node_builder::NodeBuilder::new(
             self.0.clone(),
+            arc_checker,
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask.paths.iter().map(|field| field.to_owned()).collect(),
             }),
@@ -168,7 +170,7 @@ struct ExportMeta {
     export_end: chrono::DateTime<chrono::Utc>,
 }
 fn load_export_meta(path: &Path) -> Option<ExportMeta> {
-    let file = std::fs::File::open(&path)
+    let file = std::fs::File::open(path)
         .map_err(|e| {
             log::error!("Could not open {}: {}", path.display(), e);
         })
@@ -189,7 +191,7 @@ fn load_export_meta(path: &Path) -> Option<ExportMeta> {
 }
 
 fn load_properties(path: &Path, suffix: &str) -> Result<HashMap<String, String>, tonic::Status> {
-    let file = std::fs::File::open(&path).map_err(|e| {
+    let file = std::fs::File::open(path).map_err(|e| {
         log::error!("Could not open {}: {}", path.display(), e);
         tonic::Status::internal(format!("Could not open {} file", suffix))
     })?;

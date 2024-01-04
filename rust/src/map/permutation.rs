@@ -15,9 +15,17 @@ use mmap_rs::{Mmap, MmapFlags};
 use rayon::prelude::*;
 
 /// An array of `n` unique integers in the `0..n` range.
+#[allow(clippy::len_without_is_empty)]
 pub trait Permutation {
+    /// Returns the number of items
     fn len(&self) -> usize;
+    /// Returns an item
     fn get(&self, old_node: usize) -> Option<usize>;
+    /// Returns an item without checking it is within the bounds
+    ///
+    /// # Safety
+    ///
+    /// Undefined behavior if `old_node >= len()`
     unsafe fn get_unchecked(&self, old_node: usize) -> usize;
 }
 
@@ -141,7 +149,7 @@ impl OwnedPermutation<Vec<usize>> {
             "Only 64-bits architectures are supported"
         );
 
-        let mut file = std::fs::File::open(&path).context("Could not open permutation")?;
+        let mut file = std::fs::File::open(path).context("Could not open permutation")?;
 
         let mut buf = [0u8; 8];
         file.read_exact(&mut buf)?;
@@ -149,7 +157,7 @@ impl OwnedPermutation<Vec<usize>> {
         if epserde {
             use epserde::prelude::*;
 
-            let perm = <Vec<usize>>::load_full(&path)?;
+            let perm = <Vec<usize>>::load_full(path)?;
             Ok(OwnedPermutation(perm))
         } else {
             let mut perm = Vec::with_capacity(num_nodes);
@@ -311,7 +319,7 @@ impl MappedPermutation {
             file_len
         );
 
-        let file = std::fs::File::open(&path).context("Could not open permutation")?;
+        let file = std::fs::File::open(path).context("Could not open permutation")?;
         let perm = mmap_rs::MmapOptions::new(file_len as _)
             .context("Could not initialize permutation mmap")?
             .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
@@ -350,11 +358,11 @@ impl Permutation for MappedPermutation {
 
     fn get(&self, old_node: usize) -> Option<usize> {
         let range = (old_node * 8)..((old_node + 1) * 8);
-        Some(BigEndian::read_u64(&self.0.get(range)?) as usize)
+        Some(BigEndian::read_u64(self.0.get(range)?) as usize)
     }
 
     unsafe fn get_unchecked(&self, old_node: usize) -> usize {
         let range = (old_node * 8)..((old_node + 1) * 8);
-        BigEndian::read_u64(&self.0.get_unchecked(range)) as usize
+        BigEndian::read_u64(self.0.get_unchecked(range)) as usize
     }
 }

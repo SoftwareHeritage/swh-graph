@@ -66,7 +66,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         self.order
             .get(
                 self.swhid_mph
-                    .hash_str(&swhid)
+                    .hash_str(swhid)
                     .unwrap_or_else(|| panic!("unknown SWHID {}", swhid)),
             )
             .unwrap()
@@ -76,7 +76,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         unsafe {
             vector
                 .as_ptr()
-                .offset(self.node_id(swhid) as isize)
+                .add(self.node_id(swhid))
                 .cast_mut()
                 .write(value)
         };

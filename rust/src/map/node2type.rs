@@ -107,8 +107,7 @@ impl Node2Type<UsizeMmap<MmapMut>> {
         };
         // use the BitFieldVec over the mmap
         let mmap = UsizeMmap(mmap);
-        let node2type =
-            unsafe { BitFieldVec::from_raw_parts(mmap, SWHType::BITWIDTH, num_nodes as usize) };
+        let node2type = unsafe { BitFieldVec::from_raw_parts(mmap, SWHType::BITWIDTH, num_nodes) };
 
         Ok(Self { data: node2type })
     }
@@ -131,8 +130,7 @@ impl Node2Type<UsizeMmap<MmapMut>> {
 
         // use the BitFieldVec over the mmap
         let data = UsizeMmap(data);
-        let node2type =
-            unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes as usize) };
+        let node2type = unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes) };
         Ok(Self { data: node2type })
     }
 }
@@ -156,8 +154,7 @@ impl Node2Type<UsizeMmap<Mmap>> {
 
         // use the BitFieldVec over the mmap
         let data = UsizeMmap(data);
-        let node2type =
-            unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes as usize) };
+        let node2type = unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes) };
         Ok(Self { data: node2type })
     }
 }

@@ -109,7 +109,7 @@ public class SwhGraphProperties implements FlyweightPrototype<SwhGraphProperties
                 ((contentLength instanceof LongMappedBigList)
                         ? ((LongMappedBigList) contentLength).copy()
                         : contentLength),
-                (contentIsSkipped != null) ? contentIsSkipped.copy() : null,
+                contentIsSkipped, // Don't need to copy because it is eagerly loaded in RAM, not mmapped
                 ((authorId instanceof IntMappedBigList) ? ((IntMappedBigList) authorId).copy() : authorId),
                 ((committerId instanceof IntMappedBigList) ? ((IntMappedBigList) committerId).copy() : committerId),
                 ((messageBuffer instanceof ByteMappedBigList)

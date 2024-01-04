@@ -75,7 +75,7 @@ impl TryFrom<[u8; SWHID::BYTES_SIZE]> for SWHID {
 impl TryFrom<&str> for SWHID {
     type Error = anyhow::Error;
     fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
-        let mut tokens = value.splitn(4, ":");
+        let mut tokens = value.splitn(4, ':');
         let Some(namespace) = tokens.next() else {
             bail!("SWHID is empty");
         };

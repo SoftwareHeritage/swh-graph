@@ -5,8 +5,8 @@
 
 use anyhow::{Context, Result};
 use bitvec::prelude::*;
-use lender::{Lender, Lending};
 use dsi_progress_logger::ProgressLogger;
+use lender::{Lender, Lending};
 use log::{debug, info};
 use std::collections::VecDeque;
 use std::path::PathBuf;

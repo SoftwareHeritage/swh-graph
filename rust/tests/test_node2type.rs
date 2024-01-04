@@ -53,7 +53,7 @@ fn test_new_node2type() -> Result<()> {
     let num_nodes = node2swhid.len();
 
     let node2type_file = tempfile::NamedTempFile::new()?;
-    let mut node2type = Node2Type::new(&node2type_file.path(), num_nodes)?;
+    let mut node2type = Node2Type::new(node2type_file.path(), num_nodes)?;
 
     for node_id in 0..num_nodes {
         node2type.set(node_id, node2swhid.get(node_id).unwrap().node_type);

@@ -173,7 +173,10 @@ class GraphView(aiohttp.web.View):
                 GetNodeRequest(swhid=swhid, mask=FieldMask(paths=["swhid"]))
             )
         except grpc.aio.AioRpcError as e:
-            if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
+            if e.code() in (
+                grpc.StatusCode.INVALID_ARGUMENT,
+                grpc.StatusCode.NOT_FOUND,  # Not used by Java backend, always "invalid"
+            ):
                 raise aiohttp.web.HTTPBadRequest(text=str(e.details()))
 
 

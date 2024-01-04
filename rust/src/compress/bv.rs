@@ -13,10 +13,9 @@ use crate::utils::sort::par_sort_arcs;
 use anyhow::{anyhow, Context, Result};
 use dsi_progress_logger::ProgressLogger;
 use itertools::Itertools;
-use lender::Lender;
 use rayon::prelude::*;
 use tempfile;
-use webgraph::graph::arc_list_graph;
+use webgraph::graph::arc_list_graph::ArcListGraph;
 
 pub fn bv<MPHF: SwhidMphf + Sync>(
     sort_batch_size: usize,
@@ -89,27 +88,30 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     let pl = Mutex::new(pl);
     let counters = thread_local::ThreadLocal::new();
 
-    let adjacency_lists = arc_list_graph::Iterator::new(num_nodes, sorted_arcs).inspect(|_| {
-        let counter = counters.get_or(|| UnsafeCell::new(0));
-        let counter: &mut usize = unsafe { &mut *counter.get() };
-        *counter += 1;
-        if *counter % 32768 == 0 {
-            // Update but avoid lock contention at the expense
-            // of precision (counts at most 32768 too many at the
-            // end of each file)
-            pl.lock().unwrap().update_with_count(32768);
-            *counter = 0
-        }
-    });
+    let arc_list_graph = ArcListGraph::new(
+        num_nodes,
+        sorted_arcs.inspect(|_| {
+            let counter = counters.get_or(|| UnsafeCell::new(0));
+            let counter: &mut usize = unsafe { &mut *counter.get() };
+            *counter += 1;
+            if *counter % 32768 == 0 {
+                // Update but avoid lock contention at the expense
+                // of precision (counts at most 32768 too many at the
+                // end of each file)
+                pl.lock().unwrap().update_with_count(32768);
+                *counter = 0
+            }
+        }),
+    );
     let comp_flags = Default::default();
     let num_threads = num_cpus::get();
 
     let temp_bv_dir = temp_dir.path().join("bv");
     std::fs::create_dir(&temp_bv_dir)
         .with_context(|| format!("Could not create {}", temp_bv_dir.display()))?;
-    webgraph::graph::bvgraph::parallel_compress_sequential_iter::<lender::Inspect<_, _>, _>(
+    webgraph::graph::bvgraph::parallel_compress_sequential_iter(
         target_dir,
-        adjacency_lists,
+        &arc_list_graph,
         num_nodes,
         comp_flags,
         num_threads,

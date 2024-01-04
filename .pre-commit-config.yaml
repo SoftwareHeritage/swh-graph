@@ -21,6 +21,9 @@ repos:
           - "-L te,wth,alledges,afterall,mmapped,crate,beling,ser"
           - "--skip=rust/tests/data/"
         stages: [commit]
+      - id: codespell
+        name: Check commit message spelling
+        stages: [commit-msg]
 
   - repo: local
     hooks:

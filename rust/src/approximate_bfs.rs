@@ -16,8 +16,8 @@ use webgraph::prelude::*;
 
 use crate::map::OwnedPermutation;
 
-pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(
-    graph: &'a G,
+pub fn almost_bfs_order<G: RandomAccessGraph + Send + Sync>(
+    graph: &G,
 ) -> OwnedPermutation<Vec<usize>> {
     let num_nodes = graph.num_nodes();
 
@@ -50,14 +50,14 @@ pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(
                     let current_node = thread_queue.pop_front().or_else(|| {
                         let mut next_start_ref = next_start.lock().unwrap();
 
-                        while unsafe { *visited_ptr.offset(*next_start_ref as isize) } {
+                        while unsafe { *visited_ptr.add(*next_start_ref) } {
                             if *next_start_ref + 1 >= graph.num_nodes() {
                                 pl.lock().unwrap().update_with_count(queued_updates);
                                 return None;
                             }
                             *next_start_ref += 1;
                         }
-                        unsafe { *visited_ptr.offset(*next_start_ref as isize) = true };
+                        unsafe { *visited_ptr.add(*next_start_ref) = true };
 
                         Some(*next_start_ref)
                     });
@@ -68,9 +68,9 @@ pub fn almost_bfs_order<'a, G: RandomAccessGraph + Send + Sync>(
                     thread_order.push(current_node);
 
                     for succ in graph.successors(current_node) {
-                        if unsafe { !*visited_ptr.offset(succ as isize) } {
+                        if unsafe { !*visited_ptr.add(succ) } {
                             thread_queue.push_back(succ);
-                            unsafe { *visited_ptr.offset(succ as isize) = true };
+                            unsafe { *visited_ptr.add(succ) = true };
                         }
                     }
 
