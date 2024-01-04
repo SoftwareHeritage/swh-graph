@@ -48,7 +48,6 @@ pub trait SwhForwardGraph: SwhGraph {
 }
 
 pub trait SwhLabelledForwardGraph: SwhForwardGraph {
-    type Labels<'succ>: Iterator<Item = Vec<u64>>;
     type LabelledSuccessors<'node>: IntoIterator<Item = (usize, Vec<u64>)>
     where
         Self: 'node;
@@ -138,8 +137,6 @@ impl<P, G: RandomAccessGraph, L> SwhForwardGraph for SwhUnidirectionalGraph<P, L
 impl<P, G: RandomAccessGraph> SwhLabelledForwardGraph
     for SwhUnidirectionalGraph<P, SwhGraphLabels, G>
 {
-    type Labels<'succ> =
-        <SwhGraphLabelsInner as webgraph::traits::RandomAccessLabelling>::Successors<'succ>;
     type LabelledSuccessors<'succ> = <Zip<G, SwhGraphLabelsInner> as webgraph::traits::RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
 
     fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
