@@ -18,8 +18,6 @@ from .test_http_client import TEST_ORIGIN_ID
 def test_leaves(
     graph_client, graph_grpc_server_process, graph_grpc_backend_implementation
 ):
-    if graph_grpc_backend_implementation == "rust":
-        pytest.skip("Not yet implemented in Rust backend")
     if isinstance(graph_client, RemoteGraphClient):
         pass
     elif isinstance(graph_client, NaiveClient):
