@@ -9,6 +9,7 @@ package org.softwareheritage.graph.utils;
 
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledNodeIterator;
 import it.unimi.dsi.big.webgraph.LazyLongIterator;
+import it.unimi.dsi.fastutil.booleans.BooleanBigArrayBigList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongMappedBigList;
@@ -17,7 +18,9 @@ import org.softwareheritage.graph.*;
 import org.softwareheritage.graph.labels.DirEntry;
 
 import java.io.IOException;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.UncheckedIOException;
 import java.io.RandomAccessFile;
@@ -25,18 +28,31 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/* Given as stdin a CSV with header "max_author_date,dir_SWHID" containing, for each
- * directory, the newest date of first occurrence of any of the content in its subtree
- * (well, DAG), ie., max_{for all content} (min_{for all occurrence of content} occurrence).
- * Produces the "provenance frontier", as defined in
+/* Given as stdin a CSV with header "frontier_dir_SWHID" containing a single column
+ * with frontier directories.
+ *
+ * Produces the list of revisions that contain any directory part of the "provenance frontier", as defined in
  * https://gitlab.softwareheritage.org/swh/devel/swh-provenance/-/blob/ae09086a3bd45c7edbc22691945b9d61200ec3c2/swh/provenance/algos/revision.py#L210
  */
 
-public class ComputeDirectoryFrontier {
+public class ListFrontierDirectoriesInRevisions {
+
+    private class MyBooleanBigArrayBigList extends BooleanBigArrayBigList {
+        public MyBooleanBigArrayBigList(long size) {
+            super(size);
+
+            // Allow setting directly in the array without repeatedly calling
+            // .add() first
+            this.size = size;
+        }
+    }
+
     private int NUM_THREADS = 96;
     private int batchSize; /* Number of revisions to process in each task */
 
@@ -46,38 +62,42 @@ public class ComputeDirectoryFrontier {
                                               * The parsed input.
                                               */
     private CSVPrinter csvPrinter;
-    final static Logger logger = LoggerFactory.getLogger(ComputeDirectoryFrontier.class);
+    private MyBooleanBigArrayBigList frontierDirectories;
+    final static Logger logger = LoggerFactory.getLogger(ListFrontierDirectoriesInRevisions.class);
 
     public static void main(String[] args)
             throws IOException, InterruptedException, ClassNotFoundException, ExecutionException {
         if (args.length != 3) {
             System.err.println(
-                    "Syntax: java org.softwareheritage.graph.utils.ComputeDirectoryFrontier <path/to/graph> <path/to/provenance_timestamps.bin> <batch_size>");
+                    "Syntax: java org.softwareheritage.graph.utils.ListFrontierDirectoriesInRevisions <path/to/graph> <path/to/provenance_timestamps.bin> <batch_size>");
             System.exit(1);
         }
 
-        ComputeDirectoryFrontier cdf = new ComputeDirectoryFrontier();
+        ListFrontierDirectoriesInRevisions lfdir = new ListFrontierDirectoriesInRevisions();
 
         String graphPath = args[0];
         String timestampsPath = args[1];
-        cdf.batchSize = Integer.parseInt(args[2]);
+        lfdir.batchSize = Integer.parseInt(args[2]);
 
         System.err.println("Loading graph " + graphPath + " ...");
-        cdf.graph = SwhBidirectionalGraph.loadLabelledMapped(graphPath);
+        lfdir.graph = SwhBidirectionalGraph.loadLabelledMapped(graphPath);
         System.err.println("Loading timestamps from " + graphPath + " ...");
-        cdf.graph.loadAuthorTimestamps();
+        lfdir.graph.loadAuthorTimestamps();
         System.err.println("Loading label names from " + graphPath + " ...");
-        cdf.graph.loadLabelNames();
-        cdf.threadGraph = new ThreadLocal<SwhBidirectionalGraph>();
+        lfdir.graph.loadLabelNames();
+        lfdir.threadGraph = new ThreadLocal<SwhBidirectionalGraph>();
 
         System.err.println("Loading provenance timestamps from " + timestampsPath + " ...");
         RandomAccessFile raf = new RandomAccessFile(timestampsPath, "r");
-        cdf.maxTimestamps = LongMappedBigList.map(raf.getChannel());
+        lfdir.maxTimestamps = LongMappedBigList.map(raf.getChannel());
 
-        cdf.run();
+        lfdir.run();
     }
 
     public void run() throws IOException, InterruptedException, ExecutionException {
+        System.err.println("Loading frontier directories...");
+        loadFrontierDirectories();
+
         BufferedWriter bufferedStdout = new BufferedWriter(new OutputStreamWriter(System.out));
         csvPrinter = new CSVPrinter(bufferedStdout, CSVFormat.RFC4180);
         csvPrinter.printRecord("max_author_date", "frontier_dir_SWHID", "rev_author_date", "rev_SWHID", "path");
@@ -89,6 +109,31 @@ public class ComputeDirectoryFrontier {
 
         csvPrinter.flush();
         bufferedStdout.flush();
+    }
+
+    private void loadFrontierDirectories() throws IOException {
+        frontierDirectories = new MyBooleanBigArrayBigList(graph.numNodes());
+
+        BufferedReader bufferedStdin = new BufferedReader(new InputStreamReader(System.in));
+        CSVParser csvParser = CSVParser.parse(bufferedStdin, CSVFormat.RFC4180);
+
+        Iterator<CSVRecord> recordIterator = csvParser.iterator();
+
+        CSVRecord header = recordIterator.next();
+
+        if (!header.get(0).equals("frontier_dir_SWHID")) {
+            throw new RuntimeException("First column of input is not 'SWHID'");
+        }
+
+        ProgressLogger pl = new ProgressLogger(logger);
+        pl.itemsName = "directories";
+        pl.start("Listing revisions containing frontier directories...");
+
+        while (recordIterator.hasNext()) {
+            pl.lightUpdate();
+            frontierDirectories.set(graph.getNodeId(recordIterator.next().get(0)), true);
+        }
+
     }
 
     private void findFrontiers() throws InterruptedException, ExecutionException {
@@ -112,7 +157,7 @@ public class ComputeDirectoryFrontier {
             final long chunkId = i;
             futures.add(service.submit(() -> {
                 try {
-                    findFrontiersInRevrelChunk(chunkId, numChunks, pl);
+                    listFrontiersInRevrelChunk(chunkId, numChunks, pl);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -134,7 +179,7 @@ public class ComputeDirectoryFrontier {
         }
     }
 
-    private void findFrontiersInRevrelChunk(long chunkId, long numChunks, ProgressLogger pl) throws IOException {
+    private void listFrontiersInRevrelChunk(long chunkId, long numChunks, ProgressLogger pl) throws IOException {
         if (threadGraph.get() == null) {
             threadGraph.set(this.graph.copy());
         }
@@ -177,9 +222,9 @@ public class ComputeDirectoryFrontier {
 
             try {
                 if (graph.getNodeType(i) == SwhType.REL) {
-                    findFrontiersInRelease(graph.getForwardGraph(), i, csvPrinter);
+                    listFrontiersInRelease(graph.getForwardGraph(), i, csvPrinter);
                 } else {
-                    findFrontiersInRevision(graph.getForwardGraph(), i, csvPrinter);
+                    listFrontiersInRevision(graph.getForwardGraph(), i, csvPrinter);
                 }
             } catch (OutOfMemoryError e) {
                 newLength = buf.length();
@@ -213,7 +258,7 @@ public class ComputeDirectoryFrontier {
     }
 
     /* Calls findFrontiersInDirectory on the root directory of a release */
-    private void findFrontiersInRelease(SwhUnidirectionalGraph graph, long relId, CSVPrinter csvPrinter)
+    private void listFrontiersInRelease(SwhUnidirectionalGraph graph, long relId, CSVPrinter csvPrinter)
             throws IOException {
         SWHID relSWHID = graph.getSWHID(relId);
 
@@ -287,11 +332,11 @@ public class ComputeDirectoryFrontier {
             System.exit(7);
         }
 
-        findFrontiersInDirectory(graph, relId, relSWHID, releaseTimestamp, rootDirectory, csvPrinter);
+        listFrontiersInDirectory(graph, relId, relSWHID, releaseTimestamp, rootDirectory, csvPrinter);
     }
 
     /* Calls findFrontiersInDirectory on the root directory of a revision */
-    private void findFrontiersInRevision(SwhUnidirectionalGraph graph, long revId, CSVPrinter csvPrinter)
+    private void listFrontiersInRevision(SwhUnidirectionalGraph graph, long revId, CSVPrinter csvPrinter)
             throws IOException {
         SWHID revSWHID = graph.getSWHID(revId);
 
@@ -316,11 +361,11 @@ public class ComputeDirectoryFrontier {
             System.exit(6);
         }
 
-        findFrontiersInDirectory(graph, revId, revSWHID, revisionTimestamp, rootDirectory, csvPrinter);
+        listFrontiersInDirectory(graph, revId, revSWHID, revisionTimestamp, rootDirectory, csvPrinter);
     }
 
     /* Performs a BFS, stopping at frontier directories. */
-    private void findFrontiersInDirectory(SwhUnidirectionalGraph graph, long revrelId, SWHID revrelSWHID,
+    private void listFrontiersInDirectory(SwhUnidirectionalGraph graph, long revrelId, SWHID revrelSWHID,
             long revrelTimestamp, long rootDirectory, CSVPrinter csvPrinter) throws IOException {
 
         // TODO: reuse these across calls instead of reallocating?
@@ -331,27 +376,14 @@ public class ComputeDirectoryFrontier {
         // Sequences are separated by -1 values.
         LongArrayList pathStack = new LongArrayList();
 
-        /*
-         * Do not push the root directory directly on the stack, because it is not allowed to be considered
-         * a frontier. Instead, we push the root directory's successors.
-         */
-        ArcLabelledNodeIterator.LabelledArcIterator itl = graph.labelledSuccessors(rootDirectory);
-        for (long successorId; (successorId = itl.nextLong()) != -1;) {
-            if (graph.getNodeType(successorId) == SwhType.DIR) {
-                stack.push(successorId);
-
-                pathStack.push(-1L);
-                DirEntry[] labels = (DirEntry[]) itl.label().get();
-                if (labels.length != 0) {
-                    pathStack.push(labels[0].filenameId);
-                }
-            }
-        }
+        stack.push(rootDirectory);
+        pathStack.push(-1L);
 
         long nodeId, maxTimestamp;
         boolean isFrontier;
         LongArrayList path = new LongArrayList();
         LazyLongIterator it;
+        ArcLabelledNodeIterator.LabelledArcIterator itl;
         while (!stack.isEmpty()) {
             nodeId = stack.popLong();
             path.clear();
@@ -361,27 +393,12 @@ public class ComputeDirectoryFrontier {
             Collections.reverse(path);
 
             maxTimestamp = maxTimestamps.getLong(nodeId);
-            if (maxTimestamp == Long.MIN_VALUE || visited.contains(nodeId)) {
+            if (visited.contains(nodeId)) {
                 continue;
             }
             visited.add(nodeId);
 
-            /*
-             * Detect if a node is a frontier according to
-             * https://gitlab.softwareheritage.org/swh/devel/swh-provenance/-/blob/
-             * ae09086a3bd45c7edbc22691945b9d61200ec3c2/swh/provenance/algos/revision.py#L210
-             */
-            isFrontier = false;
-            if (maxTimestamp < revrelTimestamp) {
-                /* No need to check if it's depth > 1, given that we excluded the root dir above */
-                it = graph.successors(nodeId);
-                for (long successorId; (successorId = it.nextLong()) != -1;) {
-                    if (graph.getNodeType(successorId) == SwhType.CNT) {
-                        isFrontier = true;
-                        break;
-                    }
-                }
-            }
+            isFrontier = frontierDirectories.getBoolean(nodeId);
 
             if (isFrontier) {
                 Vector<String> pathParts = new Vector<String>(path.size());
