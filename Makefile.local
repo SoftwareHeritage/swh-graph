@@ -2,7 +2,7 @@ POM_PATH=java/pom.xml
 GITVERSION != git describe --tags --abbrev=0
 VERSION = $(subst v,,${GITVERSION})
 
-java/target/swh-graph-$(VERSION).jar:
+java/target/swh-graph-$(VERSION).jar: $(shell find java/ -name \*.java -print)
 	@echo "Building JAR version=${VERSION}"
 	mvn -f $(POM_PATH) compile assembly:single
 
