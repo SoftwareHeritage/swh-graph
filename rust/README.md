@@ -46,7 +46,7 @@ will result in SIGILL (illegal instruction) error**.
 ## Loading old graphs
 
 The original Java (and C++) implementation of webgraph used slightly different
-data structures dans the Rust implementation.
+data structures in the Rust implementation.
 Therefore, you need to generate new files in order to load old graphs with the Rust
 implementation; this takes a few hours for graphs representing full SWH exports.
 
