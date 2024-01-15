@@ -409,20 +409,20 @@ public class ListFrontierDirectoriesInRevisions {
                 String pathString = String.join("/", pathParts);
                 csvPrinter.printRecord(maxTimestamp, graph.getSWHID(nodeId), Instant.ofEpochSecond(revrelTimestamp),
                         revrelSWHID, pathString);
-            } else {
-                /* Look if the subdirectories are frontiers */
-                itl = graph.labelledSuccessors(nodeId);
-                for (long successorId; (successorId = itl.nextLong()) != -1;) {
-                    if (graph.getNodeType(successorId) == SwhType.DIR && !visited.contains(successorId)) {
-                        stack.add(successorId);
-                        pathStack.push(-1L);
-                        for (long filenameId : path) {
-                            pathStack.push(filenameId);
-                        }
-                        DirEntry[] labels = (DirEntry[]) itl.label().get();
-                        if (labels.length != 0) {
-                            pathStack.push(labels[0].filenameId);
-                        }
+            }
+
+            /* Look if the subdirectories are frontiers */
+            itl = graph.labelledSuccessors(nodeId);
+            for (long successorId; (successorId = itl.nextLong()) != -1;) {
+                if (graph.getNodeType(successorId) == SwhType.DIR && !visited.contains(successorId)) {
+                    stack.add(successorId);
+                    pathStack.push(-1L);
+                    for (long filenameId : path) {
+                        pathStack.push(filenameId);
+                    }
+                    DirEntry[] labels = (DirEntry[]) itl.label().get();
+                    if (labels.length != 0) {
+                        pathStack.push(labels[0].filenameId);
                     }
                 }
             }
