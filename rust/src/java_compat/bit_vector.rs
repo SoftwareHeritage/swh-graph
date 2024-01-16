@@ -3,8 +3,9 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-/// Structure to read and write a Java`it.unimi.dsi.bits.LongArrayBitVector` object
-/// in Java's native serialization format
+//! Structure to read and write a Java `it.unimi.dsi.bits.LongArrayBitVector` object
+//! in Java's native serialization format
+
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
