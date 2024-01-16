@@ -6,14 +6,13 @@
 use anyhow::{Context, Result};
 use bitvec::prelude::*;
 use dsi_progress_logger::ProgressLogger;
-use lender::{Lender, Lending};
 use log::{debug, info};
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 
-const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
+const BASENAME: &str = "swh/graph/example_dataset/compressed/example";
 // const BASENAME: &str = "/home/zack/graph/2022-12-07/compressed/graph";
 
 pub fn main() -> Result<()> {

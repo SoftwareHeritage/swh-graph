@@ -9,12 +9,13 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use webgraph::prelude::*;
 //use webgraph::traits::{RandomAccessGraph, SequentialGraph};
 use webgraph::label::swh_labels::{MmapReaderBuilder, SwhLabels};
 use webgraph::EF;
 
+use crate::java_compat::fcl::FrontCodedList;
 use crate::mph::SwhidMphf;
 use crate::properties;
 use crate::utils::suffix_path;
@@ -23,7 +24,10 @@ use crate::utils::suffix_path;
 pub type NodeId = usize;
 
 type SwhGraphLabelsInner = SwhLabels<MmapReaderBuilder, EF<&'static [usize], &'static [u64]>>;
-pub struct SwhGraphLabels(SwhGraphLabelsInner);
+pub struct SwhGraphLabels {
+    labelling: SwhGraphLabelsInner,
+    name_labels: FrontCodedList<mmap_rs::Mmap, mmap_rs::Mmap>,
+}
 
 pub trait SwhGraph {
     /// Return the base path of the graph
@@ -140,9 +144,19 @@ impl<P, G: RandomAccessGraph> SwhLabelledForwardGraph
     type LabelledSuccessors<'succ> = <Zip<G, SwhGraphLabelsInner> as webgraph::traits::RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
 
     fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
-        let labels: Vec<_> = self.labels.0.successors(node_id).collect();
+        let labels: Vec<_> = self.labels.labelling.successors(node_id).collect();
         for x in labels {
             println!("succ {:?}", x);
+            for label_id in x {
+                println!(
+                    "label {:?}",
+                    self.labels
+                        .name_labels
+                        .get(label_id as usize / 8)
+                        .as_deref()
+                        .map(String::from_utf8_lossy)
+                );
+            }
         }
         todo!("return successors");
     }
@@ -274,12 +288,18 @@ impl<P, G: RandomAccessGraph> SwhUnidirectionalGraph<P, (), G> {
     pub fn load_labels(self) -> Result<SwhUnidirectionalGraph<P, SwhGraphLabels, G>> {
         let labels = SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?;
         debug_assert!(webgraph::prelude::Zip(&self.graph, labels).verify());
+        let labelling_path = suffix_path(&self.basepath, "-labelled");
+        let labels_path = suffix_path(&self.basepath, ".labels.fcl");
         Ok(SwhUnidirectionalGraph {
             properties: self.properties,
-            labels: SwhGraphLabels(SwhLabels::load_from_file(
-                7,
-                suffix_path(&self.basepath, "-labelled"),
-            )?),
+            labels: SwhGraphLabels {
+                labelling: SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
+                    format!("Could not load labelling from {}", labelling_path.display())
+                })?,
+                name_labels: FrontCodedList::load(&labels_path).with_context(|| {
+                    format!("Could not load labels from {}", labels_path.display())
+                })?,
+            },
             basepath: self.basepath,
             graph: self.graph,
         })
