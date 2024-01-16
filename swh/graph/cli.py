@@ -178,7 +178,7 @@ def grpc_serve(ctx, port, java_home, graph):
     import os
     from pathlib import Path
 
-    from swh.graph.grpc_server import build_grpc_server_cmdline
+    from swh.graph.grpc_server import build_java_grpc_server_cmdline
 
     config = ctx.obj["config"]
     config["graph"]["path"] = graph
@@ -188,7 +188,7 @@ def grpc_serve(ctx, port, java_home, graph):
         config["graph"]["port"] = port
 
     logger.debug("Building gPRC server command line")
-    cmd, port = build_grpc_server_cmdline(**config["graph"])
+    cmd, port = build_java_grpc_server_cmdline(**config["graph"])
 
     java_bin = cmd[0]
     if java_home is not None:

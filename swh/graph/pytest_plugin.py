@@ -62,12 +62,12 @@ class GraphServerProcess(multiprocessing.Process):
         self.result = self.q.get()
 
 
-@pytest.fixture(scope="module", params=["java", "rust"])
+@pytest.fixture(scope="session", params=["java", "rust"])
 def graph_grpc_backend_implementation(request):
     return request.param
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def graph_grpc_server_process(graph_grpc_backend_implementation):
     server = GraphServerProcess(graph_grpc_backend_implementation)
 
@@ -80,7 +80,7 @@ def graph_grpc_server_process(graph_grpc_backend_implementation):
         pass
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def graph_grpc_server_started(graph_grpc_server_process):
     server = graph_grpc_server_process
     server.start()

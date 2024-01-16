@@ -8,7 +8,7 @@ pure-Python.
 
 Pipelines are built like this:
 
->>> from swh.graph.luigi.shell import Command, Sink
+>>> from swh.graph.shell import Command, Sink
 >>> (
 ...     Command.echo("foo")
 ...     | Command.zstdmt()
@@ -39,15 +39,28 @@ rename the file at the end).
 
 from __future__ import annotations
 
+import dataclasses
 import functools
+import logging
 import os
 from pathlib import Path
 import shlex
 import signal
 import subprocess
-from typing import Any, Dict, List, NoReturn, Optional, TypeVar, Union
+from typing import Any, Dict, List, NoReturn, Optional, Tuple, TypeVar, Union
 
-import luigi
+try:
+    from luigi import LocalTarget
+except ImportError:
+
+    class LocalTarget:  # type: ignore
+        """Placeholder for ``luigi.LocalTarget`` if it could not be imported"""
+
+        pass
+
+
+logger = logging.getLogger(__name__)
+
 
 LOGBACK_CONF = b"""\
 <configuration>
@@ -67,7 +80,126 @@ LOGBACK_CONF = b"""\
 
 
 class CommandException(Exception):
-    pass
+    def __init__(self, command, returncode):
+        super().__init__(f"{command[0]} returned: {returncode}")
+        self.command = command
+        self.returncode = returncode
+
+
+_PROC = Path("/proc/")
+""":file:`/proc/`"""
+_CGROUP_ROOT = Path("/sys/fs/cgroup/")
+"""Base path of the cgroup filesystem"""
+
+
+@functools.lru_cache(1)
+def base_cgroup() -> Optional[Path]:
+    """Returns the cgroup that should be used as parent for child processes.
+
+    As `cgroups with children should not contain processes themselves
+    <https://systemd.io/CGROUP_DELEGATION/#two-key-design-rules>`_, this is the parent
+    of the cgroup this process was started in.
+    """
+    import atexit
+
+    if not _CGROUP_ROOT.is_dir():
+        logger.info("%s is not mounted", _CGROUP_ROOT)
+        return None
+
+    proc_cgroup_path = _PROC / str(os.getpid()) / "cgroup"
+    if not proc_cgroup_path.is_file():
+        logger.info("%s does not exist", proc_cgroup_path)
+        return None
+
+    my_cgroup = proc_cgroup_path.read_text().strip()
+    if not my_cgroup.startswith("0::/"):
+        # https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#processes
+        logger.warning("Process was started in %s which is not a cgroupv2", my_cgroup)
+        return None
+
+    # this is the cgroup that contains the current process, plus whatever process
+    # spawned it (eg. pytest or bash); and neither cgroupv2 nor systemd allows a cgroup
+    # to both contain processes itself and have child cgroups; so we have to use the
+    # parent cgroup as root for the cgroups we are going to create.
+    original_cgroup_path = _CGROUP_ROOT / my_cgroup[4:]
+    if original_cgroup_path == _CGROUP_ROOT:
+        # Running directly in the root cgroup, so there is no parent.
+        # TODO: this means we are running in a container, so this is probably the only
+        # process in the cgroup, we could try moving it to a child cgroup.
+        return None
+    assert (original_cgroup_path.parent / "cgroup.procs").read_text().strip() == ""
+
+    # create a cgroup that will encapsulate both the "swh.graph.shell" cgroup and
+    # all the children
+    base_cgroup_path = create_cgroup(
+        f"swh.graph@{os.getpid()}", original_cgroup_path.parent, add_suffix=False
+    )
+    if base_cgroup_path is None:
+        return None
+
+    assert (base_cgroup_path / "cgroup.procs").read_text().strip() == ""
+    for controller in ("cpu", "memory"):
+        try:
+            with (base_cgroup_path / "cgroup.subtree_control").open("wt") as f:
+                f.write(f"+{controller}\n")
+        except OSError as e:
+            logger.warning(
+                "Failed to enable %r controller for %s: %s",
+                controller,
+                base_cgroup_path,
+                e,
+            )
+
+    def cleanup():
+        # Clean up the base cgroup we created
+        base_cgroup_path.rmdir()
+
+    atexit.register(cleanup)
+
+    return base_cgroup_path
+
+
+_num_child_cgroups = 0
+
+
+def create_cgroup(
+    base_name: str, parent: Optional[Path] = None, add_suffix: bool = True
+) -> Optional[Path]:
+    global _num_child_cgroups
+
+    parent = parent or base_cgroup()
+    if parent is None:
+        return None
+
+    if add_suffix:
+        name = f"{base_name}@{_num_child_cgroups}"
+        _num_child_cgroups += 1
+    else:
+        name = base_name
+
+    new_cgroup_path = parent / name
+    try:
+        new_cgroup_path.mkdir()
+    except OSError as e:
+        logger.warning("Failed to create %s: %s", new_cgroup_path, e)
+        return None
+
+    return new_cgroup_path
+
+
+def move_to_cgroup(cgroup: Path, pid: Optional[int] = None) -> bool:
+    """Returns whether the process was successfully moved."""
+    if pid is None:
+        pid = os.getpid()
+    try:
+        with (cgroup / "cgroup.procs").open("at") as f:
+            f.write(f"{pid}\n")
+    except OSError as e:
+        logger.warning("Failed to move process to %s: %s", cgroup, e)
+        cgroup.rmdir()
+        return False
+    else:
+        return True
 
 
 class _MetaCommand(type):
@@ -81,7 +213,14 @@ class Command(metaclass=_MetaCommand):
 
     def __init__(self, *args: str, **kwargs):
         self.args = args
-        self.kwargs = kwargs
+        self.kwargs = dict(kwargs)
+        self.preexec_fn = self.kwargs.pop("preexec_fn", lambda: None)
+        self.cgroup = create_cgroup(args[0])
+
+    def _preexec_fn(self):
+        if self.cgroup is not None:
+            move_to_cgroup(self.cgroup)
+        self.preexec_fn()
 
     def _run(self, stdin, stdout) -> _RunningCommand:
         pass_fds = []
@@ -95,15 +234,20 @@ class Command(metaclass=_MetaCommand):
                 final_args.append(f"/dev/fd/{r}")
                 children.append(arg._run(None, w))
                 os.close(w)
-            elif isinstance(arg, luigi.LocalTarget):
+            elif isinstance(arg, LocalTarget):
                 final_args.append(arg.path)
             else:
                 final_args.append(arg)
 
         proc = subprocess.Popen(
-            final_args, stdin=stdin, stdout=stdout, pass_fds=pass_fds, **self.kwargs
+            final_args,
+            stdin=stdin,
+            stdout=stdout,
+            pass_fds=pass_fds,
+            preexec_fn=self._preexec_fn,
+            **self.kwargs,
         )
-        return _RunningCommand(self, proc, children)
+        return _RunningCommand(self, proc, children, self.cgroup)
 
     def run(self) -> None:
         self._run(None, None).wait()
@@ -123,15 +267,15 @@ class Command(metaclass=_MetaCommand):
         return f"{' '.join(shlex.quote(str(arg)) for arg in self.args)}"
 
     def _cleanup(self) -> None:
-        pass
+        if self.cgroup is not None:
+            self.cgroup.rmdir()
 
 
 class Java(Command):
     def __init__(self, *args: str, max_ram: Optional[int] = None):
-
         import tempfile
 
-        from ..config import check_config
+        from .config import check_config
 
         conf: Dict = {}  # TODO: configurable
 
@@ -170,10 +314,12 @@ class _RunningCommand:
         command: Command,
         proc: subprocess.Popen,
         running_children: List[Union[_RunningCommand, _RunningPipe]],
+        cgroup: Optional[Path],
     ):
         self.command = command
         self.proc = proc
         self.running_children = running_children
+        self.cgroup = cgroup
 
     def stdout(self):
         return self.proc.stdout
@@ -181,20 +327,34 @@ class _RunningCommand:
     def is_alive(self) -> bool:
         return self.proc.poll() is None
 
-    def wait(self) -> None:
+    def wait(self) -> List[RunResult]:
+        results = []
         try:
             self.proc.wait()
+            results.append(
+                RunResult(
+                    command=self.command.args,
+                    cgroup=self.cgroup,
+                    cgroup_stats={
+                        p.name: p.read_text().strip()
+                        for p in (self.cgroup.iterdir() if self.cgroup else [])
+                        if p.name.startswith(("cpu.", "memory.", "io.", "pids."))
+                        # exclude writeable files (they are for control, not statistics)
+                        and p.stat().st_mode & 0o600 == 0o400
+                    },
+                )
+            )
             self.command._cleanup()
             if self.proc.returncode not in (0, -int(signal.SIGPIPE)):
-                raise CommandException(
-                    f"{self.command.args[0]} returned: {self.proc.returncode}"
-                )
+                raise CommandException(self.command.args, self.proc.returncode)
 
             for child in self.running_children:
-                child.wait()
+                results.extend(child.wait())
         except BaseException:
             self.kill()
             raise
+
+        return results
 
     def kill(self) -> None:
         for child in self.running_children:
@@ -259,13 +419,16 @@ class _RunningPipe:
     def is_alive(self) -> bool:
         return all(child.is_alive() for child in self.children)
 
-    def wait(self) -> None:
+    def wait(self) -> List[RunResult]:
+        results = []
         try:
             for child in self.children:
-                child.wait()
+                results.extend(child.wait())
         except BaseException:
             self.kill()
             raise
+
+        return results
 
     def kill(self) -> None:
         for child in self.children:
@@ -320,9 +483,9 @@ class AtomicFileSink(_BaseSink):
     """Similar to ``> path`` at the end of a command, but writes only if the whole
     command succeeded."""
 
-    def __init__(self, path: Union[Path, luigi.LocalTarget]):
+    def __init__(self, path: Union[Path, LocalTarget]):
         super().__init__()
-        if isinstance(path, luigi.LocalTarget):
+        if isinstance(path, LocalTarget):
             path = Path(path.path)
         self.path = path
 
@@ -348,3 +511,10 @@ class AtomicFileSink(_BaseSink):
 
     def __str__(self) -> str:
         return f"{self.source_pipe} > AtomicFileSink({self.path})"
+
+
+@dataclasses.dataclass
+class RunResult:
+    cgroup: Optional[Path]
+    command: Tuple[str, ...]
+    cgroup_stats: Dict[str, str]

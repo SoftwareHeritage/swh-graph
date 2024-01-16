@@ -8,7 +8,7 @@ import threading
 import pytest
 import pyzstd
 
-from swh.graph.luigi.shell import AtomicFileSink, Command, CommandException, Sink, wc
+from swh.graph.shell import AtomicFileSink, Command, CommandException, Sink, wc
 
 # fmt: off
 

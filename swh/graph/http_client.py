@@ -97,7 +97,13 @@ class RemoteGraphClient(RPCClient):
         )
 
     def neighbors(
-        self, src, edges="*", direction="forward", max_edges=0, return_types="*"
+        self,
+        src,
+        edges="*",
+        direction="forward",
+        max_edges=0,
+        return_types="*",
+        max_matching_nodes=0,
     ):
         return self.get_lines(
             "neighbors/{}".format(src),
@@ -106,6 +112,7 @@ class RemoteGraphClient(RPCClient):
                 "direction": direction,
                 "max_edges": max_edges,
                 "return_types": return_types,
+                "max_matching_nodes": max_matching_nodes,
             },
         )
 

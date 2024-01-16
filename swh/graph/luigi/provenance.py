@@ -75,7 +75,7 @@ class SortRevrelByDate(luigi.Task):
 
         import tqdm
 
-        from .shell import AtomicFileSink, Command
+        from ..shell import AtomicFileSink, Command
         from .utils import count_nodes
 
         sort_env = {"LC_ALL": "C"}  # fastest locale to sort
@@ -141,7 +141,7 @@ class SortRevrelByDate(luigi.Task):
         import sys
         import uuid
 
-        from .shell import AtomicFileSink, Command
+        from ..shell import AtomicFileSink, Command
 
         (swhid_object_type, orc_path, tempdir, sort_env) = args
 
@@ -261,7 +261,7 @@ class ListEarliestRevisions(luigi.Task):
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListEarliestRevisions``"""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
         from .utils import count_nodes
 
         nb_nodes = count_nodes(self.local_graph_path, self.graph_name, "cnt,dir")
@@ -347,7 +347,7 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp``"""
-        from .shell import Command, Java
+        from ..shell import Command, Java
 
         class_name = "org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp"
 
@@ -434,7 +434,7 @@ class ComputeDirectoryFrontier(luigi.Task):
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ComputeDirectoryFrontier``"""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
 
         class_name = "org.softwareheritage.graph.utils.ComputeDirectoryFrontier"
 
@@ -448,6 +448,108 @@ class ComputeDirectoryFrontier(luigi.Task):
                 max_ram=self._max_ram(),
             )
             | Command.zstdmt("-12")
+            > AtomicFileSink(self._output_path())
+        ).run()
+        # fmt: on
+
+
+class ListFrontierDirectoriesInRevisions(luigi.Task):
+    """Creates a file that contains the list of (file, revision) where the file is
+    reachable from the revision without going through any "directory frontier" as
+    defined by
+    `swh-provenance <https://gitlab.softwareheritage.org/swh/devel/swh-provenance/>`_.
+
+    In short, it is a directory which directly contains a file (not a directory),
+    which is a non-root directory in a revision newer than the directory timestamp
+    computed by ListDirectoryMaxLeafTimestamp.
+    """
+
+    local_export_path = luigi.PathParameter()
+    local_graph_path = luigi.PathParameter()
+    graph_name = luigi.Parameter(default="graph")
+    provenance_dir = luigi.PathParameter()
+    topological_order_dir = luigi.PathParameter()
+    batch_size = luigi.IntParameter(default=1000)
+
+    def _max_ram(self):
+        # see
+        # java/src/main/java/org/softwareheritage/graph/utils/ListContentsInRevisionsWithoutFrontier.java
+        nb_nodes = count_nodes(
+            self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
+        )
+
+        # maxtimestamps_array = nb_nodes * 8  # Actually it's mmapped
+        maxtimestamps_array = 0
+
+        num_threads = 96
+        min_buf_size = 1140  # see processRevisionChunk
+        # it's unlikely to have 5000 more dirs than expected (averaged over
+        # all threads running at any given time)
+        worst_case_buf_size_ratio = 5000
+        buf_size = (
+            num_threads * self.batch_size * min_buf_size * worst_case_buf_size_ratio
+        )
+
+        graph_size = nb_nodes * 8
+
+        spare_space = 1_000_000_000
+        return graph_size + maxtimestamps_array + buf_size + spare_space
+
+    @property
+    def resources(self):
+        """Returns the value of ``self.max_ram_mb``"""
+        import socket
+
+        return {f"{socket.getfqdn()}_ram_mb": self._max_ram() // 1_000_000}
+
+    def requires(self) -> Dict[str, luigi.Task]:
+        """Returns :class:`LocalGraph` and :class:`DeduplicateFrontierDirectories`
+        instances."""
+        return {
+            "graph": LocalGraph(local_graph_path=self.local_graph_path),
+            "frontier": DeduplicateFrontierDirectories(
+                local_export_path=self.local_export_path,
+                local_graph_path=self.local_graph_path,
+                graph_name=self.graph_name,
+                provenance_dir=self.provenance_dir,
+                topological_order_dir=self.topological_order_dir,
+            ),
+            "directory_max_leaf_timestamps": ListDirectoryMaxLeafTimestamp(
+                local_export_path=self.local_export_path,
+                local_graph_path=self.local_graph_path,
+                graph_name=self.graph_name,
+                provenance_dir=self.provenance_dir,
+                topological_order_dir=self.topological_order_dir,
+            ),
+        }
+
+    def _output_path(self) -> Path:
+        return self.provenance_dir / "frontier_directories_in_revisions.csv.zst"
+
+    def output(self) -> luigi.LocalTarget:
+        """Returns {provenance_dir}/frontier_directories_in_revisions.csv.zst"""
+        return luigi.LocalTarget(self._output_path())
+
+    def run(self) -> None:
+        """Runs ``org.softwareheritage.graph.utils.ListFrontierDirectoriesInRevisions``"""
+        from ..shell import AtomicFileSink, Command, Java
+
+        class_name = (
+            "org.softwareheritage.graph.utils.ListFrontierDirectoriesInRevisions"
+        )
+
+        # fmt: off
+        (
+            Command.pv("--wait", self.input()["frontier"])
+            | Command.zstdcat()
+            | Java(
+                class_name,
+                self.local_graph_path / self.graph_name,
+                self.input()["directory_max_leaf_timestamps"],
+                str(self.batch_size),
+                max_ram=self._max_ram(),
+            )
+            | Command.zstdmt("-10")
             > AtomicFileSink(self._output_path())
         ).run()
         # fmt: on
@@ -488,7 +590,7 @@ class DeduplicateFrontierDirectories(luigi.Task):
     def run(self):
         """Runs ``cut | sort --uniq`` to produce unique directory SWHIDs from
         ``directory_frontier.csv.zst``."""
-        from .shell import AtomicFileSink, Command
+        from ..shell import AtomicFileSink, Command
 
         sort_env = {"LC_ALL": "C"}  # fastest locale to sort
         if os.environ.get("TMPDIR"):
@@ -590,7 +692,7 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListContentsInRevisionsWithoutFrontier``"""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
 
         class_name = (
             "org.softwareheritage.graph.utils.ListContentsInRevisionsWithoutFrontier"
@@ -667,7 +769,7 @@ class ListContentsInFrontierDirectories(luigi.Task):
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListContentsInDirectories``"""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
 
         class_name = "org.softwareheritage.graph.utils.ListContentsInDirectories"
 
@@ -709,4 +811,5 @@ class RunProvenance(luigi.WrapperTask):
         return [
             ListContentsInFrontierDirectories(**kwargs),
             ListContentsInRevisionsWithoutFrontier(**kwargs),
+            ListFrontierDirectoriesInRevisions(**kwargs),
         ]

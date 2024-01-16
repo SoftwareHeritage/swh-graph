@@ -121,7 +121,7 @@ class TopoSort(luigi.Task):
 
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.TopoSort and compresses"""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
 
         invalid_object_types = set(self.object_types.split(",")) - OBJECT_TYPES
         if invalid_object_types:
@@ -214,7 +214,7 @@ class CountPaths(luigi.Task):
 
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.CountPaths and compresses"""
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
 
         invalid_object_types = set(self.object_types.split(",")) - OBJECT_TYPES
         if invalid_object_types:

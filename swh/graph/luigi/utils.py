@@ -55,7 +55,7 @@ class _CsvToOrcToS3ToAthenaTask(luigi.Task):
 
     def _approx_nb_rows(self) -> int:
         """Returns number of rows in the CSV file. Used only for progress reporting"""
-        from .shell import Command, wc
+        from ..shell import Command, wc
 
         # This is a rough estimate, because some rows can contain newlines;
         # but it is good enough for a progress report

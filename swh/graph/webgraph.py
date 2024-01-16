@@ -14,11 +14,14 @@ import os
 from pathlib import Path
 import shlex
 import subprocess
-from typing import Callable, Dict, List, Set
+from typing import TYPE_CHECKING, Callable, Dict, List, Set
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 from swh.graph.config import check_config_compress
+
+if TYPE_CHECKING:
+    from .shell import RunResult
 
 logger = logging.getLogger(__name__)
 
@@ -303,7 +306,9 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
 }
 
 
-def do_step(step, conf):
+def do_step(step, conf) -> "List[RunResult]":
+    from .shell import Command, CommandException
+
     log_dir = Path(conf["out_dir"]) / "logs"
     log_dir.mkdir(exist_ok=True)
 
@@ -333,22 +338,24 @@ def do_step(step, conf):
     cmd_env["CLASSPATH"] = conf["classpath"]
     cmd_env["TMPDIR"] = conf["tmp_dir"]
     cmd_env["TZ"] = "UTC"
-    process = subprocess.Popen(
-        ["/bin/bash", "-c", cmd],
+    command = Command.bash(
+        "-c",
+        cmd,
         env=cmd_env,
         encoding="utf8",
-        stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-    )
+    )._run(stdin=None, stdout=subprocess.PIPE)
     step_logger.info("Running: %s", cmd)
 
-    with process.stdout as stdout:
+    with command.proc.stdout as stdout:
         for line in stdout:
             step_logger.info(line.rstrip())
-    rc = process.wait()
-    if rc != 0:
+    try:
+        results = command.wait()
+    except CommandException as e:
         raise CompressionSubprocessError(
-            f"Compression step {step} returned non-zero exit code {rc}", log_path
+            f"Compression step {step} returned non-zero exit code {e.returncode}",
+            log_path,
         )
     step_end_time = datetime.now()
     step_duration = step_end_time - step_start_time
@@ -360,7 +367,7 @@ def do_step(step, conf):
     )
     step_logger.removeHandler(step_handler)
     step_handler.close()
-    return rc
+    return results
 
 
 def compress(

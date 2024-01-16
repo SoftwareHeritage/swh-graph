@@ -674,10 +674,10 @@ dependencies = [
 
 [[package]]
 name = "dsi-bitstream"
-version = "0.1.0"
-source = "git+https://github.com/vigna/dsi-bitstream-rs#d85dc25aa0414e48d5577e7544204491cb64585c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "965dcf18f8072761073206e4b77fd59fda246a1bf7fc304baf246de0048958be"
 dependencies = [
- "anyhow",
  "common_traits 0.9.0",
  "rand",
 ]
@@ -2735,7 +2735,7 @@ checksum = "7ab9b36309365056cd639da3134bf87fa8f3d86008abf99e612384a6eecd459f"
 [[package]]
 name = "webgraph"
 version = "0.1.0"
-source = "git+https://github.com/vigna/webgraph-rs?rev=908be9496cde3813ee43e193fb2c85f80814aa52#908be9496cde3813ee43e193fb2c85f80814aa52"
+source = "git+https://github.com/vigna/webgraph-rs?rev=24c30bfa5cc1098d4048266651c023f9f100b095#24c30bfa5cc1098d4048266651c023f9f100b095"
 dependencies = [
  "anyhow",
  "bitvec",

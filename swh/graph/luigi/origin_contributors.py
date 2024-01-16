@@ -88,7 +88,7 @@ class ListOriginContributors(luigi.Task):
         """Runs org.softwareheritage.graph.utils.TopoSort and compresses"""
         import tempfile
 
-        from .shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Java
         from .utils import count_nodes
 
         topological_order_path = Path(self.input()["toposort"].path)
@@ -143,7 +143,7 @@ class ExportDeanonymizationTable(luigi.Task):
         """Runs a postgresql query to compute the table."""
         import shutil
 
-        from .shell import AtomicFileSink, Command
+        from ..shell import AtomicFileSink, Command
 
         if shutil.which("psql") is None:
             raise RuntimeError("psql CLI is not installed")
@@ -216,7 +216,7 @@ class DeanonymizeOriginContributors(luigi.Task):
         import pyzstd
         import tqdm
 
-        from .shell import Command, Java, Sink
+        from ..shell import Command, Java, Sink
 
         # Load the deanonymization table, to map sha256(name) to base64(name)
         # and escape(name)

@@ -19,9 +19,10 @@ from swh.graph.luigi.provenance import (
     ListContentsInRevisionsWithoutFrontier,
     ListDirectoryMaxLeafTimestamp,
     ListEarliestRevisions,
+    ListFrontierDirectoriesInRevisions,
     SortRevrelByDate,
 )
-from swh.graph.luigi.shell import CommandException
+from swh.graph.shell import CommandException
 
 from .test_topology import TOPO_ORDER_BACKWARD
 
@@ -122,6 +123,13 @@ max_author_date,frontier_dir_SWHID,rev_author_date,rev_SWHID,path
 frontier_dir_SWHID
 swh:1:dir:0000000000000000000000000000000000000006
 """
+    FRONTIER_DIRECTORIES_IN_REVISIONS = """\
+max_author_date,frontier_dir_SWHID,rev_author_date,rev_SWHID,path
+1111144440,swh:1:dir:0000000000000000000000000000000000000006,2005-03-18T11:14:00Z,swh:1:rev:0000000000000000000000000000000000000009,tests/
+1111144440,swh:1:dir:0000000000000000000000000000000000000006,2009-02-13T23:31:30Z,swh:1:rel:0000000000000000000000000000000000000010,tests/
+""".replace(
+        "\n", "\r\n"
+    )
 else:
     FRONTIER_DIRECTORIES = """\
 max_author_date,frontier_dir_SWHID,rev_author_date,rev_SWHID,path
@@ -289,8 +297,9 @@ def test_listearliestrevisions_disordered(tmpdir):
         provenance_dir=provenance_dir,
     )
 
-    with pytest.raises(CommandException, match="java returned: 3"):
+    with pytest.raises(CommandException) as excinfo:
         task.run()
+    assert excinfo.value.returncode == 3
 
 
 def test_listdirectorymaxleaftimestamp(tmpdir):
@@ -350,6 +359,36 @@ def test_computedirectoryfrontier(tmpdir):
     ).decode()
 
     assert csv_text == FRONTIER_DIRECTORIES
+
+
+def test_listfrontierdirectoriesinrevisions(tmpdir):
+    tmpdir = Path(tmpdir)
+    topology_dir = tmpdir / "topology"
+    provenance_dir = tmpdir / "provenance"
+
+    # Generate the binary file, used as input by ListFrontierDirectoriesInRevisions
+    test_listdirectorymaxleaftimestamp(tmpdir)
+
+    (provenance_dir / "directory_frontier.deduplicated.csv.zst").write_text(
+        DEDUPLICATED_FRONTIER_DIRECTORIES
+    )
+
+    task = ListFrontierDirectoriesInRevisions(
+        local_export_path=DATASET_DIR,
+        local_graph_path=DATASET_DIR / "compressed",
+        graph_name="example",
+        provenance_dir=provenance_dir,
+        topological_order_dir=topology_dir,
+        batch_size=100,  # faster
+    )
+
+    task.run()
+
+    csv_text = subprocess.check_output(
+        ["zstdcat", provenance_dir / "frontier_directories_in_revisions.csv.zst"]
+    ).decode()
+
+    assert csv_text == FRONTIER_DIRECTORIES_IN_REVISIONS
 
 
 @pytest.mark.parametrize("duplicates_in_input", [True, False])
