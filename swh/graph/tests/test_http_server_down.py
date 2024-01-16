@@ -10,31 +10,28 @@ import pytest
 
 from swh.core.api import TransientRemoteException
 from swh.graph.http_client import RemoteGraphClient
-from swh.graph.http_naive_client import NaiveClient
+from swh.graph.pytest_plugin import GraphServerProcess
 
 from .test_http_client import TEST_ORIGIN_ID
 
 
-def test_leaves(
-    graph_client, graph_grpc_server_process, graph_grpc_backend_implementation
-):
-    if isinstance(graph_client, RemoteGraphClient):
-        pass
-    elif isinstance(graph_client, NaiveClient):
-        pytest.skip("test irrelevant for naive graph client")
-    else:
-        assert False, f"unexpected graph_client class: {graph_client.__class__}"
-
-    list(graph_client.leaves(TEST_ORIGIN_ID))
-
-    server = graph_grpc_server_process
-    pid = server.result["pid"]
-    os.kill(pid, signal.SIGKILL)
+def test_leaves(graph_grpc_backend_implementation):
+    server = GraphServerProcess(graph_grpc_backend_implementation)
+    server.start()
     try:
-        os.waitpid(pid, os.WNOHANG)
-    except ChildProcessError:
-        pass
+        graph_client = RemoteGraphClient(str(server.result["server_url"]))
 
-    it = graph_client.leaves(TEST_ORIGIN_ID)
-    with pytest.raises(TransientRemoteException, match="failed to connect"):
-        list(it)
+        list(graph_client.leaves(TEST_ORIGIN_ID))
+
+        pid = server.result["pid"]
+        os.kill(pid, signal.SIGKILL)
+        try:
+            os.waitpid(pid, os.WNOHANG)
+        except ChildProcessError:
+            pass
+
+        it = graph_client.leaves(TEST_ORIGIN_ID)
+        with pytest.raises(TransientRemoteException, match="failed to connect"):
+            list(it)
+    finally:
+        server.kill()
