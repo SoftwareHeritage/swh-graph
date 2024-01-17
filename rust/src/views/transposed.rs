@@ -31,6 +31,7 @@ where
         self.0.has_arc(dst_node_id, src_node_id)
     }
 }
+
 impl<G: Deref> SwhForwardGraph for Transposed<G>
 where
     G::Target: SwhBackwardGraph,
@@ -44,6 +45,19 @@ where
         self.0.indegree(node_id)
     }
 }
+
+impl<G: Deref> SwhLabelledForwardGraph for Transposed<G>
+where
+    G::Target: SwhLabelledBackwardGraph,
+{
+    type LabelledArcs<'arc> =  <<G as Deref>::Target as SwhLabelledBackwardGraph>::LabelledArcs<'arc> where Self: 'arc;
+    type LabelledSuccessors<'succ> = <<G as Deref>::Target as SwhLabelledBackwardGraph>::LabelledPredecessors<'succ> where Self: 'succ;
+
+    fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
+        self.0.labelled_predecessors(node_id)
+    }
+}
+
 impl<G: Deref> SwhBackwardGraph for Transposed<G>
 where
     G::Target: SwhForwardGraph,
@@ -57,6 +71,19 @@ where
         self.0.outdegree(node_id)
     }
 }
+
+impl<G: Deref> SwhLabelledBackwardGraph for Transposed<G>
+where
+    G::Target: SwhLabelledForwardGraph,
+{
+    type LabelledArcs<'arc> =  <<G as Deref>::Target as SwhLabelledForwardGraph>::LabelledArcs<'arc> where Self: 'arc;
+    type LabelledPredecessors<'succ> = <<G as Deref>::Target as SwhLabelledForwardGraph>::LabelledSuccessors<'succ> where Self: 'succ;
+
+    fn labelled_predecessors(&self, node_id: NodeId) -> Self::LabelledPredecessors<'_> {
+        self.0.labelled_successors(node_id)
+    }
+}
+
 impl<G: Deref> SwhGraphWithProperties for Transposed<G>
 where
     G::Target: SwhGraphWithProperties,

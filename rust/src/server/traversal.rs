@@ -11,7 +11,6 @@ use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response};
 
 use crate::graph::{SwhForwardGraph, SwhGraphWithProperties};
-use crate::mph::SwhidMphf;
 use crate::properties;
 use crate::views::Transposed;
 
@@ -19,16 +18,25 @@ use super::filters::{ArcFilterChecker, NodeFilterChecker};
 use super::node_builder::NodeBuilder;
 use super::proto;
 use super::visitor::{SimpleBfsVisitor, VisitFlow};
+use super::TraversalServiceTrait;
 
 type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
 /// Implementation of `Traverse`, `CountNodes`, and `CountEdges` methods of the
 /// [`TraversalService`](super::proto::TraversalService)
-pub struct SimpleTraversal<'s, MPHF: SwhidMphf> {
-    pub service: &'s super::TraversalService<MPHF>,
+pub struct SimpleTraversal<'s, S: TraversalServiceTrait + 'static> {
+    pub service: &'s S,
 }
 
-impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> SimpleTraversal<'s, MPHF> {
+impl<'s, S: TraversalServiceTrait> SimpleTraversal<'s, S>
+where
+    <S::Graph as SwhGraphWithProperties>::Maps: crate::properties::MapsTrait,
+    <S::Graph as SwhGraphWithProperties>::Timestamps: crate::properties::TimestampsTrait,
+    <S::Graph as SwhGraphWithProperties>::Persons: crate::properties::PersonsTrait,
+    <S::Graph as SwhGraphWithProperties>::Contents: crate::properties::ContentsTrait,
+    <S::Graph as SwhGraphWithProperties>::Strings: crate::properties::StringsTrait,
+    <S::Graph as SwhGraphWithProperties>::LabelNames: properties::LabelNamesTrait,
+{
     fn make_visitor<'a, G: Deref + Clone + Send + Sync + 'static, Error: Send + 'a>(
         &'a self,
         request: Request<proto::TraversalRequest>,
@@ -130,26 +138,36 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> SimpleTraversal<'s, MPHF> {
         &self,
         request: Request<proto::TraversalRequest>,
     ) -> TonicResult<ReceiverStream<Result<proto::Node, tonic::Status>>> {
-        let graph = self.service.0.clone();
+        let graph = self.service.graph().clone();
 
-        let arc_checker = ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
-        let node_builder =
-            NodeBuilder::new(graph.clone(), arc_checker, request.get_ref().mask.clone())?;
         let (tx, rx) = mpsc::channel(1_000);
-        let on_node =
-            move |node, _num_successors| tx.blocking_send(Ok(node_builder.build_node(node)));
-        let on_arc = |_src, _dst| Ok(());
 
         // Spawning a thread because Tonic currently only supports Tokio, which requires
         // futures to be sendable between threads, and webgraph's successor iterators cannot
         match request.get_ref().direction.try_into() {
             Ok(proto::GraphDirection::Forward) => {
+                let arc_checker =
+                    ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
+                let node_builder =
+                    NodeBuilder::new(graph.clone(), arc_checker, request.get_ref().mask.clone())?;
+                let on_node = move |node, _num_successors| {
+                    tx.blocking_send(Ok(node_builder.build_node(node)))
+                };
+                let on_arc = |_src, _dst| Ok(());
                 let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
                 tokio::spawn(async move { std::thread::spawn(|| visitor.visit()).join() });
             }
             Ok(proto::GraphDirection::Backward) => {
-                let visitor =
-                    self.make_visitor(request, Arc::new(Transposed(graph)), on_node, on_arc)?;
+                let graph = Arc::new(Transposed(graph));
+                let arc_checker =
+                    ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
+                let node_builder =
+                    NodeBuilder::new(graph.clone(), arc_checker, request.get_ref().mask.clone())?;
+                let on_node = move |node, _num_successors| {
+                    tx.blocking_send(Ok(node_builder.build_node(node)))
+                };
+                let on_arc = |_src, _dst| Ok(());
+                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
                 tokio::spawn(async move { std::thread::spawn(|| visitor.visit()).join() });
             }
             Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
@@ -161,7 +179,7 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> SimpleTraversal<'s, MPHF> {
         &self,
         request: Request<proto::TraversalRequest>,
     ) -> TonicResult<proto::CountResponse> {
-        let graph = self.service.0.clone();
+        let graph = self.service.graph().clone();
 
         let mut count = 0i64;
         let count_ref = &mut count;
@@ -195,7 +213,7 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> SimpleTraversal<'s, MPHF> {
         &self,
         request: Request<proto::TraversalRequest>,
     ) -> TonicResult<proto::CountResponse> {
-        let graph = self.service.0.clone();
+        let graph = self.service.graph().clone();
 
         let mut count = 0i64;
         let count_ref = &mut count;

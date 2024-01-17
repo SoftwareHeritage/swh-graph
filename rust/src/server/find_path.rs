@@ -11,7 +11,6 @@ use itertools::Itertools;
 use tonic::{Request, Response};
 
 use crate::graph::{SwhForwardGraph, SwhGraphWithProperties};
-use crate::mph::SwhidMphf;
 use crate::properties;
 use crate::views::Transposed;
 
@@ -19,6 +18,7 @@ use super::filters::{ArcFilterChecker, NodeFilterChecker};
 use super::node_builder::NodeBuilder;
 use super::proto;
 use super::visitor::{SimpleBfsVisitor, VisitFlow};
+use super::TraversalServiceTrait;
 
 /// [Never type](https://github.com/rust-lang/rust/issues/35121)
 enum NeverError {}
@@ -40,11 +40,19 @@ struct VisitorConfig {
 
 /// Implementation of the `FindPathTo` and `FindPathBetween` methods of the
 /// [`TraversalService`](super::proto::TraversalService)
-pub struct FindPath<'s, MPHF: SwhidMphf> {
-    pub service: &'s super::TraversalService<MPHF>,
+pub struct FindPath<'s, S: TraversalServiceTrait> {
+    pub service: &'s S,
 }
 
-impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
+impl<'s, S: super::TraversalServiceTrait> FindPath<'s, S>
+where
+    <S::Graph as SwhGraphWithProperties>::Maps: crate::properties::MapsTrait,
+    <S::Graph as SwhGraphWithProperties>::Timestamps: crate::properties::TimestampsTrait,
+    <S::Graph as SwhGraphWithProperties>::Persons: crate::properties::PersonsTrait,
+    <S::Graph as SwhGraphWithProperties>::Contents: crate::properties::ContentsTrait,
+    <S::Graph as SwhGraphWithProperties>::Strings: crate::properties::StringsTrait,
+    <S::Graph as SwhGraphWithProperties>::LabelNames: properties::LabelNamesTrait,
+{
     fn make_visitor<'a, G: Deref + Clone + Send + Sync + 'static, Error: Send + 'a>(
         &'a self,
         config: VisitorConfig,
@@ -173,7 +181,7 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
         };
         let target = target.ok_or(tonic::Status::invalid_argument("target must be provided"))?;
 
-        let graph = self.service.0.clone();
+        let graph = self.service.graph().clone();
 
         let arc_checker = ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
         let target_checker = NodeFilterChecker::new(graph.clone(), target)?;
@@ -340,7 +348,7 @@ impl<'s, MPHF: SwhidMphf + Sync + Send + 'static> FindPath<'s, MPHF> {
             max_depth,
         };
 
-        let graph = self.service.0.clone();
+        let graph = self.service.graph().clone();
 
         let arc_checker = ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
         let node_builder = NodeBuilder::new(
