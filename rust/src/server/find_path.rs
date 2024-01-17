@@ -183,80 +183,82 @@ where
 
         let graph = self.service.graph().clone();
 
-        let arc_checker = ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
-        let target_checker = NodeFilterChecker::new(graph.clone(), target)?;
-        let node_builder = NodeBuilder::new(
-            graph.clone(),
-            arc_checker,
-            mask.map(|mask| prost_types::FieldMask {
-                paths: mask
-                    .paths
-                    .iter()
-                    .flat_map(|field| field.strip_prefix("node."))
-                    .map(|field| field.to_owned())
-                    .collect(),
-            }),
-        )?;
-
         let mut parents: HashMap<usize, usize> =
             src_ids.into_iter().map(|n| (n, usize::MAX)).collect();
         let mut found_target = None;
         let mut target_depth = None;
-        let on_node = |node, depth, num_successors| {
-            if target_checker.matches(node, num_successors) {
-                found_target = Some(node);
-                target_depth = Some(depth);
-                Ok::<_, NeverError>(VisitFlow::Stop)
-            } else {
-                Ok(VisitFlow::Continue)
-            }
-        };
-        let on_arc = |src, dst| {
-            parents.entry(dst).or_insert(src);
-            Ok(VisitFlow::Continue)
-        };
+
+        macro_rules! find_path_to {
+            ($graph:expr) => {{
+                let graph = $graph;
+                let arc_checker = ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
+                let target_checker = NodeFilterChecker::new(graph.clone(), target)?;
+                let node_builder = NodeBuilder::new(
+                    graph.clone(),
+                    arc_checker,
+                    mask.map(|mask| prost_types::FieldMask {
+                        paths: mask
+                            .paths
+                            .iter()
+                            .flat_map(|field| field.strip_prefix("node."))
+                            .map(|field| field.to_owned())
+                            .collect(),
+                    }),
+                )?;
+
+                let on_node = |node, depth, num_successors| {
+                    if target_checker.matches(node, num_successors) {
+                        found_target = Some(node);
+                        target_depth = Some(depth);
+                        Ok::<_, NeverError>(VisitFlow::Stop)
+                    } else {
+                        Ok(VisitFlow::Continue)
+                    }
+                };
+                let on_arc = |src, dst| {
+                    parents.entry(dst).or_insert(src);
+                    Ok(VisitFlow::Continue)
+                };
+                let visitor = self.make_visitor(visitor_config, graph, on_node, on_arc)?;
+                visitor.visit()?;
+
+                match found_target {
+                    Some(found_target) => {
+                        let target_depth = target_depth.unwrap(); // was set at the same time as found_target
+                        let path = self
+                            .path_from_visit(&parents, found_target, target_depth)?
+                            .into_iter()
+                            .map(|node_id| node_builder.build_node(node_id))
+                            .rev() // Reverse order to be src->target
+                            .collect();
+
+                        Ok(Response::new(proto::Path {
+                            node: path,
+                            midpoint_index: None,
+                        }))
+                    }
+                    None => {
+                        let sources = if src.len() < 5 {
+                            src.iter().join(", ")
+                        } else {
+                            src[0..5].iter().chain([&"...".to_owned()]).join(", ")
+                        };
+                        Err(tonic::Status::not_found(format!(
+                            "Could not find a path from the sources ({}) to any matching target",
+                            sources
+                        )))
+                    }
+                }
+            }}
+        }
 
         match direction {
             proto::GraphDirection::Forward => {
-                let visitor = self.make_visitor(visitor_config, graph, on_node, on_arc)?;
-                visitor.visit()?;
+                find_path_to!(graph)
             }
             proto::GraphDirection::Backward => {
-                let visitor = self.make_visitor(
-                    visitor_config,
-                    Arc::new(Transposed(graph)),
-                    on_node,
-                    on_arc,
-                )?;
-                visitor.visit()?;
-            }
-        }
-
-        match found_target {
-            Some(found_target) => {
-                let target_depth = target_depth.unwrap(); // was set at the same time as found_target
-                let path = self
-                    .path_from_visit(&parents, found_target, target_depth)?
-                    .into_iter()
-                    .map(|node_id| node_builder.build_node(node_id))
-                    .rev() // Reverse order to be src->target
-                    .collect();
-
-                Ok(Response::new(proto::Path {
-                    node: path,
-                    midpoint_index: None,
-                }))
-            }
-            None => {
-                let sources = if src.len() < 5 {
-                    src.iter().join(", ")
-                } else {
-                    src[0..5].iter().chain([&"...".to_owned()]).join(", ")
-                };
-                Err(tonic::Status::not_found(format!(
-                    "Could not find a path from the sources ({}) to any matching target",
-                    sources
-                )))
+                let graph = Arc::new(Transposed(graph));
+                find_path_to!(graph)
             }
         }
     }
@@ -422,100 +424,50 @@ where
             Ok(VisitFlow::Continue)
         };
 
+        macro_rules! find_path_between {
+            ($visitor:expr, $graph:expr) => {{
+                let mut visitor_reverse = self.make_visitor(
+                    reverse_visitor_config,
+                    $graph,
+                    on_node_reverse,
+                    on_arc_reverse,
+                )?;
+                let mut more_layers = true;
+                while more_layers {
+                    more_layers = false;
+                    more_layers |= $visitor.visit_layer()?;
+                    if found_midpoint.get().is_some() {
+                        break;
+                    }
+                    more_layers |= visitor_reverse.visit_layer()?;
+                    if found_midpoint.get().is_some() {
+                        break;
+                    }
+                }
+            }};
+        }
         match direction {
             proto::GraphDirection::Forward => {
                 let mut visitor =
                     self.make_visitor(visitor_config, graph.clone(), on_node, on_arc)?;
                 match direction_reverse {
                     proto::GraphDirection::Forward => {
-                        let mut visitor_reverse = self.make_visitor(
-                            reverse_visitor_config,
-                            graph,
-                            on_node_reverse,
-                            on_arc_reverse,
-                        )?;
-                        let mut more_layers = true;
-                        while more_layers {
-                            more_layers = false;
-                            more_layers |= visitor.visit_layer()?;
-                            if found_midpoint.get().is_some() {
-                                break;
-                            }
-                            more_layers |= visitor_reverse.visit_layer()?;
-                            if found_midpoint.get().is_some() {
-                                break;
-                            }
-                        }
+                        find_path_between!(visitor, graph)
                     }
                     proto::GraphDirection::Backward => {
-                        let mut visitor_reverse = self.make_visitor(
-                            reverse_visitor_config,
-                            Arc::new(Transposed(graph)),
-                            on_node_reverse,
-                            on_arc_reverse,
-                        )?;
-                        let mut more_layers = true;
-                        while more_layers {
-                            more_layers = false;
-                            more_layers |= visitor.visit_layer()?;
-                            if found_midpoint.get().is_some() {
-                                break;
-                            }
-                            more_layers |= visitor_reverse.visit_layer()?;
-                            if found_midpoint.get().is_some() {
-                                break;
-                            }
-                        }
+                        find_path_between!(visitor, transpose_graph)
                     }
                 }
             }
             proto::GraphDirection::Backward => {
-                let mut visitor = self.make_visitor(
-                    visitor_config,
-                    Arc::new(Transposed(graph.clone())),
-                    on_node,
-                    on_arc,
-                )?;
+                let mut visitor =
+                    self.make_visitor(visitor_config, transpose_graph.clone(), on_node, on_arc)?;
                 match direction_reverse {
                     proto::GraphDirection::Forward => {
-                        let mut visitor_reverse = self.make_visitor(
-                            reverse_visitor_config,
-                            graph,
-                            on_node_reverse,
-                            on_arc_reverse,
-                        )?;
-                        let mut more_layers = true;
-                        while more_layers {
-                            more_layers = false;
-                            more_layers |= visitor.visit_layer()?;
-                            if found_midpoint.get().is_some() {
-                                break;
-                            }
-                            more_layers |= visitor_reverse.visit_layer()?;
-                            if found_midpoint.get().is_some() {
-                                break;
-                            }
-                        }
+                        find_path_between!(visitor, graph)
                     }
                     proto::GraphDirection::Backward => {
-                        let mut visitor_reverse = self.make_visitor(
-                            reverse_visitor_config,
-                            Arc::new(Transposed(graph)),
-                            on_node_reverse,
-                            on_arc_reverse,
-                        )?;
-                        let mut more_layers = true;
-                        while more_layers {
-                            more_layers = false;
-                            more_layers |= visitor.visit_layer()?;
-                            if found_midpoint.get().is_some() {
-                                break;
-                            }
-                            more_layers |= visitor_reverse.visit_layer()?;
-                            if found_midpoint.get().is_some() {
-                                break;
-                            }
-                        }
+                        find_path_between!(visitor, transpose_graph)
                     }
                 }
             }
