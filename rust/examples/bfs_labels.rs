@@ -68,6 +68,10 @@ pub fn main() -> Result<()> {
         visited_nodes += 1;
         let mut successors = graph.labelled_successors(current_node);
         while let Some((succ, labels)) = successors.next() {
+            debug!("Successor: {}", graph.properties().swhid(succ).unwrap());
+            for label in labels {
+                debug!("  has label: {}", label);
+            }
             if !visited[succ] {
                 queue.push_back(succ);
                 visited.set(succ as _, true);

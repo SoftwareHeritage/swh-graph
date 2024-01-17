@@ -10,6 +10,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use mmap_rs::Mmap;
 use webgraph::prelude::*;
 //use webgraph::traits::{RandomAccessGraph, SequentialGraph};
 use webgraph::label::swh_labels::{MmapReaderBuilder, SwhLabels};
@@ -26,7 +27,7 @@ pub type NodeId = usize;
 type SwhGraphLabelsInner = SwhLabels<MmapReaderBuilder, EF<&'static [usize], &'static [u64]>>;
 pub struct SwhGraphLabels {
     labelling: SwhGraphLabelsInner,
-    name_labels: FrontCodedList<mmap_rs::Mmap, mmap_rs::Mmap>,
+    name_labels: FrontCodedList<Mmap, Mmap>,
 }
 
 pub trait SwhGraph {
@@ -52,7 +53,10 @@ pub trait SwhForwardGraph: SwhGraph {
 }
 
 pub trait SwhLabelledForwardGraph: SwhForwardGraph {
-    type LabelledSuccessors<'node>: IntoIterator<Item = (usize, Vec<u64>)>
+    type LabelledArcs<'arc>: IntoIterator<Item = String>
+    where
+        Self: 'arc;
+    type LabelledSuccessors<'node>: IntoIterator<Item = (usize, Self::LabelledArcs<'node>)>
     where
         Self: 'node;
 
@@ -141,24 +145,74 @@ impl<P, G: RandomAccessGraph, L> SwhForwardGraph for SwhUnidirectionalGraph<P, L
 impl<P, G: RandomAccessGraph> SwhLabelledForwardGraph
     for SwhUnidirectionalGraph<P, SwhGraphLabels, G>
 {
-    type LabelledSuccessors<'succ> = <Zip<G, SwhGraphLabelsInner> as webgraph::traits::RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
+    type LabelledArcs<'arc> = LabelledArcIterator<'arc> where Self: 'arc;
+    type LabelledSuccessors<'succ> = LabelledSuccessorIterator<'succ, G> where Self: 'succ;
 
     fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
-        let labels: Vec<_> = self.labels.labelling.successors(node_id).collect();
-        for x in labels {
-            println!("succ {:?}", x);
-            for label_id in x {
-                println!(
-                    "label {:?}",
-                    self.labels
-                        .name_labels
-                        .get(label_id as usize / 8)
-                        .as_deref()
-                        .map(String::from_utf8_lossy)
-                );
-            }
+        /*
+        let zipped = webgraph::prelude::Zip(&self.graph, &self.labels.labelling);
+        LabelledSuccessorIterator {
+            labels: &self.labels.name_labels,
+            successors: zipped.successors(node_id).clone(),
         }
-        todo!("return successors");
+        */
+        let zipped = core::iter::zip(
+            self.graph.successors(node_id),
+            self.labels.labelling.successors(node_id),
+        );
+        LabelledSuccessorIterator {
+            labels: &self.labels.name_labels,
+            successors: zipped,
+        }
+    }
+}
+
+pub struct LabelledSuccessorIterator<'a, G: RandomAccessGraph + 'a> {
+    labels: &'a FrontCodedList<Mmap, Mmap>,
+    successors:
+        <Zip<G, SwhGraphLabelsInner> as webgraph::traits::RandomAccessLabelling>::Successors<'a>,
+}
+
+impl<'a, G: RandomAccessGraph> Iterator for LabelledSuccessorIterator<'a, G> {
+    type Item = (NodeId, LabelledArcIterator<'a>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.successors.next().map(|(successor, arc_labels)| {
+            (
+                successor,
+                LabelledArcIterator {
+                    labels: self.labels,
+                    arc_label_ids: arc_labels,
+                    label_index: 0,
+                },
+            )
+        })
+    }
+}
+
+pub struct LabelledArcIterator<'a> {
+    labels: &'a FrontCodedList<Mmap, Mmap>,
+    arc_label_ids: Vec<u64>,
+    label_index: usize,
+}
+
+impl<'a> Iterator for LabelledArcIterator<'a> {
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.arc_label_ids.get(self.label_index).map(|label_id| {
+            log::debug!("label id: {} (0x{:x})", label_id, label_id);
+            if label_id % 8 != 0 {
+                log::error!("Label id {} is not a multiple of 8", label_id);
+            }
+            self.label_index += 1;
+            let label_bytes = self
+                .labels
+                .get(*label_id as usize / 8)
+                .unwrap_or_else(|| panic!("Label id too large: {}", label_id / 8));
+            String::from_utf8(label_bytes)
+                .unwrap_or_else(|e| panic!("Could not decode label {} as UTF-8: {:?}", label_id, e))
+        })
     }
 }
 
