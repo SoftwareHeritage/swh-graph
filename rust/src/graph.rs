@@ -4,6 +4,11 @@
 // See top-level LICENSE file for more information
 
 //! Structures to manipulate the Software Heritage graph
+//!
+//! In order to load only what is necessary, these structures are initially created
+//! by calling [`load_unidirectional`] or [`load_bidirectional`], then calling methods
+//! on them to progressively load additional data (`load_properties`, `load_all_properties`,
+//! `load_labels`)
 
 #![allow(clippy::type_complexity)]
 
@@ -53,6 +58,7 @@ where
 {
     type Graph = Self;
 
+    #[inline(always)]
     fn underlying_graph(&self) -> &Self::Graph {
         self
     }
@@ -66,6 +72,7 @@ where
 impl<G: UnderlyingGraph> UnderlyingLabelling for Zip<G, SwhGraphLabels> {
     type Graph = G;
 
+    #[inline(always)]
     fn underlying_graph(&self) -> &Self::Graph {
         &self.0
     }
@@ -152,7 +159,15 @@ pub trait SwhGraphWithProperties: SwhGraph {
 
 /// Class representing the compressed Software Heritage graph in a single direction.
 ///
-/// Created using [`load_unidirectional`]
+/// Created using [`load_unidirectional`].
+///
+/// Type parameters:
+///
+/// * `P` is either `()` or `properties::SwhGraphProperties`, manipulated using
+///   [`load_properties`](SwhUnidirectionalGraph::load_properties) and
+///   [`load_all_properties`](SwhUnidirectionalGraph::load_all_properties)
+/// * G is the forward graph (either [`BVGraph`], or `Zip<BVGraph, SwhGraphLabels>`
+///   [`load_labels`](SwhUnidirectionalGraph::load_labels)
 pub struct SwhUnidirectionalGraph<P, G: UnderlyingLabelling = DefaultUnderlyingGraph> {
     basepath: PathBuf,
     graph: G,
@@ -329,6 +344,7 @@ impl<
 }
 
 impl<P, G: UnderlyingGraph> SwhUnidirectionalGraph<P, G> {
+    /// Consumes this graph and returns a new one that implements [`SwhLabelledForwardGraph`]
     pub fn load_labels(self) -> Result<SwhUnidirectionalGraph<P, Zip<G, SwhGraphLabels>>> {
         let labels = SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?;
         debug_assert!(webgraph::prelude::Zip(&self.graph, labels).verify());
@@ -348,7 +364,17 @@ impl<P, G: UnderlyingGraph> SwhUnidirectionalGraph<P, G> {
 
 /// Class representing the compressed Software Heritage graph in both directions.
 ///
-/// Created using [`load_bidirectional`]
+/// Created using [`load_bidirectional`].
+///
+/// Type parameters:
+///
+/// * `P` is either `()` or `properties::SwhGraphProperties`, manipulated using
+///   [`load_properties`](SwhBidirectionalGraph::load_properties) and
+///   [`load_all_properties`](SwhBidirectionalGraph::load_all_properties)
+/// * FG is the forward graph (either [`BVGraph`], or `Zip<BVGraph, SwhGraphLabels>`
+///   after using [`load_forward_labels`](SwhBidirectionalGraph::load_forward_labels)
+/// * BG is the backward graph (either [`BVGraph`], or `Zip<BVGraph, SwhGraphLabels>`
+///   after using [`load_backward_labels`](SwhBidirectionalGraph::load_backward_labels)
 pub struct SwhBidirectionalGraph<
     P,
     FG: UnderlyingLabelling = DefaultUnderlyingGraph,
@@ -567,6 +593,7 @@ impl<
 }
 
 impl<P, FG: UnderlyingGraph, BG: UnderlyingLabelling> SwhBidirectionalGraph<P, FG, BG> {
+    /// Consumes this graph and returns a new one that implements [`SwhLabelledForwardGraph`]
     pub fn load_forward_labels(
         self,
     ) -> Result<SwhBidirectionalGraph<P, Zip<FG, SwhGraphLabels>, BG>> {
@@ -588,6 +615,7 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingLabelling> SwhBidirectionalGraph<P, F
 }
 
 impl<P, FG: UnderlyingLabelling, BG: UnderlyingGraph> SwhBidirectionalGraph<P, FG, BG> {
+    /// Consumes this graph and returns a new one that implements [`SwhLabelledBackwardGraph`]
     pub fn load_backward_labels(
         self,
     ) -> Result<SwhBidirectionalGraph<P, FG, Zip<BG, SwhGraphLabels>>> {
@@ -609,6 +637,9 @@ impl<P, FG: UnderlyingLabelling, BG: UnderlyingGraph> SwhBidirectionalGraph<P, F
 }
 
 impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<P, FG, BG> {
+    /// Equivalent to calling both
+    /// [`load_forward_labels`](SwhBidirectionalGraph::load_forward_labels) and
+    /// [`load_backward_labels`](SwhBidirectionalGraph::load_backward_labels)
     pub fn load_labels(
         self,
     ) -> Result<SwhBidirectionalGraph<P, Zip<FG, SwhGraphLabels>, Zip<BG, SwhGraphLabels>>> {
