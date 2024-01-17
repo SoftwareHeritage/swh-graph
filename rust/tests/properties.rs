@@ -13,7 +13,7 @@ use swh_graph::SWHID;
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
-fn graph() -> Result<SwhUnidirectionalGraph<AllSwhGraphProperties<GOVMPH>>> {
+fn graph() -> Result<SwhUnidirectionalGraph<AllSwhGraphProperties<GOVMPH>, ()>> {
     load_unidirectional(PathBuf::from(BASENAME))
         .context("Could not load graph")?
         .load_all_properties()
