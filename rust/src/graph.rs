@@ -14,7 +14,7 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use webgraph::prelude::*;
 use webgraph::EF;
 //use webgraph::traits::{RandomAccessGraph, SequentialGraph};
@@ -346,15 +346,11 @@ impl<
 impl<P, G: UnderlyingGraph> SwhUnidirectionalGraph<P, G> {
     /// Consumes this graph and returns a new one that implements [`SwhLabelledForwardGraph`]
     pub fn load_labels(self) -> Result<SwhUnidirectionalGraph<P, Zip<G, SwhGraphLabels>>> {
-        let labelling_path = suffix_path(&self.basepath, "-labelled");
-        let labels = SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
-            format!("Could not load labelling from {}", labelling_path.display())
-        })?;
-        debug_assert!(webgraph::prelude::Zip(&self.graph, &labels).verify());
         Ok(SwhUnidirectionalGraph {
+            graph: zip_labels(self.graph, suffix_path(&self.basepath, "-labelled"))
+                .context("Could not load forward labels")?,
             properties: self.properties,
             basepath: self.basepath,
-            graph: Zip(self.graph, labels),
         })
     }
 }
@@ -594,16 +590,12 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingLabelling> SwhBidirectionalGraph<P, F
     pub fn load_forward_labels(
         self,
     ) -> Result<SwhBidirectionalGraph<P, Zip<FG, SwhGraphLabels>, BG>> {
-        let labelling_path = suffix_path(&self.basepath, "-labelled");
-        let labels = SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
-            format!("Could not load labelling from {}", labelling_path.display())
-        })?;
-        debug_assert!(webgraph::prelude::Zip(&self.forward_graph, &labels).verify());
         Ok(SwhBidirectionalGraph {
+            forward_graph: zip_labels(self.forward_graph, suffix_path(&self.basepath, "-labelled"))
+                .context("Could not load forward labels")?,
+            backward_graph: self.backward_graph,
             properties: self.properties,
             basepath: self.basepath,
-            forward_graph: Zip(self.forward_graph, labels),
-            backward_graph: self.backward_graph,
         })
     }
 }
@@ -613,16 +605,15 @@ impl<P, FG: UnderlyingLabelling, BG: UnderlyingGraph> SwhBidirectionalGraph<P, F
     pub fn load_backward_labels(
         self,
     ) -> Result<SwhBidirectionalGraph<P, FG, Zip<BG, SwhGraphLabels>>> {
-        let labelling_path = suffix_path(&self.basepath, "-transposed-labelled");
-        let labels = SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
-            format!("Could not load labelling from {}", labelling_path.display())
-        })?;
-        debug_assert!(webgraph::prelude::Zip(&self.backward_graph, &labels).verify());
         Ok(SwhBidirectionalGraph {
+            forward_graph: self.forward_graph,
+            backward_graph: zip_labels(
+                self.backward_graph,
+                suffix_path(&self.basepath, "-transposed-labelled"),
+            )
+            .context("Could not load backward labels")?,
             properties: self.properties,
             basepath: self.basepath,
-            forward_graph: self.forward_graph,
-            backward_graph: Zip(self.backward_graph, labels),
         })
     }
 }
@@ -699,4 +690,47 @@ pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectional
         backward_graph,
         properties: (),
     })
+}
+
+fn zip_labels<G: UnderlyingGraph, P: AsRef<Path>>(
+    graph: G,
+    base_path: P,
+) -> Result<Zip<G, SwhGraphLabels>> {
+    let properties_path = suffix_path(&base_path, ".properties");
+    let f = std::fs::File::open(&properties_path)
+        .with_context(|| format!("Could not open {}", properties_path.display()))?;
+    let map = java_properties::read(std::io::BufReader::new(f))?;
+
+    let graphclass = map
+        .get("graphclass")
+        .with_context(|| format!("Missing 'graphclass' from {}", properties_path.display()))?;
+    if graphclass != "it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph" {
+        bail!(
+            "Expected graphclass in {} to be \"it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph\", got {:?}",
+            properties_path.display(),
+            graphclass
+        );
+    }
+
+    let labelspec = map
+        .get("labelspec")
+        .with_context(|| format!("Missing 'labelspec' from {}", properties_path.display()))?;
+    let width = labelspec
+        .strip_prefix("org.softwareheritage.graph.labels.SwhLabel(DirEntry,")
+        .and_then(|labelspec| labelspec.strip_suffix(")"))
+        .and_then(|labelspec| labelspec.parse::<usize>().ok());
+    let width = match width {
+        None =>
+        bail!("Expected labelspec in {} to be \"org.softwareheritage.graph.labels.SwhLabel(DirEntry,<integer>)\" (where <integer> is a small integer, usually under 30), got {:?}", properties_path.display(), labelspec),
+        Some(width) => width
+    };
+
+    let labels = SwhLabels::load_from_file(width, &base_path).with_context(|| {
+        format!(
+            "Could not load labelling from {}",
+            base_path.as_ref().display()
+        )
+    })?;
+    debug_assert!(webgraph::prelude::Zip(&graph, &labels).verify());
+    Ok(Zip(graph, labels))
 }
