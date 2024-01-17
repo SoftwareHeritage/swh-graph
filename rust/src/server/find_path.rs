@@ -349,11 +349,27 @@ where
         };
 
         let graph = self.service.graph().clone();
+        let transpose_graph = Arc::new(Transposed(graph.clone()));
 
-        let arc_checker = ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
-        let node_builder = NodeBuilder::new(
+        let forward_arc_checker =
+            ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
+        let backward_arc_checker =
+            ArcFilterChecker::new(transpose_graph.clone(), request.get_ref().edges.clone())?;
+        let forward_node_builder = NodeBuilder::new(
             graph.clone(),
-            arc_checker,
+            forward_arc_checker,
+            mask.clone().map(|mask| prost_types::FieldMask {
+                paths: mask
+                    .paths
+                    .iter()
+                    .flat_map(|field| field.strip_prefix("node."))
+                    .map(|field| field.to_owned())
+                    .collect(),
+            }),
+        )?;
+        let backward_node_builder = NodeBuilder::new(
+            transpose_graph.clone(),
+            backward_arc_checker,
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask
                     .paths
@@ -517,7 +533,12 @@ where
                     )?
                     .into_iter()
                     .rev() // Reverse order to be src->midpoint
-                    .map(|node_id| node_builder.build_node(node_id)),
+                    .map(|node_id| match direction {
+                        proto::GraphDirection::Forward => forward_node_builder.build_node(node_id),
+                        proto::GraphDirection::Backward => {
+                            backward_node_builder.build_node(node_id)
+                        }
+                    }),
                 );
                 let midpoint_index = path.len() - 1;
                 path.extend(
@@ -528,7 +549,12 @@ where
                     )?
                     .into_iter()
                     .skip(1)
-                    .map(|node_id| node_builder.build_node(node_id)),
+                    .map(|node_id| match direction {
+                        proto::GraphDirection::Forward => forward_node_builder.build_node(node_id),
+                        proto::GraphDirection::Backward => {
+                            backward_node_builder.build_node(node_id)
+                        }
+                    }),
                 );
 
                 Ok(Response::new(proto::Path {
