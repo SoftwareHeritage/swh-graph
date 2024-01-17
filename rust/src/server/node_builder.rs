@@ -7,7 +7,7 @@ use std::ops::Deref;
 
 use super::filters::ArcFilterChecker;
 use super::proto;
-use crate::graph::{SwhForwardGraph, SwhGraphWithProperties};
+use crate::graph::{SwhForwardGraph, SwhGraphWithProperties, SwhLabelledForwardGraph};
 use crate::properties;
 use crate::SWHType;
 
@@ -19,10 +19,13 @@ use crate::SWHType;
 /// "successor.label").
 #[rustfmt::skip]
 mod node_builder_bitmasks {
-    //                                                                             xx
-    pub const SUCCESSOR: u32 =                  0b00000000_00000000_00000000_00000011;
+    //                                                                            xxx
+    pub const SUCCESSOR: u32 =                  0b00000000_00000000_00000000_00000111;
     pub const SUCCESSOR_SWHID: u32 =            0b00000000_00000000_00000000_00000001;
-    pub const _SUCCESSOR_LABEL: u32 =           0b00000000_00000000_00000000_00000010;
+
+    pub const SUCCESSOR_LABEL: u32 =            0b00000000_00000000_00000000_00000110;
+    pub const SUCCESSOR_LABEL_NAME: u32 =       0b00000000_00000000_00000000_00000010;
+    pub const SUCCESSOR_LABEL_PERMISSION: u32 = 0b00000000_00000000_00000000_00000100;
 
     //                                                                          x
     pub const NUM_SUCCESSORS: u32 =             0b00000000_00000000_00000000_00010000;
@@ -69,12 +72,13 @@ pub struct NodeBuilder<G: Deref + Clone + Send + Sync + 'static> {
 
 impl<G: Deref + Clone + Send + Sync + 'static> NodeBuilder<G>
 where
-    G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
+    G::Target: SwhLabelledForwardGraph + SwhGraphWithProperties + Sized,
     <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait,
     <G::Target as SwhGraphWithProperties>::Timestamps: properties::TimestampsTrait,
     <G::Target as SwhGraphWithProperties>::Persons: properties::PersonsTrait,
     <G::Target as SwhGraphWithProperties>::Contents: properties::ContentsTrait,
     <G::Target as SwhGraphWithProperties>::Strings: properties::StringsTrait,
+    <G::Target as SwhGraphWithProperties>::LabelNames: properties::LabelNamesTrait,
 {
     pub fn new(
         graph: G,
@@ -100,11 +104,9 @@ where
                 "swhid" => 0,
                 "successor" => SUCCESSOR,
                 "successor.swhid" => SUCCESSOR_SWHID,
-                "successor.label" => {
-                    return Err(tonic::Status::unimplemented(
-                        "edge labels are not implemented yet",
-                    ));
-                }
+                "successor.label" => SUCCESSOR_LABEL,
+                "successor.label.name" => SUCCESSOR_LABEL_NAME,
+                "successor.label.permission" => SUCCESSOR_LABEL_PERMISSION,
                 "num_successors" => NUM_SUCCESSORS,
                 "cnt" => CNT,
                 "cnt.length" => CNT_LENGTH,
@@ -137,17 +139,48 @@ where
 
     pub fn build_node(&self, node_id: usize) -> proto::Node {
         let successors: Vec<_> = self.if_mask(SUCCESSOR, || {
-            self.graph
-                .successors(node_id)
-                .into_iter()
-                .filter(|&succ| self.arc_filter.matches(node_id, succ))
-                .map(|succ| proto::Successor {
-                    swhid: self.if_mask(SUCCESSOR_SWHID, || {
-                        Some(self.graph.properties().swhid(succ)?.to_string())
-                    }),
-                    label: Vec::new(), // Not implemented yet
-                })
-                .collect()
+            if self.bitmask & SUCCESSOR_LABEL != 0 {
+                self.graph
+                    .labelled_successors(node_id)
+                    .into_iter()
+                    .filter(|(succ, _labels)| self.arc_filter.matches(node_id, *succ))
+                    .map(|(succ, labels)| proto::Successor {
+                        swhid: self.if_mask(SUCCESSOR_SWHID, || {
+                            Some(self.graph.properties().swhid(succ)?.to_string())
+                        }),
+                        label: labels
+                            .into_iter()
+                            .map(|label: crate::labels::DirEntry| proto::EdgeLabel {
+                                name: self.if_mask(SUCCESSOR_LABEL_NAME, || {
+                                    self.graph
+                                        .properties()
+                                        .label_name(label.filename_id())
+                                        .unwrap_or_else(Vec::new)
+                                }),
+                                permission: self.if_mask(SUCCESSOR_LABEL_PERMISSION, || {
+                                    label
+                                        .permission()
+                                        .unwrap_or(crate::labels::Permission::None)
+                                        .to_git()
+                                        .into()
+                                }),
+                            })
+                            .collect(),
+                    })
+                    .collect()
+            } else {
+                self.graph
+                    .successors(node_id)
+                    .into_iter()
+                    .filter(|succ| self.arc_filter.matches(node_id, *succ))
+                    .map(|succ| proto::Successor {
+                        swhid: self.if_mask(SUCCESSOR_SWHID, || {
+                            Some(self.graph.properties().swhid(succ)?.to_string())
+                        }),
+                        label: Vec::new(), // Not requested
+                    })
+                    .collect()
+            }
         });
         proto::Node {
             // TODO: omit swhid if excluded from field mask

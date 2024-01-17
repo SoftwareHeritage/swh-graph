@@ -37,6 +37,11 @@ pub async fn main() -> Result<()> {
         .load_all_properties::<swh_graph::mph::DynMphf>()
         .context("Could not load graph properties")?;
 
+    log::info!("Loading labels");
+    let graph = graph
+        .load_labels()
+        .context("Could not load labelled graph")?;
+
     log::info!("Starting server");
     swh_graph::server::serve(graph, args.bind).await?;
 

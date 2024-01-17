@@ -13,10 +13,8 @@ use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::Server;
 use tonic::{Request, Response};
 
-use crate::graph::{SwhBidirectionalGraph, SwhGraph, SwhGraphWithProperties};
-use crate::mph::SwhidMphf;
+use crate::graph::{SwhGraphWithProperties, SwhLabelledBackwardGraph, SwhLabelledForwardGraph};
 use crate::utils::suffix_path;
-use crate::AllSwhGraphProperties;
 
 pub mod proto {
     tonic::include_proto!("swh.graph");
@@ -33,12 +31,44 @@ pub mod visitor;
 
 type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
-pub struct TraversalService<MPHF: SwhidMphf>(
-    Arc<SwhBidirectionalGraph<AllSwhGraphProperties<MPHF>>>,
-);
+pub struct TraversalService<
+    G: SwhGraphWithProperties
+        + SwhLabelledBackwardGraph
+        + SwhLabelledForwardGraph
+        + Send
+        + Sync
+        + 'static,
+>(Arc<G>);
 
-impl<MPHF: SwhidMphf> TraversalService<MPHF> {
-    fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status> {
+pub trait TraversalServiceTrait {
+    type Graph: SwhGraphWithProperties
+        + SwhLabelledBackwardGraph
+        + SwhLabelledForwardGraph
+        + Send
+        + Sync
+        + 'static;
+    fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status>
+    where
+        <Self::Graph as SwhGraphWithProperties>::Maps: crate::properties::MapsTrait;
+    fn graph(&self) -> &Arc<Self::Graph>;
+}
+
+impl<
+        G: SwhGraphWithProperties
+            + SwhLabelledBackwardGraph
+            + SwhLabelledForwardGraph
+            + Send
+            + Sync
+            + 'static,
+    > TraversalServiceTrait for TraversalService<G>
+{
+    type Graph = G;
+
+    #[inline]
+    fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status>
+    where
+        <G as SwhGraphWithProperties>::Maps: crate::properties::MapsTrait,
+    {
         let swhid: crate::SWHID = swhid
             .try_into()
             .map_err(|e| tonic::Status::invalid_argument(format!("Invalid SWHID: {e}")))?;
@@ -47,11 +77,29 @@ impl<MPHF: SwhidMphf> TraversalService<MPHF> {
             .node_id(swhid)
             .ok_or_else(|| tonic::Status::not_found(format!("Unknown SWHID: {swhid}")))
     }
+
+    #[inline(always)]
+    fn graph(&self) -> &Arc<Self::Graph> {
+        &self.0
+    }
 }
 
 #[tonic::async_trait]
-impl<MPHF: SwhidMphf + Sync + Send + 'static> proto::traversal_service_server::TraversalService
-    for TraversalService<MPHF>
+impl<
+        G: SwhGraphWithProperties
+            + SwhLabelledBackwardGraph
+            + SwhLabelledForwardGraph
+            + Send
+            + Sync
+            + 'static,
+    > proto::traversal_service_server::TraversalService for TraversalService<G>
+where
+    <G as SwhGraphWithProperties>::Maps: crate::properties::MapsTrait,
+    <G as SwhGraphWithProperties>::Timestamps: crate::properties::TimestampsTrait,
+    <G as SwhGraphWithProperties>::Persons: crate::properties::PersonsTrait,
+    <G as SwhGraphWithProperties>::Contents: crate::properties::ContentsTrait,
+    <G as SwhGraphWithProperties>::Strings: crate::properties::StringsTrait,
+    <G as SwhGraphWithProperties>::LabelNames: crate::properties::LabelNamesTrait,
 {
     async fn get_node(&self, request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
         let arc_checker = filters::ArcFilterChecker::new(self.0.clone(), None)?;
@@ -227,10 +275,25 @@ where
         })
 }
 
-pub async fn serve<MPHF: SwhidMphf + Send + Sync + 'static>(
-    graph: SwhBidirectionalGraph<AllSwhGraphProperties<MPHF>>,
+pub async fn serve<
+    G: SwhGraphWithProperties
+        + SwhLabelledForwardGraph
+        + SwhLabelledBackwardGraph
+        + Sync
+        + Send
+        + 'static,
+>(
+    graph: G,
     bind_addr: std::net::SocketAddr,
-) -> Result<(), tonic::transport::Error> {
+) -> Result<(), tonic::transport::Error>
+where
+    <G as SwhGraphWithProperties>::Maps: crate::properties::MapsTrait,
+    <G as SwhGraphWithProperties>::Timestamps: crate::properties::TimestampsTrait,
+    <G as SwhGraphWithProperties>::Persons: crate::properties::PersonsTrait,
+    <G as SwhGraphWithProperties>::Contents: crate::properties::ContentsTrait,
+    <G as SwhGraphWithProperties>::Strings: crate::properties::StringsTrait,
+    <G as SwhGraphWithProperties>::LabelNames: crate::properties::LabelNamesTrait,
+{
     let graph = Arc::new(graph);
     Server::builder()
         .add_service(

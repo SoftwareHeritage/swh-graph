@@ -341,18 +341,15 @@ impl<
 impl<P, G: UnderlyingGraph> SwhUnidirectionalGraph<P, G> {
     /// Consumes this graph and returns a new one that implements [`SwhLabelledForwardGraph`]
     pub fn load_labels(self) -> Result<SwhUnidirectionalGraph<P, Zip<G, SwhGraphLabels>>> {
-        let labels = SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?;
-        debug_assert!(webgraph::prelude::Zip(&self.graph, labels).verify());
         let labelling_path = suffix_path(&self.basepath, "-labelled");
+        let labels = SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
+            format!("Could not load labelling from {}", labelling_path.display())
+        })?;
+        debug_assert!(webgraph::prelude::Zip(&self.graph, &labels).verify());
         Ok(SwhUnidirectionalGraph {
             properties: self.properties,
             basepath: self.basepath,
-            graph: Zip(
-                self.graph,
-                SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
-                    format!("Could not load labelling from {}", labelling_path.display())
-                })?,
-            ),
+            graph: Zip(self.graph, labels),
         })
     }
 }
@@ -592,18 +589,15 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingLabelling> SwhBidirectionalGraph<P, F
     pub fn load_forward_labels(
         self,
     ) -> Result<SwhBidirectionalGraph<P, Zip<FG, SwhGraphLabels>, BG>> {
-        let labels = SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?;
-        debug_assert!(webgraph::prelude::Zip(&self.forward_graph, labels).verify());
         let labelling_path = suffix_path(&self.basepath, "-labelled");
+        let labels = SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
+            format!("Could not load labelling from {}", labelling_path.display())
+        })?;
+        debug_assert!(webgraph::prelude::Zip(&self.forward_graph, &labels).verify());
         Ok(SwhBidirectionalGraph {
             properties: self.properties,
             basepath: self.basepath,
-            forward_graph: Zip(
-                self.forward_graph,
-                SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
-                    format!("Could not load labelling from {}", labelling_path.display())
-                })?,
-            ),
+            forward_graph: Zip(self.forward_graph, labels),
             backward_graph: self.backward_graph,
         })
     }
@@ -614,19 +608,16 @@ impl<P, FG: UnderlyingLabelling, BG: UnderlyingGraph> SwhBidirectionalGraph<P, F
     pub fn load_backward_labels(
         self,
     ) -> Result<SwhBidirectionalGraph<P, FG, Zip<BG, SwhGraphLabels>>> {
-        let labels = SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?;
-        debug_assert!(webgraph::prelude::Zip(&self.backward_graph, labels).verify());
         let labelling_path = suffix_path(&self.basepath, "-transposed-labelled");
+        let labels = SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
+            format!("Could not load labelling from {}", labelling_path.display())
+        })?;
+        debug_assert!(webgraph::prelude::Zip(&self.backward_graph, &labels).verify());
         Ok(SwhBidirectionalGraph {
             properties: self.properties,
             basepath: self.basepath,
             forward_graph: self.forward_graph,
-            backward_graph: Zip(
-                self.backward_graph,
-                SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
-                    format!("Could not load labelling from {}", labelling_path.display())
-                })?,
-            ),
+            backward_graph: Zip(self.backward_graph, labels),
         })
     }
 }
