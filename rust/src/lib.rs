@@ -10,6 +10,7 @@ mod swhtype;
 pub use swhtype::SWHType;
 
 pub mod graph;
+pub mod labels;
 pub mod map;
 pub mod mph;
 mod properties;

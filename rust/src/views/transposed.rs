@@ -66,6 +66,7 @@ where
     type Persons = <<G as Deref>::Target as SwhGraphWithProperties>::Persons;
     type Contents = <<G as Deref>::Target as SwhGraphWithProperties>::Contents;
     type Strings = <<G as Deref>::Target as SwhGraphWithProperties>::Strings;
+    type LabelNames = <<G as Deref>::Target as SwhGraphWithProperties>::LabelNames;
 
     fn properties(
         &self,
@@ -75,6 +76,7 @@ where
         Self::Persons,
         Self::Contents,
         Self::Strings,
+        Self::LabelNames,
     > {
         self.0.properties()
     }

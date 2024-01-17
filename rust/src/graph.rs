@@ -10,13 +10,12 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use mmap_rs::Mmap;
 use webgraph::prelude::*;
 //use webgraph::traits::{RandomAccessGraph, SequentialGraph};
 use webgraph::label::swh_labels::{MmapReaderBuilder, SwhLabels};
 use webgraph::EF;
 
-use crate::java_compat::fcl::FrontCodedList;
+use crate::labels::DirEntry;
 use crate::mph::SwhidMphf;
 use crate::properties;
 use crate::utils::suffix_path;
@@ -25,10 +24,7 @@ use crate::utils::suffix_path;
 pub type NodeId = usize;
 
 type SwhGraphLabelsInner = SwhLabels<MmapReaderBuilder, EF<&'static [usize], &'static [u64]>>;
-pub struct SwhGraphLabels {
-    labelling: SwhGraphLabelsInner,
-    name_labels: FrontCodedList<Mmap, Mmap>,
-}
+pub struct SwhGraphLabels(SwhGraphLabelsInner);
 
 pub trait SwhGraph {
     /// Return the base path of the graph
@@ -53,7 +49,7 @@ pub trait SwhForwardGraph: SwhGraph {
 }
 
 pub trait SwhLabelledForwardGraph: SwhForwardGraph {
-    type LabelledArcs<'arc>: IntoIterator<Item = String>
+    type LabelledArcs<'arc>: IntoIterator<Item = DirEntry>
     where
         Self: 'arc;
     type LabelledSuccessors<'node>: IntoIterator<Item = (usize, Self::LabelledArcs<'node>)>
@@ -81,6 +77,7 @@ pub trait SwhGraphWithProperties: SwhGraph {
     type Persons: properties::PersonsOption;
     type Contents: properties::ContentsOption;
     type Strings: properties::StringsOption;
+    type LabelNames: properties::LabelNamesOption;
 
     fn properties(
         &self,
@@ -90,6 +87,7 @@ pub trait SwhGraphWithProperties: SwhGraph {
         Self::Persons,
         Self::Contents,
         Self::Strings,
+        Self::LabelNames,
     >;
 }
 
@@ -145,43 +143,37 @@ impl<P, G: RandomAccessGraph, L> SwhForwardGraph for SwhUnidirectionalGraph<P, L
 impl<P, G: RandomAccessGraph> SwhLabelledForwardGraph
     for SwhUnidirectionalGraph<P, SwhGraphLabels, G>
 {
-    type LabelledArcs<'arc> = LabelledArcIterator<'arc> where Self: 'arc;
+    type LabelledArcs<'arc> = LabelledArcIterator where Self: 'arc;
     type LabelledSuccessors<'succ> = LabelledSuccessorIterator<'succ, G> where Self: 'succ;
 
     fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
         /*
         let zipped = webgraph::prelude::Zip(&self.graph, &self.labels.labelling);
         LabelledSuccessorIterator {
-            labels: &self.labels.name_labels,
             successors: zipped.successors(node_id).clone(),
         }
         */
         let zipped = core::iter::zip(
             self.graph.successors(node_id),
-            self.labels.labelling.successors(node_id),
+            self.labels.0.successors(node_id),
         );
-        LabelledSuccessorIterator {
-            labels: &self.labels.name_labels,
-            successors: zipped,
-        }
+        LabelledSuccessorIterator { successors: zipped }
     }
 }
 
 pub struct LabelledSuccessorIterator<'a, G: RandomAccessGraph + 'a> {
-    labels: &'a FrontCodedList<Mmap, Mmap>,
     successors:
         <Zip<G, SwhGraphLabelsInner> as webgraph::traits::RandomAccessLabelling>::Successors<'a>,
 }
 
 impl<'a, G: RandomAccessGraph> Iterator for LabelledSuccessorIterator<'a, G> {
-    type Item = (NodeId, LabelledArcIterator<'a>);
+    type Item = (NodeId, LabelledArcIterator);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.successors.next().map(|(successor, arc_labels)| {
             (
                 successor,
                 LabelledArcIterator {
-                    labels: self.labels,
                     arc_label_ids: arc_labels,
                     label_index: 0,
                 },
@@ -190,28 +182,18 @@ impl<'a, G: RandomAccessGraph> Iterator for LabelledSuccessorIterator<'a, G> {
     }
 }
 
-pub struct LabelledArcIterator<'a> {
-    labels: &'a FrontCodedList<Mmap, Mmap>,
+pub struct LabelledArcIterator {
     arc_label_ids: Vec<u64>,
     label_index: usize,
 }
 
-impl<'a> Iterator for LabelledArcIterator<'a> {
-    type Item = String;
+impl<'a> Iterator for LabelledArcIterator {
+    type Item = DirEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.arc_label_ids.get(self.label_index).map(|label_id| {
-            log::debug!("label id: {} (0x{:x})", label_id, label_id);
-            if label_id % 8 != 0 {
-                log::error!("Label id {} is not a multiple of 8", label_id);
-            }
+        self.arc_label_ids.get(self.label_index).map(|label| {
             self.label_index += 1;
-            let label_bytes = self
-                .labels
-                .get(*label_id as usize / 8)
-                .unwrap_or_else(|| panic!("Label id too large: {}", label_id / 8));
-            String::from_utf8(label_bytes)
-                .unwrap_or_else(|e| panic!("Could not decode label {} as UTF-8: {:?}", label_id, e))
+            DirEntry::from(*label)
         })
     }
 }
@@ -222,9 +204,10 @@ impl<
         P: properties::PersonsOption,
         C: properties::ContentsOption,
         S: properties::StringsOption,
+        N: properties::LabelNamesOption,
         G: RandomAccessGraph,
         L,
-    > SwhUnidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S>, L, G>
+    > SwhUnidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S, N>, L, G>
 {
     /// Enriches the graph with more properties mmapped from disk
     ///
@@ -248,12 +231,13 @@ impl<
         P2: properties::PersonsOption,
         C2: properties::ContentsOption,
         S2: properties::StringsOption,
+        N2: properties::LabelNamesOption,
     >(
         self,
         loader: impl Fn(
-            properties::SwhGraphProperties<M, T, P, C, S>,
-        ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2>>,
-    ) -> Result<SwhUnidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2>, L, G>>
+            properties::SwhGraphProperties<M, T, P, C, S, N>,
+        ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>>,
+    ) -> Result<SwhUnidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>, L, G>>
     {
         Ok(SwhUnidirectionalGraph {
             properties: loader(self.properties)?,
@@ -268,7 +252,7 @@ impl<G: RandomAccessGraph, L> SwhUnidirectionalGraph<(), L, G> {
     /// Prerequisite for `load_properties`
     pub fn init_properties(
         self,
-    ) -> SwhUnidirectionalGraph<properties::SwhGraphProperties<(), (), (), (), ()>, L, G> {
+    ) -> SwhUnidirectionalGraph<properties::SwhGraphProperties<(), (), (), (), (), ()>, L, G> {
         SwhUnidirectionalGraph {
             properties: properties::SwhGraphProperties::new(&self.basepath, self.graph.num_nodes()),
             labels: self.labels,
@@ -300,6 +284,7 @@ impl<G: RandomAccessGraph, L> SwhUnidirectionalGraph<(), L, G> {
                 properties::Persons,
                 properties::Contents,
                 properties::Strings,
+                properties::LabelNames,
             >,
             L,
             G,
@@ -316,11 +301,12 @@ impl<
         PERSONS: properties::PersonsOption,
         CONTENTS: properties::ContentsOption,
         STRINGS: properties::StringsOption,
+        LABELNAMES: properties::LabelNamesOption,
         L,
         G: RandomAccessGraph,
     > SwhGraphWithProperties
     for SwhUnidirectionalGraph<
-        properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>,
+        properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
         L,
         G,
     >
@@ -330,10 +316,12 @@ impl<
     type Persons = PERSONS;
     type Contents = CONTENTS;
     type Strings = STRINGS;
+    type LabelNames = LABELNAMES;
 
     fn properties(
         &self,
-    ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS> {
+    ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
+    {
         &self.properties
     }
 }
@@ -343,17 +331,11 @@ impl<P, G: RandomAccessGraph> SwhUnidirectionalGraph<P, (), G> {
         let labels = SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?;
         debug_assert!(webgraph::prelude::Zip(&self.graph, labels).verify());
         let labelling_path = suffix_path(&self.basepath, "-labelled");
-        let labels_path = suffix_path(&self.basepath, ".labels.fcl");
         Ok(SwhUnidirectionalGraph {
             properties: self.properties,
-            labels: SwhGraphLabels {
-                labelling: SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
-                    format!("Could not load labelling from {}", labelling_path.display())
-                })?,
-                name_labels: FrontCodedList::load(&labels_path).with_context(|| {
-                    format!("Could not load labels from {}", labels_path.display())
-                })?,
-            },
+            labels: SwhGraphLabels(SwhLabels::load_from_file(7, &labelling_path).with_context(
+                || format!("Could not load labelling from {}", labelling_path.display()),
+            )?),
             basepath: self.basepath,
             graph: self.graph,
         })
@@ -422,8 +404,9 @@ impl<
         P: properties::PersonsOption,
         C: properties::ContentsOption,
         S: properties::StringsOption,
+        N: properties::LabelNamesOption,
         G: RandomAccessGraph,
-    > SwhBidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S>, G>
+    > SwhBidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S, N>, G>
 {
     /// Enriches the graph with more properties mmapped from disk
     ///
@@ -448,12 +431,14 @@ impl<
         P2: properties::PersonsOption,
         C2: properties::ContentsOption,
         S2: properties::StringsOption,
+        N2: properties::LabelNamesOption,
     >(
         self,
         loader: impl Fn(
-            properties::SwhGraphProperties<M, T, P, C, S>,
-        ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2>>,
-    ) -> Result<SwhBidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2>, G>> {
+            properties::SwhGraphProperties<M, T, P, C, S, N>,
+        ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>>,
+    ) -> Result<SwhBidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>, G>>
+    {
         Ok(SwhBidirectionalGraph {
             properties: loader(self.properties)?,
             basepath: self.basepath,
@@ -467,7 +452,7 @@ impl<G: RandomAccessGraph> SwhBidirectionalGraph<(), G> {
     /// Prerequisite for `load_properties`
     pub fn init_properties(
         self,
-    ) -> SwhBidirectionalGraph<properties::SwhGraphProperties<(), (), (), (), ()>, G> {
+    ) -> SwhBidirectionalGraph<properties::SwhGraphProperties<(), (), (), (), (), ()>, G> {
         SwhBidirectionalGraph {
             properties: properties::SwhGraphProperties::new(
                 &self.basepath,
@@ -502,6 +487,7 @@ impl<G: RandomAccessGraph> SwhBidirectionalGraph<(), G> {
                 properties::Persons,
                 properties::Contents,
                 properties::Strings,
+                properties::LabelNames,
             >,
             G,
         >,
@@ -517,10 +503,11 @@ impl<
         PERSONS: properties::PersonsOption,
         CONTENTS: properties::ContentsOption,
         STRINGS: properties::StringsOption,
+        LABELNAMES: properties::LabelNamesOption,
         G: RandomAccessGraph,
     > SwhGraphWithProperties
     for SwhBidirectionalGraph<
-        properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>,
+        properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
         G,
     >
 {
@@ -529,10 +516,12 @@ impl<
     type Persons = PERSONS;
     type Contents = CONTENTS;
     type Strings = STRINGS;
+    type LabelNames = LABELNAMES;
 
     fn properties(
         &self,
-    ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS> {
+    ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
+    {
         &self.properties
     }
 }

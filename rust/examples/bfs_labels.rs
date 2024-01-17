@@ -29,6 +29,8 @@ pub fn main() -> Result<()> {
         .init_properties()
         .load_properties(|properties| properties.load_maps::<GOVMPH>())
         .context("Could not load graph properties")?
+        .load_properties(|properties| properties.load_label_names())
+        .context("Could not load label names")?
         .load_labels()
         .context("Could not load labels")?;
 
@@ -70,7 +72,8 @@ pub fn main() -> Result<()> {
         while let Some((succ, labels)) = successors.next() {
             debug!("Successor: {}", graph.properties().swhid(succ).unwrap());
             for label in labels {
-                debug!("  has label: {}", label);
+                let filename = graph.properties().label_name(label.filename_id()).unwrap();
+                debug!("  has label: {}", String::from_utf8_lossy(&filename));
             }
             if !visited[succ] {
                 queue.push_back(succ);
