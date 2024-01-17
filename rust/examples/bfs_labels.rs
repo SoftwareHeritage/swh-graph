@@ -73,7 +73,11 @@ pub fn main() -> Result<()> {
             debug!("  Successor: {}", graph.properties().swhid(succ).unwrap());
             for label in labels {
                 let filename = graph.properties().label_name(label.filename_id()).unwrap();
-                debug!("    has label: {}", String::from_utf8_lossy(&filename));
+                debug!(
+                    "    has name {:?} and perm {:?}",
+                    String::from_utf8_lossy(&filename),
+                    label.permission().unwrap()
+                );
             }
             if !visited[succ] {
                 queue.push_back(succ);

@@ -15,6 +15,7 @@ impl From<u64> for DirEntry {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct FilenameId(pub u64);
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum Permission {
     None = 0,
