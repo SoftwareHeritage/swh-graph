@@ -6,7 +6,6 @@
 import hashlib
 
 from google.protobuf.field_mask_pb2 import FieldMask
-import pytest
 
 from swh.graph.grpc.swhgraph_pb2 import (
     ContentData,
@@ -30,7 +29,14 @@ TEST_ORIGIN_ID2 = "swh:1:ori:{}".format(
 
 def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementation):
     if graph_grpc_backend_implementation == "rust":
-        raise pytest.skip("Labels are not supported by the Rust backend yet")
+        cnt = rev = rel = ori = None
+    else:
+        # FIXME: These should be None in the Java backend when not requested
+        cnt = ContentData()
+        rev = RevisionData()
+        rel = ReleaseData()
+        ori = OriginData()
+
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=[TEST_ORIGIN_ID],
@@ -42,22 +48,22 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
         Node(
             swhid="swh:1:cnt:0000000000000000000000000000000000000001",
             successor=None,
-            cnt=ContentData(),
+            cnt=cnt,
         ),
         Node(
             swhid="swh:1:cnt:0000000000000000000000000000000000000004",
             successor=None,
-            cnt=ContentData(),
+            cnt=cnt,
         ),
         Node(
             swhid="swh:1:cnt:0000000000000000000000000000000000000005",
             successor=None,
-            cnt=ContentData(),
+            cnt=cnt,
         ),
         Node(
             swhid="swh:1:cnt:0000000000000000000000000000000000000007",
             successor=None,
-            cnt=ContentData(),
+            cnt=cnt,
         ),
         Node(
             swhid="swh:1:dir:0000000000000000000000000000000000000002",
@@ -106,7 +112,7 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
                     label=[],
                 ),
             ],
-            ori=OriginData(),
+            ori=ori,
         ),
         Node(
             swhid="swh:1:rel:0000000000000000000000000000000000000010",
@@ -116,7 +122,7 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
                     label=[],
                 ),
             ],
-            rel=ReleaseData(),
+            rel=rel,
         ),
         Node(
             swhid="swh:1:rev:0000000000000000000000000000000000000003",
@@ -126,7 +132,7 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
                     label=[],
                 ),
             ],
-            rev=RevisionData(),
+            rev=rev,
         ),
         Node(
             swhid="swh:1:rev:0000000000000000000000000000000000000009",
@@ -140,7 +146,7 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
                     label=[],
                 ),
             ],
-            rev=RevisionData(),
+            rev=rev,
         ),
         Node(
             swhid="swh:1:snp:0000000000000000000000000000000000000020",
@@ -169,7 +175,14 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
 
 def test_traverse_backward_labels(graph_grpc_stub, graph_grpc_backend_implementation):
     if graph_grpc_backend_implementation == "rust":
-        raise pytest.skip("Labels are not supported by the Rust backend yet")
+        cnt = rev = rel = ori = None
+    else:
+        # FIXME: These should be None in the Java backend when not requested
+        cnt = ContentData()
+        rev = RevisionData()
+        rel = ReleaseData()
+        ori = OriginData()
+
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:cnt:0000000000000000000000000000000000000015"],
@@ -186,7 +199,7 @@ def test_traverse_backward_labels(graph_grpc_stub, graph_grpc_backend_implementa
                     label=[EdgeLabel(name=b"TODO.txt", permission=0o100644)],
                 )
             ],
-            cnt=ContentData(),
+            cnt=cnt,
         ),
         Node(
             swhid="swh:1:dir:0000000000000000000000000000000000000016",
@@ -209,12 +222,12 @@ def test_traverse_backward_labels(graph_grpc_stub, graph_grpc_backend_implementa
         Node(
             swhid=TEST_ORIGIN_ID2,
             successor=None,
-            ori=OriginData(),
+            ori=ori,
         ),
         Node(
             swhid="swh:1:rel:0000000000000000000000000000000000000019",
             successor=[],
-            rel=ReleaseData(),
+            rel=rel,
         ),
         Node(
             swhid="swh:1:rel:0000000000000000000000000000000000000021",
@@ -226,7 +239,7 @@ def test_traverse_backward_labels(graph_grpc_stub, graph_grpc_backend_implementa
                     ],
                 ),
             ],
-            rel=ReleaseData(),
+            rel=rel,
         ),
         Node(
             swhid="swh:1:rev:0000000000000000000000000000000000000018",
@@ -240,7 +253,7 @@ def test_traverse_backward_labels(graph_grpc_stub, graph_grpc_backend_implementa
                     label=[],
                 ),
             ],
-            rev=RevisionData(),
+            rev=rev,
         ),
         Node(
             swhid="swh:1:snp:0000000000000000000000000000000000000022",
