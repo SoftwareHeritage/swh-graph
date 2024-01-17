@@ -46,7 +46,7 @@ impl Permission {
 
     /// Returns a permission from a subset of UNIX-like modes.
     ///
-    /// This is the inverse of [`to_git`].
+    /// This is the inverse of [`Permission::to_git`].
     pub fn from_git(mode: u16) -> Option<Permission> {
         use Permission::*;
         match mode {
@@ -62,11 +62,11 @@ impl Permission {
 
     /// Returns a permission from a subset of UNIX-like modes.
     ///
-    /// This is the inverse of [`to_git`].
+    /// This is the inverse of [`Permission::to_git`].
     ///
     /// # Safety
     ///
-    /// Undefined behavior if the given mode is not one of the values returned by [`to_git`]
+    /// Undefined behavior if the given mode is not one of the values returned by [`Permission::to_git`]
     pub unsafe fn from_git_unchecked(mode: u16) -> Permission {
         use Permission::*;
         match mode {

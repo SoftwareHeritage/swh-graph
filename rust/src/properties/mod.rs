@@ -182,13 +182,12 @@ impl SwhGraphProperties<(), (), (), (), (), ()> {
     ///     .expect("Could not load string properties");
     /// ```
     pub fn load_all<MPHF: SwhidMphf>(self) -> Result<AllSwhGraphProperties<MPHF>> {
-        Ok(self
-            .load_maps()?
+        self.load_maps()?
             .load_timestamps()?
             .load_persons()?
             .load_contents()?
             .load_strings()?
-            .load_label_names()?)
+            .load_label_names()
     }
 }
 

@@ -201,7 +201,7 @@ fn decode_int(data: &[u8]) -> (u32, &[u8]) {
     for i in 0..3 {
         let byte = data[i];
         n = n << 7 | (byte & 0b0111_1111) as u32; // Ignore the leading bit of the new byte
-        if byte & 0b1000_000 == 0 {
+        if byte & 0b1000_0000 == 0 {
             return (n, &data[(i + 1)..]);
         }
     }
