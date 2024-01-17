@@ -344,14 +344,20 @@ impl<P, G: UnderlyingGraph> SwhUnidirectionalGraph<P, G> {
 /// Class representing the compressed Software Heritage graph in both directions.
 ///
 /// Created using [`load_bidirectional`]
-pub struct SwhBidirectionalGraph<P, G: UnderlyingLabelling = DefaultUnderlyingGraph> {
+pub struct SwhBidirectionalGraph<
+    P,
+    FG: UnderlyingLabelling = DefaultUnderlyingGraph,
+    BG: UnderlyingLabelling = DefaultUnderlyingGraph,
+> {
     basepath: PathBuf,
-    forward_graph: G,
-    backward_graph: G,
+    forward_graph: FG,
+    backward_graph: BG,
     properties: P,
 }
 
-impl<P, G: UnderlyingLabelling> SwhGraph for SwhBidirectionalGraph<P, G> {
+impl<P, FG: UnderlyingLabelling, BG: UnderlyingLabelling> SwhGraph
+    for SwhBidirectionalGraph<P, FG, BG>
+{
     fn path(&self) -> &Path {
         self.basepath.as_path()
     }
@@ -371,8 +377,10 @@ impl<P, G: UnderlyingLabelling> SwhGraph for SwhBidirectionalGraph<P, G> {
     }
 }
 
-impl<P, G: UnderlyingLabelling> SwhForwardGraph for SwhBidirectionalGraph<P, G> {
-    type Successors<'succ> = <<G as UnderlyingLabelling>::Graph as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
+impl<P, FG: UnderlyingLabelling, BG: UnderlyingLabelling> SwhForwardGraph
+    for SwhBidirectionalGraph<P, FG, BG>
+{
+    type Successors<'succ> = <<FG as UnderlyingLabelling>::Graph as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         self.forward_graph.underlying_graph().successors(node_id)
     }
@@ -381,11 +389,11 @@ impl<P, G: UnderlyingLabelling> SwhForwardGraph for SwhBidirectionalGraph<P, G> 
     }
 }
 
-impl<P, G: UnderlyingGraph> SwhLabelledForwardGraph
-    for SwhBidirectionalGraph<P, Zip<G, SwhGraphLabels>>
+impl<P, FG: UnderlyingGraph, BG: UnderlyingLabelling> SwhLabelledForwardGraph
+    for SwhBidirectionalGraph<P, Zip<FG, SwhGraphLabels>, BG>
 {
     type LabelledArcs<'arc> = LabelledArcIterator where Self: 'arc;
-    type LabelledSuccessors<'succ> = LabelledSuccessorIterator<'succ, G> where Self: 'succ;
+    type LabelledSuccessors<'succ> = LabelledSuccessorIterator<'succ, FG> where Self: 'succ;
 
     fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
         LabelledSuccessorIterator {
@@ -394,8 +402,10 @@ impl<P, G: UnderlyingGraph> SwhLabelledForwardGraph
     }
 }
 
-impl<P, G: UnderlyingLabelling> SwhBackwardGraph for SwhBidirectionalGraph<P, G> {
-    type Predecessors<'succ> = <<G as UnderlyingLabelling>::Graph as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
+impl<P, FG: UnderlyingLabelling, BG: UnderlyingLabelling> SwhBackwardGraph
+    for SwhBidirectionalGraph<P, FG, BG>
+{
+    type Predecessors<'succ> = <<BG as UnderlyingLabelling>::Graph as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
 
     fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
         self.backward_graph.underlying_graph().successors(node_id)
@@ -406,11 +416,11 @@ impl<P, G: UnderlyingLabelling> SwhBackwardGraph for SwhBidirectionalGraph<P, G>
     }
 }
 
-impl<P, G: UnderlyingGraph> SwhLabelledBackwardGraph
-    for SwhBidirectionalGraph<P, Zip<G, SwhGraphLabels>>
+impl<P, FG: UnderlyingLabelling, BG: UnderlyingGraph> SwhLabelledBackwardGraph
+    for SwhBidirectionalGraph<P, FG, Zip<BG, SwhGraphLabels>>
 {
     type LabelledArcs<'arc> = LabelledArcIterator where Self: 'arc;
-    type LabelledPredecessors<'succ> = LabelledSuccessorIterator<'succ, G> where Self: 'succ;
+    type LabelledPredecessors<'succ> = LabelledSuccessorIterator<'succ, BG> where Self: 'succ;
 
     fn labelled_predecessors(&self, node_id: NodeId) -> Self::LabelledPredecessors<'_> {
         LabelledSuccessorIterator {
@@ -426,8 +436,9 @@ impl<
         C: properties::ContentsOption,
         S: properties::StringsOption,
         N: properties::LabelNamesOption,
-        G: UnderlyingLabelling,
-    > SwhBidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S, N>, G>
+        BG: UnderlyingLabelling,
+        FG: UnderlyingLabelling,
+    > SwhBidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S, N>, FG, BG>
 {
     /// Enriches the graph with more properties mmapped from disk
     ///
@@ -458,7 +469,7 @@ impl<
         loader: impl Fn(
             properties::SwhGraphProperties<M, T, P, C, S, N>,
         ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>>,
-    ) -> Result<SwhBidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>, G>>
+    ) -> Result<SwhBidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>, FG, BG>>
     {
         Ok(SwhBidirectionalGraph {
             properties: loader(self.properties)?,
@@ -469,11 +480,11 @@ impl<
     }
 }
 
-impl<G: UnderlyingLabelling> SwhBidirectionalGraph<(), G> {
+impl<FG: UnderlyingLabelling, BG: UnderlyingLabelling> SwhBidirectionalGraph<(), FG, BG> {
     /// Prerequisite for `load_properties`
     pub fn init_properties(
         self,
-    ) -> SwhBidirectionalGraph<properties::SwhGraphProperties<(), (), (), (), (), ()>, G> {
+    ) -> SwhBidirectionalGraph<properties::SwhGraphProperties<(), (), (), (), (), ()>, FG, BG> {
         SwhBidirectionalGraph {
             properties: properties::SwhGraphProperties::new(
                 &self.basepath,
@@ -510,7 +521,8 @@ impl<G: UnderlyingLabelling> SwhBidirectionalGraph<(), G> {
                 properties::Strings,
                 properties::LabelNames,
             >,
-            G,
+            FG,
+            BG,
         >,
     > {
         self.init_properties()
@@ -525,11 +537,13 @@ impl<
         CONTENTS: properties::ContentsOption,
         STRINGS: properties::StringsOption,
         LABELNAMES: properties::LabelNamesOption,
-        G: UnderlyingLabelling,
+        BG: UnderlyingLabelling,
+        FG: UnderlyingLabelling,
     > SwhGraphWithProperties
     for SwhBidirectionalGraph<
         properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
-        G,
+        FG,
+        BG,
     >
 {
     type Maps = MAPS;
@@ -544,6 +558,59 @@ impl<
     ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
     {
         &self.properties
+    }
+}
+
+impl<P, FG: UnderlyingGraph, BG: UnderlyingLabelling> SwhBidirectionalGraph<P, FG, BG> {
+    pub fn load_forward_labels(
+        self,
+    ) -> Result<SwhBidirectionalGraph<P, Zip<FG, SwhGraphLabels>, BG>> {
+        let labels = SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?;
+        debug_assert!(webgraph::prelude::Zip(&self.forward_graph, labels).verify());
+        let labelling_path = suffix_path(&self.basepath, "-labelled");
+        Ok(SwhBidirectionalGraph {
+            properties: self.properties,
+            basepath: self.basepath,
+            forward_graph: Zip(
+                self.forward_graph,
+                SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
+                    format!("Could not load labelling from {}", labelling_path.display())
+                })?,
+            ),
+            backward_graph: self.backward_graph,
+        })
+    }
+}
+
+impl<P, FG: UnderlyingLabelling, BG: UnderlyingGraph> SwhBidirectionalGraph<P, FG, BG> {
+    pub fn load_backward_labels(
+        self,
+    ) -> Result<SwhBidirectionalGraph<P, FG, Zip<BG, SwhGraphLabels>>> {
+        let labels = SwhLabels::load_from_file(7, suffix_path(&self.basepath, "-labelled"))?;
+        debug_assert!(webgraph::prelude::Zip(&self.backward_graph, labels).verify());
+        let labelling_path = suffix_path(&self.basepath, "-transposed-labelled");
+        Ok(SwhBidirectionalGraph {
+            properties: self.properties,
+            basepath: self.basepath,
+            forward_graph: self.forward_graph,
+            backward_graph: Zip(
+                self.backward_graph,
+                SwhLabels::load_from_file(7, &labelling_path).with_context(|| {
+                    format!("Could not load labelling from {}", labelling_path.display())
+                })?,
+            ),
+        })
+    }
+}
+
+impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<P, FG, BG> {
+    pub fn load_labels(
+        self,
+    ) -> Result<SwhBidirectionalGraph<P, Zip<FG, SwhGraphLabels>, Zip<BG, SwhGraphLabels>>> {
+        self.load_forward_labels()
+            .context("Could not load forward labels")?
+            .load_backward_labels()
+            .context("Could not load backward labels")
     }
 }
 
@@ -572,7 +639,7 @@ pub struct LabelledArcIterator {
     label_index: usize,
 }
 
-impl<'a> Iterator for LabelledArcIterator {
+impl Iterator for LabelledArcIterator {
     type Item = DirEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
