@@ -142,10 +142,9 @@ where
 
         let (tx, rx) = mpsc::channel(1_000);
 
-        // Spawning a thread because Tonic currently only supports Tokio, which requires
-        // futures to be sendable between threads, and webgraph's successor iterators cannot
-        match request.get_ref().direction.try_into() {
-            Ok(proto::GraphDirection::Forward) => {
+        macro_rules! traverse {
+            ($graph: expr) => {{
+                let graph = $graph;
                 let arc_checker =
                     ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
                 let node_builder =
@@ -155,20 +154,19 @@ where
                 };
                 let on_arc = |_src, _dst| Ok(());
                 let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                // Spawning a thread because Tonic currently only supports Tokio, which
+                // requires futures to be sendable between threads, and webgraph's
+                // successor iterators cannot
                 tokio::spawn(async move { std::thread::spawn(|| visitor.visit()).join() });
+            }};
+        }
+        match request.get_ref().direction.try_into() {
+            Ok(proto::GraphDirection::Forward) => {
+                traverse!(graph);
             }
             Ok(proto::GraphDirection::Backward) => {
                 let graph = Arc::new(Transposed(graph));
-                let arc_checker =
-                    ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
-                let node_builder =
-                    NodeBuilder::new(graph.clone(), arc_checker, request.get_ref().mask.clone())?;
-                let on_node = move |node, _num_successors| {
-                    tx.blocking_send(Ok(node_builder.build_node(node)))
-                };
-                let on_arc = |_src, _dst| Ok(());
-                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
-                tokio::spawn(async move { std::thread::spawn(|| visitor.visit()).join() });
+                traverse!(graph);
             }
             Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
         }
