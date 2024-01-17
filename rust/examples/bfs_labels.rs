@@ -70,10 +70,10 @@ pub fn main() -> Result<()> {
         visited_nodes += 1;
         let mut successors = graph.labelled_successors(current_node);
         while let Some((succ, labels)) = successors.next() {
-            debug!("Successor: {}", graph.properties().swhid(succ).unwrap());
+            debug!("  Successor: {}", graph.properties().swhid(succ).unwrap());
             for label in labels {
                 let filename = graph.properties().label_name(label.filename_id()).unwrap();
-                debug!("  has label: {}", String::from_utf8_lossy(&filename));
+                debug!("    has label: {}", String::from_utf8_lossy(&filename));
             }
             if !visited[succ] {
                 queue.push_back(succ);
