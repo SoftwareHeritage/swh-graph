@@ -314,7 +314,7 @@ def assert_ori_to_rev(path, graph_grpc_backend_implementation):
         rev = ori = None
     else:
         # FIXME: These should be None in the Java backend when not requested
-        rev = ReleaseData()
+        rev = RevisionData()
         ori = OriginData()
 
     assert path == [
