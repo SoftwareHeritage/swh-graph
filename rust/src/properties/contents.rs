@@ -14,7 +14,7 @@ use crate::utils::suffix_path;
 pub trait ContentsOption {}
 
 pub struct Contents {
-    is_skipped_content: LongArrayBitVector<NumberMmap<LittleEndian, u64, Mmap>>,
+    is_skipped_content: LongArrayBitVector<Vec<u64>>,
     content_length: NumberMmap<BigEndian, u64, Mmap>,
 }
 impl ContentsOption for Contents {}
@@ -22,13 +22,13 @@ impl ContentsOption for () {}
 
 /// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
 pub trait ContentsTrait {
-    fn is_skipped_content(&self) -> &LongArrayBitVector<NumberMmap<LittleEndian, u64, Mmap>>;
+    fn is_skipped_content(&self) -> &LongArrayBitVector<Vec<u64>>;
     fn content_length(&self) -> &NumberMmap<BigEndian, u64, Mmap>;
 }
 
 impl ContentsTrait for Contents {
     #[inline(always)]
-    fn is_skipped_content(&self) -> &LongArrayBitVector<NumberMmap<LittleEndian, u64, Mmap>> {
+    fn is_skipped_content(&self) -> &LongArrayBitVector<Vec<u64>> {
         &self.is_skipped_content
     }
     #[inline(always)]
