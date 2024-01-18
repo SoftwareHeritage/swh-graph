@@ -27,7 +27,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use byteorder::{BigEndian, LittleEndian};
+use byteorder::BigEndian;
 use mmap_rs::Mmap;
 
 use crate::java_compat::bit_vector::LongArrayBitVector;
