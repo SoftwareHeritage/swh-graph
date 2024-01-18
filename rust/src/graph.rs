@@ -29,7 +29,11 @@ use crate::utils::suffix_path;
 pub type NodeId = usize;
 
 type DefaultUnderlyingGraph = BVGraph<
-    DynamicCodesReaderBuilder<dsi_bitstream::prelude::BE, MmapBackend<u32>>,
+    DynamicCodesReaderBuilder<
+        dsi_bitstream::prelude::BE,
+        MmapBackend<u32>,
+        webgraph::EF<&'static [usize], &'static [u64]>,
+    >,
     webgraph::EF<&'static [usize], &'static [u64]>,
 >;
 
