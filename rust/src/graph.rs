@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use webgraph::prelude::*;
+use webgraph::EF;
 //use webgraph::traits::{RandomAccessGraph, SequentialGraph};
 
 use crate::mph::SwhidMphf;
@@ -74,7 +75,11 @@ pub trait SwhGraphWithProperties: SwhGraph {
 pub struct SwhUnidirectionalGraph<
     P,
     G: RandomAccessGraph = BVGraph<
-        DynamicCodesReaderBuilder<dsi_bitstream::prelude::BE, MmapBackend<u32>>,
+        DynamicCodesReaderBuilder<
+            dsi_bitstream::prelude::BE,
+            MmapBackend<u32>,
+            EF<&'static [usize], &'static [u64]>,
+        >,
         webgraph::EF<&'static [usize], &'static [u64]>,
     >,
 > {
@@ -236,7 +241,11 @@ impl<
 pub struct SwhBidirectionalGraph<
     P,
     G: RandomAccessGraph = BVGraph<
-        DynamicCodesReaderBuilder<dsi_bitstream::prelude::BE, MmapBackend<u32>>,
+        DynamicCodesReaderBuilder<
+            dsi_bitstream::prelude::BE,
+            MmapBackend<u32>,
+            EF<&'static [usize], &'static [u64]>,
+        >,
         webgraph::EF<&'static [usize], &'static [u64]>,
     >,
 > {
