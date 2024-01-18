@@ -13,7 +13,6 @@ use crate::utils::sort::par_sort_arcs;
 use anyhow::{anyhow, Context, Result};
 use dsi_progress_logger::ProgressLogger;
 use itertools::Itertools;
-use lender::Lender;
 use rayon::prelude::*;
 use tempfile;
 use webgraph::graph::arc_list_graph::ArcListGraph;
