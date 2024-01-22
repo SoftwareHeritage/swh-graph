@@ -16,10 +16,9 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use webgraph::prelude::*;
-use webgraph::EF;
 //use webgraph::traits::{RandomAccessGraph, SequentialGraph};
+use webgraph::label::swh_labels::{MmapReaderBuilder, SwhLabels};
 use webgraph::EF;
-use webgraph::label::swh_labels::{Labels, MmapReaderBuilder, SwhLabels};
 
 use crate::labels::DirEntry;
 use crate::mph::SwhidMphf;
@@ -30,13 +29,13 @@ use crate::utils::suffix_path;
 pub type NodeId = usize;
 
 type DefaultUnderlyingGraph = BVGraph<
-        DynamicCodesReaderBuilder<
-            dsi_bitstream::prelude::BE,
-            MmapBackend<u32>,
-            EF<&'static [usize], &'static [u64]>,
-        >,
-        webgraph::EF<&'static [usize], &'static [u64]>,
-    >;
+    DynamicCodesReaderBuilder<
+        dsi_bitstream::prelude::BE,
+        MmapBackend<u32>,
+        EF<&'static [usize], &'static [u64]>,
+    >,
+    webgraph::EF<&'static [usize], &'static [u64]>,
+>;
 
 /// Wrapper for [`RandomAccessLabelling`] with a method to return an underlying graph
 /// (or itself, if it implements [`UnderlyingGraph`])

@@ -683,15 +683,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dsi-bitstream"
-version = "0.1.7"
-source = "git+https://github.com/vigna/dsi-bitstream-rs#c82a439e41085e458c7a39d513a48415e14dfbe4"
-dependencies = [
- "common_traits 0.9.0",
- "rand",
-]
-
-[[package]]
 name = "dsi-progress-logger"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2215,7 +2206,7 @@ dependencies = [
  "chrono",
  "clap",
  "common_traits 0.10.0",
- "dsi-bitstream 0.1.3",
+ "dsi-bitstream",
  "dsi-progress-logger 0.1.4",
  "epserde",
  "faster-hex",
@@ -2744,14 +2735,14 @@ checksum = "7ab9b36309365056cd639da3134bf87fa8f3d86008abf99e612384a6eecd459f"
 [[package]]
 name = "webgraph"
 version = "0.1.0"
-source = "git+https://github.com/vigna/webgraph-rs?rev=908be9496cde3813ee43e193fb2c85f80814aa52#908be9496cde3813ee43e193fb2c85f80814aa52"
+source = "git+https://github.com/vigna/webgraph-rs?rev=82e8f68edd778db8d86a92e0ec9b503de3fd14db#82e8f68edd778db8d86a92e0ec9b503de3fd14db"
 dependencies = [
  "anyhow",
  "bitvec",
  "bytemuck",
  "clap",
  "common_traits 0.10.0",
- "dsi-bitstream 0.1.7",
+ "dsi-bitstream",
  "dsi-progress-logger 0.2.2",
  "epserde",
  "impl-tools",
