@@ -7,6 +7,7 @@
 //! in Java's native serialization format
 
 use std::io::{Read, Write};
+use std::os::fd::AsRawFd;
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
@@ -101,6 +102,16 @@ impl LongArrayBitVector<Vec<u64>> {
         let path = path.as_ref();
         let mut file = std::fs::File::open(path)
             .with_context(|| format!("Could not open {}", path.display()))?;
+
+        #[cfg(target_os = "linux")]
+        unsafe {
+            libc::posix_fadvise(
+                file.as_raw_fd(),
+                0,
+                0,
+                libc::POSIX_FADV_SEQUENTIAL | libc::POSIX_FADV_WILLNEED,
+            )
+        };
 
         // Read and check header
         let mut header = [0; HEADER.len()];
