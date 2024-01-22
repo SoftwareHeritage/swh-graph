@@ -20,5 +20,7 @@
 //! techniques when handling, for instance, large sets of strings, and they are important building
 //! blocks of space-efficient data structures such as (compressed) full-text indexes, (monotone)
 //! MPHFs, Bloom filter-like data structures, and prefix-search data structures.
+//!
+//! Imported [from sux-rs](https://archive.softwareheritage.org/swh:1:dir:f3cf91ed13115111d55443459abcb6a344b0bd01;origin=https://github.com/vigna/sux-rs;visit=swh:1:snp:855180f9102fd3d7451e98f293cdd90cff7f17d9;anchor=swh:1:rev:9cafac06c95c2d916b76dc374a6f9d976bf65456;path=/src/sf/)
 
 pub mod gov3;

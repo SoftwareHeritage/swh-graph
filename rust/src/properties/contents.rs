@@ -42,7 +42,8 @@ impl<
         TIMESTAMPS: TimestampsOption,
         PERSONS: PersonsOption,
         STRINGS: StringsOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, (), STRINGS>
+        LABELNAMES: LabelNamesOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, (), STRINGS, LABELNAMES>
 {
     /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
     /// available:
@@ -51,7 +52,7 @@ impl<
     /// * [`SwhGraphProperties::content_length`]
     pub fn load_contents(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, Contents, STRINGS>> {
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, Contents, STRINGS, LABELNAMES>> {
         Ok(SwhGraphProperties {
             maps: self.maps,
             timestamps: self.timestamps,
@@ -69,6 +70,7 @@ impl<
                 .context("Could not load content_length")?,
             },
             strings: self.strings,
+            label_names: self.label_names,
             path: self.path,
             num_nodes: self.num_nodes,
         })
@@ -81,7 +83,8 @@ impl<
         PERSONS: PersonsOption,
         CONTENTS: ContentsOption + ContentsTrait,
         STRINGS: StringsOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
+        LABELNAMES: LabelNamesOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Returns whether the node is a skipped content
     ///

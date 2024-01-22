@@ -16,7 +16,7 @@
 //! use swh_graph::java_compat::mph::gov::GOVMPH;
 //! use swh_graph::SwhGraphProperties;
 //!
-//! let properties: &SwhGraphProperties<_, _, _, _, _> =
+//! let properties: &SwhGraphProperties<_, _, _, _, _, _> =
 //!     swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
 //!     .expect("Could not load graph")
 //!     .load_all_properties::<GOVMPH>()
@@ -49,6 +49,7 @@ pub(crate) mod suffixes {
     pub const MESSAGE_OFFSET: &str = ".property.message.offset.bin";
     pub const TAG_NAME: &str = ".property.tag_name.bin";
     pub const TAG_NAME_OFFSET: &str = ".property.tag_name.offset.bin";
+    pub const LABEL_NAME: &str = ".labels.fcl";
 }
 
 /// Properties on graph nodes
@@ -94,6 +95,7 @@ pub struct SwhGraphProperties<
     PERSONS: PersonsOption,
     CONTENTS: ContentsOption,
     STRINGS: StringsOption,
+    LABELNAMES: LabelNamesOption,
 > {
     path: PathBuf,
     num_nodes: usize,
@@ -102,10 +104,11 @@ pub struct SwhGraphProperties<
     persons: PERSONS,
     contents: CONTENTS,
     strings: STRINGS,
+    label_names: LABELNAMES,
 }
 
 pub type AllSwhGraphProperties<MPHF> =
-    SwhGraphProperties<Maps<MPHF>, Timestamps, Persons, Contents, Strings>;
+    SwhGraphProperties<Maps<MPHF>, Timestamps, Persons, Contents, Strings, LabelNames>;
 
 fn mmap(path: &Path) -> Result<Mmap> {
     let file_len = path
@@ -129,7 +132,7 @@ fn mmap(path: &Path) -> Result<Mmap> {
     Ok(data)
 }
 
-impl SwhGraphProperties<(), (), (), (), ()> {
+impl SwhGraphProperties<(), (), (), (), (), ()> {
     /// Creates an empty [`SwhGraphProperties`] instance, which will load properties
     /// from the given path prefix.
     pub fn new(path: impl AsRef<Path>, num_nodes: usize) -> Self {
@@ -141,6 +144,7 @@ impl SwhGraphProperties<(), (), (), (), ()> {
             persons: (),
             contents: (),
             strings: (),
+            label_names: (),
         }
     }
 
@@ -182,7 +186,8 @@ impl SwhGraphProperties<(), (), (), (), ()> {
             .load_timestamps()?
             .load_persons()?
             .load_contents()?
-            .load_strings()
+            .load_strings()?
+            .load_label_names()
     }
 }
 
@@ -200,3 +205,6 @@ pub(crate) use contents::{Contents, ContentsOption, ContentsTrait};
 
 mod strings;
 pub(crate) use strings::{Strings, StringsOption, StringsTrait};
+
+mod label_names;
+pub(crate) use label_names::{LabelNames, LabelNamesOption, LabelNamesTrait};

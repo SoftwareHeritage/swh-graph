@@ -54,7 +54,8 @@ impl<
         TIMESTAMPS: TimestampsOption,
         PERSONS: PersonsOption,
         CONTENTS: ContentsOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, ()>
+        LABELNAMES: LabelNamesOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, (), LABELNAMES>
 {
     /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
     /// available:
@@ -65,7 +66,7 @@ impl<
     /// * [`SwhGraphProperties::tag_name`]
     pub fn load_strings(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, Strings>> {
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, Strings, LABELNAMES>> {
         Ok(SwhGraphProperties {
             maps: self.maps,
             timestamps: self.timestamps,
@@ -87,6 +88,7 @@ impl<
                 )
                 .context("Could not load tag_name_offset")?,
             },
+            label_names: self.label_names,
             path: self.path,
             num_nodes: self.num_nodes,
         })
@@ -99,7 +101,8 @@ impl<
         PERSONS: PersonsOption,
         CONTENTS: ContentsOption,
         STRINGS: StringsOption + StringsTrait,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
+        LABELNAMES: LabelNamesOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     #[inline(always)]
     fn message_or_tag_name_base64<'a>(

@@ -42,7 +42,8 @@ impl<
         TIMESTAMPS: TimestampsOption,
         CONTENTS: ContentsOption,
         STRINGS: StringsOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, (), CONTENTS, STRINGS>
+        LABELNAMES: LabelNamesOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, (), CONTENTS, STRINGS, LABELNAMES>
 {
     /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
     /// available:
@@ -51,7 +52,7 @@ impl<
     /// * [`SwhGraphProperties::committer_id`]
     pub fn load_persons(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, Persons, CONTENTS, STRINGS>> {
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, Persons, CONTENTS, STRINGS, LABELNAMES>> {
         Ok(SwhGraphProperties {
             maps: self.maps,
             timestamps: self.timestamps,
@@ -66,6 +67,7 @@ impl<
             },
             contents: self.contents,
             strings: self.strings,
+            label_names: self.label_names,
             path: self.path,
             num_nodes: self.num_nodes,
         })
@@ -78,7 +80,8 @@ impl<
         PERSONS: PersonsOption + PersonsTrait,
         CONTENTS: ContentsOption,
         STRINGS: StringsOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
+        LABELNAMES: LabelNamesOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Returns the id of the author of a revision or release, if any
     #[inline]

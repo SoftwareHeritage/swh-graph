@@ -54,7 +54,8 @@ impl<
         PERSONS: PersonsOption,
         CONTENTS: ContentsOption,
         STRINGS: StringsOption,
-    > SwhGraphProperties<MAPS, (), PERSONS, CONTENTS, STRINGS>
+        LABELNAMES: LabelNamesOption,
+    > SwhGraphProperties<MAPS, (), PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
     /// available:
@@ -65,7 +66,7 @@ impl<
     /// * [`SwhGraphProperties::committer_timestamp_offset`]
     pub fn load_timestamps(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, Timestamps, PERSONS, CONTENTS, STRINGS>> {
+    ) -> Result<SwhGraphProperties<MAPS, Timestamps, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
         Ok(SwhGraphProperties {
             maps: self.maps,
             timestamps: Timestamps {
@@ -93,6 +94,7 @@ impl<
             persons: self.persons,
             contents: self.contents,
             strings: self.strings,
+            label_names: self.label_names,
             path: self.path,
             num_nodes: self.num_nodes,
         })
@@ -105,7 +107,8 @@ impl<
         PERSONS: PersonsOption,
         CONTENTS: ContentsOption,
         STRINGS: StringsOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS>
+        LABELNAMES: LabelNamesOption,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Returns the number of seconds since Epoch that a release or revision was
     /// authored at
