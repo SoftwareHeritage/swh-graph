@@ -192,19 +192,19 @@ impl SwhGraphProperties<(), (), (), (), (), ()> {
 }
 
 mod maps;
-pub(crate) use maps::{Maps, MapsOption, MapsTrait};
+pub use maps::{Maps, MapsOption, MapsTrait};
 
 mod timestamps;
-pub(crate) use timestamps::{Timestamps, TimestampsOption, TimestampsTrait};
+pub use timestamps::{Timestamps, TimestampsOption, TimestampsTrait};
 
 mod persons;
-pub(crate) use persons::{Persons, PersonsOption, PersonsTrait};
+pub use persons::{Persons, PersonsOption, PersonsTrait};
 
 mod contents;
-pub(crate) use contents::{Contents, ContentsOption, ContentsTrait};
+pub use contents::{Contents, ContentsOption, ContentsTrait};
 
 mod strings;
-pub(crate) use strings::{Strings, StringsOption, StringsTrait};
+pub use strings::{Strings, StringsOption, StringsTrait};
 
 mod label_names;
-pub(crate) use label_names::{LabelNames, LabelNamesOption, LabelNamesTrait};
+pub use label_names::{LabelNames, LabelNamesOption, LabelNamesTrait};
