@@ -117,9 +117,24 @@ enum Commands {
 
     /// Reads either a graph file linearly or .offsets file (generated and used
     /// by the Java backend to randomly access the graph), and produces a .ef file
-    /// suitable to randomly access the graph from the Rust backend
+    /// suitable to randomly access the graph from the Rust backend.
+    ///
+    /// Only suitable for unlabelled graphs.
     BuildEliasfano {
         base_path: PathBuf,
+    },
+
+    /// Reads either a graph file linearly or .offsets file (generated and used
+    /// by the Java backend to randomly access the graph), and produces a .ef file
+    /// suitable to randomly access the graph from the Rust backend.
+    ///
+    /// Only suitable for labelled graphs.
+    BuildLabelsEliasfano {
+        base_path: PathBuf,
+        /// The number of elements to be inserted in the Elias-Fano
+        /// starting from a label offset file. It is usually one more than
+        /// the number of nodes in the graph.
+        num_nodes: usize,
     },
 
     /// First actual compression step
@@ -680,6 +695,71 @@ pub fn main() -> Result<()> {
             std::fs::write(&schema_path, schema.to_csv())
                 .with_context(|| format!("Could not write schema to {}", schema_path.display()))?;
 
+            pl.done();
+        }
+
+        Commands::BuildLabelsEliasfano {
+            base_path,
+            num_nodes,
+        } => {
+            use dsi_bitstream::prelude::*;
+            use epserde::prelude::*;
+            use sux::prelude::*;
+
+            use swh_graph::utils::suffix_path;
+
+            // Adapted from https://github.com/vigna/webgraph-rs/blob/908be9496cde3813ee43e193fb2c85f80814aa52/src/bin/build_eliasfano.rs#L43-84
+
+            // Horribly temporary duplicated code for the case of label offsets.
+
+            let labels_path = suffix_path(&base_path, "{}.labels");
+            let mut file = File::open(&labels_path)?;
+            let file_len = 8 * file
+                .seek(std::io::SeekFrom::End(0))
+                .with_context(|| format!("Could not seek to end of {}", labels_path.display()))?;
+
+            let mut efb = EliasFanoBuilder::new(num_nodes, file_len as usize);
+
+            log::info!("The offsets file exists, reading it to build Elias-Fano");
+            let of_file_path = suffix_path(&base_path, ".labeloffsets");
+            let of_file = BufReader::with_capacity(
+                1 << 20,
+                File::open(&of_file_path)
+                    .with_context(|| format!("Could not open {}", of_file_path.display()))?,
+            );
+            // create a bit reader on the file
+            let mut reader = BufBitReader::<BE, _>::new(<WordAdapter<u32, _>>::new(of_file));
+            // progress bar
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "offset";
+            pl.expected_updates = Some(num_nodes);
+            pl.start("Translating offsets to EliasFano...");
+            // read the graph a write the offsets
+            let mut offset = 0;
+            for _node_id in 0..num_nodes {
+                // write where
+                offset += reader.read_gamma().context("Could not read gamma")?;
+                efb.push(offset as _).context("Could not write offset")?;
+                // decode the next nodes so we know where the next node_id starts
+                pl.light_update();
+            }
+            let ef = efb.build();
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.start("Building the Index over the ones in the high-bits...");
+            let ef: webgraph::EF<_, _> = ef.convert_to().unwrap();
+            pl.done();
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.start("Writing to disk...");
+            // serialize and dump the schema to disk
+            let ef_path = suffix_path(base_path, ".ef");
+            let mut ef_file = BufWriter::new(
+                File::create(&ef_path)
+                    .with_context(|| format!("Could not create {}", ef_path.display()))?,
+            );
+            ef.serialize(&mut ef_file)
+                .with_context(|| format!("Could not serialize EF to {}", ef_path.display()))?;
             pl.done();
         }
 
