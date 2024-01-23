@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-//! Wrappers for [`SwhGraph`] that filter or change the nodes and arcs it returns.
+//! Wrappers for [`SwhGraph`](crate::graph::SwhGraph) that filter or change the nodes and arcs it returns.
 
 mod transposed;
 pub use transposed::Transposed;
