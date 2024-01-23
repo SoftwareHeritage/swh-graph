@@ -14,7 +14,7 @@ use crate::utils::suffix_path;
 pub trait ContentsOption {}
 
 pub struct Contents {
-    is_skipped_content: LongArrayBitVector<Vec<u64>>,
+    is_skipped_content: NumberMmap<BigEndian, u64, Mmap>,
     content_length: NumberMmap<BigEndian, u64, Mmap>,
 }
 impl ContentsOption for Contents {}
@@ -22,13 +22,13 @@ impl ContentsOption for () {}
 
 /// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
 pub trait ContentsTrait {
-    fn is_skipped_content(&self) -> &LongArrayBitVector<Vec<u64>>;
+    fn is_skipped_content(&self) -> &NumberMmap<BigEndian, u64, Mmap>;
     fn content_length(&self) -> &NumberMmap<BigEndian, u64, Mmap>;
 }
 
 impl ContentsTrait for Contents {
     #[inline(always)]
-    fn is_skipped_content(&self) -> &LongArrayBitVector<Vec<u64>> {
+    fn is_skipped_content(&self) -> &NumberMmap<BigEndian, u64, Mmap> {
         &self.is_skipped_content
     }
     #[inline(always)]
@@ -58,9 +58,9 @@ impl<
             timestamps: self.timestamps,
             persons: self.persons,
             contents: Contents {
-                is_skipped_content: LongArrayBitVector::new_from_path(
+                is_skipped_content: NumberMmap::new(
                     suffix_path(&self.path, CONTENT_IS_SKIPPED),
-                    self.num_nodes,
+                    self.num_nodes.div_ceil(u64::BITS.try_into().unwrap()),
                 )
                 .context("Could not load is_skipped_content")?,
                 content_length: NumberMmap::new(
@@ -91,7 +91,17 @@ impl<
     /// Non-content objects get a `false` value, like non-skipped contents.
     #[inline]
     pub fn is_skipped_content(&self, node_id: NodeId) -> Option<bool> {
-        self.contents.is_skipped_content().get(node_id)
+        if node_id >= self.num_nodes {
+            return None;
+        }
+        let cell_id = node_id / (u64::BITS as usize);
+        let mask = 1 << (node_id % (u64::BITS as usize));
+
+        // Safe because we checked node_id is lower than the length, and the length of
+        // self.contents.is_skipped_content() is checked when creating the mmap
+        let cell = unsafe { self.contents.is_skipped_content().get_unchecked(cell_id) };
+
+        Some((cell & mask) != 0)
     }
 
     /// Returns the length of the given content None.

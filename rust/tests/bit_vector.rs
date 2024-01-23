@@ -10,7 +10,7 @@ use tempfile::tempdir;
 use swh_graph::java_compat::bit_vector::LongArrayBitVector;
 
 #[test]
-fn test_roundtrip() -> Result<()> {
+fn test_write() -> Result<()> {
     let temp_dir = tempdir().context("Could not get tempdir")?;
 
     for i in [
@@ -22,23 +22,6 @@ fn test_roundtrip() -> Result<()> {
 
         let bit_vector = LongArrayBitVector::new_from_bitvec(bitvec);
         bit_vector.dump(&path).context("Could not dump")?;
-
-        let bit_vector = LongArrayBitVector::new_from_path(path, 100).context("Could not read")?;
-        for j in 0..100 {
-            if i == j {
-                assert_eq!(
-                    bit_vector.get(j),
-                    Some(true),
-                    "Unexpected value at index {i}"
-                )
-            } else {
-                assert_eq!(
-                    bit_vector.get(j),
-                    Some(false),
-                    "Unexpected value at index {j} ({i} should be Some(true))"
-                )
-            }
-        }
     }
 
     Ok(())

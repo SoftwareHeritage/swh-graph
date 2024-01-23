@@ -50,9 +50,10 @@ data structures in the Rust implementation.
 Therefore, you need to generate new files in order to load old graphs with the Rust
 implementation; this takes a few hours for graphs representing full SWH exports.
 
-1. Convert the GOV minimal-perfect-hash function from `.mph` to `.cmph`: `java -classpath ~/src/swh-graph/java/target/swh-graph-3.0.1.jar ~/src/swh-graph/java/src/main/java/org/softwareheritage/graph/utils/Mph2Cmph.java graph.mph graph.cmph`
+1. Convert the GOV minimal-perfect-hash function from `.mph` to `.cmph`: `java -classpath ~/src/swh-graph/swh/graph/swh-graph.jar ~/src/swh-graph/java/src/main/java/org/softwareheritage/graph/utils/Mph2Cmph.java graph.mph graph.cmph`
 2. Generate Elias-Fano-encoded offsets of the graph: `cargo run --release --bin build_eliasfano --  ~/graph/latest/compressed/graph`
 3. Generate Elias-Fano-encoded offsets of the transposed graph: `cargo run --release --bin compress build-eliasfano --  ~/graph/latest/compressed/graph-transposed`
 4. Generate Elias-Fano-encoded offsets of the labelled graph: `cargo run --release --bin compress build-labels-eliasfano --  ~/graph/latest/compressed/graph-labelled $((1+ $(cat /~/graph/latest/compressed/graph.nodes.count.txt)))`
 5. Generate Elias-Fano-encoded offsets of the labelled transposed graph: `cargo run --release --bin build-labels-eliasfano --  ~/graph/latest/compressed/graph-transposed-labelled ~/graph/latest/compressed/graph $((1+ $(cat /~/graph/latest/compressed/graph.nodes.count.txt)))`
 6. Generate `node2type.bin` (as `node2type.map` is specific to Java): `cargo run --release --bin node2type --  ~/graph/latest/compressed/graph`
+7. Convert the Java-specific `.property.content.is_skipped.bin` to a plain `.property.content.is_skipped.bits`: `java -classpath ~/src/swh-graph/swh/graph/swh-graph.jar ~/src/swh-graph/java/src/main/java/org/softwareheritage/graph/utils/Bitvec2Bits.java graph.property.content.is_skipped.bits graph.property.content.is_skipped.bits`

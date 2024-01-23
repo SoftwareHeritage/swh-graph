@@ -15,6 +15,8 @@
 package org.softwareheritage.graph.utils;
 
 import java.io.IOException;
+import it.unimi.dsi.fastutil.io.BinIO;
+import it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction;
 
 public class Mph2Cmph {
 
@@ -27,8 +29,7 @@ public class Mph2Cmph {
         String outputCmphPath = args[1];
 
         System.out.println("Converting MPH file " + inputMphPath + " to CMPH file " + outputCmphPath + " ...");
-        ((it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction) it.unimi.dsi.fastutil.io.BinIO.loadObject(inputMphPath))
-                .dump(outputCmphPath);
+        ((GOVMinimalPerfectHashFunction) BinIO.loadObject(inputMphPath)).dump(outputCmphPath);
         System.out.println("Done.");
     }
 

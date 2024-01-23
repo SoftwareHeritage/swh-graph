@@ -30,7 +30,6 @@ use anyhow::{Context, Result};
 use byteorder::BigEndian;
 use mmap_rs::Mmap;
 
-use crate::java_compat::bit_vector::LongArrayBitVector;
 use crate::mph::SwhidMphf;
 use crate::utils::mmap::NumberMmap;
 
@@ -43,7 +42,7 @@ pub(crate) mod suffixes {
     pub const COMMITTER_TIMESTAMP_OFFSET: &str = ".property.committer_timestamp_offset.bin";
     pub const AUTHOR_ID: &str = ".property.author_id.bin";
     pub const COMMITTER_ID: &str = ".property.committer_id.bin";
-    pub const CONTENT_IS_SKIPPED: &str = ".property.content.is_skipped.bin";
+    pub const CONTENT_IS_SKIPPED: &str = ".property.content.is_skipped.bits";
     pub const CONTENT_LENGTH: &str = ".property.content.length.bin";
     pub const MESSAGE: &str = ".property.message.bin";
     pub const MESSAGE_OFFSET: &str = ".property.message.offset.bin";
