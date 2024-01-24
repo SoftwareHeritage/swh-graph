@@ -73,11 +73,10 @@ impl Node2Type<UsizeMmap<MmapMut>> {
     /// Create a new `.node2type.bin` file
     pub fn new<P: AsRef<Path>>(path: P, num_nodes: usize) -> Result<Self> {
         let path = path.as_ref();
-        // compute the size of the file we are creating in bytes
-        let mut file_len = ((num_nodes * SWHType::BITWIDTH) as u64 + 7) / 8;
-        // make the file dimension a multiple of 8 bytes so BitFieldVec can
+        // compute the size of the file we are creating in bytes;
+        // and make it a multiple of 8 bytes so BitFieldVec can
         // read u64 words from it
-        file_len += 8 - (file_len % 8);
+        let file_len = ((num_nodes * SWHType::BITWIDTH) as u64).div_ceil(64) * 8;
         info!("The resulting file will be {} bytes long.", file_len);
 
         // create the file
