@@ -139,6 +139,17 @@ impl Node2Type<UsizeMmap<Mmap>> {
     pub fn load<P: AsRef<Path>>(path: P, num_nodes: usize) -> Result<Self> {
         let path = path.as_ref();
         let file_len = path.metadata()?.len();
+        let expected_file_len = ((num_nodes * SWHType::BITWIDTH).div_ceil(64) * 8) as u64;
+        assert_eq!(
+            file_len,
+            expected_file_len,
+            "Expected {} to have size {} (because graph has {} nodes), but it has size {}",
+            path.display(),
+            expected_file_len,
+            num_nodes,
+            file_len,
+        );
+
         let file = std::fs::File::open(path)?;
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)?
