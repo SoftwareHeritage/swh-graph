@@ -1144,6 +1144,7 @@ class FindBlobOrigins(_ConcurrentCsvWritingTask):
         self.existing_swhids: Dict[str, str] = {}
 
         if self.previous_derived_datasets_path:
+            separator = ","  # or "\t" for datasets before 2022-12-07
             # reuse blobs from a previous version of the dataset, so we don't have
             # to recompute them all
             path = (
@@ -1153,9 +1154,9 @@ class FindBlobOrigins(_ConcurrentCsvWritingTask):
             )
             with pyzstd.open(path, "rt") as fd:
                 self.existing_swhids = dict(
-                    line.strip().split("\t")
+                    line.strip().split(separator)
                     for line in cast(Iterable[str], fd)
-                    if line[-2] != "\t"
+                    if line[-2] != separator
                 )
 
         super().run()
