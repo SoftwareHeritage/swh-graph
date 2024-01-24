@@ -1,7 +1,11 @@
+use std::sync::{Arc, Mutex};
+
 use anyhow::{Context, Result};
 use clap::Parser;
 use dsi_progress_logger::ProgressLogger;
 use log::info;
+use rayon::prelude::*;
+
 use swh_graph::map::{Node2SWHID, Node2Type};
 
 #[derive(Parser, Debug)]
@@ -41,8 +45,9 @@ pub fn main() -> Result<()> {
         args.dst_basename.unwrap_or(args.basename)
     );
     // create a new node2type file that can index `num_nodes` nodes
-    let mut node2type = Node2Type::new(&node2type_path, num_nodes)
+    let node2type = Node2Type::new(&node2type_path, num_nodes)
         .with_context(|| format!("While creating the .node2type.bin file: {}", node2type_path))?;
+    let node2type = Arc::new(Mutex::new(node2type));
 
     // init the progress logger
     let mut pl = ProgressLogger::default().display_memory();
@@ -50,14 +55,24 @@ pub fn main() -> Result<()> {
     pl.local_speed = true;
     pl.expected_updates = Some(num_nodes);
     pl.start("iterating over node ID -> SWHID map ...");
+    let pl = Arc::new(Mutex::new(pl));
 
     // build the file
-    for node_id in 0..num_nodes {
-        // get the SWHID of the node to get the type and write it inside node2type
-        node2type.set(node_id, node2swhid.get(node_id).unwrap().node_type);
-        pl.light_update();
-    }
+    (0..num_nodes)
+        .into_par_iter()
+        // get the SWHID of the node to get the type
+        .map(|node_id| (node_id, node2swhid.get(node_id).unwrap().node_type))
+        // split into groups to avoid constantly polling for the write lock
+        .chunks(100_000_000)
+        .for_each(|chunk| {
+            let mut node2type = node2type.lock().unwrap();
+            for (node_id, node_type) in &chunk {
+                // and write it inside node2type
+                node2type.set(*node_id, *node_type);
+            }
+            pl.lock().unwrap().update_with_count(chunk.len());
+        });
 
-    pl.done();
+    pl.lock().unwrap().done();
     Ok(())
 }
