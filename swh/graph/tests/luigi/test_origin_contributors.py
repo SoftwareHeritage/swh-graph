@@ -150,7 +150,7 @@ def test_export_deanonymization_table(tmpdir, swh_storage_postgresql, swh_storag
     deanonymization_table_path = tmpdir / "contributor_sha256_to_names.csv.zst"
 
     task = ExportDeanonymizationTable(
-        storage_dsn=swh_storage_postgresql.dsn,
+        storage_dsn=swh_storage_postgresql.info.dsn,
         deanonymization_table_path=deanonymization_table_path,
     )
 
