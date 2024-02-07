@@ -4,7 +4,8 @@ resolver = "2"
 
 members = [
     "rust",
-    "extension"
+    "extension",
+    "tools/topology",
 ]
 
 [workspace.package]

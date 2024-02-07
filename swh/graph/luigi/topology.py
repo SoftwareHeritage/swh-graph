@@ -121,12 +121,11 @@ class TopoSort(luigi.Task):
 
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.TopoSort and compresses"""
-        from ..shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Rust
 
         invalid_object_types = set(self.object_types.split(",")) - OBJECT_TYPES
         if invalid_object_types:
             raise ValueError(f"Invalid object types: {invalid_object_types}")
-        class_name = "org.softwareheritage.graph.utils.TopoSort"
 
         nb_nodes = count_nodes(
             self.local_graph_path, self.graph_name, self.object_types
@@ -135,13 +134,13 @@ class TopoSort(luigi.Task):
 
         # fmt: off
         (
-            Java(
-                class_name,
+            Rust(
+                "toposort",
+                "-vv",
                 self.local_graph_path / self.graph_name,
-                self.algorithm,
-                self.direction,
-                self.object_types,
-                max_ram=self._max_ram(),
+                "--algorithm", self.algorithm,
+                "--direction", self.direction,
+                "--node-types", self.object_types,
             )
             | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
             | Command.zstdmt("-9")  # not -19 because of CPU usage + little gain

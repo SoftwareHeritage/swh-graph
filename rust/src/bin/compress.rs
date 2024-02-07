@@ -19,6 +19,7 @@ use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
 use rayon::prelude::*;
 use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
+use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::SWHType;
 use webgraph::prelude::*;
 
@@ -283,22 +284,6 @@ enum MphAlgorithm {
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum DatasetFormat {
     Orc,
-}
-
-fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
-    if s == "*" {
-        Ok(SWHType::all())
-    } else {
-        let mut types = Vec::new();
-        for type_ in s.split(',') {
-            types.push(
-                type_
-                    .try_into()
-                    .context("Could not parse --allowed-node-types")?,
-            );
-        }
-        Ok(types)
-    }
 }
 
 pub fn main() -> Result<()> {

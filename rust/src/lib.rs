@@ -15,7 +15,7 @@ pub mod graph;
 pub mod labels;
 pub mod map;
 pub mod mph;
-mod properties;
+pub mod properties;
 pub use properties::{AllSwhGraphProperties, SwhGraphProperties};
 
 #[cfg(feature = "compression")]

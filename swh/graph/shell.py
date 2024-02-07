@@ -47,6 +47,7 @@ from pathlib import Path
 import shlex
 import signal
 import subprocess
+import sys
 from typing import Any, Dict, List, NoReturn, Optional, Tuple, TypeVar, Union
 
 try:
@@ -215,7 +216,7 @@ class Command(metaclass=_MetaCommand):
         self.args = args
         self.kwargs = dict(kwargs)
         self.preexec_fn = self.kwargs.pop("preexec_fn", lambda: None)
-        self.cgroup = create_cgroup(args[0])
+        self.cgroup = create_cgroup(args[0].split("/")[-1])
 
     def _preexec_fn(self):
         if self.cgroup is not None:
@@ -306,6 +307,12 @@ class Java(Command):
     def _cleanup(self) -> None:
         self.logback_conf.close()
         super()._cleanup()
+
+
+class Rust(Command):
+    def __init__(self, bin_name, *args: str):
+        profile = "debug" if "pytest" in sys.argv[0] else "release"
+        super().__init__(f"target/{profile}/{bin_name}", *args)
 
 
 class _RunningCommand:

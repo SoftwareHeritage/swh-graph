@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
+use crate::SWHType;
+
 pub mod mmap;
 pub mod sort;
 
@@ -42,4 +44,22 @@ pub fn suffix_path<P: AsRef<Path>, S: AsRef<std::ffi::OsStr>>(path: P, suffix: S
     let mut path = path.as_ref().as_os_str().to_owned();
     path.push(suffix);
     path.into()
+}
+
+/// Given a string like `*` or `cnt,dir,rev,rel,snp,ori`, returns a list of `SWHType`
+/// matching the string.
+pub fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
+    if s == "*" {
+        Ok(SWHType::all())
+    } else {
+        let mut types = Vec::new();
+        for type_ in s.split(',') {
+            types.push(
+                type_
+                    .try_into()
+                    .context("Could not parse --allowed-node-types")?,
+            );
+        }
+        Ok(types)
+    }
 }

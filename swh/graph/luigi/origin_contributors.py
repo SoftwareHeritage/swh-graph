@@ -85,7 +85,7 @@ class ListOriginContributors(luigi.Task):
         ]
 
     def run(self) -> None:
-        """Runs org.softwareheritage.graph.utils.TopoSort and compresses"""
+        """Runs org.softwareheritage.graph.utils.ListOriginContributors and compresses"""
         import tempfile
 
         from ..shell import AtomicFileSink, Command, Java
