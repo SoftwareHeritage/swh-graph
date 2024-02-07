@@ -1333,7 +1333,7 @@ class DownloadGraphFromS3(luigi.Task):
             list(enumerate(files)),
             desc="Downloading",
         ):
-            if file_ == compression_metadata_path:
+            if file_ == "meta/compression.json":
                 # Will copy it last
                 seen_compression_metadata = True
                 continue
