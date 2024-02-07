@@ -1117,7 +1117,7 @@ class FindBlobOrigins(_ConcurrentCsvWritingTask):
                 swhgraph.TraversalRequest(
                     src=[swhid],
                     direction=swhgraph.GraphDirection.BACKWARD,
-                    mask=FieldMask(paths=["ori.url"]),
+                    mask=FieldMask(paths=["swhid", "ori.url"]),
                     return_nodes=swhgraph.NodeFilter(
                         types="ori",  # return only origins...
                     ),
@@ -1126,8 +1126,10 @@ class FindBlobOrigins(_ConcurrentCsvWritingTask):
             )
             async for item in response:
                 origin_url = item.ori.url
-                assert origin_url
-                break
+                if origin_url:
+                    break
+                else:
+                    print(f"{item.swhid} does not have an associated URL")
             else:
                 # no origin found
                 origin_url = ""
