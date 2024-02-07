@@ -189,32 +189,39 @@ public class FindEarliestRevision {
             long minRevId = -1;
             long minTimestamp = Long.MAX_VALUE;
             long visitedRevisions = 0;
-            while (!stack.isEmpty()) {
-                long currentNodeId = stack.pop();
-                if (graph.getNodeType(currentNodeId) == SwhType.REV) {
-                    visitedRevisions++;
-                    Long committerTs = graph.getCommitterTimestamp(currentNodeId);
-                    if (committerTs == null) {
-                        continue;
+            try {
+                while (!stack.isEmpty()) {
+                    long currentNodeId = stack.pop();
+                    if (graph.getNodeType(currentNodeId) == SwhType.REV) {
+                        visitedRevisions++;
+                        Long committerTs = graph.getCommitterTimestamp(currentNodeId);
+                        if (committerTs == null) {
+                            continue;
+                        }
+                        if (committerTs < minTimestamp && committerTs != Long.MIN_VALUE && committerTs != 0) {
+                            // exclude missing and zero (= epoch) as plausible earliest timestamps
+                            // as they are almost certainly bogus values
+                            minRevId = currentNodeId;
+                            minTimestamp = committerTs;
+                        }
                     }
-                    if (committerTs < minTimestamp && committerTs != Long.MIN_VALUE && committerTs != 0) {
-                        // exclude missing and zero (= epoch) as plausible earliest timestamps
-                        // as they are almost certainly bogus values
-                        minRevId = currentNodeId;
-                        minTimestamp = committerTs;
-                    }
-                }
 
-                LazyLongIterator it = graph.successors(currentNodeId);
-                for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
-                    if (!edges.isAllowed(graph.getNodeType(currentNodeId), graph.getNodeType(neighborNodeId))) {
-                        continue;
-                    }
-                    if (!visited.contains(neighborNodeId)) {
-                        stack.push(neighborNodeId);
-                        visited.add(neighborNodeId);
+                    LazyLongIterator it = graph.successors(currentNodeId);
+                    for (long neighborNodeId; (neighborNodeId = it.nextLong()) != -1;) {
+                        if (!edges.isAllowed(graph.getNodeType(currentNodeId), graph.getNodeType(neighborNodeId))) {
+                            continue;
+                        }
+                        if (!visited.contains(neighborNodeId)) {
+                            stack.push(neighborNodeId);
+                            visited.add(neighborNodeId);
+                        }
                     }
                 }
+            } catch (OutOfMemoryError e) {
+                stack.clear();
+                visited.clear();
+                System.err.println("OOM while looking for revisions containing: " + srcSWHID.toString());
+                minRevId = 1;
             }
 
             if (minRevId == -1) {
