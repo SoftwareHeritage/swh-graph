@@ -220,20 +220,23 @@ implementation; this takes a few hours for graphs representing full SWH exports.
 export SOURCE_DIR=~/src/swh-graph
 export GRAPH_DIR=~/graph/latest/compressed
 
+# Build the Java implementation
+make -C $SOURCEDIR java
+
 # Convert the GOV minimal-perfect-hash function from `.mph` to `.cmph`
-java -classpath $SOURCE_DIR/swh/graph/swh-graph.jar $SOURCE_DIR/java/src/main/java/org/softwareheritage/graph/utils/Mph2Cmph.java graph.mph graph.cmph`
+java -classpath $SOURCE_DIR/swh/graph/swh-graph.jar org.softwareheritage.graph.utils.Mph2Cmph $GRAPH_DIR/graph.mph $GRAPH_DIR/graph.cmph
 
 # Generate Elias-Fano-encoded offsets of the graph:
-cargo run --release --bin build_eliasfano -- $GRAPH_DIR/compressed/graph
-cargo run --release --bin compress build-eliasfano -- $GRAPH_DIR/graph-transposed
+cargo run --release --features compression --bin compress build-eliasfano -- $GRAPH_DIR/graph
+cargo run --release --features compression --bin compress build-eliasfano -- $GRAPH_DIR/graph-transposed
 
 # Generate Elias-Fano-encoded offsets of the labelled graph:
-cargo run --release --bin compress build-labels-eliasfano --  $GRAPH_DIR/graph-labelled $((1+ $(cat /$GRAPH_DIR/graph.nodes.count.txt)))
-cargo run --release --bin compress build-labels-eliasfano --  $GRAPH_DIR/graph-transposed-labelled $((1+ $(cat /$GRAPH_DIR/graph.nodes.count.txt)))
+cargo run --release --features compression --bin compress build-labels-eliasfano --  $GRAPH_DIR/graph-labelled $((1+ $(cat /$GRAPH_DIR/graph.nodes.count.txt)))
+cargo run --release --features compression --bin compress build-labels-eliasfano --  $GRAPH_DIR/graph-transposed-labelled $((1+ $(cat /$GRAPH_DIR/graph.nodes.count.txt)))
 
 # Generate `node2type.bin` (as `node2type.map` is specific to Java):
 cargo run --release --bin node2type --  $GRAPH_DIR/graph
 
 # Convert the Java-specific `.property.content.is_skipped.bin` to a plain `.property.content.is_skipped.bits`:
-java -classpath $SOURCE_DIR/swh/graph/swh-graph.jar $SOURCE_DIR/java/src/main/java/org/softwareheritage/graph/utils/Bitvec2Bits.java $GRAPH_DIR/graph.property.content.is_skipped.bits $GRAPH_DIR/graph.property.content.is_skipped.bits
+java -classpath $SOURCE_DIR/swh/graph/swh-graph.jar org.softwareheritage.graph.utils.Bitvec2Bits $GRAPH_DIR/graph.property.content.is_skipped.bin $GRAPH_DIR/graph.property.content.is_skipped.bits
 ```
