@@ -95,6 +95,10 @@ impl<
     }
 }
 
+/// Functions to access message of `revision`/`release` nodes, and names of `release` nodes
+///
+/// Only available after calling [`load_strings`](SwhGraphProperties::load_strings)
+/// or [`load_all_properties`](SwhGraph::load_all_properties)
 impl<
         MAPS: MapsOption,
         TIMESTAMPS: TimestampsOption,

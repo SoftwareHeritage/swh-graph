@@ -99,9 +99,10 @@ impl<
     }
 }
 
-/// Maps functions
+/// Functions to map between SWHID and node id.
 ///
-/// Only available if `load_maps` or `load_all_properties` was used.
+/// Only available after calling [`load_contents`](SwhGraphProperties::load_contents)
+/// or [`load_all_properties`](SwhGraph::load_all_properties)
 impl<
         MAPS: MapsOption + MapsTrait,
         TIMESTAMPS: TimestampsOption,

@@ -64,6 +64,10 @@ impl<
     }
 }
 
+/// Functions to access names of arc labels.
+///
+/// Only available after calling [`load_label_names`](SwhGraphProperties::load_label_names)
+/// or [`load_all_properties`](SwhGraph::load_all_properties).
 impl<
         MAPS: MapsOption,
         TIMESTAMPS: TimestampsOption,

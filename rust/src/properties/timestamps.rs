@@ -101,6 +101,10 @@ impl<
     }
 }
 
+/// Functions to access timestamps of `revision` and `release` nodes
+///
+/// Only available after calling [`load_timestamps`](SwhGraphProperties::load_timestamps)
+/// or [`load_all_properties`](SwhGraph::load_all_properties)
 impl<
         MAPS: MapsOption,
         TIMESTAMPS: TimestampsOption + TimestampsTrait,

@@ -77,6 +77,10 @@ impl<
     }
 }
 
+/// Functions to access properties of `content` nodes
+///
+/// Only available after calling [`load_contents`](SwhGraphProperties::load_contents)
+/// or [`load_all_properties`](SwhGraph::load_all_properties)
 impl<
         MAPS: MapsOption,
         TIMESTAMPS: TimestampsOption,
