@@ -3,16 +3,15 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::io::BufWriter;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
-use dsi_bitstream::prelude::{BufBitWriter, WordAdapter, BE};
+use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::ProgressLogger;
 use lender::Lender;
 use rayon::prelude::*;
-use webgraph::graph::arc_list_graph::ArcListGraph;
+use webgraph::graphs::arc_list_graph::ArcListGraph;
 use webgraph::prelude::*;
 
 use crate::utils::sort::par_sort_arcs;
@@ -24,7 +23,7 @@ pub fn transform<F, G, Iter>(
     sort_batch_size: usize,
     graph: G,
     transformation: F,
-    target_dir: PathBuf,
+    target_path: PathBuf,
 ) -> Result<()>
 where
     F: Fn(usize, usize) -> Iter + Send + Sync,
@@ -33,13 +32,6 @@ where
 {
     // Adapted from https://github.com/vigna/webgraph-rs/blob/08969fb1ac4ea59aafdbae976af8e026a99c9ac5/src/bin/perm.rs
     let num_nodes = graph.num_nodes();
-
-    let bit_write = <BufBitWriter<BE, _>>::new(WordAdapter::<usize, _>::new(BufWriter::new(
-        std::fs::File::create(format!("{}.graph", target_dir.to_string_lossy()))
-            .context("Could not create target graph file")?,
-    )));
-
-    let codes_writer = <DynamicCodesWriter<BE, _>>::new(bit_write, &CompFlags::default());
 
     let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
 
@@ -71,8 +63,11 @@ where
             pl.lock().unwrap().update_with_count(end - start);
             Ok(())
         },
-    )?;
+    )
+    .context("Could not sort arcs")?;
     pl.lock().unwrap().done();
+
+    let arc_list_graph = webgraph::prelude::Left(ArcListGraph::new(num_nodes, sorted_arcs));
 
     let compression_flags = CompFlags {
         compression_window: 1,
@@ -80,46 +75,14 @@ where
         max_ref_count: 3,
         ..CompFlags::default()
     };
-    let mut bvcomp = BVComp::new(
-        codes_writer,
-        compression_flags.compression_window,
-        compression_flags.min_interval_length,
-        compression_flags.max_ref_count,
-        0,
-    );
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
-    pl.expected_updates = Some(num_nodes);
-    pl.local_speed = true;
-    pl.start("Writing...");
-    let pl = std::cell::RefCell::new(pl);
-
-    let adjacency_lists = ArcListGraph::new(
-        num_nodes,
-        sorted_arcs.enumerate().map(|(i, node)| {
-            if i % 32768 == 0 {
-                // Avoid taking the lock too often at the expense of precision
-                pl.borrow_mut().update_with_count(32768);
-            }
-            node
-        }),
-    );
-
-    bvcomp
-        .extend(&adjacency_lists)
-        .context("Could not write to BVGraph")?;
-    bvcomp.flush().context("Could not flush BVGraph")?;
-    pl.into_inner().done();
-
-    drop(temp_dir); // Prevent early deletion
-
-    log::info!("Writing the .properties file");
-    let properties = compression_flags.to_properties(num_nodes, graph.num_arcs());
-    std::fs::write(
-        format!("{}.properties", target_dir.to_string_lossy()),
-        properties,
+    BVComp::single_thread::<BE, _>(
+        target_path,
+        &arc_list_graph,
+        compression_flags,
+        false, // build_offsets (TODO: make it true and remove BUILD_OFFSETS from pipeline)
+        Some(num_nodes),
     )
-    .context("Could not write .properties file")?;
+    .context("Could not build BVGraph from arcs")?;
 
     Ok(())
 }

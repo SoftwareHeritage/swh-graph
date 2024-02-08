@@ -49,7 +49,7 @@ impl BidirectionalGraph {
     }
 
     #[getter]
-    fn num_arcs(&self) -> usize {
+    fn num_arcs(&self) -> u64 {
         self.0.num_arcs()
     }
 

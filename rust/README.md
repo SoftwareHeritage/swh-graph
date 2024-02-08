@@ -45,7 +45,7 @@ predecessor access.
 In order to avoid loading files unnecessarily, they are instantiated as "naked" graphs
 with [`load_unidirectional`](graph::load_unidirectional)
 and [`load_bidirectional`](graph::load_bidirectional) which only provide
-successor and successor access; and extra data must be loaded with the `load_*` methods.
+successor and predecessor access; and extra data must be loaded with the `load_*` methods.
 
 For example:
 

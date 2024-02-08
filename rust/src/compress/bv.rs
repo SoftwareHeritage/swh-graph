@@ -7,15 +7,18 @@ use std::cell::UnsafeCell;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use super::orc::*;
-use crate::mph::SwhidMphf;
-use crate::utils::sort::par_sort_arcs;
 use anyhow::{anyhow, Context, Result};
+use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::ProgressLogger;
 use itertools::Itertools;
 use rayon::prelude::*;
 use tempfile;
-use webgraph::graph::arc_list_graph::ArcListGraph;
+use webgraph::graphs::arc_list_graph::ArcListGraph;
+use webgraph::graphs::bvgraph::BVComp;
+
+use super::orc::*;
+use crate::mph::SwhidMphf;
+use crate::utils::sort::par_sort_arcs;
 
 pub fn bv<MPHF: SwhidMphf + Sync>(
     sort_batch_size: usize,
@@ -88,7 +91,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     let pl = Mutex::new(pl);
     let counters = thread_local::ThreadLocal::new();
 
-    let arc_list_graph = ArcListGraph::new(
+    let arc_list_graph = webgraph::prelude::Left(ArcListGraph::new(
         num_nodes,
         sorted_arcs.inspect(|_| {
             let counter = counters.get_or(|| UnsafeCell::new(0));
@@ -102,14 +105,14 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
                 *counter = 0
             }
         }),
-    );
+    ));
     let comp_flags = Default::default();
     let num_threads = num_cpus::get();
 
     let temp_bv_dir = temp_dir.path().join("bv");
     std::fs::create_dir(&temp_bv_dir)
         .with_context(|| format!("Could not create {}", temp_bv_dir.display()))?;
-    webgraph::graph::bvgraph::parallel_compress_sequential_iter(
+    BVComp::parallel::<BE, _>(
         target_dir,
         &arc_list_graph,
         num_nodes,

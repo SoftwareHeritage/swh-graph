@@ -24,7 +24,7 @@ where
     fn num_nodes(&self) -> usize {
         self.0.num_nodes()
     }
-    fn num_arcs(&self) -> usize {
+    fn num_arcs(&self) -> u64 {
         self.0.num_arcs()
     }
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {

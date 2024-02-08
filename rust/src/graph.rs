@@ -12,13 +12,16 @@
 
 #![allow(clippy::type_complexity)]
 
+use std::iter::Iterator;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
+use dsi_bitstream::prelude::BE;
 use webgraph::prelude::*;
 //use webgraph::traits::{RandomAccessGraph, SequentialGraph};
-use webgraph::label::swh_labels::{MmapReaderBuilder, SwhLabels};
-use webgraph::EF;
+use webgraph::graphs::bvgraph::EF;
+use webgraph::graphs::BVGraph;
+use webgraph::labels::swh_labels::{MmapReaderBuilder, SwhLabels};
 
 use crate::labels::DirEntry;
 use crate::mph::SwhidMphf;
@@ -29,32 +32,34 @@ use crate::utils::suffix_path;
 pub type NodeId = usize;
 
 type DefaultUnderlyingGraph = BVGraph<
-    DynamicCodesReaderBuilder<
+    DynCodesDecoderFactory<
         dsi_bitstream::prelude::BE,
         MmapBackend<u32>,
-        EF<&'static [usize], &'static [u64]>,
+        sux::dict::EliasFano<
+            sux::rank_sel::SelectFixed2<
+                sux::bits::CountBitVec<&'static [usize]>,
+                &'static [u64],
+                8,
+            >,
+            sux::bits::BitFieldVec<usize, &'static [usize]>,
+        >,
     >,
-    webgraph::EF<&'static [usize], &'static [u64]>,
 >;
 
-/// Wrapper for [`RandomAccessLabelling`] with a method to return an underlying graph
+/// Wrapper for [`RandomAccessLabeling`] with a method to return an underlying graph
 /// (or itself, if it implements [`UnderlyingGraph`])
-pub trait UnderlyingLabelling: RandomAccessLabelling {
+pub trait UnderlyingLabeling: RandomAccessLabeling {
     type Graph: UnderlyingGraph;
 
     fn underlying_graph(&self) -> &Self::Graph;
 }
-/// Wrapper for [`RandomAccessGraph`] which implements [`UnderlyingLabelling`] by
+/// Wrapper for [`RandomAccessGraph`] which implements [`UnderlyingLabeling`] by
 /// returning itself as the underlying graph
 pub trait UnderlyingGraph:
-    RandomAccessGraph<Label = usize> + UnderlyingLabelling<Graph = Self>
+    RandomAccessGraph<Label = usize> + UnderlyingLabeling<Graph = Self>
 {
 }
-impl<CRB, OFF> UnderlyingLabelling for BVGraph<CRB, OFF>
-where
-    CRB: BVGraphCodesReaderBuilder,
-    OFF: sux::prelude::IndexedDict<Input = usize, Output = usize>,
-{
+impl<F: RandomAccessDecoderFactory> UnderlyingLabeling for BVGraph<F> {
     type Graph = Self;
 
     #[inline(always)]
@@ -62,13 +67,8 @@ where
         self
     }
 }
-impl<CRB, OFF> UnderlyingGraph for BVGraph<CRB, OFF>
-where
-    CRB: BVGraphCodesReaderBuilder,
-    OFF: sux::prelude::IndexedDict<Input = usize, Output = usize>,
-{
-}
-impl<G: UnderlyingGraph> UnderlyingLabelling for Zip<G, SwhGraphLabels> {
+impl<F: RandomAccessDecoderFactory> UnderlyingGraph for BVGraph<F> {}
+impl<G: UnderlyingGraph> UnderlyingLabeling for Zip<G, SwhGraphLabels> {
     type Graph = G;
 
     #[inline(always)]
@@ -77,7 +77,8 @@ impl<G: UnderlyingGraph> UnderlyingLabelling for Zip<G, SwhGraphLabels> {
     }
 }
 
-type SwhGraphLabels = SwhLabels<MmapReaderBuilder, EF<&'static [usize], &'static [u64]>>;
+type SwhGraphLabels =
+    SwhLabels<MmapReaderBuilder, <EF as epserde::prelude::DeserializeInner>::DeserType<'static>>;
 
 pub trait SwhGraph {
     /// Return the base path of the graph
@@ -85,7 +86,7 @@ pub trait SwhGraph {
     /// Return the number of nodes in the graph.
     fn num_nodes(&self) -> usize;
     /// Return the number of arcs in the graph.
-    fn num_arcs(&self) -> usize;
+    fn num_arcs(&self) -> u64;
     /// Return whether there is an arc going from `src_node_id` to `dst_node_id`.
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool;
 }
@@ -167,13 +168,13 @@ pub trait SwhGraphWithProperties: SwhGraph {
 ///   [`load_all_properties`](SwhUnidirectionalGraph::load_all_properties)
 /// * G is the forward graph (either [`BVGraph`], or `Zip<BVGraph, SwhGraphLabels>`
 ///   [`load_labels`](SwhUnidirectionalGraph::load_labels)
-pub struct SwhUnidirectionalGraph<P, G: UnderlyingLabelling = DefaultUnderlyingGraph> {
+pub struct SwhUnidirectionalGraph<P, G: UnderlyingLabeling = DefaultUnderlyingGraph> {
     basepath: PathBuf,
     graph: G,
     properties: P,
 }
 
-impl<P, G: UnderlyingLabelling> SwhGraph for SwhUnidirectionalGraph<P, G> {
+impl<P, G: UnderlyingLabeling> SwhGraph for SwhUnidirectionalGraph<P, G> {
     fn path(&self) -> &Path {
         self.basepath.as_path()
     }
@@ -182,7 +183,7 @@ impl<P, G: UnderlyingLabelling> SwhGraph for SwhUnidirectionalGraph<P, G> {
         self.graph.underlying_graph().num_nodes()
     }
 
-    fn num_arcs(&self) -> usize {
+    fn num_arcs(&self) -> u64 {
         self.graph.underlying_graph().num_arcs()
     }
 
@@ -193,8 +194,8 @@ impl<P, G: UnderlyingLabelling> SwhGraph for SwhUnidirectionalGraph<P, G> {
     }
 }
 
-impl<P, G: UnderlyingLabelling> SwhForwardGraph for SwhUnidirectionalGraph<P, G> {
-    type Successors<'succ> = <<G as UnderlyingLabelling>::Graph as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
+impl<P, G: UnderlyingLabeling> SwhForwardGraph for SwhUnidirectionalGraph<P, G> {
+    type Successors<'succ> = <<G as UnderlyingLabeling>::Graph as RandomAccessLabeling>::Labels<'succ> where Self: 'succ;
 
     /// Return an [`IntoIterator`] over the successors of a node.
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
@@ -227,7 +228,7 @@ impl<
         C: properties::ContentsOption,
         S: properties::StringsOption,
         N: properties::LabelNamesOption,
-        G: UnderlyingLabelling,
+        G: UnderlyingLabeling,
     > SwhUnidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S, N>, G>
 {
     /// Enriches the graph with more properties mmapped from disk
@@ -268,7 +269,7 @@ impl<
     }
 }
 
-impl<G: UnderlyingLabelling> SwhUnidirectionalGraph<(), G> {
+impl<G: UnderlyingLabeling> SwhUnidirectionalGraph<(), G> {
     /// Prerequisite for `load_properties`
     pub fn init_properties(
         self,
@@ -320,7 +321,7 @@ impl<
         CONTENTS: properties::ContentsOption,
         STRINGS: properties::StringsOption,
         LABELNAMES: properties::LabelNamesOption,
-        G: UnderlyingLabelling,
+        G: UnderlyingLabeling,
     > SwhGraphWithProperties
     for SwhUnidirectionalGraph<
         properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
@@ -369,8 +370,8 @@ impl<P, G: UnderlyingGraph> SwhUnidirectionalGraph<P, G> {
 ///   after using [`load_backward_labels`](SwhBidirectionalGraph::load_backward_labels)
 pub struct SwhBidirectionalGraph<
     P,
-    FG: UnderlyingLabelling = DefaultUnderlyingGraph,
-    BG: UnderlyingLabelling = DefaultUnderlyingGraph,
+    FG: UnderlyingLabeling = DefaultUnderlyingGraph,
+    BG: UnderlyingLabeling = DefaultUnderlyingGraph,
 > {
     basepath: PathBuf,
     forward_graph: FG,
@@ -378,7 +379,7 @@ pub struct SwhBidirectionalGraph<
     properties: P,
 }
 
-impl<P, FG: UnderlyingLabelling, BG: UnderlyingLabelling> SwhGraph
+impl<P, FG: UnderlyingLabeling, BG: UnderlyingLabeling> SwhGraph
     for SwhBidirectionalGraph<P, FG, BG>
 {
     fn path(&self) -> &Path {
@@ -389,7 +390,7 @@ impl<P, FG: UnderlyingLabelling, BG: UnderlyingLabelling> SwhGraph
         self.forward_graph.underlying_graph().num_nodes()
     }
 
-    fn num_arcs(&self) -> usize {
+    fn num_arcs(&self) -> u64 {
         self.forward_graph.underlying_graph().num_arcs()
     }
 
@@ -400,10 +401,10 @@ impl<P, FG: UnderlyingLabelling, BG: UnderlyingLabelling> SwhGraph
     }
 }
 
-impl<P, FG: UnderlyingLabelling, BG: UnderlyingLabelling> SwhForwardGraph
+impl<P, FG: UnderlyingLabeling, BG: UnderlyingLabeling> SwhForwardGraph
     for SwhBidirectionalGraph<P, FG, BG>
 {
-    type Successors<'succ> = <<FG as UnderlyingLabelling>::Graph as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
+    type Successors<'succ> = <<FG as UnderlyingLabeling>::Graph as RandomAccessLabeling>::Labels<'succ> where Self: 'succ;
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         self.forward_graph.underlying_graph().successors(node_id)
     }
@@ -412,7 +413,7 @@ impl<P, FG: UnderlyingLabelling, BG: UnderlyingLabelling> SwhForwardGraph
     }
 }
 
-impl<P, FG: UnderlyingGraph, BG: UnderlyingLabelling> SwhLabelledForwardGraph
+impl<P, FG: UnderlyingGraph, BG: UnderlyingLabeling> SwhLabelledForwardGraph
     for SwhBidirectionalGraph<P, Zip<FG, SwhGraphLabels>, BG>
 {
     type LabelledArcs<'arc> = LabelledArcIterator where Self: 'arc;
@@ -425,10 +426,10 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingLabelling> SwhLabelledForwardGraph
     }
 }
 
-impl<P, FG: UnderlyingLabelling, BG: UnderlyingLabelling> SwhBackwardGraph
+impl<P, FG: UnderlyingLabeling, BG: UnderlyingLabeling> SwhBackwardGraph
     for SwhBidirectionalGraph<P, FG, BG>
 {
-    type Predecessors<'succ> = <<BG as UnderlyingLabelling>::Graph as RandomAccessLabelling>::Successors<'succ> where Self: 'succ;
+    type Predecessors<'succ> = <<BG as UnderlyingLabeling>::Graph as RandomAccessLabeling>::Labels<'succ> where Self: 'succ;
 
     fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
         self.backward_graph.underlying_graph().successors(node_id)
@@ -439,7 +440,7 @@ impl<P, FG: UnderlyingLabelling, BG: UnderlyingLabelling> SwhBackwardGraph
     }
 }
 
-impl<P, FG: UnderlyingLabelling, BG: UnderlyingGraph> SwhLabelledBackwardGraph
+impl<P, FG: UnderlyingLabeling, BG: UnderlyingGraph> SwhLabelledBackwardGraph
     for SwhBidirectionalGraph<P, FG, Zip<BG, SwhGraphLabels>>
 {
     type LabelledArcs<'arc> = LabelledArcIterator where Self: 'arc;
@@ -459,8 +460,8 @@ impl<
         C: properties::ContentsOption,
         S: properties::StringsOption,
         N: properties::LabelNamesOption,
-        BG: UnderlyingLabelling,
-        FG: UnderlyingLabelling,
+        BG: UnderlyingLabeling,
+        FG: UnderlyingLabeling,
     > SwhBidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S, N>, FG, BG>
 {
     /// Enriches the graph with more properties mmapped from disk
@@ -503,7 +504,7 @@ impl<
     }
 }
 
-impl<FG: UnderlyingLabelling, BG: UnderlyingLabelling> SwhBidirectionalGraph<(), FG, BG> {
+impl<FG: UnderlyingLabeling, BG: UnderlyingLabeling> SwhBidirectionalGraph<(), FG, BG> {
     /// Prerequisite for `load_properties`
     pub fn init_properties(
         self,
@@ -560,8 +561,8 @@ impl<
         CONTENTS: properties::ContentsOption,
         STRINGS: properties::StringsOption,
         LABELNAMES: properties::LabelNamesOption,
-        BG: UnderlyingLabelling,
-        FG: UnderlyingLabelling,
+        BG: UnderlyingLabeling,
+        FG: UnderlyingLabeling,
     > SwhGraphWithProperties
     for SwhBidirectionalGraph<
         properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
@@ -584,7 +585,7 @@ impl<
     }
 }
 
-impl<P, FG: UnderlyingGraph, BG: UnderlyingLabelling> SwhBidirectionalGraph<P, FG, BG> {
+impl<P, FG: UnderlyingGraph, BG: UnderlyingLabeling> SwhBidirectionalGraph<P, FG, BG> {
     /// Consumes this graph and returns a new one that implements [`SwhLabelledForwardGraph`]
     pub fn load_forward_labels(
         self,
@@ -599,7 +600,7 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingLabelling> SwhBidirectionalGraph<P, F
     }
 }
 
-impl<P, FG: UnderlyingLabelling, BG: UnderlyingGraph> SwhBidirectionalGraph<P, FG, BG> {
+impl<P, FG: UnderlyingLabeling, BG: UnderlyingGraph> SwhBidirectionalGraph<P, FG, BG> {
     /// Consumes this graph and returns a new one that implements [`SwhLabelledBackwardGraph`]
     pub fn load_backward_labels(
         self,
@@ -632,7 +633,7 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<P, FG, B
 }
 
 pub struct LabelledSuccessorIterator<'a, G: RandomAccessGraph + 'a> {
-    successors: <Zip<G, SwhGraphLabels> as webgraph::traits::RandomAccessLabelling>::Successors<'a>,
+    successors: <Zip<G, SwhGraphLabels> as webgraph::traits::RandomAccessLabeling>::Labels<'a>,
 }
 
 impl<'a, G: RandomAccessGraph> Iterator for LabelledSuccessorIterator<'a, G> {
@@ -670,7 +671,9 @@ impl Iterator for LabelledArcIterator {
 /// Returns a new [`SwhUnidirectionalGraph`]
 pub fn load_unidirectional(basepath: impl AsRef<Path>) -> Result<SwhUnidirectionalGraph<()>> {
     let basepath = basepath.as_ref().to_owned();
-    let graph = webgraph::graph::bvgraph::load(&basepath)?;
+    let graph = BVGraph::with_basename(&basepath)
+        .endianness::<BE>()
+        .load()?;
     Ok(SwhUnidirectionalGraph {
         basepath,
         graph,
@@ -681,8 +684,12 @@ pub fn load_unidirectional(basepath: impl AsRef<Path>) -> Result<SwhUnidirection
 /// Returns a new [`SwhBidirectionalGraph`]
 pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectionalGraph<()>> {
     let basepath = basepath.as_ref().to_owned();
-    let forward_graph = webgraph::graph::bvgraph::load(&basepath)?;
-    let backward_graph = webgraph::graph::bvgraph::load(suffix_path(&basepath, "-transposed"))?;
+    let forward_graph = BVGraph::with_basename(&basepath)
+        .endianness::<BE>()
+        .load()?;
+    let backward_graph = BVGraph::with_basename(suffix_path(&basepath, "-transposed"))
+        .endianness::<BE>()
+        .load()?;
     Ok(SwhBidirectionalGraph {
         basepath,
         forward_graph,
@@ -726,7 +733,7 @@ fn zip_labels<G: UnderlyingGraph, P: AsRef<Path>>(
 
     let labels = SwhLabels::load_from_file(width, &base_path).with_context(|| {
         format!(
-            "Could not load labelling from {}",
+            "Could not load labeling from {}",
             base_path.as_ref().display()
         )
     })?;

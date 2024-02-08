@@ -3,14 +3,17 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::Result;
-use dsi_progress_logger::ProgressLogger;
-use log::info;
 use std::io::prelude::*;
 use std::path::PathBuf;
+
+use anyhow::Result;
+use dsi_bitstream::prelude::BE;
+use dsi_progress_logger::ProgressLogger;
+use log::info;
+use webgraph::prelude::*;
+
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::map::{MappedPermutation, Node2SWHID, Permutation};
-use webgraph::prelude::*;
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
@@ -40,7 +43,7 @@ fn test_order_mph() -> Result<()> {
     );
 
     info!("loading compressed graph into memory (with mmap)...");
-    let graph = webgraph::graph::bvgraph::load(BASENAME)?;
+    let graph = BVGraph::with_basename(BASENAME).endianness::<BE>().load()?;
 
     info!("loading order...");
     let order = MappedPermutation::load(

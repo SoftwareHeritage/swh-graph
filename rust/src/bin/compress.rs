@@ -14,6 +14,7 @@ use std::sync::Mutex;
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
+use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
 use rayon::prelude::*;
@@ -560,9 +561,9 @@ pub fn main() -> Result<()> {
             use webgraph::prelude::*;
 
             // Create the sequential iterator over the graph
-            let seq_graph = webgraph::graph::bvgraph::load_seq(&graph)?;
-            let seq_graph =
-                seq_graph.map_codes_reader_builder(DynamicCodesReaderSkipperBuilder::from);
+            let seq_graph = BVGraphSeq::with_basename(&graph)
+                .endianness::<BE>()
+                .load()?;
             // Create the offsets file
             let file = std::fs::File::create(&target)
                 .with_context(|| format!("Could not create {}", target.display()))?;
@@ -577,8 +578,8 @@ pub fn main() -> Result<()> {
             pl.start("Computing offsets...");
             // read the graph a write the offsets
             let mut offset = 0;
-            let mut degs_iter = seq_graph.iter_degrees();
-            for (new_offset, _node_id, _degree) in &mut degs_iter {
+            let mut degs_iter = seq_graph.offset_deg_iter();
+            for (new_offset, _degree) in &mut degs_iter {
                 // write where
                 writer
                     .write_gamma((new_offset - offset) as _)
@@ -598,6 +599,7 @@ pub fn main() -> Result<()> {
         Commands::BuildEliasfano { base_path } => {
             use dsi_bitstream::prelude::*;
             use epserde::prelude::*;
+            use std::fs::File; // Shadowed by webgraph::prelude::*
             use sux::prelude::*;
             use webgraph::prelude::*;
 
@@ -657,22 +659,22 @@ pub fn main() -> Result<()> {
                 log::info!(
                     "The offsets file does not exists, reading the graph to build Elias-Fano"
                 );
-                let seq_graph = webgraph::graph::bvgraph::load_seq(&base_path)
+                let seq_graph = BVGraphSeq::with_basename(&base_path)
+                    .endianness::<BE>()
+                    .load()
                     .with_context(|| format!("Could not load graph at {}", base_path.display()))?;
-                let seq_graph =
-                    seq_graph.map_codes_reader_builder(DynamicCodesReaderSkipperBuilder::from);
                 // otherwise directly read the graph
                 // progress bar
                 pl.start("Building EliasFano...");
                 // read the graph a write the offsets
-                let mut iter = seq_graph.iter_degrees();
-                for (new_offset, _node_id, _degree) in iter.by_ref() {
+                let mut degs_iter = seq_graph.offset_deg_iter();
+                for (new_offset, _degree) in degs_iter.by_ref() {
                     // write where
                     efb.push(new_offset as _).context("Could not write gamma")?;
                     // decode the next nodes so we know where the next node_id starts
                     pl.light_update();
                 }
-                efb.push(iter.get_pos() as _)
+                efb.push(degs_iter.get_pos() as _)
                     .context("Could not write final gamma")?;
             }
 
@@ -682,7 +684,7 @@ pub fn main() -> Result<()> {
 
             let mut pl = ProgressLogger::default().display_memory();
             pl.start("Building the Index over the ones in the high-bits...");
-            let ef: webgraph::EF<_, _> = ef.convert_to().unwrap();
+            let ef: EF = ef.convert_to().unwrap();
             pl.done();
 
             let mut pl = ProgressLogger::default().display_memory();
@@ -748,7 +750,7 @@ pub fn main() -> Result<()> {
 
             let mut pl = ProgressLogger::default().display_memory();
             pl.start("Building the Index over the ones in the high-bits...");
-            let ef: webgraph::EF<_, _> = ef.convert_to().unwrap();
+            let ef: EF = ef.convert_to().unwrap();
             pl.done();
 
             let mut pl = ProgressLogger::default().display_memory();
@@ -806,7 +808,9 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Could not open {}", target_order.display()))?;
 
             println!("Loading graph");
-            let graph = webgraph::graph::bvgraph::load(graph_dir)?;
+            let graph = BVGraph::with_basename(graph_dir)
+                .endianness::<BE>()
+                .load()?;
             println!("Graph loaded");
 
             swh_graph::approximate_bfs::almost_bfs_order(&graph)
@@ -822,7 +826,9 @@ pub fn main() -> Result<()> {
         } => {
             use swh_graph::compress::transform::transform;
 
-            let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
+            let graph = BVGraph::with_basename(graph_dir)
+                .endianness::<BE>()
+                .load()?;
             let num_nodes = graph.num_nodes();
 
             log::info!("Loading permutation...");
@@ -866,7 +872,9 @@ pub fn main() -> Result<()> {
         } => {
             use swh_graph::compress::transform::transform;
 
-            let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
+            let graph = BVGraph::with_basename(graph_dir)
+                .endianness::<BE>()
+                .load()?;
 
             log::info!("Transposing...");
             transform(
@@ -891,7 +899,9 @@ pub fn main() -> Result<()> {
         } => {
             use swh_graph::compress::transform::transform;
 
-            let graph = webgraph::graph::bvgraph::load(&graph_dir)?;
+            let graph = BVGraph::with_basename(graph_dir)
+                .endianness::<BE>()
+                .load()?;
             let num_nodes = graph.num_nodes();
 
             log::info!("Loading permutation...");

@@ -99,6 +99,9 @@ impl<
     }
 }
 
+/// Maps functions
+///
+/// Only available if `load_maps` or `load_all_properties` was used.
 impl<
         MAPS: MapsOption + MapsTrait,
         TIMESTAMPS: TimestampsOption,
