@@ -346,6 +346,13 @@ def get_all_subclasses(cls):
     For example: ``/dev/shm/swh-graph/default/``.""",
 )
 @click.option(
+    "--export-base-directory",
+    required=False,
+    type=PathlibPath(),
+    help="""Overrides the path of the export to use. Defaults to the value of
+    ``--base-directory``.""",
+)
+@click.option(
     "--dataset-name",
     required=True,
     type=str,
@@ -389,6 +396,7 @@ def luigi(
     ctx,
     base_directory: Path,
     graph_base_directory: Optional[Path],
+    export_base_directory: Optional[Path],
     base_sensitive_directory: Optional[Path],
     s3_prefix: Optional[str],
     athena_prefix: Optional[str],
@@ -482,7 +490,7 @@ def luigi(
 
     export_name = export_name or dataset_name
 
-    export_path = base_directory / export_name
+    export_path = (export_base_directory or base_directory) / export_name
     dataset_path = base_directory / dataset_name
 
     default_values = dict(
