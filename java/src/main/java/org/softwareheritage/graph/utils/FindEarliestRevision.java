@@ -168,6 +168,10 @@ public class FindEarliestRevision {
         for (CSVRecord record : records) {
             if (timing)
                 ts = System.nanoTime();
+            if (record == null) {
+                // Reached end of file
+                break;
+            }
             rawSWHID = record.get(0);
             lineCount++;
             try {
