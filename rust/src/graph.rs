@@ -672,6 +672,7 @@ pub fn load_unidirectional(basepath: impl AsRef<Path>) -> Result<SwhUnidirection
     let basepath = basepath.as_ref().to_owned();
     let graph = BVGraph::with_basename(&basepath)
         .endianness::<BE>()
+        .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
         .load()?;
     Ok(SwhUnidirectionalGraph {
         basepath,
@@ -685,9 +686,11 @@ pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectional
     let basepath = basepath.as_ref().to_owned();
     let forward_graph = BVGraph::with_basename(&basepath)
         .endianness::<BE>()
+        .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
         .load()?;
     let backward_graph = BVGraph::with_basename(suffix_path(&basepath, "-transposed"))
         .endianness::<BE>()
+        .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
         .load()?;
     Ok(SwhBidirectionalGraph {
         basepath,

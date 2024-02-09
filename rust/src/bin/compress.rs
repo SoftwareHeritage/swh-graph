@@ -621,6 +621,7 @@ pub fn main() -> Result<()> {
             println!("Loading graph");
             let graph = BVGraph::with_basename(graph_dir)
                 .endianness::<BE>()
+                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
                 .load()?;
             println!("Graph loaded");
 
@@ -639,6 +640,7 @@ pub fn main() -> Result<()> {
 
             let graph = BVGraph::with_basename(graph_dir)
                 .endianness::<BE>()
+                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
                 .load()?;
             let num_nodes = graph.num_nodes();
 
@@ -685,6 +687,7 @@ pub fn main() -> Result<()> {
 
             let graph = BVGraph::with_basename(graph_dir)
                 .endianness::<BE>()
+                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
                 .load()?;
 
             log::info!("Transposing...");
@@ -712,6 +715,7 @@ pub fn main() -> Result<()> {
 
             let graph = BVGraph::with_basename(graph_dir)
                 .endianness::<BE>()
+                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
                 .load()?;
             let num_nodes = graph.num_nodes();
 
