@@ -7,7 +7,7 @@
 
 use std::env::temp_dir;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Seek, Write};
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -113,7 +113,6 @@ enum Commands {
     /// by the Java backend to randomly access the graph.
     BuildOffsets {
         graph: PathBuf,
-        target: PathBuf,
     },
 
     /// Reads either a graph file linearly or .offsets file (generated and used
@@ -554,216 +553,28 @@ pub fn main() -> Result<()> {
             swh_graph::compress::mph::build_mph::<Vec<u8>>(persons_dir, out_mph, "person")?;
         }
 
-        Commands::BuildOffsets { graph, target } => {
-            // Adapted from https://github.com/vigna/webgraph-rs/blob/90704d6f7e77b22796757144af6fef89109f33a1/src/bin/build_offsets.rs
-            use dsi_bitstream::prelude::*;
-            use dsi_progress_logger::*;
-            use webgraph::prelude::*;
-
-            // Create the sequential iterator over the graph
-            let seq_graph = BVGraphSeq::with_basename(&graph)
-                .endianness::<BE>()
-                .load()?;
-            // Create the offsets file
-            let file = std::fs::File::create(&target)
-                .with_context(|| format!("Could not create {}", target.display()))?;
-            // create a bit writer on the file
-            let mut writer = <BufBitWriter<BE, _>>::new(<WordAdapter<u64, _>>::new(
-                BufWriter::with_capacity(1 << 20, file),
-            ));
-            // progress bar
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "offset";
-            pl.expected_updates = Some(seq_graph.num_nodes());
-            pl.start("Computing offsets...");
-            // read the graph a write the offsets
-            let mut offset = 0;
-            let mut degs_iter = seq_graph.offset_deg_iter();
-            for (new_offset, _degree) in &mut degs_iter {
-                // write where
-                writer
-                    .write_gamma((new_offset - offset) as _)
-                    .context("Could not write gamma")?;
-                offset = new_offset;
-                // decode the next nodes so we know where the next node_id starts
-                pl.light_update();
-            }
-            // write the last offset, this is done to avoid decoding the last node
-            writer
-                .write_gamma((degs_iter.get_pos() - offset) as _)
-                .context("Could not write final gamma")?;
-            pl.light_update();
-            pl.done();
+        Commands::BuildOffsets { graph } => {
+            use webgraph::cli::build::offsets::{build_offsets, CliArgs};
+            build_offsets::<BE>(CliArgs { basename: graph })?;
         }
 
         Commands::BuildEliasfano { base_path } => {
-            use dsi_bitstream::prelude::*;
-            use epserde::prelude::*;
-            use std::fs::File; // Shadowed by webgraph::prelude::*
-            use sux::prelude::*;
-            use webgraph::prelude::*;
-
-            use swh_graph::utils::suffix_path;
-
-            // Adapted from https://github.com/vigna/webgraph-rs/blob/908be9496cde3813ee43e193fb2c85f80814aa52/src/bin/build_eliasfano.rs#L85-L161
-            let properties_path = suffix_path(&base_path, ".properties");
-            let f = File::open(&properties_path)
-                .with_context(|| format!("Could not open {}", properties_path.display()))?;
-            let map = java_properties::read(BufReader::new(f))?;
-            let num_nodes = map.get("nodes").unwrap().parse::<usize>()?;
-
-            let graph_path = suffix_path(&base_path, ".graph");
-            let mut file = File::open(&graph_path)
-                .with_context(|| format!("Could not open {}", graph_path.display()))?;
-            let file_len = 8 * file
-                .seek(std::io::SeekFrom::End(0))
-                .with_context(|| format!("Could not seek in {}", graph_path.display()))?;
-
-            let mut efb = EliasFanoBuilder::new(num_nodes + 1, file_len as usize);
-
-            let ef_path = suffix_path(&base_path, ".ef");
-            let mut ef_file = BufWriter::new(
-                File::create(&ef_path)
-                    .with_context(|| format!("Could not create {}", ef_path.display()))?,
-            );
-
-            // Create the offsets file
-            let of_file_path = suffix_path(&base_path, ".offsets");
-
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "offset";
-            pl.expected_updates = Some(num_nodes);
-
-            // if the offset files exists, read it to build elias-fano
-            if of_file_path.exists() {
-                log::info!("The offsets file exists, reading it to build Elias-Fano");
-                let of_file = BufReader::with_capacity(
-                    1 << 20,
-                    File::open(&of_file_path)
-                        .with_context(|| format!("Could not open {}", of_file_path.display()))?,
-                );
-                // create a bit reader on the file
-                let mut reader = BufBitReader::<BE, _>::new(<WordAdapter<u32, _>>::new(of_file));
-                // progress bar
-                pl.start("Translating offsets to EliasFano...");
-                // read the graph a write the offsets
-                let mut offset = 0;
-                for _node_id in 0..num_nodes + 1 {
-                    // write where
-                    offset += reader.read_gamma().context("Could not read gamma")?;
-                    efb.push(offset as _).context("Could not write gamma")?;
-                    // decode the next nodes so we know where the next node_id starts
-                    pl.light_update();
-                }
-            } else {
-                log::info!(
-                    "The offsets file does not exists, reading the graph to build Elias-Fano"
-                );
-                let seq_graph = BVGraphSeq::with_basename(&base_path)
-                    .endianness::<BE>()
-                    .load()
-                    .with_context(|| format!("Could not load graph at {}", base_path.display()))?;
-                // otherwise directly read the graph
-                // progress bar
-                pl.start("Building EliasFano...");
-                // read the graph a write the offsets
-                let mut degs_iter = seq_graph.offset_deg_iter();
-                for (new_offset, _degree) in degs_iter.by_ref() {
-                    // write where
-                    efb.push(new_offset as _).context("Could not write gamma")?;
-                    // decode the next nodes so we know where the next node_id starts
-                    pl.light_update();
-                }
-                efb.push(degs_iter.get_pos() as _)
-                    .context("Could not write final gamma")?;
-            }
-
-            pl.done();
-
-            let ef = efb.build();
-
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.start("Building the Index over the ones in the high-bits...");
-            let ef: EF = ef.convert_to().unwrap();
-            pl.done();
-
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.start("Writing to disk...");
-            // serialize and dump the schema to disk
-            let schema = ef.serialize_with_schema(&mut ef_file).with_context(|| {
-                format!("Could not serialize EliasFano to {}", ef_path.display())
+            use webgraph::cli::build::ef::{build_eliasfano, CliArgs};
+            build_eliasfano::<BE>(CliArgs {
+                basename: base_path,
+                n: None,
             })?;
-            let schema_path = suffix_path(&base_path, ".ef.schema");
-            std::fs::write(&schema_path, schema.to_csv())
-                .with_context(|| format!("Could not write schema to {}", schema_path.display()))?;
-
-            pl.done();
         }
 
         Commands::BuildLabelsEliasfano {
             base_path,
             num_nodes,
         } => {
-            use dsi_bitstream::prelude::*;
-            use epserde::prelude::*;
-            use sux::prelude::*;
-
-            use swh_graph::utils::suffix_path;
-
-            // Adapted from https://github.com/vigna/webgraph-rs/blob/908be9496cde3813ee43e193fb2c85f80814aa52/src/bin/build_eliasfano.rs#L43-84
-
-            // Horribly temporary duplicated code for the case of label offsets.
-
-            let labels_path = suffix_path(&base_path, ".labels");
-            let mut file = File::open(&labels_path)
-                .with_context(|| format!("Could not open {}", labels_path.display()))?;
-            let file_len = 8 * file
-                .seek(std::io::SeekFrom::End(0))
-                .with_context(|| format!("Could not seek to end of {}", labels_path.display()))?;
-
-            let mut efb = EliasFanoBuilder::new(num_nodes, file_len as usize);
-
-            log::info!("The offsets file exists, reading it to build Elias-Fano");
-            let of_file_path = suffix_path(&base_path, ".labeloffsets");
-            let of_file = BufReader::with_capacity(
-                1 << 20,
-                File::open(&of_file_path)
-                    .with_context(|| format!("Could not open {}", of_file_path.display()))?,
-            );
-            // create a bit reader on the file
-            let mut reader = BufBitReader::<BE, _>::new(<WordAdapter<u32, _>>::new(of_file));
-            // progress bar
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "offset";
-            pl.expected_updates = Some(num_nodes);
-            pl.start("Translating offsets to EliasFano...");
-            // read the graph a write the offsets
-            let mut offset = 0;
-            for _node_id in 0..num_nodes {
-                // write where
-                offset += reader.read_gamma().context("Could not read gamma")?;
-                efb.push(offset as _).context("Could not write offset")?;
-                // decode the next nodes so we know where the next node_id starts
-                pl.light_update();
-            }
-            let ef = efb.build();
-
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.start("Building the Index over the ones in the high-bits...");
-            let ef: EF = ef.convert_to().unwrap();
-            pl.done();
-
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.start("Writing to disk...");
-            // serialize and dump the schema to disk
-            let ef_path = suffix_path(base_path, ".ef");
-            let mut ef_file = BufWriter::new(
-                File::create(&ef_path)
-                    .with_context(|| format!("Could not create {}", ef_path.display()))?,
-            );
-            ef.serialize(&mut ef_file)
-                .with_context(|| format!("Could not serialize EF to {}", ef_path.display()))?;
-            pl.done();
+            use webgraph::cli::build::ef::{build_eliasfano, CliArgs};
+            build_eliasfano::<BE>(CliArgs {
+                basename: base_path,
+                n: Some(num_nodes),
+            })?;
         }
 
         Commands::Bv {
