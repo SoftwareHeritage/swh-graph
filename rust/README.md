@@ -224,7 +224,7 @@ export GRAPH_DIR=~/graph/latest/compressed
 java -classpath $SOURCE_DIR/swh/graph/swh-graph.jar $SOURCE_DIR/java/src/main/java/org/softwareheritage/graph/utils/Mph2Cmph.java graph.mph graph.cmph`
 
 # Generate Elias-Fano-encoded offsets of the graph:
-cargo run --release --bin build_eliasfano -- $GRAPH_DIR/compressed/graph
+cargo run --release --bin compress build-eliasfano -- $GRAPH_DIR/compressed/graph
 cargo run --release --bin compress build-eliasfano -- $GRAPH_DIR/graph-transposed
 
 # Generate Elias-Fano-encoded offsets of the labelled graph:
