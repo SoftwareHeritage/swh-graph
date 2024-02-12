@@ -121,7 +121,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{rust_executable}",
         "build-offsets",
         "{out_dir}/{graph_name}-base",
-        "{out_dir}/{graph_name}-base.offsets",
     ],
     CompressionStep.BFS: [
         "{java}",

@@ -77,8 +77,7 @@ impl<G: UnderlyingGraph> UnderlyingLabeling for Zip<G, SwhGraphLabels> {
     }
 }
 
-type SwhGraphLabels =
-    SwhLabels<MmapReaderBuilder, <EF as epserde::prelude::DeserializeInner>::DeserType<'static>>;
+type SwhGraphLabels = SwhLabels<MmapReaderBuilder, epserde::deser::DeserType<'static, EF>>;
 
 pub trait SwhGraph {
     /// Return the base path of the graph
