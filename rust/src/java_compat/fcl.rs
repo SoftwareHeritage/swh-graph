@@ -195,19 +195,34 @@ impl<D: AsRef<[u8]>, P: AsRef<[u8]>> FrontCodedList<D, P> {
 //
 // Adapted from https://archive.softwareheritage.org/swh:1:cnt:66c21893f9cd9686456b0127df0b9b48a0fe153d;origin=https://repo1.maven.org/maven2/it/unimi/dsi/fastutil;visit=swh:1:snp:8007412c404cf39fa38e3db600bdf93700410741;anchor=swh:1:rel:1ec2b63253f642eae54f1a3e5ddd20178867bc7d;path=/it/unimi/dsi/fastutil/bytes/ByteArrayFrontCodedList.java;lines=142-159
 fn decode_int(data: &[u8]) -> (u32, &[u8]) {
-    let mut n = 0u32;
+    let high_bit_mask = 0b1000_0000u8;
+    let invert = |n: u8| (!n) as u32;
 
-    // First three bytes (or fewer, if this is a small int)
-    for i in 0..3 {
-        let byte = data[i];
-        n = n << 7 | (byte & 0b0111_1111) as u32; // Ignore the leading bit of the new byte
-        if byte & 0b1000_0000 == 0 {
-            return (n, &data[(i + 1)..]);
-        }
+    if data[0] & high_bit_mask == 0 {
+        (data[0] as u32, &data[1..])
+    } else if data[1] & high_bit_mask == 0 {
+        ((invert(data[0]) << 7) | (data[1] as u32), &data[2..])
+    } else if data[2] & high_bit_mask == 0 {
+        (
+            ((invert(data[0])) << 14) | (invert(data[1]) << 7) | (data[2] as u32),
+            &data[3..],
+        )
+    } else if data[3] & high_bit_mask == 0 {
+        (
+            (invert(data[0]) << 21)
+                | (invert(data[1]) << 14)
+                | (invert(data[2]) << 7)
+                | (data[3] as u32),
+            &data[4..],
+        )
+    } else {
+        (
+            ((invert(data[0])) << 28)
+                | (invert(data[1]) << 21)
+                | (invert(data[2]) << 14)
+                | (invert(data[3]) << 7)
+                | (data[4] as u32),
+            &data[5..],
+        )
     }
-
-    // Fourth and last byte
-    let byte = data[3];
-    n = n << 7 | byte as u32;
-    (n, &data[4..])
 }
