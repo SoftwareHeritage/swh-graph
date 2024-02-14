@@ -836,7 +836,7 @@ The GRPC API is specified in a single self-documenting
 `protobuf <https://developers.google.com/protocol-buffers>`_ file, which is
 available in the ``proto/swhgraph.proto`` file of the swh-graph repository:
 
-https://forge.softwareheritage.org/source/swh-graph/browse/master/proto/swhgraph.proto
+https://gitlab.softwareheritage.org/swh/devel/swh-graph/-/blob/master/proto/swhgraph.proto
 
 ..
     .. literalinclude:: swhgraph.proto

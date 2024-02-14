@@ -7,7 +7,7 @@ Build
 
 .. code:: bash
 
-    $ git clone https://forge.softwareheritage.org/source/swh-graph.git
+    $ git clone https://gitlab.softwareheritage.org/swh/devel/swh-graph.git
     $ cd swh-graph
     $ docker build --tag swh-graph docker/
 
