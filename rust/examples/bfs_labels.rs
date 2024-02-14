@@ -5,6 +5,7 @@
 
 use anyhow::{Context, Result};
 use bitvec::prelude::*;
+use clap::Parser;
 use dsi_progress_logger::ProgressLogger;
 use log::{debug, info};
 use std::collections::VecDeque;
@@ -12,10 +13,18 @@ use std::path::PathBuf;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 
-const BASENAME: &str = "swh/graph/example_dataset/compressed/example";
-// const BASENAME: &str = "/home/zack/graph/2022-12-07/compressed/graph";
+#[derive(Parser, Debug)]
+#[command(about, long_about = None)]
+struct Args {
+    #[arg(short, long)]
+    graph: PathBuf,
+    #[arg(short, long)]
+    swhid: String,
+}
 
 pub fn main() -> Result<()> {
+    let args = Args::parse();
+
     // Setup a stderr logger because ProgressLogger uses the `log` crate
     // to printout
     stderrlog::new()
@@ -24,7 +33,7 @@ pub fn main() -> Result<()> {
         .init()
         .unwrap();
 
-    let graph = load_unidirectional(PathBuf::from(BASENAME))
+    let graph = load_unidirectional(PathBuf::from(args.graph))
         .context("Could not load graph")?
         .init_properties()
         .load_properties(|properties| properties.load_maps::<GOVMPH>())
@@ -35,12 +44,11 @@ pub fn main() -> Result<()> {
         .context("Could not load labels")?;
 
     // Lookup SWHID
-    //
-    // See: https://archive.softwareheritage.org/swh:1:snp:fffe49ca41c0a9d777cdeb6640922422dc379b33
-    //let swhid = "swh:1:snp:fffe49ca41c0a9d777cdeb6640922422dc379b33";
-    let swhid = "swh:1:snp:0000000000000000000000000000000000000022";
-    info!("looking up SWHID {swhid} ...");
-    let node_id = graph.properties().node_id(swhid).expect("Unknown SWHID");
+    info!("looking up SWHID {} ...", args.swhid);
+    let node_id = graph
+        .properties()
+        .node_id(&*args.swhid)
+        .context("Unknown SWHID")?;
     info!("obtained node ID {node_id} ...");
 
     // Setup a queue and a visited bitmap for the visit
