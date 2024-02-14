@@ -63,9 +63,7 @@ from typing import (
 
 import luigi
 
-from swh.dataset.luigi import CreateAthena, S3PathParameter
-
-from .compressed_graph import LocalGraph
+from swh.dataset.luigi import Format, LocalExport
 
 if TYPE_CHECKING:
     import asyncio
@@ -102,13 +100,13 @@ SELECTION_QUERIES = {
             t2.sha1 AS sha1,
             t1.filename AS name
         FROM (
-            SELECT DISTINCT target, lower(trim(from_utf8(name))) AS filename
+            SELECT DISTINCT target, lower(trim(decode(name, 'utf-8'))) AS filename
             FROM directory_entry
             WHERE (
                 type='file'
                 AND (
-                    lower(trim(from_utf8(name))) = 'codemeta.json'
-                    OR lower(trim(from_utf8(name))) = 'citation.cff'
+                    lower(trim(decode(name, 'utf-8'))) = 'codemeta.json'
+                    OR lower(trim(decode(name, 'utf-8'))) = 'citation.cff'
                 )
             )
         ) AS t1
@@ -122,12 +120,12 @@ SELECTION_QUERIES = {
             t2.sha1 AS sha1,
             t1.filename AS name
         FROM (
-            SELECT DISTINCT target, lower(trim(from_utf8(name))) AS filename
+            SELECT DISTINCT target, lower(trim(decode(name, 'utf-8'))) AS filename
             FROM directory_entry
             WHERE (
                 type = 'file' AND
                 regexp_like(
-                    lower(from_utf8(name)),
+                    lower(decode(name, 'utf-8')),
                     '^([a-z0-9._-]+\.)?(copying|licen(c|s)(e|ing)|notice|copyright|disclaimer|authors)(\.[a-z0-9\._-]+)?$'
                 )
             )
@@ -142,12 +140,12 @@ SELECTION_QUERIES = {
             t2.sha1 AS sha1,
             t1.filename AS name
         FROM (
-            SELECT DISTINCT target, lower(trim(from_utf8(name))) AS filename
+            SELECT DISTINCT target, lower(trim(decode(name, 'utf-8'))) AS filename
             FROM directory_entry
             WHERE (
                 type = 'file' AND
                 regexp_like(
-                    lower(from_utf8(name)),
+                    lower(decode(name, 'utf-8')),
                     '^(readme)(\.[a-z0-9\._-]+)?$'
                 )
             )
@@ -344,7 +342,7 @@ class _ConcurrentCsvWritingTask(_BaseTask):
     stub: "TraversalServiceStub"
 
     def requires(self) -> luigi.Task:
-        """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
+        """Returns an instance of :class:`SelectBlobs`"""
         return SelectBlobs(
             blob_filter=self.blob_filter,
             derived_datasets_path=self.derived_datasets_path,
@@ -477,15 +475,16 @@ def check_csv(csv_path: Path) -> None:
 
 class SelectBlobs(_BaseTask):
     blob_filter = luigi.ChoiceParameter(choices=list(SELECTION_QUERIES))
+    local_export_path = luigi.PathParameter()
     derived_datasets_path = luigi.PathParameter()
-    athena_db_name = luigi.Parameter()
-    s3_athena_output_location = S3PathParameter()
 
     def requires(self) -> List[luigi.Task]:
-        """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
+        """Returns an instance of :class:`LocalExport`"""
         return [
-            LocalGraph(),
-            CreateAthena(),
+            LocalExport(
+                local_export_path=self.local_export_path,
+                formats=[Format.orc],  # type: ignore[attr-defined]
+            ),
         ]
 
     def output(self) -> List[luigi.Target]:
@@ -499,57 +498,56 @@ class SelectBlobs(_BaseTask):
     def run(self) -> None:
         """Runs an Athena query to get the list of blobs and writes it to
         :file:`blobs.csv.zst`."""
-        import csv
-        import io
-        import re
-        import shutil
         import tempfile
+        import textwrap
 
-        import boto3
-
-        from swh.dataset.athena import query
+        from pyspark.sql import SparkSession
 
         from ..shell import AtomicFileSink, Command
 
-        athena = boto3.client("athena")
-        athena.database_name = self.athena_db_name
-        athena.output_location = (
-            f"{self.s3_athena_output_location}/select-{self.blob_filter}/"
-        )
+        # Configuring a transient -Dderby.system.home so that metastore (ie. list of
+        # tables CREATEd below) is not persisted across runs
+        with tempfile.TemporaryDirectory(prefix="spark-tmp-") as derby_home:
+            spark_sql_context = (
+                SparkSession.builder.config(
+                    "spark.driver.extraJavaOptions",
+                    f"-Djava.io.tmpdir={tempfile.gettempdir()} "
+                    f"-Dderby.system.home={derby_home}",
+                )
+                .config("spark.executor.memory", "100g")
+                .config("spark.driver.memory", "100g")
+                .enableHiveSupport()
+                .getOrCreate()
+            )
 
-        result = query(athena, SELECTION_QUERIES[self.blob_filter])
+        for table in ("directory_entry", "content"):
+            logger.debug(f"Creating table {table}...")
+            spark_sql_context.sql(
+                f"""
+                CREATE TABLE {table}
+                USING ORC
+                LOCATION '{self.local_export_path}/orc/{table}'
+                """
+            )
 
-        s3 = boto3.client("s3")
+        logger.info("Running query...")
+        query = SELECTION_QUERIES[self.blob_filter]
+        logger.debug("%s", textwrap.indent(query, "    "))
+        df = spark_sql_context.sql(query)
+        logger.info("Reformatting...")
 
-        bucket, path = _s3_url_to_bucket_path(
-            result["ResultConfiguration"]["OutputLocation"]
-        )
-
-        s3_object = s3.get_object(Bucket=bucket, Key=path)["Body"]
+        assert df.columns == ["swhid", "sha1", "name"]
 
         output_path = self.blob_list_path()
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with tempfile.NamedTemporaryFile(
-            prefix="blobs-", suffix=".csv"
-        ) as athena_res_fd:
-            # Check the first lines matches the expected format
-            first_chunk = s3_object.read(1024)
-
-            reader = csv.reader(io.StringIO(first_chunk.decode(errors="ignore")))
-            assert next(reader) == ["swhid", "sha1", "name"]
-            try:
-                first_row = next(reader)
-            except StopIteration:
-                raise ValueError("Athena returned an empty list of blobs") from None
-            assert re.match("^swh:1:cnt:[0-9a-f]{40}$", first_row[0]), first_row
-            assert re.match("^[0-9a-f]{40}$", first_row[1]), first_row
-            assert first_row[2], first_row
-            athena_res_fd.write(first_chunk)
-
-            # Copy the rest of the file
-            shutil.copyfileobj(s3_object, athena_res_fd)
-            athena_res_fd.flush()
+        with tempfile.TemporaryDirectory(
+            prefix="blobs-",
+        ) as sql_res_dir:
+            df.write.csv(
+                sql_res_dir,
+                mode="overwrite",  # allow the temp dir to already exist
+            )
 
             # In the 2022-04-24 license dataset, the 'egrep' command filters
             # just 5 entries:
@@ -565,23 +563,23 @@ class SelectBlobs(_BaseTask):
             # "
             # "swh:1:cnt:82714d7648eb4f6cda2ed88fc4768e7d05472fe6","f096063880f4d0329856d3fca51c6d8afa13af9b","LICENSE.txt
             # "
-
             # fmt: off
             (
-                Command.cat(athena_res_fd.name)
-                | Command.egrep('^"[^"]*","[^"]*","[^"]*"$')
-                | Command.sed(r's/^"\([^"]*\)","\([^"]*\)",/\1,\2,/')
+                Command.cat(
+                    Command.echo(",".join(df.columns)),
+                    *sorted(Path(sql_res_dir).glob("part-*.csv"))
+                )
+                | Command.egrep('^[^,]*,[^,]*,[^,]*$')
                 | Command.zstdmt("-")
                 > AtomicFileSink(output_path)
             ).run()
             # fmt: on
 
+            logger.info("Counting...")
             count = sum(1 for _ in self.iter_blobs(with_tqdm=False, unique_sha1=True))
             self.blob_count_path().parent.mkdir(exist_ok=True, parents=True)
             with self.blob_count_path().open("wt") as fd:
                 fd.write(f"{count}\n")
-
-        s3.delete_object(Bucket=bucket, Key=path)
 
 
 class DownloadBlobs(_BaseTask):
@@ -605,7 +603,7 @@ class DownloadBlobs(_BaseTask):
     _session_pid = None
 
     def requires(self) -> luigi.Task:
-        """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
+        """Returns an instance of :class:`SelectBlobs`"""
         return SelectBlobs(
             blob_filter=self.blob_filter,
             derived_datasets_path=self.derived_datasets_path,
@@ -805,7 +803,7 @@ class MakeBlobTarball(_BaseTask):
     derived_datasets_path = luigi.PathParameter()
 
     def requires(self) -> luigi.Task:
-        """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
+        """Returns an instance of :class:`DownloadBlobs`"""
         return DownloadBlobs(
             blob_filter=self.blob_filter,
             derived_datasets_path=self.derived_datasets_path,
@@ -841,7 +839,7 @@ class MakeSampleBlobTarball(_BaseTask):
     derived_datasets_path = luigi.PathParameter()
 
     def requires(self) -> luigi.Task:
-        """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
+        """Returns an instance of :class:`DownloadBlobs`"""
         return DownloadBlobs(
             blob_filter=self.blob_filter,
             derived_datasets_path=self.derived_datasets_path,
@@ -892,7 +890,7 @@ class ComputeBlobFileinfo(_BaseTask):
     READABLE_ENCODINGS = ("us-ascii", "utf-8", "iso-8859-1")
 
     def requires(self) -> luigi.Task:
-        """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
+        """Returns an instance of :class:`DownloadBlobs`"""
         return DownloadBlobs(
             blob_filter=self.blob_filter,
             derived_datasets_path=self.derived_datasets_path,
@@ -985,7 +983,7 @@ class BlobScancode(_BaseTask):
         self.mime_guesser: Optional[magic.Magic] = None  # set in child processes
 
     def requires(self) -> luigi.Task:
-        """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
+        """Returns an instance of :class:`DownloadBlobs`"""
         return DownloadBlobs(
             blob_filter=self.blob_filter,
             derived_datasets_path=self.derived_datasets_path,
@@ -1205,7 +1203,7 @@ class FindEarliestRevisions(_BaseTask):
     graph_name = luigi.Parameter(default="graph")
 
     def requires(self) -> luigi.Task:
-        """Returns an instance of :class:`LocalGraph` and :class:`CreateAthena`"""
+        """Returns an instance of :class:`SelectBlobs`"""
         return SelectBlobs(
             blob_filter=self.blob_filter,
             derived_datasets_path=self.derived_datasets_path,

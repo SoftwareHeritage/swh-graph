@@ -1,4 +1,5 @@
 luigi
+pyspark
 python-magic
 pyzstd
 tqdm
