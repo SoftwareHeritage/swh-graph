@@ -90,11 +90,13 @@ impl<
     #[inline]
     pub fn label_name(&self, filename_id: FilenameId) -> Option<Vec<u8>> {
         let base64 = base64_simd::STANDARD;
-        self.label_name_base64(filename_id).map(|name| {
-            base64.decode_to_vec(name).unwrap_or_else(|name| {
+        self.label_name_base64(filename_id).as_ref().map(|name| {
+            base64.decode_to_vec(name).unwrap_or_else(|err| {
                 panic!(
-                    "Could not decode filename of id {}: {:?}",
-                    filename_id.0, name
+                    "Could not decode filename of id {} ({}): {:?}",
+                    filename_id.0,
+                    String::from_utf8_lossy(name),
+                    err
                 )
             })
         })
