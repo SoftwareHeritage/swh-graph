@@ -2472,6 +2472,7 @@ dependencies = [
  "stderrlog",
  "sux",
  "tempfile",
+ "thiserror",
  "thread_local",
  "tokio",
  "tokio-stream",

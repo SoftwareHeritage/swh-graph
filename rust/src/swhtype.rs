@@ -3,8 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::{bail, Result};
-
 #[repr(u8)]
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -67,9 +65,9 @@ pub enum SWHType {
     Snapshot = 5,
 }
 
-impl TryFrom<&[u8]> for SWHType {
-    type Error = anyhow::Error;
-    fn try_from(value: &[u8]) -> Result<Self> {
+impl<'a> TryFrom<&'a [u8]> for SWHType {
+    type Error = &'a [u8];
+    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
         Ok(match value {
             b"cnt" => Self::Content,
             b"dir" => Self::Directory,
@@ -77,17 +75,14 @@ impl TryFrom<&[u8]> for SWHType {
             b"rel" => Self::Release,
             b"rev" => Self::Revision,
             b"snp" => Self::Snapshot,
-            _ => bail!(
-                "Invalid SWHType {}.",
-                std::str::from_utf8(value).unwrap_or(&format!("{:?}", value))
-            ),
+            _ => return Err(value),
         })
     }
 }
 
-impl TryFrom<&str> for SWHType {
-    type Error = anyhow::Error;
-    fn try_from(value: &str) -> Result<Self> {
+impl<'a> TryFrom<&'a str> for SWHType {
+    type Error = &'a str;
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         Ok(match value {
             "cnt" => Self::Content,
             "dir" => Self::Directory,
@@ -95,14 +90,14 @@ impl TryFrom<&str> for SWHType {
             "rel" => Self::Release,
             "rev" => Self::Revision,
             "snp" => Self::Snapshot,
-            _ => bail!("Invalid SWHType {}.", value),
+            _ => return Err(value),
         })
     }
 }
 
 impl TryFrom<u8> for SWHType {
-    type Error = anyhow::Error;
-    fn try_from(value: u8) -> Result<Self> {
+    type Error = u8;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
             0 => Self::Content,
             1 => Self::Directory,
@@ -110,7 +105,7 @@ impl TryFrom<u8> for SWHType {
             3 => Self::Release,
             4 => Self::Revision,
             5 => Self::Snapshot,
-            _ => bail!("Invalid SWHType {}.", value),
+            _ => return Err(value),
         })
     }
 }

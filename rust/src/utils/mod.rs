@@ -7,7 +7,7 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 
 use crate::SWHType;
 
@@ -57,7 +57,7 @@ pub fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
             types.push(
                 type_
                     .try_into()
-                    .context("Could not parse --allowed-node-types")?,
+                    .map_err(|s| anyhow!("Could not parse --allowed-node-types {s}"))?,
             );
         }
         Ok(types)

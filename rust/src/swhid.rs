@@ -3,8 +3,9 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use thiserror::Error;
+
 use crate::SWHType;
-use anyhow::{bail, Context};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
@@ -49,18 +50,28 @@ impl core::fmt::Display for SWHID {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum BinSWHIDDeserializationError {
+    #[error("Unsupported SWHID version: {0}")]
+    Version(u8),
+    #[error("Invalid SWHID type: {0}")]
+    Type(u8),
+}
+
 /// Parse a SWHID from bytes, while the SWHID struct has the exact same layout
 /// and thus it can be read directly from bytes, this function is provided for
 /// completeness and safety because we can check the namespace version is
 /// supported.
 impl TryFrom<[u8; SWHID::BYTES_SIZE]> for SWHID {
-    type Error = anyhow::Error;
+    type Error = BinSWHIDDeserializationError;
     fn try_from(value: [u8; SWHID::BYTES_SIZE]) -> std::result::Result<Self, Self::Error> {
+        use BinSWHIDDeserializationError::*;
+
         let namespace_version = value[0];
         if namespace_version != 1 {
-            bail!("Unsupported SWHID namespace version: {}", namespace_version);
+            return Err(Version(namespace_version));
         }
-        let node_type = SWHType::try_from(value[1])?;
+        let node_type = SWHType::try_from(value[1]).map_err(Type)?;
         let mut hash = [0; 20];
         hash.copy_from_slice(&value[2..]);
         Ok(Self {
@@ -71,45 +82,57 @@ impl TryFrom<[u8; SWHID::BYTES_SIZE]> for SWHID {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum StrSWHIDDeserializationError<'a> {
+    #[error("Invalid syntax: {0}")]
+    Syntax(&'static str),
+    #[error("Unsupported SWHID namespace: {0}")]
+    Namespace(&'a str),
+    #[error("Unsupported SWHID version: {0}")]
+    Version(&'a str),
+    #[error("Expected hash length to be {expected}, got {got}")]
+    HashLength { expected: usize, got: usize },
+    #[error("Invalid SWHID type: {0}")]
+    Type(&'a str),
+    #[error("SWHID hash is not hexadecimal: {0}")]
+    HashAlphabet(&'a str),
+}
+
 /// Parse a SWHID from the string representation
-impl TryFrom<&str> for SWHID {
-    type Error = anyhow::Error;
-    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+impl<'a> TryFrom<&'a str> for SWHID {
+    type Error = StrSWHIDDeserializationError<'a>;
+    fn try_from(value: &'a str) -> std::result::Result<Self, Self::Error> {
+        use StrSWHIDDeserializationError::*;
+
         let mut tokens = value.splitn(4, ':');
         let Some(namespace) = tokens.next() else {
-            bail!("SWHID is empty");
+            return Err(Syntax("SWHID is empty"));
         };
         if namespace != "swh" {
-            bail!("Unsupported SWHID namespace: {}", namespace);
+            return Err(Namespace(namespace));
         }
         let Some(namespace_version) = tokens.next() else {
-            bail!("SWHID is too short (no namespace version)")
+            return Err(Syntax("SWHID is too short (no namespace version)"));
         };
         if namespace_version != "1" {
-            bail!("Unsupported SWHID namespace version: {}", namespace_version);
+            return Err(Version(namespace_version));
         }
         let Some(node_type) = tokens.next() else {
-            bail!("SWHID is too short (no object type)")
+            return Err(Syntax("SWHID is too short (no object type)"));
         };
         let Some(hex_hash) = tokens.next() else {
-            bail!("SWHID is too short (no object hash)")
+            return Err(Syntax("SWHID is too short (no object hash)"));
         };
-        if hex_hash.len() < 40 {
-            bail!(
-                "SWHID is too short (object hash has {} digits instead of 40)",
-                hex_hash.len()
-            )
+        if hex_hash.len() != 40 {
+            return Err(HashLength {
+                expected: 40,
+                got: hex_hash.len(),
+            });
         }
-        if hex_hash.len() > 40 {
-            bail!(
-                "SWHID is too long (object hash has {} digits instead of 40)",
-                hex_hash.len()
-            )
-        }
-        let node_type = SWHType::try_from(node_type)?;
+        let node_type = SWHType::try_from(node_type).map_err(Type)?;
         let mut hash = [0u8; 20];
         faster_hex::hex_decode(hex_hash.as_bytes(), &mut hash)
-            .with_context(|| format!("SWHID hash is not hexadecimal: {}", hex_hash))?;
+            .map_err(|_| HashAlphabet(hex_hash))?;
         Ok(Self {
             namespace_version: 1,
             node_type,
