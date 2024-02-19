@@ -29,6 +29,17 @@ mod node_builder;
 mod traversal;
 pub mod visitor;
 
+/// Runs a long-running function in a separate thread so it does not block.
+///
+/// This differs from [`tokio::task::spawn_blocking`] in that the closure does not
+/// need to be `'static` (so it can borrow from its scope)
+pub(crate) fn scoped_spawn_blocking<R: Send + Sync + 'static, F: FnOnce() -> R + Send>(f: F) -> R {
+    let ((), mut outputs): ((), Vec<Result<R, tokio::task::JoinError>>) =
+        async_scoped::TokioScope::scope_and_block(|scope| scope.spawn_blocking(f));
+    assert_eq!(outputs.len(), 1, "Unexpected number of futures spawned");
+    outputs.pop().unwrap().expect("could not join task")
+}
+
 type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
 pub struct TraversalService<

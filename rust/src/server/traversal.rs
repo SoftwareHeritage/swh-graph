@@ -18,7 +18,7 @@ use super::filters::{ArcFilterChecker, NodeFilterChecker};
 use super::node_builder::NodeBuilder;
 use super::proto;
 use super::visitor::{SimpleBfsVisitor, VisitFlow};
-use super::TraversalServiceTrait;
+use super::{scoped_spawn_blocking, TraversalServiceTrait};
 
 type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
@@ -194,12 +194,13 @@ where
 
         match request.get_ref().direction.try_into() {
             Ok(proto::GraphDirection::Forward) => {
-                self.make_visitor(request, graph, on_node, on_arc)?
-                    .visit()?;
+                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                scoped_spawn_blocking(|| visitor.visit())?;
             }
             Ok(proto::GraphDirection::Backward) => {
-                self.make_visitor(request, Arc::new(Transposed(graph)), on_node, on_arc)?
-                    .visit()?;
+                let graph = Arc::new(Transposed(graph));
+                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                scoped_spawn_blocking(|| visitor.visit())?;
             }
             Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
         }
@@ -228,12 +229,13 @@ where
 
         match request.get_ref().direction.try_into() {
             Ok(proto::GraphDirection::Forward) => {
-                self.make_visitor(request, graph, on_node, on_arc)?
-                    .visit()?;
+                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                scoped_spawn_blocking(|| visitor.visit())?;
             }
             Ok(proto::GraphDirection::Backward) => {
-                self.make_visitor(request, Arc::new(Transposed(graph)), on_node, on_arc)?
-                    .visit()?;
+                let graph = Arc::new(Transposed(graph));
+                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                scoped_spawn_blocking(|| visitor.visit())?;
             }
             Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
         }

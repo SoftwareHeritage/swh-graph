@@ -18,7 +18,7 @@ use super::filters::{ArcFilterChecker, NodeFilterChecker};
 use super::node_builder::NodeBuilder;
 use super::proto;
 use super::visitor::{SimpleBfsVisitor, VisitFlow};
-use super::TraversalServiceTrait;
+use super::{scoped_spawn_blocking, TraversalServiceTrait};
 
 /// [Never type](https://github.com/rust-lang/rust/issues/35121)
 enum NeverError {}
@@ -220,7 +220,7 @@ where
                     Ok(VisitFlow::Continue)
                 };
                 let visitor = self.make_visitor(visitor_config, graph, on_node, on_arc)?;
-                visitor.visit()?;
+                scoped_spawn_blocking(|| visitor.visit())?;
 
                 match found_target {
                     Some(found_target) => {
@@ -432,18 +432,21 @@ where
                     on_node_reverse,
                     on_arc_reverse,
                 )?;
-                let mut more_layers = true;
-                while more_layers {
-                    more_layers = false;
-                    more_layers |= $visitor.visit_layer()?;
-                    if found_midpoint.get().is_some() {
-                        break;
+                scoped_spawn_blocking(|| {
+                    let mut more_layers = true;
+                    while more_layers {
+                        more_layers = false;
+                        more_layers |= $visitor.visit_layer()?;
+                        if found_midpoint.get().is_some() {
+                            break;
+                        }
+                        more_layers |= visitor_reverse.visit_layer()?;
+                        if found_midpoint.get().is_some() {
+                            break;
+                        }
                     }
-                    more_layers |= visitor_reverse.visit_layer()?;
-                    if found_midpoint.get().is_some() {
-                        break;
-                    }
-                }
+                    Ok::<_, tonic::Status>(())
+                })?;
             }};
         }
         match direction {
