@@ -198,7 +198,7 @@ mod timestamps;
 pub use timestamps::{Timestamps, TimestampsOption, TimestampsTrait, VecTimestamps};
 
 mod persons;
-pub use persons::{Persons, PersonsOption, PersonsTrait};
+pub use persons::{Persons, PersonsOption, PersonsTrait, VecPersons};
 
 mod contents;
 pub use contents::{Contents, ContentsOption, ContentsTrait, VecContents};

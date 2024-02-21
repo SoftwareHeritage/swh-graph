@@ -151,6 +151,35 @@ fn test_vec_graph_timestamps() {
 }
 
 #[test]
+fn test_vec_graph_persons() {
+    let graph = SwhUnidirectionalGraph::from_underlying_graph(
+        PathBuf::new(),
+        Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
+    )
+    .init_properties()
+    .load_properties(|properties| {
+        properties.with_persons(
+            VecPersons::new(vec![
+                (Some(123), Some(456)),
+                (Some(789), None),
+                (None, None),
+            ])
+            .unwrap(),
+        )
+    })
+    .unwrap();
+
+    assert_eq!(graph.properties().author_id(0), Some(123));
+    assert_eq!(graph.properties().committer_id(0), Some(456));
+
+    assert_eq!(graph.properties().author_id(1), Some(789));
+    assert_eq!(graph.properties().committer_id(1), None);
+
+    assert_eq!(graph.properties().author_id(2), None);
+    assert_eq!(graph.properties().committer_id(2), None);
+}
+
+#[test]
 fn test_vec_graph_contents() {
     let graph = SwhUnidirectionalGraph::from_underlying_graph(
         PathBuf::new(),
