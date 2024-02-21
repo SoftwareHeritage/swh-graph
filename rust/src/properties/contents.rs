@@ -1,9 +1,9 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use mmap_rs::Mmap;
 
 use super::suffixes::*;
@@ -17,23 +17,72 @@ pub struct Contents {
     is_skipped_content: NumberMmap<BigEndian, u64, Mmap>,
     content_length: NumberMmap<BigEndian, u64, Mmap>,
 }
-impl ContentsOption for Contents {}
+impl<C: ContentsTrait> ContentsOption for C {}
 impl ContentsOption for () {}
 
 /// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
 pub trait ContentsTrait {
-    fn is_skipped_content(&self) -> &NumberMmap<BigEndian, u64, Mmap>;
-    fn content_length(&self) -> &NumberMmap<BigEndian, u64, Mmap>;
+    type Data<'a>: GetIndex<Output = u64> + 'a
+    where
+        Self: 'a;
+
+    fn is_skipped_content(&self) -> Self::Data<'_>;
+    fn content_length(&self) -> Self::Data<'_>;
 }
 
 impl ContentsTrait for Contents {
+    type Data<'a> = &'a NumberMmap<BigEndian, u64, Mmap> where Self: 'a;
+
     #[inline(always)]
-    fn is_skipped_content(&self) -> &NumberMmap<BigEndian, u64, Mmap> {
+    fn is_skipped_content(&self) -> Self::Data<'_> {
         &self.is_skipped_content
     }
     #[inline(always)]
-    fn content_length(&self) -> &NumberMmap<BigEndian, u64, Mmap> {
+    fn content_length(&self) -> Self::Data<'_> {
         &self.content_length
+    }
+}
+
+pub struct VecContents {
+    is_skipped_content: Vec<u64>,
+    content_length: Vec<u64>,
+}
+
+impl VecContents {
+    pub fn new(data: Vec<(bool, Option<u64>)>) -> Result<Self> {
+        let bit_vec_len = data.len().div_ceil(64);
+        let mut is_skipped_content = vec![0; bit_vec_len];
+        let mut content_length = Vec::with_capacity(data.len());
+        for (node_id, (is_skipped, length)) in data.into_iter().enumerate() {
+            ensure!(
+                length != Some(u64::MAX),
+                "content length may not be {}",
+                u64::MAX
+            );
+            content_length.push(length.unwrap_or(u64::MAX));
+            if is_skipped {
+                let cell_id = node_id / (u64::BITS as usize);
+                let mask = 1 << (node_id % (u64::BITS as usize));
+                is_skipped_content[cell_id] |= mask;
+            }
+        }
+        Ok(VecContents {
+            is_skipped_content,
+            content_length,
+        })
+    }
+}
+
+impl ContentsTrait for VecContents {
+    type Data<'a> = &'a [u64] where Self: 'a;
+
+    #[inline(always)]
+    fn is_skipped_content(&self) -> Self::Data<'_> {
+        self.is_skipped_content.as_slice()
+    }
+    #[inline(always)]
+    fn content_length(&self) -> Self::Data<'_> {
+        self.content_length.as_slice()
     }
 }
 
@@ -53,22 +102,31 @@ impl<
     pub fn load_contents(
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, Contents, STRINGS, LABELNAMES>> {
+        let contents = Contents {
+            is_skipped_content: NumberMmap::new(
+                suffix_path(&self.path, CONTENT_IS_SKIPPED),
+                self.num_nodes.div_ceil(u64::BITS.try_into().unwrap()),
+            )
+            .context("Could not load is_skipped_content")?,
+            content_length: NumberMmap::new(
+                suffix_path(&self.path, CONTENT_LENGTH),
+                self.num_nodes,
+            )
+            .context("Could not load content_length")?,
+        };
+        self.with_contents(contents)
+    }
+
+    /// Alternative to [`load_contents`] that allows using arbitrary contents implementations
+    pub fn with_contents<CONTENTS: ContentsTrait>(
+        self,
+        contents: CONTENTS,
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
         Ok(SwhGraphProperties {
             maps: self.maps,
             timestamps: self.timestamps,
             persons: self.persons,
-            contents: Contents {
-                is_skipped_content: NumberMmap::new(
-                    suffix_path(&self.path, CONTENT_IS_SKIPPED),
-                    self.num_nodes.div_ceil(u64::BITS.try_into().unwrap()),
-                )
-                .context("Could not load is_skipped_content")?,
-                content_length: NumberMmap::new(
-                    suffix_path(&self.path, CONTENT_LENGTH),
-                    self.num_nodes,
-                )
-                .context("Could not load content_length")?,
-            },
+            contents,
             strings: self.strings,
             label_names: self.label_names,
             path: self.path,

@@ -149,3 +149,41 @@ fn test_vec_graph_timestamps() {
     assert_eq!(graph.properties().committer_timestamp(2), None);
     assert_eq!(graph.properties().committer_timestamp_offset(2), None);
 }
+
+#[test]
+fn test_vec_graph_contents() {
+    let graph = SwhUnidirectionalGraph::from_underlying_graph(
+        PathBuf::new(),
+        Left(VecGraph::from_arc_list(vec![
+            (2, 0),
+            (2, 1),
+            (0, 1),
+            (2, 3),
+        ])),
+    )
+    .init_properties()
+    .load_properties(|properties| {
+        properties.with_contents(
+            VecContents::new(vec![
+                (false, None),
+                (false, Some(123)),
+                (false, None),
+                (true, Some(100_000_000_000)),
+            ])
+            .unwrap(),
+        )
+    })
+    .unwrap();
+
+    assert_eq!(graph.properties().is_skipped_content(0), Some(false));
+    assert_eq!(graph.properties().content_length(0), None);
+
+    assert_eq!(graph.properties().is_skipped_content(1), Some(false));
+    assert_eq!(graph.properties().content_length(1), Some(123));
+
+    assert_eq!(graph.properties().is_skipped_content(2), Some(false));
+    assert_eq!(graph.properties().content_length(2), None);
+
+    assert_eq!(graph.properties().is_skipped_content(3), Some(true));
+    assert_eq!(graph.properties().content_length(3), Some(100_000_000_000));
+}

@@ -201,7 +201,7 @@ mod persons;
 pub use persons::{Persons, PersonsOption, PersonsTrait};
 
 mod contents;
-pub use contents::{Contents, ContentsOption, ContentsTrait};
+pub use contents::{Contents, ContentsOption, ContentsTrait, VecContents};
 
 mod strings;
 pub use strings::{Strings, StringsOption, StringsTrait};
