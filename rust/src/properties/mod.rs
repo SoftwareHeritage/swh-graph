@@ -207,4 +207,4 @@ mod strings;
 pub use strings::{Strings, StringsOption, StringsTrait, VecStrings};
 
 mod label_names;
-pub use label_names::{LabelNames, LabelNamesOption, LabelNamesTrait};
+pub use label_names::{LabelNames, LabelNamesOption, LabelNamesTrait, VecLabelNames};

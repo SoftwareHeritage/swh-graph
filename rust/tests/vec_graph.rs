@@ -6,6 +6,7 @@
 use std::path::PathBuf;
 
 use swh_graph::graph::*;
+use swh_graph::labels::FilenameId;
 use swh_graph::properties::*;
 use swh_graph::webgraph::graphs::vec_graph::VecGraph;
 use swh_graph::webgraph::labels::proj::Left;
@@ -262,4 +263,55 @@ fn test_vec_graph_strings() {
     assert_eq!(graph.properties().message_base64(2), None);
     assert_eq!(graph.properties().tag_name(2), None);
     assert_eq!(graph.properties().tag_name_base64(2), None);
+}
+
+#[test]
+fn test_vec_graph_label_names() {
+    let graph = SwhUnidirectionalGraph::from_underlying_graph(
+        PathBuf::new(),
+        Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
+    )
+    .init_properties()
+    .load_properties(|properties| {
+        properties.with_label_names(
+            VecLabelNames::new(vec!["abc", "defgh", "", "aaaaaaaaaaaaaaaaaaa"]).unwrap(),
+        )
+    })
+    .unwrap();
+
+    assert_eq!(
+        graph.properties().label_name(FilenameId(0)),
+        Some("abc".into())
+    );
+    assert_eq!(
+        graph.properties().label_name_base64(FilenameId(0)),
+        Some(b"YWJj".to_vec())
+    );
+
+    assert_eq!(
+        graph.properties().label_name(FilenameId(1)),
+        Some("defgh".into())
+    );
+    assert_eq!(
+        graph.properties().label_name_base64(FilenameId(1)),
+        Some(b"ZGVmZ2g=".to_vec())
+    );
+
+    assert_eq!(
+        graph.properties().label_name(FilenameId(2)),
+        Some("".into())
+    );
+    assert_eq!(
+        graph.properties().label_name_base64(FilenameId(2)),
+        Some(b"".to_vec())
+    );
+
+    assert_eq!(
+        graph.properties().label_name(FilenameId(3)),
+        Some("aaaaaaaaaaaaaaaaaaa".into())
+    );
+    assert_eq!(
+        graph.properties().label_name_base64(FilenameId(3)),
+        Some(b"YWFhYWFhYWFhYWFhYWFhYWFhYQ==".to_vec())
+    );
 }

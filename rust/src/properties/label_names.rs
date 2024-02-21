@@ -17,18 +17,49 @@ pub trait LabelNamesOption {}
 pub struct LabelNames {
     label_names: FrontCodedList<Mmap, Mmap>,
 }
-impl LabelNamesOption for LabelNames {}
+impl<L: LabelNamesTrait> LabelNamesOption for L {}
 impl LabelNamesOption for () {}
 
 /// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
 pub trait LabelNamesTrait {
-    fn label_names(&self) -> &FrontCodedList<Mmap, Mmap>;
+    type LabelNames<'a>: GetIndex<Output = Vec<u8>>
+    where
+        Self: 'a;
+
+    fn label_names(&self) -> Self::LabelNames<'_>;
 }
 
 impl LabelNamesTrait for LabelNames {
+    type LabelNames<'a> = &'a FrontCodedList<Mmap, Mmap> where Self: 'a;
+
     #[inline(always)]
-    fn label_names(&self) -> &FrontCodedList<Mmap, Mmap> {
+    fn label_names(&self) -> Self::LabelNames<'_> {
         &self.label_names
+    }
+}
+
+pub struct VecLabelNames {
+    label_names: Vec<Vec<u8>>,
+}
+impl VecLabelNames {
+    /// Returns a new `VecLabelNames` from a list of label names
+    pub fn new<S: AsRef<[u8]>>(label_names: Vec<S>) -> Result<Self> {
+        let base64 = base64_simd::STANDARD;
+        Ok(VecLabelNames {
+            label_names: label_names
+                .into_iter()
+                .map(|s| base64.encode_to_string(s).into_bytes())
+                .collect(),
+        })
+    }
+}
+
+impl LabelNamesTrait for VecLabelNames {
+    type LabelNames<'a> = &'a [Vec<u8>] where Self: 'a;
+
+    #[inline(always)]
+    fn label_names(&self) -> Self::LabelNames<'_> {
+        self.label_names.as_slice()
     }
 }
 
@@ -48,16 +79,25 @@ impl<
     pub fn load_label_names(
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LabelNames>> {
+        let label_names = LabelNames {
+            label_names: FrontCodedList::load(suffix_path(&self.path, LABEL_NAME))
+                .context("Could not load label names")?,
+        };
+        self.with_label_names(label_names)
+    }
+    ///
+    /// Alternative to [`load_label_names`] that allows using arbitrary label_names implementations
+    pub fn with_label_names<LABELNAMES: LabelNamesTrait>(
+        self,
+        label_names: LABELNAMES,
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
         Ok(SwhGraphProperties {
             maps: self.maps,
             timestamps: self.timestamps,
             persons: self.persons,
             contents: self.contents,
             strings: self.strings,
-            label_names: LabelNames {
-                label_names: FrontCodedList::load(suffix_path(&self.path, LABEL_NAME))
-                    .context("Could not load label names")?,
-            },
+            label_names,
             path: self.path,
             num_nodes: self.num_nodes,
         })

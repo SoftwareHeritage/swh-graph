@@ -71,13 +71,13 @@ pub trait GetIndex {
     unsafe fn get_unchecked(&self, index: usize) -> Self::Output;
 }
 
-impl<Item: Copy, T: std::ops::Deref<Target = [Item]>> GetIndex for T {
+impl<Item: Clone, T: std::ops::Deref<Target = [Item]>> GetIndex for T {
     type Output = Item;
 
     fn get(&self, index: usize) -> Option<Self::Output> {
-        <[Item]>::get(self, index).copied()
+        <[Item]>::get(self, index).cloned()
     }
     unsafe fn get_unchecked(&self, index: usize) -> Self::Output {
-        *<[Item]>::get_unchecked(self, index)
+        <[Item]>::get_unchecked(self, index).clone()
     }
 }

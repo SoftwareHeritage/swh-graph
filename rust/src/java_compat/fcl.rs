@@ -16,7 +16,7 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use mmap_rs::{Mmap, MmapFlags};
 
-use crate::utils::suffix_path;
+use crate::utils::{suffix_path, GetIndex};
 
 #[derive(Debug, Clone)]
 /// Front coded list, it takes a list of strings and encode them in a way that
@@ -165,9 +165,13 @@ impl<D: AsRef<[u8]>, P: AsRef<[u8]>> FrontCodedList<D, P> {
             data = &tmp[new_suffix_len as usize..];
         }
     }
+}
+
+impl<D: AsRef<[u8]>, P: AsRef<[u8]>> GetIndex for &FrontCodedList<D, P> {
+    type Output = Vec<u8>;
 
     /// Returns the n-th bytestring, or `None` if `index` is larger than the length
-    pub fn get(&self, index: usize) -> Option<Vec<u8>> {
+    fn get(&self, index: usize) -> Option<Self::Output> {
         if index >= self.len {
             None
         } else {
@@ -182,7 +186,7 @@ impl<D: AsRef<[u8]>, P: AsRef<[u8]>> FrontCodedList<D, P> {
     /// # Panics
     ///
     /// If `index` is out of bound
-    pub fn get_unchecked(&self, index: usize) -> Vec<u8> {
+    unsafe fn get_unchecked(&self, index: usize) -> Self::Output {
         let mut result = Vec::with_capacity(128);
         self.get_inplace(index, &mut result);
         result
