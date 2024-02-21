@@ -70,7 +70,7 @@ impl<F: RandomAccessDecoderFactory> UnderlyingLabeling for BVGraph<F> {
 }
 impl<F: RandomAccessDecoderFactory> UnderlyingGraph for BVGraph<F> {}
 
-impl UnderlyingLabeling for Left<VecGraph<()>> {
+impl<Label: Copy> UnderlyingLabeling for Left<VecGraph<Label>> {
     type Graph = Self;
 
     #[inline(always)]
@@ -78,9 +78,12 @@ impl UnderlyingLabeling for Left<VecGraph<()>> {
         self
     }
 }
-impl UnderlyingGraph for Left<VecGraph<()>> {}
+impl<Label: Copy> UnderlyingGraph for Left<VecGraph<Label>> {}
 
-impl<G: UnderlyingGraph> UnderlyingLabeling for Zip<G, SwhGraphLabels> {
+impl<G: UnderlyingGraph, Labels: RandomAccessLabeling> UnderlyingLabeling for Zip<G, Labels>
+where
+    <Labels as SequentialLabeling>::Label: AsRef<[u64]>,
+{
     type Graph = G;
 
     #[inline(always)]
@@ -229,11 +232,13 @@ impl<P, G: UnderlyingLabeling> SwhForwardGraph for SwhUnidirectionalGraph<P, G> 
     }
 }
 
-impl<P, G: UnderlyingGraph> SwhLabelledForwardGraph
-    for SwhUnidirectionalGraph<P, Zip<G, SwhGraphLabels>>
+impl<P, G: UnderlyingGraph, Labels: RandomAccessLabeling> SwhLabelledForwardGraph
+    for SwhUnidirectionalGraph<P, Zip<G, Labels>>
+where
+    <Labels as SequentialLabeling>::Label: AsRef<[u64]>,
 {
-    type LabelledArcs<'arc> = LabelledArcIterator where Self: 'arc;
-    type LabelledSuccessors<'succ> = LabelledSuccessorIterator<'succ, G> where Self: 'succ;
+    type LabelledArcs<'arc> = LabelledArcIterator<<Labels as SequentialLabeling>::Label> where Self: 'arc;
+    type LabelledSuccessors<'succ> = LabelledSuccessorIterator<'succ, G, Labels> where Self: 'succ;
 
     fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
         LabelledSuccessorIterator {
@@ -434,11 +439,13 @@ impl<P, FG: UnderlyingLabeling, BG: UnderlyingLabeling> SwhForwardGraph
     }
 }
 
-impl<P, FG: UnderlyingGraph, BG: UnderlyingLabeling> SwhLabelledForwardGraph
-    for SwhBidirectionalGraph<P, Zip<FG, SwhGraphLabels>, BG>
+impl<P, FG: UnderlyingGraph, BG: UnderlyingLabeling, Labels: RandomAccessLabeling>
+    SwhLabelledForwardGraph for SwhBidirectionalGraph<P, Zip<FG, Labels>, BG>
+where
+    <Labels as SequentialLabeling>::Label: AsRef<[u64]>,
 {
-    type LabelledArcs<'arc> = LabelledArcIterator where Self: 'arc;
-    type LabelledSuccessors<'succ> = LabelledSuccessorIterator<'succ, FG> where Self: 'succ;
+    type LabelledArcs<'arc> = LabelledArcIterator<<Labels as SequentialLabeling>::Label> where Self: 'arc;
+    type LabelledSuccessors<'succ> = LabelledSuccessorIterator<'succ, FG, Labels> where Self: 'succ;
 
     fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
         LabelledSuccessorIterator {
@@ -461,11 +468,13 @@ impl<P, FG: UnderlyingLabeling, BG: UnderlyingLabeling> SwhBackwardGraph
     }
 }
 
-impl<P, FG: UnderlyingLabeling, BG: UnderlyingGraph> SwhLabelledBackwardGraph
-    for SwhBidirectionalGraph<P, FG, Zip<BG, SwhGraphLabels>>
+impl<P, FG: UnderlyingLabeling, BG: UnderlyingGraph, Labels: RandomAccessLabeling>
+    SwhLabelledBackwardGraph for SwhBidirectionalGraph<P, FG, Zip<BG, Labels>>
+where
+    <Labels as SequentialLabeling>::Label: AsRef<[u64]>,
 {
-    type LabelledArcs<'arc> = LabelledArcIterator where Self: 'arc;
-    type LabelledPredecessors<'succ> = LabelledSuccessorIterator<'succ, BG> where Self: 'succ;
+    type LabelledArcs<'arc> = LabelledArcIterator<<Labels as SequentialLabeling>::Label> where Self: 'arc;
+    type LabelledPredecessors<'succ> = LabelledSuccessorIterator<'succ, BG, Labels> where Self: 'succ;
 
     fn labelled_predecessors(&self, node_id: NodeId) -> Self::LabelledPredecessors<'_> {
         LabelledSuccessorIterator {
@@ -653,12 +662,25 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<P, FG, B
     }
 }
 
-pub struct LabelledSuccessorIterator<'a, G: RandomAccessGraph + 'a> {
-    successors: <Zip<G, SwhGraphLabels> as webgraph::traits::RandomAccessLabeling>::Labels<'a>,
+pub struct LabelledSuccessorIterator<
+    'a,
+    G: RandomAccessGraph + 'a,
+    Labels: RandomAccessLabeling + 'a,
+> where
+    <Labels as SequentialLabeling>::Label: AsRef<[u64]>,
+{
+    successors: <Zip<G, Labels> as webgraph::traits::RandomAccessLabeling>::Labels<'a>,
 }
 
-impl<'a, G: RandomAccessGraph> Iterator for LabelledSuccessorIterator<'a, G> {
-    type Item = (NodeId, LabelledArcIterator);
+impl<'a, G: RandomAccessGraph, Labels: RandomAccessLabeling> Iterator
+    for LabelledSuccessorIterator<'a, G, Labels>
+where
+    <Labels as SequentialLabeling>::Label: AsRef<[u64]>,
+{
+    type Item = (
+        NodeId,
+        LabelledArcIterator<<Labels as SequentialLabeling>::Label>,
+    );
 
     fn next(&mut self) -> Option<Self::Item> {
         self.successors.next().map(|(successor, arc_labels)| {
@@ -673,19 +695,22 @@ impl<'a, G: RandomAccessGraph> Iterator for LabelledSuccessorIterator<'a, G> {
     }
 }
 
-pub struct LabelledArcIterator {
-    arc_label_ids: Vec<u64>,
+pub struct LabelledArcIterator<T: AsRef<[u64]>> {
+    arc_label_ids: T,
     label_index: usize,
 }
 
-impl Iterator for LabelledArcIterator {
+impl<T: AsRef<[u64]>> Iterator for LabelledArcIterator<T> {
     type Item = DirEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.arc_label_ids.get(self.label_index).map(|label| {
-            self.label_index += 1;
-            DirEntry::from(*label)
-        })
+        self.arc_label_ids
+            .as_ref()
+            .get(self.label_index)
+            .map(|label| {
+                self.label_index += 1;
+                DirEntry::from(*label)
+            })
     }
 }
 
