@@ -71,18 +71,7 @@ pub trait GetIndex {
     unsafe fn get_unchecked(&self, index: usize) -> Self::Output;
 }
 
-impl<Item: Copy> GetIndex for &[Item] {
-    type Output = Item;
-
-    fn get(&self, index: usize) -> Option<Self::Output> {
-        <[Item]>::get(self, index).copied()
-    }
-    unsafe fn get_unchecked(&self, index: usize) -> Self::Output {
-        *<[Item]>::get_unchecked(self, index)
-    }
-}
-
-impl<Item: Copy> GetIndex for Vec<Item> {
+impl<Item: Copy, T: std::ops::Deref<Target = [Item]>> GetIndex for T {
     type Output = Item;
 
     fn get(&self, index: usize) -> Option<Self::Output> {

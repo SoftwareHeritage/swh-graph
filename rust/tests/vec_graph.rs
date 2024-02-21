@@ -216,3 +216,50 @@ fn test_vec_graph_contents() {
     assert_eq!(graph.properties().is_skipped_content(3), Some(true));
     assert_eq!(graph.properties().content_length(3), Some(100_000_000_000));
 }
+
+#[test]
+fn test_vec_graph_strings() {
+    let graph = SwhUnidirectionalGraph::from_underlying_graph(
+        PathBuf::new(),
+        Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
+    )
+    .init_properties()
+    .load_properties(|properties| {
+        properties.with_strings(
+            VecStrings::new(vec![
+                (Some("abc"), Some("defgh")),
+                (Some(""), Some("aaaaaaaaaaaaaaaaaaa")),
+                (None, None),
+            ])
+            .unwrap(),
+        )
+    })
+    .unwrap();
+
+    assert_eq!(graph.properties().message(0), Some("abc".into()));
+    assert_eq!(
+        graph.properties().message_base64(0),
+        Some("YWJj".as_bytes())
+    );
+    assert_eq!(graph.properties().tag_name(0), Some("defgh".into()));
+    assert_eq!(
+        graph.properties().tag_name_base64(0),
+        Some("ZGVmZ2g=".as_bytes())
+    );
+
+    assert_eq!(graph.properties().message(1), Some("".into()));
+    assert_eq!(graph.properties().message_base64(1), Some("".as_bytes()));
+    assert_eq!(
+        graph.properties().tag_name(1),
+        Some("aaaaaaaaaaaaaaaaaaa".into())
+    );
+    assert_eq!(
+        graph.properties().tag_name_base64(1),
+        Some("YWFhYWFhYWFhYWFhYWFhYWFhYQ==".as_bytes())
+    );
+
+    assert_eq!(graph.properties().message(2), None);
+    assert_eq!(graph.properties().message_base64(2), None);
+    assert_eq!(graph.properties().tag_name(2), None);
+    assert_eq!(graph.properties().tag_name_base64(2), None);
+}

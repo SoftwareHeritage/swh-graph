@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -19,33 +19,119 @@ pub struct Strings {
     tag_name: Mmap,
     tag_name_offset: NumberMmap<BigEndian, u64, Mmap>,
 }
-impl StringsOption for Strings {}
+impl<S: StringsTrait> StringsOption for S {}
 impl StringsOption for () {}
 
 /// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
 pub trait StringsTrait {
-    fn message(&self) -> &Mmap;
-    fn message_offset(&self) -> &NumberMmap<BigEndian, u64, Mmap>;
-    fn tag_name(&self) -> &Mmap;
-    fn tag_name_offset(&self) -> &NumberMmap<BigEndian, u64, Mmap>;
+    type Offsets<'a>: GetIndex<Output = u64> + 'a
+    where
+        Self: 'a;
+
+    fn message(&self) -> &[u8];
+    fn message_offset(&self) -> Self::Offsets<'_>;
+    fn tag_name(&self) -> &[u8];
+    fn tag_name_offset(&self) -> Self::Offsets<'_>;
 }
 
 impl StringsTrait for Strings {
+    type Offsets<'a> = &'a NumberMmap<BigEndian, u64, Mmap> where Self: 'a;
+
     #[inline(always)]
-    fn message(&self) -> &Mmap {
+    fn message(&self) -> &[u8] {
         &self.message
     }
     #[inline(always)]
-    fn message_offset(&self) -> &NumberMmap<BigEndian, u64, Mmap> {
+    fn message_offset(&self) -> Self::Offsets<'_> {
         &self.message_offset
     }
     #[inline(always)]
-    fn tag_name(&self) -> &Mmap {
+    fn tag_name(&self) -> &[u8] {
         &self.tag_name
     }
     #[inline(always)]
-    fn tag_name_offset(&self) -> &NumberMmap<BigEndian, u64, Mmap> {
+    fn tag_name_offset(&self) -> Self::Offsets<'_> {
         &self.tag_name_offset
+    }
+}
+
+pub struct VecStrings {
+    message: Vec<u8>,
+    message_offset: Vec<u64>,
+    tag_name: Vec<u8>,
+    tag_name_offset: Vec<u64>,
+}
+
+impl VecStrings {
+    /// Returns [`VecStrings`] from pairs of `(message, tag_name)`
+    pub fn new<Msg: AsRef<[u8]>, TagName: AsRef<[u8]>>(
+        data: Vec<(Option<Msg>, Option<TagName>)>,
+    ) -> Result<Self> {
+        let base64 = base64_simd::STANDARD;
+
+        let mut message = Vec::new();
+        let mut message_offset = Vec::new();
+        let mut tag_name = Vec::new();
+        let mut tag_name_offset = Vec::new();
+
+        for (msg, tag) in data.into_iter() {
+            match msg {
+                Some(msg) => {
+                    let msg = base64.encode_to_string(msg);
+                    message_offset.push(
+                        message
+                            .len()
+                            .try_into()
+                            .context("total message size overflowed usize")?,
+                    );
+                    message.extend(msg.as_bytes());
+                    message.push(b'\n');
+                }
+                None => message_offset.push(u64::MAX),
+            }
+            match tag {
+                Some(tag) => {
+                    let tag = base64.encode_to_string(tag);
+                    tag_name_offset.push(
+                        tag_name
+                            .len()
+                            .try_into()
+                            .context("total tag_name size overflowed usize")?,
+                    );
+                    tag_name.extend(tag.as_bytes());
+                    tag_name.push(b'\n');
+                }
+                None => tag_name_offset.push(u64::MAX),
+            }
+        }
+
+        Ok(VecStrings {
+            message,
+            message_offset,
+            tag_name,
+            tag_name_offset,
+        })
+    }
+}
+
+impl StringsTrait for VecStrings {
+    type Offsets<'a> = &'a [u64] where Self: 'a;
+
+    #[inline(always)]
+    fn message(&self) -> &[u8] {
+        self.message.as_slice()
+    }
+    #[inline(always)]
+    fn message_offset(&self) -> Self::Offsets<'_> {
+        self.message_offset.as_slice()
+    }
+    #[inline(always)]
+    fn tag_name(&self) -> &[u8] {
+        self.tag_name.as_slice()
+    }
+    #[inline(always)]
+    fn tag_name_offset(&self) -> Self::Offsets<'_> {
+        self.tag_name_offset.as_slice()
     }
 }
 
@@ -67,27 +153,35 @@ impl<
     pub fn load_strings(
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, Strings, LABELNAMES>> {
+        let strings = Strings {
+            message: mmap(&suffix_path(&self.path, MESSAGE)).context("Could not load messages")?,
+            message_offset: NumberMmap::new(
+                suffix_path(&self.path, MESSAGE_OFFSET),
+                self.num_nodes,
+            )
+            .context("Could not load message_offset")?,
+            tag_name: mmap(&suffix_path(&self.path, TAG_NAME))
+                .context("Could not load tag names")?,
+            tag_name_offset: NumberMmap::new(
+                suffix_path(&self.path, TAG_NAME_OFFSET),
+                self.num_nodes,
+            )
+            .context("Could not load tag_name_offset")?,
+        };
+        self.with_strings(strings)
+    }
+
+    /// Alternative to [`load_strings`] that allows using arbitrary strings implementations
+    pub fn with_strings<STRINGS: StringsTrait>(
+        self,
+        strings: STRINGS,
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
         Ok(SwhGraphProperties {
             maps: self.maps,
             timestamps: self.timestamps,
             persons: self.persons,
             contents: self.contents,
-            strings: Strings {
-                message: mmap(&suffix_path(&self.path, MESSAGE))
-                    .context("Could not load messages")?,
-                message_offset: NumberMmap::new(
-                    suffix_path(&self.path, MESSAGE_OFFSET),
-                    self.num_nodes,
-                )
-                .context("Could not load message_offset")?,
-                tag_name: mmap(&suffix_path(&self.path, TAG_NAME))
-                    .context("Could not load tag names")?,
-                tag_name_offset: NumberMmap::new(
-                    suffix_path(&self.path, TAG_NAME_OFFSET),
-                    self.num_nodes,
-                )
-                .context("Could not load tag_name_offset")?,
-            },
+            strings,
             label_names: self.label_names,
             path: self.path,
             num_nodes: self.num_nodes,
@@ -111,8 +205,8 @@ impl<
     #[inline(always)]
     fn message_or_tag_name_base64<'a>(
         what: &'static str,
-        data: &'a Mmap,
-        offsets: &NumberMmap<BigEndian, u64, Mmap>,
+        data: &'a [u8],
+        offsets: impl GetIndex<Output = u64>,
         node_id: NodeId,
     ) -> Option<&'a [u8]> {
         match offsets.get(node_id) {
