@@ -8,7 +8,6 @@ use std::path::PathBuf;
 use swh_graph::graph::*;
 use swh_graph::webgraph::graphs::vec_graph::VecGraph;
 use swh_graph::webgraph::labels::proj::Left;
-use swh_graph::webgraph::prelude::*;
 
 #[test]
 fn test_vec_graph() {
@@ -33,12 +32,7 @@ fn test_labeled_vec_graph() {
     let arcs: Vec<(usize, usize, &[u64])> = vec![(0, 1, &[0, 789]), (2, 0, &[123]), (2, 1, &[456])];
     let underlying_graph = VecGraph::from_labeled_arc_list(arcs);
 
-    let labels = Right(underlying_graph.clone());
-
-    let graph = SwhUnidirectionalGraph::from_underlying_graph(
-        PathBuf::new(),
-        Zip(Left(underlying_graph), labels),
-    );
+    let graph = SwhUnidirectionalGraph::from_underlying_graph(PathBuf::new(), underlying_graph);
 
     assert_eq!(graph.successors(0).into_iter().collect::<Vec<_>>(), vec![1]);
     assert_eq!(
