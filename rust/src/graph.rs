@@ -59,6 +59,7 @@ pub trait UnderlyingGraph:
     RandomAccessGraph<Label = usize> + UnderlyingLabeling<Graph = Self>
 {
 }
+
 impl<F: RandomAccessDecoderFactory> UnderlyingLabeling for BVGraph<F> {
     type Graph = Self;
 
@@ -68,6 +69,17 @@ impl<F: RandomAccessDecoderFactory> UnderlyingLabeling for BVGraph<F> {
     }
 }
 impl<F: RandomAccessDecoderFactory> UnderlyingGraph for BVGraph<F> {}
+
+impl UnderlyingLabeling for Left<VecGraph<()>> {
+    type Graph = Self;
+
+    #[inline(always)]
+    fn underlying_graph(&self) -> &Self::Graph {
+        self
+    }
+}
+impl UnderlyingGraph for Left<VecGraph<()>> {}
+
 impl<G: UnderlyingGraph> UnderlyingLabeling for Zip<G, SwhGraphLabels> {
     type Graph = G;
 
@@ -171,6 +183,16 @@ pub struct SwhUnidirectionalGraph<P, G: UnderlyingLabeling = DefaultUnderlyingGr
     basepath: PathBuf,
     graph: G,
     properties: P,
+}
+
+impl<G: UnderlyingLabeling> SwhUnidirectionalGraph<(), G> {
+    pub fn from_underlying_graph(basepath: PathBuf, graph: G) -> Self {
+        SwhUnidirectionalGraph {
+            basepath,
+            graph,
+            properties: (),
+        }
+    }
 }
 
 impl<P, G: UnderlyingLabeling> SwhGraph for SwhUnidirectionalGraph<P, G> {
@@ -674,11 +696,9 @@ pub fn load_unidirectional(basepath: impl AsRef<Path>) -> Result<SwhUnidirection
         .endianness::<BE>()
         .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
         .load()?;
-    Ok(SwhUnidirectionalGraph {
-        basepath,
-        graph,
-        properties: (),
-    })
+    Ok(SwhUnidirectionalGraph::from_underlying_graph(
+        basepath, graph,
+    ))
 }
 
 /// Returns a new [`SwhBidirectionalGraph`]

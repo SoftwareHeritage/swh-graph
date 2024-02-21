@@ -28,3 +28,5 @@ pub mod approximate_bfs;
 pub mod java_compat;
 
 pub mod utils;
+
+pub use webgraph;
