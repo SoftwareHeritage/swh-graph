@@ -15,7 +15,7 @@ from swh.graph.example_dataset import DATASET_DIR, RELEASES, REVISIONS
 from ..test_cli import read_properties
 
 
-@pytest.mark.parametrize("workers", [None, 1, 2, 3, 4, 5, 100])
+@pytest.mark.parametrize("workers", [1, 2, 100])
 def test_compressgraph(tmpdir, workers):
     tmpdir = Path(tmpdir)
 
@@ -38,10 +38,8 @@ def test_compressgraph(tmpdir, workers):
         tmpdir / "compressed_graph",
         "--CompressGraph-rust-executable",
         "./target/debug/compress",
+        f"--workers={workers}",
     ]
-
-    if workers is not None:
-        command.append("--workers=100")
 
     result = runner.invoke(graph_cli_group, command)
     assert result.exit_code == 0, result.stdout
@@ -121,10 +119,8 @@ def test_compressgraph_partial(tmpdir, workers, object_types):
         f"--CompressGraph-object-types={object_types}",
         "--CompressGraph-rust-executable",
         "./target/debug/compress",
+        f"--workers={workers}",
     ]
-
-    if workers is not None:
-        command.append("--workers=100")
 
     result = runner.invoke(graph_cli_group, command)
     assert result.exit_code == 0, result.stdout
