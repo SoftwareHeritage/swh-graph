@@ -11,19 +11,23 @@ use super::*;
 use crate::graph::NodeId;
 use crate::utils::suffix_path;
 
-pub trait TimestampsOption {}
+/// Trait implemented by both [`NoTimestamps`] and all implementors of [`Timestamps`],
+/// to allow loading timestamp properties only if needed.
+pub trait MaybeTimestamps {}
 
-pub struct Timestamps {
+pub struct MappedTimestamps {
     author_timestamp: NumberMmap<BigEndian, i64, Mmap>,
     author_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
     committer_timestamp: NumberMmap<BigEndian, i64, Mmap>,
     committer_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
 }
-impl<T: TimestampsTrait> TimestampsOption for T {}
-impl TimestampsOption for () {}
+impl<T: Timestamps> MaybeTimestamps for T {}
 
-/// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
-pub trait TimestampsTrait {
+pub struct NoTimestamps;
+impl MaybeTimestamps for NoTimestamps {}
+
+/// Trait for backend storage of timestamp properties (either in-memory or memory-mapped)
+pub trait Timestamps {
     type Timestamps<'a>: GetIndex<Output = i64> + 'a
     where
         Self: 'a;
@@ -37,7 +41,7 @@ pub trait TimestampsTrait {
     fn committer_timestamp_offset(&self) -> Self::Offsets<'_>;
 }
 
-impl TimestampsTrait for Timestamps {
+impl Timestamps for MappedTimestamps {
     type Timestamps<'a> = &'a NumberMmap<BigEndian, i64, Mmap>;
     type Offsets<'a> = &'a NumberMmap<BigEndian, i16, Mmap>;
 
@@ -111,7 +115,7 @@ impl VecTimestamps {
     }
 }
 
-impl TimestampsTrait for VecTimestamps {
+impl Timestamps for VecTimestamps {
     type Timestamps<'a> = &'a [i64];
     type Offsets<'a> = &'a [i16];
 
@@ -134,12 +138,12 @@ impl TimestampsTrait for VecTimestamps {
 }
 
 impl<
-        MAPS: MapsOption,
-        PERSONS: PersonsOption,
-        CONTENTS: ContentsOption,
-        STRINGS: StringsOption,
-        LABELNAMES: LabelNamesOption,
-    > SwhGraphProperties<MAPS, (), PERSONS, CONTENTS, STRINGS, LABELNAMES>
+        MAPS: MaybeMaps,
+        PERSONS: MaybePersons,
+        CONTENTS: MaybeContents,
+        STRINGS: MaybeStrings,
+        LABELNAMES: MaybeLabelNames,
+    > SwhGraphProperties<MAPS, NoTimestamps, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
     /// available:
@@ -150,8 +154,9 @@ impl<
     /// * [`SwhGraphProperties::committer_timestamp_offset`]
     pub fn load_timestamps(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, Timestamps, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
-        let timestamps = Timestamps {
+    ) -> Result<SwhGraphProperties<MAPS, MappedTimestamps, PERSONS, CONTENTS, STRINGS, LABELNAMES>>
+    {
+        let timestamps = MappedTimestamps {
             author_timestamp: NumberMmap::new(
                 suffix_path(&self.path, AUTHOR_TIMESTAMP),
                 self.num_nodes,
@@ -177,7 +182,7 @@ impl<
     }
 
     /// Alternative to [`load_timestamps`] that allows using arbitrary timestamps implementations
-    pub fn with_timestamps<TIMESTAMPS: TimestampsTrait>(
+    pub fn with_timestamps<TIMESTAMPS: Timestamps>(
         self,
         timestamps: TIMESTAMPS,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
@@ -199,12 +204,12 @@ impl<
 /// Only available after calling [`load_timestamps`](SwhGraphProperties::load_timestamps)
 /// or [`load_all_properties`](SwhGraph::load_all_properties)
 impl<
-        MAPS: MapsOption,
-        TIMESTAMPS: TimestampsOption + TimestampsTrait,
-        PERSONS: PersonsOption,
-        CONTENTS: ContentsOption,
-        STRINGS: StringsOption,
-        LABELNAMES: LabelNamesOption,
+        MAPS: MaybeMaps,
+        TIMESTAMPS: Timestamps,
+        PERSONS: MaybePersons,
+        CONTENTS: MaybeContents,
+        STRINGS: MaybeStrings,
+        LABELNAMES: MaybeLabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Returns the number of seconds since Epoch that a release or revision was

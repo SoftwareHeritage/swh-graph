@@ -193,12 +193,12 @@ pub trait SwhLabelledBackwardGraph: SwhBackwardGraph {
 }
 
 pub trait SwhGraphWithProperties: SwhGraph {
-    type Maps: properties::MapsOption;
-    type Timestamps: properties::TimestampsOption;
-    type Persons: properties::PersonsOption;
-    type Contents: properties::ContentsOption;
-    type Strings: properties::StringsOption;
-    type LabelNames: properties::LabelNamesOption;
+    type Maps: properties::MaybeMaps;
+    type Timestamps: properties::MaybeTimestamps;
+    type Persons: properties::MaybePersons;
+    type Contents: properties::MaybeContents;
+    type Strings: properties::MaybeStrings;
+    type LabelNames: properties::MaybeLabelNames;
 
     fn properties(
         &self,
@@ -289,12 +289,12 @@ where
 }
 
 impl<
-        M: properties::MapsOption,
-        T: properties::TimestampsOption,
-        P: properties::PersonsOption,
-        C: properties::ContentsOption,
-        S: properties::StringsOption,
-        N: properties::LabelNamesOption,
+        M: properties::MaybeMaps,
+        T: properties::MaybeTimestamps,
+        P: properties::MaybePersons,
+        C: properties::MaybeContents,
+        S: properties::MaybeStrings,
+        N: properties::MaybeLabelNames,
         G: UnderlyingGraph,
     > SwhUnidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S, N>, G>
 {
@@ -315,12 +315,12 @@ impl<
     ///     .expect("Could not load timestamps");
     /// ```
     pub fn load_properties<
-        M2: properties::MapsOption,
-        T2: properties::TimestampsOption,
-        P2: properties::PersonsOption,
-        C2: properties::ContentsOption,
-        S2: properties::StringsOption,
-        N2: properties::LabelNamesOption,
+        M2: properties::MaybeMaps,
+        T2: properties::MaybeTimestamps,
+        P2: properties::MaybePersons,
+        C2: properties::MaybeContents,
+        S2: properties::MaybeStrings,
+        N2: properties::MaybeLabelNames,
     >(
         self,
         loader: impl Fn(
@@ -340,7 +340,17 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
     /// Prerequisite for `load_properties`
     pub fn init_properties(
         self,
-    ) -> SwhUnidirectionalGraph<properties::SwhGraphProperties<(), (), (), (), (), ()>, G> {
+    ) -> SwhUnidirectionalGraph<
+        properties::SwhGraphProperties<
+            properties::NoMaps,
+            properties::NoTimestamps,
+            properties::NoPersons,
+            properties::NoContents,
+            properties::NoStrings,
+            properties::NoLabelNames,
+        >,
+        G,
+    > {
         SwhUnidirectionalGraph {
             properties: properties::SwhGraphProperties::new(&self.basepath, self.graph.num_nodes()),
             basepath: self.basepath,
@@ -366,12 +376,12 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
     ) -> Result<
         SwhUnidirectionalGraph<
             properties::SwhGraphProperties<
-                properties::Maps<MPHF>,
-                properties::Timestamps,
-                properties::Persons,
-                properties::Contents,
-                properties::Strings,
-                properties::LabelNames,
+                properties::MappedMaps<MPHF>,
+                properties::MappedTimestamps,
+                properties::MappedPersons,
+                properties::MappedContents,
+                properties::MappedStrings,
+                properties::MappedLabelNames,
             >,
             G,
         >,
@@ -382,12 +392,12 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
 }
 
 impl<
-        MAPS: properties::MapsOption,
-        TIMESTAMPS: properties::TimestampsOption,
-        PERSONS: properties::PersonsOption,
-        CONTENTS: properties::ContentsOption,
-        STRINGS: properties::StringsOption,
-        LABELNAMES: properties::LabelNamesOption,
+        MAPS: properties::MaybeMaps,
+        TIMESTAMPS: properties::MaybeTimestamps,
+        PERSONS: properties::MaybePersons,
+        CONTENTS: properties::MaybeContents,
+        STRINGS: properties::MaybeStrings,
+        LABELNAMES: properties::MaybeLabelNames,
         G: UnderlyingGraph,
     > SwhGraphWithProperties
     for SwhUnidirectionalGraph<
@@ -528,12 +538,12 @@ where
 }
 
 impl<
-        M: properties::MapsOption,
-        T: properties::TimestampsOption,
-        P: properties::PersonsOption,
-        C: properties::ContentsOption,
-        S: properties::StringsOption,
-        N: properties::LabelNamesOption,
+        M: properties::MaybeMaps,
+        T: properties::MaybeTimestamps,
+        P: properties::MaybePersons,
+        C: properties::MaybeContents,
+        S: properties::MaybeStrings,
+        N: properties::MaybeLabelNames,
         BG: UnderlyingGraph,
         FG: UnderlyingGraph,
     > SwhBidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S, N>, FG, BG>
@@ -556,12 +566,12 @@ impl<
     ///     .expect("Could not load timestamps");
     /// ```
     pub fn load_properties<
-        M2: properties::MapsOption,
-        T2: properties::TimestampsOption,
-        P2: properties::PersonsOption,
-        C2: properties::ContentsOption,
-        S2: properties::StringsOption,
-        N2: properties::LabelNamesOption,
+        M2: properties::MaybeMaps,
+        T2: properties::MaybeTimestamps,
+        P2: properties::MaybePersons,
+        C2: properties::MaybeContents,
+        S2: properties::MaybeStrings,
+        N2: properties::MaybeLabelNames,
     >(
         self,
         loader: impl Fn(
@@ -582,7 +592,18 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
     /// Prerequisite for `load_properties`
     pub fn init_properties(
         self,
-    ) -> SwhBidirectionalGraph<properties::SwhGraphProperties<(), (), (), (), (), ()>, FG, BG> {
+    ) -> SwhBidirectionalGraph<
+        properties::SwhGraphProperties<
+            properties::NoMaps,
+            properties::NoTimestamps,
+            properties::NoPersons,
+            properties::NoContents,
+            properties::NoStrings,
+            properties::NoLabelNames,
+        >,
+        FG,
+        BG,
+    > {
         SwhBidirectionalGraph {
             properties: properties::SwhGraphProperties::new(
                 &self.basepath,
@@ -612,12 +633,12 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
     ) -> Result<
         SwhBidirectionalGraph<
             properties::SwhGraphProperties<
-                properties::Maps<MPHF>,
-                properties::Timestamps,
-                properties::Persons,
-                properties::Contents,
-                properties::Strings,
-                properties::LabelNames,
+                properties::MappedMaps<MPHF>,
+                properties::MappedTimestamps,
+                properties::MappedPersons,
+                properties::MappedContents,
+                properties::MappedStrings,
+                properties::MappedLabelNames,
             >,
             FG,
             BG,
@@ -629,12 +650,12 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
 }
 
 impl<
-        MAPS: properties::MapsOption,
-        TIMESTAMPS: properties::TimestampsOption,
-        PERSONS: properties::PersonsOption,
-        CONTENTS: properties::ContentsOption,
-        STRINGS: properties::StringsOption,
-        LABELNAMES: properties::LabelNamesOption,
+        MAPS: properties::MaybeMaps,
+        TIMESTAMPS: properties::MaybeTimestamps,
+        PERSONS: properties::MaybePersons,
+        CONTENTS: properties::MaybeContents,
+        STRINGS: properties::MaybeStrings,
+        LABELNAMES: properties::MaybeLabelNames,
         BG: UnderlyingGraph,
         FG: UnderlyingGraph,
     > SwhGraphWithProperties

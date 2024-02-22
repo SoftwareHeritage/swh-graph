@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -12,16 +12,21 @@ use crate::java_compat::fcl::FrontCodedList;
 use crate::labels::FilenameId;
 use crate::utils::suffix_path;
 
-pub trait LabelNamesOption {}
+/// Trait implemented by both [`NoLabelNames`] and all implementors of [`LabelNames`],
+/// to allow loading label names only if needed.
+pub trait MaybeLabelNames {}
 
-pub struct LabelNames {
+pub struct MappedLabelNames {
     label_names: FrontCodedList<Mmap, Mmap>,
 }
-impl<L: LabelNamesTrait> LabelNamesOption for L {}
-impl LabelNamesOption for () {}
+impl<L: LabelNames> MaybeLabelNames for L {}
 
-/// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
-pub trait LabelNamesTrait {
+/// Placeholder for when label names are not loaded.
+pub struct NoLabelNames;
+impl MaybeLabelNames for NoLabelNames {}
+
+/// Trait for backend storage of label names (either in-memory or memory-mapped)
+pub trait LabelNames {
     type LabelNames<'a>: GetIndex<Output = Vec<u8>>
     where
         Self: 'a;
@@ -29,7 +34,7 @@ pub trait LabelNamesTrait {
     fn label_names(&self) -> Self::LabelNames<'_>;
 }
 
-impl LabelNamesTrait for LabelNames {
+impl LabelNames for MappedLabelNames {
     type LabelNames<'a> = &'a FrontCodedList<Mmap, Mmap> where Self: 'a;
 
     #[inline(always)]
@@ -54,7 +59,7 @@ impl VecLabelNames {
     }
 }
 
-impl LabelNamesTrait for VecLabelNames {
+impl LabelNames for VecLabelNames {
     type LabelNames<'a> = &'a [Vec<u8>] where Self: 'a;
 
     #[inline(always)]
@@ -64,12 +69,12 @@ impl LabelNamesTrait for VecLabelNames {
 }
 
 impl<
-        MAPS: MapsOption,
-        TIMESTAMPS: TimestampsOption,
-        PERSONS: PersonsOption,
-        CONTENTS: ContentsOption,
-        STRINGS: StringsOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, ()>
+        MAPS: MaybeMaps,
+        TIMESTAMPS: MaybeTimestamps,
+        PERSONS: MaybePersons,
+        CONTENTS: MaybeContents,
+        STRINGS: MaybeStrings,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, NoLabelNames>
 {
     /// Consumes a [`SwhGraphProperties`] and returns a new one with this methods
     /// available:
@@ -78,8 +83,9 @@ impl<
     /// * [`SwhGraphProperties::label_name_base64`]
     pub fn load_label_names(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LabelNames>> {
-        let label_names = LabelNames {
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, MappedLabelNames>>
+    {
+        let label_names = MappedLabelNames {
             label_names: FrontCodedList::load(suffix_path(&self.path, LABEL_NAME))
                 .context("Could not load label names")?,
         };
@@ -87,7 +93,7 @@ impl<
     }
     ///
     /// Alternative to [`load_label_names`] that allows using arbitrary label_names implementations
-    pub fn with_label_names<LABELNAMES: LabelNamesTrait>(
+    pub fn with_label_names<LABELNAMES: LabelNames>(
         self,
         label_names: LABELNAMES,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
@@ -109,12 +115,12 @@ impl<
 /// Only available after calling [`load_label_names`](SwhGraphProperties::load_label_names)
 /// or [`load_all_properties`](SwhGraph::load_all_properties).
 impl<
-        MAPS: MapsOption,
-        TIMESTAMPS: TimestampsOption,
-        PERSONS: PersonsOption,
-        CONTENTS: ContentsOption,
-        STRINGS: StringsOption,
-        LABELNAMES: LabelNamesOption + LabelNamesTrait,
+        MAPS: MaybeMaps,
+        TIMESTAMPS: MaybeTimestamps,
+        PERSONS: MaybePersons,
+        CONTENTS: MaybeContents,
+        STRINGS: MaybeStrings,
+        LABELNAMES: LabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Returns the file name (resp. branch name) of a label on an arc from a directory

@@ -73,12 +73,12 @@ pub struct NodeBuilder<G: Deref + Clone + Send + Sync + 'static> {
 impl<G: Deref + Clone + Send + Sync + 'static> NodeBuilder<G>
 where
     G::Target: SwhLabelledForwardGraph + SwhGraphWithProperties + Sized,
-    <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait,
-    <G::Target as SwhGraphWithProperties>::Timestamps: properties::TimestampsTrait,
-    <G::Target as SwhGraphWithProperties>::Persons: properties::PersonsTrait,
-    <G::Target as SwhGraphWithProperties>::Contents: properties::ContentsTrait,
-    <G::Target as SwhGraphWithProperties>::Strings: properties::StringsTrait,
-    <G::Target as SwhGraphWithProperties>::LabelNames: properties::LabelNamesTrait,
+    <G::Target as SwhGraphWithProperties>::Maps: properties::Maps,
+    <G::Target as SwhGraphWithProperties>::Timestamps: properties::Timestamps,
+    <G::Target as SwhGraphWithProperties>::Persons: properties::Persons,
+    <G::Target as SwhGraphWithProperties>::Contents: properties::Contents,
+    <G::Target as SwhGraphWithProperties>::Strings: properties::Strings,
+    <G::Target as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
 {
     pub fn new(
         graph: G,

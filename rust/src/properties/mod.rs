@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -90,12 +90,12 @@ pub(crate) mod suffixes {
 ///     .author_timestamp(42);
 /// ```
 pub struct SwhGraphProperties<
-    MAPS: MapsOption,
-    TIMESTAMPS: TimestampsOption,
-    PERSONS: PersonsOption,
-    CONTENTS: ContentsOption,
-    STRINGS: StringsOption,
-    LABELNAMES: LabelNamesOption,
+    MAPS: MaybeMaps,
+    TIMESTAMPS: MaybeTimestamps,
+    PERSONS: MaybePersons,
+    CONTENTS: MaybeContents,
+    STRINGS: MaybeStrings,
+    LABELNAMES: MaybeLabelNames,
 > {
     path: PathBuf,
     num_nodes: usize,
@@ -107,8 +107,14 @@ pub struct SwhGraphProperties<
     label_names: LABELNAMES,
 }
 
-pub type AllSwhGraphProperties<MPHF> =
-    SwhGraphProperties<Maps<MPHF>, Timestamps, Persons, Contents, Strings, LabelNames>;
+pub type AllSwhGraphProperties<MPHF> = SwhGraphProperties<
+    MappedMaps<MPHF>,
+    MappedTimestamps,
+    MappedPersons,
+    MappedContents,
+    MappedStrings,
+    MappedLabelNames,
+>;
 
 fn mmap(path: &Path) -> Result<Mmap> {
     let file_len = path
@@ -132,19 +138,19 @@ fn mmap(path: &Path) -> Result<Mmap> {
     Ok(data)
 }
 
-impl SwhGraphProperties<(), (), (), (), (), ()> {
+impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, NoLabelNames> {
     /// Creates an empty [`SwhGraphProperties`] instance, which will load properties
     /// from the given path prefix.
     pub fn new(path: impl AsRef<Path>, num_nodes: usize) -> Self {
         SwhGraphProperties {
             path: path.as_ref().to_owned(),
             num_nodes,
-            maps: (),
-            timestamps: (),
-            persons: (),
-            contents: (),
-            strings: (),
-            label_names: (),
+            maps: NoMaps,
+            timestamps: NoTimestamps,
+            persons: NoPersons,
+            contents: NoContents,
+            strings: NoStrings,
+            label_names: NoLabelNames,
         }
     }
 
@@ -192,19 +198,19 @@ impl SwhGraphProperties<(), (), (), (), (), ()> {
 }
 
 mod maps;
-pub use maps::{Maps, MapsOption, MapsTrait, VecMaps};
+pub use maps::{MappedMaps, Maps, MaybeMaps, NoMaps, VecMaps};
 
 mod timestamps;
-pub use timestamps::{Timestamps, TimestampsOption, TimestampsTrait, VecTimestamps};
+pub use timestamps::{MappedTimestamps, MaybeTimestamps, NoTimestamps, Timestamps, VecTimestamps};
 
 mod persons;
-pub use persons::{Persons, PersonsOption, PersonsTrait, VecPersons};
+pub use persons::{MappedPersons, MaybePersons, NoPersons, Persons, VecPersons};
 
 mod contents;
-pub use contents::{Contents, ContentsOption, ContentsTrait, VecContents};
+pub use contents::{Contents, MappedContents, MaybeContents, NoContents, VecContents};
 
 mod strings;
-pub use strings::{Strings, StringsOption, StringsTrait, VecStrings};
+pub use strings::{MappedStrings, MaybeStrings, NoStrings, Strings, VecStrings};
 
 mod label_names;
-pub use label_names::{LabelNames, LabelNamesOption, LabelNamesTrait, VecLabelNames};
+pub use label_names::{LabelNames, MappedLabelNames, MaybeLabelNames, NoLabelNames, VecLabelNames};

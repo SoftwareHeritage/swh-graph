@@ -15,19 +15,24 @@ use crate::mph::{SwhidMphf, VecMphf};
 use crate::utils::suffix_path;
 use crate::{SWHType, SWHID};
 
-pub trait MapsOption {}
+/// Trait implemented by both [`NoMaps`] and all implementors of [`Maps`],
+/// to allow loading maps only if needed.
+pub trait MaybeMaps {}
 
-pub struct Maps<MPHF: SwhidMphf> {
+pub struct MappedMaps<MPHF: SwhidMphf> {
     mphf: MPHF,
     order: MappedPermutation,
     node2swhid: Node2SWHID<Mmap>,
     node2type: Node2Type<UsizeMmap<Mmap>>,
 }
-impl<M: MapsTrait> MapsOption for M {}
-impl MapsOption for () {}
+impl<M: Maps> MaybeMaps for M {}
 
-/// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
-pub trait MapsTrait {
+/// Placeholder for when maps are not loaded.
+pub struct NoMaps;
+impl MaybeMaps for NoMaps {}
+
+/// Trait for backend storage of maps (either in-memory, or loaded from disk and memory-mapped)
+pub trait Maps {
     type MPHF: SwhidMphf;
     type Perm: Permutation;
     type Memory: AsRef<[u8]>;
@@ -38,7 +43,7 @@ pub trait MapsTrait {
     fn node2type(&self) -> &Node2Type<UsizeMmap<Self::Memory>>;
 }
 
-impl<MPHF: SwhidMphf> MapsTrait for Maps<MPHF> {
+impl<MPHF: SwhidMphf> Maps for MappedMaps<MPHF> {
     type MPHF = MPHF;
     type Perm = MappedPermutation;
     type Memory = Mmap;
@@ -61,7 +66,7 @@ impl<MPHF: SwhidMphf> MapsTrait for Maps<MPHF> {
     }
 }
 
-/// Trivial implementation of [`MapsTrait`] that stores everything in a vector,
+/// Trivial implementation of [`Maps`] that stores everything in a vector,
 /// instead of mmapping from disk
 pub struct VecMaps {
     mphf: VecMphf,
@@ -83,7 +88,7 @@ impl VecMaps {
     }
 }
 
-impl MapsTrait for VecMaps {
+impl Maps for VecMaps {
     type MPHF = VecMphf;
     type Perm = OwnedPermutation<Vec<usize>>;
     type Memory = Vec<u8>;
@@ -107,12 +112,12 @@ impl MapsTrait for VecMaps {
 }
 
 impl<
-        TIMESTAMPS: TimestampsOption,
-        PERSONS: PersonsOption,
-        CONTENTS: ContentsOption,
-        STRINGS: StringsOption,
-        LABELNAMES: LabelNamesOption,
-    > SwhGraphProperties<(), TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
+        TIMESTAMPS: MaybeTimestamps,
+        PERSONS: MaybePersons,
+        CONTENTS: MaybeContents,
+        STRINGS: MaybeStrings,
+        LABELNAMES: MaybeLabelNames,
+    > SwhGraphProperties<NoMaps, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
     /// available:
@@ -123,9 +128,10 @@ impl<
     /// * [`SwhGraphProperties::node_type`]
     pub fn load_maps<MPHF: SwhidMphf>(
         self,
-    ) -> Result<SwhGraphProperties<Maps<MPHF>, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>>
-    {
-        let maps = Maps {
+    ) -> Result<
+        SwhGraphProperties<MappedMaps<MPHF>, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
+    > {
+        let maps = MappedMaps {
             mphf: MPHF::load(&self.path)?,
             order: unsafe { MappedPermutation::load_unchecked(&suffix_path(&self.path, ".order")) }
                 .context("Could not load order")?,
@@ -138,7 +144,7 @@ impl<
     }
 
     /// Alternative to [`load_maps`] that allows using arbitrary maps implementations
-    pub fn with_maps<MAPS: MapsTrait>(
+    pub fn with_maps<MAPS: Maps>(
         self,
         maps: MAPS,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
@@ -160,12 +166,12 @@ impl<
 /// Only available after calling [`load_contents`](SwhGraphProperties::load_contents)
 /// or [`load_all_properties`](SwhGraph::load_all_properties)
 impl<
-        MAPS: MapsOption + MapsTrait,
-        TIMESTAMPS: TimestampsOption,
-        PERSONS: PersonsOption,
-        CONTENTS: ContentsOption,
-        STRINGS: StringsOption,
-        LABELNAMES: LabelNamesOption,
+        MAPS: Maps,
+        TIMESTAMPS: MaybeTimestamps,
+        PERSONS: MaybePersons,
+        CONTENTS: MaybeContents,
+        STRINGS: MaybeStrings,
+        LABELNAMES: MaybeLabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Returns the node id of the given SWHID

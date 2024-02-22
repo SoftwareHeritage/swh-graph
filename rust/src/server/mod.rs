@@ -60,7 +60,7 @@ pub trait TraversalServiceTrait {
         + 'static;
     fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status>
     where
-        <Self::Graph as SwhGraphWithProperties>::Maps: crate::properties::MapsTrait;
+        <Self::Graph as SwhGraphWithProperties>::Maps: crate::properties::Maps;
     fn graph(&self) -> &Arc<Self::Graph>;
 }
 
@@ -78,7 +78,7 @@ impl<
     #[inline]
     fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status>
     where
-        <G as SwhGraphWithProperties>::Maps: crate::properties::MapsTrait,
+        <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
     {
         let swhid: crate::SWHID = swhid
             .try_into()
@@ -105,12 +105,12 @@ impl<
             + 'static,
     > proto::traversal_service_server::TraversalService for TraversalService<G>
 where
-    <G as SwhGraphWithProperties>::Maps: crate::properties::MapsTrait,
-    <G as SwhGraphWithProperties>::Timestamps: crate::properties::TimestampsTrait,
-    <G as SwhGraphWithProperties>::Persons: crate::properties::PersonsTrait,
-    <G as SwhGraphWithProperties>::Contents: crate::properties::ContentsTrait,
-    <G as SwhGraphWithProperties>::Strings: crate::properties::StringsTrait,
-    <G as SwhGraphWithProperties>::LabelNames: crate::properties::LabelNamesTrait,
+    <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
+    <G as SwhGraphWithProperties>::Timestamps: crate::properties::Timestamps,
+    <G as SwhGraphWithProperties>::Persons: crate::properties::Persons,
+    <G as SwhGraphWithProperties>::Contents: crate::properties::Contents,
+    <G as SwhGraphWithProperties>::Strings: crate::properties::Strings,
+    <G as SwhGraphWithProperties>::LabelNames: crate::properties::LabelNames,
 {
     async fn get_node(&self, request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
         let arc_checker = filters::ArcFilterChecker::new(self.0.clone(), None)?;
@@ -298,12 +298,12 @@ pub async fn serve<
     bind_addr: std::net::SocketAddr,
 ) -> Result<(), tonic::transport::Error>
 where
-    <G as SwhGraphWithProperties>::Maps: crate::properties::MapsTrait,
-    <G as SwhGraphWithProperties>::Timestamps: crate::properties::TimestampsTrait,
-    <G as SwhGraphWithProperties>::Persons: crate::properties::PersonsTrait,
-    <G as SwhGraphWithProperties>::Contents: crate::properties::ContentsTrait,
-    <G as SwhGraphWithProperties>::Strings: crate::properties::StringsTrait,
-    <G as SwhGraphWithProperties>::LabelNames: crate::properties::LabelNamesTrait,
+    <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
+    <G as SwhGraphWithProperties>::Timestamps: crate::properties::Timestamps,
+    <G as SwhGraphWithProperties>::Persons: crate::properties::Persons,
+    <G as SwhGraphWithProperties>::Contents: crate::properties::Contents,
+    <G as SwhGraphWithProperties>::Strings: crate::properties::Strings,
+    <G as SwhGraphWithProperties>::LabelNames: crate::properties::LabelNames,
 {
     let graph = Arc::new(graph);
     Server::builder()

@@ -116,7 +116,7 @@ impl ReadySet for Queue {
 fn toposort<R: ReadySet, G>(graph: G, node_types: &[SWHType]) -> Result<()>
 where
     G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
-    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::MapsTrait,
+    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
     let graph = graph;
 

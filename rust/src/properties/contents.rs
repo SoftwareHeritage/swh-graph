@@ -11,17 +11,22 @@ use super::*;
 use crate::graph::NodeId;
 use crate::utils::suffix_path;
 
-pub trait ContentsOption {}
+/// Trait implemented by both [`NoContents`] and all implementors of [`Contents`],
+/// to allow loading content properties only if needed.
+pub trait MaybeContents {}
 
-pub struct Contents {
+pub struct MappedContents {
     is_skipped_content: NumberMmap<BigEndian, u64, Mmap>,
     content_length: NumberMmap<BigEndian, u64, Mmap>,
 }
-impl<C: ContentsTrait> ContentsOption for C {}
-impl ContentsOption for () {}
+impl<C: Contents> MaybeContents for C {}
 
-/// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
-pub trait ContentsTrait {
+/// Placeholder for when "contents" properties are not loaded.
+pub struct NoContents;
+impl MaybeContents for NoContents {}
+
+/// Trait for backend storage of content properties (either in-memory or memory-mapped)
+pub trait Contents {
     type Data<'a>: GetIndex<Output = u64> + 'a
     where
         Self: 'a;
@@ -30,7 +35,7 @@ pub trait ContentsTrait {
     fn content_length(&self) -> Self::Data<'_>;
 }
 
-impl ContentsTrait for Contents {
+impl Contents for MappedContents {
     type Data<'a> = &'a NumberMmap<BigEndian, u64, Mmap> where Self: 'a;
 
     #[inline(always)]
@@ -73,7 +78,7 @@ impl VecContents {
     }
 }
 
-impl ContentsTrait for VecContents {
+impl Contents for VecContents {
     type Data<'a> = &'a [u64] where Self: 'a;
 
     #[inline(always)]
@@ -87,12 +92,12 @@ impl ContentsTrait for VecContents {
 }
 
 impl<
-        MAPS: MapsOption,
-        TIMESTAMPS: TimestampsOption,
-        PERSONS: PersonsOption,
-        STRINGS: StringsOption,
-        LABELNAMES: LabelNamesOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, (), STRINGS, LABELNAMES>
+        MAPS: MaybeMaps,
+        TIMESTAMPS: MaybeTimestamps,
+        PERSONS: MaybePersons,
+        STRINGS: MaybeStrings,
+        LABELNAMES: MaybeLabelNames,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, NoContents, STRINGS, LABELNAMES>
 {
     /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
     /// available:
@@ -101,8 +106,9 @@ impl<
     /// * [`SwhGraphProperties::content_length`]
     pub fn load_contents(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, Contents, STRINGS, LABELNAMES>> {
-        let contents = Contents {
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, MappedContents, STRINGS, LABELNAMES>>
+    {
+        let contents = MappedContents {
             is_skipped_content: NumberMmap::new(
                 suffix_path(&self.path, CONTENT_IS_SKIPPED),
                 self.num_nodes.div_ceil(u64::BITS.try_into().unwrap()),
@@ -118,7 +124,7 @@ impl<
     }
 
     /// Alternative to [`load_contents`] that allows using arbitrary contents implementations
-    pub fn with_contents<CONTENTS: ContentsTrait>(
+    pub fn with_contents<CONTENTS: Contents>(
         self,
         contents: CONTENTS,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
@@ -140,12 +146,12 @@ impl<
 /// Only available after calling [`load_contents`](SwhGraphProperties::load_contents)
 /// or [`load_all_properties`](SwhGraph::load_all_properties)
 impl<
-        MAPS: MapsOption,
-        TIMESTAMPS: TimestampsOption,
-        PERSONS: PersonsOption,
-        CONTENTS: ContentsOption + ContentsTrait,
-        STRINGS: StringsOption,
-        LABELNAMES: LabelNamesOption,
+        MAPS: MaybeMaps,
+        TIMESTAMPS: MaybeTimestamps,
+        PERSONS: MaybePersons,
+        CONTENTS: Contents,
+        STRINGS: MaybeStrings,
+        LABELNAMES: MaybeLabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Returns whether the node is a skipped content

@@ -11,17 +11,22 @@ use super::*;
 use crate::graph::NodeId;
 use crate::utils::suffix_path;
 
-pub trait PersonsOption {}
+/// Trait implemented by both [`NoPersons`] and all implementors of [`Persons`],
+/// to allow loading person ids only if needed.
+pub trait MaybePersons {}
 
-pub struct Persons {
+pub struct MappedPersons {
     author_id: NumberMmap<BigEndian, u32, Mmap>,
     committer_id: NumberMmap<BigEndian, u32, Mmap>,
 }
-impl<P: PersonsTrait> PersonsOption for P {}
-impl PersonsOption for () {}
+impl<P: Persons> MaybePersons for P {}
 
-/// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
-pub trait PersonsTrait {
+/// Placeholder for when person ids are not loaded
+pub struct NoPersons;
+impl MaybePersons for NoPersons {}
+
+/// Trait for backend storage of person properties (either in-memory or memory-mapped)
+pub trait Persons {
     type PersonIds<'a>: GetIndex<Output = u32>
     where
         Self: 'a;
@@ -30,7 +35,7 @@ pub trait PersonsTrait {
     fn committer_id(&self) -> Self::PersonIds<'_>;
 }
 
-impl PersonsTrait for Persons {
+impl Persons for MappedPersons {
     type PersonIds<'a> = &'a NumberMmap<BigEndian, u32, Mmap> where Self: 'a;
 
     #[inline(always)]
@@ -66,7 +71,7 @@ impl VecPersons {
     }
 }
 
-impl PersonsTrait for VecPersons {
+impl Persons for VecPersons {
     type PersonIds<'a> = &'a [u32] where Self: 'a;
 
     #[inline(always)]
@@ -80,12 +85,12 @@ impl PersonsTrait for VecPersons {
 }
 
 impl<
-        MAPS: MapsOption,
-        TIMESTAMPS: TimestampsOption,
-        CONTENTS: ContentsOption,
-        STRINGS: StringsOption,
-        LABELNAMES: LabelNamesOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, (), CONTENTS, STRINGS, LABELNAMES>
+        MAPS: MaybeMaps,
+        TIMESTAMPS: MaybeTimestamps,
+        CONTENTS: MaybeContents,
+        STRINGS: MaybeStrings,
+        LABELNAMES: MaybeLabelNames,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, NoPersons, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
     /// available:
@@ -94,8 +99,9 @@ impl<
     /// * [`SwhGraphProperties::committer_id`]
     pub fn load_persons(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, Persons, CONTENTS, STRINGS, LABELNAMES>> {
-        let persons = Persons {
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, MappedPersons, CONTENTS, STRINGS, LABELNAMES>>
+    {
+        let persons = MappedPersons {
             author_id: NumberMmap::new(suffix_path(&self.path, AUTHOR_ID), self.num_nodes)
                 .context("Could not load author_id")?,
             committer_id: NumberMmap::new(suffix_path(&self.path, COMMITTER_ID), self.num_nodes)
@@ -105,7 +111,7 @@ impl<
     }
 
     /// Alternative to [`load_persons`] that allows using arbitrary persons implementations
-    pub fn with_persons<PERSONS: PersonsTrait>(
+    pub fn with_persons<PERSONS: Persons>(
         self,
         persons: PERSONS,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
@@ -127,12 +133,12 @@ impl<
 /// Only available after calling [`load_persons`](SwhGraphProperties::load_persons)
 /// or [`load_all_properties`](SwhGraph::load_all_properties)
 impl<
-        MAPS: MapsOption,
-        TIMESTAMPS: TimestampsOption,
-        PERSONS: PersonsOption + PersonsTrait,
-        CONTENTS: ContentsOption,
-        STRINGS: StringsOption,
-        LABELNAMES: LabelNamesOption,
+        MAPS: MaybeMaps,
+        TIMESTAMPS: MaybeTimestamps,
+        PERSONS: Persons,
+        CONTENTS: MaybeContents,
+        STRINGS: MaybeStrings,
+        LABELNAMES: MaybeLabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Returns the id of the author of a revision or release, if any

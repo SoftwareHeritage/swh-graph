@@ -30,12 +30,12 @@ pub struct SimpleTraversal<'s, S: TraversalServiceTrait + 'static> {
 
 impl<'s, S: TraversalServiceTrait> SimpleTraversal<'s, S>
 where
-    <S::Graph as SwhGraphWithProperties>::Maps: crate::properties::MapsTrait,
-    <S::Graph as SwhGraphWithProperties>::Timestamps: crate::properties::TimestampsTrait,
-    <S::Graph as SwhGraphWithProperties>::Persons: crate::properties::PersonsTrait,
-    <S::Graph as SwhGraphWithProperties>::Contents: crate::properties::ContentsTrait,
-    <S::Graph as SwhGraphWithProperties>::Strings: crate::properties::StringsTrait,
-    <S::Graph as SwhGraphWithProperties>::LabelNames: properties::LabelNamesTrait,
+    <S::Graph as SwhGraphWithProperties>::Maps: crate::properties::Maps,
+    <S::Graph as SwhGraphWithProperties>::Timestamps: crate::properties::Timestamps,
+    <S::Graph as SwhGraphWithProperties>::Persons: crate::properties::Persons,
+    <S::Graph as SwhGraphWithProperties>::Contents: crate::properties::Contents,
+    <S::Graph as SwhGraphWithProperties>::Strings: crate::properties::Strings,
+    <S::Graph as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
 {
     fn make_visitor<'a, G: Deref + Clone + Send + Sync + 'static, Error: Send + 'a>(
         &'a self,
@@ -54,7 +54,7 @@ where
     >
     where
         G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
-        <G::Target as SwhGraphWithProperties>::Maps: properties::MapsTrait,
+        <G::Target as SwhGraphWithProperties>::Maps: properties::Maps,
     {
         let proto::TraversalRequest {
             src,

@@ -11,19 +11,24 @@ use super::*;
 use crate::graph::NodeId;
 use crate::utils::suffix_path;
 
-pub trait StringsOption {}
+/// Trait implemented by both [`NoStrings`] and all implementors of [`Strings`],
+/// to allow loading string properties only if needed.
+pub trait MaybeStrings {}
 
-pub struct Strings {
+pub struct MappedStrings {
     message: Mmap,
     message_offset: NumberMmap<BigEndian, u64, Mmap>,
     tag_name: Mmap,
     tag_name_offset: NumberMmap<BigEndian, u64, Mmap>,
 }
-impl<S: StringsTrait> StringsOption for S {}
-impl StringsOption for () {}
+impl<S: Strings> MaybeStrings for S {}
 
-/// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
-pub trait StringsTrait {
+/// Placeholder for when string properties are not loaded
+pub struct NoStrings;
+impl MaybeStrings for NoStrings {}
+
+/// Trait for backend storage of string properties (either in-memory or memory-mapped)
+pub trait Strings {
     type Offsets<'a>: GetIndex<Output = u64> + 'a
     where
         Self: 'a;
@@ -34,7 +39,7 @@ pub trait StringsTrait {
     fn tag_name_offset(&self) -> Self::Offsets<'_>;
 }
 
-impl StringsTrait for Strings {
+impl Strings for MappedStrings {
     type Offsets<'a> = &'a NumberMmap<BigEndian, u64, Mmap> where Self: 'a;
 
     #[inline(always)]
@@ -114,7 +119,7 @@ impl VecStrings {
     }
 }
 
-impl StringsTrait for VecStrings {
+impl Strings for VecStrings {
     type Offsets<'a> = &'a [u64] where Self: 'a;
 
     #[inline(always)]
@@ -136,12 +141,12 @@ impl StringsTrait for VecStrings {
 }
 
 impl<
-        MAPS: MapsOption,
-        TIMESTAMPS: TimestampsOption,
-        PERSONS: PersonsOption,
-        CONTENTS: ContentsOption,
-        LABELNAMES: LabelNamesOption,
-    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, (), LABELNAMES>
+        MAPS: MaybeMaps,
+        TIMESTAMPS: MaybeTimestamps,
+        PERSONS: MaybePersons,
+        CONTENTS: MaybeContents,
+        LABELNAMES: MaybeLabelNames,
+    > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, NoStrings, LABELNAMES>
 {
     /// Consumes a [`SwhGraphProperties`] and returns a new one with these methods
     /// available:
@@ -152,8 +157,9 @@ impl<
     /// * [`SwhGraphProperties::tag_name`]
     pub fn load_strings(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, Strings, LABELNAMES>> {
-        let strings = Strings {
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, MappedStrings, LABELNAMES>>
+    {
+        let strings = MappedStrings {
             message: mmap(&suffix_path(&self.path, MESSAGE)).context("Could not load messages")?,
             message_offset: NumberMmap::new(
                 suffix_path(&self.path, MESSAGE_OFFSET),
@@ -172,7 +178,7 @@ impl<
     }
 
     /// Alternative to [`load_strings`] that allows using arbitrary strings implementations
-    pub fn with_strings<STRINGS: StringsTrait>(
+    pub fn with_strings<STRINGS: Strings>(
         self,
         strings: STRINGS,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
@@ -194,12 +200,12 @@ impl<
 /// Only available after calling [`load_strings`](SwhGraphProperties::load_strings)
 /// or [`load_all_properties`](SwhGraph::load_all_properties)
 impl<
-        MAPS: MapsOption,
-        TIMESTAMPS: TimestampsOption,
-        PERSONS: PersonsOption,
-        CONTENTS: ContentsOption,
-        STRINGS: StringsOption + StringsTrait,
-        LABELNAMES: LabelNamesOption,
+        MAPS: MaybeMaps,
+        TIMESTAMPS: MaybeTimestamps,
+        PERSONS: MaybePersons,
+        CONTENTS: MaybeContents,
+        STRINGS: Strings,
+        LABELNAMES: MaybeLabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     #[inline(always)]
