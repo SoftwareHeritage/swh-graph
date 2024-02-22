@@ -75,6 +75,10 @@ default = []
 # Reads dataset from ORC files and produces a compressed graph
 compression = ["orcxx", "orcxx_derive", "sha1"]
 
+serde = [
+    "dep:serde",
+]
+
 grpc-server = [
     "async-scoped",
     "chrono",

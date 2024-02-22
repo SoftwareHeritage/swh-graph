@@ -150,3 +150,26 @@ impl From<SWHID> for [u8; SWHID::BYTES_SIZE] {
         result
     }
 }
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for SWHID {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for SWHID {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        use serde::de::Error;
+        <&str>::deserialize(deserializer).and_then(|s| {
+            s.try_into()
+                .map_err(|e: StrSWHIDDeserializationError| D::Error::custom(e.to_string()))
+        })
+    }
+}

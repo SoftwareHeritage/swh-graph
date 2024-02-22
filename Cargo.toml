@@ -5,6 +5,7 @@ resolver = "2"
 members = [
     "rust",
     "extension",
+    "tools/provenance",
     "tools/topology",
 ]
 

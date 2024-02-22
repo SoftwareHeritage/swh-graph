@@ -2484,6 +2484,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "swh_graph_provenance"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "csv",
+ "dsi-progress-logger 0.2.2",
+ "log",
+ "rayon",
+ "serde",
+ "stderrlog",
+ "sux",
+ "swh-graph",
+]
+
+[[package]]
 name = "swh_graph_pyo3"
 version = "0.1.0"
 dependencies = [

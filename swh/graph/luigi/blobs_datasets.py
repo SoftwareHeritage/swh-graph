@@ -1220,20 +1220,17 @@ class FindEarliestRevisions(_BaseTask):
 
     def run(self) -> None:
         """Run task."""
-        from ..shell import AtomicFileSink, Command, Java
-
-        class_name = "org.softwareheritage.graph.utils.FindEarliestRevision"
+        from ..shell import AtomicFileSink, Command, Rust
 
         # fmt: off
         (
             Command.zstdcat(self.blob_list_path())
             | Command.sed("s/,.*//")
-            | Command.tail("-n", "+2")  # skip the header
             | Command.uniq()
-            | Java(
-                class_name,
+            | Rust(
+                "find-earliest-revision",
+                "-vv",
                 self.local_graph_path / self.graph_name,
-                max_ram=100_000_000_000
             )
             | Command.pv("--wait", "--line-mode", "--size", str(self.blob_count()))
             | Command.zstdmt(f"-{COMPRESS_LEVEL}")

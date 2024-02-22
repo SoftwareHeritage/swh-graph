@@ -11,6 +11,7 @@ pub use swhid::SWHID;
 mod swhtype;
 pub use swhtype::SWHType;
 
+pub mod collections;
 pub mod graph;
 pub mod labels;
 pub mod map;
