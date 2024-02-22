@@ -80,6 +80,7 @@ fn test_vec_graph_maps() {
             hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
         },
     ];
+
     let graph = SwhUnidirectionalGraph::from_underlying_graph(
         PathBuf::new(),
         Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
@@ -90,7 +91,7 @@ fn test_vec_graph_maps() {
     })
     .unwrap();
 
-    // Test MPH
+    // Test MPH + order
     assert_eq!(graph.properties().node_id(swhids[0]), Some(0));
     assert_eq!(graph.properties().node_id(swhids[1]), Some(1));
     assert_eq!(graph.properties().node_id(swhids[2]), Some(2));
@@ -112,4 +113,39 @@ fn test_vec_graph_maps() {
     assert_eq!(graph.properties().node_type(0), Some(SWHType::Revision));
     assert_eq!(graph.properties().node_type(1), Some(SWHType::Revision));
     assert_eq!(graph.properties().node_type(2), Some(SWHType::Content));
+}
+
+#[test]
+fn test_vec_graph_timestamps() {
+    let graph = SwhUnidirectionalGraph::from_underlying_graph(
+        PathBuf::new(),
+        Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
+    )
+    .init_properties()
+    .load_properties(|properties| {
+        properties.with_timestamps(
+            VecTimestamps::new(vec![
+                (Some(1708451441), Some(0), Some(1708451442), Some(0)),
+                (Some(1708453970), Some(1), Some(1708453971), Some(2)),
+                (None, None, None, None),
+            ])
+            .unwrap(),
+        )
+    })
+    .unwrap();
+
+    assert_eq!(graph.properties().author_timestamp(0), Some(1708451441));
+    assert_eq!(graph.properties().author_timestamp_offset(0), Some(0));
+    assert_eq!(graph.properties().committer_timestamp(0), Some(1708451442));
+    assert_eq!(graph.properties().committer_timestamp_offset(0), Some(0));
+
+    assert_eq!(graph.properties().author_timestamp(1), Some(1708453970));
+    assert_eq!(graph.properties().author_timestamp_offset(1), Some(1));
+    assert_eq!(graph.properties().committer_timestamp(1), Some(1708453971));
+    assert_eq!(graph.properties().committer_timestamp_offset(1), Some(2));
+
+    assert_eq!(graph.properties().author_timestamp(2), None);
+    assert_eq!(graph.properties().author_timestamp_offset(2), None);
+    assert_eq!(graph.properties().committer_timestamp(2), None);
+    assert_eq!(graph.properties().committer_timestamp_offset(2), None);
 }

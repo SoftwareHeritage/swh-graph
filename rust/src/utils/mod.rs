@@ -63,3 +63,32 @@ pub fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
         Ok(types)
     }
 }
+
+pub trait GetIndex {
+    type Output;
+
+    fn get(&self, index: usize) -> Option<Self::Output>;
+    unsafe fn get_unchecked(&self, index: usize) -> Self::Output;
+}
+
+impl<Item: Copy> GetIndex for &[Item] {
+    type Output = Item;
+
+    fn get(&self, index: usize) -> Option<Self::Output> {
+        <[Item]>::get(self, index).copied()
+    }
+    unsafe fn get_unchecked(&self, index: usize) -> Self::Output {
+        *<[Item]>::get_unchecked(self, index)
+    }
+}
+
+impl<Item: Copy> GetIndex for Vec<Item> {
+    type Output = Item;
+
+    fn get(&self, index: usize) -> Option<Self::Output> {
+        <[Item]>::get(self, index).copied()
+    }
+    unsafe fn get_unchecked(&self, index: usize) -> Self::Output {
+        *<[Item]>::get_unchecked(self, index)
+    }
+}

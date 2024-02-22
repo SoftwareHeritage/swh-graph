@@ -1,9 +1,9 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use mmap_rs::Mmap;
 
 use super::suffixes::*;
@@ -19,33 +19,117 @@ pub struct Timestamps {
     committer_timestamp: NumberMmap<BigEndian, i64, Mmap>,
     committer_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
 }
-impl TimestampsOption for Timestamps {}
+impl<T: TimestampsTrait> TimestampsOption for T {}
 impl TimestampsOption for () {}
 
 /// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
 pub trait TimestampsTrait {
-    fn author_timestamp(&self) -> &NumberMmap<BigEndian, i64, Mmap>;
-    fn author_timestamp_offset(&self) -> &NumberMmap<BigEndian, i16, Mmap>;
-    fn committer_timestamp(&self) -> &NumberMmap<BigEndian, i64, Mmap>;
-    fn committer_timestamp_offset(&self) -> &NumberMmap<BigEndian, i16, Mmap>;
+    type Timestamps<'a>: GetIndex<Output = i64> + 'a
+    where
+        Self: 'a;
+    type Offsets<'a>: GetIndex<Output = i16> + 'a
+    where
+        Self: 'a;
+
+    fn author_timestamp(&self) -> Self::Timestamps<'_>;
+    fn author_timestamp_offset(&self) -> Self::Offsets<'_>;
+    fn committer_timestamp(&self) -> Self::Timestamps<'_>;
+    fn committer_timestamp_offset(&self) -> Self::Offsets<'_>;
 }
 
 impl TimestampsTrait for Timestamps {
+    type Timestamps<'a> = &'a NumberMmap<BigEndian, i64, Mmap>;
+    type Offsets<'a> = &'a NumberMmap<BigEndian, i16, Mmap>;
+
     #[inline(always)]
-    fn author_timestamp(&self) -> &NumberMmap<BigEndian, i64, Mmap> {
+    fn author_timestamp(&self) -> Self::Timestamps<'_> {
         &self.author_timestamp
     }
     #[inline(always)]
-    fn author_timestamp_offset(&self) -> &NumberMmap<BigEndian, i16, Mmap> {
+    fn author_timestamp_offset(&self) -> Self::Offsets<'_> {
         &self.author_timestamp_offset
     }
     #[inline(always)]
-    fn committer_timestamp(&self) -> &NumberMmap<BigEndian, i64, Mmap> {
+    fn committer_timestamp(&self) -> Self::Timestamps<'_> {
         &self.committer_timestamp
     }
     #[inline(always)]
-    fn committer_timestamp_offset(&self) -> &NumberMmap<BigEndian, i16, Mmap> {
+    fn committer_timestamp_offset(&self) -> Self::Offsets<'_> {
         &self.committer_timestamp_offset
+    }
+}
+
+pub struct VecTimestamps {
+    author_timestamp: Vec<i64>,
+    author_timestamp_offset: Vec<i16>,
+    committer_timestamp: Vec<i64>,
+    committer_timestamp_offset: Vec<i16>,
+}
+
+impl VecTimestamps {
+    /// Builds [`VecTimestamps`] from 4-tuples of `(author_timestamp, author_timestamp_offset,
+    /// committer_timestamp, committer_timestamp_offset)`
+    pub fn new(
+        timestamps: Vec<(Option<i64>, Option<i16>, Option<i64>, Option<i16>)>,
+    ) -> Result<Self> {
+        let mut author_timestamp = Vec::with_capacity(timestamps.len());
+        let mut author_timestamp_offset = Vec::with_capacity(timestamps.len());
+        let mut committer_timestamp = Vec::with_capacity(timestamps.len());
+        let mut committer_timestamp_offset = Vec::with_capacity(timestamps.len());
+        for (a_ts, a_ts_o, c_ts, c_ts_o) in timestamps {
+            ensure!(
+                a_ts != Some(i64::MIN),
+                "author timestamp may not be {}",
+                i64::MIN
+            );
+            ensure!(
+                a_ts_o != Some(i16::MIN),
+                "author timestamp offset may not be {}",
+                i16::MIN
+            );
+            ensure!(
+                c_ts != Some(i64::MIN),
+                "committer timestamp may not be {}",
+                i64::MIN
+            );
+            ensure!(
+                c_ts_o != Some(i16::MIN),
+                "committer timestamp offset may not be {}",
+                i16::MIN
+            );
+            author_timestamp.push(a_ts.unwrap_or(i64::MIN));
+            author_timestamp_offset.push(a_ts_o.unwrap_or(i16::MIN));
+            committer_timestamp.push(c_ts.unwrap_or(i64::MIN));
+            committer_timestamp_offset.push(c_ts_o.unwrap_or(i16::MIN));
+        }
+        Ok(VecTimestamps {
+            author_timestamp,
+            author_timestamp_offset,
+            committer_timestamp,
+            committer_timestamp_offset,
+        })
+    }
+}
+
+impl TimestampsTrait for VecTimestamps {
+    type Timestamps<'a> = &'a [i64];
+    type Offsets<'a> = &'a [i16];
+
+    #[inline(always)]
+    fn author_timestamp(&self) -> Self::Timestamps<'_> {
+        self.author_timestamp.as_slice()
+    }
+    #[inline(always)]
+    fn author_timestamp_offset(&self) -> Self::Offsets<'_> {
+        self.author_timestamp_offset.as_slice()
+    }
+    #[inline(always)]
+    fn committer_timestamp(&self) -> Self::Timestamps<'_> {
+        self.committer_timestamp.as_slice()
+    }
+    #[inline(always)]
+    fn committer_timestamp_offset(&self) -> Self::Offsets<'_> {
+        self.committer_timestamp_offset.as_slice()
     }
 }
 
@@ -67,30 +151,39 @@ impl<
     pub fn load_timestamps(
         self,
     ) -> Result<SwhGraphProperties<MAPS, Timestamps, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
+        let timestamps = Timestamps {
+            author_timestamp: NumberMmap::new(
+                suffix_path(&self.path, AUTHOR_TIMESTAMP),
+                self.num_nodes,
+            )
+            .context("Could not load author_timestamp")?,
+            author_timestamp_offset: NumberMmap::new(
+                suffix_path(&self.path, AUTHOR_TIMESTAMP_OFFSET),
+                self.num_nodes,
+            )
+            .context("Could not load author_timestamp_offset")?,
+            committer_timestamp: NumberMmap::new(
+                suffix_path(&self.path, COMMITTER_TIMESTAMP),
+                self.num_nodes,
+            )
+            .context("Could not load committer_timestamp")?,
+            committer_timestamp_offset: NumberMmap::new(
+                suffix_path(&self.path, COMMITTER_TIMESTAMP_OFFSET),
+                self.num_nodes,
+            )
+            .context("Could not load committer_timestamp_offset")?,
+        };
+        self.with_timestamps(timestamps)
+    }
+
+    /// Alternative to [`load_timestamps`] that allows using arbitrary timestamps implementations
+    pub fn with_timestamps<TIMESTAMPS: TimestampsTrait>(
+        self,
+        timestamps: TIMESTAMPS,
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
         Ok(SwhGraphProperties {
             maps: self.maps,
-            timestamps: Timestamps {
-                author_timestamp: NumberMmap::new(
-                    suffix_path(&self.path, AUTHOR_TIMESTAMP),
-                    self.num_nodes,
-                )
-                .context("Could not load author_timestamp")?,
-                author_timestamp_offset: NumberMmap::new(
-                    suffix_path(&self.path, AUTHOR_TIMESTAMP_OFFSET),
-                    self.num_nodes,
-                )
-                .context("Could not load author_timestamp_offset")?,
-                committer_timestamp: NumberMmap::new(
-                    suffix_path(&self.path, COMMITTER_TIMESTAMP),
-                    self.num_nodes,
-                )
-                .context("Could not load committer_timestamp")?,
-                committer_timestamp_offset: NumberMmap::new(
-                    suffix_path(&self.path, COMMITTER_TIMESTAMP_OFFSET),
-                    self.num_nodes,
-                )
-                .context("Could not load committer_timestamp_offset")?,
-            },
+            timestamps,
             persons: self.persons,
             contents: self.contents,
             strings: self.strings,

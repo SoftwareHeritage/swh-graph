@@ -102,9 +102,11 @@ impl<E: ByteOrder, N: common_traits::AsBytes> NumberMmap<E, N, Mmap> {
 
 macro_rules! impl_number_mmap {
     ($ty:ty, $fn:ident) => {
-        impl<E: ByteOrder> NumberMmap<E, $ty, Mmap> {
+        impl<E: ByteOrder> crate::utils::GetIndex for &NumberMmap<E, $ty, Mmap> {
+            type Output = $ty;
+
             /// Returns an item
-            pub fn get(&self, index: usize) -> Option<$ty> {
+            fn get(&self, index: usize) -> Option<$ty> {
                 self.get_slice(index).map(E::$fn)
             }
 
@@ -113,7 +115,7 @@ macro_rules! impl_number_mmap {
             /// # Safety
             ///
             /// Undefined behavior if `index >= len()`
-            pub unsafe fn get_unchecked(&self, index: usize) -> $ty {
+            unsafe fn get_unchecked(&self, index: usize) -> $ty {
                 E::$fn(self.get_slice_unchecked(index))
             }
         }

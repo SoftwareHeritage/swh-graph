@@ -32,6 +32,7 @@ use mmap_rs::Mmap;
 
 use crate::mph::SwhidMphf;
 use crate::utils::mmap::NumberMmap;
+use crate::utils::GetIndex;
 
 pub(crate) mod suffixes {
     pub const NODE2SWHID: &str = ".node2swhid.bin";
@@ -194,7 +195,7 @@ mod maps;
 pub use maps::{Maps, MapsOption, MapsTrait, VecMaps};
 
 mod timestamps;
-pub use timestamps::{Timestamps, TimestampsOption, TimestampsTrait};
+pub use timestamps::{Timestamps, TimestampsOption, TimestampsTrait, VecTimestamps};
 
 mod persons;
 pub use persons::{Persons, PersonsOption, PersonsTrait};
