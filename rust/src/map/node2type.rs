@@ -1,3 +1,8 @@
+// Copyright (C) 2023-2024  The Software Heritage developers
+// See the AUTHORS file at the top-level directory of this distribution
+// License: GNU General Public License version 3, or any later version
+// See top-level LICENSE file for more information
+
 use crate::SWHType;
 use anyhow::{Context, Result};
 use log::info;
@@ -51,21 +56,15 @@ impl<B: AsRef<[usize]> + AsMut<[usize]>> Node2Type<B> {
 /// instead of slices of u8, so it can be used as backend for [`BitFieldVec`].
 pub struct UsizeMmap<B>(B);
 
-impl AsRef<[usize]> for UsizeMmap<Mmap> {
+impl<B: AsRef<[u8]>> AsRef<[usize]> for UsizeMmap<B> {
     fn as_ref(&self) -> &[usize] {
-        bytemuck::cast_slice(&self.0)
+        bytemuck::cast_slice(self.0.as_ref())
     }
 }
 
-impl AsMut<[usize]> for UsizeMmap<MmapMut> {
+impl<B: AsRef<[u8]> + AsMut<[u8]>> AsMut<[usize]> for UsizeMmap<B> {
     fn as_mut(&mut self) -> &mut [usize] {
-        bytemuck::cast_slice_mut(&mut self.0)
-    }
-}
-
-impl AsRef<[usize]> for UsizeMmap<MmapMut> {
-    fn as_ref(&self) -> &[usize] {
-        bytemuck::cast_slice(&self.0)
+        bytemuck::cast_slice_mut(self.0.as_mut())
     }
 }
 
@@ -166,5 +165,22 @@ impl Node2Type<UsizeMmap<Mmap>> {
         let data = UsizeMmap(data);
         let node2type = unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes) };
         Ok(Self { data: node2type })
+    }
+}
+
+impl Node2Type<UsizeMmap<Vec<u8>>> {
+    pub fn new_from_iter(types: impl ExactSizeIterator<Item = SWHType>) -> Self {
+        let num_nodes = types.len();
+        let file_len = ((num_nodes * SWHType::BITWIDTH) as u64).div_ceil(64) * 8;
+        let file_len = file_len.try_into().expect("num_nodes overflowed usize");
+        let mut data = Vec::with_capacity(file_len);
+        data.resize(file_len, 0);
+        let data = UsizeMmap(data);
+        let data = unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes) };
+        let mut node2type = Node2Type { data };
+        for (i, type_) in types.enumerate() {
+            node2type.set(i, type_);
+        }
+        node2type
     }
 }

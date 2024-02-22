@@ -191,7 +191,7 @@ impl SwhGraphProperties<(), (), (), (), (), ()> {
 }
 
 mod maps;
-pub use maps::{Maps, MapsOption, MapsTrait};
+pub use maps::{Maps, MapsOption, MapsTrait, VecMaps};
 
 mod timestamps;
 pub use timestamps::{Timestamps, TimestampsOption, TimestampsTrait};

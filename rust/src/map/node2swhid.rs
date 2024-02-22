@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -68,8 +68,22 @@ impl Node2SWHID<MmapMut> {
     }
 }
 
+impl Node2SWHID<Vec<u8>> {
+    pub fn new_from_iter(swhids: impl ExactSizeIterator<Item = SWHID>) -> Self {
+        let file_len = swhids.len() * SWHID::BYTES_SIZE;
+        let file_len: usize = file_len.try_into().expect("num_nodes overflowed usize");
+        let mut data = Vec::with_capacity(file_len);
+        data.resize(file_len, 0);
+        let mut node2swhid = Node2SWHID { data };
+        for (i, swhid) in swhids.enumerate() {
+            node2swhid.set(i, swhid);
+        }
+        node2swhid
+    }
+}
+
 impl<B: AsRef<[u8]>> Node2SWHID<B> {
-    /// Convert a node_it to a SWHID
+    /// Convert a node_id to a SWHID
     ///
     /// # Safety
     /// This function is unsafe because it does not check that `node_id` is
@@ -87,7 +101,7 @@ impl<B: AsRef<[u8]>> Node2SWHID<B> {
         SWHID::try_from(bytes).unwrap()
     }
 
-    /// Convert a node_it to a SWHID
+    /// Convert a node_id to a SWHID
     #[inline]
     pub fn get(&self, node_id: usize) -> Option<SWHID> {
         let offset = node_id * SWHID::BYTES_SIZE;

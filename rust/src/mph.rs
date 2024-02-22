@@ -43,6 +43,35 @@ pub trait SwhidMphf {
     }
 }
 
+/// Trivial implementation of [`SwhidMphf`] that stores the list of items in a vector
+pub struct VecMphf {
+    pub swhids: Vec<SWHID>,
+}
+
+impl SwhidMphf for VecMphf {
+    fn load(_basepath: impl AsRef<Path>) -> Result<Self> {
+        unimplemented!("VecMphf cannot be loaded from disk");
+    }
+
+    fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
+        swhid
+            .as_ref()
+            .try_into()
+            .ok()
+            .and_then(|swhid: SWHID| self.hash_swhid(&swhid))
+    }
+
+    fn hash_str_array(&self, swhid: &[u8; 50]) -> Option<NodeId> {
+        String::from_utf8(swhid.to_vec())
+            .ok()
+            .and_then(|swhid| self.hash_str(swhid))
+    }
+
+    fn hash_swhid(&self, swhid: &SWHID) -> Option<NodeId> {
+        self.swhids.iter().position(|item| item == swhid)
+    }
+}
+
 impl SwhidMphf for ph::fmph::Function {
     fn load(basepath: impl AsRef<Path>) -> Result<Self>
     where
