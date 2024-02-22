@@ -22,17 +22,23 @@ impl ContentsOption for () {}
 
 /// Workaround for [equality in `where` clauses](https://github.com/rust-lang/rust/issues/20041)
 pub trait ContentsTrait {
-    fn is_skipped_content(&self) -> impl GetIndex<Output = u64>;
-    fn content_length(&self) -> impl GetIndex<Output = u64>;
+    type Data<'a>: GetIndex<Output = u64> + 'a
+    where
+        Self: 'a;
+
+    fn is_skipped_content(&self) -> Self::Data<'_>;
+    fn content_length(&self) -> Self::Data<'_>;
 }
 
 impl ContentsTrait for Contents {
+    type Data<'a> = &'a NumberMmap<BigEndian, u64, Mmap> where Self: 'a;
+
     #[inline(always)]
-    fn is_skipped_content(&self) -> impl GetIndex<Output = u64> {
+    fn is_skipped_content(&self) -> Self::Data<'_> {
         &self.is_skipped_content
     }
     #[inline(always)]
-    fn content_length(&self) -> impl GetIndex<Output = u64> {
+    fn content_length(&self) -> Self::Data<'_> {
         &self.content_length
     }
 }
@@ -68,12 +74,14 @@ impl VecContents {
 }
 
 impl ContentsTrait for VecContents {
+    type Data<'a> = &'a [u64] where Self: 'a;
+
     #[inline(always)]
-    fn is_skipped_content(&self) -> impl GetIndex<Output = u64> {
+    fn is_skipped_content(&self) -> Self::Data<'_> {
         self.is_skipped_content.as_slice()
     }
     #[inline(always)]
-    fn content_length(&self) -> impl GetIndex<Output = u64> {
+    fn content_length(&self) -> Self::Data<'_> {
         self.content_length.as_slice()
     }
 }
