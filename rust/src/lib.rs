@@ -6,6 +6,8 @@
 #![doc = include_str!("../README.md")]
 
 mod swhid;
+#[cfg(feature = "macros")]
+pub use swhid::__parse_swhid;
 pub use swhid::SWHID;
 
 mod swhtype;

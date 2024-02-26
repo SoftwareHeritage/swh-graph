@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -169,7 +169,90 @@ impl<'de> serde::Deserialize<'de> for SWHID {
         use serde::de::Error;
         <&str>::deserialize(deserializer).and_then(|s| {
             s.try_into()
-                .map_err(|e: StrSWHIDDeserializationError| D::Error::custom(e.to_string()))
+                .map_err(|e: StrSWHIDDeserializationError<'_>| D::Error::custom(e.to_string()))
         })
     }
+}
+
+#[doc(hidden)]
+#[cfg(feature = "macros")]
+/// Helper function for [`swhid!()`]
+pub const fn __parse_swhid(node_type: crate::SWHType, hash: &'static str) -> SWHID {
+    use const_panic::unwrap_ok;
+    unwrap_ok!(match const_hex::const_decode_to_array(hash.as_bytes()) {
+        Ok(hash) => Ok(SWHID {
+            namespace_version: 1,
+            node_type,
+            hash
+        }),
+        Err(_) => Err("invalid SWHID hash"),
+    })
+}
+
+#[cfg(feature = "macros")]
+/// A SWHID literal checked at compile time
+///
+/// # Examples
+///
+/// ```
+/// use swh_graph::swhid;
+/// assert_eq!(
+///     swhid!(swh:1:rev:0000000000000000000000000000000000000004).to_string(),
+///     "swh:1:rev:0000000000000000000000000000000000000004".to_string(),
+/// );
+/// ```
+///
+/// ```compile_fail
+/// use swh_graph::swhid;
+/// swhid!(swh:1:rev:ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ);
+/// ```
+///
+/// ```compile_fail
+/// use swh_graph::swhid;
+/// swhid!(swh:1:rev:00000000000000000000000000000000000004);
+/// ```
+#[macro_export]
+macro_rules! swhid {
+    (swh:1:cnt:$hash:literal) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::SWHType::Content, hash)
+        };
+        swhid
+    }};
+    (swh:1:dir:$hash:literal) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::SWHType::Directory, hash)
+        };
+        swhid
+    }};
+    (swh:1:rev:$hash:literal) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::SWHType::Revision, hash)
+        };
+        swhid
+    }};
+    (swh:1:rel:$hash:literal) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::SWHType::Release, hash)
+        };
+        swhid
+    }};
+    (swh:1:snp:$hash:literal) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::SWHType::Snapshot, hash)
+        };
+        swhid
+    }};
+    (swh:1:ori:$hash:literal) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::SWHType::Origin, hash)
+        };
+        swhid
+    }};
 }

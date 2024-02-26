@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use swh_graph::graph::*;
 use swh_graph::properties::{VecMaps, VecTimestamps};
+use swh_graph::swhid;
 use swh_graph::views::Transposed;
 use swh_graph::webgraph::graphs::vec_graph::VecGraph;
 use swh_graph::webgraph::labels::proj::Left;
@@ -27,18 +28,13 @@ fn test_find_earliest_revision_minimal() {
     .init_properties()
     .load_properties(|properties| {
         Ok(properties
-            .with_maps(VecMaps::new(
-                [
-                    "swh:1:rev:0000000000000000000000000000000000000000",
-                    "swh:1:rev:0000000000000000000000000000000000000001",
-                    "swh:1:dir:0000000000000000000000000000000000000002",
-                    "swh:1:dir:0000000000000000000000000000000000000003",
-                    "swh:1:cnt:0000000000000000000000000000000000000004",
-                ]
-                .into_iter()
-                .map(|s| s.try_into().unwrap())
-                .collect(),
-            ))
+            .with_maps(VecMaps::new(vec![
+                swhid!(swh:1:rev:0000000000000000000000000000000000000000),
+                swhid!(swh:1:rev:0000000000000000000000000000000000000001),
+                swhid!(swh:1:dir:0000000000000000000000000000000000000002),
+                swhid!(swh:1:dir:0000000000000000000000000000000000000003),
+                swhid!(swh:1:cnt:0000000000000000000000000000000000000004),
+            ]))
             .unwrap()
             .with_timestamps(
                 VecTimestamps::new(vec![

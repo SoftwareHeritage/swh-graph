@@ -63,6 +63,10 @@ tokio-stream = "0.1"
 tonic = { version = "0.10.2", optional = true }
 tonic-reflection = { version = "0.10.2", optional = true }
 
+# macros
+const_panic = { version = "0.2.8", optional = true }
+const-hex = { version = "1.11.1", optional = true }
+
 [dev-dependencies]
 bitvec = { version = "1.0.1", features = ["atomic"] }
 
@@ -70,10 +74,12 @@ bitvec = { version = "1.0.1", features = ["atomic"] }
 tonic-build = { version = "0.10.2", optional = true }
 
 [features]
-default = []
+default = ["macros"]
 
 # Reads dataset from ORC files and produces a compressed graph
 compression = ["orcxx", "orcxx_derive", "sha1"]
+
+macros = ["const_panic", "const-hex"]
 
 serde = [
     "dep:serde",
