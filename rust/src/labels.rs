@@ -4,11 +4,23 @@
 // See top-level LICENSE file for more information
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct DirEntry(u64);
+pub struct DirEntry(pub(crate) u64);
 
 impl From<u64> for DirEntry {
     fn from(n: u64) -> DirEntry {
         DirEntry(n)
+    }
+}
+
+impl DirEntry {
+    /// Returns a new [`DirEntry`]
+    ///
+    /// or `None` if `filename_id` is 2^61 or greater
+    pub fn new(permission: Permission, filename_id: FilenameId) -> Option<DirEntry> {
+        filename_id
+            .0
+            .checked_shl(3)
+            .map(|shifted_filename_id| DirEntry(shifted_filename_id | (permission as u64)))
     }
 }
 

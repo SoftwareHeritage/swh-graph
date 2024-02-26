@@ -15,6 +15,7 @@ pub use swhtype::SWHType;
 
 pub mod collections;
 pub mod graph;
+pub mod graph_builder;
 pub mod labels;
 pub mod map;
 pub mod mph;

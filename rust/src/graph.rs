@@ -456,6 +456,21 @@ pub struct SwhBidirectionalGraph<
     properties: P,
 }
 
+impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG> {
+    pub fn from_underlying_graphs(
+        basepath: PathBuf,
+        forward_graph: FG,
+        backward_graph: BG,
+    ) -> Self {
+        SwhBidirectionalGraph {
+            basepath,
+            backward_graph,
+            forward_graph,
+            properties: (),
+        }
+    }
+}
+
 impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhGraph for SwhBidirectionalGraph<P, FG, BG> {
     fn path(&self) -> &Path {
         self.basepath.as_path()

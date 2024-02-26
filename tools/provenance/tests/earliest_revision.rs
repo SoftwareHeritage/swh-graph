@@ -3,60 +3,50 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::path::PathBuf;
+use anyhow::Result;
 
-use swh_graph::graph::*;
-use swh_graph::properties::{VecMaps, VecTimestamps};
+use swh_graph::graph_builder::GraphBuilder;
 use swh_graph::swhid;
-use swh_graph::views::Transposed;
-use swh_graph::webgraph::graphs::vec_graph::VecGraph;
-use swh_graph::webgraph::labels::proj::Left;
 
 use swh_graph_provenance::earliest_revision::*;
 
 #[test]
-fn test_find_earliest_revision_minimal() {
-    let backward_graph = SwhUnidirectionalGraph::from_underlying_graph(
-        PathBuf::new(),
-        Left(VecGraph::from_arc_list(vec![
-            (2, 0),
-            (3, 1),
-            (4, 2),
-            (4, 3),
-        ])),
-    )
-    .init_properties()
-    .load_properties(|properties| {
-        Ok(properties
-            .with_maps(VecMaps::new(vec![
-                swhid!(swh:1:rev:0000000000000000000000000000000000000000),
-                swhid!(swh:1:rev:0000000000000000000000000000000000000001),
-                swhid!(swh:1:dir:0000000000000000000000000000000000000002),
-                swhid!(swh:1:dir:0000000000000000000000000000000000000003),
-                swhid!(swh:1:cnt:0000000000000000000000000000000000000004),
-            ]))
-            .unwrap()
-            .with_timestamps(
-                VecTimestamps::new(vec![
-                    (Some(1708451441), Some(0), Some(1708451441), Some(0)),
-                    (Some(1708453970), Some(0), Some(1708453970), Some(0)),
-                    (None, None, None, None),
-                    (None, None, None, None),
-                    (None, None, None, None),
-                    (None, None, None, None),
-                ])
-                .unwrap(),
-            )
-            .unwrap())
-    })
-    .unwrap();
-    let graph = Transposed(&backward_graph);
+fn test_find_earliest_revision_minimal() -> Result<()> {
+    let mut builder = GraphBuilder::default();
+    let rev0 = builder
+        .node(swhid!(swh:1:rev:0000000000000000000000000000000000000000))?
+        .author_timestamp(1708451441, 0)
+        .committer_timestamp(1708451441, 0)
+        .done();
+    let rev1 = builder
+        .node(swhid!(swh:1:rev:0000000000000000000000000000000000000001))?
+        .author_timestamp(1708453970, 0)
+        .committer_timestamp(1708453970, 0)
+        .done();
+    let dir2 = builder
+        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000002))?
+        .done();
+    let dir3 = builder
+        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000003))?
+        .done();
+    let cnt4 = builder
+        .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000004))?
+        .done();
+    builder.arc(rev0, dir2, None);
+    builder.arc(rev1, dir3, None);
+    builder.arc(dir2, cnt4, None);
+    builder.arc(dir3, cnt4, None);
+
+    let graph = builder.done()?;
+
     assert_eq!(
-        find_earliest_revision(&graph, 4),
+        find_earliest_revision(&graph, cnt4),
         Some(EarliestRevision {
-            node: 0,
+            node: rev0,
             ts: 1708451441,
             rev_occurrences: 2
         })
     );
+
+    Ok(())
 }
