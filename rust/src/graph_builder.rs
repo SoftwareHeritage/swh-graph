@@ -21,7 +21,7 @@ pub struct GraphBuilder {
     name_to_id: HashMap<Vec<u8>, u64>,
     persons: HashMap<Vec<u8>, u32>,
 
-    arcs: Vec<(NodeId, NodeId, Vec<u64>)>,
+    arcs: Vec<(NodeId, NodeId, Option<u64>)>,
 
     swhids: Vec<SWHID>,
     is_skipped_content: Vec<bool>,
@@ -64,7 +64,7 @@ impl GraphBuilder {
     /// Adds an arc to the graph
     pub fn arc(&mut self, src: NodeId, dst: NodeId, label: Option<(Permission, Vec<u8>)>) {
         let label = match label {
-            None => Vec::new(),
+            None => None,
             Some((permission, name)) => {
                 let name_id = self.name_to_id.entry(name.clone()).or_insert_with(|| {
                     self.label_names.push(name);
@@ -72,11 +72,11 @@ impl GraphBuilder {
                         .try_into()
                         .expect("label_names length overflowed u64")
                 });
-                vec![
+                Some(
                     DirEntry::new(permission, FilenameId(*name_id))
                         .expect("label_names is larger than 2^61 items")
                         .0,
-                ]
+                )
             }
         };
         self.arcs.push((src, dst, label));
@@ -94,8 +94,8 @@ impl GraphBuilder {
                 properties::VecStrings,
                 properties::VecLabelNames,
             >,
-            VecGraph<&'static [u64]>,
-            VecGraph<&'static [u64]>,
+            VecGraph<Option<u64>>,
+            VecGraph<Option<u64>>,
         >,
     > {
         let num_nodes = self.swhids.len();
@@ -112,15 +112,13 @@ impl GraphBuilder {
             );
         }
 
-        // FIXME: Labels need to be Copy + 'static, so the only option I see is to leak them
-        // This should not be an issue as we only use this in tests, but still...
         let arcs: Vec<_> = self
             .arcs
             .iter()
-            .map(|(src, dst, label)| (*src, *dst, &*label.clone().leak()))
+            .map(|(src, dst, label)| (*src, *dst, *label))
             .collect();
 
-        let backward_arcs: Vec<(NodeId, NodeId, &[u64])> = arcs
+        let backward_arcs: Vec<(NodeId, NodeId, Option<u64>)> = arcs
             .iter()
             .map(|(src, dst, label)| (*dst, *src, *label))
             .collect();

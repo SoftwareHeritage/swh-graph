@@ -12,6 +12,7 @@
 
 #![allow(clippy::type_complexity)]
 
+use std::borrow::Borrow;
 use std::iter::Iterator;
 use std::path::{Path, PathBuf};
 
@@ -112,7 +113,7 @@ impl<L: Copy> UnderlyingGraph for Left<VecGraph<L>> {
     }
 }
 
-impl<L: AsRef<[u64]> + Copy> UnderlyingGraph for VecGraph<L> {
+impl<L: Copy> UnderlyingGraph for VecGraph<L> {
     type UnlabeledSuccessors<'succ> = DelabelingIterator<<Self as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
 
     fn num_arcs(&self) -> u64 {
@@ -274,11 +275,12 @@ impl<P, G: UnderlyingGraph> SwhForwardGraph for SwhUnidirectionalGraph<P, G> {
 impl<P, G: UnderlyingGraph> SwhLabelledForwardGraph for SwhUnidirectionalGraph<P, G>
 where
     <G as SequentialLabeling>::Label: Pair<Left = NodeId>,
-    <<G as SequentialLabeling>::Label as Pair>::Right: AsRef<[u64]>,
+    <<G as SequentialLabeling>::Label as Pair>::Right: IntoIterator,
+    <<<G as SequentialLabeling>::Label as Pair>::Right as IntoIterator>::Item: Borrow<u64>,
     for<'succ> <G as RandomAccessLabeling>::Labels<'succ>:
         Iterator<Item = (usize, <<G as SequentialLabeling>::Label as Pair>::Right)>,
 {
-    type LabelledArcs<'arc> = LabelledArcIterator<<<<G as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right> where Self: 'arc;
+    type LabelledArcs<'arc> = LabelledArcIterator<<<<<G as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
     type LabelledSuccessors<'succ> = LabelledSuccessorIterator<<G as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
 
     fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
@@ -506,11 +508,12 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhLabelledForwardGraph
     for SwhBidirectionalGraph<P, FG, BG>
 where
     <FG as SequentialLabeling>::Label: Pair<Left = NodeId>,
-    <<FG as SequentialLabeling>::Label as Pair>::Right: AsRef<[u64]>,
+    <<FG as SequentialLabeling>::Label as Pair>::Right: IntoIterator,
+    <<<FG as SequentialLabeling>::Label as Pair>::Right as IntoIterator>::Item: Borrow<u64>,
     for<'succ> <FG as RandomAccessLabeling>::Labels<'succ>:
         Iterator<Item = (usize, <<FG as SequentialLabeling>::Label as Pair>::Right)>,
 {
-    type LabelledArcs<'arc> = LabelledArcIterator<<<<FG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right> where Self: 'arc;
+    type LabelledArcs<'arc> = LabelledArcIterator<<<<<FG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
     type LabelledSuccessors<'succ> = LabelledSuccessorIterator<<FG as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
 
     fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
@@ -538,11 +541,12 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhLabelledBackwardGraph
     for SwhBidirectionalGraph<P, FG, BG>
 where
     <BG as SequentialLabeling>::Label: Pair<Left = NodeId>,
-    <<BG as SequentialLabeling>::Label as Pair>::Right: AsRef<[u64]>,
+    <<BG as SequentialLabeling>::Label as Pair>::Right: IntoIterator,
+    <<<BG as SequentialLabeling>::Label as Pair>::Right as IntoIterator>::Item: Borrow<u64>,
     for<'succ> <BG as RandomAccessLabeling>::Labels<'succ>:
         Iterator<Item = (usize, <<BG as SequentialLabeling>::Label as Pair>::Right)>,
 {
-    type LabelledArcs<'arc> = LabelledArcIterator<<<<BG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right> where Self: 'arc;
+    type LabelledArcs<'arc> = LabelledArcIterator<<<<<BG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
     type LabelledPredecessors<'succ> = LabelledSuccessorIterator<<BG as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
 
     fn labelled_predecessors(&self, node_id: NodeId) -> Self::LabelledPredecessors<'_> {
@@ -751,7 +755,8 @@ impl<P, FG: RandomAccessGraph + UnderlyingGraph, BG: RandomAccessGraph + Underly
 pub struct LabelledSuccessorIterator<Successors: Iterator>
 where
     <Successors as Iterator>::Item: Pair<Left = usize>,
-    <<Successors as Iterator>::Item as Pair>::Right: AsRef<[u64]>,
+    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
+    <<<Successors as Iterator>::Item as Pair>::Right as IntoIterator>::Item: Borrow<u64>,
 {
     successors: Successors,
 }
@@ -759,11 +764,14 @@ where
 impl<Successors: Iterator> Iterator for LabelledSuccessorIterator<Successors>
 where
     <Successors as Iterator>::Item: Pair<Left = usize>,
-    <<Successors as Iterator>::Item as Pair>::Right: AsRef<[u64]>,
+    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
+    <<<Successors as Iterator>::Item as Pair>::Right as IntoIterator>::Item: Borrow<u64>,
 {
     type Item = (
         NodeId,
-        LabelledArcIterator<<<Successors as Iterator>::Item as Pair>::Right>,
+        LabelledArcIterator<
+            <<<Successors as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter,
+        >,
     );
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -772,30 +780,30 @@ where
             (
                 successor,
                 LabelledArcIterator {
-                    arc_label_ids: arc_labels,
-                    label_index: 0,
+                    arc_label_ids: arc_labels.into_iter(),
                 },
             )
         })
     }
 }
 
-pub struct LabelledArcIterator<T: AsRef<[u64]>> {
+pub struct LabelledArcIterator<T: Iterator>
+where
+    <T as Iterator>::Item: Borrow<u64>,
+{
     arc_label_ids: T,
-    label_index: usize,
 }
 
-impl<T: AsRef<[u64]>> Iterator for LabelledArcIterator<T> {
+impl<T: Iterator> Iterator for LabelledArcIterator<T>
+where
+    <T as Iterator>::Item: Borrow<u64>,
+{
     type Item = DirEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.arc_label_ids
-            .as_ref()
-            .get(self.label_index)
-            .map(|label| {
-                self.label_index += 1;
-                DirEntry::from(*label)
-            })
+            .next()
+            .map(|label| DirEntry::from(*label.borrow()))
     }
 }
 

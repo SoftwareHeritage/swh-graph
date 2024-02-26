@@ -116,7 +116,7 @@ fn test_labels() -> Result<()> {
         Some(swhid!(swh:1:cnt:0000000000000000000000000000000000000030))
     );
 
-    let collect_labels = |(succ, labels): (_, LabelledArcIterator<&[u64]>)| {
+    let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
         (
             succ,
             labels
@@ -229,7 +229,7 @@ fn test_duplicate_labels() -> Result<()> {
     );
     let graph = builder.done().context("Could not make graph")?;
 
-    let collect_labels = |(succ, labels): (_, LabelledArcIterator<&[u64]>)| {
+    let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
         (
             succ,
             labels
