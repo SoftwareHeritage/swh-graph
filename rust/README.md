@@ -230,12 +230,12 @@ java -classpath $SOURCE_DIR/swh/graph/swh-graph.jar org.softwareheritage.graph.u
 cd $SOURCE_DIR
 
 # Generate Elias-Fano-encoded offsets (`.ef` files) of the graph
-cargo run --release --features compression --bin swh-graph-compress build-eliasfano -- $GRAPH_DIR/graph
-cargo run --release --features compression --bin swh-graph-compress build-eliasfano -- $GRAPH_DIR/graph-transposed
+cargo run --release --bin swh-graph-index build-eliasfano -- $GRAPH_DIR/graph
+cargo run --release --bin swh-graph-index build-eliasfano -- $GRAPH_DIR/graph-transposed
 
 # Ditto, this time for the labelled graph
-cargo run --release --features compression --bin swh-graph-compress build-labels-eliasfano -- $GRAPH_DIR/graph-labelled $((1+ $(cat $GRAPH_DIR/graph.nodes.count.txt)))
-cargo run --release --features compression --bin swh-graph-compress build-labels-eliasfano -- $GRAPH_DIR/graph-transposed-labelled $((1+ $(cat $GRAPH_DIR/graph.nodes.count.txt)))
+cargo run --release --bin swh-graph-index build-labels-eliasfano -- $GRAPH_DIR/graph-labelled $((1+ $(cat $GRAPH_DIR/graph.nodes.count.txt)))
+cargo run --release --bin swh-graph-index build-labels-eliasfano -- $GRAPH_DIR/graph-transposed-labelled $((1+ $(cat $GRAPH_DIR/graph.nodes.count.txt)))
 
 # Generate `node2type.bin` from `node2type.map` (the format of the latter is Java-specific)
 cargo run --release --bin swh-graph-node2type -- $GRAPH_DIR/graph
