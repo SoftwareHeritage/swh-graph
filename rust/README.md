@@ -242,4 +242,8 @@ cargo run --release --features compression --bin node2type -- $GRAPH_DIR/graph
 
 # Convert the Java-specific `.property.content.is_skipped.bin` to a plain `.property.content.is_skipped.bits`:
 java -classpath $SOURCE_DIR/java/target/swh-graph-*.jar $SOURCE_DIR/java/src/main/java/org/softwareheritage/graph/utils/Bitvec2Bits.java $GRAPH_DIR/graph.property.content.is_skipped.bin $GRAPH_DIR/graph.property.content.is_skipped.bits
+
+# If the graph is 2020-12-15 or older, then it has a `graph-labels.fcl` file instead of `graph-labels.fcl.bytearray` + `graph-labels.fcl.pointers` + `graph-labels.fcl.properties`;
+# you need to convert the former to the latter:
+pv $GRAPH_DIR/graph-labels.fcl | java -Xmx300G -cp $SOURCE_DIR/swh/graph/swh-graph.jar org.softwareheritage.graph.utils.StoredFcl2DumpedFcl --object $GRAPH_DIR/graph.labels.fcl
 ```
