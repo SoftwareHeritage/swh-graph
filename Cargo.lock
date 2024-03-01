@@ -1750,8 +1750,8 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 
 [[package]]
 name = "orcxx"
-version = "0.4.2"
-source = "git+https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git?rev=a8101cabab6267dad5916a4937228b71d6fe8263#a8101cabab6267dad5916a4937228b71d6fe8263"
+version = "0.5.0"
+source = "git+https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git?rev=064c8f893aec50a732ad0b964b43afc9c005b128#064c8f893aec50a732ad0b964b43afc9c005b128"
 dependencies = [
  "cxx",
  "cxx-build",
@@ -1761,8 +1761,8 @@ dependencies = [
 
 [[package]]
 name = "orcxx_derive"
-version = "0.4.2"
-source = "git+https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git?rev=a8101cabab6267dad5916a4937228b71d6fe8263#a8101cabab6267dad5916a4937228b71d6fe8263"
+version = "0.5.0"
+source = "git+https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.git?rev=064c8f893aec50a732ad0b964b43afc9c005b128#064c8f893aec50a732ad0b964b43afc9c005b128"
 dependencies = [
  "orcxx",
  "proc-macro2",
