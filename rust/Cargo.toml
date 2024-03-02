@@ -77,7 +77,9 @@ tonic-build = { version = "0.10.2", optional = true }
 default = ["macros"]
 
 # Reads dataset from ORC files and produces a compressed graph
-compression = ["orcxx", "orcxx_derive", "sha1"]
+compression = ["sha1"]
+
+orc = ["orcxx", "orcxx_derive"]
 
 macros = ["const_panic", "const-hex"]
 
@@ -100,9 +102,13 @@ grpc-server = [
 ]
 
 [[bin]]
-name = "compress"
+name = "swh-graph-compress"
 required-features = ["compression"]
 
 [[bin]]
-name = "grpc-serve"
+name = "swh-graph-extract"
+required-features = ["compression", "orc"]
+
+[[bin]]
+name = "swh-graph-grpc-serve"
 required-features = ["grpc-server"]

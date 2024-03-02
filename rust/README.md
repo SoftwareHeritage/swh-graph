@@ -230,15 +230,15 @@ java -classpath $SOURCE_DIR/swh/graph/swh-graph.jar org.softwareheritage.graph.u
 cd $SOURCE_DIR
 
 # Generate Elias-Fano-encoded offsets (`.ef` files) of the graph
-cargo run --release --features compression --bin compress build-eliasfano -- $GRAPH_DIR/graph
-cargo run --release --features compression --bin compress build-eliasfano -- $GRAPH_DIR/graph-transposed
+cargo run --release --features compression --bin swh-graph-compress build-eliasfano -- $GRAPH_DIR/graph
+cargo run --release --features compression --bin swh-graph-compress build-eliasfano -- $GRAPH_DIR/graph-transposed
 
 # Ditto, this time for the labelled graph
-cargo run --release --features compression --bin compress build-labels-eliasfano -- $GRAPH_DIR/graph-labelled $((1+ $(cat $GRAPH_DIR/graph.nodes.count.txt)))
-cargo run --release --features compression --bin compress build-labels-eliasfano -- $GRAPH_DIR/graph-transposed-labelled $((1+ $(cat $GRAPH_DIR/graph.nodes.count.txt)))
+cargo run --release --features compression --bin swh-graph-compress build-labels-eliasfano -- $GRAPH_DIR/graph-labelled $((1+ $(cat $GRAPH_DIR/graph.nodes.count.txt)))
+cargo run --release --features compression --bin swh-graph-compress build-labels-eliasfano -- $GRAPH_DIR/graph-transposed-labelled $((1+ $(cat $GRAPH_DIR/graph.nodes.count.txt)))
 
 # Generate `node2type.bin` from `node2type.map` (the format of the latter is Java-specific)
-cargo run --release --features compression --bin node2type -- $GRAPH_DIR/graph
+cargo run --release --bin swh-graph-node2type -- $GRAPH_DIR/graph
 
 # Convert the Java-specific `.property.content.is_skipped.bin` to a plain `.property.content.is_skipped.bits`:
 java -classpath $SOURCE_DIR/java/target/swh-graph-*.jar $SOURCE_DIR/java/src/main/java/org/softwareheritage/graph/utils/Bitvec2Bits.java $GRAPH_DIR/graph.property.content.is_skipped.bin $GRAPH_DIR/graph.property.content.is_skipped.bits

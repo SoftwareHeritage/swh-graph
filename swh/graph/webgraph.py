@@ -104,7 +104,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}.cmph",
     ],
     CompressionStep.BV: [
-        "{rust_executable}",
+        "{rust_executable_dir}/swh-graph-extract",
         "bv",
         "--allowed-node-types",
         "{object_types}",
@@ -118,7 +118,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-base",
     ],
     CompressionStep.BV_OFFSETS: [
-        "{rust_executable}",
+        "{rust_executable_dir}/swh-graph-compress",
         "build-offsets",
         "{out_dir}/{graph_name}-base",
     ],

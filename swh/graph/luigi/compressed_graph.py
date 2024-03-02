@@ -234,8 +234,8 @@ class _CompressionStepTask(luigi.Task):
         """,
     )
 
-    rust_executable = luigi.Parameter(
-        default="./target/release/compress",
+    rust_executable_dir = luigi.Parameter(
+        default="./target/release/",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
     )
@@ -400,7 +400,7 @@ class _CompressionStepTask(luigi.Task):
                         graph_name=self.graph_name,
                         local_graph_path=self.local_graph_path,
                         object_types=self.object_types,
-                        rust_executable=self.rust_executable,
+                        rust_executable_dir=self.rust_executable_dir,
                     )
                     if self.batch_size:
                         kwargs["batch_size"] = self.batch_size
@@ -472,7 +472,7 @@ class _CompressionStepTask(luigi.Task):
         }
         if self.batch_size:
             conf["batch_size"] = self.batch_size
-        conf["rust_executable"] = self.rust_executable
+        conf["rust_executable_dir"] = self.rust_executable_dir
 
         conf = check_config_compress(
             conf,
@@ -1052,8 +1052,8 @@ class CompressGraph(luigi.Task):
         """,
     )
 
-    rust_executable = luigi.Parameter(
-        default="./target/release/compress",
+    rust_executable_dir = luigi.Parameter(
+        default="./target/release/",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
     )
@@ -1068,7 +1068,7 @@ class CompressGraph(luigi.Task):
             graph_name=self.graph_name,
             local_graph_path=self.local_graph_path,
             object_types=self.object_types,
-            rust_executable=self.rust_executable,
+            rust_executable_dir=self.rust_executable_dir,
         )
         return [
             LocalExport(
