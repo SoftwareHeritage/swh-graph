@@ -141,6 +141,13 @@ pub trait SwhGraph {
     fn path(&self) -> &Path;
     /// Return the number of nodes in the graph.
     fn num_nodes(&self) -> usize;
+    /// Returns whether the given node id exists in the graph
+    ///
+    /// This is usually true iff `node_id < self.num_nodes()`, but may be false
+    /// when using a filtered view such as [`Subgraph`](crate::views::Subgraph).
+    fn has_node(&self, node_id: NodeId) -> bool {
+        node_id < self.num_nodes()
+    }
     /// Return the number of arcs in the graph.
     fn num_arcs(&self) -> u64;
     /// Return whether there is an arc going from `src_node_id` to `dst_node_id`.

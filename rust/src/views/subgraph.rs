@@ -182,6 +182,9 @@ where
     fn num_nodes(&self) -> usize {
         self.graph.num_nodes()
     }
+    fn has_node(&self, node_id: NodeId) -> bool {
+        (self.node_filter)(node_id)
+    }
     fn num_arcs(&self) -> u64 {
         self.graph.num_arcs()
     }

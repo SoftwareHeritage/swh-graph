@@ -15,7 +15,7 @@ use serde::Serialize;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::parse_allowed_node_types;
-use swh_graph::views::Transposed;
+use swh_graph::views::{Subgraph, Transposed};
 use swh_graph::SWHType;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -118,7 +118,14 @@ where
     G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    let graph = graph;
+    let graph = Subgraph::new_with_node_filter(&graph, |node| {
+        node_types.contains(
+            &graph
+                .properties()
+                .node_type(node)
+                .expect("missing node type"),
+        )
+    });
 
     let mut pl = ProgressLogger::default().display_memory();
     pl.item_name = "node";
@@ -131,25 +138,10 @@ where
     let mut num_unvisited_predecessors = vec![0usize; graph.num_nodes()];
     for node in 0..graph.num_nodes() {
         pl.light_update();
-        if !node_types.contains(
-            &graph
-                .properties()
-                .node_type(node)
-                .expect("missing node type"),
-        ) {
+        if !graph.has_node(node) {
             continue;
         }
-        let mut outdegree = 0;
-        for predecessor in graph.predecessors(node) {
-            if node_types.contains(
-                &graph
-                    .properties()
-                    .node_type(predecessor)
-                    .expect("missing node type"),
-            ) {
-                outdegree += 1;
-            }
-        }
+        let outdegree = graph.indegree(node);
         total_arcs += outdegree;
         num_unvisited_predecessors[node] = outdegree;
         if outdegree == 0 {
@@ -176,14 +168,6 @@ where
             .expect("Missing SWHID");
         let mut num_successors = 0;
         for successor in graph.successors(current_node) {
-            if !node_types.contains(
-                &graph
-                    .properties()
-                    .node_type(successor)
-                    .expect("missing node type"),
-            ) {
-                continue;
-            }
             pl.light_update();
             num_successors += 1;
             if num_unvisited_predecessors[successor] == 0 {
@@ -208,9 +192,6 @@ where
                 .properties()
                 .swhid(predecessor)
                 .expect("Missing predecessor SWHID");
-            if !node_types.contains(&predecessor_swhid.node_type) {
-                continue;
-            }
             if sample_ancestors.len() < 2 {
                 sample_ancestors.push(predecessor_swhid.to_string())
             }
