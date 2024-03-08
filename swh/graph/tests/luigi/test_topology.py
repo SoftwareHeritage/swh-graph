@@ -203,7 +203,7 @@ def test_countpaths_contents(tmpdir, direction):
     )
 
     if direction == "forward":
-        # teeeechnically we should concatenate them this ways, because revisions have
+        # teeeechnically we should not concatenate them this way, because revisions have
         # successors=0 even though they have directory successors in this concatenation.
         # but CountPaths doesn't care about that field, so it's good enough for a unit
         # test
@@ -216,6 +216,7 @@ def test_countpaths_contents(tmpdir, direction):
             header, rest = TOPO_ORDER_BACKWARD.split("\r\n", 1)
             fd.write(header)
             fd.write("\n".join(reversed(dir_order.split("\n"))))
+            fd.write("\n")
             fd.write(rest)
 
     task = CountPaths(
@@ -271,16 +272,17 @@ def test_countpaths_contents(tmpdir, direction):
             swh:1:dir:0000000000000000000000000000000000000002,1.0,1.0
             swh:1:dir:0000000000000000000000000000000000000017,2.0,3.0
             swh:1:dir:0000000000000000000000000000000000000012,5.0,7.0
-            swh:1:rev:0000000000000000000000000000000000000009,4.0,6.0
-            swh:1:rel:0000000000000000000000000000000000000010,4.0,7.0
-            swh:1:snp:0000000000000000000000000000000000000020,8.0,15.0
-            swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,8.0,16.0
-            swh:1:rev:0000000000000000000000000000000000000013,9.0,15.0
-            swh:1:rev:0000000000000000000000000000000000000018,11.0,20.0
-            swh:1:rel:0000000000000000000000000000000000000019,11.0,21.0
-            swh:1:rel:0000000000000000000000000000000000000021,11.0,21.0
-            swh:1:snp:0000000000000000000000000000000000000022,19.0,37.0
-            swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,19.0,38.0
+            swh:1:rev:0000000000000000000000000000000000000003,1.0,2.0
+            swh:1:rev:0000000000000000000000000000000000000009,5.0,9.0
+            swh:1:rel:0000000000000000000000000000000000000010,5.0,10.0
+            swh:1:snp:0000000000000000000000000000000000000020,10.0,21.0
+            swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,10.0,22.0
+            swh:1:rev:0000000000000000000000000000000000000013,10.0,18.0
+            swh:1:rev:0000000000000000000000000000000000000018,12.0,23.0
+            swh:1:rel:0000000000000000000000000000000000000019,12.0,24.0
+            swh:1:rel:0000000000000000000000000000000000000021,12.0,24.0
+            swh:1:snp:0000000000000000000000000000000000000022,22.0,46.0
+            swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,22.0,47.0
             """.replace(
             "            ", ""
         ).replace(
