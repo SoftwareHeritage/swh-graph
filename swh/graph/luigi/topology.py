@@ -120,7 +120,7 @@ class TopoSort(luigi.Task):
         )
 
     def run(self) -> None:
-        """Runs org.softwareheritage.graph.utils.TopoSort and compresses"""
+        """Runs 'toposort' command from tools/topology and compresses"""
         from ..shell import AtomicFileSink, Command, Rust
 
         invalid_object_types = set(self.object_types.split(",")) - OBJECT_TYPES
@@ -212,13 +212,12 @@ class CountPaths(luigi.Task):
         return nb_lines
 
     def run(self) -> None:
-        """Runs org.softwareheritage.graph.utils.CountPaths and compresses"""
-        from ..shell import AtomicFileSink, Command, Java
+        """Runs 'count_paths' command from tools/topology and compresses"""
+        from ..shell import AtomicFileSink, Command, Rust
 
         invalid_object_types = set(self.object_types.split(",")) - OBJECT_TYPES
         if invalid_object_types:
             raise ValueError(f"Invalid object types: {invalid_object_types}")
-        class_name = "org.softwareheritage.graph.utils.CountPaths"
         topological_order_path = self.input()["toposort"].path
 
         topo_order_command = Command.zstdcat(topological_order_path)
@@ -252,11 +251,11 @@ class CountPaths(luigi.Task):
         # fmt: off
         (
             topo_order_command
-            | Java(
-                class_name,
+            | Rust(
+                "count_paths",
                 self.local_graph_path / self.graph_name,
+                "--direction",
                 self.direction,
-                max_ram=self._max_ram()
             )
             | Command.pv("--line-mode", "--wait", "--size", str(self.nb_lines()))
             | Command.zstdmt("-19")
