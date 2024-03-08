@@ -1,11 +1,10 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
 use std::ops::Deref;
 
-use super::filters::ArcFilterChecker;
 use super::proto;
 use crate::graph::{SwhForwardGraph, SwhGraphWithProperties, SwhLabelledForwardGraph};
 use crate::properties;
@@ -65,7 +64,6 @@ use node_builder_bitmasks::*;
 #[derive(Clone)]
 pub struct NodeBuilder<G: Deref + Clone + Send + Sync + 'static> {
     graph: G,
-    arc_filter: ArcFilterChecker<G>,
     // Which fields to include, based on the [`FieldMask`](proto::FieldMask)
     bitmask: u32,
 }
@@ -80,21 +78,15 @@ where
     <G::Target as SwhGraphWithProperties>::Strings: properties::Strings,
     <G::Target as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
 {
-    pub fn new(
-        graph: G,
-        arc_filter: ArcFilterChecker<G>,
-        mask: Option<prost_types::FieldMask>,
-    ) -> Result<Self, tonic::Status> {
+    pub fn new(graph: G, mask: Option<prost_types::FieldMask>) -> Result<Self, tonic::Status> {
         let Some(mask) = mask else {
             return Ok(NodeBuilder {
                 graph,
-                arc_filter,
                 bitmask: u32::MAX,
             }); // All bits set
         };
         let mut node_builder = NodeBuilder {
             graph,
-            arc_filter,
             bitmask: 0u32, // No bits set
         };
         for field in mask.paths {
@@ -143,7 +135,6 @@ where
                 self.graph
                     .labelled_successors(node_id)
                     .into_iter()
-                    .filter(|(succ, _labels)| self.arc_filter.matches(node_id, *succ))
                     .map(|(succ, labels)| proto::Successor {
                         swhid: self.if_mask(SUCCESSOR_SWHID, || {
                             Some(self.graph.properties().swhid(succ)?.to_string())
@@ -172,7 +163,6 @@ where
                 self.graph
                     .successors(node_id)
                     .into_iter()
-                    .filter(|succ| self.arc_filter.matches(node_id, *succ))
                     .map(|succ| proto::Successor {
                         swhid: self.if_mask(SUCCESSOR_SWHID, || {
                             Some(self.graph.properties().swhid(succ)?.to_string())

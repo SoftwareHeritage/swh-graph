@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -12,7 +12,7 @@ use tonic::{Request, Response};
 
 use crate::graph::{SwhForwardGraph, SwhGraphWithProperties};
 use crate::properties;
-use crate::views::Transposed;
+use crate::views::{Subgraph, Transposed};
 
 use super::filters::{ArcFilterChecker, NodeFilterChecker};
 use super::node_builder::NodeBuilder;
@@ -33,7 +33,6 @@ type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
 struct VisitorConfig {
     src: Vec<usize>,
-    edges: Option<String>,
     max_edges: Option<i64>,
     max_depth: Option<i64>,
 }
@@ -74,7 +73,6 @@ where
     {
         let VisitorConfig {
             src,
-            edges,
             max_edges,
             max_depth,
         } = config;
@@ -91,7 +89,6 @@ where
             })?,
         };
 
-        let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
         let mut visitor = SimpleBfsVisitor::new(
             graph.clone(),
             max_depth,
@@ -103,13 +100,7 @@ where
 
                 on_node(node, depth, num_successors)
             },
-            move |src, dst, _depth| {
-                if arc_checker.matches(src, dst) {
-                    on_arc(src, dst)
-                } else {
-                    Ok(VisitFlow::Ignore)
-                }
-            },
+            move |src, dst, _depth| on_arc(src, dst),
         );
         for src_item in src {
             visitor.push(src_item);
@@ -175,7 +166,6 @@ where
 
         let visitor_config = VisitorConfig {
             src: src_ids.clone(),
-            edges,
             max_edges,
             max_depth,
         };
@@ -191,11 +181,14 @@ where
         macro_rules! find_path_to {
             ($graph:expr) => {{
                 let graph = $graph;
-                let arc_checker = ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
+                let arc_checker = ArcFilterChecker::new(graph.clone(), edges.clone())?;
                 let target_checker = NodeFilterChecker::new(graph.clone(), target)?;
+                let subgraph = Arc::new(Subgraph::new_with_arc_filter(
+                    graph,
+                    move |src, dst| arc_checker.matches(src, dst),
+                ));
                 let node_builder = NodeBuilder::new(
-                    graph.clone(),
-                    arc_checker,
+                    subgraph.clone(),
                     mask.map(|mask| prost_types::FieldMask {
                         paths: mask
                             .paths
@@ -219,7 +212,7 @@ where
                     parents.entry(dst).or_insert(src);
                     Ok(VisitFlow::Continue)
                 };
-                let visitor = self.make_visitor(visitor_config, graph, on_node, on_arc)?;
+                let visitor = self.make_visitor(visitor_config, subgraph, on_node, on_arc)?;
                 scoped_spawn_blocking(|| visitor.visit())?;
 
                 match found_target {
@@ -312,6 +305,24 @@ where
             .try_into()
             .map_err(|_| tonic::Status::invalid_argument("Invalid direction_reverse"))?;
 
+        let edges_reverse = edges_reverse.or_else(|| {
+            // If edges_reverse is not specified:
+            // - If `edges` is not specified either, defaults to "*"
+            // - If direction == direction_reverse, defaults to `edges`
+            // - If direction != direction_reverse, defaults
+            //   to the reverse of `edges` (e.g. "rev:dir" becomes "dir:rev").
+            if direction == direction_reverse {
+                edges.clone()
+            } else {
+                edges.clone().map(|edges| {
+                    edges
+                        .split(',')
+                        .map(|s| s.split(':').rev().join(":"))
+                        .join(",")
+                })
+            }
+        });
+
         let src_ids: Vec<_> = src
             .iter()
             .map(|n| self.service.try_get_node_id(n))
@@ -323,43 +334,26 @@ where
 
         let visitor_config = VisitorConfig {
             src: src_ids.clone(),
-            edges: edges.clone(),
             max_edges,
             max_depth,
         };
         let reverse_visitor_config = VisitorConfig {
             src: dst_ids.clone(),
-            edges: edges_reverse.or_else(|| {
-                // If edges_reverse is not specified:
-                // - If `edges` is not specified either, defaults to "*"
-                // - If direction == direction_reverse, defaults to `edges`
-                // - If direction != direction_reverse, defaults
-                //   to the reverse of `edges` (e.g. "rev:dir" becomes "dir:rev").
-                if direction == direction_reverse {
-                    edges
-                } else {
-                    edges.map(|edges| {
-                        edges
-                            .split(',')
-                            .map(|s| s.split(':').rev().join(":"))
-                            .join(",")
-                    })
-                }
-            }),
             max_edges,
             max_depth,
         };
 
         let graph = self.service.graph().clone();
+        let arc_checker = ArcFilterChecker::new(graph.clone(), edges.clone())?;
+        let subgraph = Arc::new(Subgraph::new_with_arc_filter(
+            graph.clone(),
+            move |src, dst| arc_checker.matches(src, dst),
+        ));
+        let transpose_subgraph = Arc::new(Transposed(subgraph.clone()));
         let transpose_graph = Arc::new(Transposed(graph.clone()));
 
-        let forward_arc_checker =
-            ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
-        let backward_arc_checker =
-            ArcFilterChecker::new(transpose_graph.clone(), request.get_ref().edges.clone())?;
         let forward_node_builder = NodeBuilder::new(
-            graph.clone(),
-            forward_arc_checker,
+            subgraph.clone(),
             mask.clone().map(|mask| prost_types::FieldMask {
                 paths: mask
                     .paths
@@ -370,8 +364,7 @@ where
             }),
         )?;
         let backward_node_builder = NodeBuilder::new(
-            transpose_graph.clone(),
-            backward_arc_checker,
+            transpose_subgraph.clone(),
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask
                     .paths
@@ -426,9 +419,15 @@ where
 
         macro_rules! find_path_between {
             ($visitor:expr, $graph:expr) => {{
+                let graph = $graph;
+                let reverse_arc_checker =
+                    ArcFilterChecker::new(graph.clone(), edges_reverse.clone())?;
+                let subgraph = Arc::new(Subgraph::new_with_arc_filter(graph, move |src, dst| {
+                    reverse_arc_checker.matches(src, dst)
+                }));
                 let mut visitor_reverse = self.make_visitor(
                     reverse_visitor_config,
-                    $graph,
+                    subgraph,
                     on_node_reverse,
                     on_arc_reverse,
                 )?;
@@ -452,7 +451,7 @@ where
         match direction {
             proto::GraphDirection::Forward => {
                 let mut visitor =
-                    self.make_visitor(visitor_config, graph.clone(), on_node, on_arc)?;
+                    self.make_visitor(visitor_config, subgraph.clone(), on_node, on_arc)?;
                 match direction_reverse {
                     proto::GraphDirection::Forward => {
                         find_path_between!(visitor, graph)
@@ -464,7 +463,7 @@ where
             }
             proto::GraphDirection::Backward => {
                 let mut visitor =
-                    self.make_visitor(visitor_config, transpose_graph.clone(), on_node, on_arc)?;
+                    self.make_visitor(visitor_config, transpose_subgraph.clone(), on_node, on_arc)?;
                 match direction_reverse {
                     proto::GraphDirection::Forward => {
                         find_path_between!(visitor, graph)

@@ -15,6 +15,7 @@ use tonic::{Request, Response};
 
 use crate::graph::{SwhGraphWithProperties, SwhLabelledBackwardGraph, SwhLabelledForwardGraph};
 use crate::utils::suffix_path;
+use crate::views::Subgraph;
 
 pub mod proto {
     tonic::include_proto!("swh.graph");
@@ -114,10 +115,13 @@ where
 {
     async fn get_node(&self, request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
         let arc_checker = filters::ArcFilterChecker::new(self.0.clone(), None)?;
+        let subgraph = Arc::new(Subgraph::new_with_arc_filter(
+            self.0.clone(),
+            move |src, dst| arc_checker.matches(src, dst),
+        ));
         let proto::GetNodeRequest { swhid, mask } = request.get_ref().clone();
         let node_builder = node_builder::NodeBuilder::new(
-            self.0.clone(),
-            arc_checker,
+            subgraph,
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask.paths.iter().map(|field| field.to_owned()).collect(),
             }),
