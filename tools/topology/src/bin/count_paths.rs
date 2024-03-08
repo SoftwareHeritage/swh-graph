@@ -9,6 +9,8 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
+use itertools::Itertools;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use swh_graph::graph::*;
@@ -34,6 +36,9 @@ struct Args {
     verbose: u8,
     #[arg(short, long)]
     direction: Direction,
+    #[arg(long, default_value_t = 1_000_000)]
+    /// Number of input records to deserialize at once in parallel
+    batch_size: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -67,19 +72,22 @@ pub fn main() -> Result<()> {
         .context("Could not load maps")?;
 
     match args.direction {
-        Direction::Forward => count_paths(graph),
-        Direction::Backward => count_paths(Transposed(&graph)),
+        Direction::Forward => count_paths(std::sync::Arc::new(graph), args.batch_size),
+        Direction::Backward => count_paths(
+            std::sync::Arc::new(Transposed(std::sync::Arc::new(graph))),
+            args.batch_size,
+        ),
     }
 }
 
-fn count_paths<G>(graph: G) -> Result<()>
+use std::ops::Deref;
+
+fn count_paths<G>(graph: G, batch_size: usize) -> Result<()>
 where
-    G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
-    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
+    G: Deref + Sync + Send + Clone + 'static,
+    <G as Deref>::Target: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
+    <<G as Deref>::Target as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .from_reader(io::stdin());
     let mut writer = csv::WriterBuilder::new()
         .terminator(csv::Terminator::CRLF)
         .from_writer(io::stdout());
@@ -94,14 +102,15 @@ where
     pl.expected_updates = Some(graph.num_nodes());
     pl.start("Listing nodes...");
 
-    for record in reader.deserialize() {
-        let InputRecord { swhid, .. } =
-            record.with_context(|| format!("Could not deserialize record"))?;
+    // Arbitrary ratio; ensures the deserialization thread is unlikely to block
+    // unless the main thread is actually busy
+    let (tx, rx) = std::sync::mpsc::sync_channel(4 * batch_size);
+
+    // Delegate SWHID->node_id conversion to its own thread as it is a bottleneck
+    let deser_thread = queue_nodes(graph.clone(), tx, batch_size);
+
+    while let Ok((swhid, node)) = rx.recv() {
         pl.light_update();
-        let node = graph
-            .properties()
-            .node_id(swhid)
-            .with_context(|| format!("Unknown SWHID: {}", swhid))?;
         let mut paths_from_roots = paths_from_roots_vec[node];
         let mut all_paths = all_paths_vec[node];
 
@@ -125,5 +134,85 @@ where
         }
     }
 
+    log::info!("Cleaning up...");
+    deser_thread
+        .join()
+        .expect("Could not join deserialization thread")
+        .context("Error in deserialization thread")?;
+
     Ok(())
+}
+
+/// Reads CSV records from stdin, and queues their SWHIDs and node ids to `tx`,
+/// preserving the order.
+///
+/// This is equivalent to:
+///
+/// ```
+/// std::thread::spawn(move || -> Result<()> {
+///     let mut reader = csv::ReaderBuilder::new()
+///         .has_headers(true)
+///         .from_reader(io::stdin());
+///
+///     for record in reader.deserialize() {
+///         let InputRecord { swhid, .. } =
+///             record.with_context(|| format!("Could not deserialize record"))?;
+///         let node = graph
+///             .properties()
+///             .node_id(swhid)
+///             .with_context(|| format!("Unknown SWHID: {}", swhid))?;
+///
+///         tx.send((swhid, node))
+///     }
+/// });
+/// ```
+///
+/// but uses inner parallelism as `node_id()` could otherwise be a bottleneck on systems
+/// where accessing `graph.order` has high latency (network and/or compressed filesystem).
+/// This reduces the runtime from a couple of weeks to less than a day on the 2023-09-06
+/// graph on a ZSTD-compressed ZFS.
+fn queue_nodes<G>(
+    graph: G,
+    tx: std::sync::mpsc::SyncSender<(SWHID, NodeId)>,
+    batch_size: usize,
+) -> std::thread::JoinHandle<Result<()>>
+where
+    G: Deref + Sync + Send + Clone + 'static,
+    <G as Deref>::Target: SwhGraphWithProperties,
+    <<G as Deref>::Target as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
+{
+    let mut reader = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .from_reader(io::stdin());
+    std::thread::spawn(move || -> Result<()> {
+        reader
+            .deserialize()
+            .chunks(batch_size)
+            .into_iter()
+            .try_for_each(|chunk| {
+                // Process entries of this chunk in parallel
+                let results: Result<Vec<_>> = chunk
+                    .collect::<Vec<Result<InputRecord, _>>>()
+                    .into_par_iter()
+                    .map(|record| {
+                        let InputRecord { swhid, .. } =
+                            record.with_context(|| format!("Could not deserialize record"))?;
+
+                        let node = graph
+                            .properties()
+                            .node_id(swhid)
+                            .with_context(|| format!("Unknown SWHID: {}", swhid))?;
+                        Ok((swhid, node))
+                    })
+                    .collect();
+
+                // Then collect them **IN ORDER** before pushing to 'tx'.
+                for (swhid, node) in results? {
+                    tx.send((swhid, node))
+                        .expect("Could not send (swhid, node_id)");
+                }
+
+                Ok::<_, anyhow::Error>(())
+            })
+    })
 }
