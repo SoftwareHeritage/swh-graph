@@ -268,6 +268,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{tmp_dir}",
         "--allowed-node-types",
         "{object_types}",
+        "--batch-size",
+        "{batch_size}",
         "{in_dir}",
         "{out_dir}/{graph_name}",
     ],
