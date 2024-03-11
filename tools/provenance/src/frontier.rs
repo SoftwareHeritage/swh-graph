@@ -19,11 +19,15 @@ const PATH_SEPARATOR: FilenameId = FilenameId(u64::MAX);
 ///
 /// Frontier directories are detected using the `is_frontier` function, and
 /// `on_frontier` is called for each of them
+///
+/// If `recurse_through_frontiers` is `false`, directories reachable from the root
+/// only through a frontier directory will be ignored.
 pub fn find_frontiers_in_root_directory<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64>,
     mut is_frontier: impl FnMut(NodeId, i64) -> bool,
     mut on_frontier: impl FnMut(NodeId, i64, Vec<u8>) -> Result<()>,
+    recurse_through_frontiers: bool,
     root_dir_id: NodeId,
 ) -> Result<()>
 where
@@ -66,7 +70,7 @@ where
 
         if node_is_frontier {
             let mut path = Vec::with_capacity(path_parts.len() * 2 + 1);
-            for part in path_parts {
+            for &part in &path_parts {
                 path.extend(
                     graph
                         .properties()
@@ -76,7 +80,8 @@ where
                 path.push(b'/');
             }
             on_frontier(node, dir_max_timestamp, path)?;
-        } else {
+        }
+        if recurse_through_frontiers || !node_is_frontier {
             // Look for frontiers in subdirectories
             for (succ, labels) in graph.labelled_successors(node) {
                 if visited.contains(succ) {

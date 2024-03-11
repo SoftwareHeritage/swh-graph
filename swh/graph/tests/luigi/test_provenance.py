@@ -384,11 +384,26 @@ def test_listfrontierdirectoriesinrevisions(tmpdir):
 
     task.run()
 
-    csv_text = subprocess.check_output(
-        ["zstdcat", provenance_dir / "frontier_directories_in_revisions.csv.zst"]
-    ).decode()
+    (
+        expected_header,
+        *expected_rows,
+        trailing,
+    ) = FRONTIER_DIRECTORIES_IN_REVISIONS.split("\r\n")
+    assert trailing == ""
 
-    assert csv_text == FRONTIER_DIRECTORIES_IN_REVISIONS
+    all_rows = []
+    for file in (provenance_dir / "frontier_directories_in_revisions").glob(
+        "*.csv.zst"
+    ):
+        csv_text = subprocess.check_output(["zstdcat", file]).decode()
+        if csv_text:
+            print(repr(csv_text))
+            (header, *rows, trailing) = csv_text.split("\r\n")
+            assert header == expected_header
+            all_rows.extend(rows)
+            assert trailing == ""
+
+    assert sorted(all_rows) == sorted(expected_rows)
 
 
 @pytest.mark.parametrize("duplicates_in_input", [True, False])

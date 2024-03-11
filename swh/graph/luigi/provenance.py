@@ -521,33 +521,29 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
         }
 
     def _output_path(self) -> Path:
-        return self.provenance_dir / "frontier_directories_in_revisions.csv.zst"
+        return self.provenance_dir / "frontier_directories_in_revisions"
 
     def output(self) -> luigi.LocalTarget:
-        """Returns {provenance_dir}/frontier_directories_in_revisions.csv.zst"""
+        """Returns {provenance_dir}/frontier_directories_in_revisions/"""
         return luigi.LocalTarget(self._output_path())
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListFrontierDirectoriesInRevisions``"""
-        from ..shell import AtomicFileSink, Command, Java
-
-        class_name = (
-            "org.softwareheritage.graph.utils.ListFrontierDirectoriesInRevisions"
-        )
+        from ..shell import Command, Rust
 
         # fmt: off
         (
             Command.pv("--wait", self.input()["frontier"])
             | Command.zstdcat()
-            | Java(
-                class_name,
+            | Rust(
+                "frontier-directories-in-revisions",
+                "-vv",
                 self.local_graph_path / self.graph_name,
+                "--max-timestamps",
                 self.input()["directory_max_leaf_timestamps"],
-                str(self.batch_size),
-                max_ram=self._max_ram(),
+                "--directories-out",
+                self.output(),
             )
-            | Command.zstdmt("-10")
-            > AtomicFileSink(self._output_path())
         ).run()
         # fmt: on
 
