@@ -425,15 +425,15 @@ class ComputeDirectoryFrontier(luigi.Task):
         }
 
     def _output_path(self) -> Path:
-        return self.provenance_dir / "directory_frontier.csv.zst"
+        return self.provenance_dir / "directory_frontier"
 
     def output(self) -> luigi.LocalTarget:
-        """Returns {provenance_dir}/directory_frontier.csv.zst"""
+        """Returns {provenance_dir}/directory_frontier/"""
         return luigi.LocalTarget(self._output_path())
 
     def run(self) -> None:
         """Runs ``compute-directory-frontier`` from ``tools/provenance``"""
-        from ..shell import AtomicFileSink, Command, Rust
+        from ..shell import Rust
 
         # fmt: off
         (
@@ -443,9 +443,9 @@ class ComputeDirectoryFrontier(luigi.Task):
                 self.local_graph_path / self.graph_name,
                 "--max-timestamps",
                 self.input()["directory_max_leaf_timestamps"],
+                "--directories-out",
+                self.output(),
             )
-            | Command.zstdmt("-12")
-            > AtomicFileSink(self._output_path())
         ).run()
         # fmt: on
 
@@ -599,13 +599,32 @@ class DeduplicateFrontierDirectories(luigi.Task):
         # but could match files containing a newline followed by "<number>,swh:1:dir:"
 
         # fmt: off
+        streams = [
+            (
+                Command.zstdcat(file)
+                | Command.zstdcat()
+                # remove headers and paths containing a newline (annoying to handle)
+                | Command.grep("-E", '^-?[0-9]+,swh:1:dir:.*[^"]', env=sort_env)
+                | Command.cut("-d", ",", "-f", "2")
+                | Command.sort(
+                    "-S",
+                    "100M",
+                    "--unique",
+                    "--compress-program=zstd",
+                    env=sort_env
+                )
+            )
+            for file in Path(self.input()["frontier_directories"].path).glob("*.csv.zst")
+        ]
         (
-            Command.pv(self.input()["frontier_directories"])
-            | Command.zstdcat()
-            | Command.grep("-E", "^-?[0-9]+,swh:1:dir:", env=sort_env)
-            | Command.cut("-d", ",", "-f", "2")
+            Command.cat(*streams)
             | Command.sort(
-                "-S", "1G", "--parallel=96", "--unique", "--compress-program=zstd"
+                "-S", "1G",
+                "--parallel=96",
+                "--merge",
+                "--unique",
+                "--compress-program=zstd",
+                env=sort_env
             )
             | Command.cat(  # prepend header
                 Command.echo("frontier_dir_SWHID"),

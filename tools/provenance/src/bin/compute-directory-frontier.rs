@@ -3,8 +3,10 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::io;
+use std::cell::RefCell;
+use std::io::Write;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, ensure, Context, Result};
@@ -35,6 +37,8 @@ struct Args {
     #[arg(long)]
     /// Path to read the array of max timestamps from
     max_timestamps: PathBuf,
+    #[arg(long)]
+    directories_out: PathBuf,
 }
 
 #[allow(non_snake_case)]
@@ -75,47 +79,16 @@ pub fn main() -> Result<()> {
         NumberMmap::<byteorder::BE, i64, _>::new(&args.max_timestamps, graph.num_nodes())
             .with_context(|| format!("Could not mmap {}", args.max_timestamps.display()))?;
 
-    compute_directory_frontier(&graph, &max_timestamps)
-}
+    std::fs::create_dir_all(&args.directories_out)
+        .with_context(|| format!("Could not create {}", args.directories_out.display()))?;
 
-fn compute_directory_frontier<G>(
-    graph: &G,
-    max_timestamps: impl GetIndex<Output = i64> + Sync + Send + Copy,
-) -> Result<()>
-where
-    G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
-    <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
-    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
-    <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
-{
-    let mut writer = csv::WriterBuilder::new()
-        .has_headers(true)
-        .terminator(csv::Terminator::CRLF)
-        .from_writer(io::stdout());
-
-    // Channel for vectors of OutputRecord from worker threads to the main thread,
-    // which performs serialization.
-    // The constant is arbitrary.
-    let (tx, rx) = std::sync::mpsc::sync_channel(1_000_000);
-
-    std::thread::scope(|scope| {
-        let thread = scope.spawn(move || find_frontiers(graph, max_timestamps, tx));
-
-        while let Ok(record) = rx.recv() {
-            writer.serialize(record).context("Could not write output")?;
-        }
-
-        thread
-            .join()
-            .expect("Could not join worker threads")
-            .context("Error in worker threads")
-    })
+    find_frontiers(&graph, &max_timestamps, args.directories_out)
 }
 
 fn find_frontiers<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64> + Sync + Copy,
-    tx: std::sync::mpsc::SyncSender<OutputRecord>,
+    output_dir: PathBuf,
 ) -> Result<()>
 where
     G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
@@ -131,9 +104,39 @@ where
     pl.start("Visiting revisions' directories...");
     let pl = Arc::new(Mutex::new(pl));
 
-    (0..graph.num_nodes())
-        .into_par_iter()
-        .try_for_each_with(tx, |tx, node| {
+    let worker_id = AtomicU64::new(0);
+
+    // Reuse writers across work batches, or we end up with millions of very small files
+    let writers = thread_local::ThreadLocal::new();
+
+    (0..graph.num_nodes()).into_par_iter().try_for_each_init(
+        || {
+            writers
+                .get_or(|| {
+                    let path = output_dir.join(format!(
+                        "{}.csv.zst",
+                        worker_id.fetch_add(1, Ordering::Relaxed)
+                    ));
+                    let file = std::fs::File::create(&path)
+                        .with_context(|| format!("Could not create {}", path.display()))
+                        .unwrap();
+                    let compression_level = 3;
+                    let zstd_encoder = zstd::stream::write::Encoder::new(file, compression_level)
+                        .with_context(|| {
+                            format!("Could not create ZSTD encoder for {}", path.display())
+                        })
+                        .unwrap()
+                        .auto_finish();
+                    RefCell::new(
+                        csv::WriterBuilder::new()
+                            .has_headers(true)
+                            .terminator(csv::Terminator::CRLF)
+                            .from_writer(zstd_encoder),
+                    )
+                })
+                .borrow_mut()
+        },
+        |writer, node| {
             let node_type = graph
                 .properties()
                 .node_type(node)
@@ -142,7 +145,7 @@ where
             let res = match node_type {
                 SWHType::Release => {
                     // Allow releases
-                    find_frontiers_in_release(graph, max_timestamps, tx, node)
+                    find_frontiers_in_release(graph, max_timestamps, writer, node)
                 }
                 SWHType::Revision => {
                     // Allow revisions only if they are a "snapshot head" (ie. one of their
@@ -155,7 +158,7 @@ where
                         pred_type == SWHType::Snapshot || pred_type == SWHType::Release
                     }) {
                         // Head revision
-                        find_frontiers_in_revision(graph, max_timestamps, tx, node)
+                        find_frontiers_in_revision(graph, max_timestamps, writer, node)
                     } else {
                         Ok(()) // Ignore this non-HEAD revision
                     }
@@ -168,7 +171,8 @@ where
             }
 
             res
-        })?;
+        },
+    )?;
 
     pl.lock().unwrap().done();
 
@@ -177,10 +181,10 @@ where
     Ok(())
 }
 
-fn find_frontiers_in_release<G>(
+fn find_frontiers_in_release<G, W: Write>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64> + Copy,
-    tx: &std::sync::mpsc::SyncSender<OutputRecord>,
+    writer: &mut csv::Writer<W>,
     rel_id: NodeId,
 ) -> Result<()>
 where
@@ -244,7 +248,7 @@ where
                 Some(root_dir) => find_frontiers_in_directory(
                     graph,
                     max_timestamps,
-                    tx,
+                    writer,
                     rel_id,
                     rel_swhid,
                     root_dir,
@@ -253,16 +257,16 @@ where
             }
         }
         (Some(root_dir), None) => {
-            find_frontiers_in_directory(graph, max_timestamps, tx, rel_id, rel_swhid, root_dir)
+            find_frontiers_in_directory(graph, max_timestamps, writer, rel_id, rel_swhid, root_dir)
         }
         (None, None) => Ok(()),
     }
 }
 
-fn find_frontiers_in_revision<G>(
+fn find_frontiers_in_revision<G, W: Write>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64> + Copy,
-    tx: &std::sync::mpsc::SyncSender<OutputRecord>,
+    writer: &mut csv::Writer<W>,
     rev_id: NodeId,
 ) -> Result<()>
 where
@@ -294,7 +298,7 @@ where
 
     match root_dir {
         Some(root_dir) => {
-            find_frontiers_in_directory(graph, max_timestamps, tx, rev_id, rev_swhid, root_dir)
+            find_frontiers_in_directory(graph, max_timestamps, writer, rev_id, rev_swhid, root_dir)
         }
         None => Ok(()),
     }
@@ -303,10 +307,10 @@ where
 /// Value in the path_stack between two lists of path parts
 const PATH_SEPARATOR: FilenameId = FilenameId(u64::MIN);
 
-fn find_frontiers_in_directory<G>(
+fn find_frontiers_in_directory<G, W: Write>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64>,
-    tx: &std::sync::mpsc::SyncSender<OutputRecord>,
+    writer: &mut csv::Writer<W>,
     revrel_id: NodeId,
     revrel_swhid: SWHID,
     root_dir_id: NodeId,
@@ -409,14 +413,15 @@ where
                 );
                 path.push(b'/');
             }
-            tx.send(OutputRecord {
-                max_author_date: dir_max_timestamp,
-                frontier_dir_SWHID: graph.properties().swhid(node).expect("Missing SWHID"),
-                rev_author_date: revrel_author_date,
-                rev_SWHID: revrel_swhid,
-                path,
-            })
-            .expect("Could not queue record");
+            writer
+                .serialize(OutputRecord {
+                    max_author_date: dir_max_timestamp,
+                    frontier_dir_SWHID: graph.properties().swhid(node).expect("Missing SWHID"),
+                    rev_author_date: revrel_author_date,
+                    rev_SWHID: revrel_swhid,
+                    path,
+                })
+                .context("Could not write record")?;
         } else {
             // Look for frontiers in subdirectories
             for (succ, labels) in graph.labelled_successors(node) {

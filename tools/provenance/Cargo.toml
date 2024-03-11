@@ -19,6 +19,8 @@ serde_bytes = "0.11.14"
 stderrlog = "0.5.4"
 sux = "0.2.0"
 swh-graph = { path = "../../rust/", features = ["serde"] }
+thread_local = "1.1.7"
+zstd = "0.12"
 
 [[bin]]
 name = "find-earliest-revision"

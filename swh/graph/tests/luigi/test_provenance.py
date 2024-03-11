@@ -355,7 +355,7 @@ def test_computedirectoryfrontier(tmpdir):
     task.run()
 
     csv_text = subprocess.check_output(
-        ["zstdcat", provenance_dir / "directory_frontier.csv.zst"]
+        ["zstdcat", *(provenance_dir / "directory_frontier").glob("*.csv.zst")]
     ).decode()
 
     assert csv_text == FRONTIER_DIRECTORIES
@@ -400,7 +400,8 @@ def test_deduplicatefrontierdirectories(tmpdir, duplicates_in_input):
 
     provenance_dir.mkdir()
 
-    (provenance_dir / "directory_frontier.csv.zst").write_text(
+    (provenance_dir / "directory_frontier").mkdir()
+    (provenance_dir / "directory_frontier/1.csv.zst").write_text(
         FRONTIER_DIRECTORIES * (3 if duplicates_in_input else 1)
     )
 

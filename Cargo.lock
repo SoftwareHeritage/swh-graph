@@ -2572,6 +2572,8 @@ dependencies = [
  "stderrlog",
  "sux",
  "swh-graph",
+ "thread_local",
+ "zstd 0.12.4",
 ]
 
 [[package]]
