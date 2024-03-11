@@ -1,4 +1,4 @@
-pytest
+pytest >= 8.1
 pytest-asyncio
 pytest-mock
 swh.core[testing] >= 3.0.0
