@@ -54,7 +54,9 @@ def test_remote_graph_client_log_export_started_at(
     )
     _ = RemoteGraphClient(remote_graph_client_url)
     messages = [rec.message for rec in caplog.records]
-    assert "Graph export started at 2023-11-14T22:13:20+00:00 (42 nodes)" in messages
+    assert (
+        "Graph export started at 2023-11-14T22:13:20+00:00 (42 nodes)" in messages
+    ), messages
 
 
 def test_stats(graph_client):
