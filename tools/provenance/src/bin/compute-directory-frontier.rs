@@ -9,16 +9,14 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use rayon::prelude::*;
 use serde::Serialize;
 
-use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::labels::FilenameId;
 use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
 use swh_graph::{SWHType, SWHID};
@@ -136,41 +134,41 @@ where
                 })
                 .borrow_mut()
         },
-        |writer, node| {
+        |writer, node| -> Result<()> {
             let node_type = graph
                 .properties()
                 .node_type(node)
                 .expect("missing node type");
 
-            let res = match node_type {
-                SWHType::Release => {
-                    // Allow releases
-                    find_frontiers_in_release(graph, max_timestamps, writer, node)
-                }
+            match node_type {
                 SWHType::Revision => {
                     // Allow revisions only if they are a "snapshot head" (ie. one of their
                     // predecessors is a release or a snapshot)
-                    if graph.predecessors(node).into_iter().any(|pred| {
+                    if !graph.predecessors(node).into_iter().any(|pred| {
                         let pred_type = graph
                             .properties()
                             .node_type(pred)
                             .expect("missing node type");
                         pred_type == SWHType::Snapshot || pred_type == SWHType::Release
                     }) {
-                        // Head revision
-                        find_frontiers_in_revision(graph, max_timestamps, writer, node)
-                    } else {
-                        Ok(()) // Ignore this non-HEAD revision
+                        return Ok(());
                     }
                 }
-                _ => Ok(()), // Ignore this non-rev/rel node
-            };
+                _ => (),
+            }
+
+            if let Some(root_dir) =
+                swh_graph::algos::get_root_directory_from_revision_or_release(graph, node)
+                    .context("Could not pick root directory")?
+            {
+                find_frontiers_in_root_directory(graph, max_timestamps, writer, node, root_dir)?;
+            }
 
             if node % 32768 == 0 {
                 pl.lock().unwrap().update_with_count(32768);
             }
 
-            res
+            Ok(())
         },
     )?;
 
@@ -181,138 +179,11 @@ where
     Ok(())
 }
 
-fn find_frontiers_in_release<G, W: Write>(
-    graph: &G,
-    max_timestamps: impl GetIndex<Output = i64> + Copy,
-    writer: &mut csv::Writer<W>,
-    rel_id: NodeId,
-) -> Result<()>
-where
-    G: SwhLabelledForwardGraph + SwhGraphWithProperties,
-    <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
-    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
-    <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
-{
-    let rel_swhid = graph.properties().swhid(rel_id).expect("Missing SWHID");
-
-    let mut root_dir = None;
-    let mut root_rev = None;
-    for succ in graph.successors(rel_id) {
-        let node_type = graph
-            .properties()
-            .node_type(succ)
-            .expect("Missing node type");
-        match node_type {
-            SWHType::Directory => {
-                ensure!(
-                    root_dir.is_none(),
-                    "{rel_swhid} has more than one directory successor",
-                );
-                root_dir = Some(succ);
-            }
-            SWHType::Revision => {
-                ensure!(
-                    root_rev.is_none(),
-                    "{rel_swhid} has more than one revision successor",
-                );
-                root_rev = Some(succ);
-            }
-            _ => (),
-        }
-    }
-
-    match (root_dir, root_rev) {
-        (Some(_), Some(_)) => {
-            bail!("{rel_swhid} has both a directory and a revision as successors",)
-        }
-        (None, Some(root_rev)) => {
-            let mut root_dir = None;
-            for succ in graph.successors(root_rev) {
-                let node_type = graph
-                    .properties()
-                    .node_type(succ)
-                    .expect("Missing node type");
-                match node_type {
-                    SWHType::Directory => {
-                        let rev_swhid = graph.properties().swhid(succ).expect("Missing SWHID");
-                        ensure!(
-                            root_dir.is_none(),
-                            "{rel_swhid} (via {rev_swhid}) has more than one directory successor",
-                        );
-                        root_dir = Some(succ);
-                    }
-                    _ => (),
-                }
-            }
-            match root_dir {
-                Some(root_dir) => find_frontiers_in_directory(
-                    graph,
-                    max_timestamps,
-                    writer,
-                    rel_id,
-                    rel_swhid,
-                    root_dir,
-                ),
-                None => Ok(()),
-            }
-        }
-        (Some(root_dir), None) => {
-            find_frontiers_in_directory(graph, max_timestamps, writer, rel_id, rel_swhid, root_dir)
-        }
-        (None, None) => Ok(()),
-    }
-}
-
-fn find_frontiers_in_revision<G, W: Write>(
-    graph: &G,
-    max_timestamps: impl GetIndex<Output = i64> + Copy,
-    writer: &mut csv::Writer<W>,
-    rev_id: NodeId,
-) -> Result<()>
-where
-    G: SwhLabelledForwardGraph + SwhGraphWithProperties,
-    <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
-    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
-    <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
-{
-    let rev_swhid = graph.properties().swhid(rev_id).expect("Missing SWHID");
-
-    let mut root_dir = None;
-    for succ in graph.successors(rev_id) {
-        let node_type = graph
-            .properties()
-            .node_type(succ)
-            .expect("Missing node type");
-        match node_type {
-            SWHType::Directory => {
-                let rev_swhid = graph.properties().swhid(succ).expect("Missing SWHID");
-                ensure!(
-                    root_dir.is_none(),
-                    "{rev_swhid} has more than one directory successor",
-                );
-                root_dir = Some(succ);
-            }
-            _ => (),
-        }
-    }
-
-    match root_dir {
-        Some(root_dir) => {
-            find_frontiers_in_directory(graph, max_timestamps, writer, rev_id, rev_swhid, root_dir)
-        }
-        None => Ok(()),
-    }
-}
-
-/// Value in the path_stack between two lists of path parts
-const PATH_SEPARATOR: FilenameId = FilenameId(u64::MIN);
-
-fn find_frontiers_in_directory<G, W: Write>(
+fn find_frontiers_in_root_directory<G, W: Write>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64>,
     writer: &mut csv::Writer<W>,
     revrel_id: NodeId,
-    revrel_swhid: SWHID,
     root_dir_id: NodeId,
 ) -> Result<()>
 where
@@ -327,70 +198,21 @@ where
     let revrel_author_date =
         chrono::DateTime::from_timestamp(revrel_timestamp, 0).expect("Could not convert timestamp");
 
-    let mut visited = AdaptiveNodeSet::new(graph.num_nodes());
-    let mut stack = Vec::new();
+    let revrel_swhid = graph.properties().swhid(revrel_id).expect("Missing SWHID");
 
-    // flattened list of paths. Each list is made of parts represented by an id,
-    // and lists are separated by PATH_SEPARATOR
-    let mut path_stack = Vec::new();
-
-    // Do not push the root directory directly on the stack, because it is not allowed to be considered
-    // a frontier. Instead, we push the root directory's successors.
-
-    for (succ, labels) in graph.labelled_successors(root_dir_id) {
-        if graph
-            .properties()
-            .node_type(succ)
-            .expect("Missing node type")
-            == SWHType::Directory
-        {
-            // If the same subdir/file is present in a directory twice under the same name,
-            // pick any name to represent both.
-            let Some(first_label) = labels.into_iter().next() else {
-                bail!(
-                    "{} -> {} has no labels",
-                    graph
-                        .properties()
-                        .swhid(root_dir_id)
-                        .expect("Missing SWHID"),
-                    graph.properties().swhid(succ).expect("Missing SWHID"),
-                )
-            };
-            stack.push(succ);
-            path_stack.push(PATH_SEPARATOR);
-            path_stack.push(first_label.filename_id());
-        }
-    }
-
-    while let Some(node) = stack.pop() {
-        if visited.contains(node) {
-            continue;
-        }
-        visited.insert(node);
-
-        let mut path_parts = Vec::new();
-        for &filename_id in path_stack.iter().rev() {
-            if filename_id == PATH_SEPARATOR {
-                break;
-            }
-            path_parts.push(filename_id);
-        }
-
-        let dir_max_timestamp = max_timestamps.get(node).expect("max_timestamps too small");
-        if dir_max_timestamp == i64::MIN {
-            // Somehow does not have a max timestamp. Presumably because it does not
-            // have any content.
-            continue;
+    let is_frontier = |dir: NodeId, dir_max_timestamp: i64| {
+        if dir == root_dir_id {
+            // The root directory itself cannot be a frontier
+            return false;
         }
 
         // Detect if a node is a frontier according to
         // https://gitlab.softwareheritage.org/swh/devel/swh-provenance/-/blob/ae09086a3bd45c7edbc22691945b9d61200ec3c2/swh/provenance/algos/revision.py#L210
-        let mut is_frontier = false;
         if dir_max_timestamp < revrel_timestamp {
             // All content is earlier than revision
 
             // No need to check if it's depth > 1, given that we excluded the root dir above */
-            if graph.successors(node).into_iter().any(|succ| {
+            if graph.successors(dir).into_iter().any(|succ| {
                 graph
                     .properties()
                     .node_type(succ)
@@ -398,60 +220,30 @@ where
                     == SWHType::Content
             }) {
                 // Contains at least one blob
-                is_frontier = true;
+                return true;
             }
         }
 
-        if is_frontier {
-            let mut path = Vec::with_capacity(path_parts.len() * 2 + 1);
-            for part in path_parts {
-                path.extend(
-                    graph
-                        .properties()
-                        .label_name(part)
-                        .expect("Unknown filename id"),
-                );
-                path.push(b'/');
-            }
-            writer
-                .serialize(OutputRecord {
-                    max_author_date: dir_max_timestamp,
-                    frontier_dir_SWHID: graph.properties().swhid(node).expect("Missing SWHID"),
-                    rev_author_date: revrel_author_date,
-                    rev_SWHID: revrel_swhid,
-                    path,
-                })
-                .context("Could not write record")?;
-        } else {
-            // Look for frontiers in subdirectories
-            for (succ, labels) in graph.labelled_successors(node) {
-                if visited.contains(succ) {
-                    continue;
-                }
-                if !visited.contains(succ)
-                    && graph
-                        .properties()
-                        .node_type(succ)
-                        .expect("Missing node type")
-                        == SWHType::Directory
-                {
-                    // If the same subdir/file is present in a directory twice under the same name,
-                    // pick any name to represent both.
-                    let Some(first_label) = labels.into_iter().next() else {
-                        bail!(
-                            "{} -> {} has no labels",
-                            graph.properties().swhid(node).expect("Missing SWHID"),
-                            graph.properties().swhid(succ).expect("Missing SWHID"),
-                        )
-                    };
-                    stack.push(succ);
-                    path_stack.push(PATH_SEPARATOR);
-                    path_stack.extend(path_parts.iter().copied());
-                    path_stack.push(first_label.filename_id());
-                }
-            }
-        }
-    }
+        false
+    };
 
-    Ok(())
+    let on_frontier = |dir: NodeId, dir_max_timestamp: i64, path: Vec<u8>| {
+        writer
+            .serialize(OutputRecord {
+                max_author_date: dir_max_timestamp,
+                frontier_dir_SWHID: graph.properties().swhid(dir).expect("Missing SWHID"),
+                rev_author_date: revrel_author_date,
+                rev_SWHID: revrel_swhid,
+                path,
+            })
+            .context("Could not write record")
+    };
+
+    swh_graph_provenance::frontier::find_frontiers_in_root_directory(
+        graph,
+        max_timestamps,
+        is_frontier,
+        on_frontier,
+        root_dir_id,
+    )
 }

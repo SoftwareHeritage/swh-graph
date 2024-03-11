@@ -3,5 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-pub mod earliest_revision;
-pub mod frontier;
+//! Helpful algorithms to work on the graph
+
+mod root_directory;
+pub use root_directory::get_root_directory_from_revision_or_release;
