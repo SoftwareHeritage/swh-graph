@@ -432,19 +432,17 @@ class ComputeDirectoryFrontier(luigi.Task):
         return luigi.LocalTarget(self._output_path())
 
     def run(self) -> None:
-        """Runs ``org.softwareheritage.graph.utils.ComputeDirectoryFrontier``"""
-        from ..shell import AtomicFileSink, Command, Java
-
-        class_name = "org.softwareheritage.graph.utils.ComputeDirectoryFrontier"
+        """Runs ``compute-directory-frontier`` from ``tools/provenance``"""
+        from ..shell import AtomicFileSink, Command, Rust
 
         # fmt: off
         (
-            Java(
-                class_name,
+            Rust(
+                "compute-directory-frontier",
+                "-vv",
                 self.local_graph_path / self.graph_name,
+                "--max-timestamps",
                 self.input()["directory_max_leaf_timestamps"],
-                str(self.batch_size),
-                max_ram=self._max_ram(),
             )
             | Command.zstdmt("-12")
             > AtomicFileSink(self._output_path())
