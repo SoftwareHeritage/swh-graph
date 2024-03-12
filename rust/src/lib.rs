@@ -8,7 +8,7 @@
 mod swhid;
 #[cfg(feature = "macros")]
 pub use swhid::__parse_swhid;
-pub use swhid::SWHID;
+pub use swhid::{StrSWHIDDeserializationError, SWHID};
 
 mod swhtype;
 pub use swhtype::SWHType;

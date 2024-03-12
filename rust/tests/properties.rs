@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -8,8 +8,9 @@ use std::path::PathBuf;
 
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::properties::NodeIdFromSwhidError;
 use swh_graph::AllSwhGraphProperties;
-use swh_graph::SWHID;
+use swh_graph::{SWHType, StrSWHIDDeserializationError, SWHID};
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
@@ -65,11 +66,35 @@ fn test_swhids() -> Result<()> {
 fn test_node_id() -> Result<()> {
     let graph = graph()?;
 
+    let unknown_swhid = SWHID {
+        namespace_version: 1,
+        node_type: SWHType::Content,
+        hash: [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x42,
+        ],
+    };
+
     assert_eq!(
         graph
             .properties()
             .node_id("swh:1:rev:0000000000000000000000000000000000000003"),
         Ok(6)
+    );
+
+    assert_eq!(
+        graph
+            .properties()
+            .node_id("swh:1:cnt:0000000000000000000000000000000000000042"),
+        Err(NodeIdFromSwhidError::UnknownSwhid(unknown_swhid))
+    );
+
+    assert_eq!(
+        graph
+            .properties()
+            .node_id("swh:1:lol:0000000000000000000000000000000000000003"),
+        Err(NodeIdFromSwhidError::InvalidSwhid(
+            StrSWHIDDeserializationError::Type("lol".to_string())
+        ))
     );
 
     assert_eq!(
@@ -79,6 +104,11 @@ fn test_node_id() -> Result<()> {
         Ok(6)
     );
 
+    assert_eq!(
+        graph.properties().node_id(unknown_swhid),
+        Err(NodeIdFromSwhidError::UnknownSwhid(unknown_swhid))
+    );
+
     Ok(())
 }
 
@@ -86,11 +116,35 @@ fn test_node_id() -> Result<()> {
 fn test_node_id_from_string_swhid() -> Result<()> {
     let graph = graph()?;
 
+    let unknown_swhid = SWHID {
+        namespace_version: 1,
+        node_type: SWHType::Content,
+        hash: [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x42,
+        ],
+    };
+
     assert_eq!(
         graph
             .properties()
             .node_id_from_string_swhid("swh:1:rev:0000000000000000000000000000000000000003"),
         Ok(6)
+    );
+
+    assert_eq!(
+        graph
+            .properties()
+            .node_id_from_string_swhid("swh:1:cnt:0000000000000000000000000000000000000042"),
+        Err(NodeIdFromSwhidError::UnknownSwhid(unknown_swhid))
+    );
+
+    assert_eq!(
+        graph
+            .properties()
+            .node_id_from_string_swhid("swh:1:lol:0000000000000000000000000000000000000003"),
+        Err(NodeIdFromSwhidError::InvalidSwhid(
+            StrSWHIDDeserializationError::Type("lol".to_string())
+        ))
     );
 
     Ok(())
