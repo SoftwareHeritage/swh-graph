@@ -299,7 +299,7 @@ def test_listearliestrevisions_disordered(tmpdir):
 
     with pytest.raises(CommandException) as excinfo:
         task.run()
-    assert excinfo.value.returncode == 3
+    assert excinfo.value.returncode == 1
 
 
 def test_listdirectorymaxleaftimestamp(tmpdir):

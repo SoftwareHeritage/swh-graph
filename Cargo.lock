@@ -2550,6 +2550,8 @@ name = "swh_graph_provenance"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytemuck",
+ "chrono",
  "clap",
  "csv",
  "dsi-progress-logger 0.2.2",

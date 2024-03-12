@@ -260,22 +260,21 @@ class ListEarliestRevisions(luigi.Task):
         }
 
     def run(self) -> None:
-        """Runs ``org.softwareheritage.graph.utils.ListEarliestRevisions``"""
-        from ..shell import AtomicFileSink, Command, Java
+        """Runs ``list-by-earliest-revision`` from ``tools/provenance``"""
+        from ..shell import AtomicFileSink, Command, Rust
         from .utils import count_nodes
 
         nb_nodes = count_nodes(self.local_graph_path, self.graph_name, "cnt,dir")
 
-        class_name = "org.softwareheritage.graph.utils.ListEarliestRevisions"
-
         # fmt: off
         (
             Command.zstdcat(self.input()["sorted_revrel"])
-            | Java(
-                class_name,
+            | Rust(
+                "list-by-earliest-revision",
+                "-vv",
                 self.local_graph_path / self.graph_name,
+                "--timestamps-out",
                 str(self._bin_timestamps_output_path()),
-                max_ram=self._max_ram(),
             )
             | Command.pv("--wait", "--line-mode", "--size", str(nb_nodes))
             | Command.zstdmt("-10")
