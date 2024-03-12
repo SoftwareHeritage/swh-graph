@@ -67,6 +67,7 @@ pub fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
 pub trait GetIndex {
     type Output;
 
+    fn len(&self) -> usize;
     fn get(&self, index: usize) -> Option<Self::Output>;
     unsafe fn get_unchecked(&self, index: usize) -> Self::Output;
 }
@@ -74,6 +75,9 @@ pub trait GetIndex {
 impl<Item: Clone, T: std::ops::Deref<Target = [Item]>> GetIndex for T {
     type Output = Item;
 
+    fn len(&self) -> usize {
+        <[Item]>::len(self)
+    }
     fn get(&self, index: usize) -> Option<Self::Output> {
         <[Item]>::get(self, index).cloned()
     }

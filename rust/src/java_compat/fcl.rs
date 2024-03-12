@@ -191,6 +191,10 @@ impl<D: AsRef<[u8]>, P: AsRef<[u8]>> GetIndex for &FrontCodedList<D, P> {
         self.get_inplace(index, &mut result);
         result
     }
+
+    fn len(&self) -> usize {
+        self.len
+    }
 }
 
 #[inline(always)]

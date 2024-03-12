@@ -149,4 +149,15 @@ impl<
             })
         })
     }
+
+    /// Returns the number of label names
+    ///
+    /// All filename ids are between 0 and that number.
+    pub fn num_label_names(&self) -> u64 {
+        self.label_names
+            .label_names()
+            .len()
+            .try_into()
+            .expect("Number of label names overflowed u64")
+    }
 }

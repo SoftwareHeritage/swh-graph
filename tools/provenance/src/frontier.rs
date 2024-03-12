@@ -4,15 +4,14 @@
 // See top-level LICENSE file for more information
 
 use anyhow::{bail, Result};
+use sux::bits::bit_field_vec::BitFieldVec;
+use sux::traits::{BitFieldSlice, BitFieldSliceCore};
 
 use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::*;
 use swh_graph::labels::FilenameId;
 use swh_graph::utils::GetIndex;
 use swh_graph::SWHType;
-
-/// Value in the path_stack between two lists of path parts
-const PATH_SEPARATOR: FilenameId = FilenameId(u64::MAX);
 
 /// Traverses from a directory, and calls a function on each frontier directory
 /// it contains.
@@ -34,12 +33,19 @@ where
     let mut visited = AdaptiveNodeSet::new(graph.num_nodes());
     let mut stack = Vec::new();
 
+    let filename_bitwidth: usize = (graph.properties().num_label_names().ilog2() + 1)
+        .try_into()
+        .expect("Number of label names overflowed usize");
+
+    // Sentinel value in the path_stack between two lists of path parts
+    let path_separator = (1 << filename_bitwidth) - 1;
+
     // flattened list of paths. Each list is made of parts represented by an id,
-    // and lists are separated by PATH_SEPARATOR
-    let mut path_stack = Vec::new();
+    // and lists are separated by path_separator
+    let mut path_stack = BitFieldVec::new(filename_bitwidth, 0);
 
     stack.push(root_dir_id);
-    path_stack.push(PATH_SEPARATOR);
+    path_stack.push(path_separator);
 
     while let Some(node) = stack.pop() {
         if visited.contains(node) {
@@ -47,12 +53,15 @@ where
         }
         visited.insert(node);
 
-        let mut path_parts = Vec::new();
-        while let Some(filename_id) = path_stack.pop() {
-            if filename_id == PATH_SEPARATOR {
+        // TODO: use https://github.com/vigna/sux-rs/pull/33 instead
+        let mut rev_path_parts = Vec::new();
+        while !path_stack.is_empty() {
+            let filename_id = path_stack.get(path_stack.len() - 1);
+            path_stack.resize(path_stack.len() - 1, 0);
+            if filename_id == path_separator {
                 break;
             }
-            path_parts.push(filename_id);
+            rev_path_parts.push(filename_id);
         }
 
         let dir_max_timestamp = max_timestamps.get(node).expect("max_timestamps too small");
@@ -65,12 +74,12 @@ where
         let node_is_frontier = is_frontier(node, dir_max_timestamp);
 
         if node_is_frontier {
-            let mut path = Vec::with_capacity(path_parts.len() * 2 + 1);
-            for part in path_parts {
+            let mut path = Vec::with_capacity(rev_path_parts.len() * 10); // ~avg size of file
+            for part in rev_path_parts.iter().rev().copied() {
                 path.extend(
                     graph
                         .properties()
-                        .label_name(part)
+                        .label_name(FilenameId(part))
                         .expect("Unknown filename id"),
                 );
                 path.push(b'/');
@@ -99,9 +108,9 @@ where
                         )
                     };
                     stack.push(succ);
-                    path_stack.push(PATH_SEPARATOR);
-                    path_stack.extend(path_parts.iter().copied());
-                    path_stack.push(first_label.filename_id());
+                    path_stack.push(path_separator);
+                    path_stack.extend(rev_path_parts.iter().rev().copied());
+                    path_stack.push(first_label.filename_id().0);
                 }
             }
         }
