@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::{Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
+use rand::prelude::*;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sux::bits::bit_vec::{AtomicBitVec, BitVec};
@@ -165,77 +166,95 @@ where
     // Reuse writers across work batches, or we end up with millions of very small files
     let writers = thread_local::ThreadLocal::new();
 
-    (0..graph.num_nodes()).into_par_iter().try_for_each_init(
-        || {
-            writers
-                .get_or(|| {
-                    let path = output_dir.join(format!(
-                        "{}.csv.zst",
-                        worker_id.fetch_add(1, Ordering::Relaxed)
-                    ));
-                    let file = std::fs::File::create(&path)
-                        .with_context(|| format!("Could not create {}", path.display()))
-                        .unwrap();
-                    let compression_level = 3;
-                    let zstd_encoder = zstd::stream::write::Encoder::new(file, compression_level)
-                        .with_context(|| {
-                            format!("Could not create ZSTD encoder for {}", path.display())
-                        })
-                        .unwrap()
-                        .auto_finish();
-                    RefCell::new(
-                        csv::WriterBuilder::new()
-                            .has_headers(true)
-                            .terminator(csv::Terminator::CRLF)
-                            .from_writer(zstd_encoder),
-                    )
-                })
-                .borrow_mut()
-        },
-        |writer, node| -> Result<()> {
-            let node_type = graph
-                .properties()
-                .node_type(node)
-                .expect("missing node type");
+    let num_chunks = 100_000; // Arbitrary value
+    let chunk_size = graph.num_nodes().div_ceil(num_chunks);
+    let mut chunks: Vec<usize> = (0..num_chunks).collect();
 
-            match node_type {
-                SWHType::Revision => {
-                    // Allow revisions only if they are a "snapshot head" (ie. one of their
-                    // predecessors is a release or a snapshot)
-                    if !graph.predecessors(node).into_iter().any(|pred| {
-                        let pred_type = graph
-                            .properties()
-                            .node_type(pred)
-                            .expect("missing node type");
-                        pred_type == SWHType::Snapshot || pred_type == SWHType::Release
-                    }) {
-                        return Ok(());
+    // Make workload homogeneous over time; otherwise all threads will process large
+    // directory tries at the same time and run out of memory.
+    chunks.shuffle(&mut rand::thread_rng());
+
+    chunks
+        .into_par_iter()
+        // Lazily rebuild the list of nodes from the shuffled chunks
+        .flat_map(|chunk_id| {
+            (chunk_id * chunk_size)..usize::min((chunk_id + 1) * chunk_size, graph.num_nodes() - 1)
+        })
+        .try_for_each_init(
+            || {
+                writers
+                    .get_or(|| {
+                        let path = output_dir.join(format!(
+                            "{}.csv.zst",
+                            worker_id.fetch_add(1, Ordering::Relaxed)
+                        ));
+                        let file = std::fs::File::create(&path)
+                            .with_context(|| format!("Could not create {}", path.display()))
+                            .unwrap();
+                        let compression_level = 3;
+                        let zstd_encoder =
+                            zstd::stream::write::Encoder::new(file, compression_level)
+                                .with_context(|| {
+                                    format!("Could not create ZSTD encoder for {}", path.display())
+                                })
+                                .unwrap()
+                                .auto_finish();
+                        RefCell::new(
+                            csv::WriterBuilder::new()
+                                .has_headers(true)
+                                .terminator(csv::Terminator::CRLF)
+                                .from_writer(zstd_encoder),
+                        )
+                    })
+                    .borrow_mut()
+            },
+            |writer, node| -> Result<()> {
+                let node_type = graph
+                    .properties()
+                    .node_type(node)
+                    .expect("missing node type");
+
+                match node_type {
+                    SWHType::Revision => {
+                        // Allow revisions only if they are a "snapshot head" (ie. one of their
+                        // predecessors is a release or a snapshot)
+                        if !graph.predecessors(node).into_iter().any(|pred| {
+                            let pred_type = graph
+                                .properties()
+                                .node_type(pred)
+                                .expect("missing node type");
+                            pred_type == SWHType::Snapshot || pred_type == SWHType::Release
+                        }) {
+                            if node % 32768 == 0 {
+                                pl.lock().unwrap().update_with_count(32768);
+                            }
+                            return Ok(());
+                        }
                     }
+                    _ => (),
                 }
-                _ => (),
-            }
 
-            if let Some(root_dir) =
-                swh_graph::algos::get_root_directory_from_revision_or_release(graph, node)
-                    .context("Could not pick root directory")?
-            {
-                find_frontiers_in_root_directory(
-                    graph,
-                    max_timestamps,
-                    frontier_directories,
-                    writer,
-                    node,
-                    root_dir,
-                )?;
-            }
+                if let Some(root_dir) =
+                    swh_graph::algos::get_root_directory_from_revision_or_release(graph, node)
+                        .context("Could not pick root directory")?
+                {
+                    find_frontiers_in_root_directory(
+                        graph,
+                        max_timestamps,
+                        frontier_directories,
+                        writer,
+                        node,
+                        root_dir,
+                    )?;
+                }
 
-            if node % 32768 == 0 {
-                pl.lock().unwrap().update_with_count(32768);
-            }
+                if node % 32768 == 0 {
+                    pl.lock().unwrap().update_with_count(32768);
+                }
 
-            Ok(())
-        },
-    )?;
+                Ok(())
+            },
+        )?;
 
     pl.lock().unwrap().done();
 
