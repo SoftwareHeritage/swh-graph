@@ -2566,6 +2566,7 @@ dependencies = [
  "csv",
  "dsi-progress-logger 0.2.2",
  "log",
+ "rand",
  "rayon",
  "serde",
  "serde_bytes",
