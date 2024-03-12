@@ -345,20 +345,20 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
         return luigi.LocalTarget(self._output_path())
 
     def run(self) -> None:
-        """Runs ``org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp``"""
-        from ..shell import Command, Java
-
-        class_name = "org.softwareheritage.graph.utils.ListDirectoryMaxLeafTimestamp"
+        """Runs ``list-directory-with-max-leaf-timestamp`` from ``tools/provenance``"""
+        from ..shell import Command, Rust
 
         # fmt: off
         (
             Command.zstdcat(self.input()["toposort"].path)
-            | Java(
-                class_name,
+            | Rust(
+                "list-directory-with-max-leaf-timestamp",
+                "-vv",
                 self.local_graph_path / self.graph_name,
+                "--timestamps",
                 self.input()["earliest_revisions"]["bin_timestamps"],
+                "--max-timestamps-out",
                 str(self._output_path()),
-                max_ram=self._max_ram(),
             )
         ).run()
         # fmt: on
