@@ -12,7 +12,7 @@ use swh_graph::utils::GetIndex;
 use swh_graph::SWHType;
 
 /// Value in the path_stack between two lists of path parts
-const PATH_SEPARATOR: FilenameId = FilenameId(u64::MIN);
+const PATH_SEPARATOR: FilenameId = FilenameId(u64::MAX);
 
 /// Traverses from a directory, and calls a function on each frontier directory
 /// it contains.
