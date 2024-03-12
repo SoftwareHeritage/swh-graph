@@ -152,20 +152,14 @@ where
                     .borrow_mut()
             },
             |writer, node| -> Result<()> {
-                let node_type = graph
-                    .properties()
-                    .node_type(node)
-                    .expect("missing node type");
+                let node_type = graph.properties().node_type(node);
 
                 match node_type {
                     SWHType::Revision => {
                         // Allow revisions only if they are a "snapshot head" (ie. one of their
                         // predecessors is a release or a snapshot)
                         if !graph.predecessors(node).into_iter().any(|pred| {
-                            let pred_type = graph
-                                .properties()
-                                .node_type(pred)
-                                .expect("missing node type");
+                            let pred_type = graph.properties().node_type(pred);
                             pred_type == SWHType::Snapshot || pred_type == SWHType::Release
                         }) {
                             if node % 32768 == 0 {
@@ -224,7 +218,7 @@ where
     let revrel_author_date =
         chrono::DateTime::from_timestamp(revrel_timestamp, 0).expect("Could not convert timestamp");
 
-    let revrel_swhid = graph.properties().swhid(revrel_id).expect("Missing SWHID");
+    let revrel_swhid = graph.properties().swhid(revrel_id);
 
     let is_frontier = |dir: NodeId, dir_max_timestamp: i64| {
         if dir == root_dir_id {
@@ -238,13 +232,11 @@ where
             // All content is earlier than revision
 
             // No need to check if it's depth > 1, given that we excluded the root dir above */
-            if graph.successors(dir).into_iter().any(|succ| {
-                graph
-                    .properties()
-                    .node_type(succ)
-                    .expect("Missing node type")
-                    == SWHType::Content
-            }) {
+            if graph
+                .successors(dir)
+                .into_iter()
+                .any(|succ| graph.properties().node_type(succ) == SWHType::Content)
+            {
                 // Contains at least one blob
                 return true;
             }
@@ -257,7 +249,7 @@ where
         writer
             .serialize(OutputRecord {
                 max_author_date: dir_max_timestamp,
-                frontier_dir_SWHID: graph.properties().swhid(dir).expect("Missing SWHID"),
+                frontier_dir_SWHID: graph.properties().swhid(dir),
                 rev_author_date: revrel_author_date,
                 rev_SWHID: revrel_swhid,
                 path,

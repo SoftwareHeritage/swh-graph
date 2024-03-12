@@ -14,9 +14,9 @@ use tonic::transport::Server;
 use tonic::{Request, Response};
 
 use crate::graph::{SwhGraphWithProperties, SwhLabelledBackwardGraph, SwhLabelledForwardGraph};
+use crate::properties::NodeIdFromSwhidError;
 use crate::utils::suffix_path;
 use crate::views::Subgraph;
-use crate::SWHID;
 
 pub mod proto {
     tonic::include_proto!("swh.graph");
@@ -85,11 +85,15 @@ impl<
         self.0
             .properties()
             .node_id_from_string_swhid(swhid)
-            .ok_or_else(|| {
-                if let Err(e) = SWHID::try_from(swhid) {
+            .map_err(|e| match e {
+                NodeIdFromSwhidError::InvalidSwhid(e) => {
                     tonic::Status::invalid_argument(format!("Invalid SWHID: {e}"))
-                } else {
-                    tonic::Status::not_found(format!("Unknown SWHID: {swhid}"))
+                }
+                NodeIdFromSwhidError::UnknownSwhid(e) => {
+                    tonic::Status::not_found(format!("Unknown SWHID {swhid}: {e}"))
+                }
+                NodeIdFromSwhidError::InternalError(e) => {
+                    tonic::Status::internal(format!("Internal error: {e}"))
                 }
             })
     }

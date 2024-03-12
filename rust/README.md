@@ -55,7 +55,10 @@ use swh_graph::java_compat::mph::gov::GOVMPH;
 
 let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
     .expect("Could not load graph");
-let node_id: usize = graph.node_id("swh:1:snp:486b338078a42de5ece0970638c7270d9c39685f");
+let node_id: usize = graph
+    .properties()
+    .node_id("swh:1:snp:486b338078a42de5ece0970638c7270d9c39685f")
+    .unwrap();
 ```
 
 fails to compile because `node_id` uses one of these properties that are not loaded
@@ -72,7 +75,8 @@ let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
     .load_properties(|properties| properties.load_maps::<GOVMPH>())
     .expect("Could not load SWHID<->node id maps");
 
-let node_id: usize = graph.properties()
+let node_id: usize = graph
+    .properties()
     .node_id("swh:1:dir:5e1c24e586ef92dbef0e9cec6b354c6831454340")
     .expect("Unknown SWHID");
 ```
@@ -89,7 +93,8 @@ let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
     .load_all_properties::<GOVMPH>()
     .expect("Could not load properties");
 
-let node_id: usize = graph.properties()
+let node_id: usize = graph
+    .properties()
     .node_id("swh:1:dir:5e1c24e586ef92dbef0e9cec6b354c6831454340")
     .expect("Unknown SWHID");
 ```
@@ -108,7 +113,8 @@ let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
     .load_all_properties::<GOVMPH>()
     .expect("Could not load properties");
 
-let node_id: usize = graph.properties()
+let node_id: usize = graph
+    .properties()
     .node_id("swh:1:dir:5e1c24e586ef92dbef0e9cec6b354c6831454340")
     .expect("Unknown SWHID");
 
@@ -133,7 +139,8 @@ let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
     .load_labels()
     .expect("Could not load labels");
 
-let node_id: usize = graph.properties()
+let node_id: usize = graph
+    .properties()
     .node_id("swh:1:dir:5e1c24e586ef92dbef0e9cec6b354c6831454340")
     .expect("Unknown SWHID");
 
@@ -145,7 +152,7 @@ for (succ, labels) in graph.labelled_successors(node_id) {
             succ,
             label.permission(),
             String::from_utf8(
-                graph.properties().label_name(label.filename_id()).unwrap()
+                graph.properties().label_name(label.filename_id())
             ).expect("Could not decode file name as UTF-8")
         );
     }

@@ -198,7 +198,7 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
 }
 
 mod maps;
-pub use maps::{MappedMaps, Maps, MaybeMaps, NoMaps, VecMaps};
+pub use maps::{MappedMaps, Maps, MaybeMaps, NoMaps, NodeIdFromSwhidError, VecMaps};
 
 mod timestamps;
 pub use timestamps::{MappedTimestamps, MaybeTimestamps, NoTimestamps, Timestamps, VecTimestamps};

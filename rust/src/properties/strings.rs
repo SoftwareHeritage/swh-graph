@@ -214,26 +214,40 @@ impl<
         data: &'a [u8],
         offsets: impl GetIndex<Output = u64>,
         node_id: NodeId,
-    ) -> Option<&'a [u8]> {
+    ) -> Result<Option<&'a [u8]>, ()> {
         match offsets.get(node_id) {
-            Some(u64::MAX) => None,
-            None => None,
+            None => Err(()),            // Unknown node
+            Some(u64::MAX) => Ok(None), // No message
             Some(offset) => {
                 let offset = offset as usize;
                 let slice: &[u8] = data.get(offset..).unwrap_or_else(|| {
                     panic!("Missing {} for node {} at offset {}", what, node_id, offset)
                 });
-                slice
+                Ok(slice
                     .iter()
                     .position(|&c| c == b'\n')
-                    .map(|end| &slice[..end])
+                    .map(|end| &slice[..end]))
             }
         }
     }
 
-    /// Returns the message of a revision or release, base64-encoded
+    /// Returns the base64-encoded message of a revision or release
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist
     #[inline]
     pub fn message_base64(&self, node_id: NodeId) -> Option<&[u8]> {
+        self.try_message_base64(node_id)
+            .unwrap_or_else(|()| panic!("Cannot get message of unknown node id: {}", node_id))
+    }
+
+    /// Returns the base64-encoded message of a revision or release
+    ///
+    /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
+    /// no message.
+    #[inline]
+    pub fn try_message_base64(&self, node_id: NodeId) -> Result<Option<&[u8]>, ()> {
         Self::message_or_tag_name_base64(
             "message",
             self.strings.message(),
@@ -241,24 +255,53 @@ impl<
             node_id,
         )
     }
-
     /// Returns the message of a revision or release
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist
     #[inline]
     pub fn message(&self, node_id: NodeId) -> Option<Vec<u8>> {
+        self.try_message(node_id)
+            .unwrap_or_else(|()| panic!("Cannot get message of unknown node id: {}", node_id))
+    }
+
+    /// Returns the message of a revision or release
+    ///
+    /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
+    /// no message.
+    #[inline]
+    pub fn try_message(&self, node_id: NodeId) -> Result<Option<Vec<u8>>, ()> {
         let base64 = base64_simd::STANDARD;
-        self.message_base64(node_id).map(|message| {
-            base64.decode_to_vec(message).unwrap_or_else(|_| {
-                panic!(
-                    "Could not decode message of node {}: {:?}",
-                    node_id, message
-                )
+        self.try_message_base64(node_id).map(|message_opt| {
+            message_opt.map(|message| {
+                base64.decode_to_vec(message).unwrap_or_else(|_| {
+                    panic!(
+                        "Could not decode message of node {}: {:?}",
+                        node_id, message
+                    )
+                })
             })
         })
     }
 
     /// Returns the tag name of a release, base64-encoded
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist
     #[inline]
     pub fn tag_name_base64(&self, node_id: NodeId) -> Option<&[u8]> {
+        self.try_tag_name_base64(node_id)
+            .unwrap_or_else(|()| panic!("Cannot get tag name of unknown node id: {}", node_id))
+    }
+
+    /// Returns the tag name of a release, base64-encoded
+    ///
+    /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
+    /// no tag name.
+    #[inline]
+    pub fn try_tag_name_base64(&self, node_id: NodeId) -> Result<Option<&[u8]>, ()> {
         Self::message_or_tag_name_base64(
             "tag_name",
             self.strings.tag_name(),
@@ -268,15 +311,31 @@ impl<
     }
 
     /// Returns the tag name of a release
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist
     #[inline]
     pub fn tag_name(&self, node_id: NodeId) -> Option<Vec<u8>> {
+        self.try_tag_name(node_id)
+            .unwrap_or_else(|()| panic!("Cannot get tag name of unknown node id: {}", node_id))
+    }
+
+    /// Returns the tag name of a release
+    ///
+    /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
+    /// no tag name.
+    #[inline]
+    pub fn try_tag_name(&self, node_id: NodeId) -> Result<Option<Vec<u8>>, ()> {
         let base64 = base64_simd::STANDARD;
-        self.tag_name_base64(node_id).map(|tag_name| {
-            base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
-                panic!(
-                    "Could not decode tag_name of node {}: {:?}",
-                    node_id, tag_name
-                )
+        self.try_tag_name_base64(node_id).map(|tag_name_opt| {
+            tag_name_opt.map(|tag_name| {
+                base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
+                    panic!(
+                        "Could not decode tag_name of node {}: {:?}",
+                        node_id, tag_name
+                    )
+                })
             })
         })
     }

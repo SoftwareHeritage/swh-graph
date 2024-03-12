@@ -20,10 +20,7 @@ where
     G: SwhBackwardGraph + SwhForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
-    let node_type = graph
-        .properties()
-        .node_type(node)
-        .expect("missing node type");
+    let node_type = graph.properties().node_type(node);
 
     match node_type {
         SWHType::Release => get_root_directory_from_release(graph, node),
@@ -37,15 +34,12 @@ where
     G: SwhForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
-    let rel_swhid = graph.properties().swhid(rel_id).expect("Missing SWHID");
+    let rel_swhid = graph.properties().swhid(rel_id);
 
     let mut root_dir = None;
     let mut root_rev = None;
     for succ in graph.successors(rel_id) {
-        let node_type = graph
-            .properties()
-            .node_type(succ)
-            .expect("Missing node type");
+        let node_type = graph.properties().node_type(succ);
         match node_type {
             SWHType::Directory => {
                 ensure!(
@@ -72,13 +66,10 @@ where
         (None, Some(root_rev)) => {
             let mut root_dir = None;
             for succ in graph.successors(root_rev) {
-                let node_type = graph
-                    .properties()
-                    .node_type(succ)
-                    .expect("Missing node type");
+                let node_type = graph.properties().node_type(succ);
                 match node_type {
                     SWHType::Directory => {
-                        let rev_swhid = graph.properties().swhid(succ).expect("Missing SWHID");
+                        let rev_swhid = graph.properties().swhid(succ);
                         ensure!(
                             root_dir.is_none(),
                             "{rel_swhid} (via {rev_swhid}) has more than one directory successor",
@@ -102,13 +93,10 @@ where
 {
     let mut root_dir = None;
     for succ in graph.successors(rev_id) {
-        let node_type = graph
-            .properties()
-            .node_type(succ)
-            .expect("Missing node type");
+        let node_type = graph.properties().node_type(succ);
         match node_type {
             SWHType::Directory => {
-                let rev_swhid = graph.properties().swhid(succ).expect("Missing SWHID");
+                let rev_swhid = graph.properties().swhid(succ);
                 ensure!(
                     root_dir.is_none(),
                     "{rev_swhid} has more than one directory successor",

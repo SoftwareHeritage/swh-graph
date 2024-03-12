@@ -105,8 +105,7 @@ where
         self.min_traversal_successors <= num_traversal_successors
             && num_traversal_successors <= self.max_traversal_successors
             && (self.types == u8::MAX
-                || (Self::bit_mask(self.graph.properties().node_type(node).unwrap()) & self.types)
-                    != 0)
+                || (Self::bit_mask(self.graph.properties().node_type(node)) & self.types) != 0)
     }
 
     fn bit_mask(node_type: SWHType) -> u8 {
@@ -161,8 +160,8 @@ where
     pub fn matches(&self, src_node: usize, dst_node: usize) -> bool {
         self.types == u64::MAX
             || ((Self::bit_mask(
-                self.graph.properties().node_type(src_node).unwrap(),
-                self.graph.properties().node_type(dst_node).unwrap(),
+                self.graph.properties().node_type(src_node),
+                self.graph.properties().node_type(dst_node),
             ) & self.types)
                 != 0)
     }

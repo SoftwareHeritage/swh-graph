@@ -126,8 +126,7 @@ where
                 record.context("Could not deserialize input row")?;
             let node_id = graph
                 .properties()
-                .node_id_from_string_swhid(frontier_dir_SWHID)
-                .expect("Missing SWHID");
+                .node_id_from_string_swhid(frontier_dir_SWHID)?;
             if node_id % 32768 == 0 {
                 pl.lock().unwrap().update_with_count(32768);
             }
@@ -209,20 +208,14 @@ where
                     .borrow_mut()
             },
             |writer, node| -> Result<()> {
-                let node_type = graph
-                    .properties()
-                    .node_type(node)
-                    .expect("missing node type");
+                let node_type = graph.properties().node_type(node);
 
                 match node_type {
                     SWHType::Revision => {
                         // Allow revisions only if they are a "snapshot head" (ie. one of their
                         // predecessors is a release or a snapshot)
                         if !graph.predecessors(node).into_iter().any(|pred| {
-                            let pred_type = graph
-                                .properties()
-                                .node_type(pred)
-                                .expect("missing node type");
+                            let pred_type = graph.properties().node_type(pred);
                             pred_type == SWHType::Snapshot || pred_type == SWHType::Release
                         }) {
                             if node % 32768 == 0 {
@@ -283,7 +276,7 @@ where
     let revrel_author_date =
         chrono::DateTime::from_timestamp(revrel_timestamp, 0).expect("Could not convert timestamp");
 
-    let revrel_swhid = graph.properties().swhid(revrel_id).expect("Missing SWHID");
+    let revrel_swhid = graph.properties().swhid(revrel_id);
 
     let is_frontier = |dir: NodeId, _dir_max_timestamp: i64| frontier_directories[dir];
 
@@ -291,7 +284,7 @@ where
         writer
             .serialize(OutputRecord {
                 max_author_date: dir_max_timestamp,
-                frontier_dir_SWHID: graph.properties().swhid(dir).expect("Missing SWHID"),
+                frontier_dir_SWHID: graph.properties().swhid(dir),
                 rev_author_date: revrel_author_date,
                 rev_SWHID: revrel_swhid,
                 path,

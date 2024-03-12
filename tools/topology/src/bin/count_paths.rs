@@ -197,10 +197,7 @@ where
                         let InputRecord { swhid, .. } =
                             record.with_context(|| format!("Could not deserialize record"))?;
 
-                        let node = graph
-                            .properties()
-                            .node_id_from_string_swhid(&swhid)
-                            .with_context(|| format!("Unknown SWHID: {}", swhid))?;
+                        let node = graph.properties().node_id_from_string_swhid(&swhid)?;
                         Ok((swhid, node))
                     })
                     .collect();

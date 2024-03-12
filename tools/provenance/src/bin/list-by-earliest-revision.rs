@@ -149,20 +149,14 @@ where
         .properties()
         .node_id_from_string_swhid(&revrel_SWHID)
         .with_context(|| format!("unknown SWHID {}", revrel_SWHID))?;
-    let node_type = graph
-        .properties()
-        .node_type(node)
-        .expect("missing node type");
+    let node_type = graph.properties().node_type(node);
     match node_type {
         SWHType::Release => (), // Allow releases
         SWHType::Revision => {
             // Allow revisions only if they are a "snapshot head" (ie. one of their
             // predecessors is a release or a snapshot)
             if !graph.predecessors(node).into_iter().any(|pred| {
-                let pred_type = graph
-                    .properties()
-                    .node_type(pred)
-                    .expect("missing node type");
+                let pred_type = graph.properties().node_type(pred);
                 pred_type == SWHType::Snapshot || pred_type == SWHType::Release
             }) {
                 return Ok(());
@@ -175,10 +169,7 @@ where
     stack.push(node);
 
     while let Some(node) = stack.pop() {
-        let node_type = graph
-            .properties()
-            .node_type(node)
-            .expect("missing node type");
+        let node_type = graph.properties().node_type(node);
 
         // Set its timestamp to the array if it's not a revision or a release
         // (we already have timestamps for those in the graph properties)
@@ -193,10 +184,7 @@ where
             }
 
             // Ignore the successor if it's not a content or directory
-            let succ_type = graph
-                .properties()
-                .node_type(succ)
-                .expect("missing node type");
+            let succ_type = graph.properties().node_type(succ);
             if succ_type != SWHType::Directory && succ_type != SWHType::Content {
                 continue;
             }
@@ -205,7 +193,7 @@ where
             writer.serialize(OutputRecord {
                 author_date,
                 revrel_SWHID: revrel_SWHID.as_ref(),
-                cntdir_SWHID: graph.properties().swhid(succ).expect("missing SWHID"),
+                cntdir_SWHID: graph.properties().swhid(succ),
             })?
         }
     }

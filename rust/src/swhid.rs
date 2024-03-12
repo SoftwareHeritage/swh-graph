@@ -82,7 +82,7 @@ impl TryFrom<[u8; SWHID::BYTES_SIZE]> for SWHID {
     }
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq, Hash)]
 pub enum StrSWHIDDeserializationError {
     #[error("Invalid syntax: {0}")]
     Syntax(&'static str),

@@ -74,14 +74,11 @@ impl BidirectionalGraph {
     }
 
     fn node_id(&self, swhid: &str) -> Option<usize> {
-        self.0.properties().node_id(swhid)
+        self.0.properties().node_id(swhid).ok()
     }
 
-    fn swhid(&self, node_id: usize) -> Option<String> {
-        self.0
-            .properties()
-            .swhid(node_id)
-            .map(|swhid| format!("{}", swhid))
+    fn swhid(&self, node_id: usize) -> String {
+        self.0.properties().swhid(node_id).to_string()
     }
 }
 

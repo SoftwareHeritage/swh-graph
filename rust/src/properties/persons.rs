@@ -142,20 +142,50 @@ impl<
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Returns the id of the author of a revision or release, if any
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist
     #[inline]
     pub fn author_id(&self, node_id: NodeId) -> Option<u32> {
+        self.try_author_id(node_id)
+            .unwrap_or_else(|()| panic!("Cannot get author of unknown node id: {}", node_id))
+    }
+
+    /// Returns the id of the author of a revision or release, if any
+    ///
+    /// Returns `Err` if the node id does not exist, and `Ok(Node)` if the node
+    /// has no author
+    #[inline]
+    pub fn try_author_id(&self, node_id: NodeId) -> Result<Option<u32>, ()> {
         match self.persons.author_id().get(node_id) {
-            Some(u32::MAX) => None,
-            id => id,
+            None => Err(()),            // Invalid node id
+            Some(u32::MAX) => Ok(None), // No author
+            Some(id) => Ok(Some(id)),
         }
     }
 
     /// Returns the id of the committer of a revision, if any
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist
     #[inline]
     pub fn committer_id(&self, node_id: NodeId) -> Option<u32> {
+        self.try_committer_id(node_id)
+            .unwrap_or_else(|()| panic!("Cannot get committer of unknown node id: {}", node_id))
+    }
+
+    /// Returns the id of the committer of a revision, if any
+    ///
+    /// Returns `None` if the node id does not exist, and `Some(Node)` if the node
+    /// has no author
+    #[inline]
+    pub fn try_committer_id(&self, node_id: NodeId) -> Result<Option<u32>, ()> {
         match self.persons.committer_id().get(node_id) {
-            Some(u32::MAX) => None,
-            id => id,
+            None => Err(()),            // Invalid node id
+            Some(u32::MAX) => Ok(None), // No committer
+            Some(id) => Ok(Some(id)),
         }
     }
 }

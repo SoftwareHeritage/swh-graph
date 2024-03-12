@@ -103,13 +103,17 @@ impl<B: AsRef<[u8]>> Node2SWHID<B> {
 
     /// Convert a node_id to a SWHID
     #[inline]
-    pub fn get(&self, node_id: usize) -> Option<SWHID> {
+    pub fn get(&self, node_id: usize) -> Result<SWHID, ()> {
         let offset = node_id * SWHID::BYTES_SIZE;
-        let bytes = self.data.as_ref().get(offset..offset + SWHID::BYTES_SIZE)?;
+        let bytes = self
+            .data
+            .as_ref()
+            .get(offset..offset + SWHID::BYTES_SIZE)
+            .ok_or(())?;
         // this unwrap is always safe because we use the same const
         let bytes: [u8; SWHID::BYTES_SIZE] = bytes.try_into().unwrap();
         // this unwrap can only fail on a corrupted file, so it's ok to panic
-        Some(SWHID::try_from(bytes).unwrap())
+        Ok(SWHID::try_from(bytes).unwrap())
     }
 
     /// Return how many node_ids are in this map

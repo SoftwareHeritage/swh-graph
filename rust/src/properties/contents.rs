@@ -157,10 +157,27 @@ impl<
     /// Returns whether the node is a skipped content
     ///
     /// Non-content objects get a `false` value, like non-skipped contents.
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist.
     #[inline]
-    pub fn is_skipped_content(&self, node_id: NodeId) -> Option<bool> {
+    pub fn is_skipped_content(&self, node_id: NodeId) -> bool {
+        self.try_is_skipped_content(node_id).unwrap_or_else(|()| {
+            panic!(
+                "Cannot get is_skipped_content bit of unknown node id: {}",
+                node_id
+            )
+        })
+    }
+
+    /// Returns whether the node is a skipped content, or `Err` if the node id does not exist
+    ///
+    /// Non-content objects get a `false` value, like non-skipped contents.
+    #[inline]
+    pub fn try_is_skipped_content(&self, node_id: NodeId) -> Result<bool, ()> {
         if node_id >= self.num_nodes {
-            return None;
+            return Err(());
         }
         let cell_id = node_id / (u64::BITS as usize);
         let mask = 1 << (node_id % (u64::BITS as usize));
@@ -169,17 +186,32 @@ impl<
         // self.contents.is_skipped_content() is checked when creating the mmap
         let cell = unsafe { self.contents.is_skipped_content().get_unchecked(cell_id) };
 
-        Some((cell & mask) != 0)
+        Ok((cell & mask) != 0)
     }
 
-    /// Returns the length of the given content None.
+    /// Returns the length of the given content.
     ///
     /// May be `None` for skipped contents
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist.
     #[inline]
     pub fn content_length(&self, node_id: NodeId) -> Option<u64> {
+        self.try_content_length(node_id).unwrap_or_else(|()| {
+            panic!("Cannot get content_length of unknown node id: {}", node_id)
+        })
+    }
+
+    /// Returns the length of the given content, or `Err` if the node id does not exist
+    ///
+    /// May be `Ok(None)` for skipped contents
+    #[inline]
+    pub fn try_content_length(&self, node_id: NodeId) -> Result<Option<u64>, ()> {
         match self.contents.content_length().get(node_id) {
-            Some(u64::MAX) => None,
-            length => length,
+            None => Err(()),            // id does not exist
+            Some(u64::MAX) => Ok(None), // Skipped content with no length
+            Some(length) => Ok(Some(length)),
         }
     }
 }

@@ -38,15 +38,15 @@ fn test_minimal() -> Result<()> {
     assert_eq!(graph.num_nodes(), 3);
     assert_eq!(
         graph.properties().swhid(a),
-        Some(swhid!(swh:1:rev:0000000000000000000000000000000000000010))
+        swhid!(swh:1:rev:0000000000000000000000000000000000000010)
     );
     assert_eq!(
         graph.properties().swhid(b),
-        Some(swhid!(swh:1:rev:0000000000000000000000000000000000000020))
+        swhid!(swh:1:rev:0000000000000000000000000000000000000020)
     );
     assert_eq!(
         graph.properties().swhid(c),
-        Some(swhid!(swh:1:rel:0000000000000000000000000000000000000030))
+        swhid!(swh:1:rel:0000000000000000000000000000000000000030)
     );
     assert_eq!(graph.successors(a).collect::<Vec<_>>(), vec![b, c]);
     assert_eq!(graph.successors(b).collect::<Vec<_>>(), vec![c]);
@@ -105,15 +105,15 @@ fn test_labels() -> Result<()> {
     assert_eq!(graph.num_nodes(), 3);
     assert_eq!(
         graph.properties().swhid(a),
-        Some(swhid!(swh:1:dir:0000000000000000000000000000000000000010))
+        swhid!(swh:1:dir:0000000000000000000000000000000000000010)
     );
     assert_eq!(
         graph.properties().swhid(b),
-        Some(swhid!(swh:1:dir:0000000000000000000000000000000000000020))
+        swhid!(swh:1:dir:0000000000000000000000000000000000000020)
     );
     assert_eq!(
         graph.properties().swhid(c),
-        Some(swhid!(swh:1:cnt:0000000000000000000000000000000000000030))
+        swhid!(swh:1:cnt:0000000000000000000000000000000000000030)
     );
 
     let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
@@ -143,13 +143,10 @@ fn test_labels() -> Result<()> {
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
-            (
-                b,
-                vec![(Some(Permission::Directory), Some(b"tests".into()))]
-            ),
+            (b, vec![(Some(Permission::Directory), b"tests".into())]),
             (
                 c,
-                vec![(Some(Permission::ExecutableContent), Some(b"run.sh".into()))]
+                vec![(Some(Permission::ExecutableContent), b"run.sh".into())]
             ),
         ]
     );
@@ -158,7 +155,7 @@ fn test_labels() -> Result<()> {
             .labelled_successors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
-        vec![(c, vec![(Some(Permission::Content), Some(b"test.c".into()))]),]
+        vec![(c, vec![(Some(Permission::Content), b"test.c".into())]),]
     );
 
     assert_eq!(
@@ -180,10 +177,7 @@ fn test_labels() -> Result<()> {
             .labelled_predecessors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
-        vec![(
-            a,
-            vec![(Some(Permission::Directory), Some(b"tests".into()))]
-        ),]
+        vec![(a, vec![(Some(Permission::Directory), b"tests".into())]),]
     );
     assert_eq!(
         graph
@@ -193,9 +187,9 @@ fn test_labels() -> Result<()> {
         vec![
             (
                 a,
-                vec![(Some(Permission::ExecutableContent), Some(b"run.sh".into()))]
+                vec![(Some(Permission::ExecutableContent), b"run.sh".into())]
             ),
-            (b, vec![(Some(Permission::Content), Some(b"test.c".into()))]),
+            (b, vec![(Some(Permission::Content), b"test.c".into())]),
         ]
     );
 
@@ -249,13 +243,10 @@ fn test_duplicate_labels() -> Result<()> {
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
-            (
-                b,
-                vec![(Some(Permission::Directory), Some(b"tests".into()))]
-            ),
+            (b, vec![(Some(Permission::Directory), b"tests".into())]),
             (
                 c,
-                vec![(Some(Permission::ExecutableContent), Some(b"run.sh".into()))]
+                vec![(Some(Permission::ExecutableContent), b"run.sh".into())]
             ),
         ]
     );
@@ -266,7 +257,7 @@ fn test_duplicate_labels() -> Result<()> {
             .collect::<Vec<_>>(),
         vec![(
             c,
-            vec![(Some(Permission::ExecutableContent), Some(b"run.sh".into()))]
+            vec![(Some(Permission::ExecutableContent), b"run.sh".into())]
         ),]
     );
 
@@ -288,10 +279,10 @@ fn test_contents() -> Result<()> {
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(graph.properties().content_length(a), Some(42));
-    assert_eq!(graph.properties().is_skipped_content(a), Some(false));
+    assert_eq!(graph.properties().is_skipped_content(a), false);
 
     assert_eq!(graph.properties().content_length(b), None);
-    assert_eq!(graph.properties().is_skipped_content(b), Some(true));
+    assert_eq!(graph.properties().is_skipped_content(b), true);
 
     Ok(())
 }

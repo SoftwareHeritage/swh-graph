@@ -71,12 +71,7 @@ where
         if node_is_frontier {
             let mut path = Vec::with_capacity(path_parts.len() * 2 + 1);
             for &part in &path_parts {
-                path.extend(
-                    graph
-                        .properties()
-                        .label_name(part)
-                        .expect("Unknown filename id"),
-                );
+                path.extend(graph.properties().label_name(part));
                 path.push(b'/');
             }
             on_frontier(node, dir_max_timestamp, path)?;
@@ -88,19 +83,15 @@ where
                     continue;
                 }
                 if !visited.contains(succ)
-                    && graph
-                        .properties()
-                        .node_type(succ)
-                        .expect("Missing node type")
-                        == SWHType::Directory
+                    && graph.properties().node_type(succ) == SWHType::Directory
                 {
                     // If the same subdir/file is present in a directory twice under the same name,
                     // pick any name to represent both.
                     let Some(first_label) = labels.into_iter().next() else {
                         bail!(
                             "{} -> {} has no labels",
-                            graph.properties().swhid(node).expect("Missing SWHID"),
-                            graph.properties().swhid(succ).expect("Missing SWHID"),
+                            graph.properties().swhid(node),
+                            graph.properties().swhid(succ),
                         )
                     };
                     stack.push(succ);

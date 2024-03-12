@@ -131,10 +131,7 @@ where
     pl.start("Initializing from contents...");
     let pl = Arc::new(Mutex::new(pl));
     (0..graph.num_nodes()).into_par_iter().for_each(|node| {
-        let node_type = graph
-            .properties()
-            .node_type(node)
-            .expect("missing node type");
+        let node_type = graph.properties().node_type(node);
         if node_type == SWHType::Content {
             set_max_timestamp_to_predecessors(
                 graph,
@@ -173,14 +170,8 @@ where
         pl.light_update();
         let InputRecord { swhid } = record.context("Could not deserialize row")?;
 
-        let node = graph
-            .properties()
-            .node_id_from_string_swhid(&swhid)
-            .with_context(|| format!("Unknown SWHID {}", swhid))?;
-        let node_type = graph
-            .properties()
-            .node_type(node)
-            .expect("Missing node type");
+        let node = graph.properties().node_id_from_string_swhid(&swhid)?;
+        let node_type = graph.properties().node_type(node);
         if node_type == SWHType::Directory {
             set_max_timestamp_to_predecessors(
                 graph,
@@ -208,10 +199,7 @@ fn set_max_timestamp_to_predecessors<G>(
         return;
     }
     for pred in graph.predecessors(node) {
-        let pred_type = graph
-            .properties()
-            .node_type(pred)
-            .expect("Missing node type");
+        let pred_type = graph.properties().node_type(pred);
         if pred_type == SWHType::Directory {
             max_timestamps[pred].fetch_min(timestamp, Ordering::Release);
         }

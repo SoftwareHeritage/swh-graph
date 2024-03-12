@@ -119,12 +119,7 @@ where
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
     let graph = Subgraph::new_with_node_filter(&graph, |node| {
-        node_types.contains(
-            &graph
-                .properties()
-                .node_type(node)
-                .expect("missing node type"),
-        )
+        node_types.contains(&graph.properties().node_type(node))
     });
 
     let mut pl = ProgressLogger::default().display_memory();
@@ -162,10 +157,7 @@ where
         .terminator(csv::Terminator::CRLF)
         .from_writer(io::stdout());
     while let Some(current_node) = ready.pop() {
-        let swhid = graph
-            .properties()
-            .swhid(current_node)
-            .expect("Missing SWHID");
+        let swhid = graph.properties().swhid(current_node);
         let mut num_successors = 0;
         for successor in graph.successors(current_node) {
             pl.light_update();
@@ -188,10 +180,7 @@ where
         let mut sample_ancestors = Vec::new();
         let mut num_ancestors = 0;
         for predecessor in graph.predecessors(current_node) {
-            let predecessor_swhid = graph
-                .properties()
-                .swhid(predecessor)
-                .expect("Missing predecessor SWHID");
+            let predecessor_swhid = graph.properties().swhid(predecessor);
             if sample_ancestors.len() < 2 {
                 sample_ancestors.push(predecessor_swhid.to_string())
             }

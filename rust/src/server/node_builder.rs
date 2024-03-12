@@ -137,16 +137,13 @@ where
                     .into_iter()
                     .map(|(succ, labels)| proto::Successor {
                         swhid: self.if_mask(SUCCESSOR_SWHID, || {
-                            Some(self.graph.properties().swhid(succ)?.to_string())
+                            Some(self.graph.properties().swhid(succ).to_string())
                         }),
                         label: labels
                             .into_iter()
                             .map(|label: crate::labels::DirEntry| proto::EdgeLabel {
                                 name: self.if_mask(SUCCESSOR_LABEL_NAME, || {
-                                    self.graph
-                                        .properties()
-                                        .label_name(label.filename_id())
-                                        .unwrap_or_else(Vec::new)
+                                    self.graph.properties().label_name(label.filename_id())
                                 }),
                                 permission: self.if_mask(SUCCESSOR_LABEL_PERMISSION, || {
                                     label
@@ -165,7 +162,7 @@ where
                     .into_iter()
                     .map(|succ| proto::Successor {
                         swhid: self.if_mask(SUCCESSOR_SWHID, || {
-                            Some(self.graph.properties().swhid(succ)?.to_string())
+                            Some(self.graph.properties().swhid(succ).to_string())
                         }),
                         label: Vec::new(), // Not requested
                     })
@@ -174,12 +171,7 @@ where
         });
         proto::Node {
             // TODO: omit swhid if excluded from field mask
-            swhid: self
-                .graph
-                .properties()
-                .swhid(node_id)
-                .expect("Unknown node id")
-                .to_string(),
+            swhid: self.graph.properties().swhid(node_id).to_string(),
             num_successors: self.if_mask(NUM_SUCCESSORS, || {
                 Some(
                     if self.bitmask & SUCCESSOR != 0 {
@@ -193,20 +185,13 @@ where
                 )
             }),
             successor: successors,
-            data: self.if_mask(DATA, || {
-                match self
-                    .graph
-                    .properties()
-                    .node_type(node_id)
-                    .expect("Unknown node id")
-                {
-                    SWHType::Content => Some(self.build_content_data(node_id)),
-                    SWHType::Directory => None,
-                    SWHType::Revision => Some(self.build_revision_data(node_id)),
-                    SWHType::Release => Some(self.build_release_data(node_id)),
-                    SWHType::Snapshot => None,
-                    SWHType::Origin => Some(self.build_origin_data(node_id)),
-                }
+            data: self.if_mask(DATA, || match self.graph.properties().node_type(node_id) {
+                SWHType::Content => Some(self.build_content_data(node_id)),
+                SWHType::Directory => None,
+                SWHType::Revision => Some(self.build_revision_data(node_id)),
+                SWHType::Release => Some(self.build_release_data(node_id)),
+                SWHType::Snapshot => None,
+                SWHType::Origin => Some(self.build_origin_data(node_id)),
             }),
         }
     }
@@ -222,7 +207,9 @@ where
                         .expect("Content length overflowed i64"),
                 )
             }),
-            is_skipped: self.if_mask(CNT_IS_SKIPPED, || properties.is_skipped_content(node_id)),
+            is_skipped: self.if_mask(CNT_IS_SKIPPED, || {
+                Some(properties.is_skipped_content(node_id))
+            }),
         })
     }
 

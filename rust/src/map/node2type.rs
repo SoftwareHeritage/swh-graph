@@ -28,8 +28,8 @@ impl<B: AsRef<[usize]>> Node2Type<B> {
 
     #[inline]
     /// Get the type of a node with id `node_id`
-    pub fn get(&self, node_id: usize) -> Option<SWHType> {
-        SWHType::try_from(self.data.get(node_id) as u8).ok()
+    pub fn get(&self, node_id: usize) -> Result<SWHType, ()> {
+        SWHType::try_from(self.data.get(node_id) as u8).map_err(|_| ())
     }
 }
 

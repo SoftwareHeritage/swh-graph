@@ -123,24 +123,59 @@ impl<
         LABELNAMES: LabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
-    /// Returns the file name (resp. branch name) of a label on an arc from a directory
-    /// (resp. snapshot), base64-encoded.
+    /// Returns the base64-encoded name of an arc label
+    ///
+    /// This is the file name (resp. branch name) of a label on an arc from a directory
+    /// (resp. snapshot)
+    ///
+    /// # Panics
+    ///
+    /// If `filename_id` does not exist
     #[inline]
-    pub fn label_name_base64(&self, filename_id: FilenameId) -> Option<Vec<u8>> {
-        self.label_names.label_names().get(
-            filename_id
-                .0
-                .try_into()
-                .expect("filename_id^overflowed usize"),
-        )
+    pub fn label_name_base64(&self, filename_id: FilenameId) -> Vec<u8> {
+        self.try_label_name_base64(filename_id)
+            .unwrap_or_else(|()| panic!("Cannot get name of unknown {:?}", filename_id))
     }
 
-    /// Returns the file name (resp. branch name) of a label on an arc from a directory
-    /// (resp. snapshot).
+    /// Returns the base64-encoded name of an arc label
+    ///
+    /// This is the file name (resp. branch name) of a label on an arc from a directory
+    /// (resp. snapshot)
     #[inline]
-    pub fn label_name(&self, filename_id: FilenameId) -> Option<Vec<u8>> {
+    pub fn try_label_name_base64(&self, filename_id: FilenameId) -> Result<Vec<u8>, ()> {
+        self.label_names
+            .label_names()
+            .get(
+                filename_id
+                    .0
+                    .try_into()
+                    .expect("filename_id^overflowed usize"),
+            )
+            .ok_or(())
+    }
+
+    /// Returns the name of an arc label
+    ///
+    /// This is the file name (resp. branch name) of a label on an arc from a directory
+    /// (resp. snapshot)
+    ///
+    /// # Panics
+    ///
+    /// If `filename_id` does not exist
+    #[inline]
+    pub fn label_name(&self, filename_id: FilenameId) -> Vec<u8> {
+        self.try_label_name(filename_id)
+            .unwrap_or_else(|()| panic!("Cannot get name of unknown {:?}", filename_id))
+    }
+
+    /// Returns the name of an arc label
+    ///
+    /// This is the file name (resp. branch name) of a label on an arc from a directory
+    /// (resp. snapshot)
+    #[inline]
+    pub fn try_label_name(&self, filename_id: FilenameId) -> Result<Vec<u8>, ()> {
         let base64 = base64_simd::STANDARD;
-        self.label_name_base64(filename_id).map(|name| {
+        self.try_label_name_base64(filename_id).map(|name| {
             base64.decode_to_vec(name).unwrap_or_else(|name| {
                 panic!(
                     "Could not decode filename of id {}: {:?}",

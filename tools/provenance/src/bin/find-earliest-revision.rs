@@ -79,20 +79,14 @@ pub fn main() -> Result<()> {
         .try_for_each(|record| {
             let InputRecord { swhid } = record.context("Could not deserialize input")?;
 
-            let node = graph
-                .properties()
-                .node_id_from_string_swhid(&swhid)
-                .with_context(|| format!("Unknown SWHID: {}", swhid))?;
+            let node = graph.properties().node_id_from_string_swhid(&swhid)?;
             match find_earliest_revision(&graph, node) {
                 Some(EarliestRevision {
                     node: earliest_rev_id,
                     ts: earliest_ts,
                     rev_occurrences,
                 }) => {
-                    let earliest_swhid =
-                        graph.properties().swhid(earliest_rev_id).with_context(|| {
-                            format!("missing SWHID for earliest rev {}", earliest_rev_id)
-                        })?;
+                    let earliest_swhid = graph.properties().swhid(earliest_rev_id);
                     let record = OutputRecord {
                         swhid,
                         earliest_swhid,

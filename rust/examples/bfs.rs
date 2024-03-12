@@ -70,7 +70,7 @@ pub fn main() -> Result<()> {
     // https://archive.softwareheritage.org/api/1/graph/visit/nodes/swh:1:snp:fffe49ca41c0a9d777cdeb6640922422dc379b33/
     // It consists of 344 nodes.
     while let Some(current_node) = queue.pop_front() {
-        let visited_swhid = graph.properties().swhid(current_node).unwrap();
+        let visited_swhid = graph.properties().swhid(current_node);
         debug!("{visited_swhid}");
         visited_nodes += 1;
         for succ in graph.successors(current_node) {
