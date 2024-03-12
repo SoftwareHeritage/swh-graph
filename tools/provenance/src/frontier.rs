@@ -48,7 +48,7 @@ where
         visited.insert(node);
 
         let mut path_parts = Vec::new();
-        for &filename_id in path_stack.iter().rev() {
+        while let Some(filename_id) = path_stack.pop() {
             if filename_id == PATH_SEPARATOR {
                 break;
             }
