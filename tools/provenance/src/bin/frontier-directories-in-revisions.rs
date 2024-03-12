@@ -3,6 +3,8 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+#![allow(non_snake_case)]
+
 use std::cell::RefCell;
 use std::io::Write;
 use std::path::PathBuf;
@@ -44,13 +46,11 @@ struct Args {
     directories_out: PathBuf,
 }
 
-#[allow(non_snake_case)]
 #[derive(Debug, Deserialize)]
 struct InputRecord {
-    frontier_dir_SWHID: SWHID,
+    frontier_dir_SWHID: String,
 }
 
-#[allow(non_snake_case)]
 #[derive(Debug, Serialize)]
 struct OutputRecord {
     max_author_date: i64,
@@ -124,6 +124,11 @@ where
         .try_for_each(|record| -> Result<()> {
             let InputRecord { frontier_dir_SWHID } =
                 record.context("Could not deserialize input row")?;
+            // Deserialize the SWHID manually here rather than through serde so that
+            // parsing the SWHID does not occur while holding the lock on the CSV reader.
+            // This doubles throughput of this function.
+            let frontier_dir_SWHID =
+                SWHID::try_from(frontier_dir_SWHID.as_str()).context("Could not parse SWHID")?;
             let node_id = graph
                 .properties()
                 .node_id(frontier_dir_SWHID)

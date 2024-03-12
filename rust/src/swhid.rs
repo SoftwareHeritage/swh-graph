@@ -83,25 +83,25 @@ impl TryFrom<[u8; SWHID::BYTES_SIZE]> for SWHID {
 }
 
 #[derive(Error, Debug)]
-pub enum StrSWHIDDeserializationError<'a> {
+pub enum StrSWHIDDeserializationError {
     #[error("Invalid syntax: {0}")]
     Syntax(&'static str),
     #[error("Unsupported SWHID namespace: {0}")]
-    Namespace(&'a str),
+    Namespace(String),
     #[error("Unsupported SWHID version: {0}")]
-    Version(&'a str),
+    Version(String),
     #[error("Expected hash length to be {expected}, got {got}")]
     HashLength { expected: usize, got: usize },
     #[error("Invalid SWHID type: {0}")]
-    Type(&'a str),
+    Type(String),
     #[error("SWHID hash is not hexadecimal: {0}")]
-    HashAlphabet(&'a str),
+    HashAlphabet(String),
 }
 
 /// Parse a SWHID from the string representation
-impl<'a> TryFrom<&'a str> for SWHID {
-    type Error = StrSWHIDDeserializationError<'a>;
-    fn try_from(value: &'a str) -> std::result::Result<Self, Self::Error> {
+impl TryFrom<&str> for SWHID {
+    type Error = StrSWHIDDeserializationError;
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
         use StrSWHIDDeserializationError::*;
 
         let mut tokens = value.splitn(4, ':');
@@ -109,13 +109,13 @@ impl<'a> TryFrom<&'a str> for SWHID {
             return Err(Syntax("SWHID is empty"));
         };
         if namespace != "swh" {
-            return Err(Namespace(namespace));
+            return Err(Namespace(namespace.to_string()));
         }
         let Some(namespace_version) = tokens.next() else {
             return Err(Syntax("SWHID is too short (no namespace version)"));
         };
         if namespace_version != "1" {
-            return Err(Version(namespace_version));
+            return Err(Version(namespace_version.to_string()));
         }
         let Some(node_type) = tokens.next() else {
             return Err(Syntax("SWHID is too short (no object type)"));
@@ -129,10 +129,10 @@ impl<'a> TryFrom<&'a str> for SWHID {
                 got: hex_hash.len(),
             });
         }
-        let node_type = SWHType::try_from(node_type).map_err(Type)?;
+        let node_type = SWHType::try_from(node_type).map_err(|e| Type(e.to_string()))?;
         let mut hash = [0u8; 20];
         faster_hex::hex_decode(hex_hash.as_bytes(), &mut hash)
-            .map_err(|_| HashAlphabet(hex_hash))?;
+            .map_err(|_| HashAlphabet(hex_hash.to_string()))?;
         Ok(Self {
             namespace_version: 1,
             node_type,
@@ -167,10 +167,7 @@ impl<'de> serde::Deserialize<'de> for SWHID {
         deserializer: D,
     ) -> std::result::Result<Self, D::Error> {
         use serde::de::Error;
-        <&str>::deserialize(deserializer).and_then(|s| {
-            s.try_into()
-                .map_err(|e: StrSWHIDDeserializationError<'_>| D::Error::custom(e.to_string()))
-        })
+        <&str>::deserialize(deserializer).and_then(|s| s.try_into().map_err(D::Error::custom))
     }
 }
 
