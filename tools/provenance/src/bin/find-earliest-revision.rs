@@ -29,12 +29,12 @@ struct Args {
 
 #[derive(Debug, Deserialize)]
 struct InputRecord {
-    swhid: SWHID,
+    swhid: String,
 }
 
 #[derive(Debug, Serialize)]
 struct OutputRecord {
-    swhid: SWHID,
+    swhid: String,
     earliest_swhid: SWHID,
     earliest_ts: i64,
     rev_occurrences: u64,
@@ -81,7 +81,7 @@ pub fn main() -> Result<()> {
 
             let node = graph
                 .properties()
-                .node_id(swhid)
+                .node_id_from_string_swhid(&swhid)
                 .with_context(|| format!("Unknown SWHID: {}", swhid))?;
             match find_earliest_revision(&graph, node) {
                 Some(EarliestRevision {

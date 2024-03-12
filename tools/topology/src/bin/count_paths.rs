@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::views::Transposed;
-use swh_graph::SWHID;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Direction {
@@ -44,13 +43,13 @@ struct Args {
 #[derive(Debug, Deserialize)]
 struct InputRecord {
     #[serde(rename = "SWHID")]
-    swhid: SWHID,
+    swhid: String,
 }
 
 #[derive(Debug, Serialize)]
 struct OutputRecord {
     #[serde(rename = "SWHID")]
-    swhid: SWHID,
+    swhid: String,
     paths_from_roots: f64,
     all_paths: f64,
 }
@@ -117,7 +116,7 @@ where
         // Print counts for this nodes
         writer
             .serialize(OutputRecord {
-                swhid,
+                swhid: swhid.clone(),
                 paths_from_roots,
                 all_paths,
             })
@@ -159,7 +158,7 @@ where
 ///             record.with_context(|| format!("Could not deserialize record"))?;
 ///         let node = graph
 ///             .properties()
-///             .node_id(swhid)
+///             .node_id_from_string_swhid(swhid)
 ///             .with_context(|| format!("Unknown SWHID: {}", swhid))?;
 ///
 ///         tx.send((swhid, node))
@@ -173,7 +172,7 @@ where
 /// graph on a ZSTD-compressed ZFS.
 fn queue_nodes<G>(
     graph: G,
-    tx: std::sync::mpsc::SyncSender<(SWHID, NodeId)>,
+    tx: std::sync::mpsc::SyncSender<(String, NodeId)>,
     batch_size: usize,
 ) -> std::thread::JoinHandle<Result<()>>
 where
@@ -200,7 +199,7 @@ where
 
                         let node = graph
                             .properties()
-                            .node_id(swhid)
+                            .node_id_from_string_swhid(&swhid)
                             .with_context(|| format!("Unknown SWHID: {}", swhid))?;
                         Ok((swhid, node))
                     })

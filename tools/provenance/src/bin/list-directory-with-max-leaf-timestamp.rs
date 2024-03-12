@@ -19,7 +19,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
-use swh_graph::{SWHType, SWHID};
+use swh_graph::SWHType;
 
 #[derive(Parser, Debug)]
 /** Given as argument a binary file containing an array of timestamps which is,
@@ -48,7 +48,7 @@ struct Args {
 #[derive(Debug, Deserialize)]
 struct InputRecord {
     #[serde(rename = "SWHID")]
-    swhid: SWHID,
+    swhid: String,
 }
 
 pub fn main() -> Result<()> {
@@ -175,7 +175,7 @@ where
 
         let node = graph
             .properties()
-            .node_id(swhid)
+            .node_id_from_string_swhid(&swhid)
             .with_context(|| format!("Unknown SWHID {}", swhid))?;
         let node_type = graph
             .properties()

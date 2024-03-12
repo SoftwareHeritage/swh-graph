@@ -36,13 +36,13 @@ struct Args {
 struct InputRecord {
     author_date: String,
     #[serde(rename = "SWHID")]
-    swhid: SWHID,
+    swhid: String,
 }
 
 #[derive(Debug, Serialize)]
 struct OutputRecord<'a> {
     author_date: &'a str,
-    revrel_SWHID: SWHID,
+    revrel_SWHID: &'a str,
     cntdir_SWHID: SWHID,
 }
 
@@ -139,7 +139,7 @@ fn visit_from_node<'a, G>(
     timestamps: &'a mut [i64],
     author_date: &str,
     timestamp: i64,
-    revrel_SWHID: SWHID,
+    revrel_SWHID: String,
 ) -> Result<()>
 where
     G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
@@ -147,7 +147,7 @@ where
 {
     let node = graph
         .properties()
-        .node_id(revrel_SWHID)
+        .node_id_from_string_swhid(&revrel_SWHID)
         .with_context(|| format!("unknown SWHID {}", revrel_SWHID))?;
     let node_type = graph
         .properties()
@@ -204,7 +204,7 @@ where
             stack.push(succ);
             writer.serialize(OutputRecord {
                 author_date,
-                revrel_SWHID,
+                revrel_SWHID: revrel_SWHID.as_ref(),
                 cntdir_SWHID: graph.properties().swhid(succ).expect("missing SWHID"),
             })?
         }

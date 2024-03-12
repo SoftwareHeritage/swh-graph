@@ -206,6 +206,22 @@ impl<
         }
     }
 
+    /// Specialized version of `node_id` when the SWHID is a string
+    ///
+    /// Under the hood, when using [`GOVMPH`](crate::java_compat::mph::gov::GOVMPH),
+    /// `node_id` serializes the SWHID to a string, which can be bottleneck.
+    /// This function skips the serialization by working directly on the string.
+    #[inline]
+    pub fn node_id_from_string_swhid<T: AsRef<str>>(&self, swhid: T) -> Option<NodeId> {
+        let swhid = swhid.as_ref();
+        let node_id = self.maps.order().get(self.maps.mphf().hash_str(swhid)?)?;
+        if self.maps.node2swhid().get(node_id)? == SWHID::try_from(swhid).ok()?.into() {
+            Some(node_id)
+        } else {
+            None
+        }
+    }
+
     /// Returns the SWHID of a given node
     #[inline]
     pub fn swhid(&self, node_id: NodeId) -> Option<SWHID> {

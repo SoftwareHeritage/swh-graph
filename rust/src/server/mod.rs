@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -16,6 +16,7 @@ use tonic::{Request, Response};
 use crate::graph::{SwhGraphWithProperties, SwhLabelledBackwardGraph, SwhLabelledForwardGraph};
 use crate::utils::suffix_path;
 use crate::views::Subgraph;
+use crate::SWHID;
 
 pub mod proto {
     tonic::include_proto!("swh.graph");
@@ -81,13 +82,16 @@ impl<
     where
         <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
     {
-        let swhid: crate::SWHID = swhid
-            .try_into()
-            .map_err(|e| tonic::Status::invalid_argument(format!("Invalid SWHID: {e}")))?;
         self.0
             .properties()
-            .node_id(swhid)
-            .ok_or_else(|| tonic::Status::not_found(format!("Unknown SWHID: {swhid}")))
+            .node_id_from_string_swhid(swhid)
+            .ok_or_else(|| {
+                if let Err(e) = SWHID::try_from(swhid) {
+                    tonic::Status::invalid_argument(format!("Invalid SWHID: {e}"))
+                } else {
+                    tonic::Status::not_found(format!("Unknown SWHID: {swhid}"))
+                }
+            })
     }
 
     #[inline(always)]

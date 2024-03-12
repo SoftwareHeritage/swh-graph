@@ -124,14 +124,9 @@ where
         .try_for_each(|record| -> Result<()> {
             let InputRecord { frontier_dir_SWHID } =
                 record.context("Could not deserialize input row")?;
-            // Deserialize the SWHID manually here rather than through serde so that
-            // parsing the SWHID does not occur while holding the lock on the CSV reader.
-            // This doubles throughput of this function.
-            let frontier_dir_SWHID =
-                SWHID::try_from(frontier_dir_SWHID.as_str()).context("Could not parse SWHID")?;
             let node_id = graph
                 .properties()
-                .node_id(frontier_dir_SWHID)
+                .node_id_from_string_swhid(frontier_dir_SWHID)
                 .expect("Missing SWHID");
             if node_id % 32768 == 0 {
                 pl.lock().unwrap().update_with_count(32768);
