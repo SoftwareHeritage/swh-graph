@@ -12,6 +12,7 @@ use anyhow::{anyhow, Context, Result};
 use crate::SWHType;
 
 pub mod mmap;
+pub mod shuffle;
 pub mod sort;
 
 pub fn dir_size(path: &Path) -> Result<usize> {

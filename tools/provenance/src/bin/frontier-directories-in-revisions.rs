@@ -13,7 +13,6 @@ use std::sync::{Arc, Mutex};
 use anyhow::{Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
-use rand::prelude::*;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sux::bits::bit_vec::{AtomicBitVec, BitVec};
@@ -163,50 +162,36 @@ where
     // Reuse writers across work batches, or we end up with millions of very small files
     let writers = thread_local::ThreadLocal::new();
 
-    let num_chunks = 100_000; // Arbitrary value
-    let chunk_size = graph.num_nodes().div_ceil(num_chunks);
-    let mut chunks: Vec<usize> = (0..num_chunks).collect();
-
-    // Make workload homogeneous over time; otherwise all threads will process large
-    // directory tries at the same time and run out of memory.
-    chunks.shuffle(&mut rand::thread_rng());
-
-    chunks
-        .into_par_iter()
-        // Lazily rebuild the list of nodes from the shuffled chunks
-        .flat_map(|chunk_id| {
-            (chunk_id * chunk_size)..usize::min((chunk_id + 1) * chunk_size, graph.num_nodes() - 1)
-        })
-        .try_for_each_init(
-            || {
-                writers
-                    .get_or(|| output_dataset.get_new_writer().unwrap())
-                    .borrow_mut()
-            },
-            |writer, node| -> Result<()> {
-                if swh_graph_provenance::filters::is_head(graph, node) {
-                    if let Some(root_dir) =
-                        swh_graph::algos::get_root_directory_from_revision_or_release(graph, node)
-                            .context("Could not pick root directory")?
-                    {
-                        find_frontiers_in_root_directory(
-                            graph,
-                            max_timestamps,
-                            frontier_directories,
-                            writer,
-                            node,
-                            root_dir,
-                        )?;
-                    }
+    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
+        || {
+            writers
+                .get_or(|| output_dataset.get_new_writer().unwrap())
+                .borrow_mut()
+        },
+        |writer, node| -> Result<()> {
+            if swh_graph_provenance::filters::is_head(graph, node) {
+                if let Some(root_dir) =
+                    swh_graph::algos::get_root_directory_from_revision_or_release(graph, node)
+                        .context("Could not pick root directory")?
+                {
+                    find_frontiers_in_root_directory(
+                        graph,
+                        max_timestamps,
+                        frontier_directories,
+                        writer,
+                        node,
+                        root_dir,
+                    )?;
                 }
+            }
 
-                if node % 32768 == 0 {
-                    pl.lock().unwrap().update_with_count(32768);
-                }
+            if node % 32768 == 0 {
+                pl.lock().unwrap().update_with_count(32768);
+            }
 
-                Ok(())
-            },
-        )?;
+            Ok(())
+        },
+    )?;
 
     pl.lock().unwrap().done();
 
