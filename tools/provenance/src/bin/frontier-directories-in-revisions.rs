@@ -22,7 +22,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
-use swh_graph::{SWHType, SWHID};
+use swh_graph::SWHID;
 
 use swh_graph_provenance::csv_dataset::CsvZstDataset;
 
@@ -184,37 +184,20 @@ where
                     .borrow_mut()
             },
             |writer, node| -> Result<()> {
-                let node_type = graph.properties().node_type(node);
-
-                match node_type {
-                    SWHType::Revision => {
-                        // Allow revisions only if they are a "snapshot head" (ie. one of their
-                        // predecessors is a release or a snapshot)
-                        if !graph.predecessors(node).into_iter().any(|pred| {
-                            let pred_type = graph.properties().node_type(pred);
-                            pred_type == SWHType::Snapshot || pred_type == SWHType::Release
-                        }) {
-                            if node % 32768 == 0 {
-                                pl.lock().unwrap().update_with_count(32768);
-                            }
-                            return Ok(());
-                        }
+                if swh_graph_provenance::filters::is_head(graph, node) {
+                    if let Some(root_dir) =
+                        swh_graph::algos::get_root_directory_from_revision_or_release(graph, node)
+                            .context("Could not pick root directory")?
+                    {
+                        find_frontiers_in_root_directory(
+                            graph,
+                            max_timestamps,
+                            frontier_directories,
+                            writer,
+                            node,
+                            root_dir,
+                        )?;
                     }
-                    _ => (),
-                }
-
-                if let Some(root_dir) =
-                    swh_graph::algos::get_root_directory_from_revision_or_release(graph, node)
-                        .context("Could not pick root directory")?
-                {
-                    find_frontiers_in_root_directory(
-                        graph,
-                        max_timestamps,
-                        frontier_directories,
-                        writer,
-                        node,
-                        root_dir,
-                    )?;
                 }
 
                 if node % 32768 == 0 {
