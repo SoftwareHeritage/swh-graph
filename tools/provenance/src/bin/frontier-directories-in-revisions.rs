@@ -5,10 +5,9 @@
 
 #![allow(non_snake_case)]
 
-use std::cell::RefCell;
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
@@ -24,6 +23,8 @@ use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
 use swh_graph::{SWHType, SWHID};
+
+use swh_graph_provenance::csv_dataset::CsvZstDataset;
 
 #[derive(Parser, Debug)]
 /** Given as input a binary file with, for each directory, the newest date of first
@@ -90,14 +91,13 @@ pub fn main() -> Result<()> {
 
     let frontier_directories = read_frontier_directories(&graph)?;
 
-    std::fs::create_dir_all(&args.directories_out)
-        .with_context(|| format!("Could not create {}", args.directories_out.display()))?;
+    let output_dataset = CsvZstDataset::new(args.directories_out)?;
 
     write_frontier_directories_in_revisions(
         &graph,
         &max_timestamps,
         &frontier_directories,
-        args.directories_out,
+        output_dataset,
     )
 }
 
@@ -144,7 +144,7 @@ fn write_frontier_directories_in_revisions<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64> + Sync + Copy,
     frontier_directories: &BitVec,
-    output_dir: PathBuf,
+    output_dataset: CsvZstDataset,
 ) -> Result<()>
 where
     G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
@@ -159,8 +159,6 @@ where
     pl.expected_updates(Some(graph.num_nodes()));
     pl.start("Visiting revisions' directories...");
     let pl = Arc::new(Mutex::new(pl));
-
-    let worker_id = AtomicU64::new(0);
 
     // Reuse writers across work batches, or we end up with millions of very small files
     let writers = thread_local::ThreadLocal::new();
@@ -182,29 +180,7 @@ where
         .try_for_each_init(
             || {
                 writers
-                    .get_or(|| {
-                        let path = output_dir.join(format!(
-                            "{}.csv.zst",
-                            worker_id.fetch_add(1, Ordering::Relaxed)
-                        ));
-                        let file = std::fs::File::create(&path)
-                            .with_context(|| format!("Could not create {}", path.display()))
-                            .unwrap();
-                        let compression_level = 3;
-                        let zstd_encoder =
-                            zstd::stream::write::Encoder::new(file, compression_level)
-                                .with_context(|| {
-                                    format!("Could not create ZSTD encoder for {}", path.display())
-                                })
-                                .unwrap()
-                                .auto_finish();
-                        RefCell::new(
-                            csv::WriterBuilder::new()
-                                .has_headers(true)
-                                .terminator(csv::Terminator::CRLF)
-                                .from_writer(zstd_encoder),
-                        )
-                    })
+                    .get_or(|| output_dataset.get_new_writer().unwrap())
                     .borrow_mut()
             },
             |writer, node| -> Result<()> {
