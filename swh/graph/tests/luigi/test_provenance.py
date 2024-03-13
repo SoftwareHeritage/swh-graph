@@ -146,7 +146,9 @@ if HEADS_ONLY:
     CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS = """\
 cnt_SWHID,rev_author_date,rev_SWHID,path
 swh:1:cnt:0000000000000000000000000000000000000001,2005-03-18T11:14:00Z,swh:1:rev:0000000000000000000000000000000000000009,README.md
+swh:1:cnt:0000000000000000000000000000000000000001,2009-02-13T23:31:30Z,swh:1:rel:0000000000000000000000000000000000000010,README.md
 swh:1:cnt:0000000000000000000000000000000000000007,2005-03-18T11:14:00Z,swh:1:rev:0000000000000000000000000000000000000009,parser.c
+swh:1:cnt:0000000000000000000000000000000000000007,2009-02-13T23:31:30Z,swh:1:rel:0000000000000000000000000000000000000010,parser.c
 swh:1:cnt:0000000000000000000000000000000000000014,2005-03-18T20:29:30Z,swh:1:rev:0000000000000000000000000000000000000018,TODO.txt
 swh:1:cnt:0000000000000000000000000000000000000015,2005-03-18T20:29:30Z,swh:1:rev:0000000000000000000000000000000000000018,old/TODO.txt
 """.replace(
@@ -397,7 +399,6 @@ def test_listfrontierdirectoriesinrevisions(tmpdir):
     ):
         csv_text = subprocess.check_output(["zstdcat", file]).decode()
         if csv_text:
-            print(repr(csv_text))
             (header, *rows, trailing) = csv_text.split("\r\n")
             assert header == expected_header
             all_rows.extend(rows)
@@ -460,16 +461,25 @@ def test_listcontentsinrevisionswithoutfrontier(tmpdir):
 
     task.run()
 
-    csv_text = subprocess.check_output(
-        ["zstdcat", provenance_dir / "contents_in_revisions_without_frontiers.csv.zst"]
-    ).decode()
+    (
+        expected_header,
+        *expected_rows,
+        trailing,
+    ) = CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS.split("\r\n")
+    assert trailing == ""
 
-    (header, *rows) = csv_text.split("\r\n")
-    (expected_header, *expected_rows) = CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS.split(
-        "\r\n"
-    )
-    assert header == expected_header
-    assert sorted(rows) == sorted(expected_rows)
+    all_rows = []
+    for file in (provenance_dir / "contents_in_revisions_without_frontiers").glob(
+        "*.csv.zst"
+    ):
+        csv_text = subprocess.check_output(["zstdcat", file]).decode()
+        if csv_text:
+            (header, *rows, trailing) = csv_text.split("\r\n")
+            assert header == expected_header
+            all_rows.extend(rows)
+            assert trailing == ""
+
+    assert sorted(all_rows) == sorted(expected_rows)
 
 
 def test_listcontentsindirectories(tmpdir):

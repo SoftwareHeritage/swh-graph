@@ -696,32 +696,27 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
         }
 
     def _output_path(self) -> Path:
-        return self.provenance_dir / "contents_in_revisions_without_frontiers.csv.zst"
+        return self.provenance_dir / "contents_in_revisions_without_frontiers"
 
     def output(self) -> luigi.LocalTarget:
-        """Returns {provenance_dir}/directory_frontier.csv.zst"""
+        """Returns {provenance_dir}/contents_in_revisions_without_frontiers"""
         return luigi.LocalTarget(self._output_path())
 
     def run(self) -> None:
-        """Runs ``org.softwareheritage.graph.utils.ListContentsInRevisionsWithoutFrontier``"""
-        from ..shell import AtomicFileSink, Command, Java
-
-        class_name = (
-            "org.softwareheritage.graph.utils.ListContentsInRevisionsWithoutFrontier"
-        )
+        """Runs ``contents-in-revisions-without-frontier`` from ``tools/provenance``"""
+        from ..shell import Command, Rust
 
         # fmt: off
         (
             Command.pv(self.input()["frontier"])
             | Command.zstdcat()
-            | Java(
-                class_name,
+            | Rust(
+                "contents-in-revisions-without-frontier",
+                "-vv",
                 self.local_graph_path / self.graph_name,
-                str(self.batch_size),
-                max_ram=self._max_ram(),
+                "--contents-out",
+                self.output(),
             )
-            | Command.zstdmt("-10")
-            > AtomicFileSink(self._output_path())
         ).run()
         # fmt: on
 

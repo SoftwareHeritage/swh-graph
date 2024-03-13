@@ -7,3 +7,4 @@ pub mod csv_dataset;
 pub mod earliest_revision;
 pub mod filters;
 pub mod frontier;
+pub mod frontier_set;

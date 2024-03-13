@@ -31,8 +31,8 @@ use swh_graph_provenance::csv_dataset::CsvZstDataset;
  * max_{for all content} (min_{for all occurrence of content} occurrence).
  * and as stdin a CSV with header "frontier_dir_SWHID" containing a single column
  * with frontier directories.
- * Produces the "provenance frontier", as defined in
- * https://gitlab.softwareheritage.org/swh/devel/swh-provenance/-/blob/ae09086a3bd45c7edbc22691945b9d61200ec3c2/swh/provenance/algos/revision.py#L210
+ * Produces the line of frontier directories (relative to any revision) present in
+ * each revision.
  */
 struct Args {
     graph_path: PathBuf,
@@ -236,12 +236,12 @@ where
             .context("Could not write record")
     };
 
-    swh_graph_provenance::frontier::find_frontiers_in_root_directory(
+    swh_graph_provenance::frontier::find_frontiers_from_root_directory(
         graph,
         max_timestamps,
         is_frontier,
         on_frontier,
-        true, // Recurse through frontiers
+        /* recurse_through_frontiers: */ true,
         root_dir_id,
     )
 }

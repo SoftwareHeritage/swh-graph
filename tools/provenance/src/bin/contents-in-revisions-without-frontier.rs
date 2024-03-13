@@ -3,6 +3,8 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+#![allow(non_snake_case)]
+
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -12,39 +14,33 @@ use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use rayon::prelude::*;
 use serde::Serialize;
+use sux::bits::bit_vec::BitVec;
 
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::utils::mmap::NumberMmap;
-use swh_graph::utils::GetIndex;
-use swh_graph::{SWHType, SWHID};
+use swh_graph::SWHID;
 
 use swh_graph_provenance::csv_dataset::CsvZstDataset;
+use swh_graph_provenance::frontier::PathParts;
 
 #[derive(Parser, Debug)]
-/** Given as input a binary file with, for each directory, the newest date of first
- * occurrence of any of the content in its subtree (well, DAG), ie.,
- * max_{for all content} (min_{for all occurrence of content} occurrence).
- * Produces the "provenance frontier", as defined in
- * https://gitlab.softwareheritage.org/swh/devel/swh-provenance/-/blob/ae09086a3bd45c7edbc22691945b9d61200ec3c2/swh/provenance/algos/revision.py#L210
+/** Given as stdin a CSV with header "frontier_dir_SWHID" containing a single column
+ * with frontier directories.
+ * Produces the line of contents reachable from each revision, without any going through
+ * any directory that is a frontier (relative to any revision).
  */
 struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
     #[arg(long)]
-    /// Path to read the array of max timestamps from
-    max_timestamps: PathBuf,
-    #[arg(long)]
     /// Path to a directory where to write .csv.zst results to
-    directories_out: PathBuf,
+    contents_out: PathBuf,
 }
 
-#[allow(non_snake_case)]
 #[derive(Debug, Serialize)]
 struct OutputRecord {
-    max_author_date: i64,
-    frontier_dir_SWHID: SWHID,
+    cnt_SWHID: SWHID,
     rev_author_date: chrono::DateTime<chrono::Utc>,
     rev_SWHID: SWHID,
     #[serde(with = "serde_bytes")] // Serialize a bytestring instead of list of ints
@@ -74,18 +70,17 @@ pub fn main() -> Result<()> {
         .context("Could not load timestamps")?;
     log::info!("Graph loaded.");
 
-    let max_timestamps =
-        NumberMmap::<byteorder::BE, i64, _>::new(&args.max_timestamps, graph.num_nodes())
-            .with_context(|| format!("Could not mmap {}", args.max_timestamps.display()))?;
+    let frontier_directories =
+        swh_graph_provenance::frontier_set::frontier_directories_from_stdin(&graph)?;
 
-    let output_dataset = CsvZstDataset::new(args.directories_out)?;
+    let output_dataset = CsvZstDataset::new(args.contents_out)?;
 
-    find_frontiers(&graph, &max_timestamps, output_dataset)
+    write_contents_in_revisions(&graph, &frontier_directories, output_dataset)
 }
 
-fn find_frontiers<G>(
+fn write_contents_in_revisions<G>(
     graph: &G,
-    max_timestamps: impl GetIndex<Output = i64> + Sync + Copy,
+    frontier_directories: &BitVec,
     output_dataset: CsvZstDataset,
 ) -> Result<()>
 where
@@ -117,9 +112,9 @@ where
                     swh_graph::algos::get_root_directory_from_revision_or_release(graph, node)
                         .context("Could not pick root directory")?
                 {
-                    find_frontiers_in_root_directory(
+                    find_contents_in_root_directory(
                         graph,
-                        max_timestamps,
+                        frontier_directories,
                         writer,
                         node,
                         root_dir,
@@ -142,9 +137,9 @@ where
     Ok(())
 }
 
-fn find_frontiers_in_root_directory<G, W: Write>(
+fn find_contents_in_root_directory<G, W: Write>(
     graph: &G,
-    max_timestamps: impl GetIndex<Output = i64>,
+    frontier_directories: &BitVec,
     writer: &mut csv::Writer<W>,
     revrel_id: NodeId,
     root_dir_id: NodeId,
@@ -163,49 +158,20 @@ where
 
     let revrel_swhid = graph.properties().swhid(revrel_id);
 
-    let is_frontier = |dir: NodeId, dir_max_timestamp: i64| {
-        if dir == root_dir_id {
-            // The root directory itself cannot be a frontier
-            return false;
-        }
-
-        // Detect if a node is a frontier according to
-        // https://gitlab.softwareheritage.org/swh/devel/swh-provenance/-/blob/ae09086a3bd45c7edbc22691945b9d61200ec3c2/swh/provenance/algos/revision.py#L210
-        if dir_max_timestamp < revrel_timestamp {
-            // All content is earlier than revision
-
-            // No need to check if it's depth > 1, given that we excluded the root dir above */
-            if graph
-                .successors(dir)
-                .into_iter()
-                .any(|succ| graph.properties().node_type(succ) == SWHType::Content)
-            {
-                // Contains at least one blob
-                return true;
-            }
-        }
-
-        false
+    let on_directory = |dir: NodeId, _path_parts: PathParts| {
+        Ok(!frontier_directories[dir]) // Recurse only if this is not a frontier
     };
 
-    let on_frontier = |dir: NodeId, dir_max_timestamp: i64, path: Vec<u8>| {
+    let on_content = |cnt: NodeId, path_parts: PathParts| {
         writer
             .serialize(OutputRecord {
-                max_author_date: dir_max_timestamp,
-                frontier_dir_SWHID: graph.properties().swhid(dir),
+                cnt_SWHID: graph.properties().swhid(cnt),
                 rev_author_date: revrel_author_date,
                 rev_SWHID: revrel_swhid,
-                path,
+                path: path_parts.build_path(graph),
             })
             .context("Could not write record")
     };
 
-    swh_graph_provenance::frontier::find_frontiers_from_root_directory(
-        graph,
-        max_timestamps,
-        is_frontier,
-        on_frontier,
-        /* recurse_through_frontiers: */ false,
-        root_dir_id,
-    )
+    swh_graph_provenance::frontier::dfs_with_path(graph, on_directory, on_content, root_dir_id)
 }
