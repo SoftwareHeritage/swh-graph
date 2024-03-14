@@ -98,7 +98,8 @@ impl Node2Type<UsizeMmap<MmapMut>> {
 
         // create a mutable mmap to the file so we can directly write it in place
         let mmap = unsafe {
-            mmap_rs::MmapOptions::new(file_len as _)?
+            mmap_rs::MmapOptions::new(file_len as _)
+                .context("Could not initialize mmap")?
                 .with_file(node2type_file, 0)
                 .map_mut()
                 .with_context(|| "While mmapping the file")?
@@ -113,10 +114,15 @@ impl Node2Type<UsizeMmap<MmapMut>> {
     /// Load a mutable `.node2type.bin` file
     pub fn load_mut<P: AsRef<Path>>(path: P, num_nodes: usize) -> Result<Self> {
         let path = path.as_ref();
-        let file_len = path.metadata()?.len();
-        let file = std::fs::File::open(path)?;
+        let file_len = path
+            .metadata()
+            .with_context(|| format!("Could not stat {}", path.display()))?
+            .len();
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("Could not open {}", path.display()))?;
         let data = unsafe {
-            mmap_rs::MmapOptions::new(file_len as _)?
+            mmap_rs::MmapOptions::new(file_len as _)
+                .context("Could not initialize mmap")?
                 .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
                 .with_file(file, 0)
                 .map_mut()?
@@ -137,7 +143,10 @@ impl Node2Type<UsizeMmap<Mmap>> {
     /// Load a read-only `.node2type.bin` file
     pub fn load<P: AsRef<Path>>(path: P, num_nodes: usize) -> Result<Self> {
         let path = path.as_ref();
-        let file_len = path.metadata()?.len();
+        let file_len = path
+            .metadata()
+            .with_context(|| format!("Could not stat {}", path.display()))?
+            .len();
         let expected_file_len = ((num_nodes * SWHType::BITWIDTH).div_ceil(64) * 8) as u64;
         assert_eq!(
             file_len,
@@ -149,7 +158,8 @@ impl Node2Type<UsizeMmap<Mmap>> {
             file_len,
         );
 
-        let file = std::fs::File::open(path)?;
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("Could not open {}", path.display()))?;
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)?
                 .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)

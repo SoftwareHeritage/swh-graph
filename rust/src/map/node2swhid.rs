@@ -18,7 +18,7 @@ impl Node2SWHID<Mmap> {
         let path = path.as_ref();
         let file_len = path
             .metadata()
-            .with_context(|| format!("Could not read {} stats", path.display()))?
+            .with_context(|| format!("Could not stat {}", path.display()))?
             .len();
         let file = std::fs::File::open(path)
             .with_context(|| format!("Could not open {}", path.display()))?;
