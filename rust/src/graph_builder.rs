@@ -61,24 +61,32 @@ impl GraphBuilder {
         })
     }
 
-    /// Adds an arc to the graph
-    pub fn arc(&mut self, src: NodeId, dst: NodeId, label: Option<(Permission, Vec<u8>)>) {
-        let label = match label {
-            None => None,
-            Some((permission, name)) => {
-                let name_id = self.name_to_id.entry(name.clone()).or_insert_with(|| {
-                    self.label_names.push(name);
-                    (self.label_names.len() - 1)
-                        .try_into()
-                        .expect("label_names length overflowed u64")
-                });
-                Some(
-                    DirEntry::new(permission, FilenameId(*name_id))
-                        .expect("label_names is larger than 2^61 items")
-                        .0,
-                )
-            }
-        };
+    /// Adds an unlabelled arc to the graph
+    pub fn arc(&mut self, src: NodeId, dst: NodeId) {
+        self.arcs.push((src, dst, None));
+    }
+
+    /// Adds a labelled arc to the graph
+    pub fn l_arc<P: Into<Permission>, N: Into<Vec<u8>>>(
+        &mut self,
+        src: NodeId,
+        dst: NodeId,
+        permission: P,
+        name: N,
+    ) {
+        let permission = permission.into();
+        let name = name.into();
+        let name_id = self.name_to_id.entry(name.clone()).or_insert_with(|| {
+            self.label_names.push(name);
+            (self.label_names.len() - 1)
+                .try_into()
+                .expect("label_names length overflowed u64")
+        });
+        let label = Some(
+            DirEntry::new(permission, FilenameId(*name_id))
+                .expect("label_names is larger than 2^61 items")
+                .0,
+        );
         self.arcs.push((src, dst, label));
     }
 

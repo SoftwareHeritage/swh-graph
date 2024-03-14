@@ -53,12 +53,12 @@ use swh_graph::SWHType;
 ///  *  rel4 -> rev3 -> rev2
 ///  */
 ///
-/// builder.arc(snp6, rev1, None); // snp6 has rev1 as branch tip
-/// builder.arc(rev1, rev0, None); // rev0 is parent of rev1
-/// builder.arc(snp6, rel5, None); // snp6 has rel5 as branch tip
+/// builder.arc(snp6, rev1); // snp6 has rev1 as branch tip
+/// builder.arc(rev1, rev0); // rev0 is parent of rev1
+/// builder.arc(snp6, rel5); // snp6 has rel5 as branch tip
 ///
-/// builder.arc(rel4, rev3, None); // rel4 points to rev3
-/// builder.arc(rev3, rev2, None); // rev2 is parent of rev3
+/// builder.arc(rel4, rev3); // rel4 points to rev3
+/// builder.arc(rev3, rev2); // rev2 is parent of rev3
 ///
 /// let graph = builder.done().unwrap();
 ///

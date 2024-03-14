@@ -26,9 +26,9 @@ fn test_minimal() -> Result<()> {
     let c = builder
         .node(swhid!(swh:1:rel:0000000000000000000000000000000000000030))?
         .done();
-    builder.arc(a, b, None);
-    builder.arc(a, c, None);
-    builder.arc(b, c, None);
+    builder.arc(a, b);
+    builder.arc(a, c);
+    builder.arc(b, c);
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(a, 0);
@@ -89,13 +89,9 @@ fn test_labels() -> Result<()> {
     let c = builder
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000030))?
         .done();
-    builder.arc(a, b, Some((Permission::Directory, b"tests".into())));
-    builder.arc(
-        a,
-        c,
-        Some((Permission::ExecutableContent, b"run.sh".into())),
-    );
-    builder.arc(b, c, Some((Permission::Content, b"test.c".into())));
+    builder.l_arc(a, b, Permission::Directory, b"tests");
+    builder.l_arc(a, c, Permission::ExecutableContent, b"run.sh");
+    builder.l_arc(b, c, Permission::Content, b"test.c");
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(a, 0);
@@ -210,17 +206,9 @@ fn test_duplicate_labels() -> Result<()> {
     let c = builder
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000030))?
         .done();
-    builder.arc(a, b, Some((Permission::Directory, b"tests".into())));
-    builder.arc(
-        a,
-        c,
-        Some((Permission::ExecutableContent, b"run.sh".into())),
-    );
-    builder.arc(
-        b,
-        c,
-        Some((Permission::ExecutableContent, b"run.sh".into())),
-    );
+    builder.l_arc(a, b, Permission::Directory, b"tests");
+    builder.l_arc(a, c, Permission::ExecutableContent, b"run.sh");
+    builder.l_arc(b, c, Permission::ExecutableContent, b"run.sh");
     let graph = builder.done().context("Could not make graph")?;
 
     let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
@@ -275,7 +263,7 @@ fn test_contents() -> Result<()> {
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000020))?
         .is_skipped_content(true)
         .done();
-    builder.arc(a, b, None);
+    builder.arc(a, b);
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(graph.properties().content_length(a), Some(42));
@@ -299,7 +287,7 @@ fn test_persons() -> Result<()> {
         .author(b"John Doe <jdoe@example.org>".into())
         .committer(b"Jane Doe <jdoe@example.org>".into())
         .done();
-    builder.arc(a, b, None);
+    builder.arc(a, b);
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(graph.properties().author_id(a), Some(0));
@@ -323,7 +311,7 @@ fn test_strings() -> Result<()> {
         .message(b"test release".into())
         .tag_name(b"v0.1.0".into())
         .done();
-    builder.arc(a, b, None);
+    builder.arc(a, b);
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(graph.properties().message(a), Some(b"test revision".into()));
@@ -346,7 +334,7 @@ fn test_timestamps() -> Result<()> {
         .node(swhid!(swh:1:rev:0000000000000000000000000000000000000020))?
         .committer_timestamp(1708950821, 120)
         .done();
-    builder.arc(a, b, None);
+    builder.arc(a, b);
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(graph.properties().author_timestamp(a), Some(1708950743));
