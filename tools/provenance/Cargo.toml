@@ -22,5 +22,8 @@ swh-graph = { path = "../../rust/", features = ["serde"] }
 thread_local = "1.1.7"
 zstd = "0.12"
 
+[dev-dependencies]
+pretty_assertions = "1.4.0"
+
 [[bin]]
 name = "find-earliest-revision"

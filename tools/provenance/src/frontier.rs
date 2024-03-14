@@ -58,7 +58,7 @@ where
 
 /// Yielded by `dfs_with_path` to allow building a path as a `Vec<u8>` only when needed
 pub struct PathParts<'a> {
-    directory_names: &'a [FilenameId],
+    rev_directory_names: &'a [FilenameId],
     filename: Option<FilenameId>,
 }
 
@@ -68,8 +68,8 @@ impl<'a> PathParts<'a> {
         G: SwhGraphWithProperties,
         <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     {
-        let mut path = Vec::with_capacity(self.directory_names.len() * 2 + 1);
-        for &part in self.directory_names {
+        let mut path = Vec::with_capacity(self.rev_directory_names.len() * 2 + 1);
+        for &part in self.rev_directory_names.iter().rev() {
             path.extend(graph.properties().label_name(part));
             path.push(b'/');
         }
@@ -107,18 +107,18 @@ where
     visited.insert(root_dir_id);
 
     while let Some(node) = stack.pop() {
-        let mut path_parts = Vec::new();
+        let mut rev_path_parts = Vec::new();
         while let Some(filename_id) = path_stack.pop() {
             if filename_id == PATH_SEPARATOR {
                 break;
             }
-            path_parts.push(filename_id);
+            rev_path_parts.push(filename_id);
         }
 
         let should_recurse = on_directory(
             node,
             PathParts {
-                directory_names: &path_parts,
+                rev_directory_names: &rev_path_parts,
                 filename: None,
             },
         )?;
@@ -145,7 +145,7 @@ where
                         };
                         stack.push(succ);
                         path_stack.push(PATH_SEPARATOR);
-                        path_stack.extend(path_parts.iter().copied());
+                        path_stack.extend(rev_path_parts.iter().rev().copied());
                         path_stack.push(first_label.filename_id());
                     }
 
@@ -160,7 +160,7 @@ where
                         on_content(
                             succ,
                             PathParts {
-                                directory_names: &path_parts,
+                                rev_directory_names: &rev_path_parts,
                                 filename: Some(first_label.filename_id()),
                             },
                         )?;
