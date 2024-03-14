@@ -768,30 +768,28 @@ class ListContentsInFrontierDirectories(luigi.Task):
         }
 
     def _output_path(self) -> Path:
-        return self.provenance_dir / "contents_in_frontier_directories.csv.zst"
+        return self.provenance_dir / "contents_in_frontier_directories"
 
     def output(self) -> luigi.LocalTarget:
-        """Returns {provenance_dir}/contents_in_frontier_directories.csv.zst"""
+        """Returns {provenance_dir}/contents_in_frontier_directories/"""
         return luigi.LocalTarget(self._output_path())
 
     def run(self) -> None:
-        """Runs ``org.softwareheritage.graph.utils.ListContentsInDirectories``"""
-        from ..shell import AtomicFileSink, Command, Java
-
-        class_name = "org.softwareheritage.graph.utils.ListContentsInDirectories"
+        """Runs ``contents-in-directories`` from ``tools/provenance``"""
+        from ..shell import Command, Rust
 
         # fmt: off
         (
             Command.pv("--wait", self.input()["directory_frontier"])
             | Command.zstdcat()
-            | Java(
-                class_name,
+            | Command.sed("1s/^frontier_dir_SWHID/dir_SWHID/")  # replace header
+            | Rust(
+                "contents-in-directories",
+                "-vv",
                 self.local_graph_path / self.graph_name,
-                "1",  # DeduplicateFrontierDirectories only contains directory SWHIDs
-                max_ram=self._max_ram(),
+                "--contents-out",
+                self.output(),
             )
-            | Command.zstdmt("-14")
-            > AtomicFileSink(self._output_path())
         ).run()
         # fmt: on
 

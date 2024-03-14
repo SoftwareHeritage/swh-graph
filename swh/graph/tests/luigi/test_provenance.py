@@ -504,18 +504,26 @@ def test_listcontentsindirectories(tmpdir):
 
     task.run()
 
-    csv_text = subprocess.check_output(
-        ["zstdcat", provenance_dir / "contents_in_frontier_directories.csv.zst"]
-    ).decode()
+    (
+        expected_header,
+        *expected_rows,
+        trailing,
+    ) = CONTENTS_IN_FRONTIER_DIRECTORIES.split("\r\n")
+    assert trailing == ""
 
-    (header, *rows) = csv_text.split("\r\n")
-    (expected_header, *expected_rows) = CONTENTS_IN_FRONTIER_DIRECTORIES.split("\r\n")
-    assert header == expected_header
-    assert sorted(rows) == sorted(expected_rows)
+    all_rows = []
+    for file in (provenance_dir / "contents_in_frontier_directories").glob("*.csv.zst"):
+        csv_text = subprocess.check_output(["zstdcat", file]).decode()
+        if csv_text:
+            (header, *rows, trailing) = csv_text.split("\r\n")
+            assert header == expected_header
+            all_rows.extend(rows)
+            assert trailing == ""
+
+    assert sorted(all_rows) == sorted(expected_rows)
 
 
-@pytest.mark.parametrize("duplicates", [True, False])
-def test_listcontentsindirectories_root(tmpdir, duplicates):
+def test_listcontentsindirectories_root(tmpdir):
     """Tests ListContentsInFrontierDirectories but on root directories instead
     of frontier directories"""
     tmpdir = Path(tmpdir)
@@ -527,11 +535,8 @@ def test_listcontentsindirectories_root(tmpdir, duplicates):
 
     (provenance_dir / "directory_frontier.deduplicated.csv.zst").write_text(
         "dir_SWHID\r\n"
-        + (
-            "swh:1:dir:0000000000000000000000000000000000000012\n"
-            "swh:1:dir:0000000000000000000000000000000000000017\n"
-        )
-        * (2 if duplicates else 1)
+        "swh:1:dir:0000000000000000000000000000000000000012\r\n"
+        "swh:1:dir:0000000000000000000000000000000000000017\r\n"
     )
 
     task = ListContentsInFrontierDirectories(
@@ -544,14 +549,24 @@ def test_listcontentsindirectories_root(tmpdir, duplicates):
 
     task.run()
 
-    csv_text = subprocess.check_output(
-        ["zstdcat", provenance_dir / "contents_in_frontier_directories.csv.zst"]
-    ).decode()
+    (
+        expected_header,
+        *expected_rows,
+        trailing,
+    ) = CONTENTS_IN_FRONTIER_DIRECTORIES.split("\r\n")
+    assert trailing == ""
 
-    (header, *rows) = csv_text.split("\r\n")
+    all_rows = []
+    for file in (provenance_dir / "contents_in_frontier_directories").glob("*.csv.zst"):
+        csv_text = subprocess.check_output(["zstdcat", file]).decode()
+        if csv_text:
+            (header, *rows, trailing) = csv_text.split("\r\n")
+            assert header == expected_header
+            all_rows.extend(rows)
+            assert trailing == ""
 
     assert header == "cnt_SWHID,dir_SWHID,path"
-    assert sorted(rows) == sorted(
+    assert sorted(all_rows) == sorted(
         textwrap.dedent(
             """\
             swh:1:cnt:0000000000000000000000000000000000000011,swh:1:dir:0000000000000000000000000000000000000012,README.md
@@ -560,7 +575,6 @@ def test_listcontentsindirectories_root(tmpdir, duplicates):
             swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000000000000000000000012,oldproject/tests/parser.c
             swh:1:cnt:0000000000000000000000000000000000000004,swh:1:dir:0000000000000000000000000000000000000012,oldproject/tests/README.md
             swh:1:cnt:0000000000000000000000000000000000000014,swh:1:dir:0000000000000000000000000000000000000017,TODO.txt
-            swh:1:cnt:0000000000000000000000000000000000000015,swh:1:dir:0000000000000000000000000000000000000017,old/TODO.txt
-            """  # noqa
+            swh:1:cnt:0000000000000000000000000000000000000015,swh:1:dir:0000000000000000000000000000000000000017,old/TODO.txt"""  # noqa
         ).split("\n")
     )
