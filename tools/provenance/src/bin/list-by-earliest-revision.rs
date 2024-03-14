@@ -95,7 +95,7 @@ pub fn main() -> Result<()> {
         pl.light_update();
         let InputRecord { author_date, swhid } = record.context("Could not deserialize row")?;
 
-        let dt = NaiveDateTime::parse_from_str(&author_date, "%Y-%m-%dT%H:%M:%S")
+        let dt = NaiveDateTime::parse_from_str(&author_date, "%Y-%m-%dT%H:%M:%S%.f")
             .with_context(|| format!("Could not parse date {}", author_date))?;
         if dt < previous_dt {
             bail!(

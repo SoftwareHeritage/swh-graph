@@ -249,12 +249,19 @@ def test_sort(tmpdir):
     assert csv_text == SORTED_REVRELS
 
 
-def test_listearliestrevisions(tmpdir):
+@pytest.mark.parametrize("fractional_seconds", [True, False])
+def test_listearliestrevisions(tmpdir, fractional_seconds):
     tmpdir = Path(tmpdir)
     provenance_dir = tmpdir / "provenance"
     provenance_dir.mkdir()
 
-    (provenance_dir / "revrel_by_author_date.csv.zst").write_text(SORTED_REVRELS)
+    sorted_revrels = SORTED_REVRELS
+    if fractional_seconds:
+        sorted_revrels = sorted_revrels.replace(
+            "2005-03-18T17:24:20", "2005-03-18T17:24:20.000000"
+        )
+        assert sorted_revrels != SORTED_REVRELS
+    (provenance_dir / "revrel_by_author_date.csv.zst").write_text(sorted_revrels)
 
     task = ListEarliestRevisions(
         local_export_path=DATASET_DIR,
@@ -316,7 +323,7 @@ def test_listdirectorymaxleaftimestamp(tmpdir):
     toposort_path.write_text(TOPO_ORDER_BACKWARD)
 
     # Generate the binary file, used as input by ComputeDirectoryFrontier
-    test_listearliestrevisions(tmpdir)
+    test_listearliestrevisions(tmpdir, False)
 
     (provenance_dir / "earliest_revrel_for_cntdir.csv.zst").write_text(
         EARLIEST_REVREL_FOR_CNTDIR
