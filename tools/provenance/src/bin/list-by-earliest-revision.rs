@@ -3,51 +3,116 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+//! Computers, for any content or directory, the first revision or release that contains it.
+//!
+//! The algorithm is:
+//!
+//! 1. Initialize an array of [`AtomicOccurrence`], one for each node, to the maximum
+//!    timestamp and an undefined node id
+//! 2. For each revision/release (in parallel):
+//!     a. Get its author date (if none, skip the revision/release)
+//!     b. traverse all contents and directories contained by that revision/release.
+//!        For each content/directory, atomically set the [`AtomicOccurrence`] to the
+//!        current rev/rel and its timestamp if the [`AtomicOccurrence`] has a higher
+//!        timestamp than the revision/release
+//! 3. For each content/directory (in parallel):
+//!     a. Get the `(timestamp, revrel)` pair represented by its  [`AtomicOccurrence`].
+//!     b. If the timestamp is not the maximum (ie. if it was set as step 2.b.), then
+//!        printthe `(timestamp, revrel, cntdir)` triple
+//! 4. Convert the array of [`AtomicOccurrence`] to an array of timestamps and dump it.
 #![allow(non_snake_case)]
-
-use std::io;
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
+use std::sync::{Arc, Mutex};
 
-use anyhow::{bail, Context, Result};
-use chrono::NaiveDateTime;
+use anyhow::{Context, Result};
+use chrono::{DateTime, NaiveDateTime};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
-use serde::{Deserialize, Serialize};
+use portable_atomic::AtomicI128;
+use rayon::prelude::*;
+use serde::Serialize;
 
+use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::{SWHType, SWHID};
 
+use swh_graph_provenance::csv_dataset::CsvZstDataset;
+
 #[derive(Parser, Debug)]
-/// Given a list of release/revisions (with header 'author_date,SWHID') on stdin,
-/// returns a CSV with header 'author_date,revrel_SWHID,cntdir_SWHID' and a row for
-/// each of the contents and directories they contain
+/// Returns a directory of CSV files with header 'author_date,revrel_SWHID,cntdir_SWHID'
+/// and a row for each of the contents and directories with the earliest revision/release
+/// that contains them.
 struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
     #[arg(long)]
+    /// Path to write the content -> rev/rel map to
+    revisions_out: PathBuf,
+    #[arg(long)]
     /// Path to write the array of timestamps to
     timestamps_out: Option<PathBuf>,
 }
 
-#[derive(Debug, Deserialize)]
-struct InputRecord {
-    author_date: String,
-    #[serde(rename = "SWHID")]
-    swhid: String,
-}
-
 #[derive(Debug, Serialize)]
-struct OutputRecord<'a> {
-    author_date: &'a str,
-    revrel_SWHID: &'a str,
+struct OutputRecord {
+    author_date: NaiveDateTime,
+    revrel_SWHID: SWHID,
     cntdir_SWHID: SWHID,
 }
 
-/// Marker in array of timestamps indicating the given cell is empty;
-const NO_TIMESTAMP: i64 = i64::MIN.to_be();
+/// A `(timestamp, revision)` pair that can be used with [`AtomicOccurrence`]
+#[derive(Copy, Clone)]
+struct Occurrence(i128);
+
+impl Occurrence {
+    fn new(timestamp: i64, node: NodeId) -> Occurrence {
+        let node: u64 = node.try_into().expect("NodeId overflows u64");
+        Occurrence((timestamp as i128) << 64 | (node as i128))
+    }
+
+    fn timestamp(&self) -> i64 {
+        (self.0 >> 64) as i64
+    }
+
+    fn node(&self) -> NodeId {
+        (self.0 as u64)
+            .try_into()
+            .expect("node id overflowed usize")
+    }
+}
+
+/// A `(timestamp, revision)` pair that can be atomically updated based on the timestamp
+///
+/// This is implemented with an [`AtomicI128`] where the high bits are a i64 timestamp
+/// and the low bits are a u64 node id.
+/// This allows using x.fetch_min(y, ...) to atomically set x to a new
+/// `(timestamp, revision)` pair in `y` only if the new timestamp is older than
+/// the one already in `x`.
+struct AtomicOccurrence(AtomicI128);
+
+impl AtomicOccurrence {
+    fn new(occurrence: Occurrence) -> AtomicOccurrence {
+        assert!(AtomicI128::is_lock_free(), "AtomicI128 is not lock-free");
+        AtomicOccurrence(AtomicI128::new(occurrence.0))
+    }
+
+    fn load(&self, ordering: Ordering) -> Occurrence {
+        Occurrence(self.0.load(ordering))
+    }
+
+    /// Atomically sets `self` to `other`'s value if `other` has a lower timestamp
+    ///
+    /// If both have the same timestamp, which node is picked is not guaranteed.
+    /// (In practice, the lowest node id is picked for timestamps >= epoch, and the
+    /// lowest node id for timestamps < epoch)
+    fn fetch_min(&self, other: Occurrence, ordering: Ordering) -> Occurrence {
+        Occurrence(self.0.fetch_min(other.0, ordering))
+    }
+}
 
 pub fn main() -> Result<()> {
     let args = Args::parse();
@@ -63,19 +128,17 @@ pub fn main() -> Result<()> {
         .context("Could not load graph")?
         .init_properties()
         .load_properties(|props| props.load_maps::<GOVMPH>())
-        .context("Could not load maps")?;
+        .context("Could not load maps")?
+        .load_properties(|props| props.load_timestamps())
+        .context("Could not load timestamps")?;
     log::info!("Graph loaded.");
 
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .from_reader(io::stdin());
-    let mut writer = csv::WriterBuilder::new()
-        .has_headers(true)
-        .terminator(csv::Terminator::CRLF)
-        .from_writer(io::stdout());
-
-    // Encoded as big-endian i64
-    let mut timestamps = vec![NO_TIMESTAMP; graph.num_nodes()];
+    log::info!("Initializing occurrences");
+    let mut occurrences = Vec::with_capacity(graph.num_nodes());
+    occurrences.resize_with(graph.num_nodes(), || {
+        AtomicOccurrence::new(Occurrence::new(i64::MAX, NodeId::MAX))
+    });
+    log::info!("Occurrences initialized.");
 
     let timestamps_file = match args.timestamps_out {
         Some(ref timestamps_path) => Some(
@@ -86,38 +149,95 @@ pub fn main() -> Result<()> {
     };
 
     let mut pl = ProgressLogger::default();
-    pl.item_name("revrel");
+    pl.item_name("node");
     pl.display_memory(true);
-    pl.start("Listing contents and directories...");
+    pl.local_speed(true);
+    pl.expected_updates(Some(graph.num_nodes()));
+    pl.start("[step 1/3] Computing first occurrence date of each content...");
+    let pl = Arc::new(Mutex::new(pl));
 
-    let mut previous_dt = NaiveDateTime::MIN;
-    for record in reader.deserialize() {
-        pl.light_update();
-        let InputRecord { author_date, swhid } = record.context("Could not deserialize row")?;
+    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(
+        |revrel| -> Result<_> {
+            mark_reachable_contents(&graph, &occurrences, revrel)?;
 
-        let dt = NaiveDateTime::parse_from_str(&author_date, "%Y-%m-%dT%H:%M:%S")
-            .with_context(|| format!("Could not parse date {}", author_date))?;
-        if dt < previous_dt {
-            bail!(
-                "Dates are not correctly ordered ({swhid} has {dt}, which follows {previous_dt})"
-            );
-        }
-        previous_dt = dt;
-        let timestamp = dt.and_utc().timestamp();
+            if revrel % 32768 == 0 {
+                pl.lock().unwrap().update_with_count(32768);
+            }
 
-        visit_from_node(
-            &graph,
-            &mut writer,
-            &mut timestamps,
-            &author_date,
-            timestamp,
-            swhid,
-        )?;
-    }
+            Ok(())
+        },
+    )?;
 
-    pl.done();
+    pl.lock().unwrap().done();
+
+    let mut pl = ProgressLogger::default();
+    pl.item_name("node");
+    pl.display_memory(true);
+    pl.local_speed(true);
+    pl.expected_updates(Some(graph.num_nodes()));
+    pl.start("[step 2/3] Writing content -> first-occurrence map...");
+    let pl = Arc::new(Mutex::new(pl));
+
+    let output_dataset = CsvZstDataset::new(args.revisions_out)?;
+
+    // Reuse writers across work batches, or we end up with millions of very small files
+    let writers = thread_local::ThreadLocal::new();
+
+    // For each content, find a rev/rel that contains it and has the same date as the
+    // date of first occurrence as the content (most of the time, there is only one,
+    // but we don't care which we pick if there is more than one).
+    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
+        || {
+            writers
+                .get_or(|| output_dataset.get_new_writer().unwrap())
+                .borrow_mut()
+        },
+        |writer, cntdir| -> Result<_> {
+            let occurrence = occurrences[cntdir].load(Ordering::Relaxed);
+            if occurrence.timestamp() != i64::MAX {
+                write_earliest_revrel(&graph, writer, cntdir, occurrence)?;
+            }
+
+            if cntdir % 32768 == 0 {
+                pl.lock().unwrap().update_with_count(32768);
+            }
+
+            Ok(())
+        },
+    )?;
+
+    pl.lock().unwrap().done();
 
     if let Some(mut timestamps_file) = timestamps_file {
+        let mut pl = ProgressLogger::default();
+        pl.item_name("node");
+        pl.display_memory(true);
+        pl.local_speed(true);
+        pl.expected_updates(Some(graph.num_nodes()));
+        pl.start("[step 3/3] Converting timestamps to big-endian");
+        let pl = Arc::new(Mutex::new(pl));
+        let mut timestamps = Vec::with_capacity(graph.num_nodes());
+        occurrences
+            .into_par_iter()
+            .enumerate()
+            .map(|(node, occurrence)| {
+                if node % 32768 == 0 {
+                    pl.lock().unwrap().update_with_count(32768);
+                }
+                // i64::MIN.to_be() indicates the timestamp is unset
+                match occurrence.load(Ordering::Relaxed).timestamp() {
+                    i64::MAX => i64::MIN,
+                    timestamp => timestamp,
+                }
+                .to_be()
+            })
+            .collect_into_vec(&mut timestamps);
+        pl.lock().unwrap().done();
+
+        log::info!(
+            "Writing {}",
+            args.timestamps_out.as_ref().unwrap().display()
+        );
         timestamps_file
             .write_all(bytemuck::cast_slice(&timestamps))
             .with_context(|| {
@@ -131,72 +251,80 @@ pub fn main() -> Result<()> {
     Ok(())
 }
 
-/// For every child of `swhid` that was not seen before, write a list to stdout and
-/// add its timestamp to `timestamps` (a big-endian-encoded array of i64)
-fn visit_from_node<'a, G>(
+/// Mark any content reachable from the root `revrel` as having a first occurrence
+/// older or equal to this revision
+fn mark_reachable_contents<G>(
     graph: &G,
-    writer: &mut csv::Writer<io::Stdout>,
-    timestamps: &'a mut [i64],
-    author_date: &str,
-    timestamp: i64,
-    revrel_SWHID: String,
+    occurrences: &[AtomicOccurrence],
+    revrel: NodeId,
 ) -> Result<()>
 where
     G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
+    <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
 {
-    let node = graph
-        .properties()
-        .node_id_from_string_swhid(&revrel_SWHID)
-        .with_context(|| format!("unknown SWHID {}", revrel_SWHID))?;
-    let node_type = graph.properties().node_type(node);
-    match node_type {
-        SWHType::Release => (), // Allow releases
-        SWHType::Revision => {
-            // Allow revisions only if they are a "snapshot head" (ie. one of their
-            // predecessors is a release or a snapshot)
-            if !graph.predecessors(node).into_iter().any(|pred| {
-                let pred_type = graph.properties().node_type(pred);
-                pred_type == SWHType::Snapshot || pred_type == SWHType::Release
-            }) {
-                return Ok(());
-            }
-        }
-        _ => bail!("{revrel_SWHID} has unexpected type {node_type}"),
+    if !swh_graph_provenance::filters::is_head(graph, revrel) {
+        return Ok(());
     }
 
-    let mut stack = Vec::new();
-    stack.push(node);
+    let Some(revrel_timestamp) = graph.properties().author_timestamp(revrel) else {
+        // Revision/release has no date, ignore it
+        return Ok(());
+    };
+
+    let occurrence = Occurrence::new(revrel_timestamp, revrel);
+
+    let mut stack = vec![revrel];
+    let mut visited = AdaptiveNodeSet::new(graph.num_nodes());
 
     while let Some(node) = stack.pop() {
-        let node_type = graph.properties().node_type(node);
-
-        // Set its timestamp to the array if it's not a revision or a release
-        // (we already have timestamps for those in the graph properties)
-        if node_type == SWHType::Directory || node_type == SWHType::Content {
-            timestamps[node] = timestamp.to_be();
+        match graph.properties().node_type(node) {
+            SWHType::Content | SWHType::Directory => {
+                occurrences[node].fetch_min(occurrence, Ordering::Relaxed);
+            }
+            _ => (),
         }
 
         for succ in graph.successors(node) {
-            if timestamps[succ] != NO_TIMESTAMP {
-                // Already visited
-                continue;
+            match graph.properties().node_type(succ) {
+                SWHType::Directory | SWHType::Content => {
+                    if !visited.contains(succ) {
+                        stack.push(succ);
+                        visited.insert(succ);
+                    }
+                }
+                _ => (),
             }
-
-            // Ignore the successor if it's not a content or directory
-            let succ_type = graph.properties().node_type(succ);
-            if succ_type != SWHType::Directory && succ_type != SWHType::Content {
-                continue;
-            }
-
-            stack.push(succ);
-            writer.serialize(OutputRecord {
-                author_date,
-                revrel_SWHID: revrel_SWHID.as_ref(),
-                cntdir_SWHID: graph.properties().swhid(succ),
-            })?
         }
     }
 
     Ok(())
+}
+
+fn write_earliest_revrel<G, W: Write>(
+    graph: &G,
+    writer: &mut csv::Writer<W>,
+    cntdir: NodeId,
+    earliest_occurrence: Occurrence,
+) -> Result<()>
+where
+    G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
+    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
+    <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
+{
+    let revrel_timestamp = earliest_occurrence.timestamp();
+    let revrel = earliest_occurrence.node();
+
+    let revrel_date = DateTime::from_timestamp(revrel_timestamp, 0)
+        .with_context(|| format!("Could not make {} into a datetime", revrel_timestamp))?
+        .naive_utc();
+    let revrel_SWHID = graph.properties().swhid(revrel);
+
+    writer
+        .serialize(OutputRecord {
+            author_date: revrel_date,
+            revrel_SWHID,
+            cntdir_SWHID: graph.properties().swhid(cntdir),
+        })
+        .context("Could not write output row")
 }

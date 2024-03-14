@@ -20,24 +20,11 @@ from swh.graph.luigi.provenance import (
     ListDirectoryMaxLeafTimestamp,
     ListEarliestRevisions,
     ListFrontierDirectoriesInRevisions,
-    SortRevrelByDate,
 )
-from swh.graph.shell import CommandException
 
 from .test_topology import TOPO_ORDER_BACKWARD
 
 HEADS_ONLY = True
-
-SORTED_REVRELS = """\
-author_date,SWHID
-2005-03-18T05:03:40,swh:1:rev:0000000000000000000000000000000000000003
-2005-03-18T11:14:00,swh:1:rev:0000000000000000000000000000000000000009
-2005-03-18T17:24:20,swh:1:rev:0000000000000000000000000000000000000013
-2005-03-18T20:29:30,swh:1:rev:0000000000000000000000000000000000000018
-2009-02-13T23:31:30,swh:1:rel:0000000000000000000000000000000000000010
-""".replace(
-    "\n", "\r\n"
-)
 
 if HEADS_ONLY:
     EARLIEST_REVREL_FOR_CNTDIR = """\
@@ -229,32 +216,10 @@ def timestamps_bin_to_csv(bin_timestamps_path: Path) -> List[str]:
     ]
 
 
-def test_sort(tmpdir):
-    tmpdir = Path(tmpdir)
-    provenance_dir = tmpdir / "provenance"
-
-    task = SortRevrelByDate(
-        local_export_path=DATASET_DIR,
-        local_graph_path=DATASET_DIR / "compressed",
-        graph_name="example",
-        provenance_dir=provenance_dir,
-    )
-
-    task.run()
-
-    csv_text = subprocess.check_output(
-        ["zstdcat", provenance_dir / "revrel_by_author_date.csv.zst"]
-    ).decode()
-
-    assert csv_text == SORTED_REVRELS
-
-
 def test_listearliestrevisions(tmpdir):
     tmpdir = Path(tmpdir)
     provenance_dir = tmpdir / "provenance"
     provenance_dir.mkdir()
-
-    (provenance_dir / "revrel_by_author_date.csv.zst").write_text(SORTED_REVRELS)
 
     task = ListEarliestRevisions(
         local_export_path=DATASET_DIR,
@@ -265,11 +230,23 @@ def test_listearliestrevisions(tmpdir):
 
     task.run()
 
-    csv_text = subprocess.check_output(
-        ["zstdcat", provenance_dir / "earliest_revrel_for_cntdir.csv.zst"]
-    ).decode()
+    (
+        expected_header,
+        *expected_rows,
+        trailing,
+    ) = EARLIEST_REVREL_FOR_CNTDIR.split("\r\n")
+    assert trailing == ""
 
-    assert csv_text == EARLIEST_REVREL_FOR_CNTDIR
+    all_rows = []
+    for file in (provenance_dir / "earliest_revrel_for_cntdir").glob("*.csv.zst"):
+        csv_text = subprocess.check_output(["zstdcat", file]).decode()
+        if csv_text:
+            (header, *rows, trailing) = csv_text.split("\r\n")
+            assert header == expected_header
+            all_rows.extend(rows)
+            assert trailing == ""
+
+    assert sorted(all_rows) == sorted(expected_rows)
 
     rows = set(timestamps_bin_to_csv(provenance_dir / "earliest_timestamps.bin"))
     (header, *expected_rows) = [
@@ -279,29 +256,6 @@ def test_listearliestrevisions(tmpdir):
         )
     ]
     assert rows == set(expected_rows)
-
-
-def test_listearliestrevisions_disordered(tmpdir):
-    tmpdir = Path(tmpdir)
-    provenance_dir = tmpdir / "provenance"
-    provenance_dir.mkdir()
-
-    (header, *rows) = SORTED_REVRELS.split("\r\n")
-    (rows[1], rows[2]) = (rows[2], rows[1])  # swap second and third rows
-    nonsorted_revrels = "\r\n".join([header, *rows])
-
-    (provenance_dir / "revrel_by_author_date.csv.zst").write_text(nonsorted_revrels)
-
-    task = ListEarliestRevisions(
-        local_export_path=DATASET_DIR,
-        local_graph_path=DATASET_DIR / "compressed",
-        graph_name="example",
-        provenance_dir=provenance_dir,
-    )
-
-    with pytest.raises(CommandException) as excinfo:
-        task.run()
-    assert excinfo.value.returncode == 1
 
 
 def test_listdirectorymaxleaftimestamp(tmpdir):
