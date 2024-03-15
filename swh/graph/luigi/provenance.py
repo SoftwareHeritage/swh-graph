@@ -138,19 +138,9 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
         return {f"{socket.getfqdn()}_ram_mb": self._max_ram() // 1_000_000}
 
     def requires(self) -> Dict[str, luigi.Task]:
-        """Returns :class:`LocalGraph`, :class:`TopoSort`, and
-        :class:`ListEarliestRevisions` instances."""
-        from .topology import TopoSort
-
+        """Returns :class:`LocalGraph` and :class:`ListEarliestRevisions` instances."""
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "toposort": TopoSort(
-                local_graph_path=self.local_graph_path,
-                graph_name=self.graph_name,
-                direction="backward",
-                object_types="dir,rev,rel,snp,ori",
-                topological_order_dir=self.topological_order_dir,
-            ),
             "earliest_revisions": ListEarliestRevisions(
                 local_export_path=self.local_export_path,
                 local_graph_path=self.local_graph_path,
@@ -168,12 +158,11 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
 
     def run(self) -> None:
         """Runs ``list-directory-with-max-leaf-timestamp`` from ``tools/provenance``"""
-        from ..shell import Command, Rust
+        from ..shell import Rust
 
         # fmt: off
         (
-            Command.zstdcat(self.input()["toposort"].path)
-            | Rust(
+            Rust(
                 "list-directory-with-max-leaf-timestamp",
                 "-vv",
                 self.local_graph_path / self.graph_name,
