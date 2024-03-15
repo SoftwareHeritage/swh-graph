@@ -409,7 +409,6 @@ class DeduplicateFrontierDirectories(luigi.Task):
         streams = [
             (
                 Command.zstdcat(file)
-                | Command.zstdcat()
                 # remove headers and paths containing a newline (annoying to handle)
                 | Command.grep("-E", '^-?[0-9]+,swh:1:dir:.*[^"]', env=sort_env)
                 | Command.cut("-d", ",", "-f", "2")
@@ -424,13 +423,13 @@ class DeduplicateFrontierDirectories(luigi.Task):
             for file in Path(self.input()["frontier_directories"].path).glob("*.csv.zst")
         ]
         (
-            Command.cat(*streams)
-            | Command.sort(
+            Command.sort(
                 "-S", "1G",
                 "--parallel=96",
                 "--merge",
                 "--unique",
                 "--compress-program=zstd",
+                *streams,
                 env=sort_env
             )
             | Command.cat(  # prepend header
