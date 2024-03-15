@@ -20,7 +20,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::SWHID;
 
-use swh_graph_provenance::csv_dataset::CsvZstDataset;
+use swh_graph_provenance::dataset_writer::{ParallelDatasetWriter, SequentialCsvZstDatasetWriter};
 use swh_graph_provenance::frontier::PathParts;
 
 #[derive(Parser, Debug)]
@@ -73,15 +73,15 @@ pub fn main() -> Result<()> {
     let frontier_directories =
         swh_graph_provenance::frontier_set::frontier_directories_from_stdin(&graph)?;
 
-    let output_dataset = CsvZstDataset::new(args.contents_out)?;
+    let dataset_writer = ParallelDatasetWriter::new(args.contents_out)?;
 
-    write_contents_in_revisions(&graph, &frontier_directories, output_dataset)
+    write_contents_in_revisions(&graph, &frontier_directories, dataset_writer)
 }
 
 fn write_contents_in_revisions<G>(
     graph: &G,
     frontier_directories: &BitVec,
-    output_dataset: CsvZstDataset,
+    dataset_writer: ParallelDatasetWriter<SequentialCsvZstDatasetWriter>,
 ) -> Result<()>
 where
     G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
@@ -97,15 +97,8 @@ where
     pl.start("Visiting revisions' directories...");
     let pl = Arc::new(Mutex::new(pl));
 
-    // Reuse writers across work batches, or we end up with millions of very small files
-    let writers = thread_local::ThreadLocal::new();
-
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
-        || {
-            writers
-                .get_or(|| output_dataset.get_new_writer().unwrap())
-                .borrow_mut()
-        },
+        || dataset_writer.get_thread_writer().unwrap(),
         |writer, node| -> Result<()> {
             if swh_graph_provenance::filters::is_head(graph, node) {
                 if let Some(root_dir) =

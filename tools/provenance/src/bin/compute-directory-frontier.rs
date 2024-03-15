@@ -19,7 +19,7 @@ use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
 use swh_graph::{SWHType, SWHID};
 
-use swh_graph_provenance::csv_dataset::CsvZstDataset;
+use swh_graph_provenance::dataset_writer::{ParallelDatasetWriter, SequentialCsvZstDatasetWriter};
 
 #[derive(Parser, Debug)]
 /** Given as input a binary file with, for each directory, the newest date of first
@@ -78,15 +78,16 @@ pub fn main() -> Result<()> {
         NumberMmap::<byteorder::BE, i64, _>::new(&args.max_timestamps, graph.num_nodes())
             .with_context(|| format!("Could not mmap {}", args.max_timestamps.display()))?;
 
-    let output_dataset = CsvZstDataset::new(args.directories_out)?;
+    let dataset_writer =
+        ParallelDatasetWriter::<SequentialCsvZstDatasetWriter>::new(args.directories_out)?;
 
-    find_frontiers(&graph, &max_timestamps, output_dataset)
+    find_frontiers(&graph, &max_timestamps, dataset_writer)
 }
 
 fn find_frontiers<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64> + Sync + Copy,
-    output_dataset: CsvZstDataset,
+    dataset_writer: ParallelDatasetWriter<SequentialCsvZstDatasetWriter>,
 ) -> Result<()>
 where
     G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
@@ -102,15 +103,8 @@ where
     pl.start("Visiting revisions' directories...");
     let pl = Arc::new(Mutex::new(pl));
 
-    // Reuse writers across work batches, or we end up with millions of very small files
-    let writers = thread_local::ThreadLocal::new();
-
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
-        || {
-            writers
-                .get_or(|| output_dataset.get_new_writer().unwrap())
-                .borrow_mut()
-        },
+        || dataset_writer.get_thread_writer().unwrap(),
         |writer, node| -> Result<()> {
             if swh_graph_provenance::filters::is_head(graph, node) {
                 if let Some(root_dir) =

@@ -39,7 +39,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::{SWHType, SWHID};
 
-use swh_graph_provenance::csv_dataset::CsvZstDataset;
+use swh_graph_provenance::dataset_writer::{ParallelDatasetWriter, SequentialCsvZstDatasetWriter};
 
 #[derive(Parser, Debug)]
 /// Returns a directory of CSV files with header 'author_date,revrel_SWHID,cntdir_SWHID'
@@ -178,20 +178,14 @@ pub fn main() -> Result<()> {
     pl.start("[step 2/3] Writing content -> first-occurrence map...");
     let pl = Arc::new(Mutex::new(pl));
 
-    let output_dataset = CsvZstDataset::new(args.revisions_out)?;
-
-    // Reuse writers across work batches, or we end up with millions of very small files
-    let writers = thread_local::ThreadLocal::new();
+    let dataset_writer =
+        ParallelDatasetWriter::<SequentialCsvZstDatasetWriter>::new(args.revisions_out)?;
 
     // For each content, find a rev/rel that contains it and has the same date as the
     // date of first occurrence as the content (most of the time, there is only one,
     // but we don't care which we pick if there is more than one).
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
-        || {
-            writers
-                .get_or(|| output_dataset.get_new_writer().unwrap())
-                .borrow_mut()
-        },
+        || dataset_writer.get_thread_writer().unwrap(),
         |writer, cntdir| -> Result<_> {
             let occurrence = occurrences[cntdir].load(Ordering::Relaxed);
             if occurrence.timestamp() != i64::MAX {

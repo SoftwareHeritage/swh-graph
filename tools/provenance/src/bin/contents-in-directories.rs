@@ -18,7 +18,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::SWHID;
 
-use swh_graph_provenance::csv_dataset::CsvZstDataset;
+use swh_graph_provenance::dataset_writer::{ParallelDatasetWriter, SequentialCsvZstDatasetWriter};
 use swh_graph_provenance::frontier::PathParts;
 
 #[derive(Parser, Debug)]
@@ -73,7 +73,8 @@ pub fn main() -> Result<()> {
         .context("Could not load maps")?;
     log::info!("Graph loaded.");
 
-    let output_dataset = CsvZstDataset::new(args.contents_out)?;
+    let dataset_writer =
+        ParallelDatasetWriter::<SequentialCsvZstDatasetWriter>::new(args.contents_out)?;
 
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
@@ -84,19 +85,12 @@ pub fn main() -> Result<()> {
     pl.display_memory(true);
     pl.start("Listing contents in directories...");
 
-    // Reuse writers across work batches, or we end up with millions of very small files
-    let writers = thread_local::ThreadLocal::new();
-
     reader
         .deserialize()
         .inspect(|_| pl.light_update())
         .par_bridge()
         .try_for_each_init(
-            || {
-                writers
-                    .get_or(|| output_dataset.get_new_writer().unwrap())
-                    .borrow_mut()
-            },
+            || dataset_writer.get_thread_writer().unwrap(),
             |writer, record| -> Result<()> {
                 let InputRecord { dir_SWHID } =
                     record.context("Could not deserialize input row")?;

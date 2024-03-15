@@ -23,7 +23,7 @@ use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
 use swh_graph::SWHID;
 
-use swh_graph_provenance::csv_dataset::CsvZstDataset;
+use swh_graph_provenance::dataset_writer::{ParallelDatasetWriter, SequentialCsvZstDatasetWriter};
 
 #[derive(Parser, Debug)]
 /** Given as input a binary file with, for each directory, the newest date of first
@@ -90,13 +90,13 @@ pub fn main() -> Result<()> {
 
     let frontier_directories = read_frontier_directories(&graph)?;
 
-    let output_dataset = CsvZstDataset::new(args.directories_out)?;
+    let dataset_writer = ParallelDatasetWriter::new(args.directories_out)?;
 
     write_frontier_directories_in_revisions(
         &graph,
         &max_timestamps,
         &frontier_directories,
-        output_dataset,
+        dataset_writer,
     )
 }
 
@@ -143,7 +143,7 @@ fn write_frontier_directories_in_revisions<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64> + Sync + Copy,
     frontier_directories: &BitVec,
-    output_dataset: CsvZstDataset,
+    dataset_writer: ParallelDatasetWriter<SequentialCsvZstDatasetWriter>,
 ) -> Result<()>
 where
     G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
@@ -159,15 +159,8 @@ where
     pl.start("Visiting revisions' directories...");
     let pl = Arc::new(Mutex::new(pl));
 
-    // Reuse writers across work batches, or we end up with millions of very small files
-    let writers = thread_local::ThreadLocal::new();
-
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
-        || {
-            writers
-                .get_or(|| output_dataset.get_new_writer().unwrap())
-                .borrow_mut()
-        },
+        || dataset_writer.get_thread_writer().unwrap(),
         |writer, node| -> Result<()> {
             if swh_graph_provenance::filters::is_head(graph, node) {
                 if let Some(root_dir) =
