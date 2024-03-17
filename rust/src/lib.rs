@@ -35,3 +35,6 @@ pub mod java_compat;
 pub mod utils;
 
 pub use webgraph;
+
+/// The current version of swh-graph.
+pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");

@@ -18,7 +18,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::SWHID;
 
-use swh_graph_provenance::dataset_writer::{ParallelDatasetWriter, SequentialCsvZstDatasetWriter};
+use swh_graph_provenance::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
 use swh_graph_provenance::frontier::PathParts;
 
 #[derive(Parser, Debug)]
@@ -73,8 +73,7 @@ pub fn main() -> Result<()> {
         .context("Could not load maps")?;
     log::info!("Graph loaded.");
 
-    let dataset_writer =
-        ParallelDatasetWriter::<SequentialCsvZstDatasetWriter>::new(args.contents_out)?;
+    let dataset_writer = ParallelDatasetWriter::<CsvZstTableWriter>::new(args.contents_out)?;
 
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)

@@ -20,7 +20,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::SWHID;
 
-use swh_graph_provenance::dataset_writer::{ParallelDatasetWriter, SequentialCsvZstDatasetWriter};
+use swh_graph_provenance::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
 use swh_graph_provenance::frontier::PathParts;
 
 #[derive(Parser, Debug)]
@@ -81,7 +81,7 @@ pub fn main() -> Result<()> {
 fn write_contents_in_revisions<G>(
     graph: &G,
     frontier_directories: &BitVec,
-    dataset_writer: ParallelDatasetWriter<SequentialCsvZstDatasetWriter>,
+    dataset_writer: ParallelDatasetWriter<CsvZstTableWriter>,
 ) -> Result<()>
 where
     G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,

@@ -33,7 +33,7 @@ orcxx_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/orcxx-rs.g
 #orcxx = { path = "../../../../rust/orcxx/orcxx/", optional = true }
 #orcxx_derive = { path = "../../../../rust/orcxx/orcxx_derive/", optional = true }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
-rayon = { version = "1.7.0" }
+rayon = { version = "1.9.0" }
 sha1 = { version = "0.10.1", optional = true }
 itertools = { version = "0.11.0" }
 thread_local = "1.1.7"

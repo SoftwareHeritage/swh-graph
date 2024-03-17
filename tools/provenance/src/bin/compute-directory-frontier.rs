@@ -19,7 +19,7 @@ use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
 use swh_graph::{SWHType, SWHID};
 
-use swh_graph_provenance::dataset_writer::{ParallelDatasetWriter, SequentialCsvZstDatasetWriter};
+use swh_graph_provenance::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
 
 #[derive(Parser, Debug)]
 /** Given as input a binary file with, for each directory, the newest date of first
@@ -78,8 +78,7 @@ pub fn main() -> Result<()> {
         NumberMmap::<byteorder::BE, i64, _>::new(&args.max_timestamps, graph.num_nodes())
             .with_context(|| format!("Could not mmap {}", args.max_timestamps.display()))?;
 
-    let dataset_writer =
-        ParallelDatasetWriter::<SequentialCsvZstDatasetWriter>::new(args.directories_out)?;
+    let dataset_writer = ParallelDatasetWriter::<CsvZstTableWriter>::new(args.directories_out)?;
 
     find_frontiers(&graph, &max_timestamps, dataset_writer)
 }
@@ -87,7 +86,7 @@ pub fn main() -> Result<()> {
 fn find_frontiers<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64> + Sync + Copy,
-    dataset_writer: ParallelDatasetWriter<SequentialCsvZstDatasetWriter>,
+    dataset_writer: ParallelDatasetWriter<CsvZstTableWriter>,
 ) -> Result<()>
 where
     G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,

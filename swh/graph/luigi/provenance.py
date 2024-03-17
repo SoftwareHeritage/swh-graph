@@ -35,6 +35,46 @@ from .compressed_graph import LocalGraph
 from .utils import count_nodes
 
 
+class ListProvenanceNodes(luigi.Task):
+    """Lists all nodes reachable from releases and 'head revisions'."""
+
+    local_export_path = luigi.PathParameter()
+    local_graph_path = luigi.PathParameter()
+    graph_name = luigi.Parameter(default="graph")
+    provenance_dir = luigi.PathParameter()
+
+    def requires(self) -> Dict[str, luigi.Task]:
+        """Returns :class:`LocalGraph` and :class:`SortRevrelByDate` instances."""
+        return {
+            "graph": LocalGraph(local_graph_path=self.local_graph_path),
+        }
+
+    def _arrow_output_path(self) -> Path:
+        return self.provenance_dir / "nodes"
+
+    def output(self) -> Dict[str, luigi.LocalTarget]:
+        """Returns :file:`{provenance_dir}/nodes/`"""
+        return {
+            "parquet": luigi.LocalTarget(self._arrow_output_path()),
+        }
+
+    def run(self) -> None:
+        """Runs ``list-provenance-nodes`` from ``tools/provenance``"""
+        from ..shell import Rust
+
+        # fmt: off
+        (
+            Rust(
+                "list-provenance-nodes",
+                "-vv",
+                self.local_graph_path / self.graph_name,
+                "--nodes-out",
+                str(self._arrow_output_path()),
+            )
+        ).run()
+        # fmt: on
+
+
 class ListEarliestRevisions(luigi.Task):
     """Creates a file that contains all directory/content SWHIDs, along with the first
     revision/release author date and SWHIDs they occur in.

@@ -1,4 +1,4 @@
-# Copyright (C) 2023  The Software Heritage developers
+# Copyright (C) 2023-2024  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -9,9 +9,10 @@ import subprocess
 import textwrap
 from typing import List
 
+import pyarrow.dataset
 import pytest
 
-from swh.graph.example_dataset import DATASET_DIR
+from swh.graph.example_dataset import DATASET, DATASET_DIR
 from swh.graph.luigi.provenance import (
     ComputeDirectoryFrontier,
     DeduplicateFrontierDirectories,
@@ -20,11 +21,33 @@ from swh.graph.luigi.provenance import (
     ListDirectoryMaxLeafTimestamp,
     ListEarliestRevisions,
     ListFrontierDirectoriesInRevisions,
+    ListProvenanceNodes,
 )
 
 from .test_topology import TOPO_ORDER_BACKWARD
 
 HEADS_ONLY = True
+
+if HEADS_ONLY:
+    PROVENANCE_NODES = [
+        "swh:1:cnt:0000000000000000000000000000000000000001",
+        "swh:1:cnt:0000000000000000000000000000000000000004",
+        "swh:1:cnt:0000000000000000000000000000000000000005",
+        "swh:1:cnt:0000000000000000000000000000000000000007",
+        "swh:1:cnt:0000000000000000000000000000000000000014",
+        "swh:1:cnt:0000000000000000000000000000000000000015",
+        "swh:1:dir:0000000000000000000000000000000000000006",
+        "swh:1:dir:0000000000000000000000000000000000000008",
+        "swh:1:dir:0000000000000000000000000000000000000016",
+        "swh:1:dir:0000000000000000000000000000000000000017",
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        "swh:1:rel:0000000000000000000000000000000000000019",
+        "swh:1:rel:0000000000000000000000000000000000000021",
+        "swh:1:rev:0000000000000000000000000000000000000009",
+        "swh:1:rev:0000000000000000000000000000000000000018",
+    ]
+else:
+    PROVENANCE_NODES = [str(node.swhid()) for node in DATASET if hasattr(node, "swhid")]
 
 if HEADS_ONLY:
     EARLIEST_REVREL_FOR_CNTDIR = """\
@@ -213,6 +236,28 @@ def timestamps_bin_to_csv(bin_timestamps_path: Path) -> List[str]:
     return [
         f"{date},{swhid}" for (date, swhid) in zip(dates, swhids) if date is not None
     ]
+
+
+def test_listprovenancenodes(tmpdir):
+    tmpdir = Path(tmpdir)
+    provenance_dir = tmpdir / "provenance"
+    provenance_dir.mkdir()
+
+    task = ListProvenanceNodes(
+        local_export_path=DATASET_DIR,
+        local_graph_path=DATASET_DIR / "compressed",
+        graph_name="example",
+        provenance_dir=provenance_dir,
+    )
+
+    task.run()
+
+    dataset = pyarrow.dataset.dataset(provenance_dir / "nodes", format="parquet")
+    rows = dataset.to_table().to_pylist()
+    node_ids = [row["id"] for row in rows]
+    assert sorted(node_ids) == sorted(set(node_ids)), "node ids are not unique"
+    swhids = sorted(f"swh:1:{row['type']}:{row['sha1_git'].hex()}" for row in rows)
+    assert swhids == PROVENANCE_NODES
 
 
 def test_listearliestrevisions(tmpdir):

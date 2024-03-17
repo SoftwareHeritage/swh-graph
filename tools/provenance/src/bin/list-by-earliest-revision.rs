@@ -39,7 +39,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::{SWHType, SWHID};
 
-use swh_graph_provenance::dataset_writer::{ParallelDatasetWriter, SequentialCsvZstDatasetWriter};
+use swh_graph_provenance::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
 
 #[derive(Parser, Debug)]
 /// Returns a directory of CSV files with header 'author_date,revrel_SWHID,cntdir_SWHID'
@@ -178,8 +178,7 @@ pub fn main() -> Result<()> {
     pl.start("[step 2/3] Writing content -> first-occurrence map...");
     let pl = Arc::new(Mutex::new(pl));
 
-    let dataset_writer =
-        ParallelDatasetWriter::<SequentialCsvZstDatasetWriter>::new(args.revisions_out)?;
+    let dataset_writer = ParallelDatasetWriter::<CsvZstTableWriter>::new(args.revisions_out)?;
 
     // For each content, find a rev/rel that contains it and has the same date as the
     // date of first occurrence as the content (most of the time, there is only one,
