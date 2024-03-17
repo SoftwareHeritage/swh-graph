@@ -75,9 +75,9 @@ class ListProvenanceNodes(luigi.Task):
         # fmt: on
 
 
-class ListEarliestRevisions(luigi.Task):
-    """Creates a file that contains all directory/content SWHIDs, along with the first
-    revision/release author date and SWHIDs they occur in.
+class ComputeEarliestTimestamps(luigi.Task):
+    """Creates an array storing, for each directory/content SWHIDs, the author date
+    of the first revision/release that contains it.
     """
 
     local_export_path = luigi.PathParameter()
@@ -112,9 +112,6 @@ class ListEarliestRevisions(luigi.Task):
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
         }
 
-    def _csv_output_path(self) -> Path:
-        return self.provenance_dir / "earliest_revrel_for_cntdir"
-
     def _bin_timestamps_output_path(self) -> Path:
         return self.provenance_dir / "earliest_timestamps.bin"
 
@@ -122,22 +119,19 @@ class ListEarliestRevisions(luigi.Task):
         """Returns :file:`{provenance_dir}/revrel_by_author_date/`
         and `:file:`{provenance_dir}/earliest_timestamps.bin`."""
         return {
-            "csv": luigi.LocalTarget(self._csv_output_path()),
             "bin_timestamps": luigi.LocalTarget(self._bin_timestamps_output_path()),
         }
 
     def run(self) -> None:
-        """Runs ``list-by-earliest-revision`` from ``tools/provenance``"""
+        """Runs ``compute-earliest-timestamps`` from ``tools/provenance``"""
         from ..shell import Rust
 
         # fmt: off
         (
             Rust(
-                "list-by-earliest-revision",
+                "compute-earliest-timestamps",
                 "-vv",
                 self.local_graph_path / self.graph_name,
-                "--revisions-out",
-                str(self._csv_output_path()),
                 "--timestamps-out",
                 str(self._bin_timestamps_output_path()),
             )
@@ -178,10 +172,10 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
         return {f"{socket.getfqdn()}_ram_mb": self._max_ram() // 1_000_000}
 
     def requires(self) -> Dict[str, luigi.Task]:
-        """Returns :class:`LocalGraph` and :class:`ListEarliestRevisions` instances."""
+        """Returns :class:`LocalGraph` and :class:`ComputeEarliestTimestamps` instances."""
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "earliest_revisions": ListEarliestRevisions(
+            "earliest_revisions": ComputeEarliestTimestamps(
                 local_export_path=self.local_export_path,
                 local_graph_path=self.local_graph_path,
                 graph_name=self.graph_name,

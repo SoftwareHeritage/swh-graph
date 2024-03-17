@@ -15,11 +15,11 @@ import pytest
 from swh.graph.example_dataset import DATASET, DATASET_DIR
 from swh.graph.luigi.provenance import (
     ComputeDirectoryFrontier,
+    ComputeEarliestTimestamps,
     DeduplicateFrontierDirectories,
     ListContentsInFrontierDirectories,
     ListContentsInRevisionsWithoutFrontier,
     ListDirectoryMaxLeafTimestamp,
-    ListEarliestRevisions,
     ListFrontierDirectoriesInRevisions,
     ListProvenanceNodes,
 )
@@ -260,12 +260,12 @@ def test_listprovenancenodes(tmpdir):
     assert swhids == PROVENANCE_NODES
 
 
-def test_listearliestrevisions(tmpdir):
+def test_computeearliesttimestamps(tmpdir):
     tmpdir = Path(tmpdir)
     provenance_dir = tmpdir / "provenance"
     provenance_dir.mkdir()
 
-    task = ListEarliestRevisions(
+    task = ComputeEarliestTimestamps(
         local_export_path=DATASET_DIR,
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
@@ -280,17 +280,6 @@ def test_listearliestrevisions(tmpdir):
         trailing,
     ) = EARLIEST_REVREL_FOR_CNTDIR.split("\r\n")
     assert trailing == ""
-
-    all_rows = []
-    for file in (provenance_dir / "earliest_revrel_for_cntdir").glob("*.csv.zst"):
-        csv_text = subprocess.check_output(["zstdcat", file]).decode()
-        if csv_text:
-            (header, *rows, trailing) = csv_text.split("\r\n")
-            assert header == expected_header
-            all_rows.extend(rows)
-            assert trailing == ""
-
-    assert sorted(all_rows) == sorted(expected_rows)
 
     rows = set(timestamps_bin_to_csv(provenance_dir / "earliest_timestamps.bin"))
     (header, *expected_rows) = [
@@ -314,11 +303,7 @@ def test_listdirectorymaxleaftimestamp(tmpdir):
     toposort_path.write_text(TOPO_ORDER_BACKWARD)
 
     # Generate the binary file, used as input by ComputeDirectoryFrontier
-    test_listearliestrevisions(tmpdir)
-
-    (provenance_dir / "earliest_revrel_for_cntdir.csv.zst").write_text(
-        EARLIEST_REVREL_FOR_CNTDIR
-    )
+    test_computeearliesttimestamps(tmpdir)
 
     task = ListDirectoryMaxLeafTimestamp(
         local_export_path=DATASET_DIR,
