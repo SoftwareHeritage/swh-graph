@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -7,10 +7,11 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use orcxx::deserialize::{CheckableKind, OrcDeserialize, OrcStruct};
-use orcxx::reader::Reader;
-use orcxx::row_iterator::RowIterator;
-use orcxx_derive::OrcDeserialize;
+use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
+use ar_row_derive::ArRowDeserialize;
+use datafusion_orc::arrow_reader::ArrowReaderBuilder;
+use datafusion_orc::projection::ProjectionMask;
+use datafusion_orc::reader::ChunkReader;
 use rayon::prelude::*;
 
 use crate::SWHType;
@@ -18,30 +19,91 @@ use crate::SWHType;
 const SWHID_TXT_SIZE: usize = 50;
 type TextSwhid = [u8; SWHID_TXT_SIZE];
 
-pub(crate) const ORC_BATCH_SIZE: usize = 1_024; // Larger values don't seem to improve throughput
+pub(crate) const ORC_BATCH_SIZE: usize = 1024;
+/// The value was computed experimentally to minimize both run time and memory,
+/// by running `swh-graph-extract extract-nodes` on the 2023-09-06 dataset,
+/// on Software Heritage's Maxxi computer (Xeon Gold 6342 CPU @ 2.80GHz,
+/// 96 threads, 4TB RAM)
 
 pub(crate) fn get_dataset_readers<P: AsRef<Path>>(
     dataset_dir: P,
     subdirectory: &str,
-) -> Result<Vec<orcxx::reader::Reader>> {
+) -> Result<Vec<ArrowReaderBuilder<std::fs::File>>> {
     let mut dataset_dir = dataset_dir.as_ref().to_owned();
     dataset_dir.push(subdirectory);
     std::fs::read_dir(&dataset_dir)
         .with_context(|| format!("Could not list {}", dataset_dir.display()))?
         .map(|file_path| {
             let file_path = file_path
-                .unwrap_or_else(|_| panic!("Failed to list {}", dataset_dir.display()))
+                .with_context(|| format!("Failed to list {}", dataset_dir.display()))?
                 .path();
-            let input_stream = orcxx::reader::InputStream::from_local_file(
-                file_path
-                    .to_str()
-                    .with_context(|| format!("Error decoding {}", file_path.display()))?,
-            )
-            .with_context(|| format!("Could not open {}", file_path.display()))?;
-            Reader::new(input_stream)
-                .with_context(|| format!("Could not read {}", file_path.display()))
+            let file = std::fs::File::open(&file_path)
+                .with_context(|| format!("Could not open {}", file_path.display()))?;
+            let builder = ArrowReaderBuilder::try_new(file)
+                .with_context(|| format!("Could not read {}", file_path.display()))?;
+            Ok(builder)
         })
         .collect()
+}
+
+pub(crate) fn iter_arrow<R: ChunkReader, T, IntoIterU, U, F>(
+    reader_builder: ArrowReaderBuilder<R>,
+    mut f: F,
+) -> impl Iterator<Item = U>
+where
+    F: FnMut(T) -> IntoIterU,
+    IntoIterU: IntoIterator<Item = U>,
+    T: ArRowDeserialize + ArRowStruct,
+{
+    let field_names = <T>::columns();
+    let projection = ProjectionMask::named_roots(
+        reader_builder.file_metadata().root_data_type(),
+        field_names.as_slice(),
+    );
+    let reader = reader_builder
+        .with_projection(projection)
+        .with_batch_size(ORC_BATCH_SIZE)
+        .build();
+
+    reader.flat_map(move |chunk| {
+        let chunk: arrow_array::RecordBatch =
+            chunk.unwrap_or_else(|e| panic!("Could not read chunk: {}", e));
+        let items: Vec<T> = T::from_record_batch(chunk).expect("Could not deserialize from arrow");
+        items.into_iter().flat_map(&mut f).collect::<Vec<_>>()
+    })
+}
+
+pub(crate) fn par_iter_arrow<R: ChunkReader + Send, T: Send, IntoIterU, U: Send, F>(
+    reader_builder: ArrowReaderBuilder<R>,
+    f: F,
+) -> impl ParallelIterator<Item = U>
+where
+    F: Fn(T) -> IntoIterU + Send + Sync,
+    IntoIterU: IntoIterator<Item = U> + Send + Sync,
+    T: ArRowDeserialize + ArRowStruct,
+{
+    let field_names = <T>::columns();
+    let projection = ProjectionMask::named_roots(
+        reader_builder.file_metadata().root_data_type(),
+        field_names.as_slice(),
+    );
+    let reader = reader_builder
+        .with_projection(projection)
+        .with_batch_size(ORC_BATCH_SIZE)
+        .build();
+
+    reader.par_bridge().flat_map_iter(move |chunk| {
+        let chunk: arrow_array::RecordBatch =
+            chunk.unwrap_or_else(|e| panic!("Could not read chunk: {}", e));
+        let items: Vec<T> = T::from_record_batch(chunk).expect("Could not deserialize from arrow");
+        items.into_iter().flat_map(&f).collect::<Vec<_>>()
+    })
+}
+
+fn count_arrow_rows<R: ChunkReader>(reader_builder: ArrowReaderBuilder<R>) -> u64 {
+    let empty_mask = ProjectionMask::roots(reader_builder.file_metadata().root_data_type(), []); // Don't need to read any column
+    let reader = reader_builder.with_projection(empty_mask).build();
+    reader.total_row_count()
 }
 
 pub fn estimate_node_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]) -> Result<u64> {
@@ -64,10 +126,7 @@ pub fn estimate_node_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]
     if allowed_node_types.contains(&SWHType::Snapshot) {
         readers.extend(get_dataset_readers(dataset_dir, "snapshot")?);
     }
-    Ok(readers
-        .into_par_iter()
-        .map(|reader| reader.row_count())
-        .sum())
+    Ok(readers.into_par_iter().map(count_arrow_rows).sum())
 }
 
 pub fn estimate_edge_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]) -> Result<u64> {
@@ -97,10 +156,7 @@ pub fn estimate_edge_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]
     if allowed_node_types.contains(&SWHType::Snapshot) {
         readers.extend(get_dataset_readers(dataset_dir, "snapshot_branch")?);
     }
-    Ok(readers
-        .into_par_iter()
-        .map(|reader| reader.row_count())
-        .sum())
+    Ok(readers.into_par_iter().map(count_arrow_rows).sum())
 }
 
 pub fn iter_swhids(
@@ -180,28 +236,29 @@ pub fn iter_swhids(
         ))
 }
 
-fn map_swhids<T: OrcDeserialize + CheckableKind + OrcStruct + Clone + Send, F>(
-    reader: Reader,
+fn map_swhids<R: ChunkReader + Send, T: Send, F>(
+    reader_builder: ArrowReaderBuilder<R>,
     f: F,
 ) -> impl ParallelIterator<Item = TextSwhid>
 where
     F: Fn(T) -> Option<String> + Send + Sync,
+    T: ArRowDeserialize + ArRowStruct,
 {
-    RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
-        .expect("Could not open row reader")
-        .par_bridge()
-        .flat_map(f)
-        .map(|swhid| swhid.as_bytes().try_into().unwrap())
+    par_iter_arrow(reader_builder, move |record: T| {
+        f(record).map(|swhid| swhid.as_bytes().try_into().unwrap())
+    })
 }
 
-fn iter_swhids_from_dir_entry(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_swhids_from_dir_entry<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = TextSwhid> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct DirectoryEntry {
         r#type: String,
         target: String,
     }
 
-    map_swhids(reader, |entry: DirectoryEntry| {
+    map_swhids(reader_builder, |entry: DirectoryEntry| {
         Some(match entry.r#type.as_bytes() {
             b"file" => format!("swh:1:cnt:{}", entry.target),
             b"dir" => format!("swh:1:dir:{}", entry.target),
@@ -211,54 +268,68 @@ fn iter_swhids_from_dir_entry(reader: Reader) -> impl ParallelIterator<Item = Te
     })
 }
 
-fn iter_swhids_from_dir(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_swhids_from_dir<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = TextSwhid> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Directory {
         id: String,
     }
 
-    map_swhids(reader, |dir: Directory| {
+    map_swhids(reader_builder, |dir: Directory| {
         Some(format!("swh:1:dir:{}", dir.id))
     })
 }
 
-fn iter_swhids_from_cnt(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_swhids_from_cnt<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = TextSwhid> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Content {
         sha1_git: String,
     }
 
-    map_swhids(reader, |cnt: Content| {
+    map_swhids(reader_builder, |cnt: Content| {
         Some(format!("swh:1:cnt:{}", cnt.sha1_git))
     })
 }
 
-fn iter_swhids_from_ori(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_swhids_from_ori<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = TextSwhid> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Origin {
         id: String,
     }
 
-    map_swhids(reader, |ori: Origin| Some(format!("swh:1:ori:{}", ori.id)))
+    map_swhids(reader_builder, |ori: Origin| {
+        Some(format!("swh:1:ori:{}", ori.id))
+    })
 }
 
-fn iter_rel_swhids_from_rel(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_rel_swhids_from_rel<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = TextSwhid> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Release {
         id: String,
     }
 
-    map_swhids(reader, |rel: Release| Some(format!("swh:1:rel:{}", rel.id)))
+    map_swhids(reader_builder, |rel: Release| {
+        Some(format!("swh:1:rel:{}", rel.id))
+    })
 }
 
-fn iter_target_swhids_from_rel(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_target_swhids_from_rel<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = TextSwhid> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Release {
         target: String,
         target_type: String,
     }
 
-    map_swhids(reader, |entry: Release| {
+    map_swhids(reader_builder, |entry: Release| {
         Some(match entry.target_type.as_bytes() {
             b"content" => format!("swh:1:cnt:{}", entry.target),
             b"directory" => format!("swh:1:dir:{}", entry.target),
@@ -269,58 +340,68 @@ fn iter_target_swhids_from_rel(reader: Reader) -> impl ParallelIterator<Item = T
     })
 }
 
-fn iter_rev_swhids_from_rev(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_rev_swhids_from_rev<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = TextSwhid> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Revision {
         id: String,
     }
 
-    map_swhids(reader, |dir: Revision| {
+    map_swhids(reader_builder, |dir: Revision| {
         Some(format!("swh:1:rev:{}", dir.id))
     })
 }
 
-fn iter_dir_swhids_from_rev(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_dir_swhids_from_rev<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = TextSwhid> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Revision {
         directory: String,
     }
 
-    map_swhids(reader, |rev: Revision| {
+    map_swhids(reader_builder, |rev: Revision| {
         Some(format!("swh:1:dir:{}", rev.directory))
     })
 }
 
-fn iter_parent_swhids_from_rev(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_parent_swhids_from_rev<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = TextSwhid> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct RevisionParent {
         parent_id: String,
     }
 
-    map_swhids(reader, |rev: RevisionParent| {
+    map_swhids(reader_builder, |rev: RevisionParent| {
         Some(format!("swh:1:rev:{}", rev.parent_id))
     })
 }
 
-fn iter_swhids_from_snp(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_swhids_from_snp<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = TextSwhid> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Snapshot {
         id: String,
     }
 
-    map_swhids(reader, |dir: Snapshot| {
+    map_swhids(reader_builder, |dir: Snapshot| {
         Some(format!("swh:1:snp:{}", dir.id))
     })
 }
 
-fn iter_swhids_from_snp_branch(reader: Reader) -> impl ParallelIterator<Item = TextSwhid> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_swhids_from_snp_branch<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = TextSwhid> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct SnapshotBranch {
         target: String,
         target_type: String,
     }
 
-    map_swhids(reader, |branch: SnapshotBranch| {
+    map_swhids(reader_builder, |branch: SnapshotBranch| {
         match branch.target_type.as_bytes() {
             b"content" => Some(format!("swh:1:cnt:{}", branch.target)),
             b"directory" => Some(format!("swh:1:dir:{}", branch.target)),
@@ -331,6 +412,7 @@ fn iter_swhids_from_snp_branch(reader: Reader) -> impl ParallelIterator<Item = T
         }
     })
 }
+
 pub fn iter_arcs(
     dataset_dir: &PathBuf,
     allowed_node_types: &[SWHType],
@@ -377,33 +459,35 @@ pub fn iter_arcs(
         ))
 }
 
-fn map_arcs<T: OrcDeserialize + CheckableKind + OrcStruct + Clone, F>(
-    reader: Reader,
+fn map_arcs<R: ChunkReader + Send, T: Send, F>(
+    reader_builder: ArrowReaderBuilder<R>,
     f: F,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid)>
 where
-    F: Fn(T) -> Option<(String, String)>,
+    F: Fn(T) -> Option<(String, String)> + Send + Sync,
+    T: ArRowDeserialize + ArRowStruct,
 {
-    RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
-        .expect("Could not open row reader")
-        .flat_map(f)
-        .map(|(src_swhid, dst_swhid)| {
+    iter_arrow(reader_builder, move |record: T| {
+        f(record).map(|(src_swhid, dst_swhid)| {
             (
                 src_swhid.as_bytes().try_into().unwrap(),
                 dst_swhid.as_bytes().try_into().unwrap(),
             )
         })
+    })
 }
 
-fn iter_arcs_from_dir_entry(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_arcs_from_dir_entry<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct DirectoryEntry {
         directory_id: String,
         r#type: String,
         target: String,
     }
 
-    map_arcs(reader, |entry: DirectoryEntry| {
+    map_arcs(reader_builder, |entry: DirectoryEntry| {
         Some((
             format!("swh:1:dir:{}", entry.directory_id),
             match entry.r#type.as_bytes() {
@@ -416,14 +500,16 @@ fn iter_arcs_from_dir_entry(reader: Reader) -> impl Iterator<Item = (TextSwhid, 
     })
 }
 
-fn iter_arcs_from_ovs(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_arcs_from_ovs<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct OriginVisitStatus {
         origin: String,
         snapshot: Option<String>,
     }
 
-    map_arcs(reader, |ovs: OriginVisitStatus| {
+    map_arcs(reader_builder, |ovs: OriginVisitStatus| {
         use sha1::Digest;
         let mut hasher = sha1::Sha1::new();
         hasher.update(ovs.origin.as_bytes());
@@ -437,15 +523,17 @@ fn iter_arcs_from_ovs(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSw
     })
 }
 
-fn iter_arcs_from_rel(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_arcs_from_rel<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Release {
         id: String,
         target: String,
         target_type: String,
     }
 
-    map_arcs(reader, |entry: Release| {
+    map_arcs(reader_builder, |entry: Release| {
         Some((
             format!("swh:1:rel:{}", entry.id),
             match entry.target_type.as_bytes() {
@@ -459,14 +547,16 @@ fn iter_arcs_from_rel(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSw
     })
 }
 
-fn iter_arcs_from_rev(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_arcs_from_rev<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Revision {
         id: String,
         directory: String,
     }
 
-    map_arcs(reader, |rev: Revision| {
+    map_arcs(reader_builder, |rev: Revision| {
         Some((
             format!("swh:1:rev:{}", rev.id),
             format!("swh:1:dir:{}", rev.directory),
@@ -474,14 +564,16 @@ fn iter_arcs_from_rev(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSw
     })
 }
 
-fn iter_arcs_from_rev_history(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_arcs_from_rev_history<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct RevisionParent {
         id: String,
         parent_id: String,
     }
 
-    map_arcs(reader, |rev: RevisionParent| {
+    map_arcs(reader_builder, |rev: RevisionParent| {
         Some((
             format!("swh:1:rev:{}", rev.id),
             format!("swh:1:rev:{}", rev.parent_id),
@@ -489,15 +581,17 @@ fn iter_arcs_from_rev_history(reader: Reader) -> impl Iterator<Item = (TextSwhid
     })
 }
 
-fn iter_arcs_from_snp_branch(reader: Reader) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_arcs_from_snp_branch<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct SnapshotBranch {
         snapshot_id: String,
         target: String,
         target_type: String,
     }
 
-    map_arcs(reader, |branch: SnapshotBranch| {
+    map_arcs(reader_builder, |branch: SnapshotBranch| {
         let dst = match branch.target_type.as_bytes() {
             b"content" => Some(format!("swh:1:cnt:{}", branch.target)),
             b"directory" => Some(format!("swh:1:dir:{}", branch.target)),
@@ -558,28 +652,33 @@ pub fn count_edge_types(
         ))
 }
 
-fn for_each_edge<T: OrcDeserialize + CheckableKind + OrcStruct + Clone, F>(reader: Reader, f: F)
+fn for_each_edge<T: Send, F, R: ChunkReader + Send>(reader_builder: ArrowReaderBuilder<R>, mut f: F)
 where
-    F: FnMut(T),
+    F: FnMut(T) + Send + Sync,
+    T: ArRowDeserialize + ArRowStruct,
 {
-    RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
-        .expect("Could not open row reader")
-        .for_each(f)
+    iter_arrow(reader_builder, move |record: T| -> [(); 0] {
+        f(record);
+        []
+    })
+    .count();
 }
 
 fn inc(stats: &mut EdgeStats, src_type: SWHType, dst_type: SWHType) {
     stats[src_type as usize][dst_type as usize] += 1;
 }
 
-fn count_edge_types_from_dir(reader: Reader) -> EdgeStats {
+fn count_edge_types_from_dir<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> EdgeStats {
     let mut stats = EdgeStats::default();
 
-    #[derive(OrcDeserialize, Default, Clone)]
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct DirectoryEntry {
         r#type: String,
     }
 
-    for_each_edge(reader, |entry: DirectoryEntry| {
+    for_each_edge(reader_builder, |entry: DirectoryEntry| {
         match entry.r#type.as_bytes() {
             b"file" => {
                 inc(&mut stats, SWHType::Directory, SWHType::Content);
@@ -597,15 +696,17 @@ fn count_edge_types_from_dir(reader: Reader) -> EdgeStats {
     stats
 }
 
-fn count_edge_types_from_ovs(reader: Reader) -> EdgeStats {
+fn count_edge_types_from_ovs<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> EdgeStats {
     let mut stats = EdgeStats::default();
 
-    #[derive(OrcDeserialize, Default, Clone)]
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct OriginVisitStatus {
         snapshot: Option<String>,
     }
 
-    for_each_edge(reader, |ovs: OriginVisitStatus| {
+    for_each_edge(reader_builder, |ovs: OriginVisitStatus| {
         if ovs.snapshot.is_some() {
             inc(&mut stats, SWHType::Origin, SWHType::Snapshot)
         }
@@ -614,30 +715,38 @@ fn count_edge_types_from_ovs(reader: Reader) -> EdgeStats {
     stats
 }
 
-fn count_dir_edge_types_from_rev(reader: Reader) -> EdgeStats {
+fn count_dir_edge_types_from_rev<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> EdgeStats {
     let mut stats = EdgeStats::default();
 
-    stats[SWHType::Revision as usize][SWHType::Directory as usize] += reader.row_count() as usize;
+    stats[SWHType::Revision as usize][SWHType::Directory as usize] +=
+        count_arrow_rows(reader_builder) as usize;
 
     stats
 }
 
-fn count_parent_edge_types_from_rev(reader: Reader) -> EdgeStats {
+fn count_parent_edge_types_from_rev<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> EdgeStats {
     let mut stats = EdgeStats::default();
 
-    stats[SWHType::Revision as usize][SWHType::Revision as usize] += reader.row_count() as usize;
+    stats[SWHType::Revision as usize][SWHType::Revision as usize] +=
+        count_arrow_rows(reader_builder) as usize;
 
     stats
 }
 
-fn count_edge_types_from_rel(reader: Reader) -> EdgeStats {
+fn count_edge_types_from_rel<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> EdgeStats {
     let mut stats = EdgeStats::default();
-    #[derive(OrcDeserialize, Default, Clone)]
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Release {
         target_type: String,
     }
 
-    for_each_edge(reader, |entry: Release| {
+    for_each_edge(reader_builder, |entry: Release| {
         match entry.target_type.as_bytes() {
             b"content" => {
                 inc(&mut stats, SWHType::Release, SWHType::Content);
@@ -658,15 +767,17 @@ fn count_edge_types_from_rel(reader: Reader) -> EdgeStats {
     stats
 }
 
-fn count_edge_types_from_snp(reader: Reader) -> EdgeStats {
+fn count_edge_types_from_snp<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> EdgeStats {
     let mut stats = EdgeStats::default();
 
-    #[derive(OrcDeserialize, Default, Clone)]
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct SnapshotBranch {
         target_type: String,
     }
 
-    for_each_edge(reader, |branch: SnapshotBranch| {
+    for_each_edge(reader_builder, |branch: SnapshotBranch| {
         match branch.target_type.as_bytes() {
             b"content" => {
                 inc(&mut stats, SWHType::Snapshot, SWHType::Content);
@@ -691,7 +802,7 @@ fn count_edge_types_from_snp(reader: Reader) -> EdgeStats {
 pub fn iter_labels(
     dataset_dir: &PathBuf,
     allowed_node_types: &[SWHType],
-) -> Result<impl ParallelIterator<Item = Vec<u8>>> {
+) -> Result<impl ParallelIterator<Item = Box<[u8]>>> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
             get_dataset_readers(dataset_dir, subdirectory)
@@ -714,36 +825,38 @@ pub fn iter_labels(
         ))
 }
 
-fn map_labels<T: OrcDeserialize + CheckableKind + OrcStruct + Clone + Send, F>(
-    reader: Reader,
+fn map_labels<T: Send, F, R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
     f: F,
-) -> impl ParallelIterator<Item = Vec<u8>>
+) -> impl ParallelIterator<Item = Box<[u8]>>
 where
-    F: Fn(T) -> Option<Vec<u8>> + Send + Sync,
+    F: Fn(T) -> Option<Box<[u8]>> + Send + Sync,
+    T: ArRowDeserialize + ArRowStruct,
 {
-    RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
-        .expect("Could not open row reader")
-        .par_bridge()
-        .flat_map(f)
+    par_iter_arrow(reader_builder, f)
 }
 
-fn iter_labels_from_dir_entry(reader: Reader) -> impl ParallelIterator<Item = Vec<u8>> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_labels_from_dir_entry<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = Box<[u8]>> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct DirectoryEntry {
-        name: Vec<u8>,
+        name: Box<[u8]>,
     }
 
-    map_labels(reader, |entry: DirectoryEntry| Some(entry.name))
+    map_labels(reader_builder, |entry: DirectoryEntry| Some(entry.name))
 }
 
-fn iter_labels_from_snp_branch(reader: Reader) -> impl ParallelIterator<Item = Vec<u8>> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_labels_from_snp_branch<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = Box<[u8]>> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct SnapshotBranch {
-        name: Vec<u8>,
+        name: Box<[u8]>,
         target_type: String,
     }
 
-    map_labels(reader, |branch: SnapshotBranch| {
+    map_labels(reader_builder, |branch: SnapshotBranch| {
         match branch.target_type.as_bytes() {
             b"content" | b"directory" | b"revision" | b"release" => Some(branch.name),
             b"alias" => None,
@@ -755,7 +868,7 @@ fn iter_labels_from_snp_branch(reader: Reader) -> impl ParallelIterator<Item = V
 pub fn iter_persons(
     dataset_dir: &PathBuf,
     allowed_node_types: &[SWHType],
-) -> Result<impl ParallelIterator<Item = Vec<u8>>> {
+) -> Result<impl ParallelIterator<Item = Box<[u8]>>> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
             get_dataset_readers(dataset_dir, subdirectory)
@@ -778,27 +891,27 @@ pub fn iter_persons(
         ))
 }
 
-fn map_persons<T: OrcDeserialize + CheckableKind + OrcStruct + Clone + Send, F>(
-    reader: Reader,
+fn map_persons<T: Send, F, R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
     f: F,
-) -> impl ParallelIterator<Item = Vec<u8>>
+) -> impl ParallelIterator<Item = Box<[u8]>>
 where
-    F: Fn(T) -> Vec<Vec<u8>> + Send + Sync,
+    F: Fn(T) -> Vec<Box<[u8]>> + Send + Sync,
+    T: ArRowDeserialize + ArRowStruct,
 {
-    RowIterator::<T>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
-        .expect("Could not open row reader")
-        .par_bridge()
-        .flat_map(f)
+    par_iter_arrow(reader_builder, f)
 }
 
-fn iter_persons_from_rev(reader: Reader) -> impl ParallelIterator<Item = Vec<u8>> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_persons_from_rev<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = Box<[u8]>> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Revision {
-        author: Option<Vec<u8>>,
-        committer: Option<Vec<u8>>,
+        author: Option<Box<[u8]>>,
+        committer: Option<Box<[u8]>>,
     }
 
-    map_persons(reader, |revision: Revision| {
+    map_persons(reader_builder, |revision: Revision| {
         let mut persons = vec![];
         if let Some(author) = revision.author {
             persons.push(author);
@@ -810,13 +923,15 @@ fn iter_persons_from_rev(reader: Reader) -> impl ParallelIterator<Item = Vec<u8>
     })
 }
 
-fn iter_persons_from_rel(reader: Reader) -> impl ParallelIterator<Item = Vec<u8>> {
-    #[derive(OrcDeserialize, Default, Clone)]
+fn iter_persons_from_rel<R: ChunkReader + Send>(
+    reader_builder: ArrowReaderBuilder<R>,
+) -> impl ParallelIterator<Item = Box<[u8]>> {
+    #[derive(ArRowDeserialize, Default, Clone)]
     struct Release {
-        author: Option<Vec<u8>>,
+        author: Option<Box<[u8]>>,
     }
 
-    map_persons(reader, |release: Release| {
+    map_persons(reader_builder, |release: Release| {
         let mut persons = vec![];
         if let Some(author) = release.author {
             persons.push(author);
