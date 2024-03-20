@@ -5,6 +5,8 @@ version.workspace = true
 edition = "2021"
 
 [dependencies]
+ar_row = { git = "https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git", rev = "9602b1677253c0b491b4e273afaeda4ffb37a4d9" }
+ar_row_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git", rev = "9602b1677253c0b491b4e273afaeda4ffb37a4d9" }
 arrow = { version = "50.0.0", default-features = false }
 anyhow = {version="1.0.71", features=["backtrace"]}
 bytemuck = { version = "1.14.0", features = ["extern_crate_alloc"] }

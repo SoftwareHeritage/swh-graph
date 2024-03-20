@@ -24,8 +24,7 @@ use swh_graph_provenance::dataset_writer::{CsvZstTableWriter, ParallelDatasetWri
 use swh_graph_provenance::frontier::PathParts;
 
 #[derive(Parser, Debug)]
-/** Given as stdin a CSV with header "frontier_dir_SWHID" containing a single column
- * with frontier directories.
+/** Given a Parquet table with the node ids of every frontier directory.
  * Produces the line of contents reachable from each revision, without any going through
  * any directory that is a frontier (relative to any revision).
  */
@@ -33,6 +32,9 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(long)]
+    /// Path to the Parquet table with the node ids of frontier directories
+    frontier_directories: PathBuf,
     #[arg(long)]
     /// Path to a directory where to write .csv.zst results to
     contents_out: PathBuf,
@@ -70,8 +72,17 @@ pub fn main() -> Result<()> {
         .context("Could not load timestamps")?;
     log::info!("Graph loaded.");
 
-    let frontier_directories =
-        swh_graph_provenance::frontier_set::frontier_directories_from_stdin(&graph)?;
+    let mut pl = ProgressLogger::default();
+    pl.item_name("node");
+    pl.display_memory(true);
+    pl.local_speed(true);
+    pl.start("Loading frontier directories...");
+    let frontier_directories = swh_graph_provenance::frontier_set::from_parquet(
+        &graph,
+        args.frontier_directories,
+        &mut pl,
+    )?;
+    pl.done();
 
     let dataset_writer = ParallelDatasetWriter::new(args.contents_out)?;
 

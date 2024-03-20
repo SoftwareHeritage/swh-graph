@@ -8,7 +8,7 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use rayon::prelude::*;
 use sux::prelude::{AtomicBitVec, BitVec};
@@ -21,6 +21,14 @@ use swh_graph::SWHType;
 use swh_graph_provenance::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph_provenance::node_dataset::{schema, writer_properties, NodeTableBuilder};
 
+#[derive(ValueEnum, Debug, Clone, Copy)]
+enum NodeFilter {
+    /// All releases, and only revisions pointed by either a release or a snapshot
+    Heads,
+    /// All releases and all revisions.
+    All,
+}
+
 #[derive(Parser, Debug)]
 /** Writes the list of nodes reachable from a 'head' revision or a release.
  */
@@ -28,6 +36,10 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(value_enum)]
+    #[arg(long, default_value_t = NodeFilter::Heads)]
+    /// Subset of revisions and releases to traverse from
+    node_filter: NodeFilter,
     #[arg(long, default_value_t = 1_000_000)] // Parquet's default max_row_group_size
     /// Number of rows written at once, forming a row group on disk.
     ///
@@ -77,14 +89,14 @@ pub fn main() -> Result<()> {
     // group will be exactly this size.
     dataset_writer.flush_threshold = Some(args.row_group_size);
 
-    let reachable_nodes = find_reachable_nodes(&graph)?;
+    let reachable_nodes = find_reachable_nodes(&graph, args.node_filter)?;
 
     write_reachable_nodes(&graph, dataset_writer, &reachable_nodes)?;
 
     Ok(())
 }
 
-fn find_reachable_nodes<G>(graph: &G) -> Result<BitVec>
+fn find_reachable_nodes<G>(graph: &G, node_filter: NodeFilter) -> Result<BitVec>
 where
     G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties + Sync,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
@@ -99,7 +111,12 @@ where
     let reachable_from_heads = AtomicBitVec::new(graph.num_nodes());
 
     par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(|root| -> Result<()> {
-        if swh_graph_provenance::filters::is_head(graph, root) {
+        let search_in_node = match node_filter {
+            NodeFilter::All => true,
+            NodeFilter::Heads => swh_graph_provenance::filters::is_head(graph, root),
+        };
+
+        if search_in_node {
             let mut stack = vec![root];
 
             while let Some(node) = stack.pop() {

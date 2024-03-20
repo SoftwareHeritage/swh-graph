@@ -7,13 +7,15 @@
 
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
+use swh_graph::collections::NodeSet;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::SWHID;
@@ -25,8 +27,7 @@ use swh_graph_provenance::frontier::PathParts;
 /** Given as input a binary file with, for each directory, the newest date of first
  * occurrence of any of the content in its subtree (well, DAG), ie.,
  * max_{for all content} (min_{for all occurrence of content} occurrence).
- * and as stdin a CSV with header "frontier_dir_SWHID" containing a single column
- * with frontier directories.
+ * and a Parquet table with the node ids of every frontier directory.
  * Produces the line of frontier directories (relative to any revision) present in
  * each revision.
  */
@@ -35,19 +36,17 @@ struct Args {
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
     #[arg(long)]
+    /// Path to the Parquet table with the node ids of frontier directories
+    frontier_directories: PathBuf,
+    #[arg(long)]
     /// Path to a directory where to write .csv.zst results to
     contents_out: PathBuf,
-}
-
-#[derive(Debug, Deserialize)]
-struct InputRecord {
-    dir_SWHID: String,
 }
 
 #[derive(Debug, Serialize)]
 struct OutputRecord<'a> {
     cnt_SWHID: SWHID,
-    dir_SWHID: &'a str,
+    dir_SWHID: &'a SWHID,
     #[serde(with = "serde_bytes")] // Serialize a bytestring instead of list of ints
     path: Vec<u8>,
 }
@@ -73,33 +72,42 @@ pub fn main() -> Result<()> {
         .context("Could not load maps")?;
     log::info!("Graph loaded.");
 
-    let dataset_writer = ParallelDatasetWriter::<CsvZstTableWriter>::new(args.contents_out)?;
+    let mut pl = ProgressLogger::default();
+    pl.item_name("node");
+    pl.display_memory(true);
+    pl.local_speed(true);
+    pl.start("Loading frontier directories...");
+    let frontier_directories = swh_graph_provenance::frontier_set::from_parquet(
+        &graph,
+        args.frontier_directories,
+        &mut pl,
+    )?;
+    pl.done();
 
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .from_reader(std::io::stdin());
+    let dataset_writer = ParallelDatasetWriter::<CsvZstTableWriter>::new(args.contents_out)?;
 
     let mut pl = ProgressLogger::default();
     pl.item_name("directory");
     pl.display_memory(true);
+    pl.expected_updates(Some(graph.num_nodes()));
     pl.start("Listing contents in directories...");
+    let pl = Arc::new(Mutex::new(pl));
 
-    reader
-        .deserialize()
-        .inspect(|_| pl.light_update())
-        .par_bridge()
-        .try_for_each_init(
-            || dataset_writer.get_thread_writer().unwrap(),
-            |writer, record| -> Result<()> {
-                let InputRecord { dir_SWHID } =
-                    record.context("Could not deserialize input row")?;
+    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
+        || dataset_writer.get_thread_writer().unwrap(),
+        |writer, node| -> Result<()> {
+            if frontier_directories.contains(node) {
+                write_contents_in_directory(&graph, writer, node)?;
+            }
 
-                write_contents_in_directory(&graph, writer, &dir_SWHID)?;
+            if node % 32768 == 0 {
+                pl.lock().unwrap().update_with_count(32768);
+            }
 
-                Ok(())
-            },
-        )?;
-    pl.done();
+            Ok(())
+        },
+    )?;
+    pl.lock().unwrap().done();
 
     Ok(())
 }
@@ -107,16 +115,15 @@ pub fn main() -> Result<()> {
 fn write_contents_in_directory<G, W: Write>(
     graph: &G,
     writer: &mut csv::Writer<W>,
-    root_dir_swhid: &str,
+    root_dir: NodeId,
 ) -> Result<()>
 where
     G: SwhLabelledForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    let root_dir = graph
-        .properties()
-        .node_id_from_string_swhid(root_dir_swhid)?;
+    let root_dir_swhid = graph.properties().swhid(root_dir);
+    println!("dir swhid {:?}", root_dir_swhid);
 
     let on_directory = |_dir: NodeId, _path_parts: PathParts| Ok(true); // always recurse
 
@@ -124,7 +131,7 @@ where
         writer
             .serialize(OutputRecord {
                 cnt_SWHID: graph.properties().swhid(cnt),
-                dir_SWHID: root_dir_swhid,
+                dir_SWHID: &root_dir_swhid,
                 path: path_parts.build_path(graph),
             })
             .context("Could not write record")

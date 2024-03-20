@@ -9,14 +9,13 @@ import subprocess
 import textwrap
 from typing import List
 
+import datafusion
 import pyarrow.dataset
-import pytest
 
 from swh.graph.example_dataset import DATASET, DATASET_DIR
 from swh.graph.luigi.provenance import (
     ComputeDirectoryFrontier,
     ComputeEarliestTimestamps,
-    DeduplicateFrontierDirectories,
     ListContentsInFrontierDirectories,
     ListContentsInRevisionsWithoutFrontier,
     ListDirectoryMaxLeafTimestamp,
@@ -27,6 +26,8 @@ from swh.graph.luigi.provenance import (
 from .test_topology import TOPO_ORDER_BACKWARD
 
 HEADS_ONLY = True
+
+ALL_NODES = [str(node.swhid()) for node in DATASET if hasattr(node, "swhid")]
 
 if HEADS_ONLY:
     PROVENANCE_NODES = [
@@ -47,7 +48,7 @@ if HEADS_ONLY:
         "swh:1:rev:0000000000000000000000000000000000000018",
     ]
 else:
-    PROVENANCE_NODES = [str(node.swhid()) for node in DATASET if hasattr(node, "swhid")]
+    PROVENANCE_NODES = ALL_NODES
 
 if HEADS_ONLY:
     EARLIEST_REVREL_FOR_CNTDIR = """\
@@ -122,16 +123,7 @@ CONTENT_TIMESTAMPS = """\
 )
 
 if HEADS_ONLY:
-    FRONTIER_DIRECTORIES = """\
-max_author_date,frontier_dir_SWHID,rev_author_date,rev_SWHID,path
-1111144440,swh:1:dir:0000000000000000000000000000000000000006,2009-02-13T23:31:30Z,swh:1:rel:0000000000000000000000000000000000000010,tests/
-""".replace(
-        "\n", "\r\n"
-    )
-    DEDUPLICATED_FRONTIER_DIRECTORIES = """\
-frontier_dir_SWHID
-swh:1:dir:0000000000000000000000000000000000000006
-"""
+    FRONTIER_DIRECTORIES = ["swh:1:dir:0000000000000000000000000000000000000006"]
     FRONTIER_DIRECTORIES_IN_REVISIONS = """\
 max_author_date,frontier_dir_SWHID,rev_author_date,rev_SWHID,path
 1111144440,swh:1:dir:0000000000000000000000000000000000000006,2005-03-18T11:14:00Z,swh:1:rev:0000000000000000000000000000000000000009,tests/
@@ -140,16 +132,7 @@ max_author_date,frontier_dir_SWHID,rev_author_date,rev_SWHID,path
         "\n", "\r\n"
     )
 else:
-    FRONTIER_DIRECTORIES = """\
-max_author_date,frontier_dir_SWHID,rev_author_date,rev_SWHID,path
-1111144440,swh:1:dir:0000000000000000000000000000000000000008,2005-03-18T17:24:20Z,swh:1:rev:0000000000000000000000000000000000000013,oldproject/
-""".replace(
-        "\n", "\r\n"
-    )
-    DEDUPLICATED_FRONTIER_DIRECTORIES = """\
-frontier_dir_SWHID
-swh:1:dir:0000000000000000000000000000000000000008
-"""
+    FRONTIER_DIRECTORIES = ["swh:1:dir:0000000000000000000000000000000000000008"]
 
 if HEADS_ONLY:
     CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS = """\
@@ -238,16 +221,48 @@ def timestamps_bin_to_csv(bin_timestamps_path: Path) -> List[str]:
     ]
 
 
-def test_listprovenancenodes(tmpdir):
+def write_directory_frontier(provenance_dir, swhids=FRONTIER_DIRECTORIES):
+    ctx = datafusion.SessionContext()
+    ctx.register_dataset(
+        "nodes", pyarrow.dataset.dataset(provenance_dir / "nodes", format="parquet")
+    )
+    ctx.from_pydict(
+        {"swhid": swhids},
+        name="directory_frontier_swhids",
+    )
+
+    target_path = provenance_dir / "directory_frontier"
+    # needed for datafusion >=36, or it creates a file.
+    # https://github.com/apache/arrow-datafusion/issues/9684
+    target_path.mkdir()
+
+    ctx.sql(
+        """
+        SELECT id
+        FROM nodes
+        INNER JOIN directory_frontier_swhids ON (
+            directory_frontier_swhids.swhid = concat(
+                'swh:1:',
+                nodes.type,
+                ':',
+                encode(CAST(nodes.sha1_git AS bytea), 'hex')
+            )
+        )
+        """
+    ).write_parquet(str(target_path), compression_level=3)
+
+
+def test_listprovenancenodes(tmpdir, provenance_node_filter="heads"):
     tmpdir = Path(tmpdir)
     provenance_dir = tmpdir / "provenance"
-    provenance_dir.mkdir()
+    provenance_dir.mkdir(exist_ok=True)
 
     task = ListProvenanceNodes(
         local_export_path=DATASET_DIR,
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
+        provenance_node_filter=provenance_node_filter,
     )
 
     task.run()
@@ -257,7 +272,10 @@ def test_listprovenancenodes(tmpdir):
     node_ids = [row["id"] for row in rows]
     assert sorted(node_ids) == sorted(set(node_ids)), "node ids are not unique"
     swhids = sorted(f"swh:1:{row['type']}:{row['sha1_git'].hex()}" for row in rows)
-    assert swhids == PROVENANCE_NODES
+    if provenance_node_filter == "heads":
+        assert swhids == PROVENANCE_NODES
+    elif provenance_node_filter == "all":
+        assert swhids == sorted(ALL_NODES)
 
 
 def test_computeearliesttimestamps(tmpdir):
@@ -339,11 +357,35 @@ def test_computedirectoryfrontier(tmpdir):
 
     task.run()
 
-    csv_text = subprocess.check_output(
-        ["zstdcat", *(provenance_dir / "directory_frontier").glob("*.csv.zst")]
-    ).decode()
+    # Generate the 'nodes' table
+    test_listprovenancenodes(tmpdir)
 
-    assert csv_text == FRONTIER_DIRECTORIES
+    ctx = datafusion.SessionContext()
+
+    ctx.register_dataset(
+        "nodes", pyarrow.dataset.dataset(provenance_dir / "nodes", format="parquet")
+    )
+    ctx.register_dataset(
+        "directory_frontier",
+        pyarrow.dataset.dataset(
+            provenance_dir / "directory_frontier", format="parquet"
+        ),
+    )
+
+    swhids = ctx.sql(
+        """
+        SELECT concat(
+            'swh:1:',
+            nodes.type,
+            ':',
+            encode(CAST(nodes.sha1_git AS bytea), 'hex')
+        ) AS swhid
+        FROM directory_frontier
+        LEFT JOIN nodes ON (directory_frontier.id=nodes.id)
+        """
+    ).to_pydict()["swhid"]
+
+    assert swhids == FRONTIER_DIRECTORIES
 
 
 def test_listfrontierdirectoriesinrevisions(tmpdir):
@@ -354,9 +396,10 @@ def test_listfrontierdirectoriesinrevisions(tmpdir):
     # Generate the binary file, used as input by ListFrontierDirectoriesInRevisions
     test_listdirectorymaxleaftimestamp(tmpdir)
 
-    (provenance_dir / "directory_frontier.deduplicated.csv.zst").write_text(
-        DEDUPLICATED_FRONTIER_DIRECTORIES
-    )
+    # Generate the 'nodes' table
+    test_listprovenancenodes(tmpdir)
+
+    write_directory_frontier(provenance_dir)
 
     task = ListFrontierDirectoriesInRevisions(
         local_export_path=DATASET_DIR,
@@ -390,37 +433,6 @@ def test_listfrontierdirectoriesinrevisions(tmpdir):
     assert sorted(all_rows) == sorted(expected_rows)
 
 
-@pytest.mark.parametrize("duplicates_in_input", [True, False])
-def test_deduplicatefrontierdirectories(tmpdir, duplicates_in_input):
-    tmpdir = Path(tmpdir)
-
-    provenance_dir = tmpdir / "provenance"
-    topology_dir = tmpdir / "topology"
-
-    provenance_dir.mkdir()
-
-    (provenance_dir / "directory_frontier").mkdir()
-    (provenance_dir / "directory_frontier/1.csv.zst").write_text(
-        FRONTIER_DIRECTORIES * (3 if duplicates_in_input else 1)
-    )
-
-    task = DeduplicateFrontierDirectories(
-        local_export_path=DATASET_DIR,
-        local_graph_path=DATASET_DIR / "compressed",
-        graph_name="example",
-        provenance_dir=provenance_dir,
-        topological_order_dir=topology_dir,
-    )
-
-    task.run()
-
-    csv_text = subprocess.check_output(
-        ["zstdcat", provenance_dir / "directory_frontier.deduplicated.csv.zst"]
-    ).decode()
-
-    assert csv_text == DEDUPLICATED_FRONTIER_DIRECTORIES
-
-
 def test_listcontentsinrevisionswithoutfrontier(tmpdir):
     tmpdir = Path(tmpdir)
 
@@ -429,9 +441,10 @@ def test_listcontentsinrevisionswithoutfrontier(tmpdir):
 
     provenance_dir.mkdir()
 
-    (provenance_dir / "directory_frontier.deduplicated.csv.zst").write_text(
-        DEDUPLICATED_FRONTIER_DIRECTORIES
-    )
+    # Generate the 'nodes' table
+    test_listprovenancenodes(tmpdir)
+
+    write_directory_frontier(provenance_dir)
 
     task = ListContentsInRevisionsWithoutFrontier(
         local_export_path=DATASET_DIR,
@@ -473,9 +486,10 @@ def test_listcontentsindirectories(tmpdir):
 
     provenance_dir.mkdir()
 
-    (provenance_dir / "directory_frontier.deduplicated.csv.zst").write_text(
-        DEDUPLICATED_FRONTIER_DIRECTORIES
-    )
+    # Generate the 'nodes' table
+    test_listprovenancenodes(tmpdir)
+
+    write_directory_frontier(provenance_dir)
 
     task = ListContentsInFrontierDirectories(
         local_export_path=DATASET_DIR,
@@ -516,10 +530,15 @@ def test_listcontentsindirectories_root(tmpdir):
 
     provenance_dir.mkdir()
 
-    (provenance_dir / "directory_frontier.deduplicated.csv.zst").write_text(
-        "dir_SWHID\r\n"
-        "swh:1:dir:0000000000000000000000000000000000000012\r\n"
-        "swh:1:dir:0000000000000000000000000000000000000017\r\n"
+    # Generate the 'nodes' table
+    test_listprovenancenodes(tmpdir, provenance_node_filter="all")
+
+    write_directory_frontier(
+        provenance_dir,
+        swhids=[
+            "swh:1:dir:0000000000000000000000000000000000000012",
+            "swh:1:dir:0000000000000000000000000000000000000017",
+        ],
     )
 
     task = ListContentsInFrontierDirectories(

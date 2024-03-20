@@ -25,7 +25,6 @@ is present, and generates/manipulates the following files::
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
-import os
 from pathlib import Path
 from typing import Dict
 
@@ -42,6 +41,7 @@ class ListProvenanceNodes(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
+    provenance_node_filter = luigi.Parameter(default="heads")
 
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns :class:`LocalGraph` and :class:`SortRevrelByDate` instances."""
@@ -62,17 +62,21 @@ class ListProvenanceNodes(luigi.Task):
         """Runs ``list-provenance-nodes`` from ``tools/provenance``"""
         from ..shell import Rust
 
+        print("listing nodes to", self._arrow_output_path())
         # fmt: off
         (
             Rust(
                 "list-provenance-nodes",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--node-filter",
+                self.provenance_node_filter,
                 "--nodes-out",
                 str(self._arrow_output_path()),
             )
         ).run()
         # fmt: on
+        print("listed nodes to", list(self._arrow_output_path().iterdir()))
 
 
 class ComputeEarliestTimestamps(luigi.Task):
@@ -345,11 +349,11 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
         return {f"{socket.getfqdn()}_ram_mb": self._max_ram() // 1_000_000}
 
     def requires(self) -> Dict[str, luigi.Task]:
-        """Returns :class:`LocalGraph` and :class:`DeduplicateFrontierDirectories`
+        """Returns :class:`LocalGraph` and :class:`ComputeDirectoryFrontier`
         instances."""
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "frontier": DeduplicateFrontierDirectories(
+            "directory_frontier": ComputeDirectoryFrontier(
                 local_export_path=self.local_export_path,
                 local_graph_path=self.local_graph_path,
                 graph_name=self.graph_name,
@@ -374,104 +378,21 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListFrontierDirectoriesInRevisions``"""
-        from ..shell import Command, Rust
+        from ..shell import Rust
 
         # fmt: off
         (
-            Command.pv("--wait", self.input()["frontier"])
-            | Command.zstdcat()
-            | Rust(
+            Rust(
                 "frontier-directories-in-revisions",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--frontier-directories",
+                self.input()["directory_frontier"],
                 "--max-timestamps",
                 self.input()["directory_max_leaf_timestamps"],
                 "--directories-out",
                 self.output(),
             )
-        ).run()
-        # fmt: on
-
-
-class DeduplicateFrontierDirectories(luigi.Task):
-    """Reads the output of :class:`ComputeDirectoryFrontier` (which outputs
-    `(directory, revision)` pairs), and returns the set of directories in it."""
-
-    local_export_path = luigi.PathParameter()
-    local_graph_path = luigi.PathParameter()
-    graph_name = luigi.Parameter(default="graph")
-    provenance_dir = luigi.PathParameter()
-    topological_order_dir = luigi.PathParameter()
-    batch_size = luigi.IntParameter(default=1000)
-
-    def requires(self) -> Dict[str, luigi.Task]:
-        """Returns :class:`LocalGraph` and :class:`ListDirectoryMaxLeafTimestamp`
-        instances."""
-        return {
-            "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "frontier_directories": ComputeDirectoryFrontier(
-                local_export_path=self.local_export_path,
-                local_graph_path=self.local_graph_path,
-                graph_name=self.graph_name,
-                provenance_dir=self.provenance_dir,
-                topological_order_dir=self.topological_order_dir,
-            ),
-        }
-
-    def _output_path(self) -> Path:
-        return self.provenance_dir / "directory_frontier.deduplicated.csv.zst"
-
-    def output(self) -> luigi.LocalTarget:
-        """Returns {provenance_dir}/directory_frontier.deduplicated.csv.zst"""
-        return luigi.LocalTarget(self._output_path())
-
-    def run(self):
-        """Runs ``cut | sort --uniq`` to produce unique directory SWHIDs from
-        ``directory_frontier.csv.zst``."""
-        from ..shell import AtomicFileSink, Command
-
-        sort_env = {"LC_ALL": "C"}  # fastest locale to sort
-        if os.environ.get("TMPDIR"):
-            sort_env["TMPDIR"] = os.environ["TMPDIR"]
-
-        # FIXME: This assumes paths contain no newline or carriage return character,
-        # in order to avoid parsing CSVs.
-        # The grep command provides a crude filter for the continuation of such lines,
-        # but could match files containing a newline followed by "<number>,swh:1:dir:"
-
-        # fmt: off
-        streams = [
-            (
-                Command.zstdcat(file)
-                # remove headers and paths containing a newline (annoying to handle)
-                | Command.grep("-E", '^-?[0-9]+,swh:1:dir:.*[^"]', env=sort_env)
-                | Command.cut("-d", ",", "-f", "2")
-                | Command.sort(
-                    "-S",
-                    "100M",
-                    "--unique",
-                    "--compress-program=zstd",
-                    env=sort_env
-                )
-            )
-            for file in Path(self.input()["frontier_directories"].path).glob("*.csv.zst")
-        ]
-        (
-            Command.sort(
-                "-S", "1G",
-                "--parallel=96",
-                "--merge",
-                "--unique",
-                "--compress-program=zstd",
-                *streams,
-                env=sort_env
-            )
-            | Command.cat(  # prepend header
-                Command.echo("frontier_dir_SWHID"),
-                "-",
-            )
-            | Command.zstdmt("-10")
-            > AtomicFileSink(self._output_path())
         ).run()
         # fmt: on
 
@@ -530,7 +451,7 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
         instances."""
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "frontier": DeduplicateFrontierDirectories(
+            "directory_frontier": ComputeDirectoryFrontier(
                 local_export_path=self.local_export_path,
                 local_graph_path=self.local_graph_path,
                 graph_name=self.graph_name,
@@ -548,16 +469,16 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
 
     def run(self) -> None:
         """Runs ``contents-in-revisions-without-frontier`` from ``tools/provenance``"""
-        from ..shell import Command, Rust
+        from ..shell import Rust
 
         # fmt: off
         (
-            Command.pv(self.input()["frontier"])
-            | Command.zstdcat()
-            | Rust(
+            Rust(
                 "contents-in-revisions-without-frontier",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--frontier-directories",
+                self.input()["directory_frontier"],
                 "--contents-out",
                 self.output(),
             )
@@ -602,7 +523,7 @@ class ListContentsInFrontierDirectories(luigi.Task):
         instances."""
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "directory_frontier": DeduplicateFrontierDirectories(
+            "directory_frontier": ComputeDirectoryFrontier(
                 local_export_path=self.local_export_path,
                 local_graph_path=self.local_graph_path,
                 graph_name=self.graph_name,
@@ -620,17 +541,16 @@ class ListContentsInFrontierDirectories(luigi.Task):
 
     def run(self) -> None:
         """Runs ``contents-in-directories`` from ``tools/provenance``"""
-        from ..shell import Command, Rust
+        from ..shell import Rust
 
         # fmt: off
         (
-            Command.pv("--wait", self.input()["directory_frontier"])
-            | Command.zstdcat()
-            | Command.sed("1s/^frontier_dir_SWHID/dir_SWHID/")  # replace header
-            | Rust(
+            Rust(
                 "contents-in-directories",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--frontier-directories",
+                self.input()["directory_frontier"],
                 "--contents-out",
                 self.output(),
             )
@@ -658,6 +578,7 @@ class RunProvenance(luigi.WrapperTask):
             topological_order_dir=self.topological_order_dir,
         )
         return [
+            ListProvenanceNodes(**kwargs),
             ListContentsInFrontierDirectories(**kwargs),
             ListContentsInRevisionsWithoutFrontier(**kwargs),
             ListFrontierDirectoriesInRevisions(**kwargs),

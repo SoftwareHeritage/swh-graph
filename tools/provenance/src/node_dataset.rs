@@ -17,6 +17,7 @@ use swh_graph::graph::{NodeId, SwhGraph, SwhGraphWithProperties};
 use swh_graph::SWHType;
 
 use crate::dataset_writer::StructArrayBuilder;
+
 pub fn schema() -> Schema {
     Schema::new(vec![
         Field::new("id", UInt64, false),

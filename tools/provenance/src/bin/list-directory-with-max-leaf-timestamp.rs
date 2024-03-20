@@ -99,6 +99,8 @@ pub fn main() -> Result<()> {
             .with_context(|| format!("Could not write to {}", max_timestamps_path.display()))?;
     }
 
+    log::info!("Done.");
+
     Ok(())
 }
 

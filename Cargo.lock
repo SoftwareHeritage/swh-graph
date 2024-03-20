@@ -3140,6 +3140,8 @@ name = "swh_graph_provenance"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ar_row",
+ "ar_row_derive",
  "arrow",
  "bytemuck",
  "byteorder",

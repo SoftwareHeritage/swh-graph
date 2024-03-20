@@ -7,15 +7,14 @@
 
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use sux::bits::bit_vec::{AtomicBitVec, BitVec};
+use serde::Serialize;
+use sux::bits::bit_vec::BitVec;
 
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
@@ -29,8 +28,7 @@ use swh_graph_provenance::dataset_writer::{CsvZstTableWriter, ParallelDatasetWri
 /** Given as input a binary file with, for each directory, the newest date of first
  * occurrence of any of the content in its subtree (well, DAG), ie.,
  * max_{for all content} (min_{for all occurrence of content} occurrence).
- * and as stdin a CSV with header "frontier_dir_SWHID" containing a single column
- * with frontier directories.
+ * and a Parquet table with the node ids of every frontier directory.
  * Produces the line of frontier directories (relative to any revision) present in
  * each revision.
  */
@@ -39,16 +37,14 @@ struct Args {
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
     #[arg(long)]
+    /// Path to the Parquet table with the node ids of frontier directories
+    frontier_directories: PathBuf,
+    #[arg(long)]
     /// Path to read the array of max timestamps from
     max_timestamps: PathBuf,
     #[arg(long)]
     /// Path to a directory where to write .csv.zst results to
     directories_out: PathBuf,
-}
-
-#[derive(Debug, Deserialize)]
-struct InputRecord {
-    frontier_dir_SWHID: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -88,7 +84,17 @@ pub fn main() -> Result<()> {
         NumberMmap::<byteorder::BE, i64, _>::new(&args.max_timestamps, graph.num_nodes())
             .with_context(|| format!("Could not mmap {}", args.max_timestamps.display()))?;
 
-    let frontier_directories = read_frontier_directories(&graph)?;
+    let mut pl = ProgressLogger::default();
+    pl.item_name("node");
+    pl.display_memory(true);
+    pl.local_speed(true);
+    pl.start("Loading frontier directories...");
+    let frontier_directories = swh_graph_provenance::frontier_set::from_parquet(
+        &graph,
+        args.frontier_directories,
+        &mut pl,
+    )?;
+    pl.done();
 
     let dataset_writer = ParallelDatasetWriter::new(args.directories_out)?;
 
@@ -98,45 +104,6 @@ pub fn main() -> Result<()> {
         &frontier_directories,
         dataset_writer,
     )
-}
-
-fn read_frontier_directories<G>(graph: &G) -> Result<BitVec>
-where
-    G: SwhGraphWithProperties + Send + Sync + 'static,
-    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
-{
-    let frontier_directories = AtomicBitVec::new(graph.num_nodes());
-
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .from_reader(std::io::stdin());
-
-    let mut pl = ProgressLogger::default();
-    pl.item_name("directory");
-    pl.display_memory(true);
-    pl.start("Reading frontier directories...");
-    let pl = Arc::new(Mutex::new(pl));
-
-    reader
-        .deserialize()
-        .par_bridge()
-        .try_for_each(|record| -> Result<()> {
-            let InputRecord { frontier_dir_SWHID } =
-                record.context("Could not deserialize input row")?;
-            let node_id = graph
-                .properties()
-                .node_id_from_string_swhid(frontier_dir_SWHID)?;
-            if node_id % 32768 == 0 {
-                pl.lock().unwrap().update_with_count(32768);
-            }
-
-            frontier_directories.set(node_id, true, Ordering::Relaxed);
-
-            Ok(())
-        })?;
-    pl.lock().unwrap().done();
-
-    Ok(frontier_directories.into())
 }
 
 fn write_frontier_directories_in_revisions<G>(
