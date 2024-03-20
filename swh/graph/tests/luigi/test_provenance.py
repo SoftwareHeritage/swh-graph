@@ -3,9 +3,10 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import csv
 import datetime
+import io
 from pathlib import Path
-import subprocess
 import textwrap
 from typing import List
 
@@ -123,7 +124,7 @@ CONTENT_TIMESTAMPS = """\
 if HEADS_ONLY:
     FRONTIER_DIRECTORIES = ["swh:1:dir:0000000000000000000000000000000000000006"]
     FRONTIER_DIRECTORIES_IN_REVISIONS = """\
-max_author_date,frontier_dir_SWHID,rev_author_date,rev_SWHID,path
+dir_max_author_date,dir_swhid,revrel_author_date,revrel_swhid,path
 1111144440,swh:1:dir:0000000000000000000000000000000000000006,2005-03-18T11:14:00Z,swh:1:rev:0000000000000000000000000000000000000009,tests/
 1111144440,swh:1:dir:0000000000000000000000000000000000000006,2009-02-13T23:31:30Z,swh:1:rel:0000000000000000000000000000000000000010,tests/
 """.replace(
@@ -134,7 +135,7 @@ else:
 
 if HEADS_ONLY:
     CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS = """\
-cnt_SWHID,rev_author_date,rev_SWHID,path
+cnt_swhid,revrel_author_date,revrel_swhid,path
 swh:1:cnt:0000000000000000000000000000000000000001,2005-03-18T11:14:00Z,swh:1:rev:0000000000000000000000000000000000000009,README.md
 swh:1:cnt:0000000000000000000000000000000000000001,2009-02-13T23:31:30Z,swh:1:rel:0000000000000000000000000000000000000010,README.md
 swh:1:cnt:0000000000000000000000000000000000000007,2005-03-18T11:14:00Z,swh:1:rev:0000000000000000000000000000000000000009,parser.c
@@ -146,7 +147,7 @@ swh:1:cnt:0000000000000000000000000000000000000015,2005-03-18T20:29:30Z,swh:1:re
     )
 else:
     CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS = """\
-cnt_SWHID,rev_author_date,rev_SWHID,path
+cnt_swhid,revrel_author_date,revrel_swhid,path
 swh:1:cnt:0000000000000000000000000000000000000001,2005-03-18T05:03:40Z,swh:1:rev:0000000000000000000000000000000000000003,README.md
 swh:1:cnt:0000000000000000000000000000000000000011,2005-03-18T17:24:20Z,swh:1:rev:0000000000000000000000000000000000000013,README.md
 swh:1:cnt:0000000000000000000000000000000000000014,2005-03-18T20:29:30Z,swh:1:rev:0000000000000000000000000000000000000018,TODO.txt
@@ -157,7 +158,7 @@ swh:1:cnt:0000000000000000000000000000000000000015,2005-03-18T20:29:30Z,swh:1:re
 
 if HEADS_ONLY:
     CONTENTS_IN_FRONTIER_DIRECTORIES = """\
-cnt_SWHID,dir_SWHID,path
+cnt_swhid,dir_swhid,path
 swh:1:cnt:0000000000000000000000000000000000000004,swh:1:dir:0000000000000000000000000000000000000006,README.md
 swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000000000000000000000006,parser.c
 """.replace(
@@ -165,7 +166,7 @@ swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000
     )
 else:
     CONTENTS_IN_FRONTIER_DIRECTORIES = """\
-cnt_SWHID,dir_SWHID,path
+cnt_swhid,dir_swhid,path
 swh:1:cnt:0000000000000000000000000000000000000001,swh:1:dir:0000000000000000000000000000000000000008,README.md
 swh:1:cnt:0000000000000000000000000000000000000007,swh:1:dir:0000000000000000000000000000000000000008,parser.c
 swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000000000000000000000008,tests/parser.c
@@ -398,25 +399,47 @@ def test_listfrontierdirectoriesinrevisions(tmpdir):
 
     task.run()
 
-    (
-        expected_header,
-        *expected_rows,
-        trailing,
-    ) = FRONTIER_DIRECTORIES_IN_REVISIONS.split("\r\n")
-    assert trailing == ""
+    ctx = datafusion.SessionContext()
 
-    all_rows = []
-    for file in (provenance_dir / "frontier_directories_in_revisions").glob(
-        "*.csv.zst"
-    ):
-        csv_text = subprocess.check_output(["zstdcat", file]).decode()
-        if csv_text:
-            (header, *rows, trailing) = csv_text.split("\r\n")
-            assert header == expected_header
-            all_rows.extend(rows)
-            assert trailing == ""
+    ctx.register_dataset(
+        "nodes", pyarrow.dataset.dataset(provenance_dir / "nodes", format="parquet")
+    )
+    ctx.register_dataset(
+        "dir_in_revrel",
+        pyarrow.dataset.dataset(
+            provenance_dir / "frontier_directories_in_revisions", format="parquet"
+        ),
+    )
 
-    assert sorted(all_rows) == sorted(expected_rows)
+    rows = ctx.sql(
+        """
+        SELECT
+            CAST(dir_max_author_date AS text) AS dir_max_author_date,
+            concat(
+                'swh:1:',
+                dir_nodes.type,
+                ':',
+                encode(CAST(dir_nodes.sha1_git AS bytea), 'hex')
+            ) AS dir_SWHID,
+            concat(CAST(from_unixtime(revrel_author_date) AS text), 'Z') AS revrel_author_date,
+            concat(
+                'swh:1:',
+                revrel_nodes.type,
+                ':',
+                encode(CAST(revrel_nodes.sha1_git AS bytea), 'hex')
+            ) AS revrel_SWHID,
+            CAST(path AS text) AS path
+        FROM dir_in_revrel
+        LEFT JOIN nodes AS dir_nodes ON (dir_in_revrel.dir=dir_nodes.id)
+        LEFT JOIN nodes AS revrel_nodes ON (dir_in_revrel.revrel=revrel_nodes.id)
+        """
+    ).to_pylist()
+
+    expected_rows = list(csv.DictReader(io.StringIO(FRONTIER_DIRECTORIES_IN_REVISIONS)))
+    rows.sort(key=lambda d: tuple(sorted(d.items())))
+    expected_rows.sort(key=lambda d: tuple(sorted(d.items())))
+
+    assert rows == expected_rows
 
 
 def test_listcontentsinrevisionswithoutfrontier(tmpdir):
@@ -441,25 +464,48 @@ def test_listcontentsinrevisionswithoutfrontier(tmpdir):
 
     task.run()
 
-    (
-        expected_header,
-        *expected_rows,
-        trailing,
-    ) = CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS.split("\r\n")
-    assert trailing == ""
+    ctx = datafusion.SessionContext()
 
-    all_rows = []
-    for file in (provenance_dir / "contents_in_revisions_without_frontiers").glob(
-        "*.csv.zst"
-    ):
-        csv_text = subprocess.check_output(["zstdcat", file]).decode()
-        if csv_text:
-            (header, *rows, trailing) = csv_text.split("\r\n")
-            assert header == expected_header
-            all_rows.extend(rows)
-            assert trailing == ""
+    ctx.register_dataset(
+        "nodes", pyarrow.dataset.dataset(provenance_dir / "nodes", format="parquet")
+    )
+    ctx.register_dataset(
+        "cnt_in_revrel",
+        pyarrow.dataset.dataset(
+            provenance_dir / "contents_in_revisions_without_frontiers", format="parquet"
+        ),
+    )
 
-    assert sorted(all_rows) == sorted(expected_rows)
+    rows = ctx.sql(
+        """
+        SELECT
+            concat(
+                'swh:1:',
+                cnt_nodes.type,
+                ':',
+                encode(CAST(cnt_nodes.sha1_git AS bytea), 'hex')
+            ) AS cnt_SWHID,
+            concat(CAST(from_unixtime(revrel_author_date) AS text), 'Z') AS revrel_author_date,
+            concat(
+                'swh:1:',
+                revrel_nodes.type,
+                ':',
+                encode(CAST(revrel_nodes.sha1_git AS bytea), 'hex')
+            ) AS revrel_SWHID,
+            CAST(path AS text) AS path
+        FROM cnt_in_revrel
+        LEFT JOIN nodes AS cnt_nodes ON (cnt_in_revrel.cnt=cnt_nodes.id)
+        LEFT JOIN nodes AS revrel_nodes ON (cnt_in_revrel.revrel=revrel_nodes.id)
+        """
+    ).to_pylist()
+
+    expected_rows = list(
+        csv.DictReader(io.StringIO(CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS))
+    )
+    rows.sort(key=lambda d: tuple(sorted(d.items())))
+    expected_rows.sort(key=lambda d: tuple(sorted(d.items())))
+
+    assert rows == expected_rows
 
 
 def test_listcontentsindirectories(tmpdir):
@@ -483,23 +529,45 @@ def test_listcontentsindirectories(tmpdir):
 
     task.run()
 
-    (
-        expected_header,
-        *expected_rows,
-        trailing,
-    ) = CONTENTS_IN_FRONTIER_DIRECTORIES.split("\r\n")
-    assert trailing == ""
+    ctx = datafusion.SessionContext()
 
-    all_rows = []
-    for file in (provenance_dir / "contents_in_frontier_directories").glob("*.csv.zst"):
-        csv_text = subprocess.check_output(["zstdcat", file]).decode()
-        if csv_text:
-            (header, *rows, trailing) = csv_text.split("\r\n")
-            assert header == expected_header
-            all_rows.extend(rows)
-            assert trailing == ""
+    ctx.register_dataset(
+        "nodes", pyarrow.dataset.dataset(provenance_dir / "nodes", format="parquet")
+    )
+    ctx.register_dataset(
+        "cnt_in_dir",
+        pyarrow.dataset.dataset(
+            provenance_dir / "contents_in_frontier_directories", format="parquet"
+        ),
+    )
 
-    assert sorted(all_rows) == sorted(expected_rows)
+    rows = ctx.sql(
+        """
+        SELECT
+            concat(
+                'swh:1:',
+                cnt_nodes.type,
+                ':',
+                encode(CAST(cnt_nodes.sha1_git AS bytea), 'hex')
+            ) AS cnt_SWHID,
+            concat(
+                'swh:1:',
+                dir_nodes.type,
+                ':',
+                encode(CAST(dir_nodes.sha1_git AS bytea), 'hex')
+            ) AS dir_SWHID,
+            CAST(path AS text) AS path
+        FROM cnt_in_dir
+        LEFT JOIN nodes AS cnt_nodes ON (cnt_in_dir.cnt=cnt_nodes.id)
+        LEFT JOIN nodes AS dir_nodes ON (cnt_in_dir.dir=dir_nodes.id)
+        """
+    ).to_pylist()
+
+    expected_rows = list(csv.DictReader(io.StringIO(CONTENTS_IN_FRONTIER_DIRECTORIES)))
+    rows.sort(key=lambda d: tuple(sorted(d.items())))
+    expected_rows.sort(key=lambda d: tuple(sorted(d.items())))
+
+    assert rows == expected_rows
 
 
 def test_listcontentsindirectories_root(tmpdir):
@@ -531,32 +599,54 @@ def test_listcontentsindirectories_root(tmpdir):
 
     task.run()
 
-    (
-        expected_header,
-        *expected_rows,
-        trailing,
-    ) = CONTENTS_IN_FRONTIER_DIRECTORIES.split("\r\n")
-    assert trailing == ""
-
-    all_rows = []
-    for file in (provenance_dir / "contents_in_frontier_directories").glob("*.csv.zst"):
-        csv_text = subprocess.check_output(["zstdcat", file]).decode()
-        if csv_text:
-            (header, *rows, trailing) = csv_text.split("\r\n")
-            assert header == expected_header
-            all_rows.extend(rows)
-            assert trailing == ""
-
-    assert header == "cnt_SWHID,dir_SWHID,path"
-    assert sorted(all_rows) == sorted(
-        textwrap.dedent(
-            """\
-            swh:1:cnt:0000000000000000000000000000000000000011,swh:1:dir:0000000000000000000000000000000000000012,README.md
-            swh:1:cnt:0000000000000000000000000000000000000001,swh:1:dir:0000000000000000000000000000000000000012,oldproject/README.md
-            swh:1:cnt:0000000000000000000000000000000000000007,swh:1:dir:0000000000000000000000000000000000000012,oldproject/parser.c
-            swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000000000000000000000012,oldproject/tests/parser.c
-            swh:1:cnt:0000000000000000000000000000000000000004,swh:1:dir:0000000000000000000000000000000000000012,oldproject/tests/README.md
-            swh:1:cnt:0000000000000000000000000000000000000014,swh:1:dir:0000000000000000000000000000000000000017,TODO.txt
-            swh:1:cnt:0000000000000000000000000000000000000015,swh:1:dir:0000000000000000000000000000000000000017,old/TODO.txt"""  # noqa
-        ).split("\n")
+    expected_csv = textwrap.dedent(
+        """\
+        cnt_swhid,dir_swhid,path
+        swh:1:cnt:0000000000000000000000000000000000000011,swh:1:dir:0000000000000000000000000000000000000012,README.md
+        swh:1:cnt:0000000000000000000000000000000000000001,swh:1:dir:0000000000000000000000000000000000000012,oldproject/README.md
+        swh:1:cnt:0000000000000000000000000000000000000007,swh:1:dir:0000000000000000000000000000000000000012,oldproject/parser.c
+        swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000000000000000000000012,oldproject/tests/parser.c
+        swh:1:cnt:0000000000000000000000000000000000000004,swh:1:dir:0000000000000000000000000000000000000012,oldproject/tests/README.md
+        swh:1:cnt:0000000000000000000000000000000000000014,swh:1:dir:0000000000000000000000000000000000000017,TODO.txt
+        swh:1:cnt:0000000000000000000000000000000000000015,swh:1:dir:0000000000000000000000000000000000000017,old/TODO.txt"""  # noqa
     )
+
+    ctx = datafusion.SessionContext()
+
+    ctx.register_dataset(
+        "nodes", pyarrow.dataset.dataset(provenance_dir / "nodes", format="parquet")
+    )
+    ctx.register_dataset(
+        "cnt_in_dir",
+        pyarrow.dataset.dataset(
+            provenance_dir / "contents_in_frontier_directories", format="parquet"
+        ),
+    )
+
+    rows = ctx.sql(
+        """
+        SELECT
+            concat(
+                'swh:1:',
+                cnt_nodes.type,
+                ':',
+                encode(CAST(cnt_nodes.sha1_git AS bytea), 'hex')
+            ) AS cnt_SWHID,
+            concat(
+                'swh:1:',
+                dir_nodes.type,
+                ':',
+                encode(CAST(dir_nodes.sha1_git AS bytea), 'hex')
+            ) AS dir_SWHID,
+            CAST(path AS text) AS path
+        FROM cnt_in_dir
+        LEFT JOIN nodes AS cnt_nodes ON (cnt_in_dir.cnt=cnt_nodes.id)
+        LEFT JOIN nodes AS dir_nodes ON (cnt_in_dir.dir=dir_nodes.id)
+        """
+    ).to_pylist()
+
+    expected_rows = list(csv.DictReader(io.StringIO(expected_csv)))
+    rows.sort(key=lambda d: tuple(sorted(d.items())))
+    expected_rows.sort(key=lambda d: tuple(sorted(d.items())))
+
+    assert rows == expected_rows

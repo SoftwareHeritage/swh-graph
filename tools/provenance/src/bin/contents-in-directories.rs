@@ -5,7 +5,6 @@
 
 #![allow(non_snake_case)]
 
-use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -20,16 +19,18 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::SWHID;
 
-use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
+use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph_provenance::frontier::PathParts;
+use swh_graph_provenance::x_in_y_dataset::{
+    cnt_in_dir_schema, cnt_in_dir_writer_properties, CntInDirTableBuilder,
+};
 
 #[derive(Parser, Debug)]
 /** Given as input a binary file with, for each directory, the newest date of first
  * occurrence of any of the content in its subtree (well, DAG), ie.,
  * max_{for all content} (min_{for all occurrence of content} occurrence).
  * and a Parquet table with the node ids of every frontier directory.
- * Produces the line of frontier directories (relative to any revision) present in
- * each revision.
+ * Produces the list of contents present in each directory.
  */
 struct Args {
     graph_path: PathBuf,
@@ -39,7 +40,7 @@ struct Args {
     /// Path to the Parquet table with the node ids of frontier directories
     frontier_directories: PathBuf,
     #[arg(long)]
-    /// Path to a directory where to write .csv.zst results to
+    /// Path to a directory where to write .parquet results to
     contents_out: PathBuf,
 }
 
@@ -84,7 +85,13 @@ pub fn main() -> Result<()> {
     )?;
     pl.done();
 
-    let dataset_writer = ParallelDatasetWriter::<CsvZstTableWriter>::new(args.contents_out)?;
+    let dataset_writer = ParallelDatasetWriter::new_with_schema(
+        args.contents_out,
+        (
+            Arc::new(cnt_in_dir_schema()),
+            cnt_in_dir_writer_properties(&graph).build(),
+        ),
+    )?;
 
     let mut pl = ProgressLogger::default();
     pl.item_name("directory");
@@ -112,9 +119,9 @@ pub fn main() -> Result<()> {
     Ok(())
 }
 
-fn write_contents_in_directory<G, W: Write>(
+fn write_contents_in_directory<G>(
     graph: &G,
-    writer: &mut csv::Writer<W>,
+    writer: &mut ParquetTableWriter<CntInDirTableBuilder>,
     root_dir: NodeId,
 ) -> Result<()>
 where
@@ -127,13 +134,15 @@ where
     let on_directory = |_dir: NodeId, _path_parts: PathParts| Ok(true); // always recurse
 
     let on_content = |cnt: NodeId, path_parts: PathParts| {
-        writer
-            .serialize(OutputRecord {
-                cnt_SWHID: graph.properties().swhid(cnt),
-                dir_SWHID: &root_dir_swhid,
-                path: path_parts.build_path(graph),
-            })
-            .context("Could not write record")
+        let builder = writer.builder()?;
+        builder
+            .cnt
+            .append_value(cnt.try_into().expect("NodeId overflowed u64"));
+        builder
+            .dir
+            .append_value(root_dir.try_into().expect("NodeId overflowed u64"));
+        builder.path.append_value(path_parts.build_path(graph));
+        Ok(())
     };
 
     swh_graph_provenance::frontier::dfs_with_path(graph, on_directory, on_content, root_dir)

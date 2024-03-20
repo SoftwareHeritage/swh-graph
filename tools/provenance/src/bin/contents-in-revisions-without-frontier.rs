@@ -5,7 +5,6 @@
 
 #![allow(non_snake_case)]
 
-use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -13,19 +12,20 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use rayon::prelude::*;
-use serde::Serialize;
 use sux::bits::bit_vec::BitVec;
 
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::SWHID;
 
-use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
+use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph_provenance::frontier::PathParts;
+use swh_graph_provenance::x_in_y_dataset::{
+    cnt_in_revrel_schema, cnt_in_revrel_writer_properties, CntInRevrelTableBuilder,
+};
 
 #[derive(Parser, Debug)]
 /** Given a Parquet table with the node ids of every frontier directory.
- * Produces the line of contents reachable from each revision, without any going through
+ * Produces the list of contents reachable from each revision, without any going through
  * any directory that is a frontier (relative to any revision).
  */
 struct Args {
@@ -36,17 +36,8 @@ struct Args {
     /// Path to the Parquet table with the node ids of frontier directories
     frontier_directories: PathBuf,
     #[arg(long)]
-    /// Path to a directory where to write .csv.zst results to
+    /// Path to a directory where to write .parquet results to
     contents_out: PathBuf,
-}
-
-#[derive(Debug, Serialize)]
-struct OutputRecord {
-    cnt_SWHID: SWHID,
-    rev_author_date: chrono::DateTime<chrono::Utc>,
-    rev_SWHID: SWHID,
-    #[serde(with = "serde_bytes")] // Serialize a bytestring instead of list of ints
-    path: Vec<u8>,
 }
 
 pub fn main() -> Result<()> {
@@ -84,7 +75,13 @@ pub fn main() -> Result<()> {
     )?;
     pl.done();
 
-    let dataset_writer = ParallelDatasetWriter::new(args.contents_out)?;
+    let dataset_writer = ParallelDatasetWriter::new_with_schema(
+        args.contents_out,
+        (
+            Arc::new(cnt_in_revrel_schema()),
+            cnt_in_revrel_writer_properties(&graph).build(),
+        ),
+    )?;
 
     write_contents_in_revisions(&graph, &frontier_directories, dataset_writer)
 }
@@ -92,7 +89,7 @@ pub fn main() -> Result<()> {
 fn write_contents_in_revisions<G>(
     graph: &G,
     frontier_directories: &BitVec,
-    dataset_writer: ParallelDatasetWriter<CsvZstTableWriter>,
+    dataset_writer: ParallelDatasetWriter<ParquetTableWriter<CntInRevrelTableBuilder>>,
 ) -> Result<()>
 where
     G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
@@ -141,12 +138,12 @@ where
     Ok(())
 }
 
-fn find_contents_in_root_directory<G, W: Write>(
+fn find_contents_in_root_directory<G>(
     graph: &G,
     frontier_directories: &BitVec,
-    writer: &mut csv::Writer<W>,
-    revrel_id: NodeId,
-    root_dir_id: NodeId,
+    writer: &mut ParquetTableWriter<CntInRevrelTableBuilder>,
+    revrel: NodeId,
+    root_dir: NodeId,
 ) -> Result<()>
 where
     G: SwhLabelledForwardGraph + SwhGraphWithProperties,
@@ -154,28 +151,26 @@ where
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
 {
-    let Some(revrel_timestamp) = graph.properties().author_timestamp(revrel_id) else {
+    let Some(revrel_timestamp) = graph.properties().author_timestamp(revrel) else {
         return Ok(());
     };
-    let revrel_author_date =
-        chrono::DateTime::from_timestamp(revrel_timestamp, 0).expect("Could not convert timestamp");
-
-    let revrel_swhid = graph.properties().swhid(revrel_id);
 
     let on_directory = |dir: NodeId, _path_parts: PathParts| {
         Ok(!frontier_directories[dir]) // Recurse only if this is not a frontier
     };
 
     let on_content = |cnt: NodeId, path_parts: PathParts| {
-        writer
-            .serialize(OutputRecord {
-                cnt_SWHID: graph.properties().swhid(cnt),
-                rev_author_date: revrel_author_date,
-                rev_SWHID: revrel_swhid,
-                path: path_parts.build_path(graph),
-            })
-            .context("Could not write record")
+        let builder = writer.builder()?;
+        builder
+            .cnt
+            .append_value(cnt.try_into().expect("NodeId overflowed u64"));
+        builder.revrel_author_date.append_value(revrel_timestamp);
+        builder
+            .revrel
+            .append_value(revrel.try_into().expect("NodeId overflowed u64"));
+        builder.path.append_value(path_parts.build_path(graph));
+        Ok(())
     };
 
-    swh_graph_provenance::frontier::dfs_with_path(graph, on_directory, on_content, root_dir_id)
+    swh_graph_provenance::frontier::dfs_with_path(graph, on_directory, on_content, root_dir)
 }

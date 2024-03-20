@@ -8,6 +8,7 @@ pub mod filters;
 pub mod frontier;
 pub mod frontier_set;
 pub mod node_dataset;
+pub mod x_in_y_dataset;
 
 /// The current version of swh-graph-provenance.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
