@@ -35,7 +35,7 @@ pub type NodeId = usize;
 type DefaultUnderlyingGraph = BVGraph<
     DynCodesDecoderFactory<
         dsi_bitstream::prelude::BE,
-        MmapBackend<u32>,
+        MmapHelper<u32>,
         sux::dict::EliasFano<
             sux::rank_sel::SelectFixed2<
                 sux::bits::CountBitVec<&'static [usize]>,
