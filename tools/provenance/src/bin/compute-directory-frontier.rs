@@ -82,7 +82,7 @@ pub fn main() -> Result<()> {
 
     to_parquet(&graph, frontiers, dataset_writer, &mut pl)?;
 
-    log::info!("Done.");
+    pl.done();
 
     Ok(())
 }
