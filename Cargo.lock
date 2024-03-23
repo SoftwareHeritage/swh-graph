@@ -141,11 +141,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "ar_row"
+version = "0.6.0"
+source = "git+https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git?rev=ef59cd3bb6386d6de17ffd23f2407202c6ea5a35#ef59cd3bb6386d6de17ffd23f2407202c6ea5a35"
+dependencies = [
+ "arrow",
+ "cxx-build",
+ "rust_decimal",
+ "thiserror",
+]
+
+[[package]]
 name = "ar_row_derive"
 version = "0.5.0"
 source = "git+https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git?rev=9602b1677253c0b491b4e273afaeda4ffb37a4d9#9602b1677253c0b491b4e273afaeda4ffb37a4d9"
 dependencies = [
- "ar_row",
+ "ar_row 0.5.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.47",
+ "unsafe_unwrap",
+]
+
+[[package]]
+name = "ar_row_derive"
+version = "0.6.0"
+source = "git+https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git?rev=ef59cd3bb6386d6de17ffd23f2407202c6ea5a35#ef59cd3bb6386d6de17ffd23f2407202c6ea5a35"
+dependencies = [
+ "ar_row 0.6.0",
  "proc-macro2",
  "quote",
  "syn 2.0.47",
@@ -3158,8 +3181,8 @@ name = "swh-graph"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "ar_row",
- "ar_row_derive",
+ "ar_row 0.6.0",
+ "ar_row_derive 0.6.0",
  "arrow",
  "arrow-array",
  "arrow-schema",
@@ -3213,8 +3236,8 @@ name = "swh_graph_provenance"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "ar_row",
- "ar_row_derive",
+ "ar_row 0.5.0",
+ "ar_row_derive 0.5.0",
  "arrow",
  "bytemuck",
  "byteorder",
