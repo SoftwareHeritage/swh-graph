@@ -33,7 +33,7 @@ pub fn main() -> Result<()> {
         .init()
         .unwrap();
 
-    let graph = load_unidirectional(PathBuf::from(args.graph))
+    let graph = load_unidirectional(args.graph)
         .context("Could not load graph")?
         .init_properties()
         .load_properties(|properties| properties.load_maps::<GOVMPH>())
@@ -76,8 +76,8 @@ pub fn main() -> Result<()> {
         let visited_swhid = graph.properties().swhid(current_node);
         debug!("{visited_swhid}");
         visited_nodes += 1;
-        let mut successors = graph.labelled_successors(current_node);
-        while let Some((succ, labels)) = successors.next() {
+        let successors = graph.labelled_successors(current_node);
+        for (succ, labels) in successors {
             debug!("  Successor: {}", graph.properties().swhid(succ));
             for label in labels {
                 let filename = graph.properties().label_name(label.filename_id());

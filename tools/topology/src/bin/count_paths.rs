@@ -195,7 +195,7 @@ where
                     .into_par_iter()
                     .map(|record| {
                         let InputRecord { swhid, .. } =
-                            record.with_context(|| format!("Could not deserialize record"))?;
+                            record.with_context(|| "Could not deserialize record".to_string())?;
 
                         let node = graph.properties().node_id_from_string_swhid(&swhid)?;
                         Ok((swhid, node))

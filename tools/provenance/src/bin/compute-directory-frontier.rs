@@ -179,23 +179,19 @@ where
 
     while let Some(node) = stack.pop() {
         for succ in graph.successors(node) {
-            match graph.properties().node_type(succ) {
-                SWHType::Directory => {
-                    let dir_max_timestamp =
-                        max_timestamps.get(node).expect("max_timestamps too small");
-                    if dir_max_timestamp == i64::MIN {
-                        // Somehow does not have a max timestamp. Presumably because it does not
-                        // have any content.
-                        continue;
-                    }
-                    if is_frontier(succ, dir_max_timestamp) {
-                        frontiers.set(succ, true, Ordering::Relaxed);
-                    } else if !visited.contains(succ) {
-                        stack.push(succ);
-                        visited.insert(succ);
-                    }
+            if graph.properties().node_type(succ) == SWHType::Directory {
+                let dir_max_timestamp = max_timestamps.get(node).expect("max_timestamps too small");
+                if dir_max_timestamp == i64::MIN {
+                    // Somehow does not have a max timestamp. Presumably because it does not
+                    // have any content.
+                    continue;
                 }
-                _ => (),
+                if is_frontier(succ, dir_max_timestamp) {
+                    frontiers.set(succ, true, Ordering::Relaxed);
+                } else if !visited.contains(succ) {
+                    stack.push(succ);
+                    visited.insert(succ);
+                }
             }
         }
     }

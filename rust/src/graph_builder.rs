@@ -90,6 +90,7 @@ impl GraphBuilder {
         self.arcs.push((src, dst, label));
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn done(
         &self,
     ) -> Result<
@@ -134,11 +135,11 @@ impl GraphBuilder {
         SwhBidirectionalGraph::from_underlying_graphs(
             std::path::PathBuf::default(),
             VecGraph::from_labeled_arc_list(arcs),
-            VecGraph::from_labeled_arc_list(backward_arcs.into_iter()),
+            VecGraph::from_labeled_arc_list(backward_arcs),
         )
         .init_properties()
         .load_properties(|properties| {
-            Ok(properties
+            properties
                 .with_maps(properties::VecMaps::new(self.swhids.clone()))
                 .context("Could not join maps")?
                 .with_contents(
@@ -192,7 +193,7 @@ impl GraphBuilder {
                     )
                     .context("Could not build VecTimestamps")?,
                 )
-                .context("Could not join timestamps")?)
+                .context("Could not join timestamps")
         })
     }
 }

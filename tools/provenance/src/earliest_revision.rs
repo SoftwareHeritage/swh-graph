@@ -74,12 +74,9 @@ where
         }
     }
 
-    match earliest_rev {
-        Some((earliest_rev_id, earliest_ts)) => Some(EarliestRevision {
-            node: earliest_rev_id,
-            ts: earliest_ts,
-            rev_occurrences: visited_revisions,
-        }),
-        None => None,
-    }
+    earliest_rev.map(|(earliest_rev_id, earliest_ts)| EarliestRevision {
+        node: earliest_rev_id,
+        ts: earliest_ts,
+        rev_occurrences: visited_revisions,
+    })
 }

@@ -183,9 +183,7 @@ impl Node2Type<UsizeMmap<Vec<u8>>> {
         let num_nodes = types.len();
         let file_len = ((num_nodes * SWHType::BITWIDTH) as u64).div_ceil(64) * 8;
         let file_len = file_len.try_into().expect("num_nodes overflowed usize");
-        let mut data = Vec::with_capacity(file_len);
-        data.resize(file_len, 0);
-        let data = UsizeMmap(data);
+        let data = UsizeMmap(vec![0; file_len]);
         let data = unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes) };
         let mut node2type = Node2Type { data };
         for (i, type_) in types.enumerate() {

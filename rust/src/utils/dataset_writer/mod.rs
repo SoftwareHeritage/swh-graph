@@ -23,6 +23,7 @@ mod parquet;
 #[cfg(feature = "parquet")]
 pub use parquet::*;
 
+#[allow(clippy::len_without_is_empty)]
 pub trait StructArrayBuilder {
     fn len(&self) -> usize;
     fn finish(self) -> Result<StructArray>;

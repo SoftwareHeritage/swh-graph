@@ -63,7 +63,7 @@ pub struct PathParts<'a> {
 }
 
 impl<'a> PathParts<'a> {
-    pub fn build_path<'g, G>(&self, graph: &'g G) -> Vec<u8>
+    pub fn build_path<G>(&self, graph: &G) -> Vec<u8>
     where
         G: SwhGraphWithProperties,
         <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,

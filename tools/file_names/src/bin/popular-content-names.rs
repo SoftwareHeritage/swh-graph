@@ -106,7 +106,7 @@ pub fn main() -> Result<()> {
             if graph.properties().node_type(node) == SWHType::Content {
                 write_content_names(
                     &graph,
-                    &mut **writer,
+                    writer,
                     args.max_results.try_into().ok(),
                     args.min_occurrences,
                     node,

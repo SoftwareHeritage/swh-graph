@@ -866,7 +866,7 @@ pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectional
     })
 }
 
-fn zip_labels<'g, G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
+fn zip_labels<G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
     graph: G,
     base_path: P,
 ) -> Result<Zip<G, SwhGraphLabels>> {
@@ -891,7 +891,7 @@ fn zip_labels<'g, G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
         .with_context(|| format!("Missing 'labelspec' from {}", properties_path.display()))?;
     let width = labelspec
         .strip_prefix("org.softwareheritage.graph.labels.SwhLabel(DirEntry,")
-        .and_then(|labelspec| labelspec.strip_suffix(")"))
+        .and_then(|labelspec| labelspec.strip_suffix(')'))
         .and_then(|labelspec| labelspec.parse::<usize>().ok());
     let width = match width {
         None =>

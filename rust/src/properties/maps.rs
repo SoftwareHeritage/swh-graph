@@ -84,7 +84,7 @@ impl VecMaps {
             order: OwnedPermutation::new((0..swhids.len()).collect()).unwrap(),
             node2type,
             node2swhid,
-            mphf: VecMphf { swhids: swhids },
+            mphf: VecMphf { swhids },
         }
     }
 }
@@ -264,7 +264,7 @@ impl<
             .node2swhid()
             .get(node_id)
             .map_err(|()| InternalError("node2swhid map is shorter than SWHID hash value"))?;
-        let swhid = SWHID::try_from(swhid).map_err(InvalidSwhid)?.into();
+        let swhid = SWHID::try_from(swhid).map_err(InvalidSwhid)?;
         if actual_swhid == swhid {
             Ok(node_id)
         } else {

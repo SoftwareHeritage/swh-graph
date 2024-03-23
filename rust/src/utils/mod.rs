@@ -70,7 +70,13 @@ pub fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
 pub trait GetIndex {
     type Output;
 
+    /// Returns an item of the collection
     fn get(&self, index: usize) -> Option<Self::Output>;
+    /// Returns an item of the collection
+    ///
+    /// # Safety
+    ///
+    /// Undefined behavior if the index is past the end of the collection.
     unsafe fn get_unchecked(&self, index: usize) -> Self::Output;
 }
 

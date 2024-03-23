@@ -191,11 +191,7 @@ where
                     id
                 );
 
-                frontiers.set(
-                    id.try_into().expect("Node id overflowed usize"),
-                    true,
-                    Ordering::Relaxed,
-                );
+                frontiers.set(id, true, Ordering::Relaxed);
                 Ok(())
             })?;
 

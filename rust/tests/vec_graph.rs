@@ -37,20 +37,13 @@ fn test_labeled_vec_graph() {
 
     let graph = SwhUnidirectionalGraph::from_underlying_graph(PathBuf::new(), underlying_graph);
 
-    assert_eq!(graph.successors(0).into_iter().collect::<Vec<_>>(), vec![1]);
-    assert_eq!(
-        graph.successors(1).into_iter().collect::<Vec<_>>(),
-        Vec::<usize>::new()
-    );
-    assert_eq!(
-        graph.successors(2).into_iter().collect::<Vec<_>>(),
-        vec![0, 1]
-    );
+    assert_eq!(graph.successors(0).collect::<Vec<_>>(), vec![1]);
+    assert_eq!(graph.successors(1).collect::<Vec<_>>(), Vec::<usize>::new());
+    assert_eq!(graph.successors(2).collect::<Vec<_>>(), vec![0, 1]);
 
     let collect_successors = |node_id| {
         graph
             .labelled_successors(node_id)
-            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect::<Vec<_>>()
     };
@@ -87,9 +80,7 @@ fn test_vec_graph_maps() {
         Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
     )
     .init_properties()
-    .load_properties(|properties| {
-        properties.with_maps(VecMaps::new(swhids.iter().cloned().collect()))
-    })
+    .load_properties(|properties| properties.with_maps(VecMaps::new(swhids.to_vec())))
     .unwrap();
 
     // Test MPH + order
@@ -206,16 +197,16 @@ fn test_vec_graph_contents() {
     })
     .unwrap();
 
-    assert_eq!(graph.properties().is_skipped_content(0), false);
+    assert!(!graph.properties().is_skipped_content(0));
     assert_eq!(graph.properties().content_length(0), None);
 
-    assert_eq!(graph.properties().is_skipped_content(1), false);
+    assert!(!graph.properties().is_skipped_content(1));
     assert_eq!(graph.properties().content_length(1), Some(123));
 
-    assert_eq!(graph.properties().is_skipped_content(2), false);
+    assert!(!graph.properties().is_skipped_content(2));
     assert_eq!(graph.properties().content_length(2), None);
 
-    assert_eq!(graph.properties().is_skipped_content(3), true);
+    assert!(graph.properties().is_skipped_content(3));
     assert_eq!(graph.properties().content_length(3), Some(100_000_000_000));
 }
 

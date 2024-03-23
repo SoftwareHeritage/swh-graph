@@ -72,38 +72,34 @@ pub fn main() -> Result<()> {
     pl.start("Looking up SWHID provenance...");
     let pl = Mutex::new(pl);
 
-    reader
-        .deserialize()
-        .into_iter()
-        .par_bridge()
-        .try_for_each(|record| {
-            let InputRecord { swhid } = record.context("Could not deserialize input")?;
+    reader.deserialize().par_bridge().try_for_each(|record| {
+        let InputRecord { swhid } = record.context("Could not deserialize input")?;
 
-            let node = graph.properties().node_id_from_string_swhid(&swhid)?;
-            match find_earliest_revision(&graph, node) {
-                Some(EarliestRevision {
-                    node: earliest_rev_id,
-                    ts: earliest_ts,
+        let node = graph.properties().node_id_from_string_swhid(&swhid)?;
+        match find_earliest_revision(&graph, node) {
+            Some(EarliestRevision {
+                node: earliest_rev_id,
+                ts: earliest_ts,
+                rev_occurrences,
+            }) => {
+                let earliest_swhid = graph.properties().swhid(earliest_rev_id);
+                let record = OutputRecord {
+                    swhid,
+                    earliest_swhid,
+                    earliest_ts,
                     rev_occurrences,
-                }) => {
-                    let earliest_swhid = graph.properties().swhid(earliest_rev_id);
-                    let record = OutputRecord {
-                        swhid,
-                        earliest_swhid,
-                        earliest_ts,
-                        rev_occurrences,
-                    };
-                    writer
-                        .lock()
-                        .unwrap()
-                        .serialize(record)
-                        .context("Could not write record")?
-                }
-                None => log::debug!("no revision found containing {swhid}"),
+                };
+                writer
+                    .lock()
+                    .unwrap()
+                    .serialize(record)
+                    .context("Could not write record")?
             }
-            pl.lock().unwrap().light_update();
-            Ok::<(), anyhow::Error>(())
-        })?;
+            None => log::debug!("no revision found containing {swhid}"),
+        }
+        pl.lock().unwrap().light_update();
+        Ok::<(), anyhow::Error>(())
+    })?;
     pl.lock().unwrap().done();
 
     Ok(())

@@ -43,7 +43,7 @@ make_filtered_arcs_iterator! {
         if !(self.node_filter)(self.node) {
             return None;
         }
-        while let Some(dst) = self.inner.next() {
+        for dst in self.inner.by_ref() {
             if (self.node_filter)(dst) && (self.arc_filter)(self.node, dst) {
                 return Some(dst)
             }
@@ -58,7 +58,7 @@ make_filtered_arcs_iterator! {
         if !(self.node_filter)(self.node) {
             return None;
         }
-        while let Some(src) = self.inner.next() {
+        for src in self.inner.by_ref() {
             if (self.node_filter)(src) && (self.arc_filter)(src, self.node) {
                 return Some(src)
             }
@@ -103,7 +103,7 @@ make_filtered_labelled_arcs_iterator! {
         if !(self.node_filter)(self.node) {
             return None;
         }
-        while let Some((dst, label)) = self.inner.next() {
+        for (dst, label) in self.inner.by_ref() {
             if (self.node_filter)(dst) && (self.arc_filter)(self.node, dst) {
                 return Some((dst, label))
             }
@@ -118,7 +118,7 @@ make_filtered_labelled_arcs_iterator! {
         if !(self.node_filter)(self.node) {
             return None;
         }
-        while let Some((src, label)) = self.inner.next() {
+        for (src, label) in self.inner.by_ref() {
             if (self.node_filter)(src) && (self.arc_filter)(src, self.node) {
                 return Some((src, label))
             }
@@ -219,7 +219,7 @@ where
         }
     }
     fn outdegree(&self, node_id: NodeId) -> usize {
-        self.successors(node_id).into_iter().count()
+        self.successors(node_id).count()
     }
 }
 
@@ -246,7 +246,7 @@ where
         }
     }
     fn indegree(&self, node_id: NodeId) -> usize {
-        self.predecessors(node_id).into_iter().count()
+        self.predecessors(node_id).count()
     }
 }
 
@@ -328,6 +328,6 @@ where
         Self::Strings,
         Self::LabelNames,
     > {
-        &self.graph.properties()
+        self.graph.properties()
     }
 }

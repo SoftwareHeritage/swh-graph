@@ -119,7 +119,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
     ],
     CompressionStep.BV_OFFSETS: [
         "{rust_executable_dir}/swh-graph-index",
-        "build-offsets",
+        "offsets",
         "{out_dir}/{graph_name}-base",
     ],
     CompressionStep.BFS: [

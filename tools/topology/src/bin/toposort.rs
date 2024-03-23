@@ -131,6 +131,7 @@ where
     let mut total_arcs = 0;
     let mut ready = R::default();
     let mut num_unvisited_predecessors = vec![0usize; graph.num_nodes()];
+    #[allow(clippy::needless_range_loop)]
     for node in 0..graph.num_nodes() {
         pl.light_update();
         if !graph.has_node(node) {
@@ -187,6 +188,7 @@ where
             num_ancestors += 1;
         }
 
+        #[allow(clippy::get_first)]
         writer
             .serialize(Record {
                 swhid: &swhid.to_string(),

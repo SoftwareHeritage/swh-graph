@@ -73,6 +73,7 @@ pub struct VecTimestamps {
 impl VecTimestamps {
     /// Builds [`VecTimestamps`] from 4-tuples of `(author_timestamp, author_timestamp_offset,
     /// committer_timestamp, committer_timestamp_offset)`
+    #[allow(clippy::type_complexity)]
     pub fn new(
         timestamps: Vec<(Option<i64>, Option<i16>, Option<i64>, Option<i16>)>,
     ) -> Result<Self> {

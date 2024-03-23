@@ -10,7 +10,7 @@ pub mod frontier_set;
 pub mod node_dataset;
 
 /// The current version of swh-graph-provenance.
-pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Returns metadata to write in the header of produced parquet files
 pub fn parquet_metadata<G: swh_graph::graph::SwhGraph>(

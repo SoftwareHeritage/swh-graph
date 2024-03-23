@@ -71,9 +71,7 @@ impl Node2SWHID<MmapMut> {
 impl Node2SWHID<Vec<u8>> {
     pub fn new_from_iter(swhids: impl ExactSizeIterator<Item = SWHID>) -> Self {
         let file_len = swhids.len() * SWHID::BYTES_SIZE;
-        let file_len: usize = file_len.try_into().expect("num_nodes overflowed usize");
-        let mut data = Vec::with_capacity(file_len);
-        data.resize(file_len, 0);
+        let data = vec![0; file_len];
         let mut node2swhid = Node2SWHID { data };
         for (i, swhid) in swhids.enumerate() {
             node2swhid.set(i, swhid);

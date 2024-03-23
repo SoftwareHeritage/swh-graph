@@ -267,10 +267,10 @@ fn test_contents() -> Result<()> {
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(graph.properties().content_length(a), Some(42));
-    assert_eq!(graph.properties().is_skipped_content(a), false);
+    assert!(!graph.properties().is_skipped_content(a));
 
     assert_eq!(graph.properties().content_length(b), None);
-    assert_eq!(graph.properties().is_skipped_content(b), true);
+    assert!(graph.properties().is_skipped_content(b));
 
     Ok(())
 }
