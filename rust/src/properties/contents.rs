@@ -163,21 +163,20 @@ impl<
     /// If the node id does not exist.
     #[inline]
     pub fn is_skipped_content(&self, node_id: NodeId) -> bool {
-        self.try_is_skipped_content(node_id).unwrap_or_else(|()| {
-            panic!(
-                "Cannot get is_skipped_content bit of unknown node id: {}",
-                node_id
-            )
-        })
+        self.try_is_skipped_content(node_id)
+            .unwrap_or_else(|e| panic!("Cannot get is_skipped_content bit of node: {}", e))
     }
 
     /// Returns whether the node is a skipped content, or `Err` if the node id does not exist
     ///
     /// Non-content objects get a `false` value, like non-skipped contents.
     #[inline]
-    pub fn try_is_skipped_content(&self, node_id: NodeId) -> Result<bool, ()> {
+    pub fn try_is_skipped_content(&self, node_id: NodeId) -> Result<bool, OutOfBoundError> {
         if node_id >= self.num_nodes {
-            return Err(());
+            return Err(OutOfBoundError {
+                index: node_id,
+                len: self.num_nodes,
+            });
         }
         let cell_id = node_id / (u64::BITS as usize);
         let mask = 1 << (node_id % (u64::BITS as usize));
@@ -198,18 +197,21 @@ impl<
     /// If the node id does not exist.
     #[inline]
     pub fn content_length(&self, node_id: NodeId) -> Option<u64> {
-        self.try_content_length(node_id).unwrap_or_else(|()| {
-            panic!("Cannot get content_length of unknown node id: {}", node_id)
-        })
+        self.try_content_length(node_id)
+            .unwrap_or_else(|e| panic!("Cannot get content length: {}", e))
     }
 
     /// Returns the length of the given content, or `Err` if the node id does not exist
     ///
     /// May be `Ok(None)` for skipped contents
     #[inline]
-    pub fn try_content_length(&self, node_id: NodeId) -> Result<Option<u64>, ()> {
+    pub fn try_content_length(&self, node_id: NodeId) -> Result<Option<u64>, OutOfBoundError> {
         match self.contents.content_length().get(node_id) {
-            None => Err(()),            // id does not exist
+            None => Err(OutOfBoundError {
+                // id does not exist
+                index: node_id,
+                len: self.contents.content_length().len(),
+            }),
             Some(u64::MAX) => Ok(None), // Skipped content with no length
             Some(length) => Ok(Some(length)),
         }

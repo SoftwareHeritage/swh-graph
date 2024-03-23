@@ -5,6 +5,8 @@
 
 #![doc = include_str!("../README.md")]
 
+use thiserror::Error;
+
 mod swhid;
 #[cfg(feature = "macros")]
 pub use swhid::__parse_swhid;
@@ -35,6 +37,17 @@ pub mod java_compat;
 pub mod utils;
 
 pub use webgraph;
+
+/// Returned by a `try_` method when the given index is past the number of nodes
+/// (or number of label names for [`LabelNames`] properties)
+#[derive(Error, Debug, PartialEq, Eq, Hash, Clone)]
+#[error("Accessed property index {index} out of {len}")]
+pub struct OutOfBoundError {
+    /// Indexed that was accessed
+    pub index: usize,
+    /// Length of the underlying collection (maximum index + 1)
+    pub len: usize,
+}
 
 /// The current version of swh-graph.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

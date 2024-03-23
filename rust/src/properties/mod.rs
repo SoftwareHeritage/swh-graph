@@ -33,6 +33,7 @@ use mmap_rs::Mmap;
 use crate::mph::SwhidMphf;
 use crate::utils::mmap::NumberMmap;
 use crate::utils::GetIndex;
+use crate::OutOfBoundError;
 
 pub(crate) mod suffixes {
     pub const NODE2SWHID: &str = ".node2swhid.bin";

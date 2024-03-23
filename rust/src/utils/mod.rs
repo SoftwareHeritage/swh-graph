@@ -67,11 +67,16 @@ pub fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
     }
 }
 
+#[allow(clippy::len_without_is_empty)]
 pub trait GetIndex {
     type Output;
 
+    /// Returns the total number of items in the collections
+    fn len(&self) -> usize;
+
     /// Returns an item of the collection
     fn get(&self, index: usize) -> Option<Self::Output>;
+
     /// Returns an item of the collection
     ///
     /// # Safety
@@ -83,9 +88,14 @@ pub trait GetIndex {
 impl<Item: Clone, T: std::ops::Deref<Target = [Item]>> GetIndex for T {
     type Output = Item;
 
+    fn len(&self) -> usize {
+        <[Item]>::len(self)
+    }
+
     fn get(&self, index: usize) -> Option<Self::Output> {
         <[Item]>::get(self, index).cloned()
     }
+
     unsafe fn get_unchecked(&self, index: usize) -> Self::Output {
         <[Item]>::get_unchecked(self, index).clone()
     }

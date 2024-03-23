@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use crate::SWHID;
+use crate::{OutOfBoundError, SWHID};
 use anyhow::{Context, Result};
 use mmap_rs::{Mmap, MmapFlags, MmapMut};
 
@@ -101,13 +101,16 @@ impl<B: AsRef<[u8]>> Node2SWHID<B> {
 
     /// Convert a node_id to a SWHID
     #[inline]
-    pub fn get(&self, node_id: usize) -> Result<SWHID, ()> {
+    pub fn get(&self, node_id: usize) -> Result<SWHID, OutOfBoundError> {
         let offset = node_id * SWHID::BYTES_SIZE;
         let bytes = self
             .data
             .as_ref()
             .get(offset..offset + SWHID::BYTES_SIZE)
-            .ok_or(())?;
+            .ok_or(OutOfBoundError {
+                index: node_id,
+                len: self.data.as_ref().len() / SWHID::BYTES_SIZE,
+            })?;
         // this unwrap is always safe because we use the same const
         let bytes: [u8; SWHID::BYTES_SIZE] = bytes.try_into().unwrap();
         // this unwrap can only fail on a corrupted file, so it's ok to panic

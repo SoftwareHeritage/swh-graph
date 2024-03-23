@@ -225,7 +225,7 @@ impl<
             .maps
             .node2swhid()
             .get(node_id)
-            .map_err(|()| InternalError("node2swhid map is shorter than SWHID hash value"))?;
+            .map_err(|_| InternalError("node2swhid map is shorter than SWHID hash value"))?;
         if actual_swhid == swhid {
             Ok(node_id)
         } else {
@@ -263,7 +263,7 @@ impl<
             .maps
             .node2swhid()
             .get(node_id)
-            .map_err(|()| InternalError("node2swhid map is shorter than SWHID hash value"))?;
+            .map_err(|_| InternalError("node2swhid map is shorter than SWHID hash value"))?;
         let swhid = SWHID::try_from(swhid).map_err(InvalidSwhid)?;
         if actual_swhid == swhid {
             Ok(node_id)
@@ -280,12 +280,12 @@ impl<
     #[inline]
     pub fn swhid(&self, node_id: NodeId) -> SWHID {
         self.try_swhid(node_id)
-            .unwrap_or_else(|()| panic!("Cannot get SWHID of unknown node id: {}", node_id))
+            .unwrap_or_else(|e| panic!("Cannot get node SWHID: {}", e))
     }
 
     /// Returns the SWHID of a given node, or `None` if the node id does not exist
     #[inline]
-    pub fn try_swhid(&self, node_id: NodeId) -> Result<SWHID, ()> {
+    pub fn try_swhid(&self, node_id: NodeId) -> Result<SWHID, OutOfBoundError> {
         self.maps.node2swhid().get(node_id)
     }
 
@@ -297,12 +297,12 @@ impl<
     #[inline]
     pub fn node_type(&self, node_id: NodeId) -> SWHType {
         self.try_node_type(node_id)
-            .unwrap_or_else(|()| panic!("Cannot get type of unknown node id: {}", node_id))
+            .unwrap_or_else(|e| panic!("Cannot get node type: {}", e))
     }
 
     /// Returns the type of a given node, or `None` if the node id does not exist
     #[inline]
-    pub fn try_node_type(&self, node_id: NodeId) -> Result<SWHType, ()> {
+    pub fn try_node_type(&self, node_id: NodeId) -> Result<SWHType, OutOfBoundError> {
         self.maps.node2type().get(node_id)
     }
 }

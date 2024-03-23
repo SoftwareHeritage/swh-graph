@@ -3,12 +3,12 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use crate::SWHType;
+use crate::{OutOfBoundError, SWHType};
 use anyhow::{Context, Result};
 use log::info;
 use mmap_rs::{Mmap, MmapFlags, MmapMut};
 use std::path::Path;
-use sux::prelude::{BitFieldSlice, BitFieldSliceMut, BitFieldVec};
+use sux::prelude::{BitFieldSlice, BitFieldSliceCore, BitFieldSliceMut, BitFieldVec};
 
 /// Struct to create and load a `.node2type.bin` file and convert node ids to types.
 pub struct Node2Type<B> {
@@ -28,8 +28,11 @@ impl<B: AsRef<[usize]>> Node2Type<B> {
 
     #[inline]
     /// Get the type of a node with id `node_id`
-    pub fn get(&self, node_id: usize) -> Result<SWHType, ()> {
-        SWHType::try_from(self.data.get(node_id) as u8).map_err(|_| ())
+    pub fn get(&self, node_id: usize) -> Result<SWHType, OutOfBoundError> {
+        SWHType::try_from(self.data.get(node_id) as u8).map_err(|_| OutOfBoundError {
+            index: node_id,
+            len: self.data.len(),
+        })
     }
 }
 

@@ -10,7 +10,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::properties::NodeIdFromSwhidError;
 use swh_graph::AllSwhGraphProperties;
-use swh_graph::{SWHType, StrSWHIDDeserializationError, SWHID};
+use swh_graph::{OutOfBoundError, SWHType, StrSWHIDDeserializationError, SWHID};
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
@@ -155,19 +155,29 @@ fn test_out_of_bound_properties() -> Result<()> {
     let graph = graph()?;
 
     let node = graph.num_nodes(); // Non-existent node
+    let err = OutOfBoundError {
+        index: node,
+        len: graph.num_nodes(),
+    };
 
     let properties = graph.properties();
-    assert_eq!(properties.try_swhid(node), Err(()));
-    assert_eq!(properties.try_author_timestamp(node), Err(()));
-    assert_eq!(properties.try_author_timestamp_offset(node), Err(()));
-    assert_eq!(properties.try_committer_timestamp(node), Err(()));
-    assert_eq!(properties.try_committer_timestamp_offset(node), Err(()));
-    assert_eq!(properties.try_is_skipped_content(node), Err(()));
-    assert_eq!(properties.try_content_length(node), Err(()));
-    assert_eq!(properties.try_message(node), Err(()));
-    assert_eq!(properties.try_tag_name(node), Err(()));
-    assert_eq!(properties.try_author_id(node), Err(()));
-    assert_eq!(properties.try_committer_id(node), Err(()));
+    assert_eq!(properties.try_swhid(node), Err(err.clone()));
+    assert_eq!(properties.try_author_timestamp(node), Err(err.clone()));
+    assert_eq!(
+        properties.try_author_timestamp_offset(node),
+        Err(err.clone())
+    );
+    assert_eq!(properties.try_committer_timestamp(node), Err(err.clone()));
+    assert_eq!(
+        properties.try_committer_timestamp_offset(node),
+        Err(err.clone())
+    );
+    assert_eq!(properties.try_is_skipped_content(node), Err(err.clone()));
+    assert_eq!(properties.try_content_length(node), Err(err.clone()));
+    assert_eq!(properties.try_message(node), Err(err.clone()));
+    assert_eq!(properties.try_tag_name(node), Err(err.clone()));
+    assert_eq!(properties.try_author_id(node), Err(err.clone()));
+    assert_eq!(properties.try_committer_id(node), Err(err.clone()));
 
     Ok(())
 }

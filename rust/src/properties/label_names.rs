@@ -134,7 +134,7 @@ impl<
     #[inline]
     pub fn label_name_base64(&self, filename_id: FilenameId) -> Vec<u8> {
         self.try_label_name_base64(filename_id)
-            .unwrap_or_else(|()| panic!("Cannot get name of unknown {:?}", filename_id))
+            .unwrap_or_else(|e| panic!("Cannot get label name: {}", e))
     }
 
     /// Returns the base64-encoded name of an arc label
@@ -142,16 +142,21 @@ impl<
     /// This is the file name (resp. branch name) of a label on an arc from a directory
     /// (resp. snapshot)
     #[inline]
-    pub fn try_label_name_base64(&self, filename_id: FilenameId) -> Result<Vec<u8>, ()> {
+    pub fn try_label_name_base64(
+        &self,
+        filename_id: FilenameId,
+    ) -> Result<Vec<u8>, OutOfBoundError> {
+        let index = filename_id
+            .0
+            .try_into()
+            .expect("filename_id overflowed usize");
         self.label_names
             .label_names()
-            .get(
-                filename_id
-                    .0
-                    .try_into()
-                    .expect("filename_id^overflowed usize"),
-            )
-            .ok_or(())
+            .get(index)
+            .ok_or(OutOfBoundError {
+                index,
+                len: self.label_names.label_names().len(),
+            })
     }
 
     /// Returns the name of an arc label
@@ -165,7 +170,7 @@ impl<
     #[inline]
     pub fn label_name(&self, filename_id: FilenameId) -> Vec<u8> {
         self.try_label_name(filename_id)
-            .unwrap_or_else(|()| panic!("Cannot get name of unknown {:?}", filename_id))
+            .unwrap_or_else(|e| panic!("Cannot get label name: {}", e))
     }
 
     /// Returns the name of an arc label
@@ -173,7 +178,7 @@ impl<
     /// This is the file name (resp. branch name) of a label on an arc from a directory
     /// (resp. snapshot)
     #[inline]
-    pub fn try_label_name(&self, filename_id: FilenameId) -> Result<Vec<u8>, ()> {
+    pub fn try_label_name(&self, filename_id: FilenameId) -> Result<Vec<u8>, OutOfBoundError> {
         let base64 = base64_simd::STANDARD;
         self.try_label_name_base64(filename_id).map(|name| {
             base64.decode_to_vec(name).unwrap_or_else(|name| {
