@@ -53,8 +53,8 @@ arrow-schema = { version = "50.0", optional = true, features = ["serde"] }
 arrow-array = { version = "50.0", optional = true }
 datafusion-orc = { git = "https://github.com/datafusion-contrib/datafusion-orc.git", rev = "8c68f472a24c7ff12401ccdb3704991f0c7d080d", optional = true }
 #datafusion-orc = { git = "https://github.com/datafusion-contrib/datafusion-orc.git", rev = "8c68f472a24c7ff12401ccdb3704991f0c7d080d", optional = true }
-ar_row = { git = "https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git", rev = "9602b1677253c0b491b4e273afaeda4ffb37a4d9", optional = true }
-ar_row_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git", rev = "9602b1677253c0b491b4e273afaeda4ffb37a4d9", optional = true }
+ar_row = { git = "https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git", rev = "ef59cd3bb6386d6de17ffd23f2407202c6ea5a35", optional = true }
+ar_row_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git", rev = "ef59cd3bb6386d6de17ffd23f2407202c6ea5a35", optional = true }
 
 # grpc
 async-scoped = { version = "0.9.0", features = ["use-tokio"], optional = true }
