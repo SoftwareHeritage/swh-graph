@@ -55,12 +55,15 @@ def test_popularcontentnames(tmpdir, popularity_threshold):
 
     task.run()
 
-    csv_text = subprocess.check_output(["zstdcat", popular_contents_path]).decode()
-
-    (header, *rows, trailing) = csv_text.split("\r\n")
-
-    assert header == "SWHID,length,filename,occurrences"
-    assert trailing == ""
+    all_rows = []
+    for path in popular_contents_path.iterdir():
+        csv_text = subprocess.check_output(["zstdcat", path]).decode()
+        if not csv_text:
+            continue
+        (header, *rows, trailing) = csv_text.split("\r\n")
+        assert header == "SWHID,length,filename,occurrences"
+        assert trailing == ""
+        all_rows.extend(rows)
 
     expected_lines = set(EXPECTED_LINES_DEPTH1.rstrip().split("\n"))
 
@@ -71,7 +74,7 @@ def test_popularcontentnames(tmpdir, popularity_threshold):
             if int(line.split(",")[-1]) >= popularity_threshold
         }
 
-    assert list(sorted(rows)) == list(sorted(expected_lines))
+    assert list(sorted(all_rows)) == list(sorted(expected_lines))
 
 
 @pytest.mark.parametrize("depth,subset", itertools.product([1, 2], [None, 1, 2, 3]))

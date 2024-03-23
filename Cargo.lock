@@ -3196,6 +3196,7 @@ dependencies = [
  "common_traits",
  "const-hex",
  "const_panic",
+ "csv",
  "datafusion-orc",
  "dsi-bitstream",
  "dsi-progress-logger 0.1.4",
@@ -3208,6 +3209,7 @@ dependencies = [
  "log",
  "mmap-rs 0.5.0",
  "num_cpus",
+ "parquet",
  "ph",
  "prost 0.12.3",
  "prost-types",
@@ -3229,6 +3231,23 @@ dependencies = [
  "tonic-reflection",
  "webgraph",
  "zstd 0.12.4",
+]
+
+[[package]]
+name = "swh_graph_file_names"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "csv",
+ "dsi-progress-logger 0.2.3",
+ "itertools 0.11.0",
+ "log",
+ "rayon",
+ "serde",
+ "serde_bytes",
+ "stderrlog",
+ "swh-graph",
 ]
 
 [[package]]

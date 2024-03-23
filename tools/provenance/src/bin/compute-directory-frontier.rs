@@ -20,7 +20,7 @@ use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
 use swh_graph::SWHType;
 
-use swh_graph_provenance::dataset_writer::ParallelDatasetWriter;
+use swh_graph::utils::dataset_writer::ParallelDatasetWriter;
 use swh_graph_provenance::frontier_set::{schema, to_parquet, writer_properties};
 
 #[derive(Parser, Debug)]

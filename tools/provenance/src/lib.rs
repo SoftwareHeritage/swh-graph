@@ -3,7 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-pub mod dataset_writer;
 pub mod earliest_revision;
 pub mod filters;
 pub mod frontier;

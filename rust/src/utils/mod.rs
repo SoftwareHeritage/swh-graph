@@ -11,6 +11,8 @@ use anyhow::{anyhow, Context, Result};
 
 use crate::SWHType;
 
+#[cfg(feature = "dataset-writer")]
+pub mod dataset_writer;
 pub mod mmap;
 pub mod shuffle;
 pub mod sort;

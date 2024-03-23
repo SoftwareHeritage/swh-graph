@@ -13,12 +13,14 @@ use arrow::array::StructArray;
 use rayon::prelude::*;
 use thread_local::ThreadLocal;
 
-#[cfg(feature = "ipc")]
+#[cfg(feature = "arrow-ipc")]
 mod ipc;
-#[cfg(feature = "ipc")]
+#[cfg(feature = "arrow-ipc")]
 pub use ipc::*;
 
+#[cfg(feature = "parquet")]
 mod parquet;
+#[cfg(feature = "parquet")]
 pub use parquet::*;
 
 pub trait StructArrayBuilder {

@@ -18,7 +18,7 @@ use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::shuffle::par_iter_shuffled_range;
 use swh_graph::SWHType;
 
-use swh_graph_provenance::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
+use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph_provenance::node_dataset::{schema, writer_properties, NodeTableBuilder};
 
 #[derive(ValueEnum, Debug, Clone, Copy)]

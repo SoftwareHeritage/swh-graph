@@ -22,7 +22,7 @@ use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
 use swh_graph::SWHID;
 
-use swh_graph_provenance::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
+use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
 
 #[derive(Parser, Debug)]
 /** Given as input a binary file with, for each directory, the newest date of first

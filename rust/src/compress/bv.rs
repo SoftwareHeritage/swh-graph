@@ -84,7 +84,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     pl.lock().unwrap().done();
 
     let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
+    pl.item_name = "nodes";
     pl.local_speed = true;
     pl.expected_updates = Some(num_nodes);
     pl.start("Building BVGraph");

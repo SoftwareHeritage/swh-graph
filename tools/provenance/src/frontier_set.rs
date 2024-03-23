@@ -25,7 +25,9 @@ use sux::bits::bit_vec::{AtomicBitVec, BitVec};
 use swh_graph::collections::NodeSet;
 use swh_graph::graph::*;
 
-use crate::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter, StructArrayBuilder};
+use swh_graph::utils::dataset_writer::{
+    ParallelDatasetWriter, ParquetTableWriter, StructArrayBuilder,
+};
 
 pub fn schema() -> Schema {
     Schema::new(vec![Field::new("id", UInt64, false)])

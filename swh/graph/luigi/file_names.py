@@ -60,31 +60,22 @@ class PopularContentNames(luigi.Task):
         return luigi.LocalTarget(self.popular_contents_path)
 
     def run(self) -> None:
-        """Runs org.softwareheritage.graph.utils.PopularContentNames and compresses"""
-        from ..shell import AtomicFileSink, Command, Java
+        """Runs ``popular-content-names`` from :file:`tools/file_names`"""
+        from ..shell import Rust
 
-        if self.max_results_per_content == 1 and self.popularity_threshold == 0:
-            # In this case, we know approximately how many results are expected:
-            # the same as the number of contents (minus contents not referenced by
-            # any directory, which should be negligeable)"
-            nb_contents = count_nodes(self.local_graph_path, self.graph_name, "cnt")
-            pv = Command.pv("--line-mode", "--wait", "--size", str(nb_contents))
-        else:
-            pv = Command.pv("--line-mode", "--wait")
-
-        class_name = "org.softwareheritage.graph.utils.PopularContentNames"
         # fmt: on
         (
-            Java(
-                class_name,
+            Rust(
+                "popular-content-names",
+                "-vv",
                 self.local_graph_path / self.graph_name,
+                "--max-results",
                 str(self.max_results_per_content),
+                "--min-occurrences",
                 str(self.popularity_threshold),
-                max_ram=self._max_ram(),
+                "--out",
+                self.output(),
             )
-            | pv
-            | Command.zstdmt("-19")
-            > AtomicFileSink(self.output())
         ).run()
         # fmt: off
 
