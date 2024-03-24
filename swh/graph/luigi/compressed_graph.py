@@ -608,78 +608,27 @@ class Bfs(_CompressionStepTask):
         return bvgraph_size + visitorder_size + extra_size
 
 
-class PermuteBfs(_CompressionStepTask):
-    STEP = CompressionStep.PERMUTE_BFS
-    INPUT_FILES = {"-base.graph", "-bfs.order"}
-    OUTPUT_FILES = {"-bfs.graph"}
-
-    def _large_java_allocations(self) -> int:
-        bvgraph_size = self._bvgraph_allocation()
-
-        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L2196
-        permutation_size = self._nb_nodes() * 8
-
-        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L2064
-        # TODO: should we pass self.batch_size to the CLI instead?
-        batch_size = 1000000
-
-        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L2196
-        source_batch_size = target_batch_size = batch_size * 8  # longarrays
-
-        extra_size = self._nb_nodes() * 16  # FIXME: why is this needed?
-        return (
-            bvgraph_size
-            + permutation_size
-            + source_batch_size
-            + target_batch_size
-            + extra_size
-        )
-
-
-class TransposeBfs(_CompressionStepTask):
-    STEP = CompressionStep.TRANSPOSE_BFS
-    INPUT_FILES = {"-bfs.graph"}
-    OUTPUT_FILES = {"-bfs-transposed.graph"}
-
-    def _large_java_allocations(self) -> int:
-        from swh.graph.config import check_config
-
-        permutation_size = self._nb_nodes() * 8  # longarray
-
-        if self.batch_size:
-            batch_size = self.batch_size
-        else:
-            batch_size = check_config({})["batch_size"]
-
-        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L1039
-        source_batch_size = target_batch_size = start_batch_size = (
-            batch_size * 8
-        )  # longarrays
-
-        return (
-            permutation_size + source_batch_size + target_batch_size + start_batch_size
-        )
-
-
-class Simplify(_CompressionStepTask):
-    STEP = CompressionStep.SIMPLIFY
-    INPUT_FILES = {"-bfs.graph", "-bfs-transposed.graph"}
+class PermuteAndSimplifyBfs(_CompressionStepTask):
+    STEP = CompressionStep.PERMUTE_AND_SIMPLIFY_BFS
+    INPUT_FILES = {"-base.graph", "-base.ef", "-bfs.order"}
     OUTPUT_FILES = {"-bfs-simplified.graph"}
 
     def _large_java_allocations(self) -> int:
-        import multiprocessing
+        return 0
 
-        bvgraph_size = self._bvgraph_allocation()
-        permutation_size = self._nb_nodes() * 8  # longarray
-        write_buffer = 100_000_000  # approx; used by the final ImmutableGraph.store()
-        return (
-            bvgraph_size + permutation_size + write_buffer * multiprocessing.cpu_count()
-        )
+
+class BfsOffsets(_CompressionStepTask):
+    STEP = CompressionStep.BFS_OFFSETS
+    INPUT_FILES = {"-bfs-simplified.graph"}
+    OUTPUT_FILES = {"-bfs-simplified.offsets"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
 
 
 class Llp(_CompressionStepTask):
     STEP = CompressionStep.LLP
-    INPUT_FILES = {"-bfs-simplified.graph"}
+    INPUT_FILES = {"-bfs-simplified.graph", "-bfs-simplified.offsets"}
     OUTPUT_FILES = {"-llp.order"}
 
     def _large_java_allocations(self) -> int:
@@ -705,7 +654,7 @@ class Llp(_CompressionStepTask):
 
 class PermuteLlp(_CompressionStepTask):
     STEP = CompressionStep.PERMUTE_LLP
-    INPUT_FILES = {"-llp.order", "-bfs.graph"}
+    INPUT_FILES = {"-bfs.order", "-llp.order", "-base.graph", "-base.offsets"}
     OUTPUT_FILES = {".graph", ".offsets", ".properties"}
 
     def _large_java_allocations(self) -> int:

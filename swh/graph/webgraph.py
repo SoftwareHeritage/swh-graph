@@ -41,13 +41,12 @@ class CompressionStep(Enum):
     BV_OFFSETS = 2
     BV_EF = 3
     BFS = 4
-    PERMUTE_BFS = 5
-    TRANSPOSE_BFS = 6
-    SIMPLIFY = 7
+    PERMUTE_AND_SIMPLIFY_BFS = 6
+    BFS_OFFSETS = 7
     LLP = 8
-    PERMUTE_LLP = 9
-    OBL = 10
-    COMPOSE_ORDERS = 11
+    COMPOSE_ORDERS = 9
+    PERMUTE_LLP = 10
+    OBL = 11
     STATS = 12
     TRANSPOSE = 13
     TRANSPOSE_OBL = 14
@@ -134,31 +133,19 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-base",
         "{out_dir}/{graph_name}-bfs.order",
     ],
-    CompressionStep.PERMUTE_BFS: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.Transform",
-        "mapOffline",
+    CompressionStep.PERMUTE_AND_SIMPLIFY_BFS: [
+        "{rust_executable_dir}/swh-graph-compress",
+        "permute-and-symmetrize",
         "{out_dir}/{graph_name}-base",
-        "{out_dir}/{graph_name}-bfs",
+        "{out_dir}/{graph_name}-bfs-simplified",
+        "--permutation",
         "{out_dir}/{graph_name}-bfs.order",
+        "--input-batch-size",
         "{batch_size}",
-        "{tmp_dir}",
     ],
-    CompressionStep.TRANSPOSE_BFS: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.Transform",
-        "transposeOffline",
-        "{out_dir}/{graph_name}-bfs",
-        "{out_dir}/{graph_name}-bfs-transposed",
-        "{batch_size}",
-        "{tmp_dir}",
-    ],
-    CompressionStep.SIMPLIFY: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.Transform",
-        "simplify",
-        "{out_dir}/{graph_name}-bfs",
-        "{out_dir}/{graph_name}-bfs-transposed",
+    CompressionStep.BFS_OFFSETS: [
+        "{rust_executable_dir}/swh-graph-index",
+        "offsets",
         "{out_dir}/{graph_name}-bfs-simplified",
     ],
     CompressionStep.LLP: [
@@ -169,13 +156,20 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-bfs-simplified",
         "{out_dir}/{graph_name}-llp.order",
     ],
+    CompressionStep.COMPOSE_ORDERS: [
+        "{java}",
+        "org.softwareheritage.graph.compress.ComposePermutations",
+        "{out_dir}/{graph_name}-bfs.order",
+        "{out_dir}/{graph_name}-llp.order",
+        "{out_dir}/{graph_name}.order",
+    ],
     CompressionStep.PERMUTE_LLP: [
         "{java}",
         "it.unimi.dsi.big.webgraph.Transform",
         "mapOffline",
-        "{out_dir}/{graph_name}-bfs",
+        "{out_dir}/{graph_name}-base",
         "{out_dir}/{graph_name}",
-        "{out_dir}/{graph_name}-llp.order",
+        "{out_dir}/{graph_name}.order",
         "{batch_size}",
         "{tmp_dir}",
     ],
@@ -184,13 +178,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "it.unimi.dsi.big.webgraph.BVGraph",
         "--list",
         "{out_dir}/{graph_name}",
-    ],
-    CompressionStep.COMPOSE_ORDERS: [
-        "{java}",
-        "org.softwareheritage.graph.compress.ComposePermutations",
-        "{out_dir}/{graph_name}-bfs.order",
-        "{out_dir}/{graph_name}-llp.order",
-        "{out_dir}/{graph_name}.order",
     ],
     CompressionStep.STATS: [
         "{java}",
