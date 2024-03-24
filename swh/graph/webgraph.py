@@ -34,11 +34,12 @@ class CompressionSubprocessError(Exception):
 
 
 class CompressionStep(Enum):
-    EXTRACT_NODES = -1
-    MPH = 0
-    CONVERT_MPH = 1
-    BV = 2
-    BV_OFFSETS = 3
+    EXTRACT_NODES = -2
+    MPH = -1
+    CONVERT_MPH = 0
+    BV = 1
+    BV_OFFSETS = 2
+    BV_EF = 3
     BFS = 4
     PERMUTE_BFS = 5
     TRANSPOSE_BFS = 6
@@ -122,9 +123,14 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "offsets",
         "{out_dir}/{graph_name}-base",
     ],
+    CompressionStep.BV_EF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "ef",
+        "{out_dir}/{graph_name}-base",
+    ],
     CompressionStep.BFS: [
-        "{java}",
-        "it.unimi.dsi.law.big.graph.BFS",
+        "{rust_executable_dir}/swh-graph-compress",
+        "bfs",
         "{out_dir}/{graph_name}-base",
         "{out_dir}/{graph_name}-bfs.order",
     ],

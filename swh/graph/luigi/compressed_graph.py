@@ -587,9 +587,18 @@ class BvOffsets(_CompressionStepTask):
         return 0
 
 
+class BvEf(_CompressionStepTask):
+    STEP = CompressionStep.BV_EF
+    INPUT_FILES = {"-base.offsets"}
+    OUTPUT_FILES = {"-base.ef"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
 class Bfs(_CompressionStepTask):
     STEP = CompressionStep.BFS
-    INPUT_FILES = {"-base.graph", "-base.offsets"}
+    INPUT_FILES = {"-base.graph", "-base.ef"}
     OUTPUT_FILES = {"-bfs.order"}
 
     def _large_java_allocations(self) -> int:
