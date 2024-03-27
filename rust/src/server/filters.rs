@@ -3,8 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::ops::Deref;
-
 use crate::graph::{SwhForwardGraph, SwhGraphWithProperties};
 use crate::properties;
 use crate::SWHType;
@@ -50,17 +48,17 @@ fn parse_arc_type(type_name: &str) -> Result<(Option<SWHType>, Option<SWHType>),
 }
 
 #[derive(Clone)]
-pub struct NodeFilterChecker<G: Deref + Clone + Send + Sync + 'static> {
+pub struct NodeFilterChecker<G: Clone + Send + Sync + 'static> {
     graph: G,
     types: u8, // Bit mask
     min_traversal_successors: u64,
     max_traversal_successors: u64,
 }
 
-impl<G: Deref + Clone + Send + Sync + 'static> NodeFilterChecker<G>
+impl<G: Clone + Send + Sync + 'static> NodeFilterChecker<G>
 where
-    G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
-    <G::Target as SwhGraphWithProperties>::Maps: properties::Maps,
+    G: SwhForwardGraph + SwhGraphWithProperties + Sized,
+    <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
     pub fn new(graph: G, filter: proto::NodeFilter) -> Result<Self, tonic::Status> {
         let proto::NodeFilter {
@@ -116,15 +114,15 @@ where
 }
 
 #[derive(Clone)]
-pub struct ArcFilterChecker<G: Deref + Clone + Send + Sync + 'static> {
+pub struct ArcFilterChecker<G: Clone + Send + Sync + 'static> {
     graph: G,
     types: u64, // Bit mask on a SWHType::NUMBER_OF_TYPES × SWHType::NUMBER_OF_TYPES matrix
 }
 
-impl<G: Deref + Clone + Send + Sync + 'static> ArcFilterChecker<G>
+impl<G: Clone + Send + Sync + 'static> ArcFilterChecker<G>
 where
-    G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
-    <G::Target as SwhGraphWithProperties>::Maps: properties::Maps,
+    G: SwhForwardGraph + SwhGraphWithProperties + Sized,
+    <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
     pub fn new(graph: G, types: Option<String>) -> Result<Self, tonic::Status> {
         let types = types.unwrap_or("*".to_owned());

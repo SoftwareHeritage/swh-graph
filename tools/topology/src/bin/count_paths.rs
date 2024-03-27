@@ -79,13 +79,10 @@ pub fn main() -> Result<()> {
     }
 }
 
-use std::ops::Deref;
-
 fn count_paths<G>(graph: G, batch_size: usize) -> Result<()>
 where
-    G: Deref + Sync + Send + Clone + 'static,
-    <G as Deref>::Target: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
-    <<G as Deref>::Target as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
+    G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties + Sync + Send + Clone + 'static,
+    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
     let mut writer = csv::WriterBuilder::new()
         .terminator(csv::Terminator::CRLF)
@@ -176,9 +173,8 @@ fn queue_nodes<G>(
     batch_size: usize,
 ) -> std::thread::JoinHandle<Result<()>>
 where
-    G: Deref + Sync + Send + Clone + 'static,
-    <G as Deref>::Target: SwhGraphWithProperties,
-    <<G as Deref>::Target as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
+    G: SwhGraphWithProperties + Sync + Send + Clone + 'static,
+    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)

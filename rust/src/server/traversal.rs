@@ -3,7 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::ops::Deref;
 use std::sync::Arc;
 
 use tokio::sync::mpsc;
@@ -37,7 +36,11 @@ where
     <S::Graph as SwhGraphWithProperties>::Strings: crate::properties::Strings,
     <S::Graph as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
 {
-    fn make_visitor<'a, G: Deref + Clone + Send + Sync + 'static, Error: Send + 'a>(
+    fn make_visitor<
+        'a,
+        G: SwhForwardGraph + SwhGraphWithProperties + Clone + Send + Sync + 'static,
+        Error: Send + 'a,
+    >(
         &'a self,
         request: Request<proto::TraversalRequest>,
         graph: G,
@@ -53,8 +56,7 @@ where
         tonic::Status,
     >
     where
-        G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
-        <G::Target as SwhGraphWithProperties>::Maps: properties::Maps,
+        <G as SwhGraphWithProperties>::Maps: properties::Maps,
     {
         let proto::TraversalRequest {
             src,

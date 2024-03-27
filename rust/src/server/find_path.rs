@@ -4,7 +4,6 @@
 // See top-level LICENSE file for more information
 
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use itertools::Itertools;
@@ -52,7 +51,11 @@ where
     <S::Graph as SwhGraphWithProperties>::Strings: crate::properties::Strings,
     <S::Graph as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
 {
-    fn make_visitor<'a, G: Deref + Clone + Send + Sync + 'static, Error: Send + 'a>(
+    fn make_visitor<
+        'a,
+        G: SwhForwardGraph + SwhGraphWithProperties + Clone + Send + Sync + 'static,
+        Error: Send + 'a,
+    >(
         &'a self,
         config: VisitorConfig,
         graph: G,
@@ -68,8 +71,7 @@ where
         tonic::Status,
     >
     where
-        G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
-        <G::Target as SwhGraphWithProperties>::Maps: properties::Maps,
+        <G as SwhGraphWithProperties>::Maps: properties::Maps,
     {
         let VisitorConfig {
             src,

@@ -3,8 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::ops::Deref;
-
 use crate::graph::SwhForwardGraph;
 
 #[derive(Debug)]
@@ -29,13 +27,11 @@ const DEPTH_SENTINEL: usize = usize::MAX;
 /// for that node, with the number of arcs that were not ignored by `on_arc` as last parameter.
 #[derive(Debug)]
 pub struct SimpleBfsVisitor<
-    G: Deref + Clone,
+    G: SwhForwardGraph + Clone,
     Error,
     OnNode: FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
     OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
-> where
-    G::Target: SwhForwardGraph,
-{
+> {
     graph: G,
     queue: std::collections::VecDeque<usize>,
     seen: std::collections::HashSet<usize>,
@@ -46,13 +42,11 @@ pub struct SimpleBfsVisitor<
 }
 
 impl<
-        G: Deref + Clone,
+        G: SwhForwardGraph + Clone,
         Error,
         OnNode: FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
         OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
     > SimpleBfsVisitor<G, Error, OnNode, OnArc>
-where
-    G::Target: SwhForwardGraph,
 {
     /// Initializes a new visit
     ///

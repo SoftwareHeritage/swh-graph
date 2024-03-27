@@ -3,10 +3,8 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::ops::Deref;
-
 use super::proto;
-use crate::graph::{SwhForwardGraph, SwhGraphWithProperties, SwhLabelledForwardGraph};
+use crate::graph::{SwhGraphWithProperties, SwhLabelledForwardGraph};
 use crate::properties;
 use crate::SWHType;
 
@@ -62,21 +60,21 @@ mod node_builder_bitmasks {
 use node_builder_bitmasks::*;
 
 #[derive(Clone)]
-pub struct NodeBuilder<G: Deref + Clone + Send + Sync + 'static> {
+pub struct NodeBuilder<G: Clone + Send + Sync + 'static> {
     graph: G,
     // Which fields to include, based on the [`FieldMask`](proto::FieldMask)
     bitmask: u32,
 }
 
-impl<G: Deref + Clone + Send + Sync + 'static> NodeBuilder<G>
+impl<G: SwhLabelledForwardGraph + SwhGraphWithProperties + Clone + Send + Sync + 'static>
+    NodeBuilder<G>
 where
-    G::Target: SwhLabelledForwardGraph + SwhGraphWithProperties + Sized,
-    <G::Target as SwhGraphWithProperties>::Maps: properties::Maps,
-    <G::Target as SwhGraphWithProperties>::Timestamps: properties::Timestamps,
-    <G::Target as SwhGraphWithProperties>::Persons: properties::Persons,
-    <G::Target as SwhGraphWithProperties>::Contents: properties::Contents,
-    <G::Target as SwhGraphWithProperties>::Strings: properties::Strings,
-    <G::Target as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
+    <G as SwhGraphWithProperties>::Maps: properties::Maps,
+    <G as SwhGraphWithProperties>::Timestamps: properties::Timestamps,
+    <G as SwhGraphWithProperties>::Persons: properties::Persons,
+    <G as SwhGraphWithProperties>::Contents: properties::Contents,
+    <G as SwhGraphWithProperties>::Strings: properties::Strings,
+    <G as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
 {
     pub fn new(graph: G, mask: Option<prost_types::FieldMask>) -> Result<Self, tonic::Status> {
         let Some(mask) = mask else {

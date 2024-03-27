@@ -48,28 +48,31 @@ pub struct TraversalService<
     G: SwhGraphWithProperties
         + SwhLabelledBackwardGraph
         + SwhLabelledForwardGraph
+        + Clone
         + Send
         + Sync
         + 'static,
->(Arc<G>);
+>(G);
 
 pub trait TraversalServiceTrait {
     type Graph: SwhGraphWithProperties
         + SwhLabelledBackwardGraph
         + SwhLabelledForwardGraph
+        + Clone
         + Send
         + Sync
         + 'static;
     fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status>
     where
         <Self::Graph as SwhGraphWithProperties>::Maps: crate::properties::Maps;
-    fn graph(&self) -> &Arc<Self::Graph>;
+    fn graph(&self) -> &Self::Graph;
 }
 
 impl<
         G: SwhGraphWithProperties
             + SwhLabelledBackwardGraph
             + SwhLabelledForwardGraph
+            + Clone
             + Send
             + Sync
             + 'static,
@@ -99,7 +102,7 @@ impl<
     }
 
     #[inline(always)]
-    fn graph(&self) -> &Arc<Self::Graph> {
+    fn graph(&self) -> &Self::Graph {
         &self.0
     }
 }
@@ -111,6 +114,7 @@ impl<
             + SwhLabelledForwardGraph
             + Send
             + Sync
+            + Clone
             + 'static,
     > proto::traversal_service_server::TraversalService for TraversalService<G>
 where

@@ -3,7 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::ops::Deref;
 use std::path::Path;
 
 use crate::graph::*;
@@ -129,19 +128,14 @@ make_filtered_labelled_arcs_iterator! {
 
 /// A view over [`SwhGraph`] and related traits, that filters out some nodes and arcs
 /// based on arbitrary closures.
-pub struct Subgraph<G: Deref, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
-where
-    G::Target: SwhGraph,
+pub struct Subgraph<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
 {
     pub graph: G,
     pub node_filter: NodeFilter,
     pub arc_filter: ArcFilter,
 }
 
-impl<G: Deref, NodeFilter: Fn(usize) -> bool> Subgraph<G, NodeFilter, fn(usize, usize) -> bool>
-where
-    G::Target: SwhGraph,
-{
+impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool> Subgraph<G, NodeFilter, fn(usize, usize) -> bool> {
     /// Shorthand for `Subgraph { graph, node_filter, arc_filter: |_src, _dst| true }`
     pub fn new_with_node_filter(
         graph: G,
@@ -154,10 +148,7 @@ where
         }
     }
 }
-impl<G: Deref, ArcFilter: Fn(usize, usize) -> bool> Subgraph<G, fn(usize) -> bool, ArcFilter>
-where
-    G::Target: SwhGraph,
-{
+impl<G: SwhGraph, ArcFilter: Fn(usize, usize) -> bool> Subgraph<G, fn(usize) -> bool, ArcFilter> {
     /// Shorthand for `Subgraph { graph, node_filter: |_node| true, arc_filter }`
     pub fn new_with_arc_filter(
         graph: G,
@@ -171,10 +162,8 @@ where
     }
 }
 
-impl<G: Deref, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool> SwhGraph
+impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool> SwhGraph
     for Subgraph<G, NodeFilter, ArcFilter>
-where
-    G::Target: SwhGraph,
 {
     fn path(&self) -> &Path {
         self.graph.path()
@@ -196,14 +185,12 @@ where
     }
 }
 
-impl<G: Deref, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool> SwhForwardGraph
-    for Subgraph<G, NodeFilter, ArcFilter>
-where
-    G::Target: SwhForwardGraph,
+impl<G: SwhForwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
+    SwhForwardGraph for Subgraph<G, NodeFilter, ArcFilter>
 {
     type Successors<'succ> = FilteredSuccessors<
         'succ,
-        <<<G as Deref>::Target as SwhForwardGraph>::Successors<'succ> as IntoIterator>::IntoIter,
+        <<G as SwhForwardGraph>::Successors<'succ> as IntoIterator>::IntoIter,
         NodeFilter,
         ArcFilter
     >
@@ -223,14 +210,12 @@ where
     }
 }
 
-impl<G: Deref, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool> SwhBackwardGraph
-    for Subgraph<G, NodeFilter, ArcFilter>
-where
-    G::Target: SwhBackwardGraph,
+impl<G: SwhBackwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
+    SwhBackwardGraph for Subgraph<G, NodeFilter, ArcFilter>
 {
     type Predecessors<'succ> = FilteredPredecessors<
         'succ,
-        <<<G as Deref>::Target as SwhBackwardGraph>::Predecessors<'succ> as IntoIterator>::IntoIter,
+        <<G as SwhBackwardGraph>::Predecessors<'succ> as IntoIterator>::IntoIter,
         NodeFilter,
         ArcFilter
     >
@@ -250,18 +235,19 @@ where
     }
 }
 
-impl<G: Deref, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
-    SwhLabelledForwardGraph for Subgraph<G, NodeFilter, ArcFilter>
-where
-    G::Target: SwhLabelledForwardGraph,
+impl<
+        G: SwhLabelledForwardGraph,
+        NodeFilter: Fn(usize) -> bool,
+        ArcFilter: Fn(usize, usize) -> bool,
+    > SwhLabelledForwardGraph for Subgraph<G, NodeFilter, ArcFilter>
 {
-    type LabelledArcs<'arc> = <<G as Deref>::Target as SwhLabelledForwardGraph>::LabelledArcs<'arc>
+    type LabelledArcs<'arc> = <G as SwhLabelledForwardGraph>::LabelledArcs<'arc>
     where
         Self: 'arc;
     type LabelledSuccessors<'node> = FilteredLabelledSuccessors<
         'node,
         Self::LabelledArcs<'node>,
-        <<<G as Deref>::Target as SwhLabelledForwardGraph>::LabelledSuccessors<'node> as IntoIterator>::IntoIter,
+        <<G as SwhLabelledForwardGraph>::LabelledSuccessors<'node> as IntoIterator>::IntoIter,
         NodeFilter,
         ArcFilter,
     >
@@ -278,18 +264,19 @@ where
     }
 }
 
-impl<G: Deref, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
-    SwhLabelledBackwardGraph for Subgraph<G, NodeFilter, ArcFilter>
-where
-    G::Target: SwhLabelledBackwardGraph,
+impl<
+        G: SwhLabelledBackwardGraph,
+        NodeFilter: Fn(usize) -> bool,
+        ArcFilter: Fn(usize, usize) -> bool,
+    > SwhLabelledBackwardGraph for Subgraph<G, NodeFilter, ArcFilter>
 {
-    type LabelledArcs<'arc> = <<G as Deref>::Target as SwhLabelledBackwardGraph>::LabelledArcs<'arc>
+    type LabelledArcs<'arc> = <G as SwhLabelledBackwardGraph>::LabelledArcs<'arc>
     where
         Self: 'arc;
     type LabelledPredecessors<'node> = FilteredLabelledPredecessors<
         'node,
         Self::LabelledArcs<'node>,
-        <<<G as Deref>::Target as SwhLabelledBackwardGraph>::LabelledPredecessors<'node> as IntoIterator>::IntoIter,
+        <<G as SwhLabelledBackwardGraph>::LabelledPredecessors<'node> as IntoIterator>::IntoIter,
         NodeFilter,
         ArcFilter,
     >
@@ -306,17 +293,18 @@ where
     }
 }
 
-impl<G: Deref, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
-    SwhGraphWithProperties for Subgraph<G, NodeFilter, ArcFilter>
-where
-    G::Target: SwhGraphWithProperties,
+impl<
+        G: SwhGraphWithProperties,
+        NodeFilter: Fn(usize) -> bool,
+        ArcFilter: Fn(usize, usize) -> bool,
+    > SwhGraphWithProperties for Subgraph<G, NodeFilter, ArcFilter>
 {
-    type Maps = <<G as Deref>::Target as SwhGraphWithProperties>::Maps;
-    type Timestamps = <<G as Deref>::Target as SwhGraphWithProperties>::Timestamps;
-    type Persons = <<G as Deref>::Target as SwhGraphWithProperties>::Persons;
-    type Contents = <<G as Deref>::Target as SwhGraphWithProperties>::Contents;
-    type Strings = <<G as Deref>::Target as SwhGraphWithProperties>::Strings;
-    type LabelNames = <<G as Deref>::Target as SwhGraphWithProperties>::LabelNames;
+    type Maps = <G as SwhGraphWithProperties>::Maps;
+    type Timestamps = <G as SwhGraphWithProperties>::Timestamps;
+    type Persons = <G as SwhGraphWithProperties>::Persons;
+    type Contents = <G as SwhGraphWithProperties>::Contents;
+    type Strings = <G as SwhGraphWithProperties>::Strings;
+    type LabelNames = <G as SwhGraphWithProperties>::LabelNames;
 
     fn properties(
         &self,
