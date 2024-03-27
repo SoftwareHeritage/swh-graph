@@ -360,6 +360,23 @@ def test_backward_rev_to_all_nodes_only(
     assert set(actual) == set(expected)
 
 
+def test_forward_max_depth(graph_grpc_stub, graph_grpc_backend_implementation):
+    request = graph_grpc_stub.Traverse(
+        TraversalRequest(
+            src=[
+                "swh:1:rel:0000000000000000000000000000000000000019",
+            ],
+            max_depth=1,
+        )
+    )
+    actual = [node.swhid for node in request]
+    expected = [
+        "swh:1:rel:0000000000000000000000000000000000000019",
+        "swh:1:rev:0000000000000000000000000000000000000018",
+    ]
+    assert set(actual) == set(expected)
+
+
 def test_forward_multiple_sources(graph_grpc_stub, graph_grpc_backend_implementation):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
