@@ -150,12 +150,12 @@ pub fn main() -> Result<()> {
             let mut permut_file = File::create(&target_order)
                 .with_context(|| format!("Could not open {}", target_order.display()))?;
 
-            println!("Loading graph");
+            log::info!("Loading graph");
             let graph = BVGraph::with_basename(graph_dir)
                 .endianness::<BE>()
                 .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
                 .load()?;
-            println!("Graph loaded");
+            log::info!("Graph loaded");
 
             swh_graph::approximate_bfs::almost_bfs_order(&graph)
                 .dump(&mut permut_file)
@@ -311,16 +311,16 @@ pub fn main() -> Result<()> {
             use swh_graph::map::{Node2SWHID, Node2Type};
             use swh_graph::SWHID;
 
-            println!("Loading permutation");
+            log::info!("Loading permutation");
             let order = MappedPermutation::load(num_nodes, order.as_path())
                 .with_context(|| format!("Could not load {}", order.display()))?;
             match mph_algo {
                 MphAlgorithm::Fmph => {}
                 _ => unimplemented!("Only --mph-algo fmph is supported"),
             }
-            println!("Permutation loaded, reading MPH");
+            log::info!("Permutation loaded, reading MPH");
             let mph = fmph::Function::load(function).context("Cannot load mph")?;
-            println!("MPH loaded, sorting arcs");
+            log::info!("MPH loaded, sorting arcs");
 
             let mut swhids: Vec<SWHID> = Vec::with_capacity(num_nodes);
             let swhids_uninit = swhids.spare_capacity_mut();
@@ -417,7 +417,6 @@ pub fn main() -> Result<()> {
             iter_lines_from_dir(&input_dir, pl.clone()).for_each(|line: Vec<u8>| {
                 // Each line is base64-encode, so it is guaranteed to be ASCII.
                 let line = unsafe { std::str::from_utf8_unchecked(&line[..]) };
-                println!("Feeding {}", line);
                 rclb.push(line);
             });
             pl.lock().unwrap().done();
@@ -444,7 +443,7 @@ pub fn main() -> Result<()> {
             for swhid in swhids {
                 let swhid: [u8; 50] = swhid.as_bytes().try_into().context("Invalid SWHID size")?;
 
-                println!("{}", mph.get(&swhid).context("Could not hash swhid")?);
+                log::info!("{}", mph.get(&swhid).context("Could not hash swhid")?);
             }
         }
     }

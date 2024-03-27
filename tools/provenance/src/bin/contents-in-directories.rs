@@ -123,7 +123,6 @@ where
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
     let root_dir_swhid = graph.properties().swhid(root_dir);
-    println!("dir swhid {:?}", root_dir_swhid);
 
     let on_directory = |_dir: NodeId, _path_parts: PathParts| Ok(true); // always recurse
 

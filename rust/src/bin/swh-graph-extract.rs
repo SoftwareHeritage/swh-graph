@@ -461,14 +461,14 @@ pub fn main() -> Result<()> {
 
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
-            println!("Loading permutation");
+            info!("Loading permutation");
             let order = unsafe { MappedPermutation::load_unchecked(order.as_path()) }
                 .with_context(|| format!("Could not load {}", order.display()))?;
             assert_eq!(order.len(), num_nodes);
-            println!("Permutation loaded, reading MPH");
+            info!("Permutation loaded, reading MPH");
 
             fn f<MPHF: SwhidMphf + Sync>(property_writer: PropertyWriter<MPHF>) -> Result<()> {
-                println!("MPH loaded, writing properties");
+                info!("MPH loaded, writing properties");
                 info!("[ 0/ 8] author timestamps");
                 property_writer
                     .write_author_timestamps()

@@ -28,9 +28,9 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     allowed_node_types: &[crate::SWHType],
     target_dir: PathBuf,
 ) -> Result<()> {
-    println!("Reading MPH");
+    log::info!("Reading MPH");
     let mph = MPHF::load(mph_basepath).context("Could not load MPHF")?;
-    println!("MPH loaded, sorting arcs");
+    log::info!("MPH loaded, sorting arcs");
 
     let mut pl = ProgressLogger::default().display_memory();
     pl.item_name = "arc";
