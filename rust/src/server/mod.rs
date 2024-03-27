@@ -54,6 +54,21 @@ pub struct TraversalService<
         + 'static,
 >(G);
 
+impl<
+        G: SwhGraphWithProperties
+            + SwhLabelledBackwardGraph
+            + SwhLabelledForwardGraph
+            + Clone
+            + Send
+            + Sync
+            + 'static,
+    > TraversalService<G>
+{
+    pub fn new(graph: G) -> Self {
+        TraversalService(graph)
+    }
+}
+
 pub trait TraversalServiceTrait {
     type Graph: SwhGraphWithProperties
         + SwhLabelledBackwardGraph
@@ -324,7 +339,9 @@ where
     let graph = Arc::new(graph);
     Server::builder()
         .add_service(
-            proto::traversal_service_server::TraversalServiceServer::new(TraversalService(graph)),
+            proto::traversal_service_server::TraversalServiceServer::new(TraversalService::new(
+                graph,
+            )),
         )
         .add_service(
             tonic_reflection::server::Builder::configure()

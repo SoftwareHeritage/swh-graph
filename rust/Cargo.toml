@@ -76,6 +76,7 @@ const-hex = { version = "1.11.1", optional = true }
 
 [dev-dependencies]
 bitvec = { version = "1.0.1", features = ["atomic"] }
+futures = "0.3.30"
 
 [build-dependencies]
 tonic-build = { version = "0.10.2", optional = true }

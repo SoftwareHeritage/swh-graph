@@ -3202,6 +3202,7 @@ dependencies = [
  "dsi-progress-logger 0.1.4",
  "epserde",
  "faster-hex",
+ "futures",
  "itertools 0.11.0",
  "java-properties 1.4.1",
  "lender",

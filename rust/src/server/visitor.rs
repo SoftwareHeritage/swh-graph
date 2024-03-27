@@ -111,8 +111,12 @@ impl<
         self.push(DEPTH_SENTINEL);
         while let Some(node) = self.pop() {
             if node == DEPTH_SENTINEL {
+                assert!(
+                    self.queue.is_empty() || self.depth < self.max_depth,
+                    "visit_node queued nodes beyond the maximum depth"
+                );
                 self.depth += 1;
-                return Ok(!self.queue.is_empty() && self.depth <= self.max_depth);
+                return Ok(!self.queue.is_empty());
             }
             match self.visit_step(node)? {
                 VisitFlow::Continue => {}
@@ -135,11 +139,14 @@ impl<
     /// Returns `Err` if the visit should stop after this step
     pub fn visit_node(&mut self, node: usize) -> Result<VisitFlow, Error> {
         let mut num_successors = 0;
-        for successor in self.graph.clone().successors(node) {
-            match self.visit_arc(node, successor)? {
-                VisitFlow::Continue => num_successors += 1,
-                VisitFlow::Ignore => {}
-                VisitFlow::Stop => return Ok(VisitFlow::Stop),
+        if self.depth < self.max_depth {
+            // Don't look at successors if self.depth == self.max_depth
+            for successor in self.graph.clone().successors(node) {
+                match self.visit_arc(node, successor)? {
+                    VisitFlow::Continue => num_successors += 1,
+                    VisitFlow::Ignore => {}
+                    VisitFlow::Stop => return Ok(VisitFlow::Stop),
+                }
             }
         }
         match (self.on_node)(node, self.depth, num_successors)? {
