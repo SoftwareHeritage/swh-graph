@@ -15,7 +15,7 @@ use parquet::file::properties::{WriterProperties, WriterPropertiesBuilder};
 
 use swh_graph::graph::SwhGraph;
 
-use crate::dataset_writer::StructArrayBuilder;
+use swh_graph::utils::dataset_writer::StructArrayBuilder;
 
 #[derive(Debug)]
 pub struct UtcTimestampSecondBuilder(pub TimestampSecondBuilder);
