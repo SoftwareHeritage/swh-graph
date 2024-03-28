@@ -53,7 +53,7 @@ Tables
 Node id - SWHID map
 -------------------
 
-The :files:`nodes` table allows mapping the ids (space-efficient but unstable)
+The :file:`nodes` table allows mapping the ids (space-efficient but unstable)
 used by other tables to SWHIDs (stable but 21-bytes long) contains three columns:
 
 - ``id``, a 64-bits unsigned integer (with `DELTA_BINARY_PACKED`_ encoding)
