@@ -8,19 +8,7 @@ Luigi tasks to help compute the provenance of content blobs
 ===========================================================
 
 This module contains `Luigi <https://luigi.readthedocs.io/>`_ tasks
-driving the computation of a topological order, and count the number
-of paths to every node.
-
-File layout
------------
-
-This assumes a local compressed graph (from :mod:`swh.graph.luigi.compressed_graph`)
-is present, and generates/manipulates the following files::
-
-    base_dir/
-        <date>[_<flavor>]/
-            provenance/
-                topological_order_dfs.csv.zst
+driving the computation of the :ref:`provenance-index`.
 """
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
