@@ -228,7 +228,7 @@ export SOURCE_DIR=~/src/swh-graph
 export GRAPH_DIR=~/graph/latest/compressed
 
 # Build the Java implementation
-make -C $SOURCEDIR java
+make -C $SOURCE_DIR java
 
 # Convert the GOV minimal-perfect-hash function from `.mph` to `.cmph`
 java -classpath $SOURCE_DIR/swh/graph/swh-graph.jar org.softwareheritage.graph.utils.Mph2Cmph $GRAPH_DIR/graph.mph $GRAPH_DIR/graph.cmph
