@@ -136,6 +136,42 @@ def test_neighbors(graph_client, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
+def test_neighbors_max_edges2(graph_client, graph_grpc_backend_implementation):
+    actual = list(
+        graph_client.neighbors(
+            "swh:1:rev:0000000000000000000000000000000000000009",
+            direction="backward",
+            max_edges=2,
+        )
+    )
+    expected = [
+        "swh:1:snp:0000000000000000000000000000000000000022",
+        "swh:1:snp:0000000000000000000000000000000000000020",
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        "swh:1:rev:0000000000000000000000000000000000000013",
+    ]
+    assert set(actual) <= set(expected)
+    assert len(set(actual)) == 2
+
+
+def test_neighbors_max_edges1(graph_client, graph_grpc_backend_implementation):
+    actual = list(
+        graph_client.neighbors(
+            "swh:1:rev:0000000000000000000000000000000000000009",
+            direction="backward",
+            max_edges=1,
+        )
+    )
+    expected = [
+        "swh:1:snp:0000000000000000000000000000000000000022",
+        "swh:1:snp:0000000000000000000000000000000000000020",
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        "swh:1:rev:0000000000000000000000000000000000000013",
+    ]
+    assert set(actual) <= set(expected)
+    assert len(set(actual)) == 1
+
+
 def test_visit_nodes(graph_client, graph_grpc_backend_implementation):
     actual = list(
         graph_client.visit_nodes(

@@ -99,7 +99,8 @@ where
         })
     }
 
-    pub fn matches(&self, node: usize, num_traversal_successors: u64) -> bool {
+    pub fn matches(&self, node: usize, num_traversal_successors: Option<u64>) -> bool {
+        let num_traversal_successors = num_traversal_successors.unwrap_or(0);
         self.min_traversal_successors <= num_traversal_successors
             && num_traversal_successors <= self.max_traversal_successors
             && (self.types == u8::MAX

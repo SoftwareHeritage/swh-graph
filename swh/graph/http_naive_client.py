@@ -155,7 +155,8 @@ class NaiveClient:
         return_types: str = "*",
         max_matching_nodes: int = 0,
     ) -> Iterator[str]:
-        # TODO: max_edges
+        if max_edges > 0:
+            raise NotImplementedError("max_edges")  # TODO
         leaves = filter_node_types(
             return_types,
             [
@@ -179,9 +180,9 @@ class NaiveClient:
         max_edges: int = 0,
         return_types: str = "*",
     ) -> Iterator[str]:
-        # TODO: max_edges
         yield from filter_node_types(
-            return_types, self.graph.get_filtered_neighbors(src, edges, direction)
+            return_types,
+            self.graph.get_filtered_neighbors(src, edges, direction, max_edges),
         )
 
     @check_arguments
@@ -194,7 +195,8 @@ class NaiveClient:
         return_types: str = "*",
         max_matching_nodes: int = 0,
     ) -> Iterator[str]:
-        # TODO: max_edges
+        if max_edges > 0:
+            raise NotImplementedError("max_edges")  # TODO
         res = filter_node_types(
             return_types, self.graph.get_subgraph(src, edges, direction)
         )
@@ -216,7 +218,8 @@ class NaiveClient:
     def visit_paths(
         self, src: str, edges: str = "*", direction: str = "forward", max_edges: int = 0
     ) -> Iterator[List[str]]:
-        # TODO: max_edges
+        if max_edges > 0:
+            raise NotImplementedError("max_edges")  # TODO
         for path in self.graph.iter_paths_dfs(direction, edges, src):
             if path[-1] in self.leaves(src, edges, direction):
                 yield list(path)
@@ -316,6 +319,7 @@ class Graph:
         src: str,
         edges_fmt: str,
         direction: str,
+        max_edges: int = 0,
     ) -> Set[str]:
         if direction == "forward":
             edges = self.forward_edges
@@ -327,10 +331,18 @@ class Graph:
         neighbors = edges.get(src, [])
 
         if edges_fmt == "*":
-            return set(neighbors)
+            if max_edges:
+                return set(neighbors[0:max_edges])
+            else:
+                return set(neighbors)
         else:
+            accessed_edges = 0
             filtered_neighbors: Set[str] = set()
             for edges_fmt_item in edges_fmt.split(","):
+                if max_edges > 0:
+                    accessed_edges += 1
+                    if accessed_edges > max_edges:
+                        break
                 (src_fmt, dst_fmt) = edges_fmt_item.split(":")
                 if src_fmt != "*" and not src.startswith(f"swh:1:{src_fmt}:"):
                     continue

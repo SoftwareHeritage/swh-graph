@@ -233,7 +233,7 @@ def test_max_edges(graph_grpc_stub, graph_grpc_backend_implementation):
     """Path from cnt 15 to any rel with various max edges"""
     # FIXME: Number of edges traversed but backtracked from. it changes
     # nondeterministically every time the test dataset is changed.
-    backtracked_edges = 2
+    backtracked_edges = 0
 
     actual = get_path(
         graph_grpc_stub,

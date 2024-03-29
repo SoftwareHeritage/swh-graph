@@ -20,8 +20,13 @@ const DEPTH_SENTINEL: usize = usize::MAX;
 
 /// A simple traversal.
 ///
-/// For each node (resp. arc), `on_node` (resp. `on_arc`) is called with each node (resp. arc)
-/// the current depth, and it affects the next visited node based on which [`VisitFlow`] it returns.
+/// For each arc, `on_arc` is called with the arc and the current depth.
+/// It affects the next visited node based on which [`VisitFlow`] it returns.
+///
+/// For each node, `on_node`  is called with the node id, the current depth, and the
+/// node number of successors not ignored by `on_arc` (or `None` if successors were not
+/// visited because `max_depth` is reached).
+/// It affects the next visited node based on which [`VisitFlow`] it returns.
 ///
 /// For each node, `on_arc` is first called on all outgoing edges, then `on_node` is called
 /// for that node, with the number of arcs that were not ignored by `on_arc` as last parameter.
@@ -29,7 +34,7 @@ const DEPTH_SENTINEL: usize = usize::MAX;
 pub struct SimpleBfsVisitor<
     G: SwhForwardGraph + Clone,
     Error,
-    OnNode: FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
+    OnNode: FnMut(usize, u64, Option<u64>) -> Result<VisitFlow, Error>,
     OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
 > {
     graph: G,
@@ -44,7 +49,7 @@ pub struct SimpleBfsVisitor<
 impl<
         G: SwhForwardGraph + Clone,
         Error,
-        OnNode: FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
+        OnNode: FnMut(usize, u64, Option<u64>) -> Result<VisitFlow, Error>,
         OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
     > SimpleBfsVisitor<G, Error, OnNode, OnArc>
 {
@@ -138,9 +143,8 @@ impl<
     ///
     /// Returns `Err` if the visit should stop after this step
     pub fn visit_node(&mut self, node: usize) -> Result<VisitFlow, Error> {
-        let mut num_successors = 0;
-        if self.depth < self.max_depth {
-            // Don't look at successors if self.depth == self.max_depth
+        let num_successors = if self.depth < self.max_depth {
+            let mut num_successors = 0;
             for successor in self.graph.clone().successors(node) {
                 match self.visit_arc(node, successor)? {
                     VisitFlow::Continue => num_successors += 1,
@@ -148,7 +152,10 @@ impl<
                     VisitFlow::Stop => return Ok(VisitFlow::Stop),
                 }
             }
-        }
+            Some(num_successors)
+        } else {
+            None
+        };
         match (self.on_node)(node, self.depth, num_successors)? {
             VisitFlow::Continue => Ok(VisitFlow::Continue),
             VisitFlow::Ignore => panic!("on_node returned VisitFlow::Ignore"),

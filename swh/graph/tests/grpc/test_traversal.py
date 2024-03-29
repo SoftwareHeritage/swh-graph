@@ -492,7 +492,7 @@ def test_max_edges_1(graph_grpc_stub, graph_grpc_backend_implementation):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000019"],
-            max_edges=3,
+            max_edges=1,
         )
     )
     actual = [node.swhid for node in request]
@@ -503,11 +503,11 @@ def test_max_edges_1(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_max_edges_2(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_max_edges_3(graph_grpc_stub, graph_grpc_backend_implementation):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000019"],
-            max_edges=7,
+            max_edges=3,
         )
     )
     actual = [node.swhid for node in request]
@@ -520,11 +520,11 @@ def test_max_edges_2(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_max_edges_3(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_max_edges_7(graph_grpc_stub, graph_grpc_backend_implementation):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000019"],
-            max_edges=12,
+            max_edges=7,
         )
     )
     actual = [node.swhid for node in request]

@@ -133,7 +133,7 @@ def naive_graph_client():
 
 
 @pytest.fixture(scope="module", params=["remote", "naive"])
-def graph_client(request, graph_grpc_backend_implementation):
+def graph_client(request):
     if request.param == "remote":
         yield request.getfixturevalue("remote_graph_client")
     else:

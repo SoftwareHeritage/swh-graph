@@ -59,13 +59,13 @@ where
         &'a self,
         config: VisitorConfig,
         graph: G,
-        mut on_node: impl FnMut(usize, u64, u64) -> Result<VisitFlow, Error> + Send + 'a,
+        on_node: impl FnMut(usize, u64, Option<u64>) -> Result<VisitFlow, Error> + Send + 'a,
         mut on_arc: impl FnMut(usize, usize) -> Result<VisitFlow, Error> + Send + 'a,
     ) -> Result<
         SimpleBfsVisitor<
             G,
             Error,
-            impl FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
+            impl FnMut(usize, u64, Option<u64>) -> Result<VisitFlow, Error>,
             impl FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
         >,
         tonic::Status,
@@ -94,15 +94,15 @@ where
         let mut visitor = SimpleBfsVisitor::new(
             graph.clone(),
             max_depth,
-            move |node, depth, num_successors| {
-                if num_successors > max_edges {
-                    return Ok(VisitFlow::Stop);
+            on_node,
+            move |src, dst, _depth| {
+                if max_edges == 0 {
+                    Ok(VisitFlow::Ignore)
+                } else {
+                    max_edges -= 1;
+                    on_arc(src, dst)
                 }
-                max_edges -= num_successors;
-
-                on_node(node, depth, num_successors)
             },
-            move |src, dst, _depth| on_arc(src, dst),
         );
         for src_item in src {
             visitor.push(src_item);

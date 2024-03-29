@@ -44,13 +44,13 @@ where
         &'a self,
         request: Request<proto::TraversalRequest>,
         graph: G,
-        mut on_node: impl FnMut(usize, u64) -> Result<(), Error> + Send + 'a,
+        mut on_node: impl FnMut(usize, Option<u64>) -> Result<(), Error> + Send + 'a,
         mut on_arc: impl FnMut(usize, usize) -> Result<(), Error> + Send + 'a,
     ) -> Result<
         SimpleBfsVisitor<
             Arc<Subgraph<G, impl Fn(usize) -> bool, impl Fn(usize, usize) -> bool>>,
             Error,
-            impl FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
+            impl FnMut(usize, u64, Option<u64>) -> Result<VisitFlow, Error>,
             impl FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
         >,
         tonic::Status,
@@ -110,11 +110,6 @@ where
                     return Ok(VisitFlow::Continue);
                 }
 
-                if num_successors > max_edges {
-                    return Ok(VisitFlow::Stop);
-                }
-                max_edges -= num_successors;
-
                 if depth >= min_depth {
                     on_node(node, num_successors)?;
                     num_matching_nodes += 1;
@@ -125,8 +120,13 @@ where
                 Ok(VisitFlow::Continue)
             },
             move |src, dst, _depth| {
-                on_arc(src, dst)?;
-                Ok(VisitFlow::Continue)
+                if max_edges == 0 {
+                    Ok(VisitFlow::Ignore)
+                } else {
+                    max_edges -= 1;
+                    on_arc(src, dst)?;
+                    Ok(VisitFlow::Continue)
+                }
             },
         );
         for src_item in &src {

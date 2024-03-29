@@ -187,10 +187,6 @@ public class Traversal {
                     }
                     return;
                 }
-                edgesAccessed += g.outdegree(curr);
-                if (maxEdges >= 0 && edgesAccessed > maxEdges) {
-                    throw new StopTraversalException();
-                }
                 visitNode(curr);
             } catch (StopTraversalException e) {
                 // Traversal is over, clear the to-do queue.
@@ -216,6 +212,9 @@ public class Traversal {
             ArcLabelledNodeIterator.LabelledArcIterator it = getSuccessors(node);
             traversalSuccessors = 0;
             for (long succ; (succ = it.nextLong()) != -1;) {
+                if (maxEdges > 0 && ++edgesAccessed > maxEdges) {
+                    break;
+                }
                 traversalSuccessors++;
                 visitEdge(node, succ, it.label());
             }
