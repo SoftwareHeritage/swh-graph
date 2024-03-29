@@ -76,7 +76,6 @@ class ListProvenanceNodes(luigi.Task):
             )
         ).run()
         # fmt: on
-        print("listed nodes to", list(self._arrow_output_path().iterdir()))
 
 
 class ComputeEarliestTimestamps(luigi.Task):
