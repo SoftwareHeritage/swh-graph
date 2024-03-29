@@ -10,7 +10,7 @@ use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 
 use swh_graph::graph::*;
-use swh_graph::mph::DynMphf;
+use swh_graph::mph::{DynMphf, SwhidMphf};
 
 create_exception!(
     swh_graph,
@@ -82,9 +82,40 @@ impl BidirectionalGraph {
     }
 }
 
+#[pyclass]
+/// Minimal Perfect-Hash function on SWHIDs in a graph
+struct Mphf(swh_graph::mph::DynMphf);
+
+#[pymethods]
+impl Mphf {
+    #[new]
+    fn new(path: PathBuf) -> PyResult<Mphf> {
+        match DynMphf::load(path) {
+            Ok(mphf) => Ok(Mphf(mphf)),
+            Err(e) => Err(SwhGraphError::new_err(format!("{:?}", e))),
+        }
+    }
+
+    /// Hash the given SWHID with this function
+    ///
+    /// The given SWHID must be in the list of SWHIDs used to build this MPH, or
+    /// the return value may be `None` or non-unique.
+    ///
+    /// If the SWHID was provided by a user, the recommended pattern is to first hash
+    /// it with this function, then check in an array of SWHIDs that the SWHID at the
+    /// indexed returned by this function is the same as the user-provided SWHID.
+    ///
+    /// This allows efficiently checking the SWHID is in the input dataset as well
+    /// as getting a unique hash for the SWHID if it is.
+    fn hash_swhid(&self, swhid: &str) -> Option<usize> {
+        self.0.hash_str(swhid)
+    }
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn swh_graph_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BidirectionalGraph>()?;
+    m.add_class::<Mphf>()?;
     Ok(())
 }
