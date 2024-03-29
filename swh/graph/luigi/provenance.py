@@ -152,7 +152,6 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
-    topological_order_dir = luigi.PathParameter()
 
     def _max_ram(self):
         # see
@@ -226,7 +225,6 @@ class ComputeDirectoryFrontier(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
-    topological_order_dir = luigi.PathParameter()
     batch_size = luigi.IntParameter(default=1000)
 
     def _max_ram(self):
@@ -269,7 +267,6 @@ class ComputeDirectoryFrontier(luigi.Task):
                 local_graph_path=self.local_graph_path,
                 graph_name=self.graph_name,
                 provenance_dir=self.provenance_dir,
-                topological_order_dir=self.topological_order_dir,
             ),
         }
 
@@ -314,7 +311,6 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
-    topological_order_dir = luigi.PathParameter()
     batch_size = luigi.IntParameter(default=1000)
 
     def _max_ram(self):
@@ -358,14 +354,12 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
                 local_graph_path=self.local_graph_path,
                 graph_name=self.graph_name,
                 provenance_dir=self.provenance_dir,
-                topological_order_dir=self.topological_order_dir,
             ),
             "directory_max_leaf_timestamps": ListDirectoryMaxLeafTimestamp(
                 local_export_path=self.local_export_path,
                 local_graph_path=self.local_graph_path,
                 graph_name=self.graph_name,
                 provenance_dir=self.provenance_dir,
-                topological_order_dir=self.topological_order_dir,
             ),
         }
 
@@ -412,7 +406,6 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
-    topological_order_dir = luigi.PathParameter()
     batch_size = luigi.IntParameter(default=1000)
 
     def _max_ram(self):
@@ -456,7 +449,6 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
                 local_graph_path=self.local_graph_path,
                 graph_name=self.graph_name,
                 provenance_dir=self.provenance_dir,
-                topological_order_dir=self.topological_order_dir,
             ),
         }
 
@@ -494,7 +486,6 @@ class ListContentsInFrontierDirectories(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
-    topological_order_dir = luigi.PathParameter()
 
     def _max_ram(self):
         # see java/src/main/java/org/softwareheritage/graph/utils/ComputeDirectoryFrontier.java
@@ -528,7 +519,6 @@ class ListContentsInFrontierDirectories(luigi.Task):
                 local_graph_path=self.local_graph_path,
                 graph_name=self.graph_name,
                 provenance_dir=self.provenance_dir,
-                topological_order_dir=self.topological_order_dir,
             ),
         }
 
@@ -565,7 +555,6 @@ class RunProvenance(luigi.WrapperTask):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
-    topological_order_dir = luigi.PathParameter()
 
     def requires(self):
         """Returns :class:`ListContentsInFrontierDirectories` and
@@ -575,7 +564,6 @@ class RunProvenance(luigi.WrapperTask):
             local_graph_path=self.local_graph_path,
             graph_name=self.graph_name,
             provenance_dir=self.provenance_dir,
-            topological_order_dir=self.topological_order_dir,
         )
         return [
             ListProvenanceNodes(**kwargs),

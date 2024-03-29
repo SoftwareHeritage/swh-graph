@@ -23,8 +23,6 @@ from swh.graph.luigi.provenance import (
     ListProvenanceNodes,
 )
 
-from .test_topology import TOPO_ORDER_BACKWARD
-
 HEADS_ONLY = True
 
 ALL_NODES = [str(node.swhid()) for node in DATASET if hasattr(node, "swhid")]
@@ -311,14 +309,7 @@ def test_computeearliesttimestamps(tmpdir):
 
 def test_listdirectorymaxleaftimestamp(tmpdir):
     tmpdir = Path(tmpdir)
-    topology_dir = tmpdir / "topology"
     provenance_dir = tmpdir / "provenance"
-
-    topology_dir.mkdir()
-    toposort_path = (
-        topology_dir / "topological_order_dfs_backward_dir,rev,rel,snp,ori.csv.zst"
-    )
-    toposort_path.write_text(TOPO_ORDER_BACKWARD)
 
     # Generate the binary file, used as input by ComputeDirectoryFrontier
     test_computeearliesttimestamps(tmpdir)
@@ -328,7 +319,6 @@ def test_listdirectorymaxleaftimestamp(tmpdir):
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
-        topological_order_dir=topology_dir,
     )
 
     task.run()
@@ -340,7 +330,6 @@ def test_listdirectorymaxleaftimestamp(tmpdir):
 
 def test_computedirectoryfrontier(tmpdir):
     tmpdir = Path(tmpdir)
-    topology_dir = tmpdir / "topology"
     provenance_dir = tmpdir / "provenance"
 
     # Generate the binary file, used as input by ComputeDirectoryFrontier
@@ -351,7 +340,6 @@ def test_computedirectoryfrontier(tmpdir):
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
-        topological_order_dir=topology_dir,
         batch_size=100,  # faster
     )
 
@@ -390,7 +378,6 @@ def test_computedirectoryfrontier(tmpdir):
 
 def test_listfrontierdirectoriesinrevisions(tmpdir):
     tmpdir = Path(tmpdir)
-    topology_dir = tmpdir / "topology"
     provenance_dir = tmpdir / "provenance"
 
     # Generate the binary file, used as input by ListFrontierDirectoriesInRevisions
@@ -406,7 +393,6 @@ def test_listfrontierdirectoriesinrevisions(tmpdir):
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
-        topological_order_dir=topology_dir,
         batch_size=100,  # faster
     )
 
@@ -437,7 +423,6 @@ def test_listcontentsinrevisionswithoutfrontier(tmpdir):
     tmpdir = Path(tmpdir)
 
     provenance_dir = tmpdir / "provenance"
-    topology_dir = tmpdir / "topology"
 
     provenance_dir.mkdir()
 
@@ -451,7 +436,6 @@ def test_listcontentsinrevisionswithoutfrontier(tmpdir):
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
-        topological_order_dir=topology_dir,
         batch_size=100,  # faster
     )
 
@@ -482,7 +466,6 @@ def test_listcontentsindirectories(tmpdir):
     tmpdir = Path(tmpdir)
 
     provenance_dir = tmpdir / "provenance"
-    topology_dir = tmpdir / "topology"
 
     provenance_dir.mkdir()
 
@@ -496,7 +479,6 @@ def test_listcontentsindirectories(tmpdir):
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
-        topological_order_dir=topology_dir,
     )
 
     task.run()
@@ -526,7 +508,6 @@ def test_listcontentsindirectories_root(tmpdir):
     tmpdir = Path(tmpdir)
 
     provenance_dir = tmpdir / "provenance"
-    topology_dir = tmpdir / "topology"
 
     provenance_dir.mkdir()
 
@@ -546,7 +527,6 @@ def test_listcontentsindirectories_root(tmpdir):
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
-        topological_order_dir=topology_dir,
     )
 
     task.run()
