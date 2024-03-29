@@ -33,15 +33,15 @@ pub struct ParquetTableWriter<Builder: Default + StructArrayBuilder> {
 }
 
 impl<Builder: Default + StructArrayBuilder> TableWriter for ParquetTableWriter<Builder> {
-    const EXTENSION: &'static str = ".parquet";
     type Schema = (Arc<Schema>, WriterProperties);
     type CloseResult = FileMetaData;
 
     fn new(
-        path: PathBuf,
+        mut path: PathBuf,
         (schema, properties): Self::Schema,
         flush_threshold: Option<usize>,
     ) -> Result<Self> {
+        path.set_extension("parquet");
         let file =
             File::create(&path).with_context(|| format!("Could not create {}", path.display()))?;
         let file_writer = ParquetWriter::try_new(file, schema.clone(), Some(properties.clone()))

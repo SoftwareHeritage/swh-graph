@@ -25,11 +25,15 @@ pub struct ArrowTableWriter<Builder: Default + StructArrayBuilder> {
 }
 
 impl<Builder: Default + StructArrayBuilder> TableWriter for ArrowTableWriter<Builder> {
-    const EXTENSION: &'static str = ".arrow";
     type Schema = Schema;
     type CloseResult = ();
 
-    fn new(path: PathBuf, schema: Self::Schema, flush_threshold: Option<usize>) -> Result<Self> {
+    fn new(
+        mut path: PathBuf,
+        schema: Self::Schema,
+        flush_threshold: Option<usize>,
+    ) -> Result<Self> {
+        path.set_extension("arrow");
         let file =
             File::create(&path).with_context(|| format!("Could not create {}", path.display()))?;
         let file_writer = FileWriter::try_new(file, &schema).with_context(|| {

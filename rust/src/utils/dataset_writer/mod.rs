@@ -5,10 +5,11 @@
 
 use std::cell::{RefCell, RefMut};
 use std::fs::File;
+use std::num::NonZeroU16;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use arrow::array::StructArray;
 use rayon::prelude::*;
 use thread_local::ThreadLocal;
@@ -67,11 +68,9 @@ impl<W: TableWriter + Send> ParallelDatasetWriter<W> {
     }
 
     fn get_new_seq_writer(&self) -> Result<RefCell<W>> {
-        let path = self.path.join(format!(
-            "{}{}",
-            self.num_files.fetch_add(1, Ordering::Relaxed),
-            W::EXTENSION,
-        ));
+        let path = self
+            .path
+            .join(self.num_files.fetch_add(1, Ordering::Relaxed).to_string());
         Ok(RefCell::new(W::new(
             path,
             self.schema.clone(),
@@ -127,7 +126,6 @@ impl<W: TableWriter + Send> Drop for ParallelDatasetWriter<W> {
 }
 
 pub trait TableWriter {
-    const EXTENSION: &'static str;
     type Schema: Clone;
     type CloseResult: Send;
 
@@ -141,14 +139,90 @@ pub trait TableWriter {
     fn close(self) -> Result<Self::CloseResult>;
 }
 
+/// Wraps `N` [`TableWriter`] in such a way that they each write to `base/0/x.parquet`,
+/// ..., `base/N-1/x.parquet` instead of `base/x.parquet`.
+///
+/// This allows Hive partitioning while writing with multiple threads (`x` is the
+/// thread id in the example above).
+///
+/// If `num_partitions` is `None`, disables partitioning.
+pub struct PartitionedTableWriter<PartitionWriter: TableWriter + Send> {
+    partition_writers: Vec<PartitionWriter>,
+}
+
+impl<PartitionWriter: TableWriter + Send> TableWriter for PartitionedTableWriter<PartitionWriter> {
+    /// `(partition_column, num_partitions, underlying_schema)`
+    type Schema = (String, Option<NonZeroU16>, PartitionWriter::Schema);
+    type CloseResult = Vec<PartitionWriter::CloseResult>;
+
+    fn new(
+        mut path: PathBuf,
+        (partition_column, num_partitions, schema): Self::Schema,
+        flush_threshold: Option<usize>,
+    ) -> Result<Self> {
+        // Remove the last part of the path (the thread id), so we can insert the
+        // partition number between the base path and the thread id.
+        let thread_id = path.file_name().map(|p| p.to_owned());
+        ensure!(
+            path.pop(),
+            "Unexpected root path for partitioned writer: {}",
+            path.display()
+        );
+        let thread_id = thread_id.unwrap();
+        Ok(PartitionedTableWriter {
+            partition_writers: (0..num_partitions.map(NonZeroU16::get).unwrap_or(1))
+                .map(|partition_id| {
+                    let partition_path = if num_partitions.is_some() {
+                        path.join(format!("{}={}", partition_column, partition_id))
+                    } else {
+                        // Partitioning disabled
+                        path.to_owned()
+                    };
+                    std::fs::create_dir_all(&partition_path).with_context(|| {
+                        format!("Could not create {}", partition_path.display())
+                    })?;
+                    PartitionWriter::new(
+                        partition_path.join(&thread_id),
+                        schema.clone(),
+                        flush_threshold,
+                    )
+                })
+                .collect::<Result<_>>()?,
+        })
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        self.partition_writers
+            .par_iter_mut()
+            .try_for_each(|writer| writer.flush())
+    }
+
+    fn close(self) -> Result<Self::CloseResult> {
+        self.partition_writers
+            .into_par_iter()
+            .map(|writer| writer.close())
+            .collect()
+    }
+}
+
+impl<PartitionWriter: TableWriter + Send> PartitionedTableWriter<PartitionWriter> {
+    pub fn partitions(&mut self) -> &mut [PartitionWriter] {
+        &mut self.partition_writers
+    }
+}
+
 pub type CsvZstTableWriter<'a> = csv::Writer<zstd::stream::AutoFinishEncoder<'a, File>>;
 
 impl<'a> TableWriter for CsvZstTableWriter<'a> {
-    const EXTENSION: &'static str = ".csv.zst";
     type Schema = ();
     type CloseResult = ();
 
-    fn new(path: PathBuf, _schema: Self::Schema, _flush_threshold: Option<usize>) -> Result<Self> {
+    fn new(
+        mut path: PathBuf,
+        _schema: Self::Schema,
+        _flush_threshold: Option<usize>,
+    ) -> Result<Self> {
+        path.set_extension("csv.zst");
         let file =
             File::create(&path).with_context(|| format!("Could not create {}", path.display()))?;
         let compression_level = 3;

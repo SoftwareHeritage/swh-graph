@@ -47,8 +47,9 @@ pub fn writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesBuilder {
         .set_column_statistics_enabled("id".into(), EnabledStatistics::Page)
         // Enable somewhat-efficient SWHID lookup
         .set_column_bloom_filter_enabled("sha1_git".into(), true)
-        // min/max aren't useful on a pseudo-random string
-        .set_column_statistics_enabled("sha1_git".into(), EnabledStatistics::None)
+        // SWHIDs are partitioned into files by their high bits. We can't have only
+        // file statistics, but this is the next best thing.
+        .set_column_statistics_enabled("sha1_git".into(), EnabledStatistics::Chunk)
         // Use dictionaries for node types
         .set_dictionary_enabled(true)
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
