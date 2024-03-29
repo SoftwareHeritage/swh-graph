@@ -114,7 +114,7 @@ impl Mphf {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn swh_graph_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _swh_graph_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BidirectionalGraph>()?;
     m.add_class::<Mphf>()?;
     Ok(())

@@ -35,6 +35,10 @@ testing = {file = [
     "requirements-swh-luigi.txt",
     ]}
 
+[[tool.setuptools-rust.ext-modules]]
+target = "swh.graph._swh_graph_pyo3"
+path = "extension/Cargo.toml"
+
 [project.entry-points."swh.cli.subcommands"]
 "swh.graph" = "swh.graph.cli"
 
@@ -46,7 +50,7 @@ testing = {file = [
 "Source" = "https://gitlab.softwareheritage.org/swh/devel/swh-graph.git"
 
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools", "setuptools-scm", "setuptools-rust"]
 #build-backend = "setuptools.build_meta"
 build-backend = "graph_build"
 backend-path = ["_custom_build"]
