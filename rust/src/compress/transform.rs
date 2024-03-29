@@ -21,6 +21,7 @@ use crate::utils::sort::par_sort_arcs;
 pub fn transform<F, G, Iter>(
     input_batch_size: usize,
     sort_batch_size: usize,
+    partitions_per_thread: usize,
     graph: G,
     transformation: F,
     target_path: PathBuf,
@@ -33,7 +34,13 @@ where
     // Adapted from https://github.com/vigna/webgraph-rs/blob/08969fb1ac4ea59aafdbae976af8e026a99c9ac5/src/bin/perm.rs
     let num_nodes = graph.num_nodes();
 
+    let num_batches = num_nodes.div_ceil(input_batch_size);
+
     let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
+
+    let num_threads = num_cpus::get();
+    let num_partitions = num_threads * partitions_per_thread;
+    let nodes_per_partition = num_nodes.div_ceil(num_partitions);
 
     let mut pl = ProgressLogger::default().display_memory();
     pl.item_name = "node";
@@ -46,20 +53,23 @@ where
     let sorted_arcs = par_sort_arcs(
         temp_dir.path(),
         sort_batch_size,
-        (0usize..=((num_nodes - 1) / input_batch_size)).into_par_iter(),
-        |sorter, batch_id| {
+        (0..num_batches).into_par_iter(),
+        num_partitions,
+        |buffer, batch_id| -> Result<()> {
             let start = batch_id * input_batch_size;
             let end = (batch_id + 1) * input_batch_size;
             graph // Not using PermutedGraph in order to avoid blanket iter_nodes_from
                 .iter_from(start)
                 .take_while(|(node_id, _successors)| *node_id < end)
-                .for_each(|(x, succ)| {
-                    succ.into_iter().for_each(|s| {
+                .try_for_each(|(x, succ)| -> Result<()> {
+                    succ.into_iter().try_for_each(|s| -> Result<()> {
                         for (x, s) in transformation(x, s).into_iter() {
-                            sorter.push((x, s));
+                            let partition_id = x / nodes_per_partition;
+                            buffer.insert(partition_id, x, s)?;
                         }
+                        Ok(())
                     })
-                });
+                })?;
             pl.lock().unwrap().update_with_count(end - start);
             Ok(())
         },
@@ -67,7 +77,15 @@ where
     .context("Could not sort arcs")?;
     pl.lock().unwrap().done();
 
-    let arc_list_graph = webgraph::prelude::Left(ArcListGraph::new(num_nodes, sorted_arcs));
+    let arc_list_graphs =
+        sorted_arcs
+            .into_iter()
+            .enumerate()
+            .map(|(partition_id, sorted_arcs_partition)| {
+                webgraph::prelude::Left(ArcListGraph::new(num_nodes, sorted_arcs_partition))
+                    .iter_from(partition_id * nodes_per_partition)
+                    .take(nodes_per_partition)
+            });
 
     let compression_flags = CompFlags {
         compression_window: 1,
@@ -75,14 +93,21 @@ where
         max_ref_count: 3,
         ..CompFlags::default()
     };
-    BVComp::single_thread::<BE, _>(
+
+    let temp_bv_dir = temp_dir.path().join("transform-bv");
+    std::fs::create_dir(&temp_bv_dir)
+        .with_context(|| format!("Could not create {}", temp_bv_dir.display()))?;
+    BVComp::parallel_iter::<BE, _>(
         target_path,
-        &arc_list_graph,
+        arc_list_graphs,
+        num_nodes,
         compression_flags,
-        false, // build_offsets (TODO: make it true and remove BUILD_OFFSETS from pipeline)
-        Some(num_nodes),
+        Threads::Default,
+        &temp_bv_dir,
     )
     .context("Could not build BVGraph from arcs")?;
+
+    drop(temp_dir); // Prevent early deletion
 
     Ok(())
 }

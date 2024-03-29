@@ -140,8 +140,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-bfs-simplified",
         "--permutation",
         "{out_dir}/{graph_name}-bfs.order",
-        "--input-batch-size",
-        "{batch_size}",
     ],
     CompressionStep.BFS_OFFSETS: [
         "{rust_executable_dir}/swh-graph-index",

@@ -114,6 +114,8 @@ enum Commands {
         format: DatasetFormat,
         #[arg(long, default_value_t = 100_000_000)]
         sort_batch_size: usize,
+        #[arg(long, default_value_t = 1)]
+        partitions_per_thread: usize,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
         #[arg(value_enum, long, default_value_t = MphAlgorithm::Fmph)]
@@ -413,6 +415,7 @@ pub fn main() -> Result<()> {
         Commands::Bv {
             format: DatasetFormat::Orc,
             sort_batch_size,
+            partitions_per_thread,
             allowed_node_types,
             mph_algo,
             function,
@@ -425,6 +428,7 @@ pub fn main() -> Result<()> {
             match mph_algo {
                 MphAlgorithm::Fmph => swh_graph::compress::bv::bv::<ph::fmph::Function>(
                     sort_batch_size,
+                    partitions_per_thread,
                     function,
                     num_nodes,
                     dataset_dir,
@@ -434,6 +438,7 @@ pub fn main() -> Result<()> {
                 MphAlgorithm::Cmph => {
                     swh_graph::compress::bv::bv::<swh_graph::java_compat::mph::gov::GOVMPH>(
                         sort_batch_size,
+                        partitions_per_thread,
                         function,
                         num_nodes,
                         dataset_dir,

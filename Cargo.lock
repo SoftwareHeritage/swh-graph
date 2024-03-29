@@ -3889,7 +3889,7 @@ dependencies = [
 [[package]]
 name = "webgraph"
 version = "0.1.0"
-source = "git+https://github.com/progval/webgraph-rs?rev=f9b3eb489b58927493a87dbab1f60bb4f5fb306d#f9b3eb489b58927493a87dbab1f60bb4f5fb306d"
+source = "git+https://github.com/vigna/webgraph-rs?rev=a302084f2152dceb2a2402561af3efb6fe833b54#a302084f2152dceb2a2402561af3efb6fe833b54"
 dependencies = [
  "anyhow",
  "bitflags 2.4.2",

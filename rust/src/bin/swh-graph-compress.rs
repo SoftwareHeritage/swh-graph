@@ -40,8 +40,10 @@ enum Commands {
     Permute {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 100_000_000)]
+        #[arg(long, default_value_t = 1_000_000_000)]
         sort_batch_size: usize,
+        #[arg(long, default_value_t = 1)]
+        partitions_per_thread: usize,
         #[arg(long)]
         permutation: PathBuf,
         graph_dir: PathBuf,
@@ -51,8 +53,10 @@ enum Commands {
     Transpose {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 100_000_000)]
+        #[arg(long, default_value_t = 1_000_000_000)]
         sort_batch_size: usize,
+        #[arg(long, default_value_t = 1)]
+        partitions_per_thread: usize,
         graph_dir: PathBuf,
         target_dir: PathBuf,
     },
@@ -60,8 +64,10 @@ enum Commands {
     Simplify {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 100_000_000)]
+        #[arg(long, default_value_t = 1_000_000_000)]
         sort_batch_size: usize,
+        #[arg(long, default_value_t = 1)]
+        partitions_per_thread: usize,
         graph_dir: PathBuf,
         transposed_graph_dir: PathBuf,
         target_dir: PathBuf,
@@ -73,10 +79,10 @@ enum Commands {
     PermuteAndSymmetrize {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 800_000_000)]
-        /// On the 2022-12-07 dataset, --sort-batch-size 800000000 produces
-        /// ~1k files, ~2.8GB each; and uses 2TB of RAM.
+        #[arg(long, default_value_t = 1_000_000_000)]
         sort_batch_size: usize,
+        #[arg(long, default_value_t = 1)]
+        partitions_per_thread: usize,
         #[arg(long)]
         permutation: PathBuf,
         graph_dir: PathBuf,
@@ -164,6 +170,7 @@ pub fn main() -> Result<()> {
         Commands::Permute {
             sort_batch_size,
             input_batch_size,
+            partitions_per_thread,
             graph_dir,
             permutation,
             target_dir,
@@ -184,6 +191,7 @@ pub fn main() -> Result<()> {
             transform(
                 sort_batch_size,
                 input_batch_size,
+                partitions_per_thread,
                 graph,
                 |src, dst| unsafe {
                     [(
@@ -198,6 +206,7 @@ pub fn main() -> Result<()> {
         Commands::Transpose {
             sort_batch_size,
             input_batch_size,
+            partitions_per_thread,
             graph_dir,
             target_dir,
         } => {
@@ -212,6 +221,7 @@ pub fn main() -> Result<()> {
             transform(
                 sort_batch_size,
                 input_batch_size,
+                partitions_per_thread,
                 graph,
                 |src, dst| [(dst, src)],
                 target_dir,
@@ -225,6 +235,7 @@ pub fn main() -> Result<()> {
         Commands::PermuteAndSymmetrize {
             sort_batch_size,
             input_batch_size,
+            partitions_per_thread,
             graph_dir,
             permutation,
             target_dir,
@@ -250,6 +261,7 @@ pub fn main() -> Result<()> {
             transform(
                 input_batch_size,
                 sort_batch_size,
+                partitions_per_thread,
                 graph,
                 |src, dst| {
                     assert_ne!(src, dst);
