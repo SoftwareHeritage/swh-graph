@@ -116,12 +116,7 @@ pub fn main() -> Result<()> {
 
     let reachable_nodes = find_reachable_nodes(&graph, args.node_filter)?;
 
-    write_reachable_nodes(
-        &graph,
-        dataset_writer,
-        num_partitions.unwrap_or(NonZeroU16::new(1).unwrap()),
-        &reachable_nodes,
-    )?;
+    write_reachable_nodes(&graph, dataset_writer, &reachable_nodes)?;
 
     Ok(())
 }
@@ -178,15 +173,12 @@ fn write_reachable_nodes<G>(
     dataset_writer: ParallelDatasetWriter<
         PartitionedTableWriter<ParquetTableWriter<NodeTableBuilder>>,
     >,
-    num_partitions: NonZeroU16,
     reachable_nodes: &BitVec,
 ) -> Result<()>
 where
     G: SwhGraphWithProperties + Sync,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    assert!(num_partitions.is_power_of_two());
-
     let mut pl = ProgressLogger::default();
     pl.item_name("node");
     pl.display_memory(true);
@@ -214,7 +206,7 @@ where
                     // Bucket SWHIDs by their high bits, so we can use Parquet's column
                     // statistics to row groups.
                     let partition_id: usize =
-                        (swhid.hash[0] as u16 * num_partitions.get() / 256).into();
+                        (swhid.hash[0] as usize * writer.partitions().len() / 256).into();
                     writer.partitions()[partition_id]
                         .builder()?
                         .add_node(graph, node);

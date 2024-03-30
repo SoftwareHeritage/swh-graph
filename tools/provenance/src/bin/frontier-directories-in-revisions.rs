@@ -5,6 +5,7 @@
 
 #![allow(non_snake_case)]
 
+use std::num::NonZeroU16;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -19,7 +20,9 @@ use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
 
-use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
+use swh_graph::utils::dataset_writer::{
+    ParallelDatasetWriter, ParquetTableWriter, PartitionedTableWriter,
+};
 use swh_graph_provenance::x_in_y_dataset::{
     dir_in_revrel_schema, dir_in_revrel_writer_properties, DirInRevrelTableBuilder,
 };
@@ -36,6 +39,14 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(long)]
+    /// Number of subfolders (Hive partitions) to store Parquet files in.
+    ///
+    /// Rows are partitioned across these folders based on the high bits of the object hash,
+    /// to use Parquet statistics for row group filtering.
+    ///
+    /// RAM usage and number of written files is proportional to this value.
+    num_partitions: Option<NonZeroU16>,
     #[arg(long)]
     /// Path to the Parquet table with the node ids of frontier directories
     frontier_directories: PathBuf,
@@ -89,8 +100,12 @@ pub fn main() -> Result<()> {
     let dataset_writer = ParallelDatasetWriter::new_with_schema(
         args.directories_out,
         (
-            Arc::new(dir_in_revrel_schema()),
-            dir_in_revrel_writer_properties(&graph).build(),
+            "revrel_partition".to_owned(), // Partition column name
+            args.num_partitions,
+            (
+                Arc::new(dir_in_revrel_schema()),
+                dir_in_revrel_writer_properties(&graph).build(),
+            ),
         ),
     )?;
 
@@ -106,7 +121,9 @@ fn write_frontier_directories_in_revisions<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64> + Sync + Copy,
     frontier_directories: &BitVec,
-    dataset_writer: ParallelDatasetWriter<ParquetTableWriter<DirInRevrelTableBuilder>>,
+    dataset_writer: ParallelDatasetWriter<
+        PartitionedTableWriter<ParquetTableWriter<DirInRevrelTableBuilder>>,
+    >,
 ) -> Result<()>
 where
     G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
@@ -160,7 +177,7 @@ fn find_frontiers_in_root_directory<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64>,
     frontier_directories: &BitVec,
-    writer: &mut ParquetTableWriter<DirInRevrelTableBuilder>,
+    writer: &mut PartitionedTableWriter<ParquetTableWriter<DirInRevrelTableBuilder>>,
     revrel: NodeId,
     root_dir: NodeId,
 ) -> Result<()>
@@ -177,7 +194,9 @@ where
     let is_frontier = |dir: NodeId, _dir_max_timestamp: i64| frontier_directories[dir];
 
     let on_frontier = |dir: NodeId, dir_max_timestamp: i64, path: Vec<u8>| {
-        let builder = writer.builder()?;
+        // Partition rows by their cnt value, to allow faster dir->revrel queries
+        let partition_id: usize = dir * writer.partitions().len() / graph.num_nodes();
+        let builder = writer.partitions()[partition_id].builder()?;
         builder
             .dir
             .append_value(dir.try_into().expect("NodeId overflowed u64"));

@@ -395,6 +395,7 @@ def test_listfrontierdirectoriesinrevisions(tmpdir):
         graph_name="example",
         provenance_dir=provenance_dir,
         batch_size=100,  # faster
+        num_partitions=2,  # Don't need as many files as the default
     )
 
     task.run()
@@ -460,6 +461,7 @@ def test_listcontentsinrevisionswithoutfrontier(tmpdir):
         graph_name="example",
         provenance_dir=provenance_dir,
         batch_size=100,  # faster
+        num_partitions=2,  # Don't need as many files as the default
     )
 
     task.run()
@@ -525,6 +527,7 @@ def test_listcontentsindirectories(tmpdir):
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
+        num_partitions=2,  # Don't need as many files as the default
     )
 
     task.run()
@@ -595,6 +598,7 @@ def test_listcontentsindirectories_root(tmpdir):
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
+        num_partitions=2,  # Don't need as many files as the default
     )
 
     task.run()

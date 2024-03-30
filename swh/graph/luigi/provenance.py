@@ -298,6 +298,7 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
     batch_size = luigi.IntParameter(default=1000)
+    num_partitions = luigi.IntParameter(default=256)
 
     def _max_ram(self):
         # see
@@ -366,6 +367,8 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
                 "frontier-directories-in-revisions",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--num-partitions",
+                str(self.num_partitions),
                 "--frontier-directories",
                 self.input()["directory_frontier"],
                 "--max-timestamps",
@@ -393,6 +396,7 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
     batch_size = luigi.IntParameter(default=1000)
+    num_partitions = luigi.IntParameter(default=256)
 
     def _max_ram(self):
         # see
@@ -455,6 +459,8 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
                 "contents-in-revisions-without-frontier",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--num-partitions",
+                str(self.num_partitions),
                 "--frontier-directories",
                 self.input()["directory_frontier"],
                 "--contents-out",
@@ -472,6 +478,7 @@ class ListContentsInFrontierDirectories(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
+    num_partitions = luigi.IntParameter(default=256)
 
     def _max_ram(self):
         # see java/src/main/java/org/softwareheritage/graph/utils/ComputeDirectoryFrontier.java
@@ -525,6 +532,8 @@ class ListContentsInFrontierDirectories(luigi.Task):
                 "contents-in-directories",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--num-partitions",
+                str(self.num_partitions),
                 "--frontier-directories",
                 self.input()["directory_frontier"],
                 "--contents-out",
@@ -541,6 +550,7 @@ class RunProvenance(luigi.WrapperTask):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
+    num_partitions = luigi.IntParameter(default=256)
 
     def requires(self):
         """Returns :class:`ListContentsInFrontierDirectories` and
