@@ -129,8 +129,6 @@ where
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    let root_dir_swhid = graph.properties().swhid(root_dir);
-
     let on_directory = |_dir: NodeId, _path_parts: PathParts| Ok(true); // always recurse
 
     let on_content = |cnt: NodeId, path_parts: PathParts| {
