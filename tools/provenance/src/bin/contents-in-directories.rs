@@ -99,7 +99,7 @@ pub fn main() -> Result<()> {
     let dataset_writer = ParallelDatasetWriter::new_with_schema(
         args.contents_out,
         (
-            "dir_partition".to_owned(), // Partition column name
+            "cnt_partition".to_owned(), // Partition column name
             args.num_partitions,
             (
                 Arc::new(cnt_in_dir_schema()),
