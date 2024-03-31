@@ -20,6 +20,7 @@ use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
 
 use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
+use swh_graph_provenance::frontier::PathParts;
 use swh_graph_provenance::x_in_y_dataset::{
     dir_in_revrel_schema, dir_in_revrel_writer_properties, DirInRevrelTableBuilder,
 };
@@ -174,9 +175,7 @@ where
         return Ok(());
     };
 
-    let is_frontier = |dir: NodeId, _dir_max_timestamp: i64| frontier_directories[dir];
-
-    let on_frontier = |dir: NodeId, dir_max_timestamp: i64, path: Vec<u8>| {
+    let mut on_frontier = |dir: NodeId, dir_max_timestamp: i64, path: Vec<u8>| -> Result<()> {
         let builder = writer.builder()?;
         builder
             .dir
@@ -191,12 +190,23 @@ where
         Ok(())
     };
 
-    swh_graph_provenance::frontier::find_frontiers_from_root_directory(
-        graph,
-        max_timestamps,
-        is_frontier,
-        on_frontier,
-        /* recurse_through_frontiers: */ true,
-        root_dir,
-    )
+    let on_directory = |node, path_parts: PathParts| -> Result<bool> {
+        let dir_max_timestamp = max_timestamps.get(node).expect("max_timestamps too small");
+        if dir_max_timestamp == i64::MIN {
+            // Somehow does not have a max timestamp. Presumably because it does not
+            // have any content.
+            return Ok(false);
+        }
+
+        let node_is_frontier = frontier_directories[node];
+
+        if node_is_frontier {
+            on_frontier(node, dir_max_timestamp, path_parts.build_path(graph))?;
+        }
+
+        Ok(!node_is_frontier)
+    };
+
+    let on_content = |_node, _path_parts: PathParts| -> Result<()> { Ok(()) };
+    swh_graph_provenance::frontier::dfs_with_path(graph, on_directory, on_content, root_dir)
 }

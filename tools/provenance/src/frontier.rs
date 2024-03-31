@@ -14,48 +14,6 @@ use swh_graph::SWHType;
 /// Value in the path_stack between two lists of path parts
 const PATH_SEPARATOR: FilenameId = FilenameId(u64::MAX);
 
-/// Traverses from a directory, and calls a function on each frontier directory
-/// it contains.
-///
-/// Frontier directories are detected using the `is_frontier` function, and
-/// `on_frontier` is called for each of them
-///
-/// If `recurse_through_frontiers` is `false`, directories reachable from the root
-/// only through a frontier directory will be ignored.
-pub fn find_frontiers_from_root_directory<G>(
-    graph: &G,
-    max_timestamps: impl GetIndex<Output = i64>,
-    mut is_frontier: impl FnMut(NodeId, i64) -> bool,
-    mut on_frontier: impl FnMut(NodeId, i64, Vec<u8>) -> Result<()>,
-    recurse_through_frontiers: bool,
-    root_dir_id: NodeId,
-) -> Result<()>
-where
-    G: SwhLabelledForwardGraph + SwhGraphWithProperties,
-    <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
-    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
-{
-    let on_directory = |node, path_parts: PathParts| {
-        let dir_max_timestamp = max_timestamps.get(node).expect("max_timestamps too small");
-        if dir_max_timestamp == i64::MIN {
-            // Somehow does not have a max timestamp. Presumably because it does not
-            // have any content.
-            return Ok(false);
-        }
-
-        let node_is_frontier = is_frontier(node, dir_max_timestamp);
-
-        if node_is_frontier {
-            on_frontier(node, dir_max_timestamp, path_parts.build_path(graph))?;
-        }
-
-        Ok(recurse_through_frontiers || !node_is_frontier)
-    };
-
-    let on_content = |_node, _path_parts: PathParts| Ok(());
-    dfs_with_path(graph, on_directory, on_content, root_dir_id)
-}
-
 /// Yielded by `dfs_with_path` to allow building a path as a `Vec<u8>` only when needed
 pub struct PathParts<'a> {
     rev_directory_names: &'a [FilenameId],
