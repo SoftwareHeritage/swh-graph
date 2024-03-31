@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use ar_row::deserialize::ArRowDeserialize;
 use ar_row_derive::ArRowDeserialize;
 use arrow::array::*;
@@ -16,6 +16,7 @@ use arrow::datatypes::DataType::*;
 use arrow::datatypes::{Field, Schema};
 use dsi_progress_logger::ProgressLog;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
+use parquet::arrow::ProjectionMask;
 use parquet::basic::{Compression, Encoding, ZstdLevel};
 use parquet::file::properties::EnabledStatistics;
 use parquet::file::properties::{WriterProperties, WriterPropertiesBuilder};
@@ -136,7 +137,18 @@ where
                 .with_context(|| format!("Could not open {}", file_path.display()))?;
             let reader_builder = ParquetRecordBatchReaderBuilder::try_new(file)
                 .with_context(|| format!("Could not read {} as Parquet", file_path.display()))?;
-            let num_rows: i64 = reader_builder.metadata().file_metadata().num_rows();
+            let file_metadata = reader_builder.metadata().file_metadata().clone();
+            let id_col_index = file_metadata
+                .schema_descr()
+                .columns()
+                .iter()
+                .position(|col| col.name() == "id")
+                .ok_or_else(|| anyhow!("{} has no 'id' column", file_path.display()))?;
+            let reader_builder = reader_builder.with_projection(ProjectionMask::leaves(
+                file_metadata.schema_descr(),
+                [id_col_index],
+            ));
+            let num_rows: i64 = file_metadata.num_rows();
             ensure!(
                 num_rows >= 0,
                 "{} has a negative number of rows ({})",

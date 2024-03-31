@@ -42,9 +42,7 @@ class ListProvenanceNodes(luigi.Task):
 
     def output(self) -> Dict[str, luigi.LocalTarget]:
         """Returns :file:`{provenance_dir}/nodes/`"""
-        return {
-            "parquet": luigi.LocalTarget(self._arrow_output_path()),
-        }
+        return luigi.LocalTarget(self._arrow_output_path())
 
     def run(self) -> None:
         """Runs ``list-provenance-nodes`` from ``tools/provenance``"""
@@ -333,20 +331,17 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns :class:`LocalGraph` and :class:`ComputeDirectoryFrontier`
         instances."""
+        kwargs = dict(
+            local_export_path=self.local_export_path,
+            local_graph_path=self.local_graph_path,
+            graph_name=self.graph_name,
+            provenance_dir=self.provenance_dir,
+        )
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "directory_frontier": ComputeDirectoryFrontier(
-                local_export_path=self.local_export_path,
-                local_graph_path=self.local_graph_path,
-                graph_name=self.graph_name,
-                provenance_dir=self.provenance_dir,
-            ),
-            "directory_max_leaf_timestamps": ListDirectoryMaxLeafTimestamp(
-                local_export_path=self.local_export_path,
-                local_graph_path=self.local_graph_path,
-                graph_name=self.graph_name,
-                provenance_dir=self.provenance_dir,
-            ),
+            "reachable_nodes": ListProvenanceNodes(**kwargs),
+            "directory_frontier": ComputeDirectoryFrontier(**kwargs),
+            "directory_max_leaf_timestamps": ListDirectoryMaxLeafTimestamp(**kwargs),
         }
 
     def _output_path(self) -> Path:
@@ -366,6 +361,8 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
                 "frontier-directories-in-revisions",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--reachable-nodes",
+                self.input()["reachable_nodes"],
                 "--frontier-directories",
                 self.input()["directory_frontier"],
                 "--max-timestamps",
@@ -428,14 +425,16 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns :class:`LocalGraph` and :class:`ListDirectoryMaxLeafTimestamp`
         instances."""
+        kwargs = dict(
+            local_export_path=self.local_export_path,
+            local_graph_path=self.local_graph_path,
+            graph_name=self.graph_name,
+            provenance_dir=self.provenance_dir,
+        )
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "directory_frontier": ComputeDirectoryFrontier(
-                local_export_path=self.local_export_path,
-                local_graph_path=self.local_graph_path,
-                graph_name=self.graph_name,
-                provenance_dir=self.provenance_dir,
-            ),
+            "reachable_nodes": ListProvenanceNodes(**kwargs),
+            "directory_frontier": ComputeDirectoryFrontier(**kwargs),
         }
 
     def _output_path(self) -> Path:
@@ -455,6 +454,8 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
                 "contents-in-revisions-without-frontier",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--reachable-nodes",
+                self.input()["reachable_nodes"],
                 "--frontier-directories",
                 self.input()["directory_frontier"],
                 "--contents-out",
@@ -498,14 +499,16 @@ class ListContentsInFrontierDirectories(luigi.Task):
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns :class:`LocalGraph` and :class:`ComputeDirectoryFrontier`
         instances."""
+        kwargs = dict(
+            local_export_path=self.local_export_path,
+            local_graph_path=self.local_graph_path,
+            graph_name=self.graph_name,
+            provenance_dir=self.provenance_dir,
+        )
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "directory_frontier": ComputeDirectoryFrontier(
-                local_export_path=self.local_export_path,
-                local_graph_path=self.local_graph_path,
-                graph_name=self.graph_name,
-                provenance_dir=self.provenance_dir,
-            ),
+            "reachable_nodes": ListProvenanceNodes(**kwargs),
+            "directory_frontier": ComputeDirectoryFrontier(**kwargs),
         }
 
     def _output_path(self) -> Path:
@@ -525,6 +528,8 @@ class ListContentsInFrontierDirectories(luigi.Task):
                 "contents-in-directories",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--reachable-nodes",
+                self.input()["reachable_nodes"],
                 "--frontier-directories",
                 self.input()["directory_frontier"],
                 "--contents-out",

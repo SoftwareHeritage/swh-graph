@@ -16,6 +16,7 @@ use sux::bits::bit_vec::BitVec;
 
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::SWHType;
 
 use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph_provenance::frontier::PathParts;
@@ -32,6 +33,10 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(long)]
+    /// Path to the Parquet table with the node ids of all nodes reachable from
+    /// a head revision/release
+    reachable_nodes: PathBuf,
     #[arg(long)]
     /// Path to the Parquet table with the node ids of frontier directories
     frontier_directories: PathBuf,
@@ -52,7 +57,7 @@ pub fn main() -> Result<()> {
     log::info!("Loading graph");
     let graph = swh_graph::graph::load_bidirectional(args.graph_path)
         .context("Could not load graph")?
-        .load_forward_labels()
+        .load_backward_labels()
         .context("Could not load labels")?
         .init_properties()
         .load_properties(|props| props.load_label_names())
@@ -75,6 +80,15 @@ pub fn main() -> Result<()> {
     )?;
     pl.done();
 
+    let mut pl = ProgressLogger::default();
+    pl.item_name("node");
+    pl.display_memory(true);
+    pl.local_speed(true);
+    pl.start("Loading reachable nodes...");
+    let reachable_nodes =
+        swh_graph_provenance::frontier_set::from_parquet(&graph, args.reachable_nodes, &mut pl)?;
+    pl.done();
+
     let dataset_writer = ParallelDatasetWriter::new_with_schema(
         args.contents_out,
         (
@@ -83,16 +97,22 @@ pub fn main() -> Result<()> {
         ),
     )?;
 
-    write_contents_in_revisions(&graph, &frontier_directories, dataset_writer)
+    write_revisions_from_contents(
+        &graph,
+        &reachable_nodes,
+        &frontier_directories,
+        dataset_writer,
+    )
 }
 
-fn write_contents_in_revisions<G>(
+fn write_revisions_from_contents<G>(
     graph: &G,
+    reachable_nodes: &BitVec,
     frontier_directories: &BitVec,
     dataset_writer: ParallelDatasetWriter<ParquetTableWriter<CntInRevrelTableBuilder>>,
 ) -> Result<()>
 where
-    G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
+    G: SwhLabelledBackwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
@@ -108,19 +128,14 @@ where
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
         || dataset_writer.get_thread_writer().unwrap(),
         |writer, node| -> Result<()> {
-            if swh_graph_provenance::filters::is_head(graph, node) {
-                if let Some(root_dir) =
-                    swh_graph::algos::get_root_directory_from_revision_or_release(graph, node)
-                        .context("Could not pick root directory")?
-                {
-                    find_contents_in_root_directory(
-                        graph,
-                        frontier_directories,
-                        writer,
-                        node,
-                        root_dir,
-                    )?;
-                }
+            if reachable_nodes.get(node) && graph.properties().node_type(node) == SWHType::Content {
+                find_revisions_from_content(
+                    graph,
+                    reachable_nodes,
+                    frontier_directories,
+                    writer,
+                    node,
+                )?;
             }
 
             if node % 32768 == 0 {
@@ -138,28 +153,37 @@ where
     Ok(())
 }
 
-fn find_contents_in_root_directory<G>(
+fn find_revisions_from_content<G>(
     graph: &G,
+    reachable_nodes: &BitVec,
     frontier_directories: &BitVec,
     writer: &mut ParquetTableWriter<CntInRevrelTableBuilder>,
-    revrel: NodeId,
-    root_dir: NodeId,
+    cnt: NodeId,
 ) -> Result<()>
 where
-    G: SwhLabelledForwardGraph + SwhGraphWithProperties,
+    G: SwhLabelledBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
 {
-    let Some(revrel_timestamp) = graph.properties().author_timestamp(revrel) else {
-        return Ok(());
-    };
-
     let on_directory = |dir: NodeId, _path_parts: PathParts| {
+        if dir == cnt {
+            // FIXME: backward_dfs_with_path always calls this function on the root,
+            // even if it is a content.
+            return Ok(true);
+        }
+
         Ok(!frontier_directories[dir]) // Recurse only if this is not a frontier
     };
 
-    let on_content = |cnt: NodeId, path_parts: PathParts| {
+    let on_revrel = |revrel: NodeId, path_parts: PathParts| {
+        let Some(revrel_timestamp) = graph.properties().author_timestamp(revrel) else {
+            return Ok(());
+        };
+        if !swh_graph_provenance::filters::is_head(graph, revrel) {
+            return Ok(());
+        }
+
         let builder = writer.builder()?;
         builder
             .cnt
@@ -172,5 +196,11 @@ where
         Ok(())
     };
 
-    swh_graph_provenance::frontier::dfs_with_path(graph, on_directory, on_content, root_dir)
+    swh_graph_provenance::frontier::backward_dfs_with_path(
+        graph,
+        reachable_nodes,
+        on_directory,
+        on_revrel,
+        cnt,
+    )
 }

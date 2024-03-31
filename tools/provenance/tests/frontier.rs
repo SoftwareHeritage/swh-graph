@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use pretty_assertions::assert_eq;
+use sux::bits::bit_vec::BitVec;
 
 use swh_graph::graph::*;
 use swh_graph::graph_builder::GraphBuilder;
@@ -40,7 +41,16 @@ fn test_dfs_with_path() -> Result<()> {
     let cnt7 = builder
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000007))?
         .done();
+    let rev8 = builder
+        .node(swhid!(swh:1:rev:0000000000000000000000000000000000000008))?
+        .done();
+    let rev9 = builder
+        .node(swhid!(swh:1:rev:0000000000000000000000000000000000000009))?
+        .done();
     /*
+     * rev8                                    rev9
+     *  |                                       |
+     *  v                                       v
      * dir0 --(subdir1)--> dir1 --(subdir2)--> dir2 --(content4)--> cnt4
      *  \                   \                     \
      *   \                   \                     +--(content5)--> cnt5
@@ -56,6 +66,8 @@ fn test_dfs_with_path() -> Result<()> {
     builder.l_arc(dir2, cnt5, Permission::Directory, b"content5");
     builder.l_arc(dir3, cnt6, Permission::Directory, b"content6");
     builder.l_arc(dir0, cnt7, Permission::Directory, b"content7");
+    builder.arc(rev8, dir0);
+    builder.arc(rev9, dir2);
 
     let graph = builder.done()?;
 
@@ -69,36 +81,37 @@ fn test_dfs_with_path() -> Result<()> {
         Ok(true)
     };
 
-    let mut cnt_events = Vec::new();
-    let on_content = |cnt, path_parts: PathParts| {
-        cnt_events.push(format!(
+    let mut revrel_events = Vec::new();
+    let on_revrel = |revrel, path_parts: PathParts| {
+        revrel_events.push(format!(
             "{} has path {}",
-            graph.properties().swhid(cnt),
+            graph.properties().swhid(revrel),
             String::from_utf8(path_parts.build_path(&graph))?
         ));
         Ok(())
     };
 
-    dfs_with_path(&graph, on_directory, on_content, dir0)?;
+    let mut reachable_nodes = BitVec::new(graph.num_nodes());
+    reachable_nodes.fill(true);
+
+    backward_dfs_with_path(&graph, &reachable_nodes, on_directory, on_revrel, cnt4)?;
 
     dir_events.sort();
-    cnt_events.sort();
+    revrel_events.sort();
     assert_eq!(
         dir_events,
         vec![
-            "swh:1:dir:0000000000000000000000000000000000000000 has path ",
-            "swh:1:dir:0000000000000000000000000000000000000001 has path subdir1/",
-            "swh:1:dir:0000000000000000000000000000000000000002 has path subdir1/subdir2/",
-            "swh:1:dir:0000000000000000000000000000000000000003 has path subdir1/subdir3/",
+            "swh:1:cnt:0000000000000000000000000000000000000004 has path ",
+            "swh:1:dir:0000000000000000000000000000000000000000 has path subdir1/subdir2/content4",
+            "swh:1:dir:0000000000000000000000000000000000000001 has path subdir2/content4",
+            "swh:1:dir:0000000000000000000000000000000000000002 has path content4",
         ]
     );
     assert_eq!(
-        cnt_events,
+        revrel_events,
         vec![
-            "swh:1:cnt:0000000000000000000000000000000000000004 has path subdir1/subdir2/content4",
-            "swh:1:cnt:0000000000000000000000000000000000000005 has path subdir1/subdir2/content5",
-            "swh:1:cnt:0000000000000000000000000000000000000006 has path subdir1/subdir3/content6",
-            "swh:1:cnt:0000000000000000000000000000000000000007 has path content7",
+            "swh:1:rev:0000000000000000000000000000000000000008 has path subdir1/subdir2/content4",
+            "swh:1:rev:0000000000000000000000000000000000000009 has path content4",
         ]
     );
 

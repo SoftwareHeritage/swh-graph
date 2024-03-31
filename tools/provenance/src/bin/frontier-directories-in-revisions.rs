@@ -38,6 +38,10 @@ struct Args {
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
     #[arg(long)]
+    /// Path to the Parquet table with the node ids of all nodes reachable from
+    /// a head revision/release
+    reachable_nodes: PathBuf,
+    #[arg(long)]
     /// Path to the Parquet table with the node ids of frontier directories
     frontier_directories: PathBuf,
     #[arg(long)]
@@ -60,7 +64,7 @@ pub fn main() -> Result<()> {
     log::info!("Loading graph");
     let graph = swh_graph::graph::load_bidirectional(args.graph_path)
         .context("Could not load graph")?
-        .load_forward_labels()
+        .load_backward_labels()
         .context("Could not load labels")?
         .init_properties()
         .load_properties(|props| props.load_label_names())
@@ -87,6 +91,15 @@ pub fn main() -> Result<()> {
     )?;
     pl.done();
 
+    let mut pl = ProgressLogger::default();
+    pl.item_name("node");
+    pl.display_memory(true);
+    pl.local_speed(true);
+    pl.start("Loading reachable nodes...");
+    let reachable_nodes =
+        swh_graph_provenance::frontier_set::from_parquet(&graph, args.reachable_nodes, &mut pl)?;
+    pl.done();
+
     let dataset_writer = ParallelDatasetWriter::new_with_schema(
         args.directories_out,
         (
@@ -95,22 +108,24 @@ pub fn main() -> Result<()> {
         ),
     )?;
 
-    write_frontier_directories_in_revisions(
+    write_revisions_from_frontier_directories(
         &graph,
         &max_timestamps,
+        &reachable_nodes,
         &frontier_directories,
         dataset_writer,
     )
 }
 
-fn write_frontier_directories_in_revisions<G>(
+fn write_revisions_from_frontier_directories<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64> + Sync + Copy,
+    reachable_nodes: &BitVec,
     frontier_directories: &BitVec,
     dataset_writer: ParallelDatasetWriter<ParquetTableWriter<DirInRevrelTableBuilder>>,
 ) -> Result<()>
 where
-    G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
+    G: SwhLabelledBackwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
@@ -126,20 +141,15 @@ where
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
         || dataset_writer.get_thread_writer().unwrap(),
         |writer, node| -> Result<()> {
-            if swh_graph_provenance::filters::is_head(graph, node) {
-                if let Some(root_dir) =
-                    swh_graph::algos::get_root_directory_from_revision_or_release(graph, node)
-                        .context("Could not pick root directory")?
-                {
-                    find_frontiers_in_root_directory(
-                        graph,
-                        max_timestamps,
-                        frontier_directories,
-                        writer,
-                        node,
-                        root_dir,
-                    )?;
-                }
+            if frontier_directories.get(node) {
+                write_revisions_from_frontier_directory(
+                    graph,
+                    max_timestamps,
+                    reachable_nodes,
+                    frontier_directories,
+                    writer,
+                    node,
+                )?;
             }
 
             if node % 32768 == 0 {
@@ -157,25 +167,47 @@ where
     Ok(())
 }
 
-fn find_frontiers_in_root_directory<G>(
+fn write_revisions_from_frontier_directory<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64>,
+    reachable_nodes: &BitVec,
     frontier_directories: &BitVec,
     writer: &mut ParquetTableWriter<DirInRevrelTableBuilder>,
-    revrel: NodeId,
-    root_dir: NodeId,
+    dir: NodeId,
 ) -> Result<()>
 where
-    G: SwhLabelledForwardGraph + SwhGraphWithProperties,
+    G: SwhLabelledBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
 {
-    let Some(revrel_timestamp) = graph.properties().author_timestamp(revrel) else {
+    if !frontier_directories[dir] {
         return Ok(());
+    }
+    let dir_max_timestamp = max_timestamps.get(dir).expect("max_timestamps too small");
+    if dir_max_timestamp == i64::MIN {
+        // Somehow does not have a max timestamp. Presumably because it does not
+        // have any content.
+        return Ok(());
+    }
+
+    let on_directory = |node, _path_parts: PathParts| -> Result<bool> {
+        if node == dir {
+            // The root is a frontier directory, and we always want to recurse from it
+            return Ok(true);
+        }
+        // Don't recurse if this is a frontier directory
+        Ok(!frontier_directories[node])
     };
 
-    let mut on_frontier = |dir: NodeId, dir_max_timestamp: i64, path: Vec<u8>| -> Result<()> {
+    let on_revrel = |revrel, path_parts: PathParts| -> Result<()> {
+        let Some(revrel_timestamp) = graph.properties().author_timestamp(revrel) else {
+            return Ok(());
+        };
+
+        if !swh_graph_provenance::filters::is_head(graph, revrel) {
+            return Ok(());
+        }
         let builder = writer.builder()?;
         builder
             .dir
@@ -185,28 +217,15 @@ where
             .revrel
             .append_value(revrel.try_into().expect("NodeId overflowed u64"));
         builder.revrel_author_date.append_value(revrel_timestamp);
-        builder.path.append_value(path);
+        builder.path.append_value(path_parts.build_path(graph));
 
         Ok(())
     };
-
-    let on_directory = |node, path_parts: PathParts| -> Result<bool> {
-        let dir_max_timestamp = max_timestamps.get(node).expect("max_timestamps too small");
-        if dir_max_timestamp == i64::MIN {
-            // Somehow does not have a max timestamp. Presumably because it does not
-            // have any content.
-            return Ok(false);
-        }
-
-        let node_is_frontier = frontier_directories[node];
-
-        if node_is_frontier {
-            on_frontier(node, dir_max_timestamp, path_parts.build_path(graph))?;
-        }
-
-        Ok(!node_is_frontier)
-    };
-
-    let on_content = |_node, _path_parts: PathParts| -> Result<()> { Ok(()) };
-    swh_graph_provenance::frontier::dfs_with_path(graph, on_directory, on_content, root_dir)
+    swh_graph_provenance::frontier::backward_dfs_with_path(
+        graph,
+        reachable_nodes,
+        on_directory,
+        on_revrel,
+        dir,
+    )
 }

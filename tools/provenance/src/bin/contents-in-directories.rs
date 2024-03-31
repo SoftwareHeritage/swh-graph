@@ -12,12 +12,12 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use rayon::prelude::*;
-use serde::Serialize;
+use sux::prelude::BitVec;
 
 use swh_graph::collections::NodeSet;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::SWHID;
+use swh_graph::SWHType;
 
 use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph_provenance::frontier::PathParts;
@@ -37,19 +37,15 @@ struct Args {
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
     #[arg(long)]
+    /// Path to the Parquet table with the node ids of all nodes reachable from
+    /// a head revision/release
+    reachable_nodes: PathBuf,
+    #[arg(long)]
     /// Path to the Parquet table with the node ids of frontier directories
     frontier_directories: PathBuf,
     #[arg(long)]
     /// Path to a directory where to write .parquet results to
     contents_out: PathBuf,
-}
-
-#[derive(Debug, Serialize)]
-struct OutputRecord<'a> {
-    cnt_SWHID: SWHID,
-    dir_SWHID: &'a SWHID,
-    #[serde(with = "serde_bytes")] // Serialize a bytestring instead of list of ints
-    path: Vec<u8>,
 }
 
 pub fn main() -> Result<()> {
@@ -64,7 +60,7 @@ pub fn main() -> Result<()> {
     log::info!("Loading graph");
     let graph = swh_graph::graph::load_bidirectional(args.graph_path)
         .context("Could not load graph")?
-        .load_forward_labels()
+        .load_backward_labels()
         .context("Could not load labels")?
         .init_properties()
         .load_properties(|props| props.load_label_names())
@@ -85,6 +81,15 @@ pub fn main() -> Result<()> {
     )?;
     pl.done();
 
+    let mut pl = ProgressLogger::default();
+    pl.item_name("node");
+    pl.display_memory(true);
+    pl.local_speed(true);
+    pl.start("Loading reachable nodes...");
+    let reachable_nodes =
+        swh_graph_provenance::frontier_set::from_parquet(&graph, args.reachable_nodes, &mut pl)?;
+    pl.done();
+
     let dataset_writer = ParallelDatasetWriter::new_with_schema(
         args.contents_out,
         (
@@ -103,8 +108,14 @@ pub fn main() -> Result<()> {
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
         || dataset_writer.get_thread_writer().unwrap(),
         |writer, node| -> Result<()> {
-            if frontier_directories.contains(node) {
-                write_contents_in_directory(&graph, writer, node)?;
+            if reachable_nodes.get(node) && graph.properties().node_type(node) == SWHType::Content {
+                write_frontier_directories_from_content(
+                    &graph,
+                    writer,
+                    &reachable_nodes,
+                    &frontier_directories,
+                    node,
+                )?;
             }
 
             if node % 32768 == 0 {
@@ -119,29 +130,39 @@ pub fn main() -> Result<()> {
     Ok(())
 }
 
-fn write_contents_in_directory<G>(
+fn write_frontier_directories_from_content<G>(
     graph: &G,
     writer: &mut ParquetTableWriter<CntInDirTableBuilder>,
-    root_dir: NodeId,
+    reachable_nodes: &BitVec,
+    frontier_directories: &BitVec,
+    cnt: NodeId,
 ) -> Result<()>
 where
-    G: SwhLabelledForwardGraph + SwhGraphWithProperties,
+    G: SwhLabelledBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    let on_directory = |_dir: NodeId, _path_parts: PathParts| Ok(true); // always recurse
-
-    let on_content = |cnt: NodeId, path_parts: PathParts| {
-        let builder = writer.builder()?;
-        builder
-            .cnt
-            .append_value(cnt.try_into().expect("NodeId overflowed u64"));
-        builder
-            .dir
-            .append_value(root_dir.try_into().expect("NodeId overflowed u64"));
-        builder.path.append_value(path_parts.build_path(graph));
-        Ok(())
+    let on_directory = |dir: NodeId, path_parts: PathParts| {
+        if frontier_directories.contains(dir) {
+            let builder = writer.builder()?;
+            builder
+                .cnt
+                .append_value(cnt.try_into().expect("NodeId overflowed u64"));
+            builder
+                .dir
+                .append_value(dir.try_into().expect("NodeId overflowed u64"));
+            builder.path.append_value(path_parts.build_path(graph));
+        }
+        Ok(true) // always recurse
     };
 
-    swh_graph_provenance::frontier::dfs_with_path(graph, on_directory, on_content, root_dir)
+    let on_revrel = |_cnt: NodeId, _path_parts: PathParts| Ok(());
+
+    swh_graph_provenance::frontier::backward_dfs_with_path(
+        graph,
+        reachable_nodes,
+        on_directory,
+        on_revrel,
+        cnt,
+    )
 }

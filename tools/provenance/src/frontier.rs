@@ -4,11 +4,11 @@
 // See top-level LICENSE file for more information
 
 use anyhow::{bail, Result};
+use sux::prelude::BitVec;
 
 use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::*;
 use swh_graph::labels::FilenameId;
-use swh_graph::utils::GetIndex;
 use swh_graph::SWHType;
 
 /// Value in the path_stack between two lists of path parts
@@ -16,8 +16,8 @@ const PATH_SEPARATOR: FilenameId = FilenameId(u64::MAX);
 
 /// Yielded by `dfs_with_path` to allow building a path as a `Vec<u8>` only when needed
 pub struct PathParts<'a> {
-    rev_directory_names: &'a [FilenameId],
-    filename: Option<FilenameId>,
+    parts: &'a [FilenameId],
+    path_to_directory: bool,
 }
 
 impl<'a> PathParts<'a> {
@@ -26,102 +26,129 @@ impl<'a> PathParts<'a> {
         G: SwhGraphWithProperties,
         <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     {
-        let mut path = Vec::with_capacity(self.rev_directory_names.len() * 2 + 1);
-        for &part in self.rev_directory_names.iter().rev() {
+        let mut path = Vec::with_capacity(self.parts.len() * 2 + 1);
+        for &part in self.parts.iter() {
             path.extend(graph.properties().label_name(part));
             path.push(b'/');
         }
-        if let Some(filename) = self.filename {
-            path.extend(graph.properties().label_name(filename));
+        if !self.path_to_directory {
+            path.pop();
         }
         path
     }
 }
 
-/// Traverses from a root directory, calling the callbacks on any directory and content
-/// node found.
+/// Traverses backward from a directory or content, calling the callbacks on any directory
+/// or revision node found.
 ///
-/// If `on_directory` returns `false`, the directory's successors are ignored.
-pub fn dfs_with_path<G>(
+/// `reachable_nodes` is the set of all nodes reachable from a head revision/release
+/// (nodes not in the set are ignored).
+///
+/// If `on_directory` returns `false`, the directory's predecessors are ignored.
+///
+/// FIXME: `on_directory` is always called on the `root`, even if the `root` is a content
+pub fn backward_dfs_with_path<G>(
     graph: &G,
+    reachable_nodes: &BitVec,
     mut on_directory: impl FnMut(NodeId, PathParts) -> Result<bool>,
-    mut on_content: impl FnMut(NodeId, PathParts) -> Result<()>,
-    root_dir_id: NodeId,
+    mut on_revrel: impl FnMut(NodeId, PathParts) -> Result<()>,
+    root: NodeId,
 ) -> Result<()>
 where
-    G: SwhLabelledForwardGraph + SwhGraphWithProperties,
+    G: SwhLabelledBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
+    if !reachable_nodes.get(root) {
+        return Ok(());
+    }
+
     let mut visited = AdaptiveNodeSet::new(graph.num_nodes());
     let mut stack = Vec::new();
 
     // flattened list of paths. Each list is made of parts represented by an id,
-    // and lists are separated by PATH_SEPARATOR
+    // and lists are separated by PATH_SEPARATOR.
+    // Parts are in the order of traversal; ie. backward.
     let mut path_stack = Vec::new();
 
-    stack.push(root_dir_id);
+    let root_is_directory = match graph.properties().node_type(root) {
+        SWHType::Content => false,
+        SWHType::Directory => true,
+        _ => panic!(
+            "backward_dfs_with_path called started from {}",
+            graph.properties().swhid(root)
+        ),
+    };
+
+    stack.push(root);
     path_stack.push(PATH_SEPARATOR);
-    visited.insert(root_dir_id);
+    visited.insert(root);
 
     while let Some(node) = stack.pop() {
-        let mut rev_path_parts = Vec::new();
+        let mut path_parts = Vec::new();
         while let Some(filename_id) = path_stack.pop() {
             if filename_id == PATH_SEPARATOR {
                 break;
             }
-            rev_path_parts.push(filename_id);
+            path_parts.push(filename_id);
         }
 
         let should_recurse = on_directory(
             node,
             PathParts {
-                rev_directory_names: &rev_path_parts,
-                filename: None,
+                parts: &path_parts,
+                path_to_directory: root_is_directory,
             },
         )?;
 
         if should_recurse {
             // Look for frontiers in subdirectories
-            for (succ, labels) in graph.labelled_successors(node) {
-                if visited.contains(succ) {
+            for (pred, labels) in graph.labelled_predecessors(node) {
+                if !reachable_nodes.get(pred) || visited.contains(pred) {
                     continue;
                 }
 
-                visited.insert(succ);
+                visited.insert(pred);
 
-                match graph.properties().node_type(succ) {
+                match graph.properties().node_type(pred) {
                     SWHType::Directory => {
                         // If the same subdir/file is present in a directory twice under the same name,
                         // pick any name to represent both.
                         let Some(first_label) = labels.into_iter().next() else {
                             bail!(
-                                "{} -> {} has no labels",
+                                "{} <- {} has no labels",
                                 graph.properties().swhid(node),
-                                graph.properties().swhid(succ),
+                                graph.properties().swhid(pred),
                             )
                         };
-                        stack.push(succ);
+                        stack.push(pred);
                         path_stack.push(PATH_SEPARATOR);
-                        path_stack.extend(rev_path_parts.iter().rev().copied());
+                        path_stack.extend(path_parts.iter().rev().copied());
                         path_stack.push(first_label.filename_id());
                     }
 
-                    SWHType::Content => {
-                        let Some(first_label) = labels.into_iter().next() else {
-                            bail!(
-                                "{} -> {} has no labels",
-                                graph.properties().swhid(node),
-                                graph.properties().swhid(succ),
-                            )
-                        };
-                        on_content(
-                            succ,
+                    SWHType::Revision | SWHType::Release => {
+                        on_revrel(
+                            pred,
                             PathParts {
-                                rev_directory_names: &rev_path_parts,
-                                filename: Some(first_label.filename_id()),
+                                parts: &path_parts,
+                                path_to_directory: root_is_directory,
                             },
                         )?;
+
+                        if graph.properties().node_type(pred) == SWHType::Revision {
+                            for predpred in graph.predecessors(pred) {
+                                if graph.properties().node_type(predpred) == SWHType::Release {
+                                    on_revrel(
+                                        predpred,
+                                        PathParts {
+                                            parts: &path_parts,
+                                            path_to_directory: root_is_directory,
+                                        },
+                                    )?;
+                                }
+                            }
+                        }
                     }
                     _ => (),
                 }

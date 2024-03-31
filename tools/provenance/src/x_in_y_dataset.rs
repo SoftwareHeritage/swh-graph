@@ -81,28 +81,27 @@ pub fn cnt_in_dir_schema() -> Schema {
 
 pub fn cnt_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesBuilder {
     WriterProperties::builder()
-        // Main request key
+        // Main request key. Monotonic, and with long sequences of equal values
+        .set_column_encoding("cnt".into(), Encoding::DELTA_BINARY_PACKED)
         .set_column_statistics_enabled("cnt".into(), EnabledStatistics::Page)
         .set_column_bloom_filter_enabled("cnt".into(), true)
         .set_column_compression(
             "cnt".into(),
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
-        // Monotonic, and with long sequences of equal values
-        .set_column_encoding("revrel".into(), Encoding::DELTA_BINARY_PACKED)
+        // May make sense to query, too
         .set_column_compression(
             "revrel".into(),
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
         .set_column_statistics_enabled("revrel".into(), EnabledStatistics::Page)
         .set_column_bloom_filter_enabled("revrel".into(), true)
-        // Long sequences of equal value
+        // Maybe long sequences of equal value?
         .set_column_compression(
             "revrel_author_date".into(),
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
-        // Consecutive entries often share the same path prefix
-        .set_column_encoding("path".into(), Encoding::DELTA_BYTE_ARRAY)
+        // Textual data
         .set_column_compression(
             "path".into(),
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
@@ -112,7 +111,8 @@ pub fn cnt_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterProperti
 
 pub fn dir_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesBuilder {
     WriterProperties::builder()
-        // Main request key
+        // Main request key. Monotonic, and with long sequences of equal values
+        .set_column_encoding("dir".into(), Encoding::DELTA_BINARY_PACKED)
         .set_column_statistics_enabled("dir".into(), EnabledStatistics::Page)
         .set_column_bloom_filter_enabled("dir".into(), true)
         .set_column_compression(
@@ -124,21 +124,19 @@ pub fn dir_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterProperti
             "dir_max_author_date".into(),
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
-        // Monotonic, and with long sequences of equal values
-        .set_column_encoding("revrel".into(), Encoding::DELTA_BINARY_PACKED)
+        // May make sense to query, too
         .set_column_compression(
             "revrel".into(),
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
         .set_column_statistics_enabled("revrel".into(), EnabledStatistics::Page)
         .set_column_bloom_filter_enabled("revrel".into(), true)
-        // Long sequences of equal value
+        // Maybe long sequences of equal value?
         .set_column_compression(
             "revrel_author_date".into(),
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
-        // Consecutive entries often share the same path prefix
-        .set_column_encoding("path".into(), Encoding::DELTA_BYTE_ARRAY)
+        // Textual data
         .set_column_compression(
             "path".into(),
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
@@ -148,23 +146,22 @@ pub fn dir_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterProperti
 
 pub fn cnt_in_dir_writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesBuilder {
     WriterProperties::builder()
-        // Main request key
+        // Main request key. Monotonic, and with long sequences of equal values
+        .set_column_encoding("cnt".into(), Encoding::DELTA_BINARY_PACKED)
         .set_column_statistics_enabled("cnt".into(), EnabledStatistics::Page)
         .set_column_bloom_filter_enabled("cnt".into(), true)
         .set_column_compression(
             "cnt".into(),
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
-        // Monotonic, and with long sequences of equal values
-        .set_column_encoding("dir".into(), Encoding::DELTA_BINARY_PACKED)
+        // May make sense to query, too
         .set_column_compression(
             "dir".into(),
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
         .set_column_statistics_enabled("dir".into(), EnabledStatistics::Page)
         .set_column_bloom_filter_enabled("dir".into(), true)
-        // Consecutive entries often share the same path prefix
-        .set_column_encoding("path".into(), Encoding::DELTA_BYTE_ARRAY)
+        // Textual data
         .set_column_compression(
             "path".into(),
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
