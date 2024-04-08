@@ -8,19 +8,7 @@ Luigi tasks to help compute the provenance of content blobs
 ===========================================================
 
 This module contains `Luigi <https://luigi.readthedocs.io/>`_ tasks
-driving the computation of a topological order, and count the number
-of paths to every node.
-
-File layout
------------
-
-This assumes a local compressed graph (from :mod:`swh.graph.luigi.compressed_graph`)
-is present, and generates/manipulates the following files::
-
-    base_dir/
-        <date>[_<flavor>]/
-            provenance/
-                topological_order_dfs.csv.zst
+driving the computation of the :ref:`provenance-index`.
 """
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
@@ -296,14 +284,13 @@ class ComputeDirectoryFrontier(luigi.Task):
 
 
 class ListFrontierDirectoriesInRevisions(luigi.Task):
-    """Creates a file that contains the list of (file, revision) where the file is
-    reachable from the revision without going through any "directory frontier" as
-    defined by
-    `swh-provenance <https://gitlab.softwareheritage.org/swh/devel/swh-provenance/>`_.
+    """Creates a file that contains the list of revision any "frontier directory"
+    (as defined by `swh-provenance
+    <https://gitlab.softwareheritage.org/swh/devel/swh-provenance/>`_) is in.
 
-    In short, it is a directory which directly contains a file (not a directory),
-    which is a non-root directory in a revision newer than the directory timestamp
-    computed by ListDirectoryMaxLeafTimestamp.
+    While a directory is considered frontier only relative to a revision, the produced
+    file contains the list of **all** revisions a directory is in, for directories which
+    are frontier for **any** revision.
     """
 
     local_export_path = luigi.PathParameter()

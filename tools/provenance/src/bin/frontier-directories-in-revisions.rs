@@ -5,7 +5,6 @@
 
 #![allow(non_snake_case)]
 
-use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -13,16 +12,17 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use rayon::prelude::*;
-use serde::Serialize;
 use sux::bits::bit_vec::BitVec;
 
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
-use swh_graph::SWHID;
 
-use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
+use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
+use swh_graph_provenance::x_in_y_dataset::{
+    dir_in_revrel_schema, dir_in_revrel_writer_properties, DirInRevrelTableBuilder,
+};
 
 #[derive(Parser, Debug)]
 /** Given as input a binary file with, for each directory, the newest date of first
@@ -45,16 +45,6 @@ struct Args {
     #[arg(long)]
     /// Path to a directory where to write .csv.zst results to
     directories_out: PathBuf,
-}
-
-#[derive(Debug, Serialize)]
-struct OutputRecord {
-    max_author_date: i64,
-    frontier_dir_SWHID: SWHID,
-    rev_author_date: chrono::DateTime<chrono::Utc>,
-    rev_SWHID: SWHID,
-    #[serde(with = "serde_bytes")] // Serialize a bytestring instead of list of ints
-    path: Vec<u8>,
 }
 
 pub fn main() -> Result<()> {
@@ -96,7 +86,13 @@ pub fn main() -> Result<()> {
     )?;
     pl.done();
 
-    let dataset_writer = ParallelDatasetWriter::new(args.directories_out)?;
+    let dataset_writer = ParallelDatasetWriter::new_with_schema(
+        args.directories_out,
+        (
+            Arc::new(dir_in_revrel_schema()),
+            dir_in_revrel_writer_properties(&graph).build(),
+        ),
+    )?;
 
     write_frontier_directories_in_revisions(
         &graph,
@@ -110,7 +106,7 @@ fn write_frontier_directories_in_revisions<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64> + Sync + Copy,
     frontier_directories: &BitVec,
-    dataset_writer: ParallelDatasetWriter<CsvZstTableWriter>,
+    dataset_writer: ParallelDatasetWriter<ParquetTableWriter<DirInRevrelTableBuilder>>,
 ) -> Result<()>
 where
     G: SwhBackwardGraph + SwhLabelledForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
@@ -160,13 +156,13 @@ where
     Ok(())
 }
 
-fn find_frontiers_in_root_directory<G, W: Write>(
+fn find_frontiers_in_root_directory<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64>,
     frontier_directories: &BitVec,
-    writer: &mut csv::Writer<W>,
-    revrel_id: NodeId,
-    root_dir_id: NodeId,
+    writer: &mut ParquetTableWriter<DirInRevrelTableBuilder>,
+    revrel: NodeId,
+    root_dir: NodeId,
 ) -> Result<()>
 where
     G: SwhLabelledForwardGraph + SwhGraphWithProperties,
@@ -174,26 +170,25 @@ where
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
 {
-    let Some(revrel_timestamp) = graph.properties().author_timestamp(revrel_id) else {
+    let Some(revrel_timestamp) = graph.properties().author_timestamp(revrel) else {
         return Ok(());
     };
-    let revrel_author_date =
-        chrono::DateTime::from_timestamp(revrel_timestamp, 0).expect("Could not convert timestamp");
-
-    let revrel_swhid = graph.properties().swhid(revrel_id);
 
     let is_frontier = |dir: NodeId, _dir_max_timestamp: i64| frontier_directories[dir];
 
     let on_frontier = |dir: NodeId, dir_max_timestamp: i64, path: Vec<u8>| {
-        writer
-            .serialize(OutputRecord {
-                max_author_date: dir_max_timestamp,
-                frontier_dir_SWHID: graph.properties().swhid(dir),
-                rev_author_date: revrel_author_date,
-                rev_SWHID: revrel_swhid,
-                path,
-            })
-            .context("Could not write record")
+        let builder = writer.builder()?;
+        builder
+            .dir
+            .append_value(dir.try_into().expect("NodeId overflowed u64"));
+        builder.dir_max_author_date.append_value(dir_max_timestamp);
+        builder
+            .revrel
+            .append_value(revrel.try_into().expect("NodeId overflowed u64"));
+        builder.revrel_author_date.append_value(revrel_timestamp);
+        builder.path.append_value(path);
+
+        Ok(())
     };
 
     swh_graph_provenance::frontier::find_frontiers_from_root_directory(
@@ -202,6 +197,6 @@ where
         is_frontier,
         on_frontier,
         /* recurse_through_frontiers: */ true,
-        root_dir_id,
+        root_dir,
     )
 }

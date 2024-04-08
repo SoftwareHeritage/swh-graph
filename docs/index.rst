@@ -18,6 +18,7 @@
    docker
    git2graph
    example-dataset
+   provenance-index
 
 .. only:: standalone_package_doc
 
