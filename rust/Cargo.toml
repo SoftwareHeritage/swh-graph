@@ -83,13 +83,15 @@ tonic-build = { version = "0.10.2", optional = true }
 
 [features]
 default = ["macros"]
-arrow-ipc = ["arrow/ipc"]
-dataset-writer = ["arrow", "csv", "parquet"]
+arrow = ["dep:arrow", "dep:arrow-schema", "dep:arrow-array"]
+arrow-ipc = ["arrow", "arrow/ipc"]
+parquet = ["arrow", "dep:parquet"]
+dataset-writer = ["csv"]
 
 # Reads dataset from ORC files and produces a compressed graph
 compression = ["sha1"]
 
-orc = ["ar_row", "ar_row_derive", "arrow", "arrow-schema", "chrono", "datafusion-orc", "arrow-array"]
+orc = ["ar_row", "ar_row_derive", "arrow", "chrono", "datafusion-orc"]
 
 
 macros = ["const_panic", "const-hex"]

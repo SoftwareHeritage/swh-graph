@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use anyhow::{ensure, Context, Result};
+#[cfg(feature = "arrow")]
 use arrow::array::StructArray;
 use rayon::prelude::*;
 use thread_local::ThreadLocal;
@@ -24,6 +25,7 @@ mod parquet;
 #[cfg(feature = "parquet")]
 pub use parquet::*;
 
+#[cfg(feature = "arrow")]
 #[allow(clippy::len_without_is_empty)]
 pub trait StructArrayBuilder {
     fn len(&self) -> usize;
