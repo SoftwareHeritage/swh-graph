@@ -103,6 +103,10 @@ pub fn cnt_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterProperti
         )
         // Consecutive entries often share the same path prefix
         .set_column_encoding("path".into(), Encoding::DELTA_BYTE_ARRAY)
+        .set_column_compression(
+            "path".into(),
+            Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
+        )
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
 }
 
@@ -135,6 +139,10 @@ pub fn dir_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterProperti
         )
         // Consecutive entries often share the same path prefix
         .set_column_encoding("path".into(), Encoding::DELTA_BYTE_ARRAY)
+        .set_column_compression(
+            "path".into(),
+            Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
+        )
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
 }
 
@@ -157,6 +165,10 @@ pub fn cnt_in_dir_writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesB
         .set_column_bloom_filter_enabled("dir".into(), true)
         // Consecutive entries often share the same path prefix
         .set_column_encoding("path".into(), Encoding::DELTA_BYTE_ARRAY)
+        .set_column_compression(
+            "path".into(),
+            Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
+        )
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
 }
 
