@@ -60,7 +60,7 @@ used by other tables to SWHIDs (stable but 21-bytes long) contains three columns
 - ``type``, a string among ``cnt``, ``dir``, ``rev``, or ``rel``
 - ``sha1_git``, a 20-bytes binary string
 
-``type`` and ``sha1_git`` together represent a :ref:`SWHID <persistent-identifier>` (v1)
+``type`` and ``sha1_git`` together represent a :ref:`SWHID <persistent-identifiers>` (v1)
 
 Within each file of the table, rows are ordered in such a way that consecutive rows
 have ``id`` in a mostly monotonic order, allowing fast access (50ms) thanks to the page
