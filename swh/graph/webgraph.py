@@ -330,6 +330,7 @@ def do_step(step, conf) -> "List[RunResult]":
     cmd_env["CLASSPATH"] = conf["classpath"]
     cmd_env["TMPDIR"] = conf["tmp_dir"]
     cmd_env["TZ"] = "UTC"
+    cmd_env["RUST_MIN_STACK"] = "8388608"  # 8MiB; avoids stack overflows in LLP
     command = Command.bash(
         "-c",
         cmd,
