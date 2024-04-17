@@ -179,10 +179,13 @@ class NaiveClient:
         direction: str = "forward",
         max_edges: int = 0,
         return_types: str = "*",
+        max_matching_nodes: int = 0,
     ) -> Iterator[str]:
         yield from filter_node_types(
             return_types,
-            self.graph.get_filtered_neighbors(src, edges, direction, max_edges),
+            self.graph.get_filtered_neighbors(
+                src, edges, direction, max_edges, max_matching_nodes
+            ),
         )
 
     @check_arguments
@@ -320,6 +323,7 @@ class Graph:
         edges_fmt: str,
         direction: str,
         max_edges: int = 0,
+        max_matching_nodes: int = 0,
     ) -> Set[str]:
         if direction == "forward":
             edges = self.forward_edges
@@ -329,15 +333,15 @@ class Graph:
             raise GraphArgumentException(f"invalid direction: {direction}")
 
         neighbors = edges.get(src, [])
+        filtered_neighbors: Set[str] = set()
 
         if edges_fmt == "*":
             if max_edges:
-                return set(neighbors[0:max_edges])
+                filtered_neighbors = set(neighbors[0:max_edges])
             else:
-                return set(neighbors)
+                filtered_neighbors = set(neighbors)
         else:
             accessed_edges = 0
-            filtered_neighbors: Set[str] = set()
             for edges_fmt_item in edges_fmt.split(","):
                 if max_edges > 0:
                     accessed_edges += 1
@@ -353,7 +357,12 @@ class Graph:
                     filtered_neighbors.update(
                         n for n in neighbors if n.startswith(prefix)
                     )
+
+        # Apply max_matching_nodes to the set of filtered neighbors
+        if not max_matching_nodes or len(filtered_neighbors) <= max_matching_nodes:
             return filtered_neighbors
+
+        return set(list(filtered_neighbors)[:max_matching_nodes])
 
     def get_subgraph(self, src: str, edges_fmt: str, direction: str) -> Set[str]:
         seen = set()
