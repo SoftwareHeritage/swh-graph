@@ -5,6 +5,7 @@
 
 use super::proto;
 use crate::graph::{SwhGraphWithProperties, SwhLabelledForwardGraph};
+use crate::labels::{EdgeLabel, UntypedEdgeLabel, VisitStatus};
 use crate::properties;
 use crate::SWHType;
 
@@ -20,12 +21,15 @@ mod node_builder_bitmasks {
     pub const SUCCESSOR: u32 =                  0b00000000_00000000_00000000_00000111;
     pub const SUCCESSOR_SWHID: u32 =            0b00000000_00000000_00000000_00000001;
 
-    pub const SUCCESSOR_LABEL: u32 =            0b00000000_00000000_00000000_00000110;
+    //                                                                          xxxx
+    pub const SUCCESSOR_LABEL: u32 =            0b00000000_00000000_00000000_00011110;
     pub const SUCCESSOR_LABEL_NAME: u32 =       0b00000000_00000000_00000000_00000010;
     pub const SUCCESSOR_LABEL_PERMISSION: u32 = 0b00000000_00000000_00000000_00000100;
+    pub const SUCCESSOR_LABEL_VISIT_TS: u32 =   0b00000000_00000000_00000000_00001000;
+    pub const SUCCESSOR_LABEL_FULL_VISIT: u32 = 0b00000000_00000000_00000000_00010000;
 
-    //                                                                          x
-    pub const NUM_SUCCESSORS: u32 =             0b00000000_00000000_00000000_00010000;
+    //                                                                       x
+    pub const NUM_SUCCESSORS: u32 =             0b00000000_00000000_00000000_10000000;
 
     //                                                               xxxxxxx
     pub const REV: u32 =                        0b00000000_00000000_01111111_00000000;
@@ -97,6 +101,8 @@ where
                 "successor.label" => SUCCESSOR_LABEL,
                 "successor.label.name" => SUCCESSOR_LABEL_NAME,
                 "successor.label.permission" => SUCCESSOR_LABEL_PERMISSION,
+                "successor.label.visit_timestamp" => SUCCESSOR_LABEL_VISIT_TS,
+                "successor.label.is_full_visit" => SUCCESSOR_LABEL_FULL_VISIT,
                 "num_successors" => NUM_SUCCESSORS,
                 "cnt" => CNT,
                 "cnt.length" => CNT_LENGTH,
@@ -130,28 +136,25 @@ where
     pub fn build_node(&self, node_id: usize) -> proto::Node {
         let successors: Vec<_> = self.if_mask(SUCCESSOR, || {
             if self.bitmask & SUCCESSOR_LABEL != 0 {
+                let node_type = self.graph.properties().node_type(node_id);
+
                 self.graph
                     .labelled_successors(node_id)
                     .into_iter()
-                    .map(|(succ, labels)| proto::Successor {
-                        swhid: self.if_mask(SUCCESSOR_SWHID, || {
-                            Some(self.graph.properties().swhid(succ).to_string())
-                        }),
-                        label: labels
-                            .into_iter()
-                            .map(|label: crate::labels::DirEntry| proto::EdgeLabel {
-                                name: self.if_mask(SUCCESSOR_LABEL_NAME, || {
-                                    self.graph.properties().label_name(label.filename_id())
-                                }),
-                                permission: self.if_mask(SUCCESSOR_LABEL_PERMISSION, || {
-                                    label
-                                        .permission()
-                                        .unwrap_or(crate::labels::Permission::None)
-                                        .to_git()
-                                        .into()
-                                }),
-                            })
-                            .collect(),
+                    .map(|(succ, labels)| {
+                        // ori->snp arcs (and snp->ori in the transposed graph) are labelled
+                        // with a visit timestamp
+                        // dir->* arcs (and *->dir in the transposed graph) are labelled with
+                        let succ_type = self.graph.properties().node_type(succ);
+                        proto::Successor {
+                            swhid: self.if_mask(SUCCESSOR_SWHID, || {
+                                Some(self.graph.properties().swhid(succ).to_string())
+                            }),
+                            label: labels
+                                .into_iter()
+                                .map(|label| self.build_edge_label(node_type, succ_type, label))
+                                .collect(),
+                        }
                     })
                     .collect()
             } else {
@@ -191,6 +194,52 @@ where
                 SWHType::Snapshot => None,
                 SWHType::Origin => Some(self.build_origin_data(node_id)),
             }),
+        }
+    }
+
+    fn build_edge_label(
+        &self,
+        src: SWHType,
+        dst: SWHType,
+        label: UntypedEdgeLabel,
+    ) -> proto::EdgeLabel {
+        match label.for_edge_type(src, dst, self.graph.is_transposed()) {
+            Ok(EdgeLabel::Branch(label)) => proto::EdgeLabel {
+                name: self.if_mask(SUCCESSOR_LABEL_NAME, || {
+                    Some(self.graph.properties().label_name(label.filename_id()))
+                }),
+                permission: None,
+                visit_timestamp: None,
+                is_full_visit: None,
+            },
+            Ok(EdgeLabel::DirEntry(label)) => proto::EdgeLabel {
+                name: self.if_mask(SUCCESSOR_LABEL_NAME, || {
+                    Some(self.graph.properties().label_name(label.filename_id()))
+                }),
+                permission: self.if_mask(SUCCESSOR_LABEL_PERMISSION, || {
+                    Some(
+                        label
+                            .permission()
+                            .unwrap_or(crate::labels::Permission::None)
+                            .to_git()
+                            .into(),
+                    )
+                }),
+                visit_timestamp: None,
+                is_full_visit: None,
+            },
+            Ok(EdgeLabel::Visit(label)) => proto::EdgeLabel {
+                name: None,
+                permission: None,
+                visit_timestamp: self.if_mask(SUCCESSOR_LABEL_VISIT_TS, || Some(label.timestamp())),
+                is_full_visit: self.if_mask(SUCCESSOR_LABEL_FULL_VISIT, || {
+                    Some(match label.status() {
+                        VisitStatus::Full => true,
+                        VisitStatus::Partial => false,
+                    })
+                }),
+            },
+            Err(e @ crate::labels::EdgeTypingError::NodeTypes { .. }) => panic!("{}", e),
         }
     }
 

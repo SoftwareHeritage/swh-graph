@@ -19,7 +19,17 @@ public interface GraphDataset {
     }
 
     interface EdgeCallback {
-        void onEdge(byte[] src, byte[] dst, byte[] label, int permission) throws IOException;
+        /**
+         * Called on each edge.
+         *
+         * <code>filename</code> should have a value for edges with directories as source, and null
+         * otherwise.
+         *
+         * <code>value</code> should be a UNIX permission for edges with directories as source, a visit
+         * timestamp + a bit indicating a full visit + 4 unused low bits for edges with origin as source,
+         * and -1 otherwise.
+         */
+        void onEdge(byte[] src, byte[] dst, byte[] filename, long value) throws IOException;
     }
 
     /**
@@ -62,6 +72,16 @@ public interface GraphDataset {
     }
 
     interface HashedEdgeCallback {
-        void onHashedEdge(long src, long dst, long label, int permission) throws IOException;
+        /**
+         * Called on each edge.
+         *
+         * <code>label</code> should be a filename hash for edges with directories as source, a timestamp
+         * followed by a "full visit" bit for edges from origin to snapshot followed by a 1 bit, and null
+         * otherwise.
+         *
+         * <code>value</code> should be a UNIX permission for edges with directories as source, and -1
+         * otherwise.
+         */
+        void onHashedEdge(long src, long dst, long label, int value) throws IOException;
     }
 }

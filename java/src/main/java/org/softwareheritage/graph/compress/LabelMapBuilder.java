@@ -62,7 +62,23 @@ public class LabelMapBuilder {
     NodeIdMap nodeIdMap;
     Object2LongFunction<byte[]> filenameMph;
     long numFilenames;
+
+    /*
+     * Number of bits the visit timestamp of ori->snp arcs is shifted left.
+     *
+     * The high bit denotes whether the visit is full, and the other bit is set to zero and reserved for
+     * future use.
+     *
+     * This was picked to allow the maximum bits reserved for future use without significantly
+     * increasing the label width; as as of 2023-09-06:
+     *
+     * * the current timestamp is under 2^31, and visit timestamps are followed by this status * the
+     * number of file names will soon exceed 2^32 * by the time timestamps need 32 bits, the number of
+     * file names will be significantly higher anyway
+     */
+    final int visitStatusWidth = 2;
     int totalLabelWidth;
+    long maxVisitTimestamp;
 
     public LabelMapBuilder(ORCGraphDataset dataset, String graphPath, String outputGraphPath, int batchSize,
             String tmpDir) throws IOException {
@@ -80,6 +96,15 @@ public class LabelMapBuilder {
 
         filenameMph = NodeIdMap.loadMph(graphPath + ".labels.mph");
         numFilenames = getMPHSize(filenameMph);
+
+        // Visit timestamps cannot be larger than the current timestamp
+        maxVisitTimestamp = System.currentTimeMillis() / 1000L;
+
+        // We also need to store timestamps + 2 bits as filenameId. As of 2023, timestamps
+        // need 31 bits and filename ids need 32 (and 33 soon), so this is soon going to be
+        // a no-op on production graphs.
+        numFilenames = Math.max((maxVisitTimestamp << 2) + 0b11, numFilenames);
+
         totalLabelWidth = DirEntry.labelWidth(numFilenames);
     }
 
@@ -218,13 +243,29 @@ public class LabelMapBuilder {
                 try {
                     dataset.readEdges((node) -> {
                     }, (src, dst, label, perms) -> {
-                        if (label == null) {
+                        if (label != null) {
+                            // dir -> * edge
+                            long srcNode = nodeIdMap.getNodeId(src);
+                            long dstNode = nodeIdMap.getNodeId(dst);
+                            long labelId = filenameMph.getLong(label);
+                            if (labelId < 0) {
+                                throw new RuntimeException("labelId is negative");
+                            }
+                            if (perms > (long) Integer.MAX_VALUE) {
+                                throw new RuntimeException("perms are too large");
+                            }
+                            cb.onHashedEdge(srcNode, dstNode, labelId, (int) perms);
+                        } else if (perms > 0) {
+                            // ori -> snp dir
+                            // 'perms' is actually a visit timestamp + "full visit" bit
+                            // + unused low bit set to 1.
+                            // We know it is positive because SWH did not have any visit before 1970
+                            long srcNode = nodeIdMap.getNodeId(src);
+                            long dstNode = nodeIdMap.getNodeId(dst);
+                            cb.onHashedEdge(srcNode, dstNode, perms, -1);
+                        } else {
                             return;
                         }
-                        long srcNode = nodeIdMap.getNodeId(src);
-                        long dstNode = nodeIdMap.getNodeId(dst);
-                        long labelId = filenameMph.getLong(label);
-                        cb.onHashedEdge(srcNode, dstNode, labelId, perms);
                     });
                 } catch (IOException e) {
                     throw new RuntimeException(e);

@@ -152,6 +152,8 @@ where
             continue;
         }
         for label in labels {
+            // This is a dir->cnt arc, so its label has to be a DirEntry
+            let label: swh_graph::labels::DirEntry = label.into();
             *names.entry(label.filename_id()).or_default() += 1;
         }
     }

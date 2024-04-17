@@ -121,6 +121,10 @@ where
                                 graph.properties().swhid(pred),
                             )
                         };
+
+                        // This is a dir->* arc, so its label is necessarily a DirEntry
+                        let first_label: swh_graph::labels::DirEntry = first_label.into();
+
                         stack.push(pred);
                         path_stack.push(PATH_SEPARATOR);
                         path_stack.extend(path_parts.iter().rev().copied());

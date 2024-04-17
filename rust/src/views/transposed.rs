@@ -15,6 +15,9 @@ impl<G: SwhGraph> SwhGraph for Transposed<G> {
     fn path(&self) -> &Path {
         self.0.path()
     }
+    fn is_transposed(&self) -> bool {
+        !self.0.is_transposed()
+    }
     fn num_nodes(&self) -> usize {
         self.0.num_nodes()
     }

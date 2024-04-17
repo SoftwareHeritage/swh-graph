@@ -13,6 +13,7 @@ import com.google.protobuf.util.FieldMaskUtil;
 import it.unimi.dsi.big.webgraph.labelling.Label;
 import org.softwareheritage.graph.SwhUnidirectionalGraph;
 import org.softwareheritage.graph.labels.DirEntry;
+import org.softwareheritage.graph.SwhType;
 
 import java.util.*;
 
@@ -191,12 +192,27 @@ public class NodePropertyBuilder {
                 successorBuilder.setSwhid(graph.getSWHID(dst).toString());
             }
             if (mask.successorLabel) {
-                DirEntry[] entries = (DirEntry[]) label.get();
-                for (DirEntry entry : entries) {
-                    EdgeLabel.Builder builder = EdgeLabel.newBuilder();
-                    builder.setName(ByteString.copyFrom(graph.getLabelName(entry.filenameId)));
-                    builder.setPermission(entry.permission);
-                    successorBuilder.addLabel(builder.build());
+                if (graph.getNodeType(src) == SwhType.ORI || graph.getNodeType(dst) == SwhType.ORI) {
+                    // ori->snp arc
+                    DirEntry[] entries = (DirEntry[]) label.get();
+                    for (DirEntry entry : entries) {
+                        EdgeLabel.Builder builder = EdgeLabel.newBuilder();
+                        builder.setVisitTimestamp(entry.filenameId >> 2);
+                        builder.setIsFullVisit((entry.filenameId & 0b10) != 0);
+                        successorBuilder.addLabel(builder.build());
+                    }
+                } else {
+                    // snapshot branch or directory entry
+                    DirEntry[] entries = (DirEntry[]) label.get();
+                    for (DirEntry entry : entries) {
+                        EdgeLabel.Builder builder = EdgeLabel.newBuilder();
+                        builder.setName(ByteString.copyFrom(graph.getLabelName(entry.filenameId)));
+                        if (graph.getNodeType(src) != SwhType.SNP && graph.getNodeType(dst) != SwhType.SNP) {
+                            // Only dir->{cnt,dir,rev} arcs can have a permission
+                            builder.setPermission(entry.permission);
+                        }
+                        successorBuilder.addLabel(builder.build());
+                    }
                 }
             }
             Successor successor = successorBuilder.build();

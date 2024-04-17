@@ -12,6 +12,7 @@ use std::collections::VecDeque;
 use std::path::PathBuf;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::labels::EdgeLabel;
 
 #[derive(Parser, Debug)]
 #[command(about, long_about = None)]
@@ -80,12 +81,31 @@ pub fn main() -> Result<()> {
         for (succ, labels) in successors {
             debug!("  Successor: {}", graph.properties().swhid(succ));
             for label in labels {
-                let filename = graph.properties().label_name(label.filename_id());
-                debug!(
-                    "    has name {:?} and perm {:?}",
-                    String::from_utf8_lossy(&filename),
-                    label.permission().unwrap()
-                );
+                match label.for_edge_type(
+                    graph.properties().node_type(current_node),
+                    graph.properties().node_type(succ),
+                    graph.is_transposed(),
+                )? {
+                    EdgeLabel::Branch(label) => {
+                        let filename = graph.properties().label_name(label.filename_id());
+                        debug!("    has name {:?}", String::from_utf8_lossy(&filename),);
+                    }
+                    EdgeLabel::Visit(label) => {
+                        debug!(
+                            "    has visit timestamp {} and status {:?}",
+                            label.timestamp(),
+                            label.status(),
+                        );
+                    }
+                    EdgeLabel::DirEntry(label) => {
+                        let filename = graph.properties().label_name(label.filename_id());
+                        debug!(
+                            "    has name {:?} and perm {:?}",
+                            String::from_utf8_lossy(&filename),
+                            label.permission().unwrap()
+                        );
+                    }
+                }
             }
             if !visited[succ] {
                 queue.push_back(succ);

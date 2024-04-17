@@ -131,6 +131,7 @@ as this example uses a directory):
 # use std::path::PathBuf;
 # use swh_graph::graph::{SwhForwardGraph, SwhLabelledForwardGraph, SwhGraphWithProperties};
 use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::labels::DirEntry;
 
 let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
     .expect("Could not load graph")
@@ -146,6 +147,7 @@ let node_id: usize = graph
 
 for (succ, labels) in graph.labelled_successors(node_id) {
     for label in labels {
+        let label: DirEntry = label.into();
         println!(
             "{} -> {} (permission: {:?}; name: {})",
             node_id,

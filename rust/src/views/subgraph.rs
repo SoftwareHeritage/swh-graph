@@ -168,6 +168,9 @@ impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> 
     fn path(&self) -> &Path {
         self.graph.path()
     }
+    fn is_transposed(&self) -> bool {
+        self.graph.is_transposed()
+    }
     fn num_nodes(&self) -> usize {
         self.graph.num_nodes()
     }

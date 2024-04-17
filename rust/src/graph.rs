@@ -24,7 +24,7 @@ use webgraph::graphs::bvgraph::EF;
 use webgraph::graphs::BVGraph;
 use webgraph::labels::swh_labels::{MmapReaderBuilder, SwhLabels};
 
-use crate::labels::DirEntry;
+use crate::labels::UntypedEdgeLabel;
 use crate::mph::SwhidMphf;
 use crate::properties;
 use crate::utils::suffix_path;
@@ -139,8 +139,14 @@ type SwhGraphLabels = SwhLabels<MmapReaderBuilder, epserde::deser::DeserType<'st
 pub trait SwhGraph {
     /// Return the base path of the graph
     fn path(&self) -> &Path;
+
+    /// Returns whether the graph is in the `ori->snp->rel,rev->dir->cnt` direction
+    /// (with a few `dir->rev` arcs)
+    fn is_transposed(&self) -> bool;
+
     /// Return the number of nodes in the graph.
     fn num_nodes(&self) -> usize;
+
     /// Returns whether the given node id exists in the graph
     ///
     /// This is usually true iff `node_id < self.num_nodes()`, but may be false
@@ -148,8 +154,10 @@ pub trait SwhGraph {
     fn has_node(&self, node_id: NodeId) -> bool {
         node_id < self.num_nodes()
     }
+
     /// Return the number of arcs in the graph.
     fn num_arcs(&self) -> u64;
+
     /// Return whether there is an arc going from `src_node_id` to `dst_node_id`.
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool;
 }
@@ -166,7 +174,7 @@ pub trait SwhForwardGraph: SwhGraph {
 }
 
 pub trait SwhLabelledForwardGraph: SwhForwardGraph {
-    type LabelledArcs<'arc>: IntoIterator<Item = DirEntry>
+    type LabelledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
     type LabelledSuccessors<'node>: IntoIterator<Item = (usize, Self::LabelledArcs<'node>)>
@@ -189,7 +197,7 @@ pub trait SwhBackwardGraph: SwhGraph {
 }
 
 pub trait SwhLabelledBackwardGraph: SwhBackwardGraph {
-    type LabelledArcs<'arc>: IntoIterator<Item = DirEntry>
+    type LabelledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
     type LabelledPredecessors<'node>: IntoIterator<Item = (usize, Self::LabelledArcs<'node>)>
@@ -250,6 +258,15 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
 impl<P, G: UnderlyingGraph> SwhGraph for SwhUnidirectionalGraph<P, G> {
     fn path(&self) -> &Path {
         self.basepath.as_path()
+    }
+
+    fn is_transposed(&self) -> bool {
+        // Technically, users can load the 'graph-transposed' directly.
+        // However, unless they rename files, this will fail to load properties, because
+        // properties' file names wouldn't match the base path.
+        // As 'is_transposed' is only useful when checking node types (of an arc),
+        // this function is unlikely to be called in that scenario, so this should be fine.
+        false
     }
 
     fn num_nodes(&self) -> usize {
@@ -483,6 +500,15 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
 impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhGraph for SwhBidirectionalGraph<P, FG, BG> {
     fn path(&self) -> &Path {
         self.basepath.as_path()
+    }
+
+    fn is_transposed(&self) -> bool {
+        // Technically, users can load the 'graph-transposed' directly.
+        // However, unless they rename files, this will fail to load properties, because
+        // properties' file names wouldn't match the base path.
+        // As 'is_transposed' is only useful when checking node types (of an arc),
+        // this function is unlikely to be called in that scenario, so this should be fine.
+        false
     }
 
     fn num_nodes(&self) -> usize {
@@ -805,12 +831,12 @@ impl<T: Iterator> Iterator for LabelledArcIterator<T>
 where
     <T as Iterator>::Item: Borrow<u64>,
 {
-    type Item = DirEntry;
+    type Item = UntypedEdgeLabel;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.arc_label_ids
             .next()
-            .map(|label| DirEntry::from(*label.borrow()))
+            .map(|label| UntypedEdgeLabel::from(*label.borrow()))
     }
 }
 

@@ -112,7 +112,7 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
             successor=[
                 Successor(
                     swhid="swh:1:snp:0000000000000000000000000000000000000020",
-                    label=[],
+                    label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
                 ),
             ],
             ori=ori,
@@ -263,7 +263,7 @@ def test_traverse_backward_labels(graph_grpc_stub, graph_grpc_backend_implementa
             successor=[
                 Successor(
                     swhid=TEST_ORIGIN_ID2,
-                    label=[],
+                    label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
                 ),
             ],
         ),
@@ -324,7 +324,8 @@ def assert_ori_to_rev(path, graph_grpc_backend_implementation):
             if graph_grpc_backend_implementation == "java"
             else [
                 Successor(
-                    swhid="swh:1:snp:0000000000000000000000000000000000000020", label=[]
+                    swhid="swh:1:snp:0000000000000000000000000000000000000020",
+                    label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
                 ),
             ],
             ori=ori,
@@ -336,11 +337,11 @@ def assert_ori_to_rev(path, graph_grpc_backend_implementation):
             else [
                 Successor(
                     swhid="swh:1:rel:0000000000000000000000000000000000000010",
-                    label=[EdgeLabel(name=b"refs/tags/v1.0", permission=0)],
+                    label=[EdgeLabel(name=b"refs/tags/v1.0")],
                 ),
                 Successor(
                     swhid="swh:1:rev:0000000000000000000000000000000000000009",
-                    label=[EdgeLabel(name=b"refs/heads/master", permission=0)],
+                    label=[EdgeLabel(name=b"refs/heads/master")],
                 ),
             ],
         ),
@@ -411,7 +412,7 @@ def assert_rel_to_ori(path, graph_grpc_backend_implementation):
             else [
                 Successor(
                     swhid="swh:1:snp:0000000000000000000000000000000000000022",
-                    label=[EdgeLabel(name=b"refs/tags/v2.0-anonymous", permission=0)],
+                    label=[EdgeLabel(name=b"refs/tags/v2.0-anonymous")],
                 ),
             ],
             rel=rel,
@@ -423,7 +424,7 @@ def assert_rel_to_ori(path, graph_grpc_backend_implementation):
             else [
                 Successor(
                     swhid=TEST_ORIGIN_ID2,
-                    label=[],
+                    label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
                 ),
             ],
         ),
@@ -461,11 +462,11 @@ def test_findpathbetween_common_parent_labels(
             else [
                 Successor(
                     swhid="swh:1:snp:0000000000000000000000000000000000000020",
-                    label=[EdgeLabel(name=b"refs/tags/v1.0", permission=0)],
+                    label=[EdgeLabel(name=b"refs/tags/v1.0")],
                 ),
                 Successor(
                     swhid="swh:1:snp:0000000000000000000000000000000000000022",
-                    label=[EdgeLabel(name=b"refs/tags/v1.0", permission=0)],
+                    label=[EdgeLabel(name=b"refs/tags/v1.0")],
                 ),
             ],
             rel=rel,
@@ -475,7 +476,10 @@ def test_findpathbetween_common_parent_labels(
             successor=[]
             if graph_grpc_backend_implementation == "java"
             else [
-                Successor(swhid=TEST_ORIGIN_ID2, label=[]),
+                Successor(
+                    swhid=TEST_ORIGIN_ID2,
+                    label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
+                ),
             ],
         ),
         Node(
@@ -485,7 +489,7 @@ def test_findpathbetween_common_parent_labels(
             else [
                 Successor(
                     swhid="swh:1:snp:0000000000000000000000000000000000000022",
-                    label=[EdgeLabel(name=b"refs/tags/v2.0-anonymous", permission=0)],
+                    label=[EdgeLabel(name=b"refs/tags/v2.0-anonymous")],
                 ),
             ],
             rel=rel,

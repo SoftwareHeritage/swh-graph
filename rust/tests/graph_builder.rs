@@ -117,6 +117,7 @@ fn test_labels() -> Result<()> {
             succ,
             labels
                 .map(|label| {
+                    let label: swh_graph::labels::DirEntry = label.into();
                     (
                         label.permission(),
                         graph.properties().label_name(label.filename_id()),
@@ -216,6 +217,7 @@ fn test_duplicate_labels() -> Result<()> {
             succ,
             labels
                 .map(|label| {
+                    let label: swh_graph::labels::DirEntry = label.into();
                     (
                         label.permission(),
                         graph.properties().label_name(label.filename_id()),

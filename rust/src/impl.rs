@@ -18,6 +18,9 @@ where
     fn path(&self) -> &Path {
         self.deref().path()
     }
+    fn is_transposed(&self) -> bool {
+        self.deref().is_transposed()
+    }
     fn num_nodes(&self) -> usize {
         self.deref().num_nodes()
     }

@@ -37,6 +37,10 @@ impl<G: SwhGraph> SwhGraph for GraphSpy<G> {
         self.record("path", ());
         self.graph.path()
     }
+    fn is_transposed(&self) -> bool {
+        self.record("is_transposed", ());
+        self.graph.is_transposed()
+    }
     fn num_nodes(&self) -> usize {
         self.record("num_nodes", ());
         self.graph.num_nodes()
