@@ -43,6 +43,13 @@ enum Commands {
         /// the number of nodes in the graph.
         num_nodes: usize,
     },
+
+    /// Reads either a graph file linearly, and produces a degree-cumulative function
+    /// encoded as an Elias-Fano sequence in a .dcf file,
+    /// suitable to distribute load while working on the graph.
+    ///
+    /// Only suitable for unlabelled graphs.
+    Dcf { base_path: PathBuf },
 }
 
 pub fn main() -> Result<()> {
@@ -76,6 +83,13 @@ pub fn main() -> Result<()> {
             build_eliasfano::<BE>(CliArgs {
                 basename: base_path,
                 n: Some(num_nodes),
+            })?;
+        }
+
+        Commands::Dcf { base_path } => {
+            use webgraph::cli::build::dcf::{build_dcf, CliArgs};
+            build_dcf::<BE>(CliArgs {
+                basename: base_path,
             })?;
         }
     }

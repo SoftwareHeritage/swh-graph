@@ -34,32 +34,34 @@ class CompressionSubprocessError(Exception):
 
 
 class CompressionStep(Enum):
-    EXTRACT_NODES = -2
-    MPH = -1
-    CONVERT_MPH = 0
-    BV = 1
-    BV_OFFSETS = 2
-    BV_EF = 3
-    BFS = 4
-    PERMUTE_AND_SIMPLIFY_BFS = 6
-    BFS_OFFSETS = 7
-    LLP = 8
-    COMPOSE_ORDERS = 9
-    PERMUTE_LLP = 10
-    OBL = 11
-    STATS = 12
-    TRANSPOSE = 13
-    TRANSPOSE_OBL = 14
-    MAPS = 15
-    EXTRACT_PERSONS = 16
-    MPH_PERSONS = 17
-    NODE_PROPERTIES = 18
-    MPH_LABELS = 19
-    FCL_LABELS = 20
-    EDGE_LABELS = 21
-    EDGE_LABELS_OBL = 22
-    EDGE_LABELS_TRANSPOSE_OBL = 23
-    CLEAN_TMP = 24
+    EXTRACT_NODES = 0
+    MPH = 10
+    CONVERT_MPH = 20
+    BV = 30
+    BV_OFFSETS = 40
+    BV_EF = 50
+    BFS = 60
+    PERMUTE_AND_SIMPLIFY_BFS = 70
+    BFS_EF = 80
+    BFS_DCF = 90
+    LLP = 100
+    COMPOSE_ORDERS = 110
+    PERMUTE_LLP = 120
+    LLP_OFFSETS = 130
+    OBL = 140
+    STATS = 150
+    TRANSPOSE = 160
+    TRANSPOSE_OBL = 170
+    MAPS = 180
+    EXTRACT_PERSONS = 190
+    MPH_PERSONS = 200
+    NODE_PROPERTIES = 210
+    MPH_LABELS = 220
+    FCL_LABELS = 230
+    EDGE_LABELS = 240
+    EDGE_LABELS_OBL = 250
+    EDGE_LABELS_TRANSPOSE_OBL = 260
+    CLEAN_TMP = 270
 
     def __str__(self):
         return self.name
@@ -141,18 +143,28 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--permutation",
         "{out_dir}/{graph_name}-bfs.order",
     ],
-    CompressionStep.BFS_OFFSETS: [
+    CompressionStep.BFS_EF: [
         "{rust_executable_dir}/swh-graph-index",
-        "offsets",
+        "ef",
+        "{out_dir}/{graph_name}-bfs-simplified",
+    ],
+    CompressionStep.BFS_DCF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "dcf",
         "{out_dir}/{graph_name}-bfs-simplified",
     ],
     CompressionStep.LLP: [
-        "{java}",
-        "it.unimi.dsi.law.big.graph.LayeredLabelPropagation",
+        "{rust_executable_dir}/swh-graph-compress",
+        "llp",
         "-g",
         "{llp_gammas}",
         "{out_dir}/{graph_name}-bfs-simplified",
         "{out_dir}/{graph_name}-llp.order",
+    ],
+    CompressionStep.LLP_OFFSETS: [
+        "{rust_executable_dir}/swh-graph-index",
+        "offsets",
+        "{out_dir}/{graph_name}",
     ],
     CompressionStep.COMPOSE_ORDERS: [
         "{java}",
@@ -162,14 +174,12 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}.order",
     ],
     CompressionStep.PERMUTE_LLP: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.Transform",
-        "mapOffline",
+        "{rust_executable_dir}/swh-graph-compress",
+        "permute",
         "{out_dir}/{graph_name}-base",
         "{out_dir}/{graph_name}",
+        "--permutation",
         "{out_dir}/{graph_name}.order",
-        "{batch_size}",
-        "{tmp_dir}",
     ],
     CompressionStep.OBL: [
         "{java}",

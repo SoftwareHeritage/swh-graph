@@ -98,6 +98,13 @@ enum Commands {
         output: PathBuf,
     },
 
+    /// Uses the Layered-Label Propagation algorithm to produce a .order file that
+    /// can be used to permute a graph to a smaller isomorphic graph
+    Llp {
+        #[command(flatten)]
+        args: webgraph::cli::llp::CliArgs,
+    },
+
     /// Reads the list of SWHIDs and produces node2swhid.bin and node2type.bin
     Maps {
         #[arg(long)]
@@ -308,6 +315,10 @@ pub fn main() -> Result<()> {
             }
 
             permutation.dump(&mut output_file)?;
+        }
+
+        Commands::Llp { args } => {
+            webgraph::cli::llp::llp::<BE>(args)?;
         }
 
         Commands::Maps {

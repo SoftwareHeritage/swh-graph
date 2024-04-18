@@ -472,6 +472,8 @@ class _CompressionStepTask(luigi.Task):
         }
         if self.batch_size:
             conf["batch_size"] = self.batch_size
+        if self.STEP == CompressionStep.LLP and self.gammas:
+            conf["llp_gammas"] = self.gammas
         conf["rust_executable_dir"] = self.rust_executable_dir
 
         conf = check_config_compress(
@@ -617,10 +619,19 @@ class PermuteAndSimplifyBfs(_CompressionStepTask):
         return 0
 
 
-class BfsOffsets(_CompressionStepTask):
-    STEP = CompressionStep.BFS_OFFSETS
+class BfsEf(_CompressionStepTask):
+    STEP = CompressionStep.BFS_EF
     INPUT_FILES = {"-bfs-simplified.graph"}
-    OUTPUT_FILES = {"-bfs-simplified.offsets"}
+    OUTPUT_FILES = {"-bfs-simplified.ef"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class BfsDcf(_CompressionStepTask):
+    STEP = CompressionStep.BFS_DCF
+    INPUT_FILES = {"-bfs-simplified.graph"}
+    OUTPUT_FILES = {"-bfs-simplified.dcf"}
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -628,8 +639,10 @@ class BfsOffsets(_CompressionStepTask):
 
 class Llp(_CompressionStepTask):
     STEP = CompressionStep.LLP
-    INPUT_FILES = {"-bfs-simplified.graph", "-bfs-simplified.offsets"}
+    INPUT_FILES = {"-bfs-simplified.graph", "-bfs-simplified.ef", "-bfs-simplified.dcf"}
     OUTPUT_FILES = {"-llp.order"}
+
+    gammas = luigi.Parameter(significant=False, default=None)
 
     def _large_java_allocations(self) -> int:
         # actually it loads the simplified graph, but we reuse the size of the
@@ -686,6 +699,15 @@ class PermuteLlp(_CompressionStepTask):
             + target_batch_size
             + extra_size
         )
+
+
+class LlpOffsets(_CompressionStepTask):
+    STEP = CompressionStep.LLP_OFFSETS
+    INPUT_FILES = {".graph"}
+    OUTPUT_FILES = {".offsets"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
 
 
 class Obl(_CompressionStepTask):
