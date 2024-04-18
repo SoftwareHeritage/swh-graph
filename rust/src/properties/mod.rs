@@ -214,4 +214,7 @@ mod strings;
 pub use strings::{MappedStrings, MaybeStrings, NoStrings, Strings, VecStrings};
 
 mod label_names;
-pub use label_names::{LabelNames, MappedLabelNames, MaybeLabelNames, NoLabelNames, VecLabelNames};
+pub use label_names::{
+    LabelIdFromNameError, LabelNames, MappedLabelNames, MaybeLabelNames, NoLabelNames,
+    VecLabelNames,
+};

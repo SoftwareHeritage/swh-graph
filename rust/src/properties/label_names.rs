@@ -5,6 +5,7 @@
 
 use anyhow::{Context, Result};
 use mmap_rs::Mmap;
+use thiserror::Error;
 
 use super::suffixes::*;
 use super::*;
@@ -189,4 +190,56 @@ impl<
             })
         })
     }
+
+    /// Given a branch/file name, returns the filename id used by edges with that name,
+    /// or `None` if it does not exist.
+    ///
+    /// This is the inverse function of [`label_name`]
+    ///
+    /// Unlike in Java where this function is `O(1)`, this implementation is `O(log2(num_labels))`
+    /// because it uses a binary search, as the MPH function can only be read from Java.
+    #[inline]
+    pub fn label_name_id(
+        &self,
+        name: impl AsRef<[u8]>,
+    ) -> Result<FilenameId, LabelIdFromNameError> {
+        use std::cmp::Ordering::*;
+        let base64 = base64_simd::STANDARD;
+        let name = base64.encode_to_string(name.as_ref()).into_bytes();
+
+        // both inclusive
+        let mut min = 0;
+        let mut max = self
+            .label_names
+            .label_names()
+            .len()
+            .saturating_sub(1)
+            .try_into()
+            .expect("number of labels overflowed u64");
+
+        while min <= max {
+            let pivot = (min + max) / 2;
+            let pivot_id = FilenameId(pivot);
+            let pivot_name = self.label_name_base64(pivot_id);
+            if min == max {
+                if pivot_name.as_slice() == name {
+                    return Ok(pivot_id);
+                } else {
+                    break;
+                }
+            } else {
+                match pivot_name.as_slice().cmp(&name) {
+                    Less => min = pivot.saturating_add(1),
+                    Equal => return Ok(pivot_id),
+                    Greater => max = pivot.saturating_sub(1),
+                }
+            }
+        }
+
+        Err(LabelIdFromNameError(name.to_vec()))
+    }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Error)]
+#[error("Unknown label name: {}", String::from_utf8_lossy(.0))]
+pub struct LabelIdFromNameError(pub Vec<u8>);
