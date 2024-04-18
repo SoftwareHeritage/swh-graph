@@ -397,7 +397,7 @@ class _ConcurrentCsvWritingTask(_BaseTask):
     async def _fill_input_queue(
         self, input_queue: "asyncio.Queue[Tuple[str, str, str]]"
     ) -> None:
-        for (swhid, sha1, name) in self.iter_blobs(with_tqdm=False, unique_sha1=True):
+        for swhid, sha1, name in self.iter_blobs(with_tqdm=False, unique_sha1=True):
             if not swhid.startswith("swh:1:"):
                 raise ValueError(f"Invalid SWHID: {swhid}")
 
@@ -431,7 +431,6 @@ class _ConcurrentCsvWritingTask(_BaseTask):
         result_path = Path(target.path)
 
         with atomic_csv_zstd_writer(result_path) as writer:
-
             writer.writerow(self.CSV_HEADER)
 
             async for i in tqdm.asyncio.trange(self.blob_count()):
@@ -1053,7 +1052,7 @@ class BlobScancode(_BaseTask):
                 maxtasksperchild=self.WORKER_MAX_TASKS,
                 context=context,
             ) as pool:
-                for (license_rows, results) in tqdm.tqdm(
+                for license_rows, results in tqdm.tqdm(
                     pool.imap_unordered(
                         self._detect_licenses,
                         self.iter_blobs(unique_sha1=True, with_tqdm=False),
@@ -1062,7 +1061,7 @@ class BlobScancode(_BaseTask):
                     total=self.blob_count(),
                 ):
                     # each detect() call can return multiple licenses, flatten them
-                    for (sha1, license, score) in license_rows:
+                    for sha1, license, score in license_rows:
                         csv_writer.writerow([sha1, license, str(score)])
                     assert "\n" not in results
                     jsonfile.write(results + "\n")
@@ -1358,7 +1357,6 @@ class RunBlobDataset(luigi.Task):
     def _check_nb_origins(
         self, swhid: str, min_expected_origins: int, path: Path
     ) -> None:
-
         from ..shell import Command, Sink
 
         # fmt: off

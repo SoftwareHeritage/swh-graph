@@ -313,7 +313,7 @@ class Graph:
         for node in nodes:
             self.forward_edges[str(node)] = []
             self.backward_edges[str(node)] = []
-        for (src, dst) in edges:
+        for src, dst in edges:
             self.forward_edges[str(src)].append(str(dst))
             self.backward_edges[str(dst)].append(str(src))
 
@@ -379,13 +379,13 @@ class Graph:
     def iter_paths_dfs(
         self, direction: str, edges_fmt: str, src: str
     ) -> Iterator[Tuple[str, ...]]:
-        for (path, node) in DfsSubgraphIterator(self, direction, edges_fmt, src):
+        for path, node in DfsSubgraphIterator(self, direction, edges_fmt, src):
             yield path + (node,)
 
     def iter_edges_dfs(
         self, direction: str, edges_fmt: str, src: str
     ) -> Iterator[Tuple[str, str]]:
-        for (path, node) in DfsSubgraphIterator(self, direction, edges_fmt, src):
+        for path, node in DfsSubgraphIterator(self, direction, edges_fmt, src):
             if len(path) > 0:
                 yield (path[-1], node)
 

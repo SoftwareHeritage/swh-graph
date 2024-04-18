@@ -1191,7 +1191,7 @@ class UploadGraphToS3(luigi.Task):
         client = luigi.contrib.s3.S3Client()
 
         with multiprocessing.dummy.Pool(self.parallelism) as p:
-            for (i, relative_path) in tqdm.tqdm(
+            for i, relative_path in tqdm.tqdm(
                 enumerate(p.imap_unordered(self._upload_file, paths)),
                 total=len(paths),
                 desc="Uploading compressed graph",
@@ -1287,7 +1287,7 @@ class DownloadGraphFromS3(luigi.Task):
 
         # recursively copy local files to S3, and end with compression metadata
         files = list(client.list(self.s3_graph_path))
-        for (i, file_) in tqdm.tqdm(
+        for i, file_ in tqdm.tqdm(
             list(enumerate(files)),
             desc="Downloading",
         ):

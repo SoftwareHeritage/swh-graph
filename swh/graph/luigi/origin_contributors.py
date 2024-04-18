@@ -273,7 +273,7 @@ class DeanonymizeOriginContributors(luigi.Task):
             csv_reader = csv.reader(cast(Iterable[str], input_fd))
             header = next(csv_reader)
             assert header == ["origin_id", "contributor_id", "years"], header
-            for (origin_id, person_id_str, years) in tqdm.tqdm(
+            for origin_id, person_id_str, years in tqdm.tqdm(
                 csv_reader, unit_scale=True, desc="Reading set of contributor ids"
             ):
                 if person_id_str == "null":
