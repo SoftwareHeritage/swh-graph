@@ -175,8 +175,8 @@ pub fn main() -> Result<()> {
                 .context("Could not write permutation")?;
         }
         Commands::Permute {
-            sort_batch_size,
             input_batch_size,
+            sort_batch_size,
             partitions_per_thread,
             graph_dir,
             permutation,
@@ -196,8 +196,8 @@ pub fn main() -> Result<()> {
 
             log::info!("Permuting...");
             transform(
-                sort_batch_size,
                 input_batch_size,
+                sort_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| unsafe {
@@ -211,8 +211,8 @@ pub fn main() -> Result<()> {
         }
 
         Commands::Transpose {
-            sort_batch_size,
             input_batch_size,
+            sort_batch_size,
             partitions_per_thread,
             graph_dir,
             target_dir,
@@ -227,8 +227,8 @@ pub fn main() -> Result<()> {
 
             log::info!("Transposing...");
             transform(
-                sort_batch_size,
                 input_batch_size,
+                sort_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| [(dst, src)],
@@ -241,8 +241,8 @@ pub fn main() -> Result<()> {
         }
 
         Commands::PermuteAndSymmetrize {
-            sort_batch_size,
             input_batch_size,
+            sort_batch_size,
             partitions_per_thread,
             graph_dir,
             permutation,
