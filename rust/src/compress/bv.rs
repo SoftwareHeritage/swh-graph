@@ -38,6 +38,9 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     let num_partitions = num_threads * partitions_per_thread;
     let nodes_per_partition = num_nodes.div_ceil(num_partitions);
 
+    // Avoid empty partitions at the end when there are very few nodes
+    let num_partitions = num_nodes.div_ceil(nodes_per_partition);
+
     let mut pl = ProgressLogger::default().display_memory();
     pl.item_name = "arc";
     pl.local_speed = true;
