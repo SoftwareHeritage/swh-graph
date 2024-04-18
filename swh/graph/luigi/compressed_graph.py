@@ -654,8 +654,8 @@ class Llp(_CompressionStepTask):
 
 class PermuteLlp(_CompressionStepTask):
     STEP = CompressionStep.PERMUTE_LLP
-    INPUT_FILES = {"-bfs.order", "-llp.order", "-base.graph", "-base.offsets"}
-    OUTPUT_FILES = {".graph", ".offsets", ".properties"}
+    INPUT_FILES = {".order", "-base.graph", "-base.offsets"}
+    OUTPUT_FILES = {".graph", ".properties"}
 
     def _large_java_allocations(self) -> int:
         from swh.graph.config import check_config
@@ -690,7 +690,7 @@ class PermuteLlp(_CompressionStepTask):
 
 class Obl(_CompressionStepTask):
     STEP = CompressionStep.OBL
-    INPUT_FILES = {".graph"}
+    INPUT_FILES = {".graph", ".offsets"}
     OUTPUT_FILES = {".obl"}
 
     def _large_java_allocations(self) -> int:
