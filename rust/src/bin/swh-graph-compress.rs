@@ -156,7 +156,7 @@ pub fn main() -> Result<()> {
             let mut permut_file = File::create(&target_order)
                 .with_context(|| format!("Could not open {}", target_order.display()))?;
 
-            log::info!("Loading graph");
+            log::info!("Loading graph...");
             let graph = BVGraph::with_basename(graph_dir)
                 .endianness::<BE>()
                 .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
@@ -212,6 +212,7 @@ pub fn main() -> Result<()> {
         } => {
             use swh_graph::compress::transform::transform;
 
+            log::info!("Loading graph...");
             let graph = BVGraph::with_basename(graph_dir)
                 .endianness::<BE>()
                 .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
@@ -242,6 +243,7 @@ pub fn main() -> Result<()> {
         } => {
             use swh_graph::compress::transform::transform;
 
+            log::info!("Loading graph...");
             let graph = BVGraph::with_basename(graph_dir)
                 .endianness::<BE>()
                 .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
