@@ -45,6 +45,16 @@ where
     // Avoid empty partitions at the end when there are very few nodes
     let num_partitions = num_nodes.div_ceil(nodes_per_partition);
 
+    log::info!(
+        "Transforming {} nodes with {} threads, {} partitions, {} nodes per partition, {} batches of size {}",
+        num_nodes,
+        num_threads,
+        num_partitions,
+        nodes_per_partition,
+        num_batches,
+        input_batch_size
+    );
+
     let mut pl = ProgressLogger::default().display_memory();
     pl.item_name = "node";
     pl.expected_updates = Some(num_nodes);
