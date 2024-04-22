@@ -122,7 +122,7 @@ class PopularContentPaths(luigi.Task):
         """Runs org.softwareheritage.graph.utils.PopularContentPaths and compresses"""
         import multiprocessing.dummy
 
-        from ..shell import AtomicFileSink, Command, Java, wc
+        from ..shell import Command, Rust, wc
 
         input_swhid_files = list(self.input_swhids.iterdir())
 
@@ -143,19 +143,19 @@ class PopularContentPaths(luigi.Task):
                 Command.zstdcat(*zstd_opts, input_swhid_file) | Command.tail("-n", "+2")
             )
 
-        class_name = "org.softwareheritage.graph.utils.PopularContentPaths"
         # fmt: on
         (
             Command.cat(*input_streams)
-            | Java(
-                class_name,
+            | Rust(
+                "popular-content-paths",
                 self.local_graph_path / self.graph_name,
+                "--expected-nodes",
+                str(nb_contents),
+                "--depth",
                 str(self.max_depth),
-                max_ram=self._max_ram(),
+                "--out",
+                self.output(),
             )
-            | Command.pv("--line-mode", "--wait", "--size", str(nb_contents + 1))
-            | Command.zstdmt("-19")
-            > AtomicFileSink(self.output())
         ).run()
         # fmt: off
 

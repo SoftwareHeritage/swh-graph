@@ -6,13 +6,11 @@
 use anyhow::{bail, Result};
 use sux::prelude::BitVec;
 
+use swh_graph::collections::PathStack;
 use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::*;
 use swh_graph::labels::FilenameId;
 use swh_graph::SWHType;
-
-/// Value in the path_stack between two lists of path parts
-const PATH_SEPARATOR: FilenameId = FilenameId(u64::MAX);
 
 /// Yielded by `dfs_with_path` to allow building a path as a `Vec<u8>` only when needed
 pub struct PathParts<'a> {
@@ -65,11 +63,7 @@ where
 
     let mut visited = AdaptiveNodeSet::new(graph.num_nodes());
     let mut stack = Vec::new();
-
-    // flattened list of paths. Each list is made of parts represented by an id,
-    // and lists are separated by PATH_SEPARATOR.
-    // Parts are in the order of traversal; ie. backward.
-    let mut path_stack = Vec::new();
+    let mut path_stack = PathStack::new();
 
     let root_is_directory = match graph.properties().node_type(root) {
         SWHType::Content => false,
@@ -81,17 +75,11 @@ where
     };
 
     stack.push(root);
-    path_stack.push(PATH_SEPARATOR);
+    path_stack.push([]);
     visited.insert(root);
 
     while let Some(node) = stack.pop() {
-        let mut path_parts = Vec::new();
-        while let Some(filename_id) = path_stack.pop() {
-            if filename_id == PATH_SEPARATOR {
-                break;
-            }
-            path_parts.push(filename_id);
-        }
+        let path_parts: Vec<_> = path_stack.pop().unwrap().collect();
 
         let should_recurse = on_directory(
             node,
@@ -126,9 +114,8 @@ where
                         let first_label: swh_graph::labels::DirEntry = first_label.into();
 
                         stack.push(pred);
-                        path_stack.push(PATH_SEPARATOR);
-                        path_stack.extend(path_parts.iter().rev().copied());
-                        path_stack.push(first_label.filename_id());
+                        path_stack.push(path_parts.iter().copied());
+                        path_stack.push_filename(first_label.filename_id());
                     }
 
                     SWHType::Revision | SWHType::Release => {
