@@ -701,10 +701,19 @@ class PermuteLlp(_CompressionStepTask):
         )
 
 
-class LlpOffsets(_CompressionStepTask):
-    STEP = CompressionStep.LLP_OFFSETS
+class Offsets(_CompressionStepTask):
+    STEP = CompressionStep.OFFSETS
     INPUT_FILES = {".graph"}
     OUTPUT_FILES = {".offsets"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class Ef(_CompressionStepTask):
+    STEP = CompressionStep.EF
+    INPUT_FILES = {".graph", ".offsets"}
+    OUTPUT_FILES = {".ef"}
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -745,7 +754,7 @@ class Transpose(_CompressionStepTask):
     STEP = CompressionStep.TRANSPOSE
     # .obl is an optional input; but we need to make sure it's not being written
     # while Transpose is starting, or Transpose would error with EOF while reading it
-    INPUT_FILES = {".graph", ".obl"}
+    INPUT_FILES = {".graph", ".ef"}
     OUTPUT_FILES = {"-transposed.graph", "-transposed.properties"}
 
     def _large_java_allocations(self) -> int:
@@ -765,9 +774,19 @@ class Transpose(_CompressionStepTask):
         )
 
 
+class TransposeOffsets(_CompressionStepTask):
+    STEP = CompressionStep.TRANSPOSE_OFFSETS
+    INPUT_FILES = {"-transposed.graph"}
+    OUTPUT_FILES = {"-transposed.offsets"}
+
+    def _large_java_allocations(self) -> int:
+        bvgraph_size = self._bvgraph_allocation()
+        return bvgraph_size
+
+
 class TransposeObl(_CompressionStepTask):
     STEP = CompressionStep.TRANSPOSE_OBL
-    INPUT_FILES = {"-transposed.graph"}
+    INPUT_FILES = {"-transposed.graph", "-transposed.offsets"}
     OUTPUT_FILES = {"-transposed.obl"}
 
     def _large_java_allocations(self) -> int:

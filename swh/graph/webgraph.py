@@ -47,10 +47,12 @@ class CompressionStep(Enum):
     LLP = 100
     COMPOSE_ORDERS = 110
     PERMUTE_LLP = 120
-    LLP_OFFSETS = 130
+    OFFSETS = 130
+    EF = 135
     OBL = 140
     STATS = 150
     TRANSPOSE = 160
+    TRANSPOSE_OFFSETS = 165
     TRANSPOSE_OBL = 170
     MAPS = 180
     EXTRACT_PERSONS = 190
@@ -161,11 +163,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-bfs-simplified",
         "{out_dir}/{graph_name}-llp.order",
     ],
-    CompressionStep.LLP_OFFSETS: [
-        "{rust_executable_dir}/swh-graph-index",
-        "offsets",
-        "{out_dir}/{graph_name}",
-    ],
     CompressionStep.COMPOSE_ORDERS: [
         "{java}",
         "org.softwareheritage.graph.compress.ComposePermutations",
@@ -181,6 +178,16 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--permutation",
         "{out_dir}/{graph_name}.order",
     ],
+    CompressionStep.OFFSETS: [
+        "{rust_executable_dir}/swh-graph-index",
+        "offsets",
+        "{out_dir}/{graph_name}",
+    ],
+    CompressionStep.EF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "ef",
+        "{out_dir}/{graph_name}",
+    ],
     CompressionStep.OBL: [
         "{java}",
         "it.unimi.dsi.big.webgraph.BVGraph",
@@ -193,13 +200,15 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}",
     ],
     CompressionStep.TRANSPOSE: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.Transform",
-        "transposeOffline",
+        "{rust_executable_dir}/swh-graph-compress",
+        "transpose",
         "{out_dir}/{graph_name}",
         "{out_dir}/{graph_name}-transposed",
-        "{batch_size}",
-        "{tmp_dir}",
+    ],
+    CompressionStep.TRANSPOSE_OFFSETS: [
+        "{rust_executable_dir}/swh-graph-index",
+        "offsets",
+        "{out_dir}/{graph_name}-transposed",
     ],
     CompressionStep.TRANSPOSE_OBL: [
         "{java}",
