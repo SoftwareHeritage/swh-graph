@@ -212,11 +212,11 @@ class Command(metaclass=_MetaCommand):
     """Runs a command with the given name and arguments. ``**kwargs`` is passed to
     :class:`subprocess.Popen`."""
 
-    def __init__(self, *args: str, **kwargs):
+    def __init__(self, *args: Union[str, Path], **kwargs):
         self.args = args
         self.kwargs = dict(kwargs)
         self.preexec_fn = self.kwargs.pop("preexec_fn", lambda: None)
-        self.cgroup = create_cgroup(args[0].split("/")[-1])
+        self.cgroup = create_cgroup(str(args[0]).split("/")[-1])
 
     def _preexec_fn(self):
         if self.cgroup is not None:
@@ -237,6 +237,8 @@ class Command(metaclass=_MetaCommand):
                 os.close(w)
             elif isinstance(arg, LocalTarget):
                 final_args.append(arg.path)
+            elif isinstance(arg, Path):
+                final_args.append(str(arg))
             else:
                 final_args.append(arg)
 
@@ -273,7 +275,7 @@ class Command(metaclass=_MetaCommand):
 
 
 class Java(Command):
-    def __init__(self, *args: str, max_ram: Optional[int] = None):
+    def __init__(self, *args: Union[str, Path], max_ram: Optional[int] = None):
         import tempfile
 
         from .config import check_config
@@ -310,7 +312,7 @@ class Java(Command):
 
 
 class Rust(Command):
-    def __init__(self, bin_name, *args: str):
+    def __init__(self, bin_name, *args: Union[str, Path]):
         profile = "debug" if "pytest" in sys.argv[0] else "release"
         super().__init__(f"target/{profile}/{bin_name}", *args)
 
@@ -340,7 +342,7 @@ class _RunningCommand:
             self.proc.wait()
             results.append(
                 RunResult(
-                    command=self.command.args,
+                    command=tuple(map(str, self.command.args)),
                     cgroup=self.cgroup,
                     cgroup_stats={
                         p.name: p.read_text().strip()

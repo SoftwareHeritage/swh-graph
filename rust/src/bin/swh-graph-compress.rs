@@ -133,11 +133,6 @@ enum Commands {
         input_dir: PathBuf,
         rcl: PathBuf,
     },
-
-    HashSwhids {
-        mph: PathBuf,
-        swhids: Vec<String>,
-    },
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
@@ -459,17 +454,6 @@ pub fn main() -> Result<()> {
             );
             rcl.serialize(&mut rcl_file)
                 .context("Could not write RCL")?;
-        }
-
-        Commands::HashSwhids { swhids, mph } => {
-            let mut file =
-                File::open(&mph).with_context(|| format!("Cannot read {}", mph.display()))?;
-            let mph = fmph::Function::read(&mut file).context("Count not parse mph")?;
-            for swhid in swhids {
-                let swhid: [u8; 50] = swhid.as_bytes().try_into().context("Invalid SWHID size")?;
-
-                log::info!("{}", mph.get(&swhid).context("Could not hash swhid")?);
-            }
         }
     }
 
