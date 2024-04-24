@@ -381,12 +381,13 @@ Provenance
 The following use cases require traversing the *backward (transposed)
 graph*.
 
-- **commit provenance**: given a content or directory node, return *a* commit
-  whose directory (recursively) contains it
+..
+    - **commit provenance**: given a content or directory node, return *a* commit
+      whose directory (recursively) contains it
 
-  Endpoint::
+      Endpoint::
 
-    /graph/walk/:NODE_ID/rev?direction=backward&edges=dir:dir,cnt:dir,dir:rev
+        /graph/walk/:NODE_ID/rev?direction=backward&edges=dir:dir,cnt:dir,dir:rev
 
 - **complete commit provenance**: given a content or directory node, return
   *all* commits whose directory (recursively) contains it
@@ -395,12 +396,13 @@ graph*.
 
     /graph/leaves/:NODE_ID?direction=backward&edges=dir:dir,cnt:dir,dir:rev
 
-- **origin provenance**: given a content, directory, or commit node, return
-  *an* origin that has at least one snapshot that (recursively) contains it
+..
+    - **origin provenance**: given a content, directory, or commit node, return
+      *an* origin that has at least one snapshot that (recursively) contains it
 
-  Endpoint::
+      Endpoint::
 
-    /graph/walk/:NODE_ID/ori?direction=backward&edges=*
+        /graph/walk/:NODE_ID/ori?direction=backward&edges=*
 
 - **complete origin provenance**: given a content, directory, or commit node,
   return *all* origins that have at least one snapshot that (recursively)
