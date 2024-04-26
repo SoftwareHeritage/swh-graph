@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::ProgressLogger;
@@ -296,7 +296,9 @@ pub fn main() -> Result<()> {
             let mut output_file = File::create(&output)
                 .with_context(|| format!("Could not open {}", output.display()))?;
             let mut inputs_iter = input.into_iter();
-            let input_path = inputs_iter.next().expect("No permutation provided");
+            let input_path = inputs_iter
+                .next()
+                .ok_or(anyhow!("No permutation provided"))?;
             let mut permutation = OwnedPermutation::load(num_nodes, input_path.as_path())
                 .with_context(|| format!("Could not load {}", input_path.display()))?;
             for (i, next_input_path) in inputs_iter.enumerate() {
