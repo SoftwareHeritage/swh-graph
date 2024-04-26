@@ -55,6 +55,12 @@ enum Commands {
         /// This turns all silent hash collisions into a hard error.
         node2swhid: Option<PathBuf>,
     },
+    Persons {
+        #[arg(long)]
+        mph_algo: MphAlgorithm,
+        #[arg(long)]
+        mph: PathBuf,
+    },
 }
 
 pub fn main() -> Result<()> {
@@ -95,6 +101,10 @@ pub fn main() -> Result<()> {
                 MphAlgorithm::Cmph => hash_swhids::<GOVMPH>(mph, permutation, node2swhid),
             }
         }
+        Commands::Persons { mph_algo, mph } => match mph_algo {
+            MphAlgorithm::Fmph => hash_persons::<fmph::Function>(mph),
+            MphAlgorithm::Cmph => hash_persons::<GOVMPH>(mph),
+        },
     }
 }
 
@@ -104,7 +114,8 @@ fn hash_swhids<MPHF: SwhidMphf>(
     node2swhid: Option<Node2SWHID<Mmap>>,
 ) -> Result<()> {
     log::info!("Loading MPH function...");
-    let mph = MPHF::load(&mph).with_context(|| format!("Could not load MPH {}", mph.display()))?;
+    let mph =
+        MPHF::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
 
     log::info!("Hashing input...");
 
@@ -126,6 +137,25 @@ fn hash_swhids<MPHF: SwhidMphf>(
             }
         }
         println!("{}", node_id);
+    }
+
+    Ok(())
+}
+
+fn hash_persons<MPHF: SwhidMphf>(mph: PathBuf) -> Result<()> {
+    log::info!("Loading MPH function...");
+    let mph =
+        MPHF::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
+
+    log::info!("Hashing input...");
+
+    for (i, line) in std::io::stdin().lines().enumerate() {
+        let line = line.with_context(|| format!("Could not read input line {}", i))?;
+        println!(
+            "{}",
+            mph.hash_str(&line)
+                .ok_or(anyhow!("Unknown value {}", line))?
+        );
     }
 
     Ok(())

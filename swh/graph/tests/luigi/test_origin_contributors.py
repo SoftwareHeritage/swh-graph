@@ -178,8 +178,8 @@ def test_deanonymize_origin_contributors(tmpdir):
     tmpdir = Path(tmpdir)
 
     shutil.copyfile(
-        DATASET_DIR / "compressed" / "example.persons.mph",
-        tmpdir / "example.persons.mph",
+        DATASET_DIR / "compressed" / "example.persons.cmph",
+        tmpdir / "example.persons.cmph",
     )
 
     persons_path = tmpdir / "example.persons.csv.zst"

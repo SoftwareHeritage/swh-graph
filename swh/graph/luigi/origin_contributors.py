@@ -216,7 +216,7 @@ class DeanonymizeOriginContributors(luigi.Task):
         import pyzstd
         import tqdm
 
-        from ..shell import Command, Java, Sink
+        from ..shell import Command, Rust, Sink
 
         # Load the deanonymization table, to map sha256(name) to base64(name)
         # and escape(name)
@@ -242,10 +242,13 @@ class DeanonymizeOriginContributors(luigi.Task):
         person_ids = (
             Command.pv(persons_path)
             | Command.zstdcat()
-            | Java(
-                "org.softwareheritage.graph.utils.MPHTranslate",
-                self.local_graph_path / f"{self.graph_name}.persons.mph",
-                max_ram=100_000_000,
+            | Rust(
+                "swh-graph-hash",
+                "persons",
+                "--mph-algo",
+                "cmph",
+                "--mph",
+                self.local_graph_path / f"{self.graph_name}.persons",
             )
             > Sink()
         ).run()
@@ -264,7 +267,7 @@ class DeanonymizeOriginContributors(luigi.Task):
 
         assert (
             next(person_ids_it) == ""
-        ), "MPHTranslate output has fewer lines than its input"
+        ), "swh-graph-hash output has fewer lines than its input"
 
         # Read the set of person ids from the main table
         person_ids = set()
