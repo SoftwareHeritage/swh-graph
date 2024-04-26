@@ -5,6 +5,7 @@ resolver = "2"
 members = [
     "rust",
     "extension",
+    "tools/contributions",
     "tools/file_names",
     "tools/provenance",
     "tools/topology",

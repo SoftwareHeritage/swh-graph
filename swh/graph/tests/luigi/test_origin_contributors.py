@@ -108,7 +108,10 @@ def test_list_origin_contributors(tmpdir):
     task.run()
 
     csv_text = subprocess.check_output(["zstdcat", origin_contributors_path]).decode()
-    assert csv_text == ORIGIN_CONTRIBUTORS
+    (header, *rows) = csv_text.split("\r\n")
+    (expected_header, *expected_rows) = ORIGIN_CONTRIBUTORS.split("\r\n")
+    assert header == expected_header
+    assert sorted(rows) == sorted(expected_rows)
 
     urls_text = subprocess.check_output(["zstdcat", origin_urls_path]).decode()
     assert urls_text == ORIGIN_URLS

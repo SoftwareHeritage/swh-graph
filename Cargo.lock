@@ -3300,6 +3300,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "swh_graph_contributions"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "csv",
+ "dsi-progress-logger 0.1.4",
+ "itertools 0.11.0",
+ "lazy_static",
+ "log",
+ "rayon",
+ "serde",
+ "serde_bytes",
+ "stderrlog",
+ "swh-graph",
+]
+
+[[package]]
 name = "swh_graph_file_names"
 version = "0.1.0"
 dependencies = [

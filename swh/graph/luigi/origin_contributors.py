@@ -88,7 +88,7 @@ class ListOriginContributors(luigi.Task):
         """Runs org.softwareheritage.graph.utils.ListOriginContributors and compresses"""
         import tempfile
 
-        from ..shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Rust
         from .utils import count_nodes
 
         topological_order_path = Path(self.input()["toposort"].path)
@@ -97,7 +97,6 @@ class ListOriginContributors(luigi.Task):
             self.local_graph_path, self.graph_name, "rev,rel,snp,ori"
         )
 
-        class_name = "org.softwareheritage.graph.utils.ListOriginContributors"
         with tempfile.NamedTemporaryFile(
             prefix="origin_urls_", suffix=".csv"
         ) as origin_urls_fd:
@@ -105,11 +104,11 @@ class ListOriginContributors(luigi.Task):
             (
                 Command.zstdcat(topological_order_path)
                 | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
-                | Java(
-                    class_name,
+                | Rust(
+                    "origin-contributors",
                     self.local_graph_path / self.graph_name,
+                    "--origins-out",
                     origin_urls_fd.name,
-                    max_ram=self.max_ram_mb * 1_000_000,
                 )
                 | Command.zstdmt("-19")
                 > AtomicFileSink(self.origin_contributors_path)
