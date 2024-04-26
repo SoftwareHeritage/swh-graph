@@ -164,10 +164,15 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-llp.order",
     ],
     CompressionStep.COMPOSE_ORDERS: [
-        "{java}",
-        "org.softwareheritage.graph.compress.ComposePermutations",
+        "{rust_executable_dir}/swh-graph-compress",
+        "compose-orders",
+        "--num-nodes",
+        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
+        "--input",
         "{out_dir}/{graph_name}-bfs.order",
+        "--input",
         "{out_dir}/{graph_name}-llp.order",
+        "--output",
         "{out_dir}/{graph_name}.order",
     ],
     CompressionStep.PERMUTE_LLP: [
