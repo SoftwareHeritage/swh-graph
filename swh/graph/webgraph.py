@@ -54,6 +54,7 @@ class CompressionStep(Enum):
     TRANSPOSE = 160
     TRANSPOSE_OFFSETS = 165
     TRANSPOSE_OBL = 170
+    TRANSPOSE_EF = 175
     MAPS = 180
     EXTRACT_PERSONS = 190
     MPH_PERSONS = 200
@@ -219,6 +220,11 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{java}",
         "it.unimi.dsi.big.webgraph.BVGraph",
         "--list",
+        "{out_dir}/{graph_name}-transposed",
+    ],
+    CompressionStep.TRANSPOSE_EF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "ef",
         "{out_dir}/{graph_name}-transposed",
     ],
     CompressionStep.MAPS: [

@@ -784,6 +784,15 @@ class TransposeOffsets(_CompressionStepTask):
         return bvgraph_size
 
 
+class TransposeEf(_CompressionStepTask):
+    STEP = CompressionStep.TRANSPOSE_EF
+    INPUT_FILES = {"-transposed.graph", "-transposed.offsets"}
+    OUTPUT_FILES = {"-transposed.ef"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
 class TransposeObl(_CompressionStepTask):
     STEP = CompressionStep.TRANSPOSE_OBL
     INPUT_FILES = {"-transposed.graph", "-transposed.offsets"}
@@ -1080,6 +1089,7 @@ class CompressGraph(luigi.Task):
             Stats(**kwargs),
             Obl(**kwargs),
             TransposeObl(**kwargs),
+            TransposeEf(**kwargs),
             Maps(**kwargs),
             NodeProperties(**kwargs),
             FclLabels(**kwargs),
