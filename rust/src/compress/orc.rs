@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
 use ar_row_derive::ArRowDeserialize;
-use datafusion_orc::arrow_reader::ArrowReaderBuilder;
-use datafusion_orc::projection::ProjectionMask;
-use datafusion_orc::reader::ChunkReader;
+use orc_rust::arrow_reader::ArrowReaderBuilder;
+use orc_rust::projection::ProjectionMask;
+use orc_rust::reader::ChunkReader;
 use rayon::prelude::*;
 
 use crate::SWHType;
