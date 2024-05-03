@@ -815,6 +815,15 @@ class Maps(_CompressionStepTask):
         return mph_size + bfsmap_size
 
 
+class Node2Type(_CompressionStepTask):
+    STEP = CompressionStep.NODE2TYPE
+    INPUT_FILES = {".node2swhid.bin"}
+    OUTPUT_FILES = {".node2type.bin"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
 class ExtractPersons(_CompressionStepTask):
     STEP = CompressionStep.EXTRACT_PERSONS
     INPUT_FILES: Set[str] = set()
@@ -833,6 +842,17 @@ class MphPersons(_CompressionStepTask):
     def _large_java_allocations(self) -> int:
         bitvector_size = _govmph_bitarray_size(self._nb_persons())
         return bitvector_size
+
+
+class ConvertMphPersons(_CompressionStepTask):
+    STEP = CompressionStep.CONVERT_MPH_PERSONS
+    INPUT_FILES = {".persons.mph"}
+    OUTPUT_FILES = {".persons.cmph"}
+
+    def _large_java_allocations(self) -> int:
+        bitvector_size = _govmph_bitarray_size(self._nb_nodes())
+        extra_size = self._nb_nodes()  # TODO: why is this needed?
+        return bitvector_size + extra_size
 
 
 class NodeProperties(_CompressionStepTask):
@@ -1111,7 +1131,9 @@ class CompressGraph(luigi.Task):
             TransposeObl(**kwargs),
             TransposeEf(**kwargs),
             Maps(**kwargs),
+            Node2Type(**kwargs),
             NodeProperties(**kwargs),
+            ConvertMphPersons(**kwargs),
             FclLabels(**kwargs),
             EdgeLabelsEf(**kwargs),
             EdgeLabelsTransposeEf(**kwargs),
