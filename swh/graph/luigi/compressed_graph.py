@@ -958,6 +958,8 @@ class EdgeLabels(_CompressionStepTask):
         ".node2swhid.bin",
         ".properties",
         "-transposed.properties",
+        "-transposed.offsets",
+        "-transposed.obl",
     }
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
@@ -1024,6 +1026,24 @@ class EdgeLabelsTransposeObl(_CompressionStepTask):
         offsets_size = self._nb_nodes() * 24
 
         return offsets_size
+
+
+class EdgeLabelsEf(_CompressionStepTask):
+    STEP = CompressionStep.EDGE_LABELS_EF
+    INPUT_FILES = {"-labelled.labels", "-labelled.labeloffsets"}
+    OUTPUT_FILES = {"-labelled.ef"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class EdgeLabelsTransposeEf(_CompressionStepTask):
+    STEP = CompressionStep.EDGE_LABELS_TRANSPOSE_EF
+    INPUT_FILES = {"-transposed-labelled.labels", "-transposed-labelled.labeloffsets"}
+    OUTPUT_FILES = {"-transposed-labelled.ef"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
 
 
 _duplicate_steps = [
@@ -1093,6 +1113,8 @@ class CompressGraph(luigi.Task):
             Maps(**kwargs),
             NodeProperties(**kwargs),
             FclLabels(**kwargs),
+            EdgeLabelsEf(**kwargs),
+            EdgeLabelsTransposeEf(**kwargs),
         ]
 
     def output(self) -> List[luigi.LocalTarget]:

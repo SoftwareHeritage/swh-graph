@@ -64,7 +64,9 @@ class CompressionStep(Enum):
     EDGE_LABELS = 240
     EDGE_LABELS_OBL = 250
     EDGE_LABELS_TRANSPOSE_OBL = 260
-    CLEAN_TMP = 270
+    EDGE_LABELS_EF = 270
+    EDGE_LABELS_TRANSPOSE_EF = 280
+    CLEAN_TMP = 300
 
     def __str__(self):
         return self.name
@@ -305,6 +307,18 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph",
         "--list",
         "{out_dir}/{graph_name}-transposed-labelled",
+    ],
+    CompressionStep.EDGE_LABELS_EF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "labels-ef",
+        "{out_dir}/{graph_name}-labelled",
+        "$((1+ $(cat {out_dir}/{graph_name}.nodes.count.txt)))",
+    ],
+    CompressionStep.EDGE_LABELS_TRANSPOSE_EF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "labels-ef",
+        "{out_dir}/{graph_name}-transposed-labelled",
+        "$((1+ $(cat {out_dir}/{graph_name}.nodes.count.txt)))",
     ],
     CompressionStep.CLEAN_TMP: [
         "rm",
