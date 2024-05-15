@@ -54,6 +54,7 @@ async fn test_count_nodes() -> Result<()> {
         *spy_graph.history.lock().unwrap(),
         vec![
             ("properties", "()".into()), // swhid -> id
+            ("has_node", "(0,)".into()), // check not masked
             ("successors", "(0,)".into()),
             ("successors", "(1,)".into()),
             ("successors", "(2,)".into())
@@ -76,6 +77,7 @@ async fn test_count_nodes() -> Result<()> {
         *spy_graph.history.lock().unwrap(),
         vec![
             ("properties", "()".into()), // swhid -> id
+            ("has_node", "(1,)".into()), // check not masked
             ("successors", "(1,)".into()),
             ("successors", "(2,)".into())
         ]
@@ -122,6 +124,7 @@ async fn test_count_neighbors() -> Result<()> {
         *spy_graph.history.lock().unwrap(),
         vec![
             ("properties", "()".into()), // swhid -> id
+            ("has_node", "(0,)".into()), // check not masked
             ("successors", "(0,)".into())
         ]
     );
@@ -177,6 +180,7 @@ async fn test_count_neighbors_max() -> Result<()> {
         *spy_graph.history.lock().unwrap(),
         vec![
             ("properties", "()".into()), // swhid -> id
+            ("has_node", "(0,)".into()), // check not masked
             ("successors", "(0,)".into()),
         ]
     );
@@ -236,6 +240,7 @@ async fn test_neighbors() -> Result<()> {
         *spy_graph.history.lock().unwrap(),
         vec![
             ("properties", "()".into()), // swhid -> id
+            ("has_node", "(0,)".into()), // check not masked
             ("successors", "(0,)".into()),
             ("properties", "()".into()), // id -> swhids
             ("properties", "()".into()), // id -> swhids
@@ -319,6 +324,7 @@ async fn test_neighbors_max() -> Result<()> {
         *spy_graph.history.lock().unwrap(),
         vec![
             ("properties", "()".into()), // swhid -> id
+            ("has_node", "(0,)".into()), // check not masked
             ("successors", "(0,)".into()),
             ("properties", "()".into()), // id -> swhids
             ("properties", "()".into()), // id -> swhids

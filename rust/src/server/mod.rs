@@ -100,7 +100,8 @@ impl<
     where
         <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
     {
-        self.0
+        let node = self
+            .0
             .properties()
             .node_id_from_string_swhid(swhid)
             .map_err(|e| match e {
@@ -108,12 +109,20 @@ impl<
                     tonic::Status::invalid_argument(format!("Invalid SWHID: {e}"))
                 }
                 NodeIdFromSwhidError::UnknownSwhid(e) => {
-                    tonic::Status::not_found(format!("Unknown SWHID {swhid}: {e}"))
+                    tonic::Status::not_found(format!("Unknown SWHID: {e}"))
                 }
                 NodeIdFromSwhidError::InternalError(e) => {
                     tonic::Status::internal(format!("Internal error: {e}"))
                 }
-            })
+            })?;
+
+        if self.0.has_node(node) {
+            Ok(node)
+        } else {
+            Err(tonic::Status::not_found(format!(
+                "Unavailable node: {swhid}"
+            )))
+        }
     }
 
     #[inline(always)]

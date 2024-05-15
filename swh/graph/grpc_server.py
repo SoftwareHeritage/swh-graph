@@ -26,6 +26,8 @@ def build_java_grpc_server_cmdline(**config):
         logger.debug("Port not configured, using random port %s", port)
     logger.debug("Checking configuration and populating default values")
     config = check_config(config)
+    if config.get("masked_nodes"):
+        raise NotImplementedError("masked_nodes are not supported by the Java backend")
     logger.debug("Configuration: %r", config)
     cmd = [
         "java",
@@ -53,6 +55,8 @@ def build_rust_grpc_server_cmdline(**config):
         cmd.append("-vvvvv")
     else:
         cmd.append("-vv")
+    if config.get("masked_nodes"):
+        cmd.extend(["--masked-nodes", config["masked_nodes"]])
     logger.debug("Checking configuration and populating default values")
     config = check_config(config)
     logger.debug("Configuration: %r", config)
