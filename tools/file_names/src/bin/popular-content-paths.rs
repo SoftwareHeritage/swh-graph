@@ -193,7 +193,7 @@ where
         }
         if !has_parents {
             let mut path_array = [FilenameId(u64::MAX); MAX_DEPTH];
-            for (i, &part) in path.into_iter().enumerate() {
+            for (i, &part) in path.iter().enumerate() {
                 path_array[i] = part;
             }
             *paths.entry(path_array).or_insert(0) += 1;

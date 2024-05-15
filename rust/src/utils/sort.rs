@@ -328,8 +328,7 @@ where
         // Concatenate partitions
         .map(|partition_sorted_iterators| {
             // Sort within each partition
-            KMergeIters::new(partition_sorted_iterators.into_iter())
-                .map(|(src, dst, ())| (src, dst))
+            KMergeIters::new(partition_sorted_iterators).map(|(src, dst, ())| (src, dst))
         })
         .collect())
 }

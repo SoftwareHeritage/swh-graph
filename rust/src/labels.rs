@@ -145,10 +145,7 @@ impl Branch {
     ///
     /// or `None` if `filename_id` is 2^61 or greater
     pub fn new(filename_id: FilenameId) -> Option<Branch> {
-        filename_id
-            .0
-            .checked_shl(3)
-            .map(|shifted_filename_id| Branch(shifted_filename_id))
+        filename_id.0.checked_shl(3).map(Branch)
     }
 
     /// Returns an id of the filename of the entry.

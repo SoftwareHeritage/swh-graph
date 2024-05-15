@@ -156,9 +156,7 @@ where
             }
             let branch_name = graph.properties().label_name(label.filename_id());
 
-            let snp_swhid = snp_swhid
-                .get_or_insert_with(|| graph.properties().swhid(snp))
-                .clone();
+            let snp_swhid = *snp_swhid.get_or_insert_with(|| graph.properties().swhid(snp));
 
             match graph.properties().node_type(branch_target) {
                 SWHType::Directory => write_files_by_name_in_directory(
