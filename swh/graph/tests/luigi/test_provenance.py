@@ -248,7 +248,7 @@ def write_directory_frontier(provenance_dir, swhids=FRONTIER_DIRECTORIES):
             )
         )
         """
-    ).write_parquet(str(target_path), compression_level=3)
+    ).write_parquet(str(target_path))
 
 
 def test_listprovenancenodes(tmpdir, provenance_node_filter="heads"):
