@@ -34,6 +34,7 @@ pub fn main() -> Result<()> {
         .init()
         .unwrap();
 
+    info!("Loading graph...");
     let graph = load_unidirectional(args.graph)
         .context("Could not load graph")?
         .init_properties()
