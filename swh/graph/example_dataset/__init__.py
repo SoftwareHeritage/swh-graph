@@ -27,7 +27,7 @@ from swh.model.model import (
     SkippedContent,
     Snapshot,
     SnapshotBranch,
-    TargetType,
+    SnapshotTargetType,
     Timestamp,
     TimestampWithTimezone,
 )
@@ -428,10 +428,10 @@ SNAPSHOTS: List[Snapshot] = [
         id=h(20),
         branches={
             b"refs/heads/master": SnapshotBranch(
-                target=h(9), target_type=TargetType.REVISION
+                target=h(9), target_type=SnapshotTargetType.REVISION
             ),
             b"refs/tags/v1.0": SnapshotBranch(
-                target=h(10), target_type=TargetType.RELEASE
+                target=h(10), target_type=SnapshotTargetType.RELEASE
             ),
         },
     ),
@@ -439,13 +439,13 @@ SNAPSHOTS: List[Snapshot] = [
         id=h(22),
         branches={
             b"refs/heads/master": SnapshotBranch(
-                target=h(9), target_type=TargetType.REVISION
+                target=h(9), target_type=SnapshotTargetType.REVISION
             ),
             b"refs/tags/v1.0": SnapshotBranch(
-                target=h(10), target_type=TargetType.RELEASE
+                target=h(10), target_type=SnapshotTargetType.RELEASE
             ),
             b"refs/tags/v2.0-anonymous": SnapshotBranch(
-                target=h(21), target_type=TargetType.RELEASE
+                target=h(21), target_type=SnapshotTargetType.RELEASE
             ),
         },
     ),
