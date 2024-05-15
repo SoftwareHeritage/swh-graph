@@ -15,8 +15,8 @@ from swh.graph.pytest_plugin import GraphServerProcess
 from .test_http_client import TEST_ORIGIN_ID
 
 
-def test_leaves(graph_grpc_backend_implementation):
-    server = GraphServerProcess(graph_grpc_backend_implementation)
+def test_leaves(graph_grpc_server_config):
+    server = GraphServerProcess(graph_grpc_server_config)
     server.start()
     try:
         graph_client = RemoteGraphClient(str(server.result["server_url"]))

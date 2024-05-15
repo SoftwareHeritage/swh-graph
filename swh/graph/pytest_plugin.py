@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 class GraphServerProcess(multiprocessing.Process):
-    def __init__(self, backend_impl, *args, **kwargs):
-        self.backend_impl = backend_impl
+    def __init__(self, config, *args, **kwargs):
+        self.config = config
         self.q = multiprocessing.Queue()
         super().__init__(*args, **kwargs)
 
@@ -30,18 +30,8 @@ class GraphServerProcess(multiprocessing.Process):
         from swh.graph.http_rpc_server import make_app
 
         try:
-            config = {
-                "graph": {
-                    "cls": f"local_{self.backend_impl}",
-                    "grpc_server": {
-                        "path": DATASET_DIR / "compressed/example",
-                        "debug": True,
-                    },
-                    "http_rpc_server": {"debug": True},
-                }
-            }
             with loop_context() as loop:
-                app = make_app(config=config)
+                app = make_app(config=self.config)
                 client = TestClient(TestServer(app), loop=loop)
                 loop.run_until_complete(client.start_server())
                 url = client.make_url("/graph/")
@@ -68,8 +58,22 @@ def graph_grpc_backend_implementation(request):
 
 
 @pytest.fixture(scope="session")
-def graph_grpc_server_process(graph_grpc_backend_implementation):
-    server = GraphServerProcess(graph_grpc_backend_implementation)
+def graph_grpc_server_config(graph_grpc_backend_implementation):
+    return {
+        "graph": {
+            "cls": f"local_{graph_grpc_backend_implementation}",
+            "grpc_server": {
+                "path": DATASET_DIR / "compressed/example",
+                "debug": True,
+            },
+            "http_rpc_server": {"debug": True},
+        }
+    }
+
+
+@pytest.fixture(scope="session")
+def graph_grpc_server_process(graph_grpc_server_config):
+    server = GraphServerProcess(graph_grpc_server_config)
 
     yield server
 
