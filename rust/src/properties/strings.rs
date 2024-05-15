@@ -177,7 +177,8 @@ impl<
         self.with_strings(strings)
     }
 
-    /// Alternative to [`load_strings`] that allows using arbitrary strings implementations
+    /// Alternative to [`load_strings`](Self::load_strings) that allows using arbitrary
+    /// strings implementations
     pub fn with_strings<STRINGS: Strings>(
         self,
         strings: STRINGS,
@@ -198,7 +199,7 @@ impl<
 /// Functions to access message of `revision`/`release` nodes, and names of `release` nodes
 ///
 /// Only available after calling [`load_strings`](SwhGraphProperties::load_strings)
-/// or [`load_all_properties`](SwhGraph::load_all_properties)
+/// or [`load_all_properties`](crate::graph::SwhBidirectionalGraph::load_all_properties)
 impl<
         MAPS: MaybeMaps,
         TIMESTAMPS: MaybeTimestamps,

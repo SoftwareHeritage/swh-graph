@@ -110,7 +110,8 @@ impl<
         self.with_persons(persons)
     }
 
-    /// Alternative to [`load_persons`] that allows using arbitrary persons implementations
+    /// Alternative to [`load_persons`](Self::load_persons) that allows using arbitrary
+    /// persons implementations
     pub fn with_persons<PERSONS: Persons>(
         self,
         persons: PERSONS,
@@ -131,7 +132,7 @@ impl<
 /// Functions to access the id of the author or committer of `revision`/`release` nodes.
 ///
 /// Only available after calling [`load_persons`](SwhGraphProperties::load_persons)
-/// or [`load_all_properties`](SwhGraph::load_all_properties)
+/// or [`load_all_properties`](crate::graph::SwhBidirectionalGraph::load_all_properties)
 impl<
         MAPS: MaybeMaps,
         TIMESTAMPS: MaybeTimestamps,

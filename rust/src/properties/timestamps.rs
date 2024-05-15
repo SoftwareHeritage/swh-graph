@@ -182,7 +182,8 @@ impl<
         self.with_timestamps(timestamps)
     }
 
-    /// Alternative to [`load_timestamps`] that allows using arbitrary timestamps implementations
+    /// Alternative to [`load_timestamps`](Self::load_timestamps) that allows using arbitrary
+    /// timestamps implementations
     pub fn with_timestamps<TIMESTAMPS: Timestamps>(
         self,
         timestamps: TIMESTAMPS,
@@ -203,7 +204,7 @@ impl<
 /// Functions to access timestamps of `revision` and `release` nodes
 ///
 /// Only available after calling [`load_timestamps`](SwhGraphProperties::load_timestamps)
-/// or [`load_all_properties`](SwhGraph::load_all_properties)
+/// or [`load_all_properties`](crate::graph::SwhBidirectionalGraph::load_all_properties)
 impl<
         MAPS: MaybeMaps,
         TIMESTAMPS: Timestamps,

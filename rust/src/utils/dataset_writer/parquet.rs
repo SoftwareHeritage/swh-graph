@@ -16,7 +16,7 @@ use parquet::format::FileMetaData;
 
 use super::{StructArrayBuilder, TableWriter};
 
-/// Writer to a .parquet file, usable with [`ParallelDatasetWriter`]
+/// Writer to a .parquet file, usable with [`ParallelDatasetWriter`](super::ParallelDatasetWriter)
 ///
 /// `Builder` should follow the pattern documented by
 /// [`arrow::builder`](https://docs.rs/arrow/latest/arrow/array/builder/index.html)

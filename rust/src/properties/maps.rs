@@ -144,7 +144,8 @@ impl<
         self.with_maps(maps)
     }
 
-    /// Alternative to [`load_maps`] that allows using arbitrary maps implementations
+    /// Alternative to [`load_maps`](Self::load_maps) that allows using arbitrary maps
+    /// implementations
     pub fn with_maps<MAPS: Maps>(
         self,
         maps: MAPS,
@@ -175,7 +176,7 @@ pub enum NodeIdFromSwhidError<E> {
 /// Functions to map between SWHID and node id.
 ///
 /// Only available after calling [`load_contents`](SwhGraphProperties::load_contents)
-/// or [`load_all_properties`](SwhGraph::load_all_properties)
+/// or [`load_all_properties`](crate::graph::SwhBidirectionalGraph::load_all_properties)
 impl<
         MAPS: Maps,
         TIMESTAMPS: MaybeTimestamps,

@@ -92,8 +92,9 @@ impl<
         };
         self.with_label_names(label_names)
     }
-    ///
-    /// Alternative to [`load_label_names`] that allows using arbitrary label_names implementations
+
+    /// Alternative to [`load_label_names`](Self::load_label_names) that allows using
+    /// arbitrary label_names implementations
     pub fn with_label_names<LABELNAMES: LabelNames>(
         self,
         label_names: LABELNAMES,
@@ -114,7 +115,7 @@ impl<
 /// Functions to access names of arc labels.
 ///
 /// Only available after calling [`load_label_names`](SwhGraphProperties::load_label_names)
-/// or [`load_all_properties`](SwhGraph::load_all_properties).
+/// or [`load_all_properties`](crate::graph::SwhBidirectionalGraph::load_all_properties).
 impl<
         MAPS: MaybeMaps,
         TIMESTAMPS: MaybeTimestamps,
@@ -194,7 +195,7 @@ impl<
     /// Given a branch/file name, returns the filename id used by edges with that name,
     /// or `None` if it does not exist.
     ///
-    /// This is the inverse function of [`label_name`]
+    /// This is the inverse function of [`label_name`](Self::label_name)
     ///
     /// Unlike in Java where this function is `O(1)`, this implementation is `O(log2(num_labels))`
     /// because it uses a binary search, as the MPH function can only be read from Java.

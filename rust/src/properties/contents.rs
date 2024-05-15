@@ -123,7 +123,8 @@ impl<
         self.with_contents(contents)
     }
 
-    /// Alternative to [`load_contents`] that allows using arbitrary contents implementations
+    /// Alternative to [`load_contents`](Self::load_contents) that allows using arbitrary
+    /// contents implementations
     pub fn with_contents<CONTENTS: Contents>(
         self,
         contents: CONTENTS,
@@ -144,7 +145,7 @@ impl<
 /// Functions to access properties of `content` nodes
 ///
 /// Only available after calling [`load_contents`](SwhGraphProperties::load_contents)
-/// or [`load_all_properties`](SwhGraph::load_all_properties)
+/// or [`load_all_properties`](crate::graph::SwhBidirectionalGraph::load_all_properties)
 impl<
         MAPS: MaybeMaps,
         TIMESTAMPS: MaybeTimestamps,

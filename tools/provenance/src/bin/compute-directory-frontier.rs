@@ -28,8 +28,7 @@ use swh_graph_provenance::frontier_set::{schema, to_parquet, writer_properties};
  * occurrence of any of the content in its subtree (well, DAG), ie.,
  * max_{for all content} (min_{for all occurrence of content} occurrence).
  * Produces a boolean vector, indicating for each directory if it is part of the
- * "provenance frontier", as defined in
- * https://gitlab.softwareheritage.org/swh/devel/swh-provenance/-/blob/ae09086a3bd45c7edbc22691945b9d61200ec3c2/swh/provenance/algos/revision.py#L210
+ * "provenance frontier", [as defined in swh-provenance](https://gitlab.softwareheritage.org/swh/devel/swh-provenance/-/blob/ae09086a3bd45c7edbc22691945b9d61200ec3c2/swh/provenance/algos/revision.py#L210)
  */
 struct Args {
     graph_path: PathBuf,

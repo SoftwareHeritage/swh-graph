@@ -40,7 +40,7 @@ pub mod utils;
 pub use webgraph;
 
 /// Returned by a `try_` method when the given index is past the number of nodes
-/// (or number of label names for [`LabelNames`] properties)
+/// (or number of label names for [`LabelNames`](properties::LabelNames) properties)
 #[derive(Error, Debug, PartialEq, Eq, Hash, Clone)]
 #[error("Accessed property index {index} out of {len}")]
 pub struct OutOfBoundError {

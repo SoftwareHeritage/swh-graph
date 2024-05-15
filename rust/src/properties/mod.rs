@@ -6,8 +6,8 @@
 //! Node labels
 //!
 //! [`SwhGraphProperties`] is populated by the `load_properties` and `load_all_properties`
-//! of [`SwhUnidirectionalGraph`](swh_graph::graph::SwhUnidirectionalGraph) and
-//! [`SwhBidirectionalGraph`](swh_graph::graph::SwhBidirectionalGraph) and returned by
+//! of [`SwhUnidirectionalGraph`](crate::graph::SwhUnidirectionalGraph) and
+//! [`SwhBidirectionalGraph`](crate::graph::SwhBidirectionalGraph) and returned by
 //! their `properties` method.
 //!
 //! ```no_run
