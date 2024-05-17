@@ -220,35 +220,10 @@ to ensure they are not evicted from the in-memory cache.
 
 ### Loading old graphs
 
-The original Java (and C++) implementation of webgraph used slightly different
-data structures in the Rust implementation.
+The original Java (and C++) implementation of WebGraph used slightly different
+data structures and formats than the Rust implementation.
 Therefore, you need to generate new files in order to load old graphs with the Rust
 implementation; this takes a few hours for graphs representing full SWH exports.
 
-```sh
-export SOURCE_DIR=~/src/swh-graph
-export GRAPH_DIR=~/graph/latest/compressed
-
-# Build the Java implementation
-make -C $SOURCE_DIR java
-
-# Convert the GOV minimal-perfect-hash function from `.mph` to `.cmph`
-java -classpath $SOURCE_DIR/swh/graph/swh-graph.jar org.softwareheritage.graph.utils.Mph2Cmph $GRAPH_DIR/graph.mph $GRAPH_DIR/graph.cmph
-
-# Move to (Rust) source dir, for "cargo run"
-cd $SOURCE_DIR
-
-# Generate Elias-Fano-encoded offsets (`.ef` files) of the graph
-cargo run --release --bin swh-graph-index ef -- $GRAPH_DIR/graph
-cargo run --release --bin swh-graph-index ef -- $GRAPH_DIR/graph-transposed
-
-# Ditto, this time for the labelled graph
-cargo run --release --bin swh-graph-index labels-ef -- $GRAPH_DIR/graph-labelled $((1+ $(cat $GRAPH_DIR/graph.nodes.count.txt)))
-cargo run --release --bin swh-graph-index labels-ef -- $GRAPH_DIR/graph-transposed-labelled $((1+ $(cat $GRAPH_DIR/graph.nodes.count.txt)))
-
-# Generate `node2type.bin` from `node2type.map` (the format of the latter is Java-specific)
-cargo run --release --bin swh-graph-node2type -- $GRAPH_DIR/graph
-
-# Convert the Java-specific `.property.content.is_skipped.bin` to a plain `.property.content.is_skipped.bits`:
-java -classpath $SOURCE_DIR/java/target/swh-graph-*.jar $SOURCE_DIR/java/src/main/java/org/softwareheritage/graph/utils/Bitvec2Bits.java $GRAPH_DIR/graph.property.content.is_skipped.bin $GRAPH_DIR/graph.property.content.is_skipped.bits
-```
+The shell script `tools/swh-graph-java2rust.sh` at the root of this repository documents
+all the conversion steps needed and can be executed directly to take care of them.
