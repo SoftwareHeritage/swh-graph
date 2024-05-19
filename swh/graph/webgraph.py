@@ -109,7 +109,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}.labels/",
         # ensure at least one file is present so the wildcard below can't fail
         "&& mkdir -p {out_dir}/{graph_name}.labels/"
-        "&& echo '' | zstdmt > {out_dir}/{graph_name}.labels/empty.csv.zst",
+        "&& echo -n '' | zstdmt > {out_dir}/{graph_name}.labels/empty.csv.zst",
         # Concatenate all files in the directory to a single file.
         # TODO: remove the concatenation once other steps below support directories
         "&& cat {out_dir}/{graph_name}.labels/* > {out_dir}/{graph_name}.labels.csv.zst",
