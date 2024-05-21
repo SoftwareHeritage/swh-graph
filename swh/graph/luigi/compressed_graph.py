@@ -256,13 +256,13 @@ class _CompressionStepTask(luigi.Task):
         return int(count_path.read_text())
 
     def _nb_nodes(self) -> int:
-        return self._get_count("nodes", "ExtractNodes")
+        return self._get_count("nodes", "NodeStats")
 
     def _nb_edges(self) -> int:
-        return self._get_count("edges", "ExtractNodes")
+        return self._get_count("edges", "EdgeStats")
 
     def _nb_labels(self) -> int:
-        return self._get_count("labels", "ExtractNodes")
+        return self._get_count("labels", "LabelStats")
 
     def _nb_persons(self) -> int:
         return self._get_count("persons", "ExtractPersons")
@@ -323,9 +323,7 @@ class _CompressionStepTask(luigi.Task):
         return self._nb_nodes() * 2
 
     def _persons_mph_size(self):
-        # ditto, but there were 3 billion labels and .mph was 8GB
-        # (about 2.6 bytes per node)
-        return self._nb_labels() * 8
+        return self._nb_persons() * 8
 
     def _labels_mph_size(self):
         # ditto, but there were 3 billion labels and .mph was 8GB
@@ -367,21 +365,21 @@ class _CompressionStepTask(luigi.Task):
             path = Path(output.path)
             if not path.exists():
                 raise Exception(f"expected output {path} does not exist")
-            if not path.is_file():
-                raise Exception(f"expected output {path} is not a file")
-            if path.stat().st_size == 0:
-                if (
-                    path.name.endswith(
+            if path.is_file():
+                if path.stat().st_size == 0:
+                    if path.name.endswith(
                         (".labels.fcl.bytearray", ".labels.fcl.pointers")
-                    )
-                    and "dir" not in self.object_types
-                    and "snp" not in self.object_types
-                ):
-                    # It's expected that .labels.fcl.bytearray is empty when both dir
-                    # and snp are excluded, because these are the only objects
-                    # with labels on their edges.
-                    continue
-                raise Exception(f"expected output {path} is empty")
+                    ) and {"dir", "snp", "ori"}.isdisjoint(set(self.object_types)):
+                        # It's expected that .labels.fcl.bytearray is empty when both dir
+                        # and snp are excluded, because these are the only objects
+                        # with labels on their edges.
+                        continue
+                    raise Exception(f"expected output file {path} is empty")
+            elif path.is_dir():
+                if next(path.iterdir(), None) is None:
+                    raise Exception(f"expected input directory {path} is empty")
+            else:
+                raise Exception(f"expected output {path} is not a file or directory")
 
         if not self._stamp().is_file():
             with self._stamp().open() as fd:
@@ -444,10 +442,14 @@ class _CompressionStepTask(luigi.Task):
             path = self.local_graph_path / f"{self.graph_name}{input_file}"
             if not path.exists():
                 raise Exception(f"expected input {path} does not exist")
-            if not path.is_file():
-                raise Exception(f"expected input {path} is not a file")
-            if path.stat().st_size == 0:
-                raise Exception(f"expected input {path} is empty")
+            if path.is_file():
+                if path.stat().st_size == 0:
+                    raise Exception(f"expected input file {path} is empty")
+            elif path.is_dir():
+                if next(path.iterdir(), None) is None:
+                    raise Exception(f"expected input directory {path} is empty")
+            else:
+                raise Exception(f"expected output {path} is not a file or directory")
 
         if self.EXPORT_AS_INPUT:
             export_meta = json.loads(
@@ -519,33 +521,64 @@ class ExtractNodes(_CompressionStepTask):
     EXPORT_AS_INPUT = True
     INPUT_FILES: Set[str] = set()
     OUTPUT_FILES = {
+        ".nodes/",
+    }
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class ExtractLabels(_CompressionStepTask):
+    STEP = CompressionStep.EXTRACT_LABELS
+    EXPORT_AS_INPUT = True
+    INPUT_FILES: Set[str] = set()
+    OUTPUT_FILES = {
         ".labels.csv.zst",
-        ".nodes.csv.zst",
-        ".edges.count.txt",
-        ".edges.stats.txt",
+    }
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class NodeStats(_CompressionStepTask):
+    STEP = CompressionStep.NODE_STATS
+    INPUT_FILES = {".nodes/"}
+    OUTPUT_FILES = {
         ".nodes.count.txt",
         ".nodes.stats.txt",
+    }
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class EdgeStats(_CompressionStepTask):
+    STEP = CompressionStep.EDGE_STATS
+    EXPORT_AS_INPUT = True
+    INPUT_FILES: Set[str] = set()
+    OUTPUT_FILES = {
+        ".edges.count.txt",
+        ".edges.stats.txt",
+    }
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class LabelStats(_CompressionStepTask):
+    STEP = CompressionStep.LABEL_STATS
+    INPUT_FILES = {".labels.csv.zst"}
+    OUTPUT_FILES = {
         ".labels.count.txt",
     }
 
     def _large_java_allocations(self) -> int:
-        import multiprocessing
-
-        # Memory usage is mostly in subprocesses; the JVM itself needs only to read
-        # ORC files
-        # 128MB is enough in practice, but let's play it safe. ExtractNodes can't
-        # run in parallel with anything else anyway, so we have plenty of available RAM
-        # to avoid stressing the GC
-        orc_buffers_size = 256_000_000
-
-        nb_orc_readers = multiprocessing.cpu_count()
-
-        return orc_buffers_size * nb_orc_readers
+        return 0
 
 
 class Mph(_CompressionStepTask):
     STEP = CompressionStep.MPH
-    INPUT_FILES = {".nodes.csv.zst"}
+    INPUT_FILES = {".nodes/"}
     OUTPUT_FILES = {".mph"}
 
     def _large_java_allocations(self) -> int:
@@ -805,7 +838,7 @@ class TransposeObl(_CompressionStepTask):
 
 class Maps(_CompressionStepTask):
     STEP = CompressionStep.MAPS
-    INPUT_FILES = {".mph", ".order", ".nodes.csv.zst"}
+    INPUT_FILES = {".mph", ".order", ".nodes/"}
     OUTPUT_FILES = {".node2swhid.bin"}
 
     def _large_java_allocations(self) -> int:
@@ -1124,6 +1157,9 @@ class CompressGraph(luigi.Task):
                 formats=[Format.orc],  # type: ignore[attr-defined]
                 object_types=_tables_for_object_types(self.object_types),
             ),
+            NodeStats(**kwargs),
+            EdgeStats(**kwargs),
+            LabelStats(**kwargs),
             EdgeLabelsObl(**kwargs),
             EdgeLabelsTransposeObl(**kwargs),
             Stats(**kwargs),

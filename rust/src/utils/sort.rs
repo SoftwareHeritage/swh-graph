@@ -90,23 +90,27 @@ where
             state.buffer.clear();
         };
 
-        self.for_each(|item| {
-            let state = thread_states.get_or(&new_thread_state).get();
-            let item = item.into_iter();
+        let num_rows = self
+            .map(|item| {
+                let state = thread_states.get_or(&new_thread_state).get();
+                let item = item.into_iter();
 
-            // This is safe because the main thread won't access this until this
-            // one ends, and other threads don't access it.
-            let state = unsafe { &mut *state };
+                // This is safe because the main thread won't access this until this
+                // one ends, and other threads don't access it.
+                let state = unsafe { &mut *state };
 
-            if state.buffer.len() + item.len() + 1 >= buffer_size {
-                flush_buffer(state);
-            }
+                if state.buffer.len() + item.len() + 1 >= buffer_size {
+                    flush_buffer(state);
+                }
 
-            state.counter += 1;
+                state.counter += 1;
 
-            state.buffer.extend(item);
-            state.buffer.push(b'\n');
-        });
+                state.buffer.extend(item);
+                state.buffer.push(b'\n');
+            })
+            .count();
+
+        let is_empty = num_rows == 0;
 
         // Write remaining buffers
         for state in thread_states.iter_mut() {
@@ -133,6 +137,10 @@ where
 
         let sorted_files = sorted_files.lock().unwrap();
 
+        if is_empty {
+            return Ok(());
+        }
+
         assert!(sorted_files.len() > 0, "Sorters did not run");
 
         let mut target_path_prefix = target_dir.clone();
@@ -142,7 +150,7 @@ where
             std::fs::remove_dir(&target_dir)
                 .with_context(|| format!("Could not delete directory {}", target_dir.display()))?;
         }
-        std::fs::create_dir(&target_dir)
+        std::fs::create_dir_all(&target_dir)
             .with_context(|| format!("Could not create directory {}", target_dir.display()))?;
 
         // Spawn sort * | pv | split

@@ -80,7 +80,9 @@ enum Commands {
         format: DatasetFormat,
         #[arg(long)]
         swhids_dir: PathBuf,
+        #[arg(long)]
         target_stats: PathBuf,
+        #[arg(long)]
         target_count: PathBuf,
     },
     /// Reads the list of arcs from the ORC directory and counts the number of arcs
@@ -90,8 +92,11 @@ enum Commands {
         format: DatasetFormat,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
+        #[arg(long)]
         dataset_dir: PathBuf,
+        #[arg(long)]
         target_stats: PathBuf,
+        #[arg(long)]
         target_count: PathBuf,
     },
 
@@ -198,7 +203,7 @@ pub fn main() -> Result<()> {
                 .context("Could not read nodes from input dataset")?
                 .unique_sort_to_dir(
                     target_dir,
-                    "swhids.txt",
+                    "nodes.txt",
                     &temp_dir(),
                     pl,
                     &[],

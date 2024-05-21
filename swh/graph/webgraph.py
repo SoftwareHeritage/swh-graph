@@ -34,7 +34,11 @@ class CompressionSubprocessError(Exception):
 
 
 class CompressionStep(Enum):
-    EXTRACT_NODES = 0
+    EXTRACT_NODES = -20
+    EXTRACT_LABELS = -10
+    NODE_STATS = 0
+    EDGE_STATS = 3
+    LABEL_STATS = 6
     MPH = 10
     CONVERT_MPH = 20
     BV = 30
@@ -84,16 +88,62 @@ COMP_SEQ = list(CompressionStep)
 # configuration values, see :func:`compress`.
 STEP_ARGV: Dict[CompressionStep, List[str]] = {
     CompressionStep.EXTRACT_NODES: [
-        "{java}",
-        "org.softwareheritage.graph.compress.ExtractNodes",
+        "{rust_executable_dir}/swh-graph-extract",
+        "extract-nodes",
         "--format",
         "orc",
-        "--temp-dir",
-        "{tmp_dir}",
         "--allowed-node-types",
         "{object_types}",
         "{in_dir}",
-        "{out_dir}/{graph_name}",
+        "{out_dir}/{graph_name}.nodes/",
+    ],
+    CompressionStep.EXTRACT_LABELS: [
+        "{rust_executable_dir}/swh-graph-extract",
+        "extract-labels",
+        "--format",
+        "orc",
+        "--allowed-node-types",
+        "{object_types}",
+        "{in_dir}",
+        "{out_dir}/{graph_name}.labels/",
+        # ensure at least one file is present so the wildcard below can't fail
+        "&& mkdir -p {out_dir}/{graph_name}.labels/"
+        "&& echo '' | zstdmt > {out_dir}/{graph_name}.labels/empty.csv.zst",
+        # Concatenate all files in the directory to a single file.
+        # TODO: remove the concatenation once other steps below support directories
+        "&& cat {out_dir}/{graph_name}.labels/* > {out_dir}/{graph_name}.labels.csv.zst",
+        "&& rm -R {out_dir}/{graph_name}.labels/",
+    ],
+    CompressionStep.NODE_STATS: [
+        "{rust_executable_dir}/swh-graph-extract",
+        "node-stats",
+        "--format",
+        "orc",
+        "--swhids-dir",
+        "{out_dir}/{graph_name}.nodes/",
+        "--target-stats",
+        "{out_dir}/{graph_name}.nodes.stats.txt",
+        "--target-count",
+        "{out_dir}/{graph_name}.nodes.count.txt",
+    ],
+    CompressionStep.EDGE_STATS: [
+        "{rust_executable_dir}/swh-graph-extract",
+        "edge-stats",
+        "--format",
+        "orc",
+        "--allowed-node-types",
+        "{object_types}",
+        "--dataset-dir",
+        "{in_dir}",
+        "--target-stats",
+        "{out_dir}/{graph_name}.edges.stats.txt",
+        "--target-count",
+        "{out_dir}/{graph_name}.edges.count.txt",
+    ],
+    CompressionStep.LABEL_STATS: [
+        "zstdcat {out_dir}/{graph_name}.labels.csv.zst "
+        "| wc -l "
+        "> {out_dir}/{graph_name}.labels.count.txt"
     ],
     CompressionStep.MPH: [
         "{java}",
@@ -104,7 +154,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--decompressor",
         "com.github.luben.zstd.ZstdInputStream",
         "{out_dir}/{graph_name}.mph",
-        "{out_dir}/{graph_name}.nodes.csv.zst",
+        "<(cat {out_dir}/{graph_name}.nodes/*)",
     ],
     CompressionStep.CONVERT_MPH: [
         "{java}",
@@ -232,11 +282,11 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-transposed",
     ],
     CompressionStep.MAPS: [
+        "cat {out_dir}/{graph_name}.nodes/* |",
         "{java}",
         "org.softwareheritage.graph.compress.NodeMapBuilder",
         "{out_dir}/{graph_name}",
         "{tmp_dir}",
-        "< {out_dir}/{graph_name}.nodes.csv.zst",
     ],
     CompressionStep.NODE2TYPE: [
         "{rust_executable_dir}/swh-graph-node2type",
