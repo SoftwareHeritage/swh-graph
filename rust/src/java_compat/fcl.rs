@@ -170,6 +170,10 @@ impl<D: AsRef<[u8]>, P: AsRef<[u8]>> FrontCodedList<D, P> {
 impl<D: AsRef<[u8]>, P: AsRef<[u8]>> GetIndex for &FrontCodedList<D, P> {
     type Output = Vec<u8>;
 
+    fn len(&self) -> usize {
+        self.len
+    }
+
     /// Returns the n-th bytestring, or `None` if `index` is larger than the length
     fn get(&self, index: usize) -> Option<Self::Output> {
         if index >= self.len {

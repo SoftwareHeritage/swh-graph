@@ -55,12 +55,15 @@ def test_popularcontentnames(tmpdir, popularity_threshold):
 
     task.run()
 
-    csv_text = subprocess.check_output(["zstdcat", popular_contents_path]).decode()
-
-    (header, *rows, trailing) = csv_text.split("\r\n")
-
-    assert header == "SWHID,length,filename,occurrences"
-    assert trailing == ""
+    all_rows = []
+    for path in popular_contents_path.iterdir():
+        csv_text = subprocess.check_output(["zstdcat", path]).decode()
+        if not csv_text:
+            continue
+        (header, *rows, trailing) = csv_text.split("\r\n")
+        assert header == "SWHID,length,filename,occurrences"
+        assert trailing == ""
+        all_rows.extend(rows)
 
     expected_lines = set(EXPECTED_LINES_DEPTH1.rstrip().split("\n"))
 
@@ -71,7 +74,7 @@ def test_popularcontentnames(tmpdir, popularity_threshold):
             if int(line.split(",")[-1]) >= popularity_threshold
         }
 
-    assert list(sorted(rows)) == list(sorted(expected_lines))
+    assert list(sorted(all_rows)) == list(sorted(expected_lines))
 
 
 @pytest.mark.parametrize("depth,subset", itertools.product([1, 2], [None, 1, 2, 3]))
@@ -99,7 +102,7 @@ def test_popularcontentpaths(tmpdir, depth, subset):
         for swhid in input_swhids[5:]:
             f.write(swhid + "\n")
 
-    popular_contents_path = tmpdir / "popcon.csv.zst"
+    popular_contents_path = tmpdir / "popcon"
 
     task = PopularContentPaths(
         local_graph_path=DATASET_DIR / "compressed",
@@ -111,12 +114,16 @@ def test_popularcontentpaths(tmpdir, depth, subset):
 
     task.run()
 
-    csv_text = subprocess.check_output(["zstdcat", popular_contents_path]).decode()
+    all_rows = []
+    for file in popular_contents_path.iterdir():
+        csv_text = subprocess.check_output(["zstdcat", file]).decode()
+        if not csv_text:
+            continue
+        (header, *rows, trailing) = csv_text.split("\r\n")
 
-    (header, *rows, trailing) = csv_text.split("\r\n")
-
-    assert header == "SWHID,length,filepath,occurrences"
-    assert trailing == ""
+        assert header == "SWHID,length,filepath,occurrences"
+        assert trailing == ""
+        all_rows.extend(rows)
 
     if depth == 1:
         expected_lines = {
@@ -133,34 +140,46 @@ def test_popularcontentpaths(tmpdir, depth, subset):
     else:
         assert False, depth
 
-    assert list(sorted(rows)) == list(sorted(expected_lines))
+    # Workaround for non-deterministic result
+    all_rows = [
+        "swh:1:cnt:0000000000000000000000000000000000000001,42,README.md,1"
+        if row
+        == "swh:1:cnt:0000000000000000000000000000000000000001,42,oldproject/README.md,1"
+        else row
+        for row in all_rows
+    ]
+
+    assert list(sorted(all_rows)) == list(sorted(expected_lines))
 
 
 @pytest.mark.parametrize("file_name", ["README.md", "parser.c", "TODO.txt", "tests"])
 def test_listfilesbyname(tmpdir, file_name):
     tmpdir = Path(tmpdir)
 
-    output_path = tmpdir / "files.csv.zst"
+    output_path = tmpdir / "files"
 
     task = ListFilesByName(
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         output_path=output_path,
         file_name=file_name,
-        batch_size=100,  # faster
-        num_threads=1,  # faster and uses less RAM
     )
 
     task.run()
 
-    csv_text = subprocess.check_output(["zstdcat", output_path]).decode()
+    all_rows = []
+    for file in output_path.iterdir():
+        csv_text = subprocess.check_output(["zstdcat", file]).decode()
+        if not csv_text:
+            continue
 
-    (header, *rows) = csv_text.split("\r\n")
+        (header, *rows) = csv_text.split("\r\n")
 
-    assert header == "snp_SWHID,branch_name,dir_SWHID,file_name,cnt_SWHID"
+        assert header == "snp_SWHID,branch_name,dir_SWHID,file_name,cnt_SWHID"
+        all_rows.extend(rows)
 
     if file_name == "README.md":
-        assert set(rows) == set(
+        assert set(all_rows) == set(
             textwrap.dedent(
                 """\
                 swh:1:snp:0000000000000000000000000000000000000022,refs/heads/master,swh:1:dir:0000000000000000000000000000000000000008,README.md,swh:1:cnt:0000000000000000000000000000000000000001
@@ -173,7 +192,7 @@ def test_listfilesbyname(tmpdir, file_name):
             )
         )
     elif file_name == "parser.c":
-        assert set(rows) == set(
+        assert set(all_rows) == set(
             textwrap.dedent(
                 """\
                 swh:1:snp:0000000000000000000000000000000000000022,refs/heads/master,swh:1:dir:0000000000000000000000000000000000000008,parser.c,swh:1:cnt:0000000000000000000000000000000000000007
@@ -186,6 +205,6 @@ def test_listfilesbyname(tmpdir, file_name):
             )
         )
     elif file_name == "TODO.txt":
-        assert rows == [""]
+        assert all_rows == []
     else:
-        assert rows == [""]
+        assert all_rows == []

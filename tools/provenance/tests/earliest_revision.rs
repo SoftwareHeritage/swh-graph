@@ -32,10 +32,10 @@ fn test_find_earliest_revision_minimal() -> Result<()> {
     let cnt4 = builder
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000004))?
         .done();
-    builder.arc(rev0, dir2, None);
-    builder.arc(rev1, dir3, None);
-    builder.arc(dir2, cnt4, None);
-    builder.arc(dir3, cnt4, None);
+    builder.arc(rev0, dir2);
+    builder.arc(rev1, dir3);
+    builder.arc(dir2, cnt4);
+    builder.arc(dir3, cnt4);
 
     let graph = builder.done()?;
 

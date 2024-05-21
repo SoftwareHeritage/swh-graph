@@ -275,9 +275,17 @@ message OriginData {
 
 message EdgeLabel {
     /* Directory entry name for directories, branch name for snapshots */
-    bytes name = 1;
+    optional bytes name = 1;
     /* Entry permission (only set for directories). */
-    int32 permission = 2;
+    optional int32 permission = 2;
+    /* For origin->snapshot (or snapshot->origin in the transposed graph), this is
+     * the UNIX timestamp (UTC) of the visit that found the snapshot to be
+     * the current state of the origin at that time. */
+    optional uint64 visit_timestamp = 3;
+    /* For origin->snapshot (or snapshot->origin in the transposed graph), this
+     * indicates whether the visit was fully complete; ie. if the snapshot is the
+     * full state of the origin (instead of a partial state). */
+    optional bool is_full_visit = 4;
 }
 
 message CountResponse {

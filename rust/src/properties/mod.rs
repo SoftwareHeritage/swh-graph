@@ -6,8 +6,8 @@
 //! Node labels
 //!
 //! [`SwhGraphProperties`] is populated by the `load_properties` and `load_all_properties`
-//! of [`SwhUnidirectionalGraph`](swh_graph::graph::SwhUnidirectionalGraph) and
-//! [`SwhBidirectionalGraph`](swh_graph::graph::SwhBidirectionalGraph) and returned by
+//! of [`SwhUnidirectionalGraph`](crate::graph::SwhUnidirectionalGraph) and
+//! [`SwhBidirectionalGraph`](crate::graph::SwhBidirectionalGraph) and returned by
 //! their `properties` method.
 //!
 //! ```no_run
@@ -33,6 +33,7 @@ use mmap_rs::Mmap;
 use crate::mph::SwhidMphf;
 use crate::utils::mmap::NumberMmap;
 use crate::utils::GetIndex;
+use crate::OutOfBoundError;
 
 pub(crate) mod suffixes {
     pub const NODE2SWHID: &str = ".node2swhid.bin";
@@ -198,7 +199,7 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
 }
 
 mod maps;
-pub use maps::{MappedMaps, Maps, MaybeMaps, NoMaps, VecMaps};
+pub use maps::{MappedMaps, Maps, MaybeMaps, NoMaps, NodeIdFromSwhidError, VecMaps};
 
 mod timestamps;
 pub use timestamps::{MappedTimestamps, MaybeTimestamps, NoTimestamps, Timestamps, VecTimestamps};
@@ -213,4 +214,7 @@ mod strings;
 pub use strings::{MappedStrings, MaybeStrings, NoStrings, Strings, VecStrings};
 
 mod label_names;
-pub use label_names::{LabelNames, MappedLabelNames, MaybeLabelNames, NoLabelNames, VecLabelNames};
+pub use label_names::{
+    LabelIdFromNameError, LabelNames, MappedLabelNames, MaybeLabelNames, NoLabelNames,
+    VecLabelNames,
+};

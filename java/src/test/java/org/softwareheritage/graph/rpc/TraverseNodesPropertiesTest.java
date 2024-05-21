@@ -13,6 +13,7 @@ import com.google.protobuf.Message;
 import it.unimi.dsi.big.webgraph.labelling.ArcLabelledNodeIterator;
 import org.junit.jupiter.api.Test;
 import org.softwareheritage.graph.SWHID;
+import org.softwareheritage.graph.SwhType;
 import org.softwareheritage.graph.SwhUnidirectionalGraph;
 import org.softwareheritage.graph.labels.DirEntry;
 
@@ -61,14 +62,24 @@ public class TraverseNodesPropertiesTest extends TraversalServiceTest {
 
         for (Successor successor : node.getSuccessorList()) {
             DirEntry[] expectedArray = graphSuccessors.get(successor.getSwhid());
-            HashMap<String, Integer> expectedLabels = new HashMap<>();
-            for (DirEntry dirEntry : expectedArray) {
-                expectedLabels.put(new String(g.getLabelName(dirEntry.filenameId)), dirEntry.permission);
-            }
-            for (EdgeLabel edgeLabel : successor.getLabelList()) {
-                assertTrue(expectedLabels.containsKey(edgeLabel.getName().toStringUtf8()));
-                if (edgeLabel.getPermission() > 0) {
-                    assertEquals(edgeLabel.getPermission(), expectedLabels.get(edgeLabel.getName().toStringUtf8()));
+            if (g.getNodeType(g.getNodeId(node.getSwhid())) == SwhType.ORI
+                    || g.getNodeType(g.getNodeId(successor.getSwhid())) == SwhType.ORI) {
+                // TODO: check list length
+                for (EdgeLabel edgeLabel : successor.getLabelList()) {
+                    assertEquals(edgeLabel.getVisitTimestamp(), 1367900441);
+                    assertEquals(edgeLabel.getIsFullVisit(), true);
+                }
+            } else {
+                HashMap<String, Integer> expectedLabels = new HashMap<>();
+                for (DirEntry dirEntry : expectedArray) {
+                    expectedLabels.put(new String(g.getLabelName(dirEntry.filenameId)), dirEntry.permission);
+                }
+                // TODO: check list length
+                for (EdgeLabel edgeLabel : successor.getLabelList()) {
+                    assertTrue(expectedLabels.containsKey(edgeLabel.getName().toStringUtf8()));
+                    if (edgeLabel.getPermission() > 0) {
+                        assertEquals(edgeLabel.getPermission(), expectedLabels.get(edgeLabel.getName().toStringUtf8()));
+                    }
                 }
             }
         }

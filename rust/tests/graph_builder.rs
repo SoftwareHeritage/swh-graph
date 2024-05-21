@@ -26,9 +26,9 @@ fn test_minimal() -> Result<()> {
     let c = builder
         .node(swhid!(swh:1:rel:0000000000000000000000000000000000000030))?
         .done();
-    builder.arc(a, b, None);
-    builder.arc(a, c, None);
-    builder.arc(b, c, None);
+    builder.arc(a, b);
+    builder.arc(a, c);
+    builder.arc(b, c);
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(a, 0);
@@ -38,15 +38,15 @@ fn test_minimal() -> Result<()> {
     assert_eq!(graph.num_nodes(), 3);
     assert_eq!(
         graph.properties().swhid(a),
-        Some(swhid!(swh:1:rev:0000000000000000000000000000000000000010))
+        swhid!(swh:1:rev:0000000000000000000000000000000000000010)
     );
     assert_eq!(
         graph.properties().swhid(b),
-        Some(swhid!(swh:1:rev:0000000000000000000000000000000000000020))
+        swhid!(swh:1:rev:0000000000000000000000000000000000000020)
     );
     assert_eq!(
         graph.properties().swhid(c),
-        Some(swhid!(swh:1:rel:0000000000000000000000000000000000000030))
+        swhid!(swh:1:rel:0000000000000000000000000000000000000030)
     );
     assert_eq!(graph.successors(a).collect::<Vec<_>>(), vec![b, c]);
     assert_eq!(graph.successors(b).collect::<Vec<_>>(), vec![c]);
@@ -89,13 +89,9 @@ fn test_labels() -> Result<()> {
     let c = builder
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000030))?
         .done();
-    builder.arc(a, b, Some((Permission::Directory, b"tests".into())));
-    builder.arc(
-        a,
-        c,
-        Some((Permission::ExecutableContent, b"run.sh".into())),
-    );
-    builder.arc(b, c, Some((Permission::Content, b"test.c".into())));
+    builder.l_arc(a, b, Permission::Directory, b"tests");
+    builder.l_arc(a, c, Permission::ExecutableContent, b"run.sh");
+    builder.l_arc(b, c, Permission::Content, b"test.c");
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(a, 0);
@@ -105,15 +101,15 @@ fn test_labels() -> Result<()> {
     assert_eq!(graph.num_nodes(), 3);
     assert_eq!(
         graph.properties().swhid(a),
-        Some(swhid!(swh:1:dir:0000000000000000000000000000000000000010))
+        swhid!(swh:1:dir:0000000000000000000000000000000000000010)
     );
     assert_eq!(
         graph.properties().swhid(b),
-        Some(swhid!(swh:1:dir:0000000000000000000000000000000000000020))
+        swhid!(swh:1:dir:0000000000000000000000000000000000000020)
     );
     assert_eq!(
         graph.properties().swhid(c),
-        Some(swhid!(swh:1:cnt:0000000000000000000000000000000000000030))
+        swhid!(swh:1:cnt:0000000000000000000000000000000000000030)
     );
 
     let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
@@ -121,6 +117,7 @@ fn test_labels() -> Result<()> {
             succ,
             labels
                 .map(|label| {
+                    let label: swh_graph::labels::DirEntry = label.into();
                     (
                         label.permission(),
                         graph.properties().label_name(label.filename_id()),
@@ -143,13 +140,10 @@ fn test_labels() -> Result<()> {
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
-            (
-                b,
-                vec![(Some(Permission::Directory), Some(b"tests".into()))]
-            ),
+            (b, vec![(Some(Permission::Directory), b"tests".into())]),
             (
                 c,
-                vec![(Some(Permission::ExecutableContent), Some(b"run.sh".into()))]
+                vec![(Some(Permission::ExecutableContent), b"run.sh".into())]
             ),
         ]
     );
@@ -158,7 +152,7 @@ fn test_labels() -> Result<()> {
             .labelled_successors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
-        vec![(c, vec![(Some(Permission::Content), Some(b"test.c".into()))]),]
+        vec![(c, vec![(Some(Permission::Content), b"test.c".into())]),]
     );
 
     assert_eq!(
@@ -180,10 +174,7 @@ fn test_labels() -> Result<()> {
             .labelled_predecessors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
-        vec![(
-            a,
-            vec![(Some(Permission::Directory), Some(b"tests".into()))]
-        ),]
+        vec![(a, vec![(Some(Permission::Directory), b"tests".into())]),]
     );
     assert_eq!(
         graph
@@ -193,9 +184,9 @@ fn test_labels() -> Result<()> {
         vec![
             (
                 a,
-                vec![(Some(Permission::ExecutableContent), Some(b"run.sh".into()))]
+                vec![(Some(Permission::ExecutableContent), b"run.sh".into())]
             ),
-            (b, vec![(Some(Permission::Content), Some(b"test.c".into()))]),
+            (b, vec![(Some(Permission::Content), b"test.c".into())]),
         ]
     );
 
@@ -216,17 +207,9 @@ fn test_duplicate_labels() -> Result<()> {
     let c = builder
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000030))?
         .done();
-    builder.arc(a, b, Some((Permission::Directory, b"tests".into())));
-    builder.arc(
-        a,
-        c,
-        Some((Permission::ExecutableContent, b"run.sh".into())),
-    );
-    builder.arc(
-        b,
-        c,
-        Some((Permission::ExecutableContent, b"run.sh".into())),
-    );
+    builder.l_arc(a, b, Permission::Directory, b"tests");
+    builder.l_arc(a, c, Permission::ExecutableContent, b"run.sh");
+    builder.l_arc(b, c, Permission::ExecutableContent, b"run.sh");
     let graph = builder.done().context("Could not make graph")?;
 
     let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
@@ -234,6 +217,7 @@ fn test_duplicate_labels() -> Result<()> {
             succ,
             labels
                 .map(|label| {
+                    let label: swh_graph::labels::DirEntry = label.into();
                     (
                         label.permission(),
                         graph.properties().label_name(label.filename_id()),
@@ -249,13 +233,10 @@ fn test_duplicate_labels() -> Result<()> {
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
-            (
-                b,
-                vec![(Some(Permission::Directory), Some(b"tests".into()))]
-            ),
+            (b, vec![(Some(Permission::Directory), b"tests".into())]),
             (
                 c,
-                vec![(Some(Permission::ExecutableContent), Some(b"run.sh".into()))]
+                vec![(Some(Permission::ExecutableContent), b"run.sh".into())]
             ),
         ]
     );
@@ -266,7 +247,7 @@ fn test_duplicate_labels() -> Result<()> {
             .collect::<Vec<_>>(),
         vec![(
             c,
-            vec![(Some(Permission::ExecutableContent), Some(b"run.sh".into()))]
+            vec![(Some(Permission::ExecutableContent), b"run.sh".into())]
         ),]
     );
 
@@ -284,14 +265,14 @@ fn test_contents() -> Result<()> {
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000020))?
         .is_skipped_content(true)
         .done();
-    builder.arc(a, b, None);
+    builder.arc(a, b);
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(graph.properties().content_length(a), Some(42));
-    assert_eq!(graph.properties().is_skipped_content(a), Some(false));
+    assert!(!graph.properties().is_skipped_content(a));
 
     assert_eq!(graph.properties().content_length(b), None);
-    assert_eq!(graph.properties().is_skipped_content(b), Some(true));
+    assert!(graph.properties().is_skipped_content(b));
 
     Ok(())
 }
@@ -308,7 +289,7 @@ fn test_persons() -> Result<()> {
         .author(b"John Doe <jdoe@example.org>".into())
         .committer(b"Jane Doe <jdoe@example.org>".into())
         .done();
-    builder.arc(a, b, None);
+    builder.arc(a, b);
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(graph.properties().author_id(a), Some(0));
@@ -332,7 +313,7 @@ fn test_strings() -> Result<()> {
         .message(b"test release".into())
         .tag_name(b"v0.1.0".into())
         .done();
-    builder.arc(a, b, None);
+    builder.arc(a, b);
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(graph.properties().message(a), Some(b"test revision".into()));
@@ -355,7 +336,7 @@ fn test_timestamps() -> Result<()> {
         .node(swhid!(swh:1:rev:0000000000000000000000000000000000000020))?
         .committer_timestamp(1708950821, 120)
         .done();
-    builder.arc(a, b, None);
+    builder.arc(a, b);
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(graph.properties().author_timestamp(a), Some(1708950743));

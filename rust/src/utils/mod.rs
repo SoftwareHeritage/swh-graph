@@ -11,7 +11,10 @@ use anyhow::{anyhow, Context, Result};
 
 use crate::SWHType;
 
+#[cfg(feature = "dataset-writer")]
+pub mod dataset_writer;
 pub mod mmap;
+pub mod shuffle;
 pub mod sort;
 
 pub fn dir_size(path: &Path) -> Result<usize> {
@@ -64,19 +67,35 @@ pub fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
     }
 }
 
+#[allow(clippy::len_without_is_empty)]
 pub trait GetIndex {
     type Output;
 
+    /// Returns the total number of items in the collections
+    fn len(&self) -> usize;
+
+    /// Returns an item of the collection
     fn get(&self, index: usize) -> Option<Self::Output>;
+
+    /// Returns an item of the collection
+    ///
+    /// # Safety
+    ///
+    /// Undefined behavior if the index is past the end of the collection.
     unsafe fn get_unchecked(&self, index: usize) -> Self::Output;
 }
 
 impl<Item: Clone, T: std::ops::Deref<Target = [Item]>> GetIndex for T {
     type Output = Item;
 
+    fn len(&self) -> usize {
+        <[Item]>::len(self)
+    }
+
     fn get(&self, index: usize) -> Option<Self::Output> {
         <[Item]>::get(self, index).cloned()
     }
+
     unsafe fn get_unchecked(&self, index: usize) -> Self::Output {
         <[Item]>::get_unchecked(self, index).clone()
     }

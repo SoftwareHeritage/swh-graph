@@ -15,7 +15,7 @@ use serde::Serialize;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::parse_allowed_node_types;
-use swh_graph::views::Transposed;
+use swh_graph::views::{Subgraph, Transposed};
 use swh_graph::SWHType;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -118,7 +118,9 @@ where
     G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    let graph = graph;
+    let graph = Subgraph::new_with_node_filter(&graph, |node| {
+        node_types.contains(&graph.properties().node_type(node))
+    });
 
     let mut pl = ProgressLogger::default().display_memory();
     pl.item_name = "node";
@@ -129,27 +131,13 @@ where
     let mut total_arcs = 0;
     let mut ready = R::default();
     let mut num_unvisited_predecessors = vec![0usize; graph.num_nodes()];
+    #[allow(clippy::needless_range_loop)]
     for node in 0..graph.num_nodes() {
         pl.light_update();
-        if !node_types.contains(
-            &graph
-                .properties()
-                .node_type(node)
-                .expect("missing node type"),
-        ) {
+        if !graph.has_node(node) {
             continue;
         }
-        let mut outdegree = 0;
-        for predecessor in graph.predecessors(node) {
-            if node_types.contains(
-                &graph
-                    .properties()
-                    .node_type(predecessor)
-                    .expect("missing node type"),
-            ) {
-                outdegree += 1;
-            }
-        }
+        let outdegree = graph.indegree(node);
         total_arcs += outdegree;
         num_unvisited_predecessors[node] = outdegree;
         if outdegree == 0 {
@@ -170,20 +158,9 @@ where
         .terminator(csv::Terminator::CRLF)
         .from_writer(io::stdout());
     while let Some(current_node) = ready.pop() {
-        let swhid = graph
-            .properties()
-            .swhid(current_node)
-            .expect("Missing SWHID");
+        let swhid = graph.properties().swhid(current_node);
         let mut num_successors = 0;
         for successor in graph.successors(current_node) {
-            if !node_types.contains(
-                &graph
-                    .properties()
-                    .node_type(successor)
-                    .expect("missing node type"),
-            ) {
-                continue;
-            }
             pl.light_update();
             num_successors += 1;
             if num_unvisited_predecessors[successor] == 0 {
@@ -204,19 +181,14 @@ where
         let mut sample_ancestors = Vec::new();
         let mut num_ancestors = 0;
         for predecessor in graph.predecessors(current_node) {
-            let predecessor_swhid = graph
-                .properties()
-                .swhid(predecessor)
-                .expect("Missing predecessor SWHID");
-            if !node_types.contains(&predecessor_swhid.node_type) {
-                continue;
-            }
+            let predecessor_swhid = graph.properties().swhid(predecessor);
             if sample_ancestors.len() < 2 {
                 sample_ancestors.push(predecessor_swhid.to_string())
             }
             num_ancestors += 1;
         }
 
+        #[allow(clippy::get_first)]
         writer
             .serialize(Record {
                 swhid: &swhid.to_string(),

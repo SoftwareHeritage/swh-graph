@@ -35,7 +35,7 @@ def test_pipeline():
         "graph": {
             "compress": {
                 "batch_size": 1000,
-                "rust_executable": "./target/debug/compress",
+                "rust_executable_dir": "./target/debug/",
             }
         }
     }

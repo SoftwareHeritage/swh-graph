@@ -5,6 +5,7 @@
 
 use anyhow::{Context, Result};
 use mmap_rs::Mmap;
+use thiserror::Error;
 
 use super::suffixes::*;
 use super::*;
@@ -13,7 +14,7 @@ use crate::map::{MappedPermutation, OwnedPermutation, Permutation};
 use crate::map::{Node2SWHID, Node2Type, UsizeMmap};
 use crate::mph::{SwhidMphf, VecMphf};
 use crate::utils::suffix_path;
-use crate::{SWHType, SWHID};
+use crate::{swhid::StrSWHIDDeserializationError, SWHType, SWHID};
 
 /// Trait implemented by both [`NoMaps`] and all implementors of [`Maps`],
 /// to allow loading maps only if needed.
@@ -83,7 +84,7 @@ impl VecMaps {
             order: OwnedPermutation::new((0..swhids.len()).collect()).unwrap(),
             node2type,
             node2swhid,
-            mphf: VecMphf { swhids: swhids },
+            mphf: VecMphf { swhids },
         }
     }
 }
@@ -143,7 +144,8 @@ impl<
         self.with_maps(maps)
     }
 
-    /// Alternative to [`load_maps`] that allows using arbitrary maps implementations
+    /// Alternative to [`load_maps`](Self::load_maps) that allows using arbitrary maps
+    /// implementations
     pub fn with_maps<MAPS: Maps>(
         self,
         maps: MAPS,
@@ -161,10 +163,20 @@ impl<
     }
 }
 
+#[derive(Error, Debug, PartialEq, Eq, Hash)]
+pub enum NodeIdFromSwhidError<E> {
+    #[error("invalid SWHID")]
+    InvalidSwhid(E),
+    #[error("unknown SWHID: {0}")]
+    UnknownSwhid(SWHID),
+    #[error("internal error: {0}")]
+    InternalError(&'static str),
+}
+
 /// Functions to map between SWHID and node id.
 ///
 /// Only available after calling [`load_contents`](SwhGraphProperties::load_contents)
-/// or [`load_all_properties`](SwhGraph::load_all_properties)
+/// or [`load_all_properties`](crate::graph::SwhBidirectionalGraph::load_all_properties)
 impl<
         MAPS: Maps,
         TIMESTAMPS: MaybeTimestamps,
@@ -193,28 +205,105 @@ impl<
 
     /// Returns the node id of the given SWHID, or `None` if it does not exist.
     #[inline]
-    pub fn node_id<T: TryInto<SWHID>>(&self, swhid: T) -> Option<NodeId> {
-        let swhid = swhid.try_into().ok()?;
+    pub fn node_id<T: TryInto<SWHID>>(
+        &self,
+        swhid: T,
+    ) -> Result<NodeId, NodeIdFromSwhidError<<T as TryInto<SWHID>>::Error>> {
+        use NodeIdFromSwhidError::*;
+
+        let swhid = swhid.try_into().map_err(InvalidSwhid)?;
+        let hash = self
+            .maps
+            .mphf()
+            .hash_swhid(&swhid)
+            .ok_or(UnknownSwhid(swhid))?;
         let node_id = self
             .maps
             .order()
-            .get(self.maps.mphf().hash_swhid(&swhid)?)?;
-        if self.maps.node2swhid().get(node_id)? == swhid {
-            Some(node_id)
+            .get(hash)
+            .ok_or(InternalError(".order map is shorter than SWHID hash value"))?;
+        let actual_swhid = self
+            .maps
+            .node2swhid()
+            .get(node_id)
+            .map_err(|_| InternalError("node2swhid map is shorter than SWHID hash value"))?;
+        if actual_swhid == swhid {
+            Ok(node_id)
         } else {
-            None
+            Err(UnknownSwhid(swhid))
+        }
+    }
+
+    /// Specialized version of `node_id` when the SWHID is a string
+    ///
+    /// Under the hood, when using [`GOVMPH`](crate::java_compat::mph::gov::GOVMPH),
+    /// `node_id` serializes the SWHID to a string, which can be bottleneck.
+    /// This function skips the serialization by working directly on the string.
+    #[inline]
+    pub fn node_id_from_string_swhid<T: AsRef<str>>(
+        &self,
+        swhid: T,
+    ) -> Result<NodeId, NodeIdFromSwhidError<StrSWHIDDeserializationError>> {
+        use NodeIdFromSwhidError::*;
+
+        let swhid = swhid.as_ref();
+        let hash = self
+            .maps
+            .mphf()
+            .hash_str(swhid)
+            .ok_or_else(|| match swhid.try_into() {
+                Ok(swhid) => UnknownSwhid(swhid),
+                Err(e) => InvalidSwhid(e),
+            })?;
+        let node_id = self
+            .maps
+            .order()
+            .get(hash)
+            .ok_or(InternalError(".order map is shorter than SWHID hash value"))?;
+        let actual_swhid = self
+            .maps
+            .node2swhid()
+            .get(node_id)
+            .map_err(|_| InternalError("node2swhid map is shorter than SWHID hash value"))?;
+        let swhid = SWHID::try_from(swhid).map_err(InvalidSwhid)?;
+        if actual_swhid == swhid {
+            Ok(node_id)
+        } else {
+            Err(UnknownSwhid(swhid))
         }
     }
 
     /// Returns the SWHID of a given node
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist.
     #[inline]
-    pub fn swhid(&self, node_id: NodeId) -> Option<SWHID> {
+    pub fn swhid(&self, node_id: NodeId) -> SWHID {
+        self.try_swhid(node_id)
+            .unwrap_or_else(|e| panic!("Cannot get node SWHID: {}", e))
+    }
+
+    /// Returns the SWHID of a given node, or `None` if the node id does not exist
+    #[inline]
+    pub fn try_swhid(&self, node_id: NodeId) -> Result<SWHID, OutOfBoundError> {
         self.maps.node2swhid().get(node_id)
     }
 
     /// Returns the type of a given node
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist.
     #[inline]
-    pub fn node_type(&self, node_id: NodeId) -> Option<SWHType> {
+    pub fn node_type(&self, node_id: NodeId) -> SWHType {
+        self.try_node_type(node_id)
+            .unwrap_or_else(|e| panic!("Cannot get node type: {}", e))
+    }
+
+    /// Returns the type of a given node, or `None` if the node id does not exist
+    #[inline]
+    pub fn try_node_type(&self, node_id: NodeId) -> Result<SWHType, OutOfBoundError> {
         self.maps.node2type().get(node_id)
     }
 }

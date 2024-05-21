@@ -4,7 +4,6 @@
 // See top-level LICENSE file for more information
 
 #[repr(u8)]
-#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Object type of an SWHID
 ///

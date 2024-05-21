@@ -2,7 +2,7 @@ aiohttp
 click
 py4j
 psutil
-protobuf >= 4.21.11
+protobuf >=4.21.11,<5.26.0 # https://github.com/googleapis/proto-plus-python/issues/431
 grpcio-tools
 # mypy-protobuf 3.3.0 switched to use PEP 604 Union
 # syntax (X | None) instead of Optional[X]. This makes

@@ -10,7 +10,7 @@ use std::cell::{RefCell, UnsafeCell};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use dsi_progress_logger::ProgressLogger;
@@ -90,23 +90,27 @@ where
             state.buffer.clear();
         };
 
-        self.for_each(|item| {
-            let state = thread_states.get_or(&new_thread_state).get();
-            let item = item.into_iter();
+        let num_rows = self
+            .map(|item| {
+                let state = thread_states.get_or(&new_thread_state).get();
+                let item = item.into_iter();
 
-            // This is safe because the main thread won't access this until this
-            // one ends, and other threads don't access it.
-            let state = unsafe { &mut *state };
+                // This is safe because the main thread won't access this until this
+                // one ends, and other threads don't access it.
+                let state = unsafe { &mut *state };
 
-            if state.buffer.len() + item.len() + 1 >= buffer_size {
-                flush_buffer(state);
-            }
+                if state.buffer.len() + item.len() + 1 >= buffer_size {
+                    flush_buffer(state);
+                }
 
-            state.counter += 1;
+                state.counter += 1;
 
-            state.buffer.extend(item);
-            state.buffer.push(b'\n');
-        });
+                state.buffer.extend(item);
+                state.buffer.push(b'\n');
+            })
+            .count();
+
+        let is_empty = num_rows == 0;
 
         // Write remaining buffers
         for state in thread_states.iter_mut() {
@@ -133,6 +137,10 @@ where
 
         let sorted_files = sorted_files.lock().unwrap();
 
+        if is_empty {
+            return Ok(());
+        }
+
         assert!(sorted_files.len() > 0, "Sorters did not run");
 
         let mut target_path_prefix = target_dir.clone();
@@ -142,7 +150,7 @@ where
             std::fs::remove_dir(&target_dir)
                 .with_context(|| format!("Could not delete directory {}", target_dir.display()))?;
         }
-        std::fs::create_dir(&target_dir)
+        std::fs::create_dir_all(&target_dir)
             .with_context(|| format!("Could not create directory {}", target_dir.display()))?;
 
         // Spawn sort * | pv | split
@@ -197,81 +205,140 @@ impl<Line: IntoIterator<Item = u8>, T: ParallelIterator<Item = Line>> Sortable<L
 {
 }
 
+pub struct PartitionedBuffer {
+    partitions: Vec<Vec<(usize, usize)>>,
+    capacity: usize,
+    sorted_iterators: Arc<Mutex<Vec<Vec<BatchIterator<()>>>>>,
+    temp_dir: PathBuf,
+}
+
+impl PartitionedBuffer {
+    fn new(
+        sorted_iterators: Arc<Mutex<Vec<Vec<BatchIterator<()>>>>>,
+        temp_dir: &Path,
+        batch_size: usize,
+        num_partitions: usize,
+    ) -> Self {
+        let capacity = batch_size / num_partitions;
+        PartitionedBuffer {
+            partitions: vec![Vec::with_capacity(capacity); num_partitions],
+            sorted_iterators,
+            temp_dir: temp_dir.to_owned(),
+            capacity,
+        }
+    }
+    pub fn insert(&mut self, partition_id: usize, src: usize, dst: usize) -> Result<()> {
+        let partition_buffer = self
+            .partitions
+            .get_mut(partition_id)
+            .expect("Partition sorter out of bound");
+        partition_buffer.push((src, dst));
+        if partition_buffer.len() + 1 >= self.capacity {
+            self.flush(partition_id)?;
+        }
+        Ok(())
+    }
+
+    fn flush_all(&mut self) -> Result<()> {
+        for partition_id in 0..self.partitions.len() {
+            self.flush(partition_id)?;
+        }
+        Ok(())
+    }
+
+    fn flush(&mut self, partition_id: usize) -> Result<()> {
+        let partition_buffer = self
+            .partitions
+            .get_mut(partition_id)
+            .expect("Partition buffer out of bound");
+        let batch = flush(&self.temp_dir, &mut partition_buffer[..])?;
+        self.sorted_iterators
+            .lock()
+            .unwrap()
+            .get_mut(partition_id)
+            .expect("Partition sorters out of bound")
+            .push(batch);
+        partition_buffer.clear();
+        Ok(())
+    }
+}
+
 /// Given an iterator and a function to insert its items to [`BatchIterator`]s, returns an
 /// iterator of pairs.
+///
+/// `f` gets as parameters `num_partitions` `BatchIterator`s; and should place its pair
+/// in such a way that all `(src, dst, ())` in partition `n` should be lexicographically
+/// lower than those in partition `n+1`.
+///
+/// In orther words, `f` writes in arbitrary order in each partition, but partitions
+/// should be sorted with respect to each other. This allows merging partitions in
+/// parallel after they are sorted.
 pub fn par_sort_arcs<Item, Iter, F>(
     temp_dir: &Path,
     batch_size: usize,
     iter: Iter,
+    num_partitions: usize,
     f: F,
 ) -> Result<
-    std::iter::Map<
-        KMergeIters<impl Iterator<Item = (usize, usize, ())> + Clone + Send + Sync>,
-        impl FnMut((usize, usize, ())) -> (usize, usize) + Clone + Send + Sync,
+    Vec<
+        std::iter::Map<
+            KMergeIters<impl Iterator<Item = (usize, usize, ())> + Clone + Send + Sync>,
+            impl FnMut((usize, usize, ())) -> (usize, usize) + Clone + Send + Sync,
+        >,
     >,
 >
 where
-    F: Fn(&mut Vec<(usize, usize)>, Item) -> Result<()> + Send + Sync,
+    F: Fn(&mut PartitionedBuffer, Item) -> Result<()> + Send + Sync,
     Iter: ParallelIterator<Item = Item>,
 {
+    // For each thread, stores a vector of `num_shards` BatchIterator. The n-th BatchIterator
+    // of each thread stores arcs for nodes [n*shard_size; (n+1)*shard_size)
     let buffers = thread_local::ThreadLocal::new();
 
     // Read the input to buffers, and flush buffer to disk (through BatchIterator)
     // from time to time
-    let mut sorted_iterators: Vec<Result<Vec<BatchIterator<()>>>> = iter
-        .try_fold(Vec::new, |acc, item| {
-            let mut sorted_iterators = acc;
+    let sorted_iterators = Arc::new(Mutex::new(vec![Vec::new(); num_partitions]));
 
-            // +2 to the capacity to avoid growing the vector when f()
-            // writes two past the batch_size; and f() pushes at most 2 arcs
-            // in practice.
-            let buffer = buffers.get_or(|| RefCell::new(Vec::with_capacity(batch_size + 2)));
+    iter.try_for_each_init(
+        || -> std::cell::RefMut<PartitionedBuffer> {
+            buffers
+                .get_or(|| {
+                    RefCell::new(PartitionedBuffer::new(
+                        sorted_iterators.clone(),
+                        temp_dir,
+                        batch_size,
+                        num_partitions,
+                    ))
+                })
+                .borrow_mut()
+        },
+        |thread_buffers, item| -> Result<()> {
+            let thread_buffers = &mut *thread_buffers;
+            f(thread_buffers, item)
+        },
+    )?;
 
-            // Won't panic because other threads don't access it before the
-            // fork-join point below.
-            let buffer: &mut Vec<(usize, usize)> = &mut buffer.borrow_mut();
-
-            f(buffer, item)?;
-            if buffer.len() > batch_size {
-                sorted_iterators.push(flush(temp_dir, &mut buffer[..])?);
-                buffer.clear();
-                Ok(sorted_iterators)
-            } else {
-                Ok(sorted_iterators)
-            }
-        })
-        .collect();
-
-    // join-fork point
     log::info!("Flushing remaining buffers to BatchIterator...");
 
     // Flush all buffers even if not full
-    sorted_iterators.extend(
-        buffers
-            .into_iter()
-            .par_bridge()
-            .map(|buffer: RefCell<Vec<(usize, usize)>>| {
-                let mut buffer = buffer.borrow_mut();
-                if buffer.len() > 0 {
-                    let sorted_iterator = flush(temp_dir, &mut (*buffer)[..])?;
-                    Ok(vec![sorted_iterator])
-                } else {
-                    Ok(vec![])
-                }
-            })
-            .collect::<Vec<_>>(),
-    );
+    buffers.into_iter().par_bridge().try_for_each(
+        |thread_buffer: RefCell<PartitionedBuffer>| -> Result<()> {
+            thread_buffer.into_inner().flush_all()
+        },
+    )?;
     log::info!("Done sorting all buffers.");
 
-    let mut sorted_arc_lists = Vec::new();
-    for iterators in sorted_iterators {
-        let iterators = iterators?;
-
-        sorted_arc_lists.extend(iterators)
-    }
-
-    // Merge sorted arc lists into a single sorted arc list
-    Ok(KMergeIters::new(sorted_arc_lists.into_iter()).map(|(src, dst, ())| (src, dst)))
+    Ok(Arc::into_inner(sorted_iterators)
+        .expect("Dangling references to sorted_iterators Arc")
+        .into_inner()
+        .unwrap()
+        .into_iter()
+        // Concatenate partitions
+        .map(|partition_sorted_iterators| {
+            // Sort within each partition
+            KMergeIters::new(partition_sorted_iterators).map(|(src, dst, ())| (src, dst))
+        })
+        .collect())
 }
 
 fn flush(temp_dir: &Path, buffer: &mut [(usize, usize)]) -> Result<BatchIterator<()>> {

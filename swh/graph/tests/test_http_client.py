@@ -1,4 +1,4 @@
-# Copyright (c) 2022 The Software Heritage developers
+# Copyright (c) 2022-2024  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -18,14 +18,14 @@ TEST_ORIGIN_ID = "swh:1:ori:{}".format(
 
 
 def test_remote_graph_client_with_bad_url(remote_graph_client_url):
-    from ..http_client import RemoteGraphClient
+    from swh.graph.http_client import RemoteGraphClient
 
     with pytest.raises(ValueError, match="URL is incorrect"):
         _ = RemoteGraphClient(f"{remote_graph_client_url}/GARBAGE/")
 
 
 def test_remote_graph_client_with_service_down():
-    from ..http_client import GraphAPIError, RemoteGraphClient
+    from swh.graph.http_client import GraphAPIError, RemoteGraphClient
 
     with pytest.raises(GraphAPIError):
         _ = RemoteGraphClient("http://localhost:9/graph/")
@@ -34,7 +34,7 @@ def test_remote_graph_client_with_service_down():
 def test_remote_graph_client_errors_on_unexpected_stats(
     mocker, remote_graph_client_url
 ):
-    from ..http_client import RemoteGraphClient
+    from swh.graph.http_client import RemoteGraphClient
 
     mocker.patch.object(RemoteGraphClient, "stats", return_value={})
     with pytest.raises(ValueError, match="unexpected results"):
@@ -44,7 +44,7 @@ def test_remote_graph_client_errors_on_unexpected_stats(
 def test_remote_graph_client_log_export_started_at(
     mocker, caplog, remote_graph_client_url
 ):
-    from ..http_client import RemoteGraphClient
+    from swh.graph.http_client import RemoteGraphClient
 
     caplog.set_level(logging.DEBUG, logger="swh.graph.http_client")
     mocker.patch.object(
@@ -134,6 +134,42 @@ def test_neighbors(graph_client, graph_grpc_backend_implementation):
         "swh:1:rev:0000000000000000000000000000000000000013",
     ]
     assert set(actual) == set(expected)
+
+
+def test_neighbors_max_edges2(graph_client, graph_grpc_backend_implementation):
+    actual = list(
+        graph_client.neighbors(
+            "swh:1:rev:0000000000000000000000000000000000000009",
+            direction="backward",
+            max_edges=2,
+        )
+    )
+    expected = [
+        "swh:1:snp:0000000000000000000000000000000000000022",
+        "swh:1:snp:0000000000000000000000000000000000000020",
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        "swh:1:rev:0000000000000000000000000000000000000013",
+    ]
+    assert set(actual) <= set(expected)
+    assert len(set(actual)) == 2
+
+
+def test_neighbors_max_edges1(graph_client, graph_grpc_backend_implementation):
+    actual = list(
+        graph_client.neighbors(
+            "swh:1:rev:0000000000000000000000000000000000000009",
+            direction="backward",
+            max_edges=1,
+        )
+    )
+    expected = [
+        "swh:1:snp:0000000000000000000000000000000000000022",
+        "swh:1:snp:0000000000000000000000000000000000000020",
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        "swh:1:rev:0000000000000000000000000000000000000013",
+    ]
+    assert set(actual) <= set(expected)
+    assert len(set(actual)) == 1
 
 
 def test_visit_nodes(graph_client, graph_grpc_backend_implementation):

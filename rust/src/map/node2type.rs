@@ -3,12 +3,12 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use crate::SWHType;
+use crate::{OutOfBoundError, SWHType};
 use anyhow::{Context, Result};
 use log::info;
 use mmap_rs::{Mmap, MmapFlags, MmapMut};
 use std::path::Path;
-use sux::prelude::{BitFieldSlice, BitFieldSliceMut, BitFieldVec};
+use sux::prelude::{BitFieldSlice, BitFieldSliceCore, BitFieldSliceMut, BitFieldVec};
 
 /// Struct to create and load a `.node2type.bin` file and convert node ids to types.
 pub struct Node2Type<B> {
@@ -28,8 +28,11 @@ impl<B: AsRef<[usize]>> Node2Type<B> {
 
     #[inline]
     /// Get the type of a node with id `node_id`
-    pub fn get(&self, node_id: usize) -> Option<SWHType> {
-        SWHType::try_from(self.data.get(node_id) as u8).ok()
+    pub fn get(&self, node_id: usize) -> Result<SWHType, OutOfBoundError> {
+        SWHType::try_from(self.data.get(node_id) as u8).map_err(|_| OutOfBoundError {
+            index: node_id,
+            len: self.data.len(),
+        })
     }
 }
 
@@ -98,7 +101,8 @@ impl Node2Type<UsizeMmap<MmapMut>> {
 
         // create a mutable mmap to the file so we can directly write it in place
         let mmap = unsafe {
-            mmap_rs::MmapOptions::new(file_len as _)?
+            mmap_rs::MmapOptions::new(file_len as _)
+                .context("Could not initialize mmap")?
                 .with_file(node2type_file, 0)
                 .map_mut()
                 .with_context(|| "While mmapping the file")?
@@ -113,10 +117,15 @@ impl Node2Type<UsizeMmap<MmapMut>> {
     /// Load a mutable `.node2type.bin` file
     pub fn load_mut<P: AsRef<Path>>(path: P, num_nodes: usize) -> Result<Self> {
         let path = path.as_ref();
-        let file_len = path.metadata()?.len();
-        let file = std::fs::File::open(path)?;
+        let file_len = path
+            .metadata()
+            .with_context(|| format!("Could not stat {}", path.display()))?
+            .len();
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("Could not open {}", path.display()))?;
         let data = unsafe {
-            mmap_rs::MmapOptions::new(file_len as _)?
+            mmap_rs::MmapOptions::new(file_len as _)
+                .context("Could not initialize mmap")?
                 .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
                 .with_file(file, 0)
                 .map_mut()?
@@ -137,7 +146,10 @@ impl Node2Type<UsizeMmap<Mmap>> {
     /// Load a read-only `.node2type.bin` file
     pub fn load<P: AsRef<Path>>(path: P, num_nodes: usize) -> Result<Self> {
         let path = path.as_ref();
-        let file_len = path.metadata()?.len();
+        let file_len = path
+            .metadata()
+            .with_context(|| format!("Could not stat {}", path.display()))?
+            .len();
         let expected_file_len = ((num_nodes * SWHType::BITWIDTH).div_ceil(64) * 8) as u64;
         assert_eq!(
             file_len,
@@ -149,7 +161,8 @@ impl Node2Type<UsizeMmap<Mmap>> {
             file_len,
         );
 
-        let file = std::fs::File::open(path)?;
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("Could not open {}", path.display()))?;
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)?
                 .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
@@ -173,9 +186,7 @@ impl Node2Type<UsizeMmap<Vec<u8>>> {
         let num_nodes = types.len();
         let file_len = ((num_nodes * SWHType::BITWIDTH) as u64).div_ceil(64) * 8;
         let file_len = file_len.try_into().expect("num_nodes overflowed usize");
-        let mut data = Vec::with_capacity(file_len);
-        data.resize(file_len, 0);
-        let data = UsizeMmap(data);
+        let data = UsizeMmap(vec![0; file_len]);
         let data = unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes) };
         let mut node2type = Node2Type { data };
         for (i, type_) in types.enumerate() {

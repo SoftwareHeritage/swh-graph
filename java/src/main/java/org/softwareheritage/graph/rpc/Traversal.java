@@ -187,13 +187,6 @@ public class Traversal {
                     }
                     return;
                 }
-                if (maxDepth >= 0 && depth > maxDepth) {
-                    throw new StopTraversalException();
-                }
-                edgesAccessed += g.outdegree(curr);
-                if (maxEdges >= 0 && edgesAccessed > maxEdges) {
-                    throw new StopTraversalException();
-                }
                 visitNode(curr);
             } catch (StopTraversalException e) {
                 // Traversal is over, clear the to-do queue.
@@ -211,9 +204,17 @@ public class Traversal {
 
         /** Visit a node. Override to do additional processing on the node. */
         protected void visitNode(long node) {
+            if (maxDepth >= 0 && depth == maxDepth) {
+                // We are going to stop before visiting any of the successors,
+                // so don't queue them
+                return;
+            }
             ArcLabelledNodeIterator.LabelledArcIterator it = getSuccessors(node);
             traversalSuccessors = 0;
             for (long succ; (succ = it.nextLong()) != -1;) {
+                if (maxEdges > 0 && ++edgesAccessed > maxEdges) {
+                    break;
+                }
                 traversalSuccessors++;
                 visitEdge(node, succ, it.label());
             }

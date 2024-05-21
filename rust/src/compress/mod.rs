@@ -3,9 +3,12 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+#[cfg(feature = "orc")]
 pub mod bv;
 pub mod mph;
+#[cfg(feature = "orc")]
 pub mod orc;
+#[cfg(feature = "orc")]
 pub mod properties;
 pub mod transform;
 pub mod zst_dir;

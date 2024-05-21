@@ -32,10 +32,7 @@ where
     let mut earliest_rev: Option<(usize, i64)> = None;
 
     while let Some(node) = stack.pop() {
-        let node_type = graph
-            .properties()
-            .node_type(node)
-            .expect("missing node type");
+        let node_type = graph.properties().node_type(node);
         if node_type == SWHType::Revision {
             visited_revisions += 1;
             let Some(committer_ts) = graph.properties().committer_timestamp(node) else {
@@ -63,10 +60,7 @@ where
                     continue;
                 }
 
-                let pred_type = graph
-                    .properties()
-                    .node_type(pred)
-                    .expect("missing node type");
+                let pred_type = graph.properties().node_type(pred);
 
                 // Only arcs with type cnt:dir,dir:dir,dir:rev
                 match (node_type, pred_type) {
@@ -80,12 +74,9 @@ where
         }
     }
 
-    match earliest_rev {
-        Some((earliest_rev_id, earliest_ts)) => Some(EarliestRevision {
-            node: earliest_rev_id,
-            ts: earliest_ts,
-            rev_occurrences: visited_revisions,
-        }),
-        None => None,
-    }
+    earliest_rev.map(|(earliest_rev_id, earliest_ts)| EarliestRevision {
+        node: earliest_rev_id,
+        ts: earliest_ts,
+        rev_occurrences: visited_revisions,
+    })
 }

@@ -3,7 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::ops::Deref;
 use std::path::Path;
 
 use crate::graph::*;
@@ -11,18 +10,12 @@ use crate::properties;
 
 /// A view over [`SwhGraph`] and related trait, which changes properties based on
 /// runtime configuration
-pub struct DynamicView<G: Deref>
-where
-    G::Target: SwhGraph,
-{
+pub struct DynamicView<G: SwhGraph> {
     pub graph: G,
     pub transposed: bool,
 }
 
-impl<G: Deref> DynamicView<G>
-where
-    G::Target: SwhGraph,
-{
+impl<G: SwhGraph> DynamicView<G> {
     pub fn new(graph: G) -> Self {
         DynamicView {
             graph,
@@ -36,10 +29,7 @@ where
     }
 }
 
-impl<G: Deref> SwhGraph for DynamicView<G>
-where
-    G::Target: SwhGraph,
-{
+impl<G: SwhGraph> SwhGraph for DynamicView<G> {
     fn path(&self) -> &Path {
         self.graph.path()
     }
@@ -57,11 +47,8 @@ where
         }
     }
 }
-impl<G: Deref> SwhForwardGraph for DynamicView<G>
-where
-    G::Target: SwhForwardGraph + SwhBackwardGraph,
-{
-    type Successors<'succ> = <<G as Deref>::Target as SwhBackwardGraph>::Successors<'succ> where Self: 'succ;
+impl<G: SwhForwardGraph + SwhBackwardGraph> SwhForwardGraph for DynamicView<G> {
+    type Successors<'succ> = <G as SwhBackwardGraph>::Successors<'succ> where Self: 'succ;
 
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         if self.transposed {
@@ -78,11 +65,8 @@ where
         }
     }
 }
-impl<G: Deref> SwhBackwardGraph for DynamicView<G>
-where
-    G::Target: SwhBackwardGraph + SwhForwardGraph,
-{
-    type Predecessors<'succ> = <<G as Deref>::Target as SwhForwardGraph>::Predecessors<'succ> where Self: 'succ;
+impl<G: SwhBackwardGraph + SwhForwardGraph> SwhBackwardGraph for DynamicView<G> {
+    type Predecessors<'succ> = <G as SwhForwardGraph>::Predecessors<'succ> where Self: 'succ;
 
     fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
         if self.transposed {
@@ -99,15 +83,12 @@ where
         }
     }
 }
-impl<G: Deref> SwhGraphWithProperties for DynamicView<G>
-where
-    G::Target: SwhGraphWithProperties,
-{
-    type Maps = <<G as Deref>::Target as SwhGraphWithProperties>::Maps;
-    type Timestamps = <<G as Deref>::Target as SwhGraphWithProperties>::Timestamps;
-    type Persons = <<G as Deref>::Target as SwhGraphWithProperties>::Persons;
-    type Contents = <<G as Deref>::Target as SwhGraphWithProperties>::Contents;
-    type Strings = <<G as Deref>::Target as SwhGraphWithProperties>::Strings;
+impl<G: SwhGraphWithProperties> SwhGraphWithProperties for DynamicView<G> {
+    type Maps = <G as SwhGraphWithProperties>::Maps;
+    type Timestamps = <G as SwhGraphWithProperties>::Timestamps;
+    type Persons = <G as SwhGraphWithProperties>::Persons;
+    type Contents = <G as SwhGraphWithProperties>::Contents;
+    type Strings = <G as SwhGraphWithProperties>::Strings;
 
     fn properties(
         &self,

@@ -5,5 +5,9 @@
 
 //! Wrappers for [`SwhGraph`](crate::graph::SwhGraph) that filter or change the nodes and arcs it returns.
 
+mod spy;
+pub use spy::GraphSpy;
+mod subgraph;
+pub use subgraph::Subgraph;
 mod transposed;
 pub use transposed::Transposed;

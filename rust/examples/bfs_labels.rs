@@ -12,6 +12,7 @@ use std::collections::VecDeque;
 use std::path::PathBuf;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::labels::EdgeLabel;
 
 #[derive(Parser, Debug)]
 #[command(about, long_about = None)]
@@ -33,7 +34,8 @@ pub fn main() -> Result<()> {
         .init()
         .unwrap();
 
-    let graph = load_unidirectional(PathBuf::from(args.graph))
+    info!("Loading graph...");
+    let graph = load_unidirectional(args.graph)
         .context("Could not load graph")?
         .init_properties()
         .load_properties(|properties| properties.load_maps::<GOVMPH>())
@@ -73,19 +75,38 @@ pub fn main() -> Result<()> {
     // https://archive.softwareheritage.org/api/1/graph/visit/nodes/swh:1:snp:fffe49ca41c0a9d777cdeb6640922422dc379b33/
     // It consists of 344 nodes.
     while let Some(current_node) = queue.pop_front() {
-        let visited_swhid = graph.properties().swhid(current_node).unwrap();
+        let visited_swhid = graph.properties().swhid(current_node);
         debug!("{visited_swhid}");
         visited_nodes += 1;
-        let mut successors = graph.labelled_successors(current_node);
-        while let Some((succ, labels)) = successors.next() {
-            debug!("  Successor: {}", graph.properties().swhid(succ).unwrap());
+        let successors = graph.labelled_successors(current_node);
+        for (succ, labels) in successors {
+            debug!("  Successor: {}", graph.properties().swhid(succ));
             for label in labels {
-                let filename = graph.properties().label_name(label.filename_id()).unwrap();
-                debug!(
-                    "    has name {:?} and perm {:?}",
-                    String::from_utf8_lossy(&filename),
-                    label.permission().unwrap()
-                );
+                match label.for_edge_type(
+                    graph.properties().node_type(current_node),
+                    graph.properties().node_type(succ),
+                    graph.is_transposed(),
+                )? {
+                    EdgeLabel::Branch(label) => {
+                        let filename = graph.properties().label_name(label.filename_id());
+                        debug!("    has name {:?}", String::from_utf8_lossy(&filename),);
+                    }
+                    EdgeLabel::Visit(label) => {
+                        debug!(
+                            "    has visit timestamp {} and status {:?}",
+                            label.timestamp(),
+                            label.status(),
+                        );
+                    }
+                    EdgeLabel::DirEntry(label) => {
+                        let filename = graph.properties().label_name(label.filename_id());
+                        debug!(
+                            "    has name {:?} and perm {:?}",
+                            String::from_utf8_lossy(&filename),
+                            label.permission().unwrap()
+                        );
+                    }
+                }
             }
             if !visited[succ] {
                 queue.push_back(succ);

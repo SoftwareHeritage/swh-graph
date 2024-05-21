@@ -676,6 +676,8 @@ public class ORCGraphDataset implements GraphDataset {
             orcTable.readOrcTable((batch, columnMap) -> {
                 BytesColumnVector originUrlVector = (BytesColumnVector) batch.cols[columnMap.get("origin")];
                 BytesColumnVector snapshotIdVector = (BytesColumnVector) batch.cols[columnMap.get("snapshot")];
+                TimestampColumnVector dateVector = (TimestampColumnVector) batch.cols[columnMap.get("date")];
+                BytesColumnVector statusVector = (BytesColumnVector) batch.cols[columnMap.get("status")];
 
                 for (int row = 0; row < batch.size; row++) {
                     byte[] originId = urlToOriginId(ORCTable.getBytesRow(originUrlVector, row));
@@ -683,9 +685,19 @@ public class ORCGraphDataset implements GraphDataset {
                     if (snapshot_id == null || snapshot_id.length == 0) {
                         continue;
                     }
-                    edgeCb.onEdge(Bytes.concat(oriPrefix, originId), Bytes.concat(snpPrefix, snapshot_id), null, -1);
+
+                    long visit_date = dateVector.getTimestampAsLong(row);
+                    String status = statusVector.toString(row);
+
+                    int full_visit = 0;
+                    if (status.equals("full")) {
+                        full_visit = 1;
+                    }
+                    long label = (visit_date << 2) + (full_visit << 1) + 1;
+
+                    edgeCb.onEdge(Bytes.concat(oriPrefix, originId), Bytes.concat(snpPrefix, snapshot_id), null, label);
                 }
-            }, Set.of("origin", "snapshot"));
+            }, Set.of("origin", "snapshot", "date", "status"));
         }
     }
 

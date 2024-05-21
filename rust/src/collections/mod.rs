@@ -5,3 +5,6 @@
 
 mod node_set;
 pub use node_set::*;
+
+mod paths;
+pub use paths::*;

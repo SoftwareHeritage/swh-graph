@@ -105,6 +105,10 @@ macro_rules! impl_number_mmap {
         impl<E: ByteOrder> crate::utils::GetIndex for &NumberMmap<E, $ty, Mmap> {
             type Output = $ty;
 
+            fn len(&self) -> usize {
+                NumberMmap::len(self)
+            }
+
             /// Returns an item
             fn get(&self, index: usize) -> Option<$ty> {
                 self.get_slice(index).map(E::$fn)

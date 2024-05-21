@@ -110,7 +110,8 @@ impl<
         self.with_persons(persons)
     }
 
-    /// Alternative to [`load_persons`] that allows using arbitrary persons implementations
+    /// Alternative to [`load_persons`](Self::load_persons) that allows using arbitrary
+    /// persons implementations
     pub fn with_persons<PERSONS: Persons>(
         self,
         persons: PERSONS,
@@ -131,7 +132,7 @@ impl<
 /// Functions to access the id of the author or committer of `revision`/`release` nodes.
 ///
 /// Only available after calling [`load_persons`](SwhGraphProperties::load_persons)
-/// or [`load_all_properties`](SwhGraph::load_all_properties)
+/// or [`load_all_properties`](crate::graph::SwhBidirectionalGraph::load_all_properties)
 impl<
         MAPS: MaybeMaps,
         TIMESTAMPS: MaybeTimestamps,
@@ -142,20 +143,58 @@ impl<
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
     /// Returns the id of the author of a revision or release, if any
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist
     #[inline]
     pub fn author_id(&self, node_id: NodeId) -> Option<u32> {
+        self.try_author_id(node_id)
+            .unwrap_or_else(|e| panic!("Cannot get node author: {}", e))
+    }
+
+    /// Returns the id of the author of a revision or release, if any
+    ///
+    /// Returns `Err` if the node id does not exist, and `Ok(Node)` if the node
+    /// has no author
+    #[inline]
+    pub fn try_author_id(&self, node_id: NodeId) -> Result<Option<u32>, OutOfBoundError> {
         match self.persons.author_id().get(node_id) {
-            Some(u32::MAX) => None,
-            id => id,
+            None => Err(OutOfBoundError {
+                // Invalid node id
+                index: node_id,
+                len: self.persons.author_id().len(),
+            }),
+            Some(u32::MAX) => Ok(None), // No author
+            Some(id) => Ok(Some(id)),
         }
     }
 
     /// Returns the id of the committer of a revision, if any
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist
     #[inline]
     pub fn committer_id(&self, node_id: NodeId) -> Option<u32> {
+        self.try_committer_id(node_id)
+            .unwrap_or_else(|e| panic!("Cannot get node committer: {}", e))
+    }
+
+    /// Returns the id of the committer of a revision, if any
+    ///
+    /// Returns `None` if the node id does not exist, and `Some(Node)` if the node
+    /// has no author
+    #[inline]
+    pub fn try_committer_id(&self, node_id: NodeId) -> Result<Option<u32>, OutOfBoundError> {
         match self.persons.committer_id().get(node_id) {
-            Some(u32::MAX) => None,
-            id => id,
+            None => Err(OutOfBoundError {
+                // Invalid node id
+                index: node_id,
+                len: self.persons.committer_id().len(),
+            }),
+            Some(u32::MAX) => Ok(None), // No committer
+            Some(id) => Ok(Some(id)),
         }
     }
 }

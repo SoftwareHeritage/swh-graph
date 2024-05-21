@@ -60,31 +60,22 @@ class PopularContentNames(luigi.Task):
         return luigi.LocalTarget(self.popular_contents_path)
 
     def run(self) -> None:
-        """Runs org.softwareheritage.graph.utils.PopularContentNames and compresses"""
-        from ..shell import AtomicFileSink, Command, Java
+        """Runs ``popular-content-names`` from :file:`tools/file_names`"""
+        from ..shell import Rust
 
-        if self.max_results_per_content == 1 and self.popularity_threshold == 0:
-            # In this case, we know approximately how many results are expected:
-            # the same as the number of contents (minus contents not referenced by
-            # any directory, which should be negligeable)"
-            nb_contents = count_nodes(self.local_graph_path, self.graph_name, "cnt")
-            pv = Command.pv("--line-mode", "--wait", "--size", str(nb_contents))
-        else:
-            pv = Command.pv("--line-mode", "--wait")
-
-        class_name = "org.softwareheritage.graph.utils.PopularContentNames"
         # fmt: on
         (
-            Java(
-                class_name,
+            Rust(
+                "popular-content-names",
+                "-vv",
                 self.local_graph_path / self.graph_name,
+                "--max-results",
                 str(self.max_results_per_content),
+                "--min-occurrences",
                 str(self.popularity_threshold),
-                max_ram=self._max_ram(),
+                "--out",
+                self.output(),
             )
-            | pv
-            | Command.zstdmt("-19")
-            > AtomicFileSink(self.output())
         ).run()
         # fmt: off
 
@@ -131,7 +122,7 @@ class PopularContentPaths(luigi.Task):
         """Runs org.softwareheritage.graph.utils.PopularContentPaths and compresses"""
         import multiprocessing.dummy
 
-        from ..shell import AtomicFileSink, Command, Java, wc
+        from ..shell import Command, Rust, wc
 
         input_swhid_files = list(self.input_swhids.iterdir())
 
@@ -152,19 +143,19 @@ class PopularContentPaths(luigi.Task):
                 Command.zstdcat(*zstd_opts, input_swhid_file) | Command.tail("-n", "+2")
             )
 
-        class_name = "org.softwareheritage.graph.utils.PopularContentPaths"
         # fmt: on
         (
             Command.cat(*input_streams)
-            | Java(
-                class_name,
+            | Rust(
+                "popular-content-paths",
                 self.local_graph_path / self.graph_name,
+                "--expected-nodes",
+                str(nb_contents),
+                "--depth",
                 str(self.max_depth),
-                max_ram=self._max_ram(),
+                "--out",
+                self.output(),
             )
-            | Command.pv("--line-mode", "--wait", "--size", str(nb_contents + 1))
-            | Command.zstdmt("-19")
-            > AtomicFileSink(self.output())
         ).run()
         # fmt: off
 
@@ -232,14 +223,14 @@ class PopularContentNamesOrcToS3(_CsvToOrcToS3ToAthenaTask):
 
 
 class ListFilesByName(luigi.Task):
-    """Creates a CSV file that contains the most popular name(s) of each content"""
+    """From every refs/heads/master, refs/heads/main, or HEAD branch in any snapshot,
+    browse the whole directory tree looking for files named <filename>, and lists
+    them to stdout."""
 
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     output_path = luigi.PathParameter()
     file_name = luigi.Parameter()
-    num_threads = luigi.IntParameter(96)
-    batch_size = luigi.IntParameter(10000)
 
     def _max_ram(self):
         nb_nodes = count_nodes(
@@ -273,25 +264,22 @@ class ListFilesByName(luigi.Task):
         return [LocalGraph(local_graph_path=self.local_graph_path)]
 
     def output(self) -> luigi.Target:
-        """.csv.zst file that contains the topological order."""
+        """Directory of .csv.zst files containing the list of file occurrences with
+        that name."""
         return luigi.LocalTarget(self.output_path)
 
     def run(self) -> None:
         """Runs org.softwareheritage.graph.utils.PopularContentNames and compresses"""
-        from ..shell import AtomicFileSink, Command, Java
+        from ..shell import Rust
 
-        class_name = "org.softwareheritage.graph.utils.ListFilesByName"
         # fmt: on
         (
-            Java(
-                class_name,
+            Rust(
+                "list-files-by-name",
                 self.local_graph_path / self.graph_name,
                 self.file_name,
-                str(self.num_threads),
-                str(self.batch_size),
-                max_ram=self._max_ram(),
+                "--out",
+                self.output(),
             )
-            | Command.zstdmt("-19")
-            > AtomicFileSink(self.output())
         ).run()
         # fmt: off

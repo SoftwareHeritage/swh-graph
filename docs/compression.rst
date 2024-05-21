@@ -574,6 +574,17 @@ the label field.
     1877 14143 1141
     ...
 
+Additionally, edges from origins to snapshots are inserted in the above list,
+with ``visit_timestamp << 2 | is_full_visit << 1 | 1`` in lieu of the filename
+hash and unset permission (ie. ``111``).
+The ``is_full_visit`` distinguishes full snapshots of the origin from partial
+snapshots, and the four lower bits are set to 1 and reserved for future use.
+The rationale for this layout is to maximize the number of bits reserved for
+future use without significantly growing the label size on production graphs
+(which are going to need 33 bits for filename ids in 2024 or 2025 and timestamps
+can still be encoded on 31 bits; by the time timestamps reach 32 bits, filename
+ids will need more than 34 bits anyway).
+
 These hashed edges and their compact-form labels are then put in large batches
 sorted in an aggressively parallel fashion, which are then stored as
 ``.bitstream`` files. These batch files are put in a heap structure to perform

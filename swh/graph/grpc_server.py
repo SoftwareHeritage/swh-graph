@@ -46,9 +46,9 @@ def build_rust_grpc_server_cmdline(**config):
         port = aiohttp.test_utils.unused_port()
         logger.debug("Port not configured, using random port %s", port)
     if config.get("debug", False):
-        cmd = ["./target/debug/grpc-serve"]
+        cmd = ["./target/debug/swh-graph-grpc-serve"]
     else:
-        cmd = ["./target/release/grpc-serve"]
+        cmd = ["./target/release/swh-graph-grpc-serve"]
     if config.get("debug"):
         cmd.append("-vvvvv")
     else:

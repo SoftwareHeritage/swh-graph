@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -14,7 +14,9 @@ use tonic::transport::Server;
 use tonic::{Request, Response};
 
 use crate::graph::{SwhGraphWithProperties, SwhLabelledBackwardGraph, SwhLabelledForwardGraph};
+use crate::properties::NodeIdFromSwhidError;
 use crate::utils::suffix_path;
+use crate::views::Subgraph;
 
 pub mod proto {
     tonic::include_proto!("swh.graph");
@@ -46,28 +48,46 @@ pub struct TraversalService<
     G: SwhGraphWithProperties
         + SwhLabelledBackwardGraph
         + SwhLabelledForwardGraph
+        + Clone
         + Send
         + Sync
         + 'static,
->(Arc<G>);
+>(G);
+
+impl<
+        G: SwhGraphWithProperties
+            + SwhLabelledBackwardGraph
+            + SwhLabelledForwardGraph
+            + Clone
+            + Send
+            + Sync
+            + 'static,
+    > TraversalService<G>
+{
+    pub fn new(graph: G) -> Self {
+        TraversalService(graph)
+    }
+}
 
 pub trait TraversalServiceTrait {
     type Graph: SwhGraphWithProperties
         + SwhLabelledBackwardGraph
         + SwhLabelledForwardGraph
+        + Clone
         + Send
         + Sync
         + 'static;
     fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status>
     where
         <Self::Graph as SwhGraphWithProperties>::Maps: crate::properties::Maps;
-    fn graph(&self) -> &Arc<Self::Graph>;
+    fn graph(&self) -> &Self::Graph;
 }
 
 impl<
         G: SwhGraphWithProperties
             + SwhLabelledBackwardGraph
             + SwhLabelledForwardGraph
+            + Clone
             + Send
             + Sync
             + 'static,
@@ -80,17 +100,24 @@ impl<
     where
         <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
     {
-        let swhid: crate::SWHID = swhid
-            .try_into()
-            .map_err(|e| tonic::Status::invalid_argument(format!("Invalid SWHID: {e}")))?;
         self.0
             .properties()
-            .node_id(swhid)
-            .ok_or_else(|| tonic::Status::not_found(format!("Unknown SWHID: {swhid}")))
+            .node_id_from_string_swhid(swhid)
+            .map_err(|e| match e {
+                NodeIdFromSwhidError::InvalidSwhid(e) => {
+                    tonic::Status::invalid_argument(format!("Invalid SWHID: {e}"))
+                }
+                NodeIdFromSwhidError::UnknownSwhid(e) => {
+                    tonic::Status::not_found(format!("Unknown SWHID {swhid}: {e}"))
+                }
+                NodeIdFromSwhidError::InternalError(e) => {
+                    tonic::Status::internal(format!("Internal error: {e}"))
+                }
+            })
     }
 
     #[inline(always)]
-    fn graph(&self) -> &Arc<Self::Graph> {
+    fn graph(&self) -> &Self::Graph {
         &self.0
     }
 }
@@ -102,6 +129,7 @@ impl<
             + SwhLabelledForwardGraph
             + Send
             + Sync
+            + Clone
             + 'static,
     > proto::traversal_service_server::TraversalService for TraversalService<G>
 where
@@ -114,10 +142,13 @@ where
 {
     async fn get_node(&self, request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
         let arc_checker = filters::ArcFilterChecker::new(self.0.clone(), None)?;
+        let subgraph = Arc::new(Subgraph::new_with_arc_filter(
+            self.0.clone(),
+            move |src, dst| arc_checker.matches(src, dst),
+        ));
         let proto::GetNodeRequest { swhid, mask } = request.get_ref().clone();
         let node_builder = node_builder::NodeBuilder::new(
-            self.0.clone(),
-            arc_checker,
+            subgraph,
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask.paths.iter().map(|field| field.to_owned()).collect(),
             }),
@@ -308,7 +339,9 @@ where
     let graph = Arc::new(graph);
     Server::builder()
         .add_service(
-            proto::traversal_service_server::TraversalServiceServer::new(TraversalService(graph)),
+            proto::traversal_service_server::TraversalServiceServer::new(TraversalService::new(
+                graph,
+            )),
         )
         .add_service(
             tonic_reflection::server::Builder::configure()

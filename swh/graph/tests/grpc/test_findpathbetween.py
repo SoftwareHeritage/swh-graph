@@ -332,6 +332,23 @@ def test_common_descendant_forward_forward(
     assert expected == actual[midpoint]
 
 
+def test_common_descendant_forward_forward_edges_reverse(
+    graph_grpc_stub, graph_grpc_backend_implementation
+):
+    """Common descendant between rev 13 and rev 3 : cnt 1 (with rev:dir,dir:dir,dir:cnt)"""
+    (actual, midpoint) = get_path(
+        graph_grpc_stub,
+        ["swh:1:rev:0000000000000000000000000000000000000013"],
+        ["swh:1:rev:0000000000000000000000000000000000000003"],
+        direction=GraphDirection.FORWARD,
+        direction_reverse=GraphDirection.FORWARD,
+        edges="rev:dir,dir:dir,dir:cnt",
+        edges_reverse="rev:dir,dir:dir,dir:cnt",
+    )
+    expected = "swh:1:cnt:0000000000000000000000000000000000000001"
+    assert expected == actual[midpoint]
+
+
 def test_max_depth(graph_grpc_stub, graph_grpc_backend_implementation):
     """Path between rel 19 and cnt 15 with various max depths"""
     # Works with max_depth = 2

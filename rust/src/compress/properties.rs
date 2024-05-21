@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -8,13 +8,12 @@ use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use orcxx::deserialize::{OrcDeserialize, OrcStruct};
-use orcxx::reader::Reader;
-use orcxx::row_iterator::RowIterator;
-use orcxx_derive::OrcDeserialize;
+use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
+use ar_row_derive::ArRowDeserialize;
 use rayon::prelude::*;
 
-use super::orc::{get_dataset_readers, ORC_BATCH_SIZE};
+use super::orc::get_dataset_readers;
+use super::orc::{iter_arrow, par_iter_arrow};
 use crate::java_compat::bit_vector::LongArrayBitVector;
 use crate::map::{MappedPermutation, Permutation};
 use crate::mph::SwhidMphf;
@@ -33,32 +32,27 @@ pub struct PropertyWriter<SWHIDMPHF: SwhidMphf> {
 }
 
 impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
-    fn for_each_row<Row: OrcDeserialize + Clone + OrcStruct>(
-        &self,
-        subdirectory: &str,
-        f: impl Fn(Row) -> Result<()>,
-    ) -> Result<()> {
+    fn for_each_row<Row>(&self, subdirectory: &str, f: impl Fn(Row) -> Result<()>) -> Result<()>
+    where
+        Row: ArRowDeserialize + ArRowStruct + Send + Sync,
+    {
         get_dataset_readers(self.dataset_dir.clone(), subdirectory)?
             .into_iter()
-            .flat_map(|reader: Reader| {
-                RowIterator::<Row>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
-                    .expect("Could not open row reader")
-            })
+            .flat_map(|reader_builder| iter_arrow(reader_builder, |row: Row| [row]))
             .try_for_each(f)
     }
 
-    fn par_for_each_row<Row: OrcDeserialize + Clone + OrcStruct + Send>(
+    fn par_for_each_row<Row>(
         &self,
         subdirectory: &str,
         f: impl Fn(Row) + Send + Sync,
-    ) -> Result<impl ParallelIterator<Item = ()>> {
+    ) -> Result<impl ParallelIterator<Item = ()>>
+    where
+        Row: ArRowDeserialize + ArRowStruct + Clone + Send + Sync,
+    {
         Ok(get_dataset_readers(self.dataset_dir.clone(), subdirectory)?
             .into_par_iter()
-            .flat_map(|reader: Reader| {
-                RowIterator::<Row>::new(&reader, (ORC_BATCH_SIZE as u64).try_into().unwrap())
-                    .expect("Could not open row reader")
-                    .par_bridge()
-            })
+            .flat_map(|reader_builder| par_iter_arrow(reader_builder, |row: Row| [row]))
             .map(f))
     }
 
@@ -93,10 +87,10 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
     }
 
     pub fn write_author_timestamps(&self) -> Result<()> {
-        #[derive(OrcDeserialize, Default, Clone)]
+        #[derive(ArRowDeserialize, Default, Clone)]
         struct Revrel {
             id: String,
-            date: Option<orcxx::Timestamp>,
+            date: Option<ar_row::Timestamp>,
             date_offset: Option<i16>,
         }
 
@@ -145,10 +139,10 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         Ok(())
     }
     pub fn write_committer_timestamps(&self) -> Result<()> {
-        #[derive(OrcDeserialize, Default, Clone)]
+        #[derive(ArRowDeserialize, Default, Clone)]
         struct Revision {
             id: String,
-            committer_date: Option<orcxx::Timestamp>,
+            committer_date: Option<ar_row::Timestamp>,
             committer_offset: Option<i16>,
         }
 
@@ -180,7 +174,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         Ok(())
     }
     pub fn write_content_lengths(&self) -> Result<()> {
-        #[derive(OrcDeserialize, Default, Clone)]
+        #[derive(ArRowDeserialize, Default, Clone)]
         struct Content {
             sha1_git: Option<String>,
             length: Option<i64>,
@@ -214,7 +208,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         Ok(())
     }
     pub fn write_content_is_skipped(&self) -> Result<()> {
-        #[derive(OrcDeserialize, Default, Clone)]
+        #[derive(ArRowDeserialize, Default, Clone)]
         struct SkippedContent {
             sha1_git: Option<String>,
         }
@@ -256,10 +250,10 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         Ok(())
     }
     pub fn write_author_ids(&self) -> Result<()> {
-        #[derive(OrcDeserialize, Default, Clone)]
+        #[derive(ArRowDeserialize, Default, Clone)]
         struct Revrel {
             id: String,
-            author: Option<Vec<u8>>,
+            author: Option<Box<[u8]>>,
         }
 
         let read_rev = self.allowed_node_types.contains(&SWHType::Revision);
@@ -317,10 +311,10 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         Ok(())
     }
     pub fn write_committer_ids(&self) -> Result<()> {
-        #[derive(OrcDeserialize, Default, Clone)]
+        #[derive(ArRowDeserialize, Default, Clone)]
         struct Revision {
             id: String,
-            committer: Option<Vec<u8>>,
+            committer: Option<Box<[u8]>>,
         }
 
         if !self.allowed_node_types.contains(&SWHType::Revision) {
@@ -361,12 +355,12 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         Ok(())
     }
     pub fn write_messages(&self) -> Result<()> {
-        #[derive(OrcDeserialize, Default, Clone)]
+        #[derive(ArRowDeserialize, Default, Clone)]
         struct Revrel {
             id: String,
-            message: Option<Vec<u8>>,
+            message: Option<Box<[u8]>>,
         }
-        #[derive(OrcDeserialize, Default, Clone)]
+        #[derive(ArRowDeserialize, Default, Clone)]
         struct Origin {
             id: String,
             url: String,
@@ -391,7 +385,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         let base64 = base64_simd::STANDARD;
         let offset = RefCell::new(0u64);
 
-        let f = |type_: &str, id: String, message: Option<Vec<u8>>| {
+        let f = |type_: &str, id: String, message: Option<Box<[u8]>>| {
             if let Some(message) = message {
                 let swhid = format!("swh:1:{}:{}", type_, id);
                 let mut encoded_message = base64.encode_to_string(message);
@@ -416,7 +410,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         if read_ori {
             log::info!("Reading and writing origin URLs...");
             self.for_each_row("origin", |ori: Origin| {
-                f("ori", ori.id, Some(ori.url.as_bytes().to_vec()))
+                f("ori", ori.id, Some(ori.url.as_bytes().into()))
             })?;
         }
 
@@ -425,10 +419,10 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         Ok(())
     }
     pub fn write_tag_names(&self) -> Result<()> {
-        #[derive(OrcDeserialize, Default, Clone)]
+        #[derive(ArRowDeserialize, Default, Clone)]
         struct Release {
             id: String,
-            name: Vec<u8>,
+            name: Box<[u8]>,
         }
 
         if !self.allowed_node_types.contains(&SWHType::Release) {

@@ -263,7 +263,9 @@ class SimpleTraversalView(StreamingGraphView):
             self.traversal_request.max_edges = self.get_max_edges()
         await self.check_swhid(src)
         self.configure_request()
-        self.nodes_stream = self.rpc_client.Traverse(self.traversal_request)
+        self.nodes_stream = self.rpc_client.Traverse(
+            self.traversal_request,
+        )
 
         # Force gRPC to query the server and fetch the first nodes; so errors
         # are raised early, so we can return HTTP 503 before HTTP 200
@@ -294,7 +296,7 @@ class VisitNodesView(SimpleTraversalView):
 
 class VisitEdgesView(SimpleTraversalView):
     def configure_request(self):
-        self.traversal_request.mask.paths.extend(["successor", "successor.swhid"])
+        self.traversal_request.mask.paths.extend(["successor.swhid"])
         # self.traversal_request.return_fields.successor = True
 
     async def stream_response(self):

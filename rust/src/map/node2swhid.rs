@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use crate::SWHID;
+use crate::{OutOfBoundError, SWHID};
 use anyhow::{Context, Result};
 use mmap_rs::{Mmap, MmapFlags, MmapMut};
 
@@ -18,7 +18,7 @@ impl Node2SWHID<Mmap> {
         let path = path.as_ref();
         let file_len = path
             .metadata()
-            .with_context(|| format!("Could not read {} stats", path.display()))?
+            .with_context(|| format!("Could not stat {}", path.display()))?
             .len();
         let file = std::fs::File::open(path)
             .with_context(|| format!("Could not open {}", path.display()))?;
@@ -71,9 +71,7 @@ impl Node2SWHID<MmapMut> {
 impl Node2SWHID<Vec<u8>> {
     pub fn new_from_iter(swhids: impl ExactSizeIterator<Item = SWHID>) -> Self {
         let file_len = swhids.len() * SWHID::BYTES_SIZE;
-        let file_len: usize = file_len.try_into().expect("num_nodes overflowed usize");
-        let mut data = Vec::with_capacity(file_len);
-        data.resize(file_len, 0);
+        let data = vec![0; file_len];
         let mut node2swhid = Node2SWHID { data };
         for (i, swhid) in swhids.enumerate() {
             node2swhid.set(i, swhid);
@@ -103,13 +101,20 @@ impl<B: AsRef<[u8]>> Node2SWHID<B> {
 
     /// Convert a node_id to a SWHID
     #[inline]
-    pub fn get(&self, node_id: usize) -> Option<SWHID> {
+    pub fn get(&self, node_id: usize) -> Result<SWHID, OutOfBoundError> {
         let offset = node_id * SWHID::BYTES_SIZE;
-        let bytes = self.data.as_ref().get(offset..offset + SWHID::BYTES_SIZE)?;
+        let bytes = self
+            .data
+            .as_ref()
+            .get(offset..offset + SWHID::BYTES_SIZE)
+            .ok_or(OutOfBoundError {
+                index: node_id,
+                len: self.data.as_ref().len() / SWHID::BYTES_SIZE,
+            })?;
         // this unwrap is always safe because we use the same const
         let bytes: [u8; SWHID::BYTES_SIZE] = bytes.try_into().unwrap();
         // this unwrap can only fail on a corrupted file, so it's ok to panic
-        Some(SWHID::try_from(bytes).unwrap())
+        Ok(SWHID::try_from(bytes).unwrap())
     }
 
     /// Return how many node_ids are in this map

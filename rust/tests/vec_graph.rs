@@ -37,20 +37,13 @@ fn test_labeled_vec_graph() {
 
     let graph = SwhUnidirectionalGraph::from_underlying_graph(PathBuf::new(), underlying_graph);
 
-    assert_eq!(graph.successors(0).into_iter().collect::<Vec<_>>(), vec![1]);
-    assert_eq!(
-        graph.successors(1).into_iter().collect::<Vec<_>>(),
-        Vec::<usize>::new()
-    );
-    assert_eq!(
-        graph.successors(2).into_iter().collect::<Vec<_>>(),
-        vec![0, 1]
-    );
+    assert_eq!(graph.successors(0).collect::<Vec<_>>(), vec![1]);
+    assert_eq!(graph.successors(1).collect::<Vec<_>>(), Vec::<usize>::new());
+    assert_eq!(graph.successors(2).collect::<Vec<_>>(), vec![0, 1]);
 
     let collect_successors = |node_id| {
         graph
             .labelled_successors(node_id)
-            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect::<Vec<_>>()
     };
@@ -87,33 +80,32 @@ fn test_vec_graph_maps() {
         Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
     )
     .init_properties()
-    .load_properties(|properties| {
-        properties.with_maps(VecMaps::new(swhids.iter().cloned().collect()))
-    })
+    .load_properties(|properties| properties.with_maps(VecMaps::new(swhids.to_vec())))
     .unwrap();
 
     // Test MPH + order
-    assert_eq!(graph.properties().node_id(swhids[0]), Some(0));
-    assert_eq!(graph.properties().node_id(swhids[1]), Some(1));
-    assert_eq!(graph.properties().node_id(swhids[2]), Some(2));
+    assert_eq!(graph.properties().node_id(swhids[0]), Ok(0));
+    assert_eq!(graph.properties().node_id(swhids[1]), Ok(1));
+    assert_eq!(graph.properties().node_id(swhids[2]), Ok(2));
+    let unknown_swhid = SWHID {
+        namespace_version: 1,
+        node_type: SWHType::Content,
+        hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42],
+    };
     assert_eq!(
-        graph.properties().node_id(SWHID {
-            namespace_version: 1,
-            node_type: SWHType::Content,
-            hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42]
-        }),
-        None
+        graph.properties().node_id(unknown_swhid),
+        Err(NodeIdFromSwhidError::UnknownSwhid(unknown_swhid))
     );
 
     // Test node2swhid
-    assert_eq!(graph.properties().swhid(0), Some(swhids[0]));
-    assert_eq!(graph.properties().swhid(1), Some(swhids[1]));
-    assert_eq!(graph.properties().swhid(2), Some(swhids[2]));
+    assert_eq!(graph.properties().swhid(0), swhids[0]);
+    assert_eq!(graph.properties().swhid(1), swhids[1]);
+    assert_eq!(graph.properties().swhid(2), swhids[2]);
 
     // Test node2type
-    assert_eq!(graph.properties().node_type(0), Some(SWHType::Revision));
-    assert_eq!(graph.properties().node_type(1), Some(SWHType::Revision));
-    assert_eq!(graph.properties().node_type(2), Some(SWHType::Content));
+    assert_eq!(graph.properties().node_type(0), SWHType::Revision);
+    assert_eq!(graph.properties().node_type(1), SWHType::Revision);
+    assert_eq!(graph.properties().node_type(2), SWHType::Content);
 }
 
 #[test]
@@ -205,16 +197,16 @@ fn test_vec_graph_contents() {
     })
     .unwrap();
 
-    assert_eq!(graph.properties().is_skipped_content(0), Some(false));
+    assert!(!graph.properties().is_skipped_content(0));
     assert_eq!(graph.properties().content_length(0), None);
 
-    assert_eq!(graph.properties().is_skipped_content(1), Some(false));
+    assert!(!graph.properties().is_skipped_content(1));
     assert_eq!(graph.properties().content_length(1), Some(123));
 
-    assert_eq!(graph.properties().is_skipped_content(2), Some(false));
+    assert!(!graph.properties().is_skipped_content(2));
     assert_eq!(graph.properties().content_length(2), None);
 
-    assert_eq!(graph.properties().is_skipped_content(3), Some(true));
+    assert!(graph.properties().is_skipped_content(3));
     assert_eq!(graph.properties().content_length(3), Some(100_000_000_000));
 }
 
@@ -281,37 +273,34 @@ fn test_vec_graph_label_names() {
 
     assert_eq!(
         graph.properties().label_name(FilenameId(0)),
-        Some("abc".into())
+        b"abc".to_vec()
     );
     assert_eq!(
         graph.properties().label_name_base64(FilenameId(0)),
-        Some(b"YWJj".to_vec())
+        b"YWJj".to_vec()
     );
 
     assert_eq!(
         graph.properties().label_name(FilenameId(1)),
-        Some("defgh".into())
+        b"defgh".to_vec()
     );
     assert_eq!(
         graph.properties().label_name_base64(FilenameId(1)),
-        Some(b"ZGVmZ2g=".to_vec())
+        b"ZGVmZ2g=".to_vec()
     );
 
-    assert_eq!(
-        graph.properties().label_name(FilenameId(2)),
-        Some("".into())
-    );
+    assert_eq!(graph.properties().label_name(FilenameId(2)), b"".to_vec());
     assert_eq!(
         graph.properties().label_name_base64(FilenameId(2)),
-        Some(b"".to_vec())
+        b"".to_vec()
     );
 
     assert_eq!(
         graph.properties().label_name(FilenameId(3)),
-        Some("aaaaaaaaaaaaaaaaaaa".into())
+        b"aaaaaaaaaaaaaaaaaaa".to_vec()
     );
     assert_eq!(
         graph.properties().label_name_base64(FilenameId(3)),
-        Some(b"YWFhYWFhYWFhYWFhYWFhYWFhYQ==".to_vec())
+        b"YWFhYWFhYWFhYWFhYWFhYWFhYQ==".to_vec()
     );
 }

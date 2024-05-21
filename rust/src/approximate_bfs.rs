@@ -5,13 +5,18 @@
 
 /// A parallel almost-BFS traversal
 ///
-/// This implements a graph traversal that is like a BFS, but with a small likelihood
-/// of duplicating nodes in order to allow efficient parallelization
+/// This implements a graph traversal that is like a BFS from many sources, but traversal
+/// from a source may steal a node from another traversal
+use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use dsi_progress_logger::ProgressLogger;
 use num_cpus;
+use rayon::prelude::*;
+use sux::prelude::AtomicBitVec;
+use thread_local::ThreadLocal;
 use webgraph::prelude::*;
 
 use crate::map::OwnedPermutation;
@@ -21,89 +26,81 @@ pub fn almost_bfs_order<G: RandomAccessGraph + Send + Sync>(
 ) -> OwnedPermutation<Vec<usize>> {
     let num_nodes = graph.num_nodes();
 
-    println!("Allocating array");
-    // Non-atomic booleans, which mean we may visit some nodes twice.
-    let visited = Mutex::new(vec![false; num_nodes]);
+    let visited = AtomicBitVec::new(num_nodes);
 
     let mut pl = ProgressLogger::default().display_memory();
     pl.item_name = "node";
     pl.local_speed = true;
     pl.expected_updates = Some(num_nodes);
-    pl.start("Visiting graph in pseudo-BFS order...");
+    pl.start("[step 1/2] Visiting graph in pseudo-BFS order...");
     let pl = Arc::new(Mutex::new(pl));
 
+    let thread_orders = ThreadLocal::new();
+
     let num_threads = num_cpus::get();
-    let next_start = Mutex::new(0usize);
 
-    std::thread::scope(|scope| {
-        let mut handles = Vec::new();
-        for _ in 0..num_threads {
-            handles.push(scope.spawn(|| {
-                let visited_ptr = visited.lock().unwrap().as_mut_ptr();
-                let mut thread_queue = VecDeque::new();
-                let mut queued_updates = 0;
-                let mut thread_order = Vec::with_capacity(num_nodes / num_threads);
-                loop {
-                    // Get the next node from the thread queue.
-                    // If the thread queue is empty, get the next start.
-                    // If there is none, return
-                    let current_node = thread_queue.pop_front().or_else(|| {
-                        let mut next_start_ref = next_start.lock().unwrap();
-
-                        while unsafe { *visited_ptr.add(*next_start_ref) } {
-                            if *next_start_ref + 1 >= graph.num_nodes() {
-                                pl.lock().unwrap().update_with_count(queued_updates);
-                                return None;
-                            }
-                            *next_start_ref += 1;
-                        }
-                        unsafe { *visited_ptr.add(*next_start_ref) = true };
-
-                        Some(*next_start_ref)
-                    });
-                    let Some(current_node) = current_node else {
-                        return thread_order;
-                    };
-
-                    thread_order.push(current_node);
-
-                    for succ in graph.successors(current_node) {
-                        if unsafe { !*visited_ptr.add(succ) } {
-                            thread_queue.push_back(succ);
-                            unsafe { *visited_ptr.add(succ) = true };
-                        }
-                    }
-
-                    queued_updates += 1;
-                    if queued_updates >= 10000 {
-                        pl.lock().unwrap().update_with_count(queued_updates);
-                        queued_updates = 0;
-                    }
+    crate::utils::shuffle::par_iter_shuffled_range(0..num_nodes).for_each_init(
+        || {
+            thread_orders
+                .get_or(|| RefCell::new(Vec::with_capacity(num_nodes / num_threads)))
+                .borrow_mut()
+        },
+        |thread_order, root_node| {
+            if visited.get(root_node, Ordering::Relaxed) {
+                // Skip VecDeque allocation
+                return;
+            }
+            let mut visited_nodes = 0;
+            let mut queue = VecDeque::new();
+            queue.push_back(root_node);
+            while let Some(node) = queue.pop_front() {
+                // As we are not atomically getting and setting 'visited' bit, other
+                // threads may also visit it at the same time. We will deduplicate that
+                // at the end, so the only effect is for some nodes to be double-counted
+                // by the progress logger.
+                if visited.get(node, Ordering::Relaxed) {
+                    continue;
                 }
-            }));
-        }
+                visited.set(node, true, Ordering::Relaxed);
+                visited_nodes += 1;
+                thread_order.push(node);
 
-        // "Concatenate" orders from each thread.
-        let mut order = vec![usize::MAX; num_nodes];
-        let mut i = 0;
-        for handle in handles {
-            let thread_order: Vec<usize> = handle.join().expect("Error in BFS thread");
-            for node in thread_order.into_iter() {
-                if order[node] == usize::MAX {
-                    order[node] = i;
-                    i += 1
+                for succ in graph.successors(node) {
+                    queue.push_back(succ);
                 }
             }
+
+            pl.lock().unwrap().update_with_count(visited_nodes);
+        },
+    );
+
+    pl.lock().unwrap().done();
+
+    let mut pl = ProgressLogger::default().display_memory();
+    pl.item_name = "node";
+    pl.local_speed = true;
+    pl.expected_updates = Some(num_nodes);
+    pl.start("[step 2/2] Concatenating orders...");
+
+    // "Concatenate" orders from each thread.
+    let mut order = vec![usize::MAX; num_nodes];
+    let mut i = 0;
+    for thread_order in thread_orders.into_iter() {
+        for node in thread_order.into_inner().into_iter() {
+            if order[node] == usize::MAX {
+                pl.light_update();
+                order[node] = i;
+                i += 1
+            }
         }
+    }
 
-        assert_eq!(
-            i, num_nodes,
-            "graph has {} nodes, permutation has {}",
-            num_nodes, i
-        );
+    assert_eq!(
+        i, num_nodes,
+        "graph has {} nodes, permutation has {}",
+        num_nodes, i
+    );
 
-        pl.lock().unwrap().done();
-
-        OwnedPermutation::new(order).unwrap()
-    })
+    pl.done();
+    OwnedPermutation::new(order).unwrap()
 }

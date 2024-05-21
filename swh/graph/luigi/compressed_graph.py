@@ -234,8 +234,8 @@ class _CompressionStepTask(luigi.Task):
         """,
     )
 
-    rust_executable = luigi.Parameter(
-        default="./target/release/compress",
+    rust_executable_dir = luigi.Parameter(
+        default="./target/release/",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
     )
@@ -256,13 +256,13 @@ class _CompressionStepTask(luigi.Task):
         return int(count_path.read_text())
 
     def _nb_nodes(self) -> int:
-        return self._get_count("nodes", "ExtractNodes")
+        return self._get_count("nodes", "NodeStats")
 
     def _nb_edges(self) -> int:
-        return self._get_count("edges", "ExtractNodes")
+        return self._get_count("edges", "EdgeStats")
 
     def _nb_labels(self) -> int:
-        return self._get_count("labels", "ExtractNodes")
+        return self._get_count("labels", "LabelStats")
 
     def _nb_persons(self) -> int:
         return self._get_count("persons", "ExtractPersons")
@@ -323,9 +323,7 @@ class _CompressionStepTask(luigi.Task):
         return self._nb_nodes() * 2
 
     def _persons_mph_size(self):
-        # ditto, but there were 3 billion labels and .mph was 8GB
-        # (about 2.6 bytes per node)
-        return self._nb_labels() * 8
+        return self._nb_persons() * 8
 
     def _labels_mph_size(self):
         # ditto, but there were 3 billion labels and .mph was 8GB
@@ -367,21 +365,21 @@ class _CompressionStepTask(luigi.Task):
             path = Path(output.path)
             if not path.exists():
                 raise Exception(f"expected output {path} does not exist")
-            if not path.is_file():
-                raise Exception(f"expected output {path} is not a file")
-            if path.stat().st_size == 0:
-                if (
-                    path.name.endswith(
+            if path.is_file():
+                if path.stat().st_size == 0:
+                    if path.name.endswith(
                         (".labels.fcl.bytearray", ".labels.fcl.pointers")
-                    )
-                    and "dir" not in self.object_types
-                    and "snp" not in self.object_types
-                ):
-                    # It's expected that .labels.fcl.bytearray is empty when both dir
-                    # and snp are excluded, because these are the only objects
-                    # with labels on their edges.
-                    continue
-                raise Exception(f"expected output {path} is empty")
+                    ) and {"dir", "snp", "ori"}.isdisjoint(set(self.object_types)):
+                        # It's expected that .labels.fcl.bytearray is empty when both dir
+                        # and snp are excluded, because these are the only objects
+                        # with labels on their edges.
+                        continue
+                    raise Exception(f"expected output file {path} is empty")
+            elif path.is_dir():
+                if next(path.iterdir(), None) is None:
+                    raise Exception(f"expected input directory {path} is empty")
+            else:
+                raise Exception(f"expected output {path} is not a file or directory")
 
         if not self._stamp().is_file():
             with self._stamp().open() as fd:
@@ -400,7 +398,7 @@ class _CompressionStepTask(luigi.Task):
                         graph_name=self.graph_name,
                         local_graph_path=self.local_graph_path,
                         object_types=self.object_types,
-                        rust_executable=self.rust_executable,
+                        rust_executable_dir=self.rust_executable_dir,
                     )
                     if self.batch_size:
                         kwargs["batch_size"] = self.batch_size
@@ -444,10 +442,14 @@ class _CompressionStepTask(luigi.Task):
             path = self.local_graph_path / f"{self.graph_name}{input_file}"
             if not path.exists():
                 raise Exception(f"expected input {path} does not exist")
-            if not path.is_file():
-                raise Exception(f"expected input {path} is not a file")
-            if path.stat().st_size == 0:
-                raise Exception(f"expected input {path} is empty")
+            if path.is_file():
+                if path.stat().st_size == 0:
+                    raise Exception(f"expected input file {path} is empty")
+            elif path.is_dir():
+                if next(path.iterdir(), None) is None:
+                    raise Exception(f"expected input directory {path} is empty")
+            else:
+                raise Exception(f"expected output {path} is not a file or directory")
 
         if self.EXPORT_AS_INPUT:
             export_meta = json.loads(
@@ -472,7 +474,9 @@ class _CompressionStepTask(luigi.Task):
         }
         if self.batch_size:
             conf["batch_size"] = self.batch_size
-        conf["rust_executable"] = self.rust_executable
+        if self.STEP == CompressionStep.LLP and self.gammas:
+            conf["llp_gammas"] = self.gammas
+        conf["rust_executable_dir"] = self.rust_executable_dir
 
         conf = check_config_compress(
             conf,
@@ -517,33 +521,64 @@ class ExtractNodes(_CompressionStepTask):
     EXPORT_AS_INPUT = True
     INPUT_FILES: Set[str] = set()
     OUTPUT_FILES = {
+        ".nodes/",
+    }
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class ExtractLabels(_CompressionStepTask):
+    STEP = CompressionStep.EXTRACT_LABELS
+    EXPORT_AS_INPUT = True
+    INPUT_FILES: Set[str] = set()
+    OUTPUT_FILES = {
         ".labels.csv.zst",
-        ".nodes.csv.zst",
-        ".edges.count.txt",
-        ".edges.stats.txt",
+    }
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class NodeStats(_CompressionStepTask):
+    STEP = CompressionStep.NODE_STATS
+    INPUT_FILES = {".nodes/"}
+    OUTPUT_FILES = {
         ".nodes.count.txt",
         ".nodes.stats.txt",
+    }
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class EdgeStats(_CompressionStepTask):
+    STEP = CompressionStep.EDGE_STATS
+    EXPORT_AS_INPUT = True
+    INPUT_FILES: Set[str] = set()
+    OUTPUT_FILES = {
+        ".edges.count.txt",
+        ".edges.stats.txt",
+    }
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class LabelStats(_CompressionStepTask):
+    STEP = CompressionStep.LABEL_STATS
+    INPUT_FILES = {".labels.csv.zst"}
+    OUTPUT_FILES = {
         ".labels.count.txt",
     }
 
     def _large_java_allocations(self) -> int:
-        import multiprocessing
-
-        # Memory usage is mostly in subprocesses; the JVM itself needs only to read
-        # ORC files
-        # 128MB is enough in practice, but let's play it safe. ExtractNodes can't
-        # run in parallel with anything else anyway, so we have plenty of available RAM
-        # to avoid stressing the GC
-        orc_buffers_size = 256_000_000
-
-        nb_orc_readers = multiprocessing.cpu_count()
-
-        return orc_buffers_size * nb_orc_readers
+        return 0
 
 
 class Mph(_CompressionStepTask):
     STEP = CompressionStep.MPH
-    INPUT_FILES = {".nodes.csv.zst"}
+    INPUT_FILES = {".nodes/"}
     OUTPUT_FILES = {".mph"}
 
     def _large_java_allocations(self) -> int:
@@ -587,9 +622,18 @@ class BvOffsets(_CompressionStepTask):
         return 0
 
 
+class BvEf(_CompressionStepTask):
+    STEP = CompressionStep.BV_EF
+    INPUT_FILES = {"-base.offsets"}
+    OUTPUT_FILES = {"-base.ef"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
 class Bfs(_CompressionStepTask):
     STEP = CompressionStep.BFS
-    INPUT_FILES = {"-base.graph", "-base.offsets"}
+    INPUT_FILES = {"-base.graph", "-base.ef"}
     OUTPUT_FILES = {"-bfs.order"}
 
     def _large_java_allocations(self) -> int:
@@ -599,79 +643,39 @@ class Bfs(_CompressionStepTask):
         return bvgraph_size + visitorder_size + extra_size
 
 
-class PermuteBfs(_CompressionStepTask):
-    STEP = CompressionStep.PERMUTE_BFS
-    INPUT_FILES = {"-base.graph", "-bfs.order"}
-    OUTPUT_FILES = {"-bfs.graph"}
-
-    def _large_java_allocations(self) -> int:
-        bvgraph_size = self._bvgraph_allocation()
-
-        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L2196
-        permutation_size = self._nb_nodes() * 8
-
-        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L2064
-        # TODO: should we pass self.batch_size to the CLI instead?
-        batch_size = 1000000
-
-        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L2196
-        source_batch_size = target_batch_size = batch_size * 8  # longarrays
-
-        extra_size = self._nb_nodes() * 16  # FIXME: why is this needed?
-        return (
-            bvgraph_size
-            + permutation_size
-            + source_batch_size
-            + target_batch_size
-            + extra_size
-        )
-
-
-class TransposeBfs(_CompressionStepTask):
-    STEP = CompressionStep.TRANSPOSE_BFS
-    INPUT_FILES = {"-bfs.graph"}
-    OUTPUT_FILES = {"-bfs-transposed.graph"}
-
-    def _large_java_allocations(self) -> int:
-        from swh.graph.config import check_config
-
-        permutation_size = self._nb_nodes() * 8  # longarray
-
-        if self.batch_size:
-            batch_size = self.batch_size
-        else:
-            batch_size = check_config({})["batch_size"]
-
-        # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L1039
-        source_batch_size = target_batch_size = start_batch_size = (
-            batch_size * 8
-        )  # longarrays
-
-        return (
-            permutation_size + source_batch_size + target_batch_size + start_batch_size
-        )
-
-
-class Simplify(_CompressionStepTask):
-    STEP = CompressionStep.SIMPLIFY
-    INPUT_FILES = {"-bfs.graph", "-bfs-transposed.graph"}
+class PermuteAndSimplifyBfs(_CompressionStepTask):
+    STEP = CompressionStep.PERMUTE_AND_SIMPLIFY_BFS
+    INPUT_FILES = {"-base.graph", "-base.ef", "-bfs.order"}
     OUTPUT_FILES = {"-bfs-simplified.graph"}
 
     def _large_java_allocations(self) -> int:
-        import multiprocessing
+        return 0
 
-        bvgraph_size = self._bvgraph_allocation()
-        permutation_size = self._nb_nodes() * 8  # longarray
-        write_buffer = 100_000_000  # approx; used by the final ImmutableGraph.store()
-        return (
-            bvgraph_size + permutation_size + write_buffer * multiprocessing.cpu_count()
-        )
+
+class BfsEf(_CompressionStepTask):
+    STEP = CompressionStep.BFS_EF
+    INPUT_FILES = {"-bfs-simplified.graph"}
+    OUTPUT_FILES = {"-bfs-simplified.ef"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class BfsDcf(_CompressionStepTask):
+    STEP = CompressionStep.BFS_DCF
+    INPUT_FILES = {"-bfs-simplified.graph"}
+    OUTPUT_FILES = {"-bfs-simplified.dcf"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
 
 
 class Llp(_CompressionStepTask):
     STEP = CompressionStep.LLP
-    INPUT_FILES = {"-bfs-simplified.graph"}
+    INPUT_FILES = {"-bfs-simplified.graph", "-bfs-simplified.ef", "-bfs-simplified.dcf"}
     OUTPUT_FILES = {"-llp.order"}
+
+    gammas = luigi.Parameter(significant=False, default=None)
 
     def _large_java_allocations(self) -> int:
         # actually it loads the simplified graph, but we reuse the size of the
@@ -696,8 +700,8 @@ class Llp(_CompressionStepTask):
 
 class PermuteLlp(_CompressionStepTask):
     STEP = CompressionStep.PERMUTE_LLP
-    INPUT_FILES = {"-llp.order", "-bfs.graph"}
-    OUTPUT_FILES = {".graph", ".offsets", ".properties"}
+    INPUT_FILES = {".order", "-base.graph", "-base.offsets"}
+    OUTPUT_FILES = {".graph", ".properties"}
 
     def _large_java_allocations(self) -> int:
         from swh.graph.config import check_config
@@ -730,9 +734,27 @@ class PermuteLlp(_CompressionStepTask):
         )
 
 
+class Offsets(_CompressionStepTask):
+    STEP = CompressionStep.OFFSETS
+    INPUT_FILES = {".graph"}
+    OUTPUT_FILES = {".offsets"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class Ef(_CompressionStepTask):
+    STEP = CompressionStep.EF
+    INPUT_FILES = {".graph", ".offsets"}
+    OUTPUT_FILES = {".ef"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
 class Obl(_CompressionStepTask):
     STEP = CompressionStep.OBL
-    INPUT_FILES = {".graph"}
+    INPUT_FILES = {".graph", ".offsets"}
     OUTPUT_FILES = {".obl"}
 
     def _large_java_allocations(self) -> int:
@@ -765,7 +787,7 @@ class Transpose(_CompressionStepTask):
     STEP = CompressionStep.TRANSPOSE
     # .obl is an optional input; but we need to make sure it's not being written
     # while Transpose is starting, or Transpose would error with EOF while reading it
-    INPUT_FILES = {".graph", ".obl"}
+    INPUT_FILES = {".graph", ".ef"}
     OUTPUT_FILES = {"-transposed.graph", "-transposed.properties"}
 
     def _large_java_allocations(self) -> int:
@@ -785,9 +807,28 @@ class Transpose(_CompressionStepTask):
         )
 
 
+class TransposeOffsets(_CompressionStepTask):
+    STEP = CompressionStep.TRANSPOSE_OFFSETS
+    INPUT_FILES = {"-transposed.graph"}
+    OUTPUT_FILES = {"-transposed.offsets"}
+
+    def _large_java_allocations(self) -> int:
+        bvgraph_size = self._bvgraph_allocation()
+        return bvgraph_size
+
+
+class TransposeEf(_CompressionStepTask):
+    STEP = CompressionStep.TRANSPOSE_EF
+    INPUT_FILES = {"-transposed.graph", "-transposed.offsets"}
+    OUTPUT_FILES = {"-transposed.ef"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
 class TransposeObl(_CompressionStepTask):
     STEP = CompressionStep.TRANSPOSE_OBL
-    INPUT_FILES = {"-transposed.graph"}
+    INPUT_FILES = {"-transposed.graph", "-transposed.offsets"}
     OUTPUT_FILES = {"-transposed.obl"}
 
     def _large_java_allocations(self) -> int:
@@ -797,7 +838,7 @@ class TransposeObl(_CompressionStepTask):
 
 class Maps(_CompressionStepTask):
     STEP = CompressionStep.MAPS
-    INPUT_FILES = {".mph", ".order", ".nodes.csv.zst"}
+    INPUT_FILES = {".mph", ".order", ".nodes/"}
     OUTPUT_FILES = {".node2swhid.bin"}
 
     def _large_java_allocations(self) -> int:
@@ -805,6 +846,15 @@ class Maps(_CompressionStepTask):
 
         bfsmap_size = self._nb_nodes() * 8  # longarray
         return mph_size + bfsmap_size
+
+
+class Node2Type(_CompressionStepTask):
+    STEP = CompressionStep.NODE2TYPE
+    INPUT_FILES = {".node2swhid.bin"}
+    OUTPUT_FILES = {".node2type.bin"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
 
 
 class ExtractPersons(_CompressionStepTask):
@@ -825,6 +875,17 @@ class MphPersons(_CompressionStepTask):
     def _large_java_allocations(self) -> int:
         bitvector_size = _govmph_bitarray_size(self._nb_persons())
         return bitvector_size
+
+
+class ConvertMphPersons(_CompressionStepTask):
+    STEP = CompressionStep.CONVERT_MPH_PERSONS
+    INPUT_FILES = {".persons.mph"}
+    OUTPUT_FILES = {".persons.cmph"}
+
+    def _large_java_allocations(self) -> int:
+        bitvector_size = _govmph_bitarray_size(self._nb_nodes())
+        extra_size = self._nb_nodes()  # TODO: why is this needed?
+        return bitvector_size + extra_size
 
 
 class NodeProperties(_CompressionStepTask):
@@ -950,6 +1011,8 @@ class EdgeLabels(_CompressionStepTask):
         ".node2swhid.bin",
         ".properties",
         "-transposed.properties",
+        "-transposed.offsets",
+        "-transposed.obl",
     }
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
@@ -1018,6 +1081,24 @@ class EdgeLabelsTransposeObl(_CompressionStepTask):
         return offsets_size
 
 
+class EdgeLabelsEf(_CompressionStepTask):
+    STEP = CompressionStep.EDGE_LABELS_EF
+    INPUT_FILES = {"-labelled.labels", "-labelled.labeloffsets"}
+    OUTPUT_FILES = {"-labelled.ef"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class EdgeLabelsTransposeEf(_CompressionStepTask):
+    STEP = CompressionStep.EDGE_LABELS_TRANSPOSE_EF
+    INPUT_FILES = {"-transposed-labelled.labels", "-transposed-labelled.labeloffsets"}
+    OUTPUT_FILES = {"-transposed-labelled.ef"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
 _duplicate_steps = [
     step
     for (step, count) in collections.Counter(
@@ -1052,8 +1133,8 @@ class CompressGraph(luigi.Task):
         """,
     )
 
-    rust_executable = luigi.Parameter(
-        default="./target/release/compress",
+    rust_executable_dir = luigi.Parameter(
+        default="./target/release/",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
     )
@@ -1068,7 +1149,7 @@ class CompressGraph(luigi.Task):
             graph_name=self.graph_name,
             local_graph_path=self.local_graph_path,
             object_types=self.object_types,
-            rust_executable=self.rust_executable,
+            rust_executable_dir=self.rust_executable_dir,
         )
         return [
             LocalExport(
@@ -1076,14 +1157,22 @@ class CompressGraph(luigi.Task):
                 formats=[Format.orc],  # type: ignore[attr-defined]
                 object_types=_tables_for_object_types(self.object_types),
             ),
+            NodeStats(**kwargs),
+            EdgeStats(**kwargs),
+            LabelStats(**kwargs),
             EdgeLabelsObl(**kwargs),
             EdgeLabelsTransposeObl(**kwargs),
             Stats(**kwargs),
             Obl(**kwargs),
             TransposeObl(**kwargs),
+            TransposeEf(**kwargs),
             Maps(**kwargs),
+            Node2Type(**kwargs),
             NodeProperties(**kwargs),
+            ConvertMphPersons(**kwargs),
             FclLabels(**kwargs),
+            EdgeLabelsEf(**kwargs),
+            EdgeLabelsTransposeEf(**kwargs),
         ]
 
     def output(self) -> List[luigi.LocalTarget]:
@@ -1233,7 +1322,7 @@ class UploadGraphToS3(luigi.Task):
         client = luigi.contrib.s3.S3Client()
 
         with multiprocessing.dummy.Pool(self.parallelism) as p:
-            for (i, relative_path) in tqdm.tqdm(
+            for i, relative_path in tqdm.tqdm(
                 enumerate(p.imap_unordered(self._upload_file, paths)),
                 total=len(paths),
                 desc="Uploading compressed graph",
@@ -1329,7 +1418,7 @@ class DownloadGraphFromS3(luigi.Task):
 
         # recursively copy local files to S3, and end with compression metadata
         files = list(client.list(self.s3_graph_path))
-        for (i, file_) in tqdm.tqdm(
+        for i, file_ in tqdm.tqdm(
             list(enumerate(files)),
             desc="Downloading",
         ):

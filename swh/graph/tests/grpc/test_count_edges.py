@@ -146,3 +146,15 @@ def test_with_empty_mask(graph_grpc_stub, graph_grpc_backend_implementation):
         )
     )
     assert traversal_request.count == 7
+
+
+def test_max_depth(graph_grpc_stub, graph_grpc_backend_implementation):
+    traversal_request = graph_grpc_stub.CountEdges(
+        TraversalRequest(
+            src=["swh:1:rel:0000000000000000000000000000000000000019"],
+            max_depth=1,
+            mask=FieldMask(),
+        )
+    )
+    # should count rel:19 -> rev:18
+    assert traversal_request.count == 1

@@ -34,32 +34,45 @@ class CompressionSubprocessError(Exception):
 
 
 class CompressionStep(Enum):
-    EXTRACT_NODES = -1
-    MPH = 0
-    CONVERT_MPH = 1
-    BV = 2
-    BV_OFFSETS = 3
-    BFS = 4
-    PERMUTE_BFS = 5
-    TRANSPOSE_BFS = 6
-    SIMPLIFY = 7
-    LLP = 8
-    PERMUTE_LLP = 9
-    OBL = 10
-    COMPOSE_ORDERS = 11
-    STATS = 12
-    TRANSPOSE = 13
-    TRANSPOSE_OBL = 14
-    MAPS = 15
-    EXTRACT_PERSONS = 16
-    MPH_PERSONS = 17
-    NODE_PROPERTIES = 18
-    MPH_LABELS = 19
-    FCL_LABELS = 20
-    EDGE_LABELS = 21
-    EDGE_LABELS_OBL = 22
-    EDGE_LABELS_TRANSPOSE_OBL = 23
-    CLEAN_TMP = 24
+    EXTRACT_NODES = -20
+    EXTRACT_LABELS = -10
+    NODE_STATS = 0
+    EDGE_STATS = 3
+    LABEL_STATS = 6
+    MPH = 10
+    CONVERT_MPH = 20
+    BV = 30
+    BV_OFFSETS = 40
+    BV_EF = 50
+    BFS = 60
+    PERMUTE_AND_SIMPLIFY_BFS = 70
+    BFS_EF = 80
+    BFS_DCF = 90
+    LLP = 100
+    COMPOSE_ORDERS = 110
+    PERMUTE_LLP = 120
+    OFFSETS = 130
+    EF = 135
+    OBL = 140
+    STATS = 150
+    TRANSPOSE = 160
+    TRANSPOSE_OFFSETS = 165
+    TRANSPOSE_OBL = 170
+    TRANSPOSE_EF = 175
+    MAPS = 180
+    NODE2TYPE = 185
+    EXTRACT_PERSONS = 190
+    MPH_PERSONS = 200
+    CONVERT_MPH_PERSONS = 205
+    NODE_PROPERTIES = 210
+    MPH_LABELS = 220
+    FCL_LABELS = 230
+    EDGE_LABELS = 240
+    EDGE_LABELS_OBL = 250
+    EDGE_LABELS_TRANSPOSE_OBL = 260
+    EDGE_LABELS_EF = 270
+    EDGE_LABELS_TRANSPOSE_EF = 280
+    CLEAN_TMP = 300
 
     def __str__(self):
         return self.name
@@ -75,16 +88,62 @@ COMP_SEQ = list(CompressionStep)
 # configuration values, see :func:`compress`.
 STEP_ARGV: Dict[CompressionStep, List[str]] = {
     CompressionStep.EXTRACT_NODES: [
-        "{java}",
-        "org.softwareheritage.graph.compress.ExtractNodes",
+        "{rust_executable_dir}/swh-graph-extract",
+        "extract-nodes",
         "--format",
         "orc",
-        "--temp-dir",
-        "{tmp_dir}",
         "--allowed-node-types",
         "{object_types}",
         "{in_dir}",
-        "{out_dir}/{graph_name}",
+        "{out_dir}/{graph_name}.nodes/",
+    ],
+    CompressionStep.EXTRACT_LABELS: [
+        "{rust_executable_dir}/swh-graph-extract",
+        "extract-labels",
+        "--format",
+        "orc",
+        "--allowed-node-types",
+        "{object_types}",
+        "{in_dir}",
+        "{out_dir}/{graph_name}.labels/",
+        # ensure at least one file is present so the wildcard below can't fail
+        "&& mkdir -p {out_dir}/{graph_name}.labels/"
+        "&& echo '' | zstdmt > {out_dir}/{graph_name}.labels/empty.csv.zst",
+        # Concatenate all files in the directory to a single file.
+        # TODO: remove the concatenation once other steps below support directories
+        "&& cat {out_dir}/{graph_name}.labels/* > {out_dir}/{graph_name}.labels.csv.zst",
+        "&& rm -R {out_dir}/{graph_name}.labels/",
+    ],
+    CompressionStep.NODE_STATS: [
+        "{rust_executable_dir}/swh-graph-extract",
+        "node-stats",
+        "--format",
+        "orc",
+        "--swhids-dir",
+        "{out_dir}/{graph_name}.nodes/",
+        "--target-stats",
+        "{out_dir}/{graph_name}.nodes.stats.txt",
+        "--target-count",
+        "{out_dir}/{graph_name}.nodes.count.txt",
+    ],
+    CompressionStep.EDGE_STATS: [
+        "{rust_executable_dir}/swh-graph-extract",
+        "edge-stats",
+        "--format",
+        "orc",
+        "--allowed-node-types",
+        "{object_types}",
+        "--dataset-dir",
+        "{in_dir}",
+        "--target-stats",
+        "{out_dir}/{graph_name}.edges.stats.txt",
+        "--target-count",
+        "{out_dir}/{graph_name}.edges.count.txt",
+    ],
+    CompressionStep.LABEL_STATS: [
+        "zstdcat {out_dir}/{graph_name}.labels.csv.zst "
+        "| wc -l "
+        "> {out_dir}/{graph_name}.labels.count.txt"
     ],
     CompressionStep.MPH: [
         "{java}",
@@ -95,7 +154,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--decompressor",
         "com.github.luben.zstd.ZstdInputStream",
         "{out_dir}/{graph_name}.mph",
-        "{out_dir}/{graph_name}.nodes.csv.zst",
+        "<(cat {out_dir}/{graph_name}.nodes/*)",
     ],
     CompressionStep.CONVERT_MPH: [
         "{java}",
@@ -104,7 +163,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}.cmph",
     ],
     CompressionStep.BV: [
-        "{rust_executable}",
+        "{rust_executable_dir}/swh-graph-extract",
         "bv",
         "--allowed-node-types",
         "{object_types}",
@@ -118,60 +177,76 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-base",
     ],
     CompressionStep.BV_OFFSETS: [
-        "{rust_executable}",
-        "build-offsets",
+        "{rust_executable_dir}/swh-graph-index",
+        "offsets",
+        "{out_dir}/{graph_name}-base",
+    ],
+    CompressionStep.BV_EF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "ef",
         "{out_dir}/{graph_name}-base",
     ],
     CompressionStep.BFS: [
-        "{java}",
-        "it.unimi.dsi.law.big.graph.BFS",
+        "{rust_executable_dir}/swh-graph-compress",
+        "bfs",
         "{out_dir}/{graph_name}-base",
         "{out_dir}/{graph_name}-bfs.order",
     ],
-    CompressionStep.PERMUTE_BFS: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.Transform",
-        "mapOffline",
+    CompressionStep.PERMUTE_AND_SIMPLIFY_BFS: [
+        "{rust_executable_dir}/swh-graph-compress",
+        "permute-and-symmetrize",
         "{out_dir}/{graph_name}-base",
-        "{out_dir}/{graph_name}-bfs",
+        "{out_dir}/{graph_name}-bfs-simplified",
+        "--permutation",
         "{out_dir}/{graph_name}-bfs.order",
-        "{batch_size}",
-        "{tmp_dir}",
     ],
-    CompressionStep.TRANSPOSE_BFS: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.Transform",
-        "transposeOffline",
-        "{out_dir}/{graph_name}-bfs",
-        "{out_dir}/{graph_name}-bfs-transposed",
-        "{batch_size}",
-        "{tmp_dir}",
+    CompressionStep.BFS_EF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "ef",
+        "{out_dir}/{graph_name}-bfs-simplified",
     ],
-    CompressionStep.SIMPLIFY: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.Transform",
-        "simplify",
-        "{out_dir}/{graph_name}-bfs",
-        "{out_dir}/{graph_name}-bfs-transposed",
+    CompressionStep.BFS_DCF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "dcf",
         "{out_dir}/{graph_name}-bfs-simplified",
     ],
     CompressionStep.LLP: [
-        "{java}",
-        "it.unimi.dsi.law.big.graph.LayeredLabelPropagation",
+        "{rust_executable_dir}/swh-graph-compress",
+        "llp",
         "-g",
         "{llp_gammas}",
         "{out_dir}/{graph_name}-bfs-simplified",
         "{out_dir}/{graph_name}-llp.order",
     ],
-    CompressionStep.PERMUTE_LLP: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.Transform",
-        "mapOffline",
-        "{out_dir}/{graph_name}-bfs",
-        "{out_dir}/{graph_name}",
+    CompressionStep.COMPOSE_ORDERS: [
+        "{rust_executable_dir}/swh-graph-compress",
+        "compose-orders",
+        "--num-nodes",
+        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
+        "--input",
+        "{out_dir}/{graph_name}-bfs.order",
+        "--input",
         "{out_dir}/{graph_name}-llp.order",
-        "{batch_size}",
-        "{tmp_dir}",
+        "--output",
+        "{out_dir}/{graph_name}.order",
+    ],
+    CompressionStep.PERMUTE_LLP: [
+        "{rust_executable_dir}/swh-graph-compress",
+        "permute",
+        "{out_dir}/{graph_name}-base",
+        "{out_dir}/{graph_name}",
+        "--permutation",
+        "{out_dir}/{graph_name}.order",
+    ],
+    CompressionStep.OFFSETS: [
+        "{rust_executable_dir}/swh-graph-index",
+        "offsets",
+        "{out_dir}/{graph_name}",
+    ],
+    CompressionStep.EF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "ef",
+        "{out_dir}/{graph_name}",
     ],
     CompressionStep.OBL: [
         "{java}",
@@ -179,26 +254,21 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--list",
         "{out_dir}/{graph_name}",
     ],
-    CompressionStep.COMPOSE_ORDERS: [
-        "{java}",
-        "org.softwareheritage.graph.compress.ComposePermutations",
-        "{out_dir}/{graph_name}-bfs.order",
-        "{out_dir}/{graph_name}-llp.order",
-        "{out_dir}/{graph_name}.order",
-    ],
     CompressionStep.STATS: [
         "{java}",
         "it.unimi.dsi.big.webgraph.Stats",
         "{out_dir}/{graph_name}",
     ],
     CompressionStep.TRANSPOSE: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.Transform",
-        "transposeOffline",
+        "{rust_executable_dir}/swh-graph-compress",
+        "transpose",
         "{out_dir}/{graph_name}",
         "{out_dir}/{graph_name}-transposed",
-        "{batch_size}",
-        "{tmp_dir}",
+    ],
+    CompressionStep.TRANSPOSE_OFFSETS: [
+        "{rust_executable_dir}/swh-graph-index",
+        "offsets",
+        "{out_dir}/{graph_name}-transposed",
     ],
     CompressionStep.TRANSPOSE_OBL: [
         "{java}",
@@ -206,12 +276,21 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--list",
         "{out_dir}/{graph_name}-transposed",
     ],
+    CompressionStep.TRANSPOSE_EF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "ef",
+        "{out_dir}/{graph_name}-transposed",
+    ],
     CompressionStep.MAPS: [
+        "cat {out_dir}/{graph_name}.nodes/* |",
         "{java}",
         "org.softwareheritage.graph.compress.NodeMapBuilder",
         "{out_dir}/{graph_name}",
         "{tmp_dir}",
-        "< {out_dir}/{graph_name}.nodes.csv.zst",
+    ],
+    CompressionStep.NODE2TYPE: [
+        "{rust_executable_dir}/swh-graph-node2type",
+        "{out_dir}/{graph_name}",
     ],
     CompressionStep.EXTRACT_PERSONS: [
         "{java}",
@@ -233,6 +312,12 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{tmp_dir}",
         "{out_dir}/{graph_name}.persons.mph",
         "{out_dir}/{graph_name}.persons.csv.zst",
+    ],
+    CompressionStep.CONVERT_MPH_PERSONS: [
+        "{java}",
+        "org.softwareheritage.graph.utils.Mph2Cmph",
+        "{out_dir}/{graph_name}.persons.mph",
+        "{out_dir}/{graph_name}.persons.cmph",
     ],
     CompressionStep.NODE_PROPERTIES: [
         "{java}",
@@ -268,6 +353,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{tmp_dir}",
         "--allowed-node-types",
         "{object_types}",
+        "--batch-size",
+        "{batch_size}",
         "{in_dir}",
         "{out_dir}/{graph_name}",
     ],
@@ -283,22 +370,24 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--list",
         "{out_dir}/{graph_name}-transposed-labelled",
     ],
+    CompressionStep.EDGE_LABELS_EF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "labels-ef",
+        "{out_dir}/{graph_name}-labelled",
+        "$((1+ $(cat {out_dir}/{graph_name}.nodes.count.txt)))",
+    ],
+    CompressionStep.EDGE_LABELS_TRANSPOSE_EF: [
+        "{rust_executable_dir}/swh-graph-index",
+        "labels-ef",
+        "{out_dir}/{graph_name}-transposed-labelled",
+        "$((1+ $(cat {out_dir}/{graph_name}.nodes.count.txt)))",
+    ],
     CompressionStep.CLEAN_TMP: [
         "rm",
         "-rf",
-        "{out_dir}/{graph_name}-base.graph",
-        "{out_dir}/{graph_name}-base.offsets",
-        "{out_dir}/{graph_name}-base.properties",
-        "{out_dir}/{graph_name}-bfs-simplified.graph",
-        "{out_dir}/{graph_name}-bfs-simplified.offsets",
-        "{out_dir}/{graph_name}-bfs-simplified.properties",
-        "{out_dir}/{graph_name}-bfs-transposed.graph",
-        "{out_dir}/{graph_name}-bfs-transposed.offsets",
-        "{out_dir}/{graph_name}-bfs-transposed.properties",
-        "{out_dir}/{graph_name}-bfs.graph",
-        "{out_dir}/{graph_name}-bfs.offsets",
+        "{out_dir}/{graph_name}-base.*",
+        "{out_dir}/{graph_name}-bfs-simplified.*",
         "{out_dir}/{graph_name}-bfs.order",
-        "{out_dir}/{graph_name}-bfs.properties",
         "{out_dir}/{graph_name}-llp.order",
         "{tmp_dir}",
     ],
@@ -337,6 +426,7 @@ def do_step(step, conf) -> "List[RunResult]":
     cmd_env["CLASSPATH"] = conf["classpath"]
     cmd_env["TMPDIR"] = conf["tmp_dir"]
     cmd_env["TZ"] = "UTC"
+    cmd_env["RUST_MIN_STACK"] = "8388608"  # 8MiB; avoids stack overflows in LLP
     command = Command.bash(
         "-c",
         cmd,

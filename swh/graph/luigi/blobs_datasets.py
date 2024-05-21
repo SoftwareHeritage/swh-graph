@@ -100,13 +100,13 @@ SELECTION_QUERIES = {
             t2.sha1 AS sha1,
             t1.filename AS name
         FROM (
-            SELECT DISTINCT target, lower(trim(decode(name, 'utf-8'))) AS filename
+            SELECT DISTINCT target, lower(trim(TRY_CAST(name AS VARCHAR))) AS filename
             FROM directory_entry
             WHERE (
                 type='file'
                 AND (
-                    lower(trim(decode(name, 'utf-8'))) = 'codemeta.json'
-                    OR lower(trim(decode(name, 'utf-8'))) = 'citation.cff'
+                    lower(trim(TRY_CAST(name AS VARCHAR))) = 'codemeta.json'
+                    OR lower(trim(TRY_CAST(name AS VARCHAR))) = 'citation.cff'
                 )
             )
         ) AS t1
@@ -120,14 +120,15 @@ SELECTION_QUERIES = {
             t2.sha1 AS sha1,
             t1.filename AS name
         FROM (
-            SELECT DISTINCT target, lower(trim(decode(name, 'utf-8'))) AS filename
+            SELECT DISTINCT target, lower(trim(TRY_CAST(name AS VARCHAR))) AS filename
             FROM directory_entry
             WHERE (
                 type = 'file' AND
-                regexp_like(
-                    lower(decode(name, 'utf-8')),
+                -- TODO: replace not(empty(regexp_match())) with regexp_find()
+                not(empty(regexp_match(
+                    lower(TRY_CAST(name AS VARCHAR)),
                     '^([a-z0-9._-]+\.)?(copying|licen(c|s)(e|ing)|notice|copyright|disclaimer|authors)(\.[a-z0-9\._-]+)?$'
-                )
+                )))
             )
         ) AS t1
         LEFT JOIN (SELECT sha1,sha1_git FROM content) AS t2
@@ -140,14 +141,15 @@ SELECTION_QUERIES = {
             t2.sha1 AS sha1,
             t1.filename AS name
         FROM (
-            SELECT DISTINCT target, lower(trim(decode(name, 'utf-8'))) AS filename
+            SELECT DISTINCT target, lower(trim(TRY_CAST(name AS VARCHAR))) AS filename
             FROM directory_entry
             WHERE (
                 type = 'file' AND
-                regexp_like(
-                    lower(decode(name, 'utf-8')),
+                -- TODO: replace not(empty(regexp_match())) with regexp_find()
+                not(empty(regexp_match(
+                    lower(TRY_CAST(name AS VARCHAR)),
                     '^(readme)(\.[a-z0-9\._-]+)?$'
-                )
+                )))
             )
         ) AS t1
         LEFT JOIN (SELECT sha1,sha1_git FROM content) AS t2
@@ -395,7 +397,7 @@ class _ConcurrentCsvWritingTask(_BaseTask):
     async def _fill_input_queue(
         self, input_queue: "asyncio.Queue[Tuple[str, str, str]]"
     ) -> None:
-        for (swhid, sha1, name) in self.iter_blobs(with_tqdm=False, unique_sha1=True):
+        for swhid, sha1, name in self.iter_blobs(with_tqdm=False, unique_sha1=True):
             if not swhid.startswith("swh:1:"):
                 raise ValueError(f"Invalid SWHID: {swhid}")
 
@@ -429,7 +431,6 @@ class _ConcurrentCsvWritingTask(_BaseTask):
         result_path = Path(target.path)
 
         with atomic_csv_zstd_writer(result_path) as writer:
-
             writer.writerow(self.CSV_HEADER)
 
             async for i in tqdm.asyncio.trange(self.blob_count()):
@@ -501,53 +502,34 @@ class SelectBlobs(_BaseTask):
         import tempfile
         import textwrap
 
-        from pyspark.sql import SparkSession
+        import datafusion
+        import pyarrow.dataset
 
         from ..shell import AtomicFileSink, Command
 
-        # Configuring a transient -Dderby.system.home so that metastore (ie. list of
-        # tables CREATEd below) is not persisted across runs
-        with tempfile.TemporaryDirectory(prefix="spark-tmp-") as derby_home:
-            spark_sql_context = (
-                SparkSession.builder.config(
-                    "spark.driver.extraJavaOptions",
-                    f"-Djava.io.tmpdir={tempfile.gettempdir()} "
-                    f"-Dderby.system.home={derby_home}",
-                )
-                .config("spark.executor.memory", "100g")
-                .config("spark.driver.memory", "100g")
-                .enableHiveSupport()
-                .getOrCreate()
-            )
-
+        ctx = datafusion.SessionContext()
         for table in ("directory_entry", "content"):
-            logger.debug(f"Creating table {table}...")
-            spark_sql_context.sql(
-                f"""
-                CREATE TABLE {table}
-                USING ORC
-                LOCATION '{self.local_export_path}/orc/{table}'
-                """
+            ctx.register_dataset(
+                table,
+                pyarrow.dataset.dataset(
+                    self.local_export_path / "orc" / table, format="orc"
+                ),
             )
 
         logger.info("Running query...")
         query = SELECTION_QUERIES[self.blob_filter]
         logger.debug("%s", textwrap.indent(query, "    "))
-        df = spark_sql_context.sql(query)
+        df = ctx.sql(query)
         logger.info("Reformatting...")
 
-        assert df.columns == ["swhid", "sha1", "name"]
+        columns = df.schema().names
+        assert columns == ["swhid", "sha1", "name"], columns
 
         output_path = self.blob_list_path()
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with tempfile.TemporaryDirectory(
-            prefix="blobs-",
-        ) as sql_res_dir:
-            df.write.csv(
-                sql_res_dir,
-                mode="overwrite",  # allow the temp dir to already exist
-            )
+        with tempfile.TemporaryDirectory(prefix="blobs") as sql_res_dir:
+            df.write_csv(sql_res_dir)
 
             # In the 2022-04-24 license dataset, the 'egrep' command filters
             # just 5 entries:
@@ -566,9 +548,10 @@ class SelectBlobs(_BaseTask):
             # fmt: off
             (
                 Command.cat(
-                    Command.echo(",".join(df.columns)),
-                    *sorted(Path(sql_res_dir).glob("part-*.csv"))
+                    Command.echo(",".join(columns)),
+                    *sorted(Path(sql_res_dir).glob("*.csv"))
                 )
+                | Command.tail("-n+2")  # remove header
                 | Command.egrep('^[^,]*,[^,]*,[^,]*$')
                 | Command.zstdmt("-")
                 > AtomicFileSink(output_path)
@@ -1069,7 +1052,7 @@ class BlobScancode(_BaseTask):
                 maxtasksperchild=self.WORKER_MAX_TASKS,
                 context=context,
             ) as pool:
-                for (license_rows, results) in tqdm.tqdm(
+                for license_rows, results in tqdm.tqdm(
                     pool.imap_unordered(
                         self._detect_licenses,
                         self.iter_blobs(unique_sha1=True, with_tqdm=False),
@@ -1078,7 +1061,7 @@ class BlobScancode(_BaseTask):
                     total=self.blob_count(),
                 ):
                     # each detect() call can return multiple licenses, flatten them
-                    for (sha1, license, score) in license_rows:
+                    for sha1, license, score in license_rows:
                         csv_writer.writerow([sha1, license, str(score)])
                     assert "\n" not in results
                     jsonfile.write(results + "\n")
@@ -1374,7 +1357,6 @@ class RunBlobDataset(luigi.Task):
     def _check_nb_origins(
         self, swhid: str, min_expected_origins: int, path: Path
     ) -> None:
-
         from ..shell import Command, Sink
 
         # fmt: off

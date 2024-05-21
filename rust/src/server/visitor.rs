@@ -3,8 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::ops::Deref;
-
 use crate::graph::SwhForwardGraph;
 
 #[derive(Debug)]
@@ -22,20 +20,23 @@ const DEPTH_SENTINEL: usize = usize::MAX;
 
 /// A simple traversal.
 ///
-/// For each node (resp. arc), `on_node` (resp. `on_arc`) is called with each node (resp. arc)
-/// the current depth, and it affects the next visited node based on which [`VisitFlow`] it returns.
+/// For each arc, `on_arc` is called with the arc and the current depth.
+/// It affects the next visited node based on which [`VisitFlow`] it returns.
+///
+/// For each node, `on_node`  is called with the node id, the current depth, and the
+/// node number of successors not ignored by `on_arc` (or `None` if successors were not
+/// visited because `max_depth` is reached).
+/// It affects the next visited node based on which [`VisitFlow`] it returns.
 ///
 /// For each node, `on_arc` is first called on all outgoing edges, then `on_node` is called
 /// for that node, with the number of arcs that were not ignored by `on_arc` as last parameter.
 #[derive(Debug)]
 pub struct SimpleBfsVisitor<
-    G: Deref + Clone,
+    G: SwhForwardGraph + Clone,
     Error,
-    OnNode: FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
+    OnNode: FnMut(usize, u64, Option<u64>) -> Result<VisitFlow, Error>,
     OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
-> where
-    G::Target: SwhForwardGraph,
-{
+> {
     graph: G,
     queue: std::collections::VecDeque<usize>,
     seen: std::collections::HashSet<usize>,
@@ -46,13 +47,11 @@ pub struct SimpleBfsVisitor<
 }
 
 impl<
-        G: Deref + Clone,
+        G: SwhForwardGraph + Clone,
         Error,
-        OnNode: FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
+        OnNode: FnMut(usize, u64, Option<u64>) -> Result<VisitFlow, Error>,
         OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
     > SimpleBfsVisitor<G, Error, OnNode, OnArc>
-where
-    G::Target: SwhForwardGraph,
 {
     /// Initializes a new visit
     ///
@@ -117,8 +116,12 @@ where
         self.push(DEPTH_SENTINEL);
         while let Some(node) = self.pop() {
             if node == DEPTH_SENTINEL {
+                assert!(
+                    self.queue.is_empty() || self.depth < self.max_depth,
+                    "visit_node queued nodes beyond the maximum depth"
+                );
                 self.depth += 1;
-                return Ok(!self.queue.is_empty() && self.depth <= self.max_depth);
+                return Ok(!self.queue.is_empty());
             }
             match self.visit_step(node)? {
                 VisitFlow::Continue => {}
@@ -140,14 +143,19 @@ where
     ///
     /// Returns `Err` if the visit should stop after this step
     pub fn visit_node(&mut self, node: usize) -> Result<VisitFlow, Error> {
-        let mut num_successors = 0;
-        for successor in self.graph.clone().successors(node) {
-            match self.visit_arc(node, successor)? {
-                VisitFlow::Continue => num_successors += 1,
-                VisitFlow::Ignore => {}
-                VisitFlow::Stop => return Ok(VisitFlow::Stop),
+        let num_successors = if self.depth < self.max_depth {
+            let mut num_successors = 0;
+            for successor in self.graph.clone().successors(node) {
+                match self.visit_arc(node, successor)? {
+                    VisitFlow::Continue => num_successors += 1,
+                    VisitFlow::Ignore => {}
+                    VisitFlow::Stop => return Ok(VisitFlow::Stop),
+                }
             }
-        }
+            Some(num_successors)
+        } else {
+            None
+        };
         match (self.on_node)(node, self.depth, num_successors)? {
             VisitFlow::Continue => Ok(VisitFlow::Continue),
             VisitFlow::Ignore => panic!("on_node returned VisitFlow::Ignore"),

@@ -88,7 +88,7 @@ class ListOriginContributors(luigi.Task):
         """Runs org.softwareheritage.graph.utils.ListOriginContributors and compresses"""
         import tempfile
 
-        from ..shell import AtomicFileSink, Command, Java
+        from ..shell import AtomicFileSink, Command, Rust
         from .utils import count_nodes
 
         topological_order_path = Path(self.input()["toposort"].path)
@@ -97,7 +97,6 @@ class ListOriginContributors(luigi.Task):
             self.local_graph_path, self.graph_name, "rev,rel,snp,ori"
         )
 
-        class_name = "org.softwareheritage.graph.utils.ListOriginContributors"
         with tempfile.NamedTemporaryFile(
             prefix="origin_urls_", suffix=".csv"
         ) as origin_urls_fd:
@@ -105,11 +104,11 @@ class ListOriginContributors(luigi.Task):
             (
                 Command.zstdcat(topological_order_path)
                 | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
-                | Java(
-                    class_name,
+                | Rust(
+                    "origin-contributors",
                     self.local_graph_path / self.graph_name,
+                    "--origins-out",
                     origin_urls_fd.name,
-                    max_ram=self.max_ram_mb * 1_000_000,
                 )
                 | Command.zstdmt("-19")
                 > AtomicFileSink(self.origin_contributors_path)
@@ -216,7 +215,7 @@ class DeanonymizeOriginContributors(luigi.Task):
         import pyzstd
         import tqdm
 
-        from ..shell import Command, Java, Sink
+        from ..shell import Command, Rust, Sink
 
         # Load the deanonymization table, to map sha256(name) to base64(name)
         # and escape(name)
@@ -242,10 +241,13 @@ class DeanonymizeOriginContributors(luigi.Task):
         person_ids = (
             Command.pv(persons_path)
             | Command.zstdcat()
-            | Java(
-                "org.softwareheritage.graph.utils.MPHTranslate",
-                self.local_graph_path / f"{self.graph_name}.persons.mph",
-                max_ram=100_000_000,
+            | Rust(
+                "swh-graph-hash",
+                "persons",
+                "--mph-algo",
+                "cmph",
+                "--mph",
+                self.local_graph_path / f"{self.graph_name}.persons",
             )
             > Sink()
         ).run()
@@ -264,7 +266,7 @@ class DeanonymizeOriginContributors(luigi.Task):
 
         assert (
             next(person_ids_it) == ""
-        ), "MPHTranslate output has fewer lines than its input"
+        ), "swh-graph-hash output has fewer lines than its input"
 
         # Read the set of person ids from the main table
         person_ids = set()
@@ -273,7 +275,7 @@ class DeanonymizeOriginContributors(luigi.Task):
             csv_reader = csv.reader(cast(Iterable[str], input_fd))
             header = next(csv_reader)
             assert header == ["origin_id", "contributor_id", "years"], header
-            for (origin_id, person_id_str, years) in tqdm.tqdm(
+            for origin_id, person_id_str, years in tqdm.tqdm(
                 csv_reader, unit_scale=True, desc="Reading set of contributor ids"
             ):
                 if person_id_str == "null":

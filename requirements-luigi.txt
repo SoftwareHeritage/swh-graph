@@ -1,5 +1,6 @@
+datafusion
 luigi
-pyspark
+pyarrow
 python-magic
 pyzstd
 tqdm

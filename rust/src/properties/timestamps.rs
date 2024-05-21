@@ -73,6 +73,7 @@ pub struct VecTimestamps {
 impl VecTimestamps {
     /// Builds [`VecTimestamps`] from 4-tuples of `(author_timestamp, author_timestamp_offset,
     /// committer_timestamp, committer_timestamp_offset)`
+    #[allow(clippy::type_complexity)]
     pub fn new(
         timestamps: Vec<(Option<i64>, Option<i16>, Option<i64>, Option<i16>)>,
     ) -> Result<Self> {
@@ -181,7 +182,8 @@ impl<
         self.with_timestamps(timestamps)
     }
 
-    /// Alternative to [`load_timestamps`] that allows using arbitrary timestamps implementations
+    /// Alternative to [`load_timestamps`](Self::load_timestamps) that allows using arbitrary
+    /// timestamps implementations
     pub fn with_timestamps<TIMESTAMPS: Timestamps>(
         self,
         timestamps: TIMESTAMPS,
@@ -202,7 +204,7 @@ impl<
 /// Functions to access timestamps of `revision` and `release` nodes
 ///
 /// Only available after calling [`load_timestamps`](SwhGraphProperties::load_timestamps)
-/// or [`load_all_properties`](SwhGraph::load_all_properties)
+/// or [`load_all_properties`](crate::graph::SwhBidirectionalGraph::load_all_properties)
 impl<
         MAPS: MaybeMaps,
         TIMESTAMPS: Timestamps,
@@ -214,38 +216,117 @@ impl<
 {
     /// Returns the number of seconds since Epoch that a release or revision was
     /// authored at
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist
     #[inline]
     pub fn author_timestamp(&self, node_id: NodeId) -> Option<i64> {
+        self.try_author_timestamp(node_id)
+            .unwrap_or_else(|e| panic!("Cannot get author timestamp: {}", e))
+    }
+
+    /// Returns the number of seconds since Epoch that a release or revision was
+    /// authored at
+    ///
+    /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
+    /// no author timestamp
+    #[inline]
+    pub fn try_author_timestamp(&self, node_id: NodeId) -> Result<Option<i64>, OutOfBoundError> {
         match self.timestamps.author_timestamp().get(node_id) {
-            Some(i64::MIN) => None,
-            ts => ts,
+            None => Err(OutOfBoundError {
+                index: node_id,
+                len: self.timestamps.author_timestamp().len(),
+            }),
+            Some(i64::MIN) => Ok(None),
+            Some(ts) => Ok(Some(ts)),
         }
     }
 
     /// Returns the UTC offset in minutes of a release or revision's authorship date
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist
     #[inline]
     pub fn author_timestamp_offset(&self, node_id: NodeId) -> Option<i16> {
+        self.try_author_timestamp_offset(node_id)
+            .unwrap_or_else(|e| panic!("Cannot get author timestamp offset: {}", e))
+    }
+
+    /// Returns the UTC offset in minutes of a release or revision's authorship date
+    ///
+    /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
+    /// no author timestamp
+    #[inline]
+    pub fn try_author_timestamp_offset(
+        &self,
+        node_id: NodeId,
+    ) -> Result<Option<i16>, OutOfBoundError> {
         match self.timestamps.author_timestamp_offset().get(node_id) {
-            Some(i16::MIN) => None,
-            offset => offset,
+            None => Err(OutOfBoundError {
+                index: node_id,
+                len: self.timestamps.author_timestamp_offset().len(),
+            }),
+            Some(i16::MIN) => Ok(None),
+            Some(offset) => Ok(Some(offset)),
         }
     }
 
     /// Returns the number of seconds since Epoch that a revision was committed at
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist
     #[inline]
     pub fn committer_timestamp(&self, node_id: NodeId) -> Option<i64> {
+        self.try_committer_timestamp(node_id)
+            .unwrap_or_else(|e| panic!("Cannot get committer timestamp: {}", e))
+    }
+
+    /// Returns the number of seconds since Epoch that a revision was committed at
+    ///
+    /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
+    /// no committer timestamp
+    #[inline]
+    pub fn try_committer_timestamp(&self, node_id: NodeId) -> Result<Option<i64>, OutOfBoundError> {
         match self.timestamps.committer_timestamp().get(node_id) {
-            Some(i64::MIN) => None,
-            ts => ts,
+            None => Err(OutOfBoundError {
+                index: node_id,
+                len: self.timestamps.committer_timestamp().len(),
+            }),
+            Some(i64::MIN) => Ok(None),
+            Some(ts) => Ok(Some(ts)),
         }
     }
 
     /// Returns the UTC offset in minutes of a revision's committer date
+    ///
+    /// # Panics
+    ///
+    /// If the node id does not exist
     #[inline]
     pub fn committer_timestamp_offset(&self, node_id: NodeId) -> Option<i16> {
+        self.try_committer_timestamp_offset(node_id)
+            .unwrap_or_else(|e| panic!("Cannot get committer timestamp: {}", e))
+    }
+
+    /// Returns the UTC offset in minutes of a revision's committer date
+    ///
+    /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
+    /// no committer timestamp
+    #[inline]
+    pub fn try_committer_timestamp_offset(
+        &self,
+        node_id: NodeId,
+    ) -> Result<Option<i16>, OutOfBoundError> {
         match self.timestamps.committer_timestamp_offset().get(node_id) {
-            Some(i16::MIN) => None,
-            offset => offset,
+            None => Err(OutOfBoundError {
+                index: node_id,
+                len: self.timestamps.committer_timestamp_offset().len(),
+            }),
+            Some(i16::MIN) => Ok(None),
+            Some(offset) => Ok(Some(offset)),
         }
     }
 }

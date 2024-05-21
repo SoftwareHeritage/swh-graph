@@ -1,9 +1,8 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::ops::Deref;
 use std::sync::Arc;
 
 use tokio::sync::mpsc;
@@ -12,7 +11,7 @@ use tonic::{Request, Response};
 
 use crate::graph::{SwhForwardGraph, SwhGraphWithProperties};
 use crate::properties;
-use crate::views::Transposed;
+use crate::views::{Subgraph, Transposed};
 
 use super::filters::{ArcFilterChecker, NodeFilterChecker};
 use super::node_builder::NodeBuilder;
@@ -37,24 +36,27 @@ where
     <S::Graph as SwhGraphWithProperties>::Strings: crate::properties::Strings,
     <S::Graph as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
 {
-    fn make_visitor<'a, G: Deref + Clone + Send + Sync + 'static, Error: Send + 'a>(
+    fn make_visitor<
+        'a,
+        G: SwhForwardGraph + SwhGraphWithProperties + Clone + Send + Sync + 'static,
+        Error: Send + 'a,
+    >(
         &'a self,
         request: Request<proto::TraversalRequest>,
         graph: G,
-        mut on_node: impl FnMut(usize, u64) -> Result<(), Error> + Send + 'a,
+        mut on_node: impl FnMut(usize, Option<u64>) -> Result<(), Error> + Send + 'a,
         mut on_arc: impl FnMut(usize, usize) -> Result<(), Error> + Send + 'a,
     ) -> Result<
         SimpleBfsVisitor<
-            G,
+            Arc<Subgraph<G, impl Fn(usize) -> bool, impl Fn(usize, usize) -> bool>>,
             Error,
-            impl FnMut(usize, u64, u64) -> Result<VisitFlow, Error>,
+            impl FnMut(usize, u64, Option<u64>) -> Result<VisitFlow, Error>,
             impl FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
         >,
         tonic::Status,
     >
     where
-        G::Target: SwhForwardGraph + SwhGraphWithProperties + Sized,
-        <G::Target as SwhGraphWithProperties>::Maps: properties::Maps,
+        <G as SwhGraphWithProperties>::Maps: properties::Maps,
     {
         let proto::TraversalRequest {
             src,
@@ -97,18 +99,16 @@ where
             NodeFilterChecker::new(graph.clone(), return_nodes.unwrap_or_default())?;
         let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
         let mut num_matching_nodes = 0;
+        let subgraph = Subgraph::new_with_arc_filter(graph.clone(), move |src, dst| {
+            arc_checker.matches(src, dst)
+        });
         let mut visitor = SimpleBfsVisitor::new(
-            graph.clone(),
+            Arc::new(subgraph),
             max_depth,
             move |node, depth, num_successors| {
                 if !return_node_checker.matches(node, num_successors) {
                     return Ok(VisitFlow::Continue);
                 }
-
-                if num_successors > max_edges {
-                    return Ok(VisitFlow::Stop);
-                }
-                max_edges -= num_successors;
 
                 if depth >= min_depth {
                     on_node(node, num_successors)?;
@@ -120,11 +120,12 @@ where
                 Ok(VisitFlow::Continue)
             },
             move |src, dst, _depth| {
-                if arc_checker.matches(src, dst) {
+                if max_edges == 0 {
+                    Ok(VisitFlow::Ignore)
+                } else {
+                    max_edges -= 1;
                     on_arc(src, dst)?;
                     Ok(VisitFlow::Continue)
-                } else {
-                    Ok(VisitFlow::Ignore)
                 }
             },
         );
@@ -147,13 +148,16 @@ where
                 let graph = $graph;
                 let arc_checker =
                     ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
+                let subgraph = Arc::new(Subgraph::new_with_arc_filter(graph, move |src, dst| {
+                    arc_checker.matches(src, dst)
+                }));
                 let node_builder =
-                    NodeBuilder::new(graph.clone(), arc_checker, request.get_ref().mask.clone())?;
+                    NodeBuilder::new(subgraph.clone(), request.get_ref().mask.clone())?;
                 let on_node = move |node, _num_successors| {
                     tx.blocking_send(Ok(node_builder.build_node(node)))
                 };
                 let on_arc = |_src, _dst| Ok(());
-                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                let visitor = self.make_visitor(request, subgraph, on_node, on_arc)?;
                 // Spawning a thread because Tonic currently only supports Tokio, which
                 // requires futures to be sendable between threads, and webgraph's
                 // successor iterators cannot

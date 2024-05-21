@@ -5,6 +5,7 @@
 
 use anyhow::{Context, Result};
 use mmap_rs::Mmap;
+use thiserror::Error;
 
 use super::suffixes::*;
 use super::*;
@@ -91,8 +92,9 @@ impl<
         };
         self.with_label_names(label_names)
     }
-    ///
-    /// Alternative to [`load_label_names`] that allows using arbitrary label_names implementations
+
+    /// Alternative to [`load_label_names`](Self::load_label_names) that allows using
+    /// arbitrary label_names implementations
     pub fn with_label_names<LABELNAMES: LabelNames>(
         self,
         label_names: LABELNAMES,
@@ -113,7 +115,7 @@ impl<
 /// Functions to access names of arc labels.
 ///
 /// Only available after calling [`load_label_names`](SwhGraphProperties::load_label_names)
-/// or [`load_all_properties`](SwhGraph::load_all_properties).
+/// or [`load_all_properties`](crate::graph::SwhBidirectionalGraph::load_all_properties).
 impl<
         MAPS: MaybeMaps,
         TIMESTAMPS: MaybeTimestamps,
@@ -123,24 +125,64 @@ impl<
         LABELNAMES: LabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
-    /// Returns the file name (resp. branch name) of a label on an arc from a directory
-    /// (resp. snapshot), base64-encoded.
+    /// Returns the base64-encoded name of an arc label
+    ///
+    /// This is the file name (resp. branch name) of a label on an arc from a directory
+    /// (resp. snapshot)
+    ///
+    /// # Panics
+    ///
+    /// If `filename_id` does not exist
     #[inline]
-    pub fn label_name_base64(&self, filename_id: FilenameId) -> Option<Vec<u8>> {
-        self.label_names.label_names().get(
-            filename_id
-                .0
-                .try_into()
-                .expect("filename_id^overflowed usize"),
-        )
+    pub fn label_name_base64(&self, filename_id: FilenameId) -> Vec<u8> {
+        self.try_label_name_base64(filename_id)
+            .unwrap_or_else(|e| panic!("Cannot get label name: {}", e))
     }
 
-    /// Returns the file name (resp. branch name) of a label on an arc from a directory
-    /// (resp. snapshot).
+    /// Returns the base64-encoded name of an arc label
+    ///
+    /// This is the file name (resp. branch name) of a label on an arc from a directory
+    /// (resp. snapshot)
     #[inline]
-    pub fn label_name(&self, filename_id: FilenameId) -> Option<Vec<u8>> {
+    pub fn try_label_name_base64(
+        &self,
+        filename_id: FilenameId,
+    ) -> Result<Vec<u8>, OutOfBoundError> {
+        let index = filename_id
+            .0
+            .try_into()
+            .expect("filename_id overflowed usize");
+        self.label_names
+            .label_names()
+            .get(index)
+            .ok_or(OutOfBoundError {
+                index,
+                len: self.label_names.label_names().len(),
+            })
+    }
+
+    /// Returns the name of an arc label
+    ///
+    /// This is the file name (resp. branch name) of a label on an arc from a directory
+    /// (resp. snapshot)
+    ///
+    /// # Panics
+    ///
+    /// If `filename_id` does not exist
+    #[inline]
+    pub fn label_name(&self, filename_id: FilenameId) -> Vec<u8> {
+        self.try_label_name(filename_id)
+            .unwrap_or_else(|e| panic!("Cannot get label name: {}", e))
+    }
+
+    /// Returns the name of an arc label
+    ///
+    /// This is the file name (resp. branch name) of a label on an arc from a directory
+    /// (resp. snapshot)
+    #[inline]
+    pub fn try_label_name(&self, filename_id: FilenameId) -> Result<Vec<u8>, OutOfBoundError> {
         let base64 = base64_simd::STANDARD;
-        self.label_name_base64(filename_id).map(|name| {
+        self.try_label_name_base64(filename_id).map(|name| {
             base64.decode_to_vec(name).unwrap_or_else(|name| {
                 panic!(
                     "Could not decode filename of id {}: {:?}",
@@ -149,4 +191,56 @@ impl<
             })
         })
     }
+
+    /// Given a branch/file name, returns the filename id used by edges with that name,
+    /// or `None` if it does not exist.
+    ///
+    /// This is the inverse function of [`label_name`](Self::label_name)
+    ///
+    /// Unlike in Java where this function is `O(1)`, this implementation is `O(log2(num_labels))`
+    /// because it uses a binary search, as the MPH function can only be read from Java.
+    #[inline]
+    pub fn label_name_id(
+        &self,
+        name: impl AsRef<[u8]>,
+    ) -> Result<FilenameId, LabelIdFromNameError> {
+        use std::cmp::Ordering::*;
+        let base64 = base64_simd::STANDARD;
+        let name = base64.encode_to_string(name.as_ref()).into_bytes();
+
+        // both inclusive
+        let mut min = 0;
+        let mut max = self
+            .label_names
+            .label_names()
+            .len()
+            .saturating_sub(1)
+            .try_into()
+            .expect("number of labels overflowed u64");
+
+        while min <= max {
+            let pivot = (min + max) / 2;
+            let pivot_id = FilenameId(pivot);
+            let pivot_name = self.label_name_base64(pivot_id);
+            if min == max {
+                if pivot_name.as_slice() == name {
+                    return Ok(pivot_id);
+                } else {
+                    break;
+                }
+            } else {
+                match pivot_name.as_slice().cmp(&name) {
+                    Less => min = pivot.saturating_add(1),
+                    Equal => return Ok(pivot_id),
+                    Greater => max = pivot.saturating_sub(1),
+                }
+            }
+        }
+
+        Err(LabelIdFromNameError(name.to_vec()))
+    }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Error)]
+#[error("Unknown label name: {}", String::from_utf8_lossy(.0))]
+pub struct LabelIdFromNameError(pub Vec<u8>);

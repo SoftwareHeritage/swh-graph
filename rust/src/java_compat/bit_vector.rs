@@ -78,7 +78,7 @@ impl LongArrayBitVector<Vec<u64>> {
                 file.write_all(&chunk_size.to_be_bytes())
                     .with_context(|| format!("Could not write to {}", path.display()))?;
 
-                file.write_all(bytemuck::cast_slice(chunk.as_ref()))
+                file.write_all(bytemuck::cast_slice(chunk))
                     .with_context(|| format!("Could not write to {}", path.display()))?;
             } else {
                 file.write_all(&[TC_BLOCKDATA])?;
@@ -86,7 +86,7 @@ impl LongArrayBitVector<Vec<u64>> {
                 file.write_all(&chunk_size.to_be_bytes())
                     .with_context(|| format!("Could not write to {}", path.display()))?;
 
-                file.write_all(bytemuck::cast_slice(chunk.as_ref()))
+                file.write_all(bytemuck::cast_slice(chunk))
                     .with_context(|| format!("Could not write to {}", path.display()))?;
             }
         }

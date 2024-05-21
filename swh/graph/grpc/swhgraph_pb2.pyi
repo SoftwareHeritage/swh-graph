@@ -590,18 +590,43 @@ class EdgeLabel(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
     NAME_FIELD_NUMBER: builtins.int
     PERMISSION_FIELD_NUMBER: builtins.int
+    VISIT_TIMESTAMP_FIELD_NUMBER: builtins.int
+    IS_FULL_VISIT_FIELD_NUMBER: builtins.int
     name: builtins.bytes
     """Directory entry name for directories, branch name for snapshots"""
 
     permission: builtins.int
     """Entry permission (only set for directories)."""
 
+    visit_timestamp: builtins.int
+    """For origin->snapshot (or snapshot->origin in the transposed graph), this is
+    the timestamp of the visit that found the snapshot to be the current state of
+    the origin.
+    """
+
+    is_full_visit: builtins.bool
+    """For origin->snapshot (or snapshot->origin in the transposed graph), this
+    indicates whether the visit was fully complete; ie. if the snapshot is the
+    full state of the origin (instead of a partial state).
+    """
+
     def __init__(self,
         *,
-        name: builtins.bytes = ...,
-        permission: builtins.int = ...,
+        name: typing.Optional[builtins.bytes] = ...,
+        permission: typing.Optional[builtins.int] = ...,
+        visit_timestamp: typing.Optional[builtins.int] = ...,
+        is_full_visit: typing.Optional[builtins.bool] = ...,
         ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["name",b"name","permission",b"permission"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_is_full_visit",b"_is_full_visit","_name",b"_name","_permission",b"_permission","_visit_timestamp",b"_visit_timestamp","is_full_visit",b"is_full_visit","name",b"name","permission",b"permission","visit_timestamp",b"visit_timestamp"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_is_full_visit",b"_is_full_visit","_name",b"_name","_permission",b"_permission","_visit_timestamp",b"_visit_timestamp","is_full_visit",b"is_full_visit","name",b"name","permission",b"permission","visit_timestamp",b"visit_timestamp"]) -> None: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_is_full_visit",b"_is_full_visit"]) -> typing.Optional[typing_extensions.Literal["is_full_visit"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_name",b"_name"]) -> typing.Optional[typing_extensions.Literal["name"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_permission",b"_permission"]) -> typing.Optional[typing_extensions.Literal["permission"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_visit_timestamp",b"_visit_timestamp"]) -> typing.Optional[typing_extensions.Literal["visit_timestamp"]]: ...
 global___EdgeLabel = EdgeLabel
 
 class CountResponse(google.protobuf.message.Message):
