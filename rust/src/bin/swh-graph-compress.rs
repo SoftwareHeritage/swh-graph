@@ -16,7 +16,6 @@ use clap::{Parser, Subcommand, ValueEnum};
 use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
-use rayon::prelude::*;
 use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
 use webgraph::prelude::*;
 
@@ -396,60 +395,27 @@ pub fn main() -> Result<()> {
         } => {
             use swh_graph::mph::SwhidMphf;
 
-            use swh_graph::compress::zst_dir::*;
+            use swh_graph::compress::maps::*;
             use swh_graph::map::{Node2SWHID, Node2Type};
-            use swh_graph::SWHID;
 
             log::info!("Loading permutation");
             let order = MappedPermutation::load(num_nodes, order.as_path())
                 .with_context(|| format!("Could not load {}", order.display()))?;
-            match mph_algo {
-                MphAlgorithm::Fmph => {}
-                _ => unimplemented!("Only --mph-algo fmph is supported"),
-            }
+
             log::info!("Permutation loaded, reading MPH");
-            let mph = fmph::Function::load(function).context("Cannot load mph")?;
-            log::info!("MPH loaded, sorting arcs");
-
-            let mut swhids: Vec<SWHID> = Vec::with_capacity(num_nodes);
-            let swhids_uninit = swhids.spare_capacity_mut();
-
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "node";
-            pl.local_speed = true;
-            pl.expected_updates = Some(num_nodes);
-            pl.start("Computing node2swhid");
-
-            par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(pl))).for_each(
-                |line: [u8; 50]| {
-                    let node_id = order
-                        .get(mph.hash_str_array(&line).expect("Failed to hash line"))
-                        .unwrap();
-                    let swhid =
-                        SWHID::try_from(unsafe { std::str::from_utf8_unchecked(&line[..]) })
-                            .expect("Invalid SWHID");
-                    assert!(
-                        node_id < num_nodes,
-                        "hashing {} returned {}, which is greater than the number of nodes ({})",
-                        swhid,
-                        node_id,
-                        num_nodes
-                    );
-
-                    // Safe because we checked node_id < num_nodes
-                    unsafe {
-                        swhids_uninit
-                            .as_ptr()
-                            .add(node_id)
-                            .cast_mut()
-                            .write(std::mem::MaybeUninit::new(swhid));
-                    }
-                },
-            );
-
-            // Assuming the MPH and permutation are correct, we wrote an item at every
-            // index.
-            unsafe { swhids.set_len(num_nodes) };
+            let swhids = match mph_algo {
+                MphAlgorithm::Fmph => {
+                    let mph = fmph::Function::load(function).context("Cannot load mph")?;
+                    log::info!("MPH loaded, reading and hashing SWHIDs");
+                    ordered_swhids(&swhids_dir, order, mph, num_nodes)?
+                }
+                MphAlgorithm::Cmph => {
+                    let mph = swh_graph::java_compat::mph::gov::GOVMPH::load(function)
+                        .context("Cannot load mph")?;
+                    log::info!("MPH loaded, reading and hashing SWHIDs");
+                    ordered_swhids(&swhids_dir, order, mph, num_nodes)?
+                }
+            };
 
             let mut node2swhid = Node2SWHID::new(node2swhid, num_nodes)?;
             let mut node2type = Node2Type::new(node2type, num_nodes)?;

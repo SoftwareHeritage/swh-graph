@@ -5,6 +5,7 @@
 
 #[cfg(feature = "orc")]
 pub mod bv;
+pub mod maps;
 pub mod mph;
 #[cfg(feature = "orc")]
 pub mod orc;
