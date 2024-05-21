@@ -3,7 +3,7 @@ set -e
 
 if [ -z "$1" -o -z "$2" ] ; then
     echo "Usage: $0 SWH_GRAPH_SRC_DIR COMPRESSED_GRAPH_DIR"
-    echo "Example: swh-graph-java2rust.sh ~/src/swh-graph ~/graph/lastest/compressed"
+    echo "Example: swh-graph-java2rust.sh ~/src/swh-graph ~/graph/latest/compressed"
     exit 2
 fi
 
