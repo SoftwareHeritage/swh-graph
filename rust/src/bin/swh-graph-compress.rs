@@ -6,7 +6,7 @@
  */
 
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufRead, BufReader, BufWriter};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -31,6 +31,15 @@ struct Args {
 enum Commands {
     /// Runs a BFS on the initial BVGraph to group similar node ids together
     Bfs {
+        #[arg(long)]
+        /// Must be provided iff --init-swhids is.
+        mph_algo: Option<MphAlgorithm>,
+        /// Path to the MPH function. Must be provided iff --init-swhids is.
+        #[arg(long)]
+        function: Option<PathBuf>,
+        #[arg(long, requires_all=["mph_algo", "function"])]
+        /// Path to a list of SWHIDs to use as the BFS starting points
+        init_roots: Option<PathBuf>,
         graph_dir: PathBuf,
         target_order: PathBuf,
     },
@@ -152,9 +161,14 @@ pub fn main() -> Result<()> {
 
     match args.command {
         Commands::Bfs {
+            mph_algo,
+            function,
+            init_roots,
             graph_dir,
             target_order,
         } => {
+            use swh_graph::mph::SwhidMphf;
+
             let mut permut_file = File::create(&target_order)
                 .with_context(|| format!("Could not open {}", target_order.display()))?;
 
@@ -165,7 +179,60 @@ pub fn main() -> Result<()> {
                 .load()?;
             log::info!("Graph loaded");
 
-            swh_graph::approximate_bfs::almost_bfs_order(&graph)
+            let start_nodes = match init_roots {
+                None => Vec::new(),
+                Some(init_swhids) => {
+                    // 'clap' should have made them required.
+                    let mph_algo = mph_algo.expect("missing --mph-algo");
+                    let function = function.expect("missing --function");
+
+                    let init_swhids = File::open(&init_swhids)
+                        .with_context(|| format!("Could not open {}", init_swhids.display()))?;
+                    let mph: swh_graph::mph::DynMphf = match mph_algo {
+                        MphAlgorithm::Cmph => {
+                            swh_graph::java_compat::mph::gov::GOVMPH::load(function)
+                                .context("Cannot load mph")?
+                                .into()
+                        }
+                        MphAlgorithm::Fmph => fmph::Function::load(function)
+                            .context("Cannot load mph")?
+                            .into(),
+                    };
+
+                    let mut pl = ProgressLogger::default().display_memory();
+                    pl.item_name = "SWHID";
+                    pl.local_speed = true;
+                    pl.start("[step 0/2] Loading initial SWHIDs...");
+
+                    let init_swhids = BufReader::new(init_swhids)
+                        .lines()
+                        .flat_map(|line| {
+                            let mut line =
+                                line.unwrap_or_else(|e| panic!("Could not parse line: {}", e));
+                            while line.ends_with('\n') || line.ends_with('\r') {
+                                line.pop();
+                            }
+                            if line.is_empty() {
+                                return None;
+                            }
+                            assert_eq!(line.len(), 50, "Unexpected line length: {:?}", line);
+
+                            pl.light_update();
+
+                            Some(
+                                mph.hash_str(&line)
+                                    .unwrap_or_else(|| panic!("Could not hash {:?}", line)),
+                            )
+                        })
+                        .collect();
+
+                    pl.done();
+
+                    init_swhids
+                }
+            };
+
+            swh_graph::approximate_bfs::almost_bfs_order(&graph, &start_nodes)
                 .dump(&mut permut_file)
                 .context("Could not write permutation")?;
         }

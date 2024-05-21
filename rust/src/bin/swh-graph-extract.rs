@@ -7,7 +7,7 @@
 
 use std::env::temp_dir;
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -15,6 +15,7 @@ use std::sync::Mutex;
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
+use itertools::Itertools;
 use ph::fmph;
 use rayon::prelude::*;
 use swh_graph::map::{MappedPermutation, Permutation};
@@ -98,6 +99,17 @@ enum Commands {
         target_stats: PathBuf,
         #[arg(long)]
         target_count: PathBuf,
+    },
+
+    /// Reads the list of origins and sorts it in a way that related origins are close
+    /// to each other in the output order
+    BfsRoots {
+        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
+        format: DatasetFormat,
+        #[arg(long, default_value = "*")]
+        allowed_node_types: String,
+        dataset_dir: PathBuf,
+        target: PathBuf,
     },
 
     /// Reads the list of unique SWHIDs from a directory of .zstd files
@@ -402,6 +414,50 @@ pub fn main() -> Result<()> {
             count_file
                 .write_all(format!("{}\n", total).as_bytes())
                 .context("Could not write edge count")?;
+        }
+
+        Commands::BfsRoots {
+            format: DatasetFormat::Orc,
+            allowed_node_types,
+            dataset_dir,
+            target,
+        } => {
+            let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
+
+            let target_file = File::create(&target)
+                .with_context(|| format!("Could not open {}", target.display()))?;
+            let mut target_file = BufWriter::new(target_file);
+
+            if allowed_node_types.contains(&SWHType::Origin) {
+                log::info!("Reading origins...");
+                let mut origins: Vec<_> = swh_graph::compress::orc::iter_origins(&dataset_dir)
+                    .context("Could not read origins")?
+                    .collect();
+
+                // split each URL by "/", reverse the parts, and join again.
+                // So for example, "https://github.com/vigna/webgraph-rs/" becomes
+                // "webgraph-rs/vigna/github.com//https:"
+                // This allows similar projects to be grouped together (eg. all forks
+                // of webgraph-rs).
+                log::info!("Sorting origins...");
+                #[allow(unstable_name_collisions)] // Itertools::intersperse
+                origins.par_sort_unstable_by_key(|(url, _id)| -> String {
+                    url.trim_end_matches('/')
+                        .split('/')
+                        .rev()
+                        .intersperse("/")
+                        .collect()
+                });
+
+                log::info!("Writing origins...");
+                for (_url, id) in origins {
+                    target_file
+                        .write(format!("{}\n", id).as_bytes())
+                        .context("Could not write origin")?;
+                }
+            }
+
+            target_file.flush().context("Could not flush output file")?;
         }
 
         Commands::MphSwhids {

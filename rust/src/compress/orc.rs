@@ -159,6 +159,24 @@ pub fn estimate_edge_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]
     Ok(readers.into_par_iter().map(count_arrow_rows).sum())
 }
 
+pub fn iter_origins(
+    dataset_dir: &PathBuf,
+) -> Result<impl ParallelIterator<Item = (String, String)>> {
+    #[derive(ArRowDeserialize, Default, Clone)]
+    struct Origin {
+        id: String,
+        url: String,
+    }
+
+    Ok(get_dataset_readers(dataset_dir, "origin")?
+        .into_par_iter()
+        .flat_map(|reader_builder| {
+            par_iter_arrow(reader_builder, |ori: Origin| {
+                [(ori.url, format!("swh:1:ori:{}", ori.id))]
+            })
+        }))
+}
+
 pub fn iter_swhids(
     dataset_dir: &PathBuf,
     allowed_node_types: &[SWHType],

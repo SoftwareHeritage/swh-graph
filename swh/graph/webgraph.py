@@ -44,6 +44,7 @@ class CompressionStep(Enum):
     BV = 30
     BV_OFFSETS = 40
     BV_EF = 50
+    BFS_ROOTS = 55
     BFS = 60
     PERMUTE_AND_SIMPLIFY_BFS = 70
     BFS_EF = 80
@@ -186,9 +187,21 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "ef",
         "{out_dir}/{graph_name}-base",
     ],
+    CompressionStep.BFS_ROOTS: [
+        "{rust_executable_dir}/swh-graph-extract",
+        "bfs-roots",
+        "{in_dir}",
+        "{out_dir}/{graph_name}-bfs.roots.txt",
+    ],
     CompressionStep.BFS: [
         "{rust_executable_dir}/swh-graph-compress",
         "bfs",
+        "--mph-algo",
+        "cmph",
+        "--function",
+        "{out_dir}/{graph_name}.cmph",
+        "--init-roots",
+        "{out_dir}/{graph_name}-bfs.roots.txt",
         "{out_dir}/{graph_name}-base",
         "{out_dir}/{graph_name}-bfs.order",
     ],

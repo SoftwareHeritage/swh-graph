@@ -631,9 +631,19 @@ class BvEf(_CompressionStepTask):
         return 0
 
 
+class BfsRoots(_CompressionStepTask):
+    STEP = CompressionStep.BFS_ROOTS
+    EXPORT_AS_INPUT = True
+    INPUT_FILES = set()
+    OUTPUT_FILES = {"-bfs.roots.txt"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
 class Bfs(_CompressionStepTask):
     STEP = CompressionStep.BFS
-    INPUT_FILES = {"-base.graph", "-base.ef"}
+    INPUT_FILES = {"-base.graph", "-base.ef", "-bfs.roots.txt", ".cmph"}
     OUTPUT_FILES = {"-bfs.order"}
 
     def _large_java_allocations(self) -> int:

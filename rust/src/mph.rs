@@ -12,6 +12,7 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 
 use crate::graph::NodeId;
+use crate::java_compat::mph::gov::GOVMPH;
 use crate::utils::suffix_path;
 use crate::SWHID;
 
@@ -94,14 +95,13 @@ impl SwhidMphf for ph::fmph::Function {
     }
 }
 
-impl SwhidMphf for crate::java_compat::mph::gov::GOVMPH {
+impl SwhidMphf for GOVMPH {
     fn load(basepath: impl AsRef<Path>) -> Result<Self>
     where
         Self: Sized,
     {
         let path = suffix_path(basepath, ".cmph");
-        crate::java_compat::mph::gov::GOVMPH::load(&path)
-            .with_context(|| format!("Could not load {}", path.display()))
+        GOVMPH::load(&path).with_context(|| format!("Could not load {}", path.display()))
     }
 
     #[inline(always)]
@@ -117,11 +117,11 @@ impl SwhidMphf for crate::java_compat::mph::gov::GOVMPH {
 
 /// Enum of possible implementations of [`SwhidMphf`].
 ///
-/// Loads either [`ph::fmph::Function`] or [`crate::java_compat::mph::gov::GOVMPH`]
+/// Loads either [`ph::fmph::Function`] or [`GOVMPH`]
 /// depending on which file is available at the given path.
 pub enum DynMphf {
     Fmph(ph::fmph::Function),
-    GOV(crate::java_compat::mph::gov::GOVMPH),
+    GOV(GOVMPH),
 }
 
 impl std::fmt::Debug for DynMphf {
@@ -130,6 +130,18 @@ impl std::fmt::Debug for DynMphf {
             DynMphf::Fmph(_) => write!(f, "DynMphf::Fmph(_)"),
             DynMphf::GOV(_) => write!(f, "DynMphf::GOV(_)"),
         }
+    }
+}
+
+impl From<GOVMPH> for DynMphf {
+    fn from(value: GOVMPH) -> DynMphf {
+        DynMphf::GOV(value)
+    }
+}
+
+impl From<ph::fmph::Function> for DynMphf {
+    fn from(value: ph::fmph::Function) -> DynMphf {
+        DynMphf::Fmph(value)
     }
 }
 
