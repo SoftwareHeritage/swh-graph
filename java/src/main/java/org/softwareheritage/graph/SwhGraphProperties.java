@@ -14,6 +14,8 @@ import it.unimi.dsi.fastutil.bytes.ByteMappedBigList;
 import it.unimi.dsi.fastutil.ints.IntBigList;
 import it.unimi.dsi.fastutil.ints.IntMappedBigList;
 import it.unimi.dsi.fastutil.io.BinIO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import it.unimi.dsi.fastutil.longs.LongBigList;
 import it.unimi.dsi.fastutil.longs.LongMappedBigList;
 import it.unimi.dsi.fastutil.shorts.ShortBigList;
@@ -24,6 +26,8 @@ import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.softwareheritage.graph.maps.NodeIdMap;
 import org.softwareheritage.graph.maps.NodeTypesMap;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Base64;
@@ -45,6 +49,8 @@ import java.util.Base64;
  * @see NodeTypesMap
  */
 public class SwhGraphProperties implements FlyweightPrototype<SwhGraphProperties> {
+    final static Logger logger = LoggerFactory.getLogger(NodeTypesMap.class);
+
     private final String path;
 
     private final NodeIdMap nodeIdMap;
@@ -286,9 +292,16 @@ public class SwhGraphProperties implements FlyweightPrototype<SwhGraphProperties
      */
     public void loadContentIsSkipped() throws IOException {
         try {
-            contentIsSkipped = (LongArrayBitVector) BinIO.loadObject(path + ".property.content.is_skipped.bin");
-        } catch (ClassNotFoundException e) {
-            throw new IOException(e);
+            File f = new File(path + ".property.content.is_skipped.bits");
+            long[] array = BinIO.loadLongs(f, java.nio.ByteOrder.BIG_ENDIAN);
+            contentIsSkipped = LongArrayBitVector.wrap(array);
+        } catch (FileNotFoundException e2) {
+            logger.info("Could not load is_skipped.bits, falling back to is_skipped.bin");
+            try {
+                contentIsSkipped = (LongArrayBitVector) BinIO.loadObject(path + ".property.content.is_skipped.bin");
+            } catch (ClassNotFoundException e) {
+                throw new IOException(e);
+            }
         }
     }
 
