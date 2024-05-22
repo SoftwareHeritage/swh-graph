@@ -579,7 +579,7 @@ pub fn main() -> Result<()> {
                     bail!("--person-function must be provided unless --allowed-node-types is set to contain neither 'rev' nor 'rel'.");
                 };
                 Some(
-                    ph::fmph::Function::load(&person_function)
+                    swh_graph::java_compat::mph::gov::GOVMPH::load(&person_function)
                         .with_context(|| format!("Could not load {}", person_function.display()))?,
                 )
             } else {

@@ -23,7 +23,7 @@ use crate::SWHType;
 
 pub struct PropertyWriter<SWHIDMPHF: SwhidMphf> {
     pub swhid_mph: SWHIDMPHF,
-    pub person_mph: Option<ph::fmph::Function>,
+    pub person_mph: Option<crate::java_compat::mph::gov::GOVMPH>,
     pub order: MappedPermutation,
     pub num_nodes: usize,
     pub dataset_dir: PathBuf,
@@ -213,7 +213,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             sha1_git: Option<String>,
         }
 
-        if !self.allowed_node_types.contains(&SWHType::Revision) {
+        if !self.allowed_node_types.contains(&SWHType::Content) {
             log::info!("Excluded");
             return Ok(());
         }
@@ -281,10 +281,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
                 let base64 = base64_simd::STANDARD;
                 let person = base64.encode_to_string(person).into_bytes();
                 let person_id: u32 = person_mph
-                    .get(&person)
-                    .unwrap_or_else(|| {
-                        panic!("Author id for {} is None (person = {:?})", swhid, person)
-                    })
+                    .get_byte_array(&person)
                     .try_into()
                     .expect("Person id overflows u32");
                 self.set(&authors, &swhid, person_id.to_be());
@@ -339,10 +336,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
                 let base64 = base64_simd::STANDARD;
                 let person = base64.encode_to_string(person).into_bytes();
                 let person_id: u32 = person_mph
-                    .get(&person)
-                    .unwrap_or_else(|| {
-                        panic!("Committer id for {} is None (person = {:?})", swhid, person)
-                    })
+                    .get_byte_array(&person)
                     .try_into()
                     .expect("Person id overflows u32");
                 self.set(&committers, &swhid, person_id.to_be());

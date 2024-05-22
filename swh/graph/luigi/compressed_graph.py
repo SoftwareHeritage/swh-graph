@@ -900,9 +900,11 @@ class ConvertMphPersons(_CompressionStepTask):
 
 class NodeProperties(_CompressionStepTask):
     STEP = CompressionStep.NODE_PROPERTIES
-    INPUT_FILES = {".order", ".mph", ".persons.mph", ".node2swhid.bin"}
+    INPUT_FILES = {".order", ".cmph", ".persons.cmph"}
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
+        ".property.content.is_skipped.bits",
+    } | {
         f".property.{name}.bin"
         for name in (
             "author_id",
@@ -911,7 +913,6 @@ class NodeProperties(_CompressionStepTask):
             "committer_id",
             "committer_timestamp",
             "committer_timestamp_offset",
-            "content.is_skipped",
             "content.length",
             "message",
             "message.offset",
@@ -925,30 +926,31 @@ class NodeProperties(_CompressionStepTask):
         excluded_files = set()
         if "cnt" not in self.object_types:
             excluded_files |= {
-                "content.is_skipped",
-                "content.length",
+                "content.is_skipped.bin",
+                "content.is_skipped.bits",
+                "content.length.bin",
             }
         if "rev" not in self.object_types and "rel" not in self.object_types:
             excluded_files |= {
-                "author_id",
-                "author_timestamp",
-                "author_timestamp_offset",
-                "message",
-                "message.offset",
+                "author_id.bin",
+                "author_timestamp.bin",
+                "author_timestamp_offset.bin",
+                "message.bin",
+                "message.offset.bin",
             }
         if "rel" not in self.object_types:
             excluded_files |= {
-                "tag_name",
-                "tag_name.offset",
+                "tag_name.bin",
+                "tag_name.offset.bin",
             }
         if "rev" not in self.object_types:
             excluded_files |= {
-                "committer_id",
-                "committer_timestamp",
-                "committer_timestamp_offset",
+                "committer_id.bin",
+                "committer_timestamp.bin",
+                "committer_timestamp_offset.bin",
             }
 
-        excluded_files = {f".property.{name}.bin" for name in excluded_files}
+        excluded_files = {f".property.{name}" for name in excluded_files}
 
         return [luigi.LocalTarget(self._stamp())] + [
             luigi.LocalTarget(f"{self.local_graph_path / self.graph_name}{name}")
