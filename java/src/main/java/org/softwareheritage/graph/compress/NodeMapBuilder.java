@@ -147,7 +147,7 @@ public class NodeMapBuilder {
 
             // write type map
             logger.info("storing type map");
-            BinIO.storeObject(nodeTypesMap, graphPath + NodeTypesMap.NODE_TO_TYPE);
+            BinIO.storeObject(nodeTypesMap, graphPath + NodeTypesMap.LEGACY_NODE_TO_TYPE);
             logger.info("type map stored");
 
             // wait for nodeToSwhidMap filling

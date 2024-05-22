@@ -128,7 +128,8 @@ public class SwhGraphProperties implements FlyweightPrototype<SwhGraphProperties
     }
 
     public static SwhGraphProperties load(String path) throws IOException {
-        return new SwhGraphProperties(path, new NodeIdMap(path), new NodeTypesMap(path));
+        NodeIdMap nodeIdMap = new NodeIdMap(path);
+        return new SwhGraphProperties(path, nodeIdMap, new NodeTypesMap(path, nodeIdMap.size64()));
     }
 
     /**
