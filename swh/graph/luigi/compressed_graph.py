@@ -849,7 +849,7 @@ class TransposeObl(_CompressionStepTask):
 class Maps(_CompressionStepTask):
     STEP = CompressionStep.MAPS
     INPUT_FILES = {".mph", ".order", ".nodes/"}
-    OUTPUT_FILES = {".node2swhid.bin"}
+    OUTPUT_FILES = {".node2swhid.bin", ".node2swhid.map"}
 
     def _large_java_allocations(self) -> int:
         mph_size = self._mph_size()
