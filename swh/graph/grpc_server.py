@@ -8,7 +8,9 @@ A simple tool to start the swh-graph GRPC server in Java.
 """
 
 import logging
+import os
 import shlex
+import shutil
 import subprocess
 
 import aiohttp.test_utils
@@ -47,20 +49,23 @@ def build_rust_grpc_server_cmdline(**config):
     if port is None:
         port = aiohttp.test_utils.unused_port()
         logger.debug("Port not configured, using random port %s", port)
-    if config.get("debug", False):
-        cmd = ["./target/debug/swh-graph-grpc-serve"]
-    else:
-        cmd = ["./target/release/swh-graph-grpc-serve"]
-    if config.get("debug"):
-        cmd.append("-vvvvv")
-    else:
-        cmd.append("-vv")
-    if config.get("masked_nodes"):
-        cmd.extend(["--masked-nodes", config["masked_nodes"]])
+    debug_mode = config.get("debug", False)
+
+    grpc_path = f"./target/{'debug' if debug_mode else 'release'}/swh-graph-grpc-serve"
+    if not os.path.isfile(grpc_path):
+        grpc_path = shutil.which("swh-graph-grpc-serve")
+    if not grpc_path:
+        raise EnvironmentError("swh-graph-grpc-serve executable not found")
+
+    cmd = [grpc_path, "-vvvvv" if debug_mode else "-vv"]
+
     logger.debug("Checking configuration and populating default values")
     config = check_config(config)
+    if config.get("masked_nodes"):
+        cmd.extend(["--masked-nodes", config["masked_nodes"]])
     logger.debug("Configuration: %r", config)
     cmd.extend(["--bind", f"[::]:{port}", str(config["path"])])
+    print(f"Started GRPC using dataset from {str(config['path'])}")
     return cmd, port
 
 
