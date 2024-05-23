@@ -236,7 +236,8 @@ impl<
         }
     }
 
-    /// Returns the base64-encoded message of a revision or release
+    /// Returns the base64-encoded message of a revision or release,
+    /// or the base64-encoded URL of an origin
     ///
     /// # Panics
     ///
@@ -260,7 +261,8 @@ impl<
             node_id,
         )
     }
-    /// Returns the message of a revision or release
+    /// Returns the message of a revision or release,
+    /// or the URL of an origin
     ///
     /// # Panics
     ///
@@ -271,7 +273,8 @@ impl<
             .unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
     }
 
-    /// Returns the message of a revision or release
+    /// Returns the message of a revision or release,
+    /// or the URL of an origin
     ///
     /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
     /// no message.
