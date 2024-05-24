@@ -66,8 +66,15 @@ def check_config(conf):
             conf["java"] = os.path.join(os.environ["JAVA_HOME"], "bin", "java")
         else:
             conf["java"] = "java"
+    debug_mode = conf.get("debug", False)
     if "rust_executable_dir" not in conf:
-        conf["rust_executable_dir"] = "./target/release/"
+        conf["rust_executable_dir"] = str(
+            Path(__file__).parent.parent.parent / "target" / "debug"
+            if debug_mode
+            else "release"
+        )
+    if not conf["rust_executable_dir"].endswith("/"):
+        conf["rust_executable_dir"] += "/"
     if "classpath" not in conf:
         conf["classpath"] = find_graph_jar()
     if "object_types" not in conf:
