@@ -45,22 +45,22 @@ def build_java_grpc_server_cmdline(**config):
 
 
 def build_rust_grpc_server_cmdline(**config):
+    logger.debug("Checking configuration and populating default values")
+    config = check_config(config)
+
     port = config.pop("port", None)
     if port is None:
         port = aiohttp.test_utils.unused_port()
         logger.debug("Port not configured, using random port %s", port)
-    debug_mode = config.get("debug", False)
 
-    grpc_path = f"./target/{'debug' if debug_mode else 'release'}/swh-graph-grpc-serve"
+    debug_mode = config.get("debug", False)
+    grpc_path = config["rust_executable_dir"] + "swh-graph-grpc-serve"
     if not os.path.isfile(grpc_path):
         grpc_path = shutil.which("swh-graph-grpc-serve")
     if not grpc_path:
         raise EnvironmentError("swh-graph-grpc-serve executable not found")
 
     cmd = [grpc_path, "-vvvvv" if debug_mode else "-vv"]
-
-    logger.debug("Checking configuration and populating default values")
-    config = check_config(config)
     if config.get("masked_nodes"):
         cmd.extend(["--masked-nodes", config["masked_nodes"]])
     logger.debug("Configuration: %r", config)
