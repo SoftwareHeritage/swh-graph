@@ -903,7 +903,7 @@ class NodeProperties(_CompressionStepTask):
     INPUT_FILES = {".order", ".cmph", ".persons.cmph"}
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
-        ".property.content.is_skipped.bits",
+        ".property.content.is_skipped.bin",
     } | {
         f".property.{name}.bin"
         for name in (
