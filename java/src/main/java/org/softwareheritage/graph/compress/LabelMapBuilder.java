@@ -256,8 +256,8 @@ public class LabelMapBuilder {
                             }
                             cb.onHashedEdge(srcNode, dstNode, labelId, (int) perms);
                         } else if (perms > 0) {
-                            // ori -> snp dir
-                            // 'perms' is actually a visit timestamp + "full visit" bit
+                            // ori -> snp edge
+                            // 'labelId' is actually a visit timestamp + "full visit" bit
                             // + unused low bit set to 1.
                             // We know it is positive because SWH did not have any visit before 1970
                             long srcNode = nodeIdMap.getNodeId(src);
