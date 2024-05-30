@@ -149,7 +149,8 @@ impl OwnedPermutation<Vec<usize>> {
             "Only 64-bits architectures are supported"
         );
 
-        let mut file = std::fs::File::open(path).context("Could not open permutation")?;
+        let mut file = std::fs::File::open(path)
+            .with_context(|| format!("Could not open permutation {}", path.display()))?;
 
         let mut buf = [0u8; 8];
         file.read_exact(&mut buf)?;
@@ -167,7 +168,7 @@ impl OwnedPermutation<Vec<usize>> {
                     perm.spare_capacity_mut(),
                 )
             })
-            .context("Could not read permutation")?;
+            .with_context(|| format!("Could not read permutation {}", path.display()))?;
 
             // read_u64_into() called read_exact(), which checked the length
             unsafe { perm.set_len(num_nodes) };
@@ -319,13 +320,14 @@ impl MappedPermutation {
             file_len
         );
 
-        let file = std::fs::File::open(path).context("Could not open permutation")?;
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("Could not open permutation {}", path.display()))?;
         let perm = mmap_rs::MmapOptions::new(file_len as _)
             .context("Could not initialize permutation mmap")?
             .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
             .with_file(file, 0)
             .map()
-            .context("Could not mmap permutation")?;
+            .with_context(|| format!("Could not mmap permutation {}", path.display()))?;
 
         #[cfg(target_os = "linux")]
         unsafe {
@@ -343,7 +345,8 @@ impl MappedPermutation {
         assert_eq!(
             perm.len(),
             num_nodes,
-            "Expected permutation to have length {}, got {}",
+            "Expected permutation {} to have length {}, got {}",
+            path.display(),
             num_nodes,
             perm.len()
         );
