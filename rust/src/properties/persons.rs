@@ -155,7 +155,7 @@ impl<
 
     /// Returns the id of the author of a revision or release, if any
     ///
-    /// Returns `Err` if the node id does not exist, and `Ok(Node)` if the node
+    /// Returns `Err` if the node id does not exist, and `Ok(None)` if the node
     /// has no author
     #[inline]
     pub fn try_author_id(&self, node_id: NodeId) -> Result<Option<u32>, OutOfBoundError> {
@@ -183,7 +183,7 @@ impl<
 
     /// Returns the id of the committer of a revision, if any
     ///
-    /// Returns `None` if the node id does not exist, and `Some(Node)` if the node
+    /// Returns `None` if the node id does not exist, and `Ok(None)` if the node
     /// has no author
     #[inline]
     pub fn try_committer_id(&self, node_id: NodeId) -> Result<Option<u32>, OutOfBoundError> {
