@@ -70,7 +70,7 @@ A RPC method can be called with the ``call`` subcommand.
     [...]
     Rpc succeeded with OK status
 
-The ``--json-output`` flag can also be used to make the results easier to
+The ``--json_output`` flag can also be used to make the results easier to
 parse.
 
 .. code-block:: console
