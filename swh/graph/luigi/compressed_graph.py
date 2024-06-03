@@ -1309,6 +1309,10 @@ class UploadGraphToS3(luigi.Task):
         import luigi.contrib.s3
         import tqdm
 
+        # working threads import it, we need to make sure it is imported so they don't
+        # race to the import
+        from ..shell import Command  # noqa
+
         compression_metadata_path = self.local_graph_path / "meta" / "compression.json"
         seen_compression_metadata = False
 
