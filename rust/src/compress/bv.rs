@@ -17,7 +17,8 @@ use tempfile;
 use webgraph::graphs::arc_list_graph::ArcListGraph;
 use webgraph::prelude::*;
 
-use super::orc::*;
+use super::iter_arcs::iter_arcs;
+use super::stats::estimate_edge_count;
 use crate::mph::SwhidMphf;
 use crate::utils::sort::par_sort_arcs;
 

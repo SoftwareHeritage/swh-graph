@@ -199,10 +199,10 @@ pub fn main() -> Result<()> {
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             let expected_node_count =
-                swh_graph::compress::orc::estimate_node_count(&dataset_dir, &allowed_node_types)
+                swh_graph::compress::stats::estimate_node_count(&dataset_dir, &allowed_node_types)
                     .context("Could not estimate node count")? as usize;
             let expected_edge_count =
-                swh_graph::compress::orc::estimate_edge_count(&dataset_dir, &allowed_node_types)
+                swh_graph::compress::stats::estimate_edge_count(&dataset_dir, &allowed_node_types)
                     .context("Could not estimate edge count")? as usize;
 
             let mut pl = ProgressLogger::default().display_memory();
@@ -211,7 +211,7 @@ pub fn main() -> Result<()> {
             pl.expected_updates = Some(expected_node_count + expected_edge_count);
             pl.start("Extracting and sorting SWHIDs");
 
-            swh_graph::compress::orc::iter_swhids(&dataset_dir, &allowed_node_types)
+            swh_graph::compress::iter_swhids(&dataset_dir, &allowed_node_types)
                 .context("Could not read nodes from input dataset")?
                 .unique_sort_to_dir(
                     target_dir,
@@ -235,7 +235,7 @@ pub fn main() -> Result<()> {
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             let expected_edge_count =
-                swh_graph::compress::orc::estimate_edge_count(&dataset_dir, &allowed_node_types)
+                swh_graph::compress::stats::estimate_edge_count(&dataset_dir, &allowed_node_types)
                     .context("Could not estimate edge count")? as usize;
 
             let mut pl = ProgressLogger::default().display_memory();
@@ -246,7 +246,7 @@ pub fn main() -> Result<()> {
 
             let base64 = base64_simd::STANDARD;
 
-            swh_graph::compress::orc::iter_labels(&dataset_dir, &allowed_node_types)
+            swh_graph::compress::iter_labels(&dataset_dir, &allowed_node_types)
                 .context("Could not read labels from input dataset")?
                 .map(|label| base64.encode_to_string(label).into_bytes())
                 .unique_sort_to_dir(
@@ -270,7 +270,7 @@ pub fn main() -> Result<()> {
             use swh_graph::utils::sort::Sortable;
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
-            let expected_node_count = swh_graph::compress::orc::estimate_node_count(
+            let expected_node_count = swh_graph::compress::stats::estimate_node_count(
                 &dataset_dir,
                 &allowed_node_types
                     .iter()
@@ -289,7 +289,7 @@ pub fn main() -> Result<()> {
 
             let base64 = base64_simd::STANDARD;
 
-            swh_graph::compress::orc::iter_persons(&dataset_dir, &allowed_node_types)
+            swh_graph::compress::iter_persons(&dataset_dir, &allowed_node_types)
                 .context("Could not read persons from input dataset")?
                 .map(|label| base64.encode_to_string(label).into_bytes())
                 .unique_sort_to_dir(
@@ -370,7 +370,7 @@ pub fn main() -> Result<()> {
             pl.item_name = "arc";
             pl.local_speed = true;
             pl.expected_updates = Some(
-                swh_graph::compress::orc::estimate_edge_count(&dataset_dir, &allowed_node_types)
+                swh_graph::compress::stats::estimate_edge_count(&dataset_dir, &allowed_node_types)
                     .context("Could not estimate edge count from input dataset")?
                     as usize,
             );
@@ -378,7 +378,7 @@ pub fn main() -> Result<()> {
             let pl = Mutex::new(pl);
 
             let stats =
-                swh_graph::compress::orc::count_edge_types(&dataset_dir, &allowed_node_types)
+                swh_graph::compress::stats::count_edge_types(&dataset_dir, &allowed_node_types)
                     .context("Could not read edges from input dataset")?
                     .map(|stats_2d| {
                         pl.lock().unwrap().update_with_count(
@@ -430,7 +430,7 @@ pub fn main() -> Result<()> {
 
             if allowed_node_types.contains(&SWHType::Origin) {
                 log::info!("Reading origins...");
-                let mut origins: Vec<_> = swh_graph::compress::orc::iter_origins(&dataset_dir)
+                let mut origins: Vec<_> = swh_graph::compress::iter_origins(&dataset_dir)
                     .context("Could not read origins")?
                     .collect();
 
@@ -473,6 +473,7 @@ pub fn main() -> Result<()> {
         } => {
             swh_graph::compress::mph::build_mph::<Vec<u8>>(persons_dir, out_mph, "person")?;
         }
+
         Commands::Bv {
             format: DatasetFormat::Orc,
             sort_batch_size,
