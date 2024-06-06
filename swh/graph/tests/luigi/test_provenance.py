@@ -12,6 +12,7 @@ from typing import List
 
 import datafusion
 import pyarrow.dataset
+import pytest
 
 from swh.graph.example_dataset import DATASET, DATASET_DIR
 from swh.graph.luigi.provenance import (
@@ -24,12 +25,10 @@ from swh.graph.luigi.provenance import (
     ListProvenanceNodes,
 )
 
-HEADS_ONLY = True
-
 ALL_NODES = [str(node.swhid()) for node in DATASET if hasattr(node, "swhid")]
 
-if HEADS_ONLY:
-    PROVENANCE_NODES = [
+PROVENANCE_NODES = {
+    "heads": [
         "swh:1:cnt:0000000000000000000000000000000000000001",
         "swh:1:cnt:0000000000000000000000000000000000000004",
         "swh:1:cnt:0000000000000000000000000000000000000005",
@@ -45,12 +44,18 @@ if HEADS_ONLY:
         "swh:1:rel:0000000000000000000000000000000000000021",
         "swh:1:rev:0000000000000000000000000000000000000009",
         "swh:1:rev:0000000000000000000000000000000000000018",
-    ]
-else:
-    PROVENANCE_NODES = ALL_NODES
+    ],
+    "all": [
+        str(node.swhid())
+        for node in DATASET
+        if hasattr(node, "swhid")
+        and node.object_type
+        in ("skipped_content", "content", "directory", "revision", "release")
+    ],
+}
 
-if HEADS_ONLY:
-    EARLIEST_REVREL_FOR_CNTDIR = """\
+EARLIEST_REVREL_FOR_CNTDIR = {
+    "heads": """\
 author_date,revrel_SWHID,cntdir_SWHID
 2005-03-18T11:14:00,swh:1:rev:0000000000000000000000000000000000000009,swh:1:dir:0000000000000000000000000000000000000008
 2005-03-18T11:14:00,swh:1:rev:0000000000000000000000000000000000000009,swh:1:dir:0000000000000000000000000000000000000006
@@ -64,9 +69,8 @@ author_date,revrel_SWHID,cntdir_SWHID
 2005-03-18T20:29:30,swh:1:rev:0000000000000000000000000000000000000018,swh:1:cnt:0000000000000000000000000000000000000015
 """.replace(
         "\n", "\r\n"
-    )  # noqa
-else:
-    EARLIEST_REVREL_FOR_CNTDIR = """\
+    ),  # noqa
+    "all": """\
 author_date,revrel_SWHID,cntdir_SWHID
 2005-03-18T05:03:40,swh:1:rev:0000000000000000000000000000000000000003,swh:1:dir:0000000000000000000000000000000000000002
 2005-03-18T05:03:40,swh:1:rev:0000000000000000000000000000000000000003,swh:1:cnt:0000000000000000000000000000000000000001
@@ -83,11 +87,12 @@ author_date,revrel_SWHID,cntdir_SWHID
 2005-03-18T20:29:30,swh:1:rev:0000000000000000000000000000000000000018,swh:1:cnt:0000000000000000000000000000000000000015
 """.replace(
         "\n", "\r\n"
-    )  # noqa
+    ),  # noqa
+}
 
 
-if HEADS_ONLY:
-    DIRECTORY_MAX_LEAF_TIMESTAMPS = """\
+DIRECTORY_MAX_LEAF_TIMESTAMPS = {
+    "heads": """\
     max_author_date,dir_SWHID
 2005-03-18T11:14:00,swh:1:dir:0000000000000000000000000000000000000008
 2005-03-18T11:14:00,swh:1:dir:0000000000000000000000000000000000000006
@@ -95,9 +100,8 @@ if HEADS_ONLY:
 2005-03-18T20:29:30,swh:1:dir:0000000000000000000000000000000000000016
     """.replace(
         "\n", "\r\n"
-    )
-else:
-    DIRECTORY_MAX_LEAF_TIMESTAMPS = """\
+    ),
+    "all": """\
 max_author_date,dir_SWHID
 2005-03-18T05:03:40,swh:1:dir:0000000000000000000000000000000000000002
 2005-03-18T11:14:00,swh:1:dir:0000000000000000000000000000000000000008
@@ -107,7 +111,8 @@ max_author_date,dir_SWHID
 2005-03-18T20:29:30,swh:1:dir:0000000000000000000000000000000000000016
 """.replace(
         "\n", "\r\n"
-    )
+    ),
+}
 
 CONTENT_TIMESTAMPS = """\
 2005-03-18T05:03:40,swh:1:cnt:0000000000000000000000000000000000000001
@@ -121,20 +126,36 @@ CONTENT_TIMESTAMPS = """\
     "\n", "\r\n"
 )
 
-if HEADS_ONLY:
-    FRONTIER_DIRECTORIES = ["swh:1:dir:0000000000000000000000000000000000000006"]
-    FRONTIER_DIRECTORIES_IN_REVISIONS = """\
+FRONTIER_DIRECTORIES = {
+    "heads": ["swh:1:dir:0000000000000000000000000000000000000006"],
+    "all": [
+        "swh:1:dir:0000000000000000000000000000000000000006",
+        "swh:1:dir:0000000000000000000000000000000000000008",
+    ],
+}
+FRONTIER_DIRECTORIES_IN_REVISIONS = {
+    "heads": """\
 dir_max_author_date,dir_swhid,revrel_author_date,revrel_swhid,path
 1111144440,swh:1:dir:0000000000000000000000000000000000000006,2005-03-18T11:14:00Z,swh:1:rev:0000000000000000000000000000000000000009,tests/
 1111144440,swh:1:dir:0000000000000000000000000000000000000006,2009-02-13T23:31:30Z,swh:1:rel:0000000000000000000000000000000000000010,tests/
 """.replace(
         "\n", "\r\n"
-    )
-else:
-    FRONTIER_DIRECTORIES = ["swh:1:dir:0000000000000000000000000000000000000008"]
+    ),
+    # with node_filter=all, swh:1:dir:0000000000000000000000000000000000000008 is
+    # frontier for swh:1:rev:...13, but it is on the path from swh:1:rev:...09
+    # or swh:1:rel:...10 to the other directory/contents
+    "all": """\
+dir_max_author_date,dir_swhid,revrel_author_date,revrel_swhid,path
+1111144440,swh:1:dir:0000000000000000000000000000000000000008,2005-03-18T11:14:00Z,swh:1:rev:0000000000000000000000000000000000000009,
+1111144440,swh:1:dir:0000000000000000000000000000000000000008,2009-02-13T23:31:30Z,swh:1:rel:0000000000000000000000000000000000000010,
+1111144440,swh:1:dir:0000000000000000000000000000000000000008,2005-03-18T17:24:20Z,swh:1:rev:0000000000000000000000000000000000000013,oldproject/
+""".replace(
+        "\n", "\r\n"
+    ),
+}
 
-if HEADS_ONLY:
-    CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS = """\
+CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS = {
+    "heads": """\
 cnt_swhid,revrel_author_date,revrel_swhid,path
 swh:1:cnt:0000000000000000000000000000000000000001,2005-03-18T11:14:00Z,swh:1:rev:0000000000000000000000000000000000000009,README.md
 swh:1:cnt:0000000000000000000000000000000000000001,2009-02-13T23:31:30Z,swh:1:rel:0000000000000000000000000000000000000010,README.md
@@ -144,9 +165,8 @@ swh:1:cnt:0000000000000000000000000000000000000014,2005-03-18T20:29:30Z,swh:1:re
 swh:1:cnt:0000000000000000000000000000000000000015,2005-03-18T20:29:30Z,swh:1:rev:0000000000000000000000000000000000000018,old/TODO.txt
 """.replace(
         "\n", "\r\n"
-    )
-else:
-    CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS = """\
+    ),
+    "all": """\
 cnt_swhid,revrel_author_date,revrel_swhid,path
 swh:1:cnt:0000000000000000000000000000000000000001,2005-03-18T05:03:40Z,swh:1:rev:0000000000000000000000000000000000000003,README.md
 swh:1:cnt:0000000000000000000000000000000000000011,2005-03-18T17:24:20Z,swh:1:rev:0000000000000000000000000000000000000013,README.md
@@ -154,26 +174,29 @@ swh:1:cnt:0000000000000000000000000000000000000014,2005-03-18T20:29:30Z,swh:1:re
 swh:1:cnt:0000000000000000000000000000000000000015,2005-03-18T20:29:30Z,swh:1:rev:0000000000000000000000000000000000000018,old/TODO.txt
 """.replace(
         "\n", "\r\n"
-    )
+    ),
+}
 
-if HEADS_ONLY:
-    CONTENTS_IN_FRONTIER_DIRECTORIES = """\
+CONTENTS_IN_FRONTIER_DIRECTORIES = {
+    "heads": """\
 cnt_swhid,dir_swhid,path
 swh:1:cnt:0000000000000000000000000000000000000004,swh:1:dir:0000000000000000000000000000000000000006,README.md
 swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000000000000000000000006,parser.c
 """.replace(
         "\n", "\r\n"
-    )
-else:
-    CONTENTS_IN_FRONTIER_DIRECTORIES = """\
+    ),
+    "all": """\
 cnt_swhid,dir_swhid,path
 swh:1:cnt:0000000000000000000000000000000000000001,swh:1:dir:0000000000000000000000000000000000000008,README.md
 swh:1:cnt:0000000000000000000000000000000000000007,swh:1:dir:0000000000000000000000000000000000000008,parser.c
 swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000000000000000000000008,tests/parser.c
 swh:1:cnt:0000000000000000000000000000000000000004,swh:1:dir:0000000000000000000000000000000000000008,tests/README.md
+swh:1:cnt:0000000000000000000000000000000000000004,swh:1:dir:0000000000000000000000000000000000000006,README.md
+swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000000000000000000000006,parser.c
 """.replace(
         "\n", "\r\n"
-    )
+    ),
+}
 
 
 def timestamps_bin_to_csv(bin_timestamps_path: Path) -> List[str]:
@@ -220,7 +243,7 @@ def timestamps_bin_to_csv(bin_timestamps_path: Path) -> List[str]:
     ]
 
 
-def write_directory_frontier(provenance_dir, swhids=FRONTIER_DIRECTORIES):
+def write_directory_frontier(provenance_dir, swhids):
     ctx = datafusion.SessionContext()
     ctx.register_dataset(
         "nodes", pyarrow.dataset.dataset(provenance_dir / "nodes", format="parquet")
@@ -251,7 +274,8 @@ def write_directory_frontier(provenance_dir, swhids=FRONTIER_DIRECTORIES):
     ).write_parquet(str(target_path))
 
 
-def test_listprovenancenodes(tmpdir, provenance_node_filter="heads"):
+@pytest.mark.parametrize("provenance_node_filter", ["heads", "all"])
+def test_listprovenancenodes(tmpdir, provenance_node_filter):
     tmpdir = Path(tmpdir)
     provenance_dir = tmpdir / "provenance"
     provenance_dir.mkdir(exist_ok=True)
@@ -270,23 +294,22 @@ def test_listprovenancenodes(tmpdir, provenance_node_filter="heads"):
     rows = dataset.to_table().to_pylist()
     node_ids = [row["id"] for row in rows]
     assert sorted(node_ids) == sorted(set(node_ids)), "node ids are not unique"
-    swhids = sorted(f"swh:1:{row['type']}:{row['sha1_git'].hex()}" for row in rows)
-    if provenance_node_filter == "heads":
-        assert swhids == PROVENANCE_NODES
-    elif provenance_node_filter == "all":
-        assert swhids == sorted(ALL_NODES)
+    swhids = set(f"swh:1:{row['type']}:{row['sha1_git'].hex()}" for row in rows)
+    assert swhids == set(PROVENANCE_NODES[provenance_node_filter])
 
 
-def test_computeearliesttimestamps(tmpdir):
+@pytest.mark.parametrize("provenance_node_filter", ["heads", "all"])
+def test_computeearliesttimestamps(tmpdir, provenance_node_filter):
     tmpdir = Path(tmpdir)
     provenance_dir = tmpdir / "provenance"
-    provenance_dir.mkdir()
+    provenance_dir.mkdir(exist_ok=True)
 
     task = ComputeEarliestTimestamps(
         local_export_path=DATASET_DIR,
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
+        provenance_node_filter=provenance_node_filter,
     )
 
     task.run()
@@ -295,59 +318,73 @@ def test_computeearliesttimestamps(tmpdir):
         expected_header,
         *expected_rows,
         trailing,
-    ) = EARLIEST_REVREL_FOR_CNTDIR.split("\r\n")
+    ) = EARLIEST_REVREL_FOR_CNTDIR[
+        provenance_node_filter
+    ].split("\r\n")
     assert trailing == ""
 
     rows = set(timestamps_bin_to_csv(provenance_dir / "earliest_timestamps.bin"))
     (header, *expected_rows) = [
         f"{author_date},{cntdir_SWHID}"
         for (author_date, revrel_SWHID, cntdir_SWHID) in (
-            row.split(",") for row in EARLIEST_REVREL_FOR_CNTDIR.rstrip().split("\r\n")
+            row.split(",")
+            for row in EARLIEST_REVREL_FOR_CNTDIR[provenance_node_filter]
+            .rstrip()
+            .split("\r\n")
         )
     ]
     assert rows == set(expected_rows)
 
 
-def test_listdirectorymaxleaftimestamp(tmpdir):
+@pytest.mark.parametrize("provenance_node_filter", ["heads", "all"])
+def test_listdirectorymaxleaftimestamp(tmpdir, provenance_node_filter):
     tmpdir = Path(tmpdir)
     provenance_dir = tmpdir / "provenance"
 
+    # Generate the 'nodes' table
+    test_listprovenancenodes(tmpdir, provenance_node_filter)
+
     # Generate the binary file, used as input by ComputeDirectoryFrontier
-    test_computeearliesttimestamps(tmpdir)
+    test_computeearliesttimestamps(tmpdir, provenance_node_filter)
 
     task = ListDirectoryMaxLeafTimestamp(
         local_export_path=DATASET_DIR,
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
+        provenance_node_filter=provenance_node_filter,
     )
 
     task.run()
 
     rows = set(timestamps_bin_to_csv(provenance_dir / "max_leaf_timestamps.bin"))
-    (header, *expected_rows) = DIRECTORY_MAX_LEAF_TIMESTAMPS.rstrip().split("\r\n")
+    (header, *expected_rows) = (
+        DIRECTORY_MAX_LEAF_TIMESTAMPS[provenance_node_filter].rstrip().split("\r\n")
+    )
     assert rows == set(expected_rows)
 
 
-def test_computedirectoryfrontier(tmpdir):
+@pytest.mark.parametrize("provenance_node_filter", ["heads", "all"])
+def test_computedirectoryfrontier(tmpdir, provenance_node_filter):
     tmpdir = Path(tmpdir)
     provenance_dir = tmpdir / "provenance"
 
+    # Generate the 'nodes' table
+    test_listprovenancenodes(tmpdir, provenance_node_filter)
+
     # Generate the binary file, used as input by ComputeDirectoryFrontier
-    test_listdirectorymaxleaftimestamp(tmpdir)
+    test_listdirectorymaxleaftimestamp(tmpdir, provenance_node_filter)
 
     task = ComputeDirectoryFrontier(
         local_export_path=DATASET_DIR,
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
+        provenance_node_filter=provenance_node_filter,
         batch_size=100,  # faster
     )
 
     task.run()
-
-    # Generate the 'nodes' table
-    test_listprovenancenodes(tmpdir)
 
     ctx = datafusion.SessionContext()
 
@@ -374,26 +411,30 @@ def test_computedirectoryfrontier(tmpdir):
         """
     ).to_pydict()["swhid"]
 
-    assert swhids == FRONTIER_DIRECTORIES
+    assert set(swhids) == set(FRONTIER_DIRECTORIES[provenance_node_filter])
 
 
-def test_listfrontierdirectoriesinrevisions(tmpdir):
+@pytest.mark.parametrize("provenance_node_filter", ["heads", "all"])
+def test_listfrontierdirectoriesinrevisions(tmpdir, provenance_node_filter):
     tmpdir = Path(tmpdir)
     provenance_dir = tmpdir / "provenance"
 
-    # Generate the binary file, used as input by ListFrontierDirectoriesInRevisions
-    test_listdirectorymaxleaftimestamp(tmpdir)
-
     # Generate the 'nodes' table
-    test_listprovenancenodes(tmpdir)
+    test_listprovenancenodes(tmpdir, provenance_node_filter)
 
-    write_directory_frontier(provenance_dir)
+    # Generate the binary file, used as input by ListFrontierDirectoriesInRevisions
+    test_listdirectorymaxleaftimestamp(tmpdir, provenance_node_filter)
+
+    write_directory_frontier(
+        provenance_dir, swhids=FRONTIER_DIRECTORIES[provenance_node_filter]
+    )
 
     task = ListFrontierDirectoriesInRevisions(
         local_export_path=DATASET_DIR,
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
+        provenance_node_filter=provenance_node_filter,
         batch_size=100,  # faster
     )
 
@@ -435,14 +476,19 @@ def test_listfrontierdirectoriesinrevisions(tmpdir):
         """
     ).to_pylist()
 
-    expected_rows = list(csv.DictReader(io.StringIO(FRONTIER_DIRECTORIES_IN_REVISIONS)))
+    expected_rows = list(
+        csv.DictReader(
+            io.StringIO(FRONTIER_DIRECTORIES_IN_REVISIONS[provenance_node_filter])
+        )
+    )
     rows.sort(key=lambda d: tuple(sorted(d.items())))
     expected_rows.sort(key=lambda d: tuple(sorted(d.items())))
 
     assert rows == expected_rows
 
 
-def test_listcontentsinrevisionswithoutfrontier(tmpdir):
+@pytest.mark.parametrize("provenance_node_filter", ["heads", "all"])
+def test_listcontentsinrevisionswithoutfrontier(tmpdir, provenance_node_filter):
     tmpdir = Path(tmpdir)
 
     provenance_dir = tmpdir / "provenance"
@@ -450,15 +496,18 @@ def test_listcontentsinrevisionswithoutfrontier(tmpdir):
     provenance_dir.mkdir()
 
     # Generate the 'nodes' table
-    test_listprovenancenodes(tmpdir)
+    test_listprovenancenodes(tmpdir, provenance_node_filter)
 
-    write_directory_frontier(provenance_dir)
+    write_directory_frontier(
+        provenance_dir, swhids=FRONTIER_DIRECTORIES[provenance_node_filter]
+    )
 
     task = ListContentsInRevisionsWithoutFrontier(
         local_export_path=DATASET_DIR,
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
+        provenance_node_filter=provenance_node_filter,
         batch_size=100,  # faster
     )
 
@@ -500,7 +549,9 @@ def test_listcontentsinrevisionswithoutfrontier(tmpdir):
     ).to_pylist()
 
     expected_rows = list(
-        csv.DictReader(io.StringIO(CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS))
+        csv.DictReader(
+            io.StringIO(CONTENTS_IN_REVISIONS_WITHOUT_FRONTIERS[provenance_node_filter])
+        )
     )
     rows.sort(key=lambda d: tuple(sorted(d.items())))
     expected_rows.sort(key=lambda d: tuple(sorted(d.items())))
@@ -508,7 +559,8 @@ def test_listcontentsinrevisionswithoutfrontier(tmpdir):
     assert rows == expected_rows
 
 
-def test_listcontentsindirectories(tmpdir):
+@pytest.mark.parametrize("provenance_node_filter", ["heads", "all"])
+def test_listcontentsindirectories(tmpdir, provenance_node_filter):
     tmpdir = Path(tmpdir)
 
     provenance_dir = tmpdir / "provenance"
@@ -516,15 +568,18 @@ def test_listcontentsindirectories(tmpdir):
     provenance_dir.mkdir()
 
     # Generate the 'nodes' table
-    test_listprovenancenodes(tmpdir)
+    test_listprovenancenodes(tmpdir, provenance_node_filter)
 
-    write_directory_frontier(provenance_dir)
+    write_directory_frontier(
+        provenance_dir, swhids=FRONTIER_DIRECTORIES[provenance_node_filter]
+    )
 
     task = ListContentsInFrontierDirectories(
         local_export_path=DATASET_DIR,
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
+        provenance_node_filter=provenance_node_filter,
     )
 
     task.run()
@@ -563,7 +618,11 @@ def test_listcontentsindirectories(tmpdir):
         """
     ).to_pylist()
 
-    expected_rows = list(csv.DictReader(io.StringIO(CONTENTS_IN_FRONTIER_DIRECTORIES)))
+    expected_rows = list(
+        csv.DictReader(
+            io.StringIO(CONTENTS_IN_FRONTIER_DIRECTORIES[provenance_node_filter])
+        )
+    )
     rows.sort(key=lambda d: tuple(sorted(d.items())))
     expected_rows.sort(key=lambda d: tuple(sorted(d.items())))
 
@@ -573,6 +632,9 @@ def test_listcontentsindirectories(tmpdir):
 def test_listcontentsindirectories_root(tmpdir):
     """Tests ListContentsInFrontierDirectories but on root directories instead
     of frontier directories"""
+    # this test relies on all nodes being present
+    provenance_node_filter = "all"
+
     tmpdir = Path(tmpdir)
 
     provenance_dir = tmpdir / "provenance"
@@ -580,7 +642,7 @@ def test_listcontentsindirectories_root(tmpdir):
     provenance_dir.mkdir()
 
     # Generate the 'nodes' table
-    test_listprovenancenodes(tmpdir, provenance_node_filter="all")
+    test_listprovenancenodes(tmpdir, provenance_node_filter=provenance_node_filter)
 
     write_directory_frontier(
         provenance_dir,
@@ -595,6 +657,7 @@ def test_listcontentsindirectories_root(tmpdir):
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
         provenance_dir=provenance_dir,
+        provenance_node_filter=provenance_node_filter,
     )
 
     task.run()

@@ -9,7 +9,7 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{ensure, Context, Result};
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use rayon::prelude::*;
 use sux::prelude::{AtomicBitVec, BitVec};
@@ -22,15 +22,8 @@ use swh_graph::SWHType;
 use swh_graph::utils::dataset_writer::{
     ParallelDatasetWriter, ParquetTableWriter, PartitionedTableWriter,
 };
+use swh_graph_provenance::filters::{is_root_revrel, NodeFilter};
 use swh_graph_provenance::node_dataset::{schema, writer_properties, NodeTableBuilder};
-
-#[derive(ValueEnum, Debug, Clone, Copy)]
-enum NodeFilter {
-    /// All releases, and only revisions pointed by either a release or a snapshot
-    Heads,
-    /// All releases and all revisions.
-    All,
-}
 
 #[derive(Parser, Debug)]
 /** Writes the list of nodes reachable from a 'head' revision or a release.
@@ -141,12 +134,7 @@ where
     let reachable_from_heads = AtomicBitVec::new(graph.num_nodes());
 
     par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(|root| -> Result<()> {
-        let search_in_node = match node_filter {
-            NodeFilter::All => true,
-            NodeFilter::Heads => swh_graph_provenance::filters::is_head(graph, root),
-        };
-
-        if search_in_node {
+        if is_root_revrel(graph, node_filter, root) {
             let mut stack = vec![root];
 
             while let Some(node) = stack.pop() {

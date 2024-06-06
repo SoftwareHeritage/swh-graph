@@ -21,6 +21,7 @@ use swh_graph::utils::GetIndex;
 use swh_graph::SWHType;
 
 use swh_graph::utils::dataset_writer::ParallelDatasetWriter;
+use swh_graph_provenance::filters::{is_root_revrel, NodeFilter};
 use swh_graph_provenance::frontier_set::{schema, to_parquet, writer_properties};
 
 #[derive(Parser, Debug)]
@@ -34,6 +35,10 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(value_enum)]
+    #[arg(long, default_value_t = NodeFilter::Heads)]
+    /// Subset of revisions and releases to traverse from
+    node_filter: NodeFilter,
     #[arg(long)]
     /// Path to read the array of max timestamps from
     max_timestamps: PathBuf,
@@ -70,7 +75,7 @@ pub fn main() -> Result<()> {
         (Arc::new(schema()), writer_properties(&graph).build()),
     )?;
 
-    let frontiers = find_frontiers(&graph, &max_timestamps)?;
+    let frontiers = find_frontiers(&graph, &max_timestamps, args.node_filter)?;
 
     let mut pl = ProgressLogger::default();
     pl.item_name("node");
@@ -89,6 +94,7 @@ pub fn main() -> Result<()> {
 fn find_frontiers<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64> + Sync + Copy,
+    node_filter: NodeFilter,
 ) -> Result<BitVec>
 where
     G: SwhBackwardGraph + SwhForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
@@ -106,23 +112,23 @@ where
     let pl = Arc::new(Mutex::new(pl));
 
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(
-        |node| -> Result<()> {
-            if swh_graph_provenance::filters::is_head(graph, node) {
+        |root| -> Result<()> {
+            if is_root_revrel(graph, node_filter, root) {
                 if let Some(root_dir) =
-                    swh_graph::algos::get_root_directory_from_revision_or_release(graph, node)
+                    swh_graph::algos::get_root_directory_from_revision_or_release(graph, root)
                         .context("Could not pick root directory")?
                 {
                     find_frontiers_in_root_directory(
                         graph,
                         max_timestamps,
                         &frontiers,
-                        node,
+                        root,
                         root_dir,
                     )?;
                 }
             }
 
-            if node % 32768 == 0 {
+            if root % 32768 == 0 {
                 pl.lock().unwrap().update_with_count(32768);
             }
 

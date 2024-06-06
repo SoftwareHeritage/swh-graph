@@ -73,6 +73,7 @@ class ComputeEarliestTimestamps(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
+    provenance_node_filter = luigi.Parameter(default="heads")
 
     def _max_ram(self):
         # see java/src/main/java/org/softwareheritage/graph/utils/ListEarliestRevisions.java
@@ -120,6 +121,8 @@ class ComputeEarliestTimestamps(luigi.Task):
             Rust(
                 "compute-earliest-timestamps",
                 "-vv",
+                "--node-filter",
+                self.provenance_node_filter,
                 self.local_graph_path / self.graph_name,
                 "--timestamps-out",
                 str(self._bin_timestamps_output_path()),
@@ -137,6 +140,7 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
+    provenance_node_filter = luigi.Parameter(default="heads")
 
     def _max_ram(self):
         # see
@@ -161,14 +165,16 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
 
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns :class:`LocalGraph` and :class:`ComputeEarliestTimestamps` instances."""
+        kwargs = dict(
+            local_export_path=self.local_export_path,
+            local_graph_path=self.local_graph_path,
+            graph_name=self.graph_name,
+            provenance_dir=self.provenance_dir,
+        )
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "earliest_revisions": ComputeEarliestTimestamps(
-                local_export_path=self.local_export_path,
-                local_graph_path=self.local_graph_path,
-                graph_name=self.graph_name,
-                provenance_dir=self.provenance_dir,
-            ),
+            "earliest_revisions": ComputeEarliestTimestamps(**kwargs),
+            "reachable_nodes": ListProvenanceNodes(**kwargs),
         }
 
     def _output_path(self) -> Path:
@@ -188,6 +194,10 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
                 "list-directory-with-max-leaf-timestamp",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--node-filter",
+                self.provenance_node_filter,
+                "--reachable-nodes",
+                self.input()["reachable_nodes"],
                 "--timestamps",
                 self.input()["earliest_revisions"]["bin_timestamps"],
                 "--max-timestamps-out",
@@ -211,6 +221,7 @@ class ComputeDirectoryFrontier(luigi.Task):
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
     batch_size = luigi.IntParameter(default=1000)
+    provenance_node_filter = luigi.Parameter(default="heads")
 
     def _max_ram(self):
         # see java/src/main/java/org/softwareheritage/graph/utils/ComputeDirectoryFrontier.java
@@ -272,6 +283,8 @@ class ComputeDirectoryFrontier(luigi.Task):
                 "compute-directory-frontier",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--node-filter",
+                self.provenance_node_filter,
                 "--max-timestamps",
                 self.input()["directory_max_leaf_timestamps"],
                 "--directories-out",
@@ -296,6 +309,7 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
     batch_size = luigi.IntParameter(default=1000)
+    provenance_node_filter = luigi.Parameter(default="heads")
 
     def _max_ram(self):
         # see
@@ -336,6 +350,7 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
             local_graph_path=self.local_graph_path,
             graph_name=self.graph_name,
             provenance_dir=self.provenance_dir,
+            provenance_node_filter=self.provenance_node_filter,
         )
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
@@ -361,6 +376,8 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
                 "frontier-directories-in-revisions",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--node-filter",
+                self.provenance_node_filter,
                 "--reachable-nodes",
                 self.input()["reachable_nodes"],
                 "--frontier-directories",
@@ -390,6 +407,7 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
     batch_size = luigi.IntParameter(default=1000)
+    provenance_node_filter = luigi.Parameter(default="heads")
 
     def _max_ram(self):
         # see
@@ -430,6 +448,7 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
             local_graph_path=self.local_graph_path,
             graph_name=self.graph_name,
             provenance_dir=self.provenance_dir,
+            provenance_node_filter=self.provenance_node_filter,
         )
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
@@ -454,6 +473,8 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
                 "contents-in-revisions-without-frontier",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--node-filter",
+                self.provenance_node_filter,
                 "--reachable-nodes",
                 self.input()["reachable_nodes"],
                 "--frontier-directories",
@@ -473,6 +494,7 @@ class ListContentsInFrontierDirectories(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
+    provenance_node_filter = luigi.Parameter(default="heads")
 
     def _max_ram(self):
         # see java/src/main/java/org/softwareheritage/graph/utils/ComputeDirectoryFrontier.java
@@ -504,6 +526,7 @@ class ListContentsInFrontierDirectories(luigi.Task):
             local_graph_path=self.local_graph_path,
             graph_name=self.graph_name,
             provenance_dir=self.provenance_dir,
+            provenance_node_filter=self.provenance_node_filter,
         )
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
@@ -528,6 +551,8 @@ class ListContentsInFrontierDirectories(luigi.Task):
                 "contents-in-directories",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--node-filter",
+                self.provenance_node_filter,
                 "--reachable-nodes",
                 self.input()["reachable_nodes"],
                 "--frontier-directories",
@@ -546,6 +571,7 @@ class RunProvenance(luigi.WrapperTask):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
+    provenance_node_filter = luigi.Parameter(default="heads")
 
     def requires(self):
         """Returns :class:`ListContentsInFrontierDirectories` and
@@ -555,6 +581,7 @@ class RunProvenance(luigi.WrapperTask):
             local_graph_path=self.local_graph_path,
             graph_name=self.graph_name,
             provenance_dir=self.provenance_dir,
+            provenance_node_filter=self.provenance_node_filter,
         )
         return [
             ListProvenanceNodes(**kwargs),

@@ -20,6 +20,7 @@ use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::SWHType;
 
 use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
+use swh_graph_provenance::filters::{load_reachable_nodes, NodeFilter};
 use swh_graph_provenance::frontier::PathParts;
 use swh_graph_provenance::x_in_y_dataset::{
     cnt_in_dir_schema, cnt_in_dir_writer_properties, CntInDirTableBuilder,
@@ -36,6 +37,10 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(value_enum)]
+    #[arg(long, default_value_t = NodeFilter::Heads)]
+    /// Subset of revisions and releases to traverse from
+    node_filter: NodeFilter,
     #[arg(long)]
     /// Path to the Parquet table with the node ids of all nodes reachable from
     /// a head revision/release
@@ -81,15 +86,6 @@ pub fn main() -> Result<()> {
     )?;
     pl.done();
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.local_speed(true);
-    pl.start("Loading reachable nodes...");
-    let reachable_nodes =
-        swh_graph_provenance::frontier_set::from_parquet(&graph, args.reachable_nodes, &mut pl)?;
-    pl.done();
-
     let dataset_writer = ParallelDatasetWriter::new_with_schema(
         args.contents_out,
         (
@@ -97,6 +93,8 @@ pub fn main() -> Result<()> {
             cnt_in_dir_writer_properties(&graph).build(),
         ),
     )?;
+
+    let reachable_nodes = load_reachable_nodes(&graph, args.node_filter, args.reachable_nodes)?;
 
     let mut pl = ProgressLogger::default();
     pl.item_name("directory");
@@ -108,11 +106,15 @@ pub fn main() -> Result<()> {
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
         || dataset_writer.get_thread_writer().unwrap(),
         |writer, node| -> Result<()> {
-            if reachable_nodes.get(node) && graph.properties().node_type(node) == SWHType::Content {
+            let is_reachable = match &reachable_nodes {
+                None => true, // All nodes are reachable
+                Some(reachable_nodes) => reachable_nodes.get(node),
+            };
+            if is_reachable && graph.properties().node_type(node) == SWHType::Content {
                 write_frontier_directories_from_content(
                     &graph,
                     writer,
-                    &reachable_nodes,
+                    reachable_nodes.as_ref(),
                     &frontier_directories,
                     node,
                 )?;
@@ -133,7 +135,7 @@ pub fn main() -> Result<()> {
 fn write_frontier_directories_from_content<G>(
     graph: &G,
     writer: &mut ParquetTableWriter<CntInDirTableBuilder>,
-    reachable_nodes: &BitVec,
+    reachable_nodes: Option<&BitVec>,
     frontier_directories: &BitVec,
     cnt: NodeId,
 ) -> Result<()>

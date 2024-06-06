@@ -31,6 +31,8 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::SWHType;
 
+use swh_graph_provenance::filters::{is_root_revrel, NodeFilter};
+
 #[derive(Parser, Debug)]
 /// Returns a directory of CSV files with header 'author_date,revrel_SWHID,cntdir_SWHID'
 /// and a row for each of the contents and directories with the earliest revision/release
@@ -39,6 +41,10 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(value_enum)]
+    #[arg(long, default_value_t = NodeFilter::Heads)]
+    /// Subset of revisions and releases to traverse from
+    node_filter: NodeFilter,
     #[arg(long)]
     /// Path to write the array of timestamps to
     timestamps_out: PathBuf,
@@ -81,7 +87,7 @@ pub fn main() -> Result<()> {
 
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(
         |revrel| -> Result<_> {
-            mark_reachable_contents(&graph, &timestamps, revrel)?;
+            mark_reachable_contents(&graph, &timestamps, revrel, args.node_filter)?;
 
             if revrel % 32768 == 0 {
                 pl.lock().unwrap().update_with_count(32768);
@@ -128,13 +134,18 @@ pub fn main() -> Result<()> {
 
 /// Mark any content reachable from the root `revrel` as having a first occurrence
 /// older or equal to this revision
-fn mark_reachable_contents<G>(graph: &G, timestamps: &[AtomicI64], revrel: NodeId) -> Result<()>
+fn mark_reachable_contents<G>(
+    graph: &G,
+    timestamps: &[AtomicI64],
+    revrel: NodeId,
+    node_filter: NodeFilter,
+) -> Result<()>
 where
     G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
 {
-    if !swh_graph_provenance::filters::is_head(graph, revrel) {
+    if !is_root_revrel(graph, node_filter, revrel) {
         return Ok(());
     }
 

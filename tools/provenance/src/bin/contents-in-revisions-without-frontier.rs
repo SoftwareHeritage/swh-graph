@@ -24,6 +24,8 @@ use swh_graph_provenance::x_in_y_dataset::{
     cnt_in_revrel_schema, cnt_in_revrel_writer_properties, CntInRevrelTableBuilder,
 };
 
+use swh_graph_provenance::filters::{load_reachable_nodes, NodeFilter};
+
 #[derive(Parser, Debug)]
 /** Given a Parquet table with the node ids of every frontier directory.
  * Produces the list of contents reachable from each revision, without any going through
@@ -33,6 +35,10 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(value_enum)]
+    #[arg(long, default_value_t = NodeFilter::Heads)]
+    /// Subset of revisions and releases to traverse from
+    node_filter: NodeFilter,
     #[arg(long)]
     /// Path to the Parquet table with the node ids of all nodes reachable from
     /// a head revision/release
@@ -80,14 +86,7 @@ pub fn main() -> Result<()> {
     )?;
     pl.done();
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.local_speed(true);
-    pl.start("Loading reachable nodes...");
-    let reachable_nodes =
-        swh_graph_provenance::frontier_set::from_parquet(&graph, args.reachable_nodes, &mut pl)?;
-    pl.done();
+    let reachable_nodes = load_reachable_nodes(&graph, args.node_filter, args.reachable_nodes)?;
 
     let dataset_writer = ParallelDatasetWriter::new_with_schema(
         args.contents_out,
@@ -99,7 +98,8 @@ pub fn main() -> Result<()> {
 
     write_revisions_from_contents(
         &graph,
-        &reachable_nodes,
+        args.node_filter,
+        reachable_nodes.as_ref(),
         &frontier_directories,
         dataset_writer,
     )
@@ -107,7 +107,8 @@ pub fn main() -> Result<()> {
 
 fn write_revisions_from_contents<G>(
     graph: &G,
-    reachable_nodes: &BitVec,
+    node_filter: NodeFilter,
+    reachable_nodes: Option<&BitVec>,
     frontier_directories: &BitVec,
     dataset_writer: ParallelDatasetWriter<ParquetTableWriter<CntInRevrelTableBuilder>>,
 ) -> Result<()>
@@ -128,9 +129,14 @@ where
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
         || dataset_writer.get_thread_writer().unwrap(),
         |writer, node| -> Result<()> {
-            if reachable_nodes.get(node) && graph.properties().node_type(node) == SWHType::Content {
+            let is_reachable = match reachable_nodes {
+                None => true,
+                Some(reachable_nodes) => reachable_nodes.get(node),
+            };
+            if is_reachable && graph.properties().node_type(node) == SWHType::Content {
                 find_revisions_from_content(
                     graph,
+                    node_filter,
                     reachable_nodes,
                     frontier_directories,
                     writer,
@@ -155,7 +161,8 @@ where
 
 fn find_revisions_from_content<G>(
     graph: &G,
-    reachable_nodes: &BitVec,
+    node_filter: NodeFilter,
+    reachable_nodes: Option<&BitVec>,
     frontier_directories: &BitVec,
     writer: &mut ParquetTableWriter<CntInRevrelTableBuilder>,
     cnt: NodeId,
@@ -180,7 +187,7 @@ where
         let Some(revrel_timestamp) = graph.properties().author_timestamp(revrel) else {
             return Ok(());
         };
-        if !swh_graph_provenance::filters::is_head(graph, revrel) {
+        if !swh_graph_provenance::filters::is_root_revrel(graph, node_filter, revrel) {
             return Ok(());
         }
 

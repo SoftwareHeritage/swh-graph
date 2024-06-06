@@ -12,15 +12,16 @@ use anyhow::{bail, Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use rayon::prelude::*;
-use sux::prelude::{AtomicBitVec, BitVec};
+use sux::prelude::BitVec;
 
-use swh_graph::collections::NodeSet;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::shuffle::par_iter_shuffled_range;
 use swh_graph::utils::GetIndex;
 use swh_graph::SWHType;
+
+use swh_graph_provenance::filters::{load_reachable_nodes, NodeFilter};
 
 #[derive(Parser, Debug)]
 /** Given as argument a binary file containing an array of timestamps which is,
@@ -37,6 +38,14 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(value_enum)]
+    #[arg(long, default_value_t = NodeFilter::Heads)]
+    /// Subset of revisions and releases to traverse from
+    node_filter: NodeFilter,
+    #[arg(long)]
+    /// Path to the Parquet table with the node ids of all nodes reachable from
+    /// a head revision/release
+    reachable_nodes: PathBuf,
     #[arg(long)]
     /// Path to read the array of timestamps from
     timestamps: PathBuf,
@@ -78,10 +87,10 @@ pub fn main() -> Result<()> {
         None => None,
     };
 
-    let reachable_from_heads = list_reachable_from_head(&graph)?;
+    let reachable_nodes = load_reachable_nodes(&graph, args.node_filter, args.reachable_nodes)?;
     propagate_through_directories(
         &graph,
-        reachable_from_heads,
+        reachable_nodes.as_ref(),
         &timestamps,
         &mut max_timestamps,
     )?;
@@ -104,52 +113,10 @@ pub fn main() -> Result<()> {
     Ok(())
 }
 
-fn list_reachable_from_head<G>(graph: &G) -> Result<BitVec>
-where
-    G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties + Sync,
-    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
-{
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.expected_updates(Some(graph.num_nodes()));
-    pl.start("Listing reachable contents and directories...");
-    let pl = Arc::new(Mutex::new(pl));
-
-    let reachable_from_heads = AtomicBitVec::new(graph.num_nodes());
-
-    par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(|root| -> Result<()> {
-        if swh_graph_provenance::filters::is_head(graph, root) {
-            let mut stack = vec![root];
-
-            while let Some(node) = stack.pop() {
-                for succ in graph.successors(node) {
-                    if reachable_from_heads.get(succ, Ordering::Relaxed) {
-                        // Already visited, either by this DFS or an other one
-                    } else if let SWHType::Content | SWHType::Directory =
-                        graph.properties().node_type(succ)
-                    {
-                        reachable_from_heads.set(succ, true, Ordering::Relaxed);
-                        stack.push(succ);
-                    }
-                }
-            }
-        }
-        if root % 32768 == 0 {
-            pl.lock().unwrap().update_with_count(32768);
-        }
-        Ok(())
-    })?;
-
-    pl.lock().unwrap().done();
-
-    Ok(reachable_from_heads.into())
-}
-
 /// Propagate maximum of timestamps from contents to any directory containing them
 fn propagate_through_directories<G>(
     graph: &G,
-    reachable_from_heads: impl NodeSet + Sync,
+    reachable_nodes: Option<&BitVec>,
     timestamps: &(impl GetIndex<Output = i64> + Sync),
     max_timestamps: &mut [AtomicI64],
 ) -> Result<()>
@@ -164,10 +131,13 @@ where
     pl.start("Propagating through directories...");
     let pl = Arc::new(Mutex::new(pl));
 
+    let reachable = |node| match reachable_nodes {
+        Some(reachable_nodes) => reachable_nodes.get(node),
+        None => true, // All nodes are reachable
+    };
+
     par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(|cnt| {
-        if reachable_from_heads.contains(cnt)
-            && graph.properties().node_type(cnt) == SWHType::Content
-        {
+        if reachable(cnt) && graph.properties().node_type(cnt) == SWHType::Content {
             let cnt_timestamp = timestamps.get(cnt).unwrap();
             if cnt_timestamp == i64::MIN {
                 // Content is not in any timestamped revrel, ignore it.
@@ -176,7 +146,7 @@ where
 
                 while let Some(node) = stack.pop() {
                     for pred in graph.predecessors(node) {
-                        if !reachable_from_heads.contains(pred) {
+                        if !reachable(pred) {
                             continue;
                         }
                         match graph.properties().node_type(pred) {

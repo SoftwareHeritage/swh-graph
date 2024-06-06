@@ -3,8 +3,48 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::path::PathBuf;
+
+use anyhow::Result;
+use clap::ValueEnum;
+use dsi_progress_logger::{ProgressLog, ProgressLogger};
+use sux::prelude::BitVec;
+
 use swh_graph::graph::*;
 use swh_graph::SWHType;
+
+#[derive(ValueEnum, Debug, Clone, Copy)]
+pub enum NodeFilter {
+    /// All releases, and only revisions pointed by either a release or a snapshot
+    Heads,
+    /// All releases and all revisions.
+    All,
+}
+
+/// Returns the set of reachable nodes, or `None` if `node_filter` is [`NodeFilter::All`]
+pub fn load_reachable_nodes<G>(
+    graph: &G,
+    node_filter: NodeFilter,
+    path: PathBuf,
+) -> Result<Option<BitVec>>
+where
+    G: SwhGraph + Sync,
+{
+    match node_filter {
+        // All nodes are reachable, no need to load the set of reachable nodes
+        NodeFilter::All => Ok(None),
+        _ => {
+            let mut pl = ProgressLogger::default();
+            pl.item_name("node");
+            pl.display_memory(true);
+            pl.local_speed(true);
+            pl.start("Loading reachable nodes...");
+            let reachable_nodes = crate::frontier_set::from_parquet(&graph, path, &mut pl)?;
+            pl.done();
+            Ok(Some(reachable_nodes))
+        }
+    }
+}
 
 /// Returns whether the node is a release or a revision with a release/snapshot predecessor
 ///
@@ -83,5 +123,22 @@ where
             pred_type == SWHType::Snapshot || pred_type == SWHType::Release
         }),
         SWHType::Origin | SWHType::Snapshot | SWHType::Directory | SWHType::Content => false,
+    }
+}
+
+/// Returns whether the node is a revision/release and matches the node filter
+///
+/// See [`is_head`] for the implementation for [`NodeFilter::Heads`]
+pub fn is_root_revrel<G>(graph: &G, node_filter: NodeFilter, node_id: NodeId) -> bool
+where
+    G: SwhBackwardGraph + SwhGraphWithProperties,
+    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
+{
+    match node_filter {
+        NodeFilter::All => {
+            let node_type = graph.properties().node_type(node_id);
+            node_type == SWHType::Release || node_type == SWHType::Revision
+        }
+        NodeFilter::Heads => is_head(graph, node_id),
     }
 }

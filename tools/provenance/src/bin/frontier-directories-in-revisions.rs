@@ -20,6 +20,7 @@ use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
 
 use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
+use swh_graph_provenance::filters::{load_reachable_nodes, NodeFilter};
 use swh_graph_provenance::frontier::PathParts;
 use swh_graph_provenance::x_in_y_dataset::{
     dir_in_revrel_schema, dir_in_revrel_writer_properties, DirInRevrelTableBuilder,
@@ -37,6 +38,10 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(value_enum)]
+    #[arg(long, default_value_t = NodeFilter::Heads)]
+    /// Subset of revisions and releases to traverse from
+    node_filter: NodeFilter,
     #[arg(long)]
     /// Path to the Parquet table with the node ids of all nodes reachable from
     /// a head revision/release
@@ -91,14 +96,7 @@ pub fn main() -> Result<()> {
     )?;
     pl.done();
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.local_speed(true);
-    pl.start("Loading reachable nodes...");
-    let reachable_nodes =
-        swh_graph_provenance::frontier_set::from_parquet(&graph, args.reachable_nodes, &mut pl)?;
-    pl.done();
+    let reachable_nodes = load_reachable_nodes(&graph, args.node_filter, args.reachable_nodes)?;
 
     let dataset_writer = ParallelDatasetWriter::new_with_schema(
         args.directories_out,
@@ -111,7 +109,8 @@ pub fn main() -> Result<()> {
     write_revisions_from_frontier_directories(
         &graph,
         &max_timestamps,
-        &reachable_nodes,
+        args.node_filter,
+        reachable_nodes.as_ref(),
         &frontier_directories,
         dataset_writer,
     )
@@ -120,7 +119,8 @@ pub fn main() -> Result<()> {
 fn write_revisions_from_frontier_directories<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64> + Sync + Copy,
-    reachable_nodes: &BitVec,
+    node_filter: NodeFilter,
+    reachable_nodes: Option<&BitVec>,
     frontier_directories: &BitVec,
     dataset_writer: ParallelDatasetWriter<ParquetTableWriter<DirInRevrelTableBuilder>>,
 ) -> Result<()>
@@ -145,6 +145,7 @@ where
                 write_revisions_from_frontier_directory(
                     graph,
                     max_timestamps,
+                    node_filter,
                     reachable_nodes,
                     frontier_directories,
                     writer,
@@ -170,7 +171,8 @@ where
 fn write_revisions_from_frontier_directory<G>(
     graph: &G,
     max_timestamps: impl GetIndex<Output = i64>,
-    reachable_nodes: &BitVec,
+    node_filter: NodeFilter,
+    reachable_nodes: Option<&BitVec>,
     frontier_directories: &BitVec,
     writer: &mut ParquetTableWriter<DirInRevrelTableBuilder>,
     dir: NodeId,
@@ -205,7 +207,7 @@ where
             return Ok(());
         };
 
-        if !swh_graph_provenance::filters::is_head(graph, revrel) {
+        if !swh_graph_provenance::filters::is_root_revrel(graph, node_filter, revrel) {
             return Ok(());
         }
         let builder = writer.builder()?;

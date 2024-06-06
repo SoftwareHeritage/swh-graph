@@ -40,14 +40,14 @@ impl<'a> PathParts<'a> {
 /// or revision node found.
 ///
 /// `reachable_nodes` is the set of all nodes reachable from a head revision/release
-/// (nodes not in the set are ignored).
+/// (nodes not in the set are ignored); or `None` if all nodes are reachable.
 ///
 /// If `on_directory` returns `false`, the directory's predecessors are ignored.
 ///
 /// FIXME: `on_directory` is always called on the `root`, even if the `root` is a content
 pub fn backward_dfs_with_path<G>(
     graph: &G,
-    reachable_nodes: &BitVec,
+    reachable_nodes: Option<&BitVec>,
     mut on_directory: impl FnMut(NodeId, PathParts) -> Result<bool>,
     mut on_revrel: impl FnMut(NodeId, PathParts) -> Result<()>,
     root: NodeId,
@@ -57,7 +57,11 @@ where
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    if !reachable_nodes.get(root) {
+    let reachable = |node| match reachable_nodes {
+        Some(reachable_nodes) => reachable_nodes.get(node),
+        None => true, // All nodes are reachable
+    };
+    if !reachable(root) {
         return Ok(());
     }
 
@@ -92,7 +96,7 @@ where
         if should_recurse {
             // Look for frontiers in subdirectories
             for (pred, labels) in graph.labelled_predecessors(node) {
-                if !reachable_nodes.get(pred) || visited.contains(pred) {
+                if !reachable(pred) || visited.contains(pred) {
                     continue;
                 }
 
