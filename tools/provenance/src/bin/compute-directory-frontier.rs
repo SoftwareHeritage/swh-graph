@@ -179,7 +179,7 @@ where
     while let Some(node) = stack.pop() {
         for succ in graph.successors(node) {
             if graph.properties().node_type(succ) == SWHType::Directory {
-                let dir_max_timestamp = max_timestamps.get(node).expect("max_timestamps too small");
+                let dir_max_timestamp = max_timestamps.get(succ).expect("max_timestamps too small");
                 if dir_max_timestamp == i64::MIN {
                     // Somehow does not have a max timestamp. Presumably because it does not
                     // have any content.
