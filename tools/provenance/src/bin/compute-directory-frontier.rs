@@ -24,6 +24,13 @@ use swh_graph::utils::dataset_writer::ParallelDatasetWriter;
 use swh_graph_provenance::filters::{is_root_revrel, NodeFilter};
 use swh_graph_provenance::frontier_set::{schema, to_parquet, writer_properties};
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 #[derive(Parser, Debug)]
 /** Given as input a binary file with, for each directory, the newest date of first
  * occurrence of any of the content in its subtree (well, DAG), ie.,

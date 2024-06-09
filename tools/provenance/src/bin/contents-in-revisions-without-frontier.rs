@@ -26,6 +26,13 @@ use swh_graph_provenance::x_in_y_dataset::{
 
 use swh_graph_provenance::filters::{load_reachable_nodes, NodeFilter};
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 #[derive(Parser, Debug)]
 /** Given a Parquet table with the node ids of every frontier directory.
  * Produces the list of contents reachable from each revision, without any going through

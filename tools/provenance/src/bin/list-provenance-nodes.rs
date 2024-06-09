@@ -25,6 +25,13 @@ use swh_graph::utils::dataset_writer::{
 use swh_graph_provenance::filters::{is_root_revrel, NodeFilter};
 use swh_graph_provenance::node_dataset::{schema, writer_properties, NodeTableBuilder};
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 #[derive(Parser, Debug)]
 /** Writes the list of nodes reachable from a 'head' revision or a release.
  */

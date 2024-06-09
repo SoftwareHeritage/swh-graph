@@ -29,6 +29,9 @@ zstd = "0.12"
 rand = "0.8.5"
 sha1 = "0.10.6"
 
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator = "0.5"
+
 [dev-dependencies]
 pretty_assertions = "1.4.0"
 

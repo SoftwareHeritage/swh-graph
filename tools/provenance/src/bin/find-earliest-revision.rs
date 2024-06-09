@@ -19,6 +19,13 @@ use swh_graph::SWHID;
 
 use swh_graph_provenance::earliest_revision::{find_earliest_revision, EarliestRevision};
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 #[derive(Parser, Debug)]
 #[command(about = "Given a list of directory/content SWHID on stdin, returns a CSV with header 'swhid,earliest_swhid,earliest_ts,rev_occurrences'", long_about = None)]
 struct Args {

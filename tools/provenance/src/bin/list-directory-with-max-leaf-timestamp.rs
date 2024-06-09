@@ -23,6 +23,13 @@ use swh_graph::SWHType;
 
 use swh_graph_provenance::filters::{load_reachable_nodes, NodeFilter};
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 #[derive(Parser, Debug)]
 /** Given as argument a binary file containing an array of timestamps which is,
  * for every content, the date of first occurrence of that content in a revision,

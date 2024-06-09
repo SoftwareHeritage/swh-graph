@@ -26,6 +26,13 @@ use swh_graph_provenance::x_in_y_dataset::{
     dir_in_revrel_schema, dir_in_revrel_writer_properties, DirInRevrelTableBuilder,
 };
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 #[derive(Parser, Debug)]
 /** Given as input a binary file with, for each directory, the newest date of first
  * occurrence of any of the content in its subtree (well, DAG), ie.,

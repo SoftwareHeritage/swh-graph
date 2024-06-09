@@ -33,6 +33,13 @@ use swh_graph::SWHType;
 
 use swh_graph_provenance::filters::{is_root_revrel, NodeFilter};
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 #[derive(Parser, Debug)]
 /// Returns a directory of CSV files with header 'author_date,revrel_SWHID,cntdir_SWHID'
 /// and a row for each of the contents and directories with the earliest revision/release
