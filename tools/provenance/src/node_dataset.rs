@@ -83,9 +83,15 @@ const SHA1GIT_LEN: i32 = 20;
 impl Default for NodeTableBuilder {
     fn default() -> Self {
         NodeTableBuilder {
-            ids: Default::default(),
-            types: Default::default(),
-            sha1_gits: FixedSizeBinaryBuilder::new(SHA1GIT_LEN),
+            ids: UInt64Builder::new_from_buffer(
+                Default::default(),
+                None, // Values are not nullable -> validity buffer not needed
+            ),
+            types: Int8Builder::new_from_buffer(
+                Default::default(),
+                None, // ditto
+            ),
+            sha1_gits: FixedSizeBinaryBuilder::new(SHA1GIT_LEN), // can't disable the useless validity buffer :(
         }
     }
 }

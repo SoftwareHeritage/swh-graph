@@ -22,7 +22,13 @@ pub struct UtcTimestampSecondBuilder(pub TimestampSecondBuilder);
 
 impl Default for UtcTimestampSecondBuilder {
     fn default() -> UtcTimestampSecondBuilder {
-        UtcTimestampSecondBuilder(TimestampSecondBuilder::default().with_timezone("UTC"))
+        UtcTimestampSecondBuilder(
+            TimestampSecondBuilder::new_from_buffer(
+                Default::default(),
+                None, // Values are not nullable -> validity buffer not needed
+            )
+            .with_timezone("UTC"),
+        )
     }
 }
 
@@ -169,12 +175,29 @@ pub fn cnt_in_dir_writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesB
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct CntInRevrelTableBuilder {
     pub cnt: UInt64Builder,
     pub revrel: UInt64Builder,
     pub revrel_author_date: UtcTimestampSecondBuilder,
     pub path: BinaryBuilder,
+}
+
+impl Default for CntInRevrelTableBuilder {
+    fn default() -> Self {
+        CntInRevrelTableBuilder {
+            cnt: UInt64Builder::new_from_buffer(
+                Default::default(),
+                None, // Values are not nullable -> validity buffer not needed
+            ),
+            revrel: UInt64Builder::new_from_buffer(
+                Default::default(),
+                None, // ditto
+            ),
+            revrel_author_date: Default::default(),
+            path: BinaryBuilder::default(), // TODO: don't use validity buffer
+        }
+    }
 }
 
 impl StructArrayBuilder for CntInRevrelTableBuilder {
@@ -198,13 +221,31 @@ impl StructArrayBuilder for CntInRevrelTableBuilder {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct DirInRevrelTableBuilder {
     pub dir: UInt64Builder,
     pub dir_max_author_date: UtcTimestampSecondBuilder,
     pub revrel: UInt64Builder,
     pub revrel_author_date: UtcTimestampSecondBuilder,
     pub path: BinaryBuilder,
+}
+
+impl Default for DirInRevrelTableBuilder {
+    fn default() -> Self {
+        DirInRevrelTableBuilder {
+            dir: UInt64Builder::new_from_buffer(
+                Default::default(),
+                None, // Values are not nullable -> validity buffer not needed
+            ),
+            dir_max_author_date: Default::default(),
+            revrel: UInt64Builder::new_from_buffer(
+                Default::default(),
+                None, // ditto
+            ),
+            revrel_author_date: Default::default(),
+            path: BinaryBuilder::default(), // TODO: don't use validity buffer
+        }
+    }
 }
 
 impl StructArrayBuilder for DirInRevrelTableBuilder {
@@ -229,11 +270,27 @@ impl StructArrayBuilder for DirInRevrelTableBuilder {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct CntInDirTableBuilder {
     pub cnt: UInt64Builder,
     pub dir: UInt64Builder,
     pub path: BinaryBuilder,
+}
+
+impl Default for CntInDirTableBuilder {
+    fn default() -> Self {
+        CntInDirTableBuilder {
+            cnt: UInt64Builder::new_from_buffer(
+                Default::default(),
+                None, // Values are not nullable -> validity buffer not needed
+            ),
+            dir: UInt64Builder::new_from_buffer(
+                Default::default(),
+                None, // ditto
+            ),
+            path: BinaryBuilder::default(), // TODO: don't use validity buffer
+        }
+    }
 }
 
 impl StructArrayBuilder for CntInDirTableBuilder {

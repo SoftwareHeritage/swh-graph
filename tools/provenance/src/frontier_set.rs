@@ -46,8 +46,17 @@ pub fn writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesBuilder {
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Builder(UInt64Builder);
+
+impl Default for Builder {
+    fn default() -> Self {
+        Builder(UInt64Builder::new_from_buffer(
+            Default::default(),
+            None, // Values are not nullable -> validity buffer not needed
+        ))
+    }
+}
 
 impl StructArrayBuilder for Builder {
     fn len(&self) -> usize {
