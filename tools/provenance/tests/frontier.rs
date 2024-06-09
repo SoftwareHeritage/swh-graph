@@ -94,7 +94,13 @@ fn test_dfs_with_path() -> Result<()> {
     let mut reachable_nodes = BitVec::new(graph.num_nodes());
     reachable_nodes.fill(true);
 
-    backward_dfs_with_path(&graph, &reachable_nodes, on_directory, on_revrel, cnt4)?;
+    backward_dfs_with_path(
+        &graph,
+        Some(&reachable_nodes),
+        on_directory,
+        on_revrel,
+        cnt4,
+    )?;
 
     dir_events.sort();
     revrel_events.sort();
