@@ -32,7 +32,7 @@ pub trait StructArrayBuilder {
     fn len(&self) -> usize;
     /// Number of bytes currently in the buffer (not capacity)
     fn buffer_size(&self) -> usize;
-    fn finish(self) -> Result<StructArray>;
+    fn finish(&mut self) -> Result<StructArray>;
 }
 
 /// Writes a set of files (called tables here) to a directory.

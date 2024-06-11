@@ -106,7 +106,7 @@ impl StructArrayBuilder for NodeTableBuilder {
                                   // TODO(arrow >= 52) + self.sha1_gits.validity_slice().map(|s| s.len()).unwrap_or(0)
     }
 
-    fn finish(mut self) -> Result<StructArray> {
+    fn finish(&mut self) -> Result<StructArray> {
         let types = self.types.finish();
         let types_dictionary = StringArray::from(
             NodeType::all()

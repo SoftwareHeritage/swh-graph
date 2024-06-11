@@ -212,7 +212,7 @@ impl StructArrayBuilder for CntInRevrelTableBuilder {
          + self.path.validity_slice().map(|s| s.len()).unwrap_or(0)
     }
 
-    fn finish(mut self) -> Result<StructArray> {
+    fn finish(&mut self) -> Result<StructArray> {
         let columns: Vec<Arc<dyn Array>> = vec![
             Arc::new(self.cnt.finish()),
             Arc::new(self.revrel.finish()),
@@ -267,7 +267,7 @@ impl StructArrayBuilder for DirInRevrelTableBuilder {
          + self.path.validity_slice().map(|s| s.len()).unwrap_or(0)
     }
 
-    fn finish(mut self) -> Result<StructArray> {
+    fn finish(&mut self) -> Result<StructArray> {
         let columns: Vec<Arc<dyn Array>> = vec![
             Arc::new(self.dir.finish()),
             Arc::new(self.dir_max_author_date.finish()),
@@ -319,7 +319,7 @@ impl StructArrayBuilder for CntInDirTableBuilder {
          + self.path.validity_slice().map(|s| s.len()).unwrap_or(0)
     }
 
-    fn finish(mut self) -> Result<StructArray> {
+    fn finish(&mut self) -> Result<StructArray> {
         let columns: Vec<Arc<dyn Array>> = vec![
             Arc::new(self.cnt.finish()),
             Arc::new(self.dir.finish()),

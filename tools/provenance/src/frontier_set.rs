@@ -68,7 +68,7 @@ impl StructArrayBuilder for Builder {
         self.len() * 8
     }
 
-    fn finish(mut self) -> Result<StructArray> {
+    fn finish(&mut self) -> Result<StructArray> {
         let columns: Vec<Arc<dyn Array>> = vec![Arc::new(self.0.finish())];
 
         Ok(StructArray::new(

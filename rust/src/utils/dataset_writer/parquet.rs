@@ -92,9 +92,7 @@ impl<Builder: Default + StructArrayBuilder> TableWriter for ParquetTableWriter<B
 
     fn flush(&mut self) -> Result<()> {
         // Get built array
-        let mut tmp = Builder::default();
-        std::mem::swap(&mut tmp, &mut self.builder);
-        let struct_array = tmp.finish()?;
+        let struct_array = self.builder.finish()?;
 
         let file_writer = self
             .file_writer
