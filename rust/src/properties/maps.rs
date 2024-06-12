@@ -134,7 +134,7 @@ impl<
     > {
         let maps = MappedMaps {
             mphf: MPHF::load(&self.path)?,
-            order: unsafe { MappedPermutation::load_unchecked(&suffix_path(&self.path, ".order")) }
+            order: MappedPermutation::load_unchecked(&suffix_path(&self.path, ".order"))
                 .context("Could not load order")?,
             node2swhid: Node2SWHID::load(suffix_path(&self.path, NODE2SWHID))
                 .context("Could not load node2swhid")?,

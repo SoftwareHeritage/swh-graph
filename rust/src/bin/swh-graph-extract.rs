@@ -529,7 +529,7 @@ pub fn main() -> Result<()> {
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             info!("Loading permutation");
-            let order = unsafe { MappedPermutation::load_unchecked(order.as_path()) }
+            let order = MappedPermutation::load_unchecked(order.as_path())
                 .with_context(|| format!("Could not load {}", order.display()))?;
             assert_eq!(order.len(), num_nodes);
             info!("Permutation loaded, reading MPH");

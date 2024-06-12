@@ -319,7 +319,7 @@ pub fn main() -> Result<()> {
             let num_nodes = graph.num_nodes();
 
             log::info!("Loading permutation...");
-            let permutation = unsafe { MappedPermutation::load_unchecked(permutation.as_path()) }?;
+            let permutation = MappedPermutation::load_unchecked(permutation.as_path())?;
             ensure!(
                 permutation.len() == num_nodes,
                 "Expected permutation to have {} nodes, got {}",

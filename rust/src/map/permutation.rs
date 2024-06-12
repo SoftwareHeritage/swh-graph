@@ -34,14 +34,8 @@ pub struct OwnedPermutation<T: Sync + AsRef<[usize]>>(T);
 
 impl<T: Sync + AsRef<[usize]>> OwnedPermutation<T> {
     /// Creates a permutation
-    ///
-    /// # Safety
-    ///
-    /// This function is not unsafe per-se, but it does not check node ids in the
-    /// permutation's image are correct or unique, which will violate assumptions
-    /// of other unsafe functions down the line.
     #[inline(always)]
-    pub unsafe fn new_unchecked(perm: T) -> Self {
+    pub fn new_unchecked(perm: T) -> Self {
         OwnedPermutation(perm)
     }
 
@@ -135,14 +129,8 @@ impl<T: Sync + AsRef<[usize]> + AsMut<[usize]>> OwnedPermutation<T> {
 
 impl OwnedPermutation<Vec<usize>> {
     /// Loads a permutation from disk and returns IO errors if any.
-    ///
-    /// # Safety
-    ///
-    /// This function is not unsafe per-se, but it does not check node ids in the
-    /// permutation's image are correct or unique, which will violate assumptions
-    /// of other unsafe functions down the line.
     #[inline]
-    pub unsafe fn load_unchecked(num_nodes: usize, path: &Path) -> Result<Self> {
+    pub fn load_unchecked(num_nodes: usize, path: &Path) -> Result<Self> {
         assert_eq!(
             usize::BITS,
             u64::BITS,
@@ -180,7 +168,7 @@ impl OwnedPermutation<Vec<usize>> {
     /// or incorrect permutations.
     #[inline]
     pub fn load(num_nodes: usize, path: &Path) -> Result<Self> {
-        let perm = unsafe { Self::load_unchecked(num_nodes, path) }?;
+        let perm = Self::load_unchecked(num_nodes, path)?;
         Self::new(perm.0)
     }
 }
@@ -227,14 +215,8 @@ pub struct MappedPermutation(Mmap);
 
 impl MappedPermutation {
     /// Creates a permutation
-    ///
-    /// # Safety
-    ///
-    /// This function is not unsafe per-se, but it does not check node ids in the
-    /// permutation's image are correct or unique, which will violate assumptions
-    /// of other unsafe functions down the line.
     #[inline(always)]
-    pub unsafe fn new_unchecked(perm: Mmap) -> Self {
+    pub fn new_unchecked(perm: Mmap) -> Self {
         MappedPermutation(perm)
     }
 
@@ -296,14 +278,8 @@ impl MappedPermutation {
     }
 
     /// Loads a permutation from disk and returns IO errors if any.
-    ///
-    /// # Safety
-    ///
-    /// This function is not unsafe per-se, but it does not check node ids in the
-    /// permutation's image are correct or unique, which will violate assumptions
-    /// of other unsafe functions down the line.
     #[inline]
-    pub unsafe fn load_unchecked(path: &Path) -> Result<Self> {
+    pub fn load_unchecked(path: &Path) -> Result<Self> {
         assert_eq!(
             usize::BITS,
             u64::BITS,
@@ -320,12 +296,14 @@ impl MappedPermutation {
         );
 
         let file = std::fs::File::open(path).context("Could not open permutation")?;
-        let perm = mmap_rs::MmapOptions::new(file_len as _)
-            .context("Could not initialize permutation mmap")?
-            .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
-            .with_file(file, 0)
-            .map()
-            .context("Could not mmap permutation")?;
+        let perm = unsafe {
+            mmap_rs::MmapOptions::new(file_len as _)
+                .context("Could not initialize permutation mmap")?
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
+                .with_file(file, 0)
+        }
+        .map()
+        .context("Could not mmap permutation")?;
 
         #[cfg(target_os = "linux")]
         unsafe {
@@ -339,7 +317,7 @@ impl MappedPermutation {
     /// or incorrect permutations.
     #[inline]
     pub fn load(num_nodes: usize, path: &Path) -> Result<Self> {
-        let perm = unsafe { Self::load_unchecked(path) }?;
+        let perm = Self::load_unchecked(path)?;
         assert_eq!(
             perm.len(),
             num_nodes,
