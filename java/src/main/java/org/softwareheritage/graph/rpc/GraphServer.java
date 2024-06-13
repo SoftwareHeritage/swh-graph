@@ -161,9 +161,16 @@ public class GraphServer {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            response.setCompressionRatio(Double.parseDouble(properties.getProperty("compratio")));
-            response.setBitsPerNode(Double.parseDouble(properties.getProperty("bitspernode")));
-            response.setBitsPerEdge(Double.parseDouble(properties.getProperty("bitsperlink")));
+            String value;
+            if ((value = properties.getProperty("compratio")) != null) {
+                response.setCompressionRatio(Double.parseDouble(value));
+            }
+            if ((value = properties.getProperty("bitspernode")) != null) {
+                response.setBitsPerNode(Double.parseDouble(value));
+            }
+            if ((value = properties.getProperty("bitsperlink")) != null) {
+                response.setBitsPerEdge(Double.parseDouble(value));
+            }
             response.setAvgLocality(Double.parseDouble(properties.getProperty("avglocality")));
             response.setIndegreeMin(Long.parseLong(properties.getProperty("minindegree")));
             response.setIndegreeMax(Long.parseLong(properties.getProperty("maxindegree")));

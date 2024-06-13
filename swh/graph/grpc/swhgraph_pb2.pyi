@@ -600,8 +600,8 @@ class EdgeLabel(google.protobuf.message.Message):
 
     visit_timestamp: builtins.int
     """For origin->snapshot (or snapshot->origin in the transposed graph), this is
-    the timestamp of the visit that found the snapshot to be the current state of
-    the origin.
+    the UNIX timestamp (UTC) of the visit that found the snapshot to be
+    the current state of the origin at that time.
     """
 
     is_full_visit: builtins.bool
@@ -712,9 +712,9 @@ class StatsResponse(google.protobuf.message.Message):
         *,
         num_nodes: builtins.int = ...,
         num_edges: builtins.int = ...,
-        compression_ratio: builtins.float = ...,
-        bits_per_node: builtins.float = ...,
-        bits_per_edge: builtins.float = ...,
+        compression_ratio: typing.Optional[builtins.float] = ...,
+        bits_per_node: typing.Optional[builtins.float] = ...,
+        bits_per_edge: typing.Optional[builtins.float] = ...,
         avg_locality: builtins.float = ...,
         indegree_min: builtins.int = ...,
         indegree_max: builtins.int = ...,
@@ -725,8 +725,14 @@ class StatsResponse(google.protobuf.message.Message):
         export_started_at: typing.Optional[builtins.int] = ...,
         export_ended_at: typing.Optional[builtins.int] = ...,
         ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["_export_ended_at",b"_export_ended_at","_export_started_at",b"_export_started_at","export_ended_at",b"export_ended_at","export_started_at",b"export_started_at"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["_export_ended_at",b"_export_ended_at","_export_started_at",b"_export_started_at","avg_locality",b"avg_locality","bits_per_edge",b"bits_per_edge","bits_per_node",b"bits_per_node","compression_ratio",b"compression_ratio","export_ended_at",b"export_ended_at","export_started_at",b"export_started_at","indegree_avg",b"indegree_avg","indegree_max",b"indegree_max","indegree_min",b"indegree_min","num_edges",b"num_edges","num_nodes",b"num_nodes","outdegree_avg",b"outdegree_avg","outdegree_max",b"outdegree_max","outdegree_min",b"outdegree_min"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_bits_per_edge",b"_bits_per_edge","_bits_per_node",b"_bits_per_node","_compression_ratio",b"_compression_ratio","_export_ended_at",b"_export_ended_at","_export_started_at",b"_export_started_at","bits_per_edge",b"bits_per_edge","bits_per_node",b"bits_per_node","compression_ratio",b"compression_ratio","export_ended_at",b"export_ended_at","export_started_at",b"export_started_at"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_bits_per_edge",b"_bits_per_edge","_bits_per_node",b"_bits_per_node","_compression_ratio",b"_compression_ratio","_export_ended_at",b"_export_ended_at","_export_started_at",b"_export_started_at","avg_locality",b"avg_locality","bits_per_edge",b"bits_per_edge","bits_per_node",b"bits_per_node","compression_ratio",b"compression_ratio","export_ended_at",b"export_ended_at","export_started_at",b"export_started_at","indegree_avg",b"indegree_avg","indegree_max",b"indegree_max","indegree_min",b"indegree_min","num_edges",b"num_edges","num_nodes",b"num_nodes","outdegree_avg",b"outdegree_avg","outdegree_max",b"outdegree_max","outdegree_min",b"outdegree_min"]) -> None: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_bits_per_edge",b"_bits_per_edge"]) -> typing.Optional[typing_extensions.Literal["bits_per_edge"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_bits_per_node",b"_bits_per_node"]) -> typing.Optional[typing_extensions.Literal["bits_per_node"]]: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_compression_ratio",b"_compression_ratio"]) -> typing.Optional[typing_extensions.Literal["compression_ratio"]]: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_export_ended_at",b"_export_ended_at"]) -> typing.Optional[typing_extensions.Literal["export_ended_at"]]: ...
     @typing.overload

@@ -303,13 +303,13 @@ message StatsResponse {
 
     /* Ratio between the graph size and the information-theoretical lower
      * bound */
-    double compression_ratio = 3;
+    optional double compression_ratio = 3;
     /* Number of bits per node (overall graph size in bits divided by the
      * number of nodes) */
-    double bits_per_node = 4;
+    optional double bits_per_node = 4;
     /* Number of bits per edge (overall graph size in bits divided by the
      * number of arcs). */
-    double bits_per_edge = 5;
+    optional double bits_per_edge = 5;
     double avg_locality = 6;
 
     /* Smallest indegree */

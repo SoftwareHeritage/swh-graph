@@ -247,9 +247,9 @@ where
         Ok(Response::new(proto::StatsResponse {
             num_nodes: self.0.num_nodes() as i64,
             num_edges: self.0.num_arcs() as i64,
-            compression_ratio: get_property(&properties, properties_path, "compratio")?,
-            bits_per_node: get_property(&properties, properties_path, "bitspernode")?,
-            bits_per_edge: get_property(&properties, properties_path, "bitsperlink")?,
+            compression_ratio: get_property(&properties, properties_path, "compratio").ok(),
+            bits_per_node: get_property(&properties, properties_path, "bitspernode").ok(),
+            bits_per_edge: get_property(&properties, properties_path, "bitsperlink").ok(),
             avg_locality: get_property(&stats, stats_path, "avglocality")?,
             indegree_min: get_property(&stats, stats_path, "minindegree")?,
             indegree_max: get_property(&stats, stats_path, "maxindegree")?,
