@@ -229,9 +229,19 @@ class CountPaths(luigi.Task):
             #     SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2
             # we have to use sed to add the extra columns. CountPaths.java does not use
             # them, so dummy values are fine.
-            content_input = Command.zstdcat(
-                self.local_graph_path / f"{self.graph_name}.nodes.csv.zst"
-            ) | Command.grep("^swh:1:cnt:")
+            if (self.local_graph_path / f"{self.graph_name}.nodes.csv.zst").exists():
+                # pre-2024 graph
+                content_input = Command.zstdcat(
+                    self.local_graph_path / f"{self.graph_name}.nodes.csv.zst"
+                ) | Command.grep("^swh:1:cnt:")
+            else:
+                nodes_dir = self.local_graph_path / f"{self.graph_name}.nodes"
+                content_input = Command.cat(
+                    *[
+                        Command.zstdcat(nodes_shard) | Command.grep("^swh:1:cnt:")
+                        for nodes_shard in nodes_dir.iterdir()
+                    ]
+                )
             if self.direction == "forward":
                 topo_order_command = Command.cat(
                     topo_order_command,
