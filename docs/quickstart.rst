@@ -62,8 +62,7 @@ queried by the ``swh-graph`` library.
 All the publicly available datasets are documented on this page:
 https://docs.softwareheritage.org/devel/swh-dataset/graph/dataset.html
 
-A good way of retrieving these datasets is to use the `AWS S3 CLI
-<https://docs.aws.amazon.com/cli/latest/reference/s3/>`_.
+The recommended way to retrieve these datasets is with the ``swh graph download`` CLI.
 
 Here is an example with the dataset ``2021-03-23-popular-3k-python``, which has
 a relatively reasonable size (~15 GiB including property data, with
@@ -73,6 +72,10 @@ the compressed graph itself being less than 700 MiB):
 
     (venv) $ swh graph download --name 2021-03-23-popular-3k-python 2021-03-23-popular-3k-python/compressed
 
+Alternatively, you can use the `AWS S3 CLI
+<https://docs.aws.amazon.com/cli/latest/reference/s3/>`_ to download from
+``s3://softwareheritage/graph/<name>/compressed/`` then run ``unzstd`` on
+:file:`*.zst` files.
 
 You can also retrieve larger graphs, but note that these graphs are generally
 intended to be loaded fully in RAM, and do not fit on ordinary desktop
