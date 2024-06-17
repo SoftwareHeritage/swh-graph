@@ -55,9 +55,10 @@ class GraphDownloader:
             with tempfile.NamedTemporaryFile(
                 prefix=local_path.stem, suffix=".bin.zst"
             ) as fd:
-                self.client.get(
-                    f"{self.s3_graph_path}/{relative_path}",
-                    fd.name,
+                self.client.download_file(
+                    Bucket=self.bucket_name,
+                    Key=obj.key,
+                    Filename=fd.name,
                 )
                 Command.zstdmt(
                     "--force",
