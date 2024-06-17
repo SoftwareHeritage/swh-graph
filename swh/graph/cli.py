@@ -146,6 +146,69 @@ def serve(ctx, host, port, graph):
     aiohttp.web.run_app(app, host=host, port=port)
 
 
+@graph_cli_group.command(name="download")
+@click.option(
+    "--s3-url",
+    default=None,
+    help="S3 directory containing the graph to download. "
+    "Defaults to '{s3_prefix}/{name}/compressed/'",
+)
+@click.option(
+    "--s3-prefix",
+    default="s3://softwareheritage/graph/",
+    help="Base directory of Software Heritage's graphs on S3",
+)
+@click.option(
+    "--name",
+    default=None,
+    help="Name of the dataset to download. This is an ISO8601 date, optionally with a "
+    "suffix. See https://docs.softwareheritage.org/devel/swh-dataset/graph/dataset.html",
+)
+@click.option(
+    "--parallelism",
+    "-j",
+    default=5,
+    help="Number of threads used to download/decompress files.",
+)
+@click.argument(
+    "target",
+    type=click.Path(
+        file_okay=False,
+        writable=True,
+        path_type=Path,  # type: ignore[type-var]
+    ),
+)
+@click.pass_context
+def download(
+    ctx,
+    s3_url: Optional[str],
+    s3_prefix: str,
+    name: Optional[str],
+    parallelism: int,
+    target: Path,
+):
+    """Downloads a compressed SWH graph to the given target directory"""
+    from swh.graph.download import GraphDownloader
+
+    if s3_url and name:
+        raise click.ClickException("--s3-url and --name are mutually exclusive")
+    elif not s3_url and not name:
+        raise click.ClickException("Either --s3-url or --name must be provided")
+    elif not s3_url:
+        s3_url = f"{s3_prefix.rstrip('/')}/{name}/compressed/"
+
+    target.mkdir(parents=True, exist_ok=True)
+
+    GraphDownloader(
+        local_graph_path=target,
+        s3_graph_path=s3_url,
+        parallelism=parallelism,
+    ).download_graph(
+        progress_percent_cb=lambda _: None,
+        progress_status_cb=lambda _: None,
+    )
+
+
 @graph_cli_group.command(name="grpc-serve")
 @click.option(
     "--port",
