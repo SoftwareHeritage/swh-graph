@@ -238,10 +238,10 @@ class CountPaths(luigi.Task):
                 nodes_dir = self.local_graph_path / f"{self.graph_name}.nodes"
                 content_input = Command.cat(
                     *[
-                        Command.zstdcat(nodes_shard) | Command.grep("^swh:1:cnt:")
+                        Command.zstdcat(nodes_shard)
                         for nodes_shard in nodes_dir.iterdir()
                     ]
-                )
+                ) | Command.grep("^swh:1:cnt:")
             if self.direction == "forward":
                 topo_order_command = Command.cat(
                     topo_order_command,
