@@ -1420,65 +1420,15 @@ class DownloadGraphFromS3(luigi.Task):
 
     def run(self) -> None:
         """Copies all files: first the graph itself, then :file:`meta/compression.json`."""
-        import tempfile
+        from swh.graph.download import GraphDownloader
 
-        import luigi.contrib.s3
-        import tqdm
-
-        from ..shell import Command
-
-        client = luigi.contrib.s3.S3Client()
-
-        compression_metadata_path = f"{self.s3_graph_path}/meta/compression.json"
-        seen_compression_metadata = False
-
-        # recursively copy local files to S3, and end with compression metadata
-        files = list(client.list(self.s3_graph_path))
-        for i, file_ in tqdm.tqdm(
-            list(enumerate(files)),
-            desc="Downloading",
-        ):
-            if file_ == "meta/compression.json":
-                # Will copy it last
-                seen_compression_metadata = True
-                continue
-            self.set_progress_percentage(int(i * 100 / len(files)))
-            local_path = self.local_graph_path / file_
-            local_path.parent.mkdir(parents=True, exist_ok=True)
-            if file_.endswith(".bin.zst"):
-                # The file was compressed before uploading to S3, we need it
-                # to be decompressed locally
-                with tempfile.NamedTemporaryFile(
-                    prefix=local_path.stem, suffix=".bin.zst"
-                ) as fd:
-                    self.set_status_message(f"Downloading {file_} (compressed)")
-                    client.get(
-                        f"{self.s3_graph_path}/{file_}",
-                        fd.name,
-                    )
-                    self.set_status_message(f"Decompressing {file_}")
-                    Command.zstdmt(
-                        "--force",
-                        "-d",
-                        fd.name,
-                        "-o",
-                        str(local_path)[0:-4],
-                    ).run()
-            else:
-                self.set_status_message(f"Downloading {file_}")
-                client.get(
-                    f"{self.s3_graph_path}/{file_}",
-                    str(local_path),
-                )
-
-        assert (
-            seen_compression_metadata
-        ), "did not see meta/compression.json in directory listing"
-
-        # Write it last, to act as a stamp
-        client.get(
-            compression_metadata_path,
-            self._meta().path,
+        GraphDownloader(
+            local_graph_path=self.local_graph_path,
+            s3_graph_path=self.s3_graph_path,
+            parallelism=10,
+        ).download_graph(
+            progress_percent_cb=self.set_progress_percentage,
+            progress_status_cb=self.set_status_message,
         )
 
 

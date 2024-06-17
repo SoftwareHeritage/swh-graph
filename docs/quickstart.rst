@@ -42,7 +42,10 @@ Install the ``swh.graph`` python package:
      -h, --help              Show this message and exit.
 
    Commands:
-     compress    Compress a graph using WebGraph Input: a pair of files...
+     compress    Compress a graph using WebGraph
+     download    Downloads a compressed SWH graph to the given target directory
+     grpc-serve  start the graph GRPC service
+     luigi       Calls Luigi with the given task and params, and...
      rpc-serve   run the graph RPC service
 
 
@@ -68,11 +71,7 @@ the compressed graph itself being less than 700 MiB):
 
 .. code:: console
 
-    (venv) $ pip install awscli
-    [...]
-    (venv) $ mkdir -p 2021-03-23-popular-3k-python/compressed
-    (venv) $ cd 2021-03-23-popular-3k-python/
-    (venv) $ aws s3 cp --recursive s3://softwareheritage/graph/2021-03-23-popular-3k-python/compressed/ compressed
+    (venv) $ swh graph download --name 2021-03-23-popular-3k-python 2021-03-23-popular-3k-python/compressed
 
 
 You can also retrieve larger graphs, but note that these graphs are generally
