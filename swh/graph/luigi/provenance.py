@@ -530,7 +530,6 @@ class ListContentsInFrontierDirectories(luigi.Task):
         )
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "reachable_nodes": ListProvenanceNodes(**kwargs),
             "directory_frontier": ComputeDirectoryFrontier(**kwargs),
         }
 
@@ -553,8 +552,6 @@ class ListContentsInFrontierDirectories(luigi.Task):
                 self.local_graph_path / self.graph_name,
                 "--node-filter",
                 self.provenance_node_filter,
-                "--reachable-nodes",
-                self.input()["reachable_nodes"],
                 "--frontier-directories",
                 self.input()["directory_frontier"],
                 "--contents-out",

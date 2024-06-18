@@ -6,13 +6,14 @@
 #![allow(non_snake_case)]
 
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use rayon::prelude::*;
-use sux::prelude::BitVec;
+use sux::prelude::{AtomicBitVec, BitVec};
 
 use swh_graph::collections::NodeSet;
 use swh_graph::graph::*;
@@ -20,7 +21,7 @@ use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::SWHType;
 
 use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
-use swh_graph_provenance::filters::{load_reachable_nodes, NodeFilter};
+use swh_graph_provenance::filters::NodeFilter;
 use swh_graph_provenance::frontier::PathParts;
 use swh_graph_provenance::x_in_y_dataset::{
     cnt_in_dir_schema, cnt_in_dir_writer_properties, CntInDirTableBuilder,
@@ -48,10 +49,6 @@ struct Args {
     #[arg(long, default_value_t = NodeFilter::Heads)]
     /// Subset of revisions and releases to traverse from
     node_filter: NodeFilter,
-    #[arg(long)]
-    /// Path to the Parquet table with the node ids of all nodes reachable from
-    /// a head revision/release
-    reachable_nodes: PathBuf,
     #[arg(long)]
     /// Path to the Parquet table with the node ids of frontier directories
     frontier_directories: PathBuf,
@@ -101,10 +98,45 @@ pub fn main() -> Result<()> {
         ),
     )?;
 
-    let reachable_nodes = load_reachable_nodes(&graph, args.node_filter, args.reachable_nodes)?;
+    // List all directories (and contents) forward-reachable from a frontier directories.
+    // So when walking backward from a content, if the walk ever sees a directory
+    // not in this set then it can safely be ignored as walking further backward
+    // won't ever reach a frontier directory.
+    let mut pl = ProgressLogger::default();
+    pl.item_name("node");
+    pl.display_memory(true);
+    pl.expected_updates(Some(graph.num_nodes()));
+    pl.start("Listing nodes reachable from frontier directories...");
+    let pl = Arc::new(Mutex::new(pl));
+    let reachable_nodes_from_frontier = AtomicBitVec::new(graph.num_nodes());
+    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).for_each(|root| {
+        if frontier_directories.contains(root) {
+            let mut to_visit = vec![root];
+            while let Some(node) = to_visit.pop() {
+                if reachable_nodes_from_frontier.get(node, Ordering::Relaxed) {
+                    // Node already visisted by another traversal; no need to recurse further
+                    continue;
+                }
+                reachable_nodes_from_frontier.set(node, true, Ordering::Relaxed);
+                for succ in graph.successors(node) {
+                    match graph.properties().node_type(succ) {
+                        SWHType::Directory | SWHType::Content => {
+                            to_visit.push(succ);
+                        }
+                        _ => (),
+                    }
+                }
+            }
+        }
+        if root % 32768 == 0 {
+            pl.lock().unwrap().update_with_count(32768);
+        }
+    });
+    pl.lock().unwrap().done();
+    let reachable_nodes_from_frontier: BitVec = reachable_nodes_from_frontier.into();
 
     let mut pl = ProgressLogger::default();
-    pl.item_name("directory");
+    pl.item_name("node");
     pl.display_memory(true);
     pl.expected_updates(Some(graph.num_nodes()));
     pl.start("Listing contents in directories...");
@@ -113,15 +145,13 @@ pub fn main() -> Result<()> {
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
         || dataset_writer.get_thread_writer().unwrap(),
         |writer, node| -> Result<()> {
-            let is_reachable = match &reachable_nodes {
-                None => true, // All nodes are reachable
-                Some(reachable_nodes) => reachable_nodes.get(node),
-            };
-            if is_reachable && graph.properties().node_type(node) == SWHType::Content {
+            if reachable_nodes_from_frontier.get(node)
+                && graph.properties().node_type(node) == SWHType::Content
+            {
                 write_frontier_directories_from_content(
                     &graph,
                     writer,
-                    reachable_nodes.as_ref(),
+                    &reachable_nodes_from_frontier,
                     &frontier_directories,
                     node,
                 )?;
@@ -142,7 +172,7 @@ pub fn main() -> Result<()> {
 fn write_frontier_directories_from_content<G>(
     graph: &G,
     writer: &mut ParquetTableWriter<CntInDirTableBuilder>,
-    reachable_nodes: Option<&BitVec>,
+    reachable_nodes_from_frontier: &BitVec,
     frontier_directories: &BitVec,
     cnt: NodeId,
 ) -> Result<()>
@@ -152,6 +182,10 @@ where
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
     let on_directory = |dir: NodeId, path_parts: PathParts| {
+        if !reachable_nodes_from_frontier.contains(dir) {
+            // The directory is not reachable from any frontier directory
+            return Ok(false);
+        }
         if frontier_directories.contains(dir) {
             let builder = writer.builder()?;
             builder
@@ -169,7 +203,7 @@ where
 
     swh_graph_provenance::frontier::backward_dfs_with_path(
         graph,
-        reachable_nodes,
+        Some(reachable_nodes_from_frontier),
         on_directory,
         on_revrel,
         cnt,
