@@ -26,10 +26,18 @@ class GraphDownloader:
             raise ValueError("Unsupported S3 URL")
 
         self.s3 = boto3.resource("s3")
+        # don't require credentials to list the bucket
+        self.s3.meta.client.meta.events.register(
+            "choose-signer.s3.*", botocore.handlers.disable_signing
+        )
         self.client = boto3.client(
             "s3",
-            # https://github.com/boto/botocore/issues/619
-            config=botocore.client.Config(max_pool_connections=10 * parallelism),
+            config=botocore.client.Config(
+                # https://github.com/boto/botocore/issues/619
+                max_pool_connections=10 * parallelism,
+                # don't require credentials to download files
+                signature_version=botocore.UNSIGNED,
+            ),
         )
 
         self.local_graph_path = local_graph_path
