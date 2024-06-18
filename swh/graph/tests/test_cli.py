@@ -5,6 +5,7 @@
 
 import os
 from pathlib import Path
+import shutil
 from tempfile import TemporaryDirectory
 from typing import Dict
 
@@ -64,6 +65,34 @@ def test_pipeline():
 
     assert int(properties["nodes"]) == 24
     assert int(properties["arcs"]) == 28
+
+
+@pytest.mark.parametrize("option", ["none", "--ef", "--force"])
+def test_reindex(mocker, tmpdir, option):
+    config = {
+        "graph": {
+            "compress": {
+                "rust_executable_dir": "./target/debug/",
+            }
+        }
+    }
+    runner = CliRunner()
+
+    trailing = []
+    if option != "none":
+        trailing.append(option)
+
+    with TemporaryDirectory(suffix=".swh-graph-test") as tmpdir:
+        config_path = Path(tmpdir, "config.yml")
+        config_path.write_text(yaml.dump(config))
+
+        shutil.copytree(DATASET_DIR / "compressed", tmpdir, dirs_exist_ok=True)
+
+        result = runner.invoke(
+            graph_cli_group,
+            ["--config-file", config_path, "reindex", f"{tmpdir}/example", *trailing],
+        )
+        assert result.exit_code == 0, result
 
 
 @pytest.mark.parametrize("exit_code", [0, 1])

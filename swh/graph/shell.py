@@ -275,17 +275,23 @@ class Command(metaclass=_MetaCommand):
 
 
 class Java(Command):
-    def __init__(self, *args: Union[str, Path], max_ram: Optional[int] = None):
+    def __init__(
+        self,
+        *args: Union[str, Path],
+        max_ram: Optional[int] = None,
+        conf: Optional[Dict[str, Any]] = None,
+    ):
         import tempfile
 
         from .config import check_config
 
-        conf: Dict = {}  # TODO: configurable
+        conf = dict(conf or {})
 
         if max_ram:
             conf["max_ram"] = max_ram
 
         conf = check_config(conf)
+        assert conf is not None  # for mypy
 
         self.logback_conf = tempfile.NamedTemporaryFile(
             prefix="logback_", suffix=".xml"

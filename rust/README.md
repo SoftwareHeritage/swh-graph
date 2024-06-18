@@ -228,5 +228,9 @@ data structures and formats than the Rust implementation.
 Therefore, you need to generate new files in order to load old graphs with the Rust
 implementation; this takes a few hours for graphs representing full SWH exports.
 
-The shell script `tools/swh-graph-java2rust.sh` at the root of this repository documents
-all the conversion steps needed and can be executed directly to take care of them.
+The `swh graph reindex` command (made available with `pip3 install swh.graph`)
+takes care of running the conversion.
+
+Additionally, the `.ef` format may change from time to time. If you get an error
+about their hash being invalid, run `swh graph reindex --ef` to re-create them
+at the current version on your system.

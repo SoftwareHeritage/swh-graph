@@ -209,6 +209,81 @@ def download(
     )
 
 
+@graph_cli_group.command(name="reindex")
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Regenerate files even if they already exist. Implies --ef",
+)
+@click.option(
+    "--ef", is_flag=True, help="Regenerate .ef files even if they already exist"
+)
+@click.argument(
+    "graph",
+    type=click.Path(
+        writable=True,
+    ),
+)
+@click.pass_context
+def reindex(
+    ctx,
+    force: bool,
+    ef: bool,
+    graph: str,
+):
+    """Downloads a compressed SWH graph to the given target directory"""
+    import os.path
+
+    from swh.graph.shell import Java, Rust
+
+    ef = ef or force
+
+    if force or not os.path.exists(f"{graph}.cmph"):
+        logger.info(
+            "Converting the GOV minimal-perfect-hash function from `.mph` to `.cmph`"
+        )
+        Java(
+            "org.softwareheritage.graph.utils.Mph2Cmph",
+            f"{graph}.mph",
+            f"{graph}.cmph",
+        ).run()
+
+    if force or not os.path.exists(f"{graph}.property.content.is_skipped.bits"):
+        Java(
+            "org.softwareheritage.graph.utils.Bitvec2Bits",
+            f"{graph}.property.content.is_skipped.bin",
+            f"{graph}.property.content.is_skipped.bits",
+        ).run()
+
+    if (
+        ef
+        or not os.path.exists(f"{graph}.ef")
+        or not os.path.exists(f"{graph}-transposed.ef")
+    ):
+        logger.info("Recreating Elias-Fano indexes on adjacency lists")
+        Rust("swh-graph-index", "ef", f"{graph}").run()
+        Rust("swh-graph-index", "ef", f"{graph}-transposed").run()
+
+    if (
+        ef
+        or not os.path.exists(f"{graph}-labelled.ef")
+        or not os.path.exists(f"{graph}-labelled-transposed.ef")
+    ):
+        with open(f"{graph}.nodes.count.txt", "rt") as f:
+            node_count = f.read().strip()
+
+        # ditto
+        logger.info("Recreating Elias-Fano indexes on arc labels")
+        Rust("swh-graph-index", "labels-ef", f"{graph}-labelled", node_count).run()
+        Rust(
+            "swh-graph-index", "labels-ef", f"{graph}-transposed-labelled", node_count
+        ).run()
+
+    if force or not os.path.exists(f"{graph}.node2type.bin"):
+        logger.info("Creating node2type.bin")
+        Rust("swh-graph-node2type", graph).run()
+
+
 @graph_cli_group.command(name="grpc-serve")
 @click.option(
     "--port",
@@ -224,7 +299,6 @@ def download(
 )
 @click.option(
     "--java-home",
-    "-j",
     default=None,
     metavar="JAVA_HOME",
     help="absolute path to the Java Runtime Environment (JRE)",
