@@ -47,7 +47,6 @@ from pathlib import Path
 import shlex
 import signal
 import subprocess
-import sys
 from typing import Any, Dict, List, NoReturn, Optional, Tuple, TypeVar, Union
 
 try:
@@ -318,9 +317,27 @@ class Java(Command):
 
 
 class Rust(Command):
-    def __init__(self, bin_name, *args: Union[str, Path]):
-        profile = "debug" if "pytest" in sys.argv[0] else "release"
-        super().__init__(f"target/{profile}/{bin_name}", *args)
+    def __init__(
+        self,
+        bin_name,
+        *args: Union[str, Path],
+        conf: Optional[Dict[str, Any]] = None,
+        env: Optional[Dict[str, str]] = None,
+    ):
+        from .config import check_config
+
+        conf = dict(conf or {})
+        conf = check_config(conf)
+        assert conf is not None  # for mypy
+
+        env = env or dict(os.environ)
+        path = env.get("PATH")
+        if path:
+            env["PATH"] = f"{path}:{conf['rust_executable_dir']}"
+        else:
+            env["PATH"] = conf["rust_executable_dir"]
+
+        super().__init__(bin_name, *args, env=env)
 
 
 class _RunningCommand:

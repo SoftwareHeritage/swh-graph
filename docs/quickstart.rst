@@ -9,15 +9,26 @@ an existing compressed graph with the high-level HTTP API.
 Dependencies
 ------------
 
-In order to run the ``swh.graph`` tool, you will need Python (>= 3.7) and Java
-JRE. On a Debian system:
+In order to run the ``swh.graph`` tool, you will need Python (>= 3.7), Java JRE,
+Rust (>= 1.75), and zstd. On a Debian system:
 
 .. code:: console
 
-   $ sudo apt install python3 python3-venv default-jre
+   $ sudo apt install build-essentials python3 python3-venv default-jre zstd
+   $ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+Rustup will ask you a few questions, you can pick the defaults. Or select
+"Customize installation" and to install a ``minimal`` distribution if you are
+not planning to edit the code and want to save some disk space.
 
 Installing swh.graph
 --------------------
+
+Install the ``swh_graph`` rust package:
+
+.. code:: console
+
+   $ cargo install --git https://gitlab.softwareheritage.org/swh/devel/swh-graph.git --features grpc-server swh-graph
 
 Create a virtualenv and activate it:
 
@@ -48,6 +59,26 @@ Install the ``swh.graph`` python package:
      luigi       Calls Luigi with the given task and params, and...
      rpc-serve   run the graph RPC service
 
+
+Alternatively, if you want to edit the swh-graph code, use these commands:
+
+.. code:: console
+
+   # get the code
+   $ git clone https://gitlab.softwareheritage.org/swh/devel/swh-graph.git
+   $ cd swh-graph
+
+   # build Rust backend (only if you need to modify the Rust code,
+   # or did not run `cargo install` above)
+   $ cargo build --release --features grpc-server -p swh-graph
+
+   # build Java backend (only if you need to load graphs created before 2024)
+   $ make java
+
+   # install Python package
+   $ python3 -m venv .venv
+   $ source .venv/bin/activate
+   $ pip install -e .
 
 .. _swh-graph-retrieving-compressed:
 
@@ -102,10 +133,32 @@ In our example:
 .. code:: console
 
    (venv) $ swh graph rpc-serve -g compressed/graph
-   Loading graph compressed/graph ...
-   Graph loaded.
+   Started GRPC using dataset from swh/graph/example_dataset/compressed/example
+   ['/home/dev/.cargo/bin/swh-graph-grpc-serve', '-vv', '--bind', '[::]:50867', 'compressed/graph']
+   INFO:swh.graph.grpc_server:Starting gRPC server: /home/dev/.cargo/bin/swh-graph-grpc-serve -vv --bind '[::]:50867' compressed/graph
+   2024-06-18T09:12:40+02:00 - INFO - Loading graph
+   2024-06-18T09:12:40+02:00 - INFO - Loading properties
+   2024-06-18T09:12:40+02:00 - INFO - Loading labels
+   2024-06-18T09:12:40+02:00 - INFO - Starting server
    ======== Running on http://0.0.0.0:5009 ========
    (Press CTRL+C to quit)
+
+If you are getting any error about a missing file ``.cmph``, ``.bin``, ``.bits``, ``.ef``
+file (typically for graphs before 2024), you need to generate it with:
+
+.. code:: console
+
+   swh graph reindex compressed/graph
+
+If instead you get an error about an invalid hash in a ``.ef`` file, it means your
+swh-graph expects a different version of the ``.ef`` files as the one you have locally.
+You need to regenerate them for your version:
+
+.. code:: console
+
+   swh graph reindex --ef compressed/graph
+
+Then try again.
 
 From there you can use this endpoint to query the compressed graph, for example
 with httpie_ (``sudo apt install httpie``):

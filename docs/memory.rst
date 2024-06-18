@@ -46,6 +46,10 @@ can be done using the ``-Djava.io.tmpdir`` parameter on the Java CLI::
 
     java -Djava.io.tmpdir=/srv/softwareheritage/ssd/tmp
 
+Or for scripts written in Python or Rust::
+
+    TMPDIR/srv/softwareheritage/ssd/tmp
+
 
 Memory mapping vs Direct loading
 --------------------------------

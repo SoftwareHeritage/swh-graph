@@ -89,7 +89,7 @@ def spawn_rust_grpc_server(**config):
     return server, port
 
 
-def stop_java_grpc_server(server: subprocess.Popen, timeout: int = 15):
+def stop_grpc_server(server: subprocess.Popen, timeout: int = 15):
     server.terminate()
     try:
         server.wait(timeout=timeout)

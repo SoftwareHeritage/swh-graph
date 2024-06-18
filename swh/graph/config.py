@@ -6,6 +6,7 @@
 import logging
 import os.path
 from pathlib import Path
+import sys
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -66,13 +67,16 @@ def check_config(conf):
             conf["java"] = os.path.join(os.environ["JAVA_HOME"], "bin", "java")
         else:
             conf["java"] = "java"
-    debug_mode = conf.get("debug", False)
+    debug_mode = conf.get("debug", "pytest" in sys.modules)
     if "rust_executable_dir" not in conf:
-        conf["rust_executable_dir"] = str(
-            Path(__file__).parent.parent.parent / "target" / "debug"
-            if debug_mode
-            else "release"
-        )
+        profile = "debug" if debug_mode else "release"
+        path1 = Path(__file__).parent.parent.parent / "target" / profile
+        path2 = Path(__file__).resolve().parent.parent.parent / "target" / profile
+        if not path1.exists() and path2.exists():
+            # hack for editable installs
+            conf["rust_executable_dir"] = str(path2)
+        else:
+            conf["rust_executable_dir"] = str(path1)
     if not conf["rust_executable_dir"].endswith("/"):
         conf["rust_executable_dir"] += "/"
     if "classpath" not in conf:
