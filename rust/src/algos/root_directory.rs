@@ -17,7 +17,7 @@ pub fn get_root_directory_from_revision_or_release<G>(
     node: NodeId,
 ) -> Result<Option<NodeId>>
 where
-    G: SwhBackwardGraph + SwhForwardGraph + SwhGraphWithProperties,
+    G: SwhForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
     let node_type = graph.properties().node_type(node);
