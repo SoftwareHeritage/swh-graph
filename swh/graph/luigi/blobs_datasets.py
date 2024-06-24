@@ -516,20 +516,20 @@ class SelectBlobs(_BaseTask):
                 ),
             )
 
-        logger.info("Running query...")
-        query = SELECTION_QUERIES[self.blob_filter]
-        logger.debug("%s", textwrap.indent(query, "    "))
-        df = ctx.sql(query)
-        logger.info("Reformatting...")
+        with tempfile.NamedTemporaryFile(suffix=".csv") as sql_res:
+            logger.info("Running query...")
+            query = f"COPY ({SELECTION_QUERIES[self.blob_filter]}) TO '{sql_res.name}'"
+            logger.debug("%s", textwrap.indent(query, "    "))
+            df = ctx.sql(query)
+            logger.info("Reformatting...")
 
-        columns = df.schema().names
-        assert columns == ["swhid", "sha1", "name"], columns
+            columns = df.schema().names
+            assert columns == ["swhid", "sha1", "name"], columns
 
-        output_path = self.blob_list_path()
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path = self.blob_list_path()
+            output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with tempfile.TemporaryDirectory(prefix="blobs") as sql_res_dir:
-            df.write_csv(sql_res_dir)
+            df.cache()
 
             # In the 2022-04-24 license dataset, the 'egrep' command filters
             # just 5 entries:
@@ -547,11 +547,7 @@ class SelectBlobs(_BaseTask):
             # "
             # fmt: off
             (
-                Command.cat(
-                    Command.echo(",".join(columns)),
-                    *sorted(Path(sql_res_dir).glob("*.csv"))
-                )
-                | Command.tail("-n+2")  # remove header
+                Command.pv(sql_res.name)
                 | Command.egrep('^[^,]*,[^,]*,[^,]*$')
                 | Command.zstdmt("-")
                 > AtomicFileSink(output_path)
