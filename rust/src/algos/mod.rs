@@ -6,4 +6,4 @@
 //! Helpful algorithms to work on the graph
 
 mod root_directory;
-pub use root_directory::get_root_directory_from_revision_or_release;
+pub use root_directory::find_root_dir;
