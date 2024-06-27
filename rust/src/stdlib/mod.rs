@@ -3,4 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-//! Helpful algorithms to work on the graph
+//! Standard library to work on Software Heritage compressed graph in Rust
+
+mod root_directory;
+pub use root_directory::find_root_dir;

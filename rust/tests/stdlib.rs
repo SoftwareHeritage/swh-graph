@@ -5,9 +5,9 @@
 
 use anyhow::Result;
 use log::info;
-use swh_graph::algos::find_root_dir;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::stdlib::find_root_dir;
 use swh_graph::swhid;
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
