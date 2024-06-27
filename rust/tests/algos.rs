@@ -21,17 +21,23 @@ fn test_find_root_dir() -> Result<()> {
     let props = graph.properties();
 
     assert_eq!(
-        props.swhid(find_root_dir(
-            &graph,
-            props.node_id(swhid!(swh:1:rev:0000000000000000000000000000000000000003))?
-        )?),
+        props.swhid(
+            find_root_dir(
+                &graph,
+                props.node_id(swhid!(swh:1:rev:0000000000000000000000000000000000000003))?
+            )?
+            .unwrap()
+        ),
         swhid!(swh:1:dir:0000000000000000000000000000000000000002)
     );
     assert_eq!(
-        props.swhid(find_root_dir(
-            &graph,
-            props.node_id(swhid!(swh:1:rel:0000000000000000000000000000000000000021))?
-        )?),
+        props.swhid(
+            find_root_dir(
+                &graph,
+                props.node_id(swhid!(swh:1:rel:0000000000000000000000000000000000000021))?
+            )?
+            .unwrap()
+        ),
         swhid!(swh:1:dir:0000000000000000000000000000000000000017)
     );
 

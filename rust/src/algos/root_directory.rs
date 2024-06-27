@@ -14,7 +14,7 @@ use crate::SWHType;
 ///
 /// If the release points to a revision, this function recurses once through
 /// that revision.
-pub fn find_root_dir<G>(graph: &G, node: NodeId) -> Result<NodeId>
+pub fn find_root_dir<G>(graph: &G, node: NodeId) -> Result<Option<NodeId>>
 where
     G: SwhForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
@@ -26,7 +26,7 @@ where
     }
 }
 
-fn find_root_dir_from_rel<G>(graph: &G, rel_id: NodeId) -> Result<NodeId>
+fn find_root_dir_from_rel<G>(graph: &G, rel_id: NodeId) -> Result<Option<NodeId>>
 where
     G: SwhForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
@@ -61,9 +61,6 @@ where
         (Some(_), Some(_)) => {
             bail!("{rel_swhid} has both a directory and a revision as successors",)
         }
-        (None, None) => {
-            bail!("{rel_swhid} has neither a directory nor a revision as successors",)
-        }
         (None, Some(root_rev)) => {
             let mut root_dir = None;
             for succ in graph.successors(root_rev) {
@@ -76,13 +73,14 @@ where
                     root_dir = Some(succ);
                 }
             }
-            root_dir.ok_or(anyhow!("no root dir found for release node {rel_id}"))
+            Ok(root_dir)
         }
-        (Some(root_dir), None) => Ok(root_dir),
+        (Some(root_dir), None) => Ok(Some(root_dir)),
+        (None, None) => Ok(None),
     }
 }
 
-fn find_root_dir_from_rev<G>(graph: &G, rev_id: NodeId) -> Result<NodeId>
+fn find_root_dir_from_rev<G>(graph: &G, rev_id: NodeId) -> Result<Option<NodeId>>
 where
     G: SwhForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
@@ -101,5 +99,5 @@ where
         }
     }
 
-    root_dir.ok_or(anyhow!("no root dir found for revision node {rev_id}"))
+    Ok(root_dir)
 }

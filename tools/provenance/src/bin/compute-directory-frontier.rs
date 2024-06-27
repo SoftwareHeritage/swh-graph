@@ -121,15 +121,17 @@ where
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(
         |root| -> Result<()> {
             if is_root_revrel(graph, node_filter, root) {
-                let root_dir = swh_graph::algos::find_root_dir(graph, root)
-                    .context("Could not pick root directory")?;
-                find_frontiers_in_root_directory(
-                    graph,
-                    max_timestamps,
-                    &frontiers,
-                    root,
-                    root_dir,
-                )?;
+                if let Some(root_dir) = swh_graph::algos::find_root_dir(graph, root)
+                    .context("Could not pick root directory")?
+                {
+                    find_frontiers_in_root_directory(
+                        graph,
+                        max_timestamps,
+                        &frontiers,
+                        root,
+                        root_dir,
+                    )?;
+                }
             }
 
             if root % 32768 == 0 {
