@@ -11,7 +11,7 @@ use anyhow::{Context, Result};
 
 use swh_graph::graph::*;
 use swh_graph::graph_builder::GraphBuilder;
-use swh_graph::labels::Permission;
+use swh_graph::labels::{Permission, Visit, VisitStatus};
 use swh_graph::swhid;
 
 #[test]
@@ -78,7 +78,7 @@ fn test_duplicate_swhid() -> Result<()> {
 }
 
 #[test]
-fn test_labels() -> Result<()> {
+fn test_dir_labels() -> Result<()> {
     let mut builder = GraphBuilder::default();
     let a = builder
         .node(swhid!(swh:1:dir:0000000000000000000000000000000000000010))?
@@ -89,9 +89,9 @@ fn test_labels() -> Result<()> {
     let c = builder
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000030))?
         .done();
-    builder.l_arc(a, b, Permission::Directory, b"tests");
-    builder.l_arc(a, c, Permission::ExecutableContent, b"run.sh");
-    builder.l_arc(b, c, Permission::Content, b"test.c");
+    builder.dir_arc(a, b, Permission::Directory, b"tests");
+    builder.dir_arc(a, c, Permission::ExecutableContent, b"run.sh");
+    builder.dir_arc(b, c, Permission::Content, b"test.c");
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(a, 0);
@@ -207,9 +207,9 @@ fn test_duplicate_labels() -> Result<()> {
     let c = builder
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000030))?
         .done();
-    builder.l_arc(a, b, Permission::Directory, b"tests");
-    builder.l_arc(a, c, Permission::ExecutableContent, b"run.sh");
-    builder.l_arc(b, c, Permission::ExecutableContent, b"run.sh");
+    builder.dir_arc(a, b, Permission::Directory, b"tests");
+    builder.dir_arc(a, c, Permission::ExecutableContent, b"run.sh");
+    builder.dir_arc(b, c, Permission::ExecutableContent, b"run.sh");
     let graph = builder.done().context("Could not make graph")?;
 
     let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
@@ -249,6 +249,246 @@ fn test_duplicate_labels() -> Result<()> {
             c,
             vec![(Some(Permission::ExecutableContent), b"run.sh".into())]
         ),]
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_snp_labels() -> Result<()> {
+    let mut builder = GraphBuilder::default();
+    let a = builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000010))?
+        .done();
+    let b = builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000020))?
+        .done();
+    let c = builder
+        .node(swhid!(swh:1:rev:0000000000000000000000000000000000000030))?
+        .done();
+    let d = builder
+        .node(swhid!(swh:1:rev:0000000000000000000000000000000000000040))?
+        .done();
+    builder.snp_arc(a, c, b"refs/heads/main");
+    builder.snp_arc(a, d, b"refs/heads/feature/foo");
+    builder.snp_arc(b, c, b"refs/heads/main");
+    let graph = builder.done().context("Could not make graph")?;
+
+    assert_eq!(a, 0);
+    assert_eq!(b, 1);
+    assert_eq!(c, 2);
+    assert_eq!(d, 3);
+
+    assert_eq!(graph.num_nodes(), 4);
+    assert_eq!(
+        graph.properties().swhid(a),
+        swhid!(swh:1:snp:0000000000000000000000000000000000000010)
+    );
+    assert_eq!(
+        graph.properties().swhid(b),
+        swhid!(swh:1:snp:0000000000000000000000000000000000000020)
+    );
+    assert_eq!(
+        graph.properties().swhid(c),
+        swhid!(swh:1:rev:0000000000000000000000000000000000000030)
+    );
+    assert_eq!(
+        graph.properties().swhid(d),
+        swhid!(swh:1:rev:0000000000000000000000000000000000000040)
+    );
+
+    let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
+        (
+            succ,
+            labels
+                .map(|label| {
+                    let label: swh_graph::labels::Branch = label.into();
+                    graph.properties().label_name(label.filename_id())
+                })
+                .collect::<Vec<_>>(),
+        )
+    };
+
+    assert_eq!(graph.successors(a).collect::<Vec<_>>(), vec![c, d]);
+    assert_eq!(graph.successors(b).collect::<Vec<_>>(), vec![c]);
+    assert_eq!(
+        graph.successors(c).collect::<Vec<_>>(),
+        Vec::<NodeId>::new()
+    );
+    assert_eq!(
+        graph.successors(d).collect::<Vec<_>>(),
+        Vec::<NodeId>::new()
+    );
+
+    assert_eq!(
+        graph
+            .labelled_successors(a)
+            .map(collect_labels)
+            .collect::<Vec<_>>(),
+        vec![
+            (c, vec![b"refs/heads/main".into()]),
+            (d, vec![b"refs/heads/feature/foo".into()]),
+        ]
+    );
+    assert_eq!(
+        graph
+            .labelled_successors(b)
+            .map(collect_labels)
+            .collect::<Vec<_>>(),
+        vec![(c, vec![b"refs/heads/main".into()]),]
+    );
+
+    assert_eq!(
+        graph.predecessors(a).collect::<Vec<_>>(),
+        Vec::<NodeId>::new()
+    );
+    assert_eq!(
+        graph.predecessors(b).collect::<Vec<_>>(),
+        Vec::<NodeId>::new()
+    );
+    assert_eq!(graph.predecessors(c).collect::<Vec<_>>(), vec![a, b]);
+    assert_eq!(graph.predecessors(d).collect::<Vec<_>>(), vec![a]);
+
+    assert_eq!(
+        graph
+            .labelled_predecessors(a)
+            .map(collect_labels)
+            .collect::<Vec<_>>(),
+        vec![]
+    );
+    assert_eq!(
+        graph
+            .labelled_predecessors(c)
+            .map(collect_labels)
+            .collect::<Vec<_>>(),
+        vec![
+            (a, vec![b"refs/heads/main".into()]),
+            (b, vec![b"refs/heads/main".into()]),
+        ]
+    );
+    assert_eq!(
+        graph
+            .labelled_predecessors(d)
+            .map(collect_labels)
+            .collect::<Vec<_>>(),
+        vec![(a, vec![b"refs/heads/feature/foo".into()]),]
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_ori_labels() -> Result<()> {
+    let mut builder = GraphBuilder::default();
+    let a = builder
+        .node(swhid!(swh:1:ori:0000000000000000000000000000000000000010))?
+        .done();
+    let b = builder
+        .node(swhid!(swh:1:ori:0000000000000000000000000000000000000020))?
+        .done();
+    let c = builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000030))?
+        .done();
+    let d = builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000040))?
+        .done();
+    let visit_a_c = Visit::new(VisitStatus::Full, 1719581545).unwrap();
+    let visit_a_d = Visit::new(VisitStatus::Partial, 1719500000).unwrap();
+    let visit_b_c = Visit::new(VisitStatus::Full, 1719581578).unwrap();
+    builder.ori_arc(a, c, visit_a_c.status(), visit_a_c.timestamp());
+    builder.ori_arc(a, d, visit_a_d.status(), visit_a_d.timestamp());
+    builder.ori_arc(b, c, visit_b_c.status(), visit_b_c.timestamp());
+    let graph = builder.done().context("Could not make graph")?;
+
+    assert_eq!(a, 0);
+    assert_eq!(b, 1);
+    assert_eq!(c, 2);
+    assert_eq!(d, 3);
+
+    assert_eq!(graph.num_nodes(), 4);
+    assert_eq!(
+        graph.properties().swhid(a),
+        swhid!(swh:1:ori:0000000000000000000000000000000000000010)
+    );
+    assert_eq!(
+        graph.properties().swhid(b),
+        swhid!(swh:1:ori:0000000000000000000000000000000000000020)
+    );
+    assert_eq!(
+        graph.properties().swhid(c),
+        swhid!(swh:1:snp:0000000000000000000000000000000000000030)
+    );
+    assert_eq!(
+        graph.properties().swhid(d),
+        swhid!(swh:1:snp:0000000000000000000000000000000000000040)
+    );
+
+    let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
+        (
+            succ,
+            labels
+                .map(swh_graph::labels::Visit::from)
+                .collect::<Vec<_>>(),
+        )
+    };
+
+    assert_eq!(graph.successors(a).collect::<Vec<_>>(), vec![c, d]);
+    assert_eq!(graph.successors(b).collect::<Vec<_>>(), vec![c]);
+    assert_eq!(
+        graph.successors(c).collect::<Vec<_>>(),
+        Vec::<NodeId>::new()
+    );
+    assert_eq!(
+        graph.successors(d).collect::<Vec<_>>(),
+        Vec::<NodeId>::new()
+    );
+
+    assert_eq!(
+        graph
+            .labelled_successors(a)
+            .map(collect_labels)
+            .collect::<Vec<_>>(),
+        vec![(c, vec![visit_a_c]), (d, vec![visit_a_d]),]
+    );
+    assert_eq!(
+        graph
+            .labelled_successors(b)
+            .map(collect_labels)
+            .collect::<Vec<_>>(),
+        vec![(c, vec![visit_b_c]),]
+    );
+
+    assert_eq!(
+        graph.predecessors(a).collect::<Vec<_>>(),
+        Vec::<NodeId>::new()
+    );
+    assert_eq!(
+        graph.predecessors(b).collect::<Vec<_>>(),
+        Vec::<NodeId>::new()
+    );
+    assert_eq!(graph.predecessors(c).collect::<Vec<_>>(), vec![a, b]);
+    assert_eq!(graph.predecessors(d).collect::<Vec<_>>(), vec![a]);
+
+    assert_eq!(
+        graph
+            .labelled_predecessors(a)
+            .map(collect_labels)
+            .collect::<Vec<_>>(),
+        vec![]
+    );
+    assert_eq!(
+        graph
+            .labelled_predecessors(c)
+            .map(collect_labels)
+            .collect::<Vec<_>>(),
+        vec![(a, vec![visit_a_c]), (b, vec![visit_b_c]),]
+    );
+    assert_eq!(
+        graph
+            .labelled_predecessors(d)
+            .map(collect_labels)
+            .collect::<Vec<_>>(),
+        vec![(a, vec![visit_a_d]),]
     );
 
     Ok(())

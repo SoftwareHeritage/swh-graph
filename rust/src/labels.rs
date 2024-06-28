@@ -47,6 +47,16 @@ impl UntypedEdgeLabel {
     }
 }
 
+impl From<EdgeLabel> for UntypedEdgeLabel {
+    fn from(label: EdgeLabel) -> Self {
+        UntypedEdgeLabel(match label {
+            EdgeLabel::Branch(branch) => branch.0,
+            EdgeLabel::DirEntry(dir_entry) => dir_entry.0,
+            EdgeLabel::Visit(visit) => visit.0,
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EdgeLabel {
     /// `snp -> *` branches (or `* -> snp` on the transposed graph)

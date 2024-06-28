@@ -59,13 +59,13 @@ fn test_dfs_with_path() -> Result<()> {
      *      \
      *       +--(content7)--> cnt7
      */
-    builder.l_arc(dir0, dir1, Permission::Directory, b"subdir1");
-    builder.l_arc(dir1, dir2, Permission::Directory, b"subdir2");
-    builder.l_arc(dir1, dir3, Permission::Directory, b"subdir3");
-    builder.l_arc(dir2, cnt4, Permission::Directory, b"content4");
-    builder.l_arc(dir2, cnt5, Permission::Directory, b"content5");
-    builder.l_arc(dir3, cnt6, Permission::Directory, b"content6");
-    builder.l_arc(dir0, cnt7, Permission::Directory, b"content7");
+    builder.dir_arc(dir0, dir1, Permission::Directory, b"subdir1");
+    builder.dir_arc(dir1, dir2, Permission::Directory, b"subdir2");
+    builder.dir_arc(dir1, dir3, Permission::Directory, b"subdir3");
+    builder.dir_arc(dir2, cnt4, Permission::Directory, b"content4");
+    builder.dir_arc(dir2, cnt5, Permission::Directory, b"content5");
+    builder.dir_arc(dir3, cnt6, Permission::Directory, b"content6");
+    builder.dir_arc(dir0, cnt7, Permission::Directory, b"content7");
     builder.arc(rev8, dir0);
     builder.arc(rev9, dir2);
 

@@ -10,7 +10,9 @@ use std::collections::HashMap;
 use anyhow::{ensure, Context, Result};
 
 use crate::graph::{NodeId, SwhBidirectionalGraph};
-use crate::labels::{DirEntry, FilenameId, Permission};
+use crate::labels::{
+    Branch, DirEntry, EdgeLabel, FilenameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
+};
 use crate::properties;
 use crate::webgraph::graphs::vec_graph::VecGraph;
 use crate::SwhGraphProperties;
@@ -66,8 +68,8 @@ impl GraphBuilder {
         self.arcs.push((src, dst, None));
     }
 
-    /// Adds a labelled arc to the graph
-    pub fn l_arc<P: Into<Permission>, N: Into<Vec<u8>>>(
+    /// Adds a labelled dir->{cnt,dir,rev} arc to the graph
+    pub fn dir_arc<P: Into<Permission>, N: Into<Vec<u8>>>(
         &mut self,
         src: NodeId,
         dst: NodeId,
@@ -76,18 +78,49 @@ impl GraphBuilder {
     ) {
         let permission = permission.into();
         let name = name.into();
-        let name_id = self.name_to_id.entry(name.clone()).or_insert_with(|| {
+        let name_id = *self.name_to_id.entry(name.clone()).or_insert_with(|| {
             self.label_names.push(name);
             (self.label_names.len() - 1)
                 .try_into()
                 .expect("label_names length overflowed u64")
         });
-        let label = Some(
-            DirEntry::new(permission, FilenameId(*name_id))
-                .expect("label_names is larger than 2^61 items")
-                .0,
+        self.l_arc(
+            src,
+            dst,
+            DirEntry::new(permission, FilenameId(name_id))
+                .expect("label_names is larger than 2^61 items"),
         );
-        self.arcs.push((src, dst, label));
+    }
+
+    /// Adds a labelled snp->{cnt,dir,rev,rel} arc to the graph
+    pub fn snp_arc<N: Into<Vec<u8>>>(&mut self, src: NodeId, dst: NodeId, name: N) {
+        let name = name.into();
+        let name_id = *self.name_to_id.entry(name.clone()).or_insert_with(|| {
+            self.label_names.push(name);
+            (self.label_names.len() - 1)
+                .try_into()
+                .expect("label_names length overflowed u64")
+        });
+        self.l_arc(
+            src,
+            dst,
+            Branch::new(FilenameId(name_id)).expect("label_names is larger than 2^61 items"),
+        );
+    }
+
+    /// Adds a labelled ori->snp arc to the graph
+    pub fn ori_arc(&mut self, src: NodeId, dst: NodeId, status: VisitStatus, timestamp: u64) {
+        self.l_arc(
+            src,
+            dst,
+            Visit::new(status, timestamp).expect("invalid timestamp"),
+        );
+    }
+
+    /// Adds a labelled arc to the graph
+    pub fn l_arc<L: Into<EdgeLabel>>(&mut self, src: NodeId, dst: NodeId, label: L) {
+        self.arcs
+            .push((src, dst, Some(UntypedEdgeLabel::from(label.into()).0)));
     }
 
     #[allow(clippy::type_complexity)]
