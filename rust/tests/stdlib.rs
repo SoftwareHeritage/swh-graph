@@ -6,7 +6,9 @@
 use anyhow::Result;
 use log::info;
 use swh_graph::graph::*;
+use swh_graph::graph_builder::GraphBuilder;
 use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::labels::{Visit, VisitStatus};
 use swh_graph::stdlib::*;
 use swh_graph::swhid;
 
@@ -46,20 +48,37 @@ fn test_find_root_dir() -> Result<()> {
 
 #[test]
 fn test_find_latest_snp() -> Result<()> {
-    let graph = load_unidirectional(BASENAME)?
-        .load_all_properties::<GOVMPH>()?
-        .load_labels()?;
+    let mut builder = GraphBuilder::default();
+    let ori0 = builder
+        .node(swhid!(swh:1:ori:0000000000000000000000000000000000000000))?
+        .done();
+    let snp1 = builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000001))?
+        .done();
+    let snp2 = builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000002))?
+        .done();
+    let snp3 = builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000003))?
+        .done();
+    let visit1 = Visit::new(VisitStatus::Full, 1719568024).unwrap();
+    let visit2 = Visit::new(VisitStatus::Full, 1719578024).unwrap();
+    let visit3 = Visit::new(VisitStatus::Partial, 1719588024).unwrap();
+    builder.ori_arc(ori0, snp1, visit1.status(), visit1.timestamp());
+    builder.ori_arc(ori0, snp2, visit2.status(), visit2.timestamp());
+    builder.ori_arc(ori0, snp3, visit3.status(), visit3.timestamp());
+    let graph = builder.done()?;
     let props = graph.properties();
+
+    let (node, timestamp) = find_latest_snp(
+        &graph,
+        props.node_id(swhid!(swh:1:ori:0000000000000000000000000000000000000000))?,
+    )?
+    .unwrap();
     assert_eq!(
-        props.swhid(
-            find_latest_snp(
-                &graph,
-                props.node_id(swhid!(swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054))?
-            )?
-            .unwrap()
-            .0
-        ),
-        swhid!(swh:1:snp:0000000000000000000000000000000000000020)
+        props.swhid(node),
+        swhid!(swh:1:snp:0000000000000000000000000000000000000002)
     );
+    assert_eq!(timestamp, visit2.timestamp());
     Ok(())
 }
