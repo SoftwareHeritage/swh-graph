@@ -112,7 +112,7 @@ fn test_dir_labels() -> Result<()> {
         swhid!(swh:1:cnt:0000000000000000000000000000000000000030)
     );
 
-    let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
+    let collect_labels = |(succ, labels): (_, LabeledArcIterator<_>)| {
         (
             succ,
             labels
@@ -136,7 +136,7 @@ fn test_dir_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labelled_successors(a)
+            .labeled_successors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
@@ -149,7 +149,7 @@ fn test_dir_labels() -> Result<()> {
     );
     assert_eq!(
         graph
-            .labelled_successors(b)
+            .labeled_successors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(c, vec![(Some(Permission::Content), b"test.c".into())]),]
@@ -164,21 +164,21 @@ fn test_dir_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labelled_predecessors(a)
+            .labeled_predecessors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![]
     );
     assert_eq!(
         graph
-            .labelled_predecessors(b)
+            .labeled_predecessors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(a, vec![(Some(Permission::Directory), b"tests".into())]),]
     );
     assert_eq!(
         graph
-            .labelled_predecessors(c)
+            .labeled_predecessors(c)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
@@ -212,7 +212,7 @@ fn test_duplicate_labels() -> Result<()> {
     builder.dir_arc(b, c, Permission::ExecutableContent, b"run.sh");
     let graph = builder.done().context("Could not make graph")?;
 
-    let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
+    let collect_labels = |(succ, labels): (_, LabeledArcIterator<_>)| {
         (
             succ,
             labels
@@ -229,7 +229,7 @@ fn test_duplicate_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labelled_successors(a)
+            .labeled_successors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
@@ -242,7 +242,7 @@ fn test_duplicate_labels() -> Result<()> {
     );
     assert_eq!(
         graph
-            .labelled_successors(b)
+            .labeled_successors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(
@@ -297,7 +297,7 @@ fn test_snp_labels() -> Result<()> {
         swhid!(swh:1:rev:0000000000000000000000000000000000000040)
     );
 
-    let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
+    let collect_labels = |(succ, labels): (_, LabeledArcIterator<_>)| {
         (
             succ,
             labels
@@ -322,7 +322,7 @@ fn test_snp_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labelled_successors(a)
+            .labeled_successors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
@@ -332,7 +332,7 @@ fn test_snp_labels() -> Result<()> {
     );
     assert_eq!(
         graph
-            .labelled_successors(b)
+            .labeled_successors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(c, vec![b"refs/heads/main".into()]),]
@@ -351,14 +351,14 @@ fn test_snp_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labelled_predecessors(a)
+            .labeled_predecessors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![]
     );
     assert_eq!(
         graph
-            .labelled_predecessors(c)
+            .labeled_predecessors(c)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
@@ -368,7 +368,7 @@ fn test_snp_labels() -> Result<()> {
     );
     assert_eq!(
         graph
-            .labelled_predecessors(d)
+            .labeled_predecessors(d)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(a, vec![b"refs/heads/feature/foo".into()]),]
@@ -423,7 +423,7 @@ fn test_ori_labels() -> Result<()> {
         swhid!(swh:1:snp:0000000000000000000000000000000000000040)
     );
 
-    let collect_labels = |(succ, labels): (_, LabelledArcIterator<_>)| {
+    let collect_labels = |(succ, labels): (_, LabeledArcIterator<_>)| {
         (
             succ,
             labels
@@ -445,14 +445,14 @@ fn test_ori_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labelled_successors(a)
+            .labeled_successors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(c, vec![visit_a_c]), (d, vec![visit_a_d]),]
     );
     assert_eq!(
         graph
-            .labelled_successors(b)
+            .labeled_successors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(c, vec![visit_b_c]),]
@@ -471,21 +471,21 @@ fn test_ori_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labelled_predecessors(a)
+            .labeled_predecessors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![]
     );
     assert_eq!(
         graph
-            .labelled_predecessors(c)
+            .labeled_predecessors(c)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(a, vec![visit_a_c]), (b, vec![visit_b_c]),]
     );
     assert_eq!(
         graph
-            .labelled_predecessors(d)
+            .labeled_predecessors(d)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(a, vec![visit_a_d]),]

@@ -48,7 +48,7 @@ pub async fn main() -> Result<()> {
     log::info!("Loading labels");
     let graph = graph
         .load_labels()
-        .context("Could not load labelled graph")?;
+        .context("Could not load labeled graph")?;
 
     let mut masked_nodes = HashSet::new();
     if let Some(masked_nodes_path) = args.masked_nodes {

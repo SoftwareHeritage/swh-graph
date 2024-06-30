@@ -63,12 +63,12 @@ impl GraphBuilder {
         })
     }
 
-    /// Adds an unlabelled arc to the graph
+    /// Adds an unlabeled arc to the graph
     pub fn arc(&mut self, src: NodeId, dst: NodeId) {
         self.arcs.push((src, dst, None));
     }
 
-    /// Adds a labelled dir->{cnt,dir,rev} arc to the graph
+    /// Adds a labeled dir->{cnt,dir,rev} arc to the graph
     pub fn dir_arc<P: Into<Permission>, N: Into<Vec<u8>>>(
         &mut self,
         src: NodeId,
@@ -92,7 +92,7 @@ impl GraphBuilder {
         );
     }
 
-    /// Adds a labelled snp->{cnt,dir,rev,rel} arc to the graph
+    /// Adds a labeled snp->{cnt,dir,rev,rel} arc to the graph
     pub fn snp_arc<N: Into<Vec<u8>>>(&mut self, src: NodeId, dst: NodeId, name: N) {
         let name = name.into();
         let name_id = *self.name_to_id.entry(name.clone()).or_insert_with(|| {
@@ -108,7 +108,7 @@ impl GraphBuilder {
         );
     }
 
-    /// Adds a labelled ori->snp arc to the graph
+    /// Adds a labeled ori->snp arc to the graph
     pub fn ori_arc(&mut self, src: NodeId, dst: NodeId, status: VisitStatus, timestamp: u64) {
         self.l_arc(
             src,
@@ -117,7 +117,7 @@ impl GraphBuilder {
         );
     }
 
-    /// Adds a labelled arc to the graph
+    /// Adds a labeled arc to the graph
     pub fn l_arc<L: Into<EdgeLabel>>(&mut self, src: NodeId, dst: NodeId, label: L) {
         self.arcs
             .push((src, dst, Some(UntypedEdgeLabel::from(label.into()).0)));

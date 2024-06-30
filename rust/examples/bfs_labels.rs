@@ -78,7 +78,7 @@ pub fn main() -> Result<()> {
         let visited_swhid = graph.properties().swhid(current_node);
         debug!("{visited_swhid}");
         visited_nodes += 1;
-        let successors = graph.labelled_successors(current_node);
+        let successors = graph.labeled_successors(current_node);
         for (succ, labels) in successors {
             debug!("  Successor: {}", graph.properties().swhid(succ));
             for label in labels {

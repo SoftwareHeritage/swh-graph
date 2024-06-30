@@ -66,7 +66,7 @@ make_filtered_arcs_iterator! {
     }
 }
 
-macro_rules! make_filtered_labelled_arcs_iterator {
+macro_rules! make_filtered_labeled_arcs_iterator {
     ($name:ident, $inner:ident, $( $next:tt )*) => {
         pub struct $name<
             'a,
@@ -95,9 +95,9 @@ macro_rules! make_filtered_labelled_arcs_iterator {
     }
 }
 
-make_filtered_labelled_arcs_iterator! {
-    FilteredLabelledSuccessors,
-    LabelledSuccessors,
+make_filtered_labeled_arcs_iterator! {
+    FilteredLabeledSuccessors,
+    LabeledSuccessors,
     fn next(&mut self) -> Option<Self::Item> {
         if !(self.node_filter)(self.node) {
             return None;
@@ -110,9 +110,9 @@ make_filtered_labelled_arcs_iterator! {
         None
     }
 }
-make_filtered_labelled_arcs_iterator! {
-    FilteredLabelledPredecessors,
-    LabelledPredecessors,
+make_filtered_labeled_arcs_iterator! {
+    FilteredLabeledPredecessors,
+    LabeledPredecessors,
     fn next(&mut self) -> Option<Self::Item> {
         if !(self.node_filter)(self.node) {
             return None;
@@ -239,27 +239,27 @@ impl<G: SwhBackwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, us
 }
 
 impl<
-        G: SwhLabelledForwardGraph,
+        G: SwhLabeledForwardGraph,
         NodeFilter: Fn(usize) -> bool,
         ArcFilter: Fn(usize, usize) -> bool,
-    > SwhLabelledForwardGraph for Subgraph<G, NodeFilter, ArcFilter>
+    > SwhLabeledForwardGraph for Subgraph<G, NodeFilter, ArcFilter>
 {
-    type LabelledArcs<'arc> = <G as SwhLabelledForwardGraph>::LabelledArcs<'arc>
+    type LabeledArcs<'arc> = <G as SwhLabeledForwardGraph>::LabeledArcs<'arc>
     where
         Self: 'arc;
-    type LabelledSuccessors<'node> = FilteredLabelledSuccessors<
+    type LabeledSuccessors<'node> = FilteredLabeledSuccessors<
         'node,
-        Self::LabelledArcs<'node>,
-        <<G as SwhLabelledForwardGraph>::LabelledSuccessors<'node> as IntoIterator>::IntoIter,
+        Self::LabeledArcs<'node>,
+        <<G as SwhLabeledForwardGraph>::LabeledSuccessors<'node> as IntoIterator>::IntoIter,
         NodeFilter,
         ArcFilter,
     >
     where
         Self: 'node;
 
-    fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
-        FilteredLabelledSuccessors {
-            inner: self.graph.labelled_successors(node_id).into_iter(),
+    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
+        FilteredLabeledSuccessors {
+            inner: self.graph.labeled_successors(node_id).into_iter(),
             node: node_id,
             node_filter: &self.node_filter,
             arc_filter: &self.arc_filter,
@@ -268,27 +268,27 @@ impl<
 }
 
 impl<
-        G: SwhLabelledBackwardGraph,
+        G: SwhLabeledBackwardGraph,
         NodeFilter: Fn(usize) -> bool,
         ArcFilter: Fn(usize, usize) -> bool,
-    > SwhLabelledBackwardGraph for Subgraph<G, NodeFilter, ArcFilter>
+    > SwhLabeledBackwardGraph for Subgraph<G, NodeFilter, ArcFilter>
 {
-    type LabelledArcs<'arc> = <G as SwhLabelledBackwardGraph>::LabelledArcs<'arc>
+    type LabeledArcs<'arc> = <G as SwhLabeledBackwardGraph>::LabeledArcs<'arc>
     where
         Self: 'arc;
-    type LabelledPredecessors<'node> = FilteredLabelledPredecessors<
+    type LabeledPredecessors<'node> = FilteredLabeledPredecessors<
         'node,
-        Self::LabelledArcs<'node>,
-        <<G as SwhLabelledBackwardGraph>::LabelledPredecessors<'node> as IntoIterator>::IntoIter,
+        Self::LabeledArcs<'node>,
+        <<G as SwhLabeledBackwardGraph>::LabeledPredecessors<'node> as IntoIterator>::IntoIter,
         NodeFilter,
         ArcFilter,
     >
     where
         Self: 'node;
 
-    fn labelled_predecessors(&self, node_id: NodeId) -> Self::LabelledPredecessors<'_> {
-        FilteredLabelledPredecessors {
-            inner: self.graph.labelled_predecessors(node_id).into_iter(),
+    fn labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
+        FilteredLabeledPredecessors {
+            inner: self.graph.labeled_predecessors(node_id).into_iter(),
             node: node_id,
             node_filter: &self.node_filter,
             arc_filter: &self.arc_filter,

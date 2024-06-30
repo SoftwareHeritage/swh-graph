@@ -13,7 +13,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::Server;
 use tonic::{Request, Response};
 
-use crate::graph::{SwhGraphWithProperties, SwhLabelledBackwardGraph, SwhLabelledForwardGraph};
+use crate::graph::{SwhGraphWithProperties, SwhLabeledBackwardGraph, SwhLabeledForwardGraph};
 use crate::properties::NodeIdFromSwhidError;
 use crate::utils::suffix_path;
 use crate::views::Subgraph;
@@ -46,8 +46,8 @@ type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
 pub struct TraversalService<
     G: SwhGraphWithProperties
-        + SwhLabelledBackwardGraph
-        + SwhLabelledForwardGraph
+        + SwhLabeledBackwardGraph
+        + SwhLabeledForwardGraph
         + Clone
         + Send
         + Sync
@@ -56,8 +56,8 @@ pub struct TraversalService<
 
 impl<
         G: SwhGraphWithProperties
-            + SwhLabelledBackwardGraph
-            + SwhLabelledForwardGraph
+            + SwhLabeledBackwardGraph
+            + SwhLabeledForwardGraph
             + Clone
             + Send
             + Sync
@@ -71,8 +71,8 @@ impl<
 
 pub trait TraversalServiceTrait {
     type Graph: SwhGraphWithProperties
-        + SwhLabelledBackwardGraph
-        + SwhLabelledForwardGraph
+        + SwhLabeledBackwardGraph
+        + SwhLabeledForwardGraph
         + Clone
         + Send
         + Sync
@@ -85,8 +85,8 @@ pub trait TraversalServiceTrait {
 
 impl<
         G: SwhGraphWithProperties
-            + SwhLabelledBackwardGraph
-            + SwhLabelledForwardGraph
+            + SwhLabeledBackwardGraph
+            + SwhLabeledForwardGraph
             + Clone
             + Send
             + Sync
@@ -134,8 +134,8 @@ impl<
 #[tonic::async_trait]
 impl<
         G: SwhGraphWithProperties
-            + SwhLabelledBackwardGraph
-            + SwhLabelledForwardGraph
+            + SwhLabeledBackwardGraph
+            + SwhLabeledForwardGraph
             + Send
             + Sync
             + Clone
@@ -328,8 +328,8 @@ where
 
 pub async fn serve<
     G: SwhGraphWithProperties
-        + SwhLabelledForwardGraph
-        + SwhLabelledBackwardGraph
+        + SwhLabeledForwardGraph
+        + SwhLabeledBackwardGraph
         + Sync
         + Send
         + 'static,

@@ -120,7 +120,7 @@ fn write_revisions_from_contents<G>(
     dataset_writer: ParallelDatasetWriter<ParquetTableWriter<CntInRevrelTableBuilder>>,
 ) -> Result<()>
 where
-    G: SwhLabelledBackwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
+    G: SwhLabeledBackwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
@@ -175,7 +175,7 @@ fn find_revisions_from_content<G>(
     cnt: NodeId,
 ) -> Result<()>
 where
-    G: SwhLabelledBackwardGraph + SwhGraphWithProperties,
+    G: SwhLabeledBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,

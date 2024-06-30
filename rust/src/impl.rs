@@ -51,19 +51,19 @@ where
     }
 }
 
-impl<T: Deref> SwhLabelledForwardGraph for T
+impl<T: Deref> SwhLabeledForwardGraph for T
 where
-    <T as Deref>::Target: SwhLabelledForwardGraph,
+    <T as Deref>::Target: SwhLabeledForwardGraph,
 {
-    type LabelledArcs<'arc> = <<T as Deref>::Target as SwhLabelledForwardGraph>::LabelledArcs<'arc>
+    type LabeledArcs<'arc> = <<T as Deref>::Target as SwhLabeledForwardGraph>::LabeledArcs<'arc>
     where
         Self: 'arc;
-    type LabelledSuccessors<'succ> = <<T as Deref>::Target as SwhLabelledForwardGraph>::LabelledSuccessors<'succ>
+    type LabeledSuccessors<'succ> = <<T as Deref>::Target as SwhLabeledForwardGraph>::LabeledSuccessors<'succ>
     where
         Self: 'succ;
 
-    fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
-        self.deref().labelled_successors(node_id)
+    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
+        self.deref().labeled_successors(node_id)
     }
 }
 
@@ -83,19 +83,19 @@ where
     }
 }
 
-impl<T: Deref> SwhLabelledBackwardGraph for T
+impl<T: Deref> SwhLabeledBackwardGraph for T
 where
-    <T as Deref>::Target: SwhLabelledBackwardGraph,
+    <T as Deref>::Target: SwhLabeledBackwardGraph,
 {
-    type LabelledArcs<'arc> = <<T as Deref>::Target as SwhLabelledBackwardGraph>::LabelledArcs<'arc>
+    type LabeledArcs<'arc> = <<T as Deref>::Target as SwhLabeledBackwardGraph>::LabeledArcs<'arc>
     where
         Self: 'arc;
-    type LabelledPredecessors<'succ> = <<T as Deref>::Target as SwhLabelledBackwardGraph>::LabelledPredecessors<'succ>
+    type LabeledPredecessors<'succ> = <<T as Deref>::Target as SwhLabeledBackwardGraph>::LabeledPredecessors<'succ>
     where
         Self: 'succ;
 
-    fn labelled_predecessors(&self, node_id: NodeId) -> Self::LabelledPredecessors<'_> {
-        self.deref().labelled_predecessors(node_id)
+    fn labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
+        self.deref().labeled_predecessors(node_id)
     }
 }
 impl<T: Deref> SwhGraphWithProperties for T

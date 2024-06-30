@@ -74,17 +74,17 @@ impl<G: SwhForwardGraph> SwhForwardGraph for GraphSpy<G> {
     }
 }
 
-impl<G: SwhLabelledForwardGraph> SwhLabelledForwardGraph for GraphSpy<G> {
-    type LabelledArcs<'arc> = <G as SwhLabelledForwardGraph>::LabelledArcs<'arc>
+impl<G: SwhLabeledForwardGraph> SwhLabeledForwardGraph for GraphSpy<G> {
+    type LabeledArcs<'arc> = <G as SwhLabeledForwardGraph>::LabeledArcs<'arc>
     where
         Self: 'arc;
-    type LabelledSuccessors<'succ> = <G as SwhLabelledForwardGraph>::LabelledSuccessors<'succ>
+    type LabeledSuccessors<'succ> = <G as SwhLabeledForwardGraph>::LabeledSuccessors<'succ>
     where
         Self: 'succ;
 
-    fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
-        self.record("labelled_successors", (node_id,));
-        self.graph.labelled_successors(node_id)
+    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
+        self.record("labeled_successors", (node_id,));
+        self.graph.labeled_successors(node_id)
     }
 }
 
@@ -103,17 +103,17 @@ impl<G: SwhBackwardGraph> SwhBackwardGraph for GraphSpy<G> {
     }
 }
 
-impl<G: SwhLabelledBackwardGraph> SwhLabelledBackwardGraph for GraphSpy<G> {
-    type LabelledArcs<'arc> = <G as SwhLabelledBackwardGraph>::LabelledArcs<'arc>
+impl<G: SwhLabeledBackwardGraph> SwhLabeledBackwardGraph for GraphSpy<G> {
+    type LabeledArcs<'arc> = <G as SwhLabeledBackwardGraph>::LabeledArcs<'arc>
     where
         Self: 'arc;
-    type LabelledPredecessors<'succ> = <G as SwhLabelledBackwardGraph>::LabelledPredecessors<'succ>
+    type LabeledPredecessors<'succ> = <G as SwhLabeledBackwardGraph>::LabeledPredecessors<'succ>
     where
         Self: 'succ;
 
-    fn labelled_predecessors(&self, node_id: NodeId) -> Self::LabelledPredecessors<'_> {
-        self.record("labelled_predecessors", (node_id,));
-        self.graph.labelled_predecessors(node_id)
+    fn labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
+        self.record("labeled_predecessors", (node_id,));
+        self.graph.labeled_predecessors(node_id)
     }
 }
 

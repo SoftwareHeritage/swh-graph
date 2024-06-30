@@ -20,7 +20,7 @@ use crate::NodeType;
 /// snapshots.
 pub fn find_latest_snp<G>(graph: &G, ori: NodeId) -> Result<Option<(NodeId, u64)>>
 where
-    G: SwhLabelledForwardGraph + SwhGraphWithProperties,
+    G: SwhLabeledForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
     let props = graph.properties();
@@ -30,7 +30,7 @@ where
     }
     // Most recent snapshot thus far, as an optional (node_id, timestamp) pair
     let mut latest_snp: Option<(usize, u64)> = None;
-    for (succ, labels) in graph.labelled_successors(ori) {
+    for (succ, labels) in graph.labeled_successors(ori) {
         let node_type = props.node_type(succ);
         if node_type != NodeType::Snapshot {
             continue;

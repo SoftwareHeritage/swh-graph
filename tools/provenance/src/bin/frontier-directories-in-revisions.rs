@@ -132,7 +132,7 @@ fn write_revisions_from_frontier_directories<G>(
     dataset_writer: ParallelDatasetWriter<ParquetTableWriter<DirInRevrelTableBuilder>>,
 ) -> Result<()>
 where
-    G: SwhLabelledBackwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
+    G: SwhLabeledBackwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
@@ -185,7 +185,7 @@ fn write_revisions_from_frontier_directory<G>(
     dir: NodeId,
 ) -> Result<()>
 where
-    G: SwhLabelledBackwardGraph + SwhGraphWithProperties,
+    G: SwhLabeledBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,

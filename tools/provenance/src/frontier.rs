@@ -53,7 +53,7 @@ pub fn backward_dfs_with_path<G>(
     root: NodeId,
 ) -> Result<()>
 where
-    G: SwhLabelledBackwardGraph + SwhGraphWithProperties,
+    G: SwhLabeledBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
@@ -95,7 +95,7 @@ where
 
         if should_recurse {
             // Look for frontiers in subdirectories
-            for (pred, labels) in graph.labelled_predecessors(node) {
+            for (pred, labels) in graph.labeled_predecessors(node) {
                 if !reachable(pred) || visited.contains(pred) {
                     continue;
                 }

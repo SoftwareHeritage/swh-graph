@@ -177,7 +177,7 @@ fn write_frontier_directories_from_content<G>(
     cnt: NodeId,
 ) -> Result<()>
 where
-    G: SwhLabelledBackwardGraph + SwhGraphWithProperties,
+    G: SwhLabeledBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {

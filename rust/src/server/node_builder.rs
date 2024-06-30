@@ -4,7 +4,7 @@
 // See top-level LICENSE file for more information
 
 use super::proto;
-use crate::graph::{SwhGraphWithProperties, SwhLabelledForwardGraph};
+use crate::graph::{SwhGraphWithProperties, SwhLabeledForwardGraph};
 use crate::labels::{EdgeLabel, UntypedEdgeLabel, VisitStatus};
 use crate::properties;
 use crate::NodeType;
@@ -70,7 +70,7 @@ pub struct NodeBuilder<G: Clone + Send + Sync + 'static> {
     bitmask: u32,
 }
 
-impl<G: SwhLabelledForwardGraph + SwhGraphWithProperties + Clone + Send + Sync + 'static>
+impl<G: SwhLabeledForwardGraph + SwhGraphWithProperties + Clone + Send + Sync + 'static>
     NodeBuilder<G>
 where
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
@@ -139,12 +139,12 @@ where
                 let node_type = self.graph.properties().node_type(node_id);
 
                 self.graph
-                    .labelled_successors(node_id)
+                    .labeled_successors(node_id)
                     .into_iter()
                     .map(|(succ, labels)| {
-                        // ori->snp arcs (and snp->ori in the transposed graph) are labelled
+                        // ori->snp arcs (and snp->ori in the transposed graph) are labeled
                         // with a visit timestamp
-                        // dir->* arcs (and *->dir in the transposed graph) are labelled with
+                        // dir->* arcs (and *->dir in the transposed graph) are labeled with
                         let succ_type = self.graph.properties().node_type(succ);
                         proto::Successor {
                             swhid: self.if_mask(SUCCESSOR_SWHID, || {

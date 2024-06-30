@@ -123,13 +123,13 @@ for succ in graph.successors(node_id) {
 }
 ```
 
-Or, if you have labelled graphs available locally, you can load them and also print
+Or, if you have labeled graphs available locally, you can load them and also print
 labels on the arcs from the given object to its successors (file permissions and names
 as this example uses a directory):
 
 ```no_run
 # use std::path::PathBuf;
-# use swh_graph::graph::{SwhForwardGraph, SwhLabelledForwardGraph, SwhGraphWithProperties};
+# use swh_graph::graph::{SwhForwardGraph, SwhLabeledForwardGraph, SwhGraphWithProperties};
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::labels::DirEntry;
 
@@ -145,7 +145,7 @@ let node_id: usize = graph
     .node_id("swh:1:dir:5e1c24e586ef92dbef0e9cec6b354c6831454340")
     .expect("Unknown SWHID");
 
-for (succ, labels) in graph.labelled_successors(node_id) {
+for (succ, labels) in graph.labeled_successors(node_id) {
     for label in labels {
         let label: DirEntry = label.into();
         println!(

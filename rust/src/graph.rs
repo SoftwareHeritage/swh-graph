@@ -173,16 +173,16 @@ pub trait SwhForwardGraph: SwhGraph {
     fn outdegree(&self, node_id: NodeId) -> usize;
 }
 
-pub trait SwhLabelledForwardGraph: SwhForwardGraph {
-    type LabelledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
+pub trait SwhLabeledForwardGraph: SwhForwardGraph {
+    type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
-    type LabelledSuccessors<'node>: IntoIterator<Item = (usize, Self::LabelledArcs<'node>)>
+    type LabeledSuccessors<'node>: IntoIterator<Item = (usize, Self::LabeledArcs<'node>)>
     where
         Self: 'node;
 
     /// Return an [`IntoIterator`] over the successors of a node.
-    fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_>;
+    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_>;
 }
 
 pub trait SwhBackwardGraph: SwhGraph {
@@ -196,16 +196,16 @@ pub trait SwhBackwardGraph: SwhGraph {
     fn indegree(&self, node_id: NodeId) -> usize;
 }
 
-pub trait SwhLabelledBackwardGraph: SwhBackwardGraph {
-    type LabelledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
+pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
+    type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
-    type LabelledPredecessors<'node>: IntoIterator<Item = (usize, Self::LabelledArcs<'node>)>
+    type LabeledPredecessors<'node>: IntoIterator<Item = (usize, Self::LabeledArcs<'node>)>
     where
         Self: 'node;
 
     /// Return an [`IntoIterator`] over the successors of a node.
-    fn labelled_predecessors(&self, node_id: NodeId) -> Self::LabelledPredecessors<'_>;
+    fn labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_>;
 }
 
 pub trait SwhGraphWithProperties: SwhGraph {
@@ -296,7 +296,7 @@ impl<P, G: UnderlyingGraph> SwhForwardGraph for SwhUnidirectionalGraph<P, G> {
     }
 }
 
-impl<P, G: UnderlyingGraph> SwhLabelledForwardGraph for SwhUnidirectionalGraph<P, G>
+impl<P, G: UnderlyingGraph> SwhLabeledForwardGraph for SwhUnidirectionalGraph<P, G>
 where
     <G as SequentialLabeling>::Label: Pair<Left = NodeId>,
     <<G as SequentialLabeling>::Label as Pair>::Right: IntoIterator,
@@ -304,11 +304,11 @@ where
     for<'succ> <G as RandomAccessLabeling>::Labels<'succ>:
         Iterator<Item = (usize, <<G as SequentialLabeling>::Label as Pair>::Right)>,
 {
-    type LabelledArcs<'arc> = LabelledArcIterator<<<<<G as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
-    type LabelledSuccessors<'succ> = LabelledSuccessorIterator<<G as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
+    type LabeledArcs<'arc> = LabeledArcIterator<<<<<G as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
+    type LabeledSuccessors<'succ> = LabeledSuccessorIterator<<G as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
 
-    fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
-        LabelledSuccessorIterator {
+    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
+        LabeledSuccessorIterator {
             successors: self.graph.labels(node_id),
         }
     }
@@ -447,9 +447,10 @@ impl<
 }
 
 impl<P, G: RandomAccessGraph + UnderlyingGraph> SwhUnidirectionalGraph<P, G> {
-    /// Consumes this graph and returns a new one that implements [`SwhLabelledForwardGraph`]
+    /// Consumes this graph and returns a new one that implements [`SwhLabeledForwardGraph`]
     pub fn load_labels(self) -> Result<SwhUnidirectionalGraph<P, Zip<G, SwhGraphLabels>>> {
         Ok(SwhUnidirectionalGraph {
+            // Note: keep british version of "labelled" here for compatibility with Java swh-graph
             graph: zip_labels(self.graph, suffix_path(&self.basepath, "-labelled"))
                 .context("Could not load forward labels")?,
             properties: self.properties,
@@ -537,7 +538,7 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhForwardGraph
     }
 }
 
-impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhLabelledForwardGraph
+impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhLabeledForwardGraph
     for SwhBidirectionalGraph<P, FG, BG>
 where
     <FG as SequentialLabeling>::Label: Pair<Left = NodeId>,
@@ -546,11 +547,11 @@ where
     for<'succ> <FG as RandomAccessLabeling>::Labels<'succ>:
         Iterator<Item = (usize, <<FG as SequentialLabeling>::Label as Pair>::Right)>,
 {
-    type LabelledArcs<'arc> = LabelledArcIterator<<<<<FG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
-    type LabelledSuccessors<'succ> = LabelledSuccessorIterator<<FG as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
+    type LabeledArcs<'arc> = LabeledArcIterator<<<<<FG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
+    type LabeledSuccessors<'succ> = LabeledSuccessorIterator<<FG as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
 
-    fn labelled_successors(&self, node_id: NodeId) -> Self::LabelledSuccessors<'_> {
-        LabelledSuccessorIterator {
+    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
+        LabeledSuccessorIterator {
             successors: self.forward_graph.labels(node_id),
         }
     }
@@ -570,7 +571,7 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBackwardGraph
     }
 }
 
-impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhLabelledBackwardGraph
+impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhLabeledBackwardGraph
     for SwhBidirectionalGraph<P, FG, BG>
 where
     <BG as SequentialLabeling>::Label: Pair<Left = NodeId>,
@@ -579,11 +580,11 @@ where
     for<'succ> <BG as RandomAccessLabeling>::Labels<'succ>:
         Iterator<Item = (usize, <<BG as SequentialLabeling>::Label as Pair>::Right)>,
 {
-    type LabelledArcs<'arc> = LabelledArcIterator<<<<<BG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
-    type LabelledPredecessors<'succ> = LabelledSuccessorIterator<<BG as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
+    type LabeledArcs<'arc> = LabeledArcIterator<<<<<BG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
+    type LabeledPredecessors<'succ> = LabeledSuccessorIterator<<BG as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
 
-    fn labelled_predecessors(&self, node_id: NodeId) -> Self::LabelledPredecessors<'_> {
-        LabelledSuccessorIterator {
+    fn labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
+        LabeledSuccessorIterator {
             successors: self.backward_graph.labels(node_id),
         }
     }
@@ -735,7 +736,7 @@ impl<
 impl<P, FG: RandomAccessGraph + UnderlyingGraph, BG: UnderlyingGraph>
     SwhBidirectionalGraph<P, FG, BG>
 {
-    /// Consumes this graph and returns a new one that implements [`SwhLabelledForwardGraph`]
+    /// Consumes this graph and returns a new one that implements [`SwhLabeledForwardGraph`]
     pub fn load_forward_labels(
         self,
     ) -> Result<SwhBidirectionalGraph<P, Zip<FG, SwhGraphLabels>, BG>> {
@@ -752,7 +753,7 @@ impl<P, FG: RandomAccessGraph + UnderlyingGraph, BG: UnderlyingGraph>
 impl<P, FG: UnderlyingGraph, BG: RandomAccessGraph + UnderlyingGraph>
     SwhBidirectionalGraph<P, FG, BG>
 {
-    /// Consumes this graph and returns a new one that implements [`SwhLabelledBackwardGraph`]
+    /// Consumes this graph and returns a new one that implements [`SwhLabeledBackwardGraph`]
     pub fn load_backward_labels(
         self,
     ) -> Result<SwhBidirectionalGraph<P, FG, Zip<BG, SwhGraphLabels>>> {
@@ -760,6 +761,7 @@ impl<P, FG: UnderlyingGraph, BG: RandomAccessGraph + UnderlyingGraph>
             forward_graph: self.forward_graph,
             backward_graph: zip_labels(
                 self.backward_graph,
+                // Note: keep british version of "labelled" here for compatibility with Java swh-graph
                 suffix_path(&self.basepath, "-transposed-labelled"),
             )
             .context("Could not load backward labels")?,
@@ -785,7 +787,7 @@ impl<P, FG: RandomAccessGraph + UnderlyingGraph, BG: RandomAccessGraph + Underly
     }
 }
 
-pub struct LabelledSuccessorIterator<Successors: Iterator>
+pub struct LabeledSuccessorIterator<Successors: Iterator>
 where
     <Successors as Iterator>::Item: Pair<Left = usize>,
     <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
@@ -794,7 +796,7 @@ where
     successors: Successors,
 }
 
-impl<Successors: Iterator> Iterator for LabelledSuccessorIterator<Successors>
+impl<Successors: Iterator> Iterator for LabeledSuccessorIterator<Successors>
 where
     <Successors as Iterator>::Item: Pair<Left = usize>,
     <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
@@ -802,7 +804,7 @@ where
 {
     type Item = (
         NodeId,
-        LabelledArcIterator<
+        LabeledArcIterator<
             <<<Successors as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter,
         >,
     );
@@ -812,7 +814,7 @@ where
             let (successor, arc_labels) = pair.into_pair();
             (
                 successor,
-                LabelledArcIterator {
+                LabeledArcIterator {
                     arc_label_ids: arc_labels.into_iter(),
                 },
             )
@@ -820,14 +822,14 @@ where
     }
 }
 
-pub struct LabelledArcIterator<T: Iterator>
+pub struct LabeledArcIterator<T: Iterator>
 where
     <T as Iterator>::Item: Borrow<u64>,
 {
     arc_label_ids: T,
 }
 
-impl<T: Iterator> Iterator for LabelledArcIterator<T>
+impl<T: Iterator> Iterator for LabeledArcIterator<T>
 where
     <T as Iterator>::Item: Borrow<u64>,
 {
@@ -904,6 +906,7 @@ fn zip_labels<G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
     let graphclass = map
         .get("graphclass")
         .with_context(|| format!("Missing 'graphclass' from {}", properties_path.display()))?;
+    // Note: keep british version of "labelled" here for compatibility with Java swh-graph
     if graphclass != "it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph" {
         bail!(
             "Expected graphclass in {} to be \"it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph\", got {:?}",

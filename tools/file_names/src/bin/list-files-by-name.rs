@@ -142,12 +142,12 @@ fn write_files_by_name_in_snapshot<G>(
     snp: NodeId,
 ) -> Result<()>
 where
-    G: SwhLabelledForwardGraph + SwhGraphWithProperties,
+    G: SwhLabeledForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
     <G as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
 {
     let mut snp_swhid = None; // Computed lazily when needed
-    for (branch_target, labels) in graph.labelled_successors(snp) {
+    for (branch_target, labels) in graph.labeled_successors(snp) {
         for label in labels {
             // This is snp->*, so we know the label has to be a Branch
             let label: swh_graph::labels::Branch = label.into();
@@ -192,7 +192,7 @@ fn write_files_by_name_in_revrel<G>(
     revrel: NodeId,
 ) -> Result<()>
 where
-    G: SwhLabelledForwardGraph + SwhGraphWithProperties,
+    G: SwhLabeledForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
     <G as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
 {
@@ -237,7 +237,7 @@ fn write_files_by_name_in_directory<G>(
     root_dir: NodeId,
 ) -> Result<()>
 where
-    G: SwhLabelledForwardGraph + SwhGraphWithProperties,
+    G: SwhLabeledForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
     <G as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
 {
@@ -249,7 +249,7 @@ where
             continue;
         }
         visited.insert(dir);
-        for (succ, labels) in graph.labelled_successors(dir) {
+        for (succ, labels) in graph.labeled_successors(dir) {
             match graph.properties().node_type(succ) {
                 NodeType::Directory => to_visit.push(succ),
                 NodeType::Content => {
@@ -270,9 +270,7 @@ where
                         }
                     }
                 }
-                NodeType::Revision | NodeType::Release | NodeType::Snapshot | NodeType::Origin => {
-                    ()
-                }
+                NodeType::Revision | NodeType::Release | NodeType::Snapshot | NodeType::Origin => {}
             }
         }
     }

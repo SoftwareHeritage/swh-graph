@@ -134,7 +134,7 @@ fn write_content_names<G>(
     cnt: NodeId,
 ) -> Result<()>
 where
-    G: SwhGraphWithProperties + SwhLabelledBackwardGraph,
+    G: SwhGraphWithProperties + SwhLabeledBackwardGraph,
     <G as SwhGraphWithProperties>::Contents: swh_graph::properties::Contents,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
@@ -147,7 +147,7 @@ where
 
     // Count the number of occurrences of each name to point to the content
     let mut names = HashMap::<_, u64>::new();
-    for (dir, labels) in graph.labelled_predecessors(cnt) {
+    for (dir, labels) in graph.labeled_predecessors(cnt) {
         if graph.properties().node_type(dir) != NodeType::Directory {
             continue;
         }

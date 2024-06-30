@@ -28,14 +28,14 @@ enum Commands {
     /// by the Java backend to randomly access the graph), and produces a .ef file
     /// suitable to randomly access the graph from the Rust backend.
     ///
-    /// Only suitable for unlabelled graphs.
+    /// Only suitable for unlabeled graphs.
     Ef { base_path: PathBuf },
 
     /// Reads either a graph file linearly or .offsets file (generated and used
     /// by the Java backend to randomly access the graph), and produces a .ef file
     /// suitable to randomly access the graph from the Rust backend.
     ///
-    /// Only suitable for labelled graphs.
+    /// Only suitable for labeled graphs.
     LabelsEf {
         base_path: PathBuf,
         /// The number of elements to be inserted in the Elias-Fano
@@ -48,7 +48,7 @@ enum Commands {
     /// encoded as an Elias-Fano sequence in a .dcf file,
     /// suitable to distribute load while working on the graph.
     ///
-    /// Only suitable for unlabelled graphs.
+    /// Only suitable for unlabeled graphs.
     Dcf { base_path: PathBuf },
 }
 

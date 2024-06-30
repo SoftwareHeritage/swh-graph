@@ -161,7 +161,7 @@ fn count_content_paths<const MAX_DEPTH: usize, G>(
     leaf: NodeId,
 ) -> Result<HashMap<[FilenameId; MAX_DEPTH], u64>>
 where
-    G: SwhGraphWithProperties + SwhLabelledBackwardGraph,
+    G: SwhGraphWithProperties + SwhLabeledBackwardGraph,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
     let mut stack = vec![leaf];
@@ -175,7 +175,7 @@ where
         let depth = path.len();
         let mut has_parents = false;
         if depth < MAX_DEPTH {
-            for (dir, labels) in graph.labelled_predecessors(node) {
+            for (dir, labels) in graph.labeled_predecessors(node) {
                 if graph.properties().node_type(dir) != NodeType::Directory {
                     continue;
                 }
@@ -209,7 +209,7 @@ fn write_content_paths<const MAX_DEPTH: usize, G>(
     leaf: NodeId,
 ) -> Result<()>
 where
-    G: SwhGraphWithProperties + SwhLabelledBackwardGraph,
+    G: SwhGraphWithProperties + SwhLabeledBackwardGraph,
     <G as SwhGraphWithProperties>::Contents: swh_graph::properties::Contents,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
