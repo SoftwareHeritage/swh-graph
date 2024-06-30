@@ -14,7 +14,7 @@ use crate::map::{MappedPermutation, OwnedPermutation, Permutation};
 use crate::map::{Node2SWHID, Node2Type, UsizeMmap};
 use crate::mph::{SwhidMphf, VecMphf};
 use crate::utils::suffix_path;
-use crate::{swhid::StrSWHIDDeserializationError, SWHType, SWHID};
+use crate::{swhid::StrSWHIDDeserializationError, NodeType, SWHID};
 
 /// Trait implemented by both [`NoMaps`] and all implementors of [`Maps`],
 /// to allow loading maps only if needed.
@@ -296,14 +296,14 @@ impl<
     ///
     /// If the node id does not exist.
     #[inline]
-    pub fn node_type(&self, node_id: NodeId) -> SWHType {
+    pub fn node_type(&self, node_id: NodeId) -> NodeType {
         self.try_node_type(node_id)
             .unwrap_or_else(|e| panic!("Cannot get node type: {}", e))
     }
 
     /// Returns the type of a given node, or `None` if the node id does not exist
     #[inline]
-    pub fn try_node_type(&self, node_id: NodeId) -> Result<SWHType, OutOfBoundError> {
+    pub fn try_node_type(&self, node_id: NodeId) -> Result<NodeType, OutOfBoundError> {
         self.maps.node2type().get(node_id)
     }
 }

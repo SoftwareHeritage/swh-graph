@@ -5,20 +5,20 @@
 
 use crate::graph::{SwhForwardGraph, SwhGraphWithProperties};
 use crate::properties;
-use crate::SWHType;
+use crate::NodeType;
 
 use super::proto;
 
-/// Parses `*`, `cnt`, `dir`, `rev`, `rel`, `snp`, `ori` to [`SWHType`]
-fn parse_node_type(type_name: &str) -> Result<SWHType, tonic::Status> {
-    SWHType::try_from(type_name)
+/// Parses `*`, `cnt`, `dir`, `rev`, `rel`, `snp`, `ori` to [`NodeType`]
+fn parse_node_type(type_name: &str) -> Result<NodeType, tonic::Status> {
+    NodeType::try_from(type_name)
         .map_err(|_| tonic::Status::invalid_argument(format!("Invalid node type: {}", type_name)))
 }
 
 /// Parses comma -separated `src:dst` pairs of node types (see [`parse_node_type`]).
 ///
 /// Returns `*` if the node type is `*`
-fn parse_arc_type(type_name: &str) -> Result<(Option<SWHType>, Option<SWHType>), tonic::Status> {
+fn parse_arc_type(type_name: &str) -> Result<(Option<NodeType>, Option<NodeType>), tonic::Status> {
     let mut splits = type_name.splitn(2, ':');
     let Some(src_type_name) = splits.next() else {
         return Err(tonic::Status::invalid_argument(format!(
@@ -34,13 +34,13 @@ fn parse_arc_type(type_name: &str) -> Result<(Option<SWHType>, Option<SWHType>),
     };
     let src_type = match src_type_name {
         "*" => None,
-        _ => Some(SWHType::try_from(src_type_name).map_err(|_| {
+        _ => Some(NodeType::try_from(src_type_name).map_err(|_| {
             tonic::Status::invalid_argument(format!("Invalid node type: {}", src_type_name))
         })?),
     };
     let dst_type = match dst_type_name {
         "*" => None,
-        _ => Some(SWHType::try_from(dst_type_name).map_err(|_| {
+        _ => Some(NodeType::try_from(dst_type_name).map_err(|_| {
             tonic::Status::invalid_argument(format!("Invalid node type: {}", dst_type_name))
         })?),
     };
@@ -107,7 +107,7 @@ where
                 || (Self::bit_mask(self.graph.properties().node_type(node)) & self.types) != 0)
     }
 
-    fn bit_mask(node_type: SWHType) -> u8 {
+    fn bit_mask(node_type: NodeType) -> u8 {
         let type_id = node_type as u8;
         assert!(type_id < (u8::BITS as u8)); // fits in bit mask
         1u8 << type_id
@@ -117,7 +117,7 @@ where
 #[derive(Clone)]
 pub struct ArcFilterChecker<G: Clone + Send + Sync + 'static> {
     graph: G,
-    types: u64, // Bit mask on a SWHType::NUMBER_OF_TYPES × SWHType::NUMBER_OF_TYPES matrix
+    types: u64, // Bit mask on a NodeType::NUMBER_OF_TYPES × NodeType::NUMBER_OF_TYPES matrix
 }
 
 impl<G: Clone + Send + Sync + 'static> ArcFilterChecker<G>
@@ -140,11 +140,11 @@ where
                         .into_iter()
                         .map(|(src, dst)| match (src, dst) {
                             (None, None) => u64::MAX, // arc '*:*' -> set all bits
-                            (None, Some(dst)) => SWHType::all()
+                            (None, Some(dst)) => NodeType::all()
                                 .into_iter()
                                 .map(|src| Self::bit_mask(src, dst))
                                 .sum(),
-                            (Some(src), None) => SWHType::all()
+                            (Some(src), None) => NodeType::all()
                                 .into_iter()
                                 .map(|dst| Self::bit_mask(src, dst))
                                 .sum(),
@@ -165,10 +165,10 @@ where
                 != 0)
     }
 
-    fn bit_mask(src_node_type: SWHType, dst_node_type: SWHType) -> u64 {
+    fn bit_mask(src_node_type: NodeType, dst_node_type: NodeType) -> u64 {
         let src_type_id = src_node_type as u64;
         let dst_type_id = dst_node_type as u64;
-        let arc_type_id = src_type_id * (SWHType::NUMBER_OF_TYPES as u64) + dst_type_id;
+        let arc_type_id = src_type_id * (NodeType::NUMBER_OF_TYPES as u64) + dst_type_id;
         assert!(arc_type_id < (u64::BITS as u64)); // fits in bit mask
         1u64 << arc_type_id
     }

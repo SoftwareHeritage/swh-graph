@@ -17,7 +17,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::labels::FilenameId;
 use swh_graph::properties;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 use swh_graph::SWHID;
 
 use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
@@ -111,7 +111,7 @@ pub fn main() -> Result<()> {
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
         || dataset_writer.get_thread_writer().unwrap(),
         |writer, node| -> Result<()> {
-            if graph.properties().node_type(node) == SWHType::Snapshot {
+            if graph.properties().node_type(node) == NodeType::Snapshot {
                 write_files_by_name_in_snapshot(
                     &graph,
                     writer,
@@ -159,7 +159,7 @@ where
             let snp_swhid = *snp_swhid.get_or_insert_with(|| graph.properties().swhid(snp));
 
             match graph.properties().node_type(branch_target) {
-                SWHType::Directory => write_files_by_name_in_directory(
+                NodeType::Directory => write_files_by_name_in_directory(
                     graph,
                     writer,
                     filename_ids,
@@ -167,7 +167,7 @@ where
                     &branch_name,
                     branch_target,
                 )?,
-                SWHType::Revision | SWHType::Release => write_files_by_name_in_revrel(
+                NodeType::Revision | NodeType::Release => write_files_by_name_in_revrel(
                     graph,
                     writer,
                     filename_ids,
@@ -175,7 +175,7 @@ where
                     &branch_name,
                     branch_target,
                 )?,
-                SWHType::Content | SWHType::Snapshot | SWHType::Origin => (),
+                NodeType::Content | NodeType::Snapshot | NodeType::Origin => (),
             }
         }
     }
@@ -198,7 +198,7 @@ where
 {
     for succ in graph.successors(revrel) {
         match graph.properties().node_type(succ) {
-            SWHType::Directory => {
+            NodeType::Directory => {
                 write_files_by_name_in_directory(
                     graph,
                     writer,
@@ -208,8 +208,8 @@ where
                     succ,
                 )?;
             }
-            SWHType::Revision => {
-                if graph.properties().node_type(revrel) == SWHType::Release {
+            NodeType::Revision => {
+                if graph.properties().node_type(revrel) == NodeType::Release {
                     // snp->rel->rev
                     write_files_by_name_in_revrel(
                         graph,
@@ -251,8 +251,8 @@ where
         visited.insert(dir);
         for (succ, labels) in graph.labelled_successors(dir) {
             match graph.properties().node_type(succ) {
-                SWHType::Directory => to_visit.push(succ),
-                SWHType::Content => {
+                NodeType::Directory => to_visit.push(succ),
+                NodeType::Content => {
                     for label in labels {
                         // This is cnt->dir, so we know the label has to be a DirEntry
                         let label: swh_graph::labels::DirEntry = label.into();
@@ -270,7 +270,9 @@ where
                         }
                     }
                 }
-                SWHType::Revision | SWHType::Release | SWHType::Snapshot | SWHType::Origin => (),
+                NodeType::Revision | NodeType::Release | NodeType::Snapshot | NodeType::Origin => {
+                    ()
+                }
             }
         }
     }

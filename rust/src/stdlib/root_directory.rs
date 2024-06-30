@@ -7,7 +7,7 @@ use anyhow::{bail, ensure, Result};
 
 use crate::graph::*;
 use crate::properties;
-use crate::SWHType;
+use crate::NodeType;
 
 /// Given a node id pointing to a revision or release, returns the node id of
 /// the associated topmost ("root") directory.
@@ -20,8 +20,8 @@ where
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
     match graph.properties().node_type(node) {
-        SWHType::Release => find_root_dir_from_rel(graph, node),
-        SWHType::Revision => find_root_dir_from_rev(graph, node),
+        NodeType::Release => find_root_dir_from_rel(graph, node),
+        NodeType::Revision => find_root_dir_from_rev(graph, node),
         ty => bail!("Expected node type release or revision, but got {ty} instead."),
     }
 }
@@ -39,14 +39,14 @@ where
     for succ in graph.successors(rel_id) {
         let node_type = props.node_type(succ);
         match node_type {
-            SWHType::Directory => {
+            NodeType::Directory => {
                 ensure!(
                     root_dir.is_none(),
                     "{rel_swhid} has more than one directory successor",
                 );
                 root_dir = Some(succ);
             }
-            SWHType::Revision => {
+            NodeType::Revision => {
                 ensure!(
                     root_rev.is_none(),
                     "{rel_swhid} has more than one revision successor",
@@ -64,7 +64,7 @@ where
         (None, Some(root_rev)) => {
             let mut root_dir = None;
             for succ in graph.successors(root_rev) {
-                if graph.properties().node_type(succ) == SWHType::Directory {
+                if graph.properties().node_type(succ) == NodeType::Directory {
                     let rev_swhid = graph.properties().swhid(succ);
                     ensure!(
                         root_dir.is_none(),
@@ -89,7 +89,7 @@ where
     let props = graph.properties();
     for succ in graph.successors(rev_id) {
         let node_type = props.node_type(succ);
-        if node_type == SWHType::Directory {
+        if node_type == NodeType::Directory {
             let rev_swhid = props.swhid(succ);
             ensure!(
                 root_dir.is_none(),

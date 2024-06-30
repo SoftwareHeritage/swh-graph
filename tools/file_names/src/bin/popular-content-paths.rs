@@ -18,7 +18,7 @@ use swh_graph::collections::PathStack;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::labels::FilenameId;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 use swh_graph::SWHID;
 
 use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
@@ -176,7 +176,7 @@ where
         let mut has_parents = false;
         if depth < MAX_DEPTH {
             for (dir, labels) in graph.labelled_predecessors(node) {
-                if graph.properties().node_type(dir) != SWHType::Directory {
+                if graph.properties().node_type(dir) != NodeType::Directory {
                     continue;
                 }
                 for label in labels {

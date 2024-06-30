@@ -20,7 +20,7 @@ use ph::fmph;
 use rayon::prelude::*;
 use swh_graph::map::{MappedPermutation, Permutation};
 use swh_graph::utils::parse_allowed_node_types;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 
 #[derive(Parser, Debug)]
 #[command(about = "Commands to read ORC files and produce property files and an initial not-very-compressed BVGraph", long_about = None)]
@@ -275,7 +275,7 @@ pub fn main() -> Result<()> {
                 &allowed_node_types
                     .iter()
                     .cloned()
-                    .filter(|t| [SWHType::Revision, SWHType::Release].contains(t))
+                    .filter(|t| [NodeType::Revision, NodeType::Release].contains(t))
                     .collect::<Vec<_>>(),
             )
             .context("Could not estimate node count from input dataset")?
@@ -325,8 +325,8 @@ pub fn main() -> Result<()> {
 
             let stats = par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(pl)))
                 .map(|line: [u8; 50]| {
-                    let ty = SWHType::try_from(&line[6..9]).expect("Unexpected SWHID type");
-                    let mut stats = [0usize; SWHType::NUMBER_OF_TYPES];
+                    let ty = NodeType::try_from(&line[6..9]).expect("Unexpected SWHID type");
+                    let mut stats = [0usize; NodeType::NUMBER_OF_TYPES];
                     stats[ty as usize] += 1;
                     stats
                 })
@@ -339,7 +339,7 @@ pub fn main() -> Result<()> {
 
             let mut stats_lines = Vec::new();
             let mut total = 0;
-            for ty in SWHType::all() {
+            for ty in NodeType::all() {
                 stats_lines.push(format!("{} {}\n", ty, stats[ty as usize]));
                 total += stats[ty as usize];
             }
@@ -397,8 +397,8 @@ pub fn main() -> Result<()> {
 
             let mut stats_lines = Vec::new();
             let mut total = 0;
-            for src_type in SWHType::all() {
-                for dst_type in SWHType::all() {
+            for src_type in NodeType::all() {
+                for dst_type in NodeType::all() {
                     let count = stats[src_type as usize][dst_type as usize];
                     if count != 0 {
                         stats_lines.push(format!("{}:{} {}\n", src_type, dst_type, count));
@@ -428,7 +428,7 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Could not open {}", target.display()))?;
             let mut target_file = BufWriter::new(target_file);
 
-            if allowed_node_types.contains(&SWHType::Origin) {
+            if allowed_node_types.contains(&NodeType::Origin) {
                 log::info!("Reading origins...");
                 let mut origins: Vec<_> = swh_graph::compress::iter_origins(&dataset_dir)
                     .context("Could not read origins")?
@@ -573,8 +573,8 @@ pub fn main() -> Result<()> {
                 Ok(())
             }
 
-            let person_mph = if allowed_node_types.contains(&SWHType::Revision)
-                || allowed_node_types.contains(&SWHType::Release)
+            let person_mph = if allowed_node_types.contains(&NodeType::Revision)
+                || allowed_node_types.contains(&NodeType::Release)
             {
                 let Some(person_function) = person_function else {
                     bail!("--person-function must be provided unless --allowed-node-types is set to contain neither 'rev' nor 'rel'.");

@@ -17,11 +17,11 @@ use rayon::prelude::*;
 use super::iter_arcs::iter_arcs_from_ovs;
 use super::orc::{get_dataset_readers, par_iter_arrow};
 use super::TextSwhid;
-use crate::SWHType;
+use crate::NodeType;
 
 pub fn iter_swhids(
     dataset_dir: &PathBuf,
-    allowed_node_types: &[SWHType],
+    allowed_node_types: &[NodeType],
 ) -> Result<impl ParallelIterator<Item = TextSwhid>> {
     let maybe_get_dataset_readers = |dataset_dir: &PathBuf, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
@@ -34,63 +34,63 @@ pub fn iter_swhids(
     Ok([]
         .into_par_iter()
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "directory", SWHType::Directory)?
+            maybe_get_dataset_readers(dataset_dir, "directory", NodeType::Directory)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_dir),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "directory_entry", SWHType::Directory)?
+            maybe_get_dataset_readers(dataset_dir, "directory_entry", NodeType::Directory)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_dir_entry),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "content", SWHType::Content)?
+            maybe_get_dataset_readers(dataset_dir, "content", NodeType::Content)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_cnt),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "origin", SWHType::Origin)?
+            maybe_get_dataset_readers(dataset_dir, "origin", NodeType::Origin)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_ori),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "origin_visit_status", SWHType::Origin)?
+            maybe_get_dataset_readers(dataset_dir, "origin_visit_status", NodeType::Origin)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_ovs)
                 .flat_map_iter(|(src, dst)| [src, dst].into_iter()),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "release", SWHType::Release)?
+            maybe_get_dataset_readers(dataset_dir, "release", NodeType::Release)?
                 .into_par_iter()
                 .flat_map(iter_rel_swhids_from_rel),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "release", SWHType::Release)?
+            maybe_get_dataset_readers(dataset_dir, "release", NodeType::Release)?
                 .into_par_iter()
                 .flat_map(iter_target_swhids_from_rel),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "revision", SWHType::Revision)?
+            maybe_get_dataset_readers(dataset_dir, "revision", NodeType::Revision)?
                 .into_par_iter()
                 .flat_map(iter_rev_swhids_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "revision", SWHType::Revision)?
+            maybe_get_dataset_readers(dataset_dir, "revision", NodeType::Revision)?
                 .into_par_iter()
                 .flat_map(iter_dir_swhids_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "revision_history", SWHType::Revision)?
+            maybe_get_dataset_readers(dataset_dir, "revision_history", NodeType::Revision)?
                 .into_par_iter()
                 .flat_map(iter_parent_swhids_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "snapshot", SWHType::Snapshot)?
+            maybe_get_dataset_readers(dataset_dir, "snapshot", NodeType::Snapshot)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_snp),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "snapshot_branch", SWHType::Snapshot)?
+            maybe_get_dataset_readers(dataset_dir, "snapshot_branch", NodeType::Snapshot)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_snp_branch),
         ))

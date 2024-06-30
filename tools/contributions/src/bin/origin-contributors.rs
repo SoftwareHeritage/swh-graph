@@ -15,7 +15,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::properties;
 use swh_graph::views::Subgraph;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 use swh_graph::SWHID;
 
 use swh_graph_contributions::ContributorSet;
@@ -116,8 +116,8 @@ where
 {
     let graph =
         Subgraph::new_with_node_filter(graph, |node| match graph.properties().node_type(node) {
-            SWHType::Origin | SWHType::Snapshot | SWHType::Release | SWHType::Revision => true,
-            SWHType::Content | SWHType::Directory => false,
+            NodeType::Origin | NodeType::Snapshot | NodeType::Release | NodeType::Revision => true,
+            NodeType::Content | NodeType::Directory => false,
         });
 
     // Map each node id to its set of contributor person_ids and years
@@ -181,7 +181,7 @@ where
         };
 
         match graph.properties().node_type(node) {
-            SWHType::Origin => {
+            NodeType::Origin => {
                 for (contributor, years) in node_contributors {
                     contribs_writer
                         .serialize(ContribOutputRecord {
@@ -217,10 +217,10 @@ where
                         )
                     })?;
             }
-            SWHType::Snapshot => {
+            NodeType::Snapshot => {
                 contributors.insert(node, node_contributors);
             }
-            SWHType::Release => {
+            NodeType::Release => {
                 if let Some(author) = graph.properties().author_id(node) {
                     if let Some(timestamp) = graph.properties().author_timestamp(node) {
                         if timestamp != 0 {
@@ -230,7 +230,7 @@ where
                 };
                 contributors.insert(node, node_contributors);
             }
-            SWHType::Revision => {
+            NodeType::Revision => {
                 if let Some(author) = graph.properties().author_id(node) {
                     if let Some(timestamp) = graph.properties().author_timestamp(node) {
                         if timestamp != 0 {
@@ -248,7 +248,7 @@ where
                 };
                 contributors.insert(node, node_contributors);
             }
-            SWHType::Content | SWHType::Directory => {
+            NodeType::Content | NodeType::Directory => {
                 bail!("Unexpected node type in input: {}", swhid)
             }
         }

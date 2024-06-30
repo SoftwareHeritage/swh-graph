@@ -16,7 +16,7 @@ use serde::Serialize;
 
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 use swh_graph::SWHID;
 
 use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
@@ -103,7 +103,7 @@ pub fn main() -> Result<()> {
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
         || dataset_writer.get_thread_writer().unwrap(),
         |writer, node| -> Result<()> {
-            if graph.properties().node_type(node) == SWHType::Content {
+            if graph.properties().node_type(node) == NodeType::Content {
                 write_content_names(
                     &graph,
                     writer,
@@ -148,7 +148,7 @@ where
     // Count the number of occurrences of each name to point to the content
     let mut names = HashMap::<_, u64>::new();
     for (dir, labels) in graph.labelled_predecessors(cnt) {
-        if graph.properties().node_type(dir) != SWHType::Directory {
+        if graph.properties().node_type(dir) != NodeType::Directory {
             continue;
         }
         for label in labels {

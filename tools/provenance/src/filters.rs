@@ -11,7 +11,7 @@ use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use sux::prelude::BitVec;
 
 use swh_graph::graph::*;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 
 #[derive(ValueEnum, Debug, Clone, Copy)]
 pub enum NodeFilter {
@@ -117,12 +117,12 @@ where
     let node_type = graph.properties().node_type(node_id);
 
     match node_type {
-        SWHType::Release => true,
-        SWHType::Revision => graph.predecessors(node_id).into_iter().any(|pred| {
+        NodeType::Release => true,
+        NodeType::Revision => graph.predecessors(node_id).into_iter().any(|pred| {
             let pred_type = graph.properties().node_type(pred);
-            pred_type == SWHType::Snapshot || pred_type == SWHType::Release
+            pred_type == NodeType::Snapshot || pred_type == NodeType::Release
         }),
-        SWHType::Origin | SWHType::Snapshot | SWHType::Directory | SWHType::Content => false,
+        NodeType::Origin | NodeType::Snapshot | NodeType::Directory | NodeType::Content => false,
     }
 }
 
@@ -137,7 +137,7 @@ where
     match node_filter {
         NodeFilter::All => {
             let node_type = graph.properties().node_type(node_id);
-            node_type == SWHType::Release || node_type == SWHType::Revision
+            node_type == NodeType::Release || node_type == NodeType::Revision
         }
         NodeFilter::Heads => is_head(graph, node_id),
     }

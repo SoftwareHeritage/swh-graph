@@ -18,7 +18,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 
 use swh_graph::utils::dataset_writer::ParallelDatasetWriter;
 use swh_graph_provenance::filters::{is_root_revrel, NodeFilter};
@@ -175,7 +175,7 @@ where
             if graph
                 .successors(dir)
                 .into_iter()
-                .any(|succ| graph.properties().node_type(succ) == SWHType::Content)
+                .any(|succ| graph.properties().node_type(succ) == NodeType::Content)
             {
                 // Contains at least one blob
                 return true;
@@ -190,7 +190,7 @@ where
 
     while let Some(node) = stack.pop() {
         for succ in graph.successors(node) {
-            if graph.properties().node_type(succ) == SWHType::Directory {
+            if graph.properties().node_type(succ) == NodeType::Directory {
                 let dir_max_timestamp = max_timestamps.get(succ).expect("max_timestamps too small");
                 if dir_max_timestamp == i64::MIN {
                     // Somehow does not have a max timestamp. Presumably because it does not

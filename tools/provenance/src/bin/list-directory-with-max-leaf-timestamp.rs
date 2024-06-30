@@ -19,7 +19,7 @@ use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::shuffle::par_iter_shuffled_range;
 use swh_graph::utils::GetIndex;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 
 use swh_graph_provenance::filters::{load_reachable_nodes, NodeFilter};
 
@@ -144,7 +144,7 @@ where
     };
 
     par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(|cnt| {
-        if reachable(cnt) && graph.properties().node_type(cnt) == SWHType::Content {
+        if reachable(cnt) && graph.properties().node_type(cnt) == NodeType::Content {
             let cnt_timestamp = timestamps.get(cnt).unwrap();
             if cnt_timestamp == i64::MIN {
                 // Content is not in any timestamped revrel, ignore it.
@@ -157,7 +157,7 @@ where
                             continue;
                         }
                         match graph.properties().node_type(pred) {
-                            SWHType::Directory => {
+                            NodeType::Directory => {
                                 let previous_max = max_timestamps[pred]
                                     .fetch_max(cnt_timestamp, Ordering::Relaxed);
                                 if previous_max >= cnt_timestamp {
@@ -169,7 +169,7 @@ where
                                     stack.push(pred);
                                 }
                             }
-                            SWHType::Content => bail!(
+                            NodeType::Content => bail!(
                                 "{} is predecessor of {}",
                                 graph.properties().swhid(pred),
                                 graph.properties().swhid(node)

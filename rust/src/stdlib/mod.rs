@@ -10,7 +10,7 @@ use anyhow::{bail, Result};
 use crate::graph::*;
 use crate::labels::{EdgeLabel, VisitStatus};
 use crate::properties;
-use crate::SWHType;
+use crate::NodeType;
 
 /// Given a graph and an origin node in it, return the node id and timestamp
 /// (as a number of seconds since Epoch) of the most recent snapshot of that
@@ -25,19 +25,19 @@ where
 {
     let props = graph.properties();
     let node_type = props.node_type(ori);
-    if node_type != SWHType::Origin {
+    if node_type != NodeType::Origin {
         bail!("Type of {ori} should be origin, but is {node_type} instead");
     }
     // Most recent snapshot thus far, as an optional (node_id, timestamp) pair
     let mut latest_snp: Option<(usize, u64)> = None;
     for (succ, labels) in graph.labelled_successors(ori) {
         let node_type = props.node_type(succ);
-        if node_type != SWHType::Snapshot {
+        if node_type != NodeType::Snapshot {
             continue;
         }
         for label in labels {
             if let EdgeLabel::Visit(visit) =
-                label.for_edge_type(SWHType::Origin, node_type, false)?
+                label.for_edge_type(NodeType::Origin, node_type, false)?
             {
                 if visit.status() != VisitStatus::Full {
                     continue;

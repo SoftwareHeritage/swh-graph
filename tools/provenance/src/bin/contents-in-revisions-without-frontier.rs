@@ -16,7 +16,7 @@ use sux::bits::bit_vec::BitVec;
 
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 
 use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph_provenance::frontier::PathParts;
@@ -140,7 +140,7 @@ where
                 None => true,
                 Some(reachable_nodes) => reachable_nodes.get(node),
             };
-            if is_reachable && graph.properties().node_type(node) == SWHType::Content {
+            if is_reachable && graph.properties().node_type(node) == NodeType::Content {
                 find_revisions_from_content(
                     graph,
                     node_filter,

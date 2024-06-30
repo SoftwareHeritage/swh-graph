@@ -5,7 +5,7 @@
 
 use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::*;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct EarliestRevision {
@@ -33,7 +33,7 @@ where
 
     while let Some(node) = stack.pop() {
         let node_type = graph.properties().node_type(node);
-        if node_type == SWHType::Revision {
+        if node_type == NodeType::Revision {
             visited_revisions += 1;
             let Some(committer_ts) = graph.properties().committer_timestamp(node) else {
                 continue;
@@ -54,7 +54,7 @@ where
         } else {
             // push ancestors to the stack
             for pred in graph.predecessors(node) {
-                use swh_graph::SWHType::*;
+                use swh_graph::NodeType::*;
 
                 if visited.contains(pred) {
                     continue;

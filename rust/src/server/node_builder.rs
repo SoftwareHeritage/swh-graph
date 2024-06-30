@@ -7,7 +7,7 @@ use super::proto;
 use crate::graph::{SwhGraphWithProperties, SwhLabelledForwardGraph};
 use crate::labels::{EdgeLabel, UntypedEdgeLabel, VisitStatus};
 use crate::properties;
-use crate::SWHType;
+use crate::NodeType;
 
 /// Bit masks selecting which fields should be included by [`NodeBuilder`], based on
 /// [`proto::FieldMask`].
@@ -187,20 +187,20 @@ where
             }),
             successor: successors,
             data: self.if_mask(DATA, || match self.graph.properties().node_type(node_id) {
-                SWHType::Content => Some(self.build_content_data(node_id)),
-                SWHType::Directory => None,
-                SWHType::Revision => Some(self.build_revision_data(node_id)),
-                SWHType::Release => Some(self.build_release_data(node_id)),
-                SWHType::Snapshot => None,
-                SWHType::Origin => Some(self.build_origin_data(node_id)),
+                NodeType::Content => Some(self.build_content_data(node_id)),
+                NodeType::Directory => None,
+                NodeType::Revision => Some(self.build_revision_data(node_id)),
+                NodeType::Release => Some(self.build_release_data(node_id)),
+                NodeType::Snapshot => None,
+                NodeType::Origin => Some(self.build_origin_data(node_id)),
             }),
         }
     }
 
     fn build_edge_label(
         &self,
-        src: SWHType,
-        dst: SWHType,
+        src: NodeType,
+        dst: NodeType,
         label: UntypedEdgeLabel,
     ) -> proto::EdgeLabel {
         match label.for_edge_type(src, dst, self.graph.is_transposed()) {

@@ -16,7 +16,7 @@ use orc_rust::reader::ChunkReader;
 use rayon::prelude::*;
 
 use super::orc::{get_dataset_readers, iter_arrow};
-use crate::SWHType;
+use crate::NodeType;
 
 fn count_arrow_rows<R: ChunkReader>(reader_builder: ArrowReaderBuilder<R>) -> u64 {
     let empty_mask = ProjectionMask::roots(reader_builder.file_metadata().root_data_type(), []); // Don't need to read any column
@@ -24,35 +24,35 @@ fn count_arrow_rows<R: ChunkReader>(reader_builder: ArrowReaderBuilder<R>) -> u6
     reader.total_row_count()
 }
 
-pub fn estimate_node_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]) -> Result<u64> {
+pub fn estimate_node_count(dataset_dir: &PathBuf, allowed_node_types: &[NodeType]) -> Result<u64> {
     let mut readers = Vec::new();
-    if allowed_node_types.contains(&SWHType::Directory) {
+    if allowed_node_types.contains(&NodeType::Directory) {
         readers.extend(get_dataset_readers(dataset_dir, "directory")?);
     }
-    if allowed_node_types.contains(&SWHType::Content) {
+    if allowed_node_types.contains(&NodeType::Content) {
         readers.extend(get_dataset_readers(dataset_dir, "content")?);
     }
-    if allowed_node_types.contains(&SWHType::Origin) {
+    if allowed_node_types.contains(&NodeType::Origin) {
         readers.extend(get_dataset_readers(dataset_dir, "origin")?);
     }
-    if allowed_node_types.contains(&SWHType::Release) {
+    if allowed_node_types.contains(&NodeType::Release) {
         readers.extend(get_dataset_readers(dataset_dir, "release")?);
     }
-    if allowed_node_types.contains(&SWHType::Revision) {
+    if allowed_node_types.contains(&NodeType::Revision) {
         readers.extend(get_dataset_readers(dataset_dir, "revision")?);
     }
-    if allowed_node_types.contains(&SWHType::Snapshot) {
+    if allowed_node_types.contains(&NodeType::Snapshot) {
         readers.extend(get_dataset_readers(dataset_dir, "snapshot")?);
     }
     Ok(readers.into_par_iter().map(count_arrow_rows).sum())
 }
 
-pub fn estimate_edge_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]) -> Result<u64> {
+pub fn estimate_edge_count(dataset_dir: &PathBuf, allowed_node_types: &[NodeType]) -> Result<u64> {
     let mut readers = Vec::new();
-    if allowed_node_types.contains(&SWHType::Directory) {
+    if allowed_node_types.contains(&NodeType::Directory) {
         readers.extend(get_dataset_readers(dataset_dir, "directory_entry")?)
     }
-    if allowed_node_types.contains(&SWHType::Origin) {
+    if allowed_node_types.contains(&NodeType::Origin) {
         readers.extend(get_dataset_readers(
             // Count the source...
             dataset_dir.clone(),
@@ -64,24 +64,24 @@ pub fn estimate_edge_count(dataset_dir: &PathBuf, allowed_node_types: &[SWHType]
             "origin_visit_status",
         )?);
     }
-    if allowed_node_types.contains(&SWHType::Release) {
+    if allowed_node_types.contains(&NodeType::Release) {
         readers.extend(get_dataset_readers(dataset_dir, "release")?);
     }
-    if allowed_node_types.contains(&SWHType::Revision) {
+    if allowed_node_types.contains(&NodeType::Revision) {
         readers.extend(get_dataset_readers(dataset_dir, "revision")?);
         readers.extend(get_dataset_readers(dataset_dir, "revision_history")?);
     }
-    if allowed_node_types.contains(&SWHType::Snapshot) {
+    if allowed_node_types.contains(&NodeType::Snapshot) {
         readers.extend(get_dataset_readers(dataset_dir, "snapshot_branch")?);
     }
     Ok(readers.into_par_iter().map(count_arrow_rows).sum())
 }
 
-type EdgeStats = [[usize; SWHType::NUMBER_OF_TYPES]; SWHType::NUMBER_OF_TYPES];
+type EdgeStats = [[usize; NodeType::NUMBER_OF_TYPES]; NodeType::NUMBER_OF_TYPES];
 
 pub fn count_edge_types(
     dataset_dir: &PathBuf,
-    allowed_node_types: &[SWHType],
+    allowed_node_types: &[NodeType],
 ) -> Result<impl ParallelIterator<Item = EdgeStats>> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
@@ -94,32 +94,32 @@ pub fn count_edge_types(
     Ok([]
         .into_par_iter()
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "directory_entry", SWHType::Directory)?
+            maybe_get_dataset_readers(dataset_dir, "directory_entry", NodeType::Directory)?
                 .into_par_iter()
                 .map(count_edge_types_from_dir),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "origin_visit_status", SWHType::Origin)?
+            maybe_get_dataset_readers(dataset_dir, "origin_visit_status", NodeType::Origin)?
                 .into_par_iter()
                 .map(count_edge_types_from_ovs),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "release", SWHType::Release)?
+            maybe_get_dataset_readers(dataset_dir, "release", NodeType::Release)?
                 .into_par_iter()
                 .map(count_edge_types_from_rel),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "revision", SWHType::Revision)?
+            maybe_get_dataset_readers(dataset_dir, "revision", NodeType::Revision)?
                 .into_par_iter()
                 .map(count_dir_edge_types_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "revision_history", SWHType::Revision)?
+            maybe_get_dataset_readers(dataset_dir, "revision_history", NodeType::Revision)?
                 .into_par_iter()
                 .map(count_parent_edge_types_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "snapshot_branch", SWHType::Snapshot)?
+            maybe_get_dataset_readers(dataset_dir, "snapshot_branch", NodeType::Snapshot)?
                 .into_par_iter()
                 .map(count_edge_types_from_snp),
         ))
@@ -137,7 +137,7 @@ where
     .count();
 }
 
-fn inc(stats: &mut EdgeStats, src_type: SWHType, dst_type: SWHType) {
+fn inc(stats: &mut EdgeStats, src_type: NodeType, dst_type: NodeType) {
     stats[src_type as usize][dst_type as usize] += 1;
 }
 
@@ -154,13 +154,13 @@ fn count_edge_types_from_dir<R: ChunkReader + Send>(
     for_each_edge(reader_builder, |entry: DirectoryEntry| {
         match entry.r#type.as_bytes() {
             b"file" => {
-                inc(&mut stats, SWHType::Directory, SWHType::Content);
+                inc(&mut stats, NodeType::Directory, NodeType::Content);
             }
             b"dir" => {
-                inc(&mut stats, SWHType::Directory, SWHType::Directory);
+                inc(&mut stats, NodeType::Directory, NodeType::Directory);
             }
             b"rev" => {
-                inc(&mut stats, SWHType::Directory, SWHType::Revision);
+                inc(&mut stats, NodeType::Directory, NodeType::Revision);
             }
             _ => panic!("Unexpected directory entry type: {:?}", entry.r#type),
         }
@@ -181,7 +181,7 @@ fn count_edge_types_from_ovs<R: ChunkReader + Send>(
 
     for_each_edge(reader_builder, |ovs: OriginVisitStatus| {
         if ovs.snapshot.is_some() {
-            inc(&mut stats, SWHType::Origin, SWHType::Snapshot)
+            inc(&mut stats, NodeType::Origin, NodeType::Snapshot)
         }
     });
 
@@ -193,7 +193,7 @@ fn count_dir_edge_types_from_rev<R: ChunkReader + Send>(
 ) -> EdgeStats {
     let mut stats = EdgeStats::default();
 
-    stats[SWHType::Revision as usize][SWHType::Directory as usize] +=
+    stats[NodeType::Revision as usize][NodeType::Directory as usize] +=
         count_arrow_rows(reader_builder) as usize;
 
     stats
@@ -204,7 +204,7 @@ fn count_parent_edge_types_from_rev<R: ChunkReader + Send>(
 ) -> EdgeStats {
     let mut stats = EdgeStats::default();
 
-    stats[SWHType::Revision as usize][SWHType::Revision as usize] +=
+    stats[NodeType::Revision as usize][NodeType::Revision as usize] +=
         count_arrow_rows(reader_builder) as usize;
 
     stats
@@ -222,16 +222,16 @@ fn count_edge_types_from_rel<R: ChunkReader + Send>(
     for_each_edge(reader_builder, |entry: Release| {
         match entry.target_type.as_bytes() {
             b"content" => {
-                inc(&mut stats, SWHType::Release, SWHType::Content);
+                inc(&mut stats, NodeType::Release, NodeType::Content);
             }
             b"directory" => {
-                inc(&mut stats, SWHType::Release, SWHType::Directory);
+                inc(&mut stats, NodeType::Release, NodeType::Directory);
             }
             b"revision" => {
-                inc(&mut stats, SWHType::Release, SWHType::Revision);
+                inc(&mut stats, NodeType::Release, NodeType::Revision);
             }
             b"release" => {
-                inc(&mut stats, SWHType::Release, SWHType::Release);
+                inc(&mut stats, NodeType::Release, NodeType::Release);
             }
             _ => panic!("Unexpected directory entry type: {:?}", entry.target_type),
         }
@@ -253,16 +253,16 @@ fn count_edge_types_from_snp<R: ChunkReader + Send>(
     for_each_edge(reader_builder, |branch: SnapshotBranch| {
         match branch.target_type.as_bytes() {
             b"content" => {
-                inc(&mut stats, SWHType::Snapshot, SWHType::Content);
+                inc(&mut stats, NodeType::Snapshot, NodeType::Content);
             }
             b"directory" => {
-                inc(&mut stats, SWHType::Snapshot, SWHType::Directory);
+                inc(&mut stats, NodeType::Snapshot, NodeType::Directory);
             }
             b"revision" => {
-                inc(&mut stats, SWHType::Snapshot, SWHType::Revision);
+                inc(&mut stats, NodeType::Snapshot, NodeType::Revision);
             }
             b"release" => {
-                inc(&mut stats, SWHType::Snapshot, SWHType::Release);
+                inc(&mut stats, NodeType::Snapshot, NodeType::Release);
             }
             b"alias" => {}
             _ => panic!("Unexpected snapshot branch type: {:?}", branch.target_type),

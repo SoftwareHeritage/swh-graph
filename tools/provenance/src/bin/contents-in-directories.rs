@@ -18,7 +18,7 @@ use sux::prelude::{AtomicBitVec, BitVec};
 use swh_graph::collections::NodeSet;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 
 use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph_provenance::filters::NodeFilter;
@@ -120,7 +120,7 @@ pub fn main() -> Result<()> {
                 reachable_nodes_from_frontier.set(node, true, Ordering::Relaxed);
                 for succ in graph.successors(node) {
                     match graph.properties().node_type(succ) {
-                        SWHType::Directory | SWHType::Content => {
+                        NodeType::Directory | NodeType::Content => {
                             to_visit.push(succ);
                         }
                         _ => (),
@@ -146,7 +146,7 @@ pub fn main() -> Result<()> {
         || dataset_writer.get_thread_writer().unwrap(),
         |writer, node| -> Result<()> {
             if reachable_nodes_from_frontier.get(node)
-                && graph.properties().node_type(node) == SWHType::Content
+                && graph.properties().node_type(node) == NodeType::Content
             {
                 write_frontier_directories_from_content(
                     &graph,

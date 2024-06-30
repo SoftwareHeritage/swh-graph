@@ -14,11 +14,11 @@ use orc_rust::reader::ChunkReader;
 use rayon::prelude::*;
 
 use super::orc::{get_dataset_readers, par_iter_arrow};
-use crate::SWHType;
+use crate::NodeType;
 
 pub fn iter_persons(
     dataset_dir: &PathBuf,
-    allowed_node_types: &[SWHType],
+    allowed_node_types: &[NodeType],
 ) -> Result<impl ParallelIterator<Item = Box<[u8]>>> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
@@ -31,12 +31,12 @@ pub fn iter_persons(
     Ok([]
         .into_par_iter()
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "revision", SWHType::Revision)?
+            maybe_get_dataset_readers(dataset_dir, "revision", NodeType::Revision)?
                 .into_par_iter()
                 .flat_map(iter_persons_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "release", SWHType::Release)?
+            maybe_get_dataset_readers(dataset_dir, "release", NodeType::Release)?
                 .into_par_iter()
                 .flat_map(iter_persons_from_rel),
         ))

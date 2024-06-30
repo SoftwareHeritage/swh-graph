@@ -14,7 +14,7 @@ use parquet::file::properties::EnabledStatistics;
 use parquet::file::properties::{WriterProperties, WriterPropertiesBuilder};
 
 use swh_graph::graph::{NodeId, SwhGraph, SwhGraphWithProperties};
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 
 use swh_graph::utils::dataset_writer::StructArrayBuilder;
 
@@ -104,7 +104,7 @@ impl StructArrayBuilder for NodeTableBuilder {
     fn finish(mut self) -> Result<StructArray> {
         let types = self.types.finish();
         let types_dictionary = StringArray::from(
-            SWHType::all()
+            NodeType::all()
                 .into_iter()
                 .map(|type_| type_.to_str())
                 .collect::<Vec<_>>(),

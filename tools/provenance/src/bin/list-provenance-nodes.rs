@@ -17,7 +17,7 @@ use sux::prelude::{AtomicBitVec, BitVec};
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::shuffle::par_iter_shuffled_range;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 
 use swh_graph::utils::dataset_writer::{
     ParallelDatasetWriter, ParquetTableWriter, PartitionedTableWriter,
@@ -149,7 +149,7 @@ where
                 for succ in graph.successors(node) {
                     if reachable_from_heads.get(succ, Ordering::Relaxed) {
                         // Already visited, either by this DFS or an other one
-                    } else if let SWHType::Content | SWHType::Directory =
+                    } else if let NodeType::Content | NodeType::Directory =
                         graph.properties().node_type(succ)
                     {
                         stack.push(succ);

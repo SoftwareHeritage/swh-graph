@@ -10,7 +10,7 @@ use swh_graph::labels::FilenameId;
 use swh_graph::properties::*;
 use swh_graph::webgraph::graphs::vec_graph::VecGraph;
 use swh_graph::webgraph::labels::proj::Left;
-use swh_graph::{SWHType, SWHID};
+use swh_graph::{NodeType, SWHID};
 
 #[test]
 fn test_vec_graph() {
@@ -60,17 +60,17 @@ fn test_vec_graph_maps() {
     let swhids = [
         SWHID {
             namespace_version: 1,
-            node_type: SWHType::Revision,
+            node_type: NodeType::Revision,
             hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         },
         SWHID {
             namespace_version: 1,
-            node_type: SWHType::Revision,
+            node_type: NodeType::Revision,
             hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         },
         SWHID {
             namespace_version: 1,
-            node_type: SWHType::Content,
+            node_type: NodeType::Content,
             hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
         },
     ];
@@ -89,7 +89,7 @@ fn test_vec_graph_maps() {
     assert_eq!(graph.properties().node_id(swhids[2]), Ok(2));
     let unknown_swhid = SWHID {
         namespace_version: 1,
-        node_type: SWHType::Content,
+        node_type: NodeType::Content,
         hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42],
     };
     assert_eq!(
@@ -103,9 +103,9 @@ fn test_vec_graph_maps() {
     assert_eq!(graph.properties().swhid(2), swhids[2]);
 
     // Test node2type
-    assert_eq!(graph.properties().node_type(0), SWHType::Revision);
-    assert_eq!(graph.properties().node_type(1), SWHType::Revision);
-    assert_eq!(graph.properties().node_type(2), SWHType::Content);
+    assert_eq!(graph.properties().node_type(0), NodeType::Revision);
+    assert_eq!(graph.properties().node_type(1), NodeType::Revision);
+    assert_eq!(graph.properties().node_type(2), NodeType::Content);
 }
 
 #[test]

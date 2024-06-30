@@ -14,11 +14,11 @@ use orc_rust::reader::ChunkReader;
 use rayon::prelude::*;
 
 use super::orc::{get_dataset_readers, par_iter_arrow};
-use crate::SWHType;
+use crate::NodeType;
 
 pub fn iter_labels(
     dataset_dir: &PathBuf,
-    allowed_node_types: &[SWHType],
+    allowed_node_types: &[NodeType],
 ) -> Result<impl ParallelIterator<Item = Box<[u8]>>> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
@@ -31,12 +31,12 @@ pub fn iter_labels(
     Ok([]
         .into_par_iter()
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "directory_entry", SWHType::Directory)?
+            maybe_get_dataset_readers(dataset_dir, "directory_entry", NodeType::Directory)?
                 .into_par_iter()
                 .flat_map(iter_labels_from_dir_entry),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "snapshot_branch", SWHType::Snapshot)?
+            maybe_get_dataset_readers(dataset_dir, "snapshot_branch", NodeType::Snapshot)?
                 .into_par_iter()
                 .flat_map(iter_labels_from_snp_branch),
         ))

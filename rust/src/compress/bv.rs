@@ -28,7 +28,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     mph_basepath: PathBuf,
     num_nodes: usize,
     dataset_dir: PathBuf,
-    allowed_node_types: &[crate::SWHType],
+    allowed_node_types: &[crate::NodeType],
     target_dir: PathBuf,
 ) -> Result<()> {
     log::info!("Reading MPH");

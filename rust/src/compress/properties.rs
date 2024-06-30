@@ -19,7 +19,7 @@ use crate::map::{MappedPermutation, Permutation};
 use crate::mph::SwhidMphf;
 use crate::properties::suffixes;
 use crate::utils::suffix_path;
-use crate::SWHType;
+use crate::NodeType;
 
 pub struct PropertyWriter<SWHIDMPHF: SwhidMphf> {
     pub swhid_mph: SWHIDMPHF,
@@ -27,7 +27,7 @@ pub struct PropertyWriter<SWHIDMPHF: SwhidMphf> {
     pub order: MappedPermutation,
     pub num_nodes: usize,
     pub dataset_dir: PathBuf,
-    pub allowed_node_types: Vec<SWHType>,
+    pub allowed_node_types: Vec<NodeType>,
     pub target: PathBuf,
 }
 
@@ -94,8 +94,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             date_offset: Option<i16>,
         }
 
-        let read_rev = self.allowed_node_types.contains(&SWHType::Revision);
-        let read_rel = self.allowed_node_types.contains(&SWHType::Release);
+        let read_rev = self.allowed_node_types.contains(&NodeType::Revision);
+        let read_rel = self.allowed_node_types.contains(&NodeType::Release);
 
         if !read_rev && !read_rel {
             log::info!("Excluded");
@@ -146,7 +146,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             committer_offset: Option<i16>,
         }
 
-        if !self.allowed_node_types.contains(&SWHType::Revision) {
+        if !self.allowed_node_types.contains(&NodeType::Revision) {
             log::info!("Excluded");
             return Ok(());
         }
@@ -180,7 +180,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             length: Option<i64>,
         }
 
-        if !self.allowed_node_types.contains(&SWHType::Content) {
+        if !self.allowed_node_types.contains(&NodeType::Content) {
             log::info!("Excluded");
             return Ok(());
         }
@@ -213,7 +213,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             sha1_git: Option<String>,
         }
 
-        if !self.allowed_node_types.contains(&SWHType::Content) {
+        if !self.allowed_node_types.contains(&NodeType::Content) {
             log::info!("Excluded");
             return Ok(());
         }
@@ -256,8 +256,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             author: Option<Box<[u8]>>,
         }
 
-        let read_rev = self.allowed_node_types.contains(&SWHType::Revision);
-        let read_rel = self.allowed_node_types.contains(&SWHType::Release);
+        let read_rev = self.allowed_node_types.contains(&NodeType::Revision);
+        let read_rel = self.allowed_node_types.contains(&NodeType::Release);
 
         if !read_rev && !read_rel {
             log::info!("Excluded");
@@ -314,7 +314,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             committer: Option<Box<[u8]>>,
         }
 
-        if !self.allowed_node_types.contains(&SWHType::Revision) {
+        if !self.allowed_node_types.contains(&NodeType::Revision) {
             log::info!("Excluded");
             return Ok(());
         }
@@ -360,9 +360,9 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             url: String,
         }
 
-        let read_rev = self.allowed_node_types.contains(&SWHType::Revision);
-        let read_rel = self.allowed_node_types.contains(&SWHType::Release);
-        let read_ori = self.allowed_node_types.contains(&SWHType::Origin);
+        let read_rev = self.allowed_node_types.contains(&NodeType::Revision);
+        let read_rel = self.allowed_node_types.contains(&NodeType::Release);
+        let read_ori = self.allowed_node_types.contains(&NodeType::Origin);
 
         if !read_rev && !read_rel && !read_ori {
             log::info!("Excluded");
@@ -419,7 +419,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             name: Box<[u8]>,
         }
 
-        if !self.allowed_node_types.contains(&SWHType::Release) {
+        if !self.allowed_node_types.contains(&NodeType::Release) {
             log::info!("Excluded");
             return Ok(());
         }

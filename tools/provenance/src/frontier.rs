@@ -10,7 +10,7 @@ use swh_graph::collections::PathStack;
 use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::*;
 use swh_graph::labels::FilenameId;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 
 /// Yielded by `dfs_with_path` to allow building a path as a `Vec<u8>` only when needed
 pub struct PathParts<'a> {
@@ -70,8 +70,8 @@ where
     let mut path_stack = PathStack::new();
 
     let root_is_directory = match graph.properties().node_type(root) {
-        SWHType::Content => false,
-        SWHType::Directory => true,
+        NodeType::Content => false,
+        NodeType::Directory => true,
         _ => panic!(
             "backward_dfs_with_path called started from {}",
             graph.properties().swhid(root)
@@ -103,7 +103,7 @@ where
                 visited.insert(pred);
 
                 match graph.properties().node_type(pred) {
-                    SWHType::Directory => {
+                    NodeType::Directory => {
                         // If the same subdir/file is present in a directory twice under the same name,
                         // pick any name to represent both.
                         let Some(first_label) = labels.into_iter().next() else {
@@ -122,7 +122,7 @@ where
                         path_stack.push_filename(first_label.filename_id());
                     }
 
-                    SWHType::Revision | SWHType::Release => {
+                    NodeType::Revision | NodeType::Release => {
                         on_revrel(
                             pred,
                             PathParts {
@@ -131,9 +131,9 @@ where
                             },
                         )?;
 
-                        if graph.properties().node_type(pred) == SWHType::Revision {
+                        if graph.properties().node_type(pred) == NodeType::Revision {
                             for predpred in graph.predecessors(pred) {
-                                if graph.properties().node_type(predpred) == SWHType::Release {
+                                if graph.properties().node_type(predpred) == NodeType::Release {
                                     on_revrel(
                                         predpred,
                                         PathParts {

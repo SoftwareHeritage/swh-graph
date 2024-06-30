@@ -5,7 +5,7 @@
 
 use thiserror::Error;
 
-use crate::SWHType;
+use crate::NodeType;
 
 /// Intermediary type that needs to be casted into one of the [`EdgeLabel`] variants
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -20,17 +20,17 @@ impl From<u64> for UntypedEdgeLabel {
 #[derive(Error, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EdgeTypingError {
     #[error("{src} -> {dst} arcs cannot have labels")]
-    NodeTypes { src: SWHType, dst: SWHType },
+    NodeTypes { src: NodeType, dst: NodeType },
 }
 
 impl UntypedEdgeLabel {
     pub fn for_edge_type(
         &self,
-        src: SWHType,
-        dst: SWHType,
+        src: NodeType,
+        dst: NodeType,
         transpose_graph: bool,
     ) -> Result<EdgeLabel, EdgeTypingError> {
-        use crate::SWHType::*;
+        use crate::NodeType::*;
 
         let (src, dst) = if transpose_graph {
             (dst, src)

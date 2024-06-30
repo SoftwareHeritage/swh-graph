@@ -16,7 +16,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::views::{Subgraph, Transposed};
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Algorithm {
@@ -113,7 +113,7 @@ impl ReadySet for Queue {
     }
 }
 
-fn toposort<R: ReadySet, G>(graph: G, node_types: &[SWHType]) -> Result<()>
+fn toposort<R: ReadySet, G>(graph: G, node_types: &[NodeType]) -> Result<()>
 where
     G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,

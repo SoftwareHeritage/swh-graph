@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use swh_graph::swhid;
-use swh_graph::{SWHType, SWHID};
+use swh_graph::{NodeType, SWHID};
 
 #[test]
 fn test_swhid_from_string_ok() -> Result<()> {
@@ -13,7 +13,7 @@ fn test_swhid_from_string_ok() -> Result<()> {
         SWHID::try_from("swh:1:rel:0000000000000000000000000000000000000010").unwrap(),
         SWHID {
             namespace_version: 1,
-            node_type: SWHType::Release,
+            node_type: NodeType::Release,
             hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10]
         }
     );
@@ -42,7 +42,7 @@ fn test_swhid_to_bytes() -> Result<()> {
     assert_eq!(
         <[u8; SWHID::BYTES_SIZE]>::from(SWHID {
             namespace_version: 1,
-            node_type: SWHType::Release,
+            node_type: NodeType::Release,
             hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10]
         }),
         [1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10]
@@ -57,7 +57,7 @@ fn test_swhid_from_bytes_ok() -> Result<()> {
             .unwrap(),
         SWHID {
             namespace_version: 1,
-            node_type: SWHType::Release,
+            node_type: NodeType::Release,
             hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10]
         }
     );
@@ -79,7 +79,7 @@ fn test_macro() -> Result<()> {
         swhid!(swh:1:cnt:0101010101010101010101010101010101010101),
         SWHID {
             namespace_version: 1,
-            node_type: SWHType::Content,
+            node_type: NodeType::Content,
             hash: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
         }
     );
@@ -88,7 +88,7 @@ fn test_macro() -> Result<()> {
         swhid!(swh:1:dir:0000000000000000000000000000000000000010),
         SWHID {
             namespace_version: 1,
-            node_type: SWHType::Directory,
+            node_type: NodeType::Directory,
             hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10]
         }
     );
@@ -97,7 +97,7 @@ fn test_macro() -> Result<()> {
         swhid!(swh:1:rev:0000000000000000000000000000000000000010),
         SWHID {
             namespace_version: 1,
-            node_type: SWHType::Revision,
+            node_type: NodeType::Revision,
             hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10]
         }
     );
@@ -106,7 +106,7 @@ fn test_macro() -> Result<()> {
         swhid!(swh:1:rel:0000000000000000000000000000000000000042),
         SWHID {
             namespace_version: 1,
-            node_type: SWHType::Release,
+            node_type: NodeType::Release,
             hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x42]
         }
     );
@@ -115,7 +115,7 @@ fn test_macro() -> Result<()> {
         swhid!(swh:1:snp:0000000000000000000000000000000000000042),
         SWHID {
             namespace_version: 1,
-            node_type: SWHType::Snapshot,
+            node_type: NodeType::Snapshot,
             hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x42]
         }
     );
@@ -124,7 +124,7 @@ fn test_macro() -> Result<()> {
         swhid!(swh:1:ori:0000000000000000000000000000000000000042),
         SWHID {
             namespace_version: 1,
-            node_type: SWHType::Origin,
+            node_type: NodeType::Origin,
             hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x42]
         }
     );

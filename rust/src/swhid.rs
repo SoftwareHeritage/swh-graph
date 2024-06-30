@@ -5,7 +5,7 @@
 
 use thiserror::Error;
 
-use crate::SWHType;
+use crate::NodeType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
@@ -25,7 +25,7 @@ pub struct SWHID {
     /// Namespace Version
     pub namespace_version: u8,
     /// Node type
-    pub node_type: SWHType,
+    pub node_type: NodeType,
     /// SHA1 has of the node
     pub hash: [u8; 20],
 }
@@ -71,7 +71,7 @@ impl TryFrom<[u8; SWHID::BYTES_SIZE]> for SWHID {
         if namespace_version != 1 {
             return Err(Version(namespace_version));
         }
-        let node_type = SWHType::try_from(value[1]).map_err(Type)?;
+        let node_type = NodeType::try_from(value[1]).map_err(Type)?;
         let mut hash = [0; 20];
         hash.copy_from_slice(&value[2..]);
         Ok(Self {
@@ -129,7 +129,7 @@ impl TryFrom<&str> for SWHID {
                 got: hex_hash.len(),
             });
         }
-        let node_type = SWHType::try_from(node_type).map_err(|e| Type(e.to_string()))?;
+        let node_type = NodeType::try_from(node_type).map_err(|e| Type(e.to_string()))?;
         let mut hash = [0u8; 20];
         faster_hex::hex_decode(hex_hash.as_bytes(), &mut hash)
             .map_err(|_| HashAlphabet(hex_hash.to_string()))?;
@@ -174,7 +174,7 @@ impl<'de> serde::Deserialize<'de> for SWHID {
 #[doc(hidden)]
 #[cfg(feature = "macros")]
 /// Helper function for [`swhid!()`]
-pub const fn __parse_swhid(node_type: crate::SWHType, hash: &'static str) -> SWHID {
+pub const fn __parse_swhid(node_type: crate::NodeType, hash: &'static str) -> SWHID {
     use const_panic::unwrap_ok;
     unwrap_ok!(match const_hex::const_decode_to_array(hash.as_bytes()) {
         Ok(hash) => Ok(SWHID {
@@ -213,42 +213,42 @@ macro_rules! swhid {
     (swh:1:cnt:$hash:literal) => {{
         const swhid: ::swh_graph::SWHID = {
             let hash: &str = stringify!($hash);
-            ::swh_graph::__parse_swhid(::swh_graph::SWHType::Content, hash)
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Content, hash)
         };
         swhid
     }};
     (swh:1:dir:$hash:literal) => {{
         const swhid: ::swh_graph::SWHID = {
             let hash: &str = stringify!($hash);
-            ::swh_graph::__parse_swhid(::swh_graph::SWHType::Directory, hash)
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Directory, hash)
         };
         swhid
     }};
     (swh:1:rev:$hash:literal) => {{
         const swhid: ::swh_graph::SWHID = {
             let hash: &str = stringify!($hash);
-            ::swh_graph::__parse_swhid(::swh_graph::SWHType::Revision, hash)
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Revision, hash)
         };
         swhid
     }};
     (swh:1:rel:$hash:literal) => {{
         const swhid: ::swh_graph::SWHID = {
             let hash: &str = stringify!($hash);
-            ::swh_graph::__parse_swhid(::swh_graph::SWHType::Release, hash)
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Release, hash)
         };
         swhid
     }};
     (swh:1:snp:$hash:literal) => {{
         const swhid: ::swh_graph::SWHID = {
             let hash: &str = stringify!($hash);
-            ::swh_graph::__parse_swhid(::swh_graph::SWHType::Snapshot, hash)
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Snapshot, hash)
         };
         swhid
     }};
     (swh:1:ori:$hash:literal) => {{
         const swhid: ::swh_graph::SWHID = {
             let hash: &str = stringify!($hash);
-            ::swh_graph::__parse_swhid(::swh_graph::SWHType::Origin, hash)
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Origin, hash)
         };
         swhid
     }};

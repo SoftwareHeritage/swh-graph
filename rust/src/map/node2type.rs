@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use crate::{OutOfBoundError, SWHType};
+use crate::{NodeType, OutOfBoundError};
 use anyhow::{Context, Result};
 use log::info;
 use mmap_rs::{Mmap, MmapFlags, MmapMut};
@@ -22,14 +22,14 @@ impl<B: AsRef<[usize]>> Node2Type<B> {
     /// # Safety
     /// This function is unsafe because it does not check that `node_id` is
     /// within bounds of the array if debug asserts are disabled
-    pub unsafe fn get_unchecked(&self, node_id: usize) -> SWHType {
-        SWHType::try_from(self.data.get_unchecked(node_id) as u8).unwrap()
+    pub unsafe fn get_unchecked(&self, node_id: usize) -> NodeType {
+        NodeType::try_from(self.data.get_unchecked(node_id) as u8).unwrap()
     }
 
     #[inline]
     /// Get the type of a node with id `node_id`
-    pub fn get(&self, node_id: usize) -> Result<SWHType, OutOfBoundError> {
-        SWHType::try_from(self.data.get(node_id) as u8).map_err(|_| OutOfBoundError {
+    pub fn get(&self, node_id: usize) -> Result<NodeType, OutOfBoundError> {
+        NodeType::try_from(self.data.get(node_id) as u8).map_err(|_| OutOfBoundError {
             index: node_id,
             len: self.data.len(),
         })
@@ -43,13 +43,13 @@ impl<B: AsRef<[usize]> + AsMut<[usize]>> Node2Type<B> {
     /// # Safety
     /// This function is unsafe because it does not check that `node_id` is
     /// within bounds of the array if debug asserts are disabled
-    pub unsafe fn set_unchecked(&mut self, node_id: usize, node_type: SWHType) {
+    pub unsafe fn set_unchecked(&mut self, node_id: usize, node_type: NodeType) {
         self.data.set_unchecked(node_id, node_type as usize);
     }
 
     #[inline]
     /// Set the type of a node with id `node_id`
-    pub fn set(&mut self, node_id: usize, node_type: SWHType) {
+    pub fn set(&mut self, node_id: usize, node_type: NodeType) {
         self.data.set(node_id, node_type as usize);
     }
 }
@@ -78,7 +78,7 @@ impl Node2Type<UsizeMmap<MmapMut>> {
         // compute the size of the file we are creating in bytes;
         // and make it a multiple of 8 bytes so BitFieldVec can
         // read u64 words from it
-        let file_len = ((num_nodes * SWHType::BITWIDTH) as u64).div_ceil(64) * 8;
+        let file_len = ((num_nodes * NodeType::BITWIDTH) as u64).div_ceil(64) * 8;
         info!("The resulting file will be {} bytes long.", file_len);
 
         // create the file
@@ -109,7 +109,7 @@ impl Node2Type<UsizeMmap<MmapMut>> {
         };
         // use the BitFieldVec over the mmap
         let mmap = UsizeMmap(mmap);
-        let node2type = unsafe { BitFieldVec::from_raw_parts(mmap, SWHType::BITWIDTH, num_nodes) };
+        let node2type = unsafe { BitFieldVec::from_raw_parts(mmap, NodeType::BITWIDTH, num_nodes) };
 
         Ok(Self { data: node2type })
     }
@@ -137,7 +137,7 @@ impl Node2Type<UsizeMmap<MmapMut>> {
 
         // use the BitFieldVec over the mmap
         let data = UsizeMmap(data);
-        let node2type = unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes) };
+        let node2type = unsafe { BitFieldVec::from_raw_parts(data, NodeType::BITWIDTH, num_nodes) };
         Ok(Self { data: node2type })
     }
 }
@@ -150,7 +150,7 @@ impl Node2Type<UsizeMmap<Mmap>> {
             .metadata()
             .with_context(|| format!("Could not stat {}", path.display()))?
             .len();
-        let expected_file_len = ((num_nodes * SWHType::BITWIDTH).div_ceil(64) * 8) as u64;
+        let expected_file_len = ((num_nodes * NodeType::BITWIDTH).div_ceil(64) * 8) as u64;
         assert_eq!(
             file_len,
             expected_file_len,
@@ -176,18 +176,18 @@ impl Node2Type<UsizeMmap<Mmap>> {
 
         // use the BitFieldVec over the mmap
         let data = UsizeMmap(data);
-        let node2type = unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes) };
+        let node2type = unsafe { BitFieldVec::from_raw_parts(data, NodeType::BITWIDTH, num_nodes) };
         Ok(Self { data: node2type })
     }
 }
 
 impl Node2Type<UsizeMmap<Vec<u8>>> {
-    pub fn new_from_iter(types: impl ExactSizeIterator<Item = SWHType>) -> Self {
+    pub fn new_from_iter(types: impl ExactSizeIterator<Item = NodeType>) -> Self {
         let num_nodes = types.len();
-        let file_len = ((num_nodes * SWHType::BITWIDTH) as u64).div_ceil(64) * 8;
+        let file_len = ((num_nodes * NodeType::BITWIDTH) as u64).div_ceil(64) * 8;
         let file_len = file_len.try_into().expect("num_nodes overflowed usize");
         let data = UsizeMmap(vec![0; file_len]);
-        let data = unsafe { BitFieldVec::from_raw_parts(data, SWHType::BITWIDTH, num_nodes) };
+        let data = unsafe { BitFieldVec::from_raw_parts(data, NodeType::BITWIDTH, num_nodes) };
         let mut node2type = Node2Type { data };
         for (i, type_) in types.enumerate() {
             node2type.set(i, type_);

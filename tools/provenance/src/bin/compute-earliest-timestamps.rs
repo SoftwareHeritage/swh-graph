@@ -29,7 +29,7 @@ use rayon::prelude::*;
 use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::SWHType;
+use swh_graph::NodeType;
 
 use swh_graph_provenance::filters::{is_root_revrel, NodeFilter};
 
@@ -166,7 +166,7 @@ where
 
     while let Some(node) = stack.pop() {
         match graph.properties().node_type(node) {
-            SWHType::Content | SWHType::Directory => {
+            NodeType::Content | NodeType::Directory => {
                 timestamps[node].fetch_min(revrel_timestamp, Ordering::Relaxed);
             }
             _ => (),
@@ -174,7 +174,7 @@ where
 
         for succ in graph.successors(node) {
             match graph.properties().node_type(succ) {
-                SWHType::Directory | SWHType::Content => {
+                NodeType::Directory | NodeType::Content => {
                     if !visited.contains(succ) {
                         stack.push(succ);
                         visited.insert(succ);

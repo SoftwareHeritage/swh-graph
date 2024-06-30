@@ -9,7 +9,7 @@
 ///
 /// # Reference
 /// - <https://docs.softwareheritage.org/devel/swh-model/data-model.html>
-pub enum SWHType {
+pub enum NodeType {
     Content = 0,
     /// a list of named directory entries, each of which pointing to other
     /// artifacts, usually file contents or sub-directories. Directory entries
@@ -64,7 +64,7 @@ pub enum SWHType {
     Snapshot = 5,
 }
 
-impl<'a> TryFrom<&'a [u8]> for SWHType {
+impl<'a> TryFrom<&'a [u8]> for NodeType {
     type Error = &'a [u8];
     fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -79,7 +79,7 @@ impl<'a> TryFrom<&'a [u8]> for SWHType {
     }
 }
 
-impl<'a> TryFrom<&'a str> for SWHType {
+impl<'a> TryFrom<&'a str> for NodeType {
     type Error = &'a str;
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -94,7 +94,7 @@ impl<'a> TryFrom<&'a str> for SWHType {
     }
 }
 
-impl TryFrom<u8> for SWHType {
+impl TryFrom<u8> for NodeType {
     type Error = u8;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -109,7 +109,7 @@ impl TryFrom<u8> for SWHType {
     }
 }
 
-impl SWHType {
+impl NodeType {
     /// Get the number of possible types.
     ///
     /// To avoid having to update this when adding a new type
@@ -137,20 +137,20 @@ impl SWHType {
         }
     }
 
-    /// Returns a vector containing all possible `SWHType` values.
+    /// Returns a vector containing all possible `NodeType` values.
     pub fn all() -> Vec<Self> {
         vec![
-            SWHType::Content,
-            SWHType::Directory,
-            SWHType::Origin,
-            SWHType::Release,
-            SWHType::Revision,
-            SWHType::Snapshot,
+            NodeType::Content,
+            NodeType::Directory,
+            NodeType::Origin,
+            NodeType::Release,
+            NodeType::Revision,
+            NodeType::Snapshot,
         ]
     }
 }
 
-impl core::fmt::Display for SWHType {
+impl core::fmt::Display for NodeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.to_str())
     }

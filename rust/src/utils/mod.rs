@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 
-use crate::SWHType;
+use crate::NodeType;
 
 #[cfg(feature = "dataset-writer")]
 pub mod dataset_writer;
@@ -49,11 +49,11 @@ pub fn suffix_path<P: AsRef<Path>, S: AsRef<std::ffi::OsStr>>(path: P, suffix: S
     path.into()
 }
 
-/// Given a string like `*` or `cnt,dir,rev,rel,snp,ori`, returns a list of `SWHType`
+/// Given a string like `*` or `cnt,dir,rev,rel,snp,ori`, returns a list of `NodeType`
 /// matching the string.
-pub fn parse_allowed_node_types(s: &str) -> Result<Vec<SWHType>> {
+pub fn parse_allowed_node_types(s: &str) -> Result<Vec<NodeType>> {
     if s == "*" {
-        Ok(SWHType::all())
+        Ok(NodeType::all())
     } else {
         let mut types = Vec::new();
         for type_ in s.split(',') {

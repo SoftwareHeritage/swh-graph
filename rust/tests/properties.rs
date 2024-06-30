@@ -10,7 +10,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::properties::NodeIdFromSwhidError;
 use swh_graph::AllSwhGraphProperties;
-use swh_graph::{OutOfBoundError, SWHType, StrSWHIDDeserializationError, SWHID};
+use swh_graph::{NodeType, OutOfBoundError, StrSWHIDDeserializationError, SWHID};
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
@@ -68,7 +68,7 @@ fn test_node_id() -> Result<()> {
 
     let unknown_swhid = SWHID {
         namespace_version: 1,
-        node_type: SWHType::Content,
+        node_type: NodeType::Content,
         hash: [
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x42,
         ],
@@ -118,7 +118,7 @@ fn test_node_id_from_string_swhid() -> Result<()> {
 
     let unknown_swhid = SWHID {
         namespace_version: 1,
-        node_type: SWHType::Content,
+        node_type: NodeType::Content,
         hash: [
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x42,
         ],

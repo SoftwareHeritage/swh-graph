@@ -16,11 +16,11 @@ use rayon::prelude::*;
 
 use super::orc::{get_dataset_readers, iter_arrow};
 use super::TextSwhid;
-use crate::SWHType;
+use crate::NodeType;
 
 pub fn iter_arcs(
     dataset_dir: &PathBuf,
-    allowed_node_types: &[SWHType],
+    allowed_node_types: &[NodeType],
 ) -> Result<impl ParallelIterator<Item = (TextSwhid, TextSwhid)>> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
@@ -33,32 +33,32 @@ pub fn iter_arcs(
     Ok([]
         .into_par_iter()
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "directory_entry", SWHType::Directory)?
+            maybe_get_dataset_readers(dataset_dir, "directory_entry", NodeType::Directory)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_dir_entry),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "origin_visit_status", SWHType::Origin)?
+            maybe_get_dataset_readers(dataset_dir, "origin_visit_status", NodeType::Origin)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_ovs),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "release", SWHType::Release)?
+            maybe_get_dataset_readers(dataset_dir, "release", NodeType::Release)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_rel),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "revision", SWHType::Revision)?
+            maybe_get_dataset_readers(dataset_dir, "revision", NodeType::Revision)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_rev),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "revision_history", SWHType::Revision)?
+            maybe_get_dataset_readers(dataset_dir, "revision_history", NodeType::Revision)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_rev_history),
         )
         .chain(
-            maybe_get_dataset_readers(dataset_dir, "snapshot_branch", SWHType::Snapshot)?
+            maybe_get_dataset_readers(dataset_dir, "snapshot_branch", NodeType::Snapshot)?
                 .into_par_iter()
                 .flat_map_iter(iter_arcs_from_snp_branch),
         ))
