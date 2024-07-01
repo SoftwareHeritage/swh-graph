@@ -39,6 +39,7 @@ rename the file at the end).
 
 from __future__ import annotations
 
+import atexit
 import dataclasses
 import functools
 import logging
@@ -183,6 +184,12 @@ def create_cgroup(
     except OSError as e:
         logger.warning("Failed to create %s: %s", new_cgroup_path, e)
         return None
+
+    def cleanup():
+        # Clean up the base cgroup we created
+        new_cgroup_path.rmdir()
+
+    atexit.register(cleanup)
 
     return new_cgroup_path
 
