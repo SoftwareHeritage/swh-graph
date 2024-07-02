@@ -11,7 +11,8 @@ use super::proto;
 
 /// Parses `*`, `cnt`, `dir`, `rev`, `rel`, `snp`, `ori` to [`NodeType`]
 fn parse_node_type(type_name: &str) -> Result<NodeType, tonic::Status> {
-    NodeType::try_from(type_name)
+    type_name
+        .parse()
         .map_err(|_| tonic::Status::invalid_argument(format!("Invalid node type: {}", type_name)))
 }
 
@@ -34,13 +35,13 @@ fn parse_arc_type(type_name: &str) -> Result<ArcType, tonic::Status> {
     };
     let src_type = match src_type_name {
         "*" => None,
-        _ => Some(NodeType::try_from(src_type_name).map_err(|_| {
+        _ => Some(src_type_name.parse().map_err(|_| {
             tonic::Status::invalid_argument(format!("Invalid node type: {}", src_type_name))
         })?),
     };
     let dst_type = match dst_type_name {
         "*" => None,
-        _ => Some(NodeType::try_from(dst_type_name).map_err(|_| {
+        _ => Some(dst_type_name.parse().map_err(|_| {
             tonic::Status::invalid_argument(format!("Invalid node type: {}", dst_type_name))
         })?),
     };

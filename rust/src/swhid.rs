@@ -129,7 +129,9 @@ impl TryFrom<&str> for SWHID {
                 got: hex_hash.len(),
             });
         }
-        let node_type = NodeType::try_from(node_type).map_err(|e| Type(e.to_string()))?;
+        let node_type = node_type
+            .parse::<NodeType>()
+            .map_err(|e| Type(e.to_string()))?;
         let mut hash = [0u8; 20];
         faster_hex::hex_decode(hex_hash.as_bytes(), &mut hash)
             .map_err(|_| HashAlphabet(hex_hash.to_string()))?;

@@ -59,7 +59,7 @@ pub fn parse_allowed_node_types(s: &str) -> Result<Vec<NodeType>> {
         for type_ in s.split(',') {
             types.push(
                 type_
-                    .try_into()
+                    .parse()
                     .map_err(|s| anyhow!("Could not parse --allowed-node-types {s}"))?,
             );
         }

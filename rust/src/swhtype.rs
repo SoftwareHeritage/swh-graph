@@ -1,7 +1,9 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
+
+use std::str::FromStr;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -79,17 +81,17 @@ impl<'a> TryFrom<&'a [u8]> for NodeType {
     }
 }
 
-impl<'a> TryFrom<&'a str> for NodeType {
-    type Error = &'a str;
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        Ok(match value {
+impl FromStr for NodeType {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
             "cnt" => Self::Content,
             "dir" => Self::Directory,
             "ori" => Self::Origin,
             "rel" => Self::Release,
             "rev" => Self::Revision,
             "snp" => Self::Snapshot,
-            _ => return Err(value),
+            _ => return Err(s.to_owned()),
         })
     }
 }
