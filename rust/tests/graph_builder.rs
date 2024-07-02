@@ -11,7 +11,8 @@ use anyhow::{Context, Result};
 
 use swh_graph::graph::*;
 use swh_graph::graph_builder::GraphBuilder;
-use swh_graph::labels::{Permission, Visit, VisitStatus};
+use swh_graph::labels::{FilenameId, Permission, Visit, VisitStatus};
+use swh_graph::properties::LabelIdFromNameError;
 use swh_graph::swhid;
 
 #[test]
@@ -190,6 +191,20 @@ fn test_dir_labels() -> Result<()> {
         ]
     );
 
+    assert_eq!(
+        graph.properties().label_name_id(b"run.sh"),
+        Ok(FilenameId(0))
+    );
+    assert_eq!(
+        graph.properties().label_name_id(b"test.c"),
+        Ok(FilenameId(1))
+    );
+    assert_eq!(
+        graph.properties().label_name_id(b"tests"),
+        Ok(FilenameId(2))
+    );
+    assert!(graph.properties().label_name_id(b"non-existent").is_err());
+
     Ok(())
 }
 
@@ -250,6 +265,16 @@ fn test_duplicate_labels() -> Result<()> {
             vec![(Some(Permission::ExecutableContent), b"run.sh".into())]
         ),]
     );
+
+    assert_eq!(
+        graph.properties().label_name_id(b"run.sh"),
+        Ok(FilenameId(0))
+    );
+    assert_eq!(
+        graph.properties().label_name_id(b"tests"),
+        Ok(FilenameId(1))
+    );
+    assert!(graph.properties().label_name_id(b"non-existent").is_err());
 
     Ok(())
 }
@@ -373,6 +398,16 @@ fn test_snp_labels() -> Result<()> {
             .collect::<Vec<_>>(),
         vec![(a, vec![b"refs/heads/feature/foo".into()]),]
     );
+
+    assert_eq!(
+        graph.properties().label_name_id(b"refs/heads/feature/foo"),
+        Ok(FilenameId(0))
+    );
+    assert_eq!(
+        graph.properties().label_name_id(b"refs/heads/main"),
+        Ok(FilenameId(1))
+    );
+    assert!(graph.properties().label_name_id(b"non-existent").is_err());
 
     Ok(())
 }

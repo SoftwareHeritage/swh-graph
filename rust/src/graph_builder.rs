@@ -23,7 +23,7 @@ pub struct GraphBuilder {
     name_to_id: HashMap<Vec<u8>, u64>,
     persons: HashMap<Vec<u8>, u32>,
 
-    arcs: Vec<(NodeId, NodeId, Option<u64>)>,
+    arcs: Vec<(NodeId, NodeId, Option<EdgeLabel>)>,
 
     swhids: Vec<SWHID>,
     is_skipped_content: Vec<bool>,
@@ -119,8 +119,7 @@ impl GraphBuilder {
 
     /// Adds a labeled arc to the graph
     pub fn l_arc<L: Into<EdgeLabel>>(&mut self, src: NodeId, dst: NodeId, label: L) {
-        self.arcs
-            .push((src, dst, Some(UntypedEdgeLabel::from(label.into()).0)));
+        self.arcs.push((src, dst, Some(label.into())));
     }
 
     #[allow(clippy::type_complexity)]
@@ -154,10 +153,45 @@ impl GraphBuilder {
             );
         }
 
+        let mut label_names_with_index: Vec<_> =
+            self.label_names.iter().cloned().enumerate().collect();
+        label_names_with_index.sort_unstable_by_key(|(_index, label_name)| label_name.clone());
+        let mut label_permutation = vec![0; label_names_with_index.len()];
+        for (new_index, (old_index, _)) in label_names_with_index.iter().enumerate() {
+            label_permutation[*old_index] = new_index;
+        }
+        let label_names: Vec<_> = label_names_with_index
+            .into_iter()
+            .map(|(_index, label_name)| label_name)
+            .collect();
+
         let arcs: Vec<_> = self
             .arcs
             .iter()
-            .map(|(src, dst, label)| (*src, *dst, *label))
+            .map(|(src, dst, label)| {
+                let label = label.map(|label| {
+                    UntypedEdgeLabel::from(match label {
+                        EdgeLabel::Branch(branch) => EdgeLabel::Branch(
+                            Branch::new(FilenameId(
+                                label_permutation[branch.filename_id().0 as usize] as u64,
+                            ))
+                            .expect("Label name permutation overflowed"),
+                        ),
+                        EdgeLabel::DirEntry(entry) => EdgeLabel::DirEntry(
+                            DirEntry::new(
+                                entry.permission().expect("invalid permission"),
+                                FilenameId(
+                                    label_permutation[entry.filename_id().0 as usize] as u64,
+                                ),
+                            )
+                            .expect("Label name permutation overflowed"),
+                        ),
+                        EdgeLabel::Visit(visit) => EdgeLabel::Visit(visit),
+                    })
+                    .0
+                });
+                (*src, *dst, label)
+            })
             .collect();
 
         let backward_arcs: Vec<(NodeId, NodeId, Option<u64>)> = arcs
@@ -187,7 +221,7 @@ impl GraphBuilder {
                 )
                 .context("Could not join VecContents")?
                 .with_label_names(
-                    properties::VecLabelNames::new(self.label_names.clone())
+                    properties::VecLabelNames::new(label_names.clone())
                         .context("Could not build VecLabelNames")?,
                 )
                 .context("Could not join maps")?
