@@ -155,3 +155,11 @@ impl core::fmt::Display for NodeType {
         f.write_str(self.to_str())
     }
 }
+
+/// Type of an arc between two nodes in the Software Heritage graph, as a pair
+/// of type constraints on the source and destination arc. When one of the two
+/// is None, it means "any node type accepted".
+pub struct ArcType {
+    pub src: Option<NodeType>,
+    pub dst: Option<NodeType>,
+}

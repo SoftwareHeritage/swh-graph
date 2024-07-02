@@ -5,7 +5,7 @@
 
 use crate::graph::{SwhForwardGraph, SwhGraphWithProperties};
 use crate::properties;
-use crate::NodeType;
+use crate::{ArcType, NodeType};
 
 use super::proto;
 
@@ -18,7 +18,7 @@ fn parse_node_type(type_name: &str) -> Result<NodeType, tonic::Status> {
 /// Parses comma -separated `src:dst` pairs of node types (see [`parse_node_type`]).
 ///
 /// Returns `*` if the node type is `*`
-fn parse_arc_type(type_name: &str) -> Result<(Option<NodeType>, Option<NodeType>), tonic::Status> {
+fn parse_arc_type(type_name: &str) -> Result<ArcType, tonic::Status> {
     let mut splits = type_name.splitn(2, ':');
     let Some(src_type_name) = splits.next() else {
         return Err(tonic::Status::invalid_argument(format!(
@@ -44,7 +44,10 @@ fn parse_arc_type(type_name: &str) -> Result<(Option<NodeType>, Option<NodeType>
             tonic::Status::invalid_argument(format!("Invalid node type: {}", dst_type_name))
         })?),
     };
-    Ok((src_type, dst_type))
+    Ok(ArcType {
+        src: src_type,
+        dst: dst_type,
+    })
 }
 
 #[derive(Clone)]
@@ -138,7 +141,7 @@ where
                         .map(parse_arc_type)
                         .collect::<Result<Vec<_>, _>>()? // Fold errors
                         .into_iter()
-                        .map(|(src, dst)| match (src, dst) {
+                        .map(|ArcType { src, dst }| match (src, dst) {
                             (None, None) => u64::MAX, // arc '*:*' -> set all bits
                             (None, Some(dst)) => NodeType::all()
                                 .into_iter()

@@ -13,7 +13,7 @@ pub use swhid::__parse_swhid;
 pub use swhid::{StrSWHIDDeserializationError, SWHID};
 
 mod swhtype;
-pub use swhtype::NodeType;
+pub use swhtype::{ArcType, NodeType};
 
 pub mod algos;
 pub mod collections;
