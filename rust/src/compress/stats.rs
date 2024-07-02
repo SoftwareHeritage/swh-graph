@@ -125,10 +125,10 @@ pub fn count_edge_types(
         ))
 }
 
-fn for_each_edge<T: Send, F, R: ChunkReader + Send>(reader_builder: ArrowReaderBuilder<R>, mut f: F)
+fn for_each_edge<T, F, R: ChunkReader + Send>(reader_builder: ArrowReaderBuilder<R>, mut f: F)
 where
     F: FnMut(T) + Send + Sync,
-    T: ArRowDeserialize + ArRowStruct,
+    T: ArRowDeserialize + ArRowStruct + Send,
 {
     iter_arrow(reader_builder, move |record: T| -> [(); 0] {
         f(record);

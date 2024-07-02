@@ -96,13 +96,13 @@ pub fn iter_swhids(
         ))
 }
 
-fn map_swhids<R: ChunkReader + Send, T: Send, F>(
+fn map_swhids<R: ChunkReader + Send, T, F>(
     reader_builder: ArrowReaderBuilder<R>,
     f: F,
 ) -> impl ParallelIterator<Item = TextSwhid>
 where
     F: Fn(T) -> Option<String> + Send + Sync,
-    T: ArRowDeserialize + ArRowStruct,
+    T: ArRowDeserialize + ArRowStruct + Send,
 {
     par_iter_arrow(reader_builder, move |record: T| {
         f(record).map(|swhid| swhid.as_bytes().try_into().unwrap())

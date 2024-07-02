@@ -66,7 +66,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             .unwrap()
     }
 
-    fn set<Value>(&self, vector: &Vec<Value>, swhid: &str, value: Value) {
+    fn set<Value>(&self, vector: &[Value], swhid: &str, value: Value) {
         unsafe {
             vector
                 .as_ptr()

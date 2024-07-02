@@ -67,14 +67,14 @@ where
     })
 }
 
-pub(crate) fn par_iter_arrow<R: ChunkReader + Send, T: Send, IntoIterU, U: Send, F>(
+pub(crate) fn par_iter_arrow<R: ChunkReader + Send, T, IntoIterU, U: Send, F>(
     reader_builder: ArrowReaderBuilder<R>,
     f: F,
 ) -> impl ParallelIterator<Item = U>
 where
     F: Fn(T) -> IntoIterU + Send + Sync,
     IntoIterU: IntoIterator<Item = U> + Send + Sync,
-    T: ArRowDeserialize + ArRowStruct,
+    T: ArRowDeserialize + ArRowStruct + Send,
 {
     let field_names = <T>::columns();
     let projection = ProjectionMask::named_roots(

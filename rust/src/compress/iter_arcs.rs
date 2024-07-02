@@ -64,13 +64,13 @@ pub fn iter_arcs(
         ))
 }
 
-fn map_arcs<R: ChunkReader + Send, T: Send, F>(
+fn map_arcs<R: ChunkReader + Send, T, F>(
     reader_builder: ArrowReaderBuilder<R>,
     f: F,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid)>
 where
     F: Fn(T) -> Option<(String, String)> + Send + Sync,
-    T: ArRowDeserialize + ArRowStruct,
+    T: ArRowDeserialize + ArRowStruct + Send,
 {
     iter_arrow(reader_builder, move |record: T| {
         f(record).map(|(src_swhid, dst_swhid)| {

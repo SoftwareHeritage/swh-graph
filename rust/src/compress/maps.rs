@@ -32,7 +32,7 @@ pub fn ordered_swhids<MPHF: SwhidMphf + Sync + Send, P: Permutation + Sync + Sen
     pl.expected_updates = Some(num_nodes);
     pl.start("Computing node2swhid");
 
-    par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(pl))).for_each(|line: [u8; 50]| {
+    par_iter_lines_from_dir(swhids_dir, Arc::new(Mutex::new(pl))).for_each(|line: [u8; 50]| {
         let node_id = order
             .get(mph.hash_str_array(&line).expect("Failed to hash line"))
             .unwrap();

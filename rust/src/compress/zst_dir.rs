@@ -109,12 +109,12 @@ where
 /// Yields textual swhids from a directory of newline-separated ZSTD-compressed files
 ///
 /// Files are read in alphabetical order of their name.
-pub fn par_iter_lines_from_dir<'a, Line: Send>(
+pub fn par_iter_lines_from_dir<'a, Line>(
     path: &'a Path,
     pl: Arc<Mutex<ProgressLogger<'a>>>,
 ) -> impl ParallelIterator<Item = Line> + 'a
 where
-    Line: TryFrom<Vec<u8>>,
+    Line: TryFrom<Vec<u8>> + Send,
     <Line as TryFrom<Vec<u8>>>::Error: std::fmt::Debug,
 {
     let mut file_paths: Vec<_> = std::fs::read_dir(path)

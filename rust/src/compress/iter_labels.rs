@@ -42,13 +42,13 @@ pub fn iter_labels(
         ))
 }
 
-fn map_labels<T: Send, F, R: ChunkReader + Send>(
+fn map_labels<T, F, R: ChunkReader + Send>(
     reader_builder: ArrowReaderBuilder<R>,
     f: F,
 ) -> impl ParallelIterator<Item = Box<[u8]>>
 where
     F: Fn(T) -> Option<Box<[u8]>> + Send + Sync,
-    T: ArRowDeserialize + ArRowStruct,
+    T: ArRowDeserialize + ArRowStruct + Send,
 {
     par_iter_arrow(reader_builder, f)
 }
