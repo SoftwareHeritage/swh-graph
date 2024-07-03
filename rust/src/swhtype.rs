@@ -3,6 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::collections::HashSet;
 use std::str::FromStr;
 
 #[repr(u8)]
@@ -83,6 +84,15 @@ impl<'a> TryFrom<&'a [u8]> for NodeType {
 
 impl FromStr for NodeType {
     type Err = String;
+
+    /// # Examples
+    ///
+    /// ```
+    /// # use swh_graph::NodeType;
+    ///
+    /// assert_eq!("dir".parse::<NodeType>(), Ok(NodeType::Directory));
+    /// assert!(matches!("xyz".parse::<NodeType>(), Err(_)));
+    /// ```
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "cnt" => Self::Content,
@@ -140,6 +150,7 @@ impl NodeType {
     }
 
     /// Returns a vector containing all possible `NodeType` values.
+    // TODO make this return an HashSet instead, as the order does not matter
     pub fn all() -> Vec<Self> {
         vec![
             NodeType::Content,
@@ -158,9 +169,111 @@ impl core::fmt::Display for NodeType {
     }
 }
 
+/// Constraint on allowed node types: either `None`, meaning "any node
+/// allowed"; or `Some(type_set)`, meaning "only nodes of selected types
+/// allowed".
+#[derive(Debug, Default, PartialEq)]
+pub struct NodeConstraint(pub Option<HashSet<NodeType>>);
+
+impl NodeConstraint {
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::collections::HashSet;
+    /// # use swh_graph::{NodeConstraint, NodeType};
+    ///
+    /// let only_dirs: NodeConstraint = "dir".parse().unwrap();
+    /// let history_nodes: NodeConstraint = "rel,rev".parse().unwrap();
+    /// let all_nodes: NodeConstraint = "*".parse().unwrap();
+    ///
+    /// assert!(only_dirs.matches(NodeType::Directory));
+    /// assert!(!only_dirs.matches(NodeType::Content));
+    /// assert!(history_nodes.matches(NodeType::Release));
+    /// assert!(history_nodes.matches(NodeType::Revision));
+    /// assert!(!history_nodes.matches(NodeType::Origin));
+    /// for node_type in NodeType::all() {
+    ///     assert!(all_nodes.matches(node_type));
+    /// }
+    /// ```
+    pub fn matches(&self, node_type: NodeType) -> bool {
+        match (&self.0, node_type) {
+            (None, _) => true,
+            (Some(types), actual_type) => types.contains(&actual_type),
+        }
+    }
+
+    pub fn to_vec(&self) -> Vec<NodeType> {
+        match &self.0 {
+            None => NodeType::all(),
+            Some(node_types) => node_types.iter().copied().collect(),
+        }
+    }
+}
+
+impl FromStr for NodeConstraint {
+    type Err = String;
+
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::collections::HashSet;
+    /// # use swh_graph::{NodeConstraint, NodeType};
+    ///
+    /// assert_eq!("*".parse::<NodeConstraint>(), Ok(NodeConstraint(None)));
+    /// assert_eq!(
+    ///     "rel".parse::<NodeConstraint>(),
+    ///     Ok(NodeConstraint(Some(HashSet::from([NodeType::Release]))))
+    /// );
+    /// assert_eq!(
+    ///     "dir,cnt".parse::<NodeConstraint>(),
+    ///     Ok(NodeConstraint(Some(HashSet::from([NodeType::Content, NodeType::Directory]))))
+    /// );
+    /// assert!(matches!("xyz".parse::<NodeConstraint>(), Err(_)));
+    /// ```
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "*" {
+            Ok(NodeConstraint(None))
+        } else {
+            Ok(NodeConstraint(Some(
+                s.split(',')
+                    .map(|s| s.parse::<NodeType>())
+                    .collect::<Result<HashSet<NodeType>, _>>()?,
+            )))
+        }
+    }
+}
+
+impl core::fmt::Display for NodeConstraint {
+    /// ```
+    /// # use std::collections::HashSet;
+    /// # use swh_graph::{NodeConstraint, NodeType};
+    ///
+    /// assert_eq!(format!("{}", NodeConstraint(None)), "*");
+    /// assert_eq!(
+    ///     format!("{}", NodeConstraint(Some(HashSet::from([NodeType::Content, NodeType::Directory])))),
+    ///     "cnt,dir"
+    /// );
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(node_types) = &self.0 {
+            let mut type_strings = node_types
+                .iter()
+                .map(|t| format!("{}", t))
+                .collect::<Vec<String>>();
+            type_strings.sort();
+            write!(f, "{}", type_strings.join(","))?;
+        } else {
+            write!(f, "*")?;
+        }
+        Ok(())
+    }
+}
+
 /// Type of an arc between two nodes in the Software Heritage graph, as a pair
 /// of type constraints on the source and destination arc. When one of the two
 /// is None, it means "any node type accepted".
+// TODO remove Options from ArcType and create a (more  expressive, similar to
+// NodeConstraint) type called ArcConstraint
 pub struct ArcType {
     pub src: Option<NodeType>,
     pub dst: Option<NodeType>,

@@ -51,6 +51,7 @@ pub fn suffix_path<P: AsRef<Path>, S: AsRef<std::ffi::OsStr>>(path: P, suffix: S
 
 /// Given a string like `*` or `cnt,dir,rev,rel,snp,ori`, returns a list of `NodeType`
 /// matching the string.
+// TODO make this return a NodeConstraint instead
 pub fn parse_allowed_node_types(s: &str) -> Result<Vec<NodeType>> {
     if s == "*" {
         Ok(NodeType::all())
