@@ -5,7 +5,7 @@
 
 use super::proto;
 use crate::graph::{SwhGraphWithProperties, SwhLabeledForwardGraph};
-use crate::labels::{EdgeLabel, UntypedEdgeLabel, VisitStatus};
+use crate::labels::{EdgeLabel, VisitStatus};
 use crate::properties;
 use crate::NodeType;
 
@@ -136,25 +136,17 @@ where
     pub fn build_node(&self, node_id: usize) -> proto::Node {
         let successors: Vec<_> = self.if_mask(SUCCESSOR, || {
             if self.bitmask & SUCCESSOR_LABEL != 0 {
-                let node_type = self.graph.properties().node_type(node_id);
-
                 self.graph
                     .labeled_successors(node_id)
                     .into_iter()
-                    .map(|(succ, labels)| {
-                        // ori->snp arcs (and snp->ori in the transposed graph) are labeled
-                        // with a visit timestamp
-                        // dir->* arcs (and *->dir in the transposed graph) are labeled with
-                        let succ_type = self.graph.properties().node_type(succ);
-                        proto::Successor {
-                            swhid: self.if_mask(SUCCESSOR_SWHID, || {
-                                Some(self.graph.properties().swhid(succ).to_string())
-                            }),
-                            label: labels
-                                .into_iter()
-                                .map(|label| self.build_edge_label(node_type, succ_type, label))
-                                .collect(),
-                        }
+                    .map(|(succ, labels)| proto::Successor {
+                        swhid: self.if_mask(SUCCESSOR_SWHID, || {
+                            Some(self.graph.properties().swhid(succ).to_string())
+                        }),
+                        label: labels
+                            .into_iter()
+                            .map(|label| self.build_edge_label(label))
+                            .collect(),
                     })
                     .collect()
             } else {
@@ -197,14 +189,9 @@ where
         }
     }
 
-    fn build_edge_label(
-        &self,
-        src: NodeType,
-        dst: NodeType,
-        label: UntypedEdgeLabel,
-    ) -> proto::EdgeLabel {
-        match label.for_edge_type(src, dst, self.graph.is_transposed()) {
-            Ok(EdgeLabel::Branch(label)) => proto::EdgeLabel {
+    fn build_edge_label(&self, label: EdgeLabel) -> proto::EdgeLabel {
+        match label {
+            EdgeLabel::Branch(label) => proto::EdgeLabel {
                 name: self.if_mask(SUCCESSOR_LABEL_NAME, || {
                     Some(self.graph.properties().label_name(label.filename_id()))
                 }),
@@ -212,7 +199,7 @@ where
                 visit_timestamp: None,
                 is_full_visit: None,
             },
-            Ok(EdgeLabel::DirEntry(label)) => proto::EdgeLabel {
+            EdgeLabel::DirEntry(label) => proto::EdgeLabel {
                 name: self.if_mask(SUCCESSOR_LABEL_NAME, || {
                     Some(self.graph.properties().label_name(label.filename_id()))
                 }),
@@ -228,7 +215,7 @@ where
                 visit_timestamp: None,
                 is_full_visit: None,
             },
-            Ok(EdgeLabel::Visit(label)) => proto::EdgeLabel {
+            EdgeLabel::Visit(label) => proto::EdgeLabel {
                 name: None,
                 permission: None,
                 visit_timestamp: self.if_mask(SUCCESSOR_LABEL_VISIT_TS, || Some(label.timestamp())),
@@ -239,7 +226,6 @@ where
                     })
                 }),
             },
-            Err(e @ crate::labels::EdgeTypingError::NodeTypes { .. }) => panic!("{}", e),
         }
     }
 

@@ -131,7 +131,7 @@ as this example uses a directory):
 # use std::path::PathBuf;
 # use swh_graph::graph::{SwhForwardGraph, SwhLabeledForwardGraph, SwhGraphWithProperties};
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::labels::DirEntry;
+use swh_graph::labels::{EdgeLabel};
 
 let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
     .expect("Could not load graph")
@@ -147,16 +147,17 @@ let node_id: usize = graph
 
 for (succ, labels) in graph.labeled_successors(node_id) {
     for label in labels {
-        let label: DirEntry = label.into();
-        println!(
-            "{} -> {} (permission: {:?}; name: {})",
-            node_id,
-            succ,
-            label.permission(),
-            String::from_utf8(
-                graph.properties().label_name(label.filename_id())
-            ).expect("Could not decode file name as UTF-8")
-        );
+        if let EdgeLabel::DirEntry(label) = label {
+            println!(
+                "{} -> {} (permission: {:?}; name: {})",
+                node_id,
+                succ,
+                label.permission(),
+                String::from_utf8(
+                    graph.properties().label_name(label.filename_id())
+                ).expect("Could not decode file name as UTF-8")
+            );
+        }
     }
 }
 ```

@@ -62,8 +62,8 @@ where
     where
         Self: 'succ;
 
-    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
-        self.deref().labeled_successors(node_id)
+    fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
+        self.deref().untyped_labeled_successors(node_id)
     }
 }
 
@@ -94,8 +94,8 @@ where
     where
         Self: 'succ;
 
-    fn labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
-        self.deref().labeled_predecessors(node_id)
+    fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
+        self.deref().untyped_labeled_predecessors(node_id)
     }
 }
 impl<T: Deref> SwhGraphWithProperties for T

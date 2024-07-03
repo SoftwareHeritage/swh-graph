@@ -257,9 +257,9 @@ impl<
     where
         Self: 'node;
 
-    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
+    fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
         FilteredLabeledSuccessors {
-            inner: self.graph.labeled_successors(node_id).into_iter(),
+            inner: self.graph.untyped_labeled_successors(node_id).into_iter(),
             node: node_id,
             node_filter: &self.node_filter,
             arc_filter: &self.arc_filter,
@@ -286,9 +286,9 @@ impl<
     where
         Self: 'node;
 
-    fn labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
+    fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
         FilteredLabeledPredecessors {
-            inner: self.graph.labeled_predecessors(node_id).into_iter(),
+            inner: self.graph.untyped_labeled_predecessors(node_id).into_iter(),
             node: node_id,
             node_filter: &self.node_filter,
             arc_filter: &self.arc_filter,

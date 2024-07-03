@@ -82,11 +82,7 @@ pub fn main() -> Result<()> {
         for (succ, labels) in successors {
             debug!("  Successor: {}", graph.properties().swhid(succ));
             for label in labels {
-                match label.for_edge_type(
-                    graph.properties().node_type(current_node),
-                    graph.properties().node_type(succ),
-                    graph.is_transposed(),
-                )? {
+                match label {
                     EdgeLabel::Branch(label) => {
                         let filename = graph.properties().label_name(label.filename_id());
                         debug!("    has name {:?}", String::from_utf8_lossy(&filename),);

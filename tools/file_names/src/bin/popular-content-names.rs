@@ -147,7 +147,7 @@ where
 
     // Count the number of occurrences of each name to point to the content
     let mut names = HashMap::<_, u64>::new();
-    for (dir, labels) in graph.labeled_predecessors(cnt) {
+    for (dir, labels) in graph.untyped_labeled_predecessors(cnt) {
         if graph.properties().node_type(dir) != NodeType::Directory {
             continue;
         }

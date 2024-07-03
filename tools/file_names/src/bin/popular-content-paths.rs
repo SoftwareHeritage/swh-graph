@@ -175,7 +175,7 @@ where
         let depth = path.len();
         let mut has_parents = false;
         if depth < MAX_DEPTH {
-            for (dir, labels) in graph.labeled_predecessors(node) {
+            for (dir, labels) in graph.untyped_labeled_predecessors(node) {
                 if graph.properties().node_type(dir) != NodeType::Directory {
                     continue;
                 }

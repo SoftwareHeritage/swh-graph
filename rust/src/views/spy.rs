@@ -82,9 +82,9 @@ impl<G: SwhLabeledForwardGraph> SwhLabeledForwardGraph for GraphSpy<G> {
     where
         Self: 'succ;
 
-    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
-        self.record("labeled_successors", (node_id,));
-        self.graph.labeled_successors(node_id)
+    fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
+        self.record("untyped_labeled_successors", (node_id,));
+        self.graph.untyped_labeled_successors(node_id)
     }
 }
 
@@ -111,9 +111,9 @@ impl<G: SwhLabeledBackwardGraph> SwhLabeledBackwardGraph for GraphSpy<G> {
     where
         Self: 'succ;
 
-    fn labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
-        self.record("labeled_predecessors", (node_id,));
-        self.graph.labeled_predecessors(node_id)
+    fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
+        self.record("untyped_labeled_predecessors", (node_id,));
+        self.graph.untyped_labeled_predecessors(node_id)
     }
 }
 

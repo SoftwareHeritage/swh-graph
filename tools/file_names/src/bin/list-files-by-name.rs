@@ -147,7 +147,7 @@ where
     <G as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
 {
     let mut snp_swhid = None; // Computed lazily when needed
-    for (branch_target, labels) in graph.labeled_successors(snp) {
+    for (branch_target, labels) in graph.untyped_labeled_successors(snp) {
         for label in labels {
             // This is snp->*, so we know the label has to be a Branch
             let label: swh_graph::labels::Branch = label.into();
@@ -249,7 +249,7 @@ where
             continue;
         }
         visited.insert(dir);
-        for (succ, labels) in graph.labeled_successors(dir) {
+        for (succ, labels) in graph.untyped_labeled_successors(dir) {
             match graph.properties().node_type(succ) {
                 NodeType::Directory => to_visit.push(succ),
                 NodeType::Content => {

@@ -136,7 +136,7 @@ fn test_dir_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labeled_successors(a)
+            .untyped_labeled_successors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
@@ -149,7 +149,7 @@ fn test_dir_labels() -> Result<()> {
     );
     assert_eq!(
         graph
-            .labeled_successors(b)
+            .untyped_labeled_successors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(c, vec![(Some(Permission::Content), b"test.c".into())]),]
@@ -164,21 +164,21 @@ fn test_dir_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labeled_predecessors(a)
+            .untyped_labeled_predecessors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![]
     );
     assert_eq!(
         graph
-            .labeled_predecessors(b)
+            .untyped_labeled_predecessors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(a, vec![(Some(Permission::Directory), b"tests".into())]),]
     );
     assert_eq!(
         graph
-            .labeled_predecessors(c)
+            .untyped_labeled_predecessors(c)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
@@ -229,7 +229,7 @@ fn test_duplicate_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labeled_successors(a)
+            .untyped_labeled_successors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
@@ -242,7 +242,7 @@ fn test_duplicate_labels() -> Result<()> {
     );
     assert_eq!(
         graph
-            .labeled_successors(b)
+            .untyped_labeled_successors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(
@@ -322,7 +322,7 @@ fn test_snp_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labeled_successors(a)
+            .untyped_labeled_successors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
@@ -332,7 +332,7 @@ fn test_snp_labels() -> Result<()> {
     );
     assert_eq!(
         graph
-            .labeled_successors(b)
+            .untyped_labeled_successors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(c, vec![b"refs/heads/main".into()]),]
@@ -351,14 +351,14 @@ fn test_snp_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labeled_predecessors(a)
+            .untyped_labeled_predecessors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![]
     );
     assert_eq!(
         graph
-            .labeled_predecessors(c)
+            .untyped_labeled_predecessors(c)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![
@@ -368,7 +368,7 @@ fn test_snp_labels() -> Result<()> {
     );
     assert_eq!(
         graph
-            .labeled_predecessors(d)
+            .untyped_labeled_predecessors(d)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(a, vec![b"refs/heads/feature/foo".into()]),]
@@ -445,14 +445,14 @@ fn test_ori_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labeled_successors(a)
+            .untyped_labeled_successors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(c, vec![visit_a_c]), (d, vec![visit_a_d]),]
     );
     assert_eq!(
         graph
-            .labeled_successors(b)
+            .untyped_labeled_successors(b)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(c, vec![visit_b_c]),]
@@ -471,21 +471,21 @@ fn test_ori_labels() -> Result<()> {
 
     assert_eq!(
         graph
-            .labeled_predecessors(a)
+            .untyped_labeled_predecessors(a)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![]
     );
     assert_eq!(
         graph
-            .labeled_predecessors(c)
+            .untyped_labeled_predecessors(c)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(a, vec![visit_a_c]), (b, vec![visit_b_c]),]
     );
     assert_eq!(
         graph
-            .labeled_predecessors(d)
+            .untyped_labeled_predecessors(d)
             .map(collect_labels)
             .collect::<Vec<_>>(),
         vec![(a, vec![visit_a_d]),]

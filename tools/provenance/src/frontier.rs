@@ -95,7 +95,7 @@ where
 
         if should_recurse {
             // Look for frontiers in subdirectories
-            for (pred, labels) in graph.labeled_predecessors(node) {
+            for (pred, labels) in graph.untyped_labeled_predecessors(node) {
                 if !reachable(pred) || visited.contains(pred) {
                     continue;
                 }

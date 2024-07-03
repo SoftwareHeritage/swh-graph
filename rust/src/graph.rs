@@ -173,6 +173,35 @@ pub trait SwhForwardGraph: SwhGraph {
     fn outdegree(&self, node_id: NodeId) -> usize;
 }
 
+macro_rules! add_label_types {
+    ($graph:expr, $is_transposed:expr, $node_id:expr, $it:expr,) => {{
+        let props = $graph.properties();
+        $it.into_iter().map(move |(succ, labels)| {
+            (
+                succ,
+                labels.into_iter().map(move |label| {
+                    label
+                        .for_edge_type(
+                            props.node_type($node_id),
+                            props.node_type(succ),
+                            $is_transposed ^ $graph.is_transposed(),
+                        )
+                        .unwrap_or_else(|e| {
+                            panic!(
+                                "Unexpected edge from {} ({}) to {} ({}): {}",
+                                props.swhid($node_id),
+                                $node_id,
+                                props.swhid(succ),
+                                succ,
+                                e
+                            )
+                        })
+                }),
+            )
+        })
+    }};
+}
+
 pub trait SwhLabeledForwardGraph: SwhForwardGraph {
     type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
@@ -181,8 +210,27 @@ pub trait SwhLabeledForwardGraph: SwhForwardGraph {
     where
         Self: 'node;
 
-    /// Return an [`IntoIterator`] over the successors of a node.
-    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_>;
+    /// Return an [`IntoIterator`] over the successors of a node along with a list of labels
+    /// of each arc
+    fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_>;
+
+    /// Return an [`IntoIterator`] over the successors of a node along with a list of labels
+    /// of each arc
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
+    where
+        Self: SwhGraphWithProperties,
+        <Self as SwhGraphWithProperties>::Maps: crate::properties::Maps,
+    {
+        add_label_types!(
+            self,
+            false,
+            node_id,
+            self.untyped_labeled_successors(node_id),
+        )
+    }
 }
 
 pub trait SwhBackwardGraph: SwhGraph {
@@ -204,8 +252,27 @@ pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
     where
         Self: 'node;
 
-    /// Return an [`IntoIterator`] over the successors of a node.
-    fn labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_>;
+    /// Return an [`IntoIterator`] over the predecessors of a node along with a list of labels
+    /// of each arc
+    fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_>;
+
+    /// Return an [`IntoIterator`] over the predecessors of a node along with a list of labels
+    /// of each arc
+    fn labeled_predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
+    where
+        Self: SwhGraphWithProperties,
+        <Self as SwhGraphWithProperties>::Maps: crate::properties::Maps,
+    {
+        add_label_types!(
+            self,
+            true,
+            node_id,
+            self.untyped_labeled_predecessors(node_id),
+        )
+    }
 }
 
 pub trait SwhGraphWithProperties: SwhGraph {
@@ -307,7 +374,7 @@ where
     type LabeledArcs<'arc> = LabeledArcIterator<<<<<G as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
     type LabeledSuccessors<'succ> = LabeledSuccessorIterator<<G as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
 
-    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
+    fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
         LabeledSuccessorIterator {
             successors: self.graph.labels(node_id),
         }
@@ -550,7 +617,7 @@ where
     type LabeledArcs<'arc> = LabeledArcIterator<<<<<FG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
     type LabeledSuccessors<'succ> = LabeledSuccessorIterator<<FG as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
 
-    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
+    fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
         LabeledSuccessorIterator {
             successors: self.forward_graph.labels(node_id),
         }
@@ -583,7 +650,7 @@ where
     type LabeledArcs<'arc> = LabeledArcIterator<<<<<BG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
     type LabeledPredecessors<'succ> = LabeledSuccessorIterator<<BG as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
 
-    fn labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
+    fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
         LabeledSuccessorIterator {
             successors: self.backward_graph.labels(node_id),
         }

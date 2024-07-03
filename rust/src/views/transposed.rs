@@ -44,8 +44,8 @@ impl<G: SwhLabeledBackwardGraph> SwhLabeledForwardGraph for Transposed<G> {
     type LabeledArcs<'arc> =  <G as SwhLabeledBackwardGraph>::LabeledArcs<'arc> where Self: 'arc;
     type LabeledSuccessors<'succ> = <G as SwhLabeledBackwardGraph>::LabeledPredecessors<'succ> where Self: 'succ;
 
-    fn labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
-        self.0.labeled_predecessors(node_id)
+    fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
+        self.0.untyped_labeled_predecessors(node_id)
     }
 }
 
@@ -64,8 +64,8 @@ impl<G: SwhLabeledForwardGraph> SwhLabeledBackwardGraph for Transposed<G> {
     type LabeledArcs<'arc> =  <G as SwhLabeledForwardGraph>::LabeledArcs<'arc> where Self: 'arc;
     type LabeledPredecessors<'succ> = <G as SwhLabeledForwardGraph>::LabeledSuccessors<'succ> where Self: 'succ;
 
-    fn labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
-        self.0.labeled_successors(node_id)
+    fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
+        self.0.untyped_labeled_successors(node_id)
     }
 }
 

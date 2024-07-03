@@ -43,7 +43,7 @@ fn test_labeled_vec_graph() {
 
     let collect_successors = |node_id| {
         graph
-            .labeled_successors(node_id)
+            .untyped_labeled_successors(node_id)
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect::<Vec<_>>()
     };

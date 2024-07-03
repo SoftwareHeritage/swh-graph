@@ -30,7 +30,7 @@ where
     }
     // Most recent snapshot thus far, as an optional (node_id, timestamp) pair
     let mut latest_snp: Option<(usize, u64)> = None;
-    for (succ, labels) in graph.labeled_successors(ori) {
+    for (succ, labels) in graph.untyped_labeled_successors(ori) {
         let node_type = props.node_type(succ);
         if node_type != NodeType::Snapshot {
             continue;
