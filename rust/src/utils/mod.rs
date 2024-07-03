@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 
-use crate::NodeType;
+use crate::{NodeConstraint, NodeType};
 
 #[cfg(feature = "dataset-writer")]
 pub mod dataset_writer;
@@ -68,19 +68,9 @@ pub fn suffix_path<P: AsRef<Path>, S: AsRef<std::ffi::OsStr>>(path: P, suffix: S
 //
 // TODO make this return a NodeConstraint instead
 pub fn parse_allowed_node_types(s: &str) -> Result<Vec<NodeType>> {
-    if s == "*" {
-        Ok(NodeType::all())
-    } else {
-        let mut types = Vec::new();
-        for type_ in s.split(',') {
-            types.push(
-                type_
-                    .parse()
-                    .map_err(|s| anyhow!("Could not parse --allowed-node-types {s}"))?,
-            );
-        }
-        Ok(types)
-    }
+    s.parse::<NodeConstraint>()
+        .map_err(|s| anyhow!("Could not parse --allowed-node-types {s}"))
+        .map(|constr| constr.to_vec())
 }
 
 #[allow(clippy::len_without_is_empty)]
