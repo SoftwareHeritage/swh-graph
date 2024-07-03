@@ -12,7 +12,6 @@ use anyhow::{Context, Result};
 use swh_graph::graph::*;
 use swh_graph::graph_builder::GraphBuilder;
 use swh_graph::labels::{FilenameId, Permission, Visit, VisitStatus};
-use swh_graph::properties::LabelIdFromNameError;
 use swh_graph::swhid;
 
 #[test]
