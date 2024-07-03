@@ -518,7 +518,13 @@ class SelectBlobs(_BaseTask):
 
         with tempfile.NamedTemporaryFile(suffix=".csv") as sql_res:
             logger.info("Running query...")
-            query = f"COPY ({SELECTION_QUERIES[self.blob_filter]}) TO '{sql_res.name}'"
+            query = f"""
+                COPY ({SELECTION_QUERIES[self.blob_filter]})
+                TO '{sql_res.name}'
+                OPTIONS (
+                    'has_header' 'true'
+                )
+            """
             logger.debug("%s", textwrap.indent(query, "    "))
             df = ctx.sql(query)
             logger.info("Reformatting...")
