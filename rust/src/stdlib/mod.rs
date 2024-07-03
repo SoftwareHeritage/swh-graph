@@ -56,5 +56,8 @@ where
     Ok(latest_snp)
 }
 
+mod fs;
+pub use fs::*;
+
 mod root_directory;
 pub use root_directory::find_root_dir;
