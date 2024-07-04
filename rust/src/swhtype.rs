@@ -3,8 +3,9 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::collections::HashSet;
 use std::str::FromStr;
+
+use bitvec::prelude::*;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -149,6 +150,21 @@ impl NodeType {
         }
     }
 
+    /// Convert a type to its enum discriminant value.
+    ///
+    /// In all cases using this method is both safer and more concise than
+    /// `(node_type as isize).try_into().unwrap()`.
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            Self::Content => 0,
+            Self::Directory => 1,
+            Self::Origin => 2,
+            Self::Release => 3,
+            Self::Revision => 4,
+            Self::Snapshot => 5,
+        }
+    }
+
     /// Returns a vector containing all possible `NodeType` values.
     // TODO make this return an HashSet instead, as the order does not matter
     pub fn all() -> Vec<Self> {
@@ -169,11 +185,12 @@ impl core::fmt::Display for NodeType {
     }
 }
 
-/// Constraint on allowed node types: either `None`, meaning "any node
-/// allowed"; or `Some(type_set)`, meaning "only nodes of selected types
-/// allowed".
-#[derive(Debug, Default, PartialEq)]
-pub struct NodeConstraint(pub Option<HashSet<NodeType>>);
+/// Compact representation of a set of [NodeType]-s, as a bit array.
+type NodeTypeSet = BitArr!(for NodeType::NUMBER_OF_TYPES, in u8, Msb0);
+
+/// Constraint on allowed node types, as a set of node types.
+#[derive(Debug, PartialEq)]
+pub struct NodeConstraint(pub NodeTypeSet);
 
 impl NodeConstraint {
     /// # Examples
@@ -196,17 +213,20 @@ impl NodeConstraint {
     /// }
     /// ```
     pub fn matches(&self, node_type: NodeType) -> bool {
-        match (&self.0, node_type) {
-            (None, _) => true,
-            (Some(types), actual_type) => types.contains(&actual_type),
-        }
+        *self.0.get(node_type.to_u8() as usize).unwrap()
     }
 
     pub fn to_vec(&self) -> Vec<NodeType> {
-        match &self.0 {
-            None => NodeType::all(),
-            Some(node_types) => node_types.iter().copied().collect(),
-        }
+        self.0
+            .iter_ones() // Note: this iterates on all bits of the u8
+            .filter_map(|type_idx| (type_idx as u8).try_into().ok())
+            .collect()
+    }
+}
+
+impl Default for NodeConstraint {
+    fn default() -> Self {
+        Self(bitarr!(u8, Msb0; 1; NodeType::NUMBER_OF_TYPES))
     }
 }
 
@@ -217,28 +237,23 @@ impl FromStr for NodeConstraint {
     ///
     /// ```
     /// # use std::collections::HashSet;
+    /// # use bitvec::prelude::*;
     /// # use swh_graph::{NodeConstraint, NodeType};
     ///
-    /// assert_eq!("*".parse::<NodeConstraint>(), Ok(NodeConstraint(None)));
-    /// assert_eq!(
-    ///     "rel".parse::<NodeConstraint>(),
-    ///     Ok(NodeConstraint(Some(HashSet::from([NodeType::Release]))))
-    /// );
-    /// assert_eq!(
-    ///     "dir,cnt".parse::<NodeConstraint>(),
-    ///     Ok(NodeConstraint(Some(HashSet::from([NodeType::Content, NodeType::Directory]))))
-    /// );
+    /// assert_eq!("*".parse::<NodeConstraint>(), Ok(NodeConstraint(bitarr!(u8, Msb0; 1; 6))));
+    /// assert_eq!("rel".parse::<NodeConstraint>(), Ok(NodeConstraint(bitarr!(u8, Msb0; 0, 0, 0, 1, 0, 0))));
+    /// assert_eq!("dir,cnt".parse::<NodeConstraint>(), Ok(NodeConstraint(bitarr!(u8, Msb0; 1, 1, 0, 0, 0, 0))));
     /// assert!(matches!("xyz".parse::<NodeConstraint>(), Err(_)));
     /// ```
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s == "*" {
-            Ok(NodeConstraint(None))
+            Ok(NodeConstraint::default())
         } else {
-            Ok(NodeConstraint(Some(
-                s.split(',')
-                    .map(|s| s.parse::<NodeType>())
-                    .collect::<Result<HashSet<NodeType>, _>>()?,
-            )))
+            let mut node_types = bitarr!(u8, Msb0; 0; NodeType::NUMBER_OF_TYPES);
+            for s in s.split(',') {
+                node_types.set(s.parse::<NodeType>()?.to_u8() as usize, true);
+            }
+            Ok(NodeConstraint(node_types))
         }
     }
 }
@@ -246,24 +261,26 @@ impl FromStr for NodeConstraint {
 impl core::fmt::Display for NodeConstraint {
     /// ```
     /// # use std::collections::HashSet;
+    /// # use bitvec::prelude::*;
     /// # use swh_graph::{NodeConstraint, NodeType};
     ///
-    /// assert_eq!(format!("{}", NodeConstraint(None)), "*");
+    /// assert_eq!(format!("{}", NodeConstraint::default()), "*");
     /// assert_eq!(
-    ///     format!("{}", NodeConstraint(Some(HashSet::from([NodeType::Content, NodeType::Directory])))),
+    ///     format!("{}", NodeConstraint(bitarr!(u8, Msb0; 1, 1, 0, 0, 0, 0))),
     ///     "cnt,dir"
+    /// );
+    /// assert_eq!(
+    ///     format!("{}", NodeConstraint(bitarr!(u8, Msb0; 0, 0, 1, 1, 1, 1))),
+    ///     "ori,rel,rev,snp"
     /// );
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(node_types) = &self.0 {
-            let mut type_strings = node_types
-                .iter()
-                .map(|t| format!("{}", t))
-                .collect::<Vec<String>>();
+        if self.0.all() {
+            write!(f, "*")?;
+        } else {
+            let mut type_strings: Vec<&str> = self.to_vec().iter().map(|t| t.to_str()).collect();
             type_strings.sort();
             write!(f, "{}", type_strings.join(","))?;
-        } else {
-            write!(f, "*")?;
         }
         Ok(())
     }
