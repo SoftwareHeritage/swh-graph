@@ -51,6 +51,21 @@ pub fn suffix_path<P: AsRef<Path>, S: AsRef<std::ffi::OsStr>>(path: P, suffix: S
 
 /// Given a string like `*` or `cnt,dir,rev,rel,snp,ori`, returns a list of `NodeType`
 /// matching the string.
+///
+/// # Examples
+///
+/// ```
+/// # use swh_graph::NodeType;
+/// use swh_graph::utils::parse_allowed_node_types;
+///
+/// assert_eq!(parse_allowed_node_types("*").unwrap(), NodeType::all());
+/// assert_eq!(parse_allowed_node_types("cnt").unwrap(), vec![NodeType::Content]);
+/// assert_eq!(
+///     parse_allowed_node_types("rel,rev").unwrap(),
+///     vec![NodeType::Release, NodeType::Revision]
+/// );
+/// ```
+//
 // TODO make this return a NodeConstraint instead
 pub fn parse_allowed_node_types(s: &str) -> Result<Vec<NodeType>> {
     if s == "*" {
