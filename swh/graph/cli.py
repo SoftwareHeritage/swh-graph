@@ -635,8 +635,8 @@ def luigi(
         local_graph_path=dataset_path / "compressed",
         derived_datasets_path=dataset_path,
         topological_order_dir=dataset_path / "topology/",
-        origin_contributors_path=dataset_path / "datasets/contribution_graph.csv.zst",
-        origin_urls_path=dataset_path / "datasets/origin_urls.csv.zst",
+        origin_contributors_path=dataset_path / "contribution_graph.csv.zst",
+        origin_urls_path=dataset_path / "origin_urls.csv.zst",
         export_id=f"{export_name}-{secrets.token_hex(10)}",
         export_name=export_name,
         dataset_name=dataset_name,
@@ -667,7 +667,7 @@ def luigi(
     if base_sensitive_directory:
         sensitive_path = base_sensitive_directory / dataset_name
         default_values["deanonymized_origin_contributors_path"] = (
-            sensitive_path / "datasets/contributors_deanonymized.csv.zst"
+            sensitive_path / "contributors_deanonymized.csv.zst"
         )
         default_values["deanonymization_table_path"] = (
             sensitive_path / "persons_sha256_to_name.csv.zst"
