@@ -116,7 +116,7 @@ fn main_monomorphized<const MAX_DEPTH: usize>(args: Args) -> Result<()> {
         .context("Could not load label names")?;
     log::info!("Graph loaded.");
 
-    let dataset_writer = ParallelDatasetWriter::new_with_schema(args.out, ())?;
+    let dataset_writer = ParallelDatasetWriter::with_schema(args.out, ())?;
 
     let mut pl = ProgressLogger::default();
     pl.item_name("node");

@@ -118,7 +118,7 @@ where
     G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    let graph = Subgraph::new_with_node_filter(&graph, |node| {
+    let graph = Subgraph::with_node_filter(&graph, |node| {
         node_types.contains(&graph.properties().node_type(node))
     });
 

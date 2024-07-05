@@ -57,7 +57,7 @@ impl<W: TableWriter<Schema = ()> + Send> ParallelDatasetWriter<W> {
 }
 
 impl<W: TableWriter + Send> ParallelDatasetWriter<W> {
-    pub fn new_with_schema(path: PathBuf, schema: W::Schema) -> Result<Self> {
+    pub fn with_schema(path: PathBuf, schema: W::Schema) -> Result<Self> {
         std::fs::create_dir_all(&path)
             .with_context(|| format!("Could not create {}", path.display()))?;
         Ok(ParallelDatasetWriter {

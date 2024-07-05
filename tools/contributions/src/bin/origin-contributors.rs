@@ -115,7 +115,7 @@ where
     <G as SwhGraphWithProperties>::Timestamps: properties::Timestamps,
 {
     let graph =
-        Subgraph::new_with_node_filter(graph, |node| match graph.properties().node_type(node) {
+        Subgraph::with_node_filter(graph, |node| match graph.properties().node_type(node) {
             NodeType::Origin | NodeType::Snapshot | NodeType::Release | NodeType::Revision => true,
             NodeType::Content | NodeType::Directory => false,
         });

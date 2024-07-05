@@ -77,7 +77,7 @@ pub fn main() -> Result<()> {
         NumberMmap::<byteorder::BE, i64, _>::new(&args.max_timestamps, graph.num_nodes())
             .with_context(|| format!("Could not mmap {}", args.max_timestamps.display()))?;
 
-    let dataset_writer = ParallelDatasetWriter::new_with_schema(
+    let dataset_writer = ParallelDatasetWriter::with_schema(
         args.directories_out,
         (Arc::new(schema()), writer_properties(&graph).build()),
     )?;

@@ -185,7 +185,7 @@ where
                 let graph = $graph;
                 let arc_checker = ArcFilterChecker::new(graph.clone(), edges.clone())?;
                 let target_checker = NodeFilterChecker::new(graph.clone(), target)?;
-                let subgraph = Arc::new(Subgraph::new_with_arc_filter(
+                let subgraph = Arc::new(Subgraph::with_arc_filter(
                     graph,
                     move |src, dst| arc_checker.matches(src, dst),
                 ));
@@ -347,10 +347,9 @@ where
 
         let graph = self.service.graph().clone();
         let arc_checker = ArcFilterChecker::new(graph.clone(), edges.clone())?;
-        let subgraph = Arc::new(Subgraph::new_with_arc_filter(
-            graph.clone(),
-            move |src, dst| arc_checker.matches(src, dst),
-        ));
+        let subgraph = Arc::new(Subgraph::with_arc_filter(graph.clone(), move |src, dst| {
+            arc_checker.matches(src, dst)
+        }));
         let transpose_subgraph = Arc::new(Transposed(subgraph.clone()));
         let transpose_graph = Arc::new(Transposed(graph.clone()));
 
@@ -424,7 +423,7 @@ where
                 let graph = $graph;
                 let reverse_arc_checker =
                     ArcFilterChecker::new(graph.clone(), edges_reverse.clone())?;
-                let subgraph = Arc::new(Subgraph::new_with_arc_filter(graph, move |src, dst| {
+                let subgraph = Arc::new(Subgraph::with_arc_filter(graph, move |src, dst| {
                     reverse_arc_checker.matches(src, dst)
                 }));
                 let mut visitor_reverse = self.make_visitor(

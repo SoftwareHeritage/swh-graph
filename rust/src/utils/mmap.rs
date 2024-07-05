@@ -42,10 +42,10 @@ impl<E: ByteOrder, N: common_traits::AsBytes> NumberMmap<E, N, Mmap> {
         }
         let file =
             File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
-        Self::new_with_file_and_offset(path, len, file, 0)
+        Self::with_file_and_offset(path, len, file, 0)
     }
 
-    pub fn new_with_file_and_offset<P: AsRef<Path>>(
+    pub fn with_file_and_offset<P: AsRef<Path>>(
         path: P,
         len: usize,
         file: File,

@@ -73,7 +73,7 @@ pub async fn main() -> Result<()> {
         }
     }
 
-    let graph = Subgraph::new_with_node_filter(graph, move |node| !masked_nodes.contains(&node));
+    let graph = Subgraph::with_node_filter(graph, move |node| !masked_nodes.contains(&node));
 
     log::info!("Starting server");
     swh_graph::server::serve(graph, args.bind).await?;

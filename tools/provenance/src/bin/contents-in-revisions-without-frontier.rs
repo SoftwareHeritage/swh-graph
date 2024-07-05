@@ -95,7 +95,7 @@ pub fn main() -> Result<()> {
 
     let reachable_nodes = load_reachable_nodes(&graph, args.node_filter, args.reachable_nodes)?;
 
-    let dataset_writer = ParallelDatasetWriter::new_with_schema(
+    let dataset_writer = ParallelDatasetWriter::with_schema(
         args.contents_out,
         (
             Arc::new(cnt_in_revrel_schema()),

@@ -137,7 +137,7 @@ pub struct Subgraph<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(us
 
 impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool> Subgraph<G, NodeFilter, fn(usize, usize) -> bool> {
     /// Shorthand for `Subgraph { graph, node_filter, arc_filter: |_src, _dst| true }`
-    pub fn new_with_node_filter(
+    pub fn with_node_filter(
         graph: G,
         node_filter: NodeFilter,
     ) -> Subgraph<G, NodeFilter, fn(usize, usize) -> bool> {
@@ -150,7 +150,7 @@ impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool> Subgraph<G, NodeFilter, fn(usiz
 }
 impl<G: SwhGraph, ArcFilter: Fn(usize, usize) -> bool> Subgraph<G, fn(usize) -> bool, ArcFilter> {
     /// Shorthand for `Subgraph { graph, node_filter: |_node| true, arc_filter }`
-    pub fn new_with_arc_filter(
+    pub fn with_arc_filter(
         graph: G,
         arc_filter: ArcFilter,
     ) -> Subgraph<G, fn(usize) -> bool, ArcFilter> {

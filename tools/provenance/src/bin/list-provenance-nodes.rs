@@ -95,7 +95,7 @@ pub fn main() -> Result<()> {
         .context("Could not load maps")?;
     log::info!("Graph loaded.");
 
-    let mut dataset_writer = ParallelDatasetWriter::new_with_schema(
+    let mut dataset_writer = ParallelDatasetWriter::with_schema(
         args.nodes_out,
         (
             "partition".to_owned(), // Partition column name

@@ -90,7 +90,7 @@ pub fn main() -> Result<()> {
     )?;
     pl.done();
 
-    let dataset_writer = ParallelDatasetWriter::new_with_schema(
+    let dataset_writer = ParallelDatasetWriter::with_schema(
         args.contents_out,
         (
             Arc::new(cnt_in_dir_schema()),

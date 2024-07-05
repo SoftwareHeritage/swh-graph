@@ -99,9 +99,8 @@ where
             NodeFilterChecker::new(graph.clone(), return_nodes.unwrap_or_default())?;
         let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
         let mut num_matching_nodes = 0;
-        let subgraph = Subgraph::new_with_arc_filter(graph.clone(), move |src, dst| {
-            arc_checker.matches(src, dst)
-        });
+        let subgraph =
+            Subgraph::with_arc_filter(graph.clone(), move |src, dst| arc_checker.matches(src, dst));
         let mut visitor = SimpleBfsVisitor::new(
             Arc::new(subgraph),
             max_depth,
@@ -148,7 +147,7 @@ where
                 let graph = $graph;
                 let arc_checker =
                     ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
-                let subgraph = Arc::new(Subgraph::new_with_arc_filter(graph, move |src, dst| {
+                let subgraph = Arc::new(Subgraph::with_arc_filter(graph, move |src, dst| {
                     arc_checker.matches(src, dst)
                 }));
                 let node_builder =

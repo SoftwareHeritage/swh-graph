@@ -98,7 +98,7 @@ pub fn main() -> Result<()> {
         .collect();
     assert!(!branchname_ids.is_empty(), "Missing branch names");
 
-    let dataset_writer = ParallelDatasetWriter::new_with_schema(args.out, ())?;
+    let dataset_writer = ParallelDatasetWriter::with_schema(args.out, ())?;
 
     let mut pl = ProgressLogger::default();
     pl.item_name("node");
