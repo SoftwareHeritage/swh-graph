@@ -381,7 +381,6 @@ def test_computedirectoryfrontier(tmpdir, provenance_node_filter):
         graph_name="example",
         provenance_dir=provenance_dir,
         provenance_node_filter=provenance_node_filter,
-        batch_size=100,  # faster
     )
 
     task.run()
@@ -435,7 +434,6 @@ def test_listfrontierdirectoriesinrevisions(tmpdir, provenance_node_filter):
         graph_name="example",
         provenance_dir=provenance_dir,
         provenance_node_filter=provenance_node_filter,
-        batch_size=100,  # faster
     )
 
     task.run()
@@ -508,7 +506,6 @@ def test_listcontentsinrevisionswithoutfrontier(tmpdir, provenance_node_filter):
         graph_name="example",
         provenance_dir=provenance_dir,
         provenance_node_filter=provenance_node_filter,
-        batch_size=100,  # faster
     )
 
     task.run()

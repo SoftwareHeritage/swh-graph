@@ -63,6 +63,11 @@ impl StructArrayBuilder for Builder {
         self.0.len()
     }
 
+    fn buffer_size(&self) -> usize {
+        // No validity slice
+        self.len() * 8
+    }
+
     fn finish(mut self) -> Result<StructArray> {
         let columns: Vec<Arc<dyn Array>> = vec![Arc::new(self.0.finish())];
 

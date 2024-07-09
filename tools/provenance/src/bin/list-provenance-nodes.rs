@@ -39,6 +39,10 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(long)]
+    /// Maximum number of bytes in a thread's output Parquet buffer,
+    /// before it is flushed to disk
+    thread_buffer_size: Option<usize>,
     #[arg(value_enum)]
     #[arg(long, default_value_t = NodeFilter::Heads)]
     /// Subset of revisions and releases to traverse from
@@ -95,24 +99,27 @@ pub fn main() -> Result<()> {
         .context("Could not load maps")?;
     log::info!("Graph loaded.");
 
-    let mut dataset_writer = ParallelDatasetWriter::with_schema(
-        args.nodes_out,
-        (
-            "partition".to_owned(), // Partition column name
-            num_partitions,
+    let mut dataset_writer =
+        ParallelDatasetWriter::<PartitionedTableWriter<ParquetTableWriter<_>>>::with_schema(
+            args.nodes_out,
             (
-                Arc::new(schema()),
-                writer_properties(&graph)
-                    .set_column_bloom_filter_fpp("sha1_git".into(), args.bloom_fpp)
-                    .set_column_bloom_filter_ndv("sha1_git".into(), args.bloom_ndv)
-                    .build(),
+                "partition".to_owned(), // Partition column name
+                num_partitions,
+                (
+                    Arc::new(schema()),
+                    writer_properties(&graph)
+                        .set_column_bloom_filter_fpp("sha1_git".into(), args.bloom_fpp)
+                        .set_column_bloom_filter_ndv("sha1_git".into(), args.bloom_ndv)
+                        .build(),
+                ),
             ),
-        ),
-    )?;
+        )?;
 
     // We write at most one row per call to `dataset_writer.builder()`, so every row
     // group will be exactly this size.
-    dataset_writer.flush_threshold = Some(args.row_group_size);
+    dataset_writer.config.autoflush_row_group_len = Some(args.row_group_size);
+
+    dataset_writer.config.autoflush_buffer_size = args.thread_buffer_size;
 
     let reachable_nodes = find_reachable_nodes(&graph, args.node_filter)?;
 

@@ -17,9 +17,14 @@ from pathlib import Path
 from typing import Dict
 
 import luigi
+import psutil
 
 from .compressed_graph import LocalGraph
 from .utils import count_nodes
+
+
+def default_max_ram() -> int:
+    return psutil.virtual_memory().total
 
 
 class ListProvenanceNodes(luigi.Task):
@@ -220,38 +225,15 @@ class ComputeDirectoryFrontier(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
-    batch_size = luigi.IntParameter(default=1000)
     provenance_node_filter = luigi.Parameter(default="heads")
-
-    def _max_ram(self):
-        # see java/src/main/java/org/softwareheritage/graph/utils/ComputeDirectoryFrontier.java
-        nb_nodes = count_nodes(
-            self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
-        )
-
-        # maxtimestamps_array = nb_nodes * 8  # Actually it's mmapped
-        maxtimestamps_array = 0
-
-        num_threads = 96
-        min_buf_size = 1140  # see findFrontiersInRevisionChunk
-        # it's unlikely to have 5000 more dirs than expected (averaged over
-        # all threads running at any given time)
-        worst_case_buf_size_ratio = 5000
-        buf_size = (
-            num_threads * self.batch_size * min_buf_size * worst_case_buf_size_ratio
-        )
-
-        graph_size = nb_nodes * 8
-
-        spare_space = 1_000_000_000
-        return graph_size + maxtimestamps_array + buf_size + spare_space
+    max_ram = luigi.IntParameter(default=default_max_ram(), significant=False)
 
     @property
     def resources(self):
-        """Returns the value of ``self.max_ram_mb``"""
+        """Returns the value of ``self.max_ram``"""
         import socket
 
-        return {f"{socket.getfqdn()}_ram_mb": self._max_ram() // 1_000_000}
+        return {f"{socket.getfqdn()}_ram_mb": self.max_ram // 1_000_000}
 
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns :class:`LocalGraph` and :class:`ListDirectoryMaxLeafTimestamp`
@@ -275,6 +257,8 @@ class ComputeDirectoryFrontier(luigi.Task):
 
     def run(self) -> None:
         """Runs ``compute-directory-frontier`` from ``tools/provenance``"""
+        import multiprocessing
+
         from ..shell import Rust
 
         # fmt: off
@@ -283,6 +267,8 @@ class ComputeDirectoryFrontier(luigi.Task):
                 "compute-directory-frontier",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--thread-buffer-size",
+                str(self.max_ram // multiprocessing.cpu_count()),
                 "--node-filter",
                 self.provenance_node_filter,
                 "--max-timestamps",
@@ -308,39 +294,15 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
-    batch_size = luigi.IntParameter(default=1000)
     provenance_node_filter = luigi.Parameter(default="heads")
-
-    def _max_ram(self):
-        # see
-        # java/src/main/java/org/softwareheritage/graph/utils/ListContentsInRevisionsWithoutFrontier.java
-        nb_nodes = count_nodes(
-            self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
-        )
-
-        # maxtimestamps_array = nb_nodes * 8  # Actually it's mmapped
-        maxtimestamps_array = 0
-
-        num_threads = 96
-        min_buf_size = 1140  # see processRevisionChunk
-        # it's unlikely to have 5000 more dirs than expected (averaged over
-        # all threads running at any given time)
-        worst_case_buf_size_ratio = 5000
-        buf_size = (
-            num_threads * self.batch_size * min_buf_size * worst_case_buf_size_ratio
-        )
-
-        graph_size = nb_nodes * 8
-
-        spare_space = 1_000_000_000
-        return graph_size + maxtimestamps_array + buf_size + spare_space
+    max_ram = luigi.IntParameter(default=default_max_ram(), significant=False)
 
     @property
     def resources(self):
-        """Returns the value of ``self.max_ram_mb``"""
+        """Returns the value of ``self.max_ram``"""
         import socket
 
-        return {f"{socket.getfqdn()}_ram_mb": self._max_ram() // 1_000_000}
+        return {f"{socket.getfqdn()}_ram_mb": self.max_ram // 1_000_000}
 
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns :class:`LocalGraph` and :class:`ComputeDirectoryFrontier`
@@ -368,6 +330,8 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
 
     def run(self) -> None:
         """Runs ``org.softwareheritage.graph.utils.ListFrontierDirectoriesInRevisions``"""
+        import multiprocessing
+
         from ..shell import Rust
 
         # fmt: off
@@ -376,6 +340,8 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
                 "frontier-directories-in-revisions",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--thread-buffer-size",
+                str(self.max_ram // multiprocessing.cpu_count()),
                 "--node-filter",
                 self.provenance_node_filter,
                 "--reachable-nodes",
@@ -406,39 +372,15 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
     local_graph_path = luigi.PathParameter()
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
-    batch_size = luigi.IntParameter(default=1000)
     provenance_node_filter = luigi.Parameter(default="heads")
-
-    def _max_ram(self):
-        # see
-        # java/src/main/java/org/softwareheritage/graph/utils/ListContentsInRevisionsWithoutFrontier.java
-        nb_nodes = count_nodes(
-            self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
-        )
-
-        # maxtimestamps_array = nb_nodes * 8  # Actually it's mmapped
-        maxtimestamps_array = 0
-
-        num_threads = 96
-        min_buf_size = 1140  # see processRevisionChunk
-        # it's unlikely to have 5000 more dirs than expected (averaged over
-        # all threads running at any given time)
-        worst_case_buf_size_ratio = 5000
-        buf_size = (
-            num_threads * self.batch_size * min_buf_size * worst_case_buf_size_ratio
-        )
-
-        graph_size = nb_nodes * 8
-
-        spare_space = 1_000_000_000
-        return graph_size + maxtimestamps_array + buf_size + spare_space
+    max_ram = luigi.IntParameter(default=default_max_ram(), significant=False)
 
     @property
     def resources(self):
-        """Returns the value of ``self.max_ram_mb``"""
+        """Returns the value of ``self.max_ram``"""
         import socket
 
-        return {f"{socket.getfqdn()}_ram_mb": self._max_ram() // 1_000_000}
+        return {f"{socket.getfqdn()}_ram_mb": self.max_ram // 1_000_000}
 
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns :class:`LocalGraph` and :class:`ListDirectoryMaxLeafTimestamp`
@@ -453,7 +395,9 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
             "reachable_nodes": ListProvenanceNodes(**kwargs),
-            "directory_frontier": ComputeDirectoryFrontier(**kwargs),
+            "directory_frontier": ComputeDirectoryFrontier(
+                max_ram=self.max_ram, **kwargs
+            ),
         }
 
     def _output_path(self) -> Path:
@@ -465,6 +409,8 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
 
     def run(self) -> None:
         """Runs ``contents-in-revisions-without-frontier`` from ``tools/provenance``"""
+        import multiprocessing
+
         from ..shell import Rust
 
         # fmt: off
@@ -473,6 +419,8 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
                 "contents-in-revisions-without-frontier",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--thread-buffer-size",
+                str(self.max_ram // multiprocessing.cpu_count()),
                 "--node-filter",
                 self.provenance_node_filter,
                 "--reachable-nodes",
@@ -495,28 +443,14 @@ class ListContentsInFrontierDirectories(luigi.Task):
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
     provenance_node_filter = luigi.Parameter(default="heads")
-
-    def _max_ram(self):
-        # see java/src/main/java/org/softwareheritage/graph/utils/ComputeDirectoryFrontier.java
-        nb_nodes = count_nodes(
-            self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
-        )
-
-        num_threads = 96
-        thread_buf_size = 1_000_000_000  # rough overestimate of the average size
-        buf_size = num_threads * thread_buf_size
-
-        graph_size = nb_nodes * 8
-
-        spare_space = 1_000_000_000
-        return graph_size + buf_size + spare_space
+    max_ram = luigi.IntParameter(default=default_max_ram(), significant=False)
 
     @property
     def resources(self):
         """Returns the value of ``self.max_ram_mb``"""
         import socket
 
-        return {f"{socket.getfqdn()}_ram_mb": self._max_ram() // 1_000_000}
+        return {f"{socket.getfqdn()}_ram_mb": self.max_ram // 1_000_000}
 
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns :class:`LocalGraph` and :class:`ComputeDirectoryFrontier`
@@ -530,7 +464,10 @@ class ListContentsInFrontierDirectories(luigi.Task):
         )
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "directory_frontier": ComputeDirectoryFrontier(**kwargs),
+            "reachable_nodes": ListProvenanceNodes(**kwargs),
+            "directory_frontier": ComputeDirectoryFrontier(
+                max_ram=self.max_ram, **kwargs
+            ),
         }
 
     def _output_path(self) -> Path:
@@ -542,6 +479,8 @@ class ListContentsInFrontierDirectories(luigi.Task):
 
     def run(self) -> None:
         """Runs ``contents-in-directories`` from ``tools/provenance``"""
+        import multiprocessing
+
         from ..shell import Rust
 
         # fmt: off
@@ -550,6 +489,8 @@ class ListContentsInFrontierDirectories(luigi.Task):
                 "contents-in-directories",
                 "-vv",
                 self.local_graph_path / self.graph_name,
+                "--thread-buffer-size",
+                str(self.max_ram // multiprocessing.cpu_count()),
                 "--node-filter",
                 self.provenance_node_filter,
                 "--frontier-directories",
@@ -569,6 +510,7 @@ class RunProvenance(luigi.WrapperTask):
     graph_name = luigi.Parameter(default="graph")
     provenance_dir = luigi.PathParameter()
     provenance_node_filter = luigi.Parameter(default="heads")
+    max_ram = luigi.IntParameter(default=default_max_ram(), significant=False)
 
     def requires(self):
         """Returns :class:`ListContentsInFrontierDirectories` and
@@ -582,7 +524,7 @@ class RunProvenance(luigi.WrapperTask):
         )
         return [
             ListProvenanceNodes(**kwargs),
-            ListContentsInFrontierDirectories(**kwargs),
-            ListContentsInRevisionsWithoutFrontier(**kwargs),
-            ListFrontierDirectoriesInRevisions(**kwargs),
+            ListContentsInFrontierDirectories(max_ram=self.max_ram, **kwargs),
+            ListContentsInRevisionsWithoutFrontier(max_ram=self.max_ram, **kwargs),
+            ListFrontierDirectoriesInRevisions(max_ram=self.max_ram, **kwargs),
         ]

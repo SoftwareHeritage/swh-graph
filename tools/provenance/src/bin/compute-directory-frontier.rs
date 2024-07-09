@@ -20,7 +20,7 @@ use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::GetIndex;
 use swh_graph::NodeType;
 
-use swh_graph::utils::dataset_writer::ParallelDatasetWriter;
+use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph_provenance::filters::{is_root_revrel, NodeFilter};
 use swh_graph_provenance::frontier_set::{schema, to_parquet, writer_properties};
 
@@ -42,6 +42,10 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(long)]
+    /// Maximum number of bytes in a thread's output Parquet buffer,
+    /// before it is flushed to disk
+    thread_buffer_size: Option<usize>,
     #[arg(value_enum)]
     #[arg(long, default_value_t = NodeFilter::Heads)]
     /// Subset of revisions and releases to traverse from
@@ -77,10 +81,11 @@ pub fn main() -> Result<()> {
         NumberMmap::<byteorder::BE, i64, _>::new(&args.max_timestamps, graph.num_nodes())
             .with_context(|| format!("Could not mmap {}", args.max_timestamps.display()))?;
 
-    let dataset_writer = ParallelDatasetWriter::with_schema(
+    let mut dataset_writer = ParallelDatasetWriter::<ParquetTableWriter<_>>::with_schema(
         args.directories_out,
         (Arc::new(schema()), writer_properties(&graph).build()),
     )?;
+    dataset_writer.config.autoflush_buffer_size = args.thread_buffer_size;
 
     let frontiers = find_frontiers(&graph, &max_timestamps, args.node_filter)?;
 

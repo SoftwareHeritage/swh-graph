@@ -27,12 +27,9 @@ pub struct ArrowTableWriter<Builder: Default + StructArrayBuilder> {
 impl<Builder: Default + StructArrayBuilder> TableWriter for ArrowTableWriter<Builder> {
     type Schema = Schema;
     type CloseResult = ();
+    type Config = Option<usize>;
 
-    fn new(
-        mut path: PathBuf,
-        schema: Self::Schema,
-        flush_threshold: Option<usize>,
-    ) -> Result<Self> {
+    fn new(mut path: PathBuf, schema: Self::Schema, config: Option<usize>) -> Result<Self> {
         path.set_extension("arrow");
         let file =
             File::create(&path).with_context(|| format!("Could not create {}", path.display()))?;
@@ -47,7 +44,7 @@ impl<Builder: Default + StructArrayBuilder> TableWriter for ArrowTableWriter<Bui
         Ok(ArrowTableWriter {
             path,
             file_writer,
-            flush_threshold: flush_threshold.unwrap_or(1024 * 1024), // Arbitrary
+            flush_threshold: config.unwrap_or(1024 * 1024), // Arbitrary
             builder: Builder::default(),
         })
     }

@@ -28,7 +28,10 @@ pub use parquet::*;
 #[cfg(feature = "arrow")]
 #[allow(clippy::len_without_is_empty)]
 pub trait StructArrayBuilder {
+    /// Number of rows currently in the buffer (not capacity)
     fn len(&self) -> usize;
+    /// Number of bytes currently in the buffer (not capacity)
+    fn buffer_size(&self) -> usize;
     fn finish(self) -> Result<StructArray>;
 }
 
@@ -38,11 +41,10 @@ pub struct ParallelDatasetWriter<W: TableWriter + Send> {
     schema: W::Schema,
     path: PathBuf,
     writers: ThreadLocal<RefCell<W>>,
-    /// See [`ParquetTableWriter::flush_threshold`]
-    pub flush_threshold: Option<usize>,
+    pub config: W::Config,
 }
 
-impl<W: TableWriter<Schema = ()> + Send> ParallelDatasetWriter<W> {
+impl<W: TableWriter<Schema = (), Config = ()> + Send> ParallelDatasetWriter<W> {
     pub fn new(path: PathBuf) -> Result<Self> {
         std::fs::create_dir_all(&path)
             .with_context(|| format!("Could not create {}", path.display()))?;
@@ -51,12 +53,15 @@ impl<W: TableWriter<Schema = ()> + Send> ParallelDatasetWriter<W> {
             schema: (),
             path,
             writers: ThreadLocal::new(),
-            flush_threshold: None,
+            config: (),
         })
     }
 }
 
-impl<W: TableWriter + Send> ParallelDatasetWriter<W> {
+impl<W: TableWriter + Send> ParallelDatasetWriter<W>
+where
+    W::Config: Default,
+{
     pub fn with_schema(path: PathBuf, schema: W::Schema) -> Result<Self> {
         std::fs::create_dir_all(&path)
             .with_context(|| format!("Could not create {}", path.display()))?;
@@ -65,7 +70,7 @@ impl<W: TableWriter + Send> ParallelDatasetWriter<W> {
             schema,
             path,
             writers: ThreadLocal::new(),
-            flush_threshold: None,
+            config: W::Config::default(),
         })
     }
 
@@ -76,7 +81,7 @@ impl<W: TableWriter + Send> ParallelDatasetWriter<W> {
         Ok(RefCell::new(W::new(
             path,
             self.schema.clone(),
-            self.flush_threshold,
+            self.config.clone(),
         )?))
     }
 
@@ -130,8 +135,9 @@ impl<W: TableWriter + Send> Drop for ParallelDatasetWriter<W> {
 pub trait TableWriter {
     type Schema: Clone;
     type CloseResult: Send;
+    type Config: Clone;
 
-    fn new(path: PathBuf, schema: Self::Schema, flush_threshold: Option<usize>) -> Result<Self>
+    fn new(path: PathBuf, schema: Self::Schema, config: Self::Config) -> Result<Self>
     where
         Self: Sized;
 
@@ -156,11 +162,12 @@ impl<PartitionWriter: TableWriter + Send> TableWriter for PartitionedTableWriter
     /// `(partition_column, num_partitions, underlying_schema)`
     type Schema = (String, Option<NonZeroU16>, PartitionWriter::Schema);
     type CloseResult = Vec<PartitionWriter::CloseResult>;
+    type Config = PartitionWriter::Config;
 
     fn new(
         mut path: PathBuf,
         (partition_column, num_partitions, schema): Self::Schema,
-        flush_threshold: Option<usize>,
+        config: Self::Config,
     ) -> Result<Self> {
         // Remove the last part of the path (the thread id), so we can insert the
         // partition number between the base path and the thread id.
@@ -186,7 +193,7 @@ impl<PartitionWriter: TableWriter + Send> TableWriter for PartitionedTableWriter
                     PartitionWriter::new(
                         partition_path.join(&thread_id),
                         schema.clone(),
-                        flush_threshold,
+                        config.clone(),
                     )
                 })
                 .collect::<Result<_>>()?,
@@ -218,12 +225,9 @@ pub type CsvZstTableWriter<'a> = csv::Writer<zstd::stream::AutoFinishEncoder<'a,
 impl<'a> TableWriter for CsvZstTableWriter<'a> {
     type Schema = ();
     type CloseResult = ();
+    type Config = ();
 
-    fn new(
-        mut path: PathBuf,
-        _schema: Self::Schema,
-        _flush_threshold: Option<usize>,
-    ) -> Result<Self> {
+    fn new(mut path: PathBuf, _schema: Self::Schema, _config: ()) -> Result<Self> {
         path.set_extension("csv.zst");
         let file =
             File::create(&path).with_context(|| format!("Could not create {}", path.display()))?;

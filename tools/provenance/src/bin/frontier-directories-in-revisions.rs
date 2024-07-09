@@ -45,6 +45,10 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(long)]
+    /// Maximum number of bytes in a thread's output Parquet buffer,
+    /// before it is flushed to disk
+    thread_buffer_size: Option<usize>,
     #[arg(value_enum)]
     #[arg(long, default_value_t = NodeFilter::Heads)]
     /// Subset of revisions and releases to traverse from
@@ -105,13 +109,14 @@ pub fn main() -> Result<()> {
 
     let reachable_nodes = load_reachable_nodes(&graph, args.node_filter, args.reachable_nodes)?;
 
-    let dataset_writer = ParallelDatasetWriter::with_schema(
+    let mut dataset_writer = ParallelDatasetWriter::<ParquetTableWriter<_>>::with_schema(
         args.directories_out,
         (
             Arc::new(dir_in_revrel_schema()),
             dir_in_revrel_writer_properties(&graph).build(),
         ),
     )?;
+    dataset_writer.config.autoflush_buffer_size = args.thread_buffer_size;
 
     write_revisions_from_frontier_directories(
         &graph,

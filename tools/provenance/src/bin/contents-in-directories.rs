@@ -45,6 +45,10 @@ struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    #[arg(long)]
+    /// Maximum number of bytes in a thread's output Parquet buffer,
+    /// before it is flushed to disk
+    thread_buffer_size: Option<usize>,
     #[arg(value_enum)]
     #[arg(long, default_value_t = NodeFilter::Heads)]
     /// Subset of revisions and releases to traverse from
@@ -90,13 +94,14 @@ pub fn main() -> Result<()> {
     )?;
     pl.done();
 
-    let dataset_writer = ParallelDatasetWriter::with_schema(
+    let mut dataset_writer = ParallelDatasetWriter::<ParquetTableWriter<_>>::with_schema(
         args.contents_out,
         (
             Arc::new(cnt_in_dir_schema()),
             cnt_in_dir_writer_properties(&graph).build(),
         ),
     )?;
+    dataset_writer.config.autoflush_buffer_size = args.thread_buffer_size;
 
     // List all directories (and contents) forward-reachable from a frontier directories.
     // So when walking backward from a content, if the walk ever sees a directory

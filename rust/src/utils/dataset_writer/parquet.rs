@@ -16,18 +16,36 @@ use parquet::format::FileMetaData;
 
 use super::{StructArrayBuilder, TableWriter};
 
+#[derive(Debug, Default, Clone)]
+pub struct ParquetTableWriterConfig {
+    /// Automatically flushes the builder to disk when its length (in number of rows)
+    /// reaches the value.
+    ///
+    /// To avoid uneven row group sizes, this value plus the number of values added
+    /// to the builder between calls to [`Self::builder`] should be equal to
+    /// [`max_row_group_size`](WriterProperties::max_row_group_size)
+    /// (or a multiple of it).
+    ///
+    /// Defaults to [`max_row_group_size`](WriterProperties::max_row_group_size)
+    /// if `None`.
+    pub autoflush_row_group_len: Option<usize>,
+    /// Automatically flushes the builder to disk when its size (in number of bytes
+    /// in the arrays) reaches the value.
+    ///
+    /// Does not automatically flush on size if `None`
+    pub autoflush_buffer_size: Option<usize>,
+}
+
 /// Writer to a .parquet file, usable with [`ParallelDatasetWriter`](super::ParallelDatasetWriter)
 ///
 /// `Builder` should follow the pattern documented by
 /// [`arrow::builder`](https://docs.rs/arrow/latest/arrow/array/builder/index.html)
 pub struct ParquetTableWriter<Builder: Default + StructArrayBuilder> {
     path: PathBuf,
-    /// Automatically flushes the builder to disk when it length reaches the value.
-    /// To avoid uneven row group sizes, this value plus the number of values added
-    /// to the builder between calls to [`Self::builder`] should be either equal or
-    /// equal to [`max_row_group_size`](WriterProperties::max_row_group_size)
-    /// (or a multiple of it).
-    pub flush_threshold: usize,
+    /// See [`ParquetTableWriterConfig::autoflush_row_group_len`]
+    pub autoflush_row_group_len: usize,
+    /// See [`ParquetTableWriterConfig::autoflush_buffer_size`]
+    pub autoflush_buffer_size: Option<usize>,
     file_writer: Option<ParquetWriter<File>>, // None only between .close() call and Drop
     builder: Builder,
 }
@@ -35,11 +53,15 @@ pub struct ParquetTableWriter<Builder: Default + StructArrayBuilder> {
 impl<Builder: Default + StructArrayBuilder> TableWriter for ParquetTableWriter<Builder> {
     type Schema = (Arc<Schema>, WriterProperties);
     type CloseResult = FileMetaData;
+    type Config = ParquetTableWriterConfig;
 
     fn new(
         mut path: PathBuf,
         (schema, properties): Self::Schema,
-        flush_threshold: Option<usize>,
+        ParquetTableWriterConfig {
+            autoflush_row_group_len,
+            autoflush_buffer_size,
+        }: Self::Config,
     ) -> Result<Self> {
         path.set_extension("parquet");
         let file =
@@ -57,10 +79,12 @@ impl<Builder: Default + StructArrayBuilder> TableWriter for ParquetTableWriter<B
         Ok(ParquetTableWriter {
             path,
             // See above, we need to make sure the user does not write more than
-            // `properties.max_row_group_size()` minus `flush_threshold` rows between
+            // `properties.max_row_group_size()` minus `autoflush_row_group_len` rows between
             // two calls to self.builder() to avoid uneven group sizes. This seems
             // like a safe ratio.
-            flush_threshold: flush_threshold.unwrap_or(properties.max_row_group_size() * 9 / 10),
+            autoflush_row_group_len: autoflush_row_group_len
+                .unwrap_or(properties.max_row_group_size() * 9 / 10),
+            autoflush_buffer_size,
             file_writer: Some(file_writer),
             builder: Builder::default(),
         })
@@ -99,8 +123,13 @@ impl<Builder: Default + StructArrayBuilder> TableWriter for ParquetTableWriter<B
 impl<Builder: Default + StructArrayBuilder> ParquetTableWriter<Builder> {
     /// Flushes the internal buffer is too large, then returns the array builder.
     pub fn builder(&mut self) -> Result<&mut Builder> {
-        if self.builder.len() >= self.flush_threshold {
+        if self.builder.len() >= self.autoflush_row_group_len {
             self.flush()?;
+        }
+        if let Some(autoflush_buffer_size) = self.autoflush_buffer_size {
+            if self.builder.buffer_size() >= autoflush_buffer_size {
+                self.flush()?;
+            }
         }
 
         Ok(&mut self.builder)

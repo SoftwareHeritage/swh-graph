@@ -205,6 +205,13 @@ impl StructArrayBuilder for CntInRevrelTableBuilder {
         self.cnt.len()
     }
 
+    fn buffer_size(&self) -> usize {
+        self.len() * (8 + 8 + 8) // u64 + u64 + u64
+         + self.path.values_slice().len()
+         + self.path.offsets_slice().len() * 4 // BinaryBuilder uses i32 indices
+         + self.path.validity_slice().map(|s| s.len()).unwrap_or(0)
+    }
+
     fn finish(mut self) -> Result<StructArray> {
         let columns: Vec<Arc<dyn Array>> = vec![
             Arc::new(self.cnt.finish()),
@@ -253,6 +260,13 @@ impl StructArrayBuilder for DirInRevrelTableBuilder {
         self.dir.len()
     }
 
+    fn buffer_size(&self) -> usize {
+        self.len() * (8 + 8 + 8 + 8) // u64 + u64 + u64 + u64
+         + self.path.values_slice().len()
+         + self.path.offsets_slice().len() * 4 // BinaryBuilder uses i32 indices
+         + self.path.validity_slice().map(|s| s.len()).unwrap_or(0)
+    }
+
     fn finish(mut self) -> Result<StructArray> {
         let columns: Vec<Arc<dyn Array>> = vec![
             Arc::new(self.dir.finish()),
@@ -296,6 +310,13 @@ impl Default for CntInDirTableBuilder {
 impl StructArrayBuilder for CntInDirTableBuilder {
     fn len(&self) -> usize {
         self.cnt.len()
+    }
+
+    fn buffer_size(&self) -> usize {
+        self.len() * (8 + 8) // u64 + u64
+         + self.path.values_slice().len()
+         + self.path.offsets_slice().len() * 4 // BinaryBuilder uses i32 indices
+         + self.path.validity_slice().map(|s| s.len()).unwrap_or(0)
     }
 
     fn finish(mut self) -> Result<StructArray> {
