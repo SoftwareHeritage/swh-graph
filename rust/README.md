@@ -162,7 +162,7 @@ for (succ, labels) in graph.labeled_successors(node_id) {
 }
 ```
 
-## Building an distribution
+## Building a distribution
 
 ### Dependencies
 The code needs stable Rust to be >= 1.65 because we require the [GAT feature](https://blog.rust-lang.org/2022/10/28/gats-stabilization.html`).
@@ -206,6 +206,45 @@ For this reason, this is enabled by default in the `.cargo/config.toml` file.
 Be aware that a file compiled with `pdep` enabled will not run on a CPU that does not support it.
 Generally, **running a binary compiled with a given set of CPU features on another one
 will result in SIGILL (illegal instruction) error**.
+
+## Minimal setup for tests
+
+Here is the minimal setup you will need to be able to execute python tests in this package.
+This is not the recommended build process for production-like deployments!
+
+1. install binary dependencies
+
+```text
+swh-graph$ sudo apt install protobuf-compiler
+swh-graph$ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+The Rust compiler is installed from upstream because Debian stable (bookworm) only provides rust 1.63.
+
+
+2. compile the binary assets:
+
+```text
+swh-graph$ cargo build --all-features
+```
+
+This should build binary assets in the local directory `target/debug`. Check
+the `swh-graph-grpc-serve` is present there and cen be executed properly:
+
+```text
+swh-graph$ ./target/debug/swh-graph-grpc-serve --help
+gRPC server for the compressed Software Heritage graph
+
+Usage: swh-graph-grpc-serve [OPTIONS] <GRAPH_PATH>
+
+Arguments:
+  <GRAPH_PATH>
+
+Options:
+      --bind <BIND>                  [default: [::]:5009]
+      --masked-nodes <MASKED_NODES>  A line-separated list of node SWHIDs to exclude from the graph
+  -v, --verbose...
+  -h, --help                         Print help
+```
 
 ## Deployment
 
