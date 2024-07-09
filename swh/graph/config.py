@@ -67,20 +67,23 @@ def check_config(conf):
             conf["java"] = os.path.join(os.environ["JAVA_HOME"], "bin", "java")
         else:
             conf["java"] = "java"
-    debug_mode = conf.get("debug", "pytest" in sys.modules)
-    if "rust_executable_dir" not in conf:
-        profile = "debug" if debug_mode else "release"
-        path1 = Path(__file__).parent.parent.parent / "target" / profile
-        path2 = Path(__file__).resolve().parent.parent.parent / "target" / profile
-        if not path1.exists() and path2.exists():
-            # hack for editable installs
-            conf["rust_executable_dir"] = str(path2)
-        else:
-            conf["rust_executable_dir"] = str(path1)
-    if not conf["rust_executable_dir"].endswith("/"):
-        conf["rust_executable_dir"] += "/"
     if "classpath" not in conf:
         conf["classpath"] = find_graph_jar()
+    # rust related config entries
+    debug_mode = conf.get("debug", "pytest" in sys.modules)
+    if "rust_executable_dir" not in conf:
+        # look for a target/ directory in the sources root directory
+        profile = "debug" if debug_mode else "release"
+        # in editable installs, __file__ is a symlink to the original file in
+        # the source directory, which is where in the end the rust sources and
+        # executable are. So resolve the symlink before looking for the target/
+        # directory relative to the actual python file.
+        path = Path(__file__).resolve()
+        path = path.parent.parent.parent / "target" / profile
+        conf["rust_executable_dir"] = str(path)
+    if not conf["rust_executable_dir"].endswith("/"):
+        conf["rust_executable_dir"] += "/"
+
     if "object_types" not in conf:
         conf["object_types"] = "*"
 
