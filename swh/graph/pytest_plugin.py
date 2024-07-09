@@ -13,6 +13,7 @@ import pytest
 
 from swh.graph.example_dataset import DATASET_DIR
 from swh.graph.grpc.swhgraph_pb2_grpc import TraversalServiceStub
+from swh.graph.grpc_server import ExecutableNotFound
 from swh.graph.http_client import RemoteGraphClient
 from swh.graph.http_naive_client import NaiveClient
 
@@ -44,6 +45,17 @@ class GraphServerProcess(multiprocessing.Process):
                 )
                 loop.run_forever()
         except Exception as e:
+            if isinstance(e, ExecutableNotFound):
+                # hack to add a bit more context and help to the user,
+                # especially when this is used from another swh package...
+                # XXX on py>=3.11 we could use e.add_note() instead
+                e.args = (
+                    *e.args,
+                    "This probably means you need to build the rust grpc server "
+                    'for swh-graph. Check the "Minimal setup for tests" section in '
+                    "the rust/README.md file in the swh-graph "
+                    "source code directory.",
+                )
             logger.exception(e)
             self.q.put(e)
 

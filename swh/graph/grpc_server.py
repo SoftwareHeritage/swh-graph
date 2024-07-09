@@ -21,6 +21,10 @@ from swh.graph.config import check_config
 logger = logging.getLogger(__name__)
 
 
+class ExecutableNotFound(EnvironmentError):
+    pass
+
+
 def build_java_grpc_server_cmdline(**config):
     port = config.pop("port", None)
     if port is None:
@@ -57,8 +61,8 @@ def build_rust_grpc_server_cmdline(**config):
     grpc_path = config["rust_executable_dir"] + "swh-graph-grpc-serve"
     if not os.path.isfile(grpc_path):
         grpc_path = shutil.which("swh-graph-grpc-serve")
-    if not grpc_path:
-        raise EnvironmentError("swh-graph-grpc-serve executable not found")
+    if not grpc_path or not os.path.isfile(grpc_path):
+        raise ExecutableNotFound("swh-graph-grpc-serve executable not found")
 
     cmd = [grpc_path, "-vvvvv" if debug_mode else "-vv"]
     if config.get("masked_nodes"):
