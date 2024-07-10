@@ -274,9 +274,10 @@ class _BaseTask(luigi.Task):
                     "Unexpected header in %s: %r", self.blob_list_path(), header
                 )
 
-            rows_it = reader
+            rows_it: Iterable[List[str]] = reader
             if with_tqdm:
                 rows_it = tqdm.tqdm(rows_it, total=self.blob_count())
+
             for row in rows_it:
                 try:
                     (swhid, sha1, name) = row

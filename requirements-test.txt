@@ -8,4 +8,5 @@ types-click
 types-pyyaml
 types-requests
 types-protobuf
+types-tqdm
 grpc-stubs
