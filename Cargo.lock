@@ -628,6 +628,7 @@ version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41bfbdb21256b87a8b5e80fab81a8eed158178e812fd7ba451907518b2742f16"
 dependencies = [
+ "chrono",
  "git2",
 ]
 
@@ -4099,7 +4100,7 @@ dependencies = [
 [[package]]
 name = "webgraph"
 version = "0.1.0"
-source = "git+https://github.com/vigna/webgraph-rs?rev=eb8b8a45742490f5b34e79ef933086e743a6ad3b#eb8b8a45742490f5b34e79ef933086e743a6ad3b"
+source = "git+https://github.com/vigna/webgraph-rs?rev=4d8323683fcb5953c0f9c097e50432fc826abea6#4d8323683fcb5953c0f9c097e50432fc826abea6"
 dependencies = [
  "anyhow",
  "bitflags 2.4.2",

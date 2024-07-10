@@ -8,6 +8,8 @@
 use std::collections::HashMap;
 
 use anyhow::{ensure, Context, Result};
+use itertools::Itertools;
+use webgraph::prelude::{Left, Right, Zip};
 
 use crate::graph::{NodeId, SwhBidirectionalGraph};
 use crate::labels::{
@@ -135,8 +137,8 @@ impl GraphBuilder {
                 properties::VecStrings,
                 properties::VecLabelNames,
             >,
-            VecGraph<Option<u64>>,
-            VecGraph<Option<u64>>,
+            Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
+            Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
         >,
     > {
         let num_nodes = self.swhids.len();
@@ -165,44 +167,67 @@ impl GraphBuilder {
             .map(|(_index, label_name)| label_name)
             .collect();
 
-        let arcs: Vec<_> = self
-            .arcs
-            .iter()
-            .map(|(src, dst, label)| {
-                let label = label.map(|label| {
-                    UntypedEdgeLabel::from(match label {
-                        EdgeLabel::Branch(branch) => EdgeLabel::Branch(
-                            Branch::new(FilenameId(
-                                label_permutation[branch.filename_id().0 as usize] as u64,
-                            ))
-                            .expect("Label name permutation overflowed"),
-                        ),
-                        EdgeLabel::DirEntry(entry) => EdgeLabel::DirEntry(
-                            DirEntry::new(
-                                entry.permission().expect("invalid permission"),
-                                FilenameId(
-                                    label_permutation[entry.filename_id().0 as usize] as u64,
+        let mut arcs = self.arcs.clone();
+        arcs.sort_by_key(|(src, dst, _label)| (*src, *dst)); // stable sort, it makes tests easier to write
+
+        let arcs: Vec<(NodeId, NodeId, Vec<u64>)> = arcs
+            .into_iter()
+            .group_by(|(src, dst, _label)| (*src, *dst))
+            .into_iter()
+            .map(|((src, dst), arcs)| -> (NodeId, NodeId, Vec<u64>) {
+                let labels = arcs
+                    .flat_map(|(_src, _dst, labels)| {
+                        labels.map(|label| {
+                            UntypedEdgeLabel::from(match label {
+                                EdgeLabel::Branch(branch) => EdgeLabel::Branch(
+                                    Branch::new(FilenameId(
+                                        label_permutation[branch.filename_id().0 as usize] as u64,
+                                    ))
+                                    .expect("Label name permutation overflowed"),
                                 ),
-                            )
-                            .expect("Label name permutation overflowed"),
-                        ),
-                        EdgeLabel::Visit(visit) => EdgeLabel::Visit(visit),
+                                EdgeLabel::DirEntry(entry) => EdgeLabel::DirEntry(
+                                    DirEntry::new(
+                                        entry.permission().expect("invalid permission"),
+                                        FilenameId(
+                                            label_permutation[entry.filename_id().0 as usize]
+                                                as u64,
+                                        ),
+                                    )
+                                    .expect("Label name permutation overflowed"),
+                                ),
+                                EdgeLabel::Visit(visit) => EdgeLabel::Visit(visit),
+                            })
+                            .0
+                        })
                     })
-                    .0
-                });
-                (*src, *dst, label)
+                    .collect();
+                (src, dst, labels)
             })
             .collect();
 
-        let backward_arcs: Vec<(NodeId, NodeId, Option<u64>)> = arcs
+        let backward_arcs: Vec<(NodeId, NodeId, Vec<u64>)> = arcs
             .iter()
-            .map(|(src, dst, label)| (*dst, *src, *label))
+            .map(|(src, dst, labels)| (*dst, *src, labels.clone()))
             .collect();
 
         SwhBidirectionalGraph::from_underlying_graphs(
             std::path::PathBuf::default(),
-            VecGraph::from_labeled_arc_list(arcs),
-            VecGraph::from_labeled_arc_list(backward_arcs),
+            // Equivalent to VecGraph::from_labeled_arc_list(arcs), but bypasses the
+            // constraint that the left side of the Zip must have Copy-able labels
+            Zip(
+                Left(VecGraph::from_arc_list(
+                    arcs.iter().map(|(src, dst, _labels)| (*src, *dst)),
+                )),
+                Right(VecGraph::from_labeled_arc_list(arcs)),
+            ),
+            // Equivalent to VecGraph::from_labeled_arc_list(backward_arcs), but bypasses the
+            // constraint that the left side of the Zip must have Copy-able labels
+            Zip(
+                Left(VecGraph::from_arc_list(
+                    backward_arcs.iter().map(|(src, dst, _labels)| (*src, *dst)),
+                )),
+                Right(VecGraph::from_labeled_arc_list(backward_arcs)),
+            ),
         )
         .init_properties()
         .load_properties(|properties| {
