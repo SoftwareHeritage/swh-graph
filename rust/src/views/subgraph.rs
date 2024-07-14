@@ -8,6 +8,7 @@ use std::path::Path;
 use crate::arc_iterators::FlattenedSuccessorsIterator;
 use crate::graph::*;
 use crate::properties;
+use crate::NodeConstraint;
 
 macro_rules! make_filtered_arcs_iterator {
     ($name:ident, $inner:ident, $( $next:tt )*) => {
@@ -151,6 +152,8 @@ pub struct Subgraph<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(us
 }
 
 impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool> Subgraph<G, NodeFilter, fn(usize, usize) -> bool> {
+    /// Create a [Subgraph] keeping only nodes matching a given node filter function.
+    ///
     /// Shorthand for `Subgraph { graph, node_filter, arc_filter: |_src, _dst| true }`
     pub fn with_node_filter(
         graph: G,
@@ -163,7 +166,10 @@ impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool> Subgraph<G, NodeFilter, fn(usiz
         }
     }
 }
+
 impl<G: SwhGraph, ArcFilter: Fn(usize, usize) -> bool> Subgraph<G, fn(usize) -> bool, ArcFilter> {
+    /// Create a [Subgraph] keeping only arcs matching a arc filter function.
+    ///
     /// Shorthand for `Subgraph { graph, node_filter: |_node| true, arc_filter }`
     pub fn with_arc_filter(
         graph: G,
@@ -173,6 +179,24 @@ impl<G: SwhGraph, ArcFilter: Fn(usize, usize) -> bool> Subgraph<G, fn(usize) -> 
             graph,
             node_filter: |_node| true,
             arc_filter,
+        }
+    }
+}
+
+impl<G> Subgraph<G, fn(usize) -> bool, fn(usize, usize) -> bool>
+where
+    G: SwhGraphWithProperties + Clone,
+    <G as SwhGraphWithProperties>::Maps: properties::Maps,
+{
+    /// Create a [Subgraph] keeping only nodes matching a given node constraint.
+    pub fn with_node_constraint(
+        graph: G,
+        node_constraint: NodeConstraint,
+    ) -> Subgraph<G, impl Fn(NodeId) -> bool, fn(usize, usize) -> bool> {
+        Subgraph {
+            graph: graph.clone(),
+            node_filter: move |node| node_constraint.matches(graph.properties().node_type(node)),
+            arc_filter: |_src, _dst| true,
         }
     }
 }
