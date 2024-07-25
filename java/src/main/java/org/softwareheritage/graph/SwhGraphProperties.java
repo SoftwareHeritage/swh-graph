@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.file.NoSuchFileException;
 import java.util.Base64;
 
 /**
@@ -295,7 +296,7 @@ public class SwhGraphProperties implements FlyweightPrototype<SwhGraphProperties
             File f = new File(path + ".property.content.is_skipped.bits");
             long[] array = BinIO.loadLongs(f, java.nio.ByteOrder.BIG_ENDIAN);
             contentIsSkipped = LongArrayBitVector.wrap(array);
-        } catch (FileNotFoundException e2) {
+        } catch (FileNotFoundException | NoSuchFileException e2) {
             logger.info("Could not load is_skipped.bits, falling back to is_skipped.bin");
             try {
                 contentIsSkipped = (LongArrayBitVector) BinIO.loadObject(path + ".property.content.is_skipped.bin");

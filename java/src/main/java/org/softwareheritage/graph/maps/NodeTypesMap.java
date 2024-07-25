@@ -19,6 +19,7 @@ import org.softwareheritage.graph.SwhType;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.NoSuchFileException;
 
 /**
  * Mapping between long node id and SWH node type as described in the
@@ -62,7 +63,7 @@ public class NodeTypesMap implements FlyweightPrototype<NodeTypesMap> {
 
             nodeTypesMap = LongBigArrayBitVector.wrap(array, numNodes * nbBitsPerNodeType)
                     .asLongBigList(nbBitsPerNodeType);
-        } catch (FileNotFoundException e2) {
+        } catch (FileNotFoundException | NoSuchFileException e2) {
             logger.info("Could not load node2type.bin, falling back to node2type.map");
             try {
                 nodeTypesMap = (LongBigList) BinIO.loadObject(graphPath + LEGACY_NODE_TO_TYPE);
