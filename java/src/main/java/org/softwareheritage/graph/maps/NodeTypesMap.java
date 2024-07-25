@@ -7,7 +7,7 @@
 
 package org.softwareheritage.graph.maps;
 
-import it.unimi.dsi.bits.LongArrayBitVector;
+import it.unimi.dsi.bits.LongBigArrayBitVector;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.longs.LongBigList;
 import it.unimi.dsi.fastutil.longs.LongMappedBigList;
@@ -58,9 +58,9 @@ public class NodeTypesMap implements FlyweightPrototype<NodeTypesMap> {
             File f = new File(graphPath + FLAT_NODE_TO_TYPE);
 
             // https://gitlab.softwareheritage.org/swh/devel/swh-graph/-/issues/4806
-            long[] array = BinIO.loadLongs(f, java.nio.ByteOrder.LITTLE_ENDIAN);
+            long[][] array = BinIO.loadLongsBig(f, java.nio.ByteOrder.LITTLE_ENDIAN);
 
-            nodeTypesMap = LongArrayBitVector.wrap(array, numNodes * nbBitsPerNodeType)
+            nodeTypesMap = LongBigArrayBitVector.wrap(array, numNodes * nbBitsPerNodeType)
                     .asLongBigList(nbBitsPerNodeType);
         } catch (FileNotFoundException e2) {
             logger.info("Could not load node2type.bin, falling back to node2type.map");
