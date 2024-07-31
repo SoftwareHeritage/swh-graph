@@ -115,7 +115,9 @@ where
         arc_list_graphs,
         num_nodes,
         compression_flags,
-        Threads::Default,
+        rayon::ThreadPoolBuilder::default()
+            .build()
+            .expect("Could not create BVComp thread pool"),
         &temp_bv_dir,
     )
     .context("Could not build BVGraph from arcs")?;

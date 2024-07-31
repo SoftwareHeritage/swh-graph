@@ -20,6 +20,7 @@ pub mod collections;
 pub mod graph;
 pub mod graph_builder;
 mod r#impl;
+mod labeling;
 pub mod labels;
 pub mod map;
 pub mod mph;

@@ -110,7 +110,7 @@ enum Commands {
     /// can be used to permute a graph to a smaller isomorphic graph
     Llp {
         #[command(flatten)]
-        args: webgraph::cli::llp::CliArgs,
+        args: webgraph::cli::run::llp::CliArgs,
     },
 
     /// Reads the list of SWHIDs and produces node2swhid.bin and node2type.bin
@@ -381,7 +381,7 @@ pub fn main() -> Result<()> {
         }
 
         Commands::Llp { args } => {
-            webgraph::cli::llp::llp::<BE>(args)?;
+            webgraph::cli::run::llp::llp::<BE>(args)?;
         }
 
         Commands::Maps {

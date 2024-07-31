@@ -64,13 +64,13 @@ pub fn main() -> Result<()> {
     match args.command {
         Commands::Offsets { graph } => {
             use webgraph::cli::build::offsets::{build_offsets, CliArgs};
-            build_offsets::<BE>(CliArgs { basename: graph })?;
+            build_offsets::<BE>(CliArgs { src: graph })?;
         }
 
         Commands::Ef { base_path } => {
             use webgraph::cli::build::ef::{build_eliasfano, CliArgs};
             build_eliasfano::<BE>(CliArgs {
-                basename: base_path,
+                src: base_path,
                 n: None,
             })?;
         }
@@ -81,16 +81,14 @@ pub fn main() -> Result<()> {
         } => {
             use webgraph::cli::build::ef::{build_eliasfano, CliArgs};
             build_eliasfano::<BE>(CliArgs {
-                basename: base_path,
+                src: base_path,
                 n: Some(num_nodes),
             })?;
         }
 
         Commands::Dcf { base_path } => {
             use webgraph::cli::build::dcf::{build_dcf, CliArgs};
-            build_dcf::<BE>(CliArgs {
-                basename: base_path,
-            })?;
+            build_dcf::<BE>(CliArgs { src: base_path })?;
         }
     }
 

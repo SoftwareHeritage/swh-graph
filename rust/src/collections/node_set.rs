@@ -74,7 +74,7 @@ impl NodeSet for BitVec {
 /// for i in 20..30 {
 ///     node_set.insert(i);
 /// }
-/// assert_eq!(format!("{:?}", node_set), "Dense { data: BitVec { data: [1072694272, 0], len: 100 } }");
+/// assert_eq!(format!("{:?}", node_set), "Dense { data: BitVec { bits: [1072694272, 0], len: 100 } }");
 /// ```
 #[derive(Debug)]
 pub enum AdaptiveNodeSet {

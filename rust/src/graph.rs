@@ -20,10 +20,9 @@ use anyhow::{bail, Context, Result};
 use dsi_bitstream::prelude::BE;
 use webgraph::prelude::*;
 //use webgraph::traits::{RandomAccessGraph, SequentialGraph};
-use webgraph::graphs::bvgraph::EF;
-use webgraph::graphs::BVGraph;
-use webgraph::labels::swh_labels::{MmapReaderBuilder, SwhLabels};
+use webgraph::prelude::BVGraph;
 
+use crate::labeling::SwhLabeling;
 use crate::labels::UntypedEdgeLabel;
 use crate::mph::SwhidMphf;
 use crate::properties;
@@ -36,11 +35,14 @@ type DefaultUnderlyingGraph = BVGraph<
     DynCodesDecoderFactory<
         dsi_bitstream::prelude::BE,
         MmapHelper<u32>,
+        // like webgraph::graphs::bvgraph::EF, but with `&'static [usize]` instead of
+        // `Box<[usize]>`
         sux::dict::EliasFano<
-            sux::rank_sel::SelectFixed2<
-                sux::bits::CountBitVec<&'static [usize]>,
-                &'static [u64],
-                8,
+            sux::rank_sel::SelectAdaptConst<
+                sux::bits::BitVec<&'static [usize]>,
+                &'static [usize],
+                12,
+                4,
             >,
             sux::bits::BitFieldVec<usize, &'static [usize]>,
         >,
@@ -64,7 +66,7 @@ pub trait UnderlyingGraph: RandomAccessLabeling {
     /// being missing
     ///
     /// `Zip::num_arcs` runs `assert_eq!(self.0.num_arcs(), self.1.num_arcs());`
-    /// but `SwhLabels::num_arcs` always panics as of
+    /// but `BitStreamLabeling::num_arcs` always panics as of
     /// f460742fe0f776df2248a5f09a3425b81eb70b07, so we can't use that.
     fn num_arcs(&self) -> u64;
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool;
@@ -133,8 +135,6 @@ impl<L: Copy> UnderlyingGraph for VecGraph<L> {
         }
     }
 }
-
-type SwhGraphLabels = SwhLabels<MmapReaderBuilder, epserde::deser::DeserType<'static, EF>>;
 
 pub trait SwhGraph {
     /// Return the base path of the graph
@@ -304,7 +304,7 @@ pub trait SwhGraphWithProperties: SwhGraph {
 /// * `P` is either `()` or `properties::SwhGraphProperties`, manipulated using
 ///   [`load_properties`](SwhUnidirectionalGraph::load_properties) and
 ///   [`load_all_properties`](SwhUnidirectionalGraph::load_all_properties)
-/// * G is the forward graph (either [`BVGraph`], or `Zip<BVGraph, SwhGraphLabels>`
+/// * G is the forward graph (either [`BVGraph`], or `Zip<BVGraph, SwhLabeling>`
 ///   [`load_labels`](SwhUnidirectionalGraph::load_labels)
 pub struct SwhUnidirectionalGraph<P, G: UnderlyingGraph = DefaultUnderlyingGraph> {
     basepath: PathBuf,
@@ -515,7 +515,7 @@ impl<
 
 impl<P, G: RandomAccessGraph + UnderlyingGraph> SwhUnidirectionalGraph<P, G> {
     /// Consumes this graph and returns a new one that implements [`SwhLabeledForwardGraph`]
-    pub fn load_labels(self) -> Result<SwhUnidirectionalGraph<P, Zip<G, SwhGraphLabels>>> {
+    pub fn load_labels(self) -> Result<SwhUnidirectionalGraph<P, Zip<G, SwhLabeling>>> {
         Ok(SwhUnidirectionalGraph {
             // Note: keep british version of "labelled" here for compatibility with Java swh-graph
             graph: zip_labels(self.graph, suffix_path(&self.basepath, "-labelled"))
@@ -535,9 +535,9 @@ impl<P, G: RandomAccessGraph + UnderlyingGraph> SwhUnidirectionalGraph<P, G> {
 /// * `P` is either `()` or `properties::SwhGraphProperties`, manipulated using
 ///   [`load_properties`](SwhBidirectionalGraph::load_properties) and
 ///   [`load_all_properties`](SwhBidirectionalGraph::load_all_properties)
-/// * FG is the forward graph (either [`BVGraph`], or `Zip<BVGraph, SwhGraphLabels>`
+/// * FG is the forward graph (either [`BVGraph`], or `Zip<BVGraph, SwhLabeling>`
 ///   after using [`load_forward_labels`](SwhBidirectionalGraph::load_forward_labels)
-/// * BG is the backward graph (either [`BVGraph`], or `Zip<BVGraph, SwhGraphLabels>`
+/// * BG is the backward graph (either [`BVGraph`], or `Zip<BVGraph, SwhLabeling>`
 ///   after using [`load_backward_labels`](SwhBidirectionalGraph::load_backward_labels)
 pub struct SwhBidirectionalGraph<
     P,
@@ -804,9 +804,7 @@ impl<P, FG: RandomAccessGraph + UnderlyingGraph, BG: UnderlyingGraph>
     SwhBidirectionalGraph<P, FG, BG>
 {
     /// Consumes this graph and returns a new one that implements [`SwhLabeledForwardGraph`]
-    pub fn load_forward_labels(
-        self,
-    ) -> Result<SwhBidirectionalGraph<P, Zip<FG, SwhGraphLabels>, BG>> {
+    pub fn load_forward_labels(self) -> Result<SwhBidirectionalGraph<P, Zip<FG, SwhLabeling>, BG>> {
         Ok(SwhBidirectionalGraph {
             forward_graph: zip_labels(self.forward_graph, suffix_path(&self.basepath, "-labelled"))
                 .context("Could not load forward labels")?,
@@ -823,7 +821,7 @@ impl<P, FG: UnderlyingGraph, BG: RandomAccessGraph + UnderlyingGraph>
     /// Consumes this graph and returns a new one that implements [`SwhLabeledBackwardGraph`]
     pub fn load_backward_labels(
         self,
-    ) -> Result<SwhBidirectionalGraph<P, FG, Zip<BG, SwhGraphLabels>>> {
+    ) -> Result<SwhBidirectionalGraph<P, FG, Zip<BG, SwhLabeling>>> {
         Ok(SwhBidirectionalGraph {
             forward_graph: self.forward_graph,
             backward_graph: zip_labels(
@@ -846,7 +844,7 @@ impl<P, FG: RandomAccessGraph + UnderlyingGraph, BG: RandomAccessGraph + Underly
     /// [`load_backward_labels`](SwhBidirectionalGraph::load_backward_labels)
     pub fn load_labels(
         self,
-    ) -> Result<SwhBidirectionalGraph<P, Zip<FG, SwhGraphLabels>, Zip<BG, SwhGraphLabels>>> {
+    ) -> Result<SwhBidirectionalGraph<P, Zip<FG, SwhLabeling>, Zip<BG, SwhLabeling>>> {
         self.load_forward_labels()
             .context("Could not load forward labels")?
             .load_backward_labels()
@@ -964,7 +962,7 @@ pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectional
 fn zip_labels<G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
     graph: G,
     base_path: P,
-) -> Result<Zip<G, SwhGraphLabels>> {
+) -> Result<Zip<G, SwhLabeling>> {
     let properties_path = suffix_path(&base_path, ".properties");
     let f = std::fs::File::open(&properties_path)
         .with_context(|| format!("Could not open {}", properties_path.display()))?;
@@ -995,12 +993,14 @@ fn zip_labels<G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
         Some(width) => width
     };
 
-    let labels = SwhLabels::load_from_file(width, &base_path).with_context(|| {
-        format!(
-            "Could not load labeling from {}",
-            base_path.as_ref().display()
-        )
-    })?;
+    let labels = crate::labeling::mmap(&base_path, crate::labeling::SwhDeserializer::new(width))
+        .with_context(|| {
+            format!(
+                "Could not load labeling from {}",
+                base_path.as_ref().display()
+            )
+        })?;
+
     debug_assert!(webgraph::prelude::Zip(&graph, &labels).verify());
     Ok(Zip(graph, labels))
 }
