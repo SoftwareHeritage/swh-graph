@@ -300,7 +300,7 @@ impl MappedPermutation {
             mmap_rs::MmapOptions::new(file_len as _)
                 .context("Could not initialize permutation mmap")?
                 .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
-                .with_file(file, 0)
+                .with_file(&file, 0)
         }
         .map()
         .context("Could not mmap permutation")?;

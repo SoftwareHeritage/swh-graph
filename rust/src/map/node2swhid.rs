@@ -26,7 +26,7 @@ impl Node2SWHID<Mmap> {
             mmap_rs::MmapOptions::new(file_len as _)
                 .context("Could not initialize mmap")?
                 .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
-                .with_file(file, 0)
+                .with_file(&file, 0)
                 .map()
                 .with_context(|| format!("Could not mmap {}", path.display()))?
         };
@@ -59,8 +59,8 @@ impl Node2SWHID<MmapMut> {
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)
                 .context("Could not initialize mmap")?
-                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
-                .with_file(file, 0)
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES | MmapFlags::SHARED)
+                .with_file(&file, 0)
                 .map_mut()
                 .with_context(|| format!("Could not mmap {}", path.display()))?
         };

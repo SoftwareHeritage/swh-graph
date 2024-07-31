@@ -103,7 +103,8 @@ impl Node2Type<UsizeMmap<MmapMut>> {
         let mmap = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)
                 .context("Could not initialize mmap")?
-                .with_file(node2type_file, 0)
+                .with_flags(MmapFlags::SHARED)
+                .with_file(&node2type_file, 0)
                 .map_mut()
                 .with_context(|| "While mmapping the file")?
         };
@@ -127,7 +128,7 @@ impl Node2Type<UsizeMmap<MmapMut>> {
             mmap_rs::MmapOptions::new(file_len as _)
                 .context("Could not initialize mmap")?
                 .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
-                .with_file(file, 0)
+                .with_file(&file, 0)
                 .map_mut()?
         };
         #[cfg(target_os = "linux")]
@@ -166,7 +167,7 @@ impl Node2Type<UsizeMmap<Mmap>> {
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)?
                 .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
-                .with_file(file, 0)
+                .with_file(&file, 0)
                 .map()?
         };
         #[cfg(target_os = "linux")]

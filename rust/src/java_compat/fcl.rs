@@ -80,7 +80,7 @@ impl FrontCodedList<Mmap, Mmap> {
             mmap_rs::MmapOptions::new(bytearray_len as _)
                 .context("Could not initialize mmap")?
                 .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
-                .with_file(bytearray_file, 0)
+                .with_file(&bytearray_file, 0)
                 .map()
                 .with_context(|| format!("Could not mmap {}", bytearray_path.display()))?
         };
@@ -112,7 +112,7 @@ impl FrontCodedList<Mmap, Mmap> {
             mmap_rs::MmapOptions::new(pointers_len as _)
                 .context("Could not initialize mmap")?
                 .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
-                .with_file(pointers_file, 0)
+                .with_file(&pointers_file, 0)
                 .map()
                 .with_context(|| format!("Could not mmap {}", pointers_path.display()))?
         };

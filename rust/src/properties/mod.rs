@@ -128,7 +128,7 @@ fn mmap(path: &Path) -> Result<Mmap> {
         mmap_rs::MmapOptions::new(file_len as _)
             .with_context(|| format!("Could not initialize mmap of size {}", file_len))?
             .with_flags(mmap_rs::MmapFlags::TRANSPARENT_HUGE_PAGES)
-            .with_file(file, 0)
+            .with_file(&file, 0)
             .map()
             .with_context(|| format!("Could not mmap {}", path.display()))?
     };
