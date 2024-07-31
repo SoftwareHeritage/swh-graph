@@ -218,6 +218,9 @@ def download(
 @click.option(
     "--ef", is_flag=True, help="Regenerate .ef files even if they already exist"
 )
+@click.option(
+    "--debug", is_flag=True, help="Use debug executables instead of release executables"
+)
 @click.argument(
     "graph",
     type=click.Path(
@@ -230,6 +233,7 @@ def reindex(
     force: bool,
     ef: bool,
     graph: str,
+    debug: bool,
 ):
     """Downloads a compressed SWH graph to the given target directory"""
     import os.path
@@ -237,6 +241,9 @@ def reindex(
     from swh.graph.shell import Java, Rust
 
     ef = ef or force
+    conf = ctx.obj["config"]
+    if "debug" not in conf and debug:
+        conf["debug"] = debug
 
     if force or not os.path.exists(f"{graph}.cmph"):
         logger.info(
@@ -261,8 +268,8 @@ def reindex(
         or not os.path.exists(f"{graph}-transposed.ef")
     ):
         logger.info("Recreating Elias-Fano indexes on adjacency lists")
-        Rust("swh-graph-index", "ef", f"{graph}").run()
-        Rust("swh-graph-index", "ef", f"{graph}-transposed").run()
+        Rust("swh-graph-index", "ef", f"{graph}", conf=conf).run()
+        Rust("swh-graph-index", "ef", f"{graph}-transposed", conf=conf).run()
 
     if (
         ef
@@ -274,14 +281,20 @@ def reindex(
 
         # ditto
         logger.info("Recreating Elias-Fano indexes on arc labels")
-        Rust("swh-graph-index", "labels-ef", f"{graph}-labelled", node_count).run()
         Rust(
-            "swh-graph-index", "labels-ef", f"{graph}-transposed-labelled", node_count
+            "swh-graph-index", "labels-ef", f"{graph}-labelled", node_count, conf=conf
+        ).run()
+        Rust(
+            "swh-graph-index",
+            "labels-ef",
+            f"{graph}-transposed-labelled",
+            node_count,
+            conf=conf,
         ).run()
 
     if force or not os.path.exists(f"{graph}.node2type.bin"):
         logger.info("Creating node2type.bin")
-        Rust("swh-graph-node2type", graph).run()
+        Rust("swh-graph-node2type", graph, conf=conf).run()
 
 
 @graph_cli_group.command(name="grpc-serve")
