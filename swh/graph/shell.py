@@ -337,7 +337,7 @@ class Rust(Command):
         env = env or dict(os.environ)
         path = env.get("PATH")
         if path:
-            env["PATH"] = f"{path}:{conf['rust_executable_dir']}"
+            env["PATH"] = f"{conf['rust_executable_dir']}:{path}"
         else:
             env["PATH"] = conf["rust_executable_dir"]
 
