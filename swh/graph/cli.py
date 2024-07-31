@@ -279,16 +279,22 @@ def reindex(
         with open(f"{graph}.nodes.count.txt", "rt") as f:
             node_count = f.read().strip()
 
+        label_offsets_count = str(int(node_count) + 1)
+
         # ditto
         logger.info("Recreating Elias-Fano indexes on arc labels")
         Rust(
-            "swh-graph-index", "labels-ef", f"{graph}-labelled", node_count, conf=conf
+            "swh-graph-index",
+            "labels-ef",
+            f"{graph}-labelled",
+            label_offsets_count,
+            conf=conf,
         ).run()
         Rust(
             "swh-graph-index",
             "labels-ef",
             f"{graph}-transposed-labelled",
-            node_count,
+            label_offsets_count,
             conf=conf,
         ).run()
 
