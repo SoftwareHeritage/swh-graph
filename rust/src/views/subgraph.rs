@@ -92,6 +92,20 @@ macro_rules! make_filtered_labeled_arcs_iterator {
 
             $( $next )*
         }
+
+        impl<
+            'a,
+            Labels: IntoIterator,
+            $inner: Iterator<Item = (NodeId, Labels)> + 'a,
+            NodeFilter: Fn(NodeId) -> bool,
+            ArcFilter: Fn(NodeId, NodeId) -> bool,
+        > IntoFlattenedLabeledArcsIterator<<Labels as IntoIterator>::Item> for $name<'a, Labels, $inner, NodeFilter, ArcFilter> {
+            type Flattened = FlattenedSuccessorsIterator<Self>;
+
+            fn flatten_labels(self) -> Self::Flattened {
+                FlattenedSuccessorsIterator::new(self)
+            }
+        }
     }
 }
 

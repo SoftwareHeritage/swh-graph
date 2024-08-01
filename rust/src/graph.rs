@@ -23,7 +23,7 @@ use webgraph::prelude::*;
 use webgraph::prelude::BVGraph;
 
 use crate::labeling::SwhLabeling;
-use crate::labels::UntypedEdgeLabel;
+use crate::labels::{EdgeLabel, UntypedEdgeLabel};
 use crate::mph::SwhidMphf;
 use crate::properties;
 use crate::utils::suffix_path;
@@ -136,6 +136,14 @@ impl<L: Copy> UnderlyingGraph for VecGraph<L> {
     }
 }
 
+pub trait IntoFlattenedLabeledArcsIterator<Label> {
+    type Flattened: IntoIterator<Item = (NodeId, Label)>;
+
+    /// Turns this `Iterator<Item=(succ, Iterator<Item=labels>)>` into an
+    /// `Iterator<ITem=(succ, label)>`.
+    fn flatten_labels(self) -> Self::Flattened;
+}
+
 pub trait SwhGraph {
     /// Return the base path of the graph
     fn path(&self) -> &Path;
@@ -173,40 +181,12 @@ pub trait SwhForwardGraph: SwhGraph {
     fn outdegree(&self, node_id: NodeId) -> usize;
 }
 
-macro_rules! add_label_types {
-    ($graph:expr, $is_transposed:expr, $node_id:expr, $it:expr,) => {{
-        let props = $graph.properties();
-        $it.into_iter().map(move |(succ, labels)| {
-            (
-                succ,
-                labels.into_iter().map(move |label| {
-                    label
-                        .for_edge_type(
-                            props.node_type($node_id),
-                            props.node_type(succ),
-                            $is_transposed ^ $graph.is_transposed(),
-                        )
-                        .unwrap_or_else(|e| {
-                            panic!(
-                                "Unexpected edge from {} ({}) to {} ({}): {}",
-                                props.swhid($node_id),
-                                $node_id,
-                                props.swhid(succ),
-                                succ,
-                                e
-                            )
-                        })
-                }),
-            )
-        })
-    }};
-}
-
 pub trait SwhLabeledForwardGraph: SwhForwardGraph {
     type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
     type LabeledSuccessors<'node>: IntoIterator<Item = (usize, Self::LabeledArcs<'node>)>
+        + IntoFlattenedLabeledArcsIterator<UntypedEdgeLabel>
     where
         Self: 'node;
 
@@ -219,17 +199,18 @@ pub trait SwhLabeledForwardGraph: SwhForwardGraph {
     fn labeled_successors(
         &self,
         node_id: NodeId,
-    ) -> impl Iterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
     where
-        Self: SwhGraphWithProperties,
+        Self: SwhGraphWithProperties + Sized,
         <Self as SwhGraphWithProperties>::Maps: crate::properties::Maps,
     {
-        add_label_types!(
-            self,
-            false,
-            node_id,
-            self.untyped_labeled_successors(node_id),
-        )
+        LabelTypingSuccessorIterator {
+            graph: self,
+            is_transposed: false,
+            src: node_id,
+            successors: self.untyped_labeled_successors(node_id).into_iter(),
+        }
     }
 }
 
@@ -249,6 +230,7 @@ pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
     where
         Self: 'arc;
     type LabeledPredecessors<'node>: IntoIterator<Item = (usize, Self::LabeledArcs<'node>)>
+        + IntoFlattenedLabeledArcsIterator<UntypedEdgeLabel>
     where
         Self: 'node;
 
@@ -263,15 +245,15 @@ pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
         node_id: NodeId,
     ) -> impl Iterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
     where
-        Self: SwhGraphWithProperties,
+        Self: SwhGraphWithProperties + Sized,
         <Self as SwhGraphWithProperties>::Maps: crate::properties::Maps,
     {
-        add_label_types!(
-            self,
-            true,
-            node_id,
-            self.untyped_labeled_predecessors(node_id),
-        )
+        LabelTypingSuccessorIterator {
+            graph: self,
+            is_transposed: true,
+            src: node_id,
+            successors: self.untyped_labeled_predecessors(node_id).into_iter(),
+        }
     }
 }
 
@@ -887,6 +869,79 @@ where
     }
 }
 
+impl<Successors: Iterator> IntoFlattenedLabeledArcsIterator<UntypedEdgeLabel>
+    for LabeledSuccessorIterator<Successors>
+where
+    <Successors as Iterator>::Item: Pair<Left = usize>,
+    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
+    <<<Successors as Iterator>::Item as Pair>::Right as IntoIterator>::Item: Borrow<u64>,
+{
+    type Flattened = FlattenedSuccessorsIterator<Self>;
+
+    fn flatten_labels(self) -> Self::Flattened {
+        FlattenedSuccessorsIterator::new(self)
+    }
+}
+
+pub struct FlattenedSuccessorsIterator<Successors: Iterator>
+where
+    <Successors as Iterator>::Item: Pair<Left = usize>,
+    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
+{
+    current_node_and_labels: Option<(
+        NodeId,
+        <<<Successors as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter,
+    )>,
+    iter: Successors,
+}
+
+impl<Successors: Iterator> FlattenedSuccessorsIterator<Successors>
+where
+    <Successors as Iterator>::Item: Pair<Left = usize>,
+    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
+{
+    pub fn new(successors: Successors) -> Self {
+        Self {
+            current_node_and_labels: None,
+            iter: successors,
+        }
+    }
+}
+
+impl<Successors: Iterator> Iterator for FlattenedSuccessorsIterator<Successors>
+where
+    <Successors as Iterator>::Item: Pair<Left = usize>,
+    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
+{
+    type Item = (
+        NodeId,
+        <<<Successors as Iterator>::Item as Pair>::Right as IntoIterator>::Item,
+    );
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_node_and_labels.is_none() {
+            // first iterator, or exhausted current label list, move to the next one
+            self.current_node_and_labels = self
+                .iter
+                .next()
+                .map(Pair::into_pair)
+                .map(|(succ, labels)| (succ, labels.into_iter()))
+        }
+        let Some((current_node, ref mut current_labels)) = self.current_node_and_labels else {
+            // Reached the end of the iterator
+            return None;
+        };
+        match current_labels.next() {
+            Some(label) => Some((current_node, label)),
+            None => {
+                // exhausted this label list, move to the next one
+                self.current_node_and_labels = None;
+                self.next()
+            }
+        }
+    }
+}
+
 pub struct LabeledArcIterator<T: Iterator>
 where
     <T as Iterator>::Item: Borrow<u64>,
@@ -904,6 +959,113 @@ where
         self.arc_label_ids
             .next()
             .map(|label| UntypedEdgeLabel::from(*label.borrow()))
+    }
+}
+
+pub struct LabelTypingSuccessorIterator<'a, G, Successors: Iterator>
+where
+    <Successors as Iterator>::Item: Pair<Left = usize>,
+    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator<Item = UntypedEdgeLabel>,
+    G: SwhGraphWithProperties,
+    <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
+{
+    graph: &'a G,
+    is_transposed: bool,
+    successors: Successors,
+    src: NodeId,
+}
+
+impl<'a, G, Successors: Iterator> Iterator for LabelTypingSuccessorIterator<'a, G, Successors>
+where
+    <Successors as Iterator>::Item: Pair<Left = usize>,
+    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator<Item = UntypedEdgeLabel>,
+    G: SwhGraphWithProperties,
+    <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
+{
+    type Item = (
+        NodeId,
+        LabelTypingArcIterator<
+            'a,
+            G,
+            <<<Successors as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter,
+        >,
+    );
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.successors.next().map(|pair| {
+            let mut src = self.src;
+            let (mut dst, labels) = pair.into_pair();
+            let succ = dst;
+            if self.is_transposed {
+                (src, dst) = (dst, src)
+            }
+            (
+                succ,
+                LabelTypingArcIterator {
+                    graph: self.graph,
+                    labels: labels.into_iter(),
+                    src,
+                    dst,
+                },
+            )
+        })
+    }
+}
+
+impl<'a, G, Successors: Iterator> IntoFlattenedLabeledArcsIterator<EdgeLabel>
+    for LabelTypingSuccessorIterator<'a, G, Successors>
+where
+    <Successors as Iterator>::Item: Pair<Left = usize>,
+    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator<Item = UntypedEdgeLabel>,
+    G: SwhGraphWithProperties,
+    <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
+{
+    type Flattened = FlattenedSuccessorsIterator<Self>;
+
+    fn flatten_labels(self) -> Self::Flattened {
+        FlattenedSuccessorsIterator::new(self)
+    }
+}
+
+pub struct LabelTypingArcIterator<'a, G, Labels: Iterator<Item = UntypedEdgeLabel>>
+where
+    G: SwhGraphWithProperties,
+    <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
+{
+    graph: &'a G,
+    labels: Labels,
+    src: NodeId,
+    dst: NodeId,
+}
+
+impl<'a, G, Labels: Iterator<Item = UntypedEdgeLabel>> Iterator
+    for LabelTypingArcIterator<'a, G, Labels>
+where
+    G: SwhGraphWithProperties,
+    <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
+{
+    type Item = EdgeLabel;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let props = self.graph.properties();
+        self.labels.next().map(move |label| {
+            label
+                .for_edge_type(
+                    props.node_type(self.src),
+                    props.node_type(self.dst),
+                    self.graph.is_transposed(),
+                )
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Unexpected edge from {} ({}) to {} ({}): {}",
+                        props.swhid(self.src),
+                        self.src,
+                        props.swhid(self.dst),
+                        self.dst,
+                        e
+                    )
+                })
+        })
     }
 }
 

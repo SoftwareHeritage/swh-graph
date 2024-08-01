@@ -57,12 +57,10 @@ where
         bail!("Type of {dir} should be directory, but is {node_type} instead");
     }
 
-    for (succ, labels) in graph.labeled_successors(dir) {
-        for label in labels {
-            if let EdgeLabel::DirEntry(dentry) = label {
-                if dentry.filename_id() == name {
-                    return Ok(Some(succ));
-                }
+    for (succ, label) in graph.labeled_successors(dir).flatten_labels() {
+        if let EdgeLabel::DirEntry(dentry) = label {
+            if dentry.filename_id() == name {
+                return Ok(Some(succ));
             }
         }
     }
