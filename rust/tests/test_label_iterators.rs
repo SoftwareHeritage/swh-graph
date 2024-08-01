@@ -8,6 +8,7 @@
 use anyhow::Result;
 use webgraph::prelude::{Left, Right, VecGraph, Zip};
 
+use swh_graph::arc_iterators::LabeledArcIterator;
 use swh_graph::graph::*;
 use swh_graph::graph_builder::GraphBuilder;
 use swh_graph::labels::{Branch, Visit, VisitStatus};

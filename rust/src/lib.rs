@@ -16,6 +16,7 @@ mod swhtype;
 pub use swhtype::{ArcType, NodeConstraint, NodeType};
 
 pub mod algos;
+pub mod arc_iterators;
 pub mod collections;
 pub mod graph;
 pub mod graph_builder;

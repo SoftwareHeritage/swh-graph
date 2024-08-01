@@ -5,6 +5,7 @@
 
 use std::path::Path;
 
+use crate::arc_iterators::FlattenedSuccessorsIterator;
 use crate::graph::*;
 use crate::properties;
 
