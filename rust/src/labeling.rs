@@ -69,7 +69,6 @@ pub(crate) fn mmap(path: impl AsRef<Path>, bit_deser: SwhDeserializer) -> Result
     let ef_path = path.with_extension("ef");
     let ef = EF::mmap(&ef_path, Flags::empty())
         .with_context(|| format!("Could not parse {}", ef_path.display()))?;
-    println!("ef len (for {}): {}", ef_path.display(), ef.len());
     Ok(BitStreamLabeling::new(
         MmapReaderSupplier {
             backend: MmapHelper::<u32>::mmap(&labels_path, MmapFlags::empty())
