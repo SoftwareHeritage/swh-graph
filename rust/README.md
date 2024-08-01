@@ -233,5 +233,16 @@ The `swh graph reindex` command (made available with `pip3 install swh.graph`)
 takes care of running the conversion.
 
 Additionally, the `.ef` format may change from time to time. If you get an error
-about their hash being invalid, run `swh graph reindex --ef` to re-create them
-at the current version on your system.
+like this:
+
+```text
+Error: Cannot map Elias-Fano pointer list ../swh/graph/example_dataset/compressed/example.ef
+
+Caused by:
+    Wrong type hash. Expected: 0x47e8ca1ab8fa94f1 Actual: 0x890ce77a9258940c.
+    You are trying to deserialize a file with the wrong type.
+    The serialized type is 'sux::dict::elias_fano::EliasFano<sux::rank_sel::select_fixed2::SelectFixed2<sux::bits::bit_vec::CountBitVec, alloc::vec::Vec<u64>, 8>>' and the deserialized type is 'sux::dict::elias_fano::EliasFano<sux::rank_sel::select_adapt_const::SelectAdaptConst<sux::bits::bit_vec::BitVec<alloc::boxed::Box<[usize]>>, alloc::boxed::Box<[usize]>, 12, 4>>'.
+
+```
+
+you need run `swh graph reindex --ef` to re-create them at the current version on your system.
