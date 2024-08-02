@@ -14,7 +14,9 @@ log = "0.4.17"
 rayon = { version = "1.9.0" }
 serde = { version = "1.0", features = ["derive"] }
 stderrlog = "0.5.4"
-swh-graph = { path = "../../rust/" }
+swh-graph = { path = "../../rust/", features = ["dataset-writer", "serde"] }
+thread_local = "1.1.7"
+zstd = "0.12"
 
 [[bin]]
 name = "toposort"
