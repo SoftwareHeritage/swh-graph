@@ -209,13 +209,17 @@ class _MetaCommand(type):
 
 class Command(metaclass=_MetaCommand):
     """Runs a command with the given name and arguments. ``**kwargs`` is passed to
-    :class:`subprocess.Popen`."""
+    :class:`subprocess.Popen`.
 
-    def __init__(self, *args: Union[str, Path], **kwargs):
+    If ``check`` is :const:`True` (the default), raises an exception if the command
+    returns a non-zero exit code."""
+
+    def __init__(self, *args: Union[str, Path], check: bool = True, **kwargs):
         self.args = args
         self.kwargs = dict(kwargs)
         self.preexec_fn = self.kwargs.pop("preexec_fn", lambda: None)
         self.cgroup = create_cgroup(str(args[0]).split("/")[-1])
+        self.check = check
 
     def _preexec_fn(self):
         if self.cgroup is not None:
@@ -249,7 +253,7 @@ class Command(metaclass=_MetaCommand):
             preexec_fn=self._preexec_fn,
             **self.kwargs,
         )
-        return _RunningCommand(self, proc, children, self.cgroup)
+        return _RunningCommand(self, proc, children, self.cgroup, check=self.check)
 
     def run(self) -> None:
         self._run(None, None).wait()
@@ -347,11 +351,13 @@ class _RunningCommand:
         proc: subprocess.Popen,
         running_children: List[Union[_RunningCommand, _RunningPipe]],
         cgroup: Optional[Path],
+        check: bool = True,
     ):
         self.command = command
         self.proc = proc
         self.running_children = running_children
         self.cgroup = cgroup
+        self.check = check
 
     def stdout(self):
         return self.proc.stdout
@@ -377,7 +383,7 @@ class _RunningCommand:
                 )
             )
             self.command._cleanup()
-            if self.proc.returncode not in (0, -int(signal.SIGPIPE)):
+            if self.check and self.proc.returncode not in (0, -int(signal.SIGPIPE)):
                 raise CommandException(self.command.args, self.proc.returncode)
 
             for child in self.running_children:

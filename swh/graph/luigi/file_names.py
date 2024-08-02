@@ -19,7 +19,7 @@ import luigi
 from swh.dataset.luigi import S3PathParameter
 
 from .compressed_graph import LocalGraph
-from .utils import _CsvToOrcToS3ToAthenaTask, count_nodes
+from .utils import _ParquetToS3ToAthenaTask, count_nodes
 
 
 class PopularContentNames(luigi.Task):
@@ -160,7 +160,7 @@ class PopularContentPaths(luigi.Task):
         # fmt: off
 
 
-class PopularContentNamesOrcToS3(_CsvToOrcToS3ToAthenaTask):
+class PopularContentNamesOrcToS3(_ParquetToS3ToAthenaTask):
     """Reads the CSV from :class:`PopularContents`, converts it to ORC,
     upload the ORC to S3, and create an Athena table for it."""
 
@@ -179,7 +179,7 @@ class PopularContentNamesOrcToS3(_CsvToOrcToS3ToAthenaTask):
             popular_contents_path=self.popular_contents_path,
         )
 
-    def _input_csv_path(self) -> Path:
+    def _input_parquet_path(self) -> Path:
         return self.popular_contents_path
 
     def _s3_bucket(self) -> str:
@@ -197,17 +197,6 @@ class PopularContentNamesOrcToS3(_CsvToOrcToS3ToAthenaTask):
             ("filename", "binary"),
             ("occurrences", "bigint"),
         ]
-
-    def _approx_nb_rows(self) -> int:
-        from ..shell import Command, wc
-
-        # Approximates, by assuming few rows contain newline characters
-        n = wc(Command.zstdcat(self._input_csv_path()), "-l")
-        return n - 1  # -1 for the header
-
-    def _parse_row(self, row: List[str]) -> Tuple[Any, ...]:
-        (swhid, length, filename, occurrences) = row
-        return (swhid, int(length), filename.encode(), int(occurrences))
 
     def _pyorc_writer_kwargs(self) -> Dict[str, Any]:
         return {

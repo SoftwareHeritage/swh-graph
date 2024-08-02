@@ -26,14 +26,14 @@ is present, and generates/manipulates the following files::
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
 import luigi
 
 from swh.dataset.luigi import S3PathParameter
 
 from .compressed_graph import LocalGraph
-from .utils import _CsvToOrcToS3ToAthenaTask, count_nodes
+from .utils import _ParquetToS3ToAthenaTask, count_nodes
 
 OBJECT_TYPES = {"ori", "snp", "rel", "rev", "dir", "cnt"}
 
@@ -201,7 +201,7 @@ class CountPaths(luigi.Task):
         """.csv.zst file that contains the counts."""
         return luigi.LocalTarget(
             self.topological_order_dir
-            / f"path_counts_{self.direction}_{self.object_types}.csv.zst"
+            / f"path_counts_{self.direction}_{self.object_types}/"
         )
 
     def nb_lines(self):
@@ -213,7 +213,7 @@ class CountPaths(luigi.Task):
 
     def run(self) -> None:
         """Runs 'count_paths' command from tools/topology and compresses"""
-        from ..shell import AtomicFileSink, Command, Rust
+        from ..shell import Command, Rust
 
         invalid_object_types = set(self.object_types.split(",")) - OBJECT_TYPES
         if invalid_object_types:
@@ -233,12 +233,13 @@ class CountPaths(luigi.Task):
                 # pre-2024 graph
                 content_input = Command.zstdcat(
                     self.local_graph_path / f"{self.graph_name}.nodes.csv.zst"
-                ) | Command.grep("^swh:1:cnt:")
+                ) | Command.grep("^swh:1:cnt:", check=False)
             else:
                 nodes_dir = self.local_graph_path / f"{self.graph_name}.nodes"
                 content_input = Command.cat(
                     *[
-                        Command.zstdcat(nodes_shard) | Command.grep("^swh:1:cnt:")
+                        Command.zstdcat(nodes_shard)
+                        | Command.grep("^swh:1:cnt:", check=False)
                         for nodes_shard in nodes_dir.iterdir()
                     ]
                 )
@@ -264,17 +265,17 @@ class CountPaths(luigi.Task):
             | Rust(
                 "count_paths",
                 self.local_graph_path / self.graph_name,
+                "-vv",
                 "--direction",
                 self.direction,
+                "--out",
+                self.output()
             )
-            | Command.pv("--line-mode", "--wait", "--size", str(self.nb_lines()))
-            | Command.zstdmt("-19")
-            > AtomicFileSink(self.output())
         ).run()
         # fmt: on
 
 
-class PathCountsOrcToS3(_CsvToOrcToS3ToAthenaTask):
+class PathCountsParquetToS3(_ParquetToS3ToAthenaTask):
     """Reads the CSV from :class:`CountPaths`, converts it to ORC,
     upload the ORC to S3, and create an Athena table for it."""
 
@@ -300,7 +301,7 @@ class PathCountsOrcToS3(_CsvToOrcToS3ToAthenaTask):
     def _base_filename(self) -> str:
         return f"path_counts_{self.direction}_{self.object_types}"
 
-    def _input_csv_path(self) -> Path:
+    def _input_parquet_path(self) -> Path:
         return self.topological_order_dir / f"{self._base_filename()}.csv.zst"
 
     def _s3_bucket(self) -> str:
@@ -309,7 +310,7 @@ class PathCountsOrcToS3(_CsvToOrcToS3ToAthenaTask):
 
     def _s3_prefix(self) -> str:
         # TODO: configurable
-        return f"derived_datasets/{self.dataset_name}/{self._base_filename()}/"
+        return f"derived_datasets/{self.dataset_name}/{self._base_filename()}"
 
     def _orc_columns(self) -> List[Tuple[str, str]]:
         return [
@@ -317,19 +318,6 @@ class PathCountsOrcToS3(_CsvToOrcToS3ToAthenaTask):
             ("paths_from_roots", "double"),
             ("all_paths", "double"),
         ]
-
-    def _approx_nb_rows(self) -> int:
-        return self.requires().nb_lines() - 1  # -1 for the header
-
-    def _parse_row(self, row: List[str]) -> Tuple[Any, ...]:
-        (swhid, paths_from_roots, all_paths) = row
-        return (swhid, float(paths_from_roots), float(all_paths))
-
-    def _pyorc_writer_kwargs(self) -> Dict[str, Any]:
-        return {
-            **super()._pyorc_writer_kwargs(),
-            "bloom_filter_columns": ["SWHID"],
-        }
 
     def _athena_db_name(self) -> str:
         return f"derived_{self.dataset_name.replace('-', '')}"

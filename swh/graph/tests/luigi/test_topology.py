@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2023  The Software Heritage developers
+# Copyright (C) 2022-2024  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -7,6 +7,8 @@ import itertools
 from pathlib import Path
 import subprocess
 
+import datafusion
+import pyarrow.dataset
 import pytest
 
 from swh.graph.example_dataset import DATASET_DIR
@@ -152,7 +154,7 @@ def test_countpaths(tmpdir, direction: str):
     topological_order_path = (
         tmpdir / f"topological_order_dfs_{direction}_rev,rel,snp,ori.csv.zst"
     )
-    path_counts_path = tmpdir / f"path_counts_{direction}_rev,rel,snp,ori.csv.zst"
+    path_counts_path = tmpdir / f"path_counts_{direction}_rev,rel,snp,ori"
 
     topological_order_path.write_text(
         TOPO_ORDER_BACKWARD if direction == "backward" else TOPO_ORDER_FORWARD
@@ -169,11 +171,21 @@ def test_countpaths(tmpdir, direction: str):
     task.run()
 
     assert path_counts_path.exists()
-    csv_text = subprocess.check_output(["zstdcat", path_counts_path]).decode()
+
+    ctx = datafusion.SessionContext()
+    ctx.register_dataset(
+        "path_counts", pyarrow.dataset.dataset(path_counts_path, format="parquet")
+    )
+    df = ctx.sql(
+        "SELECT swhid, paths_from_roots, all_paths FROM path_counts ORDER BY swhid"
+    )
+    df.write_csv(str(tmpdir / "path_counts.csv"))
+
+    csv_text = (tmpdir / "path_counts.csv").read_text()
 
     expected = PATH_COUNTS_BACKWARD if direction == "backward" else PATH_COUNTS_FORWARD
 
-    assert csv_text == expected
+    assert sorted(csv_text.split("\n")) == sorted(expected.split("\r\n")[1:])
 
 
 @pytest.mark.parametrize("direction", ["backward", "forward"])
@@ -186,9 +198,7 @@ def test_countpaths_contents(tmpdir, direction):
     topological_order_path = (
         tmpdir / f"topological_order_dfs_{direction}_dir,rev,rel,snp,ori.csv.zst"
     )
-    path_counts_path = (
-        tmpdir / f"path_counts_{direction}_cnt,dir,rev,rel,snp,ori.csv.zst"
-    )
+    path_counts_path = tmpdir / f"path_counts_{direction}_cnt,dir,rev,rel,snp,ori"
 
     # headers: SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2
     dir_order = """\
@@ -230,10 +240,20 @@ def test_countpaths_contents(tmpdir, direction):
     task.run()
 
     assert path_counts_path.exists()
-    csv_text = subprocess.check_output(["zstdcat", path_counts_path]).decode()
+
+    ctx = datafusion.SessionContext()
+    ctx.register_dataset(
+        "path_counts", pyarrow.dataset.dataset(path_counts_path, format="parquet")
+    )
+    df = ctx.sql(
+        "SELECT swhid, paths_from_roots, all_paths FROM path_counts ORDER BY swhid"
+    )
+    df.write_csv(str(tmpdir / "path_counts.csv"))
+
+    csv_text = (tmpdir / "path_counts.csv").read_text()
 
     if direction == "forward":
-        expected = PATH_COUNTS_FORWARD
+        expected = PATH_COUNTS_FORWARD.replace("\r\n", "\n")
         expected += """\
             swh:1:dir:0000000000000000000000000000000000000012,2.0,6.0
             swh:1:dir:0000000000000000000000000000000000000017,2.0,5.0
@@ -250,8 +270,6 @@ def test_countpaths_contents(tmpdir, direction):
             swh:1:cnt:0000000000000000000000000000000000000015,2.0,7.0
             """.replace(
             "            ", ""
-        ).replace(
-            "\n", "\r\n"
         )
 
     else:
@@ -285,8 +303,6 @@ def test_countpaths_contents(tmpdir, direction):
             swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,22.0,47.0
             """.replace(
             "            ", ""
-        ).replace(
-            "\n", "\r\n"
         )
 
-    assert csv_text == expected
+    assert list(sorted(csv_text.split("\n"))) == list(sorted(expected.split("\n")[1:]))

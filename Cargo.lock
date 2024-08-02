@@ -3486,17 +3486,17 @@ name = "swh_graph_topology"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arrow",
  "clap",
  "csv",
  "dsi-progress-logger 0.1.4",
  "itertools 0.11.0",
  "log",
+ "parquet",
  "rayon",
  "serde",
  "stderrlog",
  "swh-graph",
- "thread_local",
- "zstd 0.12.4",
 ]
 
 [[package]]
