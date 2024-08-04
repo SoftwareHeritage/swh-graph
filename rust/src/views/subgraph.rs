@@ -203,7 +203,7 @@ impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> 
         (self.node_filter)(src_node_id)
             && (self.node_filter)(dst_node_id)
             && (self.arc_filter)(src_node_id, dst_node_id)
-            && self.graph.has_arc(dst_node_id, src_node_id)
+            && self.graph.has_arc(src_node_id, dst_node_id)
     }
 }
 
