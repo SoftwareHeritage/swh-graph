@@ -20,6 +20,21 @@ use crate::webgraph::graphs::vec_graph::VecGraph;
 use crate::SwhGraphProperties;
 use crate::SWHID;
 
+// Type (alias) of the graph built by the graph builder
+#[allow(clippy::type_complexity)]
+pub type BuiltGraph = SwhBidirectionalGraph<
+    SwhGraphProperties<
+        properties::VecMaps,
+        properties::VecTimestamps,
+        properties::VecPersons,
+        properties::VecContents,
+        properties::VecStrings,
+        properties::VecLabelNames,
+    >,
+    Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
+    Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
+>;
+
 #[derive(Clone, Debug, Default)]
 pub struct GraphBuilder {
     name_to_id: HashMap<Vec<u8>, u64>,
@@ -125,22 +140,7 @@ impl GraphBuilder {
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn done(
-        &self,
-    ) -> Result<
-        SwhBidirectionalGraph<
-            SwhGraphProperties<
-                properties::VecMaps,
-                properties::VecTimestamps,
-                properties::VecPersons,
-                properties::VecContents,
-                properties::VecStrings,
-                properties::VecLabelNames,
-            >,
-            Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
-            Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
-        >,
-    > {
+    pub fn done(&self) -> Result<BuiltGraph> {
         let num_nodes = self.swhids.len();
         let mut seen = sux::prelude::BitVec::new(num_nodes);
         for (src, dst, _) in self.arcs.iter() {
