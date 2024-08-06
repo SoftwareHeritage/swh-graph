@@ -5,15 +5,15 @@
 
 use std::cell::UnsafeCell;
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Context, Result};
-use dsi_bitstream::codes::GammaWrite;
-use dsi_bitstream::prelude::{BitRead, BitWrite, BufBitWriter, WordAdapter, BE, NE};
+use dsi_bitstream::codes::{GammaRead, GammaWrite};
+use dsi_bitstream::prelude::{BitRead, BitWrite, BufBitReader, BufBitWriter, WordAdapter, BE, NE};
 use dsi_progress_logger::ProgressLogger;
 use itertools::Itertools;
 use lender::{for_, Lender};
@@ -240,84 +240,219 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
                     .take(nodes_per_partition)
             });
 
+    let mut pl = ProgressLogger::default().display_memory();
+    pl.item_name = "arc";
+    pl.local_speed = true;
+    pl.expected_updates = Some(total_labeled_arcs.load(Ordering::Relaxed));
+    pl.start("Writing arc labels");
+    let pl = Arc::new(Mutex::new(pl));
+
+    // Build chunks of .labels and .labeloffsets for each partition
+    let num_partitions = arc_list_graphs.len();
+    let labels_files: Vec<_> = (0..num_partitions).map(|_| OnceLock::new()).collect();
+    let offsets_files: Vec<_> = (0..num_partitions).map(|_| OnceLock::new()).collect();
+    let nodes_per_thread: Vec<_> = (0..num_partitions).map(|_| OnceLock::new()).collect();
+    arc_list_graphs.enumerate().par_bridge().try_for_each(
+        |(partition_id, partition_graph)| -> Result<()> {
+            let labels_file = tempfile::tempfile().context("Could not create temp file")?;
+            let offsets_file = tempfile::tempfile().context("Could not create temp file")?;
+            let mut labels_writer = BufBitWriter::<BE, _, _>::new(WordAdapter::<u8, _>::new(
+                BufWriter::new(labels_file),
+            ));
+            let mut offsets_writer = BufBitWriter::<BE, _, _>::new(WordAdapter::<u8, _>::new(
+                BufWriter::new(offsets_file),
+            ));
+            let mut thread_nodes = 0u64;
+
+            let mut written_labels = 0;
+
+            for_!( (src, successors) in partition_graph {
+                thread_nodes += 1;
+                let mut offset_bits = 0u64;
+                for (_dst, labels) in &successors.group_by(|(dst, _label)| *dst) {
+                    let mut labels: Vec<u64> = labels
+                        .flat_map(|(_dst, label)| label)
+                        .map(|label: NonMaxU64| u64::from(label))
+                        .collect();
+                    written_labels += labels.len();
+                    labels.par_sort_unstable();
+
+                    // Write length-prefixed list of labels
+                    offset_bits = offset_bits
+                        .checked_add(
+                            labels_writer
+                                .write_gamma(labels.len() as u64)
+                                .context("Could not write number of labels")?
+                                as u64,
+                        )
+                        .context("offset overflowed u64")?;
+                    for label in labels {
+                        offset_bits = offset_bits
+                            .checked_add(
+                                labels_writer
+                                    .write_bits(label, label_width)
+                                    .context("Could not write label")?
+                                    as u64,
+                            )
+                            .context("offset overflowed u64")?;
+                    }
+                }
+
+                if src % 32768 == 0 {
+                    pl.lock().unwrap().update_with_count(written_labels);
+                    written_labels = 0;
+                }
+
+                // Write offset of the end of this edge's label list (and start of the next one)
+                offsets_writer
+                    .write_gamma(offset_bits)
+                    .context("Could not write thread offset")?;
+            });
+
+            labels_files[partition_id]
+                .set(
+                    labels_writer
+                        .into_inner()
+                        .context("Could not flush thread's labels writer")?
+                        .into_inner()
+                        .into_inner()
+                        .context("Could not flush thread's labels bufwriter")?,
+                )
+                .map_err(|_| anyhow!("labels_files[{}] was set twice", partition_id))?;
+            offsets_files[partition_id]
+                .set(
+                    offsets_writer
+                        .into_inner()
+                        .context("Could not close thread's label offsets writer")?
+                        .into_inner()
+                        .into_inner()
+                        .context("Could not flush thread's label offsets bufwriter")?,
+                )
+                .map_err(|_| anyhow!("offsets_files[{}] was set twice", partition_id))?;
+            nodes_per_thread[partition_id]
+                .set(thread_nodes)
+                .map_err(|_| anyhow!("offsets_files[{}] was set twice", partition_id))?;
+
+            Ok(())
+        },
+    )?;
+    pl.lock().unwrap().done();
+
+    // Collect thread results (can't use .map() and .collect() above, because .par_bridge does not
+    // preserve order)
+    let labels_files = labels_files
+        .into_iter()
+        .map(|file| {
+            file.into_inner()
+                .ok_or(anyhow!("Missing thread's labels file"))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let offsets_files = offsets_files
+        .into_iter()
+        .map(|file| {
+            file.into_inner()
+                .ok_or(anyhow!("Missing thread's offsets file"))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let nodes_per_thread = nodes_per_thread
+        .into_iter()
+        .map(|file| {
+            file.into_inner()
+                .ok_or(anyhow!("Missing thread's nodes_per_thread"))
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    // Concatenate arc labels written by each thread
+    let mut pl = ProgressLogger::default().display_memory();
+    pl.item_name = "bytes";
+    pl.local_speed = true;
+    pl.expected_updates = Some(
+        labels_files
+            .iter()
+            .map(|file| {
+                file.metadata()
+                    .expect("Could not get thread's labels file metadata")
+                    .len()
+            })
+            .sum::<u64>() as usize,
+    );
+    pl.start("Concatenating arc labels");
+
     let mut labels_path = target_dir.to_owned();
     labels_path.as_mut_os_string().push("-labelled.labels");
-    let mut labels_writer =
-        BufBitWriter::<BE, _, _>::new(WordAdapter::<u8, _>::new(BufWriter::new(
-            File::create(&labels_path)
-                .with_context(|| format!("Could not create {}", labels_path.display()))?,
-        )));
+    let mut labels_file = File::create(&labels_path)
+        .with_context(|| format!("Could not create {}", labels_path.display()))?;
+    let mut buf = vec![0; 65536]; // arbitrary constant
+    let mut chunk_offsets = vec![0];
+    for mut thread_labels_file in labels_files {
+        let mut chunk_size = 0;
+        thread_labels_file
+            .seek(SeekFrom::Start(0))
+            .context("Could not seek in thread labels file")?;
+        loop {
+            let buf_size = thread_labels_file
+                .read(&mut buf)
+                .context("Could not read thread's labels")?;
+            if buf_size == 0 {
+                break;
+            }
+            chunk_size += buf_size;
+            labels_file
+                .write(&buf[0..buf_size])
+                .context("Could not write labels")?;
+            pl.update_with_count(buf_size);
+        }
+        chunk_offsets.push(u64::try_from(chunk_size).expect("Chunk size overflowed u64"));
+        drop(thread_labels_file); // Removes the temporary file
+    }
+
+    labels_file.flush().context("Could not flush labels")?;
+    drop(labels_file);
+
+    pl.done();
+
+    // Collect offsets of each thread (relative to the start of the chunk of .labels of that thread),
+    // shift them (so they are relative to the start of the .labels), then write them in
+    // .labeloffsets
+    let mut pl = ProgressLogger::default().display_memory();
+    pl.item_name = "node";
+    pl.local_speed = true;
+    pl.expected_updates = Some(num_nodes);
+    pl.start("Concatenating arc label offsets");
 
     let mut offsets_path = target_dir.to_owned();
     offsets_path
         .as_mut_os_string()
         .push("-labelled.labeloffsets");
+
     let mut offsets_writer =
         BufBitWriter::<BE, _, _>::new(WordAdapter::<u8, _>::new(BufWriter::new(
             File::create(&offsets_path)
                 .with_context(|| format!("Could not create {}", offsets_path.display()))?,
         )));
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "arc";
-    pl.local_speed = true;
-    pl.expected_updates = Some(total_labeled_arcs.load(Ordering::Relaxed));
-    pl.start("Writing arc labels");
+    for ((chunk_offset, thread_offsets_file), thread_nodes) in chunk_offsets
+        .into_iter()
+        .zip(offsets_files.into_iter())
+        .zip(nodes_per_thread.into_iter())
+    {
+        let mut thread_offsets_reader = BufBitReader::<BE, _, _>::new(WordAdapter::<u8, _>::new(
+            BufReader::new(thread_offsets_file),
+        ));
 
-    // Write offset (in *bits*) of the adjacency list of the first node
-    offsets_writer
-        .write_gamma(0)
-        .context("Could not write initial offset")?;
-
-    // TODO: parallelize this loop, by writing bitstreams concurrently, then
-    // concatenating them
-    for partition_graph in arc_list_graphs {
-        for_!( (_src, successors) in partition_graph {
-            let mut offset_bits = 0u64;
-            for (_dst, labels) in &successors.group_by(|(dst, _label)| *dst) {
-                let mut labels: Vec<u64> = labels
-                    .flat_map(|(_dst, label)| label)
-                    .map(|label: NonMaxU64| u64::from(label))
-                    .collect();
-                labels.par_sort_unstable();
-                pl.update_with_count(labels.len());
-
-                // Write length-prefixed list of labels
-                offset_bits = offset_bits
-                    .checked_add(
-                        labels_writer
-                            .write_gamma(labels.len() as u64)
-                            .context("Could not write number of labels")?
-                            as u64,
-                    )
-                    .context("offset overflowed u64")?;
-                for label in labels {
-                    offset_bits = offset_bits
-                        .checked_add(
-                            labels_writer
-                                .write_bits(label, label_width)
-                                .context("Could not write label")?
-                                as u64,
-                        )
-                        .context("offset overflowed u64")?;
-                }
-            }
-
-            // Write offset of the end of this edge's label list (and start of the next one)
+        for _ in 0..thread_nodes {
+            pl.light_update();
+            let offset = thread_offsets_reader
+                .read_gamma()
+                .context("Could not read thread offset")?;
             offsets_writer
-                .write_gamma(offset_bits)
+                .write_gamma(offset + chunk_offset)
                 .context("Could not write offset")?;
-        });
+        }
+
+        drop(thread_offsets_reader); // Removes the temporary file
     }
 
-    drop(
-        labels_writer
-            .into_inner()
-            .context("Could not flush labels writer")?
-            .into_inner()
-            .into_inner()
-            .context("Could not flush labels bufwriter")?,
-    );
     drop(
         offsets_writer
             .into_inner()
