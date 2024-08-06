@@ -55,6 +55,19 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             .map(f))
     }
 
+    /// Equivalent to `vec![initial_value; self.num_nodes]`, but initializes values in the vector
+    /// in parallel
+    ///
+    /// This is 9 times faster on a NUMA machine with two Intel Xeon Gold 6342 CPUs.
+    fn init_vec<T: Copy + Default + Sync>(&self, initial_value: T) -> Vec<T>
+    where
+        for<'a> Vec<T>: IntoParallelRefMutIterator<'a, Item = &'a mut T>,
+    {
+        let mut vec = vec![T::default(); self.num_nodes];
+        vec.par_iter_mut().for_each(|v| *v = initial_value);
+        vec
+    }
+
     fn node_id(&self, swhid: &str) -> usize {
         self.order
             .get(
@@ -102,8 +115,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         }
 
         log::info!("Initializing...");
-        let timestamps = vec![i64::MIN.to_be(); self.num_nodes];
-        let timestamp_offsets = vec![i16::MIN.to_be(); self.num_nodes];
+        let timestamps = self.init_vec(i64::MIN.to_be());
+        let timestamp_offsets = self.init_vec(i16::MIN.to_be());
 
         log::info!("Reading...");
         let f = |type_: &str, r: Revrel| {
@@ -151,8 +164,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         }
 
         log::info!("Initializing...");
-        let timestamps = vec![i64::MIN.to_be(); self.num_nodes];
-        let timestamp_offsets = vec![i16::MIN.to_be(); self.num_nodes];
+        let timestamps = self.init_vec(i64::MIN.to_be());
+        let timestamp_offsets = self.init_vec(i16::MIN.to_be());
 
         log::info!("Reading...");
         self.par_for_each_row("revision", |rev: Revision| {
@@ -185,7 +198,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         }
 
         log::info!("Initializing...");
-        let lengths = vec![u64::MAX.to_be(); self.num_nodes];
+        let lengths = self.init_vec(u64::MAX.to_be());
 
         log::info!("Reading...");
         let f = |cnt: Content| {
@@ -271,7 +284,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         };
 
         log::info!("Initializing...");
-        let authors = vec![u32::MAX.to_be(); self.num_nodes];
+        let authors = self.init_vec(u32::MAX.to_be());
 
         log::info!("Reading...");
         let f = |type_: &str, r: Revrel| {
@@ -326,7 +339,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         };
 
         log::info!("Initializing...");
-        let committers = vec![u32::MAX.to_be(); self.num_nodes];
+        let committers = self.init_vec(u32::MAX.to_be());
 
         log::info!("Reading...");
         self.par_for_each_row("revision", |rev: Revision| {
@@ -369,7 +382,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         }
 
         log::info!("Initializing...");
-        let offsets = vec![u64::MAX.to_be(); self.num_nodes];
+        let offsets = self.init_vec(u64::MAX.to_be());
         let path = suffix_path(&self.target, suffixes::MESSAGE);
         let file = std::fs::File::create(&path)
             .with_context(|| format!("Could not create {}", path.display()))?;
@@ -424,7 +437,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         }
 
         log::info!("Initializing...");
-        let offsets = vec![u64::MAX.to_be(); self.num_nodes];
+        let offsets = self.init_vec(u64::MAX.to_be());
         let path = suffix_path(&self.target, suffixes::TAG_NAME);
         let file = std::fs::File::create(&path)
             .with_context(|| format!("Could not create {}", path.display()))?;
