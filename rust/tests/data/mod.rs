@@ -13,11 +13,11 @@ use swh_graph::swhid;
 #[allow(dead_code)]
 pub fn build_test_graph_1() -> Result<graph_builder::BuiltGraph> {
     let mut builder = GraphBuilder::default();
-    let ori01 = builder
-        .node(swhid!(swh:1:ori:0000000000000000000000000000000000000001))?
+    let ori1 = builder
+        .node(swhid!(swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054))?
         .done();
-    let ori02 = builder
-        .node(swhid!(swh:1:ori:0000000000000000000000000000000000000002))?
+    let ori2 = builder
+        .node(swhid!(swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165))?
         .done();
     let snp20 = builder
         .node(swhid!(swh:1:snp:0000000000000000000000000000000000000020))?
@@ -86,10 +86,11 @@ pub fn build_test_graph_1() -> Result<graph_builder::BuiltGraph> {
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000005))?
         .done();
 
-    builder.arc(ori01, snp20);
-    builder.arc(ori02, snp22);
+    builder.arc(ori1, snp20);
+    builder.arc(ori2, snp22);
     builder.arc(snp20, rev09);
     builder.arc(snp20, rel10);
+    builder.arc(snp22, rev09);
     builder.arc(snp22, rel10);
     builder.arc(snp22, rel21);
     builder.arc(rel10, rev09);
@@ -100,6 +101,7 @@ pub fn build_test_graph_1() -> Result<graph_builder::BuiltGraph> {
     builder.arc(rev09, dir08);
     builder.arc(rev13, rev09);
     builder.arc(rev13, dir12);
+    builder.arc(rev18, rev13);
     builder.arc(rev18, dir17);
     builder.arc(dir12, dir08);
     builder.arc(dir12, cnt11);
