@@ -68,6 +68,8 @@ where
         sort_batch_size,
         (0..num_batches).into_par_iter(),
         num_partitions,
+        (),
+        (),
         |buffer, batch_id| -> Result<()> {
             let start = batch_id * input_batch_size;
             let end = (batch_id + 1) * input_batch_size;
@@ -95,7 +97,7 @@ where
             .into_iter()
             .enumerate()
             .map(|(partition_id, sorted_arcs_partition)| {
-                webgraph::prelude::Left(ArcListGraph::new(num_nodes, sorted_arcs_partition))
+                webgraph::prelude::Left(ArcListGraph::new_labeled(num_nodes, sorted_arcs_partition))
                     .iter_from(partition_id * nodes_per_partition)
                     .take(nodes_per_partition)
             });

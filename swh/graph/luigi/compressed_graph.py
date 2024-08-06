@@ -1000,6 +1000,24 @@ class MphLabels(_CompressionStepTask):
         )
 
 
+class PthashLabels(_CompressionStepTask):
+    STEP = CompressionStep.PTHASH_LABELS
+    INPUT_FILES = {".labels.csv.zst", ".labels.count.txt"}
+    OUTPUT_FILES = {".labels.pthash"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class PthashLabelsOrder(_CompressionStepTask):
+    STEP = CompressionStep.PTHASH_LABELS_ORDER
+    INPUT_FILES = {".labels.csv.zst", ".labels.pthash", ".labels.count.txt"}
+    OUTPUT_FILES = {".labels.pthash.order"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
 class FclLabels(_CompressionStepTask):
     STEP = CompressionStep.FCL_LABELS
     INPUT_FILES = {".labels.csv.zst", ".labels.mph"}
@@ -1016,7 +1034,8 @@ class FclLabels(_CompressionStepTask):
 class EdgeLabels(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS
     INPUT_FILES = {
-        ".labels.mph",
+        ".labels.pthash",
+        ".labels.pthash.order",
         ".mph",
         ".graph",
         ".order",
@@ -1024,13 +1043,44 @@ class EdgeLabels(_CompressionStepTask):
         ".properties",
         "-transposed.properties",
         "-transposed.offsets",
-        "-transposed.obl",
     }
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
         "-labelled.labeloffsets",
         "-labelled.labels",
         "-labelled.properties",
+    }
+
+    def _large_java_allocations(self) -> int:
+        import multiprocessing
+
+        # See ExtractNodes._large_java_allocations for this constant
+        orc_buffers_size = 256_000_000
+
+        nb_orc_readers = multiprocessing.cpu_count()
+
+        return (
+            orc_buffers_size * nb_orc_readers
+            + self._mph_size()
+            + self._labels_mph_size()
+        )
+
+
+class EdgeLabelsTranspose(_CompressionStepTask):
+    STEP = CompressionStep.EDGE_LABELS_TRANSPOSE
+    INPUT_FILES = {
+        ".labels.pthash",
+        ".labels.pthash.order",
+        ".mph",
+        ".graph",
+        ".order",
+        ".node2swhid.bin",
+        ".properties",
+        "-transposed.properties",
+        "-transposed.offsets",
+    }
+    EXPORT_AS_INPUT = True
+    OUTPUT_FILES = {
         "-transposed-labelled.labeloffsets",
         "-transposed-labelled.labels",
         "-transposed-labelled.properties",
@@ -1163,6 +1213,19 @@ class CompressGraph(luigi.Task):
             object_types=self.object_types,
             rust_executable_dir=self.rust_executable_dir,
         )
+        if set(self.object_types).isdisjoint({"dir", "snp", "ori"}):
+            # Only nodes of these three types have outgoing arcs with labels
+            label_tasks = []
+        else:
+            label_tasks = [
+                EdgeStats(**kwargs),
+                LabelStats(**kwargs),
+                EdgeLabelsObl(**kwargs),
+                EdgeLabelsTransposeObl(**kwargs),
+                FclLabels(**kwargs),
+                EdgeLabelsEf(**kwargs),
+                EdgeLabelsTransposeEf(**kwargs),
+            ]
         return [
             LocalExport(
                 local_export_path=self.local_export_path,
@@ -1170,10 +1233,6 @@ class CompressGraph(luigi.Task):
                 object_types=_tables_for_object_types(self.object_types),
             ),
             NodeStats(**kwargs),
-            EdgeStats(**kwargs),
-            LabelStats(**kwargs),
-            EdgeLabelsObl(**kwargs),
-            EdgeLabelsTransposeObl(**kwargs),
             Stats(**kwargs),
             Obl(**kwargs),
             TransposeObl(**kwargs),
@@ -1182,9 +1241,7 @@ class CompressGraph(luigi.Task):
             Node2Type(**kwargs),
             NodeProperties(**kwargs),
             ConvertMphPersons(**kwargs),
-            FclLabels(**kwargs),
-            EdgeLabelsEf(**kwargs),
-            EdgeLabelsTransposeEf(**kwargs),
+            *label_tasks,
         ]
 
     def output(self) -> List[luigi.LocalTarget]:
@@ -1229,9 +1286,9 @@ class CompressGraph(luigi.Task):
             if step == CompressionStep.CLEAN_TMP:
                 # This step is not run as its own Luigi task
                 continue
-            step_stamp_paths.append(
-                self.local_graph_path / "meta" / "stamps" / f"{step}.json"
-            )
+            path = self.local_graph_path / "meta" / "stamps" / f"{step}.json"
+            if path.exists():
+                step_stamp_paths.append(path)
 
         steps = [json.loads(path.read_text()) for path in step_stamp_paths]
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  The Software Heritage developers
+ * Copyright (C) 2023-2024  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -13,9 +13,11 @@ use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
+use dsi_bitstream::prelude::NE;
 use dsi_progress_logger::ProgressLogger;
 use rayon::prelude::*;
-use webgraph::utils::sort_pairs::{BatchIterator, KMergeIters};
+use webgraph::prelude::{BitDeserializer, BitSerializer};
+use webgraph::utils::sort_pairs::{BatchIterator, BitReader, BitWriter, KMergeIters, Triple};
 
 /// Provides a `unique_sort_to_dir` method to deduplicate, sort, and write to disk
 ///
@@ -205,19 +207,32 @@ impl<Line: IntoIterator<Item = u8>, T: ParallelIterator<Item = Line>> Sortable<L
 {
 }
 
-pub struct PartitionedBuffer {
-    partitions: Vec<Vec<(usize, usize)>>,
+pub struct PartitionedBuffer<
+    L: Ord + Copy + Send + Sync,
+    S: BitSerializer<NE, BitWriter, SerType = L>,
+    D: BitDeserializer<NE, BitReader>,
+> {
+    partitions: Vec<Vec<Triple<L>>>,
     capacity: usize,
-    sorted_iterators: Arc<Mutex<Vec<Vec<BatchIterator<()>>>>>,
+    sorted_iterators: Arc<Mutex<Vec<Vec<BatchIterator<D>>>>>,
     temp_dir: PathBuf,
+    label_serializer: S,
+    label_deserializer: D,
 }
 
-impl PartitionedBuffer {
+impl<
+        L: Ord + Copy + Send + Sync,
+        S: BitSerializer<NE, BitWriter, SerType = L> + Copy,
+        D: BitDeserializer<NE, BitReader, DeserType = L> + Copy,
+    > PartitionedBuffer<L, S, D>
+{
     fn new(
-        sorted_iterators: Arc<Mutex<Vec<Vec<BatchIterator<()>>>>>,
+        sorted_iterators: Arc<Mutex<Vec<Vec<BatchIterator<D>>>>>,
         temp_dir: &Path,
         batch_size: usize,
         num_partitions: usize,
+        label_serializer: S,
+        label_deserializer: D,
     ) -> Self {
         let capacity = batch_size / num_partitions;
         PartitionedBuffer {
@@ -225,14 +240,26 @@ impl PartitionedBuffer {
             sorted_iterators,
             temp_dir: temp_dir.to_owned(),
             capacity,
+            label_serializer,
+            label_deserializer,
         }
     }
-    pub fn insert(&mut self, partition_id: usize, src: usize, dst: usize) -> Result<()> {
+
+    pub fn insert_labeled(
+        &mut self,
+        partition_id: usize,
+        src: usize,
+        dst: usize,
+        label: L,
+    ) -> Result<()> {
         let partition_buffer = self
             .partitions
             .get_mut(partition_id)
             .expect("Partition sorter out of bound");
-        partition_buffer.push((src, dst));
+        partition_buffer.push(Triple {
+            pair: [src, dst],
+            label,
+        });
         if partition_buffer.len() + 1 >= self.capacity {
             self.flush(partition_id)?;
         }
@@ -251,7 +278,12 @@ impl PartitionedBuffer {
             .partitions
             .get_mut(partition_id)
             .expect("Partition buffer out of bound");
-        let batch = flush(&self.temp_dir, &mut partition_buffer[..])?;
+        let batch = flush(
+            &self.temp_dir,
+            &mut partition_buffer[..],
+            self.label_serializer,
+            self.label_deserializer,
+        )?;
         self.sorted_iterators
             .lock()
             .unwrap()
@@ -263,33 +295,37 @@ impl PartitionedBuffer {
     }
 }
 
+impl PartitionedBuffer<(), (), ()> {
+    pub fn insert(&mut self, partition_id: usize, src: usize, dst: usize) -> Result<()> {
+        self.insert_labeled(partition_id, src, dst, ())
+    }
+}
+
 /// Given an iterator and a function to insert its items to [`BatchIterator`]s, returns an
 /// iterator of pairs.
 ///
 /// `f` gets as parameters `num_partitions` `BatchIterator`s; and should place its pair
-/// in such a way that all `(src, dst, ())` in partition `n` should be lexicographically
+/// in such a way that all `(src, dst, labels)` in partition `n` should be lexicographically
 /// lower than those in partition `n+1`.
 ///
 /// In orther words, `f` writes in arbitrary order in each partition, but partitions
 /// should be sorted with respect to each other. This allows merging partitions in
 /// parallel after they are sorted.
-pub fn par_sort_arcs<Item, Iter, F>(
+pub fn par_sort_arcs<Item, Iter, F, L, S, D>(
     temp_dir: &Path,
     batch_size: usize,
     iter: Iter,
     num_partitions: usize,
+    label_serializer: S,
+    label_deserializer: D,
     f: F,
-) -> Result<
-    Vec<
-        std::iter::Map<
-            KMergeIters<impl Iterator<Item = (usize, usize, ())> + Clone + Send + Sync>,
-            impl FnMut((usize, usize, ())) -> (usize, usize) + Clone + Send + Sync,
-        >,
-    >,
->
+) -> Result<Vec<KMergeIters<impl Iterator<Item = (usize, usize, L)> + Clone + Send + Sync, L>>>
 where
-    F: Fn(&mut PartitionedBuffer, Item) -> Result<()> + Send + Sync,
+    F: Fn(&mut PartitionedBuffer<L, S, D>, Item) -> Result<()> + Send + Sync,
     Iter: ParallelIterator<Item = Item>,
+    L: Ord + Copy + Send + Sync,
+    S: BitSerializer<NE, BitWriter, SerType = L> + Send + Sync + Copy,
+    D: BitDeserializer<NE, BitReader, DeserType = L> + Send + Sync + Copy,
 {
     // For each thread, stores a vector of `num_shards` BatchIterator. The n-th BatchIterator
     // of each thread stores arcs for nodes [n*shard_size; (n+1)*shard_size)
@@ -300,7 +336,7 @@ where
     let sorted_iterators = Arc::new(Mutex::new(vec![Vec::new(); num_partitions]));
 
     iter.try_for_each_init(
-        || -> std::cell::RefMut<PartitionedBuffer> {
+        || -> std::cell::RefMut<PartitionedBuffer<L, S, D>> {
             buffers
                 .get_or(|| {
                     RefCell::new(PartitionedBuffer::new(
@@ -308,6 +344,8 @@ where
                         temp_dir,
                         batch_size,
                         num_partitions,
+                        label_serializer,
+                        label_deserializer,
                     ))
                 })
                 .borrow_mut()
@@ -322,7 +360,7 @@ where
 
     // Flush all buffers even if not full
     buffers.into_iter().par_bridge().try_for_each(
-        |thread_buffer: RefCell<PartitionedBuffer>| -> Result<()> {
+        |thread_buffer: RefCell<PartitionedBuffer<L, S, D>>| -> Result<()> {
             thread_buffer.into_inner().flush_all()
         },
     )?;
@@ -336,12 +374,21 @@ where
         // Concatenate partitions
         .map(|partition_sorted_iterators| {
             // Sort within each partition
-            KMergeIters::new(partition_sorted_iterators).map(|(src, dst, ())| (src, dst))
+            KMergeIters::new(partition_sorted_iterators)
         })
         .collect())
 }
 
-fn flush(temp_dir: &Path, buffer: &mut [(usize, usize)]) -> Result<BatchIterator<()>> {
+fn flush<
+    L: Ord + Copy + Send + Sync,
+    S: BitSerializer<NE, BitWriter, SerType = L>,
+    D: BitDeserializer<NE, BitReader, DeserType = L>,
+>(
+    temp_dir: &Path,
+    buffer: &mut [Triple<L>],
+    label_serializer: S,
+    label_deserializer: D,
+) -> Result<BatchIterator<D>> {
     use rand::Rng;
     let sorter_id = rand::thread_rng().gen::<u64>();
     let mut sorter_temp_file = temp_dir.to_owned();
@@ -350,8 +397,19 @@ fn flush(temp_dir: &Path, buffer: &mut [(usize, usize)]) -> Result<BatchIterator
     // This is equivalent to BatchIterator::new_from_vec(&sorter_temp_file, buffer),
     // but without parallelism, which would cause Rayon to re-enter
     // par_sort_arcs and cause deadlocks: https://github.com/rayon-rs/rayon/issues/1083
-    buffer.sort_unstable_by_key(|(src, dst)| (*src, *dst));
-    BatchIterator::new_from_vec_sorted(&sorter_temp_file, buffer).with_context(|| {
+    buffer.sort_unstable_by_key(
+        |Triple {
+             pair: [src, dst],
+             label: _,
+         }| (*src, *dst), // not sorting by label, KMergeIters loses the order anyway
+    );
+    BatchIterator::new_from_vec_sorted_labeled(
+        &sorter_temp_file,
+        buffer,
+        &label_serializer,
+        label_deserializer,
+    )
+    .with_context(|| {
         format!(
             "Could not create BatchIterator in {}",
             sorter_temp_file.display()

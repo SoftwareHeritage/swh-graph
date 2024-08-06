@@ -14,7 +14,7 @@ Rust (>= 1.75), and zstd. On a Debian system:
 
 .. code:: console
 
-   $ sudo apt install build-essential python3 python3-venv default-jre zstd protobuf-compiler
+   $ sudo apt install build-essential libclang-dev python3 python3-venv default-jre zstd protobuf-compiler
    $ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 Rustup will ask you a few questions, you can pick the defaults. Or select

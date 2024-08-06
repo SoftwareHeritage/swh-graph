@@ -8,6 +8,8 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
+use arrow::datatypes::DataType;
+use arrow_array::RecordBatchReader;
 use orc_rust::arrow_reader::ArrowReaderBuilder;
 use orc_rust::projection::ProjectionMask;
 use orc_rust::reader::ChunkReader;
@@ -59,6 +61,9 @@ where
         .with_batch_size(ORC_BATCH_SIZE)
         .build();
 
+    T::check_datatype(&DataType::Struct(reader.schema().fields().clone()))
+        .expect("Invalid data type in ORC file");
+
     reader.flat_map(move |chunk| {
         let chunk: arrow_array::RecordBatch =
             chunk.unwrap_or_else(|e| panic!("Could not read chunk: {}", e));
@@ -85,6 +90,9 @@ where
         .with_projection(projection)
         .with_batch_size(ORC_BATCH_SIZE)
         .build();
+
+    T::check_datatype(&DataType::Struct(reader.schema().fields().clone()))
+        .expect("Invalid data type in ORC file");
 
     reader.par_bridge().flat_map_iter(move |chunk| {
         let chunk: arrow_array::RecordBatch =

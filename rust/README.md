@@ -165,7 +165,7 @@ for (succ, labels) in graph.labeled_successors(node_id) {
 ## Building a distribution
 
 ### Dependencies
-The code needs stable Rust to be >= 1.65 because we require the [GAT feature](https://blog.rust-lang.org/2022/10/28/gats-stabilization.html`).
+The code needs stable Rust to be >= 1.80 because we require the [GAT feature](https://blog.rust-lang.org/2022/10/28/gats-stabilization.html`).
 
 We also need `protoc` to be installed (`apt-get install protobuf-compiler` on Debian)
 if you want to build with `--features=grpc-server`.

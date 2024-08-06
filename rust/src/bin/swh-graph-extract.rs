@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::ProgressLogger;
 use itertools::Itertools;
@@ -144,7 +144,33 @@ enum Commands {
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
-
+    /// Reads ORC files and produces a BVGraph with edge labels
+    EdgeLabels {
+        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
+        format: DatasetFormat,
+        #[arg(long, default_value_t = 100_000_000)]
+        sort_batch_size: usize,
+        #[arg(long, default_value_t = 1)]
+        partitions_per_thread: usize,
+        #[arg(long, default_value = "*")]
+        allowed_node_types: String,
+        #[arg(value_enum, long, default_value_t = MphAlgorithm::Fmph)]
+        mph_algo: MphAlgorithm,
+        #[arg(long)]
+        function: PathBuf,
+        #[arg(long)]
+        order: PathBuf,
+        #[arg(long)]
+        label_name_mphf: PathBuf,
+        #[arg(long)]
+        label_name_order: PathBuf,
+        #[arg(long)]
+        num_nodes: usize,
+        #[arg(long, action)]
+        transposed: bool,
+        dataset_dir: PathBuf,
+        target_dir: PathBuf,
+    },
     /// Reads the list of nodes from the ORC directory and writes properties of each
     /// node to dedicated files
     NodeProperties {
@@ -511,6 +537,97 @@ pub fn main() -> Result<()> {
             }
         }
 
+        Commands::EdgeLabels {
+            format: DatasetFormat::Orc,
+            sort_batch_size,
+            partitions_per_thread,
+            allowed_node_types,
+            mph_algo,
+            function,
+            order,
+            label_name_mphf,
+            label_name_order,
+            num_nodes,
+            transposed,
+            dataset_dir,
+            target_dir,
+        } => {
+            use pthash::Phf;
+            use swh_graph::compress::label_names::{LabelNameHasher, LabelNameMphf};
+            let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
+            let order = MappedPermutation::load_unchecked(&order)
+                .with_context(|| format!("Could not load {}", order.display()))?;
+            let label_name_mphf = LabelNameMphf::load(&label_name_mphf)
+                .with_context(|| format!("Could not load {}", label_name_mphf.display()))?;
+            let label_name_order = MappedPermutation::load_unchecked(&label_name_order)
+                .with_context(|| format!("Could not load {}", label_name_order.display()))?;
+            let label_name_hasher = LabelNameHasher::new(&label_name_mphf, &label_name_order)?;
+
+            let label_width = match mph_algo {
+                MphAlgorithm::Fmph => swh_graph::compress::bv::edge_labels::<ph::fmph::Function>(
+                    sort_batch_size,
+                    partitions_per_thread,
+                    function,
+                    order,
+                    label_name_hasher,
+                    num_nodes,
+                    dataset_dir,
+                    &allowed_node_types,
+                    transposed,
+                    target_dir.as_ref(),
+                )?,
+                MphAlgorithm::Cmph => {
+                    swh_graph::compress::bv::edge_labels::<swh_graph::java_compat::mph::gov::GOVMPH>(
+                        sort_batch_size,
+                        partitions_per_thread,
+                        function,
+                        order,
+                        label_name_hasher,
+                        num_nodes,
+                        dataset_dir,
+                        &allowed_node_types,
+                        transposed,
+                        target_dir.as_ref(),
+                    )?
+                }
+            };
+
+            let mut properties_path = target_dir.to_owned();
+            properties_path
+                .as_mut_os_string()
+                .push("-labelled.properties");
+            let properties_file = File::create(&properties_path)
+                .with_context(|| format!("Could not create {}", properties_path.display()))?;
+            java_properties::write(
+                BufWriter::new(properties_file),
+                &[
+                    (
+                        "graphclass".to_string(),
+                        "it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph"
+                            .to_string(),
+                    ),
+                    (
+                        "labelspec".to_string(),
+                        format!(
+                            "org.softwareheritage.graph.labels.SwhLabel(DirEntry,{})",
+                            label_width
+                        ),
+                    ),
+                    (
+                        "underlyinggraph".to_string(),
+                        target_dir
+                            .file_name()
+                            .context("Could not get graph file name")?
+                            .to_str()
+                            .ok_or_else(|| anyhow!("Could not decode graph file name"))?
+                            .to_string(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            )
+            .with_context(|| format!("Could not write {}", properties_path.display()))?;
+        }
         Commands::NodeProperties {
             format: DatasetFormat::Orc,
             allowed_node_types,

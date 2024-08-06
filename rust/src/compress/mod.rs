@@ -13,6 +13,9 @@ mod iter_arcs;
 pub use iter_arcs::iter_arcs;
 
 #[cfg(feature = "orc")]
+mod iter_labeled_arcs;
+
+#[cfg(feature = "orc")]
 mod iter_labels;
 
 #[cfg(feature = "orc")]
@@ -32,6 +35,8 @@ pub use iter_persons::iter_persons;
 mod iter_swhids;
 #[cfg(feature = "orc")]
 pub use iter_swhids::iter_swhids;
+
+pub mod label_names;
 
 pub mod maps;
 

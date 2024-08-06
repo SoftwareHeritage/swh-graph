@@ -67,8 +67,11 @@ class CompressionStep(Enum):
     CONVERT_MPH_PERSONS = 205
     NODE_PROPERTIES = 210
     MPH_LABELS = 220
+    PTHASH_LABELS = 223
+    PTHASH_LABELS_ORDER = 226
     FCL_LABELS = 230
     EDGE_LABELS = 240
+    EDGE_LABELS_TRANSPOSE = 245
     EDGE_LABELS_OBL = 250
     EDGE_LABELS_TRANSPOSE_OBL = 260
     EDGE_LABELS_EF = 270
@@ -362,6 +365,23 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}.labels.mph",
         "{out_dir}/{graph_name}.labels.csv.zst",
     ],
+    CompressionStep.PTHASH_LABELS: [
+        "{rust_executable_dir}/swh-graph-compress",
+        "pthash-labels",
+        "--num-labels",
+        "$(cat {out_dir}/{graph_name}.labels.count.txt)",
+        "<(zstdcat {out_dir}/{graph_name}.labels.csv.zst)",
+        "{out_dir}/{graph_name}.labels.pthash",
+    ],
+    CompressionStep.PTHASH_LABELS_ORDER: [
+        "{rust_executable_dir}/swh-graph-compress",
+        "pthash-labels-order",
+        "--num-labels",
+        "$(cat {out_dir}/{graph_name}.labels.count.txt)",
+        "<(zstdcat {out_dir}/{graph_name}.labels.csv.zst)",
+        "{out_dir}/{graph_name}.labels.pthash",
+        "{out_dir}/{graph_name}.labels.pthash.order",
+    ],
     CompressionStep.FCL_LABELS: [
         "{java}",
         "it.unimi.dsi.big.util.MappedFrontCodedStringBigList",
@@ -371,16 +391,45 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "< {out_dir}/{graph_name}.labels.csv.zst",
     ],
     CompressionStep.EDGE_LABELS: [
-        "{java}",
-        "org.softwareheritage.graph.compress.LabelMapBuilder",
-        "--temp-dir",
-        "{tmp_dir}",
+        "{rust_executable_dir}/swh-graph-extract",
+        "edge-labels",
         "--allowed-node-types",
         "{object_types}",
-        "--batch-size",
-        "{batch_size}",
+        "--mph-algo",
+        "cmph",
+        "--function",
+        "{out_dir}/{graph_name}",
+        "--order",
+        "{out_dir}/{graph_name}.order",
+        "--label-name-mphf",
+        "{out_dir}/{graph_name}.labels.pthash",
+        "--label-name-order",
+        "{out_dir}/{graph_name}.labels.pthash.order",
+        "--num-nodes",
+        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
         "{in_dir}",
         "{out_dir}/{graph_name}",
+    ],
+    CompressionStep.EDGE_LABELS_TRANSPOSE: [
+        "{rust_executable_dir}/swh-graph-extract",
+        "edge-labels",
+        "--allowed-node-types",
+        "{object_types}",
+        "--mph-algo",
+        "cmph",
+        "--function",
+        "{out_dir}/{graph_name}",
+        "--order",
+        "{out_dir}/{graph_name}.order",
+        "--label-name-mphf",
+        "{out_dir}/{graph_name}.labels.pthash",
+        "--label-name-order",
+        "{out_dir}/{graph_name}.labels.pthash.order",
+        "--num-nodes",
+        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
+        "--transposed",
+        "{in_dir}",
+        "{out_dir}/{graph_name}-transposed",
     ],
     CompressionStep.EDGE_LABELS_OBL: [
         "{java}",

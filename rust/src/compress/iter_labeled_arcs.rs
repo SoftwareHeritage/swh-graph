@@ -3,25 +3,32 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-//! Iterator on the set of all arcs in an ORC dataset
+//! Iterator on the set of all arcs in an ORC dataset, along with their label if any
 
 use std::path::PathBuf;
 
 use anyhow::Result;
 use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
 use ar_row_derive::ArRowDeserialize;
+use nonmax::NonMaxU64;
 use orc_rust::arrow_reader::ArrowReaderBuilder;
 use orc_rust::reader::ChunkReader;
 use rayon::prelude::*;
 
+use super::iter_arcs::{iter_arcs_from_rel, iter_arcs_from_rev, iter_arcs_from_rev_history};
 use super::orc::{get_dataset_readers, iter_arrow};
 use super::TextSwhid;
+use crate::compress::label_names::LabelNameHasher;
+use crate::labels::{
+    Branch, DirEntry, EdgeLabel, Permission, UntypedEdgeLabel, Visit, VisitStatus,
+};
 use crate::NodeType;
 
-pub fn iter_arcs(
-    dataset_dir: &PathBuf,
-    allowed_node_types: &[NodeType],
-) -> Result<impl ParallelIterator<Item = (TextSwhid, TextSwhid)>> {
+pub fn iter_labeled_arcs<'a>(
+    dataset_dir: &'a PathBuf,
+    allowed_node_types: &'a [NodeType],
+    label_name_hasher: LabelNameHasher<'a>,
+) -> Result<impl ParallelIterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
             get_dataset_readers(dataset_dir, subdirectory)
@@ -35,64 +42,76 @@ pub fn iter_arcs(
         .chain(
             maybe_get_dataset_readers(dataset_dir, "directory_entry", NodeType::Directory)?
                 .into_par_iter()
-                .flat_map_iter(iter_arcs_from_dir_entry),
+                .flat_map_iter(move |rb| iter_labeled_arcs_from_dir_entry(rb, label_name_hasher)),
         )
         .chain(
             maybe_get_dataset_readers(dataset_dir, "origin_visit_status", NodeType::Origin)?
                 .into_par_iter()
-                .flat_map_iter(iter_arcs_from_ovs),
+                .flat_map_iter(iter_labeled_arcs_from_ovs),
         )
         .chain(
             maybe_get_dataset_readers(dataset_dir, "release", NodeType::Release)?
                 .into_par_iter()
-                .flat_map_iter(iter_arcs_from_rel),
+                .flat_map_iter(iter_arcs_from_rel)
+                .map(|(src, dst)| (src, dst, None)),
         )
         .chain(
             maybe_get_dataset_readers(dataset_dir, "revision", NodeType::Revision)?
                 .into_par_iter()
-                .flat_map_iter(iter_arcs_from_rev),
+                .flat_map_iter(iter_arcs_from_rev)
+                .map(|(src, dst)| (src, dst, None)),
         )
         .chain(
             maybe_get_dataset_readers(dataset_dir, "revision_history", NodeType::Revision)?
                 .into_par_iter()
-                .flat_map_iter(iter_arcs_from_rev_history),
+                .flat_map_iter(iter_arcs_from_rev_history)
+                .map(|(src, dst)| (src, dst, None)),
         )
         .chain(
             maybe_get_dataset_readers(dataset_dir, "snapshot_branch", NodeType::Snapshot)?
                 .into_par_iter()
-                .flat_map_iter(iter_arcs_from_snp_branch),
+                .flat_map_iter(move |rb| iter_labeled_arcs_from_snp_branch(rb, label_name_hasher)),
         ))
 }
 
-fn map_arcs<R: ChunkReader + Send, T, F>(
+fn map_labeled_arcs<R: ChunkReader + Send, T: Send, F>(
     reader_builder: ArrowReaderBuilder<R>,
     f: F,
-) -> impl Iterator<Item = (TextSwhid, TextSwhid)>
+) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)>
 where
-    F: Fn(T) -> Option<(String, String)> + Send + Sync,
-    T: ArRowDeserialize + ArRowStruct + Send,
+    F: Fn(T) -> Option<(String, String, Option<EdgeLabel>)> + Send + Sync,
+    T: ArRowDeserialize + ArRowStruct,
 {
     iter_arrow(reader_builder, move |record: T| {
-        f(record).map(|(src_swhid, dst_swhid)| {
+        f(record).map(|(src_swhid, dst_swhid, label)| {
             (
                 src_swhid.as_bytes().try_into().unwrap(),
                 dst_swhid.as_bytes().try_into().unwrap(),
+                label.map(|label| {
+                    UntypedEdgeLabel::from(label)
+                        .0
+                        .try_into()
+                        .expect("label is 0")
+                }),
             )
         })
     })
 }
 
-fn iter_arcs_from_dir_entry<R: ChunkReader + Send>(
+fn iter_labeled_arcs_from_dir_entry<'a, R: ChunkReader + Send + 'a>(
     reader_builder: ArrowReaderBuilder<R>,
-) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    label_name_hasher: LabelNameHasher<'a>,
+) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct DirectoryEntry {
         directory_id: String,
+        name: Box<[u8]>,
         r#type: String,
         target: String,
+        perms: i32,
     }
 
-    map_arcs(reader_builder, |entry: DirectoryEntry| {
+    map_labeled_arcs(reader_builder, move |entry: DirectoryEntry| {
         Some((
             format!("swh:1:dir:{}", entry.directory_id),
             match entry.r#type.as_bytes() {
@@ -101,20 +120,32 @@ fn iter_arcs_from_dir_entry<R: ChunkReader + Send>(
                 b"rev" => format!("swh:1:rev:{}", entry.target),
                 _ => panic!("Unexpected directory entry type: {:?}", entry.r#type),
             },
+            DirEntry::new(
+                u16::try_from(entry.perms)
+                    .ok()
+                    .and_then(Permission::from_git)
+                    .unwrap_or(Permission::None),
+                label_name_hasher
+                    .hash(entry.name)
+                    .expect("Could not hash dir entry name"),
+            )
+            .map(EdgeLabel::DirEntry),
         ))
     })
 }
 
-pub(super) fn iter_arcs_from_ovs<R: ChunkReader + Send>(
+fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
     reader_builder: ArrowReaderBuilder<R>,
-) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct OriginVisitStatus {
         origin: String,
+        date: Option<ar_row::Timestamp>,
+        status: String,
         snapshot: Option<String>,
     }
 
-    map_arcs(reader_builder, |ovs: OriginVisitStatus| {
+    map_labeled_arcs(reader_builder, |ovs: OriginVisitStatus| {
         use sha1::Digest;
         let mut hasher = sha1::Sha1::new();
         hasher.update(ovs.origin.as_bytes());
@@ -123,80 +154,39 @@ pub(super) fn iter_arcs_from_ovs<R: ChunkReader + Send>(
             (
                 format!("swh:1:ori:{:x}", hasher.finalize(),),
                 format!("swh:1:snp:{}", snapshot),
+                Visit::new(
+                    match ovs.status.as_str() {
+                        "full" => VisitStatus::Full,
+                        _ => VisitStatus::Partial,
+                    },
+                    ovs.date
+                        .unwrap_or(ar_row::Timestamp {
+                            seconds: 0,
+                            nanoseconds: 0,
+                        })
+                        .seconds
+                        .try_into()
+                        .expect("Negative visit date"),
+                )
+                .map(EdgeLabel::Visit),
             )
         })
     })
 }
 
-pub(super) fn iter_arcs_from_rel<R: ChunkReader + Send>(
+fn iter_labeled_arcs_from_snp_branch<'a, R: ChunkReader + Send + 'a>(
     reader_builder: ArrowReaderBuilder<R>,
-) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
-    #[derive(ArRowDeserialize, Default, Clone)]
-    struct Release {
-        id: String,
-        target: String,
-        target_type: String,
-    }
-
-    map_arcs(reader_builder, |entry: Release| {
-        Some((
-            format!("swh:1:rel:{}", entry.id),
-            match entry.target_type.as_bytes() {
-                b"content" => format!("swh:1:cnt:{}", entry.target),
-                b"directory" => format!("swh:1:dir:{}", entry.target),
-                b"revision" => format!("swh:1:rev:{}", entry.target),
-                b"release" => format!("swh:1:rel:{}", entry.target),
-                _ => panic!("Unexpected release target type: {:?}", entry.target_type),
-            },
-        ))
-    })
-}
-
-pub(super) fn iter_arcs_from_rev<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
-) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
-    #[derive(ArRowDeserialize, Default, Clone)]
-    struct Revision {
-        id: String,
-        directory: String,
-    }
-
-    map_arcs(reader_builder, |rev: Revision| {
-        Some((
-            format!("swh:1:rev:{}", rev.id),
-            format!("swh:1:dir:{}", rev.directory),
-        ))
-    })
-}
-
-pub(super) fn iter_arcs_from_rev_history<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
-) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
-    #[derive(ArRowDeserialize, Default, Clone)]
-    struct RevisionParent {
-        id: String,
-        parent_id: String,
-    }
-
-    map_arcs(reader_builder, |rev: RevisionParent| {
-        Some((
-            format!("swh:1:rev:{}", rev.id),
-            format!("swh:1:rev:{}", rev.parent_id),
-        ))
-    })
-}
-
-fn iter_arcs_from_snp_branch<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
-) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
+    label_name_hasher: LabelNameHasher<'a>,
+) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct SnapshotBranch {
         snapshot_id: String,
+        name: Box<[u8]>,
         target: String,
         target_type: String,
     }
 
-    map_arcs(reader_builder, |branch: SnapshotBranch| {
+    map_labeled_arcs(reader_builder, move |branch: SnapshotBranch| {
         let dst = match branch.target_type.as_bytes() {
             b"content" => Some(format!("swh:1:cnt:{}", branch.target)),
             b"directory" => Some(format!("swh:1:dir:{}", branch.target)),
@@ -205,6 +195,17 @@ fn iter_arcs_from_snp_branch<R: ChunkReader + Send>(
             b"alias" => None,
             _ => panic!("Unexpected snapshot target type: {:?}", branch.target_type),
         };
-        dst.map(|dst| (format!("swh:1:snp:{}", branch.snapshot_id), dst))
+        dst.map(|dst| {
+            (
+                format!("swh:1:snp:{}", branch.snapshot_id),
+                dst,
+                Branch::new(
+                    label_name_hasher
+                        .hash(branch.name)
+                        .expect("Could not hash branch name"),
+                )
+                .map(EdgeLabel::Branch),
+            )
+        })
     })
 }
