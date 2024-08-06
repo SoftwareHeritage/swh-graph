@@ -59,5 +59,8 @@ where
 mod fs;
 pub use fs::*;
 
+mod visit;
+pub use visit::*;
+
 mod root_directory;
 pub use root_directory::find_root_dir;

@@ -12,6 +12,8 @@ use swh_graph::labels::{Permission, Visit, VisitStatus};
 use swh_graph::stdlib::*;
 use swh_graph::swhid;
 
+mod data;
+
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
 #[test]
@@ -165,6 +167,19 @@ fn test_resolve_path() -> Result<()> {
         props.swhid(fs_resolve_path(&graph, root_node, "doc/ls/ls.1")?.unwrap()),
         swhid!(swh:1:cnt:0000000000000000000000000000000000000006)
     );
+
+    Ok(())
+}
+
+#[test]
+fn test_iter_nodes() -> Result<()> {
+    let graph = data::build_test_graph_1()?;
+    let props = graph.properties();
+    let ori1 = props.node_id(swhid!(swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054))?;
+    let ori2 = props.node_id(swhid!(swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165))?;
+
+    assert_eq!(iter_nodes(&graph, &[ori1]).count(), 12);
+    assert_eq!(iter_nodes(&graph, &[ori2]).count(), 21);
 
     Ok(())
 }
