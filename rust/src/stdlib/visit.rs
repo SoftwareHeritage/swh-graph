@@ -7,7 +7,6 @@ use std::collections::VecDeque;
 
 use crate::collections::{AdaptiveNodeSet, NodeSet};
 use crate::graph::*;
-use crate::properties;
 
 /// Stateful BFS (breadth-first search) visit of (a part of) the Software
 /// Heritage graph, returning deduplicated node identifiers.
@@ -19,7 +18,7 @@ use crate::properties;
 /// startup cost to allocate the bit vector.
 pub struct NodeVisit<'a, G>
 where
-    G: SwhLabeledForwardGraph + SwhGraphWithProperties,
+    G: SwhLabeledForwardGraph,
 {
     graph: &'a G,
     visited: AdaptiveNodeSet,
@@ -28,9 +27,9 @@ where
 
 impl<'a, G> NodeVisit<'a, G>
 where
-    G: SwhLabeledForwardGraph + SwhGraphWithProperties,
+    G: SwhLabeledForwardGraph,
 {
-    pub fn new(graph: &'a G, nodes: &[NodeId]) -> Self {
+    fn new(graph: &'a G, nodes: &[NodeId]) -> Self {
         NodeVisit {
             graph,
             visited: AdaptiveNodeSet::new(graph.num_nodes()),
@@ -41,8 +40,7 @@ where
 
 impl<'a, G> Iterator for NodeVisit<'a, G>
 where
-    G: SwhLabeledForwardGraph + SwhGraphWithProperties,
-    <G as SwhGraphWithProperties>::Maps: properties::Maps,
+    G: SwhLabeledForwardGraph,
 {
     type Item = NodeId;
 
@@ -66,9 +64,11 @@ where
 /// `start` is usually a single node id, passed as `&[node]`, but can be a
 /// non-singleton slice of nodes, to avoid independently re-visiting shared
 /// sub-graphs from multiple starting points.
+///
+/// See [NodeVisit] documentation for performance considerations.
 pub fn iter_nodes<'a, G>(graph: &'a G, start: &[NodeId]) -> NodeVisit<'a, G>
 where
-    G: SwhLabeledForwardGraph + SwhGraphWithProperties,
+    G: SwhLabeledForwardGraph,
 {
     NodeVisit::new(graph, start)
 }
