@@ -3,7 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::cell::RefCell;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
@@ -32,7 +31,7 @@ pub struct PropertyWriter<SWHIDMPHF: SwhidMphf> {
 }
 
 impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
-    fn for_each_row<Row>(&self, subdirectory: &str, f: impl Fn(Row) -> Result<()>) -> Result<()>
+    fn for_each_row<Row>(&self, subdirectory: &str, f: impl FnMut(Row) -> Result<()>) -> Result<()>
     where
         Row: ArRowDeserialize + ArRowStruct + Send + Sync,
     {
@@ -374,20 +373,20 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         let path = suffix_path(&self.target, suffixes::MESSAGE);
         let file = std::fs::File::create(&path)
             .with_context(|| format!("Could not create {}", path.display()))?;
-        let writer = RefCell::new(BufWriter::new(file));
+        let mut writer = BufWriter::new(file);
 
         let base64 = base64_simd::STANDARD;
-        let offset = RefCell::new(0u64);
+        let mut offset = 0u64;
 
-        let f = |type_: &str, id: String, message: Option<Box<[u8]>>| {
+        let mut f = |type_: &str, id: String, message: Option<Box<[u8]>>| {
             if let Some(message) = message {
                 let swhid = format!("swh:1:{}:{}", type_, id);
                 let mut encoded_message = base64.encode_to_string(message);
                 encoded_message.push('\n');
                 let encoded_message = encoded_message.as_bytes();
-                writer.borrow_mut().write_all(encoded_message)?;
-                self.set(&offsets, &swhid, offset.borrow().to_be());
-                *offset.borrow_mut() += encoded_message.len() as u64;
+                writer.write_all(encoded_message)?;
+                self.set(&offsets, &swhid, offset.to_be());
+                offset += encoded_message.len() as u64;
             }
             Ok(())
         };
@@ -429,11 +428,11 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         let path = suffix_path(&self.target, suffixes::TAG_NAME);
         let file = std::fs::File::create(&path)
             .with_context(|| format!("Could not create {}", path.display()))?;
-        let writer = RefCell::new(BufWriter::new(file));
+        let mut writer = BufWriter::new(file);
 
         log::info!("Reading and writing...");
         let base64 = base64_simd::STANDARD;
-        let offset = RefCell::new(0u64);
+        let mut offset = 0u64;
 
         // Can't do it in parallel because we are writing to a single file
         self.for_each_row("release", |rel: Release| {
@@ -441,9 +440,9 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
             let mut encoded_name = base64.encode_to_string(rel.name);
             encoded_name.push('\n');
             let encoded_name = encoded_name.as_bytes();
-            writer.borrow_mut().write_all(encoded_name)?;
-            self.set(&offsets, &swhid, offset.borrow().to_be());
-            *offset.borrow_mut() += encoded_name.len() as u64;
+            writer.write_all(encoded_name)?;
+            self.set(&offsets, &swhid, offset.to_be());
+            offset += encoded_name.len() as u64;
 
             Ok(())
         })?;
