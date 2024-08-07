@@ -51,16 +51,16 @@ thiserror = "1.0.51"
 bitvec = { version = "1.0.1" }
 
 # compression
-arrow = { version = "51.0", optional = true }
-arrow-schema = { version = "51.0", optional = true, features = ["serde"] }
-arrow-array = { version = "51.0", optional = true }
-orc-rust = { git = "https://github.com/datafusion-contrib/datafusion-orc.git", rev = "f93314abd0e725acdf4e70644ca0812343dd8295", default-features = false, optional = true } # fix for https://github.com/datafusion-contrib/datafusion-orc/issues/88
-ar_row = { git = "https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git", rev = "7e1edd333c49cd23256c9c18a4f62a6c5a288581", optional = true }
-ar_row_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git", rev = "7e1edd333c49cd23256c9c18a4f62a6c5a288581", optional = true }
+arrow = { version = "52.0", optional = true }
+arrow-schema = { version = "52.0", optional = true, features = ["serde"] }
+arrow-array = { version = "52.0", optional = true }
+orc-rust = { git = "https://github.com/datafusion-contrib/datafusion-orc.git", rev = "86e12ca1d921fe3ae7df31ce630b8dd949085eac", optional = true, default-features = false } # allows configuring time units + bug fixes
+ar_row = { git = "https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git", rev = "c4e9f147b75a1e0eabdace9e82ca6432ea11fb20", optional = true } # support for Decimal128
+ar_row_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git", rev = "c4e9f147b75a1e0eabdace9e82ca6432ea11fb20", optional = true }
 
 # dataset writer
 csv = { version = "1.3.0", optional = true }
-parquet = { version = "51.0.0", default-features = false, features = ["arrow", "zstd"], optional = true }
+parquet = { version = "52.0.0", default-features = false, features = ["arrow", "zstd"], optional = true }
 
 # grpc
 async-scoped = { version = "0.9.0", features = ["use-tokio"], optional = true }

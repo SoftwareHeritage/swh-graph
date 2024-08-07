@@ -20,6 +20,8 @@ use crate::properties::suffixes;
 use crate::utils::suffix_path;
 use crate::NodeType;
 
+const NANOSECONDS_IN_SECOND: i128 = 1_000_000_000;
+
 pub struct PropertyWriter<SWHIDMPHF: SwhidMphf> {
     pub swhid_mph: SWHIDMPHF,
     pub person_mph: Option<crate::java_compat::mph::gov::GOVMPH>,
@@ -102,7 +104,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         #[derive(ArRowDeserialize, Default, Clone)]
         struct Revrel {
             id: String,
-            date: Option<ar_row::Timestamp>,
+            date: Option<ar_row::NaiveDecimal128>,
             date_offset: Option<i16>,
         }
 
@@ -122,7 +124,13 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         let f = |type_: &str, r: Revrel| {
             if let Some(date) = r.date {
                 let swhid = format!("swh:1:{}:{}", type_, r.id);
-                self.set(&timestamps, &swhid, date.seconds.to_be());
+                self.set(
+                    &timestamps,
+                    &swhid,
+                    i64::try_from(date.0.div_euclid(NANOSECONDS_IN_SECOND))
+                        .unwrap_or(0)
+                        .to_be(),
+                );
                 if let Some(date_offset) = r.date_offset {
                     self.set(&timestamp_offsets, &swhid, date_offset.to_be());
                 }
@@ -154,7 +162,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         #[derive(ArRowDeserialize, Default, Clone)]
         struct Revision {
             id: String,
-            committer_date: Option<ar_row::Timestamp>,
+            committer_date: Option<ar_row::NaiveDecimal128>,
             committer_offset: Option<i16>,
         }
 
@@ -171,7 +179,13 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
         self.par_for_each_row("revision", |rev: Revision| {
             if let Some(date) = rev.committer_date {
                 let swhid = format!("swh:1:rev:{}", rev.id);
-                self.set(&timestamps, &swhid, date.seconds.to_be());
+                self.set(
+                    &timestamps,
+                    &swhid,
+                    i64::try_from(date.0.div_euclid(NANOSECONDS_IN_SECOND))
+                        .unwrap_or(0)
+                        .to_be(),
+                );
                 if let Some(date_offset) = rev.committer_offset {
                     self.set(&timestamp_offsets, &swhid, date_offset.to_be());
                 }

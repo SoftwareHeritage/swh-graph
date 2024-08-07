@@ -5,11 +5,12 @@
 
 //! Readers for the ORC dataset.
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
-use arrow::datatypes::DataType;
-use arrow_array::RecordBatchReader;
+use arrow::array::RecordBatchReader;
+use arrow::datatypes::{DataType, Decimal128Type, DecimalType, Schema};
 use orc_rust::arrow_reader::ArrowReaderBuilder;
 use orc_rust::projection::ProjectionMask;
 use orc_rust::reader::ChunkReader;
@@ -42,6 +43,36 @@ pub(crate) fn get_dataset_readers<P: AsRef<Path>>(
         .collect()
 }
 
+/// Transforms a schema inferred by orc-rust in a way that can be used to read
+/// the Software Heritage dataset
+///
+/// Specifically, we need to represent timestamps as microseconds instead of nanoseconds,
+/// in order not to overflow Arrow's internal representation (i64) from timestamps in
+/// ORC files (i64 seconds and nanoseconds).
+/// SWH's data model allows precision up to the microsecond
+/// (https://docs.softwareheritage.org/devel/apidoc/swh.model.model.html#swh.model.model.Timestamp)
+/// so there is no loss of precision; and swh-storage in practice stores timestamps
+/// as a single i64, so overflows should not be possible.
+///
+/// Scratch that, some jokers wrote dates that overflow an i64 of microseconds, so
+/// we have to use Decimal128 for the full range.
+fn transform_schema(schema: &Schema) -> Arc<Schema> {
+    Arc::new(Schema::new(
+        schema
+            .fields()
+            .iter()
+            .cloned()
+            .map(|field| match field.data_type() {
+                DataType::Timestamp(_, _) => (*field)
+                    .clone()
+                    //.with_data_type(DataType::Timestamp(TimeUnit::Microsecond, tz.clone())),
+                    .with_data_type(DataType::Decimal128(Decimal128Type::MAX_SCALE as _, 9)),
+                _ => (*field).clone(),
+            })
+            .collect::<Vec<_>>(),
+    ))
+}
+
 pub(crate) fn iter_arrow<R: ChunkReader, T, IntoIterU, U, F>(
     reader_builder: ArrowReaderBuilder<R>,
     mut f: F,
@@ -56,10 +87,13 @@ where
         reader_builder.file_metadata().root_data_type(),
         field_names.as_slice(),
     );
-    let reader = reader_builder
-        .with_projection(projection)
-        .with_batch_size(ORC_BATCH_SIZE)
-        .build();
+    let reader_builder = reader_builder
+        .with_projection(projection.clone())
+        .with_batch_size(ORC_BATCH_SIZE);
+
+    let schema = transform_schema(&reader_builder.schema());
+
+    let reader = reader_builder.with_schema(schema).build();
 
     T::check_datatype(&DataType::Struct(reader.schema().fields().clone()))
         .expect("Invalid data type in ORC file");
@@ -86,10 +120,13 @@ where
         reader_builder.file_metadata().root_data_type(),
         field_names.as_slice(),
     );
-    let reader = reader_builder
+    let reader_builder = reader_builder
         .with_projection(projection)
-        .with_batch_size(ORC_BATCH_SIZE)
-        .build();
+        .with_batch_size(ORC_BATCH_SIZE);
+
+    let schema = transform_schema(&reader_builder.schema());
+
+    let reader = reader_builder.with_schema(schema).build();
 
     T::check_datatype(&DataType::Struct(reader.schema().fields().clone()))
         .expect("Invalid data type in ORC file");
