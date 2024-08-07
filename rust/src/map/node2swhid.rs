@@ -48,7 +48,7 @@ impl Node2SWHID<MmapMut> {
         let file = std::fs::File::options()
             .read(true)
             .write(true)
-            .create(true)
+            .create_new(true)
             .open(path)
             .with_context(|| format!("Could not create {}", path.display()))?;
 

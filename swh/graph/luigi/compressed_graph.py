@@ -858,15 +858,6 @@ class Maps(_CompressionStepTask):
         return mph_size + bfsmap_size
 
 
-class Node2Type(_CompressionStepTask):
-    STEP = CompressionStep.NODE2TYPE
-    INPUT_FILES = {".node2swhid.bin"}
-    OUTPUT_FILES = {".node2type.bin"}
-
-    def _large_java_allocations(self) -> int:
-        return 0
-
-
 class ExtractPersons(_CompressionStepTask):
     STEP = CompressionStep.EXTRACT_PERSONS
     INPUT_FILES: Set[str] = set()
@@ -900,7 +891,7 @@ class ConvertMphPersons(_CompressionStepTask):
 
 class NodeProperties(_CompressionStepTask):
     STEP = CompressionStep.NODE_PROPERTIES
-    INPUT_FILES = {".order", ".cmph", ".persons.cmph"}
+    INPUT_FILES = {".order", ".cmph", ".persons.cmph", ".node2swhid.bin"}
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
         ".property.content.is_skipped.bin",
@@ -1238,7 +1229,6 @@ class CompressGraph(luigi.Task):
             TransposeObl(**kwargs),
             TransposeEf(**kwargs),
             Maps(**kwargs),
-            Node2Type(**kwargs),
             NodeProperties(**kwargs),
             ConvertMphPersons(**kwargs),
             *label_tasks,

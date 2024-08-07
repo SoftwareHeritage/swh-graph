@@ -298,8 +298,11 @@ def reindex(
             conf=conf,
         ).run()
 
-    if force or not os.path.exists(f"{graph}.node2type.bin"):
+    node2type_fname = f"{graph}.node2type.bin"
+    if force or not os.path.exists(node2type_fname):
         logger.info("Creating node2type.bin")
+        if os.path.exists(node2type_fname):
+            os.unlink(node2type_fname)
         Rust("swh-graph-node2type", graph, conf=conf).run()
 
 

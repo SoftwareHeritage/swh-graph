@@ -144,6 +144,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
 }
 
 /// Writes `-labelled.labels`,  `-labelled.labeloffsets`, and returns the label width
+#[allow(clippy::too_many_arguments)]
 pub fn edge_labels<MPHF: SwhidMphf + Sync>(
     sort_batch_size: usize,
     partitions_per_thread: usize,

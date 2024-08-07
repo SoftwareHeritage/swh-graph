@@ -74,13 +74,13 @@ pub fn iter_labeled_arcs<'a>(
         ))
 }
 
-fn map_labeled_arcs<R: ChunkReader + Send, T: Send, F>(
+fn map_labeled_arcs<R: ChunkReader + Send, T, F>(
     reader_builder: ArrowReaderBuilder<R>,
     f: F,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)>
 where
     F: Fn(T) -> Option<(String, String, Option<EdgeLabel>)> + Send + Sync,
-    T: ArRowDeserialize + ArRowStruct,
+    T: Send + ArRowDeserialize + ArRowStruct,
 {
     iter_arrow(reader_builder, move |record: T| {
         f(record).map(|(src_swhid, dst_swhid, label)| {

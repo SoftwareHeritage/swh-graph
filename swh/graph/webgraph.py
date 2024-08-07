@@ -61,7 +61,6 @@ class CompressionStep(Enum):
     TRANSPOSE_OBL = 170
     TRANSPOSE_EF = 175
     MAPS = 180
-    NODE2TYPE = 185
     EXTRACT_PERSONS = 190
     MPH_PERSONS = 200
     CONVERT_MPH_PERSONS = 205
@@ -314,10 +313,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}.node2swhid.bin",
         "--node2type",
         "{out_dir}/{graph_name}.node2type.bin",
-    ],
-    CompressionStep.NODE2TYPE: [
-        "{rust_executable_dir}/swh-graph-node2type",
-        "{out_dir}/{graph_name}",
     ],
     CompressionStep.EXTRACT_PERSONS: [
         "{java}",

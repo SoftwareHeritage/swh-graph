@@ -62,8 +62,9 @@ fn test_load_node2swhid() -> Result<()> {
 
 #[test]
 fn test_new_node2swhid() -> Result<()> {
-    let node2swhid_file = tempfile::NamedTempFile::new()?;
-    let mut node2swhid = Node2SWHID::new(node2swhid_file.path(), SWHIDS.len())?;
+    let tempdir = tempfile::tempdir()?;
+    let node2swhid_file = tempdir.path().join("tmp.node2swhid.bin").to_owned();
+    let mut node2swhid = Node2SWHID::new(&node2swhid_file, SWHIDS.len())?;
 
     for (node_id, &swhid) in SWHIDS.iter().enumerate() {
         let swhid: SWHID = swhid.try_into().unwrap();
@@ -72,7 +73,7 @@ fn test_new_node2swhid() -> Result<()> {
 
     // Check it can be read again
 
-    let node2swhid = Node2SWHID::load(node2swhid_file.path())?;
+    let node2swhid = Node2SWHID::load(&node2swhid_file)?;
 
     assert_eq!(node2swhid.len(), 24);
 

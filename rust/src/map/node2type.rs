@@ -85,7 +85,7 @@ impl Node2Type<UsizeMmap<MmapMut>> {
         let node2type_file = std::fs::File::options()
             .read(true)
             .write(true)
-            .create(true)
+            .create_new(true)
             .open(path)
             .with_context(|| {
                 format!(
