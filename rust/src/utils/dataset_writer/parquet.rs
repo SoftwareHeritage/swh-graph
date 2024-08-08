@@ -22,7 +22,7 @@ pub struct ParquetTableWriterConfig {
     /// reaches the value.
     ///
     /// To avoid uneven row group sizes, this value plus the number of values added
-    /// to the builder between calls to [`Self::builder`] should be equal to
+    /// to the builder between calls to [`ParquetTableWriter::builder`] should be equal to
     /// [`max_row_group_size`](WriterProperties::max_row_group_size)
     /// (or a multiple of it).
     ///
