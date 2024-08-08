@@ -259,16 +259,22 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
             let mut labels_writer = BufBitWriter::<BE, _, _>::new(WordAdapter::<u8, _>::new(
                 BufWriter::new(labels_file),
             ));
-            let mut offsets_writer = BufBitWriter::<BE, _, _>::new(WordAdapter::<u8, _>::new(
+            let mut offsets_writer = BufBitWriter::<NE, _, _>::new(WordAdapter::<u64, _>::new(
                 BufWriter::new(offsets_file),
             ));
             let mut thread_nodes = 0u64;
 
             let mut written_labels = 0;
 
+            let mut offset_bits = 0u64;
+
             for_!( (src, successors) in partition_graph {
+                // Write offset of the start of this edge's label list (and end of the previous one)
+                offsets_writer
+                    .write_gamma(offset_bits)
+                    .context("Could not write thread offset")?;
+
                 thread_nodes += 1;
-                let mut offset_bits = 0u64;
                 for (_dst, labels) in &successors.group_by(|(dst, _label)| *dst) {
                     let mut labels: Vec<u64> = labels
                         .flat_map(|(_dst, label)| label)
@@ -302,33 +308,40 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
                     pl.lock().unwrap().update_with_count(written_labels);
                     written_labels = 0;
                 }
-
-                // Write offset of the end of this edge's label list (and start of the next one)
-                offsets_writer
-                    .write_gamma(offset_bits)
-                    .context("Could not write thread offset")?;
             });
 
+            let mut labels_file = labels_writer
+                .into_inner()
+                .context("Could not flush thread's labels writer")?
+                .into_inner()
+                .into_inner()
+                .context("Could not flush thread's labels bufwriter")?;
+            labels_file
+                .flush()
+                .context("Could not flush thread's labels file")?;
+            labels_file
+                .seek(SeekFrom::Start(0))
+                .context("Could not rewind thread's labels file")?;
             labels_files[partition_id]
-                .set(
-                    labels_writer
-                        .into_inner()
-                        .context("Could not flush thread's labels writer")?
-                        .into_inner()
-                        .into_inner()
-                        .context("Could not flush thread's labels bufwriter")?,
-                )
+                .set(labels_file)
                 .map_err(|_| anyhow!("labels_files[{}] was set twice", partition_id))?;
+
+            let mut offsets_file = offsets_writer
+                .into_inner()
+                .context("Could not close thread's label offsets writer")?
+                .into_inner()
+                .into_inner()
+                .context("Could not flush thread's label offsets bufwriter")?;
+            offsets_file
+                .flush()
+                .context("Could not flush thread's labels file")?;
+            offsets_file
+                .seek(SeekFrom::Start(0))
+                .context("Could not rewind thread's labels file")?;
             offsets_files[partition_id]
-                .set(
-                    offsets_writer
-                        .into_inner()
-                        .context("Could not close thread's label offsets writer")?
-                        .into_inner()
-                        .into_inner()
-                        .context("Could not flush thread's label offsets bufwriter")?,
-                )
+                .set(offsets_file)
                 .map_err(|_| anyhow!("offsets_files[{}] was set twice", partition_id))?;
+
             nodes_per_thread[partition_id]
                 .set(thread_nodes)
                 .map_err(|_| anyhow!("offsets_files[{}] was set twice", partition_id))?;
@@ -378,14 +391,17 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
     );
     pl.start("Concatenating arc labels");
 
+    // FIXME: the label list of arc n is from offsets n and n+1; which means that
+    // we need the first bit of chunk n+1 to be right after the last bit of chunk n+1.
+    // Given that chunks are not necessarily aligned on bytes, this is tough
     let mut labels_path = target_dir.to_owned();
     labels_path.as_mut_os_string().push("-labelled.labels");
     let mut labels_file = File::create(&labels_path)
         .with_context(|| format!("Could not create {}", labels_path.display()))?;
     let mut buf = vec![0; 65536]; // arbitrary constant
-    let mut chunk_offsets = vec![0];
+    let mut partition_offsets = vec![0u64];
     for mut thread_labels_file in labels_files {
-        let mut chunk_size = 0;
+        let mut partition_size = 0;
         thread_labels_file
             .seek(SeekFrom::Start(0))
             .context("Could not seek in thread labels file")?;
@@ -396,13 +412,24 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
             if buf_size == 0 {
                 break;
             }
-            chunk_size += buf_size;
+            partition_size += buf_size;
             labels_file
                 .write(&buf[0..buf_size])
                 .context("Could not write labels")?;
             pl.update_with_count(buf_size);
         }
-        chunk_offsets.push(u64::try_from(chunk_size).expect("Chunk size overflowed u64"));
+        partition_offsets.push(
+            partition_offsets
+                .last()
+                .unwrap()
+                .checked_add(
+                    u64::try_from(partition_size)
+                        .expect("Chunk size (in bytes) overflowed u64")
+                        .checked_mul(8)
+                        .expect("Chunk size (in bits) overflowed u64"),
+                )
+                .expect("concatenated offsets overflowed u64"),
+        );
         drop(thread_labels_file); // Removes the temporary file
     }
 
@@ -411,7 +438,7 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
 
     pl.done();
 
-    // Collect offsets of each thread (relative to the start of the chunk of .labels of that thread),
+    // Collect offsets of each thread (relative to the start of the partition of .labels of that thread),
     // shift them (so they are relative to the start of the .labels), then write them in
     // .labeloffsets
     let mut pl = ProgressLogger::default().display_memory();
@@ -431,27 +458,41 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
                 .with_context(|| format!("Could not create {}", offsets_path.display()))?,
         )));
 
-    for ((chunk_offset, thread_offsets_file), thread_nodes) in chunk_offsets
-        .into_iter()
+    log::info!("1");
+
+    for ((&partition_offset, thread_offsets_file), thread_nodes) in partition_offsets
+        .iter()
         .zip(offsets_files.into_iter())
         .zip(nodes_per_thread.into_iter())
     {
-        let mut thread_offsets_reader = BufBitReader::<BE, _, _>::new(WordAdapter::<u8, _>::new(
+        let mut thread_offsets_reader = BufBitReader::<NE, _, _>::new(WordAdapter::<u64, _>::new(
             BufReader::new(thread_offsets_file),
         ));
 
+        log::info!("next thread (partition_offset = {})", partition_offset);
         for _ in 0..thread_nodes {
             pl.light_update();
             let offset = thread_offsets_reader
                 .read_gamma()
                 .context("Could not read thread offset")?;
+            log::info!("write offset {}", offset + partition_offset);
             offsets_writer
-                .write_gamma(offset + chunk_offset)
+                .write_gamma(
+                    offset
+                        .checked_add(partition_offset)
+                        .context("Offsets overflowed u64")?,
+                )
                 .context("Could not write offset")?;
         }
 
         drop(thread_offsets_reader); // Removes the temporary file
     }
+
+    // Write end offset of the last adjacency list
+    log::info!("write last offset {}", partition_offsets.last().unwrap());
+    offsets_writer
+        .write_gamma(*partition_offsets.last().unwrap())
+        .context("Could not write last offset")?;
 
     drop(
         offsets_writer
