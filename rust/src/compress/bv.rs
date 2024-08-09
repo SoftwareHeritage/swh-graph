@@ -124,14 +124,14 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     let temp_bv_dir = temp_dir.path().join("bv");
     std::fs::create_dir(&temp_bv_dir)
         .with_context(|| format!("Could not create {}", temp_bv_dir.display()))?;
-    BVComp::parallel_iter::<BE, _>(
+    BvComp::parallel_iter::<BE, _>(
         target_dir,
         arc_list_graphs,
         num_nodes,
         comp_flags,
         rayon::ThreadPoolBuilder::default()
             .build()
-            .expect("Could not create BVComp thread pool"),
+            .expect("Could not create BvComp thread pool"),
         &temp_bv_dir,
     )
     .context("Could not build BVGraph from arcs")?;

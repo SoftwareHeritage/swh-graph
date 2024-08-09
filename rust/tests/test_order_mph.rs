@@ -43,7 +43,7 @@ fn test_order_mph() -> Result<()> {
     );
 
     info!("loading compressed graph into memory (with mmap)...");
-    let graph = BVGraph::with_basename(BASENAME)
+    let graph = BvGraph::with_basename(BASENAME)
         .endianness::<BE>()
         .flags(MemoryFlags::RANDOM_ACCESS)
         .load()?;

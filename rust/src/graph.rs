@@ -34,7 +34,7 @@ use crate::utils::suffix_path;
 /// Alias for [`usize`], which may become a newtype in a future version.
 pub type NodeId = usize;
 
-type DefaultUnderlyingGraph = BVGraph<
+type DefaultUnderlyingGraph = BvGraph<
     DynCodesDecoderFactory<
         dsi_bitstream::prelude::BE,
         MmapHelper<u32>,
@@ -76,7 +76,7 @@ pub trait UnderlyingGraph: RandomAccessLabeling {
     fn unlabeled_successors(&self, node_id: NodeId) -> Self::UnlabeledSuccessors<'_>;
 }
 
-impl<F: RandomAccessDecoderFactory> UnderlyingGraph for BVGraph<F> {
+impl<F: RandomAccessDecoderFactory> UnderlyingGraph for BvGraph<F> {
     type UnlabeledSuccessors<'succ> = <Self as RandomAccessLabeling>::Labels<'succ> where Self: 'succ;
 
     fn num_arcs(&self) -> u64 {
@@ -281,7 +281,7 @@ pub trait SwhGraphWithProperties: SwhGraph {
 /// * `P` is either `()` or `properties::SwhGraphProperties`, manipulated using
 ///   [`load_properties`](SwhUnidirectionalGraph::load_properties) and
 ///   [`load_all_properties`](SwhUnidirectionalGraph::load_all_properties)
-/// * G is the forward graph (either [`BVGraph`], or `Zip<BVGraph, SwhLabeling>`
+/// * G is the forward graph (either [`BvGraph`], or `Zip<BvGraph, SwhLabeling>`
 ///   [`load_labels`](SwhUnidirectionalGraph::load_labels)
 pub struct SwhUnidirectionalGraph<P, G: UnderlyingGraph = DefaultUnderlyingGraph> {
     basepath: PathBuf,
@@ -512,9 +512,9 @@ impl<P, G: RandomAccessGraph + UnderlyingGraph> SwhUnidirectionalGraph<P, G> {
 /// * `P` is either `()` or `properties::SwhGraphProperties`, manipulated using
 ///   [`load_properties`](SwhBidirectionalGraph::load_properties) and
 ///   [`load_all_properties`](SwhBidirectionalGraph::load_all_properties)
-/// * FG is the forward graph (either [`BVGraph`], or `Zip<BVGraph, SwhLabeling>`
+/// * FG is the forward graph (either [`BvGraph`], or `Zip<BvGraph, SwhLabeling>`
 ///   after using [`load_forward_labels`](SwhBidirectionalGraph::load_forward_labels)
-/// * BG is the backward graph (either [`BVGraph`], or `Zip<BVGraph, SwhLabeling>`
+/// * BG is the backward graph (either [`BvGraph`], or `Zip<BvGraph, SwhLabeling>`
 ///   after using [`load_backward_labels`](SwhBidirectionalGraph::load_backward_labels)
 pub struct SwhBidirectionalGraph<
     P,
@@ -832,7 +832,7 @@ impl<P, FG: RandomAccessGraph + UnderlyingGraph, BG: RandomAccessGraph + Underly
 /// Returns a new [`SwhUnidirectionalGraph`]
 pub fn load_unidirectional(basepath: impl AsRef<Path>) -> Result<SwhUnidirectionalGraph<()>> {
     let basepath = basepath.as_ref().to_owned();
-    let graph = BVGraph::with_basename(&basepath)
+    let graph = BvGraph::with_basename(&basepath)
         .endianness::<BE>()
         .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
         .load()?;
@@ -844,11 +844,11 @@ pub fn load_unidirectional(basepath: impl AsRef<Path>) -> Result<SwhUnidirection
 /// Returns a new [`SwhBidirectionalGraph`]
 pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectionalGraph<()>> {
     let basepath = basepath.as_ref().to_owned();
-    let forward_graph = BVGraph::with_basename(&basepath)
+    let forward_graph = BvGraph::with_basename(&basepath)
         .endianness::<BE>()
         .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
         .load()?;
-    let backward_graph = BVGraph::with_basename(suffix_path(&basepath, "-transposed"))
+    let backward_graph = BvGraph::with_basename(suffix_path(&basepath, "-transposed"))
         .endianness::<BE>()
         .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
         .load()?;

@@ -20,7 +20,7 @@ use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
 use webgraph::prelude::*;
 
 #[derive(Parser, Debug)]
-#[command(about = "Commands to run individual steps of the pipeline to compress a graph from an initial not-very-compressed BVGraph", long_about = None)]
+#[command(about = "Commands to run individual steps of the pipeline to compress a graph from an initial not-very-compressed BvGraph", long_about = None)]
 struct Args {
     #[command(subcommand)]
     command: Commands,
@@ -28,7 +28,7 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Runs a BFS on the initial BVGraph to group similar node ids together
+    /// Runs a BFS on the initial BvGraph to group similar node ids together
     Bfs {
         #[arg(long)]
         /// Must be provided iff --init-swhids is.
@@ -189,7 +189,7 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Could not open {}", target_order.display()))?;
 
             log::info!("Loading graph...");
-            let graph = BVGraph::with_basename(graph_dir)
+            let graph = BvGraph::with_basename(graph_dir)
                 .endianness::<BE>()
                 .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
                 .load()?;
@@ -262,7 +262,7 @@ pub fn main() -> Result<()> {
         } => {
             use swh_graph::compress::transform::transform;
 
-            let graph = BVGraph::with_basename(graph_dir)
+            let graph = BvGraph::with_basename(graph_dir)
                 .endianness::<BE>()
                 .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
                 .load()?;
@@ -298,7 +298,7 @@ pub fn main() -> Result<()> {
             use swh_graph::compress::transform::transform;
 
             log::info!("Loading graph...");
-            let graph = BVGraph::with_basename(graph_dir)
+            let graph = BvGraph::with_basename(graph_dir)
                 .endianness::<BE>()
                 .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
                 .load()?;
@@ -329,7 +329,7 @@ pub fn main() -> Result<()> {
             use swh_graph::compress::transform::transform;
 
             log::info!("Loading graph...");
-            let graph = BVGraph::with_basename(graph_dir)
+            let graph = BvGraph::with_basename(graph_dir)
                 .endianness::<BE>()
                 .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
                 .load()?;

@@ -112,14 +112,14 @@ where
     let temp_bv_dir = temp_dir.path().join("transform-bv");
     std::fs::create_dir(&temp_bv_dir)
         .with_context(|| format!("Could not create {}", temp_bv_dir.display()))?;
-    BVComp::parallel_iter::<BE, _>(
+    BvComp::parallel_iter::<BE, _>(
         target_path,
         arc_list_graphs,
         num_nodes,
         compression_flags,
         rayon::ThreadPoolBuilder::default()
             .build()
-            .expect("Could not create BVComp thread pool"),
+            .expect("Could not create BvComp thread pool"),
         &temp_bv_dir,
     )
     .context("Could not build BVGraph from arcs")?;
