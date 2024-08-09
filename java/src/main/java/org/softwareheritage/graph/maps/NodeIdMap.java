@@ -16,7 +16,6 @@ import it.unimi.dsi.fastutil.longs.LongMappedBigList;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.lang.FlyweightPrototype;
 import org.softwareheritage.graph.SWHID;
-import org.softwareheritage.graph.compress.NodeMapBuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,11 +28,7 @@ import java.nio.charset.StandardCharsets;
  * The SWHID -> node mapping is obtained from hashing the SWHID with a MPH, then permuting it using
  * an mmap()-ed .order file containing the graph permutation.
  *
- * The node -> SWHID reverse mapping is pre-computed and dumped on disk in the
- * {@link NodeMapBuilder} class, then it is loaded here using mmap().
- *
  * @author The Software Heritage developers
- * @see NodeMapBuilder
  */
 
 public class NodeIdMap implements Size64, FlyweightPrototype<NodeIdMap> {

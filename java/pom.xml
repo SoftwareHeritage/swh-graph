@@ -83,10 +83,6 @@
       <version>2.7.2</version>
       <exclusions>
         <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-common</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>org.umlgraph</groupId>
           <artifactId>umlgraph</artifactId>
         </exclusion>
@@ -123,21 +119,6 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-csv</artifactId>
       <version>1.10.0</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.orc</groupId>
-      <artifactId>orc-core</artifactId>
-      <version>1.7.1</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-common</artifactId>
-      <version>3.3.1</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-client-runtime</artifactId>
-      <version>3.3.1</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -248,9 +229,9 @@
                 <mainClass>org.softwareheritage.graph.rpc.GraphServer</mainClass>
               </manifest>
             </archive>
-            <descriptors>
-              <descriptor>src/assembly/assembly.xml</descriptor>
-            </descriptors>
+            <descriptorRefs>
+              <descriptorRef>jar-with-dependencies</descriptorRef>
+            </descriptorRefs>
             <appendAssemblyId>false</appendAssemblyId>
           </configuration>
           <executions>

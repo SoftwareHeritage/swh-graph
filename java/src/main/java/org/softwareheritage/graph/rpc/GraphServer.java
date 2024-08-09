@@ -20,7 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.softwareheritage.graph.SWHID;
 import org.softwareheritage.graph.SwhBidirectionalGraph;
-import org.softwareheritage.graph.compress.LabelMapBuilder;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -105,7 +104,7 @@ public class GraphServer {
     private static JSAPResult parseArgs(String[] args) {
         JSAPResult config = null;
         try {
-            SimpleJSAP jsap = new SimpleJSAP(LabelMapBuilder.class.getName(), "",
+            SimpleJSAP jsap = new SimpleJSAP(GraphServer.class.getName(), "",
                     new Parameter[]{
                             new FlaggedOption("port", JSAP.INTEGER_PARSER, "50091", JSAP.NOT_REQUIRED, 'p', "port",
                                     "The port on which the server should listen."),

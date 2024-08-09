@@ -7,7 +7,6 @@
 
 package org.softwareheritage.graph;
 
-import com.fasterxml.jackson.annotation.JsonValue;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 
@@ -108,7 +107,6 @@ public class SWHID {
      *
      * @return full SWHID string
      */
-    @JsonValue
     public String getSWHID() {
         return swhid;
     }
