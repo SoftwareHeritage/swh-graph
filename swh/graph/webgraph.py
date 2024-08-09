@@ -332,10 +332,11 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--temp-dir",
         "{tmp_dir}",
         "{out_dir}/{graph_name}.persons.mph",
-        "<(zstdcat {out_dir}/{graph_name}.persons/*.csv.zst)",
+        "<(cat {out_dir}/{graph_name}.persons/persons.csv.*.zst)",
     ],
     CompressionStep.PERSONS_STATS: [
-        "zstdcat {out_dir}/{graph_name}.persons/*.csv.zst" "| wc -l",
+        "zstdcat {out_dir}/{graph_name}.persons/persons.csv.*.zst "
+        "| wc -l"
         "> {out_dir}/{graph_name}.persons.count.txt",
     ],
     CompressionStep.CONVERT_MPH_PERSONS: [
