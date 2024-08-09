@@ -903,7 +903,7 @@ class NodeProperties(_CompressionStepTask):
     INPUT_FILES = {".order", ".cmph", ".persons.cmph", ".node2swhid.bin"}
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
-        ".property.content.is_skipped.bin",
+        ".property.content.is_skipped.bits",
     } | {
         f".property.{name}.bin"
         for name in (
@@ -926,7 +926,6 @@ class NodeProperties(_CompressionStepTask):
         excluded_files = set()
         if "cnt" not in self.object_types:
             excluded_files |= {
-                "content.is_skipped.bin",
                 "content.is_skipped.bits",
                 "content.length.bin",
             }
