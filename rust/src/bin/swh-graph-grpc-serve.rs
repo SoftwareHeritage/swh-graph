@@ -18,7 +18,7 @@ use swh_graph::views::Subgraph;
 #[command(about = "gRPC server for the compressed Software Heritage graph", long_about = None)]
 struct Args {
     graph_path: PathBuf,
-    #[arg(long, default_value = "[::]:5009")]
+    #[arg(long, default_value = "[::]:50091")]
     bind: std::net::SocketAddr,
     #[arg(long)]
     /// A line-separated list of node SWHIDs to exclude from the graph
