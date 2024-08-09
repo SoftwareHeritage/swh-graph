@@ -4,7 +4,7 @@ resolver = "2"
 
 members = [
     "rust",
-    "extension",
+    "pyo3",
     "tools/contributions",
     "tools/file_names",
     "tools/provenance",
