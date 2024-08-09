@@ -19,5 +19,5 @@ opt-level = 3             # like --release
 lto = "fat"               # Full LTO
 overflow-checks = false   # Disable integer overflow checks.
 debug = true              # Include debug info.
-debug-assertions = false  # Enables debug assertions.
+debug-assertions = false  # Disables debug assertions.
 codegen-units=1           # slower compile times, but maybe better perf
