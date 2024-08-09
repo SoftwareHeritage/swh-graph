@@ -139,12 +139,6 @@ where
 
         let sorted_files = sorted_files.lock().unwrap();
 
-        if is_empty {
-            return Ok(());
-        }
-
-        assert!(sorted_files.len() > 0, "Sorters did not run");
-
         let mut target_path_prefix = target_dir.clone();
         target_path_prefix.push(format!("{}.", target_prefix));
 
@@ -154,6 +148,25 @@ where
         }
         std::fs::create_dir_all(&target_dir)
             .with_context(|| format!("Could not create directory {}", target_dir.display()))?;
+
+        if is_empty {
+            // No persons; write an empty file so the rest of the pipeline does not
+            // need special-casing for the absence of files.
+            let path = target_dir.join("0.csv.zst");
+            let file = std::fs::File::create(&path)
+                .with_context(|| format!("Could not create {}", path.display()))?;
+            let compression_level = 3;
+            let writer = zstd::stream::write::Encoder::new(file, compression_level)
+                .with_context(|| format!("Could not create ZSTD encoder for {}", path.display()))?;
+            let mut file = writer
+                .finish()
+                .with_context(|| format!("Could not finishZSTD encoder for {}", path.display()))?;
+            file.flush()
+                .with_context(|| format!("Could not flush {}", path.display()))?;
+            return Ok(());
+        }
+
+        assert!(sorted_files.len() > 0, "Sorters did not run");
 
         // Spawn sort * | pv | split
 

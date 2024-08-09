@@ -265,7 +265,7 @@ class _CompressionStepTask(luigi.Task):
         return self._get_count("labels", "LabelStats")
 
     def _nb_persons(self) -> int:
-        return self._get_count("persons", "ExtractPersons")
+        return self._get_count("persons", "PersonsStats")
 
     def _bvgraph_allocation(self):
         """Returns the memory needed to load the input .graph of this task."""
@@ -862,7 +862,16 @@ class ExtractPersons(_CompressionStepTask):
     STEP = CompressionStep.EXTRACT_PERSONS
     INPUT_FILES: Set[str] = set()
     EXPORT_AS_INPUT = True
-    OUTPUT_FILES = {".persons.csv.zst"}
+    OUTPUT_FILES = {".persons/"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
+class PersonsStats(_CompressionStepTask):
+    STEP = CompressionStep.PERSONS_STATS
+    INPUT_FILES = {".persons/"}
+    OUTPUT_FILES = {".persons.count.txt"}
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -870,7 +879,7 @@ class ExtractPersons(_CompressionStepTask):
 
 class MphPersons(_CompressionStepTask):
     STEP = CompressionStep.MPH_PERSONS
-    INPUT_FILES = {".persons.csv.zst"}
+    INPUT_FILES = {".persons/", ".persons.count.txt"}
     OUTPUT_FILES = {".persons.mph"}
 
     def _large_java_allocations(self) -> int:

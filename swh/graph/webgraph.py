@@ -62,6 +62,7 @@ class CompressionStep(Enum):
     TRANSPOSE_EF = 175
     MAPS = 180
     EXTRACT_PERSONS = 190
+    PERSONS_STATS = 195
     MPH_PERSONS = 200
     CONVERT_MPH_PERSONS = 205
     NODE_PROPERTIES = 210
@@ -315,14 +316,12 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}.node2type.bin",
     ],
     CompressionStep.EXTRACT_PERSONS: [
-        "{java}",
-        "org.softwareheritage.graph.compress.ExtractPersons",
-        "--temp-dir",
-        "{tmp_dir}",
+        "{rust_executable_dir}/swh-graph-extract",
+        "extract-persons",
         "--allowed-node-types",
         "{object_types}",
         "{in_dir}",
-        "{out_dir}/{graph_name}",
+        "{out_dir}/{graph_name}.persons/",
     ],
     CompressionStep.MPH_PERSONS: [
         "{java}",
@@ -333,7 +332,11 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--temp-dir",
         "{tmp_dir}",
         "{out_dir}/{graph_name}.persons.mph",
-        "{out_dir}/{graph_name}.persons.csv.zst",
+        "<(zstdcat {out_dir}/{graph_name}.persons/*.csv.zst)",
+    ],
+    CompressionStep.PERSONS_STATS: [
+        "zstdcat {out_dir}/{graph_name}.persons/*.csv.zst" "| wc -l",
+        "> {out_dir}/{graph_name}.persons.count.txt",
     ],
     CompressionStep.CONVERT_MPH_PERSONS: [
         "{java}",
