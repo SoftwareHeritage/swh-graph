@@ -6,8 +6,8 @@ description = "Compressed in-memory representation of the Software Heritage arch
 repository = "https://gitlab.softwareheritage.org/swh/devel/swh-graph"
 license = "GPL-3.0-or-later"
 readme = "README.md"
-keywords = ["software heritage", "graph", "compression", "webgraph"]
-categories = ["compression", "graph"]
+keywords = ["software-heritage", "graph", "compression", "webgraph"]
+categories = ["compression", "science"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

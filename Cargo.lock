@@ -3548,7 +3548,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph"
-version = "0.1.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "ar_row 1.0.0",
@@ -3608,7 +3608,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_contributions"
-version = "0.1.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3627,7 +3627,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_file_names"
-version = "0.1.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -3644,7 +3644,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_provenance"
-version = "0.1.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "ar_row 0.6.0",
@@ -3674,7 +3674,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_pyo3"
-version = "0.1.0"
+version = "5.0.0"
 dependencies = [
  "pyo3",
  "swh-graph",
@@ -3682,7 +3682,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_topology"
-version = "0.1.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "arrow",
