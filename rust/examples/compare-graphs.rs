@@ -238,8 +238,6 @@ where
     pl.start("Checking arc labels...");
     let pl = Arc::new(Mutex::new(pl));
     par_iter_shuffled_range(0..num_nodes).try_for_each(|node| -> Result<()> {
-        let mut num_arcs = 0;
-        let mut num_labels = 0;
         for ((succ1, labels1), (succ2, labels2)) in graph1
             .labeled_successors(node)
             .zip(graph2.labeled_successors(node))
@@ -280,11 +278,7 @@ where
                     bail!("Labels mismatch")
                 }
             }
-            num_arcs += 1;
-            num_labels += labels1.len();
         }
-
-        //log::info!("{} ({}) ok ({} arcs, {} labels)", graph1.properties().swhid(node), node, num_arcs, num_labels);
 
         if node % 32768 == 0 {
             pl.lock().unwrap().update_with_count(32768);
