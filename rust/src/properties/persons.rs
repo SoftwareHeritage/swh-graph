@@ -25,6 +25,11 @@ impl<P: Persons> MaybePersons for P {}
 pub struct NoPersons;
 impl MaybePersons for NoPersons {}
 
+#[diagnostic::on_unimplemented(
+    label = "does not have Person properties loaded",
+    note = "Use `let graph = graph.load_properties(|props| props.load_persons()).unwrap()` to load them",
+    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<GOVMPH>().unwrap()` to load all properties"
+)]
 /// Trait for backend storage of person properties (either in-memory or memory-mapped)
 pub trait Persons {
     type PersonIds<'a>: GetIndex<Output = u32>

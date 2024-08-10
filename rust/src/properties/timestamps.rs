@@ -26,6 +26,11 @@ impl<T: Timestamps> MaybeTimestamps for T {}
 pub struct NoTimestamps;
 impl MaybeTimestamps for NoTimestamps {}
 
+#[diagnostic::on_unimplemented(
+    label = "does not have Timestamp properties loaded",
+    note = "Use `let graph = graph.load_properties(|props| props.load_timestamps()).unwrap()` to load them",
+    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<GOVMPH>().unwrap()` to load all properties"
+)]
 /// Trait for backend storage of timestamp properties (either in-memory or memory-mapped)
 pub trait Timestamps {
     type Timestamps<'a>: GetIndex<Output = i64> + 'a

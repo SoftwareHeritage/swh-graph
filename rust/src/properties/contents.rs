@@ -25,6 +25,11 @@ impl<C: Contents> MaybeContents for C {}
 pub struct NoContents;
 impl MaybeContents for NoContents {}
 
+#[diagnostic::on_unimplemented(
+    label = "does not have Content properties loaded",
+    note = "Use `let graph = graph.load_properties(|props| props.load_contents()).unwrap()` to load them",
+    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<GOVMPH>().unwrap()` to load all properties"
+)]
 /// Trait for backend storage of content properties (either in-memory or memory-mapped)
 pub trait Contents {
     type Data<'a>: GetIndex<Output = u64> + 'a

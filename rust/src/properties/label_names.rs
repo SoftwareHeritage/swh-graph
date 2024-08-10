@@ -27,6 +27,11 @@ pub struct NoLabelNames;
 impl MaybeLabelNames for NoLabelNames {}
 
 /// Trait for backend storage of label names (either in-memory or memory-mapped)
+#[diagnostic::on_unimplemented(
+    label = "does not have label names loaded",
+    note = "Use `let graph = graph.load_properties(|props| props.load_label_names()).unwrap()` to load them",
+    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<GOVMPH>().unwrap()` to load all properties"
+)]
 pub trait LabelNames {
     type LabelNames<'a>: GetIndex<Output = Vec<u8>>
     where
