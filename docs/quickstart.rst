@@ -30,6 +30,17 @@ Install the ``swh_graph`` rust package:
 
    $ cargo install --git https://gitlab.softwareheritage.org/swh/devel/swh-graph.git --features grpc-server swh-graph
 
+Or:
+
+.. code:: console
+
+   $ git clone https://gitlab.softwareheritage.org/swh/devel/swh-graph.git
+   $ cd swh-graph
+   $ cargo build --features grpc-server -p swh-graph
+
+You now have a debug build of the gRPC server. (Use ``--release`` on the last command
+of each option, and the ``RUSTFLAGS="-C target-cpu=native"`` env var for a release build.)
+
 Create a virtualenv and activate it:
 
 .. code:: console
@@ -143,7 +154,7 @@ In our example:
    ======== Running on http://0.0.0.0:5009 ========
    (Press CTRL+C to quit)
 
-If you are getting any error about a missing file ``.cmph``, ``.bin``, ``.bits``, ``.ef``
+If you get any error about a missing file ``.cmph``, ``.bin``, ``.bits``, ``.ef``
 file (typically for graphs before 2024), you need to generate it with:
 
 .. code:: console

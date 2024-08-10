@@ -1,15 +1,17 @@
 .. _swh-graph-grpc-api:
 
 ==================
-Using the GRPC API
+Using the gRPC API
 ==================
 
-The GRPC API is the core API used to query the graph remotely. It uses the
-`GRPC framework <https://grpc.io/>`_ to provide high-performance graph
+.. highlight:: console
+
+The gRPC API is the core API used to query the graph remotely. It uses the
+`gRPC framework <https://grpc.io/>`_ to provide high-performance graph
 traversal methods with server streaming.
 
 It is more expressive than the :ref:`HTTP API <swh-graph-api>` (which itself
-uses the GRPC API under the hood to serve queries), however it can only be
+uses the gRPC API under the hood to serve queries), however it can only be
 used internally or with a local setup, and is never exposed publicly.
 
 Its major features include: returning node and edge properties, performing BFS
@@ -19,34 +21,66 @@ shortest paths, common ancestors, etc.
 Quickstart
 ==========
 
+Building the server
+-------------------
+
+Get Rust >= 1.75, eg. with `rustup <https://rustup.rs/>`_.
+
+Run::
+
+    RUSTFLAGS="-C target-cpu=native" cargo install --features=grpc-server swh-graph
+    pip3 install swh-graph
+
+Or::
+
+    git clone https://gitlab.softwareheritage.org/swh/devel/swh-graph.git
+    cd swh-graph
+    cargo build --release --features=grpc-server -p swh-graph
+    pip3 install .
+
+Getting a compressed graph
+--------------------------
+
+See :ref:`swh-dataset-list`.
+
 Starting the server
 -------------------
 
-The GRPC server is automatically started on port 50091 when the HTTP server
+The gRPC server is automatically started on port 50091 when the HTTP server
 is started with ``swh graph rpc-serve``. It can also be started directly with
-Java, instead of going through the Python layer, by using the fat-jar shipped
-with swh-graph:
+Rust, instead of going through the Python layer::
 
-.. code-block:: console
+    $ swh-graph-grpc-serve <graph_basename>
 
-    $ java -cp swh-graph-XXX.jar org.softwareheritage.graph.rpc.GraphServer <graph_basename>
+Or, if you installed from Git::
 
-(See :ref:`swh-graph-java-api` and :ref:`swh-graph-memory` for more
-information on Java process options and JVM tuning.)
+    $ cargo run --release --features=grpc-server --bin swh-graph-grpc-serve <graph_basename>
+
+(See :ref:`swh-graph-memory` for more information for performance tuning)
+
+If you get any error about a missing file ``.cmph``, ``.bin``, ``.bits``, ``.ef``
+file (typically for graphs before 2024), you need to generate it with::
+
+    $ swh graph reindex <graph_basename>
+
+If instead you get an error about an invalid hash in a ``.ef`` file, it means your
+swh-graph expects a different version of the ``.ef`` files as the one you have locally.
+You need to regenerate them for your version::
+
+    $ swh graph reindex --ef <graph_basename>
+
 
 Running queries
 ---------------
 
 The `gRPC command line tool
 <https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md>`_
-can be an easy way to query the GRPC API from the command line. It is
+can be an easy way to query the gRPC API from the command line. It is
 invoked with the ``grpc_cli`` command. Of course, it is also possible to use
-a generated RPC client in any programming language supported by GRPC.
+a generated RPC client in any programming language supported by gRPC.
 
 All RPC methods are defined in the service ``swh.graph.TraversalService``.
-The available endpoints can be listed with ``ls``:
-
-.. code-block:: console
+The available endpoints can be listed with ``ls``::
 
     $ grpc_cli ls localhost:50091 swh.graph.TraversalService
     Traverse
@@ -57,9 +91,7 @@ The available endpoints can be listed with ``ls``:
     Stats
     GetNode
 
-A RPC method can be called with the ``call`` subcommand.
-
-.. code-block:: console
+A RPC method can be called with the ``call`` subcommand.::
 
     $ grpc_cli call localhost:50091 swh.graph.TraversalService.Stats ""
     connecting to localhost:50091
@@ -71,9 +103,7 @@ A RPC method can be called with the ``call`` subcommand.
     Rpc succeeded with OK status
 
 The ``--json_output`` flag can also be used to make the results easier to
-parse.
-
-.. code-block:: console
+parse.::
 
     $ grpc_cli --json_output call localhost:50091 swh.graph.TraversalService.Stats ""
     connecting to localhost:50091
@@ -280,7 +310,7 @@ With ``grpc_cli``:
 
 With Python:
 
-.. code-block::
+.. code-block:: python
 
     grpc._channel._InactiveRpcError: <_InactiveRpcError of RPC that terminated with:
         status = StatusCode.INVALID_ARGUMENT
@@ -832,7 +862,7 @@ Because ``midpoint_index = 5``, the common ancestor is
 Protobuf API Reference
 ======================
 
-The GRPC API is specified in a single self-documenting
+The gRPC API is specified in a single self-documenting
 `protobuf <https://developers.google.com/protocol-buffers>`_ file, which is
 available in the ``proto/swhgraph.proto`` file of the swh-graph repository:
 
