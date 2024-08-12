@@ -29,28 +29,11 @@ use crate::labeling::SwhLabeling;
 use crate::labels::{EdgeLabel, UntypedEdgeLabel};
 use crate::mph::SwhidMphf;
 use crate::properties;
+pub use crate::underlying_graph::DefaultUnderlyingGraph;
 use crate::utils::suffix_path;
 
 /// Alias for [`usize`], which may become a newtype in a future version.
 pub type NodeId = usize;
-
-type DefaultUnderlyingGraph = BvGraph<
-    DynCodesDecoderFactory<
-        dsi_bitstream::prelude::BE,
-        MmapHelper<u32>,
-        // like webgraph::graphs::bvgraph::EF, but with `&'static [usize]` instead of
-        // `Box<[usize]>`
-        sux::dict::EliasFano<
-            sux::rank_sel::SelectAdaptConst<
-                sux::bits::BitVec<&'static [usize]>,
-                &'static [usize],
-                12,
-                4,
-            >,
-            sux::bits::BitFieldVec<usize, &'static [usize]>,
-        >,
-    >,
->;
 
 /// Supertrait of [`RandomAccessLabeling`] with methods to act like a [`RandomAccessGraph`].
 ///
@@ -832,10 +815,12 @@ impl<P, FG: RandomAccessGraph + UnderlyingGraph, BG: RandomAccessGraph + Underly
 /// Returns a new [`SwhUnidirectionalGraph`]
 pub fn load_unidirectional(basepath: impl AsRef<Path>) -> Result<SwhUnidirectionalGraph<()>> {
     let basepath = basepath.as_ref().to_owned();
-    let graph = BvGraph::with_basename(&basepath)
-        .endianness::<BE>()
-        .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-        .load()?;
+    let graph = DefaultUnderlyingGraph(
+        BvGraph::with_basename(&basepath)
+            .endianness::<BE>()
+            .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
+            .load()?,
+    );
     Ok(SwhUnidirectionalGraph::from_underlying_graph(
         basepath, graph,
     ))
@@ -844,14 +829,18 @@ pub fn load_unidirectional(basepath: impl AsRef<Path>) -> Result<SwhUnidirection
 /// Returns a new [`SwhBidirectionalGraph`]
 pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectionalGraph<()>> {
     let basepath = basepath.as_ref().to_owned();
-    let forward_graph = BvGraph::with_basename(&basepath)
-        .endianness::<BE>()
-        .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-        .load()?;
-    let backward_graph = BvGraph::with_basename(suffix_path(&basepath, "-transposed"))
-        .endianness::<BE>()
-        .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-        .load()?;
+    let forward_graph = DefaultUnderlyingGraph(
+        BvGraph::with_basename(&basepath)
+            .endianness::<BE>()
+            .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
+            .load()?,
+    );
+    let backward_graph = DefaultUnderlyingGraph(
+        BvGraph::with_basename(suffix_path(&basepath, "-transposed"))
+            .endianness::<BE>()
+            .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
+            .load()?,
+    );
     Ok(SwhBidirectionalGraph {
         basepath,
         forward_graph,

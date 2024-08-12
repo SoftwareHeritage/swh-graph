@@ -60,8 +60,41 @@ impl Supply for MmapReaderSupplier<BE> {
     }
 }
 
-pub type SwhLabeling =
+pub type SwhLabelingInner =
     BitStreamLabeling<BE, MmapReaderSupplier<BE>, SwhDeserializer, MemCase<DeserType<'static, EF>>>;
+
+pub struct SwhLabeling(pub SwhLabelingInner);
+
+impl SequentialLabeling for SwhLabeling {
+    type Label = <SwhLabelingInner as SequentialLabeling>::Label;
+    type Lender<'node> = <SwhLabelingInner as SequentialLabeling>::Lender<'node>
+       where Self: 'node;
+
+    // Required methods
+    fn num_nodes(&self) -> usize {
+        self.0.num_nodes()
+    }
+    fn iter_from(&self, from: usize) -> Self::Lender<'_> {
+        self.0.iter_from(from)
+    }
+}
+
+impl RandomAccessLabeling for SwhLabeling {
+    type Labels<'succ> = <SwhLabelingInner as RandomAccessLabeling>::Labels<'succ>
+       where Self: 'succ;
+
+    fn num_arcs(&self) -> u64 {
+        <SwhLabelingInner as RandomAccessLabeling>::num_arcs(&self.0)
+    }
+
+    fn labels(&self, node_id: usize) -> <Self as RandomAccessLabeling>::Labels<'_> {
+        <SwhLabelingInner as RandomAccessLabeling>::labels(&self.0, node_id)
+    }
+
+    fn outdegree(&self, node_id: usize) -> usize {
+        <SwhLabelingInner as RandomAccessLabeling>::outdegree(&self.0, node_id)
+    }
+}
 
 pub(crate) fn mmap(path: impl AsRef<Path>, bit_deser: SwhDeserializer) -> Result<SwhLabeling> {
     let path = path.as_ref();
@@ -69,7 +102,7 @@ pub(crate) fn mmap(path: impl AsRef<Path>, bit_deser: SwhDeserializer) -> Result
     let ef_path = path.with_extension("ef");
     let ef = EF::mmap(&ef_path, Flags::empty())
         .with_context(|| format!("Could not parse {}", ef_path.display()))?;
-    Ok(BitStreamLabeling::new(
+    Ok(SwhLabeling(BitStreamLabeling::new(
         MmapReaderSupplier {
             backend: MmapHelper::<u32>::mmap(&labels_path, MmapFlags::empty())
                 .with_context(|| format!("Could not mmap {}", labels_path.display()))?,
@@ -77,5 +110,5 @@ pub(crate) fn mmap(path: impl AsRef<Path>, bit_deser: SwhDeserializer) -> Result
         },
         bit_deser,
         ef,
-    ))
+    )))
 }
