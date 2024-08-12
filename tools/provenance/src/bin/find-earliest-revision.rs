@@ -7,7 +7,7 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use rayon::prelude::*;
@@ -78,6 +78,16 @@ pub fn main() -> Result<()> {
     pl.display_memory(true);
     pl.start("Looking up SWHID provenance...");
     let pl = Mutex::new(pl);
+
+    // Makes sure the input at least has a header, even when there is no payload
+    ensure!(
+        reader
+            .headers()
+            .context("Invalid header in input")?
+            .iter()
+            .any(|item| item == "swhid"),
+        "Input has no 'swhid' header"
+    );
 
     reader.deserialize().par_bridge().try_for_each(|record| {
         let InputRecord { swhid } = record.context("Could not deserialize input")?;

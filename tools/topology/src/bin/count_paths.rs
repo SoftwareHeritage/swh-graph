@@ -7,7 +7,7 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use arrow::array::*;
 use arrow::datatypes::{DataType, Field, Schema};
 use clap::{Parser, ValueEnum};
@@ -376,6 +376,16 @@ where
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(true)
             .from_reader(io::stdin());
+
+        // Makes sure the input at least has a header, even when there is no payload
+        ensure!(
+            reader
+                .headers()
+                .context("Invalid header in input")?
+                .iter()
+                .any(|item| item == "SWHID"),
+            "Input has no 'swhid' header"
+        );
 
         reader
             .deserialize()

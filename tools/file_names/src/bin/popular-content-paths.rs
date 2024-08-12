@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{ProgressLog, ProgressLogger};
 use itertools::Itertools;
@@ -126,28 +126,37 @@ fn main_monomorphized<const MAX_DEPTH: usize>(args: Args) -> Result<()> {
     pl.start("Writing file names");
     let pl = Arc::new(Mutex::new(pl));
 
-    csv::ReaderBuilder::new()
+    let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
-        .from_reader(std::io::stdin())
-        .deserialize()
-        .par_bridge()
-        .try_for_each_init(
-            || dataset_writer.get_thread_writer().unwrap(),
-            |writer, line: Result<InputRecord, _>| -> Result<()> {
-                let swhid = line.context("Could not deserialize input line")?.SWHID;
-                let swhid = SWHID::try_from(swhid.as_str())
-                    .with_context(|| format!("Could not parse input SWHID {}", swhid))?;
-                let node = graph
-                    .properties()
-                    .node_id(swhid)
-                    .with_context(|| format!("Input SWHID {} is not in graph", swhid))?;
-                write_content_paths::<MAX_DEPTH, _>(&graph, writer, node)?;
-                if node % 32768 == 0 {
-                    pl.lock().unwrap().update_with_count(32768);
-                }
-                Ok(())
-            },
-        )?;
+        .from_reader(std::io::stdin());
+
+    // Makes sure the input at least has a header, even when there is no payload
+    ensure!(
+        reader
+            .headers()
+            .context("Invalid header in input")?
+            .iter()
+            .any(|item| item == "SWHID"),
+        "Input has no 'SWHID' header"
+    );
+
+    reader.deserialize().par_bridge().try_for_each_init(
+        || dataset_writer.get_thread_writer().unwrap(),
+        |writer, line: Result<InputRecord, _>| -> Result<()> {
+            let swhid = line.context("Could not deserialize input line")?.SWHID;
+            let swhid = SWHID::try_from(swhid.as_str())
+                .with_context(|| format!("Could not parse input SWHID {}", swhid))?;
+            let node = graph
+                .properties()
+                .node_id(swhid)
+                .with_context(|| format!("Input SWHID {} is not in graph", swhid))?;
+            write_content_paths::<MAX_DEPTH, _>(&graph, writer, node)?;
+            if node % 32768 == 0 {
+                pl.lock().unwrap().update_with_count(32768);
+            }
+            Ok(())
+        },
+    )?;
 
     dataset_writer.close()?;
 

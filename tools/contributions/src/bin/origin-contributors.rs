@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use clap::{Parser, ValueEnum};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -126,11 +126,21 @@ where
     // For each node it, counts its number of direct successors that still need to be handled
     let mut pending_successors = HashMap::<NodeId, usize>::new();
 
-    for record in csv::ReaderBuilder::new()
+    let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
-        .from_reader(std::io::stdin())
-        .deserialize()
-    {
+        .from_reader(std::io::stdin());
+
+    // Makes sure the input at least has a header, even when there is no payload
+    ensure!(
+        reader
+            .headers()
+            .context("Invalid header in input")?
+            .iter()
+            .any(|item| item == "SWHID"),
+        "Input has no 'swhid' header"
+    );
+
+    for record in reader.deserialize() {
         let InputRecord {
             swhid,
             num_predecessors,
