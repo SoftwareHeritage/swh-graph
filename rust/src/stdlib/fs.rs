@@ -5,10 +5,13 @@
 
 //! Filesystem manipulation functions.
 
+use std::collections::HashMap;
+
 use anyhow::{bail, Context, Result};
+use log::warn;
 
 use crate::graph::*;
-use crate::labels::{EdgeLabel, FilenameId};
+use crate::labels::{EdgeLabel, FilenameId, Permission};
 use crate::properties;
 use crate::NodeType;
 
@@ -119,4 +122,68 @@ where
         }
     }
     Ok(Some(cur_entry))
+}
+
+/// Recursive representation of a directory tree, ignoring sharing.
+///
+/// Note that a `Revision` variant can in fact point to either revision or
+/// release nodes.
+#[derive(Debug, Default, PartialEq)]
+pub enum FsTree {
+    #[default]
+    Content,
+    Directory(HashMap<Vec<u8>, (FsTree, Option<Permission>)>),
+    Revision(NodeId),
+}
+
+/// Given a graph and a directory node in it (usually, but not necessarily, the
+/// *root* directory of a repository), return a recursive list of the contained
+/// files and directories.
+///
+/// Note that symlinks are not followed during listing and are reported as
+/// files in the returned tree. To recognize them as links, check the
+/// permissions of the associated directory entries.
+pub fn fs_ls_tree<G>(graph: &G, dir: NodeId) -> Result<FsTree>
+where
+    G: SwhLabeledForwardGraph + SwhGraphWithProperties,
+    <G as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
+    <G as SwhGraphWithProperties>::Maps: properties::Maps,
+{
+    let props = graph.properties();
+    let node_type = props.node_type(dir);
+    if node_type != NodeType::Directory {
+        bail!("Type of {dir} should be directory, but is {node_type} instead");
+    }
+
+    let mut dir_entries = HashMap::new();
+    for (succ, labels) in graph.labeled_successors(dir) {
+        let node_type = props.node_type(succ);
+        for label in labels {
+            if let EdgeLabel::DirEntry(dentry) = label {
+                let file_name = props.label_name(dentry.filename_id());
+                let perm = dentry.permission();
+                match node_type {
+                    NodeType::Content => {
+                        dir_entries.insert(file_name, (FsTree::Content, perm));
+                    }
+                    NodeType::Directory => {
+                        // recurse into subdir
+                        if let Ok(subdir) = fs_ls_tree(graph, succ) {
+                            dir_entries.insert(file_name, (subdir, perm));
+                        } else {
+                            warn!("Cannot list (sub-)directory {succ}, skipping it");
+                        }
+                    }
+                    NodeType::Revision | NodeType::Release => {
+                        dir_entries.insert(file_name, (FsTree::Revision(succ), perm));
+                    }
+                    NodeType::Origin | NodeType::Snapshot => {
+                        warn!("Ignoring dir entry with unexpected type {node_type}");
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(FsTree::Directory(dir_entries))
 }

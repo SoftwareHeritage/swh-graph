@@ -7,6 +7,7 @@
 
 use anyhow::Result;
 use swh_graph::graph_builder::{self, GraphBuilder};
+use swh_graph::labels::Permission;
 use swh_graph::swhid;
 
 // See test_graph_1.dot
@@ -114,6 +115,56 @@ pub fn build_test_graph_1() -> Result<graph_builder::BuiltGraph> {
     builder.arc(dir16, cnt15);
     builder.arc(dir06, cnt04);
     builder.arc(dir06, cnt05);
+
+    builder.done()
+}
+
+#[allow(dead_code)]
+pub fn build_test_fs_tree_1() -> Result<graph_builder::BuiltGraph> {
+    // Build the following filesystem tree:
+    //
+    //         /
+    //         ├── doc/
+    //         │   └── ls/
+    //         │       └── ls.1
+    //         ├── README.md
+    //         └── src/
+    //             ├── main.c
+    //             └── Makefile
+    //
+    let mut builder = GraphBuilder::default();
+    let dir_root = builder
+        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000000))?
+        .done();
+    let dir_src = builder
+        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000001))?
+        .done();
+    let dir_doc = builder
+        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000002))?
+        .done();
+    let dir_doc_ls = builder
+        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000003))?
+        .done();
+    let file_main_c = builder
+        .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000004))?
+        .done();
+    let file_makefile = builder
+        .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000005))?
+        .done();
+    let file_ls_man = builder
+        .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000006))?
+        .done();
+    let file_readme = builder
+        .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000007))?
+        .done();
+
+    builder.dir_arc(dir_root, dir_src, Permission::Directory, "src");
+    builder.dir_arc(dir_root, dir_doc, Permission::Directory, "doc");
+    builder.dir_arc(dir_doc, dir_doc_ls, Permission::Directory, "ls");
+    builder.dir_arc(dir_src, file_main_c, Permission::Content, "main.c");
+    builder.dir_arc(dir_src, file_makefile, Permission::Content, "Makefile");
+    builder.dir_arc(dir_doc_ls, file_ls_man, Permission::Content, "ls.1");
+    builder.dir_arc(dir_root, file_readme, Permission::Content, "README.md");
 
     builder.done()
 }

@@ -3,12 +3,15 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::collections::HashMap;
+
 use anyhow::Result;
 use log::info;
+
 use swh_graph::graph::*;
 use swh_graph::graph_builder::GraphBuilder;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::labels::{Permission, Visit, VisitStatus};
+use swh_graph::labels::{Visit, VisitStatus};
 use swh_graph::stdlib::*;
 use swh_graph::swhid;
 
@@ -87,50 +90,7 @@ fn test_find_latest_snp() -> Result<()> {
 
 #[test]
 fn test_resolve_path() -> Result<()> {
-    let mut builder = GraphBuilder::default();
-    let dir_root = builder
-        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000000))?
-        .done();
-    let dir_src = builder
-        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000001))?
-        .done();
-    let dir_doc = builder
-        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000002))?
-        .done();
-    let dir_doc_ls = builder
-        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000003))?
-        .done();
-    let file_main_c = builder
-        .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000004))?
-        .done();
-    let file_makefile = builder
-        .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000005))?
-        .done();
-    let file_ls_man = builder
-        .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000006))?
-        .done();
-    let file_readme = builder
-        .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000007))?
-        .done();
-    builder.dir_arc(dir_root, dir_src, Permission::Directory, "src");
-    builder.dir_arc(dir_root, dir_doc, Permission::Directory, "doc");
-    builder.dir_arc(dir_doc, dir_doc_ls, Permission::Directory, "ls");
-    builder.dir_arc(dir_src, file_main_c, Permission::Content, "main.c");
-    builder.dir_arc(dir_src, file_makefile, Permission::Content, "Makefile");
-    builder.dir_arc(dir_doc_ls, file_ls_man, Permission::Content, "ls.1");
-    builder.dir_arc(dir_root, file_readme, Permission::Content, "README.md");
-    let graph = builder.done()?;
-    // Resulting filesystem tree:
-    //
-    //         /
-    //         ├── doc/
-    //         │   └── ls/
-    //         │       └── ls.1
-    //         ├── README.md
-    //         └── src/
-    //             ├── main.c
-    //             └── Makefile
-    //
+    let graph = data::build_test_fs_tree_1()?;
     let props = graph.properties();
     let root_node = props.node_id(swhid!(swh:1:dir:0000000000000000000000000000000000000000))?;
 
@@ -168,6 +128,30 @@ fn test_resolve_path() -> Result<()> {
         swhid!(swh:1:cnt:0000000000000000000000000000000000000006)
     );
 
+    Ok(())
+}
+
+#[test]
+fn test_fs_ls_tree() -> Result<()> {
+    let graph = data::build_test_fs_tree_1()?;
+    let props = graph.properties();
+    let doc_dir = props.node_id("swh:1:dir:0000000000000000000000000000000000000002")?;
+
+    use swh_graph::labels::Permission;
+    use swh_graph::stdlib::FsTree::*;
+    assert_eq!(
+        fs_ls_tree(&graph, doc_dir)?,
+        Directory(HashMap::from([(
+            Vec::from("ls"),
+            (
+                Directory(HashMap::from([(
+                    Vec::from("ls.1"),
+                    (Content, Some(Permission::Content))
+                )])),
+                Some(Permission::Directory)
+            )
+        )]))
+    );
     Ok(())
 }
 
