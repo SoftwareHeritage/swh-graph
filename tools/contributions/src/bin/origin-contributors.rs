@@ -27,8 +27,10 @@ enum Direction {
 }
 
 #[derive(Parser, Debug)]
-/// Returns the list of contributor ids contributing to any given origin, as a CSV stdout
-/// with header `origin_id,contributor_id,years`
+/// Reads a CSV with headers
+/// 'swhid,num_predecessors,num_successors,sample_predecessor1,sample_predecessor2' (as returned by
+/// the 'toposort' executable) and returns the list of contributor ids contributing to any given
+/// origin, as a CSV stdout with header `origin_id,contributor_id,years`
 struct Args {
     graph_path: PathBuf,
     #[arg(long)]

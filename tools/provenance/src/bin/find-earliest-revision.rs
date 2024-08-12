@@ -27,7 +27,7 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: Jemalloc = Jemalloc;
 
 #[derive(Parser, Debug)]
-#[command(about = "Given a list of directory/content SWHID on stdin, returns a CSV with header 'swhid,earliest_swhid,earliest_ts,rev_occurrences'", long_about = None)]
+/// Given a CSV of directory/content SWHID on stdin (with header 'swhid'), returns a CSV with header 'swhid,earliest_swhid,earliest_ts,rev_occurrences'
 struct Args {
     graph_path: PathBuf,
     #[arg(short, long, action = clap::ArgAction::Count)]

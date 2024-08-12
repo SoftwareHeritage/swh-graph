@@ -24,7 +24,7 @@ use swh_graph::SWHID;
 use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
 
 #[derive(Parser, Debug)]
-/** Reads a list of content and directory SWHIDs, and for each of them, returns
+/** Reads a CSV of content and directory SWHIDs, and for each of them, returns
  * their most popular path among their parents, up to the maximum given depth.
  *
  * Contents under 3 bytes are skipped, as they are too long to process (many references
