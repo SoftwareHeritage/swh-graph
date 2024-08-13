@@ -71,8 +71,9 @@ prost = { version = "0.12", optional = true }
 prost-types = { version = "0.12", optional = true }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"], optional = true }
 tokio-stream = "0.1"
-tonic = { version = "0.10.2", optional = true }
-tonic-reflection = { version = "0.10.2", optional = true }
+tonic = { version = "0.11.0", optional = true }
+tonic-reflection = { version = "0.11.0", optional = true }
+tonic-middleware = { version = "0.1.4", optional = true }
 
 # macros
 const_panic = { version = "0.2.8", optional = true }
@@ -83,7 +84,7 @@ bitvec = { version = "1.0.1", features = ["atomic"] }
 futures = "0.3.30"
 
 [build-dependencies]
-tonic-build = { version = "0.10.2", optional = true }
+tonic-build = { version = "0.11.0", optional = true }
 
 [features]
 default = ["macros"]
@@ -113,6 +114,7 @@ grpc-server = [
     "tonic",
     "tonic-build",
     "tonic-reflection",
+    "tonic-middleware",
     "prost",
     "prost-types",
     "tokio"

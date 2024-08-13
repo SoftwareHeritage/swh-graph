@@ -9,9 +9,12 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use tokio::time::Instant;
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::transport::Server;
+use tonic::body::BoxBody;
+use tonic::transport::{Body, Server};
 use tonic::{Request, Response};
+use tonic_middleware::{Middleware, MiddlewareFor, ServiceBound};
 
 use crate::graph::{SwhGraphWithProperties, SwhLabeledBackwardGraph, SwhLabeledForwardGraph};
 use crate::properties::NodeIdFromSwhidError;
@@ -347,11 +350,12 @@ where
 {
     let graph = Arc::new(graph);
     Server::builder()
-        .add_service(
+        .add_service(MiddlewareFor::new(
             proto::traversal_service_server::TraversalServiceServer::new(TraversalService::new(
                 graph,
             )),
-        )
+            MetricsMiddleware,
+        ))
         .add_service(
             tonic_reflection::server::Builder::configure()
                 //.register_encoded_file_descriptor_set(tonic_reflection::pb::FILE_DESCRIPTOR_SET)
@@ -363,4 +367,33 @@ where
         .await?;
 
     Ok(())
+}
+
+#[derive(Clone, Default)]
+pub struct MetricsMiddleware;
+
+#[tonic::async_trait]
+impl<S> Middleware<S> for MetricsMiddleware
+where
+    S: ServiceBound,
+    S::Future: Send,
+{
+    async fn call(
+        &self,
+        req: tonic::codegen::http::Request<Body>,
+        mut service: S,
+    ) -> Result<tonic::codegen::http::Response<BoxBody>, S::Error> {
+        if log::log_enabled!(log::Level::Info) {
+            let start_time = Instant::now();
+            let uri = req.uri().clone();
+
+            let result = service.call(req).await?;
+
+            let elapsed_time = start_time.elapsed();
+            log::info!("{} - {} - {:?}", result.status(), uri, elapsed_time);
+            Ok(result)
+        } else {
+            service.call(req).await
+        }
+    }
 }
