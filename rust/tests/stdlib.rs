@@ -6,7 +6,6 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use log::info;
 
 use swh_graph::graph::*;
 use swh_graph::graph_builder::GraphBuilder;
@@ -21,7 +20,6 @@ const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
 #[test]
 fn test_find_root_dir() -> Result<()> {
-    info!("Loading graph...");
     let graph = load_unidirectional(BASENAME)?
         .load_all_properties::<GOVMPH>()?
         .load_labels()?;
@@ -48,6 +46,30 @@ fn test_find_root_dir() -> Result<()> {
         swhid!(swh:1:dir:0000000000000000000000000000000000000017)
     );
 
+    Ok(())
+}
+
+#[test]
+fn test_find_head_rev() -> Result<()> {
+    let mut builder = GraphBuilder::default();
+    let snp0 = builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000000))?
+        .done();
+    let rev1 = builder
+        .node(swhid!(swh:1:rev:0000000000000000000000000000000000000001))?
+        .done();
+    let rev2 = builder
+        .node(swhid!(swh:1:rev:0000000000000000000000000000000000000002))?
+        .done();
+    let rev3 = builder
+        .node(swhid!(swh:1:rev:0000000000000000000000000000000000000003))?
+        .done();
+    builder.snp_arc(snp0, rev1, "refs/heads/bug");
+    builder.snp_arc(snp0, rev2, "refs/heads/main");
+    builder.snp_arc(snp0, rev3, "refs/heads/new-sux");
+    let graph = builder.done()?;
+
+    assert_eq!(find_head_rev(&graph, snp0)?, Some(rev2));
     Ok(())
 }
 

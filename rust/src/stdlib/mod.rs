@@ -58,6 +58,9 @@ where
 mod fs;
 pub use fs::*;
 
+mod vcs;
+pub use vcs::*;
+
 mod visit;
 pub use visit::*;
 
