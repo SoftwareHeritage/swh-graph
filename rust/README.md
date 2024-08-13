@@ -40,7 +40,8 @@ are already familiar with the Java API.
 ## Building a distribution
 
 ### Dependencies
-The code needs stable Rust to be >= 1.80 because we require the [GAT feature](https://blog.rust-lang.org/2022/10/28/gats-stabilization.html).
+The code needs stable Rust to be >= 1.79 because we depend webgraph uses
+[associated type bounds](https://github.com/rust-lang/rust/issues/52662).
 
 We also need `protoc` to be installed (`apt-get install protobuf-compiler` on Debian)
 if you want to build with `--features=grpc-server`.

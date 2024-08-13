@@ -8,6 +8,7 @@ license = "GPL-3.0-or-later"
 readme = "README.md"
 keywords = ["software-heritage", "graph", "compression", "webgraph"]
 categories = ["compression", "science"]
+rust-version = "1.79"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

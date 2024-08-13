@@ -511,7 +511,7 @@ dependencies = [
  "bitflags 2.6.0",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "log",
  "proc-macro2",
  "quote",
@@ -2225,7 +2225,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -3044,9 +3044,9 @@ dependencies = [
 
 [[package]]
 name = "pthash"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39eed8328fa9ff30bacd4b7290f5d1861ab9fcdb60445a4d8ebc91f31dcfd4dd"
+checksum = "581d1ef02a6acc35e26d88a5ca72f2418ed32239fdf5878f02d2f25742d4effa"
 dependencies = [
  "autocxx",
  "autocxx-build",
