@@ -325,9 +325,7 @@ impl<P, G: UnderlyingGraph> SwhForwardGraph for SwhUnidirectionalGraph<P, G> {
 
 impl<P, G: UnderlyingGraph> SwhLabeledForwardGraph for SwhUnidirectionalGraph<P, G>
 where
-    <G as SequentialLabeling>::Label: Pair<Left = NodeId>,
-    <<G as SequentialLabeling>::Label as Pair>::Right: IntoIterator,
-    <<<G as SequentialLabeling>::Label as Pair>::Right as IntoIterator>::Item: Borrow<u64>,
+    <G as SequentialLabeling>::Label: Pair<Left = NodeId, Right: IntoIterator<Item: Borrow<u64>>>,
     for<'succ> <G as RandomAccessLabeling>::Labels<'succ>:
         Iterator<Item = (usize, <<G as SequentialLabeling>::Label as Pair>::Right)>,
 {
@@ -568,9 +566,7 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhForwardGraph
 impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhLabeledForwardGraph
     for SwhBidirectionalGraph<P, FG, BG>
 where
-    <FG as SequentialLabeling>::Label: Pair<Left = NodeId>,
-    <<FG as SequentialLabeling>::Label as Pair>::Right: IntoIterator,
-    <<<FG as SequentialLabeling>::Label as Pair>::Right as IntoIterator>::Item: Borrow<u64>,
+    <FG as SequentialLabeling>::Label: Pair<Left = NodeId, Right: IntoIterator<Item: Borrow<u64>>>,
     for<'succ> <FG as RandomAccessLabeling>::Labels<'succ>:
         Iterator<Item = (usize, <<FG as SequentialLabeling>::Label as Pair>::Right)>,
 {
@@ -601,9 +597,7 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBackwardGraph
 impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhLabeledBackwardGraph
     for SwhBidirectionalGraph<P, FG, BG>
 where
-    <BG as SequentialLabeling>::Label: Pair<Left = NodeId>,
-    <<BG as SequentialLabeling>::Label as Pair>::Right: IntoIterator,
-    <<<BG as SequentialLabeling>::Label as Pair>::Right as IntoIterator>::Item: Borrow<u64>,
+    <BG as SequentialLabeling>::Label: Pair<Left = NodeId, Right: IntoIterator<Item: Borrow<u64>>>,
     for<'succ> <BG as RandomAccessLabeling>::Labels<'succ>:
         Iterator<Item = (usize, <<BG as SequentialLabeling>::Label as Pair>::Right)>,
 {

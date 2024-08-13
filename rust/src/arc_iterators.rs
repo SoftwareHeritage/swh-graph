@@ -31,18 +31,14 @@ pub trait IntoFlattenedLabeledArcsIterator<Label> {
 
 pub struct LabeledSuccessorIterator<Successors: Iterator>
 where
-    <Successors as Iterator>::Item: Pair<Left = usize>,
-    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
-    <<<Successors as Iterator>::Item as Pair>::Right as IntoIterator>::Item: Borrow<u64>,
+    <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator<Item: Borrow<u64>>>,
 {
     pub(crate) successors: Successors,
 }
 
 impl<Successors: Iterator> Iterator for LabeledSuccessorIterator<Successors>
 where
-    <Successors as Iterator>::Item: Pair<Left = usize>,
-    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
-    <<<Successors as Iterator>::Item as Pair>::Right as IntoIterator>::Item: Borrow<u64>,
+    <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator<Item: Borrow<u64>>>,
 {
     type Item = (
         NodeId,
@@ -67,9 +63,7 @@ where
 impl<Successors: Iterator> IntoFlattenedLabeledArcsIterator<UntypedEdgeLabel>
     for LabeledSuccessorIterator<Successors>
 where
-    <Successors as Iterator>::Item: Pair<Left = usize>,
-    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
-    <<<Successors as Iterator>::Item as Pair>::Right as IntoIterator>::Item: Borrow<u64>,
+    <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator<Item: Borrow<u64>>>,
 {
     type Flattened = FlattenedSuccessorsIterator<Self>;
 
@@ -80,8 +74,7 @@ where
 
 pub struct FlattenedSuccessorsIterator<Successors: Iterator>
 where
-    <Successors as Iterator>::Item: Pair<Left = usize>,
-    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
+    <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator>,
 {
     current_node_and_labels: Option<(
         NodeId,
@@ -92,8 +85,7 @@ where
 
 impl<Successors: Iterator> FlattenedSuccessorsIterator<Successors>
 where
-    <Successors as Iterator>::Item: Pair<Left = usize>,
-    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
+    <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator>,
 {
     pub fn new(successors: Successors) -> Self {
         Self {
@@ -105,8 +97,7 @@ where
 
 impl<Successors: Iterator> Iterator for FlattenedSuccessorsIterator<Successors>
 where
-    <Successors as Iterator>::Item: Pair<Left = usize>,
-    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator,
+    <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator>,
 {
     type Item = (
         NodeId,
@@ -159,8 +150,8 @@ where
 
 pub struct LabelTypingSuccessorIterator<'a, G, Successors: Iterator>
 where
-    <Successors as Iterator>::Item: Pair<Left = usize>,
-    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator<Item = UntypedEdgeLabel>,
+    <Successors as Iterator>::Item:
+        Pair<Left = usize, Right: IntoIterator<Item = UntypedEdgeLabel>>,
     G: SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
@@ -172,8 +163,8 @@ where
 
 impl<'a, G, Successors: Iterator> Iterator for LabelTypingSuccessorIterator<'a, G, Successors>
 where
-    <Successors as Iterator>::Item: Pair<Left = usize>,
-    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator<Item = UntypedEdgeLabel>,
+    <Successors as Iterator>::Item:
+        Pair<Left = usize, Right: IntoIterator<Item = UntypedEdgeLabel>>,
     G: SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
@@ -210,8 +201,8 @@ where
 impl<'a, G, Successors: Iterator> IntoFlattenedLabeledArcsIterator<EdgeLabel>
     for LabelTypingSuccessorIterator<'a, G, Successors>
 where
-    <Successors as Iterator>::Item: Pair<Left = usize>,
-    <<Successors as Iterator>::Item as Pair>::Right: IntoIterator<Item = UntypedEdgeLabel>,
+    <Successors as Iterator>::Item:
+        Pair<Left = usize, Right: IntoIterator<Item = UntypedEdgeLabel>>,
     G: SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
