@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{ensure, Context, Result};
 use log::warn;
 
 use crate::graph::*;
@@ -56,9 +56,10 @@ where
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
     let node_type = graph.properties().node_type(dir);
-    if graph.properties().node_type(dir) != NodeType::Directory {
-        bail!("Type of {dir} should be directory, but is {node_type} instead");
-    }
+    ensure!(
+        node_type == NodeType::Directory,
+        "Type of {dir} should be directory, but is {node_type} instead"
+    );
 
     for (succ, label) in graph.labeled_successors(dir).flatten_labels() {
         if let EdgeLabel::DirEntry(dentry) = label {
@@ -151,9 +152,10 @@ where
 {
     let props = graph.properties();
     let node_type = props.node_type(dir);
-    if node_type != NodeType::Directory {
-        bail!("Type of {dir} should be directory, but is {node_type} instead");
-    }
+    ensure!(
+        node_type == NodeType::Directory,
+        "Type of {dir} should be directory, but is {node_type} instead"
+    );
 
     let mut dir_entries = HashMap::new();
     for (succ, labels) in graph.labeled_successors(dir) {

@@ -5,7 +5,7 @@
 
 //! Standard library to work on Software Heritage compressed graph in Rust
 
-use anyhow::{bail, Result};
+use anyhow::{ensure, Result};
 
 use crate::graph::*;
 use crate::labels::{EdgeLabel, VisitStatus};
@@ -25,9 +25,10 @@ where
 {
     let props = graph.properties();
     let node_type = props.node_type(ori);
-    if node_type != NodeType::Origin {
-        bail!("Type of {ori} should be origin, but is {node_type} instead");
-    }
+    ensure!(
+        node_type == NodeType::Origin,
+        "Type of {ori} should be origin, but is {node_type} instead"
+    );
     // Most recent snapshot thus far, as an optional (node_id, timestamp) pair
     let mut latest_snp: Option<(usize, u64)> = None;
     for (succ, labels) in graph.labeled_successors(ori) {
