@@ -73,18 +73,11 @@ fn test_find_latest_snp() -> Result<()> {
     builder.ori_arc(ori0, snp2, visit2.status(), visit2.timestamp());
     builder.ori_arc(ori0, snp3, visit3.status(), visit3.timestamp());
     let graph = builder.done()?;
-    let props = graph.properties();
 
-    let (node, timestamp) = find_latest_snp(
-        &graph,
-        props.node_id(swhid!(swh:1:ori:0000000000000000000000000000000000000000))?,
-    )?
-    .unwrap();
     assert_eq!(
-        props.swhid(node),
-        swhid!(swh:1:snp:0000000000000000000000000000000000000002)
+        find_latest_snp(&graph, ori0)?,
+        Some((snp2, visit2.timestamp()))
     );
-    assert_eq!(timestamp, visit2.timestamp());
     Ok(())
 }
 
