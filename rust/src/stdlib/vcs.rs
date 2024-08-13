@@ -36,8 +36,8 @@ where
     find_head_rev_by_refs(graph, snp, &head_ref_name_ids)
 }
 
-/// Same as [find_head_rev_by_id], but with the ability to configure which
-/// branch names correspond to the HEAD revision.
+/// Same as [find_head_rev], but with the ability to configure which branch
+/// names correspond to the HEAD revision.
 ///
 /// Note: this function is also more efficient than [find_head_rev], because
 /// branch names are pre-resolved to integers once (before calling this
@@ -57,7 +57,7 @@ where
     let node_type = props.node_type(snp);
     ensure!(
         node_type == NodeType::Snapshot,
-        "Type of {snp} should be snapshot, but is {node_type} instead"
+        "Type of {snp} should be snp, but is {node_type} instead"
     );
     for (succ, labels) in graph.labeled_successors(snp) {
         let node_type = props.node_type(succ);

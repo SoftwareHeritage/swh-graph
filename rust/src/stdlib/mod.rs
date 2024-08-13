@@ -27,7 +27,7 @@ where
     let node_type = props.node_type(ori);
     ensure!(
         node_type == NodeType::Origin,
-        "Type of {ori} should be origin, but is {node_type} instead"
+        "Type of {ori} should be ori, but is {node_type} instead"
     );
     // Most recent snapshot thus far, as an optional (node_id, timestamp) pair
     let mut latest_snp: Option<(usize, u64)> = None;

@@ -58,7 +58,7 @@ where
     let node_type = graph.properties().node_type(dir);
     ensure!(
         node_type == NodeType::Directory,
-        "Type of {dir} should be directory, but is {node_type} instead"
+        "Type of {dir} should be dir, but is {node_type} instead"
     );
 
     for (succ, label) in graph.labeled_successors(dir).flatten_labels() {
@@ -154,7 +154,7 @@ where
     let node_type = props.node_type(dir);
     ensure!(
         node_type == NodeType::Directory,
-        "Type of {dir} should be directory, but is {node_type} instead"
+        "Type of {dir} should be dir, but is {node_type} instead"
     );
 
     let mut dir_entries = HashMap::new();
