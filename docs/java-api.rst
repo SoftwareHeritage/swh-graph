@@ -5,6 +5,11 @@ Using the Java API
 
 .. highlight:: java
 
+.. warning::
+
+   The API documented in this section is deprecated; please switch to the
+   `Rust API <https://docs.rs/swh-graph/>`__ instead.
+
 While the :ref:`HTTP API <swh-graph-api>` is useful for many common use-cases,
 it is often not sufficient to implement more complex algorithms. This section
 describes the low-level Java API that ``swh-graph`` provides on top of the
@@ -304,7 +309,7 @@ authors, messages, ...). We compress these properties and store them in files
 alongside the compressed graph. This allows you to write traversal algorithms
 that depend on these properties.
 
-By default, properties are not assumed to be present are are not loaded when
+By default, properties are not assumed to be present are not loaded when
 the graph itself is loaded. If you want to use a property, you need to
 explicitly load it first. As an example, this is how you load the "content
 length" property to get the length of a given blob::

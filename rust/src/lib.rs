@@ -7,6 +7,13 @@
 
 use thiserror::Error;
 
+pub mod _crash_course {
+    #![doc = include_str!("../crash_course.md")]
+}
+pub mod _tutorial {
+    #![doc = include_str!("../tutorial.md")]
+}
+
 mod swhid;
 #[cfg(feature = "macros")]
 pub use swhid::__parse_swhid;

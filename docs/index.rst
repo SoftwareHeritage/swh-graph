@@ -10,6 +10,7 @@
    quickstart
    api
    grpc-api
+   Rust API <https://docs.rs/swh-graph/>
    java-api
    memory
    compression
