@@ -37,7 +37,7 @@ def check_config(conf):
         conf["batch_size"] = min(int(psutil.virtual_memory().total / 1000), 2**30 - 1)
         logger.debug("batch_size not configured, defaulting to %s", conf["batch_size"])
     if "llp_gammas" not in conf:
-        conf["llp_gammas"] = "-0,-1,-2,-3,-4"
+        conf["llp_gammas"] = "-1,-2,-3,-4,-5,0-0"
         logger.debug("llp_gammas not configured, defaulting to %s", conf["llp_gammas"])
     if "max_ram" not in conf:
         conf["max_ram"] = str(int(psutil.virtual_memory().total * 0.9))
