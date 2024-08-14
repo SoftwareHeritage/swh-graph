@@ -7,12 +7,8 @@
 
 use thiserror::Error;
 
-pub mod _crash_course {
-    #![doc = include_str!("../crash_course.md")]
-}
-pub mod _tutorial {
-    #![doc = include_str!("../tutorial.md")]
-}
+pub mod _crash_course;
+pub mod _tutorial;
 
 mod swhid;
 #[cfg(feature = "macros")]
