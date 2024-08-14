@@ -27,15 +27,7 @@ pub struct SimpleTraversal<'s, S: TraversalServiceTrait + 'static> {
     pub service: &'s S,
 }
 
-impl<'s, S: TraversalServiceTrait> SimpleTraversal<'s, S>
-where
-    <S::Graph as SwhGraphWithProperties>::Maps: crate::properties::Maps,
-    <S::Graph as SwhGraphWithProperties>::Timestamps: crate::properties::Timestamps,
-    <S::Graph as SwhGraphWithProperties>::Persons: crate::properties::Persons,
-    <S::Graph as SwhGraphWithProperties>::Contents: crate::properties::Contents,
-    <S::Graph as SwhGraphWithProperties>::Strings: crate::properties::Strings,
-    <S::Graph as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
-{
+impl<'s, S: TraversalServiceTrait> SimpleTraversal<'s, S> {
     fn make_visitor<
         'a,
         G: SwhForwardGraph + SwhGraphWithProperties + Clone + Send + Sync + 'static,

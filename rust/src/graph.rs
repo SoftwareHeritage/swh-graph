@@ -255,6 +255,37 @@ pub trait SwhGraphWithProperties: SwhGraph {
     >;
 }
 
+/// Alias for structures representing a graph with all arcs, arc labels, and node properties
+/// loaded.
+pub trait SwhFullGraph:
+    SwhLabeledForwardGraph
+    + SwhLabeledBackwardGraph
+    + SwhGraphWithProperties<
+        Maps: crate::properties::Maps,
+        Timestamps: crate::properties::Timestamps,
+        Persons: crate::properties::Persons,
+        Contents: crate::properties::Contents,
+        Strings: crate::properties::Strings,
+        LabelNames: crate::properties::LabelNames,
+    >
+{
+}
+
+impl<
+        G: SwhLabeledForwardGraph
+            + SwhLabeledBackwardGraph
+            + SwhGraphWithProperties<
+                Maps: crate::properties::Maps,
+                Timestamps: crate::properties::Timestamps,
+                Persons: crate::properties::Persons,
+                Contents: crate::properties::Contents,
+                Strings: crate::properties::Strings,
+                LabelNames: crate::properties::LabelNames,
+            >,
+    > SwhFullGraph for G
+{
+}
+
 /// Class representing the compressed Software Heritage graph in a single direction.
 ///
 /// Created using [`load_unidirectional`].

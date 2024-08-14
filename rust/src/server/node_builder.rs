@@ -4,9 +4,8 @@
 // See top-level LICENSE file for more information
 
 use super::proto;
-use crate::graph::{SwhGraphWithProperties, SwhLabeledForwardGraph};
+use crate::graph::SwhFullGraph;
 use crate::labels::{EdgeLabel, VisitStatus};
-use crate::properties;
 use crate::NodeType;
 
 /// Bit masks selecting which fields should be included by [`NodeBuilder`], based on
@@ -70,16 +69,7 @@ pub struct NodeBuilder<G: Clone + Send + Sync + 'static> {
     bitmask: u32,
 }
 
-impl<G: SwhLabeledForwardGraph + SwhGraphWithProperties + Clone + Send + Sync + 'static>
-    NodeBuilder<G>
-where
-    <G as SwhGraphWithProperties>::Maps: properties::Maps,
-    <G as SwhGraphWithProperties>::Timestamps: properties::Timestamps,
-    <G as SwhGraphWithProperties>::Persons: properties::Persons,
-    <G as SwhGraphWithProperties>::Contents: properties::Contents,
-    <G as SwhGraphWithProperties>::Strings: properties::Strings,
-    <G as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
-{
+impl<G: SwhFullGraph + Clone + Send + Sync + 'static> NodeBuilder<G> {
     pub fn new(graph: G, mask: Option<prost_types::FieldMask>) -> Result<Self, tonic::Status> {
         let Some(mask) = mask else {
             return Ok(NodeBuilder {
