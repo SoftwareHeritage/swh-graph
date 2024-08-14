@@ -15,7 +15,7 @@ use swh_graph::{NodeType, OutOfBoundError, StrSWHIDDeserializationError, SWHID};
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
 fn graph() -> Result<SwhUnidirectionalGraph<AllSwhGraphProperties<GOVMPH>>> {
-    load_unidirectional(PathBuf::from(BASENAME))
+    SwhUnidirectionalGraph::new(PathBuf::from(BASENAME))
         .context("Could not load graph")?
         .load_all_properties()
         .context("Could not load graph properties")

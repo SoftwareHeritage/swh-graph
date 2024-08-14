@@ -6,7 +6,7 @@
 //! Structures to manipulate the Software Heritage graph
 //!
 //! In order to load only what is necessary, these structures are initially created
-//! by calling [`load_unidirectional`] or [`load_bidirectional`], then calling methods
+//! by calling [`SwhUnidirectionalGraph::new`] or [`SwhBidirectionalGraph::new`], then calling methods
 //! on them to progressively load additional data (`load_properties`, `load_all_properties`,
 //! `load_labels`)
 
@@ -288,8 +288,6 @@ impl<
 
 /// Class representing the compressed Software Heritage graph in a single direction.
 ///
-/// Created using [`load_unidirectional`].
-///
 /// Type parameters:
 ///
 /// * `P` is either `()` or `properties::SwhGraphProperties`, manipulated using
@@ -301,6 +299,19 @@ pub struct SwhUnidirectionalGraph<P, G: UnderlyingGraph = DefaultUnderlyingGraph
     basepath: PathBuf,
     graph: G,
     properties: P,
+}
+
+impl SwhUnidirectionalGraph<()> {
+    pub fn new(basepath: impl AsRef<Path>) -> Result<Self> {
+        let basepath = basepath.as_ref().to_owned();
+        let graph = DefaultUnderlyingGraph(
+            BvGraph::with_basename(&basepath)
+                .endianness::<BE>()
+                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
+                .load()?,
+        );
+        Ok(Self::from_underlying_graph(basepath, graph))
+    }
 }
 
 impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
@@ -388,7 +399,7 @@ impl<
     /// # use std::path::PathBuf;
     /// use swh_graph::java_compat::mph::gov::GOVMPH;
     ///
-    /// swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+    /// swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     ///     .expect("Could not load graph")
     ///     .init_properties()
     ///     .load_properties(|properties| properties.load_maps::<GOVMPH>())
@@ -448,7 +459,7 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
     /// # use std::path::PathBuf;
     /// use swh_graph::java_compat::mph::gov::GOVMPH;
     ///
-    /// swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+    /// swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     ///     .expect("Could not load graph")
     ///     .load_all_properties::<GOVMPH>()
     ///     .expect("Could not load properties");
@@ -517,8 +528,6 @@ impl<P, G: RandomAccessGraph + UnderlyingGraph> SwhUnidirectionalGraph<P, G> {
 
 /// Class representing the compressed Software Heritage graph in both directions.
 ///
-/// Created using [`load_bidirectional`].
-///
 /// Type parameters:
 ///
 /// * `P` is either `()` or `properties::SwhGraphProperties`, manipulated using
@@ -537,6 +546,29 @@ pub struct SwhBidirectionalGraph<
     forward_graph: FG,
     backward_graph: BG,
     properties: P,
+}
+
+impl SwhBidirectionalGraph<()> {
+    pub fn new(basepath: impl AsRef<Path>) -> Result<Self> {
+        let basepath = basepath.as_ref().to_owned();
+        let forward_graph = DefaultUnderlyingGraph(
+            BvGraph::with_basename(&basepath)
+                .endianness::<BE>()
+                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
+                .load()?,
+        );
+        let backward_graph = DefaultUnderlyingGraph(
+            BvGraph::with_basename(suffix_path(&basepath, "-transposed"))
+                .endianness::<BE>()
+                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
+                .load()?,
+        );
+        Ok(Self::from_underlying_graphs(
+            basepath,
+            forward_graph,
+            backward_graph,
+        ))
+    }
 }
 
 impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG> {
@@ -662,7 +694,7 @@ impl<
     /// use swh_graph::java_compat::mph::gov::GOVMPH;
     /// use swh_graph::SwhGraphProperties;
     ///
-    /// swh_graph::graph::load_bidirectional(PathBuf::from("./graph"))
+    /// swh_graph::graph::SwhBidirectionalGraph::new(PathBuf::from("./graph"))
     ///     .expect("Could not load graph")
     ///     .init_properties()
     ///     .load_properties(SwhGraphProperties::load_maps::<GOVMPH>)
@@ -728,7 +760,7 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
     /// # use std::path::PathBuf;
     /// use swh_graph::java_compat::mph::gov::GOVMPH;
     ///
-    /// swh_graph::graph::load_bidirectional(PathBuf::from("./graph"))
+    /// swh_graph::graph::SwhBidirectionalGraph::new(PathBuf::from("./graph"))
     ///     .expect("Could not load graph")
     ///     .load_all_properties::<GOVMPH>()
     ///     .expect("Could not load properties");
@@ -837,41 +869,22 @@ impl<P, FG: RandomAccessGraph + UnderlyingGraph, BG: RandomAccessGraph + Underly
     }
 }
 
-/// Returns a new [`SwhUnidirectionalGraph`]
+#[deprecated(
+    since = "5.2.0",
+    note = "please use `SwhUnidirectionalGraph::new` instead"
+)]
+/// Deprecated alias for [`SwhUnidirectionalGraph::new`]
 pub fn load_unidirectional(basepath: impl AsRef<Path>) -> Result<SwhUnidirectionalGraph<()>> {
-    let basepath = basepath.as_ref().to_owned();
-    let graph = DefaultUnderlyingGraph(
-        BvGraph::with_basename(&basepath)
-            .endianness::<BE>()
-            .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-            .load()?,
-    );
-    Ok(SwhUnidirectionalGraph::from_underlying_graph(
-        basepath, graph,
-    ))
+    SwhUnidirectionalGraph::new(basepath)
 }
 
-/// Returns a new [`SwhBidirectionalGraph`]
+#[deprecated(
+    since = "5.2.0",
+    note = "please use `SwhBidirectionalGraph::new` instead"
+)]
+/// Deprecated alias for [`SwhBidirectionalGraph::new`]
 pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectionalGraph<()>> {
-    let basepath = basepath.as_ref().to_owned();
-    let forward_graph = DefaultUnderlyingGraph(
-        BvGraph::with_basename(&basepath)
-            .endianness::<BE>()
-            .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-            .load()?,
-    );
-    let backward_graph = DefaultUnderlyingGraph(
-        BvGraph::with_basename(suffix_path(&basepath, "-transposed"))
-            .endianness::<BE>()
-            .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-            .load()?,
-    );
-    Ok(SwhBidirectionalGraph {
-        basepath,
-        forward_graph,
-        backward_graph,
-        properties: (),
-    })
+    SwhBidirectionalGraph::new(basepath)
 }
 
 fn zip_labels<G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(

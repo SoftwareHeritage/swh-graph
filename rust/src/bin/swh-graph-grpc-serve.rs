@@ -38,7 +38,7 @@ pub async fn main() -> Result<()> {
         .context("While Initializing the stderrlog")?;
 
     log::info!("Loading graph");
-    let graph = load_bidirectional(args.graph_path).context("Could not load graph")?;
+    let graph = SwhBidirectionalGraph::new(args.graph_path).context("Could not load graph")?;
 
     log::info!("Loading properties");
     let graph = graph

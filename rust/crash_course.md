@@ -13,8 +13,8 @@ They both provide the API above; the difference being that the former does not p
 predecessor access.
 
 In order to avoid loading files unnecessarily, they are instantiated as "naked" graphs
-with [`load_unidirectional`](crate::graph::load_unidirectional)
-and [`load_bidirectional`](crate::graph::load_bidirectional) which only provide
+with [`SwhUnidirectionalGraph::new`](crate::graph::SwhUnidirectionalGraph::new)
+and [`SwhBidirectionalGraph::new`](crate::graph::SwhBidirectionalGraph::new) which only provide
 successor and predecessor access; and extra data must be loaded with the `load_*` methods.
 
 For example:
@@ -23,7 +23,7 @@ For example:
 # use std::path::PathBuf;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 
-let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph");
 let node_id: usize = graph
     .properties()
@@ -39,7 +39,7 @@ by default, so it must be loaded:
 # use swh_graph::graph::SwhGraphWithProperties;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 
-let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph")
     .init_properties()
     .load_properties(|properties| properties.load_maps::<GOVMPH>())
@@ -58,7 +58,7 @@ or alternatively, to load all possible properties at once:
 # use swh_graph::graph::SwhGraphWithProperties;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 
-let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph")
     .load_all_properties::<GOVMPH>()
     .expect("Could not load properties");
@@ -78,7 +78,7 @@ as this example uses a directory):
 # use swh_graph::graph::{SwhForwardGraph, SwhGraphWithProperties};
 use swh_graph::java_compat::mph::gov::GOVMPH;
 
-let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph")
     .load_all_properties::<GOVMPH>()
     .expect("Could not load properties");
@@ -103,7 +103,7 @@ as this example uses a directory):
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::labels::{EdgeLabel};
 
-let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph")
     .load_all_properties::<GOVMPH>()
     .expect("Could not load properties")

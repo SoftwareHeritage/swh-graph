@@ -6,8 +6,8 @@
 //! Structures to manipulate the Software Heritage graph
 //!
 //! In order to load only what is necessary, these structures are initially created
-//! by calling [`load_unidirectional`](crate::graph::load_unidirectional) or
-//! [`load_bidirectional`](crate::graph::load_bidirectional), then calling methods
+//! by calling [`SwhUnidirectionalGraph::new`](crate::graph::SwhUnidirectionalGraph::new) or
+//! [`SwhBidirectionalGraph::new`](crate::graph::SwhBidirectionalGraph::new), then calling methods
 //! on them to progressively load additional data (`load_properties`, `load_all_properties`,
 //! `load_labels`)
 

@@ -71,7 +71,7 @@ pub fn main() -> Result<()> {
         .context("While Initializing the stderrlog")?;
 
     log::info!("Loading graph");
-    let graph = swh_graph::graph::load_bidirectional(args.graph_path)
+    let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph_path)
         .context("Could not load graph")?
         .load_backward_labels()
         .context("Could not load labels")?

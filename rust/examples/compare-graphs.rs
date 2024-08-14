@@ -56,7 +56,7 @@ pub fn main() -> Result<()> {
         .init()
         .with_context(|| "While Initializing the stderrlog")?;
 
-    let graph1 = load_bidirectional(&args.graph1)
+    let graph1 = SwhBidirectionalGraph::new(&args.graph1)
         .with_context(|| format!("Could not load graph {}", args.graph1.display()))?
         .load_all_properties::<GOVMPH>()
         .with_context(|| {
@@ -68,7 +68,7 @@ pub fn main() -> Result<()> {
         .load_labels()
         .with_context(|| format!("Could not load labels from graph {}", args.graph1.display()))?;
 
-    let graph2 = load_bidirectional(&args.graph2)
+    let graph2 = SwhBidirectionalGraph::new(&args.graph2)
         .with_context(|| format!("Could not load graph {}", args.graph2.display()))?
         .load_all_properties::<GOVMPH>()
         .with_context(|| {

@@ -20,7 +20,7 @@ source code repository, or a [compressed graph downloaded from Amazon S3](https:
 ```no_run
 use std::path::PathBuf;
 
-let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph");
 ```
 
@@ -35,7 +35,7 @@ outdegree of a graph, which is a useful measure of its density:
 
 let basename = PathBuf::from("../swh/graph/example_dataset/compressed/example");
 
-let graph = swh_graph::graph::load_unidirectional(basename)
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(basename)
     .expect("Could not load graph");
 
 let average_outdegree = graph.num_arcs() as f64 / graph.num_nodes() as f64;
@@ -58,7 +58,7 @@ use swh_graph::graph::*;
 
 # let basename = PathBuf::from("../swh/graph/example_dataset/compressed/example");
 
-let graph = swh_graph::graph::load_unidirectional(basename)
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(basename)
     .expect("Could not load graph");
 
 let mut distribution = HashMap::<usize, u64>::new();
@@ -84,7 +84,7 @@ use swh_graph::graph::*;
 
 # let basename = PathBuf::from("../swh/graph/example_dataset/compressed/example");
 
-let graph = swh_graph::graph::load_unidirectional(basename)
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(basename)
     .expect("Could not load graph");
 
 let distribution: HashMap<usize, u64> = (0..graph.num_nodes())
@@ -217,7 +217,7 @@ use swh_graph::java_compat::mph::gov::GOVMPH;
 
 # let basename = PathBuf::from("../swh/graph/example_dataset/compressed/example");
 
-let graph = swh_graph::graph::load_unidirectional(basename)
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(basename)
     .expect("Could not load graph")
     .init_properties()
     .load_properties(|properties| properties.load_maps::<GOVMPH>())
@@ -251,7 +251,7 @@ For example:
 # use swh_graph::graph::SwhGraphWithProperties;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 
-let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph")
     .init_properties()
     .load_properties(|properties| properties.load_maps::<GOVMPH>())
@@ -269,7 +269,7 @@ These methods are not available if you did not explicitly call `load_maps`:
 # use std::path::PathBuf;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 
-let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph");
 
 let node_id: usize = graph
@@ -334,7 +334,7 @@ use swh_graph::properties;
 use swh_graph::{NodeType, SWHID};
 
 fn main() {
-    let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+    let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
         .expect("Could not load graph")
         .init_properties()
         .load_properties(|properties| properties.load_maps::<GOVMPH>())
@@ -460,7 +460,7 @@ seen above.
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::labels::{EdgeLabel};
 
-let graph = swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph")
     .init_properties()
     .load_properties(|properties| properties.load_maps::<GOVMPH>())
@@ -590,7 +590,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    let graph = swh_graph::graph::load_bidirectional(args.graph)
+    let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph)
         .expect("Could not load graph")
         .init_properties()
         .load_properties(|properties| properties.load_maps::<GOVMPH>())

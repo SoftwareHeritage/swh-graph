@@ -35,7 +35,7 @@ pub fn main() -> Result<()> {
         .unwrap();
 
     info!("Loading graph...");
-    let graph = load_unidirectional(args.graph)
+    let graph = SwhUnidirectionalGraph::new(args.graph)
         .context("Could not load graph")?
         .init_properties()
         .load_properties(|properties| properties.load_maps::<GOVMPH>())

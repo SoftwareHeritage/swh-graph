@@ -17,7 +17,7 @@
 //! use swh_graph::SwhGraphProperties;
 //!
 //! let properties: &SwhGraphProperties<_, _, _, _, _, _> =
-//!     swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+//!     swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
 //!     .expect("Could not load graph")
 //!     .load_all_properties::<GOVMPH>()
 //!     .expect("Could not load properties")
@@ -67,7 +67,7 @@ pub(crate) mod suffixes {
 /// use swh_graph::java_compat::mph::gov::GOVMPH;
 /// use swh_graph::SwhGraphProperties;
 ///
-/// swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+/// swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
 ///     .expect("Could not load graph")
 ///     .init_properties()
 ///     .properties()
@@ -82,7 +82,7 @@ pub(crate) mod suffixes {
 /// use swh_graph::java_compat::mph::gov::GOVMPH;
 /// use swh_graph::SwhGraphProperties;
 ///
-/// swh_graph::graph::load_unidirectional(PathBuf::from("./graph"))
+/// swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
 ///     .expect("Could not load graph")
 ///     .init_properties()
 ///     .load_properties(SwhGraphProperties::load_timestamps)

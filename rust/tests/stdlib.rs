@@ -20,7 +20,7 @@ const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
 #[test]
 fn test_find_root_dir() -> Result<()> {
-    let graph = load_unidirectional(BASENAME)?
+    let graph = SwhUnidirectionalGraph::new(BASENAME)?
         .load_all_properties::<GOVMPH>()?
         .load_labels()?;
     let props = graph.properties();
