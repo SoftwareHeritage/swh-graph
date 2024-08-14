@@ -20,7 +20,7 @@ source code repository, or a [compressed graph downloaded from Amazon S3](https:
 ```no_run
 use std::path::PathBuf;
 
-let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
+let graph = swh_graph::graph::load_full::<swh_graph::mph::DynMphf>(PathBuf::from("./graph"))
     .expect("Could not load graph");
 ```
 
@@ -35,7 +35,7 @@ outdegree of a graph, which is a useful measure of its density:
 
 let basename = PathBuf::from("../swh/graph/example_dataset/compressed/example");
 
-let graph = swh_graph::graph::SwhUnidirectionalGraph::new(basename)
+let graph = swh_graph::graph::load_full::<swh_graph::mph::DynMphf>(basename)
     .expect("Could not load graph");
 
 let average_outdegree = graph.num_arcs() as f64 / graph.num_nodes() as f64;
@@ -58,7 +58,7 @@ use swh_graph::graph::*;
 
 # let basename = PathBuf::from("../swh/graph/example_dataset/compressed/example");
 
-let graph = swh_graph::graph::SwhUnidirectionalGraph::new(basename)
+let graph = swh_graph::graph::load_full::<swh_graph::mph::DynMphf>(basename)
     .expect("Could not load graph");
 
 let mut distribution = HashMap::<usize, u64>::new();
@@ -84,7 +84,7 @@ use swh_graph::graph::*;
 
 # let basename = PathBuf::from("../swh/graph/example_dataset/compressed/example");
 
-let graph = swh_graph::graph::SwhUnidirectionalGraph::new(basename)
+let graph = swh_graph::graph::load_full::<swh_graph::mph::DynMphf>(basename)
     .expect("Could not load graph");
 
 let distribution: HashMap<usize, u64> = (0..graph.num_nodes())
@@ -207,76 +207,25 @@ types:
 - `graph.node2type.bin`: contains an array of three-bits integers, which each
   represents the type of a node.
 
-To use these mappings, you need to tell swh-graph they are available and that
-it should load them:
-
-```
-# use std::path::PathBuf;
-use swh_graph::graph::SwhGraphWithProperties;
-use swh_graph::java_compat::mph::gov::GOVMPH;
-
-# let basename = PathBuf::from("../swh/graph/example_dataset/compressed/example");
-
-let graph = swh_graph::graph::SwhUnidirectionalGraph::new(basename)
-    .expect("Could not load graph")
-    .init_properties()
-    .load_properties(|properties| properties.load_maps::<GOVMPH>())
-    .expect("Could not load SWHID<->node id maps");
-```
-
-This struct exposes (through `.properties()) the following methods:
+This struct exposes (through `.properties()`) the following methods:
 
 - [`swhid(NodeId) -> SWHID`](crate::properties::SwhGraphProperties::swhid):
   returns the SWHID associated with a given
   node ID.  This function does a lookup of the SWHID at offset *i* in the file
-  ``graph.node2swhid.bin``.
+  `graph.node2swhid.bin`.
 
 - [`node_id(SWHID) -> Result<NodeId, _>`](crate::properties::SwhGraphProperties::node_id):
   returns the node ID associated with a given
   SWHID. It works by hashing the SWHID with the function stored in
   `graph.mph`, then permuting it using the permutation stored in
-  `graph.order`. It does additional domain-checking by calling ``getSWHID()``
+  `graph.order`. It does additional domain-checking by calling `getSWHID()`
   on its own result to check that the input SWHID was valid.
 
 - [`swhid(NodeId) -> NodeType`](crate::properties::SwhGraphProperties::node_type):
   returns the type of a given node, as
   an enum of all the different object types in the Software Heritage data
   model. It does so by looking up the value at offset *i* in the bit vector
-  stored in ``graph.node2type.bin``.
-
-For example:
-
-```no_run
-# use std::path::PathBuf;
-# use swh_graph::graph::SwhGraphWithProperties;
-use swh_graph::java_compat::mph::gov::GOVMPH;
-
-let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
-    .expect("Could not load graph")
-    .init_properties()
-    .load_properties(|properties| properties.load_maps::<GOVMPH>())
-    .expect("Could not load SWHID<->node id maps");
-
-let node_id: usize = graph
-    .properties()
-    .node_id("swh:1:dir:5e1c24e586ef92dbef0e9cec6b354c6831454340")
-    .expect("Unknown SWHID");
-```
-
-These methods are not available if you did not explicitly call `load_maps`:
-
-```compile_fail
-# use std::path::PathBuf;
-use swh_graph::java_compat::mph::gov::GOVMPH;
-
-let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
-    .expect("Could not load graph");
-
-let node_id: usize = graph
-    .properties()
-    .node_id("swh:1:snp:486b338078a42de5ece0970638c7270d9c39685f")
-    .unwrap();
-```
+  stored in `graph.node2type.bin`.
 
 ### Example: Find the target directory of a revision
 
@@ -295,8 +244,7 @@ use swh_graph::{NodeType, SWHID};
 
 fn find_directory_of_revision<G>(graph: &G, rev_swhid: SWHID) -> Result<SWHID>
 where
-    G: SwhForwardGraph + SwhGraphWithProperties,
-    <G as SwhGraphWithProperties>::Maps: properties::Maps,
+    G: SwhForwardGraph + SwhGraphWithProperties<Maps: properties::Maps>,
 {
     let rev = graph.properties().node_id(rev_swhid)?;
     ensure!(graph.properties().node_type(rev) == NodeType::Revision);
@@ -334,13 +282,8 @@ use swh_graph::properties;
 use swh_graph::{NodeType, SWHID};
 
 fn main() {
-    let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
-        .expect("Could not load graph")
-        .init_properties()
-        .load_properties(|properties| properties.load_maps::<GOVMPH>())
-        .expect("Could not load SWHID<->node id maps")
-        .load_properties(|properties| properties.load_contents())
-        .expect("Could not load content properties");
+    let graph = swh_graph::graph::load_full::<swh_graph::mph::DynMphf>(PathBuf::from("./graph"))
+        .unwrap();
 
     let swhid = SWHID::try_from("swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2").unwrap();
     println!("Content length: {:?}", get_content_length(&graph, swhid).unwrap())
@@ -348,9 +291,7 @@ fn main() {
 
 fn get_content_length<G>(graph: &G, cnt_swhid: SWHID) -> Result<Option<u64>>
 where
-    G: SwhGraphWithProperties,
-    <G as SwhGraphWithProperties>::Maps: properties::Maps,
-    <G as SwhGraphWithProperties>::Contents: properties::Contents,
+    G: SwhGraphWithProperties<Maps: properties::Maps, Contents: properties::Contents>,
 {
     let cnt= graph.properties().node_id(cnt_swhid)?;
     ensure!(graph.properties().node_type(cnt) == NodeType::Content);
@@ -432,16 +373,16 @@ similar to how you would do for a normal property.
 The Software Heritage is not a *simple graph*, where at most one edge can exist
 between two vertices, but a *multigraph*, where multiple edges can be incident
 to the same two vertices. Consider for instance the case of a single directory
-``test/`` containing twice the same file blob (e.g., the empty file), under two
-different names (e.g., ``ISSUES.txt`` and ``TODO.txt``, both completely empty).
+`test/` containing twice the same file blob (e.g., the empty file), under two
+different names (e.g., `ISSUES.txt` and `TODO.txt`, both completely empty).
 The simple graph view of this directory will represent it as a single edge
-``test`` → *empty file*, while the multigraph view will represent it as *two*
+`test` → *empty file*, while the multigraph view will represent it as *two*
 edges between the same nodes.
 
 Due to the copy-list model of compression, WebGraph only stores simple graphs,
 and thus stores multiedges as single edges, to which we cannot associate
 a single label name (in our example, we need to associate both names
-``ISSUES.txt`` and ``TODO.txt``).
+`ISSUES.txt` and `TODO.txt`).
 To represent this possibility of having multiple file names for a single arc,
 in the case of multiple relationships between two identical nodes, each arc label is
 stored as an *array* of `EdgeLabel`, each record representing one relationship
@@ -456,19 +397,12 @@ seen above.
 
 ```no_run
 # use std::path::PathBuf;
-# use swh_graph::graph::{SwhForwardGraph, SwhLabeledForwardGraph, SwhGraphWithProperties};
+# use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::labels::{EdgeLabel};
+use swh_graph::labels::EdgeLabel;
 
-let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
-    .expect("Could not load graph")
-    .init_properties()
-    .load_properties(|properties| properties.load_maps::<GOVMPH>())
-    .expect("Could not load SWHID<->node id maps")
-    .load_properties(|properties| properties.load_label_names())
-    .expect("Could not load label names")
-    .load_labels()
-    .expect("Could not load labels");
+let graph = swh_graph::graph::load_full::<swh_graph::mph::DynMphf>(PathBuf::from("./graph"))
+    .expect("Could not load graph");
 
 let node_id: usize = graph
     .properties()

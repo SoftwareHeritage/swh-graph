@@ -38,17 +38,7 @@ pub async fn main() -> Result<()> {
         .context("While Initializing the stderrlog")?;
 
     log::info!("Loading graph");
-    let graph = SwhBidirectionalGraph::new(args.graph_path).context("Could not load graph")?;
-
-    log::info!("Loading properties");
-    let graph = graph
-        .load_all_properties::<swh_graph::mph::DynMphf>()
-        .context("Could not load graph properties")?;
-
-    log::info!("Loading labels");
-    let graph = graph
-        .load_labels()
-        .context("Could not load labeled graph")?;
+    let graph = load_full::<swh_graph::mph::DynMphf>(args.graph_path)?;
 
     let mut masked_nodes = HashSet::new();
     if let Some(masked_nodes_path) = args.masked_nodes {

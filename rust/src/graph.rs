@@ -887,6 +887,56 @@ pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectional
     SwhBidirectionalGraph::new(basepath)
 }
 
+/// Loads a bidirectional graph, then all its properties, then its labels.
+///
+/// This is a shorthand for:
+///
+/// ```no_run
+/// # use std::path::PathBuf;
+/// # use anyhow::{Context, Result};
+/// # use swh_graph::graph::SwhBidirectionalGraph;
+/// # use swh_graph::mph::SwhidMphf;
+/// #
+/// # fn f<MPHF: SwhidMphf>() -> Result<()> {
+/// # let basepath = PathBuf::from("./graph");
+/// let graph = SwhBidirectionalGraph::new(basepath)
+///     .context("Could not load graph")?
+///     .load_all_properties::<MPHF>()
+///     .context("Could not load properties")?
+///     .load_labels()
+///     .context("Could not load labels")?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// When working on code made to be re-distributed, you should load only what is needed
+/// (ie. load unidirectional if you don't need the backward graph, don't load properties
+/// that are not needed, don't load labels unless they need to be read), so users can
+/// run your code without a complete graph locally.
+pub fn load_full<MPHF: SwhidMphf>(
+    basepath: impl AsRef<Path>,
+) -> Result<
+    SwhBidirectionalGraph<
+        properties::SwhGraphProperties<
+            properties::MappedMaps<MPHF>,
+            properties::MappedTimestamps,
+            properties::MappedPersons,
+            properties::MappedContents,
+            properties::MappedStrings,
+            properties::MappedLabelNames,
+        >,
+        Zip<DefaultUnderlyingGraph, SwhLabeling>,
+        Zip<DefaultUnderlyingGraph, SwhLabeling>,
+    >,
+> {
+    SwhBidirectionalGraph::new(basepath)
+        .context("Could not load graph")?
+        .load_all_properties()
+        .context("Could not load properties")?
+        .load_labels()
+        .context("Could not load labels")
+}
+
 fn zip_labels<G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
     graph: G,
     base_path: P,
