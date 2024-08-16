@@ -9,8 +9,8 @@ an existing compressed graph with the high-level HTTP API.
 Dependencies
 ------------
 
-In order to run the ``swh.graph`` tool, you will need Python (>= 3.7), Java JRE,
-Rust (>= 1.75), and zstd. On a Debian system:
+In order to run the ``swh.graph`` tool, you will need Python (>= 3.9), Java JRE,
+Rust (>= 1.79), and zstd. On a Debian system:
 
 .. code:: console
 
@@ -28,7 +28,7 @@ Install the ``swh_graph`` rust package:
 
 .. code:: console
 
-   $ cargo install --git https://gitlab.softwareheritage.org/swh/devel/swh-graph.git --features grpc-server swh-graph
+   $ RUSTFLAGS="-C target-cpu=native" cargo install --git https://gitlab.softwareheritage.org/swh/devel/swh-graph.git --features grpc-server swh-graph
 
 Or:
 
@@ -36,10 +36,7 @@ Or:
 
    $ git clone https://gitlab.softwareheritage.org/swh/devel/swh-graph.git
    $ cd swh-graph
-   $ cargo build --features grpc-server -p swh-graph
-
-You now have a debug build of the gRPC server. (Use ``--release`` on the last command
-of each option, and the ``RUSTFLAGS="-C target-cpu=native"`` env var for a release build.)
+   $ cargo build --release --features grpc-server -p swh-graph
 
 Create a virtualenv and activate it:
 
@@ -161,9 +158,20 @@ file (typically for graphs before 2024), you need to generate it with:
 
    swh graph reindex compressed/graph
 
-If instead you get an error about an invalid hash in a ``.ef`` file, it means your
-swh-graph expects a different version of the ``.ef`` files as the one you have locally.
-You need to regenerate them for your version:
+Additionally, the `.ef` format may change from time to time. If you get an error
+like this:
+
+.. code:: console
+
+    Error: Cannot map Elias-Fano pointer list ../swh/graph/example_dataset/compressed/example.ef
+
+    Caused by:
+        Wrong type hash. Expected: 0x47e8ca1ab8fa94f1 Actual: 0x890ce77a9258940c.
+        You are trying to deserialize a file with the wrong type.
+        The serialized type is 'sux::dict::elias_fano::EliasFano<sux::rank_sel::select_fixed2::SelectFixed2<sux::bits::bit_vec::CountBitVec, alloc::vec::Vec<u64>, 8>>' and the deserialized type is 'sux::dict::elias_fano::EliasFano<sux::rank_sel::select_adapt_const::SelectAdaptConst<sux::bits::bit_vec::BitVec<alloc::boxed::Box<[usize]>>, alloc::boxed::Box<[usize]>, 12, 4>>'.
+
+it means your swh-graph expects a different version of the ``.ef`` files as the one
+you have locally. You need to regenerate them for your version:
 
 .. code:: console
 

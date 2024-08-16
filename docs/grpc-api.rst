@@ -24,7 +24,7 @@ Quickstart
 Building the server
 -------------------
 
-Get Rust >= 1.75, eg. with `rustup <https://rustup.rs/>`_.
+Get Rust >= 1.79, eg. with `rustup <https://rustup.rs/>`_.
 
 Run::
 
@@ -63,9 +63,18 @@ file (typically for graphs before 2024), you need to generate it with::
 
     $ swh graph reindex <graph_basename>
 
-If instead you get an error about an invalid hash in a ``.ef`` file, it means your
-swh-graph expects a different version of the ``.ef`` files as the one you have locally.
-You need to regenerate them for your version::
+Additionally, the `.ef` format may change from time to time. If you get an error
+like this::
+
+    Error: Cannot map Elias-Fano pointer list ../swh/graph/example_dataset/compressed/example.ef
+
+    Caused by:
+        Wrong type hash. Expected: 0x47e8ca1ab8fa94f1 Actual: 0x890ce77a9258940c.
+        You are trying to deserialize a file with the wrong type.
+        The serialized type is 'sux::dict::elias_fano::EliasFano<sux::rank_sel::select_fixed2::SelectFixed2<sux::bits::bit_vec::CountBitVec, alloc::vec::Vec<u64>, 8>>' and the deserialized type is 'sux::dict::elias_fano::EliasFano<sux::rank_sel::select_adapt_const::SelectAdaptConst<sux::bits::bit_vec::BitVec<alloc::boxed::Box<[usize]>>, alloc::boxed::Box<[usize]>, 12, 4>>'.
+
+it means your swh-graph expects a different version of the ``.ef`` files as the one
+you have locally. You need to regenerate them for your version::
 
     $ swh graph reindex --ef <graph_basename>
 
