@@ -32,7 +32,7 @@ pub struct FrontCodedList<D: AsRef<[u8]>, P: AsRef<[u8]>> {
     len: usize,
     /// The encoded bytestrings
     data: D,
-    /// The pointer to in which byte the k-th string start
+    /// The pointer to in which byte the k-th string start, in big endian
     pointers: P,
 }
 
@@ -196,7 +196,7 @@ impl<D: AsRef<[u8]>, P: AsRef<[u8]>> GetIndex for &FrontCodedList<D, P> {
 // of the array.
 //
 // Adapted from https://archive.softwareheritage.org/swh:1:cnt:66c21893f9cd9686456b0127df0b9b48a0fe153d;origin=https://repo1.maven.org/maven2/it/unimi/dsi/fastutil;visit=swh:1:snp:8007412c404cf39fa38e3db600bdf93700410741;anchor=swh:1:rel:1ec2b63253f642eae54f1a3e5ddd20178867bc7d;path=/it/unimi/dsi/fastutil/bytes/ByteArrayFrontCodedList.java;lines=142-159
-fn decode_int(data: &[u8]) -> (u32, &[u8]) {
+pub(crate) fn decode_int(data: &[u8]) -> (u32, &[u8]) {
     let high_bit_mask = 0b1000_0000u8;
     let invert = |n: u8| (!n) as u32;
 

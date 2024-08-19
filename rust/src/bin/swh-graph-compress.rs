@@ -131,8 +131,17 @@ enum Commands {
         node2type: PathBuf,
     },
 
-    /// Reads a zstd-compressed stream containing sorted lines, and compresses it
-    /// as a single rear-coded list.
+    /// Reads a UTF-8 file containing sorted lines, and compresses it as a single front-coded list.
+    Fcl {
+        #[arg(long)]
+        num_lines: usize,
+        #[arg(long, default_value_t = std::num::NonZeroUsize::new(4).unwrap())]
+        stripe_length: std::num::NonZeroUsize,
+        input_path: PathBuf,
+        fcl: PathBuf,
+    },
+    /// Reads a directory of zstd-compressed UTF-8-encoded files containing sorted lines,
+    /// and compresses it as a single rear-coded list.
     Rcl {
         #[arg(long)]
         num_lines: usize,
@@ -465,6 +474,37 @@ pub fn main() -> Result<()> {
             });
         }
 
+        Commands::Fcl {
+            num_lines,
+            stripe_length,
+            input_path,
+            fcl,
+        } => {
+            use swh_graph::front_coded_list::FrontCodedListBuilder;
+            let fcl_path = fcl;
+
+            let mut fclb = FrontCodedListBuilder::new(stripe_length);
+
+            let mut pl = ProgressLogger::default().display_memory();
+            pl.item_name = "label";
+            pl.local_speed = true;
+            pl.expected_updates = Some(num_lines);
+            pl.start("Reading labels and building FCL");
+            let pl = Arc::new(Mutex::new(pl));
+            let input = File::open(&input_path)
+                .with_context(|| format!("Could not open {}", input_path.display()))?;
+            // Each line is base64-encode, so it is guaranteed to be ASCII.
+            for line in BufReader::new(input).lines() {
+                let line = line.expect("Could not decode line");
+                fclb.push(line.into_bytes())
+                    .context("Could not push line to FCL")?;
+            }
+            pl.lock().unwrap().done();
+
+            log::info!("Writing FCL...");
+            fclb.dump(fcl_path).context("Could not write FCL")?;
+        }
+
         Commands::Rcl {
             num_lines,
             stripe_length,
@@ -507,6 +547,7 @@ pub fn main() -> Result<()> {
             rcl.serialize(&mut rcl_file)
                 .context("Could not write RCL")?;
         }
+
         Commands::PthashLabels {
             num_labels,
             labels,

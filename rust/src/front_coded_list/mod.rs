@@ -8,3 +8,73 @@
 
 mod read;
 pub use read::*;
+mod write;
+pub use write::*;
+
+#[test]
+fn test_push_int() {
+    let mut v = Vec::new();
+    for i in 0..1000 {
+        // all 1-byte varints, and the small 2-byte varints
+        push_int(&mut v, i).unwrap();
+    }
+    for i in 16000..17000 {
+        // large 2-byte varints and small 3-byte varints
+        push_int(&mut v, i).unwrap();
+    }
+    for i in 2097100..2097200 {
+        // large 3-byte varints and small 4-byte varints
+        push_int(&mut v, i).unwrap();
+    }
+    for i in 268435400..268435455 {
+        // largest varints (4-byte)
+        push_int(&mut v, i).unwrap();
+    }
+
+    let mut r = v.as_ref();
+    for i in 0..1000 {
+        let (i2, r2) = decode_int(&r);
+        assert_eq!(
+            i,
+            i2,
+            "Could not read back {i}, got {i2} instead. Start of slice: {:?}",
+            &r[0..2]
+        );
+        r = r2;
+    }
+
+    for i in 16000..17000 {
+        let (i2, r2) = decode_int(&r);
+        assert_eq!(
+            i,
+            i2,
+            "Could not read back {i}, got {i2} instead. Start of slice: {:?}",
+            &r[0..3]
+        );
+        r = r2;
+    }
+
+    for i in 2097100..2097200 {
+        let (i2, r2) = decode_int(&r);
+        assert_eq!(
+            i,
+            i2,
+            "Could not read back {i}, got {i2} instead. Start of slice: {:?}",
+            &r[0..4]
+        );
+        r = r2;
+    }
+
+    for i in 268435400..268435455 {
+        let (i2, r2) = decode_int(&r);
+        assert_eq!(
+            i,
+            i2,
+            "Could not read back {i}, got {i2} instead. Start of slice: {:?}",
+            &r[0..5]
+        );
+        r = r2;
+    }
+
+    assert_eq!(r.len(), 0, "Leftovers in the slice: {:?}", r);
+}

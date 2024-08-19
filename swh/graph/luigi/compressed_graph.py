@@ -1019,7 +1019,7 @@ class PthashLabelsOrder(_CompressionStepTask):
 
 class FclLabels(_CompressionStepTask):
     STEP = CompressionStep.FCL_LABELS
-    INPUT_FILES = {".labels.csv.zst", ".labels.mph"}
+    INPUT_FILES = {".labels.csv.zst", ".labels.count.txt"}
     OUTPUT_FILES = {
         ".labels.fcl.bytearray",
         ".labels.fcl.pointers",

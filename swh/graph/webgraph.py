@@ -394,12 +394,12 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}.labels.pthash.order",
     ],
     CompressionStep.FCL_LABELS: [
-        "{java}",
-        "it.unimi.dsi.big.util.MappedFrontCodedStringBigList",
-        "--decompressor",
-        "com.github.luben.zstd.ZstdInputStream",
+        "{rust_executable_dir}/swh-graph-compress",
+        "fcl",
+        "--num-lines",
+        "$(cat {out_dir}/{graph_name}.labels.count.txt)",
+        "<(zstdcat {out_dir}/{graph_name}.labels.csv.zst)",
         "{out_dir}/{graph_name}.labels.fcl",
-        "< {out_dir}/{graph_name}.labels.csv.zst",
     ],
     CompressionStep.EDGE_LABELS: [
         "{rust_executable_dir}/swh-graph-extract",
