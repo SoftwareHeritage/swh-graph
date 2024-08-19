@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use super::suffixes::*;
 use super::*;
-use crate::java_compat::fcl::FrontCodedList;
+use crate::front_coded_list::FrontCodedList;
 use crate::labels::FilenameId;
 use crate::utils::suffix_path;
 
