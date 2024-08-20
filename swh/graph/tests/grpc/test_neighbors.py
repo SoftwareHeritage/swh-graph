@@ -28,7 +28,7 @@ def traverse_nodes(graph_grpc_stub, src, direction=None, edges=None):
     return [node.swhid for node in request]
 
 
-def test_zero_neighbor(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_zero_neighbor(graph_grpc_stub):
     expected_nodes = []
 
     actual_nodes = traverse_nodes(
@@ -61,7 +61,7 @@ def test_zero_neighbor(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual_nodes) == set(expected_nodes)
 
 
-def test_one_neighbor(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_one_neighbor(graph_grpc_stub):
     expected_nodes = []
 
     actual_nodes = traverse_nodes(
@@ -104,7 +104,7 @@ def test_one_neighbor(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual_nodes) == set(expected_nodes)
 
 
-def test_two_neighbors(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_two_neighbors(graph_grpc_stub):
     expected_nodes = []
 
     actual_nodes = traverse_nodes(
@@ -152,7 +152,7 @@ def test_two_neighbors(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual_nodes) == set(expected_nodes)
 
 
-def test_three_neighbors(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_three_neighbors(graph_grpc_stub):
     expected_nodes = []
 
     actual_nodes = traverse_nodes(

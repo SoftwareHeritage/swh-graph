@@ -24,18 +24,15 @@ TEST_ORIGIN_ID2 = "swh:1:ori:{}".format(
 )
 
 
-def test_not_found(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_not_found(graph_grpc_stub):
     with pytest.raises(grpc.RpcError) as excinfo:
         graph_grpc_stub.GetNode(
             GetNodeRequest(swhid="swh:1:cnt:0000000000000000000000000000000000000194")
         )
-    if graph_grpc_backend_implementation == "java":
-        assert excinfo.value.code() == grpc.StatusCode.INVALID_ARGUMENT
-    else:
-        assert excinfo.value.code() == grpc.StatusCode.NOT_FOUND
+    assert excinfo.value.code() == grpc.StatusCode.NOT_FOUND
 
 
-def test_invalid_swhid(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_invalid_swhid(graph_grpc_stub):
     with pytest.raises(grpc.RpcError) as excinfo:
         graph_grpc_stub.GetNode(
             GetNodeRequest(swhid="swh:1:lol:0000000000000000000000000000000000000001")
@@ -49,7 +46,7 @@ def test_invalid_swhid(graph_grpc_stub, graph_grpc_backend_implementation):
     assert excinfo.value.code() == grpc.StatusCode.INVALID_ARGUMENT
 
 
-def test_contents(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_contents(graph_grpc_stub):
     expected_cnts = [1, 4, 5, 7, 11, 14, 15]
     expected_lengths = {1: 42, 4: 404, 5: 1337, 7: 666, 11: 313, 14: 14, 15: 404}
     expected_skipped = {15}
@@ -63,7 +60,7 @@ def test_contents(graph_grpc_stub, graph_grpc_backend_implementation):
         assert node.cnt.is_skipped == (cnt_id in expected_skipped)
 
 
-def test_revisions(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_revisions(graph_grpc_stub):
     expected_revs = [3, 9, 13, 18]
     expected_messages = {
         3: "Initial commit",
@@ -125,7 +122,7 @@ def test_revisions(graph_grpc_stub, graph_grpc_backend_implementation):
 
 
 @pytest.mark.parametrize("rel_id", [10, 19])
-def test_releases(rel_id, graph_grpc_stub, graph_grpc_backend_implementation):
+def test_releases(rel_id, graph_grpc_stub):
     expected_messages = {10: "Version 1.0", 19: "Version 2.0"}
     expected_names = {10: "v1.0", 19: "v2.0"}
     expected_authors = {10: "foo", 19: "bar"}
@@ -165,7 +162,7 @@ def test_releases(rel_id, graph_grpc_stub, graph_grpc_backend_implementation):
         assert expected_author_timestamp_offsets[rel_id] == node.rel.author_date_offset
 
 
-def test_origins(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_origins(graph_grpc_stub):
     expected_oris = [TEST_ORIGIN_ID]
     expected_urls = {TEST_ORIGIN_ID: "https://example.com/swh/graph"}
 
@@ -176,7 +173,7 @@ def test_origins(graph_grpc_stub, graph_grpc_backend_implementation):
         assert expected_urls[ori_swhid] == node.ori.url
 
 
-def test_cnt_mask(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_cnt_mask(graph_grpc_stub):
     swhid = "swh:1:cnt:0000000000000000000000000000000000000001"
 
     # No mask, all fields present
@@ -210,7 +207,7 @@ def test_cnt_mask(graph_grpc_stub, graph_grpc_backend_implementation):
     assert node.cnt.HasField("is_skipped")
 
 
-def test_rev_mask(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_rev_mask(graph_grpc_stub):
     swhid = "swh:1:rev:0000000000000000000000000000000000000003"
 
     # No mask, all fields present
@@ -244,7 +241,7 @@ def test_rev_mask(graph_grpc_stub, graph_grpc_backend_implementation):
 
 
 @pytest.mark.parametrize("rel_id", [10, 19])
-def test_rel_mask(rel_id, graph_grpc_stub, graph_grpc_backend_implementation):
+def test_rel_mask(rel_id, graph_grpc_stub):
     swhid = f"swh:1:rel:00000000000000000000000000000000000000{rel_id}"
 
     # No mask, all fields present
@@ -278,7 +275,7 @@ def test_rel_mask(rel_id, graph_grpc_stub, graph_grpc_backend_implementation):
             assert node.rel.HasField(field.name) == (field.name == included_field.name)
 
 
-def test_ori_mask(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_ori_mask(graph_grpc_stub):
     swhid = TEST_ORIGIN_ID
 
     # No mask, all fields present

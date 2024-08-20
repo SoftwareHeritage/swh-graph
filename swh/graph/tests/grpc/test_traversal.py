@@ -18,7 +18,7 @@ TEST_ORIGIN_ID2 = "swh:1:ori:{}".format(
 )
 
 
-def test_src_errors(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_src_errors(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:cnt:0000000000000000000000000000000000000404"],
@@ -27,10 +27,7 @@ def test_src_errors(graph_grpc_stub, graph_grpc_backend_implementation):
     )
     with pytest.raises(grpc.RpcError) as exc_info:
         list(request)
-    if graph_grpc_backend_implementation == "java":
-        assert exc_info.value.code() == grpc.StatusCode.INVALID_ARGUMENT
-    else:
-        assert exc_info.value.code() == grpc.StatusCode.NOT_FOUND
+    assert exc_info.value.code() == grpc.StatusCode.NOT_FOUND
 
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
@@ -53,7 +50,7 @@ def test_src_errors(graph_grpc_stub, graph_grpc_backend_implementation):
     assert exc_info.value.code() == grpc.StatusCode.INVALID_ARGUMENT
 
 
-def test_forward_from_root(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_from_root(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=[TEST_ORIGIN_ID],
@@ -78,7 +75,7 @@ def test_forward_from_root(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_forward_from_middle(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_from_middle(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:dir:0000000000000000000000000000000000000012"],
@@ -99,7 +96,7 @@ def test_forward_from_middle(graph_grpc_stub, graph_grpc_backend_implementation)
     assert set(actual) == set(expected)
 
 
-def test_forward_rel_rev(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_rel_rev(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],
@@ -116,9 +113,7 @@ def test_forward_rel_rev(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_forward_filter_returned_nodes_dir(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
+def test_forward_filter_returned_nodes_dir(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],
@@ -134,7 +129,7 @@ def test_forward_filter_returned_nodes_dir(
     assert set(actual) == set(expected)
 
 
-def test_backward_from_root(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_backward_from_root(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=[TEST_ORIGIN_ID],
@@ -146,7 +141,7 @@ def test_backward_from_root(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_backward_from_middle(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_backward_from_middle(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:dir:0000000000000000000000000000000000000012"],
@@ -166,7 +161,7 @@ def test_backward_from_middle(graph_grpc_stub, graph_grpc_backend_implementation
     assert set(actual) == set(expected)
 
 
-def test_backward_from_leaf(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_backward_from_leaf(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:cnt:0000000000000000000000000000000000000004"],
@@ -193,7 +188,7 @@ def test_backward_from_leaf(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_forward_snp_to_rev(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_snp_to_rev(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:snp:0000000000000000000000000000000000000020"],
@@ -208,9 +203,7 @@ def test_forward_snp_to_rev(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_forward_rel_to_rev_rev_to_rev(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
+def test_forward_rel_to_rev_rev_to_rev(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],
@@ -226,9 +219,7 @@ def test_forward_rel_to_rev_rev_to_rev(
     assert set(actual) == set(expected)
 
 
-def test_forward_rev_to_all_dir_to_all(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
+def test_forward_rev_to_all_dir_to_all(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rev:0000000000000000000000000000000000000013"],
@@ -253,9 +244,7 @@ def test_forward_rev_to_all_dir_to_all(
     assert set(actual) == set(expected)
 
 
-def test_forward_snp_to_all_rev_to_all(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
+def test_forward_snp_to_all_rev_to_all(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:snp:0000000000000000000000000000000000000020"],
@@ -274,7 +263,7 @@ def test_forward_snp_to_all_rev_to_all(
     assert set(actual) == set(expected)
 
 
-def test_forward_no_edges(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_no_edges(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:snp:0000000000000000000000000000000000000020"],
@@ -286,9 +275,7 @@ def test_forward_no_edges(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_backward_rev_to_rev_rev_to_rel(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
+def test_backward_rev_to_rev_rev_to_rel(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rev:0000000000000000000000000000000000000003"],
@@ -309,9 +296,7 @@ def test_backward_rev_to_rev_rev_to_rel(
     assert set(actual) == set(expected)
 
 
-def test_forward_from_root_nodes_only(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
+def test_forward_from_root_nodes_only(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=[TEST_ORIGIN_ID],
@@ -335,9 +320,7 @@ def test_forward_from_root_nodes_only(
     assert set(actual) == set(expected)
 
 
-def test_backward_rev_to_all_nodes_only(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
+def test_backward_rev_to_all_nodes_only(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rev:0000000000000000000000000000000000000003"],
@@ -360,7 +343,7 @@ def test_backward_rev_to_all_nodes_only(
     assert set(actual) == set(expected)
 
 
-def test_forward_max_depth(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_max_depth(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=[
@@ -377,7 +360,7 @@ def test_forward_max_depth(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_forward_multiple_sources(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_multiple_sources(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=[
@@ -398,7 +381,7 @@ def test_forward_multiple_sources(graph_grpc_stub, graph_grpc_backend_implementa
     assert set(actual) == set(expected)
 
 
-def test_backward_multiple_sources(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_backward_multiple_sources(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=[
@@ -421,7 +404,7 @@ def test_backward_multiple_sources(graph_grpc_stub, graph_grpc_backend_implement
     assert set(actual) == set(expected)
 
 
-def test_max_depth_0(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_max_depth_0(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000019"],
@@ -435,7 +418,7 @@ def test_max_depth_0(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_max_depth_1(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_max_depth_1(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000019"],
@@ -450,7 +433,7 @@ def test_max_depth_1(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_max_depth_2(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_max_depth_2(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000019"],
@@ -467,7 +450,7 @@ def test_max_depth_2(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_max_depth_3(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_max_depth_3(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000019"],
@@ -488,7 +471,7 @@ def test_max_depth_3(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_max_edges_1(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_max_edges_1(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000019"],
@@ -503,7 +486,7 @@ def test_max_edges_1(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_max_edges_3(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_max_edges_3(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000019"],
@@ -520,7 +503,7 @@ def test_max_edges_3(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(actual) == set(expected)
 
 
-def test_max_edges_7(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_max_edges_7(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000019"],

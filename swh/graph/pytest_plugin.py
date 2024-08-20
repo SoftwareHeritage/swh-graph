@@ -64,7 +64,7 @@ class GraphServerProcess(multiprocessing.Process):
         self.result = self.q.get()
 
 
-@pytest.fixture(scope="session", params=["java", "rust"])
+@pytest.fixture(scope="session", params=["rust"])
 def graph_grpc_backend_implementation(request):
     return request.param
 

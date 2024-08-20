@@ -49,7 +49,7 @@ def _check_forward_from_snp(limit, actual_leaves):
         assert len(actual_leaves) == min(limit, 4)
 
 
-def test_forward_from_snp(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_from_snp(graph_grpc_stub):
     actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:snp:0000000000000000000000000000000000000020"],
@@ -59,9 +59,7 @@ def test_forward_from_snp(graph_grpc_stub, graph_grpc_backend_implementation):
 
 
 @pytest.mark.parametrize("limit", [0, 1, 2, 4, 51 << 31 - 1])
-def test_forward_from_snp_with_limit(
-    graph_grpc_stub, graph_grpc_backend_implementation, limit
-):
+def test_forward_from_snp_with_limit(graph_grpc_stub, limit):
     actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:snp:0000000000000000000000000000000000000020"],
@@ -70,7 +68,7 @@ def test_forward_from_snp_with_limit(
     _check_forward_from_snp(limit, actual_leaves)
 
 
-def test_forward_from_rel(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_from_rel(graph_grpc_stub):
     actual_leaves = get_leaves(
         graph_grpc_stub, ["swh:1:rel:0000000000000000000000000000000000000019"]
     )
@@ -86,7 +84,7 @@ def test_forward_from_rel(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(expected_leaves) == set(actual_leaves)
 
 
-def test_backward_from_leaf(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_backward_from_leaf(graph_grpc_stub):
     actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:cnt:0000000000000000000000000000000000000015"],
@@ -111,7 +109,7 @@ def test_backward_from_leaf(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(expected_leaves2) == set(actual_leaves2)
 
 
-def test_forward_rev_to_rev_only(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_rev_to_rev_only(graph_grpc_stub):
     actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:rev:0000000000000000000000000000000000000018"],
@@ -121,7 +119,7 @@ def test_forward_rev_to_rev_only(graph_grpc_stub, graph_grpc_backend_implementat
     assert set(expected_leaves) == set(actual_leaves)
 
 
-def test_forward_dir_to_all(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_dir_to_all(graph_grpc_stub):
     actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:dir:0000000000000000000000000000000000000008"],
@@ -136,9 +134,7 @@ def test_forward_dir_to_all(graph_grpc_stub, graph_grpc_backend_implementation):
     assert set(expected_leaves) == set(actual_leaves)
 
 
-def test_backward_cnt_to_dir_dir_to_dir(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
+def test_backward_cnt_to_dir_dir_to_dir(graph_grpc_stub):
     actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:cnt:0000000000000000000000000000000000000005"],
@@ -150,9 +146,7 @@ def test_backward_cnt_to_dir_dir_to_dir(
 
 
 @pytest.mark.parametrize("limit", [0, 1, 2, 1 << 31 - 1])
-def test_backward_cnt_to_dir_dir_to_dir_with_limit(
-    graph_grpc_stub, graph_grpc_backend_implementation, limit
-):
+def test_backward_cnt_to_dir_dir_to_dir_with_limit(graph_grpc_stub, limit):
     actual_leaves = get_leaves(
         graph_grpc_stub,
         ["swh:1:cnt:0000000000000000000000000000000000000005"],

@@ -27,11 +27,7 @@ from swh.graph.grpc.swhgraph_pb2 import (
     TraversalRequest,
 )
 from swh.graph.grpc.swhgraph_pb2_grpc import TraversalServiceStub
-from swh.graph.grpc_server import (
-    spawn_java_grpc_server,
-    spawn_rust_grpc_server,
-    stop_grpc_server,
-)
+from swh.graph.grpc_server import spawn_rust_grpc_server, stop_grpc_server
 from swh.model.swhids import EXTENDED_SWHID_TYPES
 
 try:
@@ -396,9 +392,6 @@ def make_app(config=None):
         if "url" not in cfg:
             raise KeyError("Missing 'url' configuration entry in the [graph] section")
         rpc_url = cfg["url"]
-    elif cls in ("local_java",):
-        app["local_server"], port = spawn_java_grpc_server(**grpc_cfg)
-        rpc_url = f"localhost:{port}"
     elif cls in ("local", "local_rust"):
         app["local_server"], port = spawn_rust_grpc_server(**grpc_cfg)
         rpc_url = f"localhost:{port}"

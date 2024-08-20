@@ -8,16 +8,12 @@ import hashlib
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from swh.graph.grpc.swhgraph_pb2 import (
-    ContentData,
     EdgeLabel,
     FindPathBetweenRequest,
     FindPathToRequest,
     GraphDirection,
     Node,
     NodeFilter,
-    OriginData,
-    ReleaseData,
-    RevisionData,
     Successor,
     TraversalRequest,
 )
@@ -30,16 +26,7 @@ TEST_ORIGIN_ID2 = "swh:1:ori:{}".format(
 )
 
 
-def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        cnt = rev = rel = ori = None
-    else:
-        # FIXME: These should be None in the Java backend when not requested
-        cnt = ContentData()
-        rev = RevisionData()
-        rel = ReleaseData()
-        ori = OriginData()
-
+def test_traverse_forward_labels(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=[TEST_ORIGIN_ID],
@@ -51,22 +38,22 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
         Node(
             swhid="swh:1:cnt:0000000000000000000000000000000000000001",
             successor=None,
-            cnt=cnt,
+            cnt=None,
         ),
         Node(
             swhid="swh:1:cnt:0000000000000000000000000000000000000004",
             successor=None,
-            cnt=cnt,
+            cnt=None,
         ),
         Node(
             swhid="swh:1:cnt:0000000000000000000000000000000000000005",
             successor=None,
-            cnt=cnt,
+            cnt=None,
         ),
         Node(
             swhid="swh:1:cnt:0000000000000000000000000000000000000007",
             successor=None,
-            cnt=cnt,
+            cnt=None,
         ),
         Node(
             swhid="swh:1:dir:0000000000000000000000000000000000000002",
@@ -115,7 +102,7 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
                     label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
                 ),
             ],
-            ori=ori,
+            ori=None,
         ),
         Node(
             swhid="swh:1:rel:0000000000000000000000000000000000000010",
@@ -125,7 +112,7 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
                     label=[],
                 ),
             ],
-            rel=rel,
+            rel=None,
         ),
         Node(
             swhid="swh:1:rev:0000000000000000000000000000000000000003",
@@ -135,7 +122,7 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
                     label=[],
                 ),
             ],
-            rev=rev,
+            rev=None,
         ),
         Node(
             swhid="swh:1:rev:0000000000000000000000000000000000000009",
@@ -149,7 +136,7 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
                     label=[],
                 ),
             ],
-            rev=rev,
+            rev=None,
         ),
         Node(
             swhid="swh:1:snp:0000000000000000000000000000000000000020",
@@ -176,16 +163,7 @@ def test_traverse_forward_labels(graph_grpc_stub, graph_grpc_backend_implementat
     assert actual == expected
 
 
-def test_traverse_backward_labels(graph_grpc_stub, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        cnt = rev = rel = ori = None
-    else:
-        # FIXME: These should be None in the Java backend when not requested
-        cnt = ContentData()
-        rev = RevisionData()
-        rel = ReleaseData()
-        ori = OriginData()
-
+def test_traverse_backward_labels(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:cnt:0000000000000000000000000000000000000015"],
@@ -202,7 +180,7 @@ def test_traverse_backward_labels(graph_grpc_stub, graph_grpc_backend_implementa
                     label=[EdgeLabel(name=b"TODO.txt", permission=0o100644)],
                 )
             ],
-            cnt=cnt,
+            cnt=None,
         ),
         Node(
             swhid="swh:1:dir:0000000000000000000000000000000000000016",
@@ -225,12 +203,12 @@ def test_traverse_backward_labels(graph_grpc_stub, graph_grpc_backend_implementa
         Node(
             swhid=TEST_ORIGIN_ID2,
             successor=None,
-            ori=ori,
+            ori=None,
         ),
         Node(
             swhid="swh:1:rel:0000000000000000000000000000000000000019",
             successor=[],
-            rel=rel,
+            rel=None,
         ),
         Node(
             swhid="swh:1:rel:0000000000000000000000000000000000000021",
@@ -242,7 +220,7 @@ def test_traverse_backward_labels(graph_grpc_stub, graph_grpc_backend_implementa
                     ],
                 ),
             ],
-            rel=rel,
+            rel=None,
         ),
         Node(
             swhid="swh:1:rev:0000000000000000000000000000000000000018",
@@ -256,7 +234,7 @@ def test_traverse_backward_labels(graph_grpc_stub, graph_grpc_backend_implementa
                     label=[],
                 ),
             ],
-            rev=rev,
+            rev=None,
         ),
         Node(
             swhid="swh:1:snp:0000000000000000000000000000000000000022",
@@ -275,7 +253,7 @@ def test_traverse_backward_labels(graph_grpc_stub, graph_grpc_backend_implementa
     assert actual == expected
 
 
-def test_findpathto_forward_labels(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_findpathto_forward_labels(graph_grpc_stub):
     request = graph_grpc_stub.FindPathTo(
         FindPathToRequest(
             src=[TEST_ORIGIN_ID],
@@ -288,12 +266,10 @@ def test_findpathto_forward_labels(graph_grpc_stub, graph_grpc_backend_implement
     )
     for node in request.node:
         node.successor.sort(key=lambda successor: successor.swhid)
-    assert_ori_to_rev(request.node, graph_grpc_backend_implementation)
+    assert_ori_to_rev(request.node)
 
 
-def test_findpathbetween_forward_labels(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
+def test_findpathbetween_forward_labels(graph_grpc_stub):
     request = graph_grpc_stub.FindPathBetween(
         FindPathBetweenRequest(
             src=[TEST_ORIGIN_ID],
@@ -306,35 +282,24 @@ def test_findpathbetween_forward_labels(
     )
     for node in request.node:
         node.successor.sort(key=lambda successor: successor.swhid)
-    assert_ori_to_rev(request.node, graph_grpc_backend_implementation)
+    assert_ori_to_rev(request.node)
 
 
-def assert_ori_to_rev(path, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        rev = ori = None
-    else:
-        # FIXME: These should be None in the Java backend when not requested
-        rev = RevisionData()
-        ori = OriginData()
-
+def assert_ori_to_rev(path):
     assert path == [
         Node(
             swhid=TEST_ORIGIN_ID,
-            successor=[]
-            if graph_grpc_backend_implementation == "java"
-            else [
+            successor=[
                 Successor(
                     swhid="swh:1:snp:0000000000000000000000000000000000000020",
                     label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
                 ),
             ],
-            ori=ori,
+            ori=None,
         ),
         Node(
             swhid="swh:1:snp:0000000000000000000000000000000000000020",
-            successor=[]
-            if graph_grpc_backend_implementation == "java"
-            else [
+            successor=[
                 Successor(
                     swhid="swh:1:rel:0000000000000000000000000000000000000010",
                     label=[EdgeLabel(name=b"refs/tags/v1.0")],
@@ -347,9 +312,7 @@ def assert_ori_to_rev(path, graph_grpc_backend_implementation):
         ),
         Node(
             swhid="swh:1:rev:0000000000000000000000000000000000000009",
-            successor=[]
-            if graph_grpc_backend_implementation == "java"
-            else [
+            successor=[
                 Successor(
                     swhid="swh:1:dir:0000000000000000000000000000000000000008",
                 ),
@@ -357,12 +320,12 @@ def assert_ori_to_rev(path, graph_grpc_backend_implementation):
                     swhid="swh:1:rev:0000000000000000000000000000000000000003",
                 ),
             ],
-            rev=rev,
+            rev=None,
         ),
     ]
 
 
-def test_findpathto_backward_labels(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_findpathto_backward_labels(graph_grpc_stub):
     request = graph_grpc_stub.FindPathTo(
         FindPathToRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000021"],
@@ -375,12 +338,10 @@ def test_findpathto_backward_labels(graph_grpc_stub, graph_grpc_backend_implemen
     )
     for node in request.node:
         node.successor.sort(key=lambda successor: successor.swhid)
-    assert_rel_to_ori(request.node, graph_grpc_backend_implementation)
+    assert_rel_to_ori(request.node)
 
 
-def test_findpathbetween_backward_labels(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
+def test_findpathbetween_backward_labels(graph_grpc_stub):
     request = graph_grpc_stub.FindPathBetween(
         FindPathBetweenRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000021"],
@@ -393,54 +354,35 @@ def test_findpathbetween_backward_labels(
     )
     for node in request.node:
         node.successor.sort(key=lambda successor: successor.swhid)
-    assert_rel_to_ori(request.node, graph_grpc_backend_implementation)
+    assert_rel_to_ori(request.node)
 
 
-def assert_rel_to_ori(path, graph_grpc_backend_implementation):
-    if graph_grpc_backend_implementation == "rust":
-        rel = ori = None
-    else:
-        # FIXME: These should be None in the Java backend when not requested
-        rel = ReleaseData()
-        ori = OriginData()
-
+def assert_rel_to_ori(path):
     assert path == [
         Node(
             swhid="swh:1:rel:0000000000000000000000000000000000000021",
-            successor=[]
-            if graph_grpc_backend_implementation == "java"
-            else [
+            successor=[
                 Successor(
                     swhid="swh:1:snp:0000000000000000000000000000000000000022",
                     label=[EdgeLabel(name=b"refs/tags/v2.0-anonymous")],
                 ),
             ],
-            rel=rel,
+            rel=None,
         ),
         Node(
             swhid="swh:1:snp:0000000000000000000000000000000000000022",
-            successor=[]
-            if graph_grpc_backend_implementation == "java"
-            else [
+            successor=[
                 Successor(
                     swhid=TEST_ORIGIN_ID2,
                     label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
                 ),
             ],
         ),
-        Node(swhid=TEST_ORIGIN_ID2, successor=[], ori=ori),
+        Node(swhid=TEST_ORIGIN_ID2, successor=[], ori=None),
     ]
 
 
-def test_findpathbetween_common_parent_labels(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
-    if graph_grpc_backend_implementation == "rust":
-        rel = None
-    else:
-        # FIXME: These should be None in the Java backend when not requested
-        rel = ReleaseData()
-
+def test_findpathbetween_common_parent_labels(graph_grpc_stub):
     request = graph_grpc_stub.FindPathBetween(
         FindPathBetweenRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],
@@ -457,9 +399,7 @@ def test_findpathbetween_common_parent_labels(
     assert request.node == [
         Node(
             swhid="swh:1:rel:0000000000000000000000000000000000000010",
-            successor=[]
-            if graph_grpc_backend_implementation == "java"
-            else [
+            successor=[
                 Successor(
                     swhid="swh:1:snp:0000000000000000000000000000000000000020",
                     label=[EdgeLabel(name=b"refs/tags/v1.0")],
@@ -469,13 +409,11 @@ def test_findpathbetween_common_parent_labels(
                     label=[EdgeLabel(name=b"refs/tags/v1.0")],
                 ),
             ],
-            rel=rel,
+            rel=None,
         ),
         Node(
             swhid="swh:1:snp:0000000000000000000000000000000000000022",
-            successor=[]
-            if graph_grpc_backend_implementation == "java"
-            else [
+            successor=[
                 Successor(
                     swhid=TEST_ORIGIN_ID2,
                     label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
@@ -484,28 +422,18 @@ def test_findpathbetween_common_parent_labels(
         ),
         Node(
             swhid="swh:1:rel:0000000000000000000000000000000000000021",
-            successor=[]
-            if graph_grpc_backend_implementation == "java"
-            else [
+            successor=[
                 Successor(
                     swhid="swh:1:snp:0000000000000000000000000000000000000022",
                     label=[EdgeLabel(name=b"refs/tags/v2.0-anonymous")],
                 ),
             ],
-            rel=rel,
+            rel=None,
         ),
     ]
 
 
-def test_findpathbetween_common_child_labels(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
-    if graph_grpc_backend_implementation == "rust":
-        cnt = None
-    else:
-        # FIXME: These should be None in the Java backend when not requested
-        cnt = ContentData()
-
+def test_findpathbetween_common_child_labels(graph_grpc_stub):
     request = graph_grpc_stub.FindPathBetween(
         FindPathBetweenRequest(
             src=["swh:1:dir:0000000000000000000000000000000000000002"],
@@ -522,9 +450,7 @@ def test_findpathbetween_common_child_labels(
     assert request.node == [
         Node(
             swhid="swh:1:dir:0000000000000000000000000000000000000002",
-            successor=[]
-            if graph_grpc_backend_implementation == "java"
-            else [
+            successor=[
                 Successor(
                     swhid="swh:1:cnt:0000000000000000000000000000000000000001",
                     label=[EdgeLabel(name=b"README.md", permission=0o100644)],
@@ -534,13 +460,11 @@ def test_findpathbetween_common_child_labels(
         Node(
             swhid="swh:1:cnt:0000000000000000000000000000000000000001",
             successor=[],
-            cnt=cnt,
+            cnt=None,
         ),
         Node(
             swhid="swh:1:dir:0000000000000000000000000000000000000008",
-            successor=[]
-            if graph_grpc_backend_implementation == "java"
-            else [
+            successor=[
                 Successor(
                     swhid="swh:1:cnt:0000000000000000000000000000000000000001",
                     label=[EdgeLabel(name=b"README.md", permission=0o100644)],

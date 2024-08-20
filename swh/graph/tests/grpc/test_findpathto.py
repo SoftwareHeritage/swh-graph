@@ -29,17 +29,14 @@ def get_path(graph_grpc_stub, src, target_types, **kwargs):
     return [node.swhid for node in request.node]
 
 
-def test_src_errors(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_src_errors(graph_grpc_stub):
     with pytest.raises(grpc.RpcError) as exc_info:
         get_path(
             graph_grpc_stub,
             ["swh:1:cnt:0000000000000000000000000000000000000194"],
             "rel",
         )
-    if graph_grpc_backend_implementation == "java":
-        assert exc_info.value.code() == grpc.StatusCode.INVALID_ARGUMENT
-    else:
-        assert exc_info.value.code() == grpc.StatusCode.NOT_FOUND
+    assert exc_info.value.code() == grpc.StatusCode.NOT_FOUND
 
     with pytest.raises(grpc.RpcError) as exc_info:
         get_path(
@@ -58,19 +55,19 @@ def test_src_errors(graph_grpc_stub, graph_grpc_backend_implementation):
     assert exc_info.value.code() == grpc.StatusCode.INVALID_ARGUMENT
 
 
-def test_edge_errors(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_edge_errors(graph_grpc_stub):
     with pytest.raises(grpc.RpcError) as exc_info:
         get_path(graph_grpc_stub, [TEST_ORIGIN_ID], "batracien:reptile")
     assert exc_info.value.code() == grpc.StatusCode.INVALID_ARGUMENT
 
 
-def test_target_errors(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_target_errors(graph_grpc_stub):
     with pytest.raises(grpc.RpcError) as exc_info:
         get_path(graph_grpc_stub, [TEST_ORIGIN_ID], "argoumante,eglomatique")
     assert exc_info.value.code() == grpc.StatusCode.INVALID_ARGUMENT
 
 
-def test_forward_ori_to_first_dir(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_ori_to_first_dir(graph_grpc_stub):
     """Test path between ori 1 and any dir (forward graph)"""
     actual = get_path(graph_grpc_stub, [TEST_ORIGIN_ID], "dir")
     expected = [
@@ -82,7 +79,7 @@ def test_forward_ori_to_first_dir(graph_grpc_stub, graph_grpc_backend_implementa
     assert expected == actual
 
 
-def test_forward_rel_to_first_cnt(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_rel_to_first_cnt(graph_grpc_stub):
     """Test path between rel 19 and any cnt (forward graph)"""
     actual = get_path(
         graph_grpc_stub, ["swh:1:rel:0000000000000000000000000000000000000019"], "cnt"
@@ -96,7 +93,7 @@ def test_forward_rel_to_first_cnt(graph_grpc_stub, graph_grpc_backend_implementa
     assert expected == actual
 
 
-def test_backward_dir_to_first_rel(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_backward_dir_to_first_rel(graph_grpc_stub):
     """Test path between dir 16 and any rel (backward graph)"""
     actual = get_path(
         graph_grpc_stub,
@@ -113,7 +110,7 @@ def test_backward_dir_to_first_rel(graph_grpc_stub, graph_grpc_backend_implement
     assert expected == actual
 
 
-def test_forward_cnt_to_itself(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_cnt_to_itself(graph_grpc_stub):
     """Test path between cnt 4 and itself (forward graph)"""
     actual = get_path(
         graph_grpc_stub, ["swh:1:cnt:0000000000000000000000000000000000000004"], "cnt"
@@ -122,7 +119,7 @@ def test_forward_cnt_to_itself(graph_grpc_stub, graph_grpc_backend_implementatio
     assert expected == actual
 
 
-def test_forward_multiple_sources(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_multiple_sources(graph_grpc_stub):
     """Start from ori and rel 19 and find any cnt (forward graph)"""
     actual = get_path(
         graph_grpc_stub, ["swh:1:rel:0000000000000000000000000000000000000019"], "cnt"
@@ -136,7 +133,7 @@ def test_forward_multiple_sources(graph_grpc_stub, graph_grpc_backend_implementa
     assert expected == actual
 
 
-def test_backward_multiple_sources(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_backward_multiple_sources(graph_grpc_stub):
     """Start from cnt 4 and cnt 11 and find any rev (backward graph)"""
     actual = get_path(
         graph_grpc_stub,
@@ -155,9 +152,7 @@ def test_backward_multiple_sources(graph_grpc_stub, graph_grpc_backend_implement
     assert expected == actual
 
 
-def test_backward_multiple_sources_all_dir_to_ori(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
+def test_backward_multiple_sources_all_dir_to_ori(graph_grpc_stub):
     """Start from all directories and find any origin (backward graph)"""
     actual = get_path(
         graph_grpc_stub,
@@ -188,7 +183,7 @@ def test_backward_multiple_sources_all_dir_to_ori(
     assert actual in expected
 
 
-def test_forward_impossible_path(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_impossible_path(graph_grpc_stub):
     """Impossible path between rev 9 and any release (forward graph)"""
     with pytest.raises(grpc.RpcError) as exc_info:
         get_path(
@@ -199,7 +194,7 @@ def test_forward_impossible_path(graph_grpc_stub, graph_grpc_backend_implementat
     assert exc_info.value.code() == grpc.StatusCode.NOT_FOUND
 
 
-def test_max_depth(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_max_depth(graph_grpc_stub):
     """Path from cnt 15 to any rel with various max depths"""
     actual = get_path(
         graph_grpc_stub,
@@ -229,7 +224,7 @@ def test_max_depth(graph_grpc_stub, graph_grpc_backend_implementation):
     assert exc_info.value.code() == grpc.StatusCode.NOT_FOUND
 
 
-def test_max_edges(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_max_edges(graph_grpc_stub):
     """Path from cnt 15 to any rel with various max edges"""
     # FIXME: Number of edges traversed but backtracked from. it changes
     # nondeterministically every time the test dataset is changed.

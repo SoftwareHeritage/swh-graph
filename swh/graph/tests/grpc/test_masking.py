@@ -21,12 +21,6 @@ TEST_ORIGIN_ID2 = "swh:1:ori:{}".format(
 
 
 @pytest.fixture(scope="session")
-def graph_grpc_backend_implementation():
-    # Not supported by the Java backend
-    return "rust"
-
-
-@pytest.fixture(scope="session")
 def graph_grpc_server_config(graph_grpc_server_config, tmp_path_factory):
     masked_swhids_path = tmp_path_factory.mktemp("test_masking") / "masked_nodes.txt"
     masked_swhids_path.write_text(

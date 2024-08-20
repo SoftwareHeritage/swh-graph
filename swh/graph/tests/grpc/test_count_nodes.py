@@ -19,7 +19,7 @@ TEST_ORIGIN_ID2 = "swh:1:ori:{}".format(
 )
 
 
-def test_src_errors(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_src_errors(graph_grpc_stub):
     with pytest.raises(grpc.RpcError) as exc_info:
         graph_grpc_stub.CountNodes(
             TraversalRequest(
@@ -27,10 +27,7 @@ def test_src_errors(graph_grpc_stub, graph_grpc_backend_implementation):
                 direction=GraphDirection.FORWARD,
             )
         )
-    if graph_grpc_backend_implementation == "java":
-        assert exc_info.value.code() == grpc.StatusCode.INVALID_ARGUMENT
-    else:
-        assert exc_info.value.code() == grpc.StatusCode.NOT_FOUND
+    assert exc_info.value.code() == grpc.StatusCode.NOT_FOUND
 
     with pytest.raises(grpc.RpcError) as exc_info:
         graph_grpc_stub.CountNodes(
@@ -51,7 +48,7 @@ def test_src_errors(graph_grpc_stub, graph_grpc_backend_implementation):
     assert exc_info.value.code() == grpc.StatusCode.INVALID_ARGUMENT
 
 
-def test_forward_from_root(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_from_root(graph_grpc_stub):
     count_nodes_request = graph_grpc_stub.CountNodes(
         TraversalRequest(
             src=[TEST_ORIGIN_ID],
@@ -62,9 +59,7 @@ def test_forward_from_root(graph_grpc_stub, graph_grpc_backend_implementation):
 
 
 @pytest.mark.parametrize("limit", [0, 1, 2, 5, 11, 12, 13, 14, 15, 1 << 63 - 1])
-def test_forward_from_root_with_limit(
-    graph_grpc_stub, graph_grpc_backend_implementation, limit
-):
+def test_forward_from_root_with_limit(graph_grpc_stub, limit):
     traversal_request = graph_grpc_stub.CountNodes(
         TraversalRequest(
             src=[TEST_ORIGIN_ID],
@@ -79,7 +74,7 @@ def test_forward_from_root_with_limit(
         assert traversal_request.count == min(limit, 12)
 
 
-def test_forward_from_middle(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_from_middle(graph_grpc_stub):
     traversal_request = graph_grpc_stub.CountNodes(
         TraversalRequest(
             src=["swh:1:dir:0000000000000000000000000000000000000012"],
@@ -89,7 +84,7 @@ def test_forward_from_middle(graph_grpc_stub, graph_grpc_backend_implementation)
     assert traversal_request.count == 8
 
 
-def test_forward_rel_rev(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_forward_rel_rev(graph_grpc_stub):
     traversal_request = graph_grpc_stub.CountNodes(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],
@@ -100,7 +95,7 @@ def test_forward_rel_rev(graph_grpc_stub, graph_grpc_backend_implementation):
     assert traversal_request.count == 3
 
 
-def test_backward_from_middle(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_backward_from_middle(graph_grpc_stub):
     traversal_request = graph_grpc_stub.CountNodes(
         TraversalRequest(
             src=["swh:1:dir:0000000000000000000000000000000000000012"],
@@ -111,7 +106,7 @@ def test_backward_from_middle(graph_grpc_stub, graph_grpc_backend_implementation
     assert traversal_request.count == 7
 
 
-def test_backward_from_leaf(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_backward_from_leaf(graph_grpc_stub):
     traversal_request = graph_grpc_stub.CountNodes(
         TraversalRequest(
             src=["swh:1:cnt:0000000000000000000000000000000000000004"],
@@ -122,9 +117,7 @@ def test_backward_from_leaf(graph_grpc_stub, graph_grpc_backend_implementation):
     assert traversal_request.count == 14
 
 
-def test_backward_rev_to_rev_rev_to_rel(
-    graph_grpc_stub, graph_grpc_backend_implementation
-):
+def test_backward_rev_to_rev_rev_to_rel(graph_grpc_stub):
     traversal_request = graph_grpc_stub.CountNodes(
         TraversalRequest(
             src=["swh:1:rev:0000000000000000000000000000000000000003"],
@@ -137,9 +130,7 @@ def test_backward_rev_to_rev_rev_to_rel(
 
 
 @pytest.mark.parametrize("limit", [1, 2, 3, 4, 5, 6, 7])
-def test_backward_rev_to_rev_rev_to_rel_with_limit(
-    graph_grpc_stub, graph_grpc_backend_implementation, limit
-):
+def test_backward_rev_to_rev_rev_to_rel_with_limit(graph_grpc_stub, limit):
     traversal_request = graph_grpc_stub.CountNodes(
         TraversalRequest(
             src=["swh:1:rev:0000000000000000000000000000000000000003"],
@@ -152,7 +143,7 @@ def test_backward_rev_to_rev_rev_to_rel_with_limit(
     assert traversal_request.count == min(limit, 7)
 
 
-def test_with_empty_mask(graph_grpc_stub, graph_grpc_backend_implementation):
+def test_with_empty_mask(graph_grpc_stub):
     traversal_request = graph_grpc_stub.CountNodes(
         TraversalRequest(
             src=["swh:1:dir:0000000000000000000000000000000000000012"],

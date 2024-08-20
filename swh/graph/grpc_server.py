@@ -25,29 +25,6 @@ class ExecutableNotFound(EnvironmentError):
     pass
 
 
-def build_java_grpc_server_cmdline(**config):
-    port = config.pop("port", None)
-    if port is None:
-        port = aiohttp.test_utils.unused_port()
-        logger.debug("Port not configured, using random port %s", port)
-    logger.debug("Checking configuration and populating default values")
-    config = check_config(config)
-    if config.get("masked_nodes"):
-        raise NotImplementedError("masked_nodes are not supported by the Java backend")
-    logger.debug("Configuration: %r", config)
-    cmd = [
-        "java",
-        "--class-path",
-        config["classpath"],
-        *config["java_tool_options"].split(),
-        "org.softwareheritage.graph.rpc.GraphServer",
-        "--port",
-        str(port),
-        str(config["path"]),
-    ]
-    return cmd, port
-
-
 def build_rust_grpc_server_cmdline(**config):
     logger.debug("Checking configuration and populating default values")
     config = check_config(config)
@@ -71,16 +48,6 @@ def build_rust_grpc_server_cmdline(**config):
     cmd.extend(["--bind", f"[::]:{port}", str(config["path"])])
     print(f"Started GRPC using dataset from {str(config['path'])}")
     return cmd, port
-
-
-def spawn_java_grpc_server(**config):
-    cmd, port = build_java_grpc_server_cmdline(**config)
-    print(cmd)
-    # XXX: shlex.join() is in 3.8
-    # logger.info("Starting gRPC server: %s", shlex.join(cmd))
-    logger.info("Starting gRPC server: %s", " ".join(shlex.quote(x) for x in cmd))
-    server = subprocess.Popen(cmd)
-    return server, port
 
 
 def spawn_rust_grpc_server(**config):
