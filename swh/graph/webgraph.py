@@ -52,26 +52,21 @@ class CompressionStep(Enum):
     COMPOSE_ORDERS = 110
     PERMUTE_LLP = 120
     OFFSETS = 130
-    EF = 135
-    OBL = 140
+    EF = 140
     STATS = 150
     TRANSPOSE = 160
-    TRANSPOSE_OFFSETS = 165
-    TRANSPOSE_OBL = 170
+    TRANSPOSE_OFFSETS = 170
     TRANSPOSE_EF = 175
     MAPS = 180
     EXTRACT_PERSONS = 190
     PERSONS_STATS = 195
     MPH_PERSONS = 200
     NODE_PROPERTIES = 210
-    MPH_LABELS = 220
-    PTHASH_LABELS = 223
-    PTHASH_LABELS_ORDER = 226
+    PTHASH_LABELS = 220
+    PTHASH_LABELS_ORDER = 225
     FCL_LABELS = 230
     EDGE_LABELS = 240
-    EDGE_LABELS_TRANSPOSE = 245
-    EDGE_LABELS_OBL = 250
-    EDGE_LABELS_TRANSPOSE_OBL = 260
+    EDGE_LABELS_TRANSPOSE = 250
     EDGE_LABELS_EF = 270
     EDGE_LABELS_TRANSPOSE_EF = 280
     CLEAN_TMP = 300
@@ -253,12 +248,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "ef",
         "{out_dir}/{graph_name}",
     ],
-    CompressionStep.OBL: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.BVGraph",
-        "--list",
-        "{out_dir}/{graph_name}",
-    ],
     CompressionStep.STATS: [
         "{java}",
         "it.unimi.dsi.big.webgraph.Stats",
@@ -273,12 +262,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
     CompressionStep.TRANSPOSE_OFFSETS: [
         "{rust_executable_dir}/swh-graph-index",
         "offsets",
-        "{out_dir}/{graph_name}-transposed",
-    ],
-    CompressionStep.TRANSPOSE_OBL: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.BVGraph",
-        "--list",
         "{out_dir}/{graph_name}-transposed",
     ],
     CompressionStep.TRANSPOSE_EF: [
@@ -350,17 +333,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{in_dir}",
         "{out_dir}/{graph_name}",
     ],
-    CompressionStep.MPH_LABELS: [
-        "{java}",
-        "it.unimi.dsi.sux4j.mph.LcpMonotoneMinimalPerfectHashFunction",
-        "--byte-array",
-        "--temp-dir",
-        "{tmp_dir}",
-        "--decompressor",
-        "com.github.luben.zstd.ZstdInputStream",
-        "{out_dir}/{graph_name}.labels.mph",
-        "{out_dir}/{graph_name}.labels.csv.zst",
-    ],
     CompressionStep.PTHASH_LABELS: [
         "{rust_executable_dir}/swh-graph-compress",
         "pthash-labels",
@@ -426,18 +398,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--transposed",
         "{in_dir}",
         "{out_dir}/{graph_name}-transposed",
-    ],
-    CompressionStep.EDGE_LABELS_OBL: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph",
-        "--list",
-        "{out_dir}/{graph_name}-labelled",
-    ],
-    CompressionStep.EDGE_LABELS_TRANSPOSE_OBL: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.labelling.BitStreamArcLabelledImmutableGraph",
-        "--list",
-        "{out_dir}/{graph_name}-transposed-labelled",
     ],
     CompressionStep.EDGE_LABELS_EF: [
         "{rust_executable_dir}/swh-graph-index",

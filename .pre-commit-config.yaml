@@ -54,12 +54,6 @@ repos:
         stages: [pre-push]
         language: python
         additional_dependencies: [twine, build]
-      - id: java-coding-style
-        name: java style
-        entry: mvn
-        args: ["-f", "java/pom.xml", "spotless:apply"]
-        pass_filenames: false
-        language: system
 
   - repo: https://github.com/doublify/pre-commit-rust
     rev: v1.0

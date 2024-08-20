@@ -749,16 +749,6 @@ class Ef(_CompressionStepTask):
         return 0
 
 
-class Obl(_CompressionStepTask):
-    STEP = CompressionStep.OBL
-    INPUT_FILES = {".graph", ".offsets"}
-    OUTPUT_FILES = {".obl"}
-
-    def _large_java_allocations(self) -> int:
-        bvgraph_size = self._bvgraph_allocation()
-        return bvgraph_size
-
-
 class ComposeOrders(_CompressionStepTask):
     STEP = CompressionStep.COMPOSE_ORDERS
     INPUT_FILES = {"-llp.order", "-bfs.order"}
@@ -821,16 +811,6 @@ class TransposeEf(_CompressionStepTask):
 
     def _large_java_allocations(self) -> int:
         return 0
-
-
-class TransposeObl(_CompressionStepTask):
-    STEP = CompressionStep.TRANSPOSE_OBL
-    INPUT_FILES = {"-transposed.graph", "-transposed.offsets"}
-    OUTPUT_FILES = {"-transposed.obl"}
-
-    def _large_java_allocations(self) -> int:
-        bvgraph_size = self._bvgraph_allocation()
-        return bvgraph_size
 
 
 class Maps(_CompressionStepTask):
@@ -945,36 +925,6 @@ class NodeProperties(_CompressionStepTask):
         return self._mph_size() + self._persons_mph_size() + subtask_size
 
 
-class MphLabels(_CompressionStepTask):
-    STEP = CompressionStep.MPH_LABELS
-    INPUT_FILES = {".labels.csv.zst"}
-    OUTPUT_FILES = {".labels.mph"}
-
-    def _large_java_allocations(self) -> int:
-        import multiprocessing
-
-        # TODO: compute memory_per_thread dynamically
-        memory_per_thread = 4_000_000
-
-        # https://github.com/vigna/Sux4J/blob/e9fd7412204272a2796e3038e95beb1d8cbc244a/src/it/unimi/dsi/sux4j/mph/GOV3Function.java#L425
-        bucket_size = 1500
-
-        # https://github.com/vigna/Sux4J/blob/e9fd7412204272a2796e3038e95beb1d8cbc244a/src/it/unimi/dsi/sux4j/mph/GOV3Function.java#L514
-        num_buckets = int(self._nb_nodes() / bucket_size) + 1
-
-        # https://github.com/vigna/Sux4J/blob/e9fd7412204272a2796e3038e95beb1d8cbc244a/src/it/unimi/dsi/sux4j/mph/GOV3Function.java#L519
-        offsets_and_seeds_size = num_buckets * 8
-
-        # why is this needed?
-        extra_size = self._nb_nodes()
-
-        return (
-            memory_per_thread * multiprocessing.cpu_count()
-            + offsets_and_seeds_size
-            + extra_size
-        )
-
-
 class PthashLabels(_CompressionStepTask):
     STEP = CompressionStep.PTHASH_LABELS
     INPUT_FILES = {".labels.csv.zst", ".labels.count.txt"}
@@ -1076,48 +1026,6 @@ class EdgeLabelsTranspose(_CompressionStepTask):
         )
 
 
-class EdgeLabelsObl(_CompressionStepTask):
-    STEP = CompressionStep.EDGE_LABELS_OBL
-    INPUT_FILES = {
-        "-labelled.labeloffsets",
-        "-labelled.labels",
-        "-labelled.properties",
-    }
-    EXPORT_AS_INPUT = True
-    OUTPUT_FILES = {
-        "-labelled.labelobl",
-    }
-
-    def _large_java_allocations(self) -> int:
-        # "an element occupies a number of bits bounded by two plus the logarithm of
-        # the average gap."
-        # https://sux4j.di.unimi.it/docs/it/unimi/dsi/sux4j/util/EliasFanoMonotoneLongBigList.html
-        # The number of elements is the number of nodes; and 22 should be way over
-        # the logarithm
-        offsets_size = self._nb_nodes() * 24
-
-        return offsets_size
-
-
-class EdgeLabelsTransposeObl(_CompressionStepTask):
-    STEP = CompressionStep.EDGE_LABELS_TRANSPOSE_OBL
-    INPUT_FILES = {
-        "-transposed-labelled.labeloffsets",
-        "-transposed-labelled.labels",
-        "-transposed-labelled.properties",
-    }
-    EXPORT_AS_INPUT = True
-    OUTPUT_FILES = {
-        "-transposed-labelled.labelobl",
-    }
-
-    def _large_java_allocations(self) -> int:
-        # See EdgeLabelsObl._large_java_allocations
-        offsets_size = self._nb_nodes() * 24
-
-        return offsets_size
-
-
 class EdgeLabelsEf(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS_EF
     INPUT_FILES = {"-labelled.labels", "-labelled.labeloffsets"}
@@ -1195,8 +1103,6 @@ class CompressGraph(luigi.Task):
             label_tasks = [
                 EdgeStats(**kwargs),
                 LabelStats(**kwargs),
-                EdgeLabelsObl(**kwargs),
-                EdgeLabelsTransposeObl(**kwargs),
                 FclLabels(**kwargs),
                 EdgeLabelsEf(**kwargs),
                 EdgeLabelsTransposeEf(**kwargs),
@@ -1209,8 +1115,6 @@ class CompressGraph(luigi.Task):
             ),
             NodeStats(**kwargs),
             Stats(**kwargs),
-            Obl(**kwargs),
-            TransposeObl(**kwargs),
             TransposeEf(**kwargs),
             Maps(**kwargs),
             NodeProperties(**kwargs),
