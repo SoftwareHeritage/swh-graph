@@ -21,9 +21,9 @@ use crate::properties::suffixes;
 use crate::utils::suffix_path;
 use crate::NodeType;
 
-pub struct PropertyWriter<SWHIDMPHF: SwhidMphf> {
+pub struct PropertyWriter<'b, SWHIDMPHF: SwhidMphf> {
     pub swhid_mph: SWHIDMPHF,
-    pub person_mph: Option<crate::java_compat::mph::gov::GOVMPH>,
+    pub person_mph: Option<super::persons::PersonHasher<'b>>,
     pub order: MappedPermutation,
     pub num_nodes: usize,
     pub dataset_dir: PathBuf,
@@ -31,7 +31,7 @@ pub struct PropertyWriter<SWHIDMPHF: SwhidMphf> {
     pub target: PathBuf,
 }
 
-impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
+impl<'b, SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'b, SWHIDMPHF> {
     fn for_each_row<Row>(&self, subdirectory: &str, f: impl FnMut(Row) -> Result<()>) -> Result<()>
     where
         Row: ArRowDeserialize + ArRowStruct + Send + Sync,
@@ -322,10 +322,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
                 let swhid = format!("swh:1:{}:{}", type_, r.id);
                 let base64 = base64_simd::STANDARD;
                 let person = base64.encode_to_string(person).into_bytes();
-                let person_id: u32 = person_mph
-                    .get_byte_array(&person)
-                    .try_into()
-                    .expect("Person id overflows u32");
+                let person_id: u32 = person_mph.hash(person).expect("Unknown person");
                 self.set_atomic(&authors, &swhid, person_id.to_be());
             }
         };
@@ -377,10 +374,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<SWHIDMPHF> {
                 let swhid = format!("swh:1:rev:{}", rev.id);
                 let base64 = base64_simd::STANDARD;
                 let person = base64.encode_to_string(person).into_bytes();
-                let person_id: u32 = person_mph
-                    .get_byte_array(&person)
-                    .try_into()
-                    .expect("Person id overflows u32");
+                let person_id: u32 = person_mph.hash(person).expect("Unknown person");
                 self.set_atomic(&committers, &swhid, person_id.to_be());
             }
         })?

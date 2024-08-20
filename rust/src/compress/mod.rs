@@ -48,6 +48,8 @@ pub mod orc;
 #[cfg(feature = "orc")]
 pub mod properties;
 
+pub mod persons;
+
 #[cfg(feature = "orc")]
 pub mod stats;
 

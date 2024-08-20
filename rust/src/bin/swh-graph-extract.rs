@@ -693,16 +693,22 @@ pub fn main() -> Result<()> {
             let person_mph = if allowed_node_types.contains(&NodeType::Revision)
                 || allowed_node_types.contains(&NodeType::Release)
             {
+                use pthash::Phf;
+
                 let Some(person_function) = person_function else {
                     bail!("--person-function must be provided unless --allowed-node-types is set to contain neither 'rev' nor 'rel'.");
                 };
                 Some(
-                    swh_graph::java_compat::mph::gov::GOVMPH::load(&person_function)
+                    swh_graph::compress::persons::PersonMphf::load(&person_function)
                         .with_context(|| format!("Could not load {}", person_function.display()))?,
                 )
             } else {
                 None
             };
+
+            let person_mph = person_mph
+                .as_ref()
+                .map(swh_graph::compress::persons::PersonHasher::new);
 
             match mph_algo {
                 MphAlgorithm::Fmph => {

@@ -64,7 +64,6 @@ class CompressionStep(Enum):
     EXTRACT_PERSONS = 190
     PERSONS_STATS = 195
     MPH_PERSONS = 200
-    CONVERT_MPH_PERSONS = 205
     NODE_PROPERTIES = 210
     MPH_LABELS = 220
     PTHASH_LABELS = 223
@@ -324,26 +323,22 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}.persons/",
     ],
     CompressionStep.MPH_PERSONS: [
-        "{java}",
-        "it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction",
-        "--byte-array",
-        "--decompressor",
-        "com.github.luben.zstd.ZstdInputStream",
-        "--temp-dir",
-        "{tmp_dir}",
-        "{out_dir}/{graph_name}.persons.mph",
-        "<(cat {out_dir}/{graph_name}.persons/persons.csv.*.zst)",
+        # skip this step when compressing a graph with no revisions or releases
+        'if [[ $(cat {out_dir}/{graph_name}.persons.count.txt) != "0" ]]; then\n',
+        "{rust_executable_dir}/swh-graph-compress",
+        "pthash-labels",
+        "--num-labels",
+        "$(cat {out_dir}/{graph_name}.persons.count.txt)",
+        "<(zstdcat {out_dir}/{graph_name}.persons/persons.csv.*.zst)",
+        "{out_dir}/{graph_name}.persons.pthash\n",
+        "else\n",
+        "echo '' > {out_dir}/{graph_name}.persons.pthash;",
+        "fi",
     ],
     CompressionStep.PERSONS_STATS: [
         "zstdcat {out_dir}/{graph_name}.persons/persons.csv.*.zst "
         "| wc -l"
         "> {out_dir}/{graph_name}.persons.count.txt",
-    ],
-    CompressionStep.CONVERT_MPH_PERSONS: [
-        "{java}",
-        "org.softwareheritage.graph.utils.Mph2Cmph",
-        "{out_dir}/{graph_name}.persons.mph",
-        "{out_dir}/{graph_name}.persons.cmph",
     ],
     CompressionStep.NODE_PROPERTIES: [
         "{rust_executable_dir}/swh-graph-extract",
@@ -359,7 +354,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--order",
         "{out_dir}/{graph_name}.order",
         "--person-function",
-        "{out_dir}/{graph_name}.persons.cmph",
+        "{out_dir}/{graph_name}.persons.pthash",
         "--num-nodes",
         "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
         "{in_dir}",

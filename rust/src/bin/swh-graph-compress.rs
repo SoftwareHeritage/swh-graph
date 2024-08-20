@@ -151,6 +151,14 @@ enum Commands {
         rcl: PathBuf,
     },
 
+    /// Builds a MPH from the given a stream of opaque lines
+    PthashPersons {
+        #[arg(long)]
+        num_persons: usize,
+        persons: PathBuf,
+        output_mphf: PathBuf,
+    },
+
     /// Builds a MPH from the given a stream of base64-encoded labels
     PthashLabels {
         #[arg(long)]
@@ -546,6 +554,19 @@ pub fn main() -> Result<()> {
             );
             rcl.serialize(&mut rcl_file)
                 .context("Could not write RCL")?;
+        }
+
+        Commands::PthashPersons {
+            num_persons,
+            persons,
+            output_mphf,
+        } => {
+            use pthash::Phf;
+
+            let mut mphf = swh_graph::compress::persons::build_mphf(persons, num_persons)?;
+            log::info!("Saving MPHF...");
+            mphf.save(&output_mphf)
+                .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
         }
 
         Commands::PthashLabels {

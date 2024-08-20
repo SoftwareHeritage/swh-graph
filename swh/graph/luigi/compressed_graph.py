@@ -880,27 +880,16 @@ class PersonsStats(_CompressionStepTask):
 class MphPersons(_CompressionStepTask):
     STEP = CompressionStep.MPH_PERSONS
     INPUT_FILES = {".persons/", ".persons.count.txt"}
-    OUTPUT_FILES = {".persons.mph"}
+    OUTPUT_FILES = {".persons.pthash"}
 
     def _large_java_allocations(self) -> int:
         bitvector_size = _govmph_bitarray_size(self._nb_persons())
         return bitvector_size
 
 
-class ConvertMphPersons(_CompressionStepTask):
-    STEP = CompressionStep.CONVERT_MPH_PERSONS
-    INPUT_FILES = {".persons.mph"}
-    OUTPUT_FILES = {".persons.cmph"}
-
-    def _large_java_allocations(self) -> int:
-        bitvector_size = _govmph_bitarray_size(self._nb_nodes())
-        extra_size = self._nb_nodes()  # TODO: why is this needed?
-        return bitvector_size + extra_size
-
-
 class NodeProperties(_CompressionStepTask):
     STEP = CompressionStep.NODE_PROPERTIES
-    INPUT_FILES = {".order", ".cmph", ".persons.cmph", ".node2swhid.bin"}
+    INPUT_FILES = {".order", ".cmph", ".persons.pthash", ".node2swhid.bin"}
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
         ".property.content.is_skipped.bits",
@@ -1238,7 +1227,6 @@ class CompressGraph(luigi.Task):
             TransposeEf(**kwargs),
             Maps(**kwargs),
             NodeProperties(**kwargs),
-            ConvertMphPersons(**kwargs),
             *label_tasks,
         ]
 
