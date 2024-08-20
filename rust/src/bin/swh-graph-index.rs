@@ -7,9 +7,11 @@
 
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use clap::{Parser, Subcommand};
 use dsi_bitstream::prelude::BE;
+
+use swh_graph::utils::suffix_path;
 
 #[derive(Parser, Debug)]
 #[command(about = "Commands to (re)generate `.ef` and `.offsets` files, allowing random access to BVGraph", long_about = None)]
@@ -80,6 +82,17 @@ pub fn main() -> Result<()> {
             num_nodes,
         } => {
             use webgraph::cli::build::ef::{build_eliasfano, CliArgs};
+
+            // webgraph shows a very obscure error when it happens (failed `.unwrap()`
+            // when reading `nodes=` property on the `.properties` file),
+            // so we should catch it here.
+            let offsets_path = suffix_path(&base_path, ".labeloffsets");
+            ensure!(
+                offsets_path.exists(),
+                "{} is missing",
+                offsets_path.display()
+            );
+
             build_eliasfano::<BE>(CliArgs {
                 src: base_path,
                 n: Some(num_nodes),
