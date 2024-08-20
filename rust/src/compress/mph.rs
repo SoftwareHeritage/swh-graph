@@ -36,8 +36,11 @@ pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidP
         .collect();
     let temp_dir = tempfile::tempdir().unwrap();
 
-    // TODO: tweak those for performance
+    // Tuned by zack on the 2023-09-06 graph on a machine with two Intel Xeon Gold 6342 CPUs
     let mut config = BuildConfiguration::new(temp_dir.path().to_owned());
+    config.c = 5.;
+    config.alpha = 0.94;
+    config.num_partitions = num_nodes.div_ceil(10000000) as u64;
     config.num_threads = num_cpus::get() as u64;
 
     log::info!("Building MPH with parameters: {:?}", config);
