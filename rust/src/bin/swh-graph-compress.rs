@@ -16,8 +16,10 @@ use clap::{Parser, Subcommand, ValueEnum};
 use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
-use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
 use webgraph::prelude::*;
+
+use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
+use swh_graph::mph::SwhidPthash;
 
 #[derive(Parser, Debug)]
 #[command(about = "Commands to run individual steps of the pipeline to compress a graph from an initial not-very-compressed BvGraph", long_about = None)]
@@ -151,6 +153,14 @@ enum Commands {
         rcl: PathBuf,
     },
 
+    /// Builds a MPH from the given a stream of textual SWHIDs
+    PthashSwhids {
+        #[arg(long)]
+        num_nodes: usize,
+        swhids: PathBuf,
+        output_mphf: PathBuf,
+    },
+
     /// Builds a MPH from the given a stream of opaque lines
     PthashPersons {
         #[arg(long)]
@@ -179,6 +189,7 @@ enum Commands {
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum MphAlgorithm {
+    Pthash,
     Fmph,
     Cmph,
 }
@@ -228,6 +239,9 @@ pub fn main() -> Result<()> {
                                 .into()
                         }
                         MphAlgorithm::Fmph => fmph::Function::load(function)
+                            .context("Cannot load mph")?
+                            .into(),
+                        MphAlgorithm::Pthash => SwhidPthash::load(function)
                             .context("Cannot load mph")?
                             .into(),
                     };
@@ -438,6 +452,11 @@ pub fn main() -> Result<()> {
 
             log::info!("Permutation loaded, reading MPH");
             let swhids = match mph_algo {
+                MphAlgorithm::Pthash => {
+                    let mph = SwhidPthash::load(function).context("Cannot load mph")?;
+                    log::info!("MPH loaded, reading and hashing SWHIDs");
+                    ordered_swhids(&swhids_dir, order, mph, num_nodes)?
+                }
                 MphAlgorithm::Fmph => {
                     let mph = fmph::Function::load(function).context("Cannot load mph")?;
                     log::info!("MPH loaded, reading and hashing SWHIDs");
@@ -554,6 +573,20 @@ pub fn main() -> Result<()> {
             );
             rcl.serialize(&mut rcl_file)
                 .context("Could not write RCL")?;
+        }
+
+        Commands::PthashSwhids {
+            num_nodes,
+            swhids,
+            output_mphf,
+        } => {
+            use pthash::Phf;
+
+            let mut mphf = swh_graph::compress::mph::build_swhids_mphf(swhids, num_nodes)?;
+            log::info!("Saving MPHF...");
+            mphf.0
+                .save(&output_mphf)
+                .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
         }
 
         Commands::PthashPersons {

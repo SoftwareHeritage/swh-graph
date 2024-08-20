@@ -18,7 +18,9 @@ use dsi_progress_logger::ProgressLogger;
 use itertools::Itertools;
 use ph::fmph;
 use rayon::prelude::*;
+
 use swh_graph::map::{MappedPermutation, Permutation};
+use swh_graph::mph::SwhidPthash;
 use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::NodeType;
 
@@ -195,6 +197,7 @@ enum Commands {
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum MphAlgorithm {
+    Pthash,
     Fmph,
     Cmph,
 }
@@ -514,6 +517,15 @@ pub fn main() -> Result<()> {
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             match mph_algo {
+                MphAlgorithm::Pthash => swh_graph::compress::bv::bv::<SwhidPthash>(
+                    sort_batch_size,
+                    partitions_per_thread,
+                    function,
+                    num_nodes,
+                    dataset_dir,
+                    &allowed_node_types,
+                    target_dir,
+                )?,
                 MphAlgorithm::Fmph => swh_graph::compress::bv::bv::<ph::fmph::Function>(
                     sort_batch_size,
                     partitions_per_thread,
@@ -564,6 +576,18 @@ pub fn main() -> Result<()> {
             let label_name_hasher = LabelNameHasher::new(&label_name_mphf, &label_name_order)?;
 
             let label_width = match mph_algo {
+                MphAlgorithm::Pthash => swh_graph::compress::bv::edge_labels::<SwhidPthash>(
+                    sort_batch_size,
+                    partitions_per_thread,
+                    function,
+                    order,
+                    label_name_hasher,
+                    num_nodes,
+                    dataset_dir,
+                    &allowed_node_types,
+                    transposed,
+                    target_dir.as_ref(),
+                )?,
                 MphAlgorithm::Fmph => swh_graph::compress::bv::edge_labels::<ph::fmph::Function>(
                     sort_batch_size,
                     partitions_per_thread,
@@ -711,6 +735,19 @@ pub fn main() -> Result<()> {
                 .map(swh_graph::compress::persons::PersonHasher::new);
 
             match mph_algo {
+                MphAlgorithm::Pthash => {
+                    let swhid_mph = SwhidMphf::load(function).context("Cannot load mph")?;
+                    let property_writer = PropertyWriter {
+                        swhid_mph,
+                        person_mph,
+                        order,
+                        num_nodes,
+                        dataset_dir,
+                        allowed_node_types,
+                        target,
+                    };
+                    f::<SwhidPthash>(property_writer)?;
+                }
                 MphAlgorithm::Fmph => {
                     let swhid_mph = SwhidMphf::load(function).context("Cannot load mph")?;
                     let property_writer = PropertyWriter {

@@ -4,15 +4,49 @@
 // See top-level LICENSE file for more information
 
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use dsi_progress_logger::ProgressLogger;
 use ph::fmph;
+use pthash::{BuildConfiguration, PartitionedPhf, Phf};
 use rayon::prelude::*;
 
 use crate::compress::zst_dir::*;
+use crate::mph::{HashableSWHID, SwhidPthash};
+
+fn par_iter_swhids(
+    swhids_dir: &Path,
+    num_nodes: usize,
+) -> impl ParallelIterator<Item = Vec<u8>> + '_ {
+    let mut pl = ProgressLogger::default().display_memory();
+    pl.item_name = "SWHID";
+    pl.local_speed = true;
+    pl.expected_updates = Some(num_nodes);
+    pl.start("Reading SWHIDs");
+    let pl = Arc::new(Mutex::new(pl));
+    par_iter_lines_from_dir(swhids_dir, pl)
+}
+
+/// Reads textual SWHIDs from the path and return a MPH function for them.
+pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidPthash> {
+    let swhids: Vec<_> = par_iter_swhids(&swhids_dir, num_nodes)
+        .map(HashableSWHID)
+        .collect();
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    // TODO: tweak those for performance
+    let mut config = BuildConfiguration::new(temp_dir.path().to_owned());
+    config.num_threads = num_cpus::get() as u64;
+
+    log::info!("Building MPH with parameters: {:?}", config);
+
+    let mut f = PartitionedPhf::new();
+    f.build_in_internal_memory_from_bytes(&swhids, &config)
+        .context("Failed to build MPH")?;
+    Ok(SwhidPthash(f))
+}
 
 pub fn build_mph<Item>(in_dir: PathBuf, out_mph: PathBuf, item_name: &str) -> Result<()>
 where

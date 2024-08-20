@@ -578,30 +578,17 @@ class LabelStats(_CompressionStepTask):
 
 class Mph(_CompressionStepTask):
     STEP = CompressionStep.MPH
-    INPUT_FILES = {".nodes/"}
-    OUTPUT_FILES = {".mph"}
+    INPUT_FILES = {".nodes/", ".nodes.count.txt"}
+    OUTPUT_FILES = {".pthash"}
 
     def _large_java_allocations(self) -> int:
-        bitvector_size = _govmph_bitarray_size(self._nb_nodes())
-        extra_size = self._nb_nodes()  # TODO: why is this needed?
-        return bitvector_size + extra_size
-
-
-class ConvertMph(_CompressionStepTask):
-    STEP = CompressionStep.CONVERT_MPH
-    INPUT_FILES = {".mph"}
-    OUTPUT_FILES = {".cmph"}
-
-    def _large_java_allocations(self) -> int:
-        bitvector_size = _govmph_bitarray_size(self._nb_nodes())
-        extra_size = self._nb_nodes()  # TODO: why is this needed?
-        return bitvector_size + extra_size
+        return 0
 
 
 class Bv(_CompressionStepTask):
     STEP = CompressionStep.BV
     EXPORT_AS_INPUT = True
-    INPUT_FILES = {".cmph"}
+    INPUT_FILES = {".pthash"}
     OUTPUT_FILES = {"-base.graph"}
 
     def _large_java_allocations(self) -> int:
@@ -643,7 +630,7 @@ class BfsRoots(_CompressionStepTask):
 
 class Bfs(_CompressionStepTask):
     STEP = CompressionStep.BFS
-    INPUT_FILES = {"-base.graph", "-base.ef", "-bfs.roots.txt", ".cmph"}
+    INPUT_FILES = {"-base.graph", "-base.ef", "-bfs.roots.txt", ".pthash"}
     OUTPUT_FILES = {"-bfs.order"}
 
     def _large_java_allocations(self) -> int:
@@ -710,7 +697,7 @@ class Llp(_CompressionStepTask):
 
 class PermuteLlp(_CompressionStepTask):
     STEP = CompressionStep.PERMUTE_LLP
-    INPUT_FILES = {".order", "-base.graph", "-base.offsets"}
+    INPUT_FILES = {".pthash.order", "-base.graph", "-base.offsets"}
     OUTPUT_FILES = {".graph", ".properties"}
 
     def _large_java_allocations(self) -> int:
@@ -775,7 +762,7 @@ class Obl(_CompressionStepTask):
 class ComposeOrders(_CompressionStepTask):
     STEP = CompressionStep.COMPOSE_ORDERS
     INPUT_FILES = {"-llp.order", "-bfs.order"}
-    OUTPUT_FILES = {".order"}
+    OUTPUT_FILES = {".pthash.order"}
 
     def _large_java_allocations(self) -> int:
         permutation_size = self._nb_nodes() * 8  # longarray
@@ -848,7 +835,7 @@ class TransposeObl(_CompressionStepTask):
 
 class Maps(_CompressionStepTask):
     STEP = CompressionStep.MAPS
-    INPUT_FILES = {".mph", ".order", ".nodes/"}
+    INPUT_FILES = {".pthash", ".pthash.order", ".nodes/"}
     OUTPUT_FILES = {".node2swhid.bin"}
 
     def _large_java_allocations(self) -> int:
@@ -889,7 +876,7 @@ class MphPersons(_CompressionStepTask):
 
 class NodeProperties(_CompressionStepTask):
     STEP = CompressionStep.NODE_PROPERTIES
-    INPUT_FILES = {".order", ".cmph", ".persons.pthash", ".node2swhid.bin"}
+    INPUT_FILES = {".pthash.order", ".pthash", ".persons.pthash", ".node2swhid.bin"}
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
         ".property.content.is_skipped.bits",
@@ -1024,9 +1011,9 @@ class EdgeLabels(_CompressionStepTask):
     INPUT_FILES = {
         ".labels.pthash",
         ".labels.pthash.order",
-        ".mph",
+        ".pthash",
         ".graph",
-        ".order",
+        ".pthash.order",
         ".node2swhid.bin",
         ".properties",
         "-transposed.properties",
@@ -1059,9 +1046,9 @@ class EdgeLabelsTranspose(_CompressionStepTask):
     INPUT_FILES = {
         ".labels.pthash",
         ".labels.pthash.order",
-        ".mph",
         ".graph",
-        ".order",
+        ".pthash",
+        ".pthash.order",
         ".node2swhid.bin",
         ".properties",
         "-transposed.properties",

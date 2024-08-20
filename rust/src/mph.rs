@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -10,6 +10,7 @@ use std::io::BufReader;
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
+use pthash::{DictionaryDictionary, Minimal, MurmurHash2_128, PartitionedPhf, Phf};
 
 use crate::graph::NodeId;
 use crate::java_compat::mph::gov::GOVMPH;
@@ -115,11 +116,56 @@ impl SwhidMphf for GOVMPH {
     }
 }
 
+pub struct SwhidPthash(pub PartitionedPhf<Minimal, MurmurHash2_128, DictionaryDictionary>);
+
+impl SwhidPthash {
+    pub fn load(path: impl AsRef<Path>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let path = path.as_ref();
+        PartitionedPhf::load(path)
+            .with_context(|| format!("Could not load {}", path.display()))
+            .map(SwhidPthash)
+    }
+}
+
+/// Newtype to make SWHID hashable by PTHash
+pub(crate) struct HashableSWHID<T: AsRef<[u8]>>(pub T);
+
+impl<T: AsRef<[u8]>> pthash::Hashable for HashableSWHID<T> {
+    type Bytes<'a> = &'a T where T: 'a;
+    fn as_bytes(&self) -> Self::Bytes<'_> {
+        &self.0
+    }
+}
+
+impl SwhidMphf for SwhidPthash {
+    fn load(basepath: impl AsRef<Path>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let path = suffix_path(basepath, ".pthash");
+        SwhidPthash::load(path)
+    }
+
+    #[inline(always)]
+    fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
+        Some(self.0.hash(HashableSWHID(swhid.as_ref().as_bytes())) as usize)
+    }
+
+    #[inline(always)]
+    fn hash_str_array(&self, swhid: &[u8; 50]) -> Option<NodeId> {
+        Some(self.0.hash(HashableSWHID(swhid)) as usize)
+    }
+}
+
 /// Enum of possible implementations of [`SwhidMphf`].
 ///
 /// Loads either [`ph::fmph::Function`] or [`GOVMPH`]
 /// depending on which file is available at the given path.
 pub enum DynMphf {
+    Pthash(SwhidPthash),
     Fmph(ph::fmph::Function),
     GOV(GOVMPH),
 }
@@ -127,6 +173,7 @@ pub enum DynMphf {
 impl std::fmt::Debug for DynMphf {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            DynMphf::Pthash(_) => write!(f, "DynMphf::Pthash(_)"),
             DynMphf::Fmph(_) => write!(f, "DynMphf::Fmph(_)"),
             DynMphf::GOV(_) => write!(f, "DynMphf::GOV(_)"),
         }
@@ -145,9 +192,22 @@ impl From<ph::fmph::Function> for DynMphf {
     }
 }
 
+impl From<SwhidPthash> for DynMphf {
+    fn from(value: SwhidPthash) -> DynMphf {
+        DynMphf::Pthash(value)
+    }
+}
+
 impl SwhidMphf for DynMphf {
     fn load(basepath: impl AsRef<Path>) -> Result<Self> {
         let basepath = basepath.as_ref();
+
+        let pthash_path = suffix_path(basepath, ".pthash");
+        if pthash_path.exists() {
+            return SwhidMphf::load(basepath)
+                .map(Self::Pthash)
+                .with_context(|| format!("Could not load {}", pthash_path.display()));
+        }
 
         let fmph_path = suffix_path(basepath, ".fmph");
         if fmph_path.exists() {
@@ -164,7 +224,8 @@ impl SwhidMphf for DynMphf {
         }
 
         bail!(
-            "Cannot load MPH function, neither {} nor {} exists.",
+            "Cannot load MPH function, neither {}, {}, nor {} exists.",
+            pthash_path.display(),
             fmph_path.display(),
             gov_path.display()
         );
@@ -173,6 +234,7 @@ impl SwhidMphf for DynMphf {
     #[inline(always)]
     fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
         match self {
+            Self::Pthash(mphf) => mphf.hash_array(swhid),
             Self::Fmph(mphf) => mphf.hash_array(swhid),
             Self::GOV(mphf) => mphf.hash_array(swhid),
         }
@@ -181,6 +243,7 @@ impl SwhidMphf for DynMphf {
     #[inline(always)]
     fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
         match self {
+            Self::Pthash(mphf) => mphf.hash_str(swhid),
             Self::Fmph(mphf) => mphf.hash_str(swhid),
             Self::GOV(mphf) => mphf.hash_str(swhid),
         }
@@ -189,6 +252,7 @@ impl SwhidMphf for DynMphf {
     #[inline(always)]
     fn hash_str_array(&self, swhid: &[u8; 50]) -> Option<NodeId> {
         match self {
+            Self::Pthash(mphf) => mphf.hash_str_array(swhid),
             Self::Fmph(mphf) => mphf.hash_str_array(swhid),
             Self::GOV(mphf) => mphf.hash_str_array(swhid),
         }
@@ -197,6 +261,7 @@ impl SwhidMphf for DynMphf {
     #[inline(always)]
     fn hash_swhid(&self, swhid: &SWHID) -> Option<NodeId> {
         match self {
+            Self::Pthash(mphf) => mphf.hash_swhid(swhid),
             Self::Fmph(mphf) => mphf.hash_swhid(swhid),
             Self::GOV(mphf) => mphf.hash_swhid(swhid),
         }
