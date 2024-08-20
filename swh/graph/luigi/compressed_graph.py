@@ -759,17 +759,6 @@ class ComposeOrders(_CompressionStepTask):
         return permutation_size * 3
 
 
-class Stats(_CompressionStepTask):
-    STEP = CompressionStep.STATS
-    INPUT_FILES = {".graph"}
-    OUTPUT_FILES = {".stats"}
-
-    def _large_java_allocations(self) -> int:
-        indegree_array_size = self._nb_nodes() * 8  # longarray
-        bvgraph_size = self._bvgraph_allocation()
-        return indegree_array_size + bvgraph_size
-
-
 class Transpose(_CompressionStepTask):
     STEP = CompressionStep.TRANSPOSE
     # .obl is an optional input; but we need to make sure it's not being written
@@ -1114,7 +1103,6 @@ class CompressGraph(luigi.Task):
                 object_types=_tables_for_object_types(self.object_types),
             ),
             NodeStats(**kwargs),
-            Stats(**kwargs),
             TransposeEf(**kwargs),
             Maps(**kwargs),
             NodeProperties(**kwargs),

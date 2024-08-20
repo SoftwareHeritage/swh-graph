@@ -53,7 +53,6 @@ class CompressionStep(Enum):
     PERMUTE_LLP = 120
     OFFSETS = 130
     EF = 140
-    STATS = 150
     TRANSPOSE = 160
     TRANSPOSE_OFFSETS = 170
     TRANSPOSE_EF = 175
@@ -246,11 +245,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
     CompressionStep.EF: [
         "{rust_executable_dir}/swh-graph-index",
         "ef",
-        "{out_dir}/{graph_name}",
-    ],
-    CompressionStep.STATS: [
-        "{java}",
-        "it.unimi.dsi.big.webgraph.Stats",
         "{out_dir}/{graph_name}",
     ],
     CompressionStep.TRANSPOSE: [
