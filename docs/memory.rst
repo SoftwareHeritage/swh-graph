@@ -23,48 +23,6 @@ using this environment variable::
 
     TMPDIR=/srv/softwareheritage/ssd/tmp
 
-..
-
-    Direct Loading is currently not available in Rust, only memory-mapping.
-
-    Memory mapping vs Direct loading
-    --------------------------------
-
-    The main dial you can use to manage your memory usage is to chose between
-    memory-mapping and direct-loading the graph data. The different loading modes
-    available when loading the graph are documented in :ref:`swh-graph-java-api`.
-
-    Loading in mapped mode will not load any extra data in RAM, but will instead
-    use the ``mmap(1)`` syscall to put the graph file located on disk in the
-    virtual address space. The Linux kernel will then be free to arbitrarily cache
-    the file, either partially or in its entirety, depending on the available
-    memory space.
-
-    In our experiments, memory-mapping a small graph from a SSD only incurs a
-    relatively small slowdown (about 15-20%). However, when the graph is too big to
-    fit in RAM, the kernel has to constantly invalidate pages to cache newly
-    accessed sections, which incurs a very large performance penalty. A full
-    traversal of a large graph that usually takes about 20 hours when loaded in
-    main memory could take more than a year when mapped from a hard drive!
-
-    When deciding what to direct-load and what to memory-map, here are a few rules
-    of thumb:
-
-    - If you don't need random access to the graph edges, you can consider using
-      the "offline" loading mode. The offsets won't be loaded which will save
-      dozens of gigabytes of RAM.
-
-    - If you only need to query some specific nodes or run trivial traversals,
-      memory-mapping the graph from a HDD should be a reasonable solution that
-      doesn't take an inordinate amount of time. It might be bad for your disks,
-      though.
-
-    - If you are constrained in available RAM, memory-mapping the graph from an SSD
-      offers reasonable performance for reasonably complex algorithms.
-
-    - If you have a heavy workload (i.e. running a full traversal of the entire
-      graph) and you can afford the RAM, direct loading will be orders of magnitude
-      faster than all the above options.
 
 
 Sharing mapped data across processes
