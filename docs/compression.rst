@@ -170,13 +170,12 @@ as well as chapters 9 and 10 of Antoine Pietri's PhD thesis
 
 .. _graph-compression-extract-nodes:
 
-1. EXTRACT_NODES
-----------------
+EXTRACT_NODES
+-------------
 
 This step reads a graph dataset and extract all the unique node SWHIDs it
 contains, including the ones that are not stored as actual objects in the
-graph, but only *referred to* by the edges.  Additionally, it extracts the set
-of all unique edge labels in the graph.
+graph, but only *referred to* by the edges.
 
 **Rationale:** Because the graph can contain holes, loose objects and dangling
 objects, some nodes that are referred to as destinations in the edge
@@ -190,10 +189,36 @@ set of all the unique nodes and unique labels that will be needed as an input
 for the compression process. It also write object count statistics in various
 files:
 
-- The set of nodes is written in ``graph.nodes.csv.zst``, as a zst-compressed
-  sorted list of SWHIDs, one per line.
+- The set of nodes is written in ``graph.nodes/*.csv.zst``, as a zst-compressed
+  sorted list of SWHIDs, one per line, sharded into multiple files.
+
+
+.. _graph-compression-extract-labels:
+
+EXTRACT_LABELS
+--------------
+
+This step works similarly to :ref:`graph-compression-extract-nodes`, but
+instead of extracting node SWHIDs, it extracts the set of all unique edge
+labels in the graph.
+
 - The set of edge labels is written in ``graph.labels.csv.zst``, as a
   zst-compressed sorted list of labels encoded in base64, one per line.
+
+.. _graph-compression-node-stats:
+.. _graph-compression-edge-stats:
+.. _graph-compression-label-stats:
+
+NODE_STATS / EDGE_STATS / LABEL_STATS
+-------------------------------------
+
+NODE_STATS and LABEL_STATS read the list of unique SWHIDs and labels produced by
+:ref:`graph-compression-extract-nodes` and :ref:`graph-compression-extract-labels`.
+EDGE_STATS reads the ORC files themselves.
+
+They then produce the total number of nodes/edges/labels, as well as the number
+of nodes and edges of each type.
+
 - The number of unique nodes referred to in the graph is written in a text
   file, ``graph.nodes.count.txt``
 - The number of unique edges referred to in the graph is written in a text
@@ -207,8 +232,8 @@ files:
 
 .. _graph-compression-mph:
 
-2. MPH
-------
+MPH
+---
 
 As discussed in the `Rust API tutorial <https://docs.rs/swh-graph/latest/swh_graph/_tutorial/index.html>`_.)
 , a node in the Software Heritage
@@ -217,42 +242,46 @@ identifiers <persistent-identifiers>`), but WebGraph internally uses integers
 to refer to node ids.
 
 To create a mapping between integer node IDs and SWHIDs, we use the
-`GOVMinimalPerfectHashFunction
-<http://sux.di.unimi.it/docs/it/unimi/dsi/sux4j/mph/GOVMinimalPerfectHashFunction.html>`_
-class of the `Sux4J <http://sux.di.unimi.it/>`_ library, which maps N keys to N
+`pthash::PartitionedPhf<Minimal, MurmurHash2_128, DictionaryDictionary> <https://docs.rs/pthash/latest/pthash/struct.PartitionedPhf.html>`_
+structure, which (like any Minimal Perfect Hash function) maps N keys to N
 consecutive integers.
 
 We run this function on the list of SWHIDs stored in the
-``graph.nodes.csv.zst`` file generated in the previous step.
+``graph.nodes/*.csv.zst`` file generated in the previous step.
 This allows us to generate a bijection from the set of all the *n* SWHIDs in the
 graph to the set of integers :math:`[0, n - 1]`.
 
-The step produces a ``graph.mph`` file (MPH stands for *Minimal Perfect
-Hash-function*), containing a function which takes a SWHID (as a bytestring)
-and returns its associated node ID.
+The step produces a ``graph.pthash`` file, containing a function which takes a SWHID
+(as a bytestring) and returns its associated node ID.
+
+.. note::
+
+   Graphs produced before 2024-08-20 has a ``graph.mph``, which is a (Java-specific)
+   serialization of the
+   `GOVMinimalPerfectHashFunction <http://sux.di.unimi.it/docs/it/unimi/dsi/sux4j/mph/GOVMinimalPerfectHashFunction.html>`_
+   class of the `Sux4J <http://sux.di.unimi.it/>`_ library, instead of ``graph.pthash``,
+   as well as a ``graph.cmph`` which is a portable representation of the same data.
+
 
 .. _graph-compression-bv-compress:
 
-3. BV compress
---------------
+BV compress
+-----------
 
 This is the first actual compression step, where we build a compressed version
 of the input graph dataset.
 
-We use a ScatteredArcsORCGraph to load the dataset
-(implementation inspired of the `ScatteredArcsASCIIGraph
-<http://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/ScatteredArcsASCIIGraph.html>`_
-class in WebGraph).
-This class wraps the ORC Graph dataset and exposes a *virtual* ImmutableGraph,
-whose nodes and edges can be iterated sequentially as if it was any other
-standard graph. To do so, it puts all the edges in batches and sorts them in an
-aggressively parallel fashion, then stores them as ``.bitstream`` files, and
-returns a `BatchGraph
-<https://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.BatchGraph.html>`_
-created from these batches.
+This works by iterating through arcs in the ORC Graph dataset, turning it into
+pairs of integers using the MPH obtained at the :ref:`previous step <graph-compression-mph>`,
+then sorting them in an aggressively parallel fashion, then stores them as ``.bitstream`` files.
 
-Finally, it uses the ``BVGraph.store()`` method, which compresses the input
-graph as a `BVGraph
+These ``.bitstream`` are then opened again by `BatchIterator <https://docs.rs/webgraph/latest/webgraph/utils/sort_pairs/struct.BatchIterator.html>`_, then
+`merged <https://docs.rs/webgraph/latest/webgraph/utils/sort_pairs/struct.KMergeIters.html>`_
+into an an `ArcListGraph <https://docs.rs/webgraph/latest/webgraph/graphs/arc_list_graph/struct.ArcListGraph.html>`.
+
+This ArcListGraph is then read by
+`BvComp <https://docs.rs/webgraph/latest/webgraph/graphs/bvgraph/struct.BvComp.html>`_
+which compresses it as a `BVGraph
 <https://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/BVGraph.html>`_,
 using the compression techniques described in the article *The WebGraph
 Framework I: Compression Techniques* cited above.
@@ -260,14 +289,25 @@ Framework I: Compression Techniques* cited above.
 The resulting BV graph is stored as a set of files:
 
 - ``graph-base.graph``: the compressed graph in the BV format
-- ``graph-base.offsets``: offsets values to read the bit stream graph file
 - ``graph-base.properties``: entries used to correctly decode graph and offset
   files
 
+.. _graph-compression-bv-ef:
+
+BV_EF
+-----
+
+These steps produce the following file, which allows random access in the graph:
+
+- ``graph-base.ef``: offsets values to read the bit stream graph file, compressed
+  using an `Elias-Fano representation <https://docs.rs/sux/latest/sux/dict/elias_fano/struct.EliasFano.html>`_
+  and encoded with `epserde <https://docs.rs/epserde/>`.
+
+.. _graph-compression-bfs-roots:
 .. _graph-compression-bfs:
 
-4. BFS
-------
+BFS / BFS_ROOTS
+---------------
 
 In [LLP]_, the paper authors empirically demonstrate that a high graph
 compression ratio can be achieved for the graph of the Web by ordering nodes
@@ -283,47 +323,45 @@ compression-friendly ordering of nodes. We use the `BFS
 <http://law.di.unimi.it/software/law-docs/it/unimi/dsi/law/big/graph/BFS.html>`_
 class from the `LAW <http://law.di.unimi.it/>`_ library.
 
+As an extra optimization, we make the BFS traversal start from origin nodes,
+sorted by their URL after splitting it on ``/`` and reversing the order of components
+to cluster similar projects/forks together.
+This list is stored in ``graph-bfs.roots.txt``
+
 The resulting ordering is stored in a ``graph-bfs.order`` file, which contains
 all the node IDs in the order of traversal.
 
-.. _graph-compression-permute-bfs:
+.. _graph-compression-permute-bfs-and-simplify-bfs:
+.. _graph-compression-permute-bfs-ef:
+.. _graph-compression-permute-bfs-dcf:
 
-5. PERMUTE_BFS
---------------
+PERMUTE_AND_SIMPLIFY_BFS / BFS_EF / BFS_DCF
+-------------------------------------------
 
 Once the BFS order is computed, we permute the initial "base" graph using the
-this new ordering. The permutation uses the `Transform
-<http://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.html>`_
-class from WebGraph framework.
+this new ordering and add the reverse of every arc.
 
-The BFS-compressed graph is stored in the files
-``graph-bfs.{graph,offsets,properties}``.
+The BFS-compressed graph is stored in the files:
 
-.. _graph-compression-transpose-bfs:
+- ``graph-bfs.graph``
+- ``graph-bfs.properties``
 
-6. TRANSPOSE_BFS
-----------------
+.. note::
 
-We transpose the BFS-compressed graph, using the `Transform
-<http://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.html>`_
-class from WebGraph.
-This step is a prerequisite for LLP compression.
+   In the Java implementation this was done in three steps (permute, transpose,
+   simplify) using the `Transform <http://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.html>`_
+   class; but in the current Rust implementation we do all three at once, saving
+   time by avoiding two BV compressions.
 
-.. _graph-compression-simplify:
+The BFS_EF and BFS_DCF steps then produce the following files:
 
-7. SIMPLIFY
------------
-
-This step creates a loopless and symmetric version of the BFS-compressed graph,
-using the `Transform
-<http://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.html>`_
-class from WebGraph.
-This step is a prerequisite for LLP compression.
+- ``graph-bfs.ef``: offsets to allow random-access to the graph
+- ``graph-bfs.dcf``: degree-cumulative function, to distribute load evenly in the next step
 
 .. _graph-compression-llp:
 
-8. LLP
-------
+LLP
+---
 
 Better compression ratios can be achieved by the Layered Label Propagation
 (LLP) algorithm to reorder nodes. This algorithm is described in [LLP]_.
@@ -373,77 +411,58 @@ useful.
 The resulting ordering is stored in a ``graph-llp.order`` file.
 
 .. _graph-compression-permute-llp:
+.. _graph-compression-ef:
 
-9. PERMUTE_LLP
---------------
+PERMUTE_LLP / EF
+----------------
 
 Once the LLP order is computed, we permute the BFS-compressed graph using the
 this new ordering. The LLP-compressed graph, which is our final compressed
-graph, is stored in the files ``graph.{graph,offsets,properties}``.
+graph, is stored in the files ``graph.{graph,ef,properties}``.
 
 .. _graph-compression-obl:
 
-10. OBL
--------
+OBL
+---
 
 Cache the BVGraph offsets of the forward graph to make loading faster. The
 resulting offset big list is stored in the ``graph.obl`` file.
 
 .. _graph-compression-compose-orders:
 
-11. COMPOSE_ORDERS
-------------------
+COMPOSE_ORDERS
+--------------
 
 To be able to translate the initial MPH inputs to their resulting rank in the
 LLP-compressed graph, we need to use the two order permutations successively:
 the base → BFS permutation, then the BFS → LLP permutation.
 
 To make this less wasteful, we *compose* the two permutations into a single
-one. We use the `composePermutationsInPlace
-<https://dsiutils.di.unimi.it/docs/it/unimi/dsi/Util.html#composePermutationsInPlace(long%5B%5D%5B%5D,long%5B%5D%5B%5D)>`_
-function of the dsiutils library. The resulting permutation is stored as a
-``graph.order`` file. Hashing a SWHID with the ``graph.mph`` function, then
-permuting the result using the ``graph.order`` permutation yields the integer
+one. The resulting permutation is stored as a
+``graph.pthash.order`` file. Hashing a SWHID with the ``graph.pthash`` function, then
+permuting the result using the ``graph.pthash.order`` permutation yields the integer
 node ID matching the input SWHID in the graph.
 
-.. _graph-compression-stats:
+.. note::
 
-12. STATS
----------
-
-This step computes various statistics on the compressed graph:
-
-- ``.stats``: statistics such as number of nodes, edges, avg/min/max degree,
-  average locality, etc.
-- ``.indegree``: graph indegree distribution
-- ``.outdegree``: graph outdegree distribution
-
-This step uses the `Stats
-<http://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Stats.html>`_
-class from WebGraph.
+   Graphs produced before 2024-08-20 have ``graph.mph`` and ``graph.order`` instead
+   of ``graph.pthash`` and ``graph.pthash.order``.
 
 .. _graph-compression-transpose:
+.. _graph-compression-transpose-offsets:
+.. _graph-compression-transpose-ef:
 
-13. TRANSPOSE
--------------
+TRANSPOSE / TRANSPOSE_OFFSETS / TRANSPOSE_EF
+--------------------------------------------
 
-Transpose the graph to allow backward traversal, using the `Transform
-<http://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.html>`_
-class from WebGraph. The resulting transposed graph is stored as the
+Transpose the graph to allow backward traversal.
+The resulting transposed graph is stored as the
 ``graph-transposed.{graph,offsets,properties}`` files.
-
-.. _graph-compression-transpose-obl:
-
-14. TRANSPOSE_OBL
------------------
-
-Same as OBL, but for the transposed graph. The resulting offset big list is
-stored in the ``graph-transposed.obl`` file.
 
 .. _graph-compression-maps:
 
-15. MAPS
---------
+MAPS
+----
 
 This steps generates the *node mappings* described in
 `Node Types and SWHIDs <https://docs.rs/swh-graph/latest/swh_graph/_tutorial/index.html#node-types-and-swhids>`_.
@@ -457,15 +476,15 @@ In particular, it generates:
 
 It does so by reading all the SWHIDs in the ``graph.nodes.csv.zst`` file generated in the
 EXTRACT_NODES step, then getting their corresponding node IDs (using the
-``.mph`` and ``.order`` files), then sorting all the SWHIDs according to
+``.pthash`` and ``.pthash.order`` files), then sorting all the SWHIDs according to
 their node ID. It then writes these SWHIDs in order, in a compact but seekable
 binary format, which can be used to return the SWHID corresponding to any given
 node in O(1).
 
 .. _graph-compression-extract-persons:
 
-16. EXTRACT_PERSONS
--------------------
+EXTRACT_PERSONS
+---------------
 
 This step reads the ORC graph dataset and extracts all the unique persons it
 contains. Here, "persons" are defined as the set of unique pairs of name +
@@ -474,24 +493,24 @@ committers or release authors.
 
 The ExtractPersons class reads all the persons from revision and release
 tables, then uses ``sort -u`` to get a sorted list without any duplicates. The
-resulting sorted list of authors is stored in the ``graph.persons.csv.zst``
+resulting sorted list of authors is stored in the ``graph.persons/*.csv.zst``
 file.
 
 .. _graph-compression-mph-persons:
 
-17. MPH_PERSONS
----------------
+MPH_PERSONS
+-----------
 
 This step computes a Minimal Perfect Hash function on the set of all the unique
 persons extracted in the EXTRACT_PERSONS step. Each individual person is mapped
 to a unique integer in :math:`[0, n-1]` where *n* is the total number of
 persons. The resulting function is serialized and stored in the
-``graph.persons.mph`` file.
+``graph.persons.pthash`` file.
 
 .. _graph-compression-node-properties:
 
-18. NODE_PROPERTIES
--------------------
+NODE_PROPERTIES
+---------------
 
 This step generates the *node property files*, as described in
 `Node Properties <https://docs.rs/swh-graph/latest/swh_graph/_tutorial/index.html#node-properties>`_.
@@ -516,7 +535,8 @@ The results are stored in the following list of files:
 - ``graph.property.committer_id.bin``
 - ``graph.property.committer_timestamp.bin``
 - ``graph.property.committer_timestamp_offset.bin``
-- ``graph.property.content.is_skipped.bin``
+- ``graph.property.content.is_skipped.bits`` (formerly in ``graph.property.content.is_skipped.bin``
+  which was serialized in a Java-specific format)
 - ``graph.property.content.length.bin``
 - ``graph.property.message.bin``
 - ``graph.property.message.offset.bin``
@@ -524,43 +544,62 @@ The results are stored in the following list of files:
 - ``graph.property.tag_name.offset.bin``
 
 .. _graph-compression-mph-labels:
+.. _graph-compression-labels-order:
 
-19. MPH_LABELS
---------------
+MPH_LABELS / LABELS_ORDER
+-------------------------
 
-This step computes a **monotone** Minimal Perfect Hash function on the set of
-all the unique *arc label names* extracted in the EXTRACT_NODES step. Each
+The MPH_LABELS step computes a Minimal Perfect Hash function on the set of all the unique
+*arc label names* extracted in the :ref:`graph-compression-extract-labels` step. Each
 individual arc label name (i.e., directory entry names and snapshot branch
-names) is monotonely mapped to a unique integer in :math:`[0, n-1]`, where *n*
-is the total number of unique arc label names, which corresponds to their
-**lexical rank** in the set of all arc labels.
+names) is mapped to a unique integer in :math:`[0, n-1]`, where *n*
+is the total number of unique arc label names.
 
-In other words, this MPH being monotone means that the hash of the *k*-th item
-in the sorted input list of arc labels will always be *k*.
-We use the `LcpMonotoneMinimalPerfectHashFunction
-<https://sux.di.unimi.it/docs/it/unimi/dsi/sux4j/mph/LcpMonotoneMinimalPerfectHashFunction.html>`_
-of Sux4J to generate this function.
+Then, LABELS_ORDER computes a permutation so these *n* values can be (uniquely)
+mapped to the position in the sorted list of labels.
 
-The rationale for using a monotone function here is that it will allow us to
-quickly get back the arc label from its hash without having to store an
-additional permutation.
-The resulting MPH function is serialized and stored in the ``graph.labels.mph``
-file.
+The results are stored in:
+
+* ``graph.labels.pthash``
+* ``graph.labels.pthash.order``
+
+.. note::
+
+    This step formerly computed a **monotone** Minimal Perfect Hash function on the set of
+    all the unique *arc label names* extracted in the EXTRACT_NODES step. Each
+    individual arc label name (i.e., directory entry names and snapshot branch
+    names) is monotonely mapped to a unique integer in :math:`[0, n-1]`, where *n*
+    is the total number of unique arc label names, which corresponds to their
+    **lexical rank** in the set of all arc labels.
+
+    In other words, that MPH being monotone meant that the hash of the *k*-th item
+    in the sorted input list of arc labels will always be *k*.
+    We use the `LcpMonotoneMinimalPerfectHashFunction
+    <https://sux.di.unimi.it/docs/it/unimi/dsi/sux4j/mph/LcpMonotoneMinimalPerfectHashFunction.html>`_
+    of Sux4J to generate this function.
+
+    The rationale for using a monotone function here is that it allowed us to
+    quickly get back the arc label from its hash without having to store an
+    additional permutation.
+    The resulting MPH function is serialized and stored in the ``graph.labels.mph``
+    file.
+
+    As PTHash does not support monotone MPHs, we now compute a permutation in
+    :ref:`graph-compression-labels-order` instead.
+
 
 .. _graph-compression-fcl-labels:
 
-20. FCL_LABELS
---------------
+FCL_LABELS
+----------
 
 This step computes a *reverse-mapping* for arc labels, i.e., a way to
-efficiently get the arc label name from its hash computed with the monotone MPH
-of the MPH_LABELS step.
+efficiently get the arc label name from its hash computed with the MPH + permutation
+of the MPH_LABELS and LABELS_ORDER steps.
 
-Thanks to the MPH being monotone, this boils down to storing all the labels in
-lexicographic order in a string list format that allows O(1) access to its
-elements. For this purpose, we use the `MappedFrontCodedStringBigList
+For this purpose, we use a reimplementation of the `MappedFrontCodedStringBigList
 <https://dsiutils.di.unimi.it/docs/it/unimi/dsi/big/util/MappedFrontCodedStringBigList.html>`_
-class from the dsiutils library, using the ``graph.labels.csv.zst`` file as its
+class from the dsiutils library, using the ``graph.labels/*.csv.zst`` files as its
 input. It stores the label names in a compact way by using front-coding
 compression, which is particularly efficient here because the strings are
 already in lexicographic order. The resulting FCL files are stored as
@@ -568,8 +607,8 @@ already in lexicographic order. The resulting FCL files are stored as
 
 .. _graph-compression-edge-labels:
 
-21. EDGE_LABELS
----------------
+EDGE_LABELS
+-----------
 
 
 This step generates the *edge property files*, as described in
@@ -591,9 +630,10 @@ and the entry permission if applicable:
     swh:1:dir:05faa1… swh:1:dir:d0ff82… dGVzdA== 16384
     ...
 
-Using the ``graph.mph`` and the ``graph.order`` files, we hash and permute the
+Using the ``graph.pthash`` and the ``graph.pthash.order`` files, we hash and permute the
 source and destination nodes. We also monotonically hash the labels using the
-``graph.labels.mph`` function to obtain the arc label identifiers. The
+``graph.labels.pthash`` function and its associated ``graph.labels.pthash.order``
+permutation to obtain the arc label identifiers. The
 permissions are normalized as one of the 6 possible values in the
 ``DirEntry.Permission.Type`` enum, and are then stored in the 3 lowest bits of
 the label field.
@@ -638,26 +678,26 @@ equivalent of these files:
 
 .. _graph-compression-edge-labels-obl:
 
-23. EDGE_LABELS_OBL
--------------------
+EDGE_LABELS_EF
+--------------
 
 Cache the label offsets of the forward labelled graph to make loading faster.
 The resulting label offset big list is stored in the
-``graph-labelled.labelobl`` file.
+``graph-labelled.ef`` file.
 
 .. _graph-compression-edge-labels-transpose-obl:
 
-23. EDGE_LABELS_TRANSPOSE_OBL
------------------------------
+EDGE_LABELS_TRANSPOSE_EF
+------------------------
 
-Same as EDGE_LABELS_OBL, but for the transposed labelled graph.
+Same as EDGE_LABELS_EF, but for the transposed labelled graph.
 The resulting label offset big list is stored in the
-``graph-transposed-labelled.labelobl`` file.
+``graph-transposed-labelled.ef`` file.
 
 .. _graph-compression-clean-tmp:
 
-24. CLEAN_TMP
--------------
+CLEAN_TMP
+---------
 
 This step reclaims space by deleting the temporary directory, as well as all
 the intermediate outputs that are no longer necessary now that the final graph
