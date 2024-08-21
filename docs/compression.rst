@@ -109,7 +109,7 @@ will run all the various steps of the pipeline in the right order.
 
 
 (The purpose of each of these files is detailed in the
-:ref:`swh-graph-java-api` page.
+`Rust API tutorial <https://docs.rs/swh-graph/latest/swh_graph/_tutorial/index.html>`_.)
 
 For sufficiently large graphs, this command can take entire weeks. It is highly
 recommended to run it in a systemd service or in a tmux session.
@@ -204,11 +204,13 @@ files:
 - Statistics on the number of edges of each type are written in a text file,
   ``graph.edges.stats.txt``
 
+.. _graph-compression-mph:
 
 2. MPH
 ------
 
-As discussed in :ref:`swh-graph-java-basics`, a node in the Software Heritage
+As discussed in the `Rust API tutorial <https://docs.rs/swh-graph/latest/swh_graph/_tutorial/index.html>`_.)
+, a node in the Software Heritage
 :ref:`data model <data-model>` is identified by its SWHID (see :ref:`persistent
 identifiers <persistent-identifiers>`), but WebGraph internally uses integers
 to refer to node ids.
@@ -418,12 +420,14 @@ class from WebGraph. The resulting transposed graph is stored as the
 Same as OBL, but for the transposed graph. The resulting offset big list is
 stored in the ``graph-transposed.obl`` file.
 
+.. _graph-compression-maps:
 
 15. MAPS
 --------
 
 This steps generates the *node mappings* described in
-:ref:`swh-graph-java-node-mappings`. In particular, it generates:
+`Node Types and SWHIDs <https://docs.rs/swh-graph/latest/swh_graph/_tutorial/index.html#node-types-and-swhids>`_.
+In particular, it generates:
 
 - ``graph.node2swhid.bin``: a compact binary representation of all the
   SWHIDs in the graph, ordered by their rank in the graph file.
@@ -462,12 +466,13 @@ to a unique integer in :math:`[0, n-1]` where *n* is the total number of
 persons. The resulting function is serialized and stored in the
 ``graph.persons.mph`` file.
 
+.. _graph-compression-node-properties:
 
 18. NODE_PROPERTIES
 -------------------
 
 This step generates the *node property files*, as described in
-:ref:`swh-graph-java-node-properties`.
+`Node Properties <https://docs.rs/swh-graph/latest/swh_graph/_tutorial/index.html#node-properties>`_.
 The nodes in the Software Heritage Graph each have associated *properties*
 (e.g., commit timestamps, authors, messages, ...). The values of these
 properties for each node in the graph are compressed and stored in files
@@ -537,13 +542,15 @@ compression, which is particularly efficient here because the strings are
 already in lexicographic order. The resulting FCL files are stored as
 ``graph.labels.fcl.*``, and they can be loaded using memory mapping.
 
+.. _graph-compression-edge-labels:
 
 21. EDGE_LABELS
 ---------------
 
 
 This step generates the *edge property files*, as described in
-:ref:`swh-graph-java-edge-properties`. These files allow us to get the *edge
+`Edge Labels <https://docs.rs/swh-graph/latest/swh_graph/_tutorial/index.html#edge-labels>`.
+These files allow us to get the *edge
 labels* as we iterate on the edges of the graph. The files essentially contain
 compressed sorted triplets of the form (source, destination, label), with
 additional offsets to allow random access.

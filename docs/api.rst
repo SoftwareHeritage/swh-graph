@@ -9,7 +9,7 @@ relatively simple traversal queries on the compressed graph.
 The client/server architecture allows it to only load the graph in memory once
 then serve multiple different requests. However, it is limited in expressivity;
 more complex or resource-intensive queries should rather use the
-:ref:`Low-level Java API <swh-graph-java-api>` to run them as standalone
+`Low-level Rust API <https://docs.rs/swh-graph/>`_ to run them as standalone
 programs.
 
 
