@@ -168,6 +168,7 @@ as well as chapters 9 and 10 of Antoine Pietri's PhD thesis
      <https://hal.archives-ouvertes.fr/tel-03515795/>`_.
    | Doctoral dissertation. Inria, 2021.
 
+.. _graph-compression-extract-nodes:
 
 1. EXTRACT_NODES
 ----------------
@@ -230,6 +231,7 @@ The step produces a ``graph.mph`` file (MPH stands for *Minimal Perfect
 Hash-function*), containing a function which takes a SWHID (as a bytestring)
 and returns its associated node ID.
 
+.. _graph-compression-bv-compress:
 
 3. BV compress
 --------------
@@ -262,6 +264,7 @@ The resulting BV graph is stored as a set of files:
 - ``graph-base.properties``: entries used to correctly decode graph and offset
   files
 
+.. _graph-compression-bfs:
 
 4. BFS
 ------
@@ -283,6 +286,7 @@ class from the `LAW <http://law.di.unimi.it/>`_ library.
 The resulting ordering is stored in a ``graph-bfs.order`` file, which contains
 all the node IDs in the order of traversal.
 
+.. _graph-compression-permute-bfs:
 
 5. PERMUTE_BFS
 --------------
@@ -295,6 +299,8 @@ class from WebGraph framework.
 The BFS-compressed graph is stored in the files
 ``graph-bfs.{graph,offsets,properties}``.
 
+.. _graph-compression-transpose-bfs:
+
 6. TRANSPOSE_BFS
 ----------------
 
@@ -302,6 +308,8 @@ We transpose the BFS-compressed graph, using the `Transform
 <http://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.html>`_
 class from WebGraph.
 This step is a prerequisite for LLP compression.
+
+.. _graph-compression-simplify:
 
 7. SIMPLIFY
 -----------
@@ -311,6 +319,8 @@ using the `Transform
 <http://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Transform.html>`_
 class from WebGraph.
 This step is a prerequisite for LLP compression.
+
+.. _graph-compression-llp:
 
 8. LLP
 ------
@@ -362,6 +372,8 @@ useful.
 
 The resulting ordering is stored in a ``graph-llp.order`` file.
 
+.. _graph-compression-permute-llp:
+
 9. PERMUTE_LLP
 --------------
 
@@ -369,11 +381,15 @@ Once the LLP order is computed, we permute the BFS-compressed graph using the
 this new ordering. The LLP-compressed graph, which is our final compressed
 graph, is stored in the files ``graph.{graph,offsets,properties}``.
 
+.. _graph-compression-obl:
+
 10. OBL
 -------
 
 Cache the BVGraph offsets of the forward graph to make loading faster. The
 resulting offset big list is stored in the ``graph.obl`` file.
+
+.. _graph-compression-compose-orders:
 
 11. COMPOSE_ORDERS
 ------------------
@@ -390,6 +406,8 @@ function of the dsiutils library. The resulting permutation is stored as a
 permuting the result using the ``graph.order`` permutation yields the integer
 node ID matching the input SWHID in the graph.
 
+.. _graph-compression-stats:
+
 12. STATS
 ---------
 
@@ -404,6 +422,7 @@ This step uses the `Stats
 <http://webgraph.di.unimi.it/docs-big/it/unimi/dsi/big/webgraph/Stats.html>`_
 class from WebGraph.
 
+.. _graph-compression-transpose:
 
 13. TRANSPOSE
 -------------
@@ -413,6 +432,7 @@ Transpose the graph to allow backward traversal, using the `Transform
 class from WebGraph. The resulting transposed graph is stored as the
 ``graph-transposed.{graph,offsets,properties}`` files.
 
+.. _graph-compression-transpose-obl:
 
 14. TRANSPOSE_OBL
 -----------------
@@ -442,6 +462,7 @@ their node ID. It then writes these SWHIDs in order, in a compact but seekable
 binary format, which can be used to return the SWHID corresponding to any given
 node in O(1).
 
+.. _graph-compression-extract-persons:
 
 16. EXTRACT_PERSONS
 -------------------
@@ -456,6 +477,7 @@ tables, then uses ``sort -u`` to get a sorted list without any duplicates. The
 resulting sorted list of authors is stored in the ``graph.persons.csv.zst``
 file.
 
+.. _graph-compression-mph-persons:
 
 17. MPH_PERSONS
 ---------------
@@ -501,6 +523,7 @@ The results are stored in the following list of files:
 - ``graph.property.tag_name.bin``
 - ``graph.property.tag_name.offset.bin``
 
+.. _graph-compression-mph-labels:
 
 19. MPH_LABELS
 --------------
@@ -524,6 +547,7 @@ additional permutation.
 The resulting MPH function is serialized and stored in the ``graph.labels.mph``
 file.
 
+.. _graph-compression-fcl-labels:
 
 20. FCL_LABELS
 --------------
@@ -612,6 +636,7 @@ It then does the same with backward edge batches to get the transposed
 equivalent of these files:
 ``graph-transposed-labelled.{properties,labels,labeloffsets}``.
 
+.. _graph-compression-edge-labels-obl:
 
 23. EDGE_LABELS_OBL
 -------------------
@@ -620,6 +645,7 @@ Cache the label offsets of the forward labelled graph to make loading faster.
 The resulting label offset big list is stored in the
 ``graph-labelled.labelobl`` file.
 
+.. _graph-compression-edge-labels-transpose-obl:
 
 23. EDGE_LABELS_TRANSPOSE_OBL
 -----------------------------
@@ -628,6 +654,7 @@ Same as EDGE_LABELS_OBL, but for the transposed labelled graph.
 The resulting label offset big list is stored in the
 ``graph-transposed-labelled.labelobl`` file.
 
+.. _graph-compression-clean-tmp:
 
 24. CLEAN_TMP
 -------------
