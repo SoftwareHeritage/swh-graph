@@ -235,7 +235,11 @@ def reindex(
     graph: str,
     debug: bool,
 ):
-    """Downloads a compressed SWH graph to the given target directory"""
+    """Reindex a SWH GRAPH to the latest graph format.
+
+    GRAPH should be composed of the graph folder followed by the graph prefix
+    (by default "graph") eg. "graph_folder/graph".
+    """
     import os.path
 
     from swh.graph.shell import Rust
