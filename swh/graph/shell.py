@@ -277,49 +277,6 @@ class Command(metaclass=_MetaCommand):
             self.cgroup.rmdir()
 
 
-class Java(Command):
-    def __init__(
-        self,
-        *args: Union[str, Path],
-        max_ram: Optional[int] = None,
-        conf: Optional[Dict[str, Any]] = None,
-    ):
-        import tempfile
-
-        from .config import check_config
-
-        conf = dict(conf or {})
-
-        if max_ram:
-            conf["max_ram"] = max_ram
-
-        conf = check_config(conf)
-        assert conf is not None  # for mypy
-
-        self.logback_conf = tempfile.NamedTemporaryFile(
-            prefix="logback_", suffix=".xml"
-        )
-        self.logback_conf.write(LOGBACK_CONF)
-        self.logback_conf.flush()
-
-        java_tool_options = [
-            f"-Dlogback.configurationFile={self.logback_conf.name}",
-            conf["java_tool_options"],
-        ]
-
-        env = {
-            **os.environ.copy(),
-            "JAVA_TOOL_OPTIONS": " ".join(java_tool_options),
-            "CLASSPATH": conf["classpath"],
-        }
-
-        super().__init__("java", *args, env=env)
-
-    def _cleanup(self) -> None:
-        self.logback_conf.close()
-        super()._cleanup()
-
-
 class Rust(Command):
     def __init__(
         self,

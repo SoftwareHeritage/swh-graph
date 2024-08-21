@@ -21,9 +21,6 @@ include = ["swh.*"]
 [tool.setuptools]
 include-package-data = true
 
-[tool.setuptools.package-data]
-"*" = ["*.jar"]
-
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt", "requirements-swh.txt"]}
 
@@ -48,9 +45,7 @@ testing = {file = [
 
 [build-system]
 requires = ["setuptools", "setuptools-scm"]
-#build-backend = "setuptools.build_meta"
-build-backend = "graph_build"
-backend-path = ["_custom_build"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 fallback_version = "0.0.1"

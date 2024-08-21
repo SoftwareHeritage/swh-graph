@@ -427,7 +427,7 @@ def do_step(step, conf) -> "List[RunResult]":
     step_logger = logger.getChild(f"steps.{step.name.lower()}")
     if not step_logger.isEnabledFor(logging.INFO):
         # Ensure that at least INFO messages are sent, because it is the level we use
-        # for the stdout of Java processes. These processes can take a long time to
+        # for the stdout of Rust processes. These processes can take a long time to
         # run, and it would be very annoying to have to run them again just because
         # they crashed with no log.
         step_logger.setLevel(logging.INFO)
@@ -446,8 +446,6 @@ def do_step(step, conf) -> "List[RunResult]":
         **{k: shlex.quote(str(v)) for (k, v) in conf.items()}
     )
     cmd_env = os.environ.copy()
-    cmd_env["JAVA_TOOL_OPTIONS"] = conf["java_tool_options"]
-    cmd_env["CLASSPATH"] = conf["classpath"]
     cmd_env["TMPDIR"] = conf["tmp_dir"]
     cmd_env["TZ"] = "UTC"
     cmd_env["RUST_MIN_STACK"] = "8388608"  # 8MiB; avoids stack overflows in LLP
@@ -505,14 +503,6 @@ def compress(
           - batch_size: batch size for `WebGraph transformations
             <http://webgraph.di.unimi.it/docs/it/unimi/dsi/webgraph/Transform.html>`_;
             defaults to 1 billion
-          - classpath: java classpath, defaults to swh-graph JAR only
-          - java: command to run java VM, defaults to "java"
-          - java_tool_options: value for JAVA_TOOL_OPTIONS environment
-            variable; defaults to various settings for high memory machines
-          - logback: path to a logback.xml configuration file; if not provided
-            a temporary one will be created and used
-          - max_ram: maximum RAM to use for compression; defaults to available
-            virtual memory
           - tmp_dir: temporary directory, defaults to the "tmp" subdir of
             out_dir
           - object_types: comma-separated list of object types to extract

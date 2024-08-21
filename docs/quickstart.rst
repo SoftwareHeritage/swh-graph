@@ -9,7 +9,7 @@ an existing compressed graph with the high-level HTTP API.
 Dependencies
 ------------
 
-In order to run the ``swh.graph`` tool, you will need Python (>= 3.9), Java JRE,
+In order to run the ``swh.graph`` tool, you will need Python (>= 3.9),
 Rust (>= 1.79), and zstd. On a Debian system:
 
 .. code:: console
@@ -79,9 +79,6 @@ Alternatively, if you want to edit the swh-graph code, use these commands:
    # build Rust backend (only if you need to modify the Rust code,
    # or did not run `cargo install` above)
    $ cargo build --release --features grpc-server -p swh-graph
-
-   # build Java backend (only if you need to load graphs created before 2024)
-   $ make java
 
    # install Python package
    $ python3 -m venv .venv

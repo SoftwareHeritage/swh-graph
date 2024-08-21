@@ -4,7 +4,6 @@
 # See top-level LICENSE file for more information
 
 import logging
-import os.path
 from pathlib import Path
 import sys
 
@@ -13,19 +12,6 @@ import sys
 import psutil
 
 logger = logging.getLogger(__name__)
-
-
-def find_graph_jar() -> str:
-    """find swh-graph.jar, containing the Java part of swh-graph
-
-    look both in development directories and installed data (for in-production
-    deployments who fecthed the JAR from pypi)
-
-    """
-    logger.debug("Looking for swh-graph JAR")
-    swh_graph_jar = Path(__file__).parent / "swh-graph.jar"
-    logger.info("using swh-graph JAR: %s", swh_graph_jar)
-    return str(swh_graph_jar)
 
 
 def check_config(conf):
@@ -39,36 +25,6 @@ def check_config(conf):
     if "llp_gammas" not in conf:
         conf["llp_gammas"] = "-1,-2,-3,-4,-5,0-0"
         logger.debug("llp_gammas not configured, defaulting to %s", conf["llp_gammas"])
-    if "max_ram" not in conf:
-        conf["max_ram"] = str(int(psutil.virtual_memory().total * 0.9))
-        logger.debug("max_ram not configured, defaulting to %s", conf["max_ram"])
-    if "java_tool_options" not in conf:
-        conf["java_tool_options"] = " ".join(
-            [
-                "-Xmx{max_ram}",
-                "-XX:PretenureSizeThreshold=512M",
-                "-XX:MaxNewSize=4G",
-                "-XX:+UseLargePages",
-                "-XX:+UseTransparentHugePages",
-                "-XX:+UseNUMA",
-                "-XX:+UseTLAB",
-                "-XX:+ResizeTLAB",
-            ]
-        )
-        logger.debug(
-            "java_tool_options not providing, defaulting to %s",
-            conf["java_tool_options"],
-        )
-    conf["java_tool_options"] = conf["java_tool_options"].format(
-        max_ram=conf["max_ram"]
-    )
-    if "java" not in conf:
-        if "JAVA_HOME" in os.environ:
-            conf["java"] = os.path.join(os.environ["JAVA_HOME"], "bin", "java")
-        else:
-            conf["java"] = "java"
-    if "classpath" not in conf:
-        conf["classpath"] = find_graph_jar()
     # rust related config entries
     debug_mode = conf.get("debug", "pytest" in sys.modules)
     if "rust_executable_dir" not in conf:
@@ -106,32 +62,5 @@ def check_config_compress(config, graph_name, in_dir, out_dir):
     else:
         tmp_dir = Path(conf["tmp_dir"])
     tmp_dir.mkdir(parents=True, exist_ok=True)
-
-    if "logback" not in conf:
-        logback_confpath = tmp_dir / "logback.xml"
-        with open(logback_confpath, "w") as conffile:
-            conffile.write(
-                """
-<configuration>
-    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d %r %p [%t] %logger{1} - %m%n</pattern>
-        </encoder>
-        <target>System.err</target>
-    </appender>
-    <root level="INFO">
-        <appender-ref ref="STDERR"/>
-    </root>
-</configuration>
-"""
-            )
-        conf["logback"] = str(logback_confpath)
-
-    conf["java_tool_options"] += " -Dlogback.configurationFile={logback}"
-    conf["java_tool_options"] += " -Djava.io.tmpdir={tmp_dir}"
-    conf["java_tool_options"] = conf["java_tool_options"].format(
-        logback=conf["logback"],
-        tmp_dir=conf["tmp_dir"],
-    )
 
     return conf

@@ -7,29 +7,6 @@ This page discusses various considerations related to memory usage and
 performance tuning when using the ``swh-graph`` library to load large
 compressed graphs.
 
-JVM options
------------
-
-In production, we tend to use very large servers which have enough RAM to load
-the entire graph in RAM. In these setups, the default JVM options are often
-suboptimal. We recommend to start the JVM with the following options, which
-tend to significantly improve performance::
-
-    java \
-        -ea \
-        -server \
-        -XX:PretenureSizeThreshold=512M \
-        -XX:MaxNewSize=4G \
-        -XX:+UseLargePages \
-        -XX:+UseTransparentHugePages \
-        -XX:+UseNUMA \
-        -XX:+UseTLAB \
-        -XX:+ResizeTLAB \
-
-These options are documented in the manual of ``java(1)`` the Oracle
-documentation.
-
-
 Temporary directory
 -------------------
 
@@ -41,14 +18,10 @@ nodes to visit.
 
 Because these can be quite large and sometimes overflow the default ``/tmp``
 partition, it is advised to systematically specify a path to a local temporary
-directory with enough space to accommodate the needs of the Java programs. This
-can be done using the ``-Djava.io.tmpdir`` parameter on the Java CLI::
+directory with enough space to accommodate the needs of Python or Rust programs,
+using this environment variable::
 
-    java -Djava.io.tmpdir=/srv/softwareheritage/ssd/tmp
-
-Or for scripts written in Python or Rust::
-
-    TMPDIR/srv/softwareheritage/ssd/tmp
+    TMPDIR=/srv/softwareheritage/ssd/tmp
 
 
 Memory mapping vs Direct loading
@@ -56,7 +29,7 @@ Memory mapping vs Direct loading
 
 The main dial you can use to manage your memory usage is to chose between
 memory-mapping and direct-loading the graph data. The different loading modes
-available when loading the graph are documented in :ref:`swh-graph-java-api`.
+available when loading the graph are documented in :ref:`swh-graph-rust-api`.
 
 Loading in mapped mode will not load any extra data in RAM, but will instead
 use the ``mmap(1)`` syscall to put the graph file located on disk in the

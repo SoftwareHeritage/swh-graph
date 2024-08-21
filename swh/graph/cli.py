@@ -238,29 +238,12 @@ def reindex(
     """Downloads a compressed SWH graph to the given target directory"""
     import os.path
 
-    from swh.graph.shell import Java, Rust
+    from swh.graph.shell import Rust
 
     ef = ef or force
     conf = ctx.obj["config"]
     if "debug" not in conf and debug:
         conf["debug"] = debug
-
-    if force or not os.path.exists(f"{graph}.cmph"):
-        logger.info(
-            "Converting the GOV minimal-perfect-hash function from `.mph` to `.cmph`"
-        )
-        Java(
-            "org.softwareheritage.graph.utils.Mph2Cmph",
-            f"{graph}.mph",
-            f"{graph}.cmph",
-        ).run()
-
-    if force or not os.path.exists(f"{graph}.property.content.is_skipped.bits"):
-        Java(
-            "org.softwareheritage.graph.utils.Bitvec2Bits",
-            f"{graph}.property.content.is_skipped.bin",
-            f"{graph}.property.content.is_skipped.bits",
-        ).run()
 
     if (
         ef
@@ -320,22 +303,15 @@ def reindex(
     ),
 )
 @click.option(
-    "--java-home",
-    default=None,
-    metavar="JAVA_HOME",
-    help="absolute path to the Java Runtime Environment (JRE)",
-)
-@click.option(
     "--graph", "-g", required=True, metavar="GRAPH", help="compressed graph basename"
 )
 @click.pass_context
-def grpc_serve(ctx, port, java_home, graph):
+def grpc_serve(ctx, port, graph):
     """start the graph GRPC service
 
-    This command uses execve to execute the java GRPC service.
+    This command uses execve to execute the Rust GRPC service.
     """
     import os
-    from pathlib import Path
 
     from swh.graph.grpc_server import build_rust_grpc_server_cmdline
 
@@ -349,14 +325,12 @@ def grpc_serve(ctx, port, java_home, graph):
     logger.debug("Building gPRC server command line")
     cmd, port = build_rust_grpc_server_cmdline(**config["graph"])
 
-    java_bin = cmd[0]
-    if java_home is not None:
-        java_bin = str(Path(java_home) / "bin" / java_bin)
+    rust_bin = cmd[0]
 
     # XXX: shlex.join() is in 3.8
     # logger.info("Starting gRPC server: %s", shlex.join(cmd))
     logger.info("Starting gRPC server: %s", " ".join(shlex.quote(x) for x in cmd))
-    os.execvp(java_bin, cmd)
+    os.execvp(rust_bin, cmd)
 
 
 @graph_cli_group.command()
@@ -478,7 +452,7 @@ def get_all_subclasses(cls):
 )
 @click.option(
     "--max-ram",
-    help="""Value to pass to -Xmx for Java processes""",
+    help="""Maximum RAM that some scripts will try not to exceed""",
 )
 @click.option(
     "--batch-size",

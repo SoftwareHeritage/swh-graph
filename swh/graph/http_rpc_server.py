@@ -4,8 +4,7 @@
 # See top-level LICENSE file for more information
 
 """
-A proxy HTTP server for swh-graph, talking to the Java code via py4j, and using
-FIFO as a transport to stream integers between the two languages.
+A proxy HTTP server for swh-graph, talking to the Rust code via the gRPC API.
 """
 
 import json

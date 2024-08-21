@@ -4,7 +4,7 @@
 # See top-level LICENSE file for more information
 
 """
-A simple tool to start the swh-graph GRPC server in Java.
+A simple tool to start the swh-graph gRPC server in Rust.
 """
 
 import logging
