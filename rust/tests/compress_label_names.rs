@@ -24,8 +24,8 @@ fn test_build_mphf_and_order() -> Result<()> {
     let labels = ["abc", "def", "ghijkl", "opqrstuv", "wyx", "z"];
     let base64 = base64_simd::STANDARD;
     for label in labels {
-        f.write(base64.encode_to_string(label).as_bytes())?;
-        f.write(b"\n")?;
+        f.write_all(base64.encode_to_string(label).as_bytes())?;
+        f.write_all(b"\n")?;
     }
     drop(f);
 

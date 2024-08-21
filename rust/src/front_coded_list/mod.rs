@@ -33,7 +33,7 @@ fn test_push_int() {
 
     let mut r = v.as_ref();
     for i in 0..1000 {
-        let (i2, r2) = decode_int(&r);
+        let (i2, r2) = decode_int(r);
         assert_eq!(
             i,
             i2,
@@ -44,7 +44,7 @@ fn test_push_int() {
     }
 
     for i in 16000..17000 {
-        let (i2, r2) = decode_int(&r);
+        let (i2, r2) = decode_int(r);
         assert_eq!(
             i,
             i2,
@@ -55,7 +55,7 @@ fn test_push_int() {
     }
 
     for i in 2097100..2097200 {
-        let (i2, r2) = decode_int(&r);
+        let (i2, r2) = decode_int(r);
         assert_eq!(
             i,
             i2,
@@ -66,7 +66,7 @@ fn test_push_int() {
     }
 
     for i in 268435400..268435455 {
-        let (i2, r2) = decode_int(&r);
+        let (i2, r2) = decode_int(r);
         assert_eq!(
             i,
             i2,

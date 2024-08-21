@@ -26,6 +26,7 @@ use swh_graph::swhid;
 ///       \       /
 ///        -> snp3
 /// ```
+#[allow(clippy::type_complexity)]
 fn build_graph() -> Result<
     SwhBidirectionalGraph<
         SwhGraphProperties<

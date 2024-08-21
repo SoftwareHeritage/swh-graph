@@ -26,7 +26,7 @@ struct BidirectionalGraph(SwhBidirectionalGraph<swh_graph::AllSwhGraphProperties
 impl BidirectionalGraph {
     #[new]
     fn new(path: PathBuf) -> PyResult<BidirectionalGraph> {
-        let g = SwhBidirectionalGraph::new(&path)
+        let g = SwhBidirectionalGraph::new(path)
             .map_err(|e| {
                 SwhGraphError::new_err(format!(
                     "Could not initialize BidirectionalGraph properties: {:?}",

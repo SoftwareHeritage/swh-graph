@@ -287,7 +287,7 @@ impl<'b, SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'b, SWHIDMPHF> {
             .collect();
 
         log::info!("Writing...");
-        self.write(suffixes::CONTENT_IS_SKIPPED, &bitvec_be)?;
+        self.write(suffixes::CONTENT_IS_SKIPPED, bitvec_be)?;
 
         Ok(())
     }

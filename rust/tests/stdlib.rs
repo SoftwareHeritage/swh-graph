@@ -109,10 +109,7 @@ fn test_resolve_path() -> Result<()> {
     let props = graph.properties();
     let root_node = props.node_id(swhid!(swh:1:dir:0000000000000000000000000000000000000000))?;
 
-    assert!(matches!(
-        fs_resolve_name(&graph, root_node, "does-not-exist.txt"),
-        Err(_)
-    ));
+    assert!(fs_resolve_name(&graph, root_node, "does-not-exist.txt").is_err());
     assert_eq!(
         props.swhid(fs_resolve_name(&graph, root_node, "README.md")?.unwrap()),
         swhid!(swh:1:cnt:0000000000000000000000000000000000000007)
@@ -122,14 +119,8 @@ fn test_resolve_path() -> Result<()> {
         swhid!(swh:1:dir:0000000000000000000000000000000000000001)
     );
 
-    assert!(matches!(
-        fs_resolve_path(&graph, root_node, "does-not-exist.txt"),
-        Err(_)
-    ));
-    assert!(matches!(
-        fs_resolve_path(&graph, root_node, "README.md/is-not-a-dir"),
-        Err(_)
-    ));
+    assert!(fs_resolve_path(&graph, root_node, "does-not-exist.txt").is_err());
+    assert!(fs_resolve_path(&graph, root_node, "README.md/is-not-a-dir").is_err());
     assert_eq!(
         props.swhid(fs_resolve_name(&graph, root_node, "doc")?.unwrap()),
         swhid!(swh:1:dir:0000000000000000000000000000000000000002)
