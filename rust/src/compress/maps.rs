@@ -9,7 +9,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 
 use crate::compress::zst_dir::*;
@@ -26,10 +26,12 @@ pub fn ordered_swhids<MPHF: SwhidMphf + Sync + Send, P: Permutation + Sync + Sen
     let mut swhids: Vec<SWHID> = Vec::with_capacity(num_nodes);
     let swhids_uninit = swhids.spare_capacity_mut();
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
-    pl.local_speed = true;
-    pl.expected_updates = Some(num_nodes);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "node",
+        local_speed = true,
+        expected_updates = Some(num_nodes),
+    );
     pl.start("Computing node2swhid");
 
     par_iter_lines_from_dir(swhids_dir, Arc::new(Mutex::new(pl))).for_each(|line: [u8; 50]| {

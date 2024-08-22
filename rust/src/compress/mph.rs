@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use ph::fmph;
 use pthash::{BuildConfiguration, PartitionedPhf, Phf};
 use rayon::prelude::*;
@@ -20,10 +20,12 @@ fn par_iter_swhids(
     swhids_dir: &Path,
     num_nodes: usize,
 ) -> impl ParallelIterator<Item = Vec<u8>> + '_ {
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "SWHID";
-    pl.local_speed = true;
-    pl.expected_updates = Some(num_nodes);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "SWHID",
+        local_speed = true,
+        expected_updates = Some(num_nodes),
+    );
     pl.start("Reading SWHIDs");
     let pl = Arc::new(Mutex::new(pl));
     par_iter_lines_from_dir(swhids_dir, pl)
@@ -64,10 +66,12 @@ where
     let get_pl = |parallel| {
         let mut call_counts = call_counts.lock().unwrap();
         *call_counts += 1;
-        let mut pl = ProgressLogger::default().display_memory();
-        pl.item_name = item_name;
-        pl.local_speed = true;
-        pl.expected_updates = *len.lock().unwrap();
+        let mut pl = progress_logger!(
+            display_memory = true,
+            item_name = item_name,
+            local_speed = true,
+            expected_updates = *len.lock().unwrap(),
+        );
         pl.start(&format!(
             "{} reading {} (pass {})",
             if parallel {

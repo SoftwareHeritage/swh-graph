@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use dsi_bitstream::prelude::NE;
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::ProgressLog;
 use rayon::prelude::*;
 use webgraph::prelude::{BitDeserializer, BitSerializer};
 use webgraph::utils::sort_pairs::{BatchIterator, BitReader, BitWriter, KMergeIters, Triple};
@@ -39,7 +39,7 @@ where
         target_dir: PathBuf,
         target_prefix: &str,
         temp_dir: &Path,
-        pl: ProgressLogger,
+        pl: impl ProgressLog + Send,
         args: &[&str],
         buffer_size: usize,
         expected_lines: usize,

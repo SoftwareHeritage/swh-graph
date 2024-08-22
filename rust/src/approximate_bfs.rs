@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use num_cpus;
 use rayon::prelude::*;
 use sux::prelude::AtomicBitVec;
@@ -58,10 +58,12 @@ pub fn almost_bfs_order<G: RandomAccessGraph + Send + Sync>(
         Some(visited_nodes)
     };
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
-    pl.local_speed = true;
-    pl.expected_updates = Some(num_nodes);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "node",
+        local_speed = true,
+        expected_updates = Some(num_nodes),
+    );
     pl.start("[step 1/2] Visiting graph in pseudo-BFS order...");
     let pl = Arc::new(Mutex::new(pl));
 
@@ -115,10 +117,12 @@ pub fn almost_bfs_order<G: RandomAccessGraph + Send + Sync>(
 
     pl.lock().unwrap().done();
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
-    pl.local_speed = true;
-    pl.expected_updates = Some(num_nodes);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "node",
+        local_speed = true,
+        expected_updates = Some(num_nodes),
+    );
     pl.start("[step 2/2] Concatenating orders...");
 
     // "Concatenate" orders from each thread.

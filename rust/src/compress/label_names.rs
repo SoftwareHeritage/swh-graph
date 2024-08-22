@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 use anyhow::{ensure, Context, Result};
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use pthash::{
     BuildConfiguration, DictionaryDictionary, Hashable, Minimal, MurmurHash2_128, PartitionedPhf,
     Phf,
@@ -52,10 +52,12 @@ fn iter_labels(path: PathBuf) -> Result<impl Iterator<Item = LabelName<Box<[u8]>
 
 /// Reads base64-encoded labels from the path and return a MPH function for them.
 pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "label";
-    pl.local_speed = true;
-    pl.expected_updates = Some(num_labels);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "label",
+        local_speed = true,
+        expected_updates = Some(num_labels),
+    );
     pl.start("Reading labels");
 
     let labels: Vec<_> = iter_labels(path)?.inspect(|_| pl.light_update()).collect();
@@ -105,10 +107,12 @@ pub fn build_order(
         num_labels
     );
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "label";
-    pl.local_speed = true;
-    pl.expected_updates = Some(num_labels);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "label",
+        local_speed = true,
+        expected_updates = Some(num_labels),
+    );
     pl.start("Reading labels");
 
     let mut order: Vec<_> = (0..num_labels).map(|_| usize::MAX).collect();

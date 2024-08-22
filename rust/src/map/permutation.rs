@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{bail, Context, Result};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use mmap_rs::{Mmap, MmapFlags};
 use rayon::prelude::*;
 
@@ -82,10 +82,12 @@ impl<T: Sync + AsRef<[usize]>> OwnedPermutation<T> {
     }
 
     pub fn dump<W: Write>(&self, file: &mut W) -> std::io::Result<()> {
-        let mut pl = ProgressLogger::default().display_memory();
-        pl.item_name = "byte";
-        pl.local_speed = true;
-        pl.expected_updates = Some(self.len() * 8);
+        let mut pl = progress_logger!(
+            display_memory = true,
+            item_name = "byte",
+            local_speed = true,
+            expected_updates = Some(self.len() * 8),
+        );
         pl.start("Writing permutation");
 
         let chunk_size = 1_000_000; // 1M of u64 -> 8MB

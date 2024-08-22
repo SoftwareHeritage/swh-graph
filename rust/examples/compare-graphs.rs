@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 
 use swh_graph::graph::*;
@@ -145,9 +145,12 @@ where
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
     let num_nodes = graph2.num_nodes();
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
-    pl.expected_updates = Some(num_nodes);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        local_speed = true,
+        item_name = "node",
+        expected_updates = Some(num_nodes),
+    );
     pl.start("Checking SWHIDs...");
     let pl = Arc::new(Mutex::new(pl));
     (0..num_nodes)
@@ -182,9 +185,12 @@ where
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
     let num_nodes = graph2.num_nodes();
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
-    pl.expected_updates = Some(num_nodes);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        local_speed = true,
+        item_name = "node",
+        expected_updates = Some(num_nodes),
+    );
     pl.start("Checking successors...");
     let pl = Arc::new(Mutex::new(pl));
     par_iter_shuffled_range(0..num_nodes).try_for_each(|node| -> Result<()> {
@@ -232,9 +238,12 @@ where
 {
     assert_eq!(graph1.is_transposed(), graph2.is_transposed());
     let num_nodes = graph2.num_nodes();
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
-    pl.expected_updates = Some(num_nodes);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        local_speed = true,
+        item_name = "node",
+        expected_updates = Some(num_nodes),
+    );
     pl.start("Checking arc labels...");
     let pl = Arc::new(Mutex::new(pl));
     par_iter_shuffled_range(0..num_nodes).try_for_each(|node| -> Result<()> {
@@ -302,9 +311,12 @@ where
 
     macro_rules! check_property {
         ($property:ident) => {{
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "node";
-            pl.expected_updates = Some(num_nodes);
+            let mut pl = progress_logger!(
+                display_memory = true,
+                local_speed = true,
+                item_name = "node",
+                expected_updates = Some(num_nodes),
+            );
             pl.start(&format!("Checking {}...", stringify!($property)));
             let pl = Arc::new(Mutex::new(pl));
             (0..num_nodes)

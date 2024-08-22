@@ -11,7 +11,7 @@ use anyhow::{ensure, Context, Result};
 use arrow::array::*;
 use arrow::datatypes::{DataType, Field, Schema};
 use clap::{Parser, ValueEnum};
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use itertools::Itertools;
 use parquet::basic::{Compression, ZstdLevel};
 use parquet::file::properties::EnabledStatistics;
@@ -239,10 +239,12 @@ where
     let mut paths_from_roots_vec = vec![0f64; graph.num_nodes()];
     let mut all_paths_vec = vec![0f64; graph.num_nodes()];
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
-    pl.local_speed = true;
-    pl.expected_updates = Some(graph.num_nodes());
+    let mut pl = progress_logger!(
+        display_memory = true,
+        local_speed = true,
+        item_name = "node",
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("Listing nodes...");
 
     // Read sequentially, *in order*

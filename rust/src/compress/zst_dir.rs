@@ -7,7 +7,7 @@
 
 //! Iterators on newline-separated ZSTD-compressed files.
 
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::ProgressLog;
 use rayon::prelude::*;
 use std::io::BufRead;
 use std::path::Path;
@@ -51,7 +51,7 @@ impl<B: std::io::BufRead> ToByteLines for B {}
 /// Yields textual lines from a newline-separated ZSTD-compressed file
 pub fn iter_lines_from_file<'a, Line>(
     path: &Path,
-    pl: Arc<Mutex<ProgressLogger<'a>>>,
+    pl: Arc<Mutex<impl ProgressLog + 'a>>,
 ) -> impl Iterator<Item = Line> + 'a
 where
     Line: TryFrom<Vec<u8>>,
@@ -85,7 +85,7 @@ where
 /// Files are read in alphabetical order of their name.
 pub fn iter_lines_from_dir<'a, Line>(
     path: &'a Path,
-    pl: Arc<Mutex<ProgressLogger<'a>>>,
+    pl: Arc<Mutex<impl ProgressLog + 'a>>,
 ) -> impl Iterator<Item = Line> + 'a
 where
     Line: TryFrom<Vec<u8>>,
@@ -111,7 +111,7 @@ where
 /// Files are read in alphabetical order of their name.
 pub fn par_iter_lines_from_dir<'a, Line>(
     path: &'a Path,
-    pl: Arc<Mutex<ProgressLogger<'a>>>,
+    pl: Arc<Mutex<impl ProgressLog + Send + 'a>>,
 ) -> impl ParallelIterator<Item = Line> + 'a
 where
     Line: TryFrom<Vec<u8>> + Send,

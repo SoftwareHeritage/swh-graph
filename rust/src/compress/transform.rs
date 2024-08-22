@@ -8,7 +8,7 @@ use std::sync::Mutex;
 
 use anyhow::{Context, Result};
 use dsi_bitstream::prelude::BE;
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use lender::Lender;
 use rayon::prelude::*;
 use webgraph::graphs::arc_list_graph::ArcListGraph;
@@ -55,10 +55,12 @@ where
         input_batch_size
     );
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
-    pl.expected_updates = Some(num_nodes);
-    pl.local_speed = true;
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "node",
+        expected_updates = Some(num_nodes),
+        local_speed = true,
+    );
     pl.start("Reading and sorting...");
     let pl = Mutex::new(pl);
 

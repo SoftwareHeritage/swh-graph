@@ -14,7 +14,7 @@ use std::sync::Mutex;
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use itertools::Itertools;
 use ph::fmph;
 use rayon::prelude::*;
@@ -234,10 +234,12 @@ pub fn main() -> Result<()> {
                 swh_graph::compress::stats::estimate_edge_count(&dataset_dir, &allowed_node_types)
                     .context("Could not estimate edge count")? as usize;
 
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "arc";
-            pl.local_speed = true;
-            pl.expected_updates = Some(expected_node_count + expected_edge_count);
+            let mut pl = progress_logger!(
+                display_memory = true,
+                item_name = "arc",
+                local_speed = true,
+                expected_updates = Some(expected_node_count + expected_edge_count),
+            );
             pl.start("Extracting and sorting SWHIDs");
 
             swh_graph::compress::iter_swhids(&dataset_dir, &allowed_node_types)
@@ -267,10 +269,12 @@ pub fn main() -> Result<()> {
                 swh_graph::compress::stats::estimate_edge_count(&dataset_dir, &allowed_node_types)
                     .context("Could not estimate edge count")? as usize;
 
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "arc";
-            pl.local_speed = true;
-            pl.expected_updates = Some(expected_edge_count);
+            let mut pl = progress_logger!(
+                display_memory = true,
+                item_name = "arc",
+                local_speed = true,
+                expected_updates = Some(expected_edge_count),
+            );
             pl.start("Extracting and sorting labels");
 
             let base64 = base64_simd::STANDARD;
@@ -310,10 +314,12 @@ pub fn main() -> Result<()> {
             .context("Could not estimate node count from input dataset")?
                 as usize;
 
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "node";
-            pl.local_speed = true;
-            pl.expected_updates = Some(expected_node_count);
+            let mut pl = progress_logger!(
+                display_memory = true,
+                item_name = "node",
+                local_speed = true,
+                expected_updates = Some(expected_node_count),
+            );
             pl.start("Extracting and sorting labels");
 
             let base64 = base64_simd::STANDARD;
@@ -345,11 +351,13 @@ pub fn main() -> Result<()> {
             let mut count_file = File::create(&target_count)
                 .with_context(|| format!("Could not open {}", target_count.display()))?;
 
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "node";
-            pl.local_speed = true;
             let bits_per_line = 20; // A little more than this, actually
-            pl.expected_updates = Some(swh_graph::utils::dir_size(&swhids_dir)? / bits_per_line);
+            let mut pl = progress_logger!(
+                display_memory = true,
+                item_name = "node",
+                local_speed = true,
+                expected_updates = Some(swh_graph::utils::dir_size(&swhids_dir)? / bits_per_line),
+            );
             pl.start("Computing node stats");
 
             let stats = par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(pl)))
@@ -395,13 +403,18 @@ pub fn main() -> Result<()> {
             let mut count_file = File::create(&target_count)
                 .with_context(|| format!("Could not open {}", target_count.display()))?;
 
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "arc";
-            pl.local_speed = true;
-            pl.expected_updates = Some(
-                swh_graph::compress::stats::estimate_edge_count(&dataset_dir, &allowed_node_types)
+            let mut pl = progress_logger!(
+                display_memory = true,
+                item_name = "arc",
+                local_speed = true,
+                expected_updates = Some(
+                    swh_graph::compress::stats::estimate_edge_count(
+                        &dataset_dir,
+                        &allowed_node_types
+                    )
                     .context("Could not estimate edge count from input dataset")?
-                    as usize,
+                        as usize
+                ),
             );
             pl.start("Computing edge stats");
             let pl = Mutex::new(pl);

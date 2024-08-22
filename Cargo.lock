@@ -1353,18 +1353,6 @@ dependencies = [
 
 [[package]]
 name = "dsi-progress-logger"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb89fa6240672dc78abfa28e51ddf3c7e8d78482ec271658d68914d1073b614d"
-dependencies = [
- "log",
- "num-format",
- "pluralizer",
- "sysinfo 0.29.11",
-]
-
-[[package]]
-name = "dsi-progress-logger"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54266433c4391d39c2cc10a39c112b87484f8a8884d62809a0d86aecbe905059"
@@ -3514,7 +3502,7 @@ dependencies = [
  "core_affinity",
  "derivative",
  "derive_setters",
- "dsi-progress-logger 0.2.4",
+ "dsi-progress-logger",
  "env_logger 0.11.5",
  "epserde",
  "flate2",
@@ -3558,7 +3546,7 @@ dependencies = [
  "const_panic",
  "csv",
  "dsi-bitstream",
- "dsi-progress-logger 0.1.4",
+ "dsi-progress-logger",
  "epserde",
  "faster-hex",
  "futures",
@@ -3605,7 +3593,7 @@ dependencies = [
  "chrono",
  "clap",
  "csv",
- "dsi-progress-logger 0.1.4",
+ "dsi-progress-logger",
  "itertools 0.11.0",
  "lazy_static",
  "log",
@@ -3623,7 +3611,7 @@ dependencies = [
  "anyhow",
  "clap",
  "csv",
- "dsi-progress-logger 0.2.4",
+ "dsi-progress-logger",
  "itertools 0.11.0",
  "log",
  "rayon",
@@ -3646,7 +3634,7 @@ dependencies = [
  "chrono",
  "clap",
  "csv",
- "dsi-progress-logger 0.2.4",
+ "dsi-progress-logger",
  "log",
  "parquet",
  "pretty_assertions",
@@ -3679,7 +3667,7 @@ dependencies = [
  "arrow",
  "clap",
  "csv",
- "dsi-progress-logger 0.1.4",
+ "dsi-progress-logger",
  "itertools 0.11.0",
  "log",
  "parquet",
@@ -4312,7 +4300,7 @@ dependencies = [
  "common_traits 0.10.2",
  "dary_heap",
  "dsi-bitstream",
- "dsi-progress-logger 0.2.4",
+ "dsi-progress-logger",
  "env_logger 0.11.5",
  "epserde",
  "impl-tools",

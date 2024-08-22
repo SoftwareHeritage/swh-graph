@@ -14,7 +14,7 @@ use std::sync::Mutex;
 use anyhow::{anyhow, ensure, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_bitstream::prelude::BE;
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use ph::fmph;
 use webgraph::prelude::*;
 
@@ -246,9 +246,11 @@ pub fn main() -> Result<()> {
                             .into(),
                     };
 
-                    let mut pl = ProgressLogger::default().display_memory();
-                    pl.item_name = "SWHID";
-                    pl.local_speed = true;
+                    let mut pl = progress_logger!(
+                        display_memory = true,
+                        item_name = "SWHID",
+                        local_speed = true,
+                    );
                     pl.start("[step 0/2] Loading initial SWHIDs...");
 
                     let init_swhids = BufReader::new(init_swhids)
@@ -474,10 +476,12 @@ pub fn main() -> Result<()> {
             let mut node2type = Node2Type::new(node2type, num_nodes)?;
             std::thread::scope(|s| {
                 s.spawn(|| {
-                    let mut pl = ProgressLogger::default().display_memory();
-                    pl.item_name = "swhid";
-                    pl.local_speed = true;
-                    pl.expected_updates = Some(num_nodes);
+                    let mut pl = progress_logger!(
+                        display_memory = true,
+                        item_name = "SWHID",
+                        local_speed = true,
+                        expected_updates = Some(num_nodes),
+                    );
                     pl.start("Writing node2swhid");
                     for i in 0..num_nodes {
                         pl.light_update();
@@ -487,10 +491,12 @@ pub fn main() -> Result<()> {
                 });
 
                 s.spawn(|| {
-                    let mut pl = ProgressLogger::default().display_memory();
-                    pl.item_name = "type";
-                    pl.local_speed = true;
-                    pl.expected_updates = Some(num_nodes);
+                    let mut pl = progress_logger!(
+                        display_memory = true,
+                        item_name = "node",
+                        local_speed = true,
+                        expected_updates = Some(num_nodes),
+                    );
                     pl.start("Writing node2type");
                     for i in 0..num_nodes {
                         pl.light_update();
@@ -512,10 +518,12 @@ pub fn main() -> Result<()> {
 
             let mut fclb = FrontCodedListBuilder::new(stripe_length);
 
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "label";
-            pl.local_speed = true;
-            pl.expected_updates = Some(num_lines);
+            let mut pl = progress_logger!(
+                display_memory = true,
+                item_name = "label",
+                local_speed = true,
+                expected_updates = Some(num_lines),
+            );
             pl.start("Reading labels and building FCL");
             let pl = Arc::new(Mutex::new(pl));
             let input = File::open(&input_path)
@@ -547,10 +555,12 @@ pub fn main() -> Result<()> {
 
             let mut rclb = RearCodedListBuilder::new(stripe_length);
 
-            let mut pl = ProgressLogger::default().display_memory();
-            pl.item_name = "label";
-            pl.local_speed = true;
-            pl.expected_updates = Some(num_lines);
+            let mut pl = progress_logger!(
+                display_memory = true,
+                item_name = "label",
+                local_speed = true,
+                expected_updates = Some(num_lines),
+            );
             pl.start("Reading labels");
             let pl = Arc::new(Mutex::new(pl));
             iter_lines_from_dir(&input_dir, pl.clone()).for_each(|line: Vec<u8>| {

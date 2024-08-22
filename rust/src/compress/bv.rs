@@ -14,7 +14,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{anyhow, Context, Result};
 use dsi_bitstream::codes::GammaWrite;
 use dsi_bitstream::prelude::{BitRead, BitWrite, BufBitWriter, WordAdapter, BE, NE};
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use itertools::Itertools;
 use lender::{for_, Lender};
 use nonmax::NonMaxU64;
@@ -53,12 +53,14 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     // Avoid empty partitions at the end when there are very few nodes
     let num_partitions = num_nodes.div_ceil(nodes_per_partition);
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "arc";
-    pl.local_speed = true;
-    pl.expected_updates = Some(
-        estimate_edge_count(&dataset_dir, allowed_node_types)
-            .context("Could not estimate edge count")? as usize,
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "arc",
+        local_speed = true,
+        expected_updates = Some(
+            estimate_edge_count(&dataset_dir, allowed_node_types)
+                .context("Could not estimate edge count")? as usize,
+        ),
     );
     pl.start("Reading arcs");
 
@@ -169,12 +171,14 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
     // Avoid empty partitions at the end when there are very few nodes
     let num_partitions = num_nodes.div_ceil(nodes_per_partition);
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "arc";
-    pl.local_speed = true;
-    pl.expected_updates = Some(
-        estimate_edge_count(&dataset_dir, allowed_node_types)
-            .context("Could not estimate edge count")? as usize,
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "arc",
+        local_speed = true,
+        expected_updates = Some(
+            estimate_edge_count(&dataset_dir, allowed_node_types)
+                .context("Could not estimate edge count")? as usize,
+        ),
     );
     pl.start("Reading and sorting arcs");
 
@@ -259,10 +263,12 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
                 .with_context(|| format!("Could not create {}", offsets_path.display()))?,
         )));
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "arc";
-    pl.local_speed = true;
-    pl.expected_updates = Some(total_labeled_arcs.load(Ordering::Relaxed));
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "arc",
+        local_speed = true,
+        expected_updates = Some(total_labeled_arcs.load(Ordering::Relaxed)),
+    );
     pl.start("Writing arc labels");
 
     // Write offset (in *bits*) of the adjacency list of the first node

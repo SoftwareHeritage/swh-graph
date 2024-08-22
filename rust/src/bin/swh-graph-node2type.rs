@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use log::info;
 use rayon::prelude::*;
 
@@ -55,10 +55,12 @@ pub fn main() -> Result<()> {
     let node2type = Arc::new(Mutex::new(node2type));
 
     // init the progress logger
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
-    pl.local_speed = true;
-    pl.expected_updates = Some(num_nodes);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "node",
+        local_speed = true,
+        expected_updates = Some(num_nodes),
+    );
     pl.start("iterating over node ID -> SWHID map ...");
     let pl = Arc::new(Mutex::new(pl));
 

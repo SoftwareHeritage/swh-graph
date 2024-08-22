@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, ValueEnum};
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use serde::Serialize;
 
 use swh_graph::graph::*;
@@ -122,10 +122,12 @@ where
         node_types.contains(&graph.properties().node_type(node))
     });
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
-    pl.local_speed = true;
-    pl.expected_updates = Some(graph.num_nodes());
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "node",
+        local_speed = true,
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("Listing leaves...");
 
     let mut total_arcs = 0;
@@ -148,10 +150,12 @@ where
 
     log::info!("Leaves listed, starting traversal.");
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "arc";
-    pl.local_speed = true;
-    pl.expected_updates = Some(total_arcs);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "arc",
+        local_speed = true,
+        expected_updates = Some(total_arcs),
+    );
     pl.start("Sorting...");
 
     let mut writer = csv::WriterBuilder::new()

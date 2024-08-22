@@ -6,7 +6,7 @@
 use anyhow::{Context, Result};
 use bitvec::prelude::*;
 use clap::Parser;
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use log::{debug, info};
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -61,11 +61,13 @@ pub fn main() -> Result<()> {
     queue.push_back(node_id);
 
     // Setup the progress logger for
-    let mut pl = ProgressLogger::default().display_memory();
     let mut visited_nodes = 0;
-    pl.item_name = "node";
-    pl.local_speed = true;
-    pl.expected_updates = Some(num_nodes);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "node",
+        local_speed = true,
+        expected_updates = Some(num_nodes),
+    );
     pl.start("visiting graph ...");
 
     // Standard BFS

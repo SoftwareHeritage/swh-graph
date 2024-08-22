@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use pthash::{
     BuildConfiguration, DictionaryDictionary, Hashable, Minimal, MurmurHash2_64, PartitionedPhf,
     Phf,
@@ -42,10 +42,12 @@ fn iter_persons(path: PathBuf) -> Result<impl Iterator<Item = Person<Box<[u8]>>>
 
 /// Reads base64-encoded persons from the path and return a MPH function for them.
 pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonMphf> {
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "person";
-    pl.local_speed = true;
-    pl.expected_updates = Some(num_persons);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "person",
+        local_speed = true,
+        expected_updates = Some(num_persons),
+    );
     pl.start("Reading persons");
 
     let persons: Vec<_> = iter_persons(path)?.inspect(|_| pl.light_update()).collect();

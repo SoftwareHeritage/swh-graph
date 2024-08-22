@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use dsi_progress_logger::ProgressLogger;
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 use serde::Serialize;
 
@@ -155,9 +155,12 @@ pub fn main() -> Result<()> {
     let snapshot_writers = ParallelDatasetWriter::new(output_dir.join("snapshot"))
         .context("Could not create snapshot writer")?;
 
-    let mut pl = ProgressLogger::default().display_memory();
-    pl.item_name = "node";
-    pl.expected_updates = Some(num_nodes);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        local_speed = true,
+        item_name = "node",
+        expected_updates = Some(num_nodes),
+    );
     pl.start("Listing nodes and edges...");
     let pl = Mutex::new(pl);
 
