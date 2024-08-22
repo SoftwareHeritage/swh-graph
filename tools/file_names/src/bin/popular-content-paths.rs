@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
-use dsi_progress_logger::{ProgressLog, ProgressLogger};
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use itertools::Itertools;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -112,11 +112,12 @@ fn main_monomorphized<const MAX_DEPTH: usize>(args: Args) -> Result<()> {
 
     let dataset_writer = ParallelDatasetWriter::with_schema(args.out, ())?;
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.local_speed(true);
-    pl.expected_updates(args.expected_nodes);
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = args.expected_nodes,
+    );
     pl.start("Writing file names");
     let pl = Arc::new(Mutex::new(pl));
 

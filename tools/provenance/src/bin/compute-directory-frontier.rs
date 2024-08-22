@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use dsi_progress_logger::{ProgressLog, ProgressLogger};
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 use sux::prelude::{AtomicBitVec, BitVec};
 
@@ -83,11 +83,12 @@ pub fn main() -> Result<()> {
 
     let frontiers = find_frontiers(&graph, &max_timestamps, args.node_filter)?;
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.local_speed(true);
-    pl.expected_updates(Some(graph.num_nodes()));
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("[step 2/2] Writing frontiers");
 
     to_parquet(&graph, frontiers, dataset_writer, &mut pl)?;
@@ -109,11 +110,12 @@ where
 {
     let frontiers = AtomicBitVec::new(graph.num_nodes());
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.local_speed(true);
-    pl.expected_updates(Some(graph.num_nodes()));
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("[step 1/2] Visiting revisions' directories...");
     let pl = Arc::new(Mutex::new(pl));
 

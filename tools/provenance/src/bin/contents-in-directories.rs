@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use dsi_progress_logger::{ProgressLog, ProgressLogger};
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 use sux::prelude::{AtomicBitVec, BitVec};
 
@@ -76,10 +76,11 @@ pub fn main() -> Result<()> {
         .context("Could not load maps")?;
     log::info!("Graph loaded.");
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.local_speed(true);
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+    );
     pl.start("Loading frontier directories...");
     let frontier_directories = swh_graph_provenance::frontier_set::from_parquet(
         &graph,
@@ -101,10 +102,12 @@ pub fn main() -> Result<()> {
     // So when walking backward from a content, if the walk ever sees a directory
     // not in this set then it can safely be ignored as walking further backward
     // won't ever reach a frontier directory.
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.expected_updates(Some(graph.num_nodes()));
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("Listing nodes reachable from frontier directories...");
     let pl = Arc::new(Mutex::new(pl));
     let reachable_nodes_from_frontier = AtomicBitVec::new(graph.num_nodes());
@@ -134,10 +137,12 @@ pub fn main() -> Result<()> {
     pl.lock().unwrap().done();
     let reachable_nodes_from_frontier: BitVec = reachable_nodes_from_frontier.into();
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.expected_updates(Some(graph.num_nodes()));
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("Listing contents in directories...");
     let pl = Arc::new(Mutex::new(pl));
 

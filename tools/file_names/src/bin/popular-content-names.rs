@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use dsi_progress_logger::{ProgressLog, ProgressLogger};
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 use serde::Serialize;
 
@@ -86,11 +86,12 @@ pub fn main() -> Result<()> {
 
     let dataset_writer = ParallelDatasetWriter::with_schema(args.out, ())?;
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.local_speed(true);
-    pl.expected_updates(Some(graph.num_nodes()));
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("Writing file names");
     let pl = Arc::new(Mutex::new(pl));
 

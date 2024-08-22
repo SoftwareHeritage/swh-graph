@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::ValueEnum;
-use dsi_progress_logger::{ProgressLog, ProgressLogger};
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use sux::prelude::BitVec;
 
 use swh_graph::graph::*;
@@ -34,10 +34,11 @@ where
         // All nodes are reachable, no need to load the set of reachable nodes
         NodeFilter::All => Ok(None),
         _ => {
-            let mut pl = ProgressLogger::default();
-            pl.item_name("node");
-            pl.display_memory(true);
-            pl.local_speed(true);
+            let mut pl = progress_logger!(
+                item_name = "node",
+                display_memory = true,
+                local_speed = true,
+            );
             pl.start("Loading reachable nodes...");
             let reachable_nodes = crate::frontier_set::from_parquet(&graph, path, &mut pl)?;
             pl.done();

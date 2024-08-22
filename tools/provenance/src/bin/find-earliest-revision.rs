@@ -9,7 +9,7 @@ use std::sync::Mutex;
 
 use anyhow::{ensure, Context, Result};
 use clap::Parser;
-use dsi_progress_logger::{ProgressLog, ProgressLogger};
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -67,9 +67,11 @@ pub fn main() -> Result<()> {
         .from_writer(io::stdout());
     let writer = Mutex::new(writer);
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("SWHID");
-    pl.display_memory(true);
+    let mut pl = progress_logger!(
+        item_name = "SWHID",
+        display_memory = true,
+        local_speed = true,
+    );
     pl.start("Looking up SWHID provenance...");
     let pl = Mutex::new(pl);
 

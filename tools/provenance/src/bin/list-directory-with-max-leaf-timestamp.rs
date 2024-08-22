@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, Context, Result};
 use clap::Parser;
-use dsi_progress_logger::{ProgressLog, ProgressLogger};
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 use sux::prelude::BitVec;
 
@@ -125,10 +125,12 @@ where
     G: SwhBackwardGraph + SwhGraphWithProperties + Sync,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.expected_updates(Some(graph.num_nodes()));
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("Propagating through directories...");
     let pl = Arc::new(Mutex::new(pl));
 

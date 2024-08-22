@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use dsi_progress_logger::{ProgressLog, ProgressLogger};
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 use sux::bits::bit_vec::BitVec;
 
@@ -79,10 +79,11 @@ pub fn main() -> Result<()> {
         .context("Could not load timestamps")?;
     log::info!("Graph loaded.");
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.local_speed(true);
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+    );
     pl.start("Loading frontier directories...");
     let frontier_directories = swh_graph_provenance::frontier_set::from_parquet(
         &graph,
@@ -124,11 +125,12 @@ where
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
     <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
 {
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.local_speed(true);
-    pl.expected_updates(Some(graph.num_nodes()));
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("Visiting revisions' directories...");
     let pl = Arc::new(Mutex::new(pl));
 

@@ -23,7 +23,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use dsi_progress_logger::{ProgressLog, ProgressLogger};
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 
 use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
@@ -78,11 +78,12 @@ pub fn main() -> Result<()> {
     let mut timestamps_file = std::fs::File::create(&args.timestamps_out)
         .with_context(|| format!("Could not create {}", &args.timestamps_out.display()))?;
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.local_speed(true);
-    pl.expected_updates(Some(graph.num_nodes()));
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("[step 1/3] Computing first occurrence date of each content...");
     let pl = Arc::new(Mutex::new(pl));
 
@@ -100,11 +101,12 @@ pub fn main() -> Result<()> {
 
     pl.lock().unwrap().done();
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.local_speed(true);
-    pl.expected_updates(Some(graph.num_nodes()));
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("[step 2/3] Converting timestamps to big-endian");
     let pl = Arc::new(Mutex::new(pl));
     let mut timestamps_be = Vec::with_capacity(graph.num_nodes());

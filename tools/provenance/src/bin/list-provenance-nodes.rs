@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{ensure, Context, Result};
 use clap::Parser;
-use dsi_progress_logger::{ProgressLog, ProgressLogger};
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 use sux::prelude::{AtomicBitVec, BitVec};
 
@@ -132,10 +132,12 @@ where
     G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties + Sync,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.expected_updates(Some(graph.num_nodes()));
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("Listing reachable contents and directories...");
     let pl = Arc::new(Mutex::new(pl));
 
@@ -183,10 +185,12 @@ where
 {
     assert!(num_partitions.is_power_of_two());
 
-    let mut pl = ProgressLogger::default();
-    pl.item_name("node");
-    pl.display_memory(true);
-    pl.expected_updates(Some(graph.num_nodes()));
+    let mut pl = progress_logger!(
+        item_name = "node",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = Some(graph.num_nodes()),
+    );
     pl.start("Writing list of reachable nodes...");
     let pl = Arc::new(Mutex::new(pl));
 
