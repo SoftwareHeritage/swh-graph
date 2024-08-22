@@ -41,9 +41,8 @@ class CompressionStep(Enum):
     LABEL_STATS = 6
     MPH = 10
     BV = 30
-    BV_OFFSETS = 40
-    BV_EF = 50
-    BFS_ROOTS = 55
+    BV_EF = 40
+    BFS_ROOTS = 50
     BFS = 60
     PERMUTE_AND_SIMPLIFY_BFS = 70
     BFS_EF = 80
@@ -161,11 +160,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--num-nodes",
         "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
         "{in_dir}",
-        "{out_dir}/{graph_name}-base",
-    ],
-    CompressionStep.BV_OFFSETS: [
-        "{rust_executable_dir}/swh-graph-index",
-        "offsets",
         "{out_dir}/{graph_name}-base",
     ],
     CompressionStep.BV_EF: [

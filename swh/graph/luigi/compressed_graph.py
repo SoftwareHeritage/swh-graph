@@ -600,18 +600,9 @@ class Bv(_CompressionStepTask):
         return int(self._mph_size() + batch_size)
 
 
-class BvOffsets(_CompressionStepTask):
-    STEP = CompressionStep.BV_OFFSETS
-    INPUT_FILES = {"-base.graph"}
-    OUTPUT_FILES = {"-base.offsets"}
-
-    def _large_java_allocations(self) -> int:
-        return 0
-
-
 class BvEf(_CompressionStepTask):
     STEP = CompressionStep.BV_EF
-    INPUT_FILES = {"-base.offsets"}
+    INPUT_FILES = {"-base.graph"}
     OUTPUT_FILES = {"-base.ef"}
 
     def _large_java_allocations(self) -> int:
@@ -697,7 +688,7 @@ class Llp(_CompressionStepTask):
 
 class PermuteLlp(_CompressionStepTask):
     STEP = CompressionStep.PERMUTE_LLP
-    INPUT_FILES = {".pthash.order", "-base.graph", "-base.offsets"}
+    INPUT_FILES = {".pthash.order", "-base.graph", "-base.ef"}
     OUTPUT_FILES = {".graph", ".properties"}
 
     def _large_java_allocations(self) -> int:
