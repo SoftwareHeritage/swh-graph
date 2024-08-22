@@ -915,7 +915,7 @@ class NodeProperties(_CompressionStepTask):
 
 
 class PthashLabels(_CompressionStepTask):
-    STEP = CompressionStep.PTHASH_LABELS
+    STEP = CompressionStep.MPH_LABELS
     INPUT_FILES = {".labels.csv.zst", ".labels.count.txt"}
     OUTPUT_FILES = {".labels.pthash"}
 
@@ -923,8 +923,8 @@ class PthashLabels(_CompressionStepTask):
         return 0
 
 
-class PthashLabelsOrder(_CompressionStepTask):
-    STEP = CompressionStep.PTHASH_LABELS_ORDER
+class LabelsOrder(_CompressionStepTask):
+    STEP = CompressionStep.LABELS_ORDER
     INPUT_FILES = {".labels.csv.zst", ".labels.pthash", ".labels.count.txt"}
     OUTPUT_FILES = {".labels.pthash.order"}
 

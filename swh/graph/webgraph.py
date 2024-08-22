@@ -61,8 +61,8 @@ class CompressionStep(Enum):
     PERSONS_STATS = 195
     MPH_PERSONS = 200
     NODE_PROPERTIES = 210
-    PTHASH_LABELS = 220
-    PTHASH_LABELS_ORDER = 225
+    MPH_LABELS = 220
+    LABELS_ORDER = 225
     FCL_LABELS = 230
     EDGE_LABELS = 240
     EDGE_LABELS_TRANSPOSE = 250
@@ -327,7 +327,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{in_dir}",
         "{out_dir}/{graph_name}",
     ],
-    CompressionStep.PTHASH_LABELS: [
+    CompressionStep.MPH_LABELS: [
         "{rust_executable_dir}/swh-graph-compress",
         "pthash-labels",
         "--num-labels",
@@ -335,7 +335,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "<(zstdcat {out_dir}/{graph_name}.labels.csv.zst)",
         "{out_dir}/{graph_name}.labels.pthash",
     ],
-    CompressionStep.PTHASH_LABELS_ORDER: [
+    CompressionStep.LABELS_ORDER: [
         "{rust_executable_dir}/swh-graph-compress",
         "pthash-labels-order",
         "--num-labels",
