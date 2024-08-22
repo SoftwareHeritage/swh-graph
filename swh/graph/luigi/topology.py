@@ -136,7 +136,6 @@ class TopoSort(luigi.Task):
         (
             Rust(
                 "toposort",
-                "-vv",
                 self.local_graph_path / self.graph_name,
                 "--algorithm", self.algorithm,
                 "--direction", self.direction,
@@ -265,7 +264,6 @@ class CountPaths(luigi.Task):
             | Rust(
                 "count_paths",
                 self.local_graph_path / self.graph_name,
-                "-vv",
                 "--direction",
                 self.direction,
                 "--out",

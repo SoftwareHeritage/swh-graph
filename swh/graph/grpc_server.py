@@ -34,14 +34,13 @@ def build_rust_grpc_server_cmdline(**config):
         port = aiohttp.test_utils.unused_port()
         logger.debug("Port not configured, using random port %s", port)
 
-    debug_mode = config.get("debug", False)
     grpc_path = config["rust_executable_dir"] + "swh-graph-grpc-serve"
     if not os.path.isfile(grpc_path):
         grpc_path = shutil.which("swh-graph-grpc-serve")
     if not grpc_path or not os.path.isfile(grpc_path):
         raise ExecutableNotFound("swh-graph-grpc-serve executable not found")
 
-    cmd = [grpc_path, "-vvvvv" if debug_mode else "-vv"]
+    cmd = [grpc_path]
     if config.get("masked_nodes"):
         cmd.extend(["--masked-nodes", config["masked_nodes"]])
     logger.debug("Configuration: %r", config)
@@ -56,7 +55,10 @@ def spawn_rust_grpc_server(**config):
     # XXX: shlex.join() is in 3.8
     # logger.info("Starting gRPC server: %s", shlex.join(cmd))
     logger.info("Starting gRPC server: %s", " ".join(shlex.quote(x) for x in cmd))
-    server = subprocess.Popen(cmd)
+    env = dict(os.environ)
+    if config.get("debug", False):
+        env.setdefault("RUST_LOG", "debug")
+    server = subprocess.Popen(cmd, env=env)
     return server, port
 
 

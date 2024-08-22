@@ -7,7 +7,7 @@
 
 use std::path::PathBuf;
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{ensure, Result};
 use clap::{Parser, Subcommand};
 use dsi_bitstream::prelude::BE;
 
@@ -57,11 +57,7 @@ enum Commands {
 pub fn main() -> Result<()> {
     let args = Args::parse();
 
-    stderrlog::new()
-        .verbosity(2)
-        .timestamp(stderrlog::Timestamp::Second)
-        .init()
-        .with_context(|| "While Initializing the stderrlog")?;
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     match args.command {
         Commands::Offsets { graph } => {

@@ -67,7 +67,6 @@ class PopularContentNames(luigi.Task):
         (
             Rust(
                 "popular-content-names",
-                "-vv",
                 self.local_graph_path / self.graph_name,
                 "--max-results",
                 str(self.max_results_per_content),

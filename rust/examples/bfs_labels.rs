@@ -26,13 +26,7 @@ struct Args {
 pub fn main() -> Result<()> {
     let args = Args::parse();
 
-    // Setup a stderr logger because ProgressLogger uses the `log` crate
-    // to printout
-    stderrlog::new()
-        .verbosity(3)
-        .timestamp(stderrlog::Timestamp::Second)
-        .init()
-        .unwrap();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     info!("Loading graph...");
     let graph = SwhUnidirectionalGraph::new(args.graph)

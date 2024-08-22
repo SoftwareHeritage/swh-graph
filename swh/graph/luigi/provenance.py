@@ -58,7 +58,6 @@ class ListProvenanceNodes(luigi.Task):
         (
             Rust(
                 "list-provenance-nodes",
-                "-vv",
                 self.local_graph_path / self.graph_name,
                 "--node-filter",
                 self.provenance_node_filter,
@@ -125,7 +124,6 @@ class ComputeEarliestTimestamps(luigi.Task):
         (
             Rust(
                 "compute-earliest-timestamps",
-                "-vv",
                 "--node-filter",
                 self.provenance_node_filter,
                 self.local_graph_path / self.graph_name,
@@ -197,7 +195,6 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
         (
             Rust(
                 "list-directory-with-max-leaf-timestamp",
-                "-vv",
                 self.local_graph_path / self.graph_name,
                 "--node-filter",
                 self.provenance_node_filter,
@@ -265,7 +262,6 @@ class ComputeDirectoryFrontier(luigi.Task):
         (
             Rust(
                 "compute-directory-frontier",
-                "-vv",
                 self.local_graph_path / self.graph_name,
                 "--thread-buffer-size",
                 str(self.max_ram // multiprocessing.cpu_count()),
@@ -338,7 +334,6 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
         (
             Rust(
                 "frontier-directories-in-revisions",
-                "-vv",
                 self.local_graph_path / self.graph_name,
                 "--thread-buffer-size",
                 str(self.max_ram // multiprocessing.cpu_count()),
@@ -417,7 +412,6 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
         (
             Rust(
                 "contents-in-revisions-without-frontier",
-                "-vv",
                 self.local_graph_path / self.graph_name,
                 "--thread-buffer-size",
                 str(self.max_ram // multiprocessing.cpu_count()),
@@ -487,7 +481,6 @@ class ListContentsInFrontierDirectories(luigi.Task):
         (
             Rust(
                 "contents-in-directories",
-                "-vv",
                 self.local_graph_path / self.graph_name,
                 "--thread-buffer-size",
                 str(self.max_ram // multiprocessing.cpu_count()),

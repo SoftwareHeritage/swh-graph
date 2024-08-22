@@ -139,8 +139,8 @@ In our example:
 
    (venv) $ swh graph rpc-serve -g compressed/graph
    Started GRPC using dataset from swh/graph/example_dataset/compressed/example
-   ['/home/dev/.cargo/bin/swh-graph-grpc-serve', '-vv', '--bind', '[::]:50867', 'compressed/graph']
-   INFO:swh.graph.grpc_server:Starting gRPC server: /home/dev/.cargo/bin/swh-graph-grpc-serve -vv --bind '[::]:50867' compressed/graph
+   ['/home/dev/.cargo/bin/swh-graph-grpc-serve', '--bind', '[::]:50867', 'compressed/graph']
+   INFO:swh.graph.grpc_server:Starting gRPC server: /home/dev/.cargo/bin/swh-graph-grpc-serve --bind '[::]:50867' compressed/graph
    2024-06-18T09:12:40+02:00 - INFO - Loading graph
    2024-06-18T09:12:40+02:00 - INFO - Loading properties
    2024-06-18T09:12:40+02:00 - INFO - Loading labels

@@ -27,8 +27,6 @@ use swh_graph::{OutOfBoundError, SWHID};
 /// If any of the input lines was not in the dataset used to build the MPH, then the result
 /// will either be a silent hash collision or cause a non-zero exit.
 struct Args {
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
     #[command(subcommand)]
     command: Commands,
 }
@@ -66,11 +64,7 @@ enum Commands {
 pub fn main() -> Result<()> {
     let args = Args::parse();
 
-    stderrlog::new()
-        .verbosity(args.verbose as usize)
-        .timestamp(stderrlog::Timestamp::Second)
-        .init()
-        .with_context(|| "While Initializing the stderrlog")?;
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     match args.command {
         Commands::Swhids {

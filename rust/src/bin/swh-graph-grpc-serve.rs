@@ -23,19 +23,13 @@ struct Args {
     #[arg(long)]
     /// A line-separated list of node SWHIDs to exclude from the graph
     masked_nodes: Option<PathBuf>,
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
 }
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
     let args = Args::parse();
 
-    stderrlog::new()
-        .verbosity(args.verbose as usize)
-        .timestamp(stderrlog::Timestamp::Second)
-        .init()
-        .context("While Initializing the stderrlog")?;
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     log::info!("Loading graph");
     let graph = load_full::<swh_graph::mph::DynMphf>(args.graph_path)?;

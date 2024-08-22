@@ -1215,7 +1215,6 @@ class FindEarliestRevisions(_BaseTask):
             | Command.uniq()
             | Rust(
                 "find-earliest-revision",
-                "-vv",
                 self.local_graph_path / self.graph_name,
             )
             | Command.pv("--wait", "--line-mode", "--size", str(self.blob_count()))
