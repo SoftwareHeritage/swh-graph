@@ -34,8 +34,6 @@ enum Direction {
 #[command(about = "Computes a topological order of the Software Heritage graph", long_about = None)]
 struct Args {
     graph_path: PathBuf,
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
     #[arg(short, long)]
     algorithm: Algorithm,
     #[arg(short, long)]
@@ -57,13 +55,9 @@ struct Record<'a> {
 pub fn main() -> Result<()> {
     let args = Args::parse();
 
-    let node_types = parse_allowed_node_types(&args.node_types)?;
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    stderrlog::new()
-        .verbosity(args.verbose as usize)
-        .timestamp(stderrlog::Timestamp::Second)
-        .init()
-        .context("While Initializing the stderrlog")?;
+    let node_types = parse_allowed_node_types(&args.node_types)?;
 
     log::info!("Loading graph");
     let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph_path)

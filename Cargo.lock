@@ -3443,19 +3443,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
-name = "stderrlog"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69a26bbf6de627d389164afa9783739b56746c6c72c4ed16539f4ff54170327b"
-dependencies = [
- "atty",
- "chrono",
- "log",
- "termcolor",
- "thread_local",
-]
-
-[[package]]
 name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3594,13 +3581,13 @@ dependencies = [
  "clap",
  "csv",
  "dsi-progress-logger",
+ "env_logger 0.11.5",
  "itertools 0.11.0",
  "lazy_static",
  "log",
  "rayon",
  "serde",
  "serde_bytes",
- "stderrlog",
  "swh-graph",
 ]
 
@@ -3612,12 +3599,12 @@ dependencies = [
  "clap",
  "csv",
  "dsi-progress-logger",
+ "env_logger 0.11.5",
  "itertools 0.11.0",
  "log",
  "rayon",
  "serde",
  "serde_bytes",
- "stderrlog",
  "swh-graph",
 ]
 
@@ -3635,6 +3622,7 @@ dependencies = [
  "clap",
  "csv",
  "dsi-progress-logger",
+ "env_logger 0.11.5",
  "log",
  "parquet",
  "pretty_assertions",
@@ -3643,7 +3631,6 @@ dependencies = [
  "serde",
  "serde_bytes",
  "sha1",
- "stderrlog",
  "sux",
  "swh-graph",
  "thread_local",
@@ -3668,12 +3655,12 @@ dependencies = [
  "clap",
  "csv",
  "dsi-progress-logger",
+ "env_logger 0.11.5",
  "itertools 0.11.0",
  "log",
  "parquet",
  "rayon",
  "serde",
- "stderrlog",
  "swh-graph",
 ]
 

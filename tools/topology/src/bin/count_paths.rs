@@ -40,8 +40,6 @@ This requires a topological order as input (as returned by the toposort command)
 "))]
 struct Args {
     graph_path: PathBuf,
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
     #[arg(short, long)]
     direction: Direction,
     #[arg(long, default_value_t = 1_000_000)]
@@ -127,11 +125,7 @@ impl StructArrayBuilder for OutputBuilder {
 pub fn main() -> Result<()> {
     let args = Args::parse();
 
-    stderrlog::new()
-        .verbosity(args.verbose as usize)
-        .timestamp(stderrlog::Timestamp::Second)
-        .init()
-        .context("While Initializing the stderrlog")?;
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     log::info!("Loading graph");
     let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph_path)

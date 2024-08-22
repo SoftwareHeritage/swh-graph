@@ -70,11 +70,7 @@ struct ContribOutputRecord {
 pub fn main() -> Result<()> {
     let args = Args::parse();
 
-    stderrlog::new()
-        .verbosity(2)
-        .timestamp(stderrlog::Timestamp::Second)
-        .init()
-        .context("While Initializing the stderrlog")?;
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     log::info!("Loading graph");
     let graph = swh_graph::graph::SwhUnidirectionalGraph::new(args.graph_path)

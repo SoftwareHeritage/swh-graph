@@ -25,8 +25,6 @@ use swh_graph::{NodeType, SWHID};
 #[command(about = "Reads a graph and re-creates the list of edges used to create the graph", long_about = None)]
 struct Args {
     graph_path: PathBuf,
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
     #[arg(short, long, default_value = "*")]
     node_types: String,
     #[arg(short, long, default_value_t = 3)]
@@ -115,11 +113,7 @@ pub fn main() -> Result<()> {
 
     let node_types = parse_allowed_node_types(&args.node_types)?;
 
-    stderrlog::new()
-        .verbosity(args.verbose as usize)
-        .timestamp(stderrlog::Timestamp::Second)
-        .init()
-        .context("While Initializing the stderrlog")?;
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     log::info!("Loading graph");
     let graph = swh_graph::graph::SwhUnidirectionalGraph::new(args.graph_path)

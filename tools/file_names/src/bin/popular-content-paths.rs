@@ -32,8 +32,6 @@ use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter}
  */
 struct Args {
     graph_path: PathBuf,
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
     #[arg(long)]
     /// Expected number of lines (content/directory SWHIDs) in the input,
     /// used for progress reporting.
@@ -96,11 +94,7 @@ pub fn main() -> Result<()> {
 /// This allows working with arrays of length known at compile-time, avoiding overhead
 /// of individually storing their size.
 fn main_monomorphized<const MAX_DEPTH: usize>(args: Args) -> Result<()> {
-    stderrlog::new()
-        .verbosity(args.verbose as usize)
-        .timestamp(stderrlog::Timestamp::Second)
-        .init()
-        .context("While Initializing the stderrlog")?;
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     log::info!("Loading graph");
     let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph_path)

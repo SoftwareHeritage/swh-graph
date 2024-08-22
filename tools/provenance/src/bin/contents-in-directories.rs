@@ -43,8 +43,6 @@ static GLOBAL: Jemalloc = Jemalloc;
  */
 struct Args {
     graph_path: PathBuf,
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
     #[arg(long)]
     /// Maximum number of bytes in a thread's output Parquet buffer,
     /// before it is flushed to disk
@@ -64,11 +62,7 @@ struct Args {
 pub fn main() -> Result<()> {
     let args = Args::parse();
 
-    stderrlog::new()
-        .verbosity(args.verbose as usize)
-        .timestamp(stderrlog::Timestamp::Second)
-        .init()
-        .context("While Initializing the stderrlog")?;
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     log::info!("Loading graph");
     let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph_path)

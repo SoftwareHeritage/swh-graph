@@ -26,8 +26,6 @@ use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter}
  */
 struct Args {
     graph_path: PathBuf,
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
     #[arg(long, default_value_t = 0)]
     /// Maximum number of names to print for each content, or 0 if no limit.
     ///
@@ -70,11 +68,7 @@ impl<N: Eq, O: Ord> Ord for NameWithOccurences<N, O> {
 pub fn main() -> Result<()> {
     let args = Args::parse();
 
-    stderrlog::new()
-        .verbosity(args.verbose as usize)
-        .timestamp(stderrlog::Timestamp::Second)
-        .init()
-        .context("While Initializing the stderrlog")?;
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     log::info!("Loading graph");
     let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph_path)
