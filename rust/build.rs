@@ -4,9 +4,9 @@
 // See top-level LICENSE file for more information
 
 #[cfg(feature = "grpc-server")]
-const PROTO_PATH: &str = "../proto/swhgraph.proto";
+const PROTO_PATH: &str = "./proto/swhgraph.proto";
 #[cfg(feature = "grpc-server")]
-const PROTO_DIR: &str = "../proto/";
+const PROTO_DIR: &str = "./proto/";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "grpc-server")]
