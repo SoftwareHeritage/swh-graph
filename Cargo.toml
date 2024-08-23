@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "5.1.0"
+version = "5.1.1"
 
 [profile.release] # Used for the examples
 opt-level = 3             # like --release
