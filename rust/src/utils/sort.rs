@@ -112,6 +112,9 @@ where
             })
             .count();
 
+        log::info!("Counted {} rows", num_rows);
+        log::info!("Flushing remaining buffers");
+
         let is_empty = num_rows == 0;
 
         // Write remaining buffers
@@ -120,6 +123,8 @@ where
             let state = unsafe { &mut *state.get() };
             flush_buffer(state)
         }
+
+        log::info!("Sorting");
 
         // Notify sorters they reached the end of their inputs
         for state in thread_states.iter_mut() {
@@ -150,7 +155,7 @@ where
             .with_context(|| format!("Could not create directory {}", target_dir.display()))?;
 
         if is_empty {
-            // No persons; write an empty file so the rest of the pipeline does not
+            // No items at all; write an empty file so the rest of the pipeline does not
             // need special-casing for the absence of files.
             let path = target_dir.join("0.csv.zst");
             let file = std::fs::File::create(&path)
@@ -167,6 +172,8 @@ where
         }
 
         assert!(sorted_files.len() > 0, "Sorters did not run");
+
+        log::info!("Merging sorted rows and writing to disk");
 
         // Spawn sort * | pv | split
 
@@ -210,6 +217,8 @@ where
         merge.wait().with_context(|| "merger crashed")?;
         merge.wait().with_context(|| "pv crashed")?;
         split.wait().with_context(|| "split/zstdmt crashed")?;
+
+        log::info!("Done sorting rows and writing to disk");
 
         Ok(())
     }
