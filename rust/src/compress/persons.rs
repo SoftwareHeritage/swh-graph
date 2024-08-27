@@ -5,7 +5,8 @@
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use dsi_progress_logger::{progress_logger, ProgressLog};
@@ -13,6 +14,8 @@ use pthash::{
     BuildConfiguration, DictionaryDictionary, Hashable, Minimal, MurmurHash2_64, PartitionedPhf,
     Phf,
 };
+
+use crate::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 
 pub struct Person<T: AsRef<[u8]>>(pub T);
 
@@ -27,9 +30,9 @@ impl<T: AsRef<[u8]>> Hashable for Person<T> {
 // graph has just over 2^32 keys
 pub type PersonMphf = PartitionedPhf<Minimal, MurmurHash2_64, DictionaryDictionary>;
 
-fn iter_persons(path: PathBuf) -> Result<impl Iterator<Item = Person<Box<[u8]>>>> {
+fn iter_persons(path: &Path) -> Result<impl Iterator<Item = Person<Box<[u8]>>>> {
     let persons_file =
-        File::open(&path).with_context(|| format!("Could not open {}", path.display()))?;
+        File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
     Ok(BufReader::new(persons_file).lines().map(move |person| {
         Person(
             person
@@ -42,16 +45,21 @@ fn iter_persons(path: PathBuf) -> Result<impl Iterator<Item = Person<Box<[u8]>>>
 
 /// Reads base64-encoded persons from the path and return a MPH function for them.
 pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonMphf> {
-    let mut pl = progress_logger!(
-        display_memory = true,
-        item_name = "person",
-        local_speed = true,
-        expected_updates = Some(num_persons),
-    );
-    pl.start("Reading persons");
-
-    let persons: Vec<_> = iter_persons(path)?.inspect(|_| pl.light_update()).collect();
-    pl.done();
+    let mut pass_counter = 0;
+    let iter_persons = || {
+        pass_counter += 1;
+        let mut pl = progress_logger!(
+            display_memory = true,
+            item_name = "person",
+            local_speed = true,
+            expected_updates = Some(num_persons),
+        );
+        pl.start(&format!("Reading persons (pass #{})", pass_counter));
+        let mut pl = BufferedProgressLogger::new(Arc::new(Mutex::new(Box::new(pl))));
+        iter_persons(&path)
+            .expect("Could not read persons")
+            .inspect(move |_| MinimalProgressLog::light_update(&mut pl))
+    };
     let temp_dir = tempfile::tempdir().unwrap();
 
     // TODO: tweak those for performance
@@ -61,7 +69,7 @@ pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonMphf> {
     log::info!("Building MPH with parameters: {:?}", config);
 
     let mut f = PersonMphf::new();
-    f.build_in_internal_memory_from_bytes(&persons, &config)
+    f.build_in_internal_memory_from_bytes(iter_persons, &config)
         .context("Failed to build MPH")?;
     Ok(f)
 }

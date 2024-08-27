@@ -5,7 +5,8 @@
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use anyhow::{ensure, Context, Result};
 use dsi_progress_logger::{progress_logger, ProgressLog};
@@ -17,6 +18,7 @@ use rayon::prelude::*;
 
 use crate::labels::FilenameId;
 use crate::map::{MappedPermutation, OwnedPermutation, Permutation};
+use crate::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 
 pub struct LabelName<T: AsRef<[u8]>>(pub T);
 
@@ -31,10 +33,10 @@ impl<T: AsRef<[u8]>> Hashable for LabelName<T> {
 // graph has just over 2^32 keys
 pub type LabelNameMphf = PartitionedPhf<Minimal, MurmurHash2_128, DictionaryDictionary>;
 
-fn iter_labels(path: PathBuf) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>> {
+fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>> {
     let base64 = base64_simd::STANDARD;
     let labels_file =
-        File::open(&path).with_context(|| format!("Could not open {}", path.display()))?;
+        File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
     Ok(BufReader::new(labels_file)
         .lines()
         .map(move |label_base64| {
@@ -52,16 +54,21 @@ fn iter_labels(path: PathBuf) -> Result<impl Iterator<Item = LabelName<Box<[u8]>
 
 /// Reads base64-encoded labels from the path and return a MPH function for them.
 pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
-    let mut pl = progress_logger!(
-        display_memory = true,
-        item_name = "label",
-        local_speed = true,
-        expected_updates = Some(num_labels),
-    );
-    pl.start("Reading labels");
-
-    let labels: Vec<_> = iter_labels(path)?.inspect(|_| pl.light_update()).collect();
-    pl.done();
+    let mut pass_counter = 0;
+    let iter_labels = || {
+        pass_counter += 1;
+        let mut pl = progress_logger!(
+            display_memory = true,
+            item_name = "label",
+            local_speed = true,
+            expected_updates = Some(num_labels),
+        );
+        pl.start(&format!("Reading labels (pass #{})", pass_counter));
+        let mut pl = BufferedProgressLogger::new(Arc::new(Mutex::new(Box::new(pl))));
+        iter_labels(&path)
+            .expect("Could not read labels")
+            .inspect(move |_| MinimalProgressLog::light_update(&mut pl))
+    };
     let temp_dir = tempfile::tempdir().unwrap();
 
     // From zack's benchmarks on the 2023-09-06 graph (4 billion label names)
@@ -79,7 +86,7 @@ pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
     );
 
     let mut f = LabelNameMphf::new();
-    f.build_in_internal_memory_from_bytes(&labels, &config)
+    f.build_in_internal_memory_from_bytes(iter_labels, &config)
         .context("Failed to build MPH")?;
     Ok(f)
 }
@@ -116,8 +123,8 @@ pub fn build_order(
     pl.start("Reading labels");
 
     let mut order: Vec<_> = (0..num_labels).map(|_| usize::MAX).collect();
-    for (i, label) in iter_labels(path)?.enumerate() {
-        pl.light_update();
+    for (i, label) in iter_labels(&path)?.enumerate() {
+        ProgressLog::light_update(&mut pl);
         let hash = mphf.hash(&label) as usize;
         ensure!(hash < num_labels, "{} is not minimal", mphf_path.display());
         ensure!(

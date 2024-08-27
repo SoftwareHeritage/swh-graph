@@ -4,7 +4,7 @@
 // See top-level LICENSE file for more information
 
 use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
@@ -16,26 +16,21 @@ use rayon::prelude::*;
 use crate::compress::zst_dir::*;
 use crate::mph::{HashableSWHID, SwhidPthash};
 
-fn par_iter_swhids(
-    swhids_dir: &Path,
-    num_nodes: usize,
-) -> impl ParallelIterator<Item = Vec<u8>> + '_ {
-    let mut pl = progress_logger!(
-        display_memory = true,
-        item_name = "SWHID",
-        local_speed = true,
-        expected_updates = Some(num_nodes),
-    );
-    pl.start("Reading SWHIDs");
-    let pl = Arc::new(Mutex::new(Box::new(pl)));
-    par_iter_lines_from_dir(swhids_dir, pl)
-}
-
 /// Reads textual SWHIDs from the path and return a MPH function for them.
 pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidPthash> {
-    let swhids: Vec<_> = par_iter_swhids(&swhids_dir, num_nodes)
-        .map(HashableSWHID)
-        .collect();
+    let mut pass_counter = 0;
+    let iter_swhids = || {
+        pass_counter += 1;
+        let mut pl = progress_logger!(
+            display_memory = true,
+            item_name = "SWHID",
+            local_speed = true,
+            expected_updates = Some(num_nodes),
+        );
+        pl.start(&format!("Reading SWHIDs (pass #{})", pass_counter));
+        let pl = Arc::new(Mutex::new(Box::new(pl)));
+        par_iter_lines_from_dir(&swhids_dir, pl).map(HashableSWHID::<Vec<u8>>)
+    };
     let temp_dir = tempfile::tempdir().unwrap();
 
     // Tuned by zack on the 2023-09-06 graph on a machine with two Intel Xeon Gold 6342 CPUs
@@ -48,7 +43,7 @@ pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidP
     log::info!("Building MPH with parameters: {:?}", config);
 
     let mut f = PartitionedPhf::new();
-    f.build_in_internal_memory_from_bytes(&swhids, &config)
+    f.par_build_in_internal_memory_from_bytes(iter_swhids, &config)
         .context("Failed to build MPH")?;
     Ok(SwhidPthash(f))
 }

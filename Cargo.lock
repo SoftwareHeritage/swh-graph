@@ -3022,9 +3022,9 @@ dependencies = [
 
 [[package]]
 name = "pthash"
-version = "0.3.2"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "581d1ef02a6acc35e26d88a5ca72f2418ed32239fdf5878f02d2f25742d4effa"
+checksum = "1ade741cee90eb10e0a32414b1f19c47abaee8aa5d23d5cab97cbaf3059b0b94"
 dependencies = [
  "autocxx",
  "autocxx-build",
@@ -3033,6 +3033,7 @@ dependencies = [
  "cxx-build",
  "log",
  "rand",
+ "rayon",
  "thiserror",
 ]
 
