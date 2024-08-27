@@ -17,6 +17,7 @@ use sux::prelude::BitVec;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::utils::mmap::NumberMmap;
+use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::utils::shuffle::par_iter_shuffled_range;
 use swh_graph::utils::GetIndex;
 use swh_graph::NodeType;
@@ -132,57 +133,57 @@ where
         expected_updates = Some(graph.num_nodes()),
     );
     pl.start("Propagating through directories...");
-    let pl = Arc::new(Mutex::new(pl));
 
     let reachable = |node| match reachable_nodes {
         Some(reachable_nodes) => reachable_nodes.get(node),
         None => true, // All nodes are reachable
     };
 
-    par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(|cnt| {
-        if reachable(cnt) && graph.properties().node_type(cnt) == NodeType::Content {
-            let cnt_timestamp = timestamps.get(cnt).unwrap();
-            if cnt_timestamp == i64::MIN {
-                // Content is not in any timestamped revrel, ignore it.
-            } else {
-                let mut stack = vec![cnt];
+    par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_with(
+        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+        |thread_pl, cnt| {
+            if reachable(cnt) && graph.properties().node_type(cnt) == NodeType::Content {
+                let cnt_timestamp = timestamps.get(cnt).unwrap();
+                if cnt_timestamp == i64::MIN {
+                    // Content is not in any timestamped revrel, ignore it.
+                } else {
+                    let mut stack = vec![cnt];
 
-                while let Some(node) = stack.pop() {
-                    for pred in graph.predecessors(node) {
-                        if !reachable(pred) {
-                            continue;
-                        }
-                        match graph.properties().node_type(pred) {
-                            NodeType::Directory => {
-                                let previous_max = max_timestamps[pred]
-                                    .fetch_max(cnt_timestamp, Ordering::Relaxed);
-                                if previous_max >= cnt_timestamp {
-                                    // Already traversed from a content with a newer timestamp
-                                    // than this one (or already from this one), so every
-                                    // directory we would find from now on would too.
-                                    // No need to recurse further.
-                                } else {
-                                    stack.push(pred);
-                                }
+                    while let Some(node) = stack.pop() {
+                        for pred in graph.predecessors(node) {
+                            if !reachable(pred) {
+                                continue;
                             }
-                            NodeType::Content => bail!(
-                                "{} is predecessor of {}",
-                                graph.properties().swhid(pred),
-                                graph.properties().swhid(node)
-                            ),
-                            _ => (),
+                            match graph.properties().node_type(pred) {
+                                NodeType::Directory => {
+                                    let previous_max = max_timestamps[pred]
+                                        .fetch_max(cnt_timestamp, Ordering::Relaxed);
+                                    if previous_max >= cnt_timestamp {
+                                        // Already traversed from a content with a newer timestamp
+                                        // than this one (or already from this one), so every
+                                        // directory we would find from now on would too.
+                                        // No need to recurse further.
+                                    } else {
+                                        stack.push(pred);
+                                    }
+                                }
+                                NodeType::Content => bail!(
+                                    "{} is predecessor of {}",
+                                    graph.properties().swhid(pred),
+                                    graph.properties().swhid(node)
+                                ),
+                                _ => (),
+                            }
                         }
                     }
                 }
             }
-        }
-        if cnt % 32768 == 0 {
-            pl.lock().unwrap().update_with_count(32768);
-        }
-        Ok(())
-    })?;
+            thread_pl.light_update();
+            Ok(())
+        },
+    )?;
 
-    pl.lock().unwrap().done();
+    pl.done();
 
     Ok(())
 }

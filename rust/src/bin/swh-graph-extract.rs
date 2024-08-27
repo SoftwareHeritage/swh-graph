@@ -356,7 +356,7 @@ pub fn main() -> Result<()> {
             );
             pl.start("Computing node stats");
 
-            let stats = par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(pl)))
+            let stats = par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(&mut pl)))
                 .map(|line: [u8; 50]| {
                     let ty = NodeType::try_from(&line[6..9]).expect("Unexpected SWHID type");
                     let mut stats = [0usize; NodeType::NUMBER_OF_TYPES];

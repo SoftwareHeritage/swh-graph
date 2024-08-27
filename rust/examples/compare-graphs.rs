@@ -16,6 +16,7 @@ use rayon::prelude::*;
 
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::utils::shuffle::par_iter_shuffled_range;
 use swh_graph::views::Transposed;
 use swh_graph::NodeType;
@@ -148,14 +149,9 @@ where
         expected_updates = Some(num_nodes),
     );
     pl.start("Checking SWHIDs...");
-    let pl = Arc::new(Mutex::new(pl));
-    (0..num_nodes)
-        .into_par_iter()
-        .try_for_each(|node| -> Result<()> {
-            if node % 32768 == 0 {
-                pl.lock().unwrap().update_with_count(32768);
-            }
-
+    (0..num_nodes).into_par_iter().try_for_each_with(
+        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+        |thread_pl, node| -> Result<()> {
             if graph1.properties().swhid(node) != graph1.properties().swhid(node) {
                 log::error!(
                     "node {} is {} in {} and {} in {}",
@@ -167,10 +163,11 @@ where
                 );
                 bail!("SWHID mismatch")
             }
-
+            thread_pl.light_update();
             Ok(())
-        })?;
-    pl.lock().unwrap().done();
+        },
+    )?;
+    pl.done();
 
     Ok(())
 }
@@ -188,37 +185,35 @@ where
         expected_updates = Some(num_nodes),
     );
     pl.start("Checking successors...");
-    let pl = Arc::new(Mutex::new(pl));
-    par_iter_shuffled_range(0..num_nodes).try_for_each(|node| -> Result<()> {
-        let successors1: Vec<_> = graph1.successors(node).into_iter().collect();
-        let successors2: Vec<_> = graph2.successors(node).into_iter().collect();
-        if successors1 != successors2 {
-            log::error!(
-                "node {} has successors {} in {} and {} in {}",
-                node,
-                successors1
-                    .into_iter()
-                    .map(|succ| graph1.properties().swhid(succ).to_string())
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                graph1.path().display(),
-                successors2
-                    .into_iter()
-                    .map(|succ| graph2.properties().swhid(succ).to_string())
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                graph2.path().display()
-            );
-            bail!("Successors mismatch")
-        }
-
-        if node % 32768 == 0 {
-            pl.lock().unwrap().update_with_count(32768);
-        }
-
-        Ok(())
-    })?;
-    pl.lock().unwrap().done();
+    par_iter_shuffled_range(0..num_nodes).try_for_each_with(
+        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+        |thread_pl, node| -> Result<()> {
+            let successors1: Vec<_> = graph1.successors(node).into_iter().collect();
+            let successors2: Vec<_> = graph2.successors(node).into_iter().collect();
+            if successors1 != successors2 {
+                log::error!(
+                    "node {} has successors {} in {} and {} in {}",
+                    node,
+                    successors1
+                        .into_iter()
+                        .map(|succ| graph1.properties().swhid(succ).to_string())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    graph1.path().display(),
+                    successors2
+                        .into_iter()
+                        .map(|succ| graph2.properties().swhid(succ).to_string())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    graph2.path().display()
+                );
+                bail!("Successors mismatch")
+            }
+            thread_pl.light_update();
+            Ok(())
+        },
+    )?;
+    pl.done();
 
     Ok(())
 }
@@ -241,8 +236,9 @@ where
         expected_updates = Some(num_nodes),
     );
     pl.start("Checking arc labels...");
-    let pl = Arc::new(Mutex::new(pl));
-    par_iter_shuffled_range(0..num_nodes).try_for_each(|node| -> Result<()> {
+    par_iter_shuffled_range(0..num_nodes).try_for_each_with(
+        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+        |thread_pl, node| -> Result<()> {
         for ((succ1, labels1), (succ2, labels2)) in graph1
             .labeled_successors(node)
             .zip(graph2.labeled_successors(node))
@@ -284,13 +280,10 @@ where
                 }
             }
         }
-
-        if node % 32768 == 0 {
-            pl.lock().unwrap().update_with_count(32768);
-        }
+        thread_pl.light_update();
         Ok(())
     })?;
-    pl.lock().unwrap().done();
+    pl.done();
     Ok(())
 }
 
@@ -314,10 +307,9 @@ where
                 expected_updates = Some(num_nodes),
             );
             pl.start(&format!("Checking {}...", stringify!($property)));
-            let pl = Arc::new(Mutex::new(pl));
-            (0..num_nodes)
-                .into_par_iter()
-                .try_for_each(|node| -> Result<()> {
+            (0..num_nodes).into_par_iter().try_for_each_with(
+                BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+                |thread_pl, node| -> Result<()> {
                     if graph1.properties().$property(node) != graph2.properties().$property(node) {
                         log::error!(
                             "node {} ({}) has {} {:?} in {} and {:?} in {}",
@@ -330,15 +322,12 @@ where
                             graph2.path().display()
                         );
                     }
-
-                    if node % 32768 == 0 {
-                        pl.lock().unwrap().update_with_count(32768);
-                    }
-
+                    thread_pl.light_update();
                     Ok(())
-                })?;
+                },
+            )?;
 
-            pl.lock().unwrap().done();
+            pl.done();
         }};
     }
 

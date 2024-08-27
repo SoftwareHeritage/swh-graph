@@ -16,11 +16,12 @@ use sux::prelude::{AtomicBitVec, BitVec};
 use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph::utils::mmap::NumberMmap;
+use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::utils::GetIndex;
 use swh_graph::NodeType;
 
-use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph_provenance::filters::{is_root_revrel, NodeFilter};
 use swh_graph_provenance::frontier_set::{schema, to_parquet, writer_properties};
 
@@ -117,10 +118,9 @@ where
         expected_updates = Some(graph.num_nodes()),
     );
     pl.start("[step 1/2] Visiting revisions' directories...");
-    let pl = Arc::new(Mutex::new(pl));
-
-    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(
-        |root| -> Result<()> {
+    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_with(
+        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+        |thread_pl, root| -> Result<()> {
             if is_root_revrel(graph, node_filter, root) {
                 if let Some(root_dir) = swh_graph::stdlib::find_root_dir(graph, root)
                     .context("Could not pick root directory")?
@@ -134,16 +134,12 @@ where
                     )?;
                 }
             }
-
-            if root % 32768 == 0 {
-                pl.lock().unwrap().update_with_count(32768);
-            }
-
+            thread_pl.light_update();
             Ok(())
         },
     )?;
 
-    pl.lock().unwrap().done();
+    pl.done();
 
     log::info!("Visits done, finishing output");
 

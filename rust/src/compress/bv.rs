@@ -3,12 +3,10 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::cell::UnsafeCell;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Context, Result};
@@ -31,6 +29,9 @@ use super::label_names::{LabelNameHasher, LabelNameMphf};
 use super::stats::estimate_edge_count;
 use crate::map::{MappedPermutation, Permutation};
 use crate::mph::SwhidMphf;
+use crate::utils::progress_logger::{
+    BufferedProgressLogger, CountingProgressLogger, MinimalProgressLog,
+};
 use crate::utils::sort::par_sort_arcs;
 
 pub fn bv<MPHF: SwhidMphf + Sync>(
@@ -65,8 +66,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     pl.start("Reading arcs");
 
     // Sort in parallel in a bunch of SortPairs instances
-    let pl = Mutex::new(pl);
-    let counters = thread_local::ThreadLocal::new();
+    let pl = Arc::new(Mutex::new(&mut pl));
     let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
     let sorted_arcs_path = temp_dir.path().join("sorted_arcs");
     std::fs::create_dir(&sorted_arcs_path)
@@ -76,20 +76,13 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
         sort_batch_size,
         iter_arcs(&dataset_dir, allowed_node_types)
             .context("Could not open input files to read arcs")?
-            .inspect(|_| {
-                // This is safe because only this thread accesses this and only from
-                // here.
-                let counter = counters.get_or(|| UnsafeCell::new(0));
-                let counter: &mut usize = unsafe { &mut *counter.get() };
-                *counter += 1;
-                if *counter % 32768 == 0 {
-                    // Update but avoid lock contention at the expense
-                    // of precision (counts at most 32768 too many at the
-                    // end of each file)
-                    pl.lock().unwrap().update_with_count(32768);
-                    *counter = 0
-                }
-            }),
+            .map_with(
+                BufferedProgressLogger::new(pl.clone()),
+                |thread_pl, (src, dst)| {
+                    thread_pl.light_update();
+                    (src, dst)
+                },
+            ),
         num_partitions,
         (),
         (),
@@ -138,8 +131,6 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     )
     .context("Could not build BVGraph from arcs")?;
 
-    pl.lock().unwrap().done();
-
     drop(temp_dir); // Prevent early deletion
 
     Ok(())
@@ -181,11 +172,10 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
         ),
     );
     pl.start("Reading and sorting arcs");
+    let mut pl = CountingProgressLogger::new(&mut pl);
 
     // Sort in parallel in a bunch of SortPairs instances
-    let pl = Mutex::new(pl);
-    let counters = thread_local::ThreadLocal::new();
-    let total_labeled_arcs = AtomicUsize::new(0);
+    let pl = Arc::new(Mutex::new(&mut pl));
     let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
     let sorted_arcs_path = temp_dir.path().join("sorted_arcs");
     std::fs::create_dir(&sorted_arcs_path)
@@ -195,21 +185,13 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
         sort_batch_size,
         iter_labeled_arcs(&dataset_dir, allowed_node_types, label_name_hasher)
             .context("Could not open input files to read arcs")?
-            .inspect(|_| {
-                // This is safe because only this thread accesses this and only from
-                // here.
-                let counter = counters.get_or(|| UnsafeCell::new(0));
-                let counter: &mut usize = unsafe { &mut *counter.get() };
-                *counter += 1;
-                if *counter % 32768 == 0 {
-                    // Update but avoid lock contention at the expense
-                    // of precision (counts at most 32768 too many at the
-                    // end of each file)
-                    pl.lock().unwrap().update_with_count(32768);
-                    total_labeled_arcs.fetch_add(32768, Ordering::Relaxed);
-                    *counter = 0
-                }
-            }),
+            .map_with(
+                BufferedProgressLogger::new(pl.clone()),
+                |thread_pl, (src, dst, label)| {
+                    thread_pl.light_update();
+                    (src, dst, label)
+                },
+            ),
         num_partitions,
         LabelSerializer { label_width },
         LabelDeserializer { label_width },
@@ -232,7 +214,8 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
             Ok(())
         },
     )?;
-    pl.lock().unwrap().done();
+    pl.lock().unwrap().inner_mut().done();
+    let total_labeled_arcs = pl.lock().unwrap().total();
 
     let arc_list_graphs =
         sorted_arcs
@@ -267,7 +250,7 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
         display_memory = true,
         item_name = "arc",
         local_speed = true,
-        expected_updates = Some(total_labeled_arcs.load(Ordering::Relaxed)),
+        expected_updates = Some(total_labeled_arcs),
     );
     pl.start("Writing arc labels");
 
@@ -287,7 +270,7 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
                     .map(|label: NonMaxU64| u64::from(label))
                     .collect();
                 labels.par_sort_unstable();
-                pl.update_with_count(labels.len());
+                ProgressLog::update_with_count(&mut pl, labels.len());
 
                 // Write length-prefixed list of labels
                 offset_bits = offset_bits

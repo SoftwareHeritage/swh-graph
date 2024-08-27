@@ -31,6 +31,7 @@ use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::NodeType;
 
+use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph_provenance::filters::{is_root_revrel, NodeFilter};
 
 #[cfg(not(target_env = "msvc"))]
@@ -85,21 +86,17 @@ pub fn main() -> Result<()> {
         expected_updates = Some(graph.num_nodes()),
     );
     pl.start("[step 1/3] Computing first occurrence date of each content...");
-    let pl = Arc::new(Mutex::new(pl));
 
-    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(
-        |revrel| -> Result<_> {
+    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_with(
+        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+        |thread_pl, revrel| -> Result<_> {
             mark_reachable_contents(&graph, &timestamps, revrel, args.node_filter)?;
-
-            if revrel % 32768 == 0 {
-                pl.lock().unwrap().update_with_count(32768);
-            }
-
+            thread_pl.light_update();
             Ok(())
         },
     )?;
 
-    pl.lock().unwrap().done();
+    pl.done();
 
     let mut pl = progress_logger!(
         item_name = "node",
@@ -108,24 +105,23 @@ pub fn main() -> Result<()> {
         expected_updates = Some(graph.num_nodes()),
     );
     pl.start("[step 2/3] Converting timestamps to big-endian");
-    let pl = Arc::new(Mutex::new(pl));
     let mut timestamps_be = Vec::with_capacity(graph.num_nodes());
     timestamps
         .into_par_iter()
-        .enumerate()
-        .map(|(node, timestamp)| {
-            if node % 32768 == 0 {
-                pl.lock().unwrap().update_with_count(32768);
-            }
-            // i64::MIN.to_be() indicates the timestamp is unset
-            match timestamp.load(Ordering::Relaxed) {
-                i64::MAX => i64::MIN,
-                timestamp => timestamp,
-            }
-            .to_be()
-        })
+        .map_with(
+            BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+            |thread_pl, timestamp| {
+                thread_pl.light_update();
+                // i64::MIN.to_be() indicates the timestamp is unset
+                match timestamp.load(Ordering::Relaxed) {
+                    i64::MAX => i64::MIN,
+                    timestamp => timestamp,
+                }
+                .to_be()
+            },
+        )
         .collect_into_vec(&mut timestamps_be);
-    pl.lock().unwrap().done();
+    pl.done();
 
     log::info!("[step 3/3] Writing {}", args.timestamps_out.display());
     timestamps_file

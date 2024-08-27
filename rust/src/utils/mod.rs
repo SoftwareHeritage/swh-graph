@@ -14,6 +14,7 @@ use crate::{NodeConstraint, NodeType};
 #[cfg(feature = "dataset-writer")]
 pub mod dataset_writer;
 pub mod mmap;
+pub mod progress_logger;
 pub mod shuffle;
 pub mod sort;
 

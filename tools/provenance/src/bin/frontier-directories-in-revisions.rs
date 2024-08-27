@@ -16,10 +16,11 @@ use sux::bits::bit_vec::BitVec;
 
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph::utils::mmap::NumberMmap;
+use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::utils::GetIndex;
 
-use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph_provenance::filters::{load_reachable_nodes, NodeFilter};
 use swh_graph_provenance::frontier::PathParts;
 use swh_graph_provenance::x_in_y_dataset::{
@@ -144,11 +145,16 @@ where
         expected_updates = Some(graph.num_nodes()),
     );
     pl.start("Visiting revisions' directories...");
-    let pl = Arc::new(Mutex::new(pl));
+    let shared_pl = Arc::new(Mutex::new(&mut pl));
 
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
-        || dataset_writer.get_thread_writer().unwrap(),
-        |writer, node| -> Result<()> {
+        || {
+            (
+                dataset_writer.get_thread_writer().unwrap(),
+                BufferedProgressLogger::new(shared_pl.clone()),
+            )
+        },
+        |(writer, thread_pl), node| -> Result<()> {
             if frontier_directories.get(node) {
                 write_revisions_from_frontier_directory(
                     graph,
@@ -160,16 +166,12 @@ where
                     node,
                 )?;
             }
-
-            if node % 32768 == 0 {
-                pl.lock().unwrap().update_with_count(32768);
-            }
-
+            thread_pl.light_update();
             Ok(())
         },
     )?;
 
-    pl.lock().unwrap().done();
+    pl.done();
 
     log::info!("Visits done, finishing output");
 

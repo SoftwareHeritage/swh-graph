@@ -16,12 +16,13 @@ use sux::prelude::{AtomicBitVec, BitVec};
 
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::utils::shuffle::par_iter_shuffled_range;
-use swh_graph::NodeType;
-
 use swh_graph::utils::dataset_writer::{
     ParallelDatasetWriter, ParquetTableWriter, PartitionedTableWriter,
 };
+use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
+use swh_graph::utils::shuffle::par_iter_shuffled_range;
+use swh_graph::NodeType;
+
 use swh_graph_provenance::filters::{is_root_revrel, NodeFilter};
 use swh_graph_provenance::node_dataset::{schema, writer_properties, NodeTableBuilder};
 
@@ -139,34 +140,33 @@ where
         expected_updates = Some(graph.num_nodes()),
     );
     pl.start("Listing reachable contents and directories...");
-    let pl = Arc::new(Mutex::new(pl));
-
     let reachable_from_heads = AtomicBitVec::new(graph.num_nodes());
 
-    par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(|root| -> Result<()> {
-        if is_root_revrel(graph, node_filter, root) {
-            let mut stack = vec![root];
+    par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_with(
+        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+        |thread_pl, root| -> Result<()> {
+            if is_root_revrel(graph, node_filter, root) {
+                let mut stack = vec![root];
 
-            while let Some(node) = stack.pop() {
-                reachable_from_heads.set(node, true, Ordering::Relaxed);
-                for succ in graph.successors(node) {
-                    if reachable_from_heads.get(succ, Ordering::Relaxed) {
-                        // Already visited, either by this DFS or an other one
-                    } else if let NodeType::Content | NodeType::Directory =
-                        graph.properties().node_type(succ)
-                    {
-                        stack.push(succ);
+                while let Some(node) = stack.pop() {
+                    reachable_from_heads.set(node, true, Ordering::Relaxed);
+                    for succ in graph.successors(node) {
+                        if reachable_from_heads.get(succ, Ordering::Relaxed) {
+                            // Already visited, either by this DFS or an other one
+                        } else if let NodeType::Content | NodeType::Directory =
+                            graph.properties().node_type(succ)
+                        {
+                            stack.push(succ);
+                        }
                     }
                 }
             }
-        }
-        if root % 32768 == 0 {
-            pl.lock().unwrap().update_with_count(32768);
-        }
-        Ok(())
-    })?;
+            thread_pl.light_update();
+            Ok(())
+        },
+    )?;
 
-    pl.lock().unwrap().done();
+    pl.done();
 
     Ok(reachable_from_heads.into())
 }
@@ -192,7 +192,6 @@ where
         expected_updates = Some(graph.num_nodes()),
     );
     pl.start("Writing list of reachable nodes...");
-    let pl = Arc::new(Mutex::new(pl));
 
     // Split into a small number of chunks. This causes the node ids to form long
     // monotonically increasing sequences in the output dataset, which makes them
@@ -203,12 +202,18 @@ where
     let num_chunks = 96;
     let chunk_size = graph.num_nodes().div_ceil(num_chunks);
 
+    let shared_pl = Arc::new(Mutex::new(&mut pl));
     (0..graph.num_nodes())
         .into_par_iter()
         .by_uniform_blocks(chunk_size)
         .try_for_each_init(
-            || dataset_writer.get_thread_writer().unwrap(),
-            |writer, node| -> Result<()> {
+            || {
+                (
+                    dataset_writer.get_thread_writer().unwrap(),
+                    BufferedProgressLogger::new(shared_pl.clone()),
+                )
+            },
+            |(writer, thread_pl), node| -> Result<()> {
                 if reachable_nodes.get(node) {
                     let swhid = graph.properties().swhid(node);
                     // Bucket SWHIDs by their high bits, so we can use Parquet's column
@@ -219,9 +224,7 @@ where
                         .builder()?
                         .add_node(graph, node);
                 }
-                if node % 32768 == 0 {
-                    pl.lock().unwrap().update_with_count(32768);
-                }
+                thread_pl.light_update();
                 Ok(())
             },
         )?;
@@ -229,7 +232,7 @@ where
     log::info!("Flushing writers...");
     dataset_writer.close()?;
 
-    pl.lock().unwrap().done();
+    pl.done();
 
     Ok(())
 }

@@ -18,9 +18,10 @@ use sux::prelude::{AtomicBitVec, BitVec};
 use swh_graph::collections::NodeSet;
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
+use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::NodeType;
 
-use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph_provenance::filters::NodeFilter;
 use swh_graph_provenance::frontier::PathParts;
 use swh_graph_provenance::x_in_y_dataset::{
@@ -109,32 +110,32 @@ pub fn main() -> Result<()> {
         expected_updates = Some(graph.num_nodes()),
     );
     pl.start("Listing nodes reachable from frontier directories...");
-    let pl = Arc::new(Mutex::new(pl));
     let reachable_nodes_from_frontier = AtomicBitVec::new(graph.num_nodes());
-    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).for_each(|root| {
-        if frontier_directories.contains(root) {
-            let mut to_visit = vec![root];
-            while let Some(node) = to_visit.pop() {
-                if reachable_nodes_from_frontier.get(node, Ordering::Relaxed) {
-                    // Node already visisted by another traversal; no need to recurse further
-                    continue;
-                }
-                reachable_nodes_from_frontier.set(node, true, Ordering::Relaxed);
-                for succ in graph.successors(node) {
-                    match graph.properties().node_type(succ) {
-                        NodeType::Directory | NodeType::Content => {
-                            to_visit.push(succ);
+    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).for_each_with(
+        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+        |thread_pl, root| {
+            if frontier_directories.contains(root) {
+                let mut to_visit = vec![root];
+                while let Some(node) = to_visit.pop() {
+                    if reachable_nodes_from_frontier.get(node, Ordering::Relaxed) {
+                        // Node already visisted by another traversal; no need to recurse further
+                        continue;
+                    }
+                    reachable_nodes_from_frontier.set(node, true, Ordering::Relaxed);
+                    for succ in graph.successors(node) {
+                        match graph.properties().node_type(succ) {
+                            NodeType::Directory | NodeType::Content => {
+                                to_visit.push(succ);
+                            }
+                            _ => (),
                         }
-                        _ => (),
                     }
                 }
             }
-        }
-        if root % 32768 == 0 {
-            pl.lock().unwrap().update_with_count(32768);
-        }
-    });
-    pl.lock().unwrap().done();
+            thread_pl.light_update();
+        },
+    );
+    pl.done();
     let reachable_nodes_from_frontier: BitVec = reachable_nodes_from_frontier.into();
 
     let mut pl = progress_logger!(
@@ -144,11 +145,16 @@ pub fn main() -> Result<()> {
         expected_updates = Some(graph.num_nodes()),
     );
     pl.start("Listing contents in directories...");
-    let pl = Arc::new(Mutex::new(pl));
+    let shared_pl = Arc::new(Mutex::new(&mut pl));
 
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
-        || dataset_writer.get_thread_writer().unwrap(),
-        |writer, node| -> Result<()> {
+        || {
+            (
+                dataset_writer.get_thread_writer().unwrap(),
+                BufferedProgressLogger::new(shared_pl.clone()),
+            )
+        },
+        |(writer, thread_pl), node| -> Result<()> {
             if reachable_nodes_from_frontier.get(node)
                 && graph.properties().node_type(node) == NodeType::Content
             {
@@ -160,15 +166,11 @@ pub fn main() -> Result<()> {
                     node,
                 )?;
             }
-
-            if node % 32768 == 0 {
-                pl.lock().unwrap().update_with_count(32768);
-            }
-
+            thread_pl.light_update();
             Ok(())
         },
     )?;
-    pl.lock().unwrap().done();
+    pl.done();
 
     Ok(())
 }

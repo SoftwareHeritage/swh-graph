@@ -22,6 +22,7 @@ use swh_graph::NodeType;
 use swh_graph::SWHID;
 
 use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
+use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 
 #[derive(Parser, Debug)]
 /** Reads a CSV of content and directory SWHIDs, and for each of them, returns
@@ -119,7 +120,6 @@ fn main_monomorphized<const MAX_DEPTH: usize>(args: Args) -> Result<()> {
         expected_updates = args.expected_nodes,
     );
     pl.start("Writing file names");
-    let pl = Arc::new(Mutex::new(pl));
 
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
@@ -135,9 +135,15 @@ fn main_monomorphized<const MAX_DEPTH: usize>(args: Args) -> Result<()> {
         "Input has no 'SWHID' header"
     );
 
+    let shared_pl = Arc::new(Mutex::new(&mut pl));
     reader.deserialize().par_bridge().try_for_each_init(
-        || dataset_writer.get_thread_writer().unwrap(),
-        |writer, line: Result<InputRecord, _>| -> Result<()> {
+        || {
+            (
+                dataset_writer.get_thread_writer().unwrap(),
+                BufferedProgressLogger::new(shared_pl.clone()),
+            )
+        },
+        |(writer, thread_pl), line: Result<InputRecord, _>| -> Result<()> {
             let swhid = line.context("Could not deserialize input line")?.SWHID;
             let swhid = SWHID::try_from(swhid.as_str())
                 .with_context(|| format!("Could not parse input SWHID {}", swhid))?;
@@ -146,16 +152,14 @@ fn main_monomorphized<const MAX_DEPTH: usize>(args: Args) -> Result<()> {
                 .node_id(swhid)
                 .with_context(|| format!("Input SWHID {} is not in graph", swhid))?;
             write_content_paths::<MAX_DEPTH, _>(&graph, writer, node)?;
-            if node % 32768 == 0 {
-                pl.lock().unwrap().update_with_count(32768);
-            }
+            thread_pl.light_update();
             Ok(())
         },
     )?;
 
     dataset_writer.close()?;
 
-    pl.lock().unwrap().done();
+    pl.done();
 
     Ok(())
 }

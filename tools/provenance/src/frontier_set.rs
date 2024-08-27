@@ -25,6 +25,7 @@ use sux::bits::bit_vec::{AtomicBitVec, BitVec};
 
 use swh_graph::collections::NodeSet;
 use swh_graph::graph::*;
+use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 
 use swh_graph::utils::dataset_writer::{
     ParallelDatasetWriter, ParquetTableWriter, StructArrayBuilder,
@@ -111,17 +112,20 @@ where
                 .into_par_iter()
                 .by_uniform_blocks(chunk_size)
                 .try_for_each_init(
-                    || dataset_writer.get_thread_writer().unwrap(),
-                    |writer, node| -> Result<()> {
+                    || {
+                        (
+                            dataset_writer.get_thread_writer().unwrap(),
+                            BufferedProgressLogger::new(pl.clone()),
+                        )
+                    },
+                    |(writer, thread_pl), node| -> Result<()> {
                         if frontier.contains(node) {
                             writer
                                 .builder()?
                                 .0
                                 .append_value(node.try_into().expect("NodeId overflowed u64"));
                         }
-                        if node % 32768 == 0 {
-                            pl.lock().unwrap().update_with_count(32768);
-                        }
+                        thread_pl.light_update();
                         Ok(())
                     },
                 )

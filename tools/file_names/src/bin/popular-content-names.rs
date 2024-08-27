@@ -20,6 +20,7 @@ use swh_graph::NodeType;
 use swh_graph::SWHID;
 
 use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
+use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 
 #[derive(Parser, Debug)]
 /** Computes, for every content object, the list of names it directories refer to it as.
@@ -93,11 +94,16 @@ pub fn main() -> Result<()> {
         expected_updates = Some(graph.num_nodes()),
     );
     pl.start("Writing file names");
-    let pl = Arc::new(Mutex::new(pl));
+    let shared_pl = Arc::new(Mutex::new(&mut pl));
 
     swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
-        || dataset_writer.get_thread_writer().unwrap(),
-        |writer, node| -> Result<()> {
+        || {
+            (
+                dataset_writer.get_thread_writer().unwrap(),
+                BufferedProgressLogger::new(shared_pl.clone()),
+            )
+        },
+        |(writer, thread_pl), node| -> Result<()> {
             if graph.properties().node_type(node) == NodeType::Content {
                 write_content_names(
                     &graph,
@@ -107,16 +113,14 @@ pub fn main() -> Result<()> {
                     node,
                 )?;
             }
-            if node % 32768 == 0 {
-                pl.lock().unwrap().update_with_count(32768);
-            }
+            thread_pl.light_update();
             Ok(())
         },
     )?;
 
     dataset_writer.close()?;
 
-    pl.lock().unwrap().done();
+    pl.done();
 
     Ok(())
 }

@@ -34,29 +34,31 @@ pub fn ordered_swhids<MPHF: SwhidMphf + Sync + Send, P: Permutation + Sync + Sen
     );
     pl.start("Computing node2swhid");
 
-    par_iter_lines_from_dir(swhids_dir, Arc::new(Mutex::new(pl))).for_each(|line: [u8; 50]| {
-        let node_id = order
-            .get(mph.hash_str_array(&line).expect("Failed to hash line"))
-            .unwrap();
-        let swhid = SWHID::try_from(unsafe { std::str::from_utf8_unchecked(&line[..]) })
-            .expect("Invalid SWHID");
-        assert!(
-            node_id < num_nodes,
-            "hashing {} returned {}, which is greater than the number of nodes ({})",
-            swhid,
-            node_id,
-            num_nodes
-        );
+    par_iter_lines_from_dir(swhids_dir, Arc::new(Mutex::new(&mut pl))).for_each(
+        |line: [u8; 50]| {
+            let node_id = order
+                .get(mph.hash_str_array(&line).expect("Failed to hash line"))
+                .unwrap();
+            let swhid = SWHID::try_from(unsafe { std::str::from_utf8_unchecked(&line[..]) })
+                .expect("Invalid SWHID");
+            assert!(
+                node_id < num_nodes,
+                "hashing {} returned {}, which is greater than the number of nodes ({})",
+                swhid,
+                node_id,
+                num_nodes
+            );
 
-        // Safe because we checked node_id < num_nodes
-        unsafe {
-            swhids_uninit
-                .as_ptr()
-                .add(node_id)
-                .cast_mut()
-                .write(std::mem::MaybeUninit::new(swhid));
-        }
-    });
+            // Safe because we checked node_id < num_nodes
+            unsafe {
+                swhids_uninit
+                    .as_ptr()
+                    .add(node_id)
+                    .cast_mut()
+                    .write(std::mem::MaybeUninit::new(swhid));
+            }
+        },
+    );
 
     // Assuming the MPH and permutation are correct, we wrote an item at every
     // index.

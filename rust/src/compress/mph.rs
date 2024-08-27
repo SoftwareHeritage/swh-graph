@@ -27,7 +27,7 @@ fn par_iter_swhids(
         expected_updates = Some(num_nodes),
     );
     pl.start("Reading SWHIDs");
-    let pl = Arc::new(Mutex::new(pl));
+    let pl = Arc::new(Mutex::new(Box::new(pl)));
     par_iter_lines_from_dir(swhids_dir, pl)
 }
 
@@ -82,7 +82,7 @@ where
             item_name,
             call_counts
         ));
-        Arc::new(Mutex::new(pl))
+        Arc::new(Mutex::new(Box::new(pl)))
     };
 
     let get_key_iter = || iter_lines_from_dir(&in_dir, get_pl(false));

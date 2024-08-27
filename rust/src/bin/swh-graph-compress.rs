@@ -558,13 +558,14 @@ pub fn main() -> Result<()> {
                 expected_updates = Some(num_lines),
             );
             pl.start("Reading labels");
-            let pl = Arc::new(Mutex::new(pl));
-            iter_lines_from_dir(&input_dir, pl.clone()).for_each(|line: Vec<u8>| {
-                // Each line is base64-encode, so it is guaranteed to be ASCII.
-                let line = unsafe { std::str::from_utf8_unchecked(&line[..]) };
-                rclb.push(line);
-            });
-            pl.lock().unwrap().done();
+            iter_lines_from_dir(&input_dir, Arc::new(Mutex::new(&mut pl))).for_each(
+                |line: Vec<u8>| {
+                    // Each line is base64-encode, so it is guaranteed to be ASCII.
+                    let line = unsafe { std::str::from_utf8_unchecked(&line[..]) };
+                    rclb.push(line);
+                },
+            );
+            pl.done();
 
             // Disabled because of https://github.com/vigna/sux-rs/issues/18
             // rclb.print_stats();

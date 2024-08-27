@@ -17,6 +17,7 @@ use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::labels::{Branch, DirEntry, Visit, VisitStatus};
 use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter, TableWriter};
 use swh_graph::utils::parse_allowed_node_types;
+use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::utils::shuffle::par_iter_shuffled_range;
 use swh_graph::views::Subgraph;
 use swh_graph::{NodeType, SWHID};
@@ -156,50 +157,48 @@ pub fn main() -> Result<()> {
         expected_updates = Some(num_nodes),
     );
     pl.start("Listing nodes and edges...");
-    let pl = Mutex::new(pl);
 
-    par_iter_shuffled_range(0..graph.num_nodes()).try_for_each(|node| -> Result<()> {
-        let node_type = graph.properties().node_type(node);
+    par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_with(
+        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+        |thread_pl, node| -> Result<()> {
+            let node_type = graph.properties().node_type(node);
 
-        match node_type {
-            NodeType::Content => write_unlabeled_edges(
-                &*graph,
-                node,
-                &mut content_writers.get_thread_writer().unwrap(),
-            )?,
-            NodeType::Directory => write_directory_edges(
-                &*graph,
-                node,
-                &mut directory_writers.get_thread_writer().unwrap(),
-            )?,
-            NodeType::Origin => write_origin_edges(
-                &*graph,
-                node,
-                &mut origin_writers.get_thread_writer().unwrap(),
-            )?,
-            NodeType::Release => write_unlabeled_edges(
-                &*graph,
-                node,
-                &mut release_writers.get_thread_writer().unwrap(),
-            )?,
-            NodeType::Revision => write_unlabeled_edges(
-                &*graph,
-                node,
-                &mut revision_writers.get_thread_writer().unwrap(),
-            )?,
-            NodeType::Snapshot => write_snapshot_edges(
-                &*graph,
-                node,
-                &mut snapshot_writers.get_thread_writer().unwrap(),
-            )?,
-        }
-
-        if node % 32768 == 0 {
-            pl.lock().unwrap().update_with_count(32768)
-        }
-
-        Ok::<_, anyhow::Error>(())
-    })?;
+            match node_type {
+                NodeType::Content => write_unlabeled_edges(
+                    &*graph,
+                    node,
+                    &mut content_writers.get_thread_writer().unwrap(),
+                )?,
+                NodeType::Directory => write_directory_edges(
+                    &*graph,
+                    node,
+                    &mut directory_writers.get_thread_writer().unwrap(),
+                )?,
+                NodeType::Origin => write_origin_edges(
+                    &*graph,
+                    node,
+                    &mut origin_writers.get_thread_writer().unwrap(),
+                )?,
+                NodeType::Release => write_unlabeled_edges(
+                    &*graph,
+                    node,
+                    &mut release_writers.get_thread_writer().unwrap(),
+                )?,
+                NodeType::Revision => write_unlabeled_edges(
+                    &*graph,
+                    node,
+                    &mut revision_writers.get_thread_writer().unwrap(),
+                )?,
+                NodeType::Snapshot => write_snapshot_edges(
+                    &*graph,
+                    node,
+                    &mut snapshot_writers.get_thread_writer().unwrap(),
+                )?,
+            }
+            thread_pl.light_update();
+            Ok::<_, anyhow::Error>(())
+        },
+    )?;
 
     content_writers.close()?;
     directory_writers.close()?;
@@ -208,7 +207,7 @@ pub fn main() -> Result<()> {
     revision_writers.close()?;
     snapshot_writers.close()?;
 
-    pl.lock().unwrap().done();
+    pl.done();
 
     Ok(())
 }
