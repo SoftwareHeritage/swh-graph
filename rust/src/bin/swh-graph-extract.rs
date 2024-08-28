@@ -24,6 +24,10 @@ use swh_graph::mph::SwhidPthash;
 use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::NodeType;
 
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 #[derive(Parser, Debug)]
 #[command(about = "Commands to read ORC files and produce property files and an initial not-very-compressed BVGraph", long_about = None)]
 struct Args {
