@@ -770,9 +770,9 @@ class DownloadBlobs(_BaseTask):
             self._session_pid = os.getpid()
 
             self._session = requests.Session()
-            self._session.headers[
-                "User-Agent"
-            ] = f"SWH {self.blob_filter} Dataset blob downloader"
+            self._session.headers["User-Agent"] = (
+                f"SWH {self.blob_filter} Dataset blob downloader"
+            )
 
             auth_token = os.environ.get("SWH_AUTH_TOKEN")
             if auth_token:
@@ -1046,9 +1046,10 @@ class BlobScancode(_BaseTask):
             self._json_path().unlink()
 
         context = multiprocessing.get_context(method="spawn")
-        with atomic_zstd_writer(self._csv_path()) as csvfile, atomic_zstd_writer(
-            self._json_path()
-        ) as jsonfile:
+        with (
+            atomic_zstd_writer(self._csv_path()) as csvfile,
+            atomic_zstd_writer(self._json_path()) as jsonfile,
+        ):
             csv_writer = csv.writer(csvfile, delimiter=self.FIELD_SEP)
             csv_writer.writerow(self.FIELDNAMES)
             with multiprocessing.pool.Pool(

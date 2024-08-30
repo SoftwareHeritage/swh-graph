@@ -142,10 +142,12 @@ def test_popularcontentpaths(tmpdir, depth, subset):
 
     # Workaround for non-deterministic result
     all_rows = [
-        "swh:1:cnt:0000000000000000000000000000000000000001,42,README.md,1"
-        if row
-        == "swh:1:cnt:0000000000000000000000000000000000000001,42,oldproject/README.md,1"
-        else row
+        (
+            "swh:1:cnt:0000000000000000000000000000000000000001,42,README.md,1"
+            if row
+            == "swh:1:cnt:0000000000000000000000000000000000000001,42,oldproject/README.md,1"
+            else row
+        )
         for row in all_rows
     ]
 

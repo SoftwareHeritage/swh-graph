@@ -225,14 +225,17 @@ def timestamps_bin_to_csv(bin_timestamps_path: Path) -> List[str]:
     ]
 
     dates = [
-        datetime.datetime.fromtimestamp(
-            int.from_bytes(bin_timestamps[i : i + 8], byteorder="big")
+        (
+            datetime.datetime.fromtimestamp(
+                int.from_bytes(bin_timestamps[i : i + 8], byteorder="big")
+            )
+            .astimezone(datetime.timezone.utc)
+            .isoformat()
+            .split("+")[0]
+            if bin_timestamps[i : i + 8]
+            != b"\x80" + b"\x00" * 7  # min long, meaning no TS
+            else None
         )
-        .astimezone(datetime.timezone.utc)
-        .isoformat()
-        .split("+")[0]
-        if bin_timestamps[i : i + 8] != b"\x80" + b"\x00" * 7  # min long, meaning no TS
-        else None
         for i in range(0, len(bin_timestamps), 8)
     ]
 

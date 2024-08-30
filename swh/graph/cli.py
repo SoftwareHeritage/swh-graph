@@ -648,9 +648,9 @@ def luigi(
 
     if s3_prefix:
         default_values["s3_export_path"] = f"{s3_prefix.rstrip('/')}/{export_name}"
-        default_values[
-            "s3_graph_path"
-        ] = f"{s3_prefix.rstrip('/')}/{dataset_name}/compressed"
+        default_values["s3_graph_path"] = (
+            f"{s3_prefix.rstrip('/')}/{dataset_name}/compressed"
+        )
 
     if s3_athena_output_location:
         default_values["s3_athena_output_location"] = s3_athena_output_location
@@ -679,9 +679,9 @@ def luigi(
         )
 
     if athena_prefix:
-        default_values[
-            "athena_db_name"
-        ] = f"{athena_prefix}_{dataset_name.replace('-', '')}"
+        default_values["athena_db_name"] = (
+            f"{athena_prefix}_{dataset_name.replace('-', '')}"
+        )
 
     for task_cls in get_all_subclasses(luigi.Task):
         task_name = task_cls.__name__
