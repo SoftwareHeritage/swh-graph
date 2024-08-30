@@ -494,7 +494,7 @@ pub fn main() -> Result<()> {
                 log::info!("Writing origins...");
                 for (_url, id) in origins {
                     target_file
-                        .write(format!("{}\n", id).as_bytes())
+                        .write_all(format!("{}\n", id).as_bytes())
                         .context("Could not write origin")?;
                 }
             }
