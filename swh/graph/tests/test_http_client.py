@@ -526,7 +526,7 @@ def test_param_validation(graph_client, graph_grpc_backend_implementation):
     if exc_info.value.response:
         assert exc_info.value.response.status_code == 400
 
-    with raises(GraphArgumentException) as exc_info:  # malformed edge specificaiton
+    with raises(GraphArgumentException) as exc_info:  # malformed edge specification
         list(
             graph_client.visit_nodes(
                 "swh:1:dir:0000000000000000000000000000000000000016",

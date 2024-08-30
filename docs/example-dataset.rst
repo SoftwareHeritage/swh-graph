@@ -87,7 +87,7 @@ or just with ``webgraph-big`` you can use ``jshell`` to call the ``dump`` method
 
 .ef file
 ~~~~~~~~
-The older Java version used the ``.offests`` file to build at runtime the elias-fano
+The older Java version used the ``.offsets`` file to build at runtime the elias-fano
 structure. The offsets are just a contiguous big-endian bitstream of the
 gaps between successive offsets written as elias-gamma-codes.
 To avoid re-building this structure every time we added the ``.ef`` file which
