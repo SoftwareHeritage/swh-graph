@@ -702,10 +702,6 @@ class PermuteLlp(_CompressionStepTask):
         else:
             batch_size = check_config({})["batch_size"]
 
-        # actually it loads the simplified graph, but we reuse the size of the
-        # base BVGraph, to simplify this code
-        bvgraph_size = self._bvgraph_allocation()
-
         # https://github.com/vigna/webgraph-big/blob/3.7.0/src/it/unimi/dsi/big/webgraph/Transform.java#L2196
         permutation_size = self._nb_nodes() * 8
 
@@ -713,13 +709,7 @@ class PermuteLlp(_CompressionStepTask):
         source_batch_size = target_batch_size = batch_size * 8  # longarrays
 
         extra_size = self._nb_nodes() * 16  # FIXME: why is this needed?
-        return (
-            bvgraph_size
-            + permutation_size
-            + source_batch_size
-            + target_batch_size
-            + extra_size
-        )
+        return permutation_size + source_batch_size + target_batch_size + extra_size
 
 
 class Offsets(_CompressionStepTask):
