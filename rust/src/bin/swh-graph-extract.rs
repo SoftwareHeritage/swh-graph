@@ -5,7 +5,6 @@
  * See top-level LICENSE file for more information
  */
 
-use std::env::temp_dir;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
@@ -22,7 +21,7 @@ use rayon::prelude::*;
 use swh_graph::map::{MappedPermutation, Permutation};
 use swh_graph::mph::SwhidPthash;
 use swh_graph::utils::parse_allowed_node_types;
-use swh_graph::NodeType;
+use swh_graph::{NodeType, SWHID};
 
 #[cfg(not(target_env = "msvc"))]
 #[global_allocator]
@@ -46,7 +45,10 @@ enum Commands {
         allowed_node_types: String,
         /// Size (in bytes) of each thread's buffer in memory before it sorts and
         /// flushes it to disk.
-        #[arg(long, default_value = "5000000")]
+        ///
+        /// Higher values consume more memory during the sorting phase to save
+        /// time during the merging phase.
+        #[arg(long, default_value = "5000000000")]
         buffer_size: usize,
         dataset_dir: PathBuf,
         target_dir: PathBuf,
@@ -60,10 +62,12 @@ enum Commands {
         allowed_node_types: String,
         /// Size (in bytes) of each thread's buffer in memory before it sorts and
         /// flushes it to disk.
-        #[arg(long, default_value = "5000000")]
+        ///
+        /// Higher values consume more memory during the sorting phase to save
+        /// time during the merging phase.
+        #[arg(long, default_value = "5000000000")]
         buffer_size: usize,
         dataset_dir: PathBuf,
-        target_dir: PathBuf,
     },
     /// Reads the list of authors and committers from the ORC directory and produces lists
     /// unique names (based64-encoded) in the given directory
@@ -74,10 +78,12 @@ enum Commands {
         allowed_node_types: String,
         /// Size (in bytes) of each thread's buffer in memory before it sorts and
         /// flushes it to disk.
-        #[arg(long, default_value = "5000000")]
+        ///
+        /// Higher values consume more memory during the sorting phase to save
+        /// time during the merging phase.
+        #[arg(long, default_value = "5000000000")]
         buffer_size: usize,
         dataset_dir: PathBuf,
-        target_dir: PathBuf,
     },
 
     /// Reads the list of nodes from the generated unique SWHIDS and counts the number
@@ -224,7 +230,7 @@ pub fn main() -> Result<()> {
             dataset_dir,
             target_dir,
         } => {
-            use swh_graph::utils::sort::Sortable;
+            use std::str::FromStr;
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             let expected_node_count =
@@ -242,27 +248,56 @@ pub fn main() -> Result<()> {
             );
             pl.start("Extracting and sorting SWHIDs");
 
-            swh_graph::compress::iter_swhids(&dataset_dir, &allowed_node_types)
-                .context("Could not read nodes from input dataset")?
-                .unique_sort_to_dir(
-                    target_dir,
-                    "nodes.txt",
-                    &temp_dir(),
-                    pl,
-                    &[],
-                    buffer_size,
-                    expected_node_count,
+            std::fs::create_dir(&target_dir)
+                .with_context(|| format!("Could not create {}", target_dir.display()))?;
+
+            // Write output in multiple files, so it can be processed in parallel
+            // by consumers
+            let mut shard_id = 0;
+            let mut next_shard = || -> Result<_> {
+                let path = target_dir.join(format!("nodes.txt.{:0>8}.zst", shard_id));
+                shard_id += 1;
+                let file = std::fs::File::create_new(&path)
+                    .with_context(|| format!("Could not create {}", path.display()))?;
+                let compression_level = 3;
+                let zstd_encoder = zstd::stream::write::Encoder::new(file, compression_level)
+                    .with_context(|| {
+                        format!("Could not create ZSTD encoder for {}", path.display())
+                    })?
+                    .auto_finish();
+                Ok(zstd_encoder)
+            };
+            let mut writer = next_shard()?;
+
+            // Fetch as UTF-8 encoded arrays
+            let swhids = swh_graph::compress::iter_swhids(&dataset_dir, &allowed_node_types)
+                .context("Could not read nodes from input dataset")?;
+            // Parse (TODO: avoid UTF-8 decoding data we generated ourselves, here)
+            let swhids = swhids.map(|swhid| {
+                SWHID::from_str(
+                    &String::from_utf8(swhid.into_iter().collect()).expect("Non-ASCII SWHID"),
                 )
-                .context("Sorting failed")?;
+                .expect("Could not parse SWHID")
+            });
+            // Sort and deduplicate
+            let swhids = swh_graph::utils::sort::par_sort_swhids(swhids, pl, buffer_size)
+                .context("Could not sort SWHIDs")?;
+            // Write
+            for (i, swhid) in swhids.enumerate() {
+                if i % 100_000_000 == 99_999_999 {
+                    writer = next_shard()?;
+                }
+                writer
+                    .write_all(format!("{}\n", swhid).as_bytes())
+                    .context("Could not write SWHID")?;
+            }
         }
         Commands::ExtractLabels {
             format: DatasetFormat::Orc,
             allowed_node_types,
             buffer_size,
             dataset_dir,
-            target_dir,
         } => {
-            use swh_graph::utils::sort::Sortable;
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             let expected_edge_count =
@@ -277,30 +312,34 @@ pub fn main() -> Result<()> {
             );
             pl.start("Extracting and sorting labels");
 
+            // Fetch labels data
+            let labels = swh_graph::compress::iter_labels(&dataset_dir, &allowed_node_types)
+                .context("Could not read labels from input dataset")?;
+            // Sort and deduplicate
+            let labels = swh_graph::utils::sort::par_sort_strings(labels, pl, buffer_size)
+                .context("Could not sort labels")?;
+            // Encode as base64
             let base64 = base64_simd::STANDARD;
-
-            swh_graph::compress::iter_labels(&dataset_dir, &allowed_node_types)
-                .context("Could not read labels from input dataset")?
-                .map(|label| base64.encode_to_string(label).into_bytes())
-                .unique_sort_to_dir(
-                    target_dir,
-                    "labels.csv",
-                    &temp_dir(),
-                    pl,
-                    &[],
-                    buffer_size,
-                    expected_edge_count / 131, // approximation, based on 2023-09-06 graph
-                )
-                .context("Sorting failed")?;
+            let labels = labels.map(|label| {
+                base64
+                    .encode_to_string(label)
+                    .into_bytes()
+                    .into_boxed_slice()
+            });
+            // Write
+            for label in labels {
+                println!(
+                    "{}",
+                    String::from_utf8(label.into()).expect("Could not decode line")
+                );
+            }
         }
         Commands::ExtractPersons {
             format: DatasetFormat::Orc,
             allowed_node_types,
             buffer_size,
             dataset_dir,
-            target_dir,
         } => {
-            use swh_graph::utils::sort::Sortable;
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             let expected_node_count = swh_graph::compress::stats::estimate_node_count(
@@ -320,23 +359,28 @@ pub fn main() -> Result<()> {
                 local_speed = true,
                 expected_updates = Some(expected_node_count),
             );
-            pl.start("Extracting and sorting labels");
+            pl.start("Extracting and sorting persons");
 
+            let persons = swh_graph::compress::iter_persons(&dataset_dir, &allowed_node_types)
+                .context("Could not read persons from input dataset")?;
+            // Sort and deduplicate
+            let persons = swh_graph::utils::sort::par_sort_strings(persons, pl, buffer_size)
+                .context("Could not sort persons")?;
+            // Encode as base64
             let base64 = base64_simd::STANDARD;
-
-            swh_graph::compress::iter_persons(&dataset_dir, &allowed_node_types)
-                .context("Could not read persons from input dataset")?
-                .map(|label| base64.encode_to_string(label).into_bytes())
-                .unique_sort_to_dir(
-                    target_dir,
-                    "persons.csv",
-                    &temp_dir(),
-                    pl,
-                    &[],
-                    buffer_size,
-                    expected_node_count / 56, // approximation, based on 2023-09-06 graph
-                )
-                .context("Sorting failed")?;
+            let persons = persons.map(|person| {
+                base64
+                    .encode_to_string(person)
+                    .into_bytes()
+                    .into_boxed_slice()
+            });
+            // Write
+            for person in persons {
+                println!(
+                    "{}",
+                    String::from_utf8(person.into()).expect("Could not decode line")
+                );
+            }
         }
         Commands::NodeStats {
             format: DatasetFormat::Orc,

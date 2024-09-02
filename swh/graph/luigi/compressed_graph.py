@@ -809,7 +809,7 @@ class ExtractPersons(_CompressionStepTask):
     STEP = CompressionStep.EXTRACT_PERSONS
     INPUT_FILES: Set[str] = set()
     EXPORT_AS_INPUT = True
-    OUTPUT_FILES = {".persons/"}
+    OUTPUT_FILES = {".persons.csv.zst"}
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -817,7 +817,7 @@ class ExtractPersons(_CompressionStepTask):
 
 class PersonsStats(_CompressionStepTask):
     STEP = CompressionStep.PERSONS_STATS
-    INPUT_FILES = {".persons/"}
+    INPUT_FILES = {".persons.csv.zst"}
     OUTPUT_FILES = {".persons.count.txt"}
 
     def _large_java_allocations(self) -> int:
@@ -826,7 +826,7 @@ class PersonsStats(_CompressionStepTask):
 
 class MphPersons(_CompressionStepTask):
     STEP = CompressionStep.MPH_PERSONS
-    INPUT_FILES = {".persons/", ".persons.count.txt"}
+    INPUT_FILES = {".persons.csv.zst", ".persons.count.txt"}
     OUTPUT_FILES = {".persons.pthash"}
 
     def _large_java_allocations(self) -> int:

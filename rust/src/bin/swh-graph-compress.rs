@@ -524,7 +524,7 @@ pub fn main() -> Result<()> {
             let pl = Arc::new(Mutex::new(pl));
             let input = File::open(&input_path)
                 .with_context(|| format!("Could not open {}", input_path.display()))?;
-            // Each line is base64-encode, so it is guaranteed to be ASCII.
+            // Each line is base64-encoded, so it is guaranteed to be ASCII.
             for line in BufReader::new(input).lines() {
                 let line = line.expect("Could not decode line");
                 fclb.push(line.into_bytes())

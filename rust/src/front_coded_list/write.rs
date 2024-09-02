@@ -15,8 +15,8 @@ use crate::utils::suffix_path;
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum PushError {
-    #[error("Strings are not in the right order")]
-    NotSorted,
+    #[error("Found the same string twice in a row")]
+    Duplicate,
     #[error("String length is 2^28 or larger")]
     TooLarge,
 }
@@ -52,13 +52,6 @@ impl FrontCodedListBuilder {
     pub fn push(&mut self, s: Vec<u8>) -> Result<(), PushError> {
         if self.len % self.block_size == 0 {
             // This is the first string of the block, decode all of it.
-            if let Some(last_string) = &self.last_string {
-                if **last_string >= *s {
-                    // New string is not ordered
-                    return Err(PushError::NotSorted);
-                }
-            }
-
             self.pointers.extend(
                 u64::try_from(self.data.len())
                     .expect("String length overflowed u64")
@@ -134,7 +127,6 @@ impl FrontCodedListBuilder {
     }
 }
 
-#[allow(clippy::comparison_chain)] // It's more readable this way
 #[inline(always)]
 /// Computes the longest common prefix between two strings as bytes.
 ///
@@ -142,16 +134,14 @@ impl FrontCodedListBuilder {
 fn longest_common_prefix(a: &[u8], b: &[u8]) -> Result<usize, PushError> {
     let min_len = usize::min(a.len(), b.len());
     for i in 0..min_len {
-        if a[i] < b[i] {
+        if a[i] != b[i] {
             return Ok(i);
-        } else if a[i] > b[i] {
-            return Err(PushError::NotSorted);
         }
     }
 
     if a.len() == b.len() {
         // Both strings are equal
-        return Err(PushError::NotSorted);
+        return Err(PushError::Duplicate);
     }
 
     // a is a prefix of b
@@ -189,19 +179,13 @@ pub(crate) fn push_int(v: &mut Vec<u8>, i: usize) -> Result<(), PushError> {
 #[test]
 fn test_longest_common_prefix() {
     assert_eq!(
-        longest_common_prefix(b"foo", b"bar"),
-        Err(PushError::NotSorted)
-    );
-    assert_eq!(
-        longest_common_prefix(b"baz", b"bar"),
-        Err(PushError::NotSorted)
-    );
-    assert_eq!(
-        longest_common_prefix(b"qux", b"quux"),
-        Err(PushError::NotSorted)
+        longest_common_prefix(b"foo", b"foo"),
+        Err(PushError::Duplicate)
     );
     assert_eq!(longest_common_prefix(b"bar", b"foo"), Ok(0));
     assert_eq!(longest_common_prefix(b"", b"foo"), Ok(0));
     assert_eq!(longest_common_prefix(b"bar", b"baz"), Ok(2));
+    assert_eq!(longest_common_prefix(b"baz", b"bar"), Ok(2));
     assert_eq!(longest_common_prefix(b"quux", b"quxx"), Ok(2));
+    assert_eq!(longest_common_prefix(b"qux", b"quux"), Ok(2));
 }

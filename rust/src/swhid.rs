@@ -3,6 +3,9 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::str::FromStr;
+
+use rdst::RadixKey;
 use thiserror::Error;
 
 use crate::NodeType;
@@ -102,6 +105,14 @@ pub enum StrSWHIDDeserializationError {
 impl TryFrom<&str> for SWHID {
     type Error = StrSWHIDDeserializationError;
     fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        Self::from_str(value)
+    }
+}
+
+impl FromStr for SWHID {
+    type Err = StrSWHIDDeserializationError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         use StrSWHIDDeserializationError::*;
 
         let mut tokens = value.splitn(4, ':');
@@ -150,6 +161,47 @@ impl From<SWHID> for [u8; SWHID::BYTES_SIZE] {
         result[1] = value.node_type as u8;
         result[2..].copy_from_slice(&value.hash);
         result
+    }
+}
+
+impl RadixKey for SWHID {
+    const LEVELS: usize = 22;
+
+    #[inline(always)]
+    fn get_level(&self, level: usize) -> u8 {
+        assert!(level < Self::LEVELS);
+        match Self::LEVELS - level - 1 {
+            0 => self.namespace_version,
+            1 => match self.node_type {
+                // must follow alphabetical order of the 3-char abbreviation
+                NodeType::Content => 0,   // cnt
+                NodeType::Directory => 1, // dir
+                NodeType::Origin => 2,    // ori
+                NodeType::Release => 3,   // rel
+                NodeType::Revision => 4,  // rev
+                NodeType::Snapshot => 5,  // rel
+            },
+            n => self.hash[n - 2],
+        }
+    }
+}
+
+impl Ord for SWHID {
+    #[inline(always)]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        for level in (0..Self::LEVELS).rev() {
+            let ordering = self.get_level(level).cmp(&other.get_level(level));
+            if ordering != std::cmp::Ordering::Equal {
+                return ordering;
+            }
+        }
+        std::cmp::Ordering::Equal
+    }
+}
+impl PartialOrd for SWHID {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 

@@ -100,14 +100,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--allowed-node-types",
         "{object_types}",
         "{in_dir}",
-        "{out_dir}/{graph_name}.labels/",
-        # ensure at least one file is present so the wildcard below can't fail
-        "&& mkdir -p {out_dir}/{graph_name}.labels/"
-        "&& echo -n '' | zstdmt > {out_dir}/{graph_name}.labels/empty.csv.zst",
-        # Concatenate all files in the directory to a single file.
-        # TODO: remove the concatenation once other steps below support directories
-        "&& cat {out_dir}/{graph_name}.labels/* > {out_dir}/{graph_name}.labels.csv.zst",
-        "&& rm -R {out_dir}/{graph_name}.labels/",
+        "| zstdmt > {out_dir}/{graph_name}.labels.csv.zst",
     ],
     CompressionStep.NODE_STATS: [
         "{rust_executable_dir}/swh-graph-extract",
@@ -281,7 +274,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--allowed-node-types",
         "{object_types}",
         "{in_dir}",
-        "{out_dir}/{graph_name}.persons/",
+        "| zstdmt > {out_dir}/{graph_name}.persons.csv.zst",
     ],
     CompressionStep.MPH_PERSONS: [
         # skip this step when compressing a graph with no revisions or releases
@@ -290,14 +283,14 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "pthash-labels",
         "--num-labels",
         "$(cat {out_dir}/{graph_name}.persons.count.txt)",
-        "<(zstdcat {out_dir}/{graph_name}.persons/persons.csv.*.zst)",
+        "<(zstdcat {out_dir}/{graph_name}.persons.csv.zst)",
         "{out_dir}/{graph_name}.persons.pthash\n",
         "else\n",
         "echo '' > {out_dir}/{graph_name}.persons.pthash;",
         "fi",
     ],
     CompressionStep.PERSONS_STATS: [
-        "zstdcat {out_dir}/{graph_name}.persons/persons.csv.*.zst "
+        "zstdcat {out_dir}/{graph_name}.persons.csv.zst "
         "| wc -l"
         "> {out_dir}/{graph_name}.persons.count.txt",
     ],
