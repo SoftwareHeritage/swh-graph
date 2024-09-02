@@ -170,15 +170,19 @@ impl<T: DerefMut<Target: ProgressLog>> CountingProgressLogger<T> {
 
 impl<T: DerefMut<Target: ProgressLog>> MinimalProgressLog for CountingProgressLogger<T> {
     fn update(&mut self) {
+        self.count += 1;
         self.inner.update()
     }
     fn update_with_count(&mut self, count: usize) {
+        self.count += count;
         self.inner.update_with_count(count)
     }
     fn light_update(&mut self) {
+        self.count += 1;
         self.inner.light_update()
     }
     fn update_and_display(&mut self) {
+        self.count += 1;
         self.inner.update_and_display()
     }
 }
