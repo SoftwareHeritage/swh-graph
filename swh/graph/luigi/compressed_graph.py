@@ -932,12 +932,7 @@ class EdgeLabels(_CompressionStepTask):
         ".labels.pthash",
         ".labels.pthash.order",
         ".pthash",
-        ".graph",
         ".pthash.order",
-        ".node2swhid.bin",
-        ".properties",
-        "-transposed.properties",
-        "-transposed.offsets",
     }
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
@@ -966,13 +961,8 @@ class EdgeLabelsTranspose(_CompressionStepTask):
     INPUT_FILES = {
         ".labels.pthash",
         ".labels.pthash.order",
-        ".graph",
         ".pthash",
         ".pthash.order",
-        ".node2swhid.bin",
-        ".properties",
-        "-transposed.properties",
-        "-transposed.offsets",
     }
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
