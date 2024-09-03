@@ -56,14 +56,10 @@ impl<E: ByteOrder, N: common_traits::AsBytes> NumberMmap<E, N, Mmap> {
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)
                 .with_context(|| format!("Could not initialize mmap of size {}", file_len))?
-                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES | MmapFlags::RANDOM_ACCESS)
                 .with_file(&file, 0)
                 .map()
                 .with_context(|| format!("Could not mmap {}", path.display()))?
-        };
-        #[cfg(target_os = "linux")]
-        unsafe {
-            libc::madvise(data.as_ptr() as *mut _, data.len(), libc::MADV_RANDOM)
         };
 
         if data.len() % N::BYTES != 0 {

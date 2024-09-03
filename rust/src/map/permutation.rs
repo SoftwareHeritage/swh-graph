@@ -300,16 +300,11 @@ impl MappedPermutation {
         let perm = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)
                 .context("Could not initialize permutation mmap")?
-                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES | MmapFlags::RANDOM_ACCESS)
                 .with_file(&file, 0)
         }
         .map()
         .context("Could not mmap permutation")?;
-
-        #[cfg(target_os = "linux")]
-        unsafe {
-            libc::madvise(perm.as_ptr() as *mut _, perm.len(), libc::MADV_RANDOM)
-        };
 
         Ok(MappedPermutation(perm))
     }

@@ -73,14 +73,10 @@ impl FrontCodedList<Mmap, Mmap> {
         let data = unsafe {
             mmap_rs::MmapOptions::new(bytearray_len as _)
                 .context("Could not initialize mmap")?
-                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES | MmapFlags::RANDOM_ACCESS)
                 .with_file(&bytearray_file, 0)
                 .map()
                 .with_context(|| format!("Could not mmap {}", bytearray_path.display()))?
-        };
-        #[cfg(target_os = "linux")]
-        unsafe {
-            libc::madvise(data.as_ptr() as *mut _, data.len(), libc::MADV_RANDOM)
         };
 
         // mmap pointers
@@ -105,14 +101,10 @@ impl FrontCodedList<Mmap, Mmap> {
         let pointers = unsafe {
             mmap_rs::MmapOptions::new(pointers_len as _)
                 .context("Could not initialize mmap")?
-                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES | MmapFlags::RANDOM_ACCESS)
                 .with_file(&pointers_file, 0)
                 .map()
                 .with_context(|| format!("Could not mmap {}", pointers_path.display()))?
-        };
-        #[cfg(target_os = "linux")]
-        unsafe {
-            libc::madvise(data.as_ptr() as *mut _, data.len(), libc::MADV_RANDOM)
         };
 
         Ok(FrontCodedList {

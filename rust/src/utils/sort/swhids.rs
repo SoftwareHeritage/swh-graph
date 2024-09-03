@@ -13,6 +13,7 @@ use std::path::PathBuf;
 
 use anyhow::{ensure, Context, Result};
 use dsi_progress_logger::ProgressLog;
+use mmap_rs::MmapFlags;
 use rayon::prelude::*;
 use rdst::{RadixKey, RadixSort};
 
@@ -63,13 +64,10 @@ impl ParallelDeduplicatingExternalSorter<SWHID> for SwhidExternalSorter {
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)
                 .context("Could not initialize mmap")?
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES | MmapFlags::SEQUENTIAL)
                 .with_file(&file, 0)
                 .map()
                 .with_context(|| format!("Could not mmap {}", path.display()))?
-        };
-        #[cfg(target_os = "linux")]
-        unsafe {
-            libc::madvise(data.as_ptr() as *mut _, data.len(), libc::MADV_SEQUENTIAL)
         };
         Ok((0..num_swhids).map(move |i| {
             let buf = &data[i * SWHID::BYTES_SIZE..(i + 1) * SWHID::BYTES_SIZE];

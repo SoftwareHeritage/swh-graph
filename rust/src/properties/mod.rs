@@ -127,14 +127,12 @@ fn mmap(path: &Path) -> Result<Mmap> {
     let data = unsafe {
         mmap_rs::MmapOptions::new(file_len as _)
             .with_context(|| format!("Could not initialize mmap of size {}", file_len))?
-            .with_flags(mmap_rs::MmapFlags::TRANSPARENT_HUGE_PAGES)
+            .with_flags(
+                mmap_rs::MmapFlags::TRANSPARENT_HUGE_PAGES | mmap_rs::MmapFlags::RANDOM_ACCESS,
+            )
             .with_file(&file, 0)
             .map()
             .with_context(|| format!("Could not mmap {}", path.display()))?
-    };
-    #[cfg(target_os = "linux")]
-    unsafe {
-        libc::madvise(data.as_ptr() as *mut _, data.len(), libc::MADV_RANDOM)
     };
     Ok(data)
 }

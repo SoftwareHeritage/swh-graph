@@ -3543,7 +3543,6 @@ dependencies = [
  "itertools 0.11.0",
  "java-properties 1.4.1",
  "lender",
- "libc",
  "log",
  "mmap-rs",
  "nonmax",

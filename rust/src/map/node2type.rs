@@ -127,13 +127,9 @@ impl Node2Type<UsizeMmap<MmapMut>> {
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)
                 .context("Could not initialize mmap")?
-                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES | MmapFlags::RANDOM_ACCESS)
                 .with_file(&file, 0)
                 .map_mut()?
-        };
-        #[cfg(target_os = "linux")]
-        unsafe {
-            libc::madvise(data.as_ptr() as *mut _, data.len(), libc::MADV_RANDOM)
         };
 
         // use the BitFieldVec over the mmap
@@ -166,13 +162,9 @@ impl Node2Type<UsizeMmap<Mmap>> {
             .with_context(|| format!("Could not open {}", path.display()))?;
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)?
-                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES)
+                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES | MmapFlags::RANDOM_ACCESS)
                 .with_file(&file, 0)
                 .map()?
-        };
-        #[cfg(target_os = "linux")]
-        unsafe {
-            libc::madvise(data.as_ptr() as *mut _, data.len(), libc::MADV_RANDOM)
         };
 
         // use the BitFieldVec over the mmap
