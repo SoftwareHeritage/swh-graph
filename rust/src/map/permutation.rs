@@ -99,10 +99,9 @@ impl<T: Sync + AsRef<[usize]>> OwnedPermutation<T> {
                 u64::BITS,
                 "Only 64-bits architectures are supported"
             );
-            BigEndian::write_u64_into(
-                unsafe { std::mem::transmute::<&[usize], &[u64]>(chunk) },
-                buf_slice,
-            );
+            let chunk: &[u64] =
+                bytemuck::try_cast_slice(chunk).expect("Could not cast &[usize] to &[u64]");
+            BigEndian::write_u64_into(chunk, buf_slice);
             file.write_all(buf_slice)?;
             pl.update_with_count(chunk.len() * 8);
         }

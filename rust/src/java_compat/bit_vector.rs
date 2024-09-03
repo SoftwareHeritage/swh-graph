@@ -46,7 +46,8 @@ impl LongArrayBitVector<Vec<u64>> {
         assert_eq!(usize::BITS, u64::BITS);
         // Sound because sux interprets values in the vector as being in big endian,
         // so this works no matter the architecture.
-        let mut vec: Vec<u64> = unsafe { std::mem::transmute(vec) };
+        let mut vec: Vec<u64> =
+            bytemuck::allocation::try_cast_vec(vec).expect("Could not cast Vec<usize> to Vec<u64>");
 
         vec.par_iter_mut()
             .for_each(|cell| *cell = u64::from_be(*cell).to_le());

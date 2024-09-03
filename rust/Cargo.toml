@@ -38,7 +38,7 @@ java-properties = "1.4.1"
 base64-simd = "0.8.0"
 dsi-bitstream = "0.4.0"
 epserde = "0.6.1"
-bytemuck = "1.14.0"
+bytemuck = { version = "1.14.0", features = ["extern_crate_alloc"] }
 common_traits = "0.10.0"
 lender = "0.2.7"
 serde_json = { version = "1.0", optional = true }
