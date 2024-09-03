@@ -27,9 +27,7 @@ use swh_graph::collections::NodeSet;
 use swh_graph::graph::*;
 use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 
-use swh_graph::utils::dataset_writer::{
-    ParallelDatasetWriter, ParquetTableWriter, StructArrayBuilder,
-};
+use dataset_writer::{ParallelDatasetWriter, ParquetTableWriter, StructArrayBuilder};
 
 pub fn schema() -> Schema {
     Schema::new(vec![Field::new("id", UInt64, false)])

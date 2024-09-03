@@ -13,10 +13,10 @@ use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 use sux::prelude::{AtomicBitVec, BitVec};
 
+use dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::utils::dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::utils::GetIndex;

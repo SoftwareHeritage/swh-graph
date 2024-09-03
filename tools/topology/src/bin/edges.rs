@@ -12,10 +12,10 @@ use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 use serde::Serialize;
 
+use dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter, TableWriter};
 use swh_graph::graph::*;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::labels::{Branch, DirEntry, Visit, VisitStatus};
-use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter, TableWriter};
 use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::utils::shuffle::par_iter_shuffled_range;

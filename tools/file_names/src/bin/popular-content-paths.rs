@@ -21,7 +21,7 @@ use swh_graph::labels::FilenameId;
 use swh_graph::NodeType;
 use swh_graph::SWHID;
 
-use swh_graph::utils::dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
+use dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter};
 use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 
 #[derive(Parser, Debug)]

@@ -19,11 +19,11 @@ use parquet::file::properties::WriterProperties;
 use rayon::prelude::*;
 use serde::Deserialize;
 
-use swh_graph::graph::*;
-use swh_graph::java_compat::mph::gov::GOVMPH;
-use swh_graph::utils::dataset_writer::{
+use dataset_writer::{
     ParquetTableWriter, ParquetTableWriterConfig, StructArrayBuilder, TableWriter,
 };
+use swh_graph::graph::*;
+use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::views::Transposed;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
