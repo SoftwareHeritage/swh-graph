@@ -545,7 +545,8 @@ class ExtractLabels(_CompressionStepTask):
     }
     USES_ALL_CPU_THREADS = True
 
-    priority = -100  # low priority, because it is not on the critical path
+    priority = -100
+    """low priority, because it is not on the critical path"""
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -559,7 +560,8 @@ class NodeStats(_CompressionStepTask):
         ".nodes.stats.txt",
     }
 
-    priority = 100  # high priority, to help the scheduler allocate resources
+    priority = 100
+    """high priority, to help the scheduler allocate resources"""
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -574,7 +576,8 @@ class EdgeStats(_CompressionStepTask):
         ".edges.stats.txt",
     }
 
-    priority = 100  # high priority, to help the scheduler allocate resources
+    priority = 100
+    """high priority, to help the scheduler allocate resources"""
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -588,7 +591,8 @@ class LabelStats(_CompressionStepTask):
     }
     USES_ALL_CPU_THREADS = True
 
-    priority = 100  # high priority, to help the scheduler allocate resources
+    priority = 100
+    """high priority, to help the scheduler allocate resources"""
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -867,7 +871,8 @@ class NodeProperties(_CompressionStepTask):
         )
     }
 
-    priority = 10  # semi-high priority because it takes a very long time to run
+    priority = 10
+    """semi-high priority because it takes a very long time to run"""
 
     def output(self) -> List[luigi.LocalTarget]:
         """Returns a list of luigi targets matching :attr:`OUTPUT_FILES`."""
@@ -963,7 +968,8 @@ class EdgeLabels(_CompressionStepTask):
         "-labelled.properties",
     }
 
-    priority = 10  # semi-high priority because it takes a long time to run
+    priority = 10
+    """semi-high priority because it takes a long time to run"""
 
     def _large_java_allocations(self) -> int:
         import multiprocessing
@@ -995,7 +1001,8 @@ class EdgeLabelsTranspose(_CompressionStepTask):
         "-transposed-labelled.properties",
     }
 
-    priority = 10  # semi-high priority because it takes a long time to run
+    priority = 10
+    """semi-high priority because it takes a long time to run"""
 
     def _large_java_allocations(self) -> int:
         import multiprocessing
