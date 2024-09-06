@@ -22,6 +22,9 @@ use crate::SWHID;
 /// See [`DynMphf`] which wraps all implementor structs in an enum to dynamically choose
 /// which MPH algorithm to use with less overhead than `dyn SwhidMphf`.
 pub trait SwhidMphf {
+    /// Returns the extension of the file containing a permutation to apply after the MPH.
+    fn order_suffix(&self) -> Option<&'static str>;
+
     fn load(basepath: impl AsRef<Path>) -> Result<Self>
     where
         Self: Sized;
@@ -51,6 +54,10 @@ pub struct VecMphf {
 }
 
 impl SwhidMphf for VecMphf {
+    fn order_suffix(&self) -> Option<&'static str> {
+        None
+    }
+
     fn load(_basepath: impl AsRef<Path>) -> Result<Self> {
         unimplemented!("VecMphf cannot be loaded from disk");
     }
@@ -75,6 +82,10 @@ impl SwhidMphf for VecMphf {
 }
 
 impl SwhidMphf for ph::fmph::Function {
+    fn order_suffix(&self) -> Option<&'static str> {
+        Some(".fmph.order")
+    }
+
     fn load(basepath: impl AsRef<Path>) -> Result<Self>
     where
         Self: Sized,
@@ -97,6 +108,10 @@ impl SwhidMphf for ph::fmph::Function {
 }
 
 impl SwhidMphf for GOVMPH {
+    fn order_suffix(&self) -> Option<&'static str> {
+        Some(".order") // not .cmph because .order predates "modular" MPHs
+    }
+
     fn load(basepath: impl AsRef<Path>) -> Result<Self>
     where
         Self: Sized,
@@ -141,6 +156,10 @@ impl<T: AsRef<[u8]>> pthash::Hashable for HashableSWHID<T> {
 }
 
 impl SwhidMphf for SwhidPthash {
+    fn order_suffix(&self) -> Option<&'static str> {
+        Some(".pthash.order")
+    }
+
     fn load(basepath: impl AsRef<Path>) -> Result<Self>
     where
         Self: Sized,
@@ -199,6 +218,14 @@ impl From<SwhidPthash> for DynMphf {
 }
 
 impl SwhidMphf for DynMphf {
+    fn order_suffix(&self) -> Option<&'static str> {
+        match self {
+            DynMphf::Pthash(f) => f.order_suffix(),
+            DynMphf::Fmph(f) => f.order_suffix(),
+            DynMphf::GOV(f) => f.order_suffix(),
+        }
+    }
+
     fn load(basepath: impl AsRef<Path>) -> Result<Self> {
         let basepath = basepath.as_ref();
 

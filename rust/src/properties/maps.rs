@@ -137,10 +137,15 @@ impl<
     ) -> Result<
         SwhGraphProperties<MappedMaps<MPHF>, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
     > {
+        let mphf = MPHF::load(&self.path)?;
         let maps = MappedMaps {
-            mphf: MPHF::load(&self.path)?,
-            order: MappedPermutation::load_unchecked(&suffix_path(&self.path, ".order"))
-                .context("Could not load order")?,
+            order: MappedPermutation::load_unchecked(&suffix_path(
+                &self.path,
+                mphf.order_suffix()
+                    .expect("MPHF does not support permutations"),
+            ))
+            .context("Could not load order")?,
+            mphf,
             node2swhid: Node2SWHID::load(suffix_path(&self.path, NODE2SWHID))
                 .context("Could not load node2swhid")?,
             node2type: Node2Type::load(suffix_path(&self.path, NODE2TYPE), self.num_nodes)
