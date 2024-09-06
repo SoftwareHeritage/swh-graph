@@ -16,7 +16,7 @@ use sux::prelude::{AtomicBitVec, BitVec};
 use dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::*;
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 use swh_graph::utils::mmap::NumberMmap;
 use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::utils::GetIndex;
@@ -66,7 +66,7 @@ pub fn main() -> Result<()> {
     let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph_path)
         .context("Could not load graph")?
         .init_properties()
-        .load_properties(|props| props.load_maps::<GOVMPH>())
+        .load_properties(|props| props.load_maps::<DynMphf>())
         .context("Could not load maps")?
         .load_properties(|props| props.load_timestamps())
         .context("Could not load timestamps")?;

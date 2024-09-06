@@ -14,8 +14,8 @@ use serde::Serialize;
 
 use dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter, TableWriter};
 use swh_graph::graph::*;
-use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::labels::{Branch, DirEntry, Visit, VisitStatus};
+use swh_graph::mph::DynMphf;
 use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::utils::shuffle::par_iter_shuffled_range;
@@ -122,7 +122,7 @@ pub fn main() -> Result<()> {
         .load_labels()
         .context("Could not load labels")?
         .init_properties()
-        .load_properties(|props| props.load_maps::<GOVMPH>())
+        .load_properties(|props| props.load_maps::<DynMphf>())
         .context("Could not load maps")?
         .load_properties(|props| props.load_label_names())
         .context("Could not load maps")?;

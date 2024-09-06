@@ -13,7 +13,7 @@ use dsi_progress_logger::{progress_logger, ProgressLog};
 use serde::Serialize;
 
 use swh_graph::graph::*;
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::views::{Subgraph, Transposed};
 use swh_graph::NodeType;
@@ -63,7 +63,7 @@ pub fn main() -> Result<()> {
     let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph_path)
         .context("Could not load graph")?
         .init_properties()
-        .load_properties(|props| props.load_maps::<GOVMPH>())
+        .load_properties(|props| props.load_maps::<DynMphf>())
         .context("Could not load maps")?;
 
     match (args.algorithm, args.direction) {

@@ -21,7 +21,7 @@ For example:
 
 ```compile_fail
 # use std::path::PathBuf;
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 
 let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph");
@@ -37,12 +37,12 @@ by default, so it must be loaded:
 ```no_run
 # use std::path::PathBuf;
 # use swh_graph::graph::SwhGraphWithProperties;
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 
 let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph")
     .init_properties()
-    .load_properties(|properties| properties.load_maps::<GOVMPH>())
+    .load_properties(|properties| properties.load_maps::<DynMphf>())
     .expect("Could not load SWHID<->node id maps");
 
 let node_id: usize = graph
@@ -56,11 +56,11 @@ or alternatively, to load all possible properties at once:
 ```no_run
 # use std::path::PathBuf;
 # use swh_graph::graph::SwhGraphWithProperties;
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 
 let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph")
-    .load_all_properties::<GOVMPH>()
+    .load_all_properties::<DynMphf>()
     .expect("Could not load properties");
 
 let node_id: usize = graph
@@ -76,11 +76,11 @@ as this example uses a directory):
 ```no_run
 # use std::path::PathBuf;
 # use swh_graph::graph::{SwhForwardGraph, SwhGraphWithProperties};
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 
 let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph")
-    .load_all_properties::<GOVMPH>()
+    .load_all_properties::<DynMphf>()
     .expect("Could not load properties");
 
 let node_id: usize = graph
@@ -100,12 +100,12 @@ as this example uses a directory):
 ```no_run
 # use std::path::PathBuf;
 # use swh_graph::graph::{SwhForwardGraph, SwhLabeledForwardGraph, SwhGraphWithProperties};
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 use swh_graph::labels::{EdgeLabel};
 
 let graph = swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     .expect("Could not load graph")
-    .load_all_properties::<GOVMPH>()
+    .load_all_properties::<DynMphf>()
     .expect("Could not load properties")
     .load_labels()
     .expect("Could not load labels");

@@ -189,7 +189,7 @@ use **node mappings** which allow us to translate between SWHIDs and the
 compact node IDs used in the compressed graph.
 
 Most notably, we use a MPH (Minimal Perfect Hash) function,
-a [Rust rewrite](crate::java_compat::mph::gov::GOVMPH) of the one implemented in the
+a [Rust rewrite](crate::mph::DynMphf) of the one implemented in the
 [GOVMinimalPerfectHashFunction](
 http://sux.di.unimi.it/docs/it/unimi/dsi/sux4j/mph/GOVMinimalPerfectHashFunction.html)
 class of the Sux4J library, which maps N keys to N consecutive integers with no
@@ -277,7 +277,7 @@ use std::path::PathBuf;
 use anyhow::{Result, ensure};
 
 use swh_graph::graph::SwhGraphWithProperties;
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 use swh_graph::properties;
 use swh_graph::{NodeType, SWHID};
 
@@ -398,7 +398,7 @@ seen above.
 ```no_run
 # use std::path::PathBuf;
 # use swh_graph::graph::*;
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 use swh_graph::labels::EdgeLabel;
 
 let graph = swh_graph::graph::load_full::<swh_graph::mph::DynMphf>(PathBuf::from("./graph"))
@@ -467,7 +467,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use clap::Parser;
 use swh_graph::graph::{NodeId, SwhBackwardGraph, SwhLabeledBackwardGraph, SwhGraphWithProperties};
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 use swh_graph::labels::{EdgeLabel};
 use swh_graph::properties;
 use swh_graph::{NodeType, SWHID};
@@ -527,7 +527,7 @@ fn main() {
     let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph)
         .expect("Could not load graph")
         .init_properties()
-        .load_properties(|properties| properties.load_maps::<GOVMPH>())
+        .load_properties(|properties| properties.load_maps::<DynMphf>())
         .expect("Could not load maps")
         .load_properties(|properties| properties.load_timestamps())
         .expect("Could not load timestamps")

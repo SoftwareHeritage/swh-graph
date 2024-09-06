@@ -15,7 +15,7 @@ use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 
 use swh_graph::graph::*;
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::utils::shuffle::par_iter_shuffled_range;
 use swh_graph::views::Transposed;
@@ -55,7 +55,7 @@ pub fn main() -> Result<()> {
 
     let graph1 = SwhBidirectionalGraph::new(&args.graph1)
         .with_context(|| format!("Could not load graph {}", args.graph1.display()))?
-        .load_all_properties::<GOVMPH>()
+        .load_all_properties::<DynMphf>()
         .with_context(|| {
             format!(
                 "Could not load properties from graph {}",
@@ -67,7 +67,7 @@ pub fn main() -> Result<()> {
 
     let graph2 = SwhBidirectionalGraph::new(&args.graph2)
         .with_context(|| format!("Could not load graph {}", args.graph2.display()))?
-        .load_all_properties::<GOVMPH>()
+        .load_all_properties::<DynMphf>()
         .with_context(|| {
             format!(
                 "Could not load properties from graph {}",

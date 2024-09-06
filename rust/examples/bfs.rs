@@ -11,7 +11,7 @@ use log::{debug, info};
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use swh_graph::graph::*;
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 
 #[derive(Parser, Debug)]
 #[command(about, long_about = None)]
@@ -31,7 +31,7 @@ pub fn main() -> Result<()> {
     let graph = SwhUnidirectionalGraph::new(args.graph)
         .context("Could not load graph")?
         .init_properties()
-        .load_properties(|properties| properties.load_maps::<GOVMPH>())
+        .load_properties(|properties| properties.load_maps::<DynMphf>())
         .context("Could not load graph properties")?;
 
     // Lookup SWHID

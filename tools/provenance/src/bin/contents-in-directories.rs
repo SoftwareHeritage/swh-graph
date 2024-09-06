@@ -18,7 +18,7 @@ use sux::prelude::{AtomicBitVec, BitVec};
 use dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
 use swh_graph::collections::NodeSet;
 use swh_graph::graph::*;
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::NodeType;
 
@@ -73,7 +73,7 @@ pub fn main() -> Result<()> {
         .init_properties()
         .load_properties(|props| props.load_label_names())
         .context("Could not load label names")?
-        .load_properties(|props| props.load_maps::<GOVMPH>())
+        .load_properties(|props| props.load_maps::<DynMphf>())
         .context("Could not load maps")?;
     log::info!("Graph loaded.");
 

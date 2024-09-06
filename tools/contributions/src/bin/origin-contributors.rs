@@ -12,7 +12,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use swh_graph::graph::*;
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::DynMphf;
 use swh_graph::properties;
 use swh_graph::views::Subgraph;
 use swh_graph::NodeType;
@@ -76,7 +76,7 @@ pub fn main() -> Result<()> {
     let graph = swh_graph::graph::SwhUnidirectionalGraph::new(args.graph_path)
         .context("Could not load graph")?
         .init_properties()
-        .load_properties(|props| props.load_maps::<GOVMPH>())
+        .load_properties(|props| props.load_maps::<DynMphf>())
         .context("Could not load maps")?
         .load_properties(|props| props.load_persons())
         .context("Could not load persons")?

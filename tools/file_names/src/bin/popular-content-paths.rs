@@ -16,8 +16,8 @@ use serde::{Deserialize, Serialize};
 
 use swh_graph::collections::PathStack;
 use swh_graph::graph::*;
-use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::labels::FilenameId;
+use swh_graph::mph::DynMphf;
 use swh_graph::NodeType;
 use swh_graph::SWHID;
 
@@ -105,7 +105,7 @@ fn main_monomorphized<const MAX_DEPTH: usize>(args: Args) -> Result<()> {
         .init_properties()
         .load_properties(|props| props.load_contents())
         .context("Could not load content properties")?
-        .load_properties(|props| props.load_maps::<GOVMPH>())
+        .load_properties(|props| props.load_maps::<DynMphf>())
         .context("Could not load maps")?
         .load_properties(|props| props.load_label_names())
         .context("Could not load label names")?;
