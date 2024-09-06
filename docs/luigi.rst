@@ -48,6 +48,10 @@ where:
   (``--TaskName-kebab-cased-parameter``).
   See the `Luigi CLI documentation <https://luigi.readthedocs.io/en/stable/running_luigi.html>`_ for details.
 
+Luigi needs a configuration file with ``{hostname}_ram_mb = 32000`` (assuming 32GB of RAM) in
+its `[resources] block <https://luigi.readthedocs.io/en/stable/configuration.html#resources>`_.
+This file should be passed either to the central scheduler (when using ``--scheduler-url``)
+or through ``--luigi-config`` when using ``--local-scheduler``.
 
 .. note::
 
