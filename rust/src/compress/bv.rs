@@ -259,8 +259,6 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
         .write_gamma(0)
         .context("Could not write initial offset")?;
 
-    // TODO: parallelize this loop, by writing bitstreams concurrently, then
-    // concatenating them
     for partition_graph in arc_list_graphs {
         for_!( (_src, successors) in partition_graph {
             let mut offset_bits = 0u64;

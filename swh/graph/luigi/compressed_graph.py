@@ -220,6 +220,12 @@ class _CompressionStepTask(luigi.Task):
     by :meth:`requires`.
     """
 
+    USES_ALL_CPU_THREADS: bool = False
+    """:const:`True` on tasks that use all available CPU for their entire runtime.
+
+    These tasks should be scheduled in such a way they do not run at the same time,
+    because running them concurrently does not improve run time."""
+
     local_export_path = luigi.PathParameter(significant=False)
     graph_name = luigi.Parameter(default="graph")
     local_graph_path = luigi.PathParameter()
@@ -346,6 +352,7 @@ class _CompressionStepTask(luigi.Task):
         hostname = socket.getfqdn()
         d = {
             f"{hostname}_ram_mb": self._expected_memory() // (1024 * 1024),
+            f"{hostname}_max_cpu": int(self.USES_ALL_CPU_THREADS),
         }
         return d
 
@@ -523,6 +530,7 @@ class ExtractNodes(_CompressionStepTask):
     OUTPUT_FILES = {
         ".nodes/",
     }
+    USES_ALL_CPU_THREADS = True
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -535,6 +543,9 @@ class ExtractLabels(_CompressionStepTask):
     OUTPUT_FILES = {
         ".labels.csv.zst",
     }
+    USES_ALL_CPU_THREADS = True
+
+    priority = -100  # low priority, because it is not on the critical path
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -547,6 +558,8 @@ class NodeStats(_CompressionStepTask):
         ".nodes.count.txt",
         ".nodes.stats.txt",
     }
+
+    priority = 100  # high priority, to help the scheduler allocate resources
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -561,6 +574,8 @@ class EdgeStats(_CompressionStepTask):
         ".edges.stats.txt",
     }
 
+    priority = 100  # high priority, to help the scheduler allocate resources
+
     def _large_java_allocations(self) -> int:
         return 0
 
@@ -571,6 +586,9 @@ class LabelStats(_CompressionStepTask):
     OUTPUT_FILES = {
         ".labels.count.txt",
     }
+    USES_ALL_CPU_THREADS = True
+
+    priority = 100  # high priority, to help the scheduler allocate resources
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -580,6 +598,7 @@ class Mph(_CompressionStepTask):
     STEP = CompressionStep.MPH
     INPUT_FILES = {".nodes/", ".nodes.count.txt"}
     OUTPUT_FILES = {".pthash"}
+    USES_ALL_CPU_THREADS = True
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -800,6 +819,7 @@ class ExtractPersons(_CompressionStepTask):
     INPUT_FILES: Set[str] = set()
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {".persons.csv.zst"}
+    USES_ALL_CPU_THREADS = True
 
     def _large_java_allocations(self) -> int:
         return 0
@@ -846,6 +866,8 @@ class NodeProperties(_CompressionStepTask):
             "tag_name.offset",
         )
     }
+
+    priority = 10  # semi-high priority because it takes a very long time to run
 
     def output(self) -> List[luigi.LocalTarget]:
         """Returns a list of luigi targets matching :attr:`OUTPUT_FILES`."""
@@ -941,6 +963,8 @@ class EdgeLabels(_CompressionStepTask):
         "-labelled.properties",
     }
 
+    priority = 10  # semi-high priority because it takes a long time to run
+
     def _large_java_allocations(self) -> int:
         import multiprocessing
 
@@ -970,6 +994,8 @@ class EdgeLabelsTranspose(_CompressionStepTask):
         "-transposed-labelled.labels",
         "-transposed-labelled.properties",
     }
+
+    priority = 10  # semi-high priority because it takes a long time to run
 
     def _large_java_allocations(self) -> int:
         import multiprocessing

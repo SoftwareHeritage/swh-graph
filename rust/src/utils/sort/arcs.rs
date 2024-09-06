@@ -7,14 +7,21 @@
 
 //! Parallel string sorting and deduplication for data that doesn't fit in RAM
 use std::cell::RefCell;
+use std::fs::File;
+use std::io::BufWriter;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
-use dsi_bitstream::prelude::NE;
+use dsi_bitstream::prelude::*;
+use dsi_progress_logger::{progress_logger, ProgressLog};
+use mmap_rs::MmapFlags;
 use rayon::prelude::*;
-use webgraph::prelude::{BitDeserializer, BitSerializer};
+use webgraph::prelude::{ArcMmapHelper, BitDeserializer, BitSerializer, MmapHelper};
 use webgraph::utils::sort_pairs::{BatchIterator, BitReader, BitWriter, KMergeIters, Triple};
+
+use crate::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 
 pub struct PartitionedBuffer<
     L: Ord + Copy + Send + Sync,
@@ -27,6 +34,8 @@ pub struct PartitionedBuffer<
     temp_dir: PathBuf,
     label_serializer: S,
     label_deserializer: D,
+    // total number of items flushed this the buffer was created
+    total_flushed: Arc<AtomicUsize>,
 }
 
 impl<
@@ -42,6 +51,7 @@ impl<
         num_partitions: usize,
         label_serializer: S,
         label_deserializer: D,
+        total_flushed: Arc<AtomicUsize>,
     ) -> Self {
         let capacity = batch_size / num_partitions;
         PartitionedBuffer {
@@ -51,6 +61,7 @@ impl<
             capacity,
             label_serializer,
             label_deserializer,
+            total_flushed,
         }
     }
 
@@ -99,6 +110,8 @@ impl<
             .get_mut(partition_id)
             .expect("Partition sorters out of bound")
             .push(batch);
+        self.total_flushed
+            .fetch_add(partition_buffer.len(), Ordering::Relaxed);
         partition_buffer.clear();
         Ok(())
     }
@@ -128,7 +141,7 @@ pub fn par_sort_arcs<Item, Iter, F, L, S, D>(
     label_serializer: S,
     label_deserializer: D,
     f: F,
-) -> Result<Vec<KMergeIters<impl Iterator<Item = (usize, usize, L)> + Clone + Send + Sync, L>>>
+) -> Result<Vec<impl Iterator<Item = (usize, usize, L)> + Clone + Send + Sync>>
 where
     F: Fn(&mut PartitionedBuffer<L, S, D>, Item) -> Result<()> + Send + Sync,
     Iter: ParallelIterator<Item = Item>,
@@ -144,17 +157,24 @@ where
     // from time to time
     let sorted_iterators = Arc::new(Mutex::new(vec![Vec::new(); num_partitions]));
 
+    let unmerged_sorted_dir = temp_dir.join("unmerged");
+    std::fs::create_dir(&unmerged_sorted_dir)
+        .with_context(|| format!("Could not create {}", unmerged_sorted_dir.display()))?;
+
+    let num_arcs = Arc::new(AtomicUsize::new(0));
+
     iter.try_for_each_init(
         || -> std::cell::RefMut<PartitionedBuffer<L, S, D>> {
             buffers
                 .get_or(|| {
                     RefCell::new(PartitionedBuffer::new(
                         sorted_iterators.clone(),
-                        temp_dir,
+                        &unmerged_sorted_dir,
                         batch_size,
                         num_partitions,
                         label_serializer,
                         label_deserializer,
+                        num_arcs.clone(),
                     ))
                 })
                 .borrow_mut()
@@ -175,17 +195,140 @@ where
     )?;
     log::info!("Done sorting all buffers.");
 
-    Ok(Arc::into_inner(sorted_iterators)
+    let sorted_iterators = Arc::into_inner(sorted_iterators)
         .expect("Dangling references to sorted_iterators Arc")
         .into_inner()
-        .unwrap()
-        .into_iter()
+        .unwrap();
+
+    let num_arcs = Arc::into_inner(num_arcs)
+        .expect("Could not take ownership of num_arcs")
+        .into_inner();
+
+    let merged_sorted_dir = temp_dir.join("merged");
+    std::fs::create_dir(&merged_sorted_dir)
+        .with_context(|| format!("Could not create {}", merged_sorted_dir.display()))?;
+
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "arc",
+        local_speed = true,
+        expected_updates = Some(num_arcs),
+    );
+    pl.start("Merging sorted arcs");
+    let pl = Arc::new(Mutex::new(Box::new(pl)));
+
+    let merged_sorted_iterators = sorted_iterators
+        .into_par_iter()
+        .enumerate()
         // Concatenate partitions
-        .map(|partition_sorted_iterators| {
-            // Sort within each partition
-            KMergeIters::new(partition_sorted_iterators)
-        })
-        .collect())
+        .map_with(
+            BufferedProgressLogger::new(pl),
+            |thread_pl, (partition_id, partition_sorted_iterators)| {
+                // In the previous step, each of the N threads generated M partitions,
+                // so N×M lists. (Unless Rayon did something funny, N=M.)
+                // We now transpose, by taking for each partition what each thread produced,
+                // and merge them together, to get only M lists.
+                // This is done *in parallel*, and saves work when *sequentially* consuming
+                // the final iterator
+                let path = merged_sorted_dir.join(format!("part_{}", partition_id));
+                let num_arcs_in_partition = serialize(
+                    &path,
+                    thread_pl,
+                    label_serializer,
+                    KMergeIters::new(partition_sorted_iterators),
+                )?;
+
+                if Arc::strong_count(thread_pl.inner()) == 1 {
+                    // We are in the last thread that still had a reference to the
+                    // progress logger.
+                    thread_pl.inner().lock().unwrap().done();
+                }
+
+                deserialize(&path, label_deserializer, num_arcs_in_partition)
+            },
+        )
+        .collect::<Result<Vec<_>>>()?;
+
+    log::info!("Deleted unmerged sorted files");
+    std::fs::remove_dir_all(&unmerged_sorted_dir)
+        .with_context(|| format!("Could not remove {}", unmerged_sorted_dir.display()))?;
+    log::info!("Done");
+
+    Ok(merged_sorted_iterators)
+}
+
+fn serialize<L, S>(
+    path: &Path,
+    pl: &mut impl MinimalProgressLog,
+    label_serializer: S,
+    arcs: impl Iterator<Item = (usize, usize, L)>,
+) -> Result<usize>
+where
+    S: BitSerializer<NE, BitWriter, SerType = L> + Send + Sync + Copy,
+{
+    let file =
+        File::create_new(path).with_context(|| format!("Could not create {}", path.display()))?;
+    let mut write_stream =
+        <BufBitWriter<NE, _>>::new(<WordAdapter<usize, _>>::new(BufWriter::new(file)));
+    let mut prev_src = 0;
+    let mut prev_dst = 0;
+    let mut num_arcs_in_partition: usize = 0;
+    for (src, dst, label) in arcs {
+        write_stream
+            .write_gamma((src - prev_src).try_into().expect("usize overflowed u64"))
+            .context("Could not write src gamma")?;
+        if src != prev_src {
+            prev_dst = 0;
+        }
+        write_stream
+            .write_gamma((dst - prev_dst).try_into().expect("usize overflowed u64"))
+            .context("Could not write dst gamma")?;
+        label_serializer
+            .serialize(&label, &mut write_stream)
+            .context("Could not serialize label")?;
+        prev_src = src;
+        prev_dst = dst;
+        pl.light_update();
+        num_arcs_in_partition += 1;
+    }
+    write_stream.flush().context("Could not flush stream")?;
+    Ok(num_arcs_in_partition)
+}
+
+fn deserialize<L, D>(
+    path: &Path,
+    label_deserializer: D,
+    num_arcs: usize,
+) -> Result<impl Iterator<Item = (usize, usize, L)> + Clone + Send + Sync>
+where
+    D: BitDeserializer<NE, BitReader, DeserType = L> + Send + Sync + Copy,
+{
+    let mut read_stream = <BufBitReader<NE, _>>::new(MemWordReader::new(ArcMmapHelper(Arc::new(
+        MmapHelper::mmap(
+            path,
+            MmapFlags::TRANSPARENT_HUGE_PAGES | MmapFlags::SEQUENTIAL,
+        )
+        .with_context(|| format!("Could not mmap {}", path.display()))?,
+    ))));
+
+    let mut prev_src = 0;
+    let mut prev_dst = 0;
+    let arcs = (0..num_arcs).map(move |_| {
+        let src = prev_src + read_stream.read_gamma().expect("Could not read src gamma");
+        if src != prev_src {
+            prev_dst = 0;
+        }
+        let dst = prev_dst + read_stream.read_gamma().expect("Could not read dst gamma");
+        let label = label_deserializer
+            .deserialize(&mut read_stream)
+            .expect("Could not deserialize label");
+        prev_src = src;
+        prev_dst = dst;
+        let src = usize::try_from(src).expect("deserialized usize overflows usize");
+        let dst = usize::try_from(dst).expect("deserialized usize overflows usize");
+        (src, dst, label)
+    });
+    Ok(arcs)
 }
 
 fn flush<
