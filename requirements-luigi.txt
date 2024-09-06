@@ -1,5 +1,5 @@
 datafusion
-luigi
+luigi != 3.5.2  # https://github.com/spotify/luigi/issues/3312
 pyarrow
 python-magic
 pyzstd
