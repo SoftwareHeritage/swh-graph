@@ -75,9 +75,11 @@ impl<T: DerefMut<Target: MinimalProgressLog>> BufferedProgressLogger<T> {
 }
 
 impl<T: DerefMut<Target: MinimalProgressLog>> MinimalProgressLog for BufferedProgressLogger<T> {
+    #[inline(always)]
     fn update(&mut self) {
         self.update_with_count(1)
     }
+    #[inline(always)]
     fn update_with_count(&mut self, count: usize) {
         match usize::from(self.count).checked_add(count) {
             None => {
@@ -101,9 +103,11 @@ impl<T: DerefMut<Target: MinimalProgressLog>> MinimalProgressLog for BufferedPro
             }
         }
     }
+    #[inline(always)]
     fn light_update(&mut self) {
         self.update_with_count(1)
     }
+    #[inline(always)]
     fn update_and_display(&mut self) {
         let mut inner = self.inner.lock().unwrap();
         inner.update_with_count(self.count.into());
