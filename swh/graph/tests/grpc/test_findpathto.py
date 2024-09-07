@@ -5,10 +5,19 @@
 
 import hashlib
 
+from google.protobuf.field_mask_pb2 import FieldMask
 import grpc
 import pytest
 
-from swh.graph.grpc.swhgraph_pb2 import FindPathToRequest, GraphDirection, NodeFilter
+from swh.graph.grpc.swhgraph_pb2 import (
+    FindPathToRequest,
+    GraphDirection,
+    Node,
+    NodeFilter,
+    OriginData,
+    Path,
+    RevisionData,
+)
 
 TEST_ORIGIN_ID = "swh:1:ori:{}".format(
     hashlib.sha1(b"https://example.com/swh/graph").hexdigest()
@@ -77,6 +86,93 @@ def test_forward_ori_to_first_dir(graph_grpc_stub):
         "swh:1:dir:0000000000000000000000000000000000000008",
     ]
     assert expected == actual
+
+
+def test_minimal_fields(graph_grpc_stub):
+    """Test path between ori 1 and any dir (forward graph)"""
+    request = graph_grpc_stub.FindPathTo(
+        FindPathToRequest(
+            src=[TEST_ORIGIN_ID],
+            target=NodeFilter(types="dir"),
+            mask=FieldMask(paths=["node.swhid"]),
+        )
+    )
+    assert request == Path(
+        node=[
+            Node(
+                swhid=TEST_ORIGIN_ID,
+            ),
+            Node(
+                swhid="swh:1:snp:0000000000000000000000000000000000000020",
+            ),
+            Node(
+                swhid="swh:1:rev:0000000000000000000000000000000000000009",
+            ),
+            Node(
+                swhid="swh:1:dir:0000000000000000000000000000000000000008",
+            ),
+        ]
+    )
+
+
+def test_fields_ori(graph_grpc_stub):
+    """Test path between ori 1 and any dir (forward graph)"""
+    request = graph_grpc_stub.FindPathTo(
+        FindPathToRequest(
+            src=[TEST_ORIGIN_ID],
+            target=NodeFilter(types="dir"),
+            mask=FieldMask(paths=["node.swhid", "node.ori"]),
+        )
+    )
+    assert request == Path(
+        node=[
+            Node(
+                swhid=TEST_ORIGIN_ID,
+                ori=OriginData(
+                    url="https://example.com/swh/graph",
+                ),
+            ),
+            Node(
+                swhid="swh:1:snp:0000000000000000000000000000000000000020",
+            ),
+            Node(
+                swhid="swh:1:rev:0000000000000000000000000000000000000009",
+            ),
+            Node(
+                swhid="swh:1:dir:0000000000000000000000000000000000000008",
+            ),
+        ]
+    )
+
+
+def test_fields_rev_message(graph_grpc_stub):
+    """Test path between ori 1 and any dir (forward graph)"""
+    request = graph_grpc_stub.FindPathTo(
+        FindPathToRequest(
+            src=[TEST_ORIGIN_ID],
+            target=NodeFilter(types="dir"),
+            mask=FieldMask(paths=["node.swhid", "node.rev.message"]),
+        )
+    )
+    assert request == Path(
+        node=[
+            Node(
+                swhid=TEST_ORIGIN_ID,
+            ),
+            Node(
+                swhid="swh:1:snp:0000000000000000000000000000000000000020",
+            ),
+            Node(
+                swhid="swh:1:rev:0000000000000000000000000000000000000009",
+                rev=RevisionData(
+                    message=b"Add parser",
+                ),
+            ),
+            Node(
+                swhid="swh:1:dir:0000000000000000000000000000000000000008",
+            ),
+        ]
+    )
 
 
 def test_forward_rel_to_first_cnt(graph_grpc_stub):

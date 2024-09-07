@@ -168,12 +168,12 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> NodeBuilder<G> {
             }),
             successor: successors,
             data: self.if_mask(DATA, || match self.graph.properties().node_type(node_id) {
-                NodeType::Content => Some(self.build_content_data(node_id)),
+                NodeType::Content => self.if_mask(CNT, || Some(self.build_content_data(node_id))),
                 NodeType::Directory => None,
-                NodeType::Revision => Some(self.build_revision_data(node_id)),
-                NodeType::Release => Some(self.build_release_data(node_id)),
+                NodeType::Revision => self.if_mask(REV, || Some(self.build_revision_data(node_id))),
+                NodeType::Release => self.if_mask(REL, || Some(self.build_release_data(node_id))),
                 NodeType::Snapshot => None,
-                NodeType::Origin => Some(self.build_origin_data(node_id)),
+                NodeType::Origin => self.if_mask(ORI, || Some(self.build_origin_data(node_id))),
             }),
         }
     }
