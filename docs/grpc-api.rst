@@ -731,7 +731,7 @@ run like this:
         src=["swh:1:cnt:0000000000000000000000000000000000000001"],
         target=swhgraph.NodeFilter(types="ori"),
         direction=swhgraph.GraphDirection.BACKWARD,
-        mask=FieldMask(paths=["swhid"]),
+        mask=FieldMask(paths=["node.swhid"]),
     ))
     for item in response.node:
         print(f'swhid: "{item.swhid}"')
@@ -790,7 +790,7 @@ restrictions.
     response = stub.FindPathBetween(swhgraph.FindPathBetweenRequest(
         src=["swh:1:snp:0000000000000000000000000000000000000020"],
         dst=["swh:1:cnt:0000000000000000000000000000000000000004"],
-        mask=FieldMask(paths=["swhid"]),
+        mask=FieldMask(paths=["node.swhid"]),
     ))
     for item in response.node:
         print(f'swhid: "{item.swhid}"')
@@ -816,7 +816,7 @@ restrictions.
         src=["swh:1:dir:0000000000000000000000000000000000000006"],
         dst=["swh:1:rel:0000000000000000000000000000000000000019"],
         direction=swhgraph.GraphDirection.BACKWARD,
-        mask=FieldMask(paths=["swhid"]),
+        mask=FieldMask(paths=["node.swhid"]),
     ))
     for item in response.node:
         print(f'swhid: "{item.swhid}"')
@@ -844,7 +844,7 @@ restrictions.
         dst=["swh:1:cnt:0000000000000000000000000000000000000015"],
         direction=swhgraph.GraphDirection.BACKWARD,
         direction_reverse=swhgraph.GraphDirection.BACKWARD,
-        mask=FieldMask(paths=["swhid"]),
+        mask=FieldMask(paths=["node.swhid"]),
     ))
     for item in response.node:
         print(f'swhid: "{item.swhid}"')

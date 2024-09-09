@@ -212,7 +212,7 @@ def main(
                         edges="cnt:dir,dir:dir,dir:rev,rev:rev,rev:snp,rev:rel,rel:snp,snp:ori",
                         direction="BACKWARD",
                         return_nodes=NodeFilter(types="ori"),
-                        mask=FieldMask(paths=["swhid", "ori.url"]),
+                        mask=FieldMask(paths=["node.swhid", "node.ori.url"]),
                     )
                 )
                 for node in response:
@@ -222,7 +222,7 @@ def main(
                                 src=[content_swhid],
                                 dst=[node.swhid],
                                 direction="BACKWARD",
-                                mask=FieldMask(paths=["swhid", "ori.url"]),
+                                mask=FieldMask(paths=["node.swhid", "node.ori.url"]),
                             )
                         )
                         print(fqswhid_of_traversal(response))
@@ -236,7 +236,7 @@ def main(
                         src=[content_swhid],
                         target=NodeFilter(types="ori"),
                         direction="BACKWARD",
-                        mask=FieldMask(paths=["swhid", "ori.url"]),
+                        mask=FieldMask(paths=["node.swhid", "node.ori.url"]),
                     )
                 )
                 if fqswhid:
@@ -261,7 +261,7 @@ def main(
                             )
                         ],
                         direction="BACKWARD",
-                        mask=FieldMask(paths=["swhid", "ori.url"]),
+                        mask=FieldMask(paths=["node.swhid", "node.ori.url"]),
                     )
                 )
                 print(fqswhid_of_traversal(response))

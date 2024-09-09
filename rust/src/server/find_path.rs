@@ -187,6 +187,9 @@ impl<'s, S: super::TraversalServiceTrait> FindPath<'s, S> {
                         paths: mask
                             .paths
                             .iter()
+                            // also drops any field not starting with "node." because they would
+                            // apply to the overall structure (if we ever add fields), not to
+                            // the node.
                             .flat_map(|field| field.strip_prefix("node."))
                             .map(|field| field.to_owned())
                             .collect(),
@@ -351,6 +354,9 @@ impl<'s, S: super::TraversalServiceTrait> FindPath<'s, S> {
                 paths: mask
                     .paths
                     .iter()
+                    // also drops any field not starting with "node." because they would
+                    // apply to the overall structure (if we ever add fields), not to
+                    // the node.
                     .flat_map(|field| field.strip_prefix("node."))
                     .map(|field| field.to_owned())
                     .collect(),
@@ -362,6 +368,7 @@ impl<'s, S: super::TraversalServiceTrait> FindPath<'s, S> {
                 paths: mask
                     .paths
                     .iter()
+                    // ditto
                     .flat_map(|field| field.strip_prefix("node."))
                     .map(|field| field.to_owned())
                     .collect(),
