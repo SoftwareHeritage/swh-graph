@@ -27,8 +27,6 @@ headers = {}
 swhcli = {}
 verbose = False
 
-GRAPH_GRPC_SERVER = "localhost:50091"
-
 
 def fqswhid_of_traversal(response):
     # Build the Fully qualified SWHID
