@@ -3,8 +3,9 @@
 resolver = "2"
 
 members = [
-    "rust",
+    "grpc-server",
     "pyo3",
+    "rust",
     "tools/contributions",
     "tools/file_names",
     "tools/provenance",
@@ -13,6 +14,17 @@ members = [
 
 [workspace.package]
 version = "5.1.1"
+
+[workspace.dependencies]
+anyhow = { version="1.0.79", features=["backtrace"] }
+itertools = { version = "0.11.0" }
+
+# CLI
+env_logger = "0.11.5"
+clap = { version = "4.1.6", features = ["derive"] }
+dsi-progress-logger = "0.2.4"
+log = "0.4.17"
+
 
 [profile.release] # Used for the examples
 opt-level = 3             # like --release

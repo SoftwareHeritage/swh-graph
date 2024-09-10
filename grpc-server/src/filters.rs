@@ -3,9 +3,9 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use crate::graph::{SwhForwardGraph, SwhGraphWithProperties};
-use crate::properties;
-use crate::{ArcType, NodeType};
+use swh_graph::graph::{SwhForwardGraph, SwhGraphWithProperties};
+use swh_graph::properties;
+use swh_graph::{ArcType, NodeType};
 
 use super::proto;
 

@@ -3,8 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-#![cfg(feature = "grpc-server")]
-
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -13,11 +11,11 @@ use prost_types::FieldMask;
 use tonic::Request;
 
 use swh_graph::graph_builder::GraphBuilder;
-use swh_graph::server::proto::traversal_service_server::TraversalService as _TraversalService;
-use swh_graph::server::proto::*;
-use swh_graph::server::TraversalService;
 use swh_graph::swhid;
 use swh_graph::views::GraphSpy;
+use swh_graph_grpc_server::proto::traversal_service_server::TraversalService as _TraversalService;
+use swh_graph_grpc_server::proto::*;
+use swh_graph_grpc_server::TraversalService;
 
 #[tokio::test(flavor = "multi_thread")]
 /// Counting the number of nodes reachable from another one

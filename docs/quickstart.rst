@@ -28,7 +28,7 @@ Install the ``swh_graph`` rust package:
 
 .. code:: console
 
-   $ RUSTFLAGS="-C target-cpu=native" cargo install --git https://gitlab.softwareheritage.org/swh/devel/swh-graph.git --features grpc-server swh-graph
+   $ RUSTFLAGS="-C target-cpu=native" cargo install --git https://gitlab.softwareheritage.org/swh/devel/swh-graph.git swh-graph-grpc-server
 
 Or:
 
@@ -36,7 +36,7 @@ Or:
 
    $ git clone https://gitlab.softwareheritage.org/swh/devel/swh-graph.git
    $ cd swh-graph
-   $ cargo build --release --features grpc-server -p swh-graph
+   $ cargo build --release -p swh-graph-grpc-server
 
 Create a virtualenv and activate it:
 
@@ -78,7 +78,7 @@ Alternatively, if you want to edit the swh-graph code, use these commands:
 
    # build Rust backend (only if you need to modify the Rust code,
    # or did not run `cargo install` above)
-   $ cargo build --release --features grpc-server -p swh-graph
+   $ cargo build --release -p swh-graph-grpc-server
 
    # install Python package
    $ python3 -m venv .venv

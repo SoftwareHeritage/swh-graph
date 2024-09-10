@@ -28,14 +28,14 @@ Get Rust >= 1.79, eg. with `rustup <https://rustup.rs/>`_.
 
 Run::
 
-    RUSTFLAGS="-C target-cpu=native" cargo install --features=grpc-server swh-graph
+    RUSTFLAGS="-C target-cpu=native" cargo install swh-graph-grpc-server
     pip3 install swh-graph
 
 Or::
 
     git clone https://gitlab.softwareheritage.org/swh/devel/swh-graph.git
     cd swh-graph
-    cargo build --release --features=grpc-server -p swh-graph
+    cargo build --release -p swh-graph-grpc-server
     pip3 install .
 
 Getting a compressed graph
@@ -54,7 +54,7 @@ Rust, instead of going through the Python layer::
 
 Or, if you installed from Git::
 
-    $ cargo run --release --features=grpc-server --bin swh-graph-grpc-serve <graph_basename>
+    $ cargo run --release --bin swh-graph-grpc-serve <graph_basename>
 
 (See :ref:`swh-graph-memory` for more information for performance tuning)
 

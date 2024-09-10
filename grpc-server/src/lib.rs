@@ -16,10 +16,10 @@ use tonic::transport::{Body, Server};
 use tonic::{Request, Response};
 use tonic_middleware::{Middleware, MiddlewareFor, ServiceBound};
 
-use crate::graph::SwhFullGraph;
-use crate::properties::NodeIdFromSwhidError;
-use crate::utils::suffix_path;
-use crate::views::Subgraph;
+use swh_graph::graph::SwhFullGraph;
+use swh_graph::properties::NodeIdFromSwhidError;
+use swh_graph::utils::suffix_path;
+use swh_graph::views::Subgraph;
 
 pub mod proto {
     tonic::include_proto!("swh.graph");

@@ -9,9 +9,9 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response};
 
-use crate::graph::{SwhForwardGraph, SwhGraphWithProperties};
-use crate::properties;
-use crate::views::{Subgraph, Transposed};
+use swh_graph::graph::{SwhForwardGraph, SwhGraphWithProperties};
+use swh_graph::properties;
+use swh_graph::views::{Subgraph, Transposed};
 
 use super::filters::{ArcFilterChecker, NodeFilterChecker};
 use super::node_builder::NodeBuilder;

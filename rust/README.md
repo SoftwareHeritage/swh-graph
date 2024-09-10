@@ -44,7 +44,7 @@ The code needs stable Rust to be >= 1.79 because we depend webgraph uses
 [associated type bounds](https://github.com/rust-lang/rust/issues/52662).
 
 We also need `protoc` to be installed (`apt-get install protobuf-compiler` on Debian)
-if you want to build with `--features=grpc-server`.
+if you want to build the gRPC server (`swh-graph-grpc-server` crate)
 
 ### Distribution
 To distribute executables, you can statically compile the code with:
@@ -104,22 +104,23 @@ swh-graph$ cargo build --all-features
 ```
 
 This should build binary assets in the local directory `target/debug`. Check
-the `swh-graph-grpc-serve` is present there and cen be executed properly:
+the `swh-graph-index` is present there and cen be executed properly:
 
 ```text
-swh-graph$ ./target/debug/swh-graph-grpc-serve --help
-gRPC server for the compressed Software Heritage graph
+swh-graph$ ./target/debug/swh-graph-index --help
+Commands to (re)generate `.ef` and `.offsets` files, allowing random access to BVGraph
 
-Usage: swh-graph-grpc-serve [OPTIONS] <GRAPH_PATH>
+Usage: swh-graph-index <COMMAND>
 
-Arguments:
-  <GRAPH_PATH>
+Commands:
+  offsets    Reads a graph file linearly and produce a .offsets file which can be used by the Java backend to randomly access the graph
+  ef         Reads either a graph file linearly or .offsets file (generated and used by the Java backend to randomly access the graph), and produces a .ef file suitable to randomly access the graph from the Rust backend
+  labels-ef  Reads either a graph file linearly or .offsets file (generated and used by the Java backend to randomly access the graph), and produces a .ef file suitable to randomly access the graph from the Rust backend
+  dcf        Reads either a graph file linearly, and produces a degree-cumulative function encoded as an Elias-Fano sequence in a .dcf file, suitable to distribute load while working on the graph
+  help       Print this message or the help of the given subcommand(s)
 
 Options:
-      --bind <BIND>                  [default: [::]:5009]
-      --masked-nodes <MASKED_NODES>  A line-separated list of node SWHIDs to exclude from the graph
-  -v, --verbose...
-  -h, --help                         Print help
+  -h, --help  Print help
 ```
 
 ## Deployment

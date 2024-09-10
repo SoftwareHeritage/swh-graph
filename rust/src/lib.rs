@@ -36,8 +36,6 @@ mod underlying_graph;
 
 #[cfg(feature = "compression")]
 pub mod compress;
-#[cfg(feature = "grpc-server")]
-pub mod server;
 pub mod views;
 
 pub mod approximate_bfs;

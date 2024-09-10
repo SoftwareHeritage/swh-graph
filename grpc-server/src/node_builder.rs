@@ -4,9 +4,9 @@
 // See top-level LICENSE file for more information
 
 use super::proto;
-use crate::graph::SwhFullGraph;
-use crate::labels::{EdgeLabel, VisitStatus};
-use crate::NodeType;
+use swh_graph::graph::SwhFullGraph;
+use swh_graph::labels::{EdgeLabel, VisitStatus};
+use swh_graph::NodeType;
 
 /// Bit masks selecting which fields should be included by [`NodeBuilder`], based on
 /// [`proto::FieldMask`].
@@ -196,7 +196,7 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> NodeBuilder<G> {
                     Some(
                         label
                             .permission()
-                            .unwrap_or(crate::labels::Permission::None)
+                            .unwrap_or(swh_graph::labels::Permission::None)
                             .to_git()
                             .into(),
                     )

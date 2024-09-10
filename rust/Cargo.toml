@@ -14,7 +14,7 @@ rust-version = "1.79"
 
 [dependencies]
 rand = "0.8.5"
-anyhow = {version="1.0.79", features=["backtrace"]}
+anyhow.workspace = true
 mmap-rs = "0.6.1"
 sux = "0.4.1"
 #sux = {path = "../../../sux-rs" }
@@ -26,7 +26,7 @@ pthash = { version = "0.4.0", features = ["rayon"] }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
 rayon = { version = "1.9.0" }
 sha1 = { version = "0.10.1", optional = true }
-itertools = { version = "0.11.0" }
+itertools.workspace = true
 thread_local = "1.1.7"
 tempfile = "3.7.1"
 zstd = "0.12"
@@ -40,9 +40,6 @@ epserde = "0.6.1"
 bytemuck = { version = "1.14.0", features = ["extern_crate_alloc"] }
 common_traits = "0.10.0"
 lender = "0.2.7"
-serde_json = { version = "1.0", optional = true }
-serde = { version = "1.0.189", optional = true }
-serde_derive = { version = "1.0.189", optional = true }
 thiserror = "1.0.51"
 bitvec = { version = "1.0.1" }
 
@@ -50,31 +47,24 @@ bitvec = { version = "1.0.1" }
 arrow = { version = "52.0", optional = true }
 arrow-schema = { version = "52.0", optional = true, features = ["serde"] }
 arrow-array = { version = "52.0", optional = true }
+chrono = { version = "0.4.31", features = ["serde"], optional = true }
 #orc-rust = { git = "https://github.com/datafusion-contrib/datafusion-orc.git", rev = "86e12ca1d921fe3ae7df31ce630b8dd949085eac", optional = true, default-features = false } # allows configuring time units + bug fixes
 orc-rust = { version = "0.3.1", optional = true, default-features = false }
 ar_row = { version = "1.0.0", optional = true }
 ar_row_derive = { version = "1.0.0", optional = true }
 
-# CLI
-env_logger = "0.11.5"
-clap = { version = "4.1.6", features = ["derive"] }
-dsi-progress-logger = "0.2.4"
-log = "0.4.17"
-
-# grpc
-async-scoped = { version = "0.9.0", features = ["use-tokio"], optional = true }
-chrono = { version = "0.4.31", features = ["serde"], optional = true }
-prost = { version = "0.12", optional = true }
-prost-types = { version = "0.12", optional = true }
-tokio = { version = "1.0", features = ["macros", "rt-multi-thread"], optional = true }
-tokio-stream = "0.1"
-tonic = { version = "0.11.0", optional = true }
-tonic-reflection = { version = "0.11.0", optional = true }
-tonic-middleware = { version = "0.1.4", optional = true }
+# CLI & logging
+clap.workspace = true
+dsi-progress-logger.workspace = true
+env_logger.workspace = true
+log.workspace = true
 
 # macros
 const_panic = { version = "0.2.8", optional = true }
 const-hex = { version = "1.11.1", optional = true }
+
+# serde
+serde = { version = "1.0.189", optional = true }
 
 # sorting
 dary_heap = "0.3.6"
@@ -86,9 +76,6 @@ tikv-jemallocator = "0.5"
 [dev-dependencies]
 bitvec = { version = "1.0.1", features = ["atomic"] }
 futures = "0.3.30"
-
-[build-dependencies]
-tonic-build = { version = "0.11.0", optional = true }
 
 [features]
 default = ["macros"]
@@ -106,21 +93,6 @@ serde = [
     "dep:serde",
 ]
 
-grpc-server = [
-    "async-scoped",
-    "chrono",
-    "serde",
-    "serde_derive",
-    "serde_json",
-    "tonic",
-    "tonic-build",
-    "tonic-reflection",
-    "tonic-middleware",
-    "prost",
-    "prost-types",
-    "tokio"
-]
-
 [[bin]]
 name = "swh-graph-compress"
 required-features = ["compression"]
@@ -128,7 +100,3 @@ required-features = ["compression"]
 [[bin]]
 name = "swh-graph-extract"
 required-features = ["compression", "orc"]
-
-[[bin]]
-name = "swh-graph-grpc-serve"
-required-features = ["grpc-server"]

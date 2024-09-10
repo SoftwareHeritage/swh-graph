@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use crate::graph::SwhForwardGraph;
+use swh_graph::graph::SwhForwardGraph;
 
 #[derive(Debug)]
 pub enum VisitFlow {
