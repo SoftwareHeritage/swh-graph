@@ -5,7 +5,6 @@ edition = "2021"
 description = "gRPC server for the fast queries to the Software Heritage archive graph, using a compressed in-memory representation"
 repository = "https://gitlab.softwareheritage.org/swh/devel/swh-graph"
 license = "GPL-3.0-or-later"
-readme = "README.md"
 keywords = ["software-heritage", "graph", "webgraph", "grpc"]
 categories = ["compression", "science"]
 rust-version = "1.79"
@@ -17,7 +16,7 @@ java-properties = "1.4.1"
 
 # CLI & logging
 clap.workspace = true
-chrono = "0.4.31"
+chrono = { version = "0.4.31", features = ["serde"] }
 env_logger.workspace = true
 log.workspace = true
 
@@ -39,7 +38,7 @@ tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 tokio-stream = "0.1"
 
 # swh-graph
-swh-graph = { path = "../rust/", features = ["serde"] }
+swh-graph.workspace = true
 
 [build-dependencies]
 tonic-build = "0.11.0"

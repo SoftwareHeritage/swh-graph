@@ -13,11 +13,12 @@ members = [
 ]
 
 [workspace.package]
-version = "5.1.1"
+version = "6.0.0"
 
 [workspace.dependencies]
 anyhow = { version="1.0.79", features=["backtrace"] }
 itertools = { version = "0.11.0" }
+swh-graph = { version = "6.0.0", path = "./rust/" }
 
 # CLI
 env_logger = "0.11.5"
