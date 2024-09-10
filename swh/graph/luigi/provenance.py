@@ -173,6 +173,7 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
             local_graph_path=self.local_graph_path,
             graph_name=self.graph_name,
             provenance_dir=self.provenance_dir,
+            provenance_node_filter=self.provenance_node_filter,
         )
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
@@ -242,6 +243,7 @@ class ComputeDirectoryFrontier(luigi.Task):
                 local_graph_path=self.local_graph_path,
                 graph_name=self.graph_name,
                 provenance_dir=self.provenance_dir,
+                provenance_node_filter=self.provenance_node_filter,
             ),
         }
 
