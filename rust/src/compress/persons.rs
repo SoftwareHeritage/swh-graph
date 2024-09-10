@@ -54,7 +54,7 @@ pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonMphf> {
             local_speed = true,
             expected_updates = Some(num_persons),
         );
-        pl.start(&format!("Reading persons (pass #{})", pass_counter));
+        pl.start(format!("Reading persons (pass #{})", pass_counter));
         let mut pl = BufferedProgressLogger::new(Arc::new(Mutex::new(Box::new(pl))));
         iter_persons(&path)
             .expect("Could not read persons")

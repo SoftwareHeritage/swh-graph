@@ -27,7 +27,7 @@ pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidP
             local_speed = true,
             expected_updates = Some(num_nodes),
         );
-        pl.start(&format!("Reading SWHIDs (pass #{})", pass_counter));
+        pl.start(format!("Reading SWHIDs (pass #{})", pass_counter));
         let pl = Arc::new(Mutex::new(Box::new(pl)));
         par_iter_lines_from_dir(&swhids_dir, pl).map(HashableSWHID::<Vec<u8>>)
     };
@@ -67,7 +67,7 @@ where
             local_speed = true,
             expected_updates = *len.lock().unwrap(),
         );
-        pl.start(&format!(
+        pl.start(format!(
             "{} reading {} (pass {})",
             if parallel {
                 "parallelly"
