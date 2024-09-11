@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tokio::time::Instant;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::body::BoxBody;
-use tonic::transport::{Body, Server};
+use tonic::transport::Server;
 use tonic::{Request, Response};
 use tonic_middleware::{Middleware, MiddlewareFor, ServiceBound};
 
@@ -294,10 +294,15 @@ pub async fn serve<G: SwhFullGraph + Sync + Send + 'static>(
         ))
         .add_service(
             tonic_reflection::server::Builder::configure()
-                //.register_encoded_file_descriptor_set(tonic_reflection::pb::FILE_DESCRIPTOR_SET)
                 .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
-                .build()
-                .expect("Could not load reflection service"),
+                .build_v1()
+                .expect("Could not load v1 reflection service"),
+        )
+        .add_service(
+            tonic_reflection::server::Builder::configure()
+                .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
+                .build_v1alpha()
+                .expect("Could not load v1alpha reflection service"),
         )
         .serve(bind_addr)
         .await?;
@@ -316,7 +321,7 @@ where
 {
     async fn call(
         &self,
-        req: tonic::codegen::http::Request<Body>,
+        req: tonic::codegen::http::Request<BoxBody>,
         mut service: S,
     ) -> Result<tonic::codegen::http::Response<BoxBody>, S::Error> {
         if log::log_enabled!(log::Level::Info) {
