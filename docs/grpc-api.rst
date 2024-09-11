@@ -400,6 +400,22 @@ Examples:
       message: "Add parser"
     }
 
+Filtering fields can significantly improve performance. For example, consider
+these two requests on the production graph:
+
+.. code-block:: console
+
+    $ grpc_cli call maxxi.internal.softwareheritage.org:50091 swh.graph.TraversalService.Traverse "src: 'swh:1:rev:57012c57536f8814dec92e74197ee96c3498d24e', max_edges: 1000000" > /dev/null
+    $ grpc_cli call maxxi.internal.softwareheritage.org:50091 swh.graph.TraversalService.Traverse "src: 'swh:1:rev:57012c57536f8814dec92e74197ee96c3498d24e', max_edges: 1000000, mask: {paths:['swhid']} " > /dev/null
+
+The server logs a 8x speedup when requesting only the SWHID:
+
+.. code-block:: console
+
+    [2024-09-11T10:36:14Z INFO  swh_graph_grpc_server] 200 OK - http://maxxi.internal.softwareheritage.org:50091/swh.graph.TraversalService/Traverse - response: 57.81µs - streaming: 12.291889794s
+    [2024-09-11T10:36:59Z INFO  swh_graph_grpc_server] 200 OK - http://maxxi.internal.softwareheritage.org:50091/swh.graph.TraversalService/Traverse - response: 95.92µs - streaming: 1.469642558s
+
+
 Getting statistics on the graph
 -------------------------------
 

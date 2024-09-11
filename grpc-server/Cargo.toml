@@ -26,6 +26,7 @@ prost-types = "0.13"
 tonic = "0.12.2"
 tonic-reflection = "0.12.2"
 tonic-middleware = "0.2.1"
+http-body = "1"  # must match the version used by tonic
 
 # serde
 serde_json = "1.0"

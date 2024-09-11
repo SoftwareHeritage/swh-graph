@@ -6,13 +6,15 @@
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
+use std::pin::Pin;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
 use tokio::time::Instant;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::body::BoxBody;
-use tonic::transport::Server;
+use tonic::transport::{Body, Server};
 use tonic::{Request, Response};
 use tonic_middleware::{Middleware, MiddlewareFor, ServiceBound};
 
@@ -324,17 +326,72 @@ where
         req: tonic::codegen::http::Request<BoxBody>,
         mut service: S,
     ) -> Result<tonic::codegen::http::Response<BoxBody>, S::Error> {
-        if log::log_enabled!(log::Level::Info) {
-            let start_time = Instant::now();
-            let uri = req.uri().clone();
+        let incoming_request_time = Instant::now();
+        let uri = req.uri().clone();
 
-            let result = service.call(req).await?;
-
-            let elapsed_time = start_time.elapsed();
-            log::info!("{} - {} - {:?}", result.status(), uri, elapsed_time);
-            Ok(result)
-        } else {
-            service.call(req).await
+        match service.call(req).await {
+            Ok(resp) => {
+                let status = resp.status();
+                let (parts, body) = resp.into_parts();
+                let body = TimedBody {
+                    body,
+                    status,
+                    uri,
+                    incoming_request_time,
+                    start_streaming_time: Instant::now(),
+                };
+                let resp = tonic::codegen::http::Response::from_parts(parts, BoxBody::new(body));
+                Ok(resp)
+            }
+            Err(e) => {
+                log::info!(
+                    "ERR - {uri} - response: {:?}",
+                    incoming_request_time.elapsed(),
+                );
+                Err(e)
+            }
         }
+    }
+}
+
+struct TimedBody<B: Body + Unpin> {
+    body: B,
+    status: tonic::codegen::http::StatusCode,
+    uri: tonic::codegen::http::Uri,
+    incoming_request_time: Instant,
+    start_streaming_time: Instant,
+}
+
+impl<B: Body + Unpin> Body for TimedBody<B> {
+    type Data = B::Data;
+    type Error = B::Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
+        Pin::new(&mut self.body).poll_frame(cx).map(|frame| {
+            if log::log_enabled!(log::Level::Info) && self.is_end_stream() {
+                let end_streaming_time = Instant::now();
+                let init_duration = self.start_streaming_time - self.incoming_request_time;
+                let streaming_duration = end_streaming_time - self.start_streaming_time;
+                log::info!(
+                    "{} - {} - response: {:?} - streaming: {:?}",
+                    self.status,
+                    self.uri,
+                    init_duration,
+                    streaming_duration
+                );
+            }
+            frame
+        })
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.body.is_end_stream()
+    }
+
+    fn size_hint(&self) -> http_body::SizeHint {
+        self.body.size_hint()
     }
 }
