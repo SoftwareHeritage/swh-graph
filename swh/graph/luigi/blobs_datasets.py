@@ -156,6 +156,16 @@ SELECTION_QUERIES = {
         ON (t1.target=t2.sha1_git)
         ORDER BY sha1
     """,
+    "known_swhids": r"""
+        SELECT
+            concat('swh:1:cnt:', content.sha1_git) AS swhid,
+            content.sha1 AS sha1,
+            '<unknown>' AS name
+        FROM swhids
+        INNER JOIN content
+        ON (swhids.swhid=concat('swh:1:cnt:', content.sha1_git))
+        ORDER BY sha1
+    """,
 }
 
 
@@ -479,6 +489,7 @@ class SelectBlobs(_BaseTask):
     blob_filter = luigi.ChoiceParameter(choices=list(SELECTION_QUERIES))
     local_export_path = luigi.PathParameter()
     derived_datasets_path = luigi.PathParameter()
+    known_swhids_csv = luigi.Parameter(default="")
 
     def requires(self) -> List[luigi.Task]:
         """Returns an instance of :class:`LocalExport`"""
@@ -515,6 +526,22 @@ class SelectBlobs(_BaseTask):
                 pyarrow.dataset.dataset(
                     self.local_export_path / "orc" / table, format="orc"
                 ),
+            )
+
+        if self.blob_filter == "known_swhids":
+            assert self.known_swhids_csv, "Missing --SelectBlobs-known-swhids-csv"
+            ctx.sql(
+                f"""
+                CREATE EXTERNAL TABLE swhids (
+                    swhid VARCHAR NOT NULL
+                )
+                STORED AS CSV
+                LOCATION '{self.known_swhids_csv}'
+                OPTIONS (
+                    'has_header' 'true',
+                    'format.compression' 'zstd',
+                );
+                """
             )
 
         with tempfile.NamedTemporaryFile(suffix=".csv") as sql_res:
@@ -1248,7 +1275,7 @@ class RunBlobDataset(luigi.Task):
             ComputeBlobFileinfo(**kwargs),
         ]
 
-        if self.blob_filter in ("citation", "readme"):
+        if self.blob_filter in ("citation", "readme", "known_swhids"):
             pass
         elif self.blob_filter == "license":
             tasks.append(BlobScancode(**kwargs))
