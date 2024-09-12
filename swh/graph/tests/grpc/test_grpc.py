@@ -5,6 +5,7 @@
 
 import hashlib
 import re
+import time
 
 from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -26,8 +27,12 @@ def test_stats_statsd(graph_grpc_stub, graph_statsd_server):
 
     graph_grpc_stub.Stats(StatsRequest())
 
-    graph_statsd_server.new_datagram.wait(timeout=1)
-    datagrams = [dg.decode() for dg in sorted(graph_statsd_server.datagrams)]
+    for _ in range(4):  # usually a single iteration is needed, but may need up to 5
+        graph_statsd_server.new_datagram.wait(timeout=1)
+        datagrams = [dg.decode() for dg in sorted(graph_statsd_server.datagrams)]
+        if len(datagrams) == 4:
+            break
+        time.sleep(0.01)
     assert {dg.split(":")[0] for dg in datagrams} == {
         "swh_graph_grpc_server.frames_total",
         "swh_graph_grpc_server.requests_total",
