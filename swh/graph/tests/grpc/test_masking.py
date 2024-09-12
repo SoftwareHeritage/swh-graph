@@ -39,10 +39,10 @@ def graph_grpc_server_config(graph_grpc_server_config, tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
-def graph_grpc_server_process(graph_grpc_server_config):
+def graph_grpc_server_process(graph_grpc_server_config, graph_statsd_server):
     # override session-scoped fixture to force a new graph process with the new config
     yield from pytest_plugin.graph_grpc_server_process.__wrapped__(
-        graph_grpc_server_config
+        graph_grpc_server_config, graph_statsd_server
     )
 
 

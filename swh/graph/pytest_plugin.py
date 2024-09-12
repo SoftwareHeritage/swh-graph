@@ -1,11 +1,14 @@
-# Copyright (C) 2019-2023  The Software Heritage developers
+# Copyright (C) 2019-2024  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import contextlib
 import logging
 import multiprocessing
+import socket
 import subprocess
+import threading
 
 from aiohttp.test_utils import TestClient, TestServer, loop_context
 import grpc
@@ -64,19 +67,54 @@ class GraphServerProcess(multiprocessing.Process):
         self.result = self.q.get()
 
 
+class StatsdServer:
+    def __init__(self):
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._sock.bind(("127.0.0.1", 0))
+        self._sock.settimeout(0.1)
+        (self.host, self.port) = self._sock.getsockname()
+        self._closing = False
+        self._thread = threading.Thread(target=self._listen)
+        self._thread.start()
+        self.datagrams = []
+        self.new_datagram = threading.Event()
+        """Woken up every time a datagram is added to self.datagrams."""
+
+    def _listen(self):
+        while not self._closing:
+            try:
+                (datagram, addr) = self._sock.recvfrom(4096)
+            except TimeoutError:
+                continue
+            self.datagrams.append(datagram)
+            self.new_datagram.set()
+        self._sock.close()
+
+    def close(self):
+        self._closing = True
+
+
+@pytest.fixture(scope="session")
+def graph_statsd_server():
+    with contextlib.closing(StatsdServer()) as statsd_server:
+        yield statsd_server
+
+
 @pytest.fixture(scope="session", params=["rust"])
 def graph_grpc_backend_implementation(request):
     return request.param
 
 
 @pytest.fixture(scope="session")
-def graph_grpc_server_config(graph_grpc_backend_implementation):
+def graph_grpc_server_config(graph_grpc_backend_implementation, graph_statsd_server):
     return {
         "graph": {
             "cls": f"local_{graph_grpc_backend_implementation}",
             "grpc_server": {
                 "path": DATASET_DIR / "compressed/example",
                 "debug": True,
+                "statsd_host": graph_statsd_server.host,
+                "statsd_port": graph_statsd_server.port,
             },
             "http_rpc_server": {"debug": True},
         }
@@ -84,7 +122,7 @@ def graph_grpc_server_config(graph_grpc_backend_implementation):
 
 
 @pytest.fixture(scope="session")
-def graph_grpc_server_process(graph_grpc_server_config):
+def graph_grpc_server_process(graph_grpc_server_config, graph_statsd_server):
     server = GraphServerProcess(graph_grpc_server_config)
 
     yield server

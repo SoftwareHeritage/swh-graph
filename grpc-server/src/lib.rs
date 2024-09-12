@@ -11,6 +11,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use cadence::{Counted, StatsdClient, Timed};
 use tokio::time::Instant;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::body::BoxBody;
@@ -33,6 +34,7 @@ pub mod proto {
 mod filters;
 mod find_path;
 mod node_builder;
+pub mod statsd;
 mod traversal;
 pub mod visitor;
 
@@ -285,6 +287,7 @@ where
 pub async fn serve<G: SwhFullGraph + Sync + Send + 'static>(
     graph: G,
     bind_addr: std::net::SocketAddr,
+    statsd_client: cadence::StatsdClient,
 ) -> Result<(), tonic::transport::Error> {
     let graph = Arc::new(graph);
     Server::builder()
@@ -292,7 +295,7 @@ pub async fn serve<G: SwhFullGraph + Sync + Send + 'static>(
             proto::traversal_service_server::TraversalServiceServer::new(TraversalService::new(
                 graph,
             )),
-            MetricsMiddleware,
+            MetricsMiddleware::new(statsd_client),
         ))
         .add_service(
             tonic_reflection::server::Builder::configure()
@@ -312,8 +315,18 @@ pub async fn serve<G: SwhFullGraph + Sync + Send + 'static>(
     Ok(())
 }
 
-#[derive(Clone, Default)]
-pub struct MetricsMiddleware;
+#[derive(Clone)]
+pub struct MetricsMiddleware {
+    statsd_client: Arc<StatsdClient>,
+}
+
+impl MetricsMiddleware {
+    pub fn new(statsd_client: StatsdClient) -> Self {
+        Self {
+            statsd_client: Arc::new(statsd_client),
+        }
+    }
+}
 
 #[tonic::async_trait]
 impl<S> Middleware<S> for MetricsMiddleware
@@ -334,11 +347,13 @@ where
                 let status = resp.status();
                 let (parts, body) = resp.into_parts();
                 let body = TimedBody {
+                    statsd_client: self.statsd_client.clone(),
                     body,
                     status,
                     uri,
                     incoming_request_time,
                     start_streaming_time: Instant::now(),
+                    num_frames: 0,
                 };
                 let resp = tonic::codegen::http::Response::from_parts(parts, BoxBody::new(body));
                 Ok(resp)
@@ -355,11 +370,47 @@ where
 }
 
 struct TimedBody<B: Body + Unpin> {
+    statsd_client: Arc<StatsdClient>,
     body: B,
     status: tonic::codegen::http::StatusCode,
     uri: tonic::codegen::http::Uri,
     incoming_request_time: Instant,
     start_streaming_time: Instant,
+    num_frames: u64,
+}
+
+impl<B: Body + Unpin> TimedBody<B> {
+    fn publish_metrics(&self) {
+        let end_streaming_time = Instant::now();
+        let response_duration = self.start_streaming_time - self.incoming_request_time;
+        let streaming_duration = end_streaming_time - self.start_streaming_time;
+        log::info!(
+            "{} - {} - response: {:?} - streaming: {:?}",
+            self.status,
+            self.uri,
+            response_duration,
+            streaming_duration
+        );
+        macro_rules! send_with_tags {
+            ($metric_builder:expr) => {
+                $metric_builder
+                    .with_tag("path", self.uri.path())
+                    .with_tag("status", &self.status.as_u16().to_string())
+                    .send()
+            };
+        }
+        send_with_tags!(self.statsd_client.count_with_tags("requests_total", 1));
+        send_with_tags!(self
+            .statsd_client
+            .count_with_tags("frames_total", self.num_frames));
+        // In millisecond according to the spec: https://github.com/b/statsd_spec#timers
+        send_with_tags!(self
+            .statsd_client
+            .time_with_tags("response_wall_time_ms", response_duration));
+        send_with_tags!(self
+            .statsd_client
+            .time_with_tags("streaming_wall_time_ms", streaming_duration));
+    }
 }
 
 impl<B: Body + Unpin> Body for TimedBody<B> {
@@ -371,17 +422,9 @@ impl<B: Body + Unpin> Body for TimedBody<B> {
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
         Pin::new(&mut self.body).poll_frame(cx).map(|frame| {
-            if log::log_enabled!(log::Level::Info) && self.is_end_stream() {
-                let end_streaming_time = Instant::now();
-                let init_duration = self.start_streaming_time - self.incoming_request_time;
-                let streaming_duration = end_streaming_time - self.start_streaming_time;
-                log::info!(
-                    "{} - {} - response: {:?} - streaming: {:?}",
-                    self.status,
-                    self.uri,
-                    init_duration,
-                    streaming_duration
-                );
+            self.num_frames += 1;
+            if self.is_end_stream() {
+                self.publish_metrics()
             }
             frame
         })

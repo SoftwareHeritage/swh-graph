@@ -882,6 +882,39 @@ Because ``midpoint_index = 5``, the common ancestor is
 ``swh:1:rev:0000000000000000000000000000000000000018``.
 
 
+.. _swh-graph-grpc-statsd-metrics:
+
+StatsD metrics
+==============
+
+The gRPC server sends `Statsd <https://www.datadoghq.com/blog/statsd/>`_ metrics
+to ``localhost:8125`` (overridable with :envvar:`STATSD_HOST` and :envvar:`STATSD_PORT`
+or the ``--statsd-host`` CLI option.
+
+The metrics are:
+
+``swh_graph_grpc_server.requests_total``
+    incremented for each request
+
+``swh_graph_grpc_server.frames_total``
+    incremented for every frame in the HTTP response (at least one per request)
+
+``swh_graph_grpc_server.response_wall_time_ms``
+    total wall-clock time from receiving an HTTP request to sending the HTTP response headers
+    (>= 1 ms)
+
+``swh_graph_grpc_server.streaming_wall_time_ms``
+    total wall-clock time from sending HTTP response headers to the end of the HTTP response
+    (>= 1 ms)
+
+And they all have the following tags:
+
+``path``
+    the path in the query URI
+
+``status``
+    the HTTP status code
+
 .. _swh-graph-grpc-api-protobuf:
 
 Protobuf API Reference

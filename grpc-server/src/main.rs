@@ -3,13 +3,12 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use anyhow::{Context, Result};
+use clap::Parser;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-
-use anyhow::{Context, Result};
-use clap::Parser;
 
 use swh_graph::graph::*;
 use swh_graph::views::Subgraph;
@@ -23,6 +22,10 @@ struct Args {
     #[arg(long)]
     /// A line-separated list of node SWHIDs to exclude from the graph
     masked_nodes: Option<PathBuf>,
+    #[arg(long)]
+    /// Defaults to `localhost:8125` (or whatever is configured by the `STATSD_HOST`
+    /// and `STATSD_PORT` environment variables).
+    statsd_host: Option<String>,
 }
 
 #[tokio::main]
@@ -30,6 +33,8 @@ pub async fn main() -> Result<()> {
     let args = Args::parse();
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
+    let statsd_client = swh_graph_grpc_server::statsd::statsd_client(args.statsd_host)?;
 
     log::info!("Loading graph");
     let graph = load_full::<swh_graph::mph::DynMphf>(args.graph_path)?;
@@ -60,7 +65,7 @@ pub async fn main() -> Result<()> {
     let graph = Subgraph::with_node_filter(graph, move |node| !masked_nodes.contains(&node));
 
     log::info!("Starting server");
-    swh_graph_grpc_server::serve(graph, args.bind).await?;
+    swh_graph_grpc_server::serve(graph, args.bind, statsd_client).await?;
 
     Ok(())
 }

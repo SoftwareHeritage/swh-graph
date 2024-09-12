@@ -1,9 +1,10 @@
-# Copyright (c) 2022-2023 The Software Heritage developers
+# Copyright (c) 2022-2024 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 import hashlib
+import re
 
 from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -17,6 +18,44 @@ from swh.graph.grpc.swhgraph_pb2 import (
 TEST_ORIGIN_ID = "swh:1:ori:{}".format(
     hashlib.sha1(b"https://example.com/swh/graph").hexdigest()
 )
+
+
+def test_stats_statsd(graph_grpc_stub, graph_statsd_server):
+    graph_statsd_server.datagrams = []
+    graph_statsd_server.new_datagram.clear()
+
+    graph_grpc_stub.Stats(StatsRequest())
+
+    graph_statsd_server.new_datagram.wait(timeout=1)
+    datagrams = [dg.decode() for dg in sorted(graph_statsd_server.datagrams)]
+    assert {dg.split(":")[0] for dg in datagrams} == {
+        "swh_graph_grpc_server.frames_total",
+        "swh_graph_grpc_server.requests_total",
+        "swh_graph_grpc_server.response_wall_time_ms",
+        "swh_graph_grpc_server.streaming_wall_time_ms",
+    }
+
+    assert datagrams[0] == (
+        "swh_graph_grpc_server.frames_total:2|c|"
+        "#path:/swh.graph.TraversalService/Stats,status:200"
+    )
+
+    assert datagrams[1] == (
+        "swh_graph_grpc_server.requests_total:1|c|"
+        "#path:/swh.graph.TraversalService/Stats,status:200"
+    )
+
+    assert re.match(
+        "swh_graph_grpc_server.response_wall_time_ms:[0-9]{1,2}|ms|"
+        "#path:/swh.graph.TraversalService/Stats,status:200",
+        datagrams[2],
+    )
+
+    assert re.match(
+        "swh_graph_grpc_server.streaming_wall_time_ms:[0-9]{1,2}|ms|"
+        "#path:/swh.graph.TraversalService/Stats,status:200",
+        datagrams[3],
+    )
 
 
 def test_stats(graph_grpc_stub):

@@ -15,6 +15,7 @@ itertools.workspace = true
 java-properties = "1.4.1"
 
 # CLI & logging
+cadence = "1.4.0"
 clap.workspace = true
 chrono = { version = "0.4.31", features = ["serde"] }
 env_logger.workspace = true
