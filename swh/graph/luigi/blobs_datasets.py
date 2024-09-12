@@ -601,15 +601,18 @@ class DownloadBlobs(_BaseTask):
     previous_derived_datasets_path = luigi.OptionalPathParameter(default=None)
     parallel_downloads = luigi.IntParameter(default=10, significant=False)
     download_url = luigi.Parameter(
-        default="https://archive.softwareheritage.org/api/1/content/sha1:{sha1}/raw/",
+        default="https://softwareheritage.s3.amazonaws.com/content/{sha1}",
+        description="""Where to download blobs from. {sha1} will be replaced by
+        the file's SHA1 hexdigest. Alternative value:
+        https://archive.softwareheritage.org/api/1/content/sha1:{sha1}/raw/""",
         significant=False,
     )
     decompression_algo = luigi.ChoiceParameter(
         choices=["none", "gzip"],
-        default="none",
+        default="gzip",
         description="""The decompression algorithm to use after downloading.
-        Defaults to 'none' to match the SWH API. Should be 'gzip' when downloading from
-        s3://softwareheritage/""",
+        Defaults to 'none' to match the SWH API. Should be 'none' when downloading from
+        archive.softwareheritage.org""",
     )
 
     _session = None
