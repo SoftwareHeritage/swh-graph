@@ -25,6 +25,7 @@ log.workspace = true
 prost = "0.13"
 prost-types = "0.13"
 tonic = "0.12.2"
+tonic-health = "0.12.2"
 tonic-reflection = "0.12.2"
 tonic-middleware = "0.2.1"
 http-body = "1"  # must match the version used by tonic

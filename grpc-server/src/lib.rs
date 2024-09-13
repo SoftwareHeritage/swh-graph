@@ -31,6 +31,8 @@ pub mod proto {
         tonic::include_file_descriptor_set!("swhgraph_descriptor");
 }
 
+use proto::traversal_service_server::TraversalServiceServer;
+
 mod filters;
 mod find_path;
 mod node_builder;
@@ -290,22 +292,29 @@ pub async fn serve<G: SwhFullGraph + Sync + Send + 'static>(
     statsd_client: cadence::StatsdClient,
 ) -> Result<(), tonic::transport::Error> {
     let graph = Arc::new(graph);
+
+    let (mut health_reporter, health_service) = tonic_health::server::health_reporter();
+    health_reporter
+        .set_serving::<TraversalServiceServer<TraversalService<Arc<G>>>>()
+        .await;
+
     Server::builder()
         .add_service(MiddlewareFor::new(
-            proto::traversal_service_server::TraversalServiceServer::new(TraversalService::new(
-                graph,
-            )),
+            TraversalServiceServer::new(TraversalService::new(graph)),
             MetricsMiddleware::new(statsd_client),
         ))
+        .add_service(health_service)
         .add_service(
             tonic_reflection::server::Builder::configure()
                 .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
+                .register_encoded_file_descriptor_set(tonic_health::pb::FILE_DESCRIPTOR_SET)
                 .build_v1()
                 .expect("Could not load v1 reflection service"),
         )
         .add_service(
             tonic_reflection::server::Builder::configure()
                 .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
+                .register_encoded_file_descriptor_set(tonic_health::pb::FILE_DESCRIPTOR_SET)
                 .build_v1alpha()
                 .expect("Could not load v1alpha reflection service"),
         )

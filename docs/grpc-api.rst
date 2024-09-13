@@ -881,11 +881,31 @@ restrictions.
 Because ``midpoint_index = 5``, the common ancestor is
 ``swh:1:rev:0000000000000000000000000000000000000018``.
 
+.. _swh-graph-grpc-monitoring:
+
+Monitoring
+==========
+
+.. _swh-graph-grpc-monitor-health:
+
+Healthiness
+-----------
+
+This service implements the `gRPC Health Checking Protocol <https://github.com/grpc/grpc/blob/master/doc/health-checking.md>`_:
+
+.. code-block:: console
+
+    $ ~/grpc/cmake/build/grpc_cli call localhost:50091 grpc.health.v1.Health.Check "service: 'swh.graph.TraversalService'"
+    status: SERVING
+
+It is always considered healthy while running, as OOM errors and failures
+to read from disk cause a crash -- though it will not answer while all
+workers are busy.
 
 .. _swh-graph-grpc-statsd-metrics:
 
 StatsD metrics
-==============
+--------------
 
 The gRPC server sends `Statsd <https://www.datadoghq.com/blog/statsd/>`_ metrics
 to ``localhost:8125`` (overridable with :envvar:`STATSD_HOST` and :envvar:`STATSD_PORT`
