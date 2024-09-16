@@ -28,11 +28,18 @@ struct Args {
     statsd_host: Option<String>,
 }
 
-#[tokio::main]
-pub async fn main() -> Result<()> {
+pub fn main() -> Result<()> {
     let args = Args::parse();
 
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    let logger =
+        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).build();
+    let max_level = logger.filter();
+
+    #[cfg(feature = "sentry")]
+    let (_guard, logger) = swh_graph_grpc_server::sentry::setup(Box::new(logger));
+    log::set_boxed_logger(Box::new(logger)).context("Could not setup logger")?;
+
+    log::set_max_level(max_level);
 
     let statsd_client = swh_graph_grpc_server::statsd::statsd_client(args.statsd_host)?;
 
@@ -64,8 +71,13 @@ pub async fn main() -> Result<()> {
 
     let graph = Subgraph::with_node_filter(graph, move |node| !masked_nodes.contains(&node));
 
-    log::info!("Starting server");
-    swh_graph_grpc_server::serve(graph, args.bind, statsd_client).await?;
-
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            log::info!("Starting server");
+            swh_graph_grpc_server::serve(graph, args.bind, statsd_client).await
+        })?;
     Ok(())
 }

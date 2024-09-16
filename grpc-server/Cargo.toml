@@ -1,8 +1,9 @@
 [package]
 name = "swh-graph-grpc-server"
 version.workspace = true
+readme = "README.md"
 edition = "2021"
-description = "gRPC server for the fast queries to the Software Heritage archive graph, using a compressed in-memory representation"
+description = "gRPC service to run the fast queries to the Software Heritage archive graph, using a compressed in-memory representation"
 repository = "https://gitlab.softwareheritage.org/swh/devel/swh-graph"
 license = "GPL-3.0-or-later"
 keywords = ["software-heritage", "graph", "webgraph", "grpc"]
@@ -20,6 +21,7 @@ clap.workspace = true
 chrono = { version = "0.4.31", features = ["serde"] }
 env_logger.workspace = true
 log.workspace = true
+sentry = { version = "0.32.1", features = ["anyhow", "log", "tower"], optional = true }
 
 # gRPC
 prost = "0.13"
@@ -48,6 +50,9 @@ tonic-build = "0.11.0"
 
 [dev-dependencies]
 futures = "0.3.30"
+
+[features]
+default = ["sentry"]
 
 [[bin]]
 name = "swh-graph-grpc-serve"

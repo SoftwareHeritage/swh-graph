@@ -36,6 +36,8 @@ use proto::traversal_service_server::TraversalServiceServer;
 mod filters;
 mod find_path;
 mod node_builder;
+#[cfg(feature = "sentry")]
+pub mod sentry;
 pub mod statsd;
 mod traversal;
 pub mod visitor;
@@ -298,7 +300,12 @@ pub async fn serve<G: SwhFullGraph + Sync + Send + 'static>(
         .set_serving::<TraversalServiceServer<TraversalService<Arc<G>>>>()
         .await;
 
-    Server::builder()
+    #[cfg(not(feature = "sentry"))]
+    let mut builder = Server::builder();
+    #[cfg(feature = "sentry")]
+    let mut builder =
+        Server::builder().layer(::sentry::integrations::tower::NewSentryLayer::new_from_top());
+    builder
         .add_service(MiddlewareFor::new(
             TraversalServiceServer::new(TraversalService::new(graph)),
             MetricsMiddleware::new(statsd_client),
@@ -350,6 +357,19 @@ where
     ) -> Result<tonic::codegen::http::Response<BoxBody>, S::Error> {
         let incoming_request_time = Instant::now();
         let uri = req.uri().clone();
+
+        #[cfg(feature = "sentry")]
+        ::sentry::add_breadcrumb(::sentry::protocol::Breadcrumb {
+            ty: "http".into(),
+            category: Some("request".into()),
+            data: {
+                let mut map = ::sentry::protocol::Map::new();
+                map.insert("method".into(), req.method().to_string().into());
+                map.insert("path".into(), uri.path().into());
+                map
+            },
+            ..Default::default()
+        });
 
         match service.call(req).await {
             Ok(resp) => {
