@@ -8,6 +8,7 @@ use std::io::Read;
 use std::path::Path;
 use std::pin::Pin;
 use std::str::FromStr;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
@@ -18,6 +19,7 @@ use tonic::body::BoxBody;
 use tonic::transport::{Body, Server};
 use tonic::{Request, Response};
 use tonic_middleware::{Middleware, MiddlewareFor, ServiceBound};
+use tracing::{instrument, span, Instrument, Level, Span};
 
 use swh_graph::graph::SwhFullGraph;
 use swh_graph::properties::NodeIdFromSwhidError;
@@ -129,55 +131,67 @@ impl<G: SwhFullGraph + Send + Sync + Clone + 'static>
     }
 
     type TraverseStream = ReceiverStream<Result<proto::Node, tonic::Status>>;
+    #[instrument(skip(self, request), err(level = Level::INFO))]
     async fn traverse(
         &self,
         request: Request<proto::TraversalRequest>,
     ) -> TonicResult<Self::TraverseStream> {
+        tracing::info!("{:?}", request.get_ref());
         traversal::SimpleTraversal { service: self }
             .traverse(request)
             .await
     }
 
+    #[instrument(skip(self, request), err(level = Level::INFO))]
     async fn find_path_to(
         &self,
         request: Request<proto::FindPathToRequest>,
     ) -> TonicResult<proto::Path> {
+        tracing::info!("{:?}", request.get_ref());
         find_path::FindPath { service: self }
             .find_path_to(request)
             .await
     }
 
+    #[instrument(skip(self, request), err(level = Level::INFO))]
     async fn find_path_between(
         &self,
         request: Request<proto::FindPathBetweenRequest>,
     ) -> TonicResult<proto::Path> {
+        tracing::info!("{:?}", request.get_ref());
         find_path::FindPath { service: self }
             .find_path_between(request)
             .await
     }
 
+    #[instrument(skip(self, request), err(level = Level::INFO))]
     async fn count_nodes(
         &self,
         request: Request<proto::TraversalRequest>,
     ) -> TonicResult<proto::CountResponse> {
+        tracing::info!("{:?}", request.get_ref());
         traversal::SimpleTraversal { service: self }
             .count_nodes(request)
             .await
     }
 
+    #[instrument(skip(self, request), err(level = Level::INFO))]
     async fn count_edges(
         &self,
         request: Request<proto::TraversalRequest>,
     ) -> TonicResult<proto::CountResponse> {
+        tracing::info!("{:?}", request.get_ref());
         traversal::SimpleTraversal { service: self }
             .count_edges(request)
             .await
     }
 
+    #[instrument(skip(self, request))]
     async fn stats(
         &self,
-        _request: Request<proto::StatsRequest>,
+        request: Request<proto::StatsRequest>,
     ) -> TonicResult<proto::StatsResponse> {
+        tracing::info!("{:?}", request.get_ref());
         // Load properties
         let properties_path = suffix_path(self.0.path(), ".properties");
         let properties_path = properties_path.as_path();
@@ -334,12 +348,15 @@ pub async fn serve<G: SwhFullGraph + Sync + Send + 'static>(
 #[derive(Clone)]
 pub struct MetricsMiddleware {
     statsd_client: Arc<StatsdClient>,
+    /// Uniquely identifies the span associated with a request
+    request_id: Arc<AtomicU64>,
 }
 
 impl MetricsMiddleware {
     pub fn new(statsd_client: StatsdClient) -> Self {
         Self {
             statsd_client: Arc::new(statsd_client),
+            request_id: Arc::new(AtomicU64::new(0)),
         }
     }
 }
@@ -357,21 +374,10 @@ where
     ) -> Result<tonic::codegen::http::Response<BoxBody>, S::Error> {
         let incoming_request_time = Instant::now();
         let uri = req.uri().clone();
+        let request_id = self.request_id.fetch_add(1, Ordering::Relaxed);
+        let span = span!(Level::INFO, "request", id = request_id,);
 
-        #[cfg(feature = "sentry")]
-        ::sentry::add_breadcrumb(::sentry::protocol::Breadcrumb {
-            ty: "http".into(),
-            category: Some("request".into()),
-            data: {
-                let mut map = ::sentry::protocol::Map::new();
-                map.insert("method".into(), req.method().to_string().into());
-                map.insert("path".into(), uri.path().into());
-                map
-            },
-            ..Default::default()
-        });
-
-        match service.call(req).await {
+        match service.call(req).instrument(span.clone()).await {
             Ok(resp) => {
                 let status = resp.status();
                 let (parts, body) = resp.into_parts();
@@ -383,6 +389,7 @@ where
                     incoming_request_time,
                     start_streaming_time: Instant::now(),
                     num_frames: 0,
+                    span,
                 };
                 let resp = tonic::codegen::http::Response::from_parts(parts, BoxBody::new(body));
                 Ok(resp)
@@ -406,10 +413,14 @@ struct TimedBody<B: Body + Unpin> {
     incoming_request_time: Instant,
     start_streaming_time: Instant,
     num_frames: u64,
+    span: Span,
 }
 
 impl<B: Body + Unpin> TimedBody<B> {
     fn publish_metrics(&self) {
+        // runs the log statement within the same tracing span as the rest of the request
+        let _guard = self.span.enter();
+
         let end_streaming_time = Instant::now();
         let response_duration = self.start_streaming_time - self.incoming_request_time;
         let streaming_duration = end_streaming_time - self.start_streaming_time;

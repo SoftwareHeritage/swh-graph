@@ -10,6 +10,9 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+
 use swh_graph::graph::*;
 use swh_graph::views::Subgraph;
 
@@ -31,15 +34,24 @@ struct Args {
 pub fn main() -> Result<()> {
     let args = Args::parse();
 
-    let logger =
-        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).build();
-    let max_level = logger.filter();
+    let fmt_layer = tracing_subscriber::fmt::layer();
+    let filter_layer = tracing_subscriber::EnvFilter::try_from_default_env()
+        .or_else(|_| tracing_subscriber::EnvFilter::try_new("info"))
+        .unwrap();
+
+    let logger = tracing_subscriber::registry();
 
     #[cfg(feature = "sentry")]
-    let (_guard, logger) = swh_graph_grpc_server::sentry::setup(Box::new(logger));
-    log::set_boxed_logger(Box::new(logger)).context("Could not setup logger")?;
+    let (_guard, sentry_layer) = swh_graph_grpc_server::sentry::setup();
 
-    log::set_max_level(max_level);
+    #[cfg(feature = "sentry")]
+    let logger = logger.with(sentry_layer);
+
+    logger
+        .with(filter_layer)
+        .with(fmt_layer)
+        .try_init()
+        .context("Could not initialize logging")?;
 
     let statsd_client = swh_graph_grpc_server::statsd::statsd_client(args.statsd_host)?;
 

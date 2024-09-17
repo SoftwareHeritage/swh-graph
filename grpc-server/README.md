@@ -5,8 +5,9 @@ using a compressed in-memory representation
 
 ## Environment variables
 
-`RUST_LOG` to set the log level, eg. `RUST_LOG=debug,h2=info`.
-See the [env_logger](https://docs.rs/env_logger) documentation for details.
+`RUST_LOG` to set the log level, eg. `RUST_LOG=debug,h2=info`. See the
+[tracing_subscriber::filter::EnvFilter](https://docs.rs/tracing-subscriber/0.3.18/tracing_subscriber/filter/struct.EnvFilter.html)
+documentation for details.
 
 `SWH_SENTRY_DSN` and `SWH_SENTRY_ENVIRONMENT`: [Sentry](https://sentry.io/) configuration, see
 [Sentry Data Source Name](https://docs.sentry.io/concepts/key-terms/dsn-explainer/) and

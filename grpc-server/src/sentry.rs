@@ -6,8 +6,9 @@
 use std::env::VarError;
 
 use anyhow::Result;
-use sentry::integrations::log::LogFilter;
 use sentry::ClientInitGuard;
+use sentry_tracing::EventFilter;
+use tracing::{Level, Subscriber};
 
 /// Parses an environment variable as a boolean, like `swh.core.sentry.override_with_bool_envvar`
 fn parse_bool_env_var(var_name: &'static str, default: bool) -> bool {
@@ -35,7 +36,10 @@ fn _parse_bool_env_var(
     }
 }
 
-pub fn setup(logger: Box<dyn log::Log>) -> (Result<ClientInitGuard, VarError>, Box<dyn log::Log>) {
+pub fn setup<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>>() -> (
+    Result<ClientInitGuard, VarError>,
+    impl tracing_subscriber::layer::Layer<S>,
+) {
     let guard = std::env::var("SWH_SENTRY_DSN").map(|sentry_dsn| {
         sentry::init((
             sentry_dsn,
@@ -51,16 +55,16 @@ pub fn setup(logger: Box<dyn log::Log>) -> (Result<ClientInitGuard, VarError>, B
         log::error!("Could not initialize Sentry: {e}");
     }
 
-    let mut logger = sentry::integrations::log::SentryLogger::with_dest(logger);
+    let mut sentry_layer = sentry_tracing::layer();
 
     if parse_bool_env_var("SWH_SENTRY_DISABLE_LOGGING_EVENTS", false) {
-        logger = logger.filter(|md| match md.level() {
-            log::Level::Error => LogFilter::Breadcrumb, // replaces the default (LogFilter::Exception)
-            log::Level::Warn | log::Level::Info => LogFilter::Breadcrumb,
-            log::Level::Debug | log::Level::Trace => LogFilter::Ignore,
+        sentry_layer = sentry_layer.event_filter(|md| match *md.level() {
+            Level::ERROR => EventFilter::Breadcrumb, // replaces the default (LogFilter::Exception)
+            Level::WARN | Level::INFO => EventFilter::Breadcrumb,
+            Level::DEBUG | Level::TRACE => EventFilter::Ignore,
         });
     }
-    (guard, Box::new(logger))
+    (guard, sentry_layer)
 }
 
 #[test]

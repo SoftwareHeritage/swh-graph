@@ -19,9 +19,11 @@ java-properties = "1.4.1"
 cadence = "1.4.0"
 clap.workspace = true
 chrono = { version = "0.4.31", features = ["serde"] }
-env_logger.workspace = true
 log.workspace = true
-sentry = { version = "0.32.1", features = ["anyhow", "log", "tower"], optional = true }
+sentry = { version = "0.32.1", features = ["anyhow", "tower", "tracing"], optional = true }
+sentry-tracing = "0.32.1"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 # gRPC
 prost = "0.13"
