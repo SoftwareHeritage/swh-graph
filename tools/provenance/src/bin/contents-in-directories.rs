@@ -99,7 +99,7 @@ pub fn main() -> Result<()> {
         ParallelDatasetWriter::<PartitionedTableWriter<ParquetTableWriter<_>>>::with_schema(
             args.contents_out,
             (
-                "cnt".into(),
+                "cnt_partition".into(),
                 NonZeroU16::new(args.num_partitions),
                 (
                     Arc::new(cnt_in_dir_schema()),
