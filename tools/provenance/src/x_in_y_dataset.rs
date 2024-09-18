@@ -13,7 +13,7 @@ use parquet::basic::{Compression, Encoding, ZstdLevel};
 use parquet::file::properties::EnabledStatistics;
 use parquet::file::properties::{WriterProperties, WriterPropertiesBuilder};
 
-use swh_graph::graph::SwhGraph;
+use swh_graph::graph::{NodeId, SwhGraph};
 
 use dataset_writer::StructArrayBuilder;
 
@@ -113,10 +113,8 @@ pub fn cnt_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterProperti
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
-        // 10× the default value.
-        // Not needed for this particular table, but we set it nonetheless for
-        // consistency with dir_in_revrel.
-        .set_max_row_group_size(10 * 1024 * 1024)
+        // 10% of the default value, to hopefully get faster random accesses
+        .set_max_row_group_size(100 * 1024)
 }
 
 pub fn dir_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesBuilder {
@@ -152,10 +150,8 @@ pub fn dir_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterProperti
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
-        // 10× the default value.
-        // with --node-filter all, we write slightly over the 32k row groups limit,
-        // so we need to write more in each row group.
-        .set_max_row_group_size(10 * 1024 * 1024)
+        // 10% of the default value, to hopefully get faster random accesses
+        .set_max_row_group_size(100 * 1024)
 }
 
 pub fn cnt_in_dir_writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesBuilder {
@@ -181,11 +177,8 @@ pub fn cnt_in_dir_writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesB
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
-    // Not increasing max_row_group_size, as it would make arrays for the 'path'
-    // column pretty large. Switching to LargeBinaryArray would work, but it
-    // still means the reader needs more than 2^31 (2GB) just to store the
-    // decompressed array in RAM.
-    // .set_max_row_group_size(10 * 1024 * 1024)
+        // 10% of the default value, to hopefully get faster random accesses
+        .set_max_row_group_size(100 * 1024)
 }
 
 #[derive(Debug)]
@@ -345,4 +338,28 @@ impl StructArrayBuilder for CntInDirTableBuilder {
             None, // nulls
         ))
     }
+}
+
+// TODO: implement this instead:
+// Naively, this would be as simple as `partitions[node * num_nodes / partitions.len()]`.
+// However, this would lead to uneven partitions, as node ids are not uniformly distributed;
+// so this applies an extra step of "segmentation", so that partition 1 has nodes `0` to `n`,
+// `n*partitions.len()` to `n*(1+partitions.len())`, etc.
+/// Given an array of partitions, spreads nodes into contiguous chunks in each partition
+///
+/// This is essentially: `partitions[node * num_nodes / partitions.len()]`.
+#[inline(always)]
+pub fn get_partition<'a, T, G: SwhGraph>(
+    partitions: &'a mut [T],
+    node: NodeId,
+    graph: &G,
+) -> &'a mut T {
+    assert!(node <= graph.num_nodes(), "Invalid node id");
+    let partition_id = node
+        .checked_mul(partitions.len())
+        .expect("node_id * num_partitions overflowed usize")
+        / graph.num_nodes();
+    partitions
+        .get_mut(partition_id)
+        .expect("Invalid partition id")
 }

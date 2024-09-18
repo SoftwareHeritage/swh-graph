@@ -5,6 +5,7 @@
 
 #![allow(non_snake_case)]
 
+use std::num::NonZeroU16;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -14,7 +15,7 @@ use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 use sux::bits::bit_vec::BitVec;
 
-use dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
+use dataset_writer::{ParallelDatasetWriter, ParquetTableWriter, PartitionedTableWriter};
 use swh_graph::graph::*;
 use swh_graph::mph::DynMphf;
 use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
@@ -23,7 +24,7 @@ use swh_graph::NodeType;
 use swh_graph_provenance::filters::{load_reachable_nodes, NodeFilter};
 use swh_graph_provenance::frontier::PathParts;
 use swh_graph_provenance::x_in_y_dataset::{
-    cnt_in_revrel_schema, cnt_in_revrel_writer_properties, CntInRevrelTableBuilder,
+    cnt_in_revrel_schema, cnt_in_revrel_writer_properties, get_partition, CntInRevrelTableBuilder,
 };
 
 #[cfg(not(target_env = "msvc"))]
@@ -48,6 +49,10 @@ struct Args {
     #[arg(long, default_value_t = NodeFilter::Heads)]
     /// Subset of revisions and releases to traverse from
     node_filter: NodeFilter,
+    #[arg(long)]
+    /// Number of partitions to split each table into, based on the `cnt` node id.
+    /// Disables partitioning if unset or 0
+    num_partitions: u16,
     #[arg(long)]
     /// Path to the Parquet table with the node ids of all nodes reachable from
     /// a head revision/release
@@ -94,13 +99,18 @@ pub fn main() -> Result<()> {
 
     let reachable_nodes = load_reachable_nodes(&graph, args.node_filter, args.reachable_nodes)?;
 
-    let mut dataset_writer = ParallelDatasetWriter::<ParquetTableWriter<_>>::with_schema(
-        args.contents_out,
-        (
-            Arc::new(cnt_in_revrel_schema()),
-            cnt_in_revrel_writer_properties(&graph).build(),
-        ),
-    )?;
+    let mut dataset_writer =
+        ParallelDatasetWriter::<PartitionedTableWriter<ParquetTableWriter<_>>>::with_schema(
+            args.contents_out,
+            (
+                "cnt".into(),
+                NonZeroU16::new(args.num_partitions),
+                (
+                    Arc::new(cnt_in_revrel_schema()),
+                    cnt_in_revrel_writer_properties(&graph).build(),
+                ),
+            ),
+        )?;
     dataset_writer.config.autoflush_buffer_size = args.thread_buffer_size;
 
     write_revisions_from_contents(
@@ -117,7 +127,9 @@ fn write_revisions_from_contents<G>(
     node_filter: NodeFilter,
     reachable_nodes: Option<&BitVec>,
     frontier_directories: &BitVec,
-    dataset_writer: ParallelDatasetWriter<ParquetTableWriter<CntInRevrelTableBuilder>>,
+    dataset_writer: ParallelDatasetWriter<
+        PartitionedTableWriter<ParquetTableWriter<CntInRevrelTableBuilder>>,
+    >,
 ) -> Result<()>
 where
     G: SwhLabeledBackwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
@@ -147,6 +159,7 @@ where
                 Some(reachable_nodes) => reachable_nodes.get(node),
             };
             if is_reachable && graph.properties().node_type(node) == NodeType::Content {
+                let writer = get_partition(writer.partitions(), node, &graph);
                 find_revisions_from_content(
                     graph,
                     node_filter,

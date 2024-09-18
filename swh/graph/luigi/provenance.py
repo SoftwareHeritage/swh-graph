@@ -294,6 +294,7 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
     provenance_dir = luigi.PathParameter()
     provenance_node_filter = luigi.Parameter(default="heads")
     max_ram_mb = luigi.IntParameter(default=default_max_ram_mb(), significant=False)
+    num_partitions = luigi.IntParameter(default=0)
 
     @property
     def resources(self):
@@ -341,6 +342,8 @@ class ListFrontierDirectoriesInRevisions(luigi.Task):
                 str(self.max_ram_mb * 1_000_000 // multiprocessing.cpu_count()),
                 "--node-filter",
                 self.provenance_node_filter,
+                "--num-partitions",
+                str(self.num_partitions),
                 "--reachable-nodes",
                 self.input()["reachable_nodes"],
                 "--frontier-directories",
@@ -371,6 +374,7 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
     provenance_dir = luigi.PathParameter()
     provenance_node_filter = luigi.Parameter(default="heads")
     max_ram_mb = luigi.IntParameter(default=default_max_ram_mb(), significant=False)
+    num_partitions = luigi.IntParameter(default=0)
 
     @property
     def resources(self):
@@ -419,6 +423,8 @@ class ListContentsInRevisionsWithoutFrontier(luigi.Task):
                 str(self.max_ram_mb * 1_000_000 // multiprocessing.cpu_count()),
                 "--node-filter",
                 self.provenance_node_filter,
+                "--num-partitions",
+                str(self.num_partitions),
                 "--reachable-nodes",
                 self.input()["reachable_nodes"],
                 "--frontier-directories",
@@ -440,6 +446,7 @@ class ListContentsInFrontierDirectories(luigi.Task):
     provenance_dir = luigi.PathParameter()
     provenance_node_filter = luigi.Parameter(default="heads")
     max_ram_mb = luigi.IntParameter(default=default_max_ram_mb(), significant=False)
+    num_partitions = luigi.IntParameter(default=0)
 
     @property
     def resources(self):
@@ -488,6 +495,8 @@ class ListContentsInFrontierDirectories(luigi.Task):
                 str(self.max_ram_mb * 1_000_000 // multiprocessing.cpu_count()),
                 "--node-filter",
                 self.provenance_node_filter,
+                "--num-partitions",
+                str(self.num_partitions),
                 "--frontier-directories",
                 self.input()["directory_frontier"],
                 "--contents-out",
