@@ -153,6 +153,7 @@ file (typically for graphs before 2024), you need to generate it with:
 
 .. code:: console
 
+   RUSTFLAGS="-C target-cpu=native" cargo install swh-graph
    swh graph reindex compressed/graph
 
 Additionally, the `.ef` format may change from time to time. If you get an error
@@ -172,6 +173,7 @@ you have locally. You need to regenerate them for your version:
 
 .. code:: console
 
+   RUSTFLAGS="-C target-cpu=native" cargo install swh-graph
    swh graph reindex --ef compressed/graph
 
 Then try again.
