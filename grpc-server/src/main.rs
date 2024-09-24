@@ -83,6 +83,7 @@ pub fn main() -> Result<()> {
 
     let graph = Subgraph::with_node_filter(graph, move |node| !masked_nodes.contains(&node));
 
+    // can't use #[tokio::main] because Sentry must be initialized before we start the tokio runtime
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
