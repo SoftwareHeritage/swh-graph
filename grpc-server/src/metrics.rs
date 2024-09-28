@@ -61,6 +61,11 @@ where
                     num_frames: 0,
                     span,
                 };
+                if body.is_end_stream() {
+                    // body.poll_frame() won't ever be called, so it won't have a chance to log the
+                    // end of the stream. Therefore, we must log it here.
+                    body.publish_metrics();
+                }
                 let resp = tonic::codegen::http::Response::from_parts(parts, BoxBody::new(body));
                 Ok(resp)
             }
