@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2022  The Software Heritage developers
+# Copyright (C) 2019-2024  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -124,23 +124,40 @@ def graph_cli_group(ctx, config_file):
     help="port to bind the server on",
 )
 @click.option(
-    "--graph", "-g", required=True, metavar="GRAPH", help="compressed graph basename"
+    "--graph",
+    "-g",
+    "graph_path",
+    default=None,
+    metavar="GRAPH",
+    help="compressed graph basename",
 )
 @click.pass_context
-def serve(ctx, host, port, graph):
-    """run the graph RPC service"""
+def serve(ctx, host, port, graph_path):
+    """Run the graph RPC service."""
     import aiohttp.web
 
     from swh.graph.http_rpc_server import make_app
 
     config = ctx.obj["config"]
-    if "graph" not in config:
-        raise ValueError('no "graph" stanza found in configuration')
-    if "grpc_server" not in config["graph"]:
+    config_graph = config["graph"]
+    cls = config_graph["cls"]
+    if cls in ("local", "local_rust"):
+        if graph_path is None:
+            raise ValueError(
+                "Please, specify the graph path (-g <path>) for a 'local' rpc instance"
+            )
+        # Only required when spawning a local rpc instance
+        config["graph"]["grpc_server"]["path"] = graph_path
+    elif cls == "remote":
+        if "grpc_server" not in config_graph:
+            raise ValueError(
+                'Please, specify the "grpc_server" key configuration in the "graph" section'
+            )
+    else:
         raise ValueError(
-            'no "grpc_server" stanza found in the "graph" section of configuration'
+            f'Value for "cls" must be "local"/"local_rust" or "remote", not {cls!r}'
         )
-    config["graph"]["grpc_server"]["path"] = graph
+
     app = make_app(config=config)
 
     aiohttp.web.run_app(app, host=host, port=port)
