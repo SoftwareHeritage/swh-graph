@@ -42,17 +42,17 @@ class GraphDownloader:
 
         self.bucket_name, self.prefix = self.s3_graph_path[len("s3://") :].split("/", 1)
 
-        self.seen_compression_metadata = False
+        self.compression_metadata_obj = None
         self.parallelism = parallelism
 
-    def _download_file(self, obj):
+    def _download_file(self, obj, write_if_stamp=False):
         import subprocess
 
         assert obj.key.startswith(self.prefix)
         relative_path = obj.key.removeprefix(self.prefix).lstrip("/")
-        if relative_path == "meta/compression.json":
+        if relative_path == "meta/compression.json" and not write_if_stamp:
             # Will copy it last
-            self.seen_compression_metadata = True
+            self.compression_metadata_obj = obj
             return
         local_path = self.local_graph_path / relative_path
         local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -89,8 +89,6 @@ class GraphDownloader:
         progress_percent_cb: Callable[[int], None],
         progress_status_cb: Callable[[str], None],
     ):
-        compression_metadata_path = f"{self.prefix}/meta/compression.json"
-
         bucket = self.s3.Bucket(self.bucket_name)
 
         # recursively copy local files to S3, and end with compression metadata
@@ -114,11 +112,8 @@ class GraphDownloader:
         ):
             # skip metadata download for old graphs, they did not have that file yet
             assert (
-                self.seen_compression_metadata
+                self.compression_metadata_obj is not None
             ), "did not see meta/compression.json in directory listing"
 
             # Write it last, to act as a stamp
-            self.client.get(
-                compression_metadata_path,
-                self.local_graph_path / "meta" / "export.json",
-            )
+            self._download_file(self.compression_metadata_obj, write_if_stamp=True)
