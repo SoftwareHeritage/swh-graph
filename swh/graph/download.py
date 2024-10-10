@@ -5,14 +5,11 @@
 
 import multiprocessing.dummy
 from pathlib import Path
-import tempfile
 from typing import Callable
 
 import boto3
 import botocore
 import tqdm
-
-from .shell import Command
 
 
 class GraphDownloader:
@@ -49,6 +46,8 @@ class GraphDownloader:
         self.parallelism = parallelism
 
     def _download_file(self, obj):
+        import subprocess
+
         assert obj.key.startswith(self.prefix)
         relative_path = obj.key.removeprefix(self.prefix).lstrip("/")
         if relative_path == "meta/compression.json":
@@ -60,21 +59,22 @@ class GraphDownloader:
         if relative_path.endswith(".bin.zst"):
             # The file was compressed before uploading to S3, we need it
             # to be decompressed locally
-            with tempfile.NamedTemporaryFile(
-                prefix=local_path.stem, suffix=".bin.zst"
-            ) as fd:
-                self.client.download_file(
-                    Bucket=self.bucket_name,
-                    Key=obj.key,
-                    Filename=fd.name,
-                )
-                Command.zstdmt(
-                    "--force",
-                    "-d",
-                    fd.name,
-                    "-o",
-                    str(local_path)[0:-4],
-                ).run()
+
+            # write to a temporary location, so we don't end up with a partial file download
+            # or decompression is interrupted.
+            tmp_local_path = local_path.with_suffix(".tmp")
+
+            proc = subprocess.Popen(
+                ["zstdmt", "--force", "-d", "-", "-o", str(tmp_local_path)],
+                stdin=subprocess.PIPE,
+            )
+            for chunk in obj.get()["Body"].iter_chunks(102400):
+                proc.stdin.write(chunk)
+            proc.stdin.close()
+            ret = proc.wait()
+            if ret != 0:
+                raise ValueError(f"zstdmt could not decompress {local_path}")
+            tmp_local_path.rename(str(local_path)[0:-4])
         else:
             self.client.download_file(
                 Bucket=self.bucket_name,
