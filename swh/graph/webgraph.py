@@ -400,6 +400,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-bfs.order",
         "{out_dir}/{graph_name}-llp.order",
         "{out_dir}/{graph_name}.nodes/",
+        "{out_dir}/{graph_name}.persons/",
+        "{out_dir}/{graph_name}-bfs.roots.txt",
         "{tmp_dir}",
     ],
 }
