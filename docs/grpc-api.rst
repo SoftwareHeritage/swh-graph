@@ -948,6 +948,8 @@ available in the ``proto/swhgraph.proto`` file of the swh-graph repository:
 
 https://gitlab.softwareheritage.org/swh/devel/swh-graph/-/blob/master/proto/swhgraph.proto
 
-..
-    .. literalinclude:: swhgraph.proto
-       :language: protobuf
+Additionally, the swh-graph gRPC server implements the following services:
+
+* `grpc.health.v1.Health.Check <https://grpc.io/docs/guides/health-checking/>`_
+* `grpc.reflection.v1 <https://grpc.io/docs/guides/reflection/>`_
+* `grpc.reflection.v1alpha <https://github.com/grpc/grpc-proto/blob/master/grpc/reflection/v1alpha/reflection.proto>`_
