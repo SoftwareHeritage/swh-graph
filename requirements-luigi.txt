@@ -4,4 +4,4 @@ pyarrow
 python-magic
 pyzstd
 tqdm
-scancode-toolkit==31.2.5  # output may vary across versions; so we pin it in order to have reproducible datasets
+scancode-toolkit==32.2.1  # output may vary across versions; so we pin it in order to have reproducible datasets
