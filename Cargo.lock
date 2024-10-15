@@ -4326,7 +4326,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph"
-version = "6.0.0"
+version = "6.1.0"
 dependencies = [
  "anyhow",
  "ar_row 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4376,7 +4376,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph-grpc-server"
-version = "6.0.0"
+version = "6.1.0"
 dependencies = [
  "anyhow",
  "async-scoped",
@@ -4409,7 +4409,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_contributions"
-version = "6.0.0"
+version = "6.1.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4428,7 +4428,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_file_names"
-version = "6.0.0"
+version = "6.1.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -4446,7 +4446,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_provenance"
-version = "6.0.0"
+version = "6.1.0"
 dependencies = [
  "anyhow",
  "ar_row 1.0.0 (git+https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git?rev=02413b8a74b2fafb4ecc811513b1040dc949c656)",
@@ -4477,7 +4477,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_pyo3"
-version = "6.0.0"
+version = "6.1.0"
 dependencies = [
  "pyo3",
  "swh-graph",
@@ -4485,7 +4485,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_topology"
-version = "6.0.0"
+version = "6.1.0"
 dependencies = [
  "anyhow",
  "arrow 52.2.0",
