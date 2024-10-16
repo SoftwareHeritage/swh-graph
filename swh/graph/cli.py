@@ -514,6 +514,13 @@ def get_all_subclasses(cls):
     as directory name. For example: ``2022-04-25`` or ``2022-11-12_staging``.""",
 )
 @click.option(
+    "--parent-dataset-name",
+    required=False,
+    type=str,
+    help="""When generating a subdataset (eg. ``2024-08-23-python3k``), this is the name
+    of a full export (eg. ``2024-08-23``) the subdataset should be built from.""",
+)
+@click.option(
     "--export-name",
     required=False,
     type=str,
@@ -521,6 +528,14 @@ def get_all_subclasses(cls):
     as directory name for the export (not the compressed graph).
     For example: ``2022-04-25`` or ``2022-11-12_staging``.
     Defaults to the value of --dataset-name""",
+)
+@click.option(
+    "--parent-export-name",
+    required=False,
+    type=str,
+    help="""When generating a subdataset (eg. ``2024-08-23-python3k``), this is the name
+    of a full export (eg. ``2024-08-23``) the subdataset should be built from.
+    Defaults to the value of --parent-dataset-name""",
 )
 @click.option(
     "--previous-dataset-name",
@@ -559,6 +574,8 @@ def luigi(
     grpc_api: Optional[str],
     s3_athena_output_location: Optional[str],
     dataset_name: str,
+    parent_dataset_name: Optional[str],
+    parent_export_name: Optional[str],
     export_name: Optional[str],
     previous_dataset_name: Optional[str],
     retry_luigi_delay: int,
@@ -643,6 +660,7 @@ def luigi(
     }
 
     export_name = export_name or dataset_name
+    parent_export_name = parent_export_name or parent_dataset_name
 
     export_path = (export_base_directory or base_directory) / export_name
     dataset_path = base_directory / dataset_name
@@ -668,6 +686,13 @@ def luigi(
         default_values["s3_graph_path"] = (
             f"{s3_prefix.rstrip('/')}/{dataset_name}/compressed"
         )
+        if parent_dataset_name:
+            default_values["s3_parent_export_path"] = (
+                f"{s3_prefix.rstrip('/')}/{parent_export_name}"
+            )
+            default_values["s3_parent_graph_path"] = (
+                f"{s3_prefix.rstrip('/')}/{parent_dataset_name}/compressed"
+            )
 
     if s3_athena_output_location:
         default_values["s3_athena_output_location"] = s3_athena_output_location
@@ -699,6 +724,10 @@ def luigi(
         default_values["athena_db_name"] = (
             f"{athena_prefix}_{dataset_name.replace('-', '')}"
         )
+        if parent_dataset_name:
+            default_values["athena_parent_db_name"] = (
+                f"{athena_prefix}_{parent_dataset_name.replace('-', '')}"
+            )
 
     for task_cls in get_all_subclasses(luigi.Task):
         task_name = task_cls.__name__

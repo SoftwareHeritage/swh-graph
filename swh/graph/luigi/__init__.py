@@ -56,6 +56,7 @@ from .compressed_graph import *  # noqa
 from .file_names import *  # noqa
 from .origin_contributors import *  # noqa
 from .provenance import *  # noqa
+from .subdataset import *  # noqa
 from .topology import *  # noqa
 
 
