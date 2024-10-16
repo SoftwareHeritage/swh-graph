@@ -190,6 +190,10 @@ where
 
         match graph.properties().node_type(node) {
             NodeType::Origin => {
+                let Some(origin_url_base64) = graph.properties().message_base64(node) else {
+                    log::warn!("Missing origin URL for {}", swhid);
+                    continue;
+                };
                 for (contributor, years) in node_contributors {
                     contribs_writer
                         .serialize(ContribOutputRecord {
@@ -207,13 +211,11 @@ where
                             )
                         })?;
                 }
+
                 origins_writer
                     .serialize(OriginOutputRecord {
                         origin_id: node,
-                        origin_url_base64: graph
-                            .properties()
-                            .message_base64(node)
-                            .unwrap_or_else(|| panic!("Missing origin URL for {}", swhid)),
+                        origin_url_base64,
                     })
                     .with_context(|| {
                         format!(
