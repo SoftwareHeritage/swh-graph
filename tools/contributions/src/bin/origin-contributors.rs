@@ -6,17 +6,18 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Parser, ValueEnum};
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use swh_graph::graph::*;
 use swh_graph::mph::DynMphf;
 use swh_graph::properties;
 use swh_graph::views::Subgraph;
 use swh_graph::NodeType;
-use swh_graph::SWHID;
+use swh_graph_topology::generations::GenerationsReader;
 
 use swh_graph_contributions::ContributorSet;
 
@@ -27,30 +28,21 @@ enum Direction {
 }
 
 #[derive(Parser, Debug)]
-/// Reads a CSV with headers
-/// 'swhid,num_predecessors,num_successors,sample_predecessor1,sample_predecessor2' (as returned by
-/// the 'toposort' executable) and returns the list of contributor ids contributing to any given
+/// produces the list of contributor ids contributing to any given
 /// origin, as a CSV stdout with header `origin_id,contributor_id,years`
 struct Args {
     graph_path: PathBuf,
     #[arg(long)]
+    /// Path from where to read the input order, and the accompanying .ef delimiting offsets between
+    /// generations
+    order: PathBuf,
+    #[arg(long)]
+    /// Number of expected rev/rel/snp/ori nodes; used for computing the ETA
+    num_nodes: Option<usize>,
+    #[arg(long)]
+    #[arg(long)]
     /// Directory where to write CSV files with header `origin_id,origin_url_base64`
     origins_out: PathBuf,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct InputRecord {
-    #[serde(rename = "SWHID")]
-    swhid: SWHID,
-    #[serde(rename = "ancestors")]
-    num_predecessors: usize,
-    #[serde(rename = "successors")]
-    num_successors: usize,
-    #[serde(rename = "sample_ancestor1")]
-    sample_predecessor1: String,
-    #[serde(rename = "sample_ancestor2")]
-    sample_predecessor2: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -73,7 +65,7 @@ pub fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     log::info!("Loading graph");
-    let graph = swh_graph::graph::SwhUnidirectionalGraph::new(args.graph_path)
+    let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph_path)
         .context("Could not load graph")?
         .init_properties()
         .load_properties(|props| props.load_maps::<DynMphf>())
@@ -97,16 +89,26 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Could not create {}", args.origins_out.display()))?,
         );
 
-    write_origin_contributors(&graph, contribs_writer, origins_writer)
+    let reader = GenerationsReader::new(args.order).context("Could not load topological order")?;
+
+    write_origin_contributors(
+        &graph,
+        reader,
+        contribs_writer,
+        origins_writer,
+        args.num_nodes,
+    )
 }
 
 fn write_origin_contributors<G, W1: std::io::Write, W2: std::io::Write>(
     graph: &G,
+    reader: GenerationsReader,
     mut contribs_writer: csv::Writer<W1>,
     mut origins_writer: csv::Writer<W2>,
+    num_nodes: Option<usize>,
 ) -> Result<()>
 where
-    G: SwhForwardGraph + SwhGraphWithProperties,
+    G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
     <G as SwhGraphWithProperties>::Persons: properties::Persons,
     <G as SwhGraphWithProperties>::Strings: properties::Strings,
@@ -121,77 +123,86 @@ where
     // Map each node id to its set of contributor person_ids and years
     let mut contributors: HashMap<NodeId, ContributorSet> = HashMap::new();
 
-    // For each node it, counts its number of direct successors that still need to be handled
-    let mut pending_successors = HashMap::<NodeId, usize>::new();
+    // For each node it, counts its number of direct predecessors that still need to be handled
+    let mut pending_predecessors = HashMap::<NodeId, usize>::new();
 
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .from_reader(std::io::stdin());
-
-    // Makes sure the input at least has a header, even when there is no payload
-    ensure!(
-        reader
-            .headers()
-            .context("Invalid header in input")?
-            .iter()
-            .any(|item| item == "SWHID"),
-        "Input has no 'swhid' header"
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "node",
+        local_speed = true,
+        expected_updates = num_nodes,
     );
 
-    for record in reader.deserialize() {
-        let InputRecord {
-            swhid,
-            num_predecessors,
-            num_successors,
-            sample_predecessor1,
-            sample_predecessor2: _,
-        } = record.context("Could not parse line")?;
-        let node = graph
-            .properties()
-            .node_id(swhid)
-            .with_context(|| format!("Unknown SWHID {}", swhid))?;
+    pl.start("Traversing graph");
 
-        if num_successors > 0 {
-            pending_successors.insert(node, num_successors);
+    for (_depth, node) in reader
+        .iter_nodes()
+        .context("Could not read topological order")?
+    {
+        pl.light_update();
+
+        let num_predecessors = graph
+            .predecessors(node)
+            .filter(|&pred| {
+                [
+                    NodeType::Revision,
+                    NodeType::Release,
+                    NodeType::Snapshot,
+                    NodeType::Origin,
+                ]
+                .contains(&graph.properties().node_type(pred))
+            })
+            .count();
+        if num_predecessors > 0 {
+            pending_predecessors.insert(node, num_predecessors);
         }
 
-        let mut node_contributors: ContributorSet = if num_predecessors == 1 {
-            // Reuse the ancestor's set of contributors
-            let predecessor = graph
-                .properties()
-                .node_id(sample_predecessor1.as_str())
-                .context("Unknown predecessor SWHID")?;
-            if pending_successors.get(&predecessor) == Some(&1) {
-                pending_successors.remove(&predecessor);
-                contributors
-                    .remove(&predecessor)
-                    .expect("Predecessor's contributors are not initialized")
-            } else {
-                // Predecessor is not yet ready to be popped because it has other successors
-                // to be visited.  Copy its contributor set
-                *pending_successors.get_mut(&predecessor).unwrap() -= 1;
-                contributors
-                    .get(&predecessor)
-                    .expect("Predecessor's contributors are not initialized")
-                    .clone()
-            }
-        } else {
-            let mut node_contributors = ContributorSet::default();
-            for succ in graph.successors(node) {
-                // If 'node' is a revision, then 'succ' is its parent revision
-                node_contributors.merge(
+        let mut successors = graph.successors(node).filter(|&pred| {
+            [
+                NodeType::Revision,
+                NodeType::Release,
+                NodeType::Snapshot,
+                NodeType::Origin,
+            ]
+            .contains(&graph.properties().node_type(pred))
+        });
+        let first_successor = successors.next();
+        let second_successor = successors.next();
+
+        let mut node_contributors: ContributorSet =
+            if let (Some(first_successor), None) = (first_successor, second_successor) {
+                // Reuse the successor's set of contributors
+                if pending_predecessors.get(&first_successor) == Some(&1) {
+                    pending_predecessors.remove(&first_successor);
                     contributors
-                        .get(&succ)
-                        .expect("Parent's contributors are not initialized"),
-                );
-            }
-            node_contributors
-        };
+                        .remove(&first_successor)
+                        .expect("Predecessor's contributors are not initialized")
+                } else {
+                    // Predecessor is not yet ready to be popped because it has other successors
+                    // to be visited.  Copy its contributor set
+                    *pending_predecessors.get_mut(&first_successor).unwrap() -= 1;
+                    contributors
+                        .get(&first_successor)
+                        .expect("Predecessor's contributors are not initialized")
+                        .clone()
+                }
+            } else {
+                let mut node_contributors = ContributorSet::default();
+                for succ in graph.successors(node) {
+                    // If 'node' is a revision, then 'succ' is its parent revision
+                    node_contributors.merge(
+                        contributors
+                            .get(&succ)
+                            .expect("Parent's contributors are not initialized"),
+                    );
+                }
+                node_contributors
+            };
 
         match graph.properties().node_type(node) {
             NodeType::Origin => {
                 let Some(origin_url_base64) = graph.properties().message_base64(node) else {
-                    log::warn!("Missing origin URL for {}", swhid);
+                    log::warn!("Missing origin URL for {}", graph.properties().swhid(node));
                     continue;
                 };
                 for (contributor, years) in node_contributors {
@@ -207,7 +218,7 @@ where
                                 String::from_utf8_lossy(
                                     &graph.properties().message(node).unwrap_or("".into())
                                 ),
-                                swhid,
+                                graph.properties().swhid(node),
                             )
                         })?;
                 }
@@ -223,7 +234,7 @@ where
                             String::from_utf8_lossy(
                                 &graph.properties().message(node).unwrap_or(b"".into())
                             ),
-                            swhid
+                            graph.properties().swhid(node)
                         )
                     })?;
             }
@@ -259,7 +270,10 @@ where
                 contributors.insert(node, node_contributors);
             }
             NodeType::Content | NodeType::Directory => {
-                bail!("Unexpected node type in input: {}", swhid)
+                bail!(
+                    "Unexpected node type in input: {}",
+                    graph.properties().swhid(node)
+                )
             }
         }
     }

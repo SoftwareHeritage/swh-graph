@@ -40,7 +40,7 @@ from typing import Dict, Iterable, List, Tuple, cast
 import luigi
 
 from .compressed_graph import LocalGraph
-from .topology import TopoSort
+from .topology import ComputeGenerations
 from .utils import count_nodes
 
 
@@ -64,10 +64,10 @@ class ListOriginContributors(luigi.Task):
 
     def requires(self) -> Dict[str, luigi.Task]:
         """Returns an instance of :class:`swh.graph.luigi.compressed_graph.LocalGraph`
-        and :class:`swh.graph.luigi.misc_datasets.TopoSort`."""
+        and :class:`swh.graph.luigi.topology.ComputeGenerations`."""
         return {
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
-            "toposort": TopoSort(
+            "toposort": ComputeGenerations(
                 local_graph_path=self.local_graph_path,
                 topological_order_dir=self.topological_order_dir,
                 graph_name=self.graph_name,
@@ -91,9 +91,9 @@ class ListOriginContributors(luigi.Task):
         from ..shell import AtomicFileSink, Command, Rust
         from .utils import count_nodes
 
-        topological_order_path = Path(self.input()["toposort"].path)
+        generations_path = Path(self.input()["toposort"]["topo_order"].path)
 
-        nb_lines = count_nodes(
+        num_nodes = count_nodes(
             self.local_graph_path, self.graph_name, "rev,rel,snp,ori"
         )
 
@@ -102,11 +102,13 @@ class ListOriginContributors(luigi.Task):
         ) as origin_urls_fd:
             # fmt: off
             (
-                Command.zstdcat(topological_order_path)
-                | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
-                | Rust(
+                Rust(
                     "origin-contributors",
                     self.local_graph_path / self.graph_name,
+                    "--num-nodes",
+                    str(num_nodes),
+                    "--order",
+                    generations_path,
                     "--origins-out",
                     origin_urls_fd.name,
                 )

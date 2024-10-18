@@ -4389,6 +4389,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "swh-graph",
+ "swh_graph_topology",
 ]
 
 [[package]]

@@ -30,7 +30,7 @@ struct Record {
 struct Args {
     graph_path: PathBuf,
     #[arg(long)]
-    /// Path where to write the input order, and the accompanying .ef delimiting offsets between
+    /// Path from where to read the input order, and the accompanying .ef delimiting offsets between
     /// generations
     order: PathBuf,
 }

@@ -15,6 +15,7 @@ from swh.graph.luigi.origin_contributors import (
     ExportDeanonymizationTable,
     ListOriginContributors,
 )
+from swh.graph.luigi.topology import ComputeGenerations
 from swh.model.model import (
     ObjectType,
     Person,
@@ -23,8 +24,6 @@ from swh.model.model import (
     RevisionType,
     TimestampWithTimezone,
 )
-
-from .test_topology import TOPO_ORDER_BACKWARD as TOPOLOGICAL_ORDER
 
 # FIXME: do not hardcode ids here; they should be dynamically loaded
 # from the test graph
@@ -81,21 +80,26 @@ contributor_id,contributor_base64,contributor_escaped
 )  # noqa
 
 
+def compute_generations(topological_order_dir):
+    task = ComputeGenerations(
+        local_graph_path=DATASET_DIR / "compressed",
+        topological_order_dir=topological_order_dir,
+        direction="backward",
+        object_types="rev,rel,snp,ori",
+        graph_name="example",
+    )
+
+    task.run()
+
+
 def test_list_origin_contributors(tmpdir):
     tmpdir = Path(tmpdir)
 
     topological_order_dir = tmpdir
-    topological_order_path = (
-        topological_order_dir / "topological_order_dfs_backward_rev,rel,snp,ori.csv.zst"
-    )
+    compute_generations(topological_order_dir)
+
     origin_contributors_path = tmpdir / "origin_contributors.csv.zst"
     origin_urls_path = tmpdir / "origin_urls.csv.zst"
-
-    subprocess.run(
-        ["zstdmt", "-o", topological_order_path],
-        input=TOPOLOGICAL_ORDER.encode(),
-        check=True,
-    )
 
     task = ListOriginContributors(
         local_graph_path=DATASET_DIR / "compressed",
