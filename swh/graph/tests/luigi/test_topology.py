@@ -12,11 +12,12 @@ import pyarrow.dataset
 import pytest
 
 from swh.graph.example_dataset import DATASET_DIR
-from swh.graph.luigi.topology import CountPaths, TopoSort
+from swh.graph.luigi.topology import ComputeGenerations, CountPaths, TopoSort
+from swh.graph.shell import Rust, Sink
 
 # FIXME: the order of sample ancestors should not be hardcoded
 # FIXME: swh:1:snp:0000000000000000000000000000000000000022,3,1,swh has three possible
-# sample ancestors; they should not be hardecoded here
+# sample ancestors; they should not be hardcoded here
 TOPO_ORDER_BACKWARD = """\
 SWHID,ancestors,successors,sample_ancestor1,sample_ancestor2
 swh:1:rev:0000000000000000000000000000000000000003,0,1,,
@@ -47,6 +48,41 @@ swh:1:rev:0000000000000000000000000000000000000013,1,1,swh:1:rev:000000000000000
 swh:1:rel:0000000000000000000000000000000000000010,2,1,swh:1:snp:0000000000000000000000000000000000000022,swh:1:snp:0000000000000000000000000000000000000020
 swh:1:rev:0000000000000000000000000000000000000009,4,1,swh:1:snp:0000000000000000000000000000000000000022,swh:1:rel:0000000000000000000000000000000000000010
 swh:1:rev:0000000000000000000000000000000000000003,1,0,swh:1:rev:0000000000000000000000000000000000000009,
+""".replace(
+    "\n", "\r\n"
+)
+
+TOPO_ORDER2_BACKWARD = """\
+SWHID,depth
+swh:1:rev:0000000000000000000000000000000000000003,0
+swh:1:rev:0000000000000000000000000000000000000009,1
+swh:1:rel:0000000000000000000000000000000000000010,2
+swh:1:rev:0000000000000000000000000000000000000013,2
+swh:1:snp:0000000000000000000000000000000000000020,3
+swh:1:rev:0000000000000000000000000000000000000018,3
+swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,4
+swh:1:rel:0000000000000000000000000000000000000021,4
+swh:1:rel:0000000000000000000000000000000000000019,4
+swh:1:snp:0000000000000000000000000000000000000022,5
+swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,6
+
+""".replace(
+    "\n", "\r\n"
+)
+
+TOPO_ORDER2_FORWARD = """\
+SWHID,depth
+swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165,0
+swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054,0
+swh:1:rel:0000000000000000000000000000000000000019,0
+swh:1:snp:0000000000000000000000000000000000000022,1
+swh:1:snp:0000000000000000000000000000000000000020,1
+swh:1:rel:0000000000000000000000000000000000000010,2
+swh:1:rel:0000000000000000000000000000000000000021,2
+swh:1:rev:0000000000000000000000000000000000000018,3
+swh:1:rev:0000000000000000000000000000000000000013,4
+swh:1:rev:0000000000000000000000000000000000000009,5
+swh:1:rev:0000000000000000000000000000000000000003,6
 """.replace(
     "\n", "\r\n"
 )
@@ -145,6 +181,47 @@ def test_toposort(tmpdir, direction: str, algorithm: str):
             "swh:1:rev:0000000000000000000000000000000000000003,1,0,"
             "swh:1:rev:0000000000000000000000000000000000000009,"
         )
+
+
+@pytest.mark.parametrize("direction", ["backward", "forward"])
+def test_generations(tmpdir, direction: str):
+    tmpdir = Path(tmpdir)
+
+    topological_order_path = (
+        tmpdir / f"topological_order_{direction}_rev,rel,snp,ori.bitstream"
+    )
+
+    task = ComputeGenerations(
+        local_graph_path=DATASET_DIR / "compressed",
+        topological_order_dir=tmpdir,
+        direction=direction,
+        object_types="rev,rel,snp,ori",
+        graph_name="example",
+    )
+
+    task.run()
+
+    # fmt: off
+    csv_text = (
+        Rust(
+            "topo-order-to-csv",
+            DATASET_DIR / "compressed/example",
+            "--order",
+            topological_order_path,
+        )
+        > Sink()
+    ).run()
+    # fmt: on
+
+    expected = TOPO_ORDER2_BACKWARD if direction == "backward" else TOPO_ORDER2_FORWARD
+
+    (header, *rows) = csv_text.decode().split("\r\n")
+    (expected_header, *expected_lines) = expected.split("\r\n")
+    assert header == expected_header
+
+    assert set(rows) == set(expected_lines)
+
+    assert rows.pop() == "", "Missing trailing newline"
 
 
 @pytest.mark.parametrize("direction", ["backward", "forward"])

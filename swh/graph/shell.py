@@ -297,6 +297,7 @@ class Rust(Command):
             env["PATH"] = f"{conf['rust_executable_dir']}:{path}"
         else:
             env["PATH"] = conf["rust_executable_dir"]
+        env["RUST_MIN_STACK"] = "8388608"  # 8MiB; avoids stack overflows in LLP
 
         super().__init__(bin_name, *args, env=env)
 

@@ -49,65 +49,6 @@ class TopoSort(luigi.Task):
     direction = luigi.ChoiceParameter(choices=["forward", "backward"])
     algorithm = luigi.ChoiceParameter(choices=["dfs", "bfs"], default="dfs")
 
-    def _max_ram(self):
-        # see java/src/main/java/org/softwareheritage/graph/utils/TopoSort.java
-        nb_nodes = count_nodes(
-            self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
-        )
-
-        seen_bitarray = nb_nodes // 8
-
-        graph_size = nb_nodes * 8
-
-        # The ready set contains the frontier of the BFS. In the worst case,
-        # it contains every single node matched by self.object_types (which by default
-        # is all node types but contents).
-        #
-        # However, in practice it contains at most a negligeable fraction of
-        # revisions, because the revision subgraph is, topologically, made mostly
-        # of very long chains (see Antoine Pietri's thesis).
-        #
-        # And in the forward DFS case, we are guaranteed not to have more than one
-        # content node in the ready set at any time, because it would be visited
-        # immediately after and has no successors.
-        #
-        # TODO: also guess an upper bound on the number of directories? we can
-        # probably assume at most a third will be in the ready set at any time,
-        # considering their subgraph's topology.
-        max_nb_ready_set_nodes = count_nodes(
-            self.local_graph_path,
-            self.graph_name,
-            ",".join(
-                ty
-                for ty in self.object_types.split(",")
-                if ty != "rev"
-                and not (
-                    self.algorithm == "dfs"
-                    and self.direction == "forward"
-                    and ty == "cnt"
-                )
-            ),
-        )
-        ready_set_size = max_nb_ready_set_nodes * 8
-
-        unvisited_array_size = nb_nodes * 8  # longarray
-
-        spare_space = 1_000_000_000
-        return (
-            graph_size
-            + seen_bitarray
-            + ready_set_size
-            + unvisited_array_size
-            + spare_space
-        )
-
-    @property
-    def resources(self):
-        """Return the estimated RAM use of this task."""
-        import socket
-
-        return {f"{socket.getfqdn()}_ram_mb": self._max_ram() / 1_000_000}
-
     def requires(self) -> List[luigi.Task]:
         """Returns an instance of :class:`LocalGraph`."""
         return [LocalGraph(local_graph_path=self.local_graph_path)]
@@ -144,6 +85,61 @@ class TopoSort(luigi.Task):
             | Command.pv("--line-mode", "--wait", "--size", str(nb_lines))
             | Command.zstdmt("-9")  # not -19 because of CPU usage + little gain
             > AtomicFileSink(self.output())
+        ).run()
+        # fmt: on
+
+
+class ComputeGenerations(luigi.Task):
+    """Creates a file that contains all SWHIDs in topological order from a compressed
+    graph."""
+
+    local_graph_path = luigi.PathParameter()
+    topological_order_dir = luigi.PathParameter()
+    graph_name = luigi.Parameter(default="graph")
+    object_types = luigi.Parameter()
+    direction = luigi.ChoiceParameter(choices=["forward", "backward"])
+
+    def requires(self) -> List[luigi.Task]:
+        """Returns an instance of :class:`LocalGraph`."""
+        return [LocalGraph(local_graph_path=self.local_graph_path)]
+
+    def _topo_order_path(self) -> Path:
+        return (
+            self.topological_order_dir
+            / f"topological_order_{self.direction}_{self.object_types}.bitstream"
+        )
+
+    def _depths_path(self) -> Path:
+        return (
+            self.topological_order_dir
+            / f"depths_{self.direction}_{self.object_types}.bin"
+        )
+
+    def output(self) -> luigi.Target:
+        """.csv.zst file that contains the topological order."""
+        return {
+            "topo_order": luigi.LocalTarget(self._topo_order_path()),
+            "generations": luigi.LocalTarget(self._depths_path()),
+        }
+
+    def run(self) -> None:
+        """Runs 'toposort' command from tools/topology and compresses"""
+        from ..shell import Rust
+
+        invalid_object_types = set(self.object_types.split(",")) - OBJECT_TYPES
+        if invalid_object_types:
+            raise ValueError(f"Invalid object types: {invalid_object_types}")
+
+        # fmt: off
+        (
+            Rust(
+                "generations",
+                self.local_graph_path / self.graph_name,
+                "--direction", self.direction,
+                "--node-types", self.object_types,
+                "--output-order", self._topo_order_path(),
+                "--output-depths", self._depths_path(),
+            )
         ).run()
         # fmt: on
 
