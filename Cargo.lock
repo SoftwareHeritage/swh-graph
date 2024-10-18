@@ -895,12 +895,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "binout"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "288c7b1c00556959bb7dc822d8adad4a30edd0d3a1fcc6839515792b8f300e5f"
-
-[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -911,15 +905,6 @@ name = "bitflags"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
-
-[[package]]
-name = "bitm"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7becd9fb525c1c507eb025ec37129a0d9320aee17c841085a48101f4f18c0d27"
-dependencies = [
- "dyn_size_of",
-]
 
 [[package]]
 name = "bitvec"
@@ -1658,12 +1643,6 @@ dependencies = [
  "pluralizer",
  "sysinfo 0.29.11",
 ]
-
-[[package]]
-name = "dyn_size_of"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c8adcce29eef18ae1369bbd268fd56bf98144e80281315e9d4a82e34df001c7"
 
 [[package]]
 name = "either"
@@ -3241,19 +3220,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ph"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88c6e62e083483e2812a9d2a6eff6b97871302ef4166b5182c6da30624b7e991"
-dependencies = [
- "binout",
- "bitm",
- "dyn_size_of",
- "rayon",
- "wyhash",
-]
-
-[[package]]
 name = "phf"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4358,7 +4324,6 @@ dependencies = [
  "nonmax",
  "num_cpus",
  "orc-rust",
- "ph",
  "pthash",
  "rand",
  "rayon",
@@ -5537,15 +5502,6 @@ name = "windows_x86_64_msvc"
 version = "0.52.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
-
-[[package]]
-name = "wyhash"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "baf6e163c25e3fac820b4b453185ea2dea3b6a3e0a721d4d23d75bd33734c295"
-dependencies = [
- "rand_core",
-]
 
 [[package]]
 name = "wyz"

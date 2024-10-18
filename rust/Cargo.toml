@@ -20,8 +20,6 @@ sux = "0.4.1"
 #sux = {path = "../../../sux-rs" }
 webgraph = "0.1.4"
 #webgraph = { path = "../../../webgraph-rs" }
-#ph = { git = "https://github.com/beling/bsuccinct-rs.git", rev = "f6636350a8149bc8deca83527ca195fe22311a4e" }
-ph = { version = "0.8.0" }
 pthash = { version = "0.4.0", features = ["rayon"] }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
 rayon = { version = "1.9.0" }

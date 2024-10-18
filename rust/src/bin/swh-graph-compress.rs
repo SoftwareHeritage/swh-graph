@@ -15,7 +15,6 @@ use anyhow::{anyhow, ensure, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{progress_logger, ProgressLog};
-use ph::fmph;
 use webgraph::prelude::*;
 
 use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
@@ -190,7 +189,6 @@ enum Commands {
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum MphAlgorithm {
     Pthash,
-    Fmph,
     Cmph,
 }
 
@@ -234,9 +232,6 @@ pub fn main() -> Result<()> {
                                 .context("Cannot load mph")?
                                 .into()
                         }
-                        MphAlgorithm::Fmph => fmph::Function::load(function)
-                            .context("Cannot load mph")?
-                            .into(),
                         MphAlgorithm::Pthash => SwhidPthash::load(function)
                             .context("Cannot load mph")?
                             .into(),
@@ -439,8 +434,6 @@ pub fn main() -> Result<()> {
             node2swhid,
             node2type,
         } => {
-            use swh_graph::mph::SwhidMphf;
-
             use swh_graph::compress::maps::*;
             use swh_graph::map::{Node2SWHID, Node2Type};
 
@@ -452,11 +445,6 @@ pub fn main() -> Result<()> {
             let swhids = match mph_algo {
                 MphAlgorithm::Pthash => {
                     let mph = SwhidPthash::load(function).context("Cannot load mph")?;
-                    log::info!("MPH loaded, reading and hashing SWHIDs");
-                    ordered_swhids(&swhids_dir, order, mph, num_nodes)?
-                }
-                MphAlgorithm::Fmph => {
-                    let mph = fmph::Function::load(function).context("Cannot load mph")?;
                     log::info!("MPH loaded, reading and hashing SWHIDs");
                     ordered_swhids(&swhids_dir, order, mph, num_nodes)?
                 }

@@ -10,12 +10,11 @@ use std::path::PathBuf;
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use mmap_rs::Mmap;
-use ph::fmph;
 
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::map::Node2SWHID;
 use swh_graph::map::{MappedPermutation, Permutation};
-use swh_graph::mph::SwhidMphf;
+use swh_graph::mph::{SwhidMphf, SwhidPthash};
 use swh_graph::{OutOfBoundError, SWHID};
 
 #[derive(Parser, Debug)]
@@ -33,7 +32,7 @@ struct Args {
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum MphAlgorithm {
-    Fmph,
+    Pthash,
     Cmph,
 }
 
@@ -91,12 +90,12 @@ pub fn main() -> Result<()> {
                 })?;
 
             match mph_algo {
-                MphAlgorithm::Fmph => hash_swhids::<fmph::Function>(mph, permutation, node2swhid),
+                MphAlgorithm::Pthash => hash_swhids::<SwhidPthash>(mph, permutation, node2swhid),
                 MphAlgorithm::Cmph => hash_swhids::<GOVMPH>(mph, permutation, node2swhid),
             }
         }
         Commands::Persons { mph_algo, mph } => match mph_algo {
-            MphAlgorithm::Fmph => hash_persons::<fmph::Function>(mph),
+            MphAlgorithm::Pthash => hash_persons::<SwhidPthash>(mph),
             MphAlgorithm::Cmph => hash_persons::<GOVMPH>(mph),
         },
     }

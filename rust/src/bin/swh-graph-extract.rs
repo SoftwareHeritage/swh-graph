@@ -15,7 +15,6 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::{progress_logger, ProgressLog};
 use itertools::Itertools;
-use ph::fmph;
 use rayon::prelude::*;
 
 use swh_graph::map::{MappedPermutation, Permutation};
@@ -124,19 +123,6 @@ enum Commands {
         target: PathBuf,
     },
 
-    /// Reads the list of unique SWHIDs from a directory of .zstd files
-    /// and produces a Minimal Perfect Hash function
-    MphSwhids {
-        swhids_dir: PathBuf,
-        out_mph: PathBuf,
-    },
-    /// Reads the list of unique persons from a directory of .zstd files
-    /// and produces a Minimal Perfect Hash function
-    MphPersons {
-        persons_dir: PathBuf,
-        out_mph: PathBuf,
-    },
-
     /// Reads ORC files and produces a not-very-compressed BVGraph
     Bv {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
@@ -147,7 +133,7 @@ enum Commands {
         partitions_per_thread: usize,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
-        #[arg(value_enum, long, default_value_t = MphAlgorithm::Fmph)]
+        #[arg(value_enum, long, default_value_t = MphAlgorithm::Pthash)]
         mph_algo: MphAlgorithm,
         #[arg(long)]
         function: PathBuf,
@@ -166,7 +152,7 @@ enum Commands {
         partitions_per_thread: usize,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
-        #[arg(value_enum, long, default_value_t = MphAlgorithm::Fmph)]
+        #[arg(value_enum, long, default_value_t = MphAlgorithm::Pthash)]
         mph_algo: MphAlgorithm,
         #[arg(long)]
         function: PathBuf,
@@ -190,7 +176,7 @@ enum Commands {
         format: DatasetFormat,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
-        #[arg(value_enum, long, default_value_t = MphAlgorithm::Fmph)]
+        #[arg(value_enum, long, default_value_t = MphAlgorithm::Pthash)]
         mph_algo: MphAlgorithm,
         #[arg(long)]
         function: PathBuf,
@@ -208,7 +194,6 @@ enum Commands {
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum MphAlgorithm {
     Pthash,
-    Fmph,
     Cmph,
 }
 
@@ -546,20 +531,6 @@ pub fn main() -> Result<()> {
             target_file.flush().context("Could not flush output file")?;
         }
 
-        Commands::MphSwhids {
-            swhids_dir,
-            out_mph,
-        } => {
-            swh_graph::compress::mph::build_mph::<[u8; 50]>(swhids_dir, out_mph, "SWHID")?;
-        }
-
-        Commands::MphPersons {
-            persons_dir,
-            out_mph,
-        } => {
-            swh_graph::compress::mph::build_mph::<Vec<u8>>(persons_dir, out_mph, "person")?;
-        }
-
         Commands::Bv {
             format: DatasetFormat::Orc,
             sort_batch_size,
@@ -575,15 +546,6 @@ pub fn main() -> Result<()> {
 
             match mph_algo {
                 MphAlgorithm::Pthash => swh_graph::compress::bv::bv::<SwhidPthash>(
-                    sort_batch_size,
-                    partitions_per_thread,
-                    function,
-                    num_nodes,
-                    dataset_dir,
-                    &allowed_node_types,
-                    target_dir,
-                )?,
-                MphAlgorithm::Fmph => swh_graph::compress::bv::bv::<ph::fmph::Function>(
                     sort_batch_size,
                     partitions_per_thread,
                     function,
@@ -634,18 +596,6 @@ pub fn main() -> Result<()> {
 
             let label_width = match mph_algo {
                 MphAlgorithm::Pthash => swh_graph::compress::bv::edge_labels::<SwhidPthash>(
-                    sort_batch_size,
-                    partitions_per_thread,
-                    function,
-                    order,
-                    label_name_hasher,
-                    num_nodes,
-                    dataset_dir,
-                    &allowed_node_types,
-                    transposed,
-                    target_dir.as_ref(),
-                )?,
-                MphAlgorithm::Fmph => swh_graph::compress::bv::edge_labels::<ph::fmph::Function>(
                     sort_batch_size,
                     partitions_per_thread,
                     function,
@@ -804,19 +754,6 @@ pub fn main() -> Result<()> {
                         target,
                     };
                     f::<SwhidPthash>(property_writer)?;
-                }
-                MphAlgorithm::Fmph => {
-                    let swhid_mph = SwhidMphf::load(function).context("Cannot load mph")?;
-                    let property_writer = PropertyWriter {
-                        swhid_mph,
-                        person_mph,
-                        order,
-                        num_nodes,
-                        dataset_dir,
-                        allowed_node_types,
-                        target,
-                    };
-                    f::<fmph::Function>(property_writer)?;
                 }
                 MphAlgorithm::Cmph => {
                     let swhid_mph = SwhidMphf::load(function).context("Cannot load mph")?;
