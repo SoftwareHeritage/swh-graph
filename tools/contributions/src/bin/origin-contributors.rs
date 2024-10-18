@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::collections::HashMap;
+use std::collections::hash_map::{Entry, HashMap};
 use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
@@ -190,11 +190,17 @@ where
                 let mut node_contributors = ContributorSet::default();
                 for succ in graph.successors(node) {
                     // If 'node' is a revision, then 'succ' is its parent revision
-                    node_contributors.merge(
-                        contributors
-                            .get(&succ)
-                            .expect("Parent's contributors are not initialized"),
-                    );
+                    let Entry::Occupied(entry) = contributors.entry(succ) else {
+                        panic!("Parent's contributors are not initialized");
+                    };
+                    node_contributors.merge(entry.get());
+                    *pending_predecessors
+                        .get_mut(&succ)
+                        .expect("successor has no pending predecessors") -= 1;
+                    if *pending_predecessors.get(&succ).unwrap() == 0 {
+                        // this value won't be read again, free it
+                        entry.remove_entry();
+                    }
                 }
                 node_contributors
             };
@@ -275,6 +281,11 @@ where
                     graph.properties().swhid(node)
                 )
             }
+        }
+
+        if num_predecessors == 0 {
+            // This set won't be needed by any other node, we can free it from memory
+            contributors.remove(&node);
         }
     }
 
