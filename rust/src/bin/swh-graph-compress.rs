@@ -132,6 +132,16 @@ enum Commands {
         node2type: PathBuf,
     },
 
+    /// Writes general statistics to graph.stats
+    Stats {
+        #[arg(long)]
+        /// Where to load the graph from
+        graph: PathBuf,
+        #[arg(long)]
+        /// Where to write statistics to
+        stats: PathBuf,
+    },
+
     /// Reads a UTF-8 file containing sorted lines, and compresses it as a single front-coded list.
     Fcl {
         #[arg(long)]
@@ -489,6 +499,35 @@ pub fn main() -> Result<()> {
                     pl.done();
                 });
             });
+        }
+
+        Commands::Stats { graph, stats } => {
+            use swh_graph::graph::{SwhBidirectionalGraph, SwhGraph};
+            use swh_graph::views::Transposed;
+
+            let graph = SwhBidirectionalGraph::new(graph).context("Could not load graph")?;
+
+            let outdegrees = swh_graph::stats::outdegree(&graph);
+            let indegrees = swh_graph::stats::outdegree(&Transposed(&graph));
+            let statistics = [
+                ("nodes", graph.num_nodes().to_string()),
+                ("arcs", graph.num_arcs().to_string()),
+                ("loops", 0.to_string()),
+                ("minindegree", indegrees.min.to_string()),
+                ("maxindegree", indegrees.max.to_string()),
+                ("avgindegree", indegrees.avg.to_string()),
+                ("minoutdegree", outdegrees.min.to_string()),
+                ("maxoutdegree", outdegrees.max.to_string()),
+                ("avgoutdegree", outdegrees.avg.to_string()),
+            ]
+            .into_iter()
+            .map(|(k, v)| (k.to_owned(), v))
+            .collect();
+
+            let f = File::create_new(&stats)
+                .with_context(|| format!("Could not create {}", stats.display()))?;
+            java_properties::write(BufWriter::new(f), &statistics)
+                .with_context(|| format!("Could not write statistics to {}", stats.display()))?
         }
 
         Commands::Fcl {

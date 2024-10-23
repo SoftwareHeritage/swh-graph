@@ -31,6 +31,7 @@ pub mod map;
 pub mod mph;
 pub mod properties;
 pub use properties::{AllSwhGraphProperties, SwhGraphProperties};
+pub mod stats;
 pub mod stdlib;
 mod underlying_graph;
 

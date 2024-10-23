@@ -1037,6 +1037,15 @@ class EdgeLabelsTransposeEf(_CompressionStepTask):
         return 0
 
 
+class Stats(_CompressionStepTask):
+    STEP = CompressionStep.STATS
+    INPUT_FILES = {".graph", ".graph.ef", "-transposed.graph", "-transposed.graph.ef"}
+    OUTPUT_FILES = {".stats"}
+
+    def _large_java_allocations(self) -> int:
+        return 0
+
+
 _duplicate_steps = [
     step
     for (step, count) in collections.Counter(

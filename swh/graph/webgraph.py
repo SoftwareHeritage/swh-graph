@@ -67,6 +67,7 @@ class CompressionStep(Enum):
     EDGE_LABELS_TRANSPOSE = 250
     EDGE_LABELS_EF = 270
     EDGE_LABELS_TRANSPOSE_EF = 280
+    STATS = 290
     CLEAN_TMP = 300
 
     def __str__(self):
@@ -391,6 +392,14 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "labels-ef",
         "{out_dir}/{graph_name}-transposed-labelled",
         "$((1+ $(cat {out_dir}/{graph_name}.nodes.count.txt)))",
+    ],
+    CompressionStep.STATS: [
+        "{rust_executable_dir}/swh-graph-compress",
+        "stats",
+        "--graph",
+        "{out_dir}/{graph_name}",
+        "--stats",
+        "{out_dir}/{graph_name}.stats",
     ],
     CompressionStep.CLEAN_TMP: [
         "rm",
