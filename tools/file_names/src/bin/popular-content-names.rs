@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::BinaryHeap;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -144,18 +144,7 @@ where
         Some(length) => length.try_into().context("Content length overflowed i64")?,
     };
 
-    // Count the number of occurrences of each name to point to the content
-    let mut names = HashMap::<_, u64>::new();
-    for (dir, labels) in graph.untyped_labeled_predecessors(cnt) {
-        if graph.properties().node_type(dir) != NodeType::Directory {
-            continue;
-        }
-        for label in labels {
-            // This is a dir->cnt arc, so its label has to be a DirEntry
-            let label: swh_graph::labels::DirEntry = label.into();
-            *names.entry(label.filename_id()).or_default() += 1;
-        }
-    }
+    let names = swh_graph_file_names::count_file_names(graph, cnt)?;
 
     if names.is_empty() {
         // No filename at all

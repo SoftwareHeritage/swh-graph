@@ -18,6 +18,9 @@ from swh.graph.luigi.file_names import (
     PopularContentPaths,
 )
 
+CSV_HEADER_NAMES = "SWHID,length,filename,occurrences"
+CSV_HEADER_PATHS = "SWHID,length,filepath,occurrences"
+
 EXPECTED_LINES_DEPTH1 = """\
 swh:1:cnt:0000000000000000000000000000000000000005,1337,parser.c,1
 swh:1:cnt:0000000000000000000000000000000000000004,404,README.md,1
@@ -43,7 +46,7 @@ swh:1:cnt:0000000000000000000000000000000000000014,14,TODO.txt,1
 def test_popularcontentnames(tmpdir, popularity_threshold):
     tmpdir = Path(tmpdir)
 
-    popular_contents_path = tmpdir / "popcon.csv.zst"
+    popular_contents_path = tmpdir / "popcon"
 
     task = PopularContentNames(
         local_graph_path=DATASET_DIR / "compressed",
@@ -57,11 +60,11 @@ def test_popularcontentnames(tmpdir, popularity_threshold):
 
     all_rows = []
     for path in popular_contents_path.iterdir():
-        csv_text = subprocess.check_output(["zstdcat", path]).decode()
+        csv_text = pyzstd.decompress(path.read_bytes()).decode()
         if not csv_text:
             continue
         (header, *rows, trailing) = csv_text.split("\r\n")
-        assert header == "SWHID,length,filename,occurrences"
+        assert header == CSV_HEADER_NAMES
         assert trailing == ""
         all_rows.extend(rows)
 
@@ -121,7 +124,7 @@ def test_popularcontentpaths(tmpdir, depth, subset):
             continue
         (header, *rows, trailing) = csv_text.split("\r\n")
 
-        assert header == "SWHID,length,filepath,occurrences"
+        assert header == CSV_HEADER_PATHS
         assert trailing == ""
         all_rows.extend(rows)
 

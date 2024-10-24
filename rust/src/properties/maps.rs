@@ -34,8 +34,8 @@ impl MaybeMaps for NoMaps {}
 
 #[diagnostic::on_unimplemented(
     label = "does not have NodeId<->SWHID mappings loaded",
-    note = "Use `let graph = graph.load_properties(|props| props.load_maps::<GOVMPH>()).unwrap()` to load them",
-    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<GOVMPH>().unwrap()` to load all properties"
+    note = "Use `let graph = graph.load_properties(|props| props.load_maps::<DynMphf>()).unwrap()` to load them",
+    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait for backend storage of maps (either in-memory, or loaded from disk and memory-mapped)
 pub trait Maps {

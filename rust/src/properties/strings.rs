@@ -30,7 +30,7 @@ impl MaybeStrings for NoStrings {}
 #[diagnostic::on_unimplemented(
     label = "does not have String properties loaded",
     note = "Use `let graph = graph.load_properties(|props| props.load_string()).unwrap()` to load them",
-    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<GOVMPH>().unwrap()` to load all properties"
+    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait for backend storage of string properties (either in-memory or memory-mapped)
 pub trait Strings {

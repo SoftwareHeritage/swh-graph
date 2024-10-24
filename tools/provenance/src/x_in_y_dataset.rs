@@ -113,6 +113,9 @@ pub fn cnt_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterProperti
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
+        // 10% of the default value.
+        // Allows the page index to filter our more rows
+        //.set_data_page_row_count_limit(2000)
         // 10× the default value.
         // Not needed for this particular table, but we set it nonetheless for
         // consistency with dir_in_revrel.
@@ -152,6 +155,9 @@ pub fn dir_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterProperti
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
+        // 10% of the default value.
+        // Allows the page index to filter our more rows
+        //.set_data_page_row_count_limit(2000)
         // 10× the default value.
         // with --node-filter all, we write slightly over the 32k row groups limit,
         // so we need to write more in each row group.
@@ -181,6 +187,9 @@ pub fn cnt_in_dir_writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesB
             Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
         )
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
+    // 10% of the default value.
+    // Allows the page index to filter our more rows
+    //.set_data_page_row_count_limit(2000)
     // Not increasing max_row_group_size, as it would make arrays for the 'path'
     // column pretty large. Switching to LargeBinaryArray would work, but it
     // still means the reader needs more than 2^31 (2GB) just to store the

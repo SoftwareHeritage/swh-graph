@@ -1553,6 +1553,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "dataset-writer"
+version = "1.0.1"
+source = "git+https://gitlab.softwareheritage.org/swh/devel/dataset-writer-rs.git?rev=c1b6c553dc851adc1e6c86db85be3a165a5b7db5#c1b6c553dc851adc1e6c86db85be3a165a5b7db5"
+dependencies = [
+ "anyhow",
+ "arrow 52.2.0",
+ "arrow-array 52.2.0",
+ "arrow-schema 52.2.0",
+ "csv",
+ "parquet 52.2.0",
+ "rayon",
+ "thread_local",
+ "zstd 0.12.4",
+]
+
+[[package]]
 name = "debugid"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4370,6 +4386,29 @@ dependencies = [
  "tonic-reflection",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "swh_graph_aggregate"
+version = "6.1.0"
+dependencies = [
+ "anyhow",
+ "arrow 52.2.0",
+ "byteorder",
+ "chrono",
+ "clap",
+ "dataset-writer 1.0.1",
+ "dsi-progress-logger",
+ "env_logger 0.11.5",
+ "itertools 0.11.0",
+ "log",
+ "parquet 52.2.0",
+ "rayon",
+ "sux",
+ "swh-graph",
+ "swh_graph_file_names",
+ "tikv-jemallocator",
+ "zstd 0.12.4",
 ]
 
 [[package]]

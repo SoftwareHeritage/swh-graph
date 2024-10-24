@@ -6,7 +6,7 @@
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import luigi
 
@@ -48,7 +48,7 @@ class _ParquetToS3ToAthenaTask(luigi.Task):
         raise NotImplementedError(f"{self.__class__.__name__}._s3_prefix")
 
     def _parquet_columns(self) -> List[Tuple[str, str]]:
-        """Returns a list of ``(column_name, orc_type)``"""
+        """Returns a list of ``(column_name, parquet_type)``"""
         raise NotImplementedError(f"{self.__class__.__name__}._parquet_columns")
 
     def _approx_nb_rows(self) -> int:
@@ -71,17 +71,20 @@ class _ParquetToS3ToAthenaTask(luigi.Task):
 
     def run(self) -> None:
         """Copies all files: first the graph itself, then :file:`meta/compression.json`."""
-        import multiprocessing.dummy
+        import multiprocessing
 
         import tqdm
 
-        paths = list(self._input_parquet_path().glob("*.parquet"))
+        self.__status_messages: Dict[Path, str] = {}
 
-        with multiprocessing.dummy.Pool(self.parallelism) as p:
+        paths = list(self._input_parquet_path().glob("**/*.parquet"))
+
+        with multiprocessing.Pool(self.parallelism) as p:
             for i, relative_path in tqdm.tqdm(
                 enumerate(p.imap_unordered(self._upload_file, paths)),
                 total=len(paths),
-                desc="Uploading compressed graph",
+                desc=f"Uploading {self._input_parquet_path()} to "
+                f"s3://{self._s3_bucket()}/{self._s3_prefix()}/",
             ):
                 self.set_progress_percentage(int(i * 100 / len(paths)))
                 self.set_status_message("\n".join(self.__status_messages.values()))
@@ -123,7 +126,9 @@ class _ParquetToS3ToAthenaTask(luigi.Task):
         )
         client.database_name = self._athena_db_name()
 
-        columns = ", ".join(f"{col} {type_}" for (col, type_) in self._orc_columns())
+        columns = ", ".join(
+            f"{col} {type_}" for (col, type_) in self._parquet_columns()
+        )
 
         query(
             client,
@@ -131,8 +136,20 @@ class _ParquetToS3ToAthenaTask(luigi.Task):
             CREATE EXTERNAL TABLE IF NOT EXISTS
             {self._athena_db_name()}.{self._athena_table_name()}
             ({columns})
+            {self.create_table_extras()}
             STORED AS PARQUET
             LOCATION 's3://{self._s3_bucket()}/{self._s3_prefix()}';
             """,
-            desc="Creating table {self._athena_table_name()}",
+            desc=f"Creating table {self._athena_table_name()}",
         )
+
+        # needed for partitioned tables
+        query(
+            client,
+            f"MSCK REPAIR TABLE `{self._athena_table_name()}`",
+            desc=f"'Repairing' table {self._athena_table_name()}",
+        )
+
+    def create_table_extras(self) -> str:
+        """Extra clauses to add to the ``CREATE EXTERNAL TABLE`` statement."""
+        return ""

@@ -111,7 +111,7 @@ pub fn main() -> Result<()> {
     );
     pl.start("Listing nodes reachable from frontier directories...");
     let reachable_nodes_from_frontier = AtomicBitVec::new(graph.num_nodes());
-    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).for_each_with(
+    (0..graph.num_nodes()).into_par_iter().for_each_with(
         BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
         |thread_pl, root| {
             if frontier_directories.contains(root) {

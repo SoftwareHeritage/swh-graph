@@ -103,7 +103,7 @@ impl StructArrayBuilder for NodeTableBuilder {
 
     fn buffer_size(&self) -> usize {
         self.len() * (8 + 1 + 20) // u64 + u8 + [u8; 20]
-                                  // TODO(arrow >= 52) + self.sha1_gits.validity_slice().map(|s| s.len()).unwrap_or(0)
+            + self.sha1_gits.validity_slice().map(|s| s.len()).unwrap_or(0)
     }
 
     fn finish(&mut self) -> Result<StructArray> {

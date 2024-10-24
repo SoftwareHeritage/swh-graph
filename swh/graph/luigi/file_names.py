@@ -12,7 +12,7 @@ Luigi tasks for producing the most common names of every content and datasets ba
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import List, Tuple
 
 import luigi
 
@@ -189,19 +189,13 @@ class PopularContentNamesOrcToS3(_ParquetToS3ToAthenaTask):
         # TODO: configurable
         return f"derived_datasets/{self.dataset_name}/popular_contents/"
 
-    def _orc_columns(self) -> List[Tuple[str, str]]:
+    def _parquet_columns(self) -> List[Tuple[str, str]]:
         return [
             ("SWHID", "string"),
             ("length", "bigint"),
             ("filename", "binary"),
             ("occurrences", "bigint"),
         ]
-
-    def _pyorc_writer_kwargs(self) -> Dict[str, Any]:
-        return {
-            **super()._pyorc_writer_kwargs(),
-            "bloom_filter_columns": ["SWHID", "filename"],
-        }
 
     def _athena_db_name(self) -> str:
         return f"derived_{self.dataset_name.replace('-', '')}"

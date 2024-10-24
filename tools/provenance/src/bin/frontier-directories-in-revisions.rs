@@ -147,7 +147,7 @@ where
     pl.start("Visiting revisions' directories...");
     let shared_pl = Arc::new(Mutex::new(&mut pl));
 
-    swh_graph::utils::shuffle::par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_init(
+    (0..graph.num_nodes()).into_par_iter().try_for_each_init(
         || {
             (
                 dataset_writer.get_thread_writer().unwrap(),

@@ -13,13 +13,13 @@
 //! ```no_run
 //! # use std::path::PathBuf;
 //! use swh_graph::graph::SwhGraphWithProperties;
-//! use swh_graph::java_compat::mph::gov::GOVMPH;
+//! use swh_graph::mph::DynMphf;
 //! use swh_graph::SwhGraphProperties;
 //!
 //! let properties: &SwhGraphProperties<_, _, _, _, _, _> =
 //!     swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
 //!     .expect("Could not load graph")
-//!     .load_all_properties::<GOVMPH>()
+//!     .load_all_properties::<DynMphf>()
 //!     .expect("Could not load properties")
 //!     .properties();
 //! ```
@@ -64,7 +64,7 @@ pub(crate) mod suffixes {
 /// ```compile_fail
 /// # use std::path::PathBuf;
 /// use swh_graph::graph::SwhGraphWithProperties;
-/// use swh_graph::java_compat::mph::gov::GOVMPH;
+/// use swh_graph::mph::DynMphf;
 /// use swh_graph::SwhGraphProperties;
 ///
 /// swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
@@ -79,7 +79,7 @@ pub(crate) mod suffixes {
 /// ```no_run
 /// # use std::path::PathBuf;
 /// use swh_graph::graph::SwhGraphWithProperties;
-/// use swh_graph::java_compat::mph::gov::GOVMPH;
+/// use swh_graph::mph::DynMphf;
 /// use swh_graph::SwhGraphProperties;
 ///
 /// swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
@@ -159,11 +159,11 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
     /// ```no_run
     /// # use std::path::PathBuf;
     ///  use swh_graph::graph::SwhGraphWithProperties;
-    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    /// use swh_graph::mph::DynMphf;
     /// use swh_graph::SwhGraphProperties;
     ///
     /// SwhGraphProperties::new(PathBuf::from("./graph"), 123)
-    ///     .load_all::<GOVMPH>()
+    ///     .load_all::<DynMphf>()
     ///     .expect("Could not load properties");
     /// ```
     ///
@@ -171,11 +171,11 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
     ///
     /// ```no_run
     /// # use std::path::PathBuf;
-    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    /// use swh_graph::mph::DynMphf;
     /// use swh_graph::SwhGraphProperties;
     ///
     /// SwhGraphProperties::new(PathBuf::from("./graph"), 123)
-    ///     .load_maps::<GOVMPH>()
+    ///     .load_maps::<DynMphf>()
     ///     .expect("Could not load node2swhid/swhid2node")
     ///     .load_timestamps()
     ///     .expect("Could not load timestamp properties")
