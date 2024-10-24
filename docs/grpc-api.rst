@@ -937,6 +937,12 @@ And they all have the following tags:
 ``status``
     the HTTP status code
 
+Additionally, this metric is published without tags:
+
+``swh_graph_grpc_server.traversal_returned_nodes_total``
+    Number of nodes returned to clients (ie. post-filtering) by the ``Traverse()``
+    endpoint.
+
 .. _swh-graph-grpc-api-protobuf:
 
 Protobuf API Reference

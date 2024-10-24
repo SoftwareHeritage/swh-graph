@@ -23,9 +23,9 @@ pub struct MetricsMiddleware {
 }
 
 impl MetricsMiddleware {
-    pub fn new(statsd_client: StatsdClient) -> Self {
+    pub fn new(statsd_client: Arc<StatsdClient>) -> Self {
         Self {
-            statsd_client: Arc::new(statsd_client),
+            statsd_client,
             request_id: Arc::new(AtomicU64::new(0)),
         }
     }

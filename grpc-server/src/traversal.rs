@@ -5,6 +5,7 @@
 
 use std::sync::Arc;
 
+use cadence::Counted;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response};
@@ -19,15 +20,17 @@ use super::proto;
 use super::visitor::{SimpleBfsVisitor, VisitFlow};
 use super::{scoped_spawn_blocking, TraversalServiceTrait};
 
+use crate::utils::OnDrop;
+
 type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
 /// Implementation of `Traverse`, `CountNodes`, and `CountEdges` methods of the
 /// [`TraversalService`](super::proto::TraversalService)
-pub struct SimpleTraversal<'s, S: TraversalServiceTrait + 'static> {
+pub struct SimpleTraversal<'s, S: TraversalServiceTrait + Sync + 'static> {
     pub service: &'s S,
 }
 
-impl<'s, S: TraversalServiceTrait> SimpleTraversal<'s, S> {
+impl<'s, S: TraversalServiceTrait + Sync> SimpleTraversal<'s, S> {
     fn make_visitor<
         'a,
         G: SwhForwardGraph + SwhGraphWithProperties + Clone + Send + Sync + 'static,
@@ -131,6 +134,16 @@ impl<'s, S: TraversalServiceTrait> SimpleTraversal<'s, S> {
         request: Request<proto::TraversalRequest>,
     ) -> TonicResult<ReceiverStream<Result<proto::Node, tonic::Status>>> {
         let graph = self.service.graph().clone();
+        let statsd_client = self.service.statsd_client().cloned();
+        let mut num_returned_nodes = OnDrop::new(0, move |num_returned_nodes| {
+            // Runs at the end of the traversal, when visitor (hence the 'on_node' closure)
+            // is dropped
+            if let Some(statsd_client) = &statsd_client {
+                statsd_client
+                    .count_with_tags("traversal_returned_nodes_total", *num_returned_nodes)
+                    .send();
+            }
+        });
 
         let (tx, rx) = mpsc::channel(1_000);
 
@@ -145,14 +158,15 @@ impl<'s, S: TraversalServiceTrait> SimpleTraversal<'s, S> {
                 let node_builder =
                     NodeBuilder::new(subgraph.clone(), request.get_ref().mask.clone())?;
                 let on_node = move |node, _num_successors| {
+                    *num_returned_nodes += 1;
                     tx.blocking_send(Ok(node_builder.build_node(node)))
                 };
                 let on_arc = |_src, _dst| Ok(());
                 let visitor = self.make_visitor(request, subgraph, on_node, on_arc)?;
                 // Spawning a thread because Tonic currently only supports Tokio, which
                 // requires futures to be sendable between threads, and webgraph's
-                // successor iterators cannot
-                tokio::spawn(async move { std::thread::spawn(|| visitor.visit()).join() });
+                // successor iterators are not
+                tokio::spawn(async move { std::thread::spawn(move || visitor.visit()).join() })
             }};
         }
         match request.get_ref().direction.try_into() {

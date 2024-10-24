@@ -9,6 +9,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use cadence::StatsdClient;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::Server;
 use tonic::{Request, Response};
@@ -37,6 +38,7 @@ mod node_builder;
 pub mod sentry;
 pub mod statsd;
 mod traversal;
+mod utils;
 pub mod visitor;
 
 /// Runs a long-running function in a separate thread so it does not block.
@@ -52,11 +54,17 @@ pub(crate) fn scoped_spawn_blocking<R: Send + Sync + 'static, F: FnOnce() -> R +
 
 type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
-pub struct TraversalService<G: SwhFullGraph + Clone + Send + Sync + 'static>(G);
+pub struct TraversalService<G: SwhFullGraph + Clone + Send + Sync + 'static> {
+    graph: G,
+    pub statsd_client: Option<Arc<StatsdClient>>,
+}
 
 impl<G: SwhFullGraph + Clone + Send + Sync + 'static> TraversalService<G> {
-    pub fn new(graph: G) -> Self {
-        TraversalService(graph)
+    pub fn new(graph: G, statsd_client: Option<Arc<StatsdClient>>) -> Self {
+        TraversalService {
+            graph,
+            statsd_client,
+        }
     }
 }
 
@@ -64,6 +72,7 @@ pub trait TraversalServiceTrait {
     type Graph: SwhFullGraph + Clone + Send + Sync + 'static;
     fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status>;
     fn graph(&self) -> &Self::Graph;
+    fn statsd_client(&self) -> Option<&Arc<StatsdClient>>;
 }
 
 impl<G: SwhFullGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
@@ -74,7 +83,7 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
     #[inline]
     fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status> {
         let node = self
-            .0
+            .graph
             .properties()
             .node_id_from_string_swhid(swhid)
             .map_err(|e| match e {
@@ -89,7 +98,7 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
                 }
             })?;
 
-        if self.0.has_node(node) {
+        if self.graph.has_node(node) {
             Ok(node)
         } else {
             Err(tonic::Status::not_found(format!(
@@ -100,7 +109,12 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
 
     #[inline(always)]
     fn graph(&self) -> &Self::Graph {
-        &self.0
+        &self.graph
+    }
+
+    #[inline(always)]
+    fn statsd_client(&self) -> Option<&Arc<StatsdClient>> {
+        self.statsd_client.as_ref()
     }
 }
 
@@ -109,9 +123,9 @@ impl<G: SwhFullGraph + Send + Sync + Clone + 'static>
     proto::traversal_service_server::TraversalService for TraversalService<G>
 {
     async fn get_node(&self, request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
-        let arc_checker = filters::ArcFilterChecker::new(self.0.clone(), None)?;
+        let arc_checker = filters::ArcFilterChecker::new(self.graph.clone(), None)?;
         let subgraph = Arc::new(Subgraph::with_arc_filter(
-            self.0.clone(),
+            self.graph.clone(),
             move |src, dst| arc_checker.matches(src, dst),
         ));
         let proto::GetNodeRequest { swhid, mask } = request.get_ref().clone();
@@ -188,24 +202,24 @@ impl<G: SwhFullGraph + Send + Sync + Clone + 'static>
     ) -> TonicResult<proto::StatsResponse> {
         tracing::info!("{:?}", request.get_ref());
         // Load properties
-        let properties_path = suffix_path(self.0.path(), ".properties");
+        let properties_path = suffix_path(self.graph.path(), ".properties");
         let properties_path = properties_path.as_path();
         let properties = load_properties(properties_path, ".stats")?;
 
         // Load stats
-        let stats_path = suffix_path(self.0.path(), ".stats");
+        let stats_path = suffix_path(self.graph.path(), ".stats");
         let stats_path = stats_path.as_path();
         let stats = load_properties(stats_path, ".stats")?;
 
         // Load export metadata
         let export_meta_path = self
-            .0
+            .graph
             .path()
             .parent()
             .ok_or_else(|| {
                 log::error!(
                     "Could not get path to meta/export.json from {}",
-                    self.0.path().display()
+                    self.graph.path().display()
                 );
                 tonic::Status::internal("Could not find meta/export.json file")
             })?
@@ -216,8 +230,8 @@ impl<G: SwhFullGraph + Send + Sync + Clone + 'static>
         let export_meta = export_meta.as_ref();
 
         Ok(Response::new(proto::StatsResponse {
-            num_nodes: self.0.num_nodes() as i64,
-            num_edges: self.0.num_arcs() as i64,
+            num_nodes: self.graph.num_nodes() as i64,
+            num_edges: self.graph.num_arcs() as i64,
             compression_ratio: get_property(&properties, properties_path, "compratio").ok(),
             bits_per_node: get_property(&properties, properties_path, "bitspernode").ok(),
             bits_per_edge: get_property(&properties, properties_path, "bitsperlink").ok(),
@@ -302,6 +316,7 @@ pub async fn serve<G: SwhFullGraph + Sync + Send + 'static>(
     bind_addr: std::net::SocketAddr,
     statsd_client: cadence::StatsdClient,
 ) -> Result<(), tonic::transport::Error> {
+    let statsd_client = Arc::new(statsd_client);
     let graph = Arc::new(graph);
 
     let (mut health_reporter, health_service) = tonic_health::server::health_reporter();
@@ -316,7 +331,7 @@ pub async fn serve<G: SwhFullGraph + Sync + Send + 'static>(
         Server::builder().layer(::sentry::integrations::tower::NewSentryLayer::new_from_top());
     builder
         .add_service(MiddlewareFor::new(
-            TraversalServiceServer::new(TraversalService::new(graph)),
+            TraversalServiceServer::new(TraversalService::new(graph, Some(statsd_client.clone()))),
             metrics::MetricsMiddleware::new(statsd_client),
         ))
         .add_service(health_service)

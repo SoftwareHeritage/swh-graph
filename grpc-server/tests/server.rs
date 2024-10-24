@@ -37,7 +37,7 @@ async fn test_count_nodes() -> Result<()> {
 
     let spy_graph = Arc::new(GraphSpy::new(graph));
 
-    let traversal_service = TraversalService::new(spy_graph.clone());
+    let traversal_service = TraversalService::new(spy_graph.clone(), None);
 
     let res = traversal_service
         .count_nodes(Request::new(TraversalRequest {
@@ -105,7 +105,7 @@ async fn test_count_neighbors() -> Result<()> {
 
     let spy_graph = Arc::new(GraphSpy::new(graph));
 
-    let traversal_service = TraversalService::new(spy_graph.clone());
+    let traversal_service = TraversalService::new(spy_graph.clone(), None);
 
     let res = traversal_service
         .count_nodes(Request::new(TraversalRequest {
@@ -160,7 +160,7 @@ async fn test_count_neighbors_max() -> Result<()> {
 
     let spy_graph = Arc::new(GraphSpy::new(graph));
 
-    let traversal_service = TraversalService::new(spy_graph.clone());
+    let traversal_service = TraversalService::new(spy_graph.clone(), None);
 
     let res = traversal_service
         .count_nodes(Request::new(TraversalRequest {
@@ -212,7 +212,7 @@ async fn test_neighbors() -> Result<()> {
 
     let spy_graph = Arc::new(GraphSpy::new(graph));
 
-    let traversal_service = TraversalService::new(spy_graph.clone());
+    let traversal_service = TraversalService::new(spy_graph.clone(), None);
 
     let res = traversal_service
         .traverse(Request::new(TraversalRequest {
@@ -295,7 +295,7 @@ async fn test_neighbors_max() -> Result<()> {
 
     let spy_graph = Arc::new(GraphSpy::new(graph));
 
-    let traversal_service = TraversalService::new(spy_graph.clone());
+    let traversal_service = TraversalService::new(spy_graph.clone(), None);
 
     let res = traversal_service
         .traverse(Request::new(TraversalRequest {
