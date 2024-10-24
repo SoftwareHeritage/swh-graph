@@ -34,6 +34,7 @@ And optionally::
 """
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
+import logging
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple, cast
 
@@ -42,6 +43,8 @@ import luigi
 from .compressed_graph import LocalGraph
 from .topology import ComputeGenerations
 from .utils import count_nodes
+
+logger = logging.getLogger(__name__)
 
 
 class ListOriginContributors(luigi.Task):
@@ -183,6 +186,7 @@ class DeanonymizeOriginContributors(luigi.Task):
     origin_contributors_path = luigi.PathParameter()
     deanonymization_table_path = luigi.PathParameter()
     deanonymized_origin_contributors_path = luigi.PathParameter()
+    mph_algo = luigi.ChoiceParameter(choices=["cmph", "pthash"], default="pthash")
 
     def requires(self) -> List[luigi.Task]:
         """Returns instances of :class:`LocalGraph`, :class:`ListOriginContributors`,
@@ -227,44 +231,56 @@ class DeanonymizeOriginContributors(luigi.Task):
             csv_reader = csv.reader(cast(Iterable[str], fd))
             header = next(csv_reader)
             assert header == ["sha256_base64", "base64", "escaped"], header
-            for line in tqdm.tqdm(
+            for csv_line in tqdm.tqdm(
                 csv_reader, unit_scale=True, desc="Loading deanonymization table"
             ):
-                (base64_sha256_name, base64_name, escaped_name) = line
+                (base64_sha256_name, base64_name, escaped_name) = csv_line
                 sha256_name = base64.b64decode(base64_sha256_name)
                 name = base64.b64decode(base64_name)
                 sha256_to_names[sha256_name] = (name, escaped_name)
 
         # Combine with the list of sha256(name), to get the list of base64(name)
         # and escape(name)
-        print("Computing person ids using MPH...")
+        logger.info("Computing person ids using MPH...")
         persons_path = self.local_graph_path / f"{self.graph_name}.persons.csv.zst"
+        if persons_path.exists():
+            # 2024-08-23 graph
+            persons_paths = [persons_path]
+        else:
+            # other graphs (before and after)
+            persons_dir = self.local_graph_path / f"{self.graph_name}.persons"
+            persons_paths = list(persons_dir.glob("*.zst"))
+            assert persons_paths, f"{persons_dir} is empty"
         # fmt: off
         person_ids = (
-            Command.pv(persons_path)
+            Command.pv(*persons_paths)
             | Command.zstdcat()
             | Rust(
                 "swh-graph-hash",
                 "persons",
                 "--mph-algo",
-                "cmph",
+                self.mph_algo,
                 "--mph",
-                self.local_graph_path / f"{self.graph_name}.persons",
+                self.local_graph_path / f"{self.graph_name}.persons.{self.mph_algo}",
+                *(["--workaround-2024-08-23"] if self.graph_name == "2024-08-23" else []),
             )
             > Sink()
         ).run()
         nb_persons = person_ids.count(b"\n")
         person_ids_it = iter(person_ids.decode("ascii").split("\n"))
         # fmt: on
-        with pyzstd.open(persons_path, "rb") as fd:
-            person_id_to_names: Dict[int, Tuple[bytes, str]] = {
-                int(next(person_ids_it)): sha256_to_names.pop(
-                    base64.b64decode(line.strip()), (b"", "")
-                )
+        person_id_to_names: Dict[int, Tuple[bytes, str]] = {}
+        for persons_path in persons_paths:
+            with pyzstd.open(persons_path, "rb") as fd:
                 for line in tqdm.tqdm(
-                    fd, unit_scale=True, total=nb_persons, desc="Getting person ids"
-                )
-            }
+                    fd,
+                    unit_scale=True,
+                    total=nb_persons - len(person_id_to_names),
+                    desc="Getting person ids",
+                ):
+                    person_id_to_names[int(next(person_ids_it))] = sha256_to_names.pop(
+                        base64.b64decode(line.strip()), (b"", "")
+                    )
 
         assert (
             next(person_ids_it) == ""
@@ -301,7 +317,11 @@ class DeanonymizeOriginContributors(luigi.Task):
             for person_id in tqdm.tqdm(
                 sorted(person_ids), unit_scale=True, desc="Writing contributor names"
             ):
-                (name, escaped_name) = person_id_to_names[person_id]
+                v = person_id_to_names.get(person_id)
+                if v is None:
+                    logger.error("No person with id %s", person_id)
+                    continue
+                (name, escaped_name) = v
                 base64_name = base64.b64encode(name).decode("ascii")
                 csv_writer.writerow((person_id, base64_name, escaped_name))
 
@@ -418,7 +438,7 @@ class RunOriginContributors(luigi.Task):
 
         assert (
             not contributors_by_id
-        ), f"Person ids with no person: {contributors_by_id}"
+        ), f"Person ids with no person: {contributors_by_id} (all contributors: {contributors})"
 
         assert any(
             self.test_person in contributor for contributor in contributors

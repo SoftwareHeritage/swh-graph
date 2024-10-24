@@ -220,6 +220,7 @@ def test_deanonymize_origin_contributors(tmpdir):
         deanonymization_table_path=deanonymization_table_path,
         deanonymized_origin_contributors_path=deanonymized_origin_contributors_path,
         graph_name="example",
+        mph_algo="cmph",
     )
 
     task.run()

@@ -56,6 +56,10 @@ enum Commands {
         #[arg(long)]
         mph_algo: MphAlgorithm,
         #[arg(long)]
+        /// The 2024-08-23 graph used the Labels MPH algo to hash persons; this works around this
+        /// bug.
+        workaround_2024_08_23: bool,
+        #[arg(long)]
         mph: PathBuf,
     },
 }
@@ -94,9 +98,19 @@ pub fn main() -> Result<()> {
                 MphAlgorithm::Cmph => hash_swhids::<GOVMPH>(mph, permutation, node2swhid),
             }
         }
-        Commands::Persons { mph_algo, mph } => match mph_algo {
-            MphAlgorithm::Pthash => hash_persons::<SwhidPthash>(mph),
-            MphAlgorithm::Cmph => hash_persons::<GOVMPH>(mph),
+        Commands::Persons {
+            mph_algo,
+            mph,
+            workaround_2024_08_23,
+        } => match mph_algo {
+            MphAlgorithm::Pthash => {
+                if workaround_2024_08_23 {
+                    hash_persons_pthash_2024_08_23(mph)
+                } else {
+                    hash_persons_pthash(mph)
+                }
+            }
+            MphAlgorithm::Cmph => hash_persons_cmph(mph),
         },
     }
 }
@@ -135,10 +149,10 @@ fn hash_swhids<MPHF: SwhidMphf>(
     Ok(())
 }
 
-fn hash_persons<MPHF: SwhidMphf>(mph: PathBuf) -> Result<()> {
+fn hash_persons_cmph(mph: PathBuf) -> Result<()> {
     log::info!("Loading MPH function...");
     let mph =
-        MPHF::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
+        GOVMPH::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
 
     log::info!("Hashing input...");
 
@@ -149,6 +163,46 @@ fn hash_persons<MPHF: SwhidMphf>(mph: PathBuf) -> Result<()> {
             mph.hash_str(&line)
                 .ok_or(anyhow!("Unknown value {}", line))?
         );
+    }
+
+    Ok(())
+}
+
+fn hash_persons_pthash(mph: PathBuf) -> Result<()> {
+    use pthash::Phf;
+    log::info!("Loading MPH function...");
+    let mph =
+        Phf::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
+    let hasher = swh_graph::compress::persons::PersonHasher::new(&mph);
+
+    log::info!("Hashing input...");
+
+    for (i, line) in std::io::stdin().lines().enumerate() {
+        let line = line.with_context(|| format!("Could not read input line {}", i))?;
+        println!(
+            "{}",
+            hasher
+                .hash(&line)
+                .with_context(|| format!("Unknown value {}", line))?
+        );
+    }
+
+    Ok(())
+}
+
+fn hash_persons_pthash_2024_08_23(mph: PathBuf) -> Result<()> {
+    use pthash::Phf;
+    use swh_graph::compress::label_names::{LabelName, LabelNameMphf};
+
+    log::info!("Loading MPH function...");
+    let mph = <LabelNameMphf as Phf>::load(&mph)
+        .with_context(|| format!("Could not load MPH from {}", mph.display()))?;
+
+    log::info!("Hashing input...");
+
+    for (i, line) in std::io::stdin().lines().enumerate() {
+        let line = line.with_context(|| format!("Could not read input line {}", i))?;
+        println!("{}", mph.hash(LabelName(&line)));
     }
 
     Ok(())

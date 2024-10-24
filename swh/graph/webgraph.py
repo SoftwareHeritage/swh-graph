@@ -281,8 +281,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         # skip this step when compressing a graph with no revisions or releases
         'if [[ $(cat {out_dir}/{graph_name}.persons.count.txt) != "0" ]]; then\n',
         "{rust_executable_dir}/swh-graph-compress",
-        "pthash-labels",
-        "--num-labels",
+        "pthash-persons",
+        "--num-persons",
         "$(cat {out_dir}/{graph_name}.persons.count.txt)",
         "<(zstdcat {out_dir}/{graph_name}.persons.csv.zst)",
         "{out_dir}/{graph_name}.persons.pthash\n",
@@ -409,7 +409,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}-bfs.order",
         "{out_dir}/{graph_name}-llp.order",
         "{out_dir}/{graph_name}.nodes/",
-        "{out_dir}/{graph_name}.persons/",
         "{out_dir}/{graph_name}-bfs.roots.txt",
         "{tmp_dir}",
     ],
