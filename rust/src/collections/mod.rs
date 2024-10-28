@@ -3,6 +3,8 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+//! Helpful data structures to efficiently traverse the graph
+
 mod node_set;
 pub use node_set::*;
 

@@ -5,6 +5,8 @@
  * See top-level LICENSE file for more information
  */
 
+//! Utility to dynamically build a small graph in memory
+
 use std::collections::HashMap;
 
 use anyhow::{ensure, Context, Result};

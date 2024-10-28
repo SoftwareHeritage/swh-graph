@@ -3,10 +3,11 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-/// A parallel almost-BFS traversal
-///
-/// This implements a graph traversal that is like a BFS from many sources, but traversal
-/// from a source may steal a node from another traversal
+//! A parallel almost-BFS traversal
+//!
+//! This implements a graph traversal that is like a BFS from many sources, but traversal
+//! from a source may steal a node from another traversal
+
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
