@@ -3,28 +3,18 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-#![allow(non_snake_case)]
-
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use dsi_progress_logger::{progress_logger, ProgressLog};
-use rayon::prelude::*;
-use sux::bits::bit_vec::BitVec;
 
 use dataset_writer::{ParallelDatasetWriter, ParquetTableWriter};
-use swh_graph::graph::*;
 use swh_graph::mph::DynMphf;
-use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
-use swh_graph::NodeType;
 
 use swh_graph_provenance::filters::{load_reachable_nodes, NodeFilter};
-use swh_graph_provenance::frontier::PathParts;
-use swh_graph_provenance::x_in_y_dataset::{
-    cnt_in_revrel_schema, cnt_in_revrel_writer_properties, CntInRevrelTableBuilder,
-};
+use swh_graph_provenance::x_in_y_dataset::{cnt_in_revrel_schema, cnt_in_revrel_writer_properties};
 
 #[cfg(not(target_env = "msvc"))]
 use tikv_jemallocator::Jemalloc;
@@ -103,120 +93,11 @@ pub fn main() -> Result<()> {
     )?;
     dataset_writer.config.autoflush_buffer_size = args.thread_buffer_size;
 
-    write_revisions_from_contents(
+    swh_graph_provenance::contents_in_revisions::write_revisions_from_contents(
         &graph,
         args.node_filter,
         reachable_nodes.as_ref(),
         &frontier_directories,
         dataset_writer,
-    )
-}
-
-fn write_revisions_from_contents<G>(
-    graph: &G,
-    node_filter: NodeFilter,
-    reachable_nodes: Option<&BitVec>,
-    frontier_directories: &BitVec,
-    dataset_writer: ParallelDatasetWriter<ParquetTableWriter<CntInRevrelTableBuilder>>,
-) -> Result<()>
-where
-    G: SwhLabeledBackwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
-    <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
-    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
-    <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
-{
-    let mut pl = progress_logger!(
-        item_name = "node",
-        display_memory = true,
-        local_speed = true,
-        expected_updates = Some(graph.num_nodes()),
-    );
-    pl.start("Visiting revisions' directories...");
-
-    let shared_pl = Arc::new(Mutex::new(&mut pl));
-    (0..graph.num_nodes()).into_par_iter().try_for_each_init(
-        || {
-            (
-                dataset_writer.get_thread_writer().unwrap(),
-                BufferedProgressLogger::new(shared_pl.clone()),
-            )
-        },
-        |(writer, thread_pl), node| -> Result<()> {
-            let is_reachable = match reachable_nodes {
-                None => true,
-                Some(reachable_nodes) => reachable_nodes.get(node),
-            };
-            if is_reachable && graph.properties().node_type(node) == NodeType::Content {
-                find_revisions_from_content(
-                    graph,
-                    node_filter,
-                    reachable_nodes,
-                    frontier_directories,
-                    writer,
-                    node,
-                )?;
-            }
-            thread_pl.light_update();
-            Ok(())
-        },
-    )?;
-
-    pl.done();
-
-    log::info!("Visits done, finishing output");
-
-    Ok(())
-}
-
-fn find_revisions_from_content<G>(
-    graph: &G,
-    node_filter: NodeFilter,
-    reachable_nodes: Option<&BitVec>,
-    frontier_directories: &BitVec,
-    writer: &mut ParquetTableWriter<CntInRevrelTableBuilder>,
-    cnt: NodeId,
-) -> Result<()>
-where
-    G: SwhLabeledBackwardGraph + SwhGraphWithProperties,
-    <G as SwhGraphWithProperties>::LabelNames: swh_graph::properties::LabelNames,
-    <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
-    <G as SwhGraphWithProperties>::Timestamps: swh_graph::properties::Timestamps,
-{
-    let on_directory = |dir: NodeId, _path_parts: PathParts| {
-        if dir == cnt {
-            // FIXME: backward_dfs_with_path always calls this function on the root,
-            // even if it is a content.
-            return Ok(true);
-        }
-
-        Ok(!frontier_directories[dir]) // Recurse only if this is not a frontier
-    };
-
-    let on_revrel = |revrel: NodeId, path_parts: PathParts| {
-        let Some(revrel_timestamp) = graph.properties().author_timestamp(revrel) else {
-            return Ok(());
-        };
-        if !swh_graph_provenance::filters::is_root_revrel(graph, node_filter, revrel) {
-            return Ok(());
-        }
-
-        let builder = writer.builder()?;
-        builder
-            .cnt
-            .append_value(cnt.try_into().expect("NodeId overflowed u64"));
-        builder.revrel_author_date.append_value(revrel_timestamp);
-        builder
-            .revrel
-            .append_value(revrel.try_into().expect("NodeId overflowed u64"));
-        builder.path.append_value(path_parts.build_path(graph));
-        Ok(())
-    };
-
-    swh_graph_provenance::frontier::backward_dfs_with_path(
-        graph,
-        reachable_nodes,
-        on_directory,
-        on_revrel,
-        cnt,
     )
 }

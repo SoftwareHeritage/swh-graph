@@ -3,6 +3,9 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+pub mod contents_in_directories;
+pub mod contents_in_revisions;
+pub mod directories_in_revisions;
 pub mod earliest_revision;
 pub mod filters;
 pub mod frontier;
