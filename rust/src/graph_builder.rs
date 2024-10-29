@@ -37,6 +37,51 @@ pub type BuiltGraph = SwhBidirectionalGraph<
     Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
 >;
 
+/// Dynamically builds a small graph in memory
+///
+/// # Examples
+///
+/// ## Directories and contents
+///
+/// ```
+/// use swh_graph::swhid;
+/// use swh_graph::graph_builder::GraphBuilder;
+/// use swh_graph::labels::Permission;
+///
+/// let mut builder = GraphBuilder::default();
+/// let a = builder
+///     .node(swhid!(swh:1:dir:0000000000000000000000000000000000000010)).unwrap()
+///     .done();
+/// let b = builder
+///     .node(swhid!(swh:1:dir:0000000000000000000000000000000000000020)).unwrap()
+///     .done();
+/// let c = builder
+///     .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000030)).unwrap()
+///     .done();
+/// builder.dir_arc(a, b, Permission::Directory, b"tests");
+/// builder.dir_arc(a, c, Permission::ExecutableContent, b"run.sh");
+/// builder.dir_arc(b, c, Permission::Content, b"test.c");
+/// let _ = builder.done().unwrap();
+/// ```
+///
+/// # Revisions and releases
+///
+/// ```
+/// use swh_graph::swhid;
+///
+/// use swh_graph::graph_builder::GraphBuilder;
+/// let mut builder = GraphBuilder::default();
+/// let a = builder
+///     .node(swhid!(swh:1:rev:0000000000000000000000000000000000000010)).unwrap()
+///     .author_timestamp(1708950743, 60)
+///     .done();
+/// let b = builder
+///     .node(swhid!(swh:1:rev:0000000000000000000000000000000000000020)).unwrap()
+///     .committer_timestamp(1708950821, 120)
+///     .done();
+/// builder.arc(a, b);
+/// let _ = builder.done().unwrap();
+/// ```
 #[derive(Clone, Debug, Default)]
 pub struct GraphBuilder {
     name_to_id: HashMap<Vec<u8>, u64>,
