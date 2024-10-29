@@ -24,6 +24,7 @@ pub struct MappedStrings {
 impl<S: Strings> MaybeStrings for S {}
 
 /// Placeholder for when string properties are not loaded
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NoStrings;
 impl MaybeStrings for NoStrings {}
 
@@ -65,6 +66,7 @@ impl Strings for MappedStrings {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VecStrings {
     message: Vec<u8>,
     message_offset: Vec<u64>,

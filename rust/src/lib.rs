@@ -31,6 +31,8 @@ pub mod map;
 pub mod mph;
 pub mod properties;
 pub use properties::{AllSwhGraphProperties, SwhGraphProperties};
+#[cfg(feature = "serde")]
+pub mod serde;
 pub mod stats;
 pub mod stdlib;
 mod underlying_graph;

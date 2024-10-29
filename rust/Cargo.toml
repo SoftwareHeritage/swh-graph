@@ -63,6 +63,7 @@ const-hex = { version = "1.11.1", optional = true }
 
 # serde
 serde = { version = "1.0.189", optional = true }
+serde_json = { version = "1.0.108", optional = true }
 
 # sorting
 dary_heap = "0.3.6"
@@ -88,7 +89,7 @@ orc = ["ar_row", "ar_row_derive", "arrow", "chrono", "orc-rust"]
 macros = ["const_panic", "const-hex"]
 
 serde = [
-    "dep:serde",
+    "dep:serde", "dep:serde_json",
 ]
 
 [[bin]]
@@ -96,5 +97,13 @@ name = "swh-graph-compress"
 required-features = ["compression"]
 
 [[bin]]
+name = "swh-graph-convert"
+required-features = ["serde"]
+
+[[bin]]
 name = "swh-graph-extract"
 required-features = ["compression", "orc"]
+
+[[bin]]
+name = "swh-graph-hash"
+required-features = ["compression"]

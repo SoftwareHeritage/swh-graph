@@ -4345,6 +4345,7 @@ dependencies = [
  "rayon",
  "rdst",
  "serde",
+ "serde_json",
  "sha1",
  "sux",
  "tempfile",

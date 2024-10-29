@@ -100,12 +100,12 @@ pub struct SwhGraphProperties<
 > {
     path: PathBuf,
     num_nodes: usize,
-    maps: MAPS,
-    timestamps: TIMESTAMPS,
-    persons: PERSONS,
-    contents: CONTENTS,
-    strings: STRINGS,
-    label_names: LABELNAMES,
+    pub(crate) maps: MAPS,
+    pub(crate) timestamps: TIMESTAMPS,
+    pub(crate) persons: PERSONS,
+    pub(crate) contents: CONTENTS,
+    pub(crate) strings: STRINGS,
+    pub(crate) label_names: LABELNAMES,
 }
 
 pub type AllSwhGraphProperties<MPHF> = SwhGraphProperties<

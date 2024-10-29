@@ -22,6 +22,7 @@ pub struct MappedPersons {
 impl<P: Persons> MaybePersons for P {}
 
 /// Placeholder for when person ids are not loaded
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NoPersons;
 impl MaybePersons for NoPersons {}
 
@@ -53,6 +54,7 @@ impl Persons for MappedPersons {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VecPersons {
     author_id: Vec<u32>,
     committer_id: Vec<u32>,

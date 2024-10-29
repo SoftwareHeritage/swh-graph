@@ -22,6 +22,7 @@ pub struct MappedContents {
 impl<C: Contents> MaybeContents for C {}
 
 /// Placeholder for when "contents" properties are not loaded.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NoContents;
 impl MaybeContents for NoContents {}
 
@@ -53,6 +54,7 @@ impl Contents for MappedContents {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VecContents {
     is_skipped_content: Vec<u64>,
     content_length: Vec<u64>,

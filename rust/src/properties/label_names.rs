@@ -23,6 +23,7 @@ pub struct MappedLabelNames {
 impl<L: LabelNames> MaybeLabelNames for L {}
 
 /// Placeholder for when label names are not loaded.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NoLabelNames;
 impl MaybeLabelNames for NoLabelNames {}
 
@@ -49,6 +50,7 @@ impl LabelNames for MappedLabelNames {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VecLabelNames {
     label_names: Vec<Vec<u8>>,
 }

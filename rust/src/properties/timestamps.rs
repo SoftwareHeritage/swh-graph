@@ -23,6 +23,7 @@ pub struct MappedTimestamps {
 }
 impl<T: Timestamps> MaybeTimestamps for T {}
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NoTimestamps;
 impl MaybeTimestamps for NoTimestamps {}
 
@@ -68,6 +69,7 @@ impl Timestamps for MappedTimestamps {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VecTimestamps {
     author_timestamp: Vec<i64>,
     author_timestamp_offset: Vec<i16>,

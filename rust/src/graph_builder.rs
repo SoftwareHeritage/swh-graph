@@ -11,14 +11,13 @@ use std::collections::HashMap;
 
 use anyhow::{ensure, Context, Result};
 use itertools::Itertools;
-use webgraph::prelude::{Left, Right, Zip};
+use webgraph::prelude::{Left, Right, VecGraph, Zip};
 
 use crate::graph::{NodeId, SwhBidirectionalGraph};
 use crate::labels::{
     Branch, DirEntry, EdgeLabel, FilenameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
 };
 use crate::properties;
-use crate::webgraph::graphs::vec_graph::VecGraph;
 use crate::SwhGraphProperties;
 use crate::SWHID;
 
