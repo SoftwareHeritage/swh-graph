@@ -416,7 +416,7 @@ impl<
         N2: properties::MaybeLabelNames,
     >(
         self,
-        loader: impl Fn(
+        loader: impl FnOnce(
             properties::SwhGraphProperties<M, T, P, C, S, N>,
         ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>>,
     ) -> Result<SwhUnidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>, G>>
@@ -711,7 +711,7 @@ impl<
         N2: properties::MaybeLabelNames,
     >(
         self,
-        loader: impl Fn(
+        loader: impl FnOnce(
             properties::SwhGraphProperties<M, T, P, C, S, N>,
         ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>>,
     ) -> Result<SwhBidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>, FG, BG>>
