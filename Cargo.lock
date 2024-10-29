@@ -145,9 +145,19 @@ dependencies = [
 
 [[package]]
 name = "ar_row"
-version = "1.1.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e2e205a5795bdf3249940f37c244806f4a27384f8ad3b893115e88166930542"
+checksum = "9715c931276c5be0726fa0ed13802d48d527b3148851bb386bb63b97d6b24836"
+dependencies = [
+ "arrow 52.2.0",
+ "cxx-build",
+ "thiserror",
+]
+
+[[package]]
+name = "ar_row"
+version = "1.0.0"
+source = "git+https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git?rev=02413b8a74b2fafb4ecc811513b1040dc949c656#02413b8a74b2fafb4ecc811513b1040dc949c656"
 dependencies = [
  "arrow 53.0.0",
  "cxx-build",
@@ -156,11 +166,23 @@ dependencies = [
 
 [[package]]
 name = "ar_row_derive"
-version = "1.1.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "421ef3b057605de329dc85a9b76a287e3e5af7e83f4b42d526ad610a288f749e"
+checksum = "8f6ff7a04d70df14699c05c61ad7cd1663e2cdb665af37c5316ddc7f61d29d0c"
 dependencies = [
- "ar_row",
+ "ar_row 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.47",
+ "unsafe_unwrap",
+]
+
+[[package]]
+name = "ar_row_derive"
+version = "1.0.0"
+source = "git+https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git?rev=02413b8a74b2fafb4ecc811513b1040dc949c656#02413b8a74b2fafb4ecc811513b1040dc949c656"
+dependencies = [
+ "ar_row 1.0.0 (git+https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git?rev=02413b8a74b2fafb4ecc811513b1040dc949c656)",
  "proc-macro2",
  "quote",
  "syn 2.0.47",
@@ -540,6 +562,9 @@ name = "arrow-schema"
 version = "52.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e972cd1ff4a4ccd22f86d3e53e835c2ed92e0eea6a3e8eadb72b4f1ac802cf8"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "arrow-schema"
@@ -1496,16 +1521,48 @@ checksum = "7762d17f1241643615821a8455a0b2c3e803784b058693d990b11f2dce25a0ca"
 
 [[package]]
 name = "dataset-writer"
-version = "1.1.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9820d373dab3056fbae3dffc9b4ceb623a9df1133b42b02cbe5a1ea7b04119b5"
+checksum = "0f3204853c9318ae7ae2f5e186f44caa28820571247a77f24d79ca0dcf5b4afc"
+dependencies = [
+ "anyhow",
+ "arrow 52.2.0",
+ "arrow-array 52.2.0",
+ "arrow-schema 52.2.0",
+ "csv",
+ "parquet 52.2.0",
+ "rayon",
+ "thread_local",
+ "zstd 0.12.4",
+]
+
+[[package]]
+name = "dataset-writer"
+version = "1.0.0"
+source = "git+https://gitlab.softwareheritage.org/swh/devel/dataset-writer-rs.git?rev=9b9d11b952c175c6a1e7d56f8f17c1b3ab11c3dd#9b9d11b952c175c6a1e7d56f8f17c1b3ab11c3dd"
 dependencies = [
  "anyhow",
  "arrow 53.0.0",
  "arrow-array 53.0.0",
  "arrow-schema 53.0.0",
  "csv",
- "parquet",
+ "parquet 53.0.0",
+ "rayon",
+ "thread_local",
+ "zstd 0.12.4",
+]
+
+[[package]]
+name = "dataset-writer"
+version = "1.0.1"
+source = "git+https://gitlab.softwareheritage.org/swh/devel/dataset-writer-rs.git?rev=c1b6c553dc851adc1e6c86db85be3a165a5b7db5#c1b6c553dc851adc1e6c86db85be3a165a5b7db5"
+dependencies = [
+ "anyhow",
+ "arrow 52.2.0",
+ "arrow-array 52.2.0",
+ "arrow-schema 52.2.0",
+ "csv",
+ "parquet 52.2.0",
  "rayon",
  "thread_local",
  "zstd 0.12.4",
@@ -3085,6 +3142,35 @@ dependencies = [
 
 [[package]]
 name = "parquet"
+version = "52.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e977b9066b4d3b03555c22bdc442f3fadebd96a39111249113087d0edb2691cd"
+dependencies = [
+ "ahash",
+ "arrow-array 52.2.0",
+ "arrow-buffer 52.2.0",
+ "arrow-cast 52.2.0",
+ "arrow-data 52.2.0",
+ "arrow-ipc 52.2.0",
+ "arrow-schema 52.2.0",
+ "arrow-select 52.2.0",
+ "base64",
+ "bytes",
+ "chrono",
+ "half",
+ "hashbrown 0.14.3",
+ "num",
+ "num-bigint",
+ "paste",
+ "seq-macro",
+ "thrift",
+ "twox-hash",
+ "zstd 0.13.2",
+ "zstd-sys",
+]
+
+[[package]]
+name = "parquet"
 version = "53.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0fbf928021131daaa57d334ca8e3904fe9ae22f73c56244fc7db9b04eedc3d8"
@@ -4225,11 +4311,11 @@ name = "swh-graph"
 version = "6.1.0"
 dependencies = [
  "anyhow",
- "ar_row",
- "ar_row_derive",
- "arrow 53.0.0",
- "arrow-array 53.0.0",
- "arrow-schema 53.0.0",
+ "ar_row 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ar_row_derive 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "arrow 52.2.0",
+ "arrow-array 52.2.0",
+ "arrow-schema 52.2.0",
  "base64-simd",
  "bitvec",
  "bytemuck",
@@ -4308,16 +4394,16 @@ name = "swh_graph_aggregate"
 version = "6.1.0"
 dependencies = [
  "anyhow",
- "arrow 53.0.0",
+ "arrow 52.2.0",
  "byteorder",
  "chrono",
  "clap",
- "dataset-writer",
+ "dataset-writer 1.0.1",
  "dsi-progress-logger",
  "env_logger 0.11.5",
  "itertools 0.11.0",
  "log",
- "parquet",
+ "parquet 52.2.0",
  "rayon",
  "sux",
  "swh-graph",
@@ -4353,7 +4439,7 @@ dependencies = [
  "anyhow",
  "clap",
  "csv",
- "dataset-writer",
+ "dataset-writer 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dsi-progress-logger",
  "env_logger 0.11.5",
  "itertools 0.11.0",
@@ -4369,19 +4455,19 @@ name = "swh_graph_provenance"
 version = "6.1.0"
 dependencies = [
  "anyhow",
- "ar_row",
- "ar_row_derive",
+ "ar_row 1.0.0 (git+https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git?rev=02413b8a74b2fafb4ecc811513b1040dc949c656)",
+ "ar_row_derive 1.0.0 (git+https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git?rev=02413b8a74b2fafb4ecc811513b1040dc949c656)",
  "arrow 53.0.0",
  "bytemuck",
  "byteorder",
  "chrono",
  "clap",
  "csv",
- "dataset-writer",
+ "dataset-writer 1.0.0 (git+https://gitlab.softwareheritage.org/swh/devel/dataset-writer-rs.git?rev=9b9d11b952c175c6a1e7d56f8f17c1b3ab11c3dd)",
  "dsi-progress-logger",
  "env_logger 0.11.5",
  "log",
- "parquet",
+ "parquet 53.0.0",
  "pretty_assertions",
  "rand",
  "rayon",
@@ -4408,18 +4494,18 @@ name = "swh_graph_topology"
 version = "6.1.0"
 dependencies = [
  "anyhow",
- "arrow 53.0.0",
+ "arrow 52.2.0",
  "bytemuck",
  "clap",
  "csv",
- "dataset-writer",
+ "dataset-writer 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dsi-bitstream",
  "dsi-progress-logger",
  "env_logger 0.11.5",
  "itertools 0.11.0",
  "log",
  "mmap-rs",
- "parquet",
+ "parquet 52.2.0",
  "rayon",
  "rdst",
  "serde",
