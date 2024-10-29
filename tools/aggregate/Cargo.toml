@@ -6,17 +6,16 @@ edition = "2021"
 
 [dependencies]
 anyhow = {version="1.0.71", features=["backtrace"]}
-arrow = { version = "52.0" }
+arrow = { version = "53.0" }
 byteorder = "1.4.3"
 clap = { version = "4.1.6", features = ["derive"] }
 chrono = { version = "0.4.31" }
-#dataset-writer = { version = "1.0.0", features = ["parquet"] }
-dataset-writer = { git = "https://gitlab.softwareheritage.org/swh/devel/dataset-writer-rs.git", rev = "c1b6c553dc851adc1e6c86db85be3a165a5b7db5", features = ["parquet"] }
+dataset-writer = { version = "1.1.0", features = ["parquet"] }
 dsi-progress-logger = "0.2.4"
 env_logger = "0.11.5"
 itertools = { version = "0.11.0" }
 log = "0.4.17"
-parquet = { version = "52.0.0", default-features = false, features = ["arrow", "zstd"] }
+parquet = { version = "53.0.0", default-features = false, features = ["arrow", "zstd"] }
 rayon = { version = "1.9.0" }
 sux = "0.4.1"
 swh_graph_file_names = { path = "../file_names" }

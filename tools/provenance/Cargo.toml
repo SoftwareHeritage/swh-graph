@@ -5,8 +5,8 @@ version.workspace = true
 edition = "2021"
 
 [dependencies]
-ar_row = { git = "https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git", rev = "02413b8a74b2fafb4ecc811513b1040dc949c656" }
-ar_row_derive = { git = "https://gitlab.softwareheritage.org/swh/devel/ar_row-rs.git", rev = "02413b8a74b2fafb4ecc811513b1040dc949c656" }
+ar_row = "1.1.0"
+ar_row_derive = "1.1.0"
 arrow = { version = "53.0", default-features = false }
 anyhow = {version="1.0.71", features=["backtrace"]}
 bytemuck = { version = "1.14.0", features = ["extern_crate_alloc"] }
@@ -14,8 +14,7 @@ byteorder = "1.4.3"
 chrono = { version = "0.4.31", features = ["serde"] }
 clap = { version = "4.1.6", features = ["derive"] }
 csv = "1.3.0"
-#dataset-writer = { version = "1.0.0", features = ["parquet"] }
-dataset-writer = { git = "https://gitlab.softwareheritage.org/swh/devel/dataset-writer-rs.git", rev = "9b9d11b952c175c6a1e7d56f8f17c1b3ab11c3dd", features = ["parquet"] }
+dataset-writer = { version = "1.1.0", features = ["parquet"] }
 dsi-progress-logger = "0.2.4"
 log = "0.4.17"
 parquet = { version = "53.0.0", default-features = false, features = ["arrow", "zstd"] }
