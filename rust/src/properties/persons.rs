@@ -119,7 +119,7 @@ impl<
 
     /// Alternative to [`load_persons`](Self::load_persons) that allows using arbitrary
     /// persons implementations
-    pub fn with_persons<PERSONS: Persons>(
+    pub fn with_persons<PERSONS: MaybePersons>(
         self,
         persons: PERSONS,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {

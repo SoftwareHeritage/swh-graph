@@ -132,7 +132,7 @@ impl<
 
     /// Alternative to [`load_contents`](Self::load_contents) that allows using arbitrary
     /// contents implementations
-    pub fn with_contents<CONTENTS: Contents>(
+    pub fn with_contents<CONTENTS: MaybeContents>(
         self,
         contents: CONTENTS,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {

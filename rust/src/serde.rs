@@ -12,7 +12,7 @@ use webgraph::prelude::{Left, Right, VecGraph, Zip};
 
 use crate::graph::*;
 use crate::properties;
-use crate::SWHID;
+use crate::{SwhGraphProperties, SWHID};
 
 #[derive(Serialize, Deserialize)]
 struct SerializedGraph<Contents, LabelNames, Persons, Strings, Timestamps> {
@@ -64,19 +64,36 @@ where
     .serialize(serializer)
 }
 
+#[allow(clippy::type_complexity)]
 /// Deserializes a (small) graph using [`serde`] instead of the normal deserialization, and
 /// returns a fully in-memory graph, as if built by
 /// [`GraphBuilder`](crate::graph_builder::GraphBuilder)
-pub fn deserialize<'de, D: Deserializer<'de>>(
+pub fn deserialize_with_labels_and_maps<
+    'de,
+    D: Deserializer<'de>,
+    TIMESTAMPS: properties::MaybeTimestamps + Deserialize<'de>,
+    PERSONS: properties::MaybePersons + Deserialize<'de>,
+    CONTENTS: properties::MaybeContents + Deserialize<'de>,
+    STRINGS: properties::MaybeStrings + Deserialize<'de>,
+    LABELNAMES: properties::MaybeLabelNames + Deserialize<'de>,
+>(
     deserializer: D,
-) -> Result<crate::graph_builder::BuiltGraph, D::Error> {
-    let graph: SerializedGraph<
-        properties::VecContents,
-        properties::VecLabelNames,
-        properties::VecPersons,
-        properties::VecStrings,
-        properties::VecTimestamps,
-    > = SerializedGraph::deserialize(deserializer)?;
+) -> Result<
+    SwhBidirectionalGraph<
+        SwhGraphProperties<
+            impl properties::Maps,
+            TIMESTAMPS,
+            PERSONS,
+            CONTENTS,
+            STRINGS,
+            LABELNAMES,
+        >,
+        impl UnderlyingGraph,
+        impl UnderlyingGraph,
+    >,
+    D::Error,
+> {
+    let graph: SerializedGraph<_, _, _, _, _> = SerializedGraph::deserialize(deserializer)?;
     let forward_arcs: Vec<(NodeId, NodeId, Vec<u64>)> = graph
         .arcs
         .iter()

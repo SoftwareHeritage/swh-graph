@@ -186,7 +186,7 @@ impl<
 
     /// Alternative to [`load_strings`](Self::load_strings) that allows using arbitrary
     /// strings implementations
-    pub fn with_strings<STRINGS: Strings>(
+    pub fn with_strings<STRINGS: MaybeStrings>(
         self,
         strings: STRINGS,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {

@@ -191,7 +191,7 @@ impl<
 
     /// Alternative to [`load_timestamps`](Self::load_timestamps) that allows using arbitrary
     /// timestamps implementations
-    pub fn with_timestamps<TIMESTAMPS: Timestamps>(
+    pub fn with_timestamps<TIMESTAMPS: MaybeTimestamps>(
         self,
         timestamps: TIMESTAMPS,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {

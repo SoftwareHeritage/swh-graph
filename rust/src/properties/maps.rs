@@ -156,7 +156,7 @@ impl<
 
     /// Alternative to [`load_maps`](Self::load_maps) that allows using arbitrary maps
     /// implementations
-    pub fn with_maps<MAPS: Maps>(
+    pub fn with_maps<MAPS: MaybeMaps>(
         self,
         maps: MAPS,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {

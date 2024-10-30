@@ -102,7 +102,7 @@ impl<
 
     /// Alternative to [`load_label_names`](Self::load_label_names) that allows using
     /// arbitrary label_names implementations
-    pub fn with_label_names<LABELNAMES: LabelNames>(
+    pub fn with_label_names<LABELNAMES: MaybeLabelNames>(
         self,
         label_names: LABELNAMES,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>> {
