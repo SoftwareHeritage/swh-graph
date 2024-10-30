@@ -8,18 +8,19 @@
 //! Utility to dynamically build a small graph in memory
 
 use std::collections::HashMap;
+use std::io::Write;
 
 use anyhow::{ensure, Context, Result};
 use itertools::Itertools;
 use webgraph::prelude::{Left, Right, VecGraph, Zip};
 
-use crate::graph::{NodeId, SwhBidirectionalGraph};
+use crate::graph::*;
 use crate::labels::{
     Branch, DirEntry, EdgeLabel, FilenameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
 };
 use crate::properties;
 use crate::SwhGraphProperties;
-use crate::SWHID;
+use crate::{NodeType, SWHID};
 
 // Type (alias) of the graph built by the graph builder
 #[allow(clippy::type_complexity)]
@@ -409,4 +410,124 @@ impl<'builder> NodeBuilder<'builder> {
         self.graph_builder.committer_timestamp_offsets[self.node_id] = Some(offset);
         self
     }
+}
+
+pub fn codegen_from_full_graph<
+    G: SwhLabeledForwardGraph
+        + SwhGraphWithProperties<
+            Maps: properties::Maps,
+            Timestamps: properties::Timestamps,
+            Persons: properties::Persons,
+            Contents: properties::Contents,
+            Strings: properties::Strings,
+            LabelNames: properties::LabelNames,
+        >,
+    W: Write,
+>(
+    graph: &G,
+    mut writer: W,
+) -> Result<(), std::io::Error> {
+    // Turns a Vec<u8> into an escaped bytestring
+    let bytestring = |b: Vec<u8>| b.into_iter().map(std::ascii::escape_default).join("");
+
+    writer.write_all(b"use swh_graph::swhid;\nuse swh_graph::graph_builder::GraphBuilder;\n")?;
+    writer.write_all(b"use swh_graph::labels::{Permission, VisitStatus};\n")?;
+    writer.write_all(b"\n")?;
+    writer.write_all(b"let mut builder = GraphBuilder::default();\n")?;
+    for node in 0..graph.num_nodes() {
+        writer.write_all(
+            format!(
+                "builder\n    .node(swhid!({}))\n    .unwrap()\n",
+                graph.properties().swhid(node)
+            )
+            .as_bytes(),
+        )?;
+        let mut write_line = |s: String| writer.write_all(format!("    {}\n", s).as_bytes());
+        match graph.properties().node_type(node) {
+            NodeType::Content => {
+                write_line(format!(
+                    ".is_skipped_content({})",
+                    graph.properties().is_skipped_content(node),
+                ))?;
+            }
+            NodeType::Revision
+            | NodeType::Release
+            | NodeType::Directory
+            | NodeType::Snapshot
+            | NodeType::Origin => {}
+        }
+        if let Some(v) = graph.properties().content_length(node) {
+            write_line(format!(".content_length({})", v))?;
+        }
+        if let Some(v) = graph.properties().message(node) {
+            write_line(format!(".message(b\"{}\".to_vec())", bytestring(v)))?;
+        }
+        if let Some(v) = graph.properties().tag_name(node) {
+            write_line(format!(".tag_name(b\"{}\".to_vec())", bytestring(v)))?;
+        }
+        if let Some(v) = graph.properties().author_id(node) {
+            write_line(format!(".author(b\"{}\".to_vec())", v))?;
+        }
+        if let Some(ts) = graph.properties().author_timestamp(node) {
+            let offset = graph
+                .properties()
+                .author_timestamp_offset(node)
+                .expect("Node has author_timestamp but no author_timestamp_offset");
+            write_line(format!(".author_timestamp({}, {})", ts, offset))?;
+        }
+        if let Some(v) = graph.properties().committer_id(node) {
+            write_line(format!(".committer(b\"{}\".to_vec())", v))?;
+        }
+        if let Some(ts) = graph.properties().committer_timestamp(node) {
+            let offset = graph
+                .properties()
+                .committer_timestamp_offset(node)
+                .expect("Node has committer_timestamp but no committer_timestamp_offset");
+            write_line(format!(".committer_timestamp({}, {})", ts, offset))?;
+        }
+        writer.write_all(b"    .done();\n")?;
+    }
+
+    writer.write_all(b"\n")?;
+
+    for node in 0..graph.num_nodes() {
+        for (succ, labels) in graph.labeled_successors(node) {
+            let mut has_labels = false;
+            for label in labels {
+                writer.write_all(
+                    match label {
+                        EdgeLabel::DirEntry(label) => format!(
+                            "builder.dir_arc({}, {}, Permission::{:?}, b\"{}\".to_vec());\n",
+                            node,
+                            succ,
+                            label.permission().expect("Invalid permission"),
+                            bytestring(graph.properties().label_name(label.filename_id())),
+                        ),
+                        EdgeLabel::Branch(label) => format!(
+                            "builder.snp_arc({}, {}, b\"{}\".to_vec());\n",
+                            node,
+                            succ,
+                            bytestring(graph.properties().label_name(label.filename_id())),
+                        ),
+                        EdgeLabel::Visit(label) => format!(
+                            "builder.ori_arc({}, {}, VisitStatus::{:?}, {});\n",
+                            node,
+                            succ,
+                            label.status(),
+                            label.timestamp(),
+                        ),
+                    }
+                    .as_bytes(),
+                )?;
+                has_labels = true;
+            }
+            if !has_labels {
+                writer.write_all(format!("builder.arc({}, {});\n", node, succ).as_bytes())?;
+            }
+        }
+    }
+
+    writer.write_all(b"\nbuilder.done().expect(\"Could not build graph\")\n")?;
+
+    Ok(())
 }

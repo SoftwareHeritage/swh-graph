@@ -20,6 +20,7 @@ enum InputFormat {
 #[derive(ValueEnum, Clone, Debug)]
 enum OutputFormat {
     Json,
+    GraphBuilder,
 }
 
 #[derive(Parser, Debug)]
@@ -49,20 +50,30 @@ pub fn main() -> Result<()> {
         InputFormat::Webgraph => SwhUnidirectionalGraph::new(args.input)
             .context("Could not load input graph")?
             .load_labels()
-            .context("Could not load input graph's labels")?
-            .init_properties()
-            .load_properties(|props| props.load_maps::<DynMphf>())
-            .context("Could not load input graph's maps")?,
-        // TODO: make other properties serializable and load them too
+            .context("Could not load input graph's labels")?,
     };
 
     match args.output_format {
         OutputFormat::Json => {
+            let graph = graph
+                .init_properties()
+                .load_properties(|props| props.load_maps::<DynMphf>())
+                .context("Could not load input graph's maps")?;
+            // TODO: make other properties serializable and load them too
             let file = std::fs::File::create(&args.output)
                 .with_context(|| format!("Could not read {}", args.output.display()))?;
             let mut serializer = serde_json::Serializer::new(BufWriter::new(file));
             swh_graph::serde::serialize_with_labels_and_maps(&mut serializer, &graph)
                 .with_context(|| format!("Could not serialize to {}", args.output.display()))?;
+        }
+        OutputFormat::GraphBuilder => {
+            let graph = graph
+                .load_all_properties::<DynMphf>()
+                .context("Could not load properties")?;
+            let file = std::fs::File::create(&args.output)
+                .with_context(|| format!("Could not read {}", args.output.display()))?;
+            swh_graph::graph_builder::codegen_from_full_graph(&graph, file)
+                .with_context(|| format!("Could not write graph to {}", args.output.display()))?;
         }
     }
 
