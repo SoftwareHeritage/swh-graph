@@ -220,8 +220,26 @@ impl<'de> serde::Deserialize<'de> for SWHID {
     fn deserialize<D: serde::Deserializer<'de>>(
         deserializer: D,
     ) -> std::result::Result<Self, D::Error> {
-        use serde::de::Error;
-        <&str>::deserialize(deserializer).and_then(|s| s.try_into().map_err(D::Error::custom))
+        deserializer.deserialize_str(SwhidVisitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct SwhidVisitor;
+
+#[cfg(feature = "serde")]
+impl<'de> serde::de::Visitor<'de> for SwhidVisitor {
+    type Value = SWHID;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a SWHID")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        value.try_into().map_err(E::custom)
     }
 }
 
