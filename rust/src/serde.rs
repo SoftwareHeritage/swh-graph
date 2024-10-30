@@ -80,17 +80,26 @@ pub fn deserialize_with_labels_and_maps<
     deserializer: D,
 ) -> Result<
     SwhBidirectionalGraph<
+        SwhGraphProperties<properties::VecMaps, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
+        Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
+        Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
+    >,
+    /* XXX: I'd like to return this instead:
+    SwhBidirectionalGraph<
         SwhGraphProperties<
-            impl properties::Maps,
+            impl properties::Maps + Send + Sync + 'static,
             TIMESTAMPS,
             PERSONS,
             CONTENTS,
             STRINGS,
             LABELNAMES,
         >,
-        impl UnderlyingGraph,
-        impl UnderlyingGraph,
+        impl UnderlyingGraph + Send + Sync + 'static,
+        impl UnderlyingGraph + Send + Sync + 'static,
     >,
+    but it makes this function pretty hard to use, as return-position impls capture D's lifetime
+    despite + 'static. See https://github.com/rust-lang/rust/issues/132364
+    */
     D::Error,
 > {
     let graph: SerializedGraph<_, _, _, _, _> = SerializedGraph::deserialize(deserializer)?;
