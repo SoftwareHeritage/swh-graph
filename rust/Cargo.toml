@@ -43,9 +43,7 @@ bitvec = { version = "1.0.1" }
 
 # compression
 arrow = { version = "52.0", optional = true }
-arrow-schema = { version = "52.0", optional = true, features = ["serde"] }
 arrow-array = { version = "52.0", optional = true }
-chrono = { version = "0.4.31", features = ["serde"], optional = true }
 orc-rust = { version = "0.3.1", optional = true, default-features = false }
 ar_row = { version = "1.0.0", optional = true }
 ar_row_derive = { version = "1.0.0", optional = true }
@@ -77,12 +75,12 @@ futures = "0.3.30"
 
 [features]
 default = ["macros"]
-arrow = ["dep:arrow", "dep:arrow-schema", "dep:arrow-array"]
+arrow = ["dep:arrow", "dep:arrow-array"]
 
 # Reads dataset from ORC files and produces a compressed graph
 compression = ["sha1"]
 
-orc = ["ar_row", "ar_row_derive", "arrow", "chrono", "orc-rust"]
+orc = ["ar_row", "ar_row_derive", "arrow", "orc-rust"]
 
 
 macros = ["const_panic", "const-hex"]

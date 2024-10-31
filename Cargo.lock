@@ -4015,12 +4015,10 @@ dependencies = [
  "ar_row_derive",
  "arrow",
  "arrow-array",
- "arrow-schema",
  "base64-simd",
  "bitvec",
  "bytemuck",
  "byteorder",
- "chrono",
  "clap",
  "common_traits 0.10.2",
  "const-hex",
@@ -4101,15 +4099,12 @@ dependencies = [
  "dataset-writer",
  "dsi-progress-logger",
  "env_logger 0.11.5",
- "itertools 0.11.0",
  "log",
  "parquet",
  "rayon",
- "sux",
  "swh-graph",
  "swh_graph_file_names",
  "tikv-jemallocator",
- "zstd 0.12.4",
 ]
 
 [[package]]
@@ -4125,7 +4120,6 @@ dependencies = [
  "itertools 0.11.0",
  "lazy_static",
  "log",
- "rayon",
  "serde",
  "serde_bytes",
  "swh-graph",
@@ -4169,16 +4163,12 @@ dependencies = [
  "log",
  "parquet",
  "pretty_assertions",
- "rand",
  "rayon",
  "serde",
  "serde_bytes",
- "sha1",
  "sux",
  "swh-graph",
- "thread_local",
  "tikv-jemallocator",
- "zstd 0.12.4",
 ]
 
 [[package]]
