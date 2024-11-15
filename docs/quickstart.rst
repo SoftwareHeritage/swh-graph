@@ -28,7 +28,7 @@ Install the ``swh_graph`` rust package:
 
 .. code:: console
 
-   $ RUSTFLAGS="-C target-cpu=native" cargo install --git https://gitlab.softwareheritage.org/swh/devel/swh-graph.git swh-graph-grpc-server
+   $ RUSTFLAGS="-C target-cpu=native" cargo install --locked --git https://gitlab.softwareheritage.org/swh/devel/swh-graph.git swh-graph-grpc-server
 
 Or:
 
@@ -153,7 +153,7 @@ file (typically for graphs before 2024), you need to generate it with:
 
 .. code:: console
 
-   RUSTFLAGS="-C target-cpu=native" cargo install swh-graph
+   RUSTFLAGS="-C target-cpu=native" cargo install --locked swh-graph
    swh graph reindex compressed/graph
 
 Additionally, the `.ef` format may change from time to time. If you get an error
@@ -173,7 +173,7 @@ you have locally. You need to regenerate them for your version:
 
 .. code:: console
 
-   RUSTFLAGS="-C target-cpu=native" cargo install swh-graph
+   RUSTFLAGS="-C target-cpu=native" cargo install --locked swh-graph
    swh graph reindex --ef compressed/graph
 
 Then try again.

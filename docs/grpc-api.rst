@@ -28,7 +28,7 @@ Get Rust >= 1.79, eg. with `rustup <https://rustup.rs/>`_.
 
 Run::
 
-    RUSTFLAGS="-C target-cpu=native" cargo install swh-graph-grpc-server
+    RUSTFLAGS="-C target-cpu=native" cargo install --locked swh-graph-grpc-server
     pip3 install swh-graph
 
 Or::
@@ -61,7 +61,7 @@ Or, if you installed from Git::
 If you get any error about a missing file ``.cmph``, ``.bin``, ``.bits``, ``.ef``
 file (typically for graphs before 2024), you need to generate it with::
 
-    $ RUSTFLAGS="-C target-cpu=native" cargo install swh-graph
+    $ RUSTFLAGS="-C target-cpu=native" cargo install --locked swh-graph
     $ swh graph reindex <graph_basename>
 
 Additionally, the `.ef` format may change from time to time. If you get an error
@@ -77,7 +77,7 @@ like this::
 it means your swh-graph expects a different version of the ``.ef`` files as the one
 you have locally. You need to regenerate them for your version::
 
-    $ RUSTFLAGS="-C target-cpu=native" cargo install swh-graph
+    $ RUSTFLAGS="-C target-cpu=native" cargo install --locked swh-graph
     $ swh graph reindex --ef <graph_basename>
 
 
