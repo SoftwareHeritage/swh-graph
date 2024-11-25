@@ -109,6 +109,12 @@ class ComputeGenerations(luigi.Task):
             / f"topological_order_{self.direction}_{self.object_types}.bitstream"
         )
 
+    def _topo_order_offsets_path(self) -> Path:
+        return (
+            self.topological_order_dir
+            / f"topological_order_{self.direction}_{self.object_types}.bitstream.offsets"
+        )
+
     def _depths_path(self) -> Path:
         return (
             self.topological_order_dir
@@ -119,6 +125,7 @@ class ComputeGenerations(luigi.Task):
         """.csv.zst file that contains the topological order."""
         return {
             "topo_order": luigi.LocalTarget(self._topo_order_path()),
+            "topo_order_offsets": luigi.LocalTarget(self._topo_order_offsets_path()),
             "generations": luigi.LocalTarget(self._depths_path()),
         }
 
@@ -142,6 +149,85 @@ class ComputeGenerations(luigi.Task):
             )
         ).run()
         # fmt: on
+
+
+class UploadGenerationsToS3(luigi.Task):
+    """Uploads the output of :class:`ComputeGenerations` to S3"""
+
+    local_graph_path = luigi.PathParameter()
+    topological_order_dir = luigi.PathParameter()
+    dataset_name = luigi.Parameter()
+    graph_name = luigi.Parameter(default="graph")
+    object_types = luigi.Parameter()
+    direction = luigi.ChoiceParameter(choices=["forward", "backward"])
+
+    def requires(self) -> luigi.Task:
+        """Returns an instance of :class:`ComputeGenerations`."""
+        return ComputeGenerations(
+            local_graph_path=self.local_graph_path,
+            topological_order_dir=self.topological_order_dir,
+            graph_name=self.graph_name,
+            object_types=self.object_types,
+            direction=self.direction,
+        )
+
+    def output(self) -> List[luigi.Target]:
+        """Returns .bitstream and .bin paths on S3."""
+        import luigi.contrib.s3
+
+        return [
+            luigi.contrib.s3.S3Target(f"{self._s3_prefix()}/{filename}")
+            for filename in self._filenames()
+        ]
+
+    def _s3_prefix(self):
+        return f"s3://softwareheritage/derived_datasets/{self.dataset_name}/topology"
+
+    def _filenames(self):
+        return [
+            f"topological_order_{self.direction}_{self.object_types}.bitstream",
+            f"topological_order_{self.direction}_{self.object_types}.bitstream.offsets",
+            f"depths_{self.direction}_{self.object_types}.bin",
+        ]
+
+    def run(self):
+        """Copies the files"""
+        import multiprocessing.dummy
+
+        import tqdm
+
+        self.__status_messages: Dict[Path, str] = {}
+
+        actual_filenames = {Path(target.path).name for target in self.input().values()}
+        filenames = set(self._filenames())
+        assert (
+            actual_filenames == filenames
+        ), f"Expected ComputeGenerations to return {filenames}, got {actual_filenames}"
+        with multiprocessing.dummy.Pool(len(filenames)) as p:
+            for i, relative_path in tqdm.tqdm(
+                enumerate(p.imap_unordered(self._upload_file, filenames)),
+                total=len(filenames),
+                desc=f"Uploading to {self._s3_prefix()}",
+            ):
+                self.set_progress_percentage(int(i * 100 / len(filenames)))
+                self.set_status_message("\n".join(self.__status_messages.values()))
+
+    def _upload_file(self, filename):
+        import luigi.contrib.s3
+
+        client = luigi.contrib.s3.S3Client()
+
+        self.__status_messages[filename] = f"Uploading {filename}"
+
+        client.put_multipart(
+            f"{self.topological_order_dir}/{filename}",
+            f"{self._s3_prefix()}/{filename}",
+            ACL="public-read",
+        )
+
+        del self.__status_messages[filename]
+
+        return filename
 
 
 class CountPaths(luigi.Task):
