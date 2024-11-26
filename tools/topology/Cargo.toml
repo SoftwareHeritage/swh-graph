@@ -2,6 +2,7 @@
 name = "swh_graph_topology"
 description = "Collection of topology analysis utilities based on swh-graph"
 version.workspace = true
+license.workspace = true
 edition = "2021"
 
 [dependencies]
@@ -21,7 +22,7 @@ rayon = { version = "1.9.0" }
 serde = { version = "1.0", features = ["derive"] }
 env_logger = "0.11.5"
 rdst = { version  ="0.20.14", features = ["multi-threaded"] }
-swh-graph = { path = "../../rust/", features = ["serde"] }
+swh-graph = { path = "../../rust/", features = ["serde"], version = "6.2.0" }
 
 [[bin]]
 name = "toposort"
