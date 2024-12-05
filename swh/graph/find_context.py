@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
-
-__copyright__ = "Copyright (C) 2022 Roberto Di Cosmo"
-__license__ = "GPL-3.0-or-later"
+# Copyright (C) 2022-2022  The Software Heritage developers
+# See the AUTHORS file at the top-level directory of this distribution
+# License: GNU General Public License version 3, or any later version
+# See top-level LICENSE file for more information
 
 from hashlib import sha1
 
-import click
 from google.protobuf.field_mask_pb2 import FieldMask
 import grpc
 
@@ -23,8 +22,8 @@ from swh.model.swhids import ExtendedObjectType, ExtendedSWHID
 from swh.web.client.client import WebAPIClient
 
 # global variable holding headers parameters
-headers = {}
-swhcli = {}
+headers: dict = {}
+swhcli: dict = {}
 verbose = False
 
 GRAPH_GRPC_SERVER = "localhost:50091"
@@ -107,72 +106,6 @@ def fqswhid_of_traversal(response):
     return ";".join(fqswhid)
 
 
-# Click docs: https://click.palletsprojects.com/en/8.0.x/options/
-@click.command(
-    help="""Utility to get the fully qualified SWHID for a given core SWHID.
-            Uses the graph traversal to find the shortest path to an origin, and
-            retains the first seen revision or release as anchor for cnt and dir types."""
-)
-@click.option(
-    "-t",
-    "--swh-bearer-token",
-    default="",
-    metavar="SWHTOKEN",
-    show_default=True,
-    help="bearer token to bypass SWH API rate limit",
-)
-@click.option(
-    "-g",
-    "--graph-grpc-server",
-    default="localhost:50091",
-    metavar="GRAPH_GRPC_SERVER",
-    show_default=True,
-    help="Graph RPC server address: as host:port",
-)
-@click.option(
-    "-c",
-    "--content-swhid",
-    default="swh:1:cnt:3b997e8ef2e38d5b31fb353214a54686e72f0870",
-    metavar="CNTSWHID",
-    show_default=True,
-    help="SWHID of the content",
-)
-@click.option(
-    "-f",
-    "--filename",
-    default="",
-    metavar="FILENAME",
-    show_default=True,
-    help="Name of file to search for",
-)
-@click.option(
-    "-o",
-    "--origin-url",
-    default="",
-    metavar="ORIGINURL",
-    show_default=True,
-    help="URL of the origin where we look for a content",
-)
-@click.option(
-    "--all-origins/--no-all-origins",
-    default=False,
-    help="Compute fqswhid for all origins",
-)
-@click.option(
-    "--fqswhid/--no-fqswhid",
-    default=True,
-    help="Compute fqswhid. If disabled, print only the origins.",
-)
-@click.option(
-    "--trace/--no-trace",
-    default=False,
-    help="Print nodes examined while building fully qualified SWHID.",
-)
-@click.option(
-    "--random-origin/--no-random-origin",
-    default=True,
-    help="Compute fqswhid for a random origin",
-)
 def main(
     swh_bearer_token,
     content_swhid,
@@ -272,7 +205,3 @@ def main(
                 print(filename + " has SWHID " + content_swhid)
         except Exception as e:
             print("Unexpected error occurred: {}".format(e))
-
-
-if __name__ == "__main__":
-    main()

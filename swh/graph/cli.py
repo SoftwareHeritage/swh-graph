@@ -780,6 +780,77 @@ def luigi(
         exit(proc.returncode)
 
 
+@graph_cli_group.command(name="find-context")
+@click.option(
+    "-t",
+    "--swh-bearer-token",
+    default="",
+    metavar="SWHTOKEN",
+    show_default=True,
+    help="bearer token to bypass SWH API rate limit",
+)
+@click.option(
+    "-g",
+    "--graph-grpc-server",
+    default="localhost:50091",
+    metavar="GRAPH_GRPC_SERVER",
+    show_default=True,
+    help="Graph RPC server address: as host:port",
+)
+@click.option(
+    "-c",
+    "--content-swhid",
+    default="swh:1:cnt:3b997e8ef2e38d5b31fb353214a54686e72f0870",
+    metavar="CNTSWHID",
+    show_default=True,
+    help="SWHID of the content",
+)
+@click.option(
+    "-f",
+    "--filename",
+    default="",
+    metavar="FILENAME",
+    show_default=True,
+    help="Name of file to search for",
+)
+@click.option(
+    "-o",
+    "--origin-url",
+    default="",
+    metavar="ORIGINURL",
+    show_default=True,
+    help="URL of the origin where we look for a content",
+)
+@click.option(
+    "--all-origins/--no-all-origins",
+    default=False,
+    help="Compute fqswhid for all origins",
+)
+@click.option(
+    "--fqswhid/--no-fqswhid",
+    default=True,
+    help="Compute fqswhid. If disabled, print only the origins.",
+)
+@click.option(
+    "--trace/--no-trace",
+    default=False,
+    help="Print nodes examined while building fully qualified SWHID.",
+)
+@click.option(
+    "--random-origin/--no-random-origin",
+    default=True,
+    help="Compute fqswhid for a random origin",
+)
+@click.pass_context
+def find_context(ctx, **kwargs):
+    """Utility to get the fully qualified SWHID for a given core SWHID.
+    Uses the graph traversal to find the shortest path to an origin, and
+    retains the first seen revision or release as anchor for cnt and dir types."""
+    from swh.graph.find_context import main as lookup
+
+    return lookup(**kwargs)
+
+
 def main():
     return graph_cli_group(auto_envvar_prefix="SWH_GRAPH")
 
