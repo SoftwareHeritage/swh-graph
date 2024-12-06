@@ -104,7 +104,7 @@ swh-graph$ cargo build --all-features
 ```
 
 This should build binary assets in the local directory `target/debug`. Check
-the `swh-graph-index` is present there and cen be executed properly:
+the `swh-graph-index` is present there and can be executed properly:
 
 ```text
 swh-graph$ ./target/debug/swh-graph-index --help
