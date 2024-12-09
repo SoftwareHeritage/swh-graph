@@ -16,9 +16,10 @@ from swh.graph.grpc.swhgraph_pb2 import (
 )
 from swh.graph.grpc.swhgraph_pb2_grpc import TraversalServiceStub
 from swh.model.cli import swhid_of_file
+from swh.model.exceptions import ValidationError
 
 # documentation: https://docs.softwareheritage.org/devel/apidoc/swh.model.swhids.html
-from swh.model.swhids import ExtendedObjectType, ExtendedSWHID
+from swh.model.swhids import CoreSWHID, ExtendedObjectType, ExtendedSWHID
 from swh.web.client.client import WebAPIClient
 
 # global variable holding headers parameters
@@ -121,6 +122,14 @@ def main(
     global swhcli
     global verbose
     verbose = trace
+
+    # Check if content SWHID is valid
+    try:
+        CoreSWHID.from_string(content_swhid)
+    except ValidationError:
+        print(f"Error: '{content_swhid}' is not a valid SWHID")
+        return
+
     if swh_bearer_token:
         swhcli = WebAPIClient(
             api_url="https://archive.softwareheritage.org/api/1/",
