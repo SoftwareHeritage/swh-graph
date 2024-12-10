@@ -55,6 +55,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Sequence,
     Set,
     Tuple,
     TypeVar,
@@ -447,6 +448,9 @@ class _ConcurrentCsvWritingTask(_BaseTask):
             async for i in tqdm.asyncio.trange(self.blob_count()):
                 (swhid, result) = await result_queue.get()
                 writer.writerow((swhid, result))
+
+    async def process_one(self, row: Tuple[str, str, str]) -> Tuple[str, str]:
+        raise NotImplementedError(f"{self.__class__.__name__}.process_one")
 
 
 def check_csv(csv_path: Path) -> None:
@@ -912,7 +916,7 @@ class ComputeBlobFileinfo(_BaseTask):
             derived_datasets_path=self.derived_datasets_path,
         )
 
-    def output(self) -> List[luigi.Target]:
+    def output(self) -> List[luigi.LocalTarget]:
         """:file:`blobs-fileinfo.csv.zst` in
         ``self.derived_datasets_path / self.blob_filter``"""
         return [
@@ -1226,14 +1230,12 @@ class FindEarliestRevisions(_BaseTask):
             derived_datasets_path=self.derived_datasets_path,
         )
 
-    def output(self) -> List[luigi.Target]:
+    def output(self) -> luigi.LocalTarget:
         """:file:`blobs-earliest.csv.zst` in
         ``self.derived_datasets_path / self.blob_filter``"""
-        return [
-            luigi.LocalTarget(
-                self.derived_datasets_path / self.blob_filter / "blobs-earliest.csv.zst"
-            )
-        ]
+        return luigi.LocalTarget(
+            self.derived_datasets_path / self.blob_filter / "blobs-earliest.csv.zst"
+        )
 
     def run(self) -> None:
         """Run task."""
@@ -1250,7 +1252,7 @@ class FindEarliestRevisions(_BaseTask):
             )
             | Command.pv("--wait", "--line-mode", "--size", str(self.blob_count()))
             | Command.zstdmt(f"-{COMPRESS_LEVEL}")
-            > AtomicFileSink(self.output()[0])
+            > AtomicFileSink(self.output())
         ).run()
         # fmt: on
 
@@ -1261,7 +1263,7 @@ class RunBlobDataset(luigi.Task):
     blob_filter = luigi.ChoiceParameter(choices=list(SELECTION_QUERIES))
     derived_datasets_path = luigi.PathParameter()
 
-    def requires(self) -> List[luigi.Task]:
+    def requires(self) -> Sequence[luigi.Task]:
         """Returns a list of task such that every task in this module are transitively
         depended on."""
         kwargs = dict(

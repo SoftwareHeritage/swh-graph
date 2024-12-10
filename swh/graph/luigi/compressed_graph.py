@@ -114,7 +114,7 @@ import collections
 import itertools
 import math
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Any, Dict, List, MutableSequence, Sequence, Set
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -228,7 +228,7 @@ class _CompressionStepTask(luigi.Task):
 
     local_export_path = luigi.PathParameter(significant=False)
     graph_name = luigi.Parameter(default="graph")
-    local_graph_path = luigi.PathParameter()
+    local_graph_path: Path = luigi.PathParameter()
 
     # TODO: Only add this parameter to tasks that use it
     batch_size = luigi.IntParameter(
@@ -246,7 +246,7 @@ class _CompressionStepTask(luigi.Task):
         description="Path to the Rust executable used to manipulate the graph.",
     )
 
-    object_types = ObjectTypesParameter()
+    object_types: list[str] = ObjectTypesParameter()  # type: ignore[assignment]
 
     def _get_count(self, count_name: str, task_name: str) -> int:
         count_path = self.local_graph_path / f"{self.graph_name}.{count_name}.count.txt"
@@ -356,6 +356,10 @@ class _CompressionStepTask(luigi.Task):
         }
         return d
 
+    @resources.setter
+    def resources(self, value):
+        raise NotImplementedError("setting 'resources' attribute")
+
     def _stamp(self) -> Path:
         """Returns the path of this tasks's stamp file"""
         return self.local_graph_path / "meta" / "stamps" / f"{self.STEP}.json"
@@ -394,7 +398,7 @@ class _CompressionStepTask(luigi.Task):
 
         return True
 
-    def requires(self) -> List[luigi.Task]:
+    def requires(self) -> Sequence[luigi.Task]:
         """Returns a list of luigi tasks matching :attr:`PREVIOUS_STEPS`."""
         requirements_d = {}
         for input_file in self.INPUT_FILES:
@@ -414,7 +418,7 @@ class _CompressionStepTask(luigi.Task):
             else:
                 assert False, f"Found no task outputting file '{input_file}'."
 
-        requirements = list(requirements_d.values())
+        requirements: MutableSequence[luigi.Task] = list(requirements_d.values())
 
         if self.EXPORT_AS_INPUT:
             requirements.append(
@@ -474,15 +478,15 @@ class _CompressionStepTask(luigi.Task):
                     f"Missing tables: {missing_tables!r}"
                 )
 
-        conf = {
+        conf: dict[str, Any] = {
             "object_types": ",".join(self.object_types),
             "max_ram": f"{(self._large_java_allocations() + _LOW_XMX)//(1024*1024)}M",
             # TODO: make this more configurable
         }
         if self.batch_size:
             conf["batch_size"] = self.batch_size
-        if self.STEP == CompressionStep.LLP and self.gammas:
-            conf["llp_gammas"] = self.gammas
+        if self.STEP == CompressionStep.LLP and self.gammas:  # type: ignore[attr-defined]
+            conf["llp_gammas"] = self.gammas  # type: ignore[attr-defined]
         conf["rust_executable_dir"] = self.rust_executable_dir
 
         conf = check_config_compress(
@@ -1070,7 +1074,7 @@ assert not _duplicate_outputs, f"Duplicate outputs: {_duplicate_outputs}"
 class CompressGraph(luigi.Task):
     local_export_path = luigi.PathParameter(significant=False)
     graph_name = luigi.Parameter(default="graph")
-    local_graph_path = luigi.PathParameter()
+    local_graph_path: Path = luigi.PathParameter()
     batch_size = luigi.IntParameter(
         default=0,
         significant=False,
@@ -1086,7 +1090,9 @@ class CompressGraph(luigi.Task):
         description="Path to the Rust executable used to manipulate the graph.",
     )
 
-    object_types = ObjectTypesParameter(default=list(_TABLES_PER_OBJECT_TYPE))
+    object_types: list[str] = ObjectTypesParameter(  # type: ignore[assignment]
+        default=list(_TABLES_PER_OBJECT_TYPE)
+    )
 
     def requires(self) -> List[luigi.Task]:
         """Returns a :class:`LocalExport` task, and leaves of the compression dependency
@@ -1126,11 +1132,11 @@ class CompressGraph(luigi.Task):
         """Returns the ``meta/*.json`` targets"""
         return [self._export_meta(), self._compression_meta()]
 
-    def _export_meta(self) -> luigi.Target:
+    def _export_meta(self) -> luigi.LocalTarget:
         """Returns the metadata on the dataset export"""
         return luigi.LocalTarget(self.local_graph_path / "meta/export.json")
 
-    def _compression_meta(self) -> luigi.Target:
+    def _compression_meta(self) -> luigi.LocalTarget:
         """Returns the metadata on the compression pipeline"""
         return luigi.LocalTarget(self.local_graph_path / "meta/compression.json")
 
@@ -1334,8 +1340,8 @@ class DownloadGraphFromS3(luigi.Task):
                 --s3-graph-path=s3://softwareheritage/graph/swh_2022-11-08/compressed/
     """
 
-    local_graph_path = luigi.PathParameter()
-    s3_graph_path = S3PathParameter(significant=False)
+    local_graph_path: Path = luigi.PathParameter()
+    s3_graph_path: str = S3PathParameter(significant=False)  # type: ignore[assignment]
 
     def requires(self) -> List[luigi.Task]:
         """Returns a :class:`UploadGraphToS3` task that writes local files to S3."""
@@ -1372,7 +1378,7 @@ class LocalGraph(luigi.Task):
     :class:`ExportGraph` or via :class:`DownloadGraphFromS3`.
     """
 
-    local_graph_path = luigi.PathParameter()
+    local_graph_path: Path = luigi.PathParameter()
     compression_task_type = luigi.TaskParameter(
         default=DownloadGraphFromS3,
         significant=False,

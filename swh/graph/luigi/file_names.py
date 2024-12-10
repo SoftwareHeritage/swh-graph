@@ -55,7 +55,7 @@ class PopularContentNames(luigi.Task):
         """Returns an instance of :class:`LocalGraph`."""
         return [LocalGraph(local_graph_path=self.local_graph_path)]
 
-    def output(self) -> luigi.Target:
+    def output(self) -> luigi.LocalTarget:
         """.csv.zst file that contains the topological order."""
         return luigi.LocalTarget(self.popular_contents_path)
 
@@ -113,7 +113,7 @@ class PopularContentPaths(luigi.Task):
         """Returns an instance of :class:`LocalGraph`."""
         return [LocalGraph(local_graph_path=self.local_graph_path)]
 
-    def output(self) -> luigi.Target:
+    def output(self) -> luigi.LocalTarget:
         """.csv.zst file that contains the topological order."""
         return luigi.LocalTarget(self.popular_contents_path)
 
@@ -245,7 +245,7 @@ class ListFilesByName(luigi.Task):
         """Returns an instance of :class:`LocalGraph`."""
         return [LocalGraph(local_graph_path=self.local_graph_path)]
 
-    def output(self) -> luigi.Target:
+    def output(self) -> luigi.LocalTarget:
         """Directory of .csv.zst files containing the list of file occurrences with
         that name."""
         return luigi.LocalTarget(self.output_path)

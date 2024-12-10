@@ -53,7 +53,7 @@ class TopoSort(luigi.Task):
         """Returns an instance of :class:`LocalGraph`."""
         return [LocalGraph(local_graph_path=self.local_graph_path)]
 
-    def output(self) -> luigi.Target:
+    def output(self) -> luigi.LocalTarget:
         """.csv.zst file that contains the topological order."""
         return luigi.LocalTarget(
             self.topological_order_dir
@@ -121,7 +121,7 @@ class ComputeGenerations(luigi.Task):
             / f"depths_{self.direction}_{self.object_types}.bin"
         )
 
-    def output(self) -> luigi.Target:
+    def output(self) -> dict[str, luigi.Target]:
         """.csv.zst file that contains the topological order."""
         return {
             "topo_order": luigi.LocalTarget(self._topo_order_path()),
@@ -180,17 +180,17 @@ class UploadGenerationsToS3(luigi.Task):
             for filename in self._filenames()
         ]
 
-    def _s3_prefix(self):
+    def _s3_prefix(self) -> str:
         return f"s3://softwareheritage/derived_datasets/{self.dataset_name}/topology"
 
-    def _filenames(self):
+    def _filenames(self) -> List[str]:
         return [
             f"topological_order_{self.direction}_{self.object_types}.bitstream",
             f"topological_order_{self.direction}_{self.object_types}.bitstream.offsets",
             f"depths_{self.direction}_{self.object_types}.bin",
         ]
 
-    def run(self):
+    def run(self) -> None:
         """Copies the files"""
         import multiprocessing.dummy
 
@@ -212,7 +212,7 @@ class UploadGenerationsToS3(luigi.Task):
                 self.set_progress_percentage(int(i * 100 / len(filenames)))
                 self.set_status_message("\n".join(self.__status_messages.values()))
 
-    def _upload_file(self, filename):
+    def _upload_file(self, filename: Path) -> Path:
         import luigi.contrib.s3
 
         client = luigi.contrib.s3.S3Client()
@@ -278,7 +278,7 @@ class CountPaths(luigi.Task):
             ),
         }
 
-    def output(self) -> luigi.Target:
+    def output(self) -> luigi.LocalTarget:
         """.csv.zst file that contains the counts."""
         return luigi.LocalTarget(
             self.topological_order_dir

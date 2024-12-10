@@ -5,6 +5,7 @@
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
+from pathlib import Path
 from typing import Dict, List
 
 import luigi
@@ -29,7 +30,7 @@ class SelectTopGithubOrigins(luigi.Task):
         description="Search query to use to filter Github repositories",
     )
 
-    def output(self) -> luigi.Target:
+    def output(self) -> luigi.LocalTarget:
         """Text file with a list of origin URLs"""
         return luigi.LocalTarget(self.local_export_path / "origins.txt")
 
@@ -41,7 +42,7 @@ class SelectTopGithubOrigins(luigi.Task):
         for i in range(0, math.ceil(self.num_origins / 100)):
             resp = requests.get(
                 "https://api.github.com/search/repositories",
-                params=dict(
+                params=dict(  # type: ignore[arg-type]
                     page=i,
                     s="starts",
                     order="desc",
@@ -71,7 +72,7 @@ class ListSwhidsForSubdataset(luigi.Task):
         """Returns an instance of ``self.select_task``"""
         return globals()[self.select_task](local_export_path=self.local_export_path)
 
-    def output(self) -> luigi.Target:
+    def output(self) -> luigi.LocalTarget:
         """Text file with a list of SWHIDs"""
         return luigi.LocalTarget(self.local_export_path / "swhids.txt")
 
@@ -123,11 +124,11 @@ class CreateSubdatasetOnAthena(luigi.Task):
     """Generates an ORC export from an existing ORC export, filtering out SWHIDs
     not in the given list."""
 
-    local_export_path = luigi.PathParameter()
-    s3_parent_export_path = S3PathParameter(
+    local_export_path: Path = luigi.PathParameter()
+    s3_parent_export_path: str = S3PathParameter(  # type: ignore[assignment]
         description="s3:// URL to the existing complete export",
     )
-    s3_export_path = S3PathParameter(
+    s3_export_path: str = S3PathParameter(  # type: ignore[assignment]
         description="s3:// URL to the export to produce",
     )
     s3_athena_output_location = S3PathParameter()

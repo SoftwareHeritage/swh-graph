@@ -45,7 +45,7 @@ class ListProvenanceNodes(luigi.Task):
     def _arrow_output_path(self) -> Path:
         return self.provenance_dir / "nodes"
 
-    def output(self) -> Dict[str, luigi.LocalTarget]:
+    def output(self) -> luigi.LocalTarget:
         """Returns :file:`{provenance_dir}/nodes/`"""
         return luigi.LocalTarget(self._arrow_output_path())
 

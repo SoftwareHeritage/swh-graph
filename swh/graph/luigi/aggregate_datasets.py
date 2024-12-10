@@ -37,7 +37,7 @@ class ExportNodesTable(luigi.Task):
             "graph": LocalGraph(local_graph_path=self.local_graph_path),
         }
 
-    def output(self) -> luigi.Target:
+    def output(self) -> luigi.LocalTarget:
         """Directory of Parquet files."""
         return luigi.LocalTarget(self.aggregate_datasets_path / "nodes")
 
@@ -91,7 +91,7 @@ class AggregateContentDatasets(luigi.Task):
             ),
         }
 
-    def output(self) -> luigi.Target:
+    def output(self) -> luigi.LocalTarget:
         """Directory of Parquet files."""
         return luigi.LocalTarget(self.aggregate_datasets_path / "contents")
 

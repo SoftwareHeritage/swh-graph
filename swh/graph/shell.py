@@ -50,6 +50,7 @@ import subprocess
 from typing import Any, Dict, List, NoReturn, Optional, Tuple, TypeVar, Union
 
 try:
+    import luigi
     from luigi import LocalTarget
 except ImportError:
 
@@ -214,7 +215,9 @@ class Command(metaclass=_MetaCommand):
     If ``check`` is :const:`True` (the default), raises an exception if the command
     returns a non-zero exit code."""
 
-    def __init__(self, *args: Union[str, Path], check: bool = True, **kwargs):
+    def __init__(
+        self, *args: Union[str, Path, LocalTarget], check: bool = True, **kwargs
+    ):
         self.args = args
         self.kwargs = dict(kwargs)
         self.preexec_fn = self.kwargs.pop("preexec_fn", lambda: None)
@@ -281,7 +284,7 @@ class Rust(Command):
     def __init__(
         self,
         bin_name,
-        *args: Union[str, Path],
+        *args: Union[str, Path, "luigi.LocalTarget"],
         conf: Optional[Dict[str, Any]] = None,
         env: Optional[Dict[str, str]] = None,
     ):
