@@ -60,7 +60,8 @@ impl<G: SwhGraph> SwhGraph for GraphSpy<G> {
 }
 
 impl<G: SwhForwardGraph> SwhForwardGraph for GraphSpy<G> {
-    type Successors<'succ> = <G as SwhForwardGraph>::Successors<'succ>
+    type Successors<'succ>
+        = <G as SwhForwardGraph>::Successors<'succ>
     where
         Self: 'succ;
 
@@ -75,10 +76,12 @@ impl<G: SwhForwardGraph> SwhForwardGraph for GraphSpy<G> {
 }
 
 impl<G: SwhLabeledForwardGraph> SwhLabeledForwardGraph for GraphSpy<G> {
-    type LabeledArcs<'arc> = <G as SwhLabeledForwardGraph>::LabeledArcs<'arc>
+    type LabeledArcs<'arc>
+        = <G as SwhLabeledForwardGraph>::LabeledArcs<'arc>
     where
         Self: 'arc;
-    type LabeledSuccessors<'succ> = <G as SwhLabeledForwardGraph>::LabeledSuccessors<'succ>
+    type LabeledSuccessors<'succ>
+        = <G as SwhLabeledForwardGraph>::LabeledSuccessors<'succ>
     where
         Self: 'succ;
 
@@ -89,7 +92,8 @@ impl<G: SwhLabeledForwardGraph> SwhLabeledForwardGraph for GraphSpy<G> {
 }
 
 impl<G: SwhBackwardGraph> SwhBackwardGraph for GraphSpy<G> {
-    type Predecessors<'succ> = <G as SwhBackwardGraph>::Predecessors<'succ>
+    type Predecessors<'succ>
+        = <G as SwhBackwardGraph>::Predecessors<'succ>
     where
         Self: 'succ;
 
@@ -104,10 +108,12 @@ impl<G: SwhBackwardGraph> SwhBackwardGraph for GraphSpy<G> {
 }
 
 impl<G: SwhLabeledBackwardGraph> SwhLabeledBackwardGraph for GraphSpy<G> {
-    type LabeledArcs<'arc> = <G as SwhLabeledBackwardGraph>::LabeledArcs<'arc>
+    type LabeledArcs<'arc>
+        = <G as SwhLabeledBackwardGraph>::LabeledArcs<'arc>
     where
         Self: 'arc;
-    type LabeledPredecessors<'succ> = <G as SwhLabeledBackwardGraph>::LabeledPredecessors<'succ>
+    type LabeledPredecessors<'succ>
+        = <G as SwhLabeledBackwardGraph>::LabeledPredecessors<'succ>
     where
         Self: 'succ;
 

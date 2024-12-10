@@ -18,7 +18,7 @@ pub struct PathParts<'a> {
     path_to_directory: bool,
 }
 
-impl<'a> PathParts<'a> {
+impl PathParts<'_> {
     pub fn build_path<G>(&self, graph: &G) -> Vec<u8>
     where
         G: SwhGraphWithProperties,

@@ -42,7 +42,10 @@ pub trait Persons {
 }
 
 impl Persons for MappedPersons {
-    type PersonIds<'a> = &'a NumberMmap<BigEndian, u32, Mmap> where Self: 'a;
+    type PersonIds<'a>
+        = &'a NumberMmap<BigEndian, u32, Mmap>
+    where
+        Self: 'a;
 
     #[inline(always)]
     fn author_id(&self) -> Self::PersonIds<'_> {
@@ -79,7 +82,10 @@ impl VecPersons {
 }
 
 impl Persons for VecPersons {
-    type PersonIds<'a> = &'a [u32] where Self: 'a;
+    type PersonIds<'a>
+        = &'a [u32]
+    where
+        Self: 'a;
 
     #[inline(always)]
     fn author_id(&self) -> Self::PersonIds<'_> {

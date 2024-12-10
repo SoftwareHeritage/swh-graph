@@ -42,7 +42,10 @@ pub trait LabelNames {
 }
 
 impl LabelNames for MappedLabelNames {
-    type LabelNames<'a> = &'a FrontCodedList<Mmap, Mmap> where Self: 'a;
+    type LabelNames<'a>
+        = &'a FrontCodedList<Mmap, Mmap>
+    where
+        Self: 'a;
 
     #[inline(always)]
     fn label_names(&self) -> Self::LabelNames<'_> {
@@ -68,7 +71,10 @@ impl VecLabelNames {
 }
 
 impl LabelNames for VecLabelNames {
-    type LabelNames<'a> = &'a [Vec<u8>] where Self: 'a;
+    type LabelNames<'a>
+        = &'a [Vec<u8>]
+    where
+        Self: 'a;
 
     #[inline(always)]
     fn label_names(&self) -> Self::LabelNames<'_> {

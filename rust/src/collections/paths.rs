@@ -93,7 +93,7 @@ impl PathStack {
 /// Returned by [`PathStack::pop`]
 pub struct PopPathStack<'a>(&'a mut PathStack);
 
-impl<'a> Iterator for PopPathStack<'a> {
+impl Iterator for PopPathStack<'_> {
     type Item = FilenameId;
 
     #[inline]
@@ -112,7 +112,7 @@ impl<'a> Iterator for PopPathStack<'a> {
     }
 }
 
-impl<'a> Drop for PopPathStack<'a> {
+impl Drop for PopPathStack<'_> {
     fn drop(&mut self) {
         // Finish popping from the stack so a partial path does not remain on top of it
         while self

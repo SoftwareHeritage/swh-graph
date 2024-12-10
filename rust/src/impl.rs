@@ -39,7 +39,8 @@ impl<T: Deref> SwhForwardGraph for T
 where
     <T as Deref>::Target: SwhForwardGraph,
 {
-    type Successors<'succ> = <<T as Deref>::Target as SwhForwardGraph>::Successors<'succ>
+    type Successors<'succ>
+        = <<T as Deref>::Target as SwhForwardGraph>::Successors<'succ>
     where
         Self: 'succ;
 
@@ -55,10 +56,12 @@ impl<T: Deref> SwhLabeledForwardGraph for T
 where
     <T as Deref>::Target: SwhLabeledForwardGraph,
 {
-    type LabeledArcs<'arc> = <<T as Deref>::Target as SwhLabeledForwardGraph>::LabeledArcs<'arc>
+    type LabeledArcs<'arc>
+        = <<T as Deref>::Target as SwhLabeledForwardGraph>::LabeledArcs<'arc>
     where
         Self: 'arc;
-    type LabeledSuccessors<'succ> = <<T as Deref>::Target as SwhLabeledForwardGraph>::LabeledSuccessors<'succ>
+    type LabeledSuccessors<'succ>
+        = <<T as Deref>::Target as SwhLabeledForwardGraph>::LabeledSuccessors<'succ>
     where
         Self: 'succ;
 
@@ -71,7 +74,8 @@ impl<T: Deref> SwhBackwardGraph for T
 where
     <T as Deref>::Target: SwhBackwardGraph,
 {
-    type Predecessors<'succ> = <<T as Deref>::Target as SwhBackwardGraph>::Predecessors<'succ>
+    type Predecessors<'succ>
+        = <<T as Deref>::Target as SwhBackwardGraph>::Predecessors<'succ>
     where
         Self: 'succ;
 
@@ -87,10 +91,12 @@ impl<T: Deref> SwhLabeledBackwardGraph for T
 where
     <T as Deref>::Target: SwhLabeledBackwardGraph,
 {
-    type LabeledArcs<'arc> = <<T as Deref>::Target as SwhLabeledBackwardGraph>::LabeledArcs<'arc>
+    type LabeledArcs<'arc>
+        = <<T as Deref>::Target as SwhLabeledBackwardGraph>::LabeledArcs<'arc>
     where
         Self: 'arc;
-    type LabeledPredecessors<'succ> = <<T as Deref>::Target as SwhLabeledBackwardGraph>::LabeledPredecessors<'succ>
+    type LabeledPredecessors<'succ>
+        = <<T as Deref>::Target as SwhLabeledBackwardGraph>::LabeledPredecessors<'succ>
     where
         Self: 'succ;
 

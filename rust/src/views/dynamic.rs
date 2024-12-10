@@ -48,7 +48,10 @@ impl<G: SwhGraph> SwhGraph for DynamicView<G> {
     }
 }
 impl<G: SwhForwardGraph + SwhBackwardGraph> SwhForwardGraph for DynamicView<G> {
-    type Successors<'succ> = <G as SwhBackwardGraph>::Successors<'succ> where Self: 'succ;
+    type Successors<'succ>
+        = <G as SwhBackwardGraph>::Successors<'succ>
+    where
+        Self: 'succ;
 
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         if self.transposed {
@@ -66,7 +69,10 @@ impl<G: SwhForwardGraph + SwhBackwardGraph> SwhForwardGraph for DynamicView<G> {
     }
 }
 impl<G: SwhBackwardGraph + SwhForwardGraph> SwhBackwardGraph for DynamicView<G> {
-    type Predecessors<'succ> = <G as SwhForwardGraph>::Predecessors<'succ> where Self: 'succ;
+    type Predecessors<'succ>
+        = <G as SwhForwardGraph>::Predecessors<'succ>
+    where
+        Self: 'succ;
 
     fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
         if self.transposed {

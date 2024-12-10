@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
+use pyo3::Bound;
 
 use swh_graph::graph::*;
 use swh_graph::mph::{DynMphf, SwhidMphf};
@@ -114,7 +115,7 @@ impl Mphf {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn swh_graph_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
+fn swh_graph_pyo3(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<BidirectionalGraph>()?;
     m.add_class::<Mphf>()?;
     Ok(())

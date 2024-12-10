@@ -38,7 +38,7 @@ where
     }
 }
 
-impl<'a, G> Iterator for NodeVisit<'a, G>
+impl<G> Iterator for NodeVisit<'_, G>
 where
     G: SwhLabeledForwardGraph,
 {

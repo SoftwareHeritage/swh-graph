@@ -34,8 +34,10 @@ pub struct DefaultUnderlyingGraph(pub DefaultUnderlyingGraphInner);
 
 impl SequentialLabeling for DefaultUnderlyingGraph {
     type Label = <DefaultUnderlyingGraphInner as SequentialLabeling>::Label;
-    type Lender<'node> = <DefaultUnderlyingGraphInner as SequentialLabeling>::Lender<'node>
-       where Self: 'node;
+    type Lender<'node>
+        = <DefaultUnderlyingGraphInner as SequentialLabeling>::Lender<'node>
+    where
+        Self: 'node;
 
     // Required methods
     fn num_nodes(&self) -> usize {
@@ -53,8 +55,10 @@ impl SequentialLabeling for DefaultUnderlyingGraph {
 impl SequentialGraph for DefaultUnderlyingGraph {}
 
 impl RandomAccessLabeling for DefaultUnderlyingGraph {
-    type Labels<'succ> = <DefaultUnderlyingGraphInner as RandomAccessLabeling>::Labels<'succ>
-       where Self: 'succ;
+    type Labels<'succ>
+        = <DefaultUnderlyingGraphInner as RandomAccessLabeling>::Labels<'succ>
+    where
+        Self: 'succ;
 
     fn num_arcs(&self) -> u64 {
         <DefaultUnderlyingGraphInner as RandomAccessLabeling>::num_arcs(&self.0)
@@ -72,7 +76,10 @@ impl RandomAccessLabeling for DefaultUnderlyingGraph {
 impl RandomAccessGraph for DefaultUnderlyingGraph {}
 
 impl UnderlyingGraph for DefaultUnderlyingGraph {
-    type UnlabeledSuccessors<'succ> = <DefaultUnderlyingGraphInner as RandomAccessLabeling>::Labels<'succ> where Self: 'succ;
+    type UnlabeledSuccessors<'succ>
+        = <DefaultUnderlyingGraphInner as RandomAccessLabeling>::Labels<'succ>
+    where
+        Self: 'succ;
 
     fn num_arcs(&self) -> u64 {
         <DefaultUnderlyingGraphInner as UnderlyingGraph>::num_arcs(&self.0)

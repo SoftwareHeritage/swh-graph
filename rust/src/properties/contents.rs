@@ -42,7 +42,10 @@ pub trait Contents {
 }
 
 impl Contents for MappedContents {
-    type Data<'a> = &'a NumberMmap<BigEndian, u64, Mmap> where Self: 'a;
+    type Data<'a>
+        = &'a NumberMmap<BigEndian, u64, Mmap>
+    where
+        Self: 'a;
 
     #[inline(always)]
     fn is_skipped_content(&self) -> Self::Data<'_> {
@@ -86,7 +89,10 @@ impl VecContents {
 }
 
 impl Contents for VecContents {
-    type Data<'a> = &'a [u64] where Self: 'a;
+    type Data<'a>
+        = &'a [u64]
+    where
+        Self: 'a;
 
     #[inline(always)]
     fn is_skipped_content(&self) -> Self::Data<'_> {

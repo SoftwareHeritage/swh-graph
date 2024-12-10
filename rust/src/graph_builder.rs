@@ -342,7 +342,7 @@ pub struct NodeBuilder<'builder> {
     graph_builder: &'builder mut GraphBuilder,
 }
 
-impl<'builder> NodeBuilder<'builder> {
+impl NodeBuilder<'_> {
     pub fn done(&self) -> NodeId {
         self.node_id
     }

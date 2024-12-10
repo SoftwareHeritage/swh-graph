@@ -43,6 +43,7 @@ pub struct FindPath<'s, S: TraversalServiceTrait> {
 }
 
 impl<'s, S: super::TraversalServiceTrait> FindPath<'s, S> {
+    #[allow(clippy::type_complexity)]
     fn make_visitor<
         'a,
         G: SwhForwardGraph + SwhGraphWithProperties + Clone + Send + Sync + 'static,

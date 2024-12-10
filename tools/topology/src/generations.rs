@@ -237,7 +237,7 @@ impl<'a> GenerationIterator<'a> {
     }
 }
 
-impl<'a> Iterator for GenerationIterator<'a> {
+impl Iterator for GenerationIterator<'_> {
     type Item = NodeId;
 
     fn next(&mut self) -> Option<Self::Item> {

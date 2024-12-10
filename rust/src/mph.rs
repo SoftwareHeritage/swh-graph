@@ -121,7 +121,10 @@ impl SwhidPthash {
 pub(crate) struct HashableSWHID<T: AsRef<[u8]>>(pub T);
 
 impl<T: AsRef<[u8]>> pthash::Hashable for HashableSWHID<T> {
-    type Bytes<'a> = &'a T where T: 'a;
+    type Bytes<'a>
+        = &'a T
+    where
+        T: 'a;
     fn as_bytes(&self) -> Self::Bytes<'_> {
         &self.0
     }

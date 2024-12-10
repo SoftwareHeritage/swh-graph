@@ -16,11 +16,11 @@ use orc_rust::projection::ProjectionMask;
 use orc_rust::reader::ChunkReader;
 use rayon::prelude::*;
 
-pub(crate) const ORC_BATCH_SIZE: usize = 1024;
 /// The value was computed experimentally to minimize both run time and memory,
 /// by running `swh-graph-extract extract-nodes` on the 2023-09-06 dataset,
 /// on Software Heritage's Maxxi computer (Xeon Gold 6342 CPU @ 2.80GHz,
 /// 96 threads, 4TB RAM)
+pub(crate) const ORC_BATCH_SIZE: usize = 1024;
 
 pub(crate) fn get_dataset_readers<P: AsRef<Path>>(
     dataset_dir: P,

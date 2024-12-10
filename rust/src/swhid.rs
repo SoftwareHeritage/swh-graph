@@ -228,7 +228,7 @@ impl<'de> serde::Deserialize<'de> for SWHID {
 struct SwhidVisitor;
 
 #[cfg(feature = "serde")]
-impl<'de> serde::de::Visitor<'de> for SwhidVisitor {
+impl serde::de::Visitor<'_> for SwhidVisitor {
     type Value = SWHID;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

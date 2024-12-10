@@ -31,6 +31,7 @@ pub struct SimpleTraversal<'s, S: TraversalServiceTrait + Sync + 'static> {
 }
 
 impl<'s, S: TraversalServiceTrait + Sync> SimpleTraversal<'s, S> {
+    #[allow(clippy::type_complexity)]
     fn make_visitor<
         'a,
         G: SwhForwardGraph + SwhGraphWithProperties + Clone + Send + Sync + 'static,

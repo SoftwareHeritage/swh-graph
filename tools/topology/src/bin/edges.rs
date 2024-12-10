@@ -72,7 +72,7 @@ pub struct NodeAndEdgeWriter<'a> {
     node_writer: CsvZstTableWriter<'a>,
     edge_writer: CsvZstTableWriter<'a>,
 }
-impl<'a> TableWriter for NodeAndEdgeWriter<'a> {
+impl TableWriter for NodeAndEdgeWriter<'_> {
     type Schema = ();
     type CloseResult = ();
     type Config = ();

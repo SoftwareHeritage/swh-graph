@@ -52,8 +52,10 @@ pub struct MmapReaderSupplier<E: Endianness> {
 }
 
 impl Supply for MmapReaderSupplier<BE> {
-    type Item<'a> = BufBitReader<BE, MemWordReader<u32, &'a [u32]>>
-    where Self: 'a;
+    type Item<'a>
+        = BufBitReader<BE, MemWordReader<u32, &'a [u32]>>
+    where
+        Self: 'a;
 
     fn request(&self) -> Self::Item<'_> {
         BufBitReader::<BE, _>::new(MemWordReader::new(self.backend.as_ref()))
@@ -67,8 +69,10 @@ pub struct SwhLabeling(pub SwhLabelingInner);
 
 impl SequentialLabeling for SwhLabeling {
     type Label = <SwhLabelingInner as SequentialLabeling>::Label;
-    type Lender<'node> = <SwhLabelingInner as SequentialLabeling>::Lender<'node>
-       where Self: 'node;
+    type Lender<'node>
+        = <SwhLabelingInner as SequentialLabeling>::Lender<'node>
+    where
+        Self: 'node;
 
     // Required methods
     fn num_nodes(&self) -> usize {
@@ -80,8 +84,10 @@ impl SequentialLabeling for SwhLabeling {
 }
 
 impl RandomAccessLabeling for SwhLabeling {
-    type Labels<'succ> = <SwhLabelingInner as RandomAccessLabeling>::Labels<'succ>
-       where Self: 'succ;
+    type Labels<'succ>
+        = <SwhLabelingInner as RandomAccessLabeling>::Labels<'succ>
+    where
+        Self: 'succ;
 
     fn num_arcs(&self) -> u64 {
         <SwhLabelingInner as RandomAccessLabeling>::num_arcs(&self.0)

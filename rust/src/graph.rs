@@ -60,7 +60,10 @@ pub trait UnderlyingGraph: RandomAccessLabeling {
 }
 
 impl<F: RandomAccessDecoderFactory> UnderlyingGraph for BvGraph<F> {
-    type UnlabeledSuccessors<'succ> = <Self as RandomAccessLabeling>::Labels<'succ> where Self: 'succ;
+    type UnlabeledSuccessors<'succ>
+        = <Self as RandomAccessLabeling>::Labels<'succ>
+    where
+        Self: 'succ;
 
     fn num_arcs(&self) -> u64 {
         <Self as RandomAccessLabeling>::num_arcs(self)
@@ -74,7 +77,10 @@ impl<F: RandomAccessDecoderFactory> UnderlyingGraph for BvGraph<F> {
 }
 
 impl<G: UnderlyingGraph, L: RandomAccessLabeling> UnderlyingGraph for Zip<G, L> {
-    type UnlabeledSuccessors<'succ> = <G as UnderlyingGraph>::UnlabeledSuccessors<'succ> where Self: 'succ;
+    type UnlabeledSuccessors<'succ>
+        = <G as UnderlyingGraph>::UnlabeledSuccessors<'succ>
+    where
+        Self: 'succ;
 
     fn num_arcs(&self) -> u64 {
         <G as UnderlyingGraph>::num_arcs(&self.0)
@@ -88,7 +94,10 @@ impl<G: UnderlyingGraph, L: RandomAccessLabeling> UnderlyingGraph for Zip<G, L> 
 }
 
 impl<L: Copy> UnderlyingGraph for Left<VecGraph<L>> {
-    type UnlabeledSuccessors<'succ> = <Self as RandomAccessLabeling>::Labels<'succ> where Self: 'succ;
+    type UnlabeledSuccessors<'succ>
+        = <Self as RandomAccessLabeling>::Labels<'succ>
+    where
+        Self: 'succ;
 
     fn num_arcs(&self) -> u64 {
         <Self as RandomAccessLabeling>::num_arcs(self)
@@ -102,7 +111,10 @@ impl<L: Copy> UnderlyingGraph for Left<VecGraph<L>> {
 }
 
 impl<L: Copy> UnderlyingGraph for VecGraph<L> {
-    type UnlabeledSuccessors<'succ> = DelabelingIterator<<Self as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
+    type UnlabeledSuccessors<'succ>
+        = DelabelingIterator<<Self as RandomAccessLabeling>::Labels<'succ>>
+    where
+        Self: 'succ;
 
     fn num_arcs(&self) -> u64 {
         <Self as RandomAccessLabeling>::num_arcs(self)
@@ -352,7 +364,10 @@ impl<P, G: UnderlyingGraph> SwhGraph for SwhUnidirectionalGraph<P, G> {
 }
 
 impl<P, G: UnderlyingGraph> SwhForwardGraph for SwhUnidirectionalGraph<P, G> {
-    type Successors<'succ> = <G as UnderlyingGraph>::UnlabeledSuccessors<'succ> where Self: 'succ;
+    type Successors<'succ>
+        = <G as UnderlyingGraph>::UnlabeledSuccessors<'succ>
+    where
+        Self: 'succ;
 
     /// Return an [`IntoIterator`] over the successors of a node.
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
@@ -372,7 +387,10 @@ where
         Iterator<Item = (usize, <<G as SequentialLabeling>::Label as Pair>::Right)>,
 {
     type LabeledArcs<'arc> = LabeledArcIterator<<<<<G as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
-    type LabeledSuccessors<'succ> = LabeledSuccessorIterator<<G as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
+    type LabeledSuccessors<'succ>
+        = LabeledSuccessorIterator<<G as RandomAccessLabeling>::Labels<'succ>>
+    where
+        Self: 'succ;
 
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
         LabeledSuccessorIterator {
@@ -616,7 +634,10 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhGraph for SwhBidirectionalG
 impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhForwardGraph
     for SwhBidirectionalGraph<P, FG, BG>
 {
-    type Successors<'succ> = <FG as UnderlyingGraph>::UnlabeledSuccessors<'succ> where Self: 'succ;
+    type Successors<'succ>
+        = <FG as UnderlyingGraph>::UnlabeledSuccessors<'succ>
+    where
+        Self: 'succ;
 
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         self.forward_graph.unlabeled_successors(node_id)
@@ -634,7 +655,10 @@ where
         Iterator<Item = (usize, <<FG as SequentialLabeling>::Label as Pair>::Right)>,
 {
     type LabeledArcs<'arc> = LabeledArcIterator<<<<<FG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
-    type LabeledSuccessors<'succ> = LabeledSuccessorIterator<<FG as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
+    type LabeledSuccessors<'succ>
+        = LabeledSuccessorIterator<<FG as RandomAccessLabeling>::Labels<'succ>>
+    where
+        Self: 'succ;
 
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
         LabeledSuccessorIterator {
@@ -646,7 +670,10 @@ where
 impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBackwardGraph
     for SwhBidirectionalGraph<P, FG, BG>
 {
-    type Predecessors<'succ> = <BG as UnderlyingGraph>::UnlabeledSuccessors<'succ> where Self: 'succ;
+    type Predecessors<'succ>
+        = <BG as UnderlyingGraph>::UnlabeledSuccessors<'succ>
+    where
+        Self: 'succ;
 
     fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
         self.backward_graph.unlabeled_successors(node_id)
@@ -665,7 +692,10 @@ where
         Iterator<Item = (usize, <<BG as SequentialLabeling>::Label as Pair>::Right)>,
 {
     type LabeledArcs<'arc> = LabeledArcIterator<<<<<BG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
-    type LabeledPredecessors<'succ> = LabeledSuccessorIterator<<BG as RandomAccessLabeling>::Labels<'succ>> where Self: 'succ;
+    type LabeledPredecessors<'succ>
+        = LabeledSuccessorIterator<<BG as RandomAccessLabeling>::Labels<'succ>>
+    where
+        Self: 'succ;
 
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
         LabeledSuccessorIterator {

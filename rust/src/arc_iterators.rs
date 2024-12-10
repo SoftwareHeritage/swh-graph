@@ -198,8 +198,8 @@ where
     }
 }
 
-impl<'a, G, Successors: Iterator> IntoFlattenedLabeledArcsIterator<EdgeLabel>
-    for LabelTypingSuccessorIterator<'a, G, Successors>
+impl<G, Successors: Iterator> IntoFlattenedLabeledArcsIterator<EdgeLabel>
+    for LabelTypingSuccessorIterator<'_, G, Successors>
 where
     <Successors as Iterator>::Item:
         Pair<Left = usize, Right: IntoIterator<Item = UntypedEdgeLabel>>,
@@ -224,8 +224,8 @@ where
     dst: NodeId,
 }
 
-impl<'a, G, Labels: Iterator<Item = UntypedEdgeLabel>> Iterator
-    for LabelTypingArcIterator<'a, G, Labels>
+impl<G, Labels: Iterator<Item = UntypedEdgeLabel>> Iterator
+    for LabelTypingArcIterator<'_, G, Labels>
 where
     G: SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,

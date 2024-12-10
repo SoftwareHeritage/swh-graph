@@ -46,7 +46,10 @@ pub trait Strings {
 }
 
 impl Strings for MappedStrings {
-    type Offsets<'a> = &'a NumberMmap<BigEndian, u64, Mmap> where Self: 'a;
+    type Offsets<'a>
+        = &'a NumberMmap<BigEndian, u64, Mmap>
+    where
+        Self: 'a;
 
     #[inline(always)]
     fn message(&self) -> &[u8] {
@@ -127,7 +130,10 @@ impl VecStrings {
 }
 
 impl Strings for VecStrings {
-    type Offsets<'a> = &'a [u64] where Self: 'a;
+    type Offsets<'a>
+        = &'a [u64]
+    where
+        Self: 'a;
 
     #[inline(always)]
     fn message(&self) -> &[u8] {

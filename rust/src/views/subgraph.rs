@@ -189,6 +189,7 @@ where
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
     /// Create a [Subgraph] keeping only nodes matching a given node constraint.
+    #[allow(clippy::type_complexity)]
     pub fn with_node_constraint(
         graph: G,
         node_constraint: NodeConstraint,
@@ -234,11 +235,12 @@ impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> 
 impl<G: SwhForwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
     SwhForwardGraph for Subgraph<G, NodeFilter, ArcFilter>
 {
-    type Successors<'succ> = FilteredSuccessors<
+    type Successors<'succ>
+        = FilteredSuccessors<
         'succ,
         <<G as SwhForwardGraph>::Successors<'succ> as IntoIterator>::IntoIter,
         NodeFilter,
-        ArcFilter
+        ArcFilter,
     >
     where
         Self: 'succ;
@@ -259,11 +261,12 @@ impl<G: SwhForwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usi
 impl<G: SwhBackwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
     SwhBackwardGraph for Subgraph<G, NodeFilter, ArcFilter>
 {
-    type Predecessors<'succ> = FilteredPredecessors<
+    type Predecessors<'succ>
+        = FilteredPredecessors<
         'succ,
         <<G as SwhBackwardGraph>::Predecessors<'succ> as IntoIterator>::IntoIter,
         NodeFilter,
-        ArcFilter
+        ArcFilter,
     >
     where
         Self: 'succ;
@@ -287,10 +290,12 @@ impl<
         ArcFilter: Fn(usize, usize) -> bool,
     > SwhLabeledForwardGraph for Subgraph<G, NodeFilter, ArcFilter>
 {
-    type LabeledArcs<'arc> = <G as SwhLabeledForwardGraph>::LabeledArcs<'arc>
+    type LabeledArcs<'arc>
+        = <G as SwhLabeledForwardGraph>::LabeledArcs<'arc>
     where
         Self: 'arc;
-    type LabeledSuccessors<'node> = FilteredLabeledSuccessors<
+    type LabeledSuccessors<'node>
+        = FilteredLabeledSuccessors<
         'node,
         Self::LabeledArcs<'node>,
         <<G as SwhLabeledForwardGraph>::LabeledSuccessors<'node> as IntoIterator>::IntoIter,
@@ -316,10 +321,12 @@ impl<
         ArcFilter: Fn(usize, usize) -> bool,
     > SwhLabeledBackwardGraph for Subgraph<G, NodeFilter, ArcFilter>
 {
-    type LabeledArcs<'arc> = <G as SwhLabeledBackwardGraph>::LabeledArcs<'arc>
+    type LabeledArcs<'arc>
+        = <G as SwhLabeledBackwardGraph>::LabeledArcs<'arc>
     where
         Self: 'arc;
-    type LabeledPredecessors<'node> = FilteredLabeledPredecessors<
+    type LabeledPredecessors<'node>
+        = FilteredLabeledPredecessors<
         'node,
         Self::LabeledArcs<'node>,
         <<G as SwhLabeledBackwardGraph>::LabeledPredecessors<'node> as IntoIterator>::IntoIter,

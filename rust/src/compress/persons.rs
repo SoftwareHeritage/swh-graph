@@ -20,7 +20,10 @@ use crate::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 pub struct Person<T: AsRef<[u8]>>(pub T);
 
 impl<T: AsRef<[u8]>> Hashable for Person<T> {
-    type Bytes<'a> = &'a [u8] where T: 'a;
+    type Bytes<'a>
+        = &'a [u8]
+    where
+        T: 'a;
     fn as_bytes(&self) -> Self::Bytes<'_> {
         self.0.as_ref()
     }

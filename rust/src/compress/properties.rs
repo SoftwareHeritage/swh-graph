@@ -31,7 +31,7 @@ pub struct PropertyWriter<'b, SWHIDMPHF: SwhidMphf> {
     pub target: PathBuf,
 }
 
-impl<'b, SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'b, SWHIDMPHF> {
+impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
     fn for_each_row<Row>(&self, subdirectory: &str, f: impl FnMut(Row) -> Result<()>) -> Result<()>
     where
         Row: ArRowDeserialize + ArRowStruct + Send + Sync,
