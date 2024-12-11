@@ -1,4 +1,3 @@
 swh.core[http] >= 0.3
 swh.model >= 6.13.0
 swh.dataset
-swh.web.client >= 0.9.0

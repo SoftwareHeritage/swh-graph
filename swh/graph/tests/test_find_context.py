@@ -8,8 +8,6 @@ from click.testing import CliRunner
 from swh.graph.cli import graph_cli_group
 
 
-# TODO: add corresponding check in `../find_context.py`
-# FIXME: not a single content in the example dataset seems to work...
 def test_find_context_content(graph_grpc_server):
     swhid = "swh:1:cnt:0000000000000000000000000000000000000001"
     runner = CliRunner()
@@ -17,9 +15,11 @@ def test_find_context_content(graph_grpc_server):
         graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
     )
     expected_fqswhid = (
-        "Unexpected error occurred: 404 Client Error: Not Found for url: "
-        "https://archive.softwareheritage.org/api/1/directory/"
-        "0000000000000000000000000000000000000008/\n"
+        "swh:1:cnt:0000000000000000000000000000000000000001;"
+        "path=/oldproject/README.md;"
+        "anchor=swh:1:rev:0000000000000000000000000000000000000009;"
+        "visit=swh:1:snp:0000000000000000000000000000000000000022;"
+        "origin=https://example.com/swh/graph2\n"
     )
     assert result.exit_code == 0, result
     assert result.output == expected_fqswhid, result.output
@@ -32,7 +32,7 @@ def test_find_context_directory(graph_grpc_server):
         graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
     )
     expected_fqswhid = (
-        "swh:1:dir:0000000000000000000000000000000000000012;path=;"
+        "swh:1:dir:0000000000000000000000000000000000000012;path=/;"
         "anchor=swh:1:rev:0000000000000000000000000000000000000013;"
         "visit=swh:1:snp:0000000000000000000000000000000000000022;"
         "origin=https://example.com/swh/graph2\n"

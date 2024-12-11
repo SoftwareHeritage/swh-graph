@@ -782,14 +782,6 @@ def luigi(
 
 @graph_cli_group.command(name="find-context")
 @click.option(
-    "-t",
-    "--swh-bearer-token",
-    default="",
-    metavar="SWHTOKEN",
-    show_default=True,
-    help="bearer token to bypass SWH API rate limit",
-)
-@click.option(
     "-g",
     "--graph-grpc-server",
     default="localhost:50091",

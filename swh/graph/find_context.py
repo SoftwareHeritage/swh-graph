@@ -20,7 +20,6 @@ from swh.model.exceptions import ValidationError
 
 # documentation: https://docs.softwareheritage.org/devel/apidoc/swh.model.swhids.html
 from swh.model.swhids import CoreSWHID, ExtendedObjectType, ExtendedSWHID
-from swh.web.client.client import WebAPIClient
 
 # global variable holding headers parameters
 headers: dict = {}
@@ -50,23 +49,27 @@ def fqswhid_of_traversal(response):
         if parsedid.object_type == ExtendedObjectType.CONTENT:
             # print(parsedid.object_type)
             # print(swhcli.get(node.swhid))
+            pathids = [
+                label.name.decode()
+                for successor in node.successor
+                for label in successor.label
+            ]
+            path.insert(0, pathids[0])  # raises exception if pathids is empty!
             fqswhid.append(node.swhid)
-            lastid = node.swhid
             coreswhidtype = "cnt"
         if parsedid.object_type == ExtendedObjectType.DIRECTORY:
             # print(parsedid.object_type)
             # print(swhcli.get(node.swhid))
             if fqswhid:  # empty list signals coreswhid not found yet
                 pathids = [
-                    x["name"]
-                    for x in swhcli.get(node.swhid)
-                    if (str(x["target"]) == lastid)
+                    label.name.decode()
+                    for successor in node.successor
+                    for label in successor.label
                 ]
                 path.insert(0, pathids[0])  # raises exception if pathids is empty!
             else:
                 fqswhid.append(node.swhid)
                 coreswhidtype = "dir"
-            lastid = node.swhid
         if parsedid.object_type == ExtendedObjectType.REVISION:
             if fqswhid:  # empty list signals coreswhid not found yet
                 if needrevision:
@@ -92,7 +95,7 @@ def fqswhid_of_traversal(response):
     # Now we have all the elements to print a FQ SWHID
     # We could also build and return a swh.model.swhids.QualifiedSWHID
     if coreswhidtype == "cnt" or coreswhidtype == "dir":
-        fqswhid.append("path=" + "/".join(path))
+        fqswhid.append("path=/" + "/".join(path))
         if not needrevision:
             fqswhid.append("anchor=" + revision)
         elif not needrelease:
@@ -108,7 +111,6 @@ def fqswhid_of_traversal(response):
 
 
 def main(
-    swh_bearer_token,
     content_swhid,
     origin_url,
     all_origins,
@@ -130,16 +132,16 @@ def main(
         print(f"Error: '{content_swhid}' is not a valid SWHID")
         return
 
-    if swh_bearer_token:
-        swhcli = WebAPIClient(
-            api_url="https://archive.softwareheritage.org/api/1/",
-            bearer_token=swh_bearer_token,
-        )
-    else:
-        swhcli = WebAPIClient(api_url="https://archive.softwareheritage.org/api/1/")
-
     with grpc.insecure_channel(graph_grpc_server) as channel:
         client = TraversalServiceStub(channel)
+        field_mask = FieldMask(
+            paths=[
+                "node.swhid",
+                "node.ori.url",
+                "node.successor.swhid",
+                "node.successor.label.name",
+            ]
+        )
 
         try:
             if filename:
@@ -154,7 +156,7 @@ def main(
                         edges="cnt:dir,dir:dir,dir:rev,rev:rev,rev:snp,rev:rel,rel:snp,snp:ori",
                         direction="BACKWARD",
                         return_nodes=NodeFilter(types="ori"),
-                        mask=FieldMask(paths=["node.swhid", "node.ori.url"]),
+                        mask=field_mask,
                     )
                 )
                 for node in response:
@@ -164,7 +166,7 @@ def main(
                                 src=[content_swhid],
                                 dst=[node.swhid],
                                 direction="BACKWARD",
-                                mask=FieldMask(paths=["node.swhid", "node.ori.url"]),
+                                mask=field_mask,
                             )
                         )
                         print(fqswhid_of_traversal(response))
@@ -178,7 +180,7 @@ def main(
                         src=[content_swhid],
                         target=NodeFilter(types="ori"),
                         direction="BACKWARD",
-                        mask=FieldMask(paths=["node.swhid", "node.ori.url"]),
+                        mask=field_mask,
                     )
                 )
                 if fqswhid:
@@ -203,7 +205,7 @@ def main(
                             )
                         ],
                         direction="BACKWARD",
-                        mask=FieldMask(paths=["node.swhid", "node.ori.url"]),
+                        mask=field_mask,
                     )
                 )
                 print(fqswhid_of_traversal(response))
