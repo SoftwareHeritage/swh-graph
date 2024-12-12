@@ -221,7 +221,7 @@ class Command(metaclass=_MetaCommand):
         self.args = args
         self.kwargs = dict(kwargs)
         self.preexec_fn = self.kwargs.pop("preexec_fn", lambda: None)
-        self.cgroup = create_cgroup(str(args[0]).split("/")[-1])
+        self.cgroup = None
         self.check = check
 
     def _preexec_fn(self):
@@ -230,6 +230,7 @@ class Command(metaclass=_MetaCommand):
         self.preexec_fn()
 
     def _run(self, stdin, stdout) -> _RunningCommand:
+        cgroup = create_cgroup(str(self.args[0]).split("/")[-1])
         pass_fds = []
         children = []
         final_args = []
@@ -256,7 +257,7 @@ class Command(metaclass=_MetaCommand):
             preexec_fn=self._preexec_fn,
             **self.kwargs,
         )
-        return _RunningCommand(self, proc, children, self.cgroup, check=self.check)
+        return _RunningCommand(self, proc, children, cgroup, check=self.check)
 
     def run(self) -> None:
         self._run(None, None).wait()
@@ -274,10 +275,6 @@ class Command(metaclass=_MetaCommand):
 
     def __str__(self) -> str:
         return f"{' '.join(shlex.quote(str(arg)) for arg in self.args)}"
-
-    def _cleanup(self) -> None:
-        if self.cgroup is not None:
-            self.cgroup.rmdir()
 
 
 class Rust(Command):
@@ -343,7 +340,7 @@ class _RunningCommand:
                     },
                 )
             )
-            self.command._cleanup()
+            self._cleanup()
             if self.check and self.proc.returncode not in (0, -int(signal.SIGPIPE)):
                 raise CommandException(self.command.args, self.proc.returncode)
 
@@ -361,6 +358,10 @@ class _RunningCommand:
 
         if self.proc.returncode is not None:
             self.proc.kill()
+
+    def _cleanup(self) -> None:
+        if self.cgroup is not None:
+            self.cgroup.rmdir()
 
 
 class Pipe:
