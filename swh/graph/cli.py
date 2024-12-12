@@ -226,6 +226,45 @@ def download(
     )
 
 
+@graph_cli_group.command(name="list-datasets")
+@click.option(
+    "--s3-bucket",
+    default="softwareheritage",
+    help="S3 bucket name containing Software Heritage graph datasets. "
+    "Defaults to 'sotwareheritage'",
+)
+@click.pass_context
+def list_datasets(
+    ctx,
+    s3_bucket: Optional[str],
+):
+    """List graph datasets available for download.
+
+    Print the names of the Software Heritage graph datasets that can be
+    downloaded with the following command:
+
+    $ swh graph download --name <dataset_name> <target_directory>
+    """
+    import boto3
+    from botocore import UNSIGNED
+    from botocore.client import Config
+
+    s3_client = boto3.client("s3", config=Config(signature_version=UNSIGNED))
+    paginator = s3_client.get_paginator("list_objects_v2")
+
+    for dataset_prefix in [
+        prefix["Prefix"]
+        for page in paginator.paginate(Bucket=s3_bucket, Prefix="graph/", Delimiter="/")
+        for prefix in page["CommonPrefixes"]
+    ]:
+        if "Contents" in s3_client.list_objects_v2(
+            Bucket=s3_bucket,
+            Prefix=dataset_prefix + "compressed/",
+            Delimiter="/",
+        ):
+            click.echo(dataset_prefix.split("/")[1])
+
+
 @graph_cli_group.command(name="reindex")
 @click.option(
     "--force",
