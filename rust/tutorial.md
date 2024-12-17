@@ -221,7 +221,7 @@ This struct exposes (through `.properties()`) the following methods:
   `graph.order`. It does additional domain-checking by calling `getSWHID()`
   on its own result to check that the input SWHID was valid.
 
-- [`swhid(NodeId) -> NodeType`](crate::properties::SwhGraphProperties::node_type):
+- [`node_type(NodeId) -> NodeType`](crate::properties::SwhGraphProperties::node_type):
   returns the type of a given node, as
   an enum of all the different object types in the Software Heritage data
   model. It does so by looking up the value at offset *i* in the bit vector
