@@ -3975,7 +3975,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph"
-version = "6.2.0"
+version = "6.3.0"
 dependencies = [
  "anyhow",
  "ar_row",
@@ -4023,7 +4023,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph-grpc-server"
-version = "6.2.0"
+version = "6.3.0"
 dependencies = [
  "anyhow",
  "async-scoped",
@@ -4056,7 +4056,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_aggregate"
-version = "6.2.0"
+version = "6.3.0"
 dependencies = [
  "anyhow",
  "arrow",
@@ -4076,7 +4076,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_contributions"
-version = "6.2.0"
+version = "6.3.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4095,7 +4095,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_file_names"
-version = "6.2.0"
+version = "6.3.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -4113,7 +4113,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_provenance"
-version = "6.2.0"
+version = "6.3.0"
 dependencies = [
  "anyhow",
  "ar_row",
@@ -4140,7 +4140,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_pyo3"
-version = "6.2.0"
+version = "6.3.0"
 dependencies = [
  "pyo3",
  "swh-graph",
@@ -4148,7 +4148,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_topology"
-version = "6.2.0"
+version = "6.3.0"
 dependencies = [
  "anyhow",
  "arrow",

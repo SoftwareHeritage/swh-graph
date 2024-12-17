@@ -16,7 +16,7 @@ members = [
 [workspace.package]
 repository = "https://gitlab.softwareheritage.org/swh/devel/swh-graph"
 license = "GPL-3.0-or-later"
-version = "6.2.0"
+version = "6.3.0"
 
 [workspace.dependencies]
 anyhow = { version="1.0.79", features=["backtrace"] }
