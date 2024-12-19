@@ -59,7 +59,7 @@ const_panic = { version = "0.2.8", optional = true }
 const-hex = { version = "1.11.1", optional = true }
 
 # serde
-serde = { version = "1.0.189", optional = true }
+serde = { version = "1.0.189", features = ["derive"], optional = true }
 serde_json = { version = "1.0.108", optional = true }
 
 # sorting
