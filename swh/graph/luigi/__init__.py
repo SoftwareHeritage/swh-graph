@@ -61,21 +61,30 @@ from .subdataset import *  # noqa
 from .topology import *  # noqa
 
 
-class RunExportCompressUpload(luigi.Task):
+class RunNewGraph(luigi.Task):
     """Runs dataset export, graph compression, and generates datasets using the graph."""
 
     def requires(self) -> List[luigi.Task]:
-        """Returns instances of :class:`swh.dataset.luigi.RunExportAll`
+        """Returns instances of :class:`swh.dataset.luigi.RunExportAll`,
+        :class:`swh.dataset.luigi.UploadExportToS3`,
         and :class:`swh.graph.luigi.compressed_graph.UploadGraphToS3`, which
         recursively depend on the whole export and compression pipeline.
+        Also runs some of the derived datasets through
+        :class:`swh.graph.topology.UploadGenerationsToS3` and
+        :class:`swh.graph.aggregate_datasets.RunAggregatedDatasets`.
         """
-        from swh.dataset.luigi import RunExportAll
+        from swh.dataset.luigi import RunExportAll, UploadExportToS3
 
+        from .aggregate_datasets import RunAggregatedDatasets
         from .compressed_graph import UploadGraphToS3
+        from .topology import UploadGenerationsToS3
 
         return [
             RunExportAll(),
+            UploadExportToS3(),
             UploadGraphToS3(),
+            UploadGenerationsToS3(),
+            RunAggregatedDatasets(),
         ]
 
     def complete(self) -> bool:
