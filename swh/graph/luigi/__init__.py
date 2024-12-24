@@ -83,7 +83,12 @@ class RunNewGraph(luigi.Task):
             RunExportAll(),
             UploadExportToS3(),
             UploadGraphToS3(),
-            UploadGenerationsToS3(),
+            UploadGenerationsToS3(
+                direction="forward", object_types="dir,rev,rel,snp,ori"
+            ),
+            UploadGenerationsToS3(
+                direction="backward", object_types="dir,rev,rel,snp,ori"
+            ),
             RunAggregatedDatasets(),
         ]
 
