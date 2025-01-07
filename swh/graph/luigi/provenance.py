@@ -53,6 +53,8 @@ class ListProvenanceNodes(luigi.Task):
         """Runs ``list-provenance-nodes`` from ``tools/provenance``"""
         from ..shell import Rust
 
+        self.provenance_dir.mkdir(exist_ok=True, parents=True)
+
         print("listing nodes to", self._arrow_output_path())
         # fmt: off
         (
@@ -119,6 +121,8 @@ class ComputeEarliestTimestamps(luigi.Task):
     def run(self) -> None:
         """Runs ``compute-earliest-timestamps`` from ``tools/provenance``"""
         from ..shell import Rust
+
+        self.provenance_dir.mkdir(exist_ok=True, parents=True)
 
         # fmt: off
         (
