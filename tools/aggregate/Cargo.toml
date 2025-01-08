@@ -7,10 +7,13 @@ edition = "2021"
 [dependencies]
 anyhow = {version="1.0.71", features=["backtrace"]}
 arrow = { version = "53.1.0" }
+ar_row = { version = "1.0.0" }
+ar_row_derive = { version = "1.0.0" }
 byteorder = "1.4.3"
 clap = { version = "4.1.6", features = ["derive"] }
 chrono = { version = "0.4.31" }
 dataset-writer = { version = "1.1.0", features = ["parquet"] }
+#dataset-writer = { git = "https://gitlab.softwareheritage.org/swh/devel/dataset-writer-rs.git", rev = "c380bcd388c47d46881f441c46d5cb380036ffee", features = ["parquet"] }
 dsi-progress-logger = "0.2.4"
 env_logger = "0.11.5"
 log = "0.4.17"

@@ -593,5 +593,5 @@ class RunProvenance(luigi.WrapperTask):
                 max_ram_mb=self.max_ram_mb, **kwargs
             ),
             ListFrontierDirectoriesInRevisions(max_ram_mb=self.max_ram_mb, **kwargs),
-            ListRevisionsInOrigins(max_ram_mb=self.max_ram_mb, **kwargs),
+            ListRevisionsInOrigins(**kwargs),
         ]

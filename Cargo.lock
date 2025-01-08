@@ -3997,6 +3997,8 @@ name = "swh_graph_aggregate"
 version = "6.3.1"
 dependencies = [
  "anyhow",
+ "ar_row",
+ "ar_row_derive",
  "arrow",
  "byteorder",
  "chrono",

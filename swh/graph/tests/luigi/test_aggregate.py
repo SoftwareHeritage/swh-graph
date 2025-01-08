@@ -1,4 +1,4 @@
-# Copyright (C) 2023  The Software Heritage developers
+# Copyright (C) 2023-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -15,7 +15,7 @@ from swh.graph.luigi.aggregate_datasets import (
     AggregateContentDatasets,
     ExportNodesTable,
 )
-from swh.graph.luigi.provenance import ComputeEarliestTimestamps
+from swh.graph.luigi.provenance import ComputeEarliestTimestamps, ListRevisionsInOrigins
 
 from .test_file_names import CSV_HEADER_NAMES as POPULAR_FILE_NAMES_CSV_HEADER
 from .test_file_names import EXPECTED_LINES_DEPTH1 as POPULAR_FILE_NAMES_CSV
@@ -41,6 +41,16 @@ def test_aggregate_content_datasets(tmpdir, provenance_node_filter):
     provenance_dir = tmpdir / "provenance"
     provenance_dir.mkdir()
     ComputeEarliestTimestamps(
+        local_export_path=DATASET_DIR,
+        local_graph_path=DATASET_DIR / "compressed",
+        graph_name="example",
+        provenance_dir=provenance_dir,
+        provenance_node_filter=provenance_node_filter,
+    ).run()
+
+    # Create revisions_in_origins/ table
+    provenance_dir = tmpdir / "provenance"
+    ListRevisionsInOrigins(
         local_export_path=DATASET_DIR,
         local_graph_path=DATASET_DIR / "compressed",
         graph_name="example",
@@ -118,6 +128,10 @@ def test_aggregate_content_datasets(tmpdir, provenance_node_filter):
         origin2 = "https://example.com/swh/graph2"
     else:
         assert False
+
+    # can turn into "https://example.com/swh/graph" after regenerating the graph
+    first_origin = "https://example.com/swh/graph2"
+
     assert rows == [
         {
             "content": "swh:1:cnt:0000000000000000000000000000000000000001",
@@ -125,7 +139,7 @@ def test_aggregate_content_datasets(tmpdir, provenance_node_filter):
             "filename_occurrences": 2,
             "first_occurrence_timestamp": date1,
             "first_occurrence_revrel": revrel1,
-            "first_occurrence_origin": "https://example.com/swh/graph",
+            "first_occurrence_origin": first_origin,
             "length": 42,
         },
         {
@@ -136,7 +150,7 @@ def test_aggregate_content_datasets(tmpdir, provenance_node_filter):
                 2005, 3, 18, 11, 14, tzinfo=utc
             ),
             "first_occurrence_revrel": "swh:1:rev:0000000000000000000000000000000000000009",
-            "first_occurrence_origin": "https://example.com/swh/graph",
+            "first_occurrence_origin": first_origin,
             "length": 404,
         },
         {
@@ -147,7 +161,7 @@ def test_aggregate_content_datasets(tmpdir, provenance_node_filter):
                 2005, 3, 18, 11, 14, tzinfo=utc
             ),
             "first_occurrence_revrel": "swh:1:rev:0000000000000000000000000000000000000009",
-            "first_occurrence_origin": "https://example.com/swh/graph",
+            "first_occurrence_origin": first_origin,
             "length": 1337,
         },
         {
@@ -158,7 +172,7 @@ def test_aggregate_content_datasets(tmpdir, provenance_node_filter):
                 2005, 3, 18, 11, 14, tzinfo=utc
             ),
             "first_occurrence_revrel": "swh:1:rev:0000000000000000000000000000000000000009",
-            "first_occurrence_origin": "https://example.com/swh/graph",
+            "first_occurrence_origin": first_origin,
             "length": 666,
         },
         {

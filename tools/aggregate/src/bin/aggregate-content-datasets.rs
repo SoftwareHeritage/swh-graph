@@ -1,22 +1,32 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
 use std::collections::hash_map::{Entry, HashMap};
-use std::path::PathBuf;
+use std::fs::File;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, ensure, Context, Result};
+use ar_row::deserialize::ArRowDeserialize;
+use ar_row_derive::ArRowDeserialize;
 use arrow::array::*;
+use arrow::buffer::BooleanBuffer;
 use arrow::datatypes::DataType::*;
 use arrow::datatypes::{Field, Schema, TimeUnit};
+use arrow::error::ArrowError;
 use clap::Parser;
 use dataset_writer::{ParallelDatasetWriter, ParquetTableWriter, StructArrayBuilder};
 use dsi_progress_logger::{progress_logger, ProgressLog};
+use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
+use parquet::arrow::arrow_reader::{ArrowPredicate, RowFilter};
+use parquet::arrow::ProjectionMask;
 use parquet::basic::{Compression, Encoding, ZstdLevel};
 use parquet::file::properties::EnabledStatistics;
 use parquet::file::properties::{WriterProperties, WriterPropertiesBuilder};
+use parquet::schema::types::SchemaDescriptor;
 use rayon::prelude::*;
 
 use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
@@ -85,6 +95,9 @@ struct Args {
     #[arg(long)]
     /// Path to read the array of timestamps from
     earliest_timestamps: PathBuf,
+    #[arg(long)]
+    /// Path to read the revision->origin table used by swh-provenance
+    revisions_in_origins: Option<PathBuf>,
     #[arg(long)]
     /// Path to write the array of max timestamps to
     out: PathBuf,
@@ -235,6 +248,11 @@ pub fn main() -> Result<()> {
             .with_context(|| format!("Could not mmap {}", args.earliest_timestamps.display()))?;
     let earliest_timestamps = &earliest_timestamps;
 
+    let precomputed_revrel2ori = args
+        .revisions_in_origins
+        .map(|path| load_revisions_in_origins(graph.num_nodes(), path))
+        .transpose()?;
+
     let dataset_writer = ParallelDatasetWriter::with_schema(
         args.out,
         (Arc::new(schema()), writer_properties(&graph).build()),
@@ -278,6 +296,7 @@ pub fn main() -> Result<()> {
                     &graph,
                     writer,
                     earliest_timestamps,
+                    precomputed_revrel2ori.as_deref(),
                     revrel2ori_cache,
                     node,
                     length,
@@ -316,6 +335,7 @@ fn write_content<G>(
     graph: &G,
     writer: &mut ParquetTableWriter<TableBuilder>,
     earliest_timestamps: impl GetIndex<Output = i64>,
+    precomputed_revrel2ori: Option<&[NodeId]>,
     revrel2ori_cache: &mut HashMap<NodeId, Option<NodeId>>,
     node: NodeId,
     length: Option<u64>,
@@ -354,10 +374,23 @@ where
                 node,
                 first_occurrence_timestamp,
             )?;
-            let origin = match revrel2ori_cache.entry(revrel) {
-                Entry::Vacant(entry) => *entry.insert(find_origin_for_revrel(graph, revrel)?),
-                Entry::Occupied(entry) => *entry.get(),
+            let mut origin = match precomputed_revrel2ori {
+                Some(precomputed_revrel2ori) => {
+                    let origin = precomputed_revrel2ori[revrel];
+                    if origin == NodeId::MAX {
+                        None
+                    } else {
+                        Some(origin)
+                    }
+                }
+                None => None,
             };
+            if origin.is_none() {
+                origin = match revrel2ori_cache.entry(revrel) {
+                    Entry::Vacant(entry) => *entry.insert(find_origin_for_revrel(graph, revrel)?),
+                    Entry::Occupied(entry) => *entry.get(),
+                };
+            }
             builder
                 .first_occurrence_timestamp
                 .append_value(first_occurrence_timestamp);
@@ -489,4 +522,166 @@ where
     }
 
     Ok(None)
+}
+
+fn load_revisions_in_origins(num_nodes: usize, path: impl AsRef<Path>) -> Result<Vec<NodeId>> {
+    let path = path.as_ref();
+    let file_entries = std::fs::read_dir(path)
+        .with_context(|| format!("Could not list {}", path.display()))?
+        .collect::<Result<Vec<_>, _>>()
+        .with_context(|| format!("Could not read {} entries", path.display()))?;
+    let origins: Vec<_> = (0..num_nodes)
+        .into_par_iter()
+        .map(|_| AtomicUsize::new(usize::MAX))
+        .collect();
+
+    #[derive(ArRowDeserialize, Clone, Default)]
+    struct PartialRow {
+        revrel: u64,
+    }
+
+    /// Implementation of [`parquet::arrow::arrow_reader::ArrowPredicate`] that ignores consecutive
+    /// rows with the same revrel
+    struct UniqueRowFilterPredicate {
+        projection_mask: ProjectionMask,
+        previous_revrel: NodeId,
+    }
+
+    impl ArrowPredicate for UniqueRowFilterPredicate {
+        fn projection(&self) -> &ProjectionMask {
+            &self.projection_mask
+        }
+        fn evaluate(&mut self, batch: RecordBatch) -> Result<BooleanArray, ArrowError> {
+            let rows = PartialRow::from_record_batch(batch).map_err(|e| {
+                ArrowError::SchemaError(format!("Could not parse RecordBatch: {}", e))
+            })?;
+            Ok(BooleanArray::from(BooleanBuffer::from_iter(
+                rows.into_iter().map(|PartialRow { revrel }| {
+                    let revrel = usize::try_from(revrel).expect("NodeId overflowed usize");
+                    if revrel == self.previous_revrel {
+                        false
+                    } else {
+                        self.previous_revrel = revrel;
+                        true
+                    }
+                }),
+            )))
+        }
+    }
+
+    #[derive(ArRowDeserialize, Clone, Default)]
+    struct Row {
+        revrel: u64,
+        origin: u64,
+    }
+
+    let mut pl = progress_logger!(
+        item_name = "row",
+        display_memory = true,
+        local_speed = true,
+        expected_updates = None,
+    );
+    pl.start("Loading precomputed revisions-in-origins table");
+    let shared_pl = Arc::new(Mutex::new(&mut pl));
+
+    file_entries
+        .into_par_iter()
+        .try_for_each(|file_entry| -> Result<_> {
+            let file_path = file_entry.path();
+            let file_path = &file_path;
+            let file = File::open(file_path)
+                .with_context(|| format!("Could not open {}", file_path.display()))?;
+            let builder = ParquetRecordBatchReaderBuilder::try_new(file).with_context(|| {
+                format!("Could not read {} as a Parquet file", file_path.display())
+            })?;
+
+            let partial_projection_mask = projection_mask(builder.parquet_schema(), ["revrel"])?;
+            let projection_mask = projection_mask(builder.parquet_schema(), ["revrel", "ori"])?;
+            let builder = builder
+                .with_projection(projection_mask)
+                .with_row_filter(RowFilter::new(vec![Box::new(UniqueRowFilterPredicate {
+                    projection_mask: partial_projection_mask,
+                    previous_revrel: NodeId::MAX,
+                })]));
+
+            let reader = builder.build().with_context(|| {
+                format!("Could not build Parquet reader for {}", file_path.display())
+            })?;
+            let mut buf = Vec::new();
+            for batch in reader {
+                let batch = batch.with_context(|| {
+                    format!("Could not read record batch from {}", file_path.display())
+                })?;
+                buf.resize(batch.num_rows(), Row::default());
+                Row::read_from_record_batch(batch, &mut buf).with_context(|| {
+                    format!("Could not parse record batch from {}", file_path.display())
+                })?;
+                for &Row { revrel, origin } in &buf {
+                    let revrel = usize::try_from(revrel).expect("NodeId overflowed usize");
+                    let origin = usize::try_from(origin).expect("NodeId overflowed usize");
+                    origins[revrel].store(origin, Ordering::Relaxed);
+                }
+            }
+
+            ProgressLog::update_with_count(*shared_pl.lock().unwrap(), buf.len());
+
+            /*
+                let batch = batch
+                    .with_context(|| {
+                        format!("Could not read record batch from {}", file_path.display())
+                    })?;
+                let revrel_col = batch
+                    .column_by_name("revrel")
+                    .with_context(|| {
+                        format!("Missing 'revrel' column from {}", file_path.display())
+                    })?
+                    .as_primitive_opt::<UInt64Type>()
+                    .with_context(|| {
+                        format!("'revrel' column in {} is not a UInt64Array", file_path.display())
+                    })?;
+                let origin_col = batch
+                    .column_by_name("ori")
+                    .with_context(|| {
+                        format!("Missing 'origin' column from {}", file_path.display())
+                    })?
+                    .as_primitive_opt::<UInt64Type>()
+                    .with_context(|| {
+                        format!("'origin' column in {} is not a UInt64Array", file_path.display())
+                    })?;
+                for (revrel, origin) in revrel_col.into_iter().zip(origin_col.into_iter()) {
+                    let revrel = usize::try_from(revrel).expect("NodeId overflowed usize");
+                    let origin = usize::try_from(origin).expect("NodeId overflowed usize");
+                    origins[revrel].store(origin, Ordering::Relaxed);
+                }
+            }*/
+
+            Ok(())
+        })?;
+
+    // Compiled to a no-op
+    let origins: Vec<_> = origins
+        .into_iter()
+        .map(|origin| origin.into_inner())
+        .collect();
+    Ok(origins)
+}
+
+/// Given a Parquet schema and a list of columns, returns a [`ProjectionMask`] that can be passed
+/// to [`parquet`] to select which columns to read.
+fn projection_mask(
+    schema: &SchemaDescriptor,
+    columns: impl IntoIterator<Item = impl AsRef<str>>,
+) -> Result<ProjectionMask> {
+    let column_indices = columns
+        .into_iter()
+        .map(|column_name| {
+            let column_name = column_name.as_ref();
+            schema
+                .columns()
+                .iter()
+                .position(|column| column.name() == column_name)
+                .with_context(|| format!("{:?} has no column named {}", schema, column_name))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(ProjectionMask::roots(schema, column_indices))
 }

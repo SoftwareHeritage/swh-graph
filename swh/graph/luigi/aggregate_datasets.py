@@ -20,7 +20,7 @@ from swh.dataset.luigi import S3PathParameter
 
 from .compressed_graph import LocalGraph
 from .file_names import PopularContentNames
-from .provenance import ComputeEarliestTimestamps
+from .provenance import ComputeEarliestTimestamps, ListRevisionsInOrigins
 from .utils import _ParquetToS3ToAthenaTask
 
 
@@ -89,6 +89,11 @@ class AggregateContentDatasets(luigi.Task):
                 provenance_dir=self.provenance_dir,
                 provenance_node_filter="all",
             ),
+            "revisions_in_origins": ListRevisionsInOrigins(
+                local_graph_path=self.local_graph_path,
+                provenance_dir=self.provenance_dir,
+                provenance_node_filter="all",
+            ),
         }
 
     def output(self) -> luigi.LocalTarget:
@@ -108,6 +113,8 @@ class AggregateContentDatasets(luigi.Task):
                 self.popular_content_names_path,
                 "--earliest-timestamps",
                 self.provenance_dir / "earliest_timestamps.bin",
+                "--revisions-in-origins",
+                self.provenance_dir / "revisions_in_origins",
                 "--out",
                 self.output(),
             )
