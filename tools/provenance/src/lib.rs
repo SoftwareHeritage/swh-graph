@@ -11,6 +11,7 @@ pub mod filters;
 pub mod frontier;
 pub mod frontier_set;
 pub mod node_dataset;
+pub mod revisions_in_origins;
 pub mod x_in_y_dataset;
 
 /// The current version of swh-graph-provenance.

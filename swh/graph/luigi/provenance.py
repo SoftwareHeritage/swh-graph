@@ -27,6 +27,15 @@ def default_max_ram_mb() -> int:
     return psutil.virtual_memory().total // 1_000_000
 
 
+def num_nodes(local_graph_path: Path, graph_name: str) -> int:
+    nodes_count_path = local_graph_path / f"{graph_name}.nodes.count.txt"
+    if nodes_count_path.exists():
+        return int(nodes_count_path.read_text().strip())
+    else:
+        # graph not yet exported, so we can't run right now anyway
+        return 10**100
+
+
 class ListProvenanceNodes(luigi.Task):
     """Lists all nodes reachable from releases and 'head revisions'."""
 
@@ -497,6 +506,66 @@ class ListContentsInFrontierDirectories(luigi.Task):
         # fmt: on
 
 
+class ListRevisionsInOrigins(luigi.Task):
+    """Enumerates all revisions (as selected by the ``provenance_node_filter``
+    in all origins."""
+
+    local_export_path = luigi.PathParameter()
+    local_graph_path = luigi.PathParameter()
+    graph_name = luigi.Parameter(default="graph")
+    provenance_dir = luigi.PathParameter()
+    provenance_node_filter = luigi.Parameter(default="heads")
+
+    @property
+    def resources(self):
+        """Returns the value of ``self.max_ram_mb``"""
+        import socket
+
+        # based on the 2024-08-23 graph, where RAM peaked at 1.26TB for 4G nodes
+        bytes_per_node = 31
+        return {
+            f"{socket.getfqdn()}_ram_mb": num_nodes(
+                self.local_graph_path, self.graph_name
+            )
+            * bytes_per_node
+            / 1_000_000
+        }
+
+    def requires(self) -> Dict[str, luigi.Task]:
+        """Returns a :class:`LocalGraph` instance."""
+        return {
+            "graph": LocalGraph(local_graph_path=self.local_graph_path),
+        }
+
+    def _output_path(self) -> Path:
+        return self.provenance_dir / "revisions_in_origins"
+
+    def output(self) -> luigi.LocalTarget:
+        """Returns {provenance_dir}/revisions_in_origins/"""
+        return luigi.LocalTarget(self._output_path())
+
+    def run(self) -> None:
+        """Runs ``contents-in-directories`` from ``tools/provenance``"""
+        import multiprocessing
+
+        from ..shell import Rust
+
+        # fmt: off
+        (
+            Rust(
+                "revisions-in-origins",
+                self.local_graph_path / self.graph_name,
+                "--thread-buffer-size",
+                str(100_000_000 // multiprocessing.cpu_count()),  # arbitrary value
+                "--node-filter",
+                self.provenance_node_filter,
+                "--revisions-out",
+                self.output(),
+            )
+        ).run()
+        # fmt: on
+
+
 class RunProvenance(luigi.WrapperTask):
     """(Transitively) depends on all provenance tasks"""
 
@@ -524,4 +593,5 @@ class RunProvenance(luigi.WrapperTask):
                 max_ram_mb=self.max_ram_mb, **kwargs
             ),
             ListFrontierDirectoriesInRevisions(max_ram_mb=self.max_ram_mb, **kwargs),
+            ListRevisionsInOrigins(max_ram_mb=self.max_ram_mb, **kwargs),
         ]

@@ -23,6 +23,7 @@ from swh.graph.luigi.provenance import (
     ListDirectoryMaxLeafTimestamp,
     ListFrontierDirectoriesInRevisions,
     ListProvenanceNodes,
+    ListRevisionsInOrigins,
 )
 
 ALL_NODES = [str(node.swhid()) for node in DATASET if hasattr(node, "swhid")]
@@ -39,6 +40,8 @@ PROVENANCE_NODES = {
         "swh:1:dir:0000000000000000000000000000000000000008",
         "swh:1:dir:0000000000000000000000000000000000000016",
         "swh:1:dir:0000000000000000000000000000000000000017",
+        "swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054",
+        "swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165",
         "swh:1:rel:0000000000000000000000000000000000000010",
         "swh:1:rel:0000000000000000000000000000000000000019",
         "swh:1:rel:0000000000000000000000000000000000000021",
@@ -50,7 +53,7 @@ PROVENANCE_NODES = {
         for node in DATASET
         if hasattr(node, "swhid")
         and node.object_type
-        in ("skipped_content", "content", "directory", "revision", "release")
+        in ("skipped_content", "content", "directory", "origin", "revision", "release")
     ],
 }
 
@@ -193,6 +196,34 @@ swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000
 swh:1:cnt:0000000000000000000000000000000000000004,swh:1:dir:0000000000000000000000000000000000000008,tests/README.md
 swh:1:cnt:0000000000000000000000000000000000000004,swh:1:dir:0000000000000000000000000000000000000006,README.md
 swh:1:cnt:0000000000000000000000000000000000000005,swh:1:dir:0000000000000000000000000000000000000006,parser.c
+""".replace(
+        "\n", "\r\n"
+    ),
+}
+
+REVISIONS_IN_ORIGINS = {
+    "heads": """\
+revrel_swhid,ori_swhid
+swh:1:rel:0000000000000000000000000000000000000010,swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054
+swh:1:rel:0000000000000000000000000000000000000010,swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165
+swh:1:rev:0000000000000000000000000000000000000018,swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165
+swh:1:rel:0000000000000000000000000000000000000021,swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165
+swh:1:rev:0000000000000000000000000000000000000009,swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054
+swh:1:rev:0000000000000000000000000000000000000009,swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165
+""".replace(
+        "\n", "\r\n"
+    ),
+    "all": """\
+revrel_swhid,ori_swhid
+swh:1:rel:0000000000000000000000000000000000000010,swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054
+swh:1:rel:0000000000000000000000000000000000000010,swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165
+swh:1:rel:0000000000000000000000000000000000000021,swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165
+swh:1:rev:0000000000000000000000000000000000000003,swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054
+swh:1:rev:0000000000000000000000000000000000000003,swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165
+swh:1:rev:0000000000000000000000000000000000000009,swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054
+swh:1:rev:0000000000000000000000000000000000000009,swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165
+swh:1:rev:0000000000000000000000000000000000000013,swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165
+swh:1:rev:0000000000000000000000000000000000000018,swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165
 """.replace(
         "\n", "\r\n"
     ),
@@ -709,6 +740,66 @@ def test_listcontentsindirectories_root(tmpdir):
     ).to_pylist()
 
     expected_rows = list(csv.DictReader(io.StringIO(expected_csv)))
+    rows.sort(key=lambda d: tuple(sorted(d.items())))
+    expected_rows.sort(key=lambda d: tuple(sorted(d.items())))
+
+    assert rows == expected_rows
+
+
+@pytest.mark.parametrize("provenance_node_filter", ["heads", "all"])
+def test_listrevisionsinorigins(tmpdir, provenance_node_filter):
+    tmpdir = Path(tmpdir)
+    provenance_dir = tmpdir / "provenance"
+
+    # Generate the 'nodes' table
+    test_listprovenancenodes(tmpdir, provenance_node_filter)
+
+    task = ListRevisionsInOrigins(
+        local_export_path=DATASET_DIR,
+        local_graph_path=DATASET_DIR / "compressed",
+        graph_name="example",
+        provenance_dir=provenance_dir,
+        provenance_node_filter=provenance_node_filter,
+    )
+
+    task.run()
+
+    ctx = datafusion.SessionContext()
+
+    ctx.register_dataset(
+        "nodes", pyarrow.dataset.dataset(provenance_dir / "nodes", format="parquet")
+    )
+    ctx.register_dataset(
+        "revrel_in_ori",
+        pyarrow.dataset.dataset(
+            provenance_dir / "revisions_in_origins", format="parquet"
+        ),
+    )
+
+    rows = ctx.sql(
+        """
+        SELECT
+            concat(
+                'swh:1:',
+                revrel_nodes.type,
+                ':',
+                encode(CAST(revrel_nodes.sha1_git AS bytea), 'hex')
+            ) AS revrel_SWHID,
+            concat(
+                'swh:1:',
+                ori_nodes.type,
+                ':',
+                encode(CAST(ori_nodes.sha1_git AS bytea), 'hex')
+            ) AS ori_SWHID
+        FROM revrel_in_ori
+        LEFT JOIN nodes AS revrel_nodes ON (revrel_in_ori.revrel=revrel_nodes.id)
+        LEFT JOIN nodes AS ori_nodes ON (revrel_in_ori.ori=ori_nodes.id)
+        """
+    ).to_pylist()
+
+    expected_rows = list(
+        csv.DictReader(io.StringIO(REVISIONS_IN_ORIGINS[provenance_node_filter]))
+    )
     rows.sort(key=lambda d: tuple(sorted(d.items())))
     expected_rows.sort(key=lambda d: tuple(sorted(d.items())))
 

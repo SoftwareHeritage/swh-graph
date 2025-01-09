@@ -143,7 +143,9 @@ where
     par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_with(
         BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
         |thread_pl, root| -> Result<()> {
-            if is_root_revrel(graph, node_filter, root) {
+            if graph.properties().node_type(root) == NodeType::Origin {
+                reachable_from_heads.set(root, true, Ordering::Relaxed);
+            } else if is_root_revrel(graph, node_filter, root) {
                 let mut stack = vec![root];
 
                 while let Some(node) = stack.pop() {

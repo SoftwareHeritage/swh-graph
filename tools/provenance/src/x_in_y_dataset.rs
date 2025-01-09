@@ -85,6 +85,13 @@ pub fn cnt_in_dir_schema() -> Schema {
     ])
 }
 
+pub fn revrel_in_ori_schema() -> Schema {
+    Schema::new(vec![
+        Field::new("revrel", UInt64, false),
+        Field::new("ori", UInt64, false),
+    ])
+}
+
 pub fn cnt_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesBuilder {
     WriterProperties::builder()
         // Main request key. Monotonic, and with long sequences of equal values
@@ -114,7 +121,7 @@ pub fn cnt_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterProperti
         )
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
         // 10% of the default value.
-        // Allows the page index to filter our more rows
+        // Allows the page index to filter out more rows
         //.set_data_page_row_count_limit(2000)
         // 10× the default value.
         // Not needed for this particular table, but we set it nonetheless for
@@ -156,7 +163,7 @@ pub fn dir_in_revrel_writer_properties<G: SwhGraph>(graph: &G) -> WriterProperti
         )
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
         // 10% of the default value.
-        // Allows the page index to filter our more rows
+        // Allows the page index to filter out more rows
         //.set_data_page_row_count_limit(2000)
         // 10× the default value.
         // with --node-filter all, we write slightly over the 32k row groups limit,
@@ -188,13 +195,40 @@ pub fn cnt_in_dir_writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesB
         )
         .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
     // 10% of the default value.
-    // Allows the page index to filter our more rows
+    // Allows the page index to filter out more rows
     //.set_data_page_row_count_limit(2000)
     // Not increasing max_row_group_size, as it would make arrays for the 'path'
     // column pretty large. Switching to LargeBinaryArray would work, but it
     // still means the reader needs more than 2^31 (2GB) just to store the
     // decompressed array in RAM.
     // .set_max_row_group_size(10 * 1024 * 1024)
+}
+
+pub fn revrel_in_ori_writer_properties<G: SwhGraph>(graph: &G) -> WriterPropertiesBuilder {
+    WriterProperties::builder()
+        // Main request key. Monotonic, and with long sequences of equal values
+        .set_column_encoding("revrel".into(), Encoding::DELTA_BINARY_PACKED)
+        .set_column_statistics_enabled("revrel".into(), EnabledStatistics::Page)
+        .set_column_bloom_filter_enabled("revrel".into(), true)
+        .set_column_compression(
+            "revrel".into(),
+            Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
+        )
+        // May make sense to query, too
+        .set_column_compression(
+            "ori".into(),
+            Compression::ZSTD(ZstdLevel::try_new(3).unwrap()),
+        )
+        .set_column_statistics_enabled("ori".into(), EnabledStatistics::Page)
+        .set_column_bloom_filter_enabled("ori".into(), true)
+        .set_key_value_metadata(Some(crate::parquet_metadata(graph)))
+        // 10% of the default value.
+        // Allows the page index to filter out more rows
+        //.set_data_page_row_count_limit(2000)
+        // 10× the default value.
+        // Not needed for this particular table, but we set it nonetheless for
+        // consistency with dir_in_revrel.
+        .set_max_row_group_size(10 * 1024 * 1024)
 }
 
 #[derive(Debug)]
@@ -350,6 +384,48 @@ impl StructArrayBuilder for CntInDirTableBuilder {
 
         Ok(StructArray::new(
             cnt_in_dir_schema().fields().clone(),
+            columns,
+            None, // nulls
+        ))
+    }
+}
+
+#[derive(Debug)]
+pub struct RevrelInOriTableBuilder {
+    pub revrel: UInt64Builder,
+    pub ori: UInt64Builder,
+}
+
+impl Default for RevrelInOriTableBuilder {
+    fn default() -> Self {
+        RevrelInOriTableBuilder {
+            revrel: UInt64Builder::new_from_buffer(
+                Default::default(),
+                None, // Values are not nullable -> validity buffer not needed
+            ),
+            ori: UInt64Builder::new_from_buffer(
+                Default::default(),
+                None, // ditto
+            ),
+        }
+    }
+}
+
+impl StructArrayBuilder for RevrelInOriTableBuilder {
+    fn len(&self) -> usize {
+        self.revrel.len()
+    }
+
+    fn buffer_size(&self) -> usize {
+        self.len() * (8 + 8) // u64 + u64
+    }
+
+    fn finish(&mut self) -> Result<StructArray> {
+        let columns: Vec<Arc<dyn Array>> =
+            vec![Arc::new(self.revrel.finish()), Arc::new(self.ori.finish())];
+
+        Ok(StructArray::new(
+            revrel_in_ori_schema().fields().clone(),
             columns,
             None, // nulls
         ))
