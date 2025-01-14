@@ -30,7 +30,7 @@ pub struct SimpleTraversal<'s, S: TraversalServiceTrait + Sync + 'static> {
     pub service: &'s S,
 }
 
-impl<'s, S: TraversalServiceTrait + Sync> SimpleTraversal<'s, S> {
+impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
     #[allow(clippy::type_complexity)]
     fn make_visitor<
         'a,

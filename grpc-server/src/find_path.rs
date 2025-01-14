@@ -42,7 +42,7 @@ pub struct FindPath<'s, S: TraversalServiceTrait> {
     pub service: &'s S,
 }
 
-impl<'s, S: super::TraversalServiceTrait> FindPath<'s, S> {
+impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
     #[allow(clippy::type_complexity)]
     fn make_visitor<
         'a,
