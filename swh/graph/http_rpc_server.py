@@ -228,7 +228,9 @@ class StatsView(GraphView):
     async def get(self):
         res = await self.rpc_client.Stats(StatsRequest())
         stats = json_format.MessageToDict(
-            res, including_default_value_fields=True, preserving_proto_field_name=True
+            res,
+            always_print_fields_with_no_presence=True,
+            preserving_proto_field_name=True,
         )
         # Int64 fields are serialized as strings by default.
         for descriptor in res.DESCRIPTOR.fields:

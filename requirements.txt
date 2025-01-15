@@ -3,6 +3,6 @@ boto3
 click
 py4j
 psutil
-protobuf >=4.21.11,<5.26.0 # https://github.com/googleapis/proto-plus-python/issues/431
+protobuf >=5.29.3
 grpcio-tools
 mypy-protobuf
