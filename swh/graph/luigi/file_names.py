@@ -19,7 +19,7 @@ import luigi
 from swh.dataset.luigi import S3PathParameter
 
 from .compressed_graph import LocalGraph
-from .utils import _ParquetToS3ToAthenaTask, count_nodes
+from .utils import _ParquetToS3ToAthenaTask, estimate_node_count
 
 
 class PopularContentNames(luigi.Task):
@@ -32,7 +32,7 @@ class PopularContentNames(luigi.Task):
     popularity_threshold = luigi.IntParameter(default=0)
 
     def _max_ram(self):
-        nb_nodes = count_nodes(
+        nb_nodes = estimate_node_count(
             self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
         )
 
@@ -90,7 +90,7 @@ class PopularContentPaths(luigi.Task):
     max_depth = luigi.IntParameter(default=2)
 
     def _max_ram(self):
-        nb_nodes = count_nodes(
+        nb_nodes = estimate_node_count(
             self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
         )
 
@@ -215,7 +215,7 @@ class ListFilesByName(luigi.Task):
     file_name = luigi.Parameter()
 
     def _max_ram(self):
-        nb_nodes = count_nodes(
+        nb_nodes = estimate_node_count(
             self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
         )
 

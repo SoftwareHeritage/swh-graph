@@ -20,20 +20,11 @@ import luigi
 import psutil
 
 from .compressed_graph import LocalGraph
-from .utils import count_nodes
+from .utils import estimate_node_count
 
 
 def default_max_ram_mb() -> int:
     return psutil.virtual_memory().total // 1_000_000
-
-
-def num_nodes(local_graph_path: Path, graph_name: str) -> int:
-    nodes_count_path = local_graph_path / f"{graph_name}.nodes.count.txt"
-    if nodes_count_path.exists():
-        return int(nodes_count_path.read_text().strip())
-    else:
-        # graph not yet exported, so we can't run right now anyway
-        return 10**100
 
 
 class ListProvenanceNodes(luigi.Task):
@@ -90,7 +81,7 @@ class ComputeEarliestTimestamps(luigi.Task):
 
     def _max_ram(self):
         # see java/src/main/java/org/softwareheritage/graph/utils/ListEarliestRevisions.java
-        nb_nodes = count_nodes(
+        nb_nodes = estimate_node_count(
             self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
         )
 
@@ -157,7 +148,7 @@ class ListDirectoryMaxLeafTimestamp(luigi.Task):
     def _max_ram(self):
         # see
         # java/src/main/java/org/softwareheritage/graph/utils/ListDirectoryMaxLeafTimestamp.java
-        nb_nodes = count_nodes(
+        nb_nodes = estimate_node_count(
             self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
         )
 
@@ -524,8 +515,8 @@ class ListRevisionsInOrigins(luigi.Task):
         # based on the 2024-08-23 graph, where RAM peaked at 1.26TB for 4G nodes
         bytes_per_node = 31
         return {
-            f"{socket.getfqdn()}_ram_mb": num_nodes(
-                self.local_graph_path, self.graph_name
+            f"{socket.getfqdn()}_ram_mb": estimate_node_count(
+                self.local_graph_path, self.graph_name, "ori,snp,rel,rev,dir,cnt"
             )
             * bytes_per_node
             / 1_000_000

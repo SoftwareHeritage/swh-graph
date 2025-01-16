@@ -23,6 +23,26 @@ class _EndOfQueue:
 _ENF_OF_QUEUE = _EndOfQueue()
 
 
+def estimate_node_count(
+    local_graph_path: Path, graph_name: str, object_types: str
+) -> int:
+    """Returns the number of nodes of the given types (in the 'cnt,dir,rev,rel,snp,ori'
+    format) in the graph.
+
+    This is meant to estimate RAM usage, and will return an overapproximation if the
+    actual number of nodes is not available yet.
+    """
+    try:
+        return count_nodes(local_graph_path, graph_name, object_types)
+    except FileNotFoundError:
+        # The graph was not compressed yet, so we can't estimate the memory it will take
+        # to run this task, once the compressed graph is available.
+        # As a hack, we return a very large value, which will force Luigi to stop before
+        # running this, and when starting again (after the compressed graph is available),
+        # it will call this function again to get an accurate estimate
+        return 10**100
+
+
 def count_nodes(local_graph_path: Path, graph_name: str, object_types: str) -> int:
     """Returns the number of nodes of the given types (in the 'cnt,dir,rev,rel,snp,ori'
     format) in the graph.
