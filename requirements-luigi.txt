@@ -1,6 +1,6 @@
 datafusion < 43.0.0  # https://github.com/apache/datafusion/issues/14055
 luigi != 3.5.2  # https://github.com/spotify/luigi/issues/3312
-pyarrow
+pyarrow < 19.0.0  # https://github.com/apache/arrow/issues/45283
 python-magic
 pyzstd
 tqdm
