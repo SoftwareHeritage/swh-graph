@@ -244,10 +244,31 @@ def list_datasets(
     downloaded with the following command:
 
     $ swh graph download --name <dataset_name> <target_directory>
+
+    The list may contain datasets that are not suitable for production, or not yet
+    fully available. See
+    https://docs.softwareheritage.org/devel/swh-dataset/graph/dataset.html
+    for the official list of datasets, along with release notes.
     """
     import boto3
     from botocore import UNSIGNED
     from botocore.client import Config
+
+    click.echo(
+        "The following list is automatically generated from Software Heritage's "
+        "S3 bucket.",
+        err=True,
+    )
+    click.echo(
+        "It may contain datasets that are not suitable for production, or not yet "
+        "fully available.",
+        err=True,
+    )
+    click.echo(
+        "See https://docs.softwareheritage.org/devel/swh-dataset/graph/dataset.html "
+        "for the official list of datasets, along with release notes.",
+        err=True,
+    )
 
     s3_client = boto3.client("s3", config=Config(signature_version=UNSIGNED))
     paginator = s3_client.get_paginator("list_objects_v2")
