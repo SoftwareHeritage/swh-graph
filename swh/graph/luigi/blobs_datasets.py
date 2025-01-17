@@ -265,7 +265,7 @@ class _BaseTask(luigi.Task):
         return self.derived_datasets_path / self.blob_filter / "blobs-sample20k.tar.zst"
 
     def iter_blobs(
-        self, *, unique_sha1: bool, with_tqdm: bool = True
+        self, *, unique_sha1: bool, exclude_missing_sha1: bool, with_tqdm: bool = True
     ) -> Iterator[Tuple[str, str, str]]:
         """Yields ``(swhid, sha1, name)`` by reading :file:`blobs.csv.zst`,
         and uses tqdm for progress report.
@@ -294,11 +294,17 @@ class _BaseTask(luigi.Task):
                     (swhid, sha1, name) = row
                 except ValueError:
                     raise ValueError(f"Unexpected row: {row!r}") from None
-                if sha1 < last_sha1:
-                    raise ValueError(f"Not sorted by sha1 ({last_sha1} before {sha1}")
-                if not unique_sha1 or sha1 != last_sha1:
-                    yield tuple(row)  # type: ignore[misc]
-                last_sha1 = sha1
+                if sha1 == "":
+                    if not exclude_missing_sha1:
+                        yield tuple(row)  # type: ignore[misc]
+                else:
+                    if sha1 < last_sha1:
+                        raise ValueError(
+                            f"Not sorted by sha1 ({last_sha1} before {sha1}"
+                        )
+                    if not unique_sha1 or sha1 != last_sha1:
+                        yield tuple(row)  # type: ignore[misc]
+                    last_sha1 = sha1
 
     def blob_paths(self, sha1: str) -> Tuple[Path, Path]:
         """Returns ``(sharded_path, unsharded_path)``, which are the two possible
@@ -312,7 +318,11 @@ class _BaseTask(luigi.Task):
         if not super().complete():
             return False
 
-        for target in self.output():
+        outputs = self.output()
+        if isinstance(outputs, luigi.Target):
+            outputs = [outputs]
+
+        for target in outputs:
             output_path = target.path
             if output_path.endswith(".csv.zst"):
                 check_csv(Path(output_path))
@@ -354,6 +364,7 @@ class _ConcurrentCsvWritingTask(_BaseTask):
     grpc_api = luigi.Parameter()
 
     stub: "TraversalServiceStub"
+    EXCLUDE_MISSING_SHA1: bool
 
     def requires(self) -> luigi.Task:
         """Returns an instance of :class:`SelectBlobs`"""
@@ -409,7 +420,11 @@ class _ConcurrentCsvWritingTask(_BaseTask):
     async def _fill_input_queue(
         self, input_queue: "asyncio.Queue[Tuple[str, str, str]]"
     ) -> None:
-        for swhid, sha1, name in self.iter_blobs(with_tqdm=False, unique_sha1=True):
+        for swhid, sha1, name in self.iter_blobs(
+            exclude_missing_sha1=self.EXCLUDE_MISSING_SHA1,
+            with_tqdm=False,
+            unique_sha1=True,
+        ):
             if not swhid.startswith("swh:1:"):
                 raise ValueError(f"Invalid SWHID: {swhid}")
 
@@ -593,7 +608,12 @@ class SelectBlobs(_BaseTask):
             # fmt: on
 
             logger.info("Counting...")
-            count = sum(1 for _ in self.iter_blobs(with_tqdm=False, unique_sha1=True))
+            count = sum(
+                1
+                for _ in self.iter_blobs(
+                    exclude_missing_sha1=False, with_tqdm=False, unique_sha1=True
+                )
+            )
             self.blob_count_path().parent.mkdir(exist_ok=True, parents=True)
             with self.blob_count_path().open("wt") as fd:
                 fd.write(f"{count}\n")
@@ -786,7 +806,9 @@ class DownloadBlobs(_BaseTask):
             for size in tqdm.tqdm(
                 pool.imap_unordered(
                     self._worker,
-                    self.iter_blobs(unique_sha1=True, with_tqdm=False),
+                    self.iter_blobs(
+                        exclude_missing_sha1=True, unique_sha1=True, with_tqdm=False
+                    ),
                     chunksize=100,
                 ),
                 total=self.blob_count(),
@@ -939,7 +961,11 @@ class ComputeBlobFileinfo(_BaseTask):
                 for row in tqdm.tqdm(
                     pool.imap(
                         self._analyze_blob,
-                        self.iter_blobs(unique_sha1=True, with_tqdm=False),
+                        self.iter_blobs(
+                            exclude_missing_sha1=False,
+                            unique_sha1=True,
+                            with_tqdm=False,
+                        ),
                     ),
                     total=self.blob_count(),
                 ):
@@ -1093,7 +1119,9 @@ class BlobScancode(_BaseTask):
                 for license_rows, results in tqdm.tqdm(
                     pool.imap_unordered(
                         self._detect_licenses,
-                        self.iter_blobs(unique_sha1=True, with_tqdm=False),
+                        self.iter_blobs(
+                            exclude_missing_sha1=True, unique_sha1=True, with_tqdm=False
+                        ),
                         chunksize=self.MAP_CHUNKSIZE,
                     ),
                     total=self.blob_count(),
@@ -1118,6 +1146,7 @@ class FindBlobOrigins(_ConcurrentCsvWritingTask):
         ]
 
     CSV_HEADER = ("swhid", "origin_url")
+    EXCLUDE_MISSING_SHA1 = False
 
     async def process_one(self, row: Tuple[str, str, str]) -> Tuple[str, str]:
         from google.protobuf.field_mask_pb2 import FieldMask
@@ -1183,6 +1212,7 @@ class FindBlobOrigins(_ConcurrentCsvWritingTask):
 
 class CountBlobOrigins(_ConcurrentCsvWritingTask):
     CSV_HEADER = ("swhid", "origin_count")
+    EXCLUDE_MISSING_SHA1 = False
 
     def output(self) -> List[luigi.Target]:
         """:file:`blobs.tar.zst` in ``self.derived_datasets_path / self.blob_filter``"""
