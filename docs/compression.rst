@@ -93,7 +93,7 @@ will run all the various steps of the pipeline in the right order.
 .. code:: console
 
 
-    (venv) $ swh graph compress --input-dataset orc/ --outdir compressed/
+    (venv) $ swh graph compress --input-dataset orc/ --output-directory compressed/
     [...]
     (venv) $ ls compressed/
     graph.edges.count.txt

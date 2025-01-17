@@ -38,7 +38,7 @@ or, as a shortcut:
 
 .. code:: bash
 
-    $ docker/run.sh /PATH/TO/GRAPH/
+    $ ./docker/run.sh /PATH/TO/GRAPH/
 
 Where ``/PATH/TO/GRAPH`` is a directory containing the ``g.edges.csv.zst`` and
 ``g.nodes.csv.zst`` files.  By default, when entering the container the current
@@ -53,9 +53,9 @@ To compress the graph (from within the docker container):
 
 .. code:: bash
 
-    $ docker/run.sh /PATH/TO/GRAPH/
+    $ ./docker/run.sh /PATH/TO/GRAPH/
     root@7f3306806861:/srv/softwareheritage/graph# \
-        swh graph compress --graph data/g --outdir data/compressed
+        swh graph compress --input-dataset data/g --output-directory data/compressed
 
 
 Graph server
@@ -65,6 +65,6 @@ To start the swh-graph server (from within the docker container):
 
 .. code:: bash
 
-    $ docker/run.sh /PATH/TO/GRAPH/
+    $ ./docker/run.sh /PATH/TO/GRAPH/
     root@7f3306806861:/srv/softwareheritage/graph# \
         swh graph rpc-serve --graph data/compressed/g
