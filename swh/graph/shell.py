@@ -371,16 +371,31 @@ class Pipe:
     def _run(self, stdin, stdout) -> _RunningPipe:
         read_pipes: List[Any] = [stdin]
         write_pipes: List[Any] = []
+        pipes_to_close: List[int] = []
         for _ in range(len(self.children) - 1):
             (r, w) = os.pipe()
             read_pipes.append(os.fdopen(r, "rb"))
             write_pipes.append(os.fdopen(w, "wb"))
+            pipes_to_close.append(r)
+            pipes_to_close.append(w)
         write_pipes.append(stdout)
 
         running_children = [
             child._run(r, w)
             for (r, w, child) in zip(read_pipes, write_pipes, self.children)
         ]
+
+        # We need to close these file descriptors in the parent process, so that the
+        # corresponding pipes have an end fully closed when the corresponding process
+        # dies.
+        # On CPython (and when not running in tools like pytest that keep references to
+        # call frames), this would be done automatically when the function exits because
+        # the refcount to all pipes becomes 0, but we cannot rely
+        # on this behavior.
+        # Without it, the other end of the process will hang when trying to read
+        # or write to it.
+        for pipe in pipes_to_close:
+            os.close(pipe)
 
         return _RunningPipe(self, running_children)
 
