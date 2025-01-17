@@ -74,7 +74,7 @@ replacing "compressed" by "orc":
 
     (venv) $ mkdir -p 2021-03-23-popular-3k-python/orc
     (venv) $ cd 2021-03-23-popular-3k-python/
-    (venv) $ aws s3 cp --recursive s3://softwareheritage/graph/2021-03-23-popular-3k-python/orc/ orc
+    (venv) $ aws s3 cp --no-sign-request --recursive s3://softwareheritage/graph/2021-03-23-popular-3k-python/orc/ orc
 
 Alternatively, any custom ORC dataset can be used as long as it respects
 :ref:`the schema <swh-dataset-schema>` of the Software Heritage Graph Dataset.
