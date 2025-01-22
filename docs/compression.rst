@@ -6,7 +6,7 @@ Graph compression
 
 The compression pipeline is implemented on top of the `WebGraph framework
 <http://webgraph.di.unimi.it/>`_. It takes an ORC Graph Dataset as an input,
-such as the ones found in the :ref:`Graph Dataset List <swh-dataset-list>`,
+such as the ones found in the :ref:`Graph Dataset List <swh-export-list>`,
 and generates a compressed graph suitable for high intensity analyses on
 large servers.
 
@@ -61,7 +61,7 @@ Input dataset
 -------------
 
 First, you need to retrieve a graph to compress, in ORC format. The :ref:`Graph
-Dataset List <swh-dataset-list>` has a list of datasets made available by the
+Dataset List <swh-export-list>` has a list of datasets made available by the
 Software Heritage archive, including "teaser" subdatasets which have a more
 manageable size and are thus very useful for prototyping with less hardware
 resources.
@@ -77,7 +77,7 @@ replacing "compressed" by "orc":
     (venv) $ aws s3 cp --no-sign-request --recursive s3://softwareheritage/graph/2021-03-23-popular-3k-python/orc/ orc
 
 Alternatively, any custom ORC dataset can be used as long as it respects
-:ref:`the schema <swh-dataset-schema>` of the Software Heritage Graph Dataset.
+:ref:`the schema <swh-export-schema>` of the Software Heritage Graph Dataset.
 
 **Note:** for testing purposes, a fake test dataset is available in the
 ``swh-graph`` repository, with just a few dozen nodes. The ORC tables are

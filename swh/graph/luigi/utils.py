@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple
 
 import luigi
 
-from swh.dataset.luigi import AthenaDatabaseTarget
+from swh.export.luigi import AthenaDatabaseTarget
 
 OBJECT_TYPES = {"ori", "snp", "rel", "rev", "dir", "cnt"}
 
@@ -133,7 +133,7 @@ class _ParquetToS3ToAthenaTask(luigi.Task):
     def _create_athena_table(self):
         import boto3
 
-        from swh.dataset.athena import query
+        from swh.export.athena import query
 
         client = boto3.client("athena")
         client.output_location = self.s3_athena_output_location

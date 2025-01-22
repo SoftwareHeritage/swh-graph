@@ -121,7 +121,7 @@ In details:
 ExportGraph
 ^^^^^^^^^^^
 
-Implemented by :class:`swh.dataset.luigi.ExportGraph`.
+Implemented by :class:`swh.export.luigi.ExportGraph`.
 
 This consumes from the :ref:`journal <swh-journal>`, and to write a bunch of ORC
 (and/or edges CSV) files which contain all data in the |swh| archive.
@@ -157,14 +157,14 @@ block.
 UploadExportToS3
 ^^^^^^^^^^^^^^^^
 
-Implemented by :class:`swh.dataset.luigi.UploadExportToS3`.
+Implemented by :class:`swh.export.luigi.UploadExportToS3`.
 
 .. _swh-graph-luigi-DownloadExportFromS3:
 
 DownloadExportFromS3
 ^^^^^^^^^^^^^^^^^^^^
 
-Implemented by :class:`swh.dataset.luigi.DownloadExportFromS3`.
+Implemented by :class:`swh.export.luigi.DownloadExportFromS3`.
 
 
 .. _swh-graph-luigi-CreateAthena:
@@ -172,7 +172,7 @@ Implemented by :class:`swh.dataset.luigi.DownloadExportFromS3`.
 CreateAthena
 ^^^^^^^^^^^^
 
-Implemented by :class:`swh.dataset.luigi.CreateAthena`.
+Implemented by :class:`swh.export.luigi.CreateAthena`.
 
 Depends on :ref:`swh-graph-luigi-UploadExportToS3` and creates Amazon Athena tables
 for the ORC dataset.
@@ -197,7 +197,7 @@ graph from scratch).
 RunExportAll
 ^^^^^^^^^^^^
 
-Implemented by :class:`swh.dataset.luigi.RunExportCompressUpload`.
+Implemented by :class:`swh.export.luigi.RunExportCompressUpload`.
 
 This is a pseudo-task which depends on :ref:`swh-graph-luigi-ExportGraph`,
 :ref:`swh-graph-luigi-CreateAthena`,

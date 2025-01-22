@@ -97,7 +97,7 @@ for various research or prototyping purposes. Most of them are available in
 queried by the ``swh-graph`` library.
 
 All the publicly available datasets are documented on this page:
-https://docs.softwareheritage.org/devel/swh-dataset/graph/dataset.html
+https://docs.softwareheritage.org/devel/swh-export/graph/dataset.html
 
 A good way of retrieving these datasets is to use the `AWS S3 CLI
 <https://docs.aws.amazon.com/cli/latest/reference/s3/>`_.

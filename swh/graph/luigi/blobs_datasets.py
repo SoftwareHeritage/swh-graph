@@ -64,7 +64,7 @@ from typing import (
 
 import luigi
 
-from swh.dataset.luigi import Format, LocalExport
+from swh.export.luigi import Format, LocalExport
 
 if TYPE_CHECKING:
     import asyncio

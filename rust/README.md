@@ -127,7 +127,7 @@ Options:
 
 ### Downloading a compressed graph
 
-See the [Software Heritage Dataset documentation](https://docs.softwareheritage.org/devel/swh-dataset/graph/dataset.html),
+See the [Software Heritage Dataset documentation](https://docs.softwareheritage.org/devel/swh-export/graph/dataset.html),
 which lists all the exports from the Software Heritage archive; most of them provide
 a compressed graph representation that can be loaded with `swh_graph` (though some may
 need some conversion, see below).

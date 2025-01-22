@@ -9,7 +9,7 @@ Luigi tasks for compression
 
 This module contains `Luigi <https://luigi.readthedocs.io/>`_ tasks,
 as an alternative to the CLI that can be composed with other tasks,
-such as swh-dataset's.
+such as swh-export's.
 
 It implements the task DAG described in :ref:`swh-graph-compression-steps`.
 
@@ -45,7 +45,7 @@ In addition to files documented in :ref:`graph-compression` (eg. :file:`graph.gr
                     compression.json
 
 ``graph.meta/export.json`` is copied from the ORC dataset exported by
-:mod:`swh.dataset.luigi`.
+:mod:`swh.export.luigi`.
 
 ``graph.meta/compression.json``  contains information about the compression itself,
 for provenance tracking.
@@ -120,9 +120,9 @@ from typing import Any, Dict, List, MutableSequence, Sequence, Set
 # control
 import luigi
 
-from swh.dataset.luigi import Format, LocalExport
-from swh.dataset.luigi import ObjectType as Table
-from swh.dataset.luigi import S3PathParameter
+from swh.export.luigi import Format, LocalExport
+from swh.export.luigi import ObjectType as Table
+from swh.export.luigi import S3PathParameter
 from swh.graph.webgraph import CompressionStep, do_step
 
 _LOW_XMX = 128_000_000
@@ -144,9 +144,9 @@ def _govmph_bitarray_size(nb_nodes: int) -> int:
 
 # This mirrors the long switch statement in
 # java/src/main/java/org/softwareheritage/graph/compress/ORCGraphDataset.java
-# but maps only to the main tables (see swh/dataset/relational.py)
+# but maps only to the main tables (see swh/export/relational.py)
 #
-# Note that swh-dataset's "object type" (which we refer to as "table" in the module
+# Note that swh-export's "object type" (which we refer to as "table" in the module
 # to avoid confusion) corresponds to a "main table" of a relational DB, eg.
 # "directory" or "origin_visit", but not relational table like "directory_entries".
 #

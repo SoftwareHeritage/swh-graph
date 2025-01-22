@@ -177,7 +177,7 @@ class DeanonymizeOriginContributors(luigi.Task):
     ``contributor_id``.
 
     This assumes that :file:`graph.persons.csv.zst` is anonymized (SHA256 of names
-    instead of names); which may not be true depending on how the swh-dataset export
+    instead of names); which may not be true depending on how the swh-export export
     was configured.
     """
 
@@ -212,7 +212,7 @@ class DeanonymizeOriginContributors(luigi.Task):
         """Loads the list of persons (``graph.persons.csv.zst`` in the graph dataset
         and the deanonymization table in memory, then uses them to map each row
         in the original (anonymized) contributors list to the deanonymized one."""
-        # TODO: .persons.csv.zst may be already deanonymized (if the swh-dataset export
+        # TODO: .persons.csv.zst may be already deanonymized (if the swh-export export
         # was configured to do so); this should add support for it.
 
         import base64

@@ -179,7 +179,7 @@ def serve(ctx, host, port, graph_path):
     "--name",
     default=None,
     help="Name of the dataset to download. This is an ISO8601 date, optionally with a "
-    "suffix. See https://docs.softwareheritage.org/devel/swh-dataset/graph/dataset.html",
+    "suffix. See https://docs.softwareheritage.org/devel/swh-export/graph/dataset.html",
 )
 @click.option(
     "--parallelism",
@@ -247,7 +247,7 @@ def list_datasets(
 
     The list may contain datasets that are not suitable for production, or not yet
     fully available. See
-    https://docs.softwareheritage.org/devel/swh-dataset/graph/dataset.html
+    https://docs.softwareheritage.org/devel/swh-export/graph/dataset.html
     for the official list of datasets, along with release notes.
     """
     import boto3
@@ -265,7 +265,7 @@ def list_datasets(
         err=True,
     )
     click.echo(
-        "See https://docs.softwareheritage.org/devel/swh-dataset/graph/dataset.html "
+        "See https://docs.softwareheritage.org/devel/swh-export/graph/dataset.html "
         "for the official list of datasets, along with release notes.",
         err=True,
     )
@@ -684,7 +684,7 @@ def luigi(
     import psutil
 
     # Popular the list of subclasses of luigi.Task
-    import swh.dataset.luigi  # noqa
+    import swh.export.luigi  # noqa
     import swh.graph.luigi  # noqa
 
     config = configparser.ConfigParser()
@@ -819,7 +819,7 @@ def luigi(
                 [
                     "luigi",
                     "--module",
-                    "swh.dataset.luigi",
+                    "swh.export.luigi",
                     "--module",
                     "swh.graph.luigi",
                     *luigi_param,

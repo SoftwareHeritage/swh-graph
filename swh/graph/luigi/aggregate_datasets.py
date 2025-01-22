@@ -16,7 +16,7 @@ from typing import Dict, List, Tuple
 
 import luigi
 
-from swh.dataset.luigi import S3PathParameter
+from swh.export.luigi import S3PathParameter
 
 from .compressed_graph import LocalGraph
 from .file_names import PopularContentNames

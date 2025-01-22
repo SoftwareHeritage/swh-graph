@@ -11,7 +11,7 @@ from typing import Dict, List
 import luigi
 import requests
 
-from swh.dataset.luigi import (
+from swh.export.luigi import (
     AthenaDatabaseTarget,
     CreateAthena,
     ObjectType,
@@ -151,7 +151,7 @@ class CreateSubdatasetOnAthena(luigi.Task):
 
     def output(self) -> Dict[str, luigi.Target]:
         """Returns the S3 location and Athena database for the subdataset"""
-        from swh.dataset.athena import TABLES
+        from swh.export.athena import TABLES
 
         return {
             "orc": self._meta(),
@@ -171,7 +171,7 @@ class CreateSubdatasetOnAthena(luigi.Task):
 
         import pkg_resources
 
-        from swh.dataset.athena import generate_subdataset
+        from swh.export.athena import generate_subdataset
 
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
         generate_subdataset(
@@ -196,8 +196,8 @@ class CreateSubdatasetOnAthena(luigi.Task):
             "parent": parent_meta,
             "hostname": socket.getfqdn(),
             "tool": {
-                "name": "swh.dataset",
-                "version": pkg_resources.get_distribution("swh.dataset").version,
+                "name": "swh.export",
+                "version": pkg_resources.get_distribution("swh.export").version,
             },
         }
 

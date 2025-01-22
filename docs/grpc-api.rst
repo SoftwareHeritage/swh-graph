@@ -41,7 +41,7 @@ Or::
 Getting a compressed graph
 --------------------------
 
-See :ref:`swh-dataset-list`.
+See :ref:`swh-export-list`.
 
 Starting the server
 -------------------

@@ -129,7 +129,7 @@ def test_luigi(mocker, tmpdir, exit_code):
         [
             "luigi",
             "--module",
-            "swh.dataset.luigi",
+            "swh.export.luigi",
             "--module",
             "swh.graph.luigi",
             "foo",

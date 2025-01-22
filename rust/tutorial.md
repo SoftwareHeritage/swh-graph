@@ -15,7 +15,7 @@ trait); while only the latter allows getting its predecessors
 
 You instantiate a graph from the path to the prefix used by a graph on your filesystem.
 This graph may be either `swh/graph/example_dataset/compressed/graph` from swh-graph's
-source code repository, or a [compressed graph downloaded from Amazon S3](https://docs.softwareheritage.org/devel/swh-dataset/graph/dataset.html).
+source code repository, or a [compressed graph downloaded from Amazon S3](https://docs.softwareheritage.org/devel/swh-export/graph/dataset.html).
 
 ```no_run
 use std::path::PathBuf;

@@ -16,7 +16,7 @@ from typing import List, Tuple
 
 import luigi
 
-from swh.dataset.luigi import S3PathParameter
+from swh.export.luigi import S3PathParameter
 
 from .compressed_graph import LocalGraph
 from .utils import _ParquetToS3ToAthenaTask, estimate_node_count

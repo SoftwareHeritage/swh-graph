@@ -11,7 +11,7 @@ This package contains `Luigi <https://luigi.readthedocs.io/>`_ tasks.
 These come in two kinds:
 
 * in :mod:`swh.graph.luigi.compressed_graph`: an alternative to the 'swh graph compress'
-  CLI that can be composed with other tasks, such as swh-dataset's
+  CLI that can be composed with other tasks, such as swh-export's
 * in other submodules: tasks driving the creation of specific datasets that are
   generated using the compressed graph
 
@@ -65,15 +65,15 @@ class RunNewGraph(luigi.Task):
     """Runs dataset export, graph compression, and generates datasets using the graph."""
 
     def requires(self) -> List[luigi.Task]:
-        """Returns instances of :class:`swh.dataset.luigi.RunExportAll`,
-        :class:`swh.dataset.luigi.UploadExportToS3`,
+        """Returns instances of :class:`swh.export.luigi.RunExportAll`,
+        :class:`swh.export.luigi.UploadExportToS3`,
         and :class:`swh.graph.luigi.compressed_graph.UploadGraphToS3`, which
         recursively depend on the whole export and compression pipeline.
         Also runs some of the derived datasets through
         :class:`swh.graph.topology.UploadGenerationsToS3` and
         :class:`swh.graph.aggregate_datasets.RunAggregatedDatasets`.
         """
-        from swh.dataset.luigi import RunExportAll, UploadExportToS3
+        from swh.export.luigi import RunExportAll, UploadExportToS3
 
         from .aggregate_datasets import RunAggregatedDatasets
         from .compressed_graph import UploadGraphToS3
