@@ -1043,7 +1043,7 @@ class EdgeLabelsTransposeEf(_CompressionStepTask):
 
 class Stats(_CompressionStepTask):
     STEP = CompressionStep.STATS
-    INPUT_FILES = {".graph", ".graph.ef", "-transposed.graph", "-transposed.graph.ef"}
+    INPUT_FILES = {".graph", ".ef", "-transposed.graph", "-transposed.ef"}
     OUTPUT_FILES = {".stats"}
 
     def _large_java_allocations(self) -> int:
@@ -1125,6 +1125,7 @@ class CompressGraph(luigi.Task):
             TransposeEf(**kwargs),
             Maps(**kwargs),
             NodeProperties(**kwargs),
+            Stats(**kwargs),
             *label_tasks,
         ]
 
