@@ -248,6 +248,12 @@ class _CompressionStepTask(luigi.Task):
 
     object_types: list[str] = ObjectTypesParameter()  # type: ignore[assignment]
 
+    test_flavor = luigi.Parameter(
+        default="full",
+        significant=False,
+        description="Test flavor for e2e test during compression",
+    )
+
     def _get_count(self, count_name: str, task_name: str) -> int:
         count_path = self.local_graph_path / f"{self.graph_name}.{count_name}.count.txt"
         if not count_path.exists():
@@ -494,6 +500,7 @@ class _CompressionStepTask(luigi.Task):
             graph_name=self.graph_name,
             in_dir=self.local_export_path / "orc",
             out_dir=self.local_graph_path,
+            test_flavor=self.test_flavor,
         )
 
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
@@ -1094,6 +1101,12 @@ class CompressGraph(luigi.Task):
         default=list(_TABLES_PER_OBJECT_TYPE)
     )
 
+    test_flavor = luigi.Parameter(
+        default="full",
+        significant=False,
+        description="Test flavor for e2e test during compression",
+    )
+
     def requires(self) -> List[luigi.Task]:
         """Returns a :class:`LocalExport` task, and leaves of the compression dependency
         graph"""
@@ -1164,6 +1177,7 @@ class CompressGraph(luigi.Task):
             graph_name=self.graph_name,
             in_dir=self.local_export_path,
             out_dir=self.local_graph_path,
+            test_flavor=self.test_flavor,
         )
 
         step_stamp_paths = []
@@ -1177,6 +1191,7 @@ class CompressGraph(luigi.Task):
 
         steps = [json.loads(path.read_text()) for path in step_stamp_paths]
 
+        do_step(CompressionStep.E2E_TEST, conf=conf)
         do_step(CompressionStep.CLEAN_TMP, conf=conf)
 
         # Copy export metadata

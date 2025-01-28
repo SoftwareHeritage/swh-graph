@@ -91,8 +91,14 @@ DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {
     ),
     help="YAML configuration file",
 )
+@click.option(
+    "--target",
+    type=str,
+    help="Which Rust target to use executables from, usually 'release' "
+    "(the default) or 'debug'.",
+)
 @click.pass_context
-def graph_cli_group(ctx, config_file):
+def graph_cli_group(ctx, config_file, target):
     """Software Heritage graph tools."""
     from swh.core import config
 
@@ -103,6 +109,10 @@ def graph_cli_group(ctx, config_file):
             'no "graph" stanza found in configuration file %s' % config_file
         )
     ctx.obj["config"] = conf
+
+    if target is None:
+        target = conf.get("target", "release")
+    conf["target"] = target
 
 
 @graph_cli_group.command(name="rpc-serve")
@@ -188,7 +198,7 @@ def serve(ctx, host, port, graph_path):
     help="Number of threads used to download/decompress files.",
 )
 @click.argument(
-    "target",
+    "target-dir",
     type=click.Path(
         file_okay=False,
         writable=True,
@@ -202,7 +212,7 @@ def download(
     s3_prefix: str,
     name: Optional[str],
     parallelism: int,
-    target: Path,
+    target_dir: Path,
 ):
     """Downloads a compressed SWH graph to the given target directory"""
     from swh.graph.download import GraphDownloader
@@ -214,10 +224,10 @@ def download(
     elif not s3_url:
         s3_url = f"{s3_prefix.rstrip('/')}/{name}/compressed/"
 
-    target.mkdir(parents=True, exist_ok=True)
+    target_dir.mkdir(parents=True, exist_ok=True)
 
     GraphDownloader(
-        local_graph_path=target,
+        local_graph_path=target_dir,
         s3_graph_path=s3_url,
         parallelism=parallelism,
     ).download_graph(
@@ -295,9 +305,6 @@ def list_datasets(
 @click.option(
     "--ef", is_flag=True, help="Regenerate .ef files even if they already exist"
 )
-@click.option(
-    "--debug", is_flag=True, help="Use debug executables instead of release executables"
-)
 @click.argument(
     "graph",
     type=click.Path(
@@ -305,13 +312,7 @@ def list_datasets(
     ),
 )
 @click.pass_context
-def reindex(
-    ctx,
-    force: bool,
-    ef: bool,
-    graph: str,
-    debug: bool,
-):
+def reindex(ctx, force: bool, ef: bool, graph: str):
     """Reindex a SWH GRAPH to the latest graph format.
 
     GRAPH should be composed of the graph folder followed by the graph prefix
@@ -323,8 +324,8 @@ def reindex(
 
     ef = ef or force
     conf = ctx.obj["config"]
-    if "debug" not in conf and debug:
-        conf["debug"] = debug
+    if "target" not in conf:
+        conf["target"] = "release"
 
     if (
         ef
@@ -383,9 +384,7 @@ def reindex(
         "for now and will be 0.0.0.0). Defaults to 50091"
     ),
 )
-@click.option(
-    "--graph", "-g", required=True, metavar="GRAPH", help="compressed graph basename"
-)
+@click.option("--graph", "-g", metavar="GRAPH", help="compressed graph basename")
 @click.pass_context
 def grpc_serve(ctx, port, graph):
     """start the graph GRPC service
@@ -397,11 +396,19 @@ def grpc_serve(ctx, port, graph):
     from swh.graph.grpc_server import build_rust_grpc_server_cmdline
 
     config = ctx.obj["config"]
-    config["graph"]["path"] = graph
-    if port is None and "port" not in config["graph"]:
-        port = 50091
-    if port is not None:
-        config["graph"]["port"] = port
+
+    target = ctx.obj["config"].get("target", "release")
+    config["graph"]["target"] = target
+
+    if graph is not None:
+        config["graph"]["path"] = graph
+    else:
+        if "path" not in config["graph"]:
+            raise ValueError("No graph base name provided")
+
+    if port is None:
+        port = config["graph"].get("port", 50091)
+    config["graph"]["port"] = port
 
     logger.debug("Building gPRC server command line")
     cmd, port = build_rust_grpc_server_cmdline(**config["graph"])
@@ -418,14 +425,12 @@ def grpc_serve(ctx, port, graph):
 @click.option(
     "--input-dataset",
     "-i",
-    required=True,
     type=PathlibPath(),
     help="graph dataset directory, in ORC format",
 )
 @click.option(
     "--output-directory",
     "-o",
-    required=True,
     type=PathlibPath(),
     help="directory where to store compressed graph",
 )
@@ -443,8 +448,9 @@ def grpc_serve(ctx, port, graph):
     type=StepOption(),
     help="run only these compression steps (default: all steps)",
 )
+@click.option("--test-flavor", "--test-flavour", type=str, help="Test flavo[u]r")
 @click.pass_context
-def compress(ctx, input_dataset, output_directory, graph_name, steps):
+def compress(ctx, input_dataset, output_directory, graph_name, steps, test_flavor):
     """Compress a graph using WebGraph
 
     Input: a directory containing a graph dataset in ORC format
@@ -470,7 +476,19 @@ def compress(ctx, input_dataset, output_directory, graph_name, steps):
         conf = {}  # use defaults
 
     try:
-        webgraph.compress(graph_name, input_dataset, output_directory, steps, conf)
+        conf["target"] = ctx.obj["config"]["target"]
+    except KeyError:
+        conf["target"] = "release"  # use release builds by default
+
+    if test_flavor is None:
+        # TODO: see is this can be None
+        test_flavor = conf.get("test_flavor", "full")
+    conf["test_flavor"] = test_flavor
+
+    try:
+        webgraph.compress(
+            graph_name, input_dataset, output_directory, test_flavor, steps, conf
+        )
     except webgraph.CompressionSubprocessError as e:
         try:
             if e.log_path.is_file():

@@ -14,7 +14,8 @@ import os
 from pathlib import Path
 import shlex
 import subprocess
-from typing import TYPE_CHECKING, Callable, Dict, List, Set
+import sys
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -68,6 +69,7 @@ class CompressionStep(Enum):
     EDGE_LABELS_EF = 270
     EDGE_LABELS_TRANSPOSE_EF = 280
     STATS = 290
+    E2E_TEST = 295
     CLEAN_TMP = 300
 
     def __str__(self):
@@ -401,6 +403,24 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--stats",
         "{out_dir}/{graph_name}.stats",
     ],
+    CompressionStep.E2E_TEST: [
+        sys.executable,
+        "-c",
+        "'import sys;\
+        from swh.graph.webgraph import run_e2e_test;\
+        run_e2e_test(\
+        graph_name=sys.argv[1],\
+        in_dir=sys.argv[2],\
+        out_dir=sys.argv[3],\
+        test_flavor=sys.argv[4],\
+        target=sys.argv[5],\
+        )'",
+        "{graph_name}",
+        "{in_dir}",
+        "{out_dir}",
+        "{test_flavor}",
+        "{target}",
+    ],
     CompressionStep.CLEAN_TMP: [
         "rm",
         "-rf",
@@ -480,8 +500,9 @@ def do_step(step, conf) -> "List[RunResult]":
 
 def compress(
     graph_name: str,
-    in_dir: Path,
-    out_dir: Path,
+    in_dir: str,
+    out_dir: str,
+    test_flavor: Optional[str],
     steps: Set[CompressionStep] = set(COMP_SEQ),
     conf: Dict[str, str] = {},
     progress_cb: Callable[[int, CompressionStep], None] = lambda percentage, step: None,
@@ -511,7 +532,7 @@ def compress(
     if not steps:
         steps = set(COMP_SEQ)
 
-    conf = check_config_compress(conf, graph_name, in_dir, out_dir)
+    conf = check_config_compress(conf, graph_name, in_dir, out_dir, test_flavor)
 
     compression_start_time = datetime.now()
     logger.info("Starting compression at %s", compression_start_time)
@@ -527,3 +548,124 @@ def compress(
     compression_end_time = datetime.now()
     compression_duration = compression_end_time - compression_start_time
     logger.info("Completed compression in %s", compression_duration)
+
+
+def run_e2e_test(
+    graph_name: str,
+    in_dir: Optional[str],
+    out_dir: Optional[str],
+    test_flavor: Optional[str],
+    target: str = "release",
+):
+    """Empirically test the graph compression correctness.
+
+    Check for a specific SWHID in the compressed graph and do
+    simple traversal requests to ensure the compression went
+    well. This is a best effort procedure, as it is (generally)
+    not possible to check for every single item in the graph.
+
+    Args:
+        swhid: SWHID of the item used for testing.
+        out_dir: Output directory, where the compressed graph will be stored.
+    """
+    import socket
+    import time
+
+    import grpc
+
+    import swh.graph.grpc.swhgraph_pb2 as swhgraph
+    import swh.graph.grpc.swhgraph_pb2_grpc as swhgraph_grpc
+    from swh.graph.grpc_server import spawn_rust_grpc_server, stop_grpc_server
+
+    conf = check_config_compress(
+        {"target": target}, graph_name, in_dir, out_dir, test_flavor
+    )
+
+    graph_name = conf["graph_name"]
+    in_dir = conf["in_dir"]
+    out_dir = conf["out_dir"]
+    test_flavor = conf["test_flavor"]
+
+    if test_flavor == "none":
+        logger.info("End to end tests skipped.")
+        return
+
+    if "graph_path" not in conf:
+        conf["graph_path"] = f"{out_dir}/{graph_name}"
+
+    server, port = spawn_rust_grpc_server(**conf, path=conf["graph_path"])
+
+    # wait for the server to accept connections
+    while True:
+        try:
+            socket.create_connection(("localhost", port))
+        except Exception:
+            time.sleep(0.1)
+            server.poll()
+            if server.returncode is not None:
+                raise Exception("GRPC server unexpectedly stopped.")
+        else:
+            break
+
+    if test_flavor == "full":
+        cnt_swhid = conf["cnt_swhid"]
+        dir_swhid = conf["dir_swhid"]
+        snp_swhid = conf["snp_swhid"]
+        test_bools = {"cnt_in_dir": False, "cnt_in_snp": False, "dir_in_snp": False}
+    elif test_flavor == "history_hosting":
+        dir_swhid = conf["dir_swhid"]
+        snp_swhid = conf["snp_swhid"]
+        test_bools = {"dir_in_snp": False}
+    else:  # test_flavor == "example"
+        rev_swhid = conf["rev_swhid"]
+        dir_swhid = conf["dir_swhid"]
+        test_bools = {"dir_in_rev": False}
+
+    exc = None
+
+    if test_flavor == "full":
+        with grpc.insecure_channel(f"localhost:{port}") as channel:
+            stub = swhgraph_grpc.TraversalServiceStub(channel)
+            try:
+                response = stub.Traverse(swhgraph.TraversalRequest(src=[snp_swhid]))
+                for elt in response:
+                    if elt.swhid == dir_swhid:
+                        test_bools["dir_in_snp"] = True
+                    elif elt.swhid == cnt_swhid:
+                        test_bools["cnt_in_snp"] = True
+                response = stub.Traverse(swhgraph.TraversalRequest(src=[dir_swhid]))
+                for elt in response:
+                    if elt.swhid == cnt_swhid:
+                        test_bools["cnt_in_dir"] = True
+            except Exception as e:
+                exc = e
+    elif test_flavor == "history_hosting":
+        with grpc.insecure_channel(f"localhost:{port}") as channel:
+            stub = swhgraph_grpc.TraversalServiceStub(channel)
+            try:
+                response = stub.Traverse(swhgraph.TraversalRequest(src=[snp_swhid]))
+                for elt in response:
+                    if elt.swhid == dir_swhid:
+                        test_bools["dir_in_snp"] = True
+            except Exception as e:
+                exc = e
+    else:  # test_flavor == "example"
+        with grpc.insecure_channel(f"localhost:{port}") as channel:
+            stub = swhgraph_grpc.TraversalServiceStub(channel)
+            try:
+                response = stub.Traverse(swhgraph.TraversalRequest(src=[rev_swhid]))
+                for elt in response:
+                    if elt.swhid == dir_swhid:
+                        test_bools["dir_in_rev"] = True
+            except Exception as e:
+                exc = e
+
+    stop_grpc_server(server)
+
+    if exc is not None:
+        raise exc
+
+    for val in test_bools.values():
+        if not val:
+            logger.error("Something went wrong with the compression.")
+    logger.info("Compression seems to have gone well.")

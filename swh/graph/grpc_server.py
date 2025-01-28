@@ -56,7 +56,7 @@ def spawn_rust_grpc_server(**config):
     # logger.info("Starting gRPC server: %s", shlex.join(cmd))
     logger.info("Starting gRPC server: %s", " ".join(shlex.quote(x) for x in cmd))
     env = dict(os.environ)
-    if config.get("debug", False):
+    if config.get("target") == "debug":
         env.setdefault("RUST_LOG", "debug,h2=info")  # h2 is very verbose at DEBUG level
     if "statsd_host" in config:
         env["STATSD_HOST"] = config["statsd_host"]

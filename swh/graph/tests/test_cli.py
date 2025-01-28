@@ -33,12 +33,14 @@ def test_pipeline():
     # bare bone configuration, to allow testing the compression pipeline
     # with minimum RAM requirements on trivial graphs
     config = {
+        "target": "debug",
         "graph": {
             "compress": {
                 "batch_size": 1000,
                 "rust_executable_dir": "./target/debug/",
+                "test_flavor": "example",
             }
-        }
+        },
     }
     runner = CliRunner()
 
@@ -90,7 +92,15 @@ def test_reindex(mocker, tmpdir, option):
 
         result = runner.invoke(
             graph_cli_group,
-            ["--config-file", config_path, "reindex", f"{tmpdir}/example", *trailing],
+            [
+                "--config-file",
+                config_path,
+                "--target",
+                "debug",
+                "reindex",
+                f"{tmpdir}/example",
+                *trailing,
+            ],
         )
         assert result.exit_code == 0, result
 

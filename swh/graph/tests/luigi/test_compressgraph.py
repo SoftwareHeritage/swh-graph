@@ -31,6 +31,8 @@ def test_compressgraph(tmpdir, workers):
         "--batch-size=1000",  # small value, to go fast on the trivial dataset
         "--retry-luigi-delay=1",  # retry quickly
         "--",
+        "--CompressGraph-test-flavor",
+        "example",
         "--local-scheduler",
         "--CompressGraph-local-export-path",
         DATASET_DIR,
@@ -111,6 +113,8 @@ def test_compressgraph_partial(tmpdir, workers, object_types):
         "--batch-size=1000",  # small value, to go fast on the trivial dataset
         "--retry-luigi-delay=1",  # retry quickly
         "--",
+        "--CompressGraph-test-flavor",
+        "none",
         "--local-scheduler",
         "--CompressGraph-local-export-path",
         DATASET_DIR,

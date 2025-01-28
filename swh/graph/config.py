@@ -29,6 +29,8 @@ def check_config(conf):
     debug_mode = (
         os.environ.get("PYTEST_VERSION") is not None or conf.get("target") == "debug"
     )
+    if debug_mode:
+        conf["target"] = "debug"
     if "rust_executable_dir" not in conf:
         # look for a target/ directory in the sources root directory
         profile = "debug" if debug_mode else "release"
@@ -48,15 +50,29 @@ def check_config(conf):
     return conf
 
 
-def check_config_compress(config, graph_name, in_dir, out_dir):
+def check_config_compress(config, graph_name, in_dir, out_dir, test_flavor):
     """check compression-specific configuration and initialize its execution
     environment.
     """
     conf = check_config(config)
 
-    conf["graph_name"] = graph_name
-    conf["in_dir"] = str(in_dir)
-    conf["out_dir"] = str(out_dir)
+    def _retrieve_value(value, name):
+        if value is not None:
+            if isinstance(value, Path):
+                value = str(value)
+            conf[name] = value
+        else:
+            if name not in conf:
+                raise ValueError(f"No {name} provided.")
+            else:
+                value = conf[name]
+        return value
+
+    graph_name = _retrieve_value(graph_name, "graph_name")
+    in_dir = Path(_retrieve_value(in_dir, "in_dir"))
+    out_dir = Path(_retrieve_value(out_dir, "out_dir"))
+    test_flavor = _retrieve_value(test_flavor, "test_flavor")
+
     out_dir.mkdir(parents=True, exist_ok=True)
     if "tmp_dir" not in conf:
         tmp_dir = out_dir / "tmp"
@@ -64,5 +80,35 @@ def check_config_compress(config, graph_name, in_dir, out_dir):
     else:
         tmp_dir = Path(conf["tmp_dir"])
     tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    if test_flavor is None:
+        test_flavor = conf.get("test_flavor", "full")
+    conf["test_flavor"] = test_flavor
+
+    # NOTE: maybe we should condider using something else
+    if conf["test_flavor"] == "full":
+        # Parmap's README
+        conf["cnt_swhid"] = "swh:1:cnt:43243e2ae91a64e252170cd922718e8c2af323b6"
+        # Parmap's root directory
+        conf["dir_swhid"] = "swh:1:dir:bc7ddd62cf3d72ffdc365e1bf2dea6eeaa44e185"
+        # Parmap's snapshot from November 16, 2024
+        conf["snp_swhid"] = "swh:1:snp:8ddca416836fbbc2a7704c69db38739bef6b6cae"
+    elif conf["test_flavor"] == "history_hosting":
+        # Parmap's root directory
+        conf["dir_swhid"] = "swh:1:dir:bc7ddd62cf3d72ffdc365e1bf2dea6eeaa44e185"
+        # Parmap's snapshot from November 16, 2024
+        conf["snp_swhid"] = "swh:1:snp:8ddca416836fbbc2a7704c69db38739bef6b6cae"
+    elif conf["test_flavor"] == "example":
+        # Revision in the example dataset
+        conf["rev_swhid"] = "swh:1:rev:0000000000000000000000000000000000000009"
+        # Directory in the example dataset
+        conf["dir_swhid"] = "swh:1:dir:0000000000000000000000000000000000000006"
+    elif conf["test_flavor"] == "none":
+        pass
+    else:
+        raise ValueError(
+            f"Unsupported test flavor: {test_flavor}."
+            "Must be one of full, history_hosting, example or none."
+        )
 
     return conf
