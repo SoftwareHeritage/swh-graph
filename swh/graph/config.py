@@ -4,8 +4,8 @@
 # See top-level LICENSE file for more information
 
 import logging
+import os
 from pathlib import Path
-import sys
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -26,7 +26,9 @@ def check_config(conf):
         conf["llp_gammas"] = "-1,-2,-3,-4,-5,0-0"
         logger.debug("llp_gammas not configured, defaulting to %s", conf["llp_gammas"])
     # rust related config entries
-    debug_mode = conf.get("debug", "pytest" in sys.modules)
+    debug_mode = (
+        os.environ.get("PYTEST_VERSION") is not None or conf.get("target") == "debug"
+    )
     if "rust_executable_dir" not in conf:
         # look for a target/ directory in the sources root directory
         profile = "debug" if debug_mode else "release"
