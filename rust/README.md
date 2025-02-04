@@ -145,7 +145,7 @@ data structures and formats than the Rust implementation.
 Therefore, you need to generate new files in order to load old graphs with the Rust
 implementation; this takes a few hours for graphs representing full SWH exports.
 
-The `swh graph reindex` command (made available with `pip3 install swh.graph`)
+The `swh graph reindex` command (made available with `cargo install swh-graph && pip3 install swh.graph`)
 takes care of running the conversion.
 
 Additionally, the `.ef` format may change from time to time. If you get an error
