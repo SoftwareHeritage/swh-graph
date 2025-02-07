@@ -85,27 +85,7 @@ def check_config_compress(config, graph_name, in_dir, out_dir, test_flavor):
         test_flavor = conf.get("test_flavor", "full")
     conf["test_flavor"] = test_flavor
 
-    # NOTE: maybe we should condider using something else
-    if conf["test_flavor"] == "full":
-        # Parmap's README
-        conf["cnt_swhid"] = "swh:1:cnt:43243e2ae91a64e252170cd922718e8c2af323b6"
-        # Parmap's root directory
-        conf["dir_swhid"] = "swh:1:dir:bc7ddd62cf3d72ffdc365e1bf2dea6eeaa44e185"
-        # Parmap's snapshot from November 16, 2024
-        conf["snp_swhid"] = "swh:1:snp:8ddca416836fbbc2a7704c69db38739bef6b6cae"
-    elif conf["test_flavor"] == "history_hosting":
-        # Parmap's root directory
-        conf["dir_swhid"] = "swh:1:dir:bc7ddd62cf3d72ffdc365e1bf2dea6eeaa44e185"
-        # Parmap's snapshot from November 16, 2024
-        conf["snp_swhid"] = "swh:1:snp:8ddca416836fbbc2a7704c69db38739bef6b6cae"
-    elif conf["test_flavor"] == "example":
-        # Revision in the example dataset
-        conf["rev_swhid"] = "swh:1:rev:0000000000000000000000000000000000000009"
-        # Directory in the example dataset
-        conf["dir_swhid"] = "swh:1:dir:0000000000000000000000000000000000000006"
-    elif conf["test_flavor"] == "none":
-        pass
-    else:
+    if conf["test_flavor"] not in ["full", "history_hosting", "example", "none"]:
         raise ValueError(
             f"Unsupported test flavor: {test_flavor}."
             "Must be one of full, history_hosting, example or none."
