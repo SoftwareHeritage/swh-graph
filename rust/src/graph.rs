@@ -93,7 +93,7 @@ impl<G: UnderlyingGraph, L: RandomAccessLabeling> UnderlyingGraph for Zip<G, L> 
     }
 }
 
-impl<L: Copy> UnderlyingGraph for Left<VecGraph<L>> {
+impl<L: Clone> UnderlyingGraph for Left<VecGraph<L>> {
     type UnlabeledSuccessors<'succ>
         = <Self as RandomAccessLabeling>::Labels<'succ>
     where
@@ -110,7 +110,7 @@ impl<L: Copy> UnderlyingGraph for Left<VecGraph<L>> {
     }
 }
 
-impl<L: Copy> UnderlyingGraph for VecGraph<L> {
+impl<L: Clone> UnderlyingGraph for VecGraph<L> {
     type UnlabeledSuccessors<'succ>
         = DelabelingIterator<<Self as RandomAccessLabeling>::Labels<'succ>>
     where

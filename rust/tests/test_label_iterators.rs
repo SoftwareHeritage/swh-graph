@@ -6,13 +6,11 @@
  */
 
 use anyhow::Result;
-use webgraph::prelude::{Left, Right, VecGraph, Zip};
 
 use swh_graph::arc_iterators::LabeledArcIterator;
 use swh_graph::graph::*;
-use swh_graph::graph_builder::GraphBuilder;
+use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
 use swh_graph::labels::{Branch, Visit, VisitStatus};
-use swh_graph::properties::*;
 use swh_graph::swhid;
 
 /// ```
@@ -26,21 +24,7 @@ use swh_graph::swhid;
 ///       \       /
 ///        -> snp3
 /// ```
-#[allow(clippy::type_complexity)]
-fn build_graph() -> Result<
-    SwhBidirectionalGraph<
-        SwhGraphProperties<
-            VecMaps,
-            VecTimestamps,
-            VecPersons,
-            VecContents,
-            VecStrings,
-            VecLabelNames,
-        >,
-        Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
-        Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
-    >,
-> {
+fn build_graph() -> Result<BuiltGraph> {
     let mut builder = GraphBuilder::default();
     builder
         .node(swhid!(swh:1:ori:0000000000000000000000000000000000000000))?

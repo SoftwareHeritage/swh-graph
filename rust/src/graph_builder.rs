@@ -12,7 +12,7 @@ use std::io::Write;
 
 use anyhow::{ensure, Context, Result};
 use itertools::Itertools;
-use webgraph::prelude::{Left, Right, VecGraph, Zip};
+use webgraph::prelude::VecGraph;
 
 use crate::graph::*;
 use crate::labels::{
@@ -23,7 +23,6 @@ use crate::SwhGraphProperties;
 use crate::{NodeType, SWHID};
 
 // Type (alias) of the graph built by the graph builder
-#[allow(clippy::type_complexity)]
 pub type BuiltGraph = SwhBidirectionalGraph<
     SwhGraphProperties<
         properties::VecMaps,
@@ -33,8 +32,8 @@ pub type BuiltGraph = SwhBidirectionalGraph<
         properties::VecStrings,
         properties::VecLabelNames,
     >,
-    Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
-    Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
+    VecGraph<Vec<u64>>,
+    VecGraph<Vec<u64>>,
 >;
 
 /// Dynamically builds a small graph in memory
@@ -259,22 +258,8 @@ impl GraphBuilder {
 
         SwhBidirectionalGraph::from_underlying_graphs(
             std::path::PathBuf::default(),
-            // Equivalent to VecGraph::from_labeled_arc_list(arcs), but bypasses the
-            // constraint that the left side of the Zip must have Copy-able labels
-            Zip(
-                Left(VecGraph::from_arc_list(
-                    arcs.iter().map(|(src, dst, _labels)| (*src, *dst)),
-                )),
-                Right(VecGraph::from_labeled_arc_list(arcs)),
-            ),
-            // Equivalent to VecGraph::from_labeled_arc_list(backward_arcs), but bypasses the
-            // constraint that the left side of the Zip must have Copy-able labels
-            Zip(
-                Left(VecGraph::from_arc_list(
-                    backward_arcs.iter().map(|(src, dst, _labels)| (*src, *dst)),
-                )),
-                Right(VecGraph::from_labeled_arc_list(backward_arcs)),
-            ),
+            VecGraph::from_labeled_arc_list(arcs),
+            VecGraph::from_labeled_arc_list(backward_arcs),
         )
         .init_properties()
         .load_properties(|properties| {

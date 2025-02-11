@@ -49,27 +49,18 @@ fn test_minimal() -> Result<()> {
         graph.properties().swhid(c),
         swhid!(swh:1:rel:0000000000000000000000000000000000000030)
     );
+    assert_eq!(graph.successors(a).collect::<Vec<_>>(), vec![b, c]);
+    assert_eq!(graph.successors(b).collect::<Vec<_>>(), vec![c]);
     assert_eq!(
-        graph.successors(a).into_iter().collect::<Vec<_>>(),
-        vec![b, c]
-    );
-    assert_eq!(graph.successors(b).into_iter().collect::<Vec<_>>(), vec![c]);
-    assert_eq!(
-        graph.successors(c).into_iter().collect::<Vec<_>>(),
+        graph.successors(c).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
     assert_eq!(
-        graph.predecessors(a).into_iter().collect::<Vec<_>>(),
+        graph.predecessors(a).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
-    assert_eq!(
-        graph.predecessors(b).into_iter().collect::<Vec<_>>(),
-        vec![a]
-    );
-    assert_eq!(
-        graph.predecessors(c).into_iter().collect::<Vec<_>>(),
-        vec![a, b]
-    );
+    assert_eq!(graph.predecessors(b).collect::<Vec<_>>(), vec![a]);
+    assert_eq!(graph.predecessors(c).collect::<Vec<_>>(), vec![a, b]);
 
     Ok(())
 }
@@ -137,13 +128,10 @@ fn test_dir_labels() -> Result<()> {
         )
     };
 
+    assert_eq!(graph.successors(a).collect::<Vec<_>>(), vec![b, c]);
+    assert_eq!(graph.successors(b).collect::<Vec<_>>(), vec![c]);
     assert_eq!(
-        graph.successors(a).into_iter().collect::<Vec<_>>(),
-        vec![b, c]
-    );
-    assert_eq!(graph.successors(b).into_iter().collect::<Vec<_>>(), vec![c]);
-    assert_eq!(
-        graph.successors(c).into_iter().collect::<Vec<_>>(),
+        graph.successors(c).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
 
@@ -169,17 +157,11 @@ fn test_dir_labels() -> Result<()> {
     );
 
     assert_eq!(
-        graph.predecessors(a).into_iter().collect::<Vec<_>>(),
+        graph.predecessors(a).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
-    assert_eq!(
-        graph.predecessors(b).into_iter().collect::<Vec<_>>(),
-        vec![a]
-    );
-    assert_eq!(
-        graph.predecessors(c).into_iter().collect::<Vec<_>>(),
-        vec![a, b]
-    );
+    assert_eq!(graph.predecessors(b).collect::<Vec<_>>(), vec![a]);
+    assert_eq!(graph.predecessors(c).collect::<Vec<_>>(), vec![a, b]);
 
     assert_eq!(
         graph
@@ -352,17 +334,14 @@ fn test_snp_labels() -> Result<()> {
         )
     };
 
+    assert_eq!(graph.successors(a).collect::<Vec<_>>(), vec![c, d]);
+    assert_eq!(graph.successors(b).collect::<Vec<_>>(), vec![c]);
     assert_eq!(
-        graph.successors(a).into_iter().collect::<Vec<_>>(),
-        vec![c, d]
-    );
-    assert_eq!(graph.successors(b).into_iter().collect::<Vec<_>>(), vec![c]);
-    assert_eq!(
-        graph.successors(c).into_iter().collect::<Vec<_>>(),
+        graph.successors(c).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
     assert_eq!(
-        graph.successors(d).into_iter().collect::<Vec<_>>(),
+        graph.successors(d).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
 
@@ -385,21 +364,15 @@ fn test_snp_labels() -> Result<()> {
     );
 
     assert_eq!(
-        graph.predecessors(a).into_iter().collect::<Vec<_>>(),
+        graph.predecessors(a).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
     assert_eq!(
-        graph.predecessors(b).into_iter().collect::<Vec<_>>(),
+        graph.predecessors(b).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
-    assert_eq!(
-        graph.predecessors(c).into_iter().collect::<Vec<_>>(),
-        vec![a, b]
-    );
-    assert_eq!(
-        graph.predecessors(d).into_iter().collect::<Vec<_>>(),
-        vec![a]
-    );
+    assert_eq!(graph.predecessors(c).collect::<Vec<_>>(), vec![a, b]);
+    assert_eq!(graph.predecessors(d).collect::<Vec<_>>(), vec![a]);
 
     assert_eq!(
         graph
@@ -494,17 +467,14 @@ fn test_ori_labels() -> Result<()> {
         )
     };
 
+    assert_eq!(graph.successors(a).collect::<Vec<_>>(), vec![c, d]);
+    assert_eq!(graph.successors(b).collect::<Vec<_>>(), vec![c]);
     assert_eq!(
-        graph.successors(a).into_iter().collect::<Vec<_>>(),
-        vec![c, d]
-    );
-    assert_eq!(graph.successors(b).into_iter().collect::<Vec<_>>(), vec![c]);
-    assert_eq!(
-        graph.successors(c).into_iter().collect::<Vec<_>>(),
+        graph.successors(c).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
     assert_eq!(
-        graph.successors(d).into_iter().collect::<Vec<_>>(),
+        graph.successors(d).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
 
@@ -524,21 +494,15 @@ fn test_ori_labels() -> Result<()> {
     );
 
     assert_eq!(
-        graph.predecessors(a).into_iter().collect::<Vec<_>>(),
+        graph.predecessors(a).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
     assert_eq!(
-        graph.predecessors(b).into_iter().collect::<Vec<_>>(),
+        graph.predecessors(b).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
-    assert_eq!(
-        graph.predecessors(c).into_iter().collect::<Vec<_>>(),
-        vec![a, b]
-    );
-    assert_eq!(
-        graph.predecessors(d).into_iter().collect::<Vec<_>>(),
-        vec![a]
-    );
+    assert_eq!(graph.predecessors(c).collect::<Vec<_>>(), vec![a, b]);
+    assert_eq!(graph.predecessors(d).collect::<Vec<_>>(), vec![a]);
 
     assert_eq!(
         graph
@@ -596,7 +560,7 @@ fn test_multiarc() -> Result<()> {
         )
     };
 
-    assert_eq!(graph.successors(a).into_iter().collect::<Vec<_>>(), vec![b]);
+    assert_eq!(graph.successors(a).collect::<Vec<_>>(), vec![b]);
 
     assert_eq!(
         graph
@@ -612,10 +576,7 @@ fn test_multiarc() -> Result<()> {
         ),]
     );
 
-    assert_eq!(
-        graph.predecessors(b).into_iter().collect::<Vec<_>>(),
-        vec![a]
-    );
+    assert_eq!(graph.predecessors(b).collect::<Vec<_>>(), vec![a]);
 
     assert_eq!(
         graph
