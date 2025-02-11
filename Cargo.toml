@@ -6,10 +6,6 @@ members = [
     "grpc-server",
     "pyo3",
     "rust",
-    "tools/aggregate",
-    "tools/contributions",
-    "tools/file_names",
-    "tools/provenance",
     "tools/topology",
 ]
 

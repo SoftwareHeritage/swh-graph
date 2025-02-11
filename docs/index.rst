@@ -13,7 +13,6 @@
    Rust API <https://docs.rs/swh-graph/>
    memory
    compression
-   luigi
    cli
    docker
    git2graph

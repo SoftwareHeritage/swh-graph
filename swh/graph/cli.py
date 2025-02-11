@@ -527,14 +527,6 @@ def get_all_subclasses(cls):
     For example: ``/poolswh/softwareheritage/``.""",
 )
 @click.option(
-    "--base-sensitive-directory",
-    required=False,
-    type=PathlibPath(),
-    help="""The base directory for any data that should not be publicly available
-    (eg. because it contains people's names).
-    For example: ``/poolswh/softwareheritage/``.""",
-)
-@click.option(
     "--athena-prefix",
     required=False,
     type=str,
@@ -616,15 +608,6 @@ def get_all_subclasses(cls):
     Defaults to the value of --parent-dataset-name""",
 )
 @click.option(
-    "--previous-dataset-name",
-    required=False,
-    type=str,
-    help="""When regenerating a derived dataset, this can be set to the name of
-    a previous dataset the derived dataset was generated for.
-    Some results from the previous generated dataset will be reused to speed-up
-    regeneration.""",
-)
-@click.option(
     "--luigi-config",
     type=PathlibPath(),
     help="""Extra options to add to ``luigi.cfg``, following the same format.
@@ -644,7 +627,6 @@ def luigi(
     base_directory: Path,
     graph_base_directory: Optional[Path],
     export_base_directory: Optional[Path],
-    base_sensitive_directory: Optional[Path],
     s3_prefix: Optional[str],
     athena_prefix: Optional[str],
     max_ram: Optional[str],
@@ -655,21 +637,22 @@ def luigi(
     parent_dataset_name: Optional[str],
     parent_export_name: Optional[str],
     export_name: Optional[str],
-    previous_dataset_name: Optional[str],
     retry_luigi_delay: int,
     luigi_config: Optional[Path],
     luigi_param: List[str],
 ):
     r"""
+    Internal command of swh-graph. Use 'swh export luigi' instead.
+
     Calls Luigi with the given task and params, and automatically
     configures paths based on --base-directory and --dataset-name.
 
     The list of Luigi params should be prefixed with ``--`` so they are not interpreted
     by the ``swh`` CLI. For example::
 
-        swh graph luigi \
+        swh datasets luigi \
                 --base-directory ~/tmp/ \
-                --dataset-name 2022-12-05_test ListOriginContributors \
+                --dataset-name 2022-12-05_test \
                 -- \
                 RunAll \
                 --local-scheduler
@@ -748,15 +731,10 @@ def luigi(
         local_graph_path=dataset_path / "compressed",
         derived_datasets_path=dataset_path,
         topological_order_dir=dataset_path / "topology/",
-        aggregate_datasets_path=dataset_path / "aggregate/",
-        popular_content_names_path=dataset_path / "popular-content-names/",
-        provenance_dir=dataset_path / "provenance",
-        origin_contributors_path=dataset_path / "contribution_graph.csv.zst",
         origin_urls_path=dataset_path / "origin_urls.csv.zst",
         export_id=f"{export_name}-{secrets.token_hex(10)}",
         export_name=export_name,
         dataset_name=dataset_name,
-        previous_dataset_name=previous_dataset_name,
     )
 
     if graph_base_directory:
@@ -786,20 +764,6 @@ def luigi(
 
     if grpc_api:
         default_values["grpc_api"] = grpc_api
-
-    if base_sensitive_directory:
-        sensitive_path = base_sensitive_directory / dataset_name
-        default_values["deanonymized_origin_contributors_path"] = (
-            sensitive_path / "contributors_deanonymized.csv.zst"
-        )
-        default_values["deanonymization_table_path"] = (
-            sensitive_path / "persons_sha256_to_name.csv.zst"
-        )
-
-    if previous_dataset_name:
-        default_values["previous_derived_datasets_path"] = (
-            base_directory / previous_dataset_name
-        )
 
     if athena_prefix:
         default_values["athena_db_name"] = (

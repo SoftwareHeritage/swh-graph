@@ -65,7 +65,7 @@ Install the ``swh.graph`` python package:
      compress    Compress a graph using WebGraph
      download    Downloads a compressed SWH graph to the given target directory
      grpc-serve  start the graph GRPC service
-     luigi       Calls Luigi with the given task and params, and...
+     luigi       Internal command
      rpc-serve   run the graph RPC service
 
 
