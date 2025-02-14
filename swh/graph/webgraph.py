@@ -616,6 +616,13 @@ def run_e2e_test(
         else:
             break
 
+    # This dictionary is a copy of a few directories retrieved from the graph. It
+    # includes a few well known projects, such as `parmap`, `apt`, or `vim`. The
+    # items have all been directly copied over in the file after having been queried
+    # from the 2024-12-06 graph.
+    # They should not change in the future, as all traversals start from fixed snapshots.
+    # For each project, the `cnt` field corresponds to the project's README, and the
+    # `dir` field is the root directory.
     test_values: dict[
         str, dict[str, dict[str, Union[str, int, object, list[dict[str, str]]]]]
     ] = {
