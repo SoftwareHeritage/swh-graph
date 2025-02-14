@@ -486,7 +486,7 @@ class _CompressionStepTask(luigi.Task):
 
         conf: dict[str, Any] = {
             "object_types": ",".join(self.object_types),
-            "max_ram": f"{(self._large_java_allocations() + _LOW_XMX)//(1024*1024)}M",
+            "max_ram": f"{(self._large_java_allocations() + _LOW_XMX) // (1024 * 1024)}M",
             # TODO: make this more configurable
         }
         if self.batch_size:
