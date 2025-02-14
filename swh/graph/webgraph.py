@@ -516,6 +516,7 @@ def compress(
         graph_name: graph base name, relative to in_dir
         in_dir: input directory, where the uncompressed graph can be found
         out_dir: output directory, where the compressed graph will be stored
+        test_flavor: which flavor of tests to run
         steps: compression steps to run (default: all steps)
         conf: compression configuration, supporting the following keys (all are
           optional, so an empty configuration is fine and is the default)
@@ -567,8 +568,14 @@ def run_e2e_test(
     not possible to check for every single item in the graph.
 
     Args:
-        swhid: SWHID of the item used for testing.
-        out_dir: Output directory, where the compressed graph will be stored.
+        graph_name: graph base name, relative to in_dir
+        in_dir: input directory, where the uncompressed graph can be found
+        out_dir: output directory, where the compressed graph will be stored
+        test_flavor: which flavor of tests to run
+        target: Which Rust executables to use
+
+    Raises:
+        Exception: GRPC server unexpectedly stopped
     """
     import socket
     import time
