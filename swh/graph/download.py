@@ -9,6 +9,7 @@ from typing import Callable
 
 import boto3
 import botocore
+from botocore.handlers import disable_signing
 import tqdm
 
 
@@ -24,9 +25,7 @@ class GraphDownloader:
 
         self.s3 = boto3.resource("s3")
         # don't require credentials to list the bucket
-        self.s3.meta.client.meta.events.register(
-            "choose-signer.s3.*", botocore.handlers.disable_signing
-        )
+        self.s3.meta.client.meta.events.register("choose-signer.s3.*", disable_signing)
         self.client = boto3.client(
             "s3",
             config=botocore.client.Config(

@@ -4,8 +4,12 @@ pytest-postgresql
 swh.core[testing] >= 3.0.0
 
 types-click
+types-psutil
 types-pyyaml
 types-requests
 types-protobuf
 types-tqdm
+boto3-stubs
+botocore-stubs
 grpc-stubs
+pyarrow-stubs
