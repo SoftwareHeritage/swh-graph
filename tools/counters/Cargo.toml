@@ -1,0 +1,13 @@
+[package]
+name = "counters"
+edition = "2021"
+repository.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+env_logger.workspace = true
+log.workspace = true
+swh-graph = { path = "../../rust/", features = ["serde"] }

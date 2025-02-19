@@ -1039,6 +1039,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "counters"
+version = "6.3.1"
+dependencies = [
+ "anyhow",
+ "clap",
+ "env_logger 0.11.5",
+ "log",
+ "swh-graph",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
