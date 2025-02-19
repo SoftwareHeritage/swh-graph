@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2023  The Software Heritage developers
+# Copyright (C) 2019-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -6,6 +6,7 @@
 import logging
 import os
 from pathlib import Path
+from typing import Optional
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -14,8 +15,13 @@ import psutil
 logger = logging.getLogger(__name__)
 
 
-def check_config(conf):
-    """check configuration and propagate defaults"""
+def check_config(conf, base_rust_executable_dir: Optional[Path] = None):
+    """check configuration and propagate defaults
+
+    Arguments:
+        base_rust_executable_dir: path to the directory that contains the local project's
+            Rust build artifact, ie. :file:`target/`."""
+
     conf = conf.copy()
     if "batch_size" not in conf:
         # Use 0.1% of the RAM as a batch size:
@@ -34,13 +40,15 @@ def check_config(conf):
     if "rust_executable_dir" not in conf:
         # look for a target/ directory in the sources root directory
         profile = "debug" if debug_mode else "release"
-        # in editable installs, __file__ is a symlink to the original file in
-        # the source directory, which is where in the end the rust sources and
-        # executable are. So resolve the symlink before looking for the target/
-        # directory relative to the actual python file.
-        path = Path(__file__).resolve()
-        path = path.parent.parent.parent / "target" / profile
-        conf["rust_executable_dir"] = str(path)
+
+        if base_rust_executable_dir is None:
+            # in editable installs, __file__ is a symlink to the original file in
+            # the source directory, which is where in the end the rust sources and
+            # executable are. So resolve the symlink before looking for the target/
+            # directory relative to the actual python file.
+            path = Path(__file__).resolve()
+            base_rust_executable_dir = path.parent.parent.parent / "target"
+        conf["rust_executable_dir"] = str(base_rust_executable_dir / profile)
     if not conf["rust_executable_dir"].endswith("/"):
         conf["rust_executable_dir"] += "/"
 

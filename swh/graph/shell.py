@@ -282,13 +282,14 @@ class Rust(Command):
         self,
         bin_name,
         *args: Union[str, Path, "luigi.LocalTarget"],
+        base_rust_executable_dir: Optional[Path] = None,
         conf: Optional[Dict[str, Any]] = None,
         env: Optional[Dict[str, str]] = None,
     ):
         from .config import check_config
 
         conf = dict(conf or {})
-        conf = check_config(conf)
+        conf = check_config(conf, base_rust_executable_dir=base_rust_executable_dir)
         assert conf is not None  # for mypy
 
         env = env or dict(os.environ)
