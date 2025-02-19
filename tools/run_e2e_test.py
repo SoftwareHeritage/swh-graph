@@ -8,7 +8,7 @@ Script to run the end to end compression tests without having to
 compress an entire graph.
 """
 
-from swh.graph.webgraph import run_e2e_test
+from swh.graph.e2e_tests import run_e2e_test
 
 run_e2e_test(
     graph_name="example",
