@@ -74,7 +74,7 @@ impl GOVMPH {
 #[must_use]
 /// Count the number of pairs of bits that are both set in a word.
 const fn count_non_zero_pairs_in_word(x: u64) -> u64 {
-    ((x | x >> 1) & 0x5555555555555555).count_ones() as u64
+    ((x | (x >> 1)) & 0x5555555555555555).count_ones() as u64
 }
 
 /// Count the number of pairs of bits that are both set in a slice of words from

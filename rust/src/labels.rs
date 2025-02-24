@@ -127,7 +127,7 @@ impl Visit {
         let reserved_bits = 0b1000u64;
         timestamp
             .checked_shl(5)
-            .map(|shifted_timestamp| Visit(shifted_timestamp | is_full << 4 | reserved_bits))
+            .map(|shifted_timestamp| Visit(shifted_timestamp | (is_full << 4) | reserved_bits))
     }
 
     pub fn timestamp(&self) -> u64 {

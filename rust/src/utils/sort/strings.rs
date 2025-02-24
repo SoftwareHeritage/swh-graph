@@ -48,7 +48,7 @@ impl ParallelDeduplicatingExternalSorter<Bytestring> for BytestringExternalSorte
 
         // Split into partitions
         for string in vec.drain(0..) {
-            let partition_id = (string.get(0).copied().unwrap_or(0u8) as usize) << 8
+            let partition_id = ((string.get(0).copied().unwrap_or(0u8) as usize) << 8)
                 | string.get(1).copied().unwrap_or(0u8) as usize;
             partitions[partition_id].push(string);
         }
