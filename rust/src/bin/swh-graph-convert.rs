@@ -61,7 +61,7 @@ pub fn main() -> Result<()> {
                 .context("Could not load input graph's maps")?;
             // TODO: make other properties serializable and load them too
             let file = std::fs::File::create(&args.output)
-                .with_context(|| format!("Could not read {}", args.output.display()))?;
+                .with_context(|| format!("Could not create {}", args.output.display()))?;
             let mut serializer = serde_json::Serializer::new(BufWriter::new(file));
             swh_graph::serde::serialize_with_labels_and_maps(&mut serializer, &graph)
                 .with_context(|| format!("Could not serialize to {}", args.output.display()))?;
@@ -71,7 +71,7 @@ pub fn main() -> Result<()> {
                 .load_all_properties::<DynMphf>()
                 .context("Could not load properties")?;
             let file = std::fs::File::create(&args.output)
-                .with_context(|| format!("Could not read {}", args.output.display()))?;
+                .with_context(|| format!("Could not create {}", args.output.display()))?;
             swh_graph::graph_builder::codegen_from_full_graph(&graph, file)
                 .with_context(|| format!("Could not write graph to {}", args.output.display()))?;
         }

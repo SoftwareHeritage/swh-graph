@@ -16,6 +16,7 @@
    cli
    docker
    git2graph
+   testing
    example-dataset
    provenance-index
 
