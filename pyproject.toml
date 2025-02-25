@@ -87,7 +87,6 @@ module = [
     "grpc.aio.*",
     "luigi.*",
     "magic.*",
-    "pkg_resources.*",
     "pyzstd.*",
     "scancode.*",
 ]

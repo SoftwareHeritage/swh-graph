@@ -447,11 +447,10 @@ class _CompressionStepTask(luigi.Task):
     def run(self) -> None:
         """Runs the step, by shelling out to the relevant Java program"""
         import datetime
+        from importlib.metadata import version
         import json
         import socket
         import time
-
-        import pkg_resources
 
         from swh.graph.config import check_config_compress
 
@@ -518,7 +517,7 @@ class _CompressionStepTask(luigi.Task):
             "conf": conf,
             "tool": {
                 "name": "swh.graph",
-                "version": pkg_resources.get_distribution("swh.graph").version,
+                "version": version("swh.graph"),
             },
             "commands": [
                 {
@@ -1158,10 +1157,9 @@ class CompressGraph(luigi.Task):
         """Runs the full compression pipeline, then writes :file:`meta/compression.json`
 
         This does not support running individual steps yet."""
+        from importlib.metadata import version
         import json
         import socket
-
-        import pkg_resources
 
         from swh.graph.config import check_config_compress
 
@@ -1215,7 +1213,7 @@ class CompressGraph(luigi.Task):
                 "conf": conf,
                 "tool": {
                     "name": "swh.graph",
-                    "version": pkg_resources.get_distribution("swh.graph").version,
+                    "version": version("swh.graph"),
                 },
             }
         )

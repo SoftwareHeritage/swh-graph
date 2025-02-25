@@ -166,10 +166,9 @@ class CreateSubdatasetOnAthena(luigi.Task):
     def run(self) -> None:
         """Runs a query on Athena, producing files on S3"""
         import datetime
+        from importlib.metadata import version
         import json
         import socket
-
-        import pkg_resources
 
         from swh.export.athena import generate_subdataset
 
@@ -197,7 +196,7 @@ class CreateSubdatasetOnAthena(luigi.Task):
             "hostname": socket.getfqdn(),
             "tool": {
                 "name": "swh.export",
-                "version": pkg_resources.get_distribution("swh.export").version,
+                "version": version("swh.export"),
             },
         }
 
