@@ -28,6 +28,9 @@ def main():
         default=False,
         help="Also compress the dataset",
     )
+    parser.add_argument(
+        "--target", default="release", help="rust target to use for compression"
+    )
     parser.add_argument("output", help="output directory", nargs="?", default=".")
     args = parser.parse_args()
 
@@ -44,7 +47,13 @@ def main():
     if args.compress:
         if (output_path / "compressed").exists():
             shutil.rmtree(output_path / "compressed")
-        compress("example", output_path / "orc", output_path / "compressed")
+        compress(
+            "example",
+            output_path / "orc",
+            output_path / "compressed",
+            "example",
+            conf={"target": args.target},
+        )
 
 
 if __name__ == "__main__":
