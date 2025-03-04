@@ -96,7 +96,9 @@ def test_traverse_statsd(graph_grpc_stub, graph_statsd_server):
         if len(datagrams) == 5:
             break
         time.sleep(0.01)
-    assert {dg.split(":")[0] for dg in datagrams} == {
+
+    datagrams_by_key = dict(datagram.split(":", 1) for datagram in datagrams)
+    assert set(datagrams_by_key) == {
         "swh_graph_grpc_server.frames_total",
         "swh_graph_grpc_server.requests_total",
         "swh_graph_grpc_server.response_wall_time_ms",
@@ -105,29 +107,28 @@ def test_traverse_statsd(graph_grpc_stub, graph_statsd_server):
     }
 
     assert re.match(
-        "swh_graph_grpc_server.frames_total:[0-9]|c|"
-        "#path:/swh.graph.TraversalService/Traverse,status:200",
-        datagrams[0],
+        "[0-9]|c|#path:/swh.graph.TraversalService/Traverse,status:200",
+        datagrams_by_key["swh_graph_grpc_server.frames_total"],
     )
 
-    assert datagrams[1] == (
-        "swh_graph_grpc_server.requests_total:1|c|"
-        "#path:/swh.graph.TraversalService/Traverse,status:200"
-    )
-
-    assert re.match(
-        "swh_graph_grpc_server.response_wall_time_ms:[0-9]{1,2}|ms|"
-        "#path:/swh.graph.TraversalService/Traverse,status:200",
-        datagrams[2],
+    assert datagrams_by_key["swh_graph_grpc_server.requests_total"] == (
+        "1|c|#path:/swh.graph.TraversalService/Traverse,status:200"
     )
 
     assert re.match(
-        "swh_graph_grpc_server.streaming_wall_time_ms:[0-9]{1,2}|ms|"
-        "#path:/swh.graph.TraversalService/Traverse,status:200",
-        datagrams[3],
+        "[0-9]{1,2}|ms|#path:/swh.graph.TraversalService/Traverse,status:200",
+        datagrams_by_key["swh_graph_grpc_server.response_wall_time_ms"],
     )
 
-    assert datagrams[4] == "swh_graph_grpc_server.traversal_returned_nodes_total:12|c"
+    assert re.match(
+        "[0-9]{1,2}|ms|#path:/swh.graph.TraversalService/Traverse,status:200",
+        datagrams_by_key["swh_graph_grpc_server.streaming_wall_time_ms"],
+    )
+
+    assert (
+        datagrams_by_key["swh_graph_grpc_server.traversal_returned_nodes_total"]
+        == "12|c"
+    )
 
 
 def test_forward_from_middle(graph_grpc_stub):

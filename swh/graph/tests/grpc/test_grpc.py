@@ -33,33 +33,31 @@ def test_stats_statsd(graph_grpc_stub, graph_statsd_server):
         if len(datagrams) == 4:
             break
         time.sleep(0.01)
-    assert {dg.split(":")[0] for dg in datagrams} == {
+
+    datagrams_by_key = dict(datagram.split(":", 1) for datagram in datagrams)
+    assert set(datagrams_by_key) == {
         "swh_graph_grpc_server.frames_total",
         "swh_graph_grpc_server.requests_total",
         "swh_graph_grpc_server.response_wall_time_ms",
         "swh_graph_grpc_server.streaming_wall_time_ms",
     }
 
-    assert datagrams[0] == (
-        "swh_graph_grpc_server.frames_total:2|c|"
-        "#path:/swh.graph.TraversalService/Stats,status:200"
+    assert datagrams_by_key["swh_graph_grpc_server.frames_total"] == (
+        "2|c|#path:/swh.graph.TraversalService/Stats,status:200"
     )
 
-    assert datagrams[1] == (
-        "swh_graph_grpc_server.requests_total:1|c|"
-        "#path:/swh.graph.TraversalService/Stats,status:200"
-    )
-
-    assert re.match(
-        "swh_graph_grpc_server.response_wall_time_ms:[0-9]{1,2}|ms|"
-        "#path:/swh.graph.TraversalService/Stats,status:200",
-        datagrams[2],
+    assert datagrams_by_key["swh_graph_grpc_server.requests_total"] == (
+        "1|c|#path:/swh.graph.TraversalService/Stats,status:200"
     )
 
     assert re.match(
-        "swh_graph_grpc_server.streaming_wall_time_ms:[0-9]{1,2}|ms|"
-        "#path:/swh.graph.TraversalService/Stats,status:200",
-        datagrams[3],
+        "[0-9]{1,2}|ms|#path:/swh.graph.TraversalService/Stats,status:200",
+        datagrams_by_key["swh_graph_grpc_server.response_wall_time_ms"],
+    )
+
+    assert re.match(
+        "[0-9]{1,2}|ms|#path:/swh.graph.TraversalService/Stats,status:200",
+        datagrams_by_key["swh_graph_grpc_server.streaming_wall_time_ms"],
     )
 
 
