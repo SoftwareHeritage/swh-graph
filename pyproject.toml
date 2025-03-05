@@ -25,10 +25,18 @@ include-package-data = true
 dependencies = {file = ["requirements.txt", "requirements-swh.txt"]}
 
 [tool.setuptools.dynamic.optional-dependencies]
-luigi = {file = ["requirements-luigi.txt", "requirements-swh-luigi.txt"]}
+export = {file = [
+    "requirements-swh-export.txt",
+    ]}
+luigi = {file = [
+    "requirements-luigi.txt",
+    "requirements-swh-export.txt",
+    "requirements-swh-luigi.txt",
+    ]}
 testing = {file = [
     "requirements-test.txt",
     "requirements-luigi.txt",
+    "requirements-swh-export.txt",
     "requirements-swh-luigi.txt",
     "requirements-swh-test.txt",
     ]}
