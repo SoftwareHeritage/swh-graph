@@ -106,6 +106,10 @@ pub struct SwhGraphProperties<
     pub(crate) contents: CONTENTS,
     pub(crate) strings: STRINGS,
     pub(crate) label_names: LABELNAMES,
+    /// Hack: `Some(false)` if the graph was compressed with Rust (2023-09-06 and newer),
+    /// `Some(true)` if the graph was compressed with Java (2022-12-07 and older),
+    /// `None` if we don't know yet (as we compute this lazily)
+    pub(crate) label_names_are_in_base64_order: once_cell::race::OnceBool,
 }
 
 pub type AllSwhGraphProperties<MPHF> = SwhGraphProperties<
@@ -150,6 +154,7 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
             contents: NoContents,
             strings: NoStrings,
             label_names: NoLabelNames,
+            label_names_are_in_base64_order: Default::default(),
         }
     }
 
