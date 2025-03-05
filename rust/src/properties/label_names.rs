@@ -121,7 +121,7 @@ impl<
             label_names,
             path: self.path,
             num_nodes: self.num_nodes,
-            label_names_are_in_base64_order: Default::default(),
+            label_names_are_in_base64_order: Default::default(), // do not keep the current value
         })
     }
 }
