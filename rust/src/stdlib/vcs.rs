@@ -52,6 +52,7 @@ pub fn find_head_rev_by_refs<G>(
 where
     G: SwhLabeledForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
+    <G as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
 {
     let props = graph.properties();
     let node_type = props.node_type(snp);

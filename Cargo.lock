@@ -3896,6 +3896,7 @@ dependencies = [
  "mmap-rs",
  "nonmax",
  "num_cpus",
+ "once_cell",
  "orc-rust",
  "pthash",
  "rand",

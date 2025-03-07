@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024  The Software Heritage developers
+ * Copyright (C) 2024-2025  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -21,6 +21,18 @@ use crate::labels::{
 use crate::properties;
 use crate::SwhGraphProperties;
 use crate::{NodeType, SWHID};
+
+/// How to sort label names in the produced graph. Defaults to `Lexicographic`.
+#[derive(Default, Clone, Copy, Debug)]
+pub enum LabelNamesOrder {
+    #[default]
+    /// Sort label names in their lexicographic order, as for graphs compressed with Rust
+    /// (2023-09-06 and newer)
+    Lexicographic,
+    /// Sort label names in the lexicographic order of their base64-encoding, as for graphs
+    /// compressed with Java (2022-12-07 and older)
+    LexicographicBase64,
+}
 
 // Type (alias) of the graph built by the graph builder
 pub type BuiltGraph = SwhBidirectionalGraph<
@@ -83,6 +95,8 @@ pub type BuiltGraph = SwhBidirectionalGraph<
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct GraphBuilder {
+    pub label_names_order: LabelNamesOrder,
+
     name_to_id: HashMap<Vec<u8>, u64>,
     persons: HashMap<Vec<u8>, u32>,
 
@@ -203,7 +217,16 @@ impl GraphBuilder {
 
         let mut label_names_with_index: Vec<_> =
             self.label_names.iter().cloned().enumerate().collect();
-        label_names_with_index.sort_unstable_by_key(|(_index, label_name)| label_name.clone());
+        match self.label_names_order {
+            LabelNamesOrder::Lexicographic => label_names_with_index
+                .sort_unstable_by_key(|(_index, label_name)| label_name.clone()),
+            LabelNamesOrder::LexicographicBase64 => {
+                let base64 = base64_simd::STANDARD;
+                label_names_with_index.sort_unstable_by_key(|(_index, label_name)| {
+                    base64.encode_to_string(label_name).into_bytes()
+                });
+            }
+        }
         let mut label_permutation = vec![0; label_names_with_index.len()];
         for (new_index, (old_index, _)) in label_names_with_index.iter().enumerate() {
             label_permutation[*old_index] = new_index;

@@ -121,6 +121,7 @@ impl<
             label_names,
             path: self.path,
             num_nodes: self.num_nodes,
+            label_names_are_in_base64_order: Default::default(), // do not keep the current value
         })
     }
 }
@@ -218,39 +219,106 @@ impl<
         name: impl AsRef<[u8]>,
     ) -> Result<FilenameId, LabelIdFromNameError> {
         use std::cmp::Ordering::*;
+
         let base64 = base64_simd::STANDARD;
-        let name = base64.encode_to_string(name.as_ref()).into_bytes();
+        let name = name.as_ref();
+        let name_base64 = base64.encode_to_string(name.as_ref()).into_bytes();
 
-        // both inclusive
-        let mut min = 0;
-        let mut max = self
-            .label_names
-            .label_names()
-            .len()
-            .saturating_sub(1)
-            .try_into()
-            .expect("number of labels overflowed u64");
+        macro_rules! bisect {
+            ($compare_pivot:expr) => {{
+                let compare_pivot = $compare_pivot;
+                let res: Result<FilenameId, LabelIdFromNameError> = {
+                    // both inclusive
+                    let mut min = 0;
+                    let mut max = self
+                        .label_names
+                        .label_names()
+                        .len()
+                        .saturating_sub(1)
+                        .try_into()
+                        .expect("number of labels overflowed u64");
 
-        while min <= max {
-            let pivot = (min + max) / 2;
-            let pivot_id = FilenameId(pivot);
-            let pivot_name = self.label_name_base64(pivot_id);
-            if min == max {
-                if pivot_name.as_slice() == name {
-                    return Ok(pivot_id);
-                } else {
-                    break;
-                }
-            } else {
-                match pivot_name.as_slice().cmp(&name) {
-                    Less => min = pivot.saturating_add(1),
-                    Equal => return Ok(pivot_id),
-                    Greater => max = pivot.saturating_sub(1),
+                    while min <= max {
+                        let pivot = (min + max) / 2;
+                        let pivot_id = FilenameId(pivot);
+                        let pivot_name = self.label_name_base64(pivot_id);
+                        if min == max {
+                            if pivot_name.as_slice() == name_base64 {
+                                return Ok(pivot_id);
+                            } else {
+                                break;
+                            }
+                        } else {
+                            match compare_pivot(pivot_id) {
+                                Less => min = pivot.saturating_add(1),
+                                Equal => return Ok(pivot_id),
+                                Greater => max = pivot.saturating_sub(1),
+                            }
+                        }
+                    }
+
+                    Err(LabelIdFromNameError(name_base64.to_vec()))
+                };
+                res
+            }};
+        }
+
+        let bisect_base64 = || {
+            bisect!(|pivot_id| self
+                .label_name_base64(pivot_id)
+                .as_slice()
+                .cmp(&name_base64))
+        };
+        let bisect_nonbase64 =
+            || bisect!(|pivot_id| self.label_name(pivot_id).as_slice().cmp(name));
+
+        match self.label_names_are_in_base64_order.get() {
+            Some(true) => {
+                // Graphs compressed with the Java implementation (2022-12-07 and older) sort
+                // labels lexicographically by base64(name)
+                bisect_base64()
+            }
+            Some(false) => {
+                // Graphs compressed with the Rust implementation (2023-09-06 and newer) sort
+                // labels lexicographically by name
+                bisect_nonbase64()
+            }
+            None => {
+                // We don't know yet which one this graph uses.
+                // Assume new order for now.
+                match bisect_nonbase64() {
+                    Ok(filename_id) => {
+                        // we cannot draw any conclusion yet, because we might just have
+                        // been lucky and not hit a pivot that triggers the non-monotonicity
+                        // of base64-encoding between that pivot and `name`.
+                        // Let's check the old order.
+                        if let Err(LabelIdFromNameError(_)) = bisect_base64() {
+                            // Found with the new order but not the old order, which means
+                            // that label names are in the new order
+                            log::debug!("Labels are not in base64 order");
+                            let _ = self.label_names_are_in_base64_order.set(false);
+                        }
+                        Ok(filename_id)
+                    }
+                    Err(LabelIdFromNameError(_)) => {
+                        // Not found using the new order, try with the old order
+                        match bisect_base64() {
+                            Ok(filename_id) => {
+                                // Found with the old order, which means label names are in the old
+                                // order.
+                                log::debug!("Labels are in base64 order");
+                                let _ = self.label_names_are_in_base64_order.set(true);
+                                Ok(filename_id)
+                            }
+                            Err(LabelIdFromNameError(e)) => {
+                                // Not found either, we cannot draw any conclusion
+                                Err(LabelIdFromNameError(e))
+                            }
+                        }
+                    }
                 }
             }
         }
-
-        Err(LabelIdFromNameError(name.to_vec()))
     }
 }
 
