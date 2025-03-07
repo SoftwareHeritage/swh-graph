@@ -15,6 +15,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_progress_logger::{progress_logger, ProgressLog};
 use itertools::Itertools;
+use mimalloc::MiMalloc;
 use rayon::prelude::*;
 
 use swh_graph::map::{MappedPermutation, Permutation};
@@ -22,9 +23,8 @@ use swh_graph::mph::SwhidPthash;
 use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::{NodeType, SWHID};
 
-#[cfg(not(target_env = "msvc"))]
 #[global_allocator]
-static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+static GLOBAL: MiMalloc = MiMalloc;
 
 #[derive(Parser, Debug)]
 #[command(about = "Commands to read ORC files and produce property files and an initial not-very-compressed BVGraph", long_about = None)]
