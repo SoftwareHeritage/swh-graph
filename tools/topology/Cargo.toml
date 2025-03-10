@@ -26,3 +26,6 @@ swh-graph = { path = "../../rust/", features = ["serde"], version = "6.2.0" }
 
 [[bin]]
 name = "toposort"
+
+[package.metadata.docs.rs]
+all-features = true
