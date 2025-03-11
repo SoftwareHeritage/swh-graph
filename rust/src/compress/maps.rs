@@ -9,6 +9,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
+use crossbeam::atomic::AtomicCell;
 use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 
@@ -23,8 +24,16 @@ pub fn ordered_swhids<MPHF: SwhidMphf + Sync + Send, P: Permutation + Sync + Sen
     mph: MPHF,
     num_nodes: usize,
 ) -> Result<Vec<SWHID>> {
-    let mut swhids: Vec<SWHID> = Vec::with_capacity(num_nodes);
-    let swhids_uninit = swhids.spare_capacity_mut();
+    let swhids: Vec<_> = (0..num_nodes)
+        .into_par_iter()
+        .map(|_| {
+            AtomicCell::new(SWHID {
+                node_type: crate::NodeType::Content, // serializes to 0
+                hash: Default::default(),            // ditto
+                namespace_version: 0, // so the compiler can memset the whole region to 0
+            })
+        })
+        .collect();
 
     let mut pl = progress_logger!(
         display_memory = true,
@@ -49,20 +58,16 @@ pub fn ordered_swhids<MPHF: SwhidMphf + Sync + Send, P: Permutation + Sync + Sen
                 num_nodes
             );
 
-            // Safe because we checked node_id < num_nodes
-            unsafe {
-                swhids_uninit
-                    .as_ptr()
-                    .add(node_id)
-                    .cast_mut()
-                    .write(std::mem::MaybeUninit::new(swhid));
-            }
+            swhids[node_id].store(swhid);
         },
     );
 
+    pl.done();
+
     // Assuming the MPH and permutation are correct, we wrote an item at every
     // index.
-    unsafe { swhids.set_len(num_nodes) };
+    // Compiled to a no-op
+    let swhids = swhids.into_iter().map(|swhid| swhid.into_inner()).collect();
 
     Ok(swhids)
 }
