@@ -2763,8 +2763,9 @@ dependencies = [
 
 [[package]]
 name = "orc-rust"
-version = "0.5.0"
-source = "git+https://github.com/progval/orc-rust.git?rev=9d7d438cf41dea3457c3821d062163c369d6ef2a#9d7d438cf41dea3457c3821d062163c369d6ef2a"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87f01688d5de2487622d46956dfbcb52ec2f08b65b5e047688db5a24e063bc39"
 dependencies = [
  "arrow",
  "bytemuck",
