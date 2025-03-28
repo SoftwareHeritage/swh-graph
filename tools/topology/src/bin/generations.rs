@@ -19,7 +19,6 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::{sync_channel, SyncSender};
-use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, ValueEnum};
@@ -30,8 +29,6 @@ use rayon::prelude::*;
 use swh_graph::graph::*;
 use swh_graph::mph::DynMphf;
 use swh_graph::utils::parse_allowed_node_types;
-use swh_graph::utils::progress_logger::BufferedProgressLogger;
-use swh_graph::utils::shuffle::par_iter_shuffled_range;
 use swh_graph::views::{Subgraph, Transposed};
 use swh_graph::NodeType;
 
@@ -188,36 +185,32 @@ where
     let mut total_arcs = 0;
     let mut leaves = Vec::new();
 
-    par_iter_shuffled_range(0..graph.num_nodes())
+    graph
+        .par_iter_nodes(&mut pl)
         .try_fold_with(
             (
-                BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
                 0,          // total_arcs
                 Vec::new(), // leaves
             ),
-            |(mut thread_pl, mut thread_total_arcs, mut thread_leaves), node| {
-                use swh_graph::utils::progress_logger::MinimalProgressLog;
-                thread_pl.light_update();
-                if graph.has_node(node) {
-                    let outdegree = graph.indegree(node);
-                    thread_total_arcs += outdegree;
-                    let outdegree: u32 = outdegree.try_into().with_context(|| {
-                        format!(
-                            "{} has outdegree {outdegree}, which does not fit in u32",
-                            graph.properties().swhid(node)
-                        )
-                    })?;
-                    num_unvisited_predecessors[node].store(outdegree, Ordering::Relaxed);
-                    if outdegree == 0 {
-                        thread_leaves.push(node);
-                    }
+            |(mut thread_total_arcs, mut thread_leaves), node| {
+                let outdegree = graph.indegree(node);
+                thread_total_arcs += outdegree;
+                let outdegree: u32 = outdegree.try_into().with_context(|| {
+                    format!(
+                        "{} has outdegree {outdegree}, which does not fit in u32",
+                        graph.properties().swhid(node)
+                    )
+                })?;
+                num_unvisited_predecessors[node].store(outdegree, Ordering::Relaxed);
+                if outdegree == 0 {
+                    thread_leaves.push(node);
                 }
-                Ok((thread_pl, thread_total_arcs, thread_leaves))
+                Ok((thread_total_arcs, thread_leaves))
             },
         )
         .collect::<Result<Vec<_>>>()?
         .into_iter()
-        .for_each(|(_thread_pl, thread_total_arcs, thread_leaves)| {
+        .for_each(|(thread_total_arcs, thread_leaves)| {
             total_arcs += thread_total_arcs;
             leaves.extend(thread_leaves);
         });

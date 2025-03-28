@@ -15,9 +15,12 @@
 use std::borrow::Borrow;
 use std::iter::Iterator;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, Context, Result};
 use dsi_bitstream::prelude::BE;
+use dsi_progress_logger::ProgressLog;
+use rayon::prelude::*;
 use webgraph::graphs::vec_graph::LabeledVecGraph;
 use webgraph::prelude::*;
 
@@ -31,6 +34,8 @@ use crate::labels::{EdgeLabel, UntypedEdgeLabel};
 use crate::mph::SwhidMphf;
 use crate::properties;
 pub use crate::underlying_graph::DefaultUnderlyingGraph;
+use crate::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
+use crate::utils::shuffle::par_iter_shuffled_range;
 use crate::utils::suffix_path;
 
 /// Alias for [`usize`], which may become a newtype in a future version.
@@ -159,6 +164,44 @@ pub trait SwhGraph {
 
     /// Return whether there is an arc going from `src_node_id` to `dst_node_id`.
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool;
+
+    /// Returns an iterator on all the nodes
+    ///
+    /// Order is not guaranteed.
+    ///
+    /// Updates the progress logger on every node id from 0 to `self.num_nodes()`,
+    /// even those that are filtered out.
+    fn iter_nodes<'a>(
+        &'a self,
+        mut pl: impl ProgressLog + 'a,
+    ) -> impl Iterator<Item = NodeId> + 'a {
+        (0..self.num_nodes())
+            .inspect(move |_| pl.light_update())
+            .filter(|&node_id| self.has_node(node_id))
+    }
+    /// Returns a parallel iterator on all the nodes
+    ///
+    /// Order is not guaranteed.
+    ///
+    /// Updates the progress logger on every node id from 0 to `self.num_nodes()`,
+    /// even those that are filtered out.
+    fn par_iter_nodes<'a>(
+        &'a self,
+        pl: &'a mut (impl ProgressLog + Send),
+    ) -> impl ParallelIterator<Item = NodeId> + 'a
+    where
+        Self: Sync,
+    {
+        par_iter_shuffled_range(0..self.num_nodes())
+            .map_with(
+                BufferedProgressLogger::new(Arc::new(Mutex::new(pl))),
+                move |pl, node_id| {
+                    pl.update();
+                    node_id
+                },
+            )
+            .filter(|&node_id| self.has_node(node_id))
+    }
 }
 
 pub trait SwhForwardGraph: SwhGraph {
