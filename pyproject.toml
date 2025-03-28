@@ -38,7 +38,6 @@ testing = {file = [
     "requirements-luigi.txt",
     "requirements-swh-export.txt",
     "requirements-swh-luigi.txt",
-    "requirements-swh-test.txt",
     ]}
 
 [project.entry-points."swh.cli.subcommands"]
