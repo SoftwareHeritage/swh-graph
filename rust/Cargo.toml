@@ -16,9 +16,10 @@ rust-version = "1.79"
 rand = "0.8.5"
 anyhow.workspace = true
 mmap-rs = "0.6.1"
-sux = "0.4.1"
+sux = "0.7.2"
 #sux = {path = "../../../sux-rs" }
-webgraph = "0.1.4"
+#webgraph = "0.2.0"
+webgraph = { git = "https://github.com/vigna/webgraph-rs.git", rev = "b1913e55115162b02694d5872603112347a49157" }
 #webgraph = { path = "../../../webgraph-rs" }
 pthash = { version = "0.4.0", features = ["rayon"] }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
@@ -34,11 +35,11 @@ num_cpus = "1.16.0"
 byteorder = "1.4.3"
 java-properties = "1.4.1"
 base64-simd = "0.8.0"
-dsi-bitstream = "0.4.0"
-epserde = "0.6.1"
+dsi-bitstream = "0.5.0"
+epserde = "0.8.0"
 bytemuck = { version = "1.18.0", features = ["extern_crate_alloc"] }
 common_traits = "0.10.0"
-lender = "0.2.7"
+lender = "0.3.1"
 thiserror = "1.0.51"
 bitvec = { version = "1.0.1" }
 once_cell = "1.19.0"

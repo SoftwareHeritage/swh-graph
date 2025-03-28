@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use anyhow::{anyhow, ensure, Context, Result};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{ArgMatches, Parser, Subcommand, ValueEnum};
 use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{progress_logger, ProgressLog};
 use webgraph::prelude::*;
@@ -432,7 +432,7 @@ pub fn main() -> Result<()> {
         }
 
         Commands::Llp { args } => {
-            webgraph::cli::run::llp::llp::<BE>(args)?;
+            webgraph::cli::run::llp::llp::<BE>(&ArgMatches::default(), args)?;
         }
 
         Commands::Maps {
