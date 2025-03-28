@@ -4,7 +4,7 @@
 // See top-level LICENSE file for more information
 
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -17,8 +17,6 @@ use swh_graph::graph::*;
 use swh_graph::labels::{Branch, DirEntry, Visit, VisitStatus};
 use swh_graph::mph::DynMphf;
 use swh_graph::utils::parse_allowed_node_types;
-use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
-use swh_graph::utils::shuffle::par_iter_shuffled_range;
 use swh_graph::views::Subgraph;
 use swh_graph::{NodeType, SWHID};
 
@@ -158,9 +156,9 @@ pub fn main() -> Result<()> {
     );
     pl.start("Listing nodes and edges...");
 
-    par_iter_shuffled_range(0..graph.num_nodes()).try_for_each_with(
-        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
-        |thread_pl, node| -> Result<()> {
+    graph
+        .par_iter_nodes(&mut pl)
+        .try_for_each(|node| -> Result<()> {
             let node_type = graph.properties().node_type(node);
 
             match node_type {
@@ -195,10 +193,8 @@ pub fn main() -> Result<()> {
                     &mut snapshot_writers.get_thread_writer().unwrap(),
                 )?,
             }
-            thread_pl.light_update();
             Ok::<_, anyhow::Error>(())
-        },
-    )?;
+        })?;
 
     content_writers.close()?;
     directory_writers.close()?;
