@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -8,7 +8,8 @@
 use serde::de::*;
 use serde::ser::*;
 use serde::*;
-use webgraph::prelude::{Left, Right, VecGraph, Zip};
+use webgraph::graphs::vec_graph::{LabeledVecGraph, VecGraph};
+use webgraph::prelude::{Right, Zip};
 
 use crate::graph::*;
 use crate::properties;
@@ -81,8 +82,8 @@ pub fn deserialize_with_labels_and_maps<
 ) -> Result<
     SwhBidirectionalGraph<
         SwhGraphProperties<properties::VecMaps, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
-        Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
-        Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
+        Zip<VecGraph, Right<LabeledVecGraph<Vec<u64>>>>,
+        Zip<VecGraph, Right<LabeledVecGraph<Vec<u64>>>>,
     >,
     /* XXX: I'd like to return this instead:
     SwhBidirectionalGraph<
@@ -123,21 +124,17 @@ pub fn deserialize_with_labels_and_maps<
         .collect();
     Ok(SwhBidirectionalGraph::from_underlying_graphs(
         std::path::PathBuf::default(),
-        // Equivalent to VecGraph::from_labeled_arc_list(arcs), but bypasses the
+        // Equivalent to LabeledVecGraph::from_arcs(arcs), but bypasses the
         // constraint that the left side of the Zip must have Copy-able labels
         Zip(
-            Left(VecGraph::from_arc_list(
-                forward_arcs.iter().map(|(src, dst, _labels)| (*src, *dst)),
-            )),
-            Right(VecGraph::from_labeled_arc_list(forward_arcs)),
+            VecGraph::from_arcs(forward_arcs.iter().map(|(src, dst, _labels)| (*src, *dst))),
+            Right(LabeledVecGraph::from_arcs(forward_arcs)),
         ),
-        // Equivalent to VecGraph::from_labeled_arc_list(backward_arcs), but bypasses the
+        // Equivalent to LabeledVecGraph::from_arcs(backward_arcs), but bypasses the
         // constraint that the left side of the Zip must have Copy-able labels
         Zip(
-            Left(VecGraph::from_arc_list(
-                backward_arcs.iter().map(|(src, dst, _labels)| (*src, *dst)),
-            )),
-            Right(VecGraph::from_labeled_arc_list(backward_arcs)),
+            VecGraph::from_arcs(backward_arcs.iter().map(|(src, dst, _labels)| (*src, *dst))),
+            Right(LabeledVecGraph::from_arcs(backward_arcs)),
         ),
     )
     .init_properties()

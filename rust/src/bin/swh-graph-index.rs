@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023-2024  The Software Heritage developers
+ * Copyright (C) 2023-2025  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -8,7 +8,7 @@
 use std::path::PathBuf;
 
 use anyhow::{ensure, Result};
-use clap::{Parser, Subcommand};
+use clap::{ArgMatches, Parser, Subcommand};
 use dsi_bitstream::prelude::BE;
 
 use swh_graph::utils::suffix_path;
@@ -62,15 +62,18 @@ pub fn main() -> Result<()> {
     match args.command {
         Commands::Offsets { graph } => {
             use webgraph::cli::build::offsets::{build_offsets, CliArgs};
-            build_offsets::<BE>(CliArgs { src: graph })?;
+            build_offsets::<BE>(&ArgMatches::default(), CliArgs { src: graph })?;
         }
 
         Commands::Ef { base_path } => {
             use webgraph::cli::build::ef::{build_eliasfano, CliArgs};
-            build_eliasfano::<BE>(CliArgs {
-                src: base_path,
-                n: None,
-            })?;
+            build_eliasfano::<BE>(
+                &ArgMatches::default(),
+                CliArgs {
+                    src: base_path,
+                    n: None,
+                },
+            )?;
         }
 
         Commands::LabelsEf {
@@ -89,15 +92,18 @@ pub fn main() -> Result<()> {
                 offsets_path.display()
             );
 
-            build_eliasfano::<BE>(CliArgs {
-                src: base_path,
-                n: Some(num_nodes),
-            })?;
+            build_eliasfano::<BE>(
+                &ArgMatches::default(),
+                CliArgs {
+                    src: base_path,
+                    n: Some(num_nodes),
+                },
+            )?;
         }
 
         Commands::Dcf { base_path } => {
             use webgraph::cli::build::dcf::{build_dcf, CliArgs};
-            build_dcf::<BE>(CliArgs { src: base_path })?;
+            build_dcf::<BE>(&ArgMatches::default(), CliArgs { src: base_path })?;
         }
     }
 
