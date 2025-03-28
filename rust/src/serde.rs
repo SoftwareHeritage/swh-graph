@@ -8,7 +8,7 @@
 use serde::de::*;
 use serde::ser::*;
 use serde::*;
-use webgraph::prelude::{Left, Right, VecGraph, Zip};
+use webgraph::graphs::vec_graph::VecGraph;
 
 use crate::graph::*;
 use crate::properties;
@@ -81,8 +81,8 @@ pub fn deserialize_with_labels_and_maps<
 ) -> Result<
     SwhBidirectionalGraph<
         SwhGraphProperties<properties::VecMaps, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
-        Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
-        Zip<Left<VecGraph>, Right<VecGraph<Vec<u64>>>>,
+        VecGraph<Vec<u64>>,
+        VecGraph<Vec<u64>>,
     >,
     /* XXX: I'd like to return this instead:
     SwhBidirectionalGraph<
@@ -123,22 +123,8 @@ pub fn deserialize_with_labels_and_maps<
         .collect();
     Ok(SwhBidirectionalGraph::from_underlying_graphs(
         std::path::PathBuf::default(),
-        // Equivalent to VecGraph::from_labeled_arc_list(arcs), but bypasses the
-        // constraint that the left side of the Zip must have Copy-able labels
-        Zip(
-            Left(VecGraph::from_arc_list(
-                forward_arcs.iter().map(|(src, dst, _labels)| (*src, *dst)),
-            )),
-            Right(VecGraph::from_labeled_arc_list(forward_arcs)),
-        ),
-        // Equivalent to VecGraph::from_labeled_arc_list(backward_arcs), but bypasses the
-        // constraint that the left side of the Zip must have Copy-able labels
-        Zip(
-            Left(VecGraph::from_arc_list(
-                backward_arcs.iter().map(|(src, dst, _labels)| (*src, *dst)),
-            )),
-            Right(VecGraph::from_labeled_arc_list(backward_arcs)),
-        ),
+        VecGraph::from_labeled_arc_list(forward_arcs),
+        VecGraph::from_labeled_arc_list(backward_arcs),
     )
     .init_properties()
     .load_properties(move |properties| {
