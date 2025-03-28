@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -18,6 +18,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use dsi_bitstream::prelude::BE;
+use webgraph::graphs::vec_graph::LabeledVecGraph;
 use webgraph::prelude::*;
 
 use crate::arc_iterators::{
@@ -41,7 +42,7 @@ pub type NodeId = usize;
 /// Otherwise, it "unpeels" layers of zipping until it reaches the graph at the bottom:
 ///
 /// - If `Self` is `Zip<L, R>`, this defers to `L` (aka. `Left<Zip<L, R>`).
-/// - If `Self` is `VecGraph<_>`, this does the equivalent of deferring to `VecGraph<()>`
+/// - If `Self` is `VecGraph` or `LabeledVecGraph<_>, this does the equivalent of deferring to `VecGraph`
 ///   (through [`DelabelingIterator`] because it cannot create a new `VecGraph` without copying)
 pub trait UnderlyingGraph: RandomAccessLabeling {
     type UnlabeledSuccessors<'succ>: IntoIterator<Item = NodeId>
@@ -93,7 +94,7 @@ impl<G: UnderlyingGraph, L: RandomAccessLabeling> UnderlyingGraph for Zip<G, L> 
     }
 }
 
-impl<L: Clone> UnderlyingGraph for Left<VecGraph<L>> {
+impl UnderlyingGraph for VecGraph {
     type UnlabeledSuccessors<'succ>
         = <Self as RandomAccessLabeling>::Labels<'succ>
     where
@@ -110,7 +111,7 @@ impl<L: Clone> UnderlyingGraph for Left<VecGraph<L>> {
     }
 }
 
-impl<L: Clone> UnderlyingGraph for VecGraph<L> {
+impl<L: Clone> UnderlyingGraph for LabeledVecGraph<L> {
     type UnlabeledSuccessors<'succ>
         = DelabelingIterator<<Self as RandomAccessLabeling>::Labels<'succ>>
     where
