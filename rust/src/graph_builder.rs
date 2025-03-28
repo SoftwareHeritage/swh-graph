@@ -12,7 +12,7 @@ use std::io::Write;
 
 use anyhow::{ensure, Context, Result};
 use itertools::Itertools;
-use webgraph::prelude::VecGraph;
+use webgraph::graphs::vec_graph::LabeledVecGraph;
 
 use crate::graph::*;
 use crate::labels::{
@@ -44,8 +44,8 @@ pub type BuiltGraph = SwhBidirectionalGraph<
         properties::VecStrings,
         properties::VecLabelNames,
     >,
-    VecGraph<Vec<u64>>,
-    VecGraph<Vec<u64>>,
+    LabeledVecGraph<Vec<u64>>,
+    LabeledVecGraph<Vec<u64>>,
 >;
 
 /// Dynamically builds a small graph in memory
@@ -281,8 +281,8 @@ impl GraphBuilder {
 
         SwhBidirectionalGraph::from_underlying_graphs(
             std::path::PathBuf::default(),
-            VecGraph::from_labeled_arc_list(arcs),
-            VecGraph::from_labeled_arc_list(backward_arcs),
+            LabeledVecGraph::from_arcs(arcs),
+            LabeledVecGraph::from_arcs(backward_arcs),
         )
         .init_properties()
         .load_properties(|properties| {

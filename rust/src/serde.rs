@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -8,7 +8,7 @@
 use serde::de::*;
 use serde::ser::*;
 use serde::*;
-use webgraph::graphs::vec_graph::VecGraph;
+use webgraph::graphs::vec_graph::LabeledVecGraph;
 
 use crate::graph::*;
 use crate::properties;
@@ -81,8 +81,8 @@ pub fn deserialize_with_labels_and_maps<
 ) -> Result<
     SwhBidirectionalGraph<
         SwhGraphProperties<properties::VecMaps, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
-        VecGraph<Vec<u64>>,
-        VecGraph<Vec<u64>>,
+        LabeledVecGraph<Vec<u64>>,
+        LabeledVecGraph<Vec<u64>>,
     >,
     /* XXX: I'd like to return this instead:
     SwhBidirectionalGraph<
@@ -123,8 +123,8 @@ pub fn deserialize_with_labels_and_maps<
         .collect();
     Ok(SwhBidirectionalGraph::from_underlying_graphs(
         std::path::PathBuf::default(),
-        VecGraph::from_labeled_arc_list(forward_arcs),
-        VecGraph::from_labeled_arc_list(backward_arcs),
+        LabeledVecGraph::from_arcs(forward_arcs),
+        LabeledVecGraph::from_arcs(backward_arcs),
     )
     .init_properties()
     .load_properties(move |properties| {

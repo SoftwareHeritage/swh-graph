@@ -8,32 +8,25 @@ use std::path::PathBuf;
 use swh_graph::graph::*;
 use swh_graph::labels::FilenameId;
 use swh_graph::properties::*;
-use swh_graph::webgraph::graphs::vec_graph::VecGraph;
-use swh_graph::webgraph::labels::proj::Left;
+use swh_graph::webgraph::graphs::vec_graph::{LabeledVecGraph, VecGraph};
 use swh_graph::{NodeType, SWHID};
 
 #[test]
 fn test_vec_graph() {
     let graph = SwhUnidirectionalGraph::from_underlying_graph(
         PathBuf::new(),
-        Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
+        VecGraph::from_arcs(vec![(2, 0), (2, 1), (0, 1)]),
     );
 
-    assert_eq!(graph.successors(0).into_iter().collect::<Vec<_>>(), vec![1]);
-    assert_eq!(
-        graph.successors(1).into_iter().collect::<Vec<_>>(),
-        Vec::<usize>::new()
-    );
-    assert_eq!(
-        graph.successors(2).into_iter().collect::<Vec<_>>(),
-        vec![0, 1]
-    );
+    assert_eq!(graph.successors(0).collect::<Vec<_>>(), vec![1]);
+    assert_eq!(graph.successors(1).collect::<Vec<_>>(), Vec::<usize>::new());
+    assert_eq!(graph.successors(2).collect::<Vec<_>>(), vec![0, 1]);
 }
 
 #[test]
 fn test_labeled_vec_graph() {
     let arcs: Vec<(usize, usize, &[u64])> = vec![(0, 1, &[0, 789]), (2, 0, &[123]), (2, 1, &[456])];
-    let underlying_graph = VecGraph::from_labeled_arc_list(arcs);
+    let underlying_graph = LabeledVecGraph::from_arcs(arcs);
 
     let graph = SwhUnidirectionalGraph::from_underlying_graph(PathBuf::new(), underlying_graph);
 
@@ -77,7 +70,7 @@ fn test_vec_graph_maps() {
 
     let graph = SwhUnidirectionalGraph::from_underlying_graph(
         PathBuf::new(),
-        Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
+        VecGraph::from_arcs(vec![(2, 0), (2, 1), (0, 1)]),
     )
     .init_properties()
     .load_properties(|properties| properties.with_maps(VecMaps::new(swhids.to_vec())))
@@ -112,7 +105,7 @@ fn test_vec_graph_maps() {
 fn test_vec_graph_timestamps() {
     let graph = SwhUnidirectionalGraph::from_underlying_graph(
         PathBuf::new(),
-        Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
+        VecGraph::from_arcs(vec![(2, 0), (2, 1), (0, 1)]),
     )
     .init_properties()
     .load_properties(|properties| {
@@ -147,7 +140,7 @@ fn test_vec_graph_timestamps() {
 fn test_vec_graph_persons() {
     let graph = SwhUnidirectionalGraph::from_underlying_graph(
         PathBuf::new(),
-        Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
+        VecGraph::from_arcs(vec![(2, 0), (2, 1), (0, 1)]),
     )
     .init_properties()
     .load_properties(|properties| {
@@ -176,12 +169,7 @@ fn test_vec_graph_persons() {
 fn test_vec_graph_contents() {
     let graph = SwhUnidirectionalGraph::from_underlying_graph(
         PathBuf::new(),
-        Left(VecGraph::from_arc_list(vec![
-            (2, 0),
-            (2, 1),
-            (0, 1),
-            (2, 3),
-        ])),
+        VecGraph::from_arcs(vec![(2, 0), (2, 1), (0, 1), (2, 3)]),
     )
     .init_properties()
     .load_properties(|properties| {
@@ -214,7 +202,7 @@ fn test_vec_graph_contents() {
 fn test_vec_graph_strings() {
     let graph = SwhUnidirectionalGraph::from_underlying_graph(
         PathBuf::new(),
-        Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
+        VecGraph::from_arcs(vec![(2, 0), (2, 1), (0, 1)]),
     )
     .init_properties()
     .load_properties(|properties| {
@@ -261,7 +249,7 @@ fn test_vec_graph_strings() {
 fn test_vec_graph_label_names() {
     let graph = SwhUnidirectionalGraph::from_underlying_graph(
         PathBuf::new(),
-        Left(VecGraph::from_arc_list(vec![(2, 0), (2, 1), (0, 1)])),
+        VecGraph::from_arcs(vec![(2, 0), (2, 1), (0, 1)]),
     )
     .init_properties()
     .load_properties(|properties| {
