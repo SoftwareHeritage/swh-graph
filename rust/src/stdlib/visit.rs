@@ -18,7 +18,7 @@ use crate::graph::*;
 /// startup cost to allocate the bit vector.
 pub struct NodeVisit<'a, G>
 where
-    G: SwhLabeledForwardGraph,
+    G: SwhForwardGraph,
 {
     graph: &'a G,
     visited: AdaptiveNodeSet,
@@ -27,7 +27,7 @@ where
 
 impl<'a, G> NodeVisit<'a, G>
 where
-    G: SwhLabeledForwardGraph,
+    G: SwhForwardGraph,
 {
     fn new(graph: &'a G, nodes: &[NodeId]) -> Self {
         NodeVisit {
@@ -68,7 +68,7 @@ where
 /// See [NodeVisit] documentation for performance considerations.
 pub fn iter_nodes<'a, G>(graph: &'a G, start: &[NodeId]) -> NodeVisit<'a, G>
 where
-    G: SwhLabeledForwardGraph,
+    G: SwhForwardGraph,
 {
     NodeVisit::new(graph, start)
 }
