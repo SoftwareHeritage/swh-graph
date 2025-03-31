@@ -8,7 +8,7 @@
 use std::path::PathBuf;
 
 use anyhow::{ensure, Result};
-use clap::{ArgMatches, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use dsi_bitstream::prelude::BE;
 
 use swh_graph::utils::suffix_path;
@@ -16,6 +16,8 @@ use swh_graph::utils::suffix_path;
 #[derive(Parser, Debug)]
 #[command(about = "Commands to (re)generate `.ef` and `.offsets` files, allowing random access to BVGraph", long_about = None)]
 struct Args {
+    #[clap(flatten)]
+    webgraph_args: webgraph::cli::GlobalArgs,
     #[command(subcommand)]
     command: Commands,
 }
@@ -62,13 +64,13 @@ pub fn main() -> Result<()> {
     match args.command {
         Commands::Offsets { graph } => {
             use webgraph::cli::build::offsets::{build_offsets, CliArgs};
-            build_offsets::<BE>(&ArgMatches::default(), CliArgs { src: graph })?;
+            build_offsets::<BE>(args.webgraph_args, CliArgs { src: graph })?;
         }
 
         Commands::Ef { base_path } => {
             use webgraph::cli::build::ef::{build_eliasfano, CliArgs};
             build_eliasfano::<BE>(
-                &ArgMatches::default(),
+                args.webgraph_args,
                 CliArgs {
                     src: base_path,
                     n: None,
@@ -93,7 +95,7 @@ pub fn main() -> Result<()> {
             );
 
             build_eliasfano::<BE>(
-                &ArgMatches::default(),
+                args.webgraph_args,
                 CliArgs {
                     src: base_path,
                     n: Some(num_nodes),
@@ -103,7 +105,7 @@ pub fn main() -> Result<()> {
 
         Commands::Dcf { base_path } => {
             use webgraph::cli::build::dcf::{build_dcf, CliArgs};
-            build_dcf::<BE>(&ArgMatches::default(), CliArgs { src: base_path })?;
+            build_dcf::<BE>(args.webgraph_args, CliArgs { src: base_path })?;
         }
     }
 
