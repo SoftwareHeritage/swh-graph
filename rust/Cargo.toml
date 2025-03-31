@@ -8,7 +8,7 @@ license.workspace = true
 readme = "README.md"
 keywords = ["software-heritage", "graph", "compression", "webgraph"]
 categories = ["compression", "science"]
-rust-version = "1.85"
+rust-version = "1.79"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -19,8 +19,8 @@ mmap-rs = "0.6.1"
 sux = "0.7.2"
 #sux = {path = "../../../sux-rs" }
 #webgraph = "0.2.1"
-webgraph = { git = "https://github.com/vigna/webgraph-rs.git", rev = "84c8e5df43c49725e0f1fee5af33da40d9cc4506"  }
-webgraph_cli = { git = "https://github.com/vigna/webgraph-rs.git", rev = "84c8e5df43c49725e0f1fee5af33da40d9cc4506" }
+webgraph = { git = "https://github.com/vigna/webgraph-rs.git", rev = "3ac8b8caebce0d875178f018001ac19f173fae93"  }
+webgraph_cli = { git = "https://github.com/vigna/webgraph-rs.git", rev = "3ac8b8caebce0d875178f018001ac19f173fae93" }
 #webgraph = { path = "../../../webgraph-rs/webgraph" }
 #webgraph_cli = { path = "../../../webgraph-rs/cli" }
 pthash = { version = "0.4.0", features = ["rayon"] }
