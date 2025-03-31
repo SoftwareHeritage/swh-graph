@@ -17,7 +17,7 @@ use swh_graph::utils::suffix_path;
 #[command(about = "Commands to (re)generate `.ef` and `.offsets` files, allowing random access to BVGraph", long_about = None)]
 struct Args {
     #[clap(flatten)]
-    webgraph_args: webgraph::cli::GlobalArgs,
+    webgraph_args: webgraph_cli::GlobalArgs,
     #[command(subcommand)]
     command: Commands,
 }
@@ -63,12 +63,12 @@ pub fn main() -> Result<()> {
 
     match args.command {
         Commands::Offsets { graph } => {
-            use webgraph::cli::build::offsets::{build_offsets, CliArgs};
+            use webgraph_cli::build::offsets::{build_offsets, CliArgs};
             build_offsets::<BE>(args.webgraph_args, CliArgs { src: graph })?;
         }
 
         Commands::Ef { base_path } => {
-            use webgraph::cli::build::ef::{build_eliasfano, CliArgs};
+            use webgraph_cli::build::ef::{build_eliasfano, CliArgs};
             build_eliasfano::<BE>(
                 args.webgraph_args,
                 CliArgs {
@@ -82,7 +82,7 @@ pub fn main() -> Result<()> {
             base_path,
             num_nodes,
         } => {
-            use webgraph::cli::build::ef::{build_eliasfano, CliArgs};
+            use webgraph_cli::build::ef::{build_eliasfano, CliArgs};
 
             // webgraph shows a very obscure error when it happens (failed `.unwrap()`
             // when reading `nodes=` property on the `.properties` file),
@@ -104,7 +104,7 @@ pub fn main() -> Result<()> {
         }
 
         Commands::Dcf { base_path } => {
-            use webgraph::cli::build::dcf::{build_dcf, CliArgs};
+            use webgraph_cli::build::dcf::{build_dcf, CliArgs};
             build_dcf::<BE>(args.webgraph_args, CliArgs { src: base_path })?;
         }
     }

@@ -4317,6 +4317,7 @@ dependencies = [
  "thiserror 1.0.51",
  "thread_local",
  "webgraph",
+ "webgraph_cli",
  "zstd 0.12.4",
 ]
 
@@ -5176,26 +5177,19 @@ dependencies = [
 [[package]]
 name = "webgraph"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df4f9215509186cba028a3b644af7ba27f9d15a9bbb858416ec1305af0d44f34"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=84c8e5df43c49725e0f1fee5af33da40d9cc4506#84c8e5df43c49725e0f1fee5af33da40d9cc4506"
 dependencies = [
  "anyhow",
  "bitflags 2.6.0",
- "built",
- "chrono",
- "clap",
- "clap_complete",
  "common_traits 0.11.2",
  "crossbeam-channel",
  "dary_heap",
  "dsi-bitstream 0.5.0",
  "dsi-progress-logger 0.8.1",
- "env_logger 0.11.5",
  "epserde",
  "impl-tools",
  "itertools 0.14.0",
  "java-properties 2.0.0",
- "jiff",
  "lender",
  "libc",
  "log",
@@ -5208,8 +5202,37 @@ dependencies = [
  "sealed",
  "sux",
  "sync-cell-slice",
+ "tempfile",
+]
+
+[[package]]
+name = "webgraph_cli"
+version = "0.1.0"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=84c8e5df43c49725e0f1fee5af33da40d9cc4506#84c8e5df43c49725e0f1fee5af33da40d9cc4506"
+dependencies = [
+ "anyhow",
+ "built",
+ "chrono",
+ "clap",
+ "clap_complete",
+ "common_traits 0.11.2",
+ "dsi-bitstream 0.5.0",
+ "dsi-progress-logger 0.8.1",
+ "env_logger 0.11.5",
+ "epserde",
+ "itertools 0.14.0",
+ "java-properties 2.0.0",
+ "jiff",
+ "lender",
+ "log",
+ "mmap-rs",
+ "predicates",
+ "rand 0.9.0",
+ "rayon",
+ "sux",
  "sysinfo 0.33.1",
  "tempfile",
+ "webgraph",
 ]
 
 [[package]]
