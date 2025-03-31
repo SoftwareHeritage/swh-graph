@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use anyhow::{anyhow, ensure, Context, Result};
-use clap::{ArgMatches, Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{progress_logger, ProgressLog};
 use webgraph::prelude::*;
@@ -23,6 +23,8 @@ use swh_graph::mph::SwhidPthash;
 #[derive(Parser, Debug)]
 #[command(about = "Commands to run individual steps of the pipeline to compress a graph from an initial not-very-compressed BvGraph", long_about = None)]
 struct Args {
+    #[clap(flatten)]
+    webgraph_args: webgraph::cli::GlobalArgs,
     #[command(subcommand)]
     command: Commands,
 }
@@ -431,8 +433,8 @@ pub fn main() -> Result<()> {
             permutation.dump(&mut output_file)?;
         }
 
-        Commands::Llp { args } => {
-            webgraph::cli::run::llp::llp::<BE>(&ArgMatches::default(), args)?;
+        Commands::Llp { args: llp_args } => {
+            webgraph::cli::run::llp::llp::<BE>(args.webgraph_args, llp_args)?;
         }
 
         Commands::Maps {
