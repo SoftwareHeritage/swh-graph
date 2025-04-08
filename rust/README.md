@@ -58,11 +58,11 @@ rustup target add x86_64-unknown-linux-musl
 The target-cpu will limit the compatible cpus but will enable more optimizations.
 Some Interesting architecture are:
 - `native` for the compiling CPU architecture, this is the best option for
-   performance when you are compiling and running on the same machine.
+  performance when you are compiling and running on the same machine.
 - `x86-64-v3` for Intel Haswell and newer (2013), oldest architecture that
-   supports AVX2 and BMI2 instructions.
+  supports AVX2 and BMI2 instructions.
 - `x86-64-v2` for Intel Core 2 and newer (2006), oldest reasonable architecture
-   to compile for.
+  to compile for.
 
 ### Performance consideration
 At every random access, we need to query an Elias-Fano data structure to find the bit-offset at
