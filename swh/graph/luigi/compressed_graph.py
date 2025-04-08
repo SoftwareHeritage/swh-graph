@@ -227,6 +227,7 @@ class _CompressionStepTask(luigi.Task):
     because running them concurrently does not improve run time."""
 
     local_export_path = luigi.PathParameter(significant=False)
+    local_sensitive_export_path = luigi.PathParameter(significant=False)
     graph_name = luigi.Parameter(default="graph")
     local_graph_path: Path = luigi.PathParameter()
 
@@ -412,6 +413,7 @@ class _CompressionStepTask(luigi.Task):
                 if input_file in cls.OUTPUT_FILES:
                     kwargs = dict(
                         local_export_path=self.local_export_path,
+                        local_sensitive_export_path=self.local_sensitive_export_path,
                         graph_name=self.graph_name,
                         local_graph_path=self.local_graph_path,
                         object_types=self.object_types,
@@ -430,6 +432,7 @@ class _CompressionStepTask(luigi.Task):
             requirements.append(
                 LocalExport(
                     local_export_path=self.local_export_path,
+                    local_sensitive_export_path=self.local_sensitive_export_path,
                     formats=[Format.orc],  # type: ignore[attr-defined]
                     object_types=_tables_for_object_types(self.object_types),
                 )
@@ -1079,6 +1082,7 @@ assert not _duplicate_outputs, f"Duplicate outputs: {_duplicate_outputs}"
 
 class CompressGraph(luigi.Task):
     local_export_path = luigi.PathParameter(significant=False)
+    local_sensitive_export_path = luigi.PathParameter(significant=False)
     graph_name = luigi.Parameter(default="graph")
     local_graph_path: Path = luigi.PathParameter()
     batch_size = luigi.IntParameter(
@@ -1111,6 +1115,7 @@ class CompressGraph(luigi.Task):
         graph"""
         kwargs = dict(
             local_export_path=self.local_export_path,
+            local_sensitive_export_path=self.local_sensitive_export_path,
             graph_name=self.graph_name,
             local_graph_path=self.local_graph_path,
             object_types=self.object_types,
@@ -1130,6 +1135,7 @@ class CompressGraph(luigi.Task):
         return [
             LocalExport(
                 local_export_path=self.local_export_path,
+                local_sensitive_export_path=self.local_sensitive_export_path,
                 formats=[Format.orc],  # type: ignore[attr-defined]
                 object_types=_tables_for_object_types(self.object_types),
             ),
