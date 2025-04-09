@@ -125,10 +125,6 @@ from swh.export.luigi import ObjectType as Table
 from swh.export.luigi import S3PathParameter
 from swh.graph.webgraph import CompressionStep, do_step
 
-_LOW_XMX = 128_000_000
-"""Arbitrary value that should work as -Xmx for Java processes which don't need
-much memory and as spare for processes which do"""
-
 
 def _govmph_bitarray_size(nb_nodes: int) -> int:
     """Returns the size of the bitarray used by
@@ -343,14 +339,15 @@ class _CompressionStepTask(luigi.Task):
         # (about 2.6 bytes per node)
         return self._nb_labels() * 8
 
-    def _large_java_allocations(self) -> int:
-        """Returns the value to set as the JVM's -Xmx parameter, in bytes"""
-        raise NotImplementedError(f"{self.__class__.__name__}._large_java_allocations")
+    def _large_allocations(self) -> int:
+        """Returns an upper bound of how much RAM the process's internal buffers and
+        arrays are going to use."""
+        raise NotImplementedError(f"{self.__class__.__name__}._large_allocations")
 
     def _expected_memory(self) -> int:
         """Returns the expected total memory usage of this task, in bytes."""
-        extra_memory_coef = 1.1  # accounts for the JVM using more than -Xmx
-        return int((self._large_java_allocations() + _LOW_XMX) * extra_memory_coef)
+        base_work_memory = 1_000_000
+        return int(self._large_allocations() + base_work_memory)
 
     @property
     def resources(self) -> Dict[str, int]:
@@ -488,7 +485,7 @@ class _CompressionStepTask(luigi.Task):
 
         conf: dict[str, Any] = {
             "object_types": ",".join(self.object_types),
-            "max_ram": f"{(self._large_java_allocations() + _LOW_XMX) // (1024 * 1024)}M",
+            "max_ram": f"{self._large_allocations() // (1024 * 1024)}M",
             # TODO: make this more configurable
         }
         if self.batch_size:
@@ -545,7 +542,7 @@ class ExtractNodes(_CompressionStepTask):
     }
     USES_ALL_CPU_THREADS = True
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -561,7 +558,7 @@ class ExtractLabels(_CompressionStepTask):
     priority = -100
     """low priority, because it is not on the critical path"""
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -576,7 +573,7 @@ class NodeStats(_CompressionStepTask):
     priority = 100
     """high priority, to help the scheduler allocate resources"""
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -592,7 +589,7 @@ class EdgeStats(_CompressionStepTask):
     priority = 100
     """high priority, to help the scheduler allocate resources"""
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -607,7 +604,7 @@ class LabelStats(_CompressionStepTask):
     priority = 100
     """high priority, to help the scheduler allocate resources"""
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -617,7 +614,7 @@ class Mph(_CompressionStepTask):
     OUTPUT_FILES = {".pthash"}
     USES_ALL_CPU_THREADS = True
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -627,7 +624,7 @@ class Bv(_CompressionStepTask):
     INPUT_FILES = {".pthash"}
     OUTPUT_FILES = {"-base.graph"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         import psutil
 
         # TODO: deduplicate this formula with the one for DEFAULT_BATCH_SIZE in
@@ -641,7 +638,7 @@ class BvEf(_CompressionStepTask):
     INPUT_FILES = {"-base.graph"}
     OUTPUT_FILES = {"-base.ef"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -651,7 +648,7 @@ class BfsRoots(_CompressionStepTask):
     INPUT_FILES = set()
     OUTPUT_FILES = {"-bfs.roots.txt"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -660,9 +657,9 @@ class Bfs(_CompressionStepTask):
     INPUT_FILES = {"-base.graph", "-base.ef", "-bfs.roots.txt", ".pthash"}
     OUTPUT_FILES = {"-bfs.order"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         bvgraph_size = self._bvgraph_allocation()
-        visitorder_size = self._nb_nodes() * 8  # longarray in BFS.java
+        visitorder_size = self._nb_nodes() * 8  # array of u64
         extra_size = 500_000_000  # TODO: why is this needed?
         return bvgraph_size + visitorder_size + extra_size
 
@@ -672,7 +669,7 @@ class PermuteAndSimplifyBfs(_CompressionStepTask):
     INPUT_FILES = {"-base.graph", "-base.ef", "-bfs.order"}
     OUTPUT_FILES = {"-bfs-simplified.graph"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -681,7 +678,7 @@ class BfsEf(_CompressionStepTask):
     INPUT_FILES = {"-bfs-simplified.graph"}
     OUTPUT_FILES = {"-bfs-simplified.ef"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -690,7 +687,7 @@ class BfsDcf(_CompressionStepTask):
     INPUT_FILES = {"-bfs-simplified.graph"}
     OUTPUT_FILES = {"-bfs-simplified.dcf"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -701,7 +698,9 @@ class Llp(_CompressionStepTask):
 
     gammas = luigi.Parameter(significant=False, default=None)
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
+        # TODO: this was written for the Java implementation; update this for Rust
+
         # actually it loads the simplified graph, but we reuse the size of the
         # base BVGraph, to simplify this code
         bvgraph_size = self._bvgraph_allocation()
@@ -727,7 +726,9 @@ class PermuteLlp(_CompressionStepTask):
     INPUT_FILES = {".pthash.order", "-base.graph", "-base.ef"}
     OUTPUT_FILES = {".graph", ".properties"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
+        # TODO: this was written for the Java implementation; update this for Rust
+
         from swh.graph.config import check_config
 
         # TODO: deduplicate this with PermuteBfs; it runs the same code except for the
@@ -753,7 +754,7 @@ class Offsets(_CompressionStepTask):
     INPUT_FILES = {".graph"}
     OUTPUT_FILES = {".offsets"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -762,7 +763,7 @@ class Ef(_CompressionStepTask):
     INPUT_FILES = {".graph", ".offsets"}
     OUTPUT_FILES = {".ef"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -771,7 +772,7 @@ class ComposeOrders(_CompressionStepTask):
     INPUT_FILES = {"-llp.order", "-bfs.order"}
     OUTPUT_FILES = {".pthash.order"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         permutation_size = self._nb_nodes() * 8  # longarray
         return permutation_size * 3
 
@@ -783,7 +784,7 @@ class Transpose(_CompressionStepTask):
     INPUT_FILES = {".graph", ".ef"}
     OUTPUT_FILES = {"-transposed.graph", "-transposed.properties"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         from swh.graph.config import check_config
 
         if self.batch_size:
@@ -791,10 +792,10 @@ class Transpose(_CompressionStepTask):
         else:
             batch_size = check_config({})["batch_size"]
 
-        permutation_size = self._nb_nodes() * 8  # longarray
+        permutation_size = self._nb_nodes() * 8  # array of u64
         source_batch_size = target_batch_size = start_batch_size = (
             batch_size * 8
-        )  # longarrays
+        )  # array of u64
         return (
             permutation_size + source_batch_size + target_batch_size + start_batch_size
         )
@@ -805,7 +806,7 @@ class TransposeOffsets(_CompressionStepTask):
     INPUT_FILES = {"-transposed.graph"}
     OUTPUT_FILES = {"-transposed.offsets"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         bvgraph_size = self._bvgraph_allocation()
         return bvgraph_size
 
@@ -815,7 +816,7 @@ class TransposeEf(_CompressionStepTask):
     INPUT_FILES = {"-transposed.graph", "-transposed.offsets"}
     OUTPUT_FILES = {"-transposed.ef"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -824,10 +825,10 @@ class Maps(_CompressionStepTask):
     INPUT_FILES = {".pthash", ".pthash.order", ".nodes/"}
     OUTPUT_FILES = {".node2swhid.bin"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         mph_size = self._mph_size()
 
-        bfsmap_size = self._nb_nodes() * 8  # longarray
+        bfsmap_size = self._nb_nodes() * 8  # array of u64
         return mph_size + bfsmap_size
 
 
@@ -838,7 +839,7 @@ class ExtractPersons(_CompressionStepTask):
     OUTPUT_FILES = {".persons.csv.zst"}
     USES_ALL_CPU_THREADS = True
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -847,7 +848,7 @@ class PersonsStats(_CompressionStepTask):
     INPUT_FILES = {".persons.csv.zst"}
     OUTPUT_FILES = {".persons.count.txt"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -856,7 +857,8 @@ class MphPersons(_CompressionStepTask):
     INPUT_FILES = {".persons.csv.zst", ".persons.count.txt"}
     OUTPUT_FILES = {".persons.pthash"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
+        # TODO: estimate PTHash instead of GOV
         bitvector_size = _govmph_bitarray_size(self._nb_persons())
         return bitvector_size
 
