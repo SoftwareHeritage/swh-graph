@@ -5177,7 +5177,7 @@ dependencies = [
 [[package]]
 name = "webgraph"
 version = "0.2.1"
-source = "git+https://github.com/vigna/webgraph-rs.git?rev=84c8e5df43c49725e0f1fee5af33da40d9cc4506#84c8e5df43c49725e0f1fee5af33da40d9cc4506"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=3ac8b8caebce0d875178f018001ac19f173fae93#3ac8b8caebce0d875178f018001ac19f173fae93"
 dependencies = [
  "anyhow",
  "bitflags 2.6.0",
@@ -5208,7 +5208,7 @@ dependencies = [
 [[package]]
 name = "webgraph_cli"
 version = "0.1.0"
-source = "git+https://github.com/vigna/webgraph-rs.git?rev=84c8e5df43c49725e0f1fee5af33da40d9cc4506#84c8e5df43c49725e0f1fee5af33da40d9cc4506"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=3ac8b8caebce0d875178f018001ac19f173fae93#3ac8b8caebce0d875178f018001ac19f173fae93"
 dependencies = [
  "anyhow",
  "built",
