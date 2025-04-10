@@ -924,7 +924,7 @@ class NodeProperties(_CompressionStepTask):
             for name in self.OUTPUT_FILES - excluded_files
         ]
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         # each property has its own arrays, but they don't run at the same time.
         # The biggest are:
         # * content length/writeMessages/writeTagNames (long array)
@@ -942,7 +942,7 @@ class PthashLabels(_CompressionStepTask):
     INPUT_FILES = {".labels.csv.zst", ".labels.count.txt"}
     OUTPUT_FILES = {".labels.pthash"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -951,7 +951,7 @@ class LabelsOrder(_CompressionStepTask):
     INPUT_FILES = {".labels.csv.zst", ".labels.pthash", ".labels.count.txt"}
     OUTPUT_FILES = {".labels.pthash.order"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -964,7 +964,7 @@ class FclLabels(_CompressionStepTask):
         ".labels.fcl.properties",
     }
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return self._labels_mph_size()
 
 
@@ -986,10 +986,10 @@ class EdgeLabels(_CompressionStepTask):
     priority = 10
     """semi-high priority because it takes a long time to run"""
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         import multiprocessing
 
-        # See ExtractNodes._large_java_allocations for this constant
+        # See ExtractNodes._large_allocations for this constant
         orc_buffers_size = 256_000_000
 
         nb_orc_readers = multiprocessing.cpu_count()
@@ -1019,10 +1019,10 @@ class EdgeLabelsTranspose(_CompressionStepTask):
     priority = 10
     """semi-high priority because it takes a long time to run"""
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         import multiprocessing
 
-        # See ExtractNodes._large_java_allocations for this constant
+        # See ExtractNodes._large_allocations for this constant
         orc_buffers_size = 256_000_000
 
         nb_orc_readers = multiprocessing.cpu_count()
@@ -1039,7 +1039,7 @@ class EdgeLabelsEf(_CompressionStepTask):
     INPUT_FILES = {"-labelled.labels", "-labelled.labeloffsets"}
     OUTPUT_FILES = {"-labelled.ef"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -1048,7 +1048,7 @@ class EdgeLabelsTransposeEf(_CompressionStepTask):
     INPUT_FILES = {"-transposed-labelled.labels", "-transposed-labelled.labeloffsets"}
     OUTPUT_FILES = {"-transposed-labelled.ef"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
@@ -1057,7 +1057,7 @@ class Stats(_CompressionStepTask):
     INPUT_FILES = {".graph", ".ef", "-transposed.graph", "-transposed.ef"}
     OUTPUT_FILES = {".stats"}
 
-    def _large_java_allocations(self) -> int:
+    def _large_allocations(self) -> int:
         return 0
 
 
