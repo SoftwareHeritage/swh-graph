@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023-2024  The Software Heritage developers
+ * Copyright (C) 2023-2025  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -16,6 +16,8 @@ use swh_graph::utils::suffix_path;
 #[derive(Parser, Debug)]
 #[command(about = "Commands to (re)generate `.ef` and `.offsets` files, allowing random access to BVGraph", long_about = None)]
 struct Args {
+    #[clap(flatten)]
+    webgraph_args: webgraph_cli::GlobalArgs,
     #[command(subcommand)]
     command: Commands,
 }
@@ -61,23 +63,26 @@ pub fn main() -> Result<()> {
 
     match args.command {
         Commands::Offsets { graph } => {
-            use webgraph::cli::build::offsets::{build_offsets, CliArgs};
-            build_offsets::<BE>(CliArgs { src: graph })?;
+            use webgraph_cli::build::offsets::{build_offsets, CliArgs};
+            build_offsets::<BE>(args.webgraph_args, CliArgs { src: graph })?;
         }
 
         Commands::Ef { base_path } => {
-            use webgraph::cli::build::ef::{build_eliasfano, CliArgs};
-            build_eliasfano::<BE>(CliArgs {
-                src: base_path,
-                n: None,
-            })?;
+            use webgraph_cli::build::ef::{build_eliasfano, CliArgs};
+            build_eliasfano::<BE>(
+                args.webgraph_args,
+                CliArgs {
+                    src: base_path,
+                    n: None,
+                },
+            )?;
         }
 
         Commands::LabelsEf {
             base_path,
             num_nodes,
         } => {
-            use webgraph::cli::build::ef::{build_eliasfano, CliArgs};
+            use webgraph_cli::build::ef::{build_eliasfano, CliArgs};
 
             // webgraph shows a very obscure error when it happens (failed `.unwrap()`
             // when reading `nodes=` property on the `.properties` file),
@@ -89,15 +94,18 @@ pub fn main() -> Result<()> {
                 offsets_path.display()
             );
 
-            build_eliasfano::<BE>(CliArgs {
-                src: base_path,
-                n: Some(num_nodes),
-            })?;
+            build_eliasfano::<BE>(
+                args.webgraph_args,
+                CliArgs {
+                    src: base_path,
+                    n: Some(num_nodes),
+                },
+            )?;
         }
 
         Commands::Dcf { base_path } => {
-            use webgraph::cli::build::dcf::{build_dcf, CliArgs};
-            build_dcf::<BE>(CliArgs { src: base_path })?;
+            use webgraph_cli::build::dcf::{build_dcf, CliArgs};
+            build_dcf::<BE>(args.webgraph_args, CliArgs { src: base_path })?;
         }
     }
 

@@ -23,6 +23,8 @@ use swh_graph::mph::SwhidPthash;
 #[derive(Parser, Debug)]
 #[command(about = "Commands to run individual steps of the pipeline to compress a graph from an initial not-very-compressed BvGraph", long_about = None)]
 struct Args {
+    #[clap(flatten)]
+    webgraph_args: webgraph_cli::GlobalArgs,
     #[command(subcommand)]
     command: Commands,
 }
@@ -111,7 +113,7 @@ enum Commands {
     /// can be used to permute a graph to a smaller isomorphic graph
     Llp {
         #[command(flatten)]
-        args: webgraph::cli::run::llp::CliArgs,
+        args: webgraph_cli::run::llp::CliArgs,
     },
 
     /// Reads the list of SWHIDs and produces node2swhid.bin and node2type.bin
@@ -431,8 +433,8 @@ pub fn main() -> Result<()> {
             permutation.dump(&mut output_file)?;
         }
 
-        Commands::Llp { args } => {
-            webgraph::cli::run::llp::llp::<BE>(args)?;
+        Commands::Llp { args: llp_args } => {
+            webgraph_cli::run::llp::llp::<BE>(args.webgraph_args, llp_args)?;
         }
 
         Commands::Maps {

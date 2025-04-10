@@ -124,7 +124,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
         arc_list_graphs,
         num_nodes,
         comp_flags,
-        rayon::ThreadPoolBuilder::default()
+        &rayon::ThreadPoolBuilder::default()
             .build()
             .expect("Could not create BvComp thread pool"),
         &temp_bv_dir,
