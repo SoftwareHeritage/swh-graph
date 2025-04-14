@@ -15,18 +15,23 @@ use crate::utils::suffix_path;
 /// to allow loading string properties only if needed.
 pub trait MaybeStrings {}
 
-pub struct MappedStrings {
-    message: Mmap,
-    message_offset: NumberMmap<BigEndian, u64, Mmap>,
-    tag_name: Mmap,
-    tag_name_offset: NumberMmap<BigEndian, u64, Mmap>,
-}
-impl<S: Strings> MaybeStrings for S {}
+#[diagnostic::on_unimplemented(
+    label = "does not have String properties loaded",
+    note = "Use `let graph = graph.load_properties(|props| props.load_string()).unwrap()` to load them",
+    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
+)]
+/// Trait implemented by all implementors of [`MaybeStrings`] but [`NoStrings`]
+pub trait LoadedStrings: MaybeStrings {
+    type Result<T>: PropertyResult<Value = T>;
+    type Offsets<'a>: GetIndex<Output = u64> + 'a
+    where
+        Self: 'a;
 
-/// Placeholder for when string properties are not loaded
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct NoStrings;
-impl MaybeStrings for NoStrings {}
+    fn message(&self) -> Self::Result<&[u8]>;
+    fn message_offset(&self) -> Self::Result<Self::Offsets<'_>>;
+    fn tag_name(&self) -> Self::Result<&[u8]>;
+    fn tag_name_offset(&self) -> Self::Result<Self::Offsets<'_>>;
+}
 
 #[diagnostic::on_unimplemented(
     label = "does not have String properties loaded",
@@ -44,6 +49,79 @@ pub trait Strings {
     fn tag_name(&self) -> &[u8];
     fn tag_name_offset(&self) -> Self::Offsets<'_>;
 }
+
+/// [`Strings`] implementation backed by files guaranteed to be present once the graph is loaded
+pub struct MappedStrings {
+    message: Mmap,
+    message_offset: NumberMmap<BigEndian, u64, Mmap>,
+    tag_name: Mmap,
+    tag_name_offset: NumberMmap<BigEndian, u64, Mmap>,
+}
+impl<S: Strings> MaybeStrings for S {}
+
+impl<S: Strings> LoadedStrings for S {
+    type Result<T> = AlwaysPropertyResult<T>;
+    type Offsets<'a>
+        = <Self as Strings>::Offsets<'a>
+    where
+        Self: 'a;
+
+    #[inline(always)]
+    fn message(&self) -> Self::Result<&[u8]> {
+        AlwaysPropertyResult(<Self as Strings>::message(self))
+    }
+    #[inline(always)]
+    fn message_offset(&self) -> Self::Result<Self::Offsets<'_>> {
+        AlwaysPropertyResult(<Self as Strings>::message_offset(self))
+    }
+    #[inline(always)]
+    fn tag_name(&self) -> Self::Result<&[u8]> {
+        AlwaysPropertyResult(<Self as Strings>::tag_name(self))
+    }
+    #[inline(always)]
+    fn tag_name_offset(&self) -> Self::Result<Self::Offsets<'_>> {
+        AlwaysPropertyResult(<Self as Strings>::tag_name_offset(self))
+    }
+}
+
+/// Variant of [`MappedStrings`] that checks at runtime that files are present every time
+/// it is accessed
+pub struct DynMappedStrings {
+    message: Option<Mmap>,
+    message_offset: Option<NumberMmap<BigEndian, u64, Mmap>>,
+    tag_name: Option<Mmap>,
+    tag_name_offset: Option<NumberMmap<BigEndian, u64, Mmap>>,
+}
+impl MaybeStrings for DynMappedStrings {}
+impl LoadedStrings for DynMappedStrings {
+    type Result<T> = OptionPropertyResult<T>;
+    type Offsets<'a>
+        = &'a NumberMmap<BigEndian, u64, Mmap>
+    where
+        Self: 'a;
+
+    #[inline(always)]
+    fn message(&self) -> Self::Result<&[u8]> {
+        OptionPropertyResult(self.message.as_deref())
+    }
+    #[inline(always)]
+    fn message_offset(&self) -> Self::Result<Self::Offsets<'_>> {
+        OptionPropertyResult(self.message_offset.as_ref())
+    }
+    #[inline(always)]
+    fn tag_name(&self) -> Self::Result<&[u8]> {
+        OptionPropertyResult(self.tag_name.as_deref())
+    }
+    #[inline(always)]
+    fn tag_name_offset(&self) -> Self::Result<Self::Offsets<'_>> {
+        OptionPropertyResult(self.tag_name_offset.as_ref())
+    }
+}
+
+/// Placeholder for when string properties are not loaded
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct NoStrings;
+impl MaybeStrings for NoStrings {}
 
 impl Strings for MappedStrings {
     type Offsets<'a>
@@ -189,6 +267,41 @@ impl<
         };
         self.with_strings(strings)
     }
+    /// Equivalent to [`Self::load_strings`] that does not require all files to be present
+    pub fn load_strings_dyn(
+        self,
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, DynMappedStrings, LABELNAMES>>
+    {
+        let if_exists = |suffix| -> Result<_> {
+            let path = suffix_path(&self.path, suffix);
+            if std::fs::exists(&path)
+                .with_context(|| format!("Could not stat {}", path.display()))?
+            {
+                Ok(Some(path))
+            } else {
+                Ok(None)
+            }
+        };
+        let strings = DynMappedStrings {
+            message: if_exists(MESSAGE)?
+                .map(|path| mmap(path).context("Could not load messages"))
+                .transpose()?,
+            message_offset: if_exists(MESSAGE_OFFSET)?
+                .map(|path| {
+                    NumberMmap::new(path, self.num_nodes).context("Could not load message_offset")
+                })
+                .transpose()?,
+            tag_name: if_exists(TAG_NAME)?
+                .map(|path| mmap(path).context("Could not load tag names"))
+                .transpose()?,
+            tag_name_offset: if_exists(TAG_NAME_OFFSET)?
+                .map(|path| {
+                    NumberMmap::new(path, self.num_nodes).context("Could not load tag_name_offset")
+                })
+                .transpose()?,
+        };
+        self.with_strings(strings)
+    }
 
     /// Alternative to [`load_strings`](Self::load_strings) that allows using arbitrary
     /// strings implementations
@@ -219,7 +332,7 @@ impl<
         TIMESTAMPS: MaybeTimestamps,
         PERSONS: MaybePersons,
         CONTENTS: MaybeContents,
-        STRINGS: Strings,
+        STRINGS: LoadedStrings,
         LABELNAMES: MaybeLabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
@@ -257,9 +370,13 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn message_base64(&self, node_id: NodeId) -> Option<&[u8]> {
-        self.try_message_base64(node_id)
+    pub fn message_base64(
+        &self,
+        node_id: NodeId,
+    ) -> <STRINGS::Result<Option<&[u8]>> as PropertyResult>::Finalized {
+        self._try_message_base64(node_id)
             .unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+            .finalize()
     }
 
     /// Returns the base64-encoded message of a revision or release
@@ -267,13 +384,19 @@ impl<
     /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
     /// no message.
     #[inline]
-    pub fn try_message_base64(&self, node_id: NodeId) -> Result<Option<&[u8]>, OutOfBoundError> {
-        Self::message_or_tag_name_base64(
-            "message",
-            self.strings.message(),
-            self.strings.message_offset(),
-            node_id,
-        )
+    pub fn try_message_base64(&self, node_id: NodeId) -> Result<<<STRINGS::Result<Option<&[u8]>> as PropertyResult>::MapResult<&[u8]> as PropertyResult>::Finalized, OutOfBoundError>{
+        Ok(self._try_message_base64(node_id)?.finalize())
+    }
+    fn _try_message_base64(
+        &self,
+        node_id: NodeId,
+    ) -> Result<<STRINGS::Result<Option<&[u8]>> as PropertyResult>::MapResult<&[u8]>, OutOfBoundError>
+    {
+        self.strings.message().and_then(|message| {
+            self.strings.message_offset().map(|message_offset| {
+                Self::message_or_tag_name_base64("message", message, message_offset, node_id)
+            })
+        })
     }
     /// Returns the message of a revision or release,
     /// or the URL of an origin
