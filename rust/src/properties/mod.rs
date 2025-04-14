@@ -53,16 +53,26 @@ pub(crate) mod suffixes {
     pub const LABEL_NAME: &str = ".labels.fcl";
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum PropertyUnavailable {
+    #[error("Could not load {path}: {error}")]
+    Io {
+        path: PathBuf,
+        error: std::io::Error,
+    },
+    #[error("Property was never loaded (missing call to .load_properties())")]
+    NotLoaded,
+}
+
 /// Trait implemented by results that depend on a specific properties file being loaded
 pub trait PropertyResult {
     type Value;
     type MapResult<R>: PropertyResult<Value = R>;
     type Finalized;
 
-    fn map_self(self) -> Self::MapResult<Self::Value>;
     fn map<R>(self, f: impl FnOnce(Self::Value) -> R) -> Self::MapResult<R>;
     fn and_then<R>(self, f: impl FnOnce(Self::Value) -> Self::MapResult<R>) -> Self::MapResult<R>;
-    fn into_option(self) -> Option<Self::Value>;
+    fn into_result(self) -> Result<Self::Value, PropertyUnavailable>;
     fn finalize(self) -> Self::Finalized;
 }
 
@@ -74,17 +84,14 @@ impl<T> PropertyResult for AlwaysPropertyResult<T> {
     type MapResult<R> = AlwaysPropertyResult<R>;
     type Finalized = T;
 
-    fn map_self(self) -> Self::MapResult<Self::Value> {
-        self
-    }
     fn map<R>(self, f: impl FnOnce(Self::Value) -> R) -> Self::MapResult<R> {
         AlwaysPropertyResult(f(self.0))
     }
     fn and_then<R>(self, f: impl FnOnce(Self::Value) -> Self::MapResult<R>) -> Self::MapResult<R> {
         f(self.0)
     }
-    fn into_option(self) -> Option<Self::Value> {
-        Some(self.0)
+    fn into_result(self) -> Result<Self::Value, PropertyUnavailable> {
+        Ok(self.0)
     }
     fn finalize(self) -> Self::Finalized {
         self.0
@@ -99,17 +106,14 @@ impl<T> PropertyResult for NeverPropertyResult<T> {
     type MapResult<R> = NeverPropertyResult<R>;
     type Finalized = ();
 
-    fn map_self(self) -> Self::MapResult<Self::Value> {
-        self
-    }
     fn map<R>(self, _f: impl FnOnce(Self::Value) -> R) -> Self::MapResult<R> {
         NeverPropertyResult::default()
     }
     fn and_then<R>(self, _f: impl FnOnce(Self::Value) -> Self::MapResult<R>) -> Self::MapResult<R> {
         NeverPropertyResult::default()
     }
-    fn into_option(self) -> Option<Self::Value> {
-        None
+    fn into_result(self) -> Result<Self::Value, PropertyUnavailable> {
+        Err(PropertyUnavailable::NotLoaded)
     }
     fn finalize(self) -> Self::Finalized {}
 }
@@ -122,22 +126,19 @@ impl<T> Default for NeverPropertyResult<T> {
 
 /// Implementation of [`PropertyResult`] for properties whose availability is
 /// checked at runtime instead of compile-time
-pub struct OptionPropertyResult<T>(Option<T>);
-impl<T> PropertyResult for OptionPropertyResult<T> {
+pub struct DynPropertyResult<T>(Result<T, PropertyUnavailable>);
+impl<T> PropertyResult for DynPropertyResult<T> {
     type Value = T;
-    type MapResult<R> = OptionPropertyResult<R>;
-    type Finalized = Option<T>;
+    type MapResult<R> = DynPropertyResult<R>;
+    type Finalized = Result<T, PropertyUnavailable>;
 
-    fn map_self(self) -> Self::MapResult<Self::Value> {
-        self
-    }
     fn map<R>(self, f: impl FnOnce(Self::Value) -> R) -> Self::MapResult<R> {
-        OptionPropertyResult(self.0.map(f))
+        DynPropertyResult(self.0.map(f))
     }
     fn and_then<R>(self, f: impl FnOnce(Self::Value) -> Self::MapResult<R>) -> Self::MapResult<R> {
-        OptionPropertyResult(self.0.and_then(|value| f(value).into_option()))
+        DynPropertyResult(self.0.and_then(|value| f(value).into_result()))
     }
-    fn into_option(self) -> Option<Self::Value> {
+    fn into_result(self) -> Result<Self::Value, PropertyUnavailable> {
         self.0
     }
     fn finalize(self) -> Self::Finalized {
