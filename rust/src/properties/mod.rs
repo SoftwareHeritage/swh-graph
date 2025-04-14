@@ -53,6 +53,98 @@ pub(crate) mod suffixes {
     pub const LABEL_NAME: &str = ".labels.fcl";
 }
 
+/// Trait implemented by results that depend on a specific properties file being loaded
+pub trait PropertyResult {
+    type Value;
+    type MapResult<R>: PropertyResult<Value = R>;
+    type Finalized;
+
+    fn map_self(self) -> Self::MapResult<Self::Value>;
+    fn map<R>(self, f: impl FnOnce(Self::Value) -> R) -> Self::MapResult<R>;
+    fn and_then<R>(self, f: impl FnOnce(Self::Value) -> Self::MapResult<R>) -> Self::MapResult<R>;
+    fn into_option(self) -> Option<Self::Value>;
+    fn finalize(self) -> Self::Finalized;
+}
+
+/// Implementation of [`PropertyResult`] for properties that are guaranteed at compile-time
+/// to be loaded at runtime
+pub struct AlwaysPropertyResult<T>(T);
+impl<T> PropertyResult for AlwaysPropertyResult<T> {
+    type Value = T;
+    type MapResult<R> = AlwaysPropertyResult<R>;
+    type Finalized = T;
+
+    fn map_self(self) -> Self::MapResult<Self::Value> {
+        self
+    }
+    fn map<R>(self, f: impl FnOnce(Self::Value) -> R) -> Self::MapResult<R> {
+        AlwaysPropertyResult(f(self.0))
+    }
+    fn and_then<R>(self, f: impl FnOnce(Self::Value) -> Self::MapResult<R>) -> Self::MapResult<R> {
+        f(self.0)
+    }
+    fn into_option(self) -> Option<Self::Value> {
+        Some(self.0)
+    }
+    fn finalize(self) -> Self::Finalized {
+        self.0
+    }
+}
+
+/// Implementation of [`PropertyResult`] for properties that are guaranteed at compile-time
+/// to not be loaded at runtime
+pub struct NeverPropertyResult<T>(std::marker::PhantomData<T>);
+impl<T> PropertyResult for NeverPropertyResult<T> {
+    type Value = T;
+    type MapResult<R> = NeverPropertyResult<R>;
+    type Finalized = ();
+
+    fn map_self(self) -> Self::MapResult<Self::Value> {
+        self
+    }
+    fn map<R>(self, _f: impl FnOnce(Self::Value) -> R) -> Self::MapResult<R> {
+        NeverPropertyResult::default()
+    }
+    fn and_then<R>(self, _f: impl FnOnce(Self::Value) -> Self::MapResult<R>) -> Self::MapResult<R> {
+        NeverPropertyResult::default()
+    }
+    fn into_option(self) -> Option<Self::Value> {
+        None
+    }
+    fn finalize(self) -> Self::Finalized {}
+}
+
+impl<T> Default for NeverPropertyResult<T> {
+    fn default() -> Self {
+        NeverPropertyResult(Default::default())
+    }
+}
+
+/// Implementation of [`PropertyResult`] for properties whose availability is
+/// checked at runtime instead of compile-time
+pub struct OptionPropertyResult<T>(Option<T>);
+impl<T> PropertyResult for OptionPropertyResult<T> {
+    type Value = T;
+    type MapResult<R> = OptionPropertyResult<R>;
+    type Finalized = Option<T>;
+
+    fn map_self(self) -> Self::MapResult<Self::Value> {
+        self
+    }
+    fn map<R>(self, f: impl FnOnce(Self::Value) -> R) -> Self::MapResult<R> {
+        OptionPropertyResult(self.0.map(f))
+    }
+    fn and_then<R>(self, f: impl FnOnce(Self::Value) -> Self::MapResult<R>) -> Self::MapResult<R> {
+        OptionPropertyResult(self.0.and_then(|value| f(value).into_option()))
+    }
+    fn into_option(self) -> Option<Self::Value> {
+        self.0
+    }
+    fn finalize(self) -> Self::Finalized {
+        self.0
+    }
+}
+
 /// Properties on graph nodes
 ///
 /// This structures has many type parameters, to allow loading only some properties,
@@ -121,7 +213,8 @@ pub type AllSwhGraphProperties<MPHF> = SwhGraphProperties<
     MappedLabelNames,
 >;
 
-fn mmap(path: &Path) -> Result<Mmap> {
+fn mmap(path: impl AsRef<Path>) -> Result<Mmap> {
+    let path = path.as_ref();
     let file_len = path
         .metadata()
         .with_context(|| format!("Could not stat {}", path.display()))?
