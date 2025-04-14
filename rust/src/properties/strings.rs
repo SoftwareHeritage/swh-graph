@@ -22,13 +22,23 @@ pub trait MaybeStrings {}
 )]
 /// Trait implemented by all implementors of [`MaybeStrings`] but [`NoStrings`]
 pub trait LoadedStrings: MaybeStrings {
-    type Result<T>: PropertyResult<Value = T>;
+    type Result<T>;
     type Offsets<'a>: GetIndex<Output = u64> + 'a
     where
         Self: 'a;
 
-    fn message(&self) -> Self::Result<(&[u8], Self::Offsets<'_>)>;
-    fn tag_name(&self) -> Self::Result<(&[u8], Self::Offsets<'_>)>;
+    // Applies the given function to the underlying message bytestring and offsets, if both are
+    // loaded
+    fn map_message_and_offsets<'a, T>(
+        &'a self,
+        f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
+    ) -> Self::Result<T>;
+    // Applies the given function to the underlying tag_name bytestring and offsets, if both are
+    // loaded
+    fn map_tag_name_and_offsets<'a, T>(
+        &'a self,
+        f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
+    ) -> Self::Result<T>;
 }
 
 #[diagnostic::on_unimplemented(
@@ -42,8 +52,10 @@ pub trait Strings {
     where
         Self: 'a;
 
-    fn message(&self) -> (&[u8], Self::Offsets<'_>);
-    fn tag_name(&self) -> (&[u8], Self::Offsets<'_>);
+    fn message(&self) -> &[u8];
+    fn message_offset(&self) -> Self::Offsets<'_>;
+    fn tag_name(&self) -> &[u8];
+    fn tag_name_offset(&self) -> Self::Offsets<'_>;
 }
 
 /// [`Strings`] implementation backed by files guaranteed to be present once the graph is loaded
@@ -56,19 +68,25 @@ pub struct MappedStrings {
 impl<S: Strings> MaybeStrings for S {}
 
 impl<S: Strings> LoadedStrings for S {
-    type Result<T> = AlwaysPropertyResult<T>;
+    type Result<T> = T;
     type Offsets<'a>
         = <Self as Strings>::Offsets<'a>
     where
         Self: 'a;
 
     #[inline(always)]
-    fn message(&self) -> Self::Result<(&[u8], Self::Offsets<'_>)> {
-        AlwaysPropertyResult(<Self as Strings>::message(self))
+    fn map_message_and_offsets<'a, T>(
+        &'a self,
+        f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
+    ) -> Self::Result<T> {
+        f(self.message(), self.message_offset())
     }
     #[inline(always)]
-    fn tag_name(&self) -> Self::Result<(&[u8], Self::Offsets<'_>)> {
-        AlwaysPropertyResult(<Self as Strings>::tag_name(self))
+    fn map_tag_name_and_offsets<'a, T>(
+        &'a self,
+        f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
+    ) -> Self::Result<T> {
+        f(self.tag_name(), self.tag_name_offset())
     }
 }
 
@@ -82,27 +100,33 @@ pub struct DynMappedStrings {
 }
 impl MaybeStrings for DynMappedStrings {}
 impl LoadedStrings for DynMappedStrings {
-    type Result<T> = DynPropertyResult<T>;
+    type Result<T> = Result<T, PropertyUnavailable>;
     type Offsets<'a>
         = &'a NumberMmap<BigEndian, u64, Mmap>
     where
         Self: 'a;
 
     #[inline(always)]
-    fn message(&self) -> Self::Result<(&[u8], Self::Offsets<'_>)> {
-        DynPropertyResult(match (self.message, self.message_offset) {
-            (Ok(message), Ok(message_offset)) => Ok((&message, &message_offset)),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
-        })
+    fn map_message_and_offsets<'a, T>(
+        &'a self,
+        f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
+    ) -> Self::Result<T> {
+        match (&self.message, &self.message_offset) {
+            (Ok(message), Ok(message_offset)) => Ok(f(message, message_offset)),
+            (Err(e), _) => Err(e.clone()),
+            (_, Err(e)) => Err(e.clone()),
+        }
     }
     #[inline(always)]
-    fn tag_name(&self) -> Self::Result<(&[u8], Self::Offsets<'_>)> {
-        DynPropertyResult(match (self.tag_name, self.tag_name_offset) {
-            (Ok(tag_name), Ok(tag_name_offset)) => Ok((&tag_name, &tag_name_offset)),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
-        })
+    fn map_tag_name_and_offsets<'a, T>(
+        &'a self,
+        f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
+    ) -> Self::Result<T> {
+        match (&self.tag_name, &self.tag_name_offset) {
+            (Ok(message), Ok(message_offset)) => Ok(f(message, message_offset)),
+            (Err(e), _) => Err(e.clone()),
+            (_, Err(e)) => Err(e.clone()),
+        }
     }
 }
 
@@ -117,13 +141,17 @@ impl Strings for MappedStrings {
     where
         Self: 'a;
 
-    #[inline(always)]
-    fn message(&self) -> (&[u8], Self::Offsets<'_>) {
-        (&self.message, &self.message_offset)
+    fn message(&self) -> &[u8] {
+        &self.message
     }
-    #[inline(always)]
-    fn tag_name(&self) -> (&[u8], Self::Offsets<'_>) {
-        (&self.tag_name, &self.tag_name_offset)
+    fn message_offset(&self) -> Self::Offsets<'_> {
+        &self.message_offset
+    }
+    fn tag_name(&self) -> &[u8] {
+        &self.tag_name
+    }
+    fn tag_name_offset(&self) -> Self::Offsets<'_> {
+        &self.tag_name_offset
     }
 }
 
@@ -194,12 +222,20 @@ impl Strings for VecStrings {
         Self: 'a;
 
     #[inline(always)]
-    fn message(&self) -> (&[u8], Self::Offsets<'_>) {
-        (self.message.as_slice(), self.message_offset.as_slice())
+    fn message(&self) -> &[u8] {
+        self.message.as_slice()
     }
     #[inline(always)]
-    fn tag_name(&self) -> (&[u8], Self::Offsets<'_>) {
-        (self.tag_name.as_slice(), self.tag_name_offset.as_slice())
+    fn message_offset(&self) -> Self::Offsets<'_> {
+        self.message_offset.as_slice()
+    }
+    #[inline(always)]
+    fn tag_name(&self) -> &[u8] {
+        self.tag_name.as_slice()
+    }
+    #[inline(always)]
+    fn tag_name_offset(&self) -> Self::Offsets<'_> {
+        self.tag_name_offset.as_slice()
     }
 }
 
@@ -222,20 +258,17 @@ impl<
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, MappedStrings, LABELNAMES>>
     {
+        let DynMappedStrings {
+            message,
+            message_offset,
+            tag_name,
+            tag_name_offset,
+        } = self.get_strings()?;
         let strings = MappedStrings {
-            message: mmap(&suffix_path(&self.path, MESSAGE)).context("Could not load messages")?,
-            message_offset: NumberMmap::new(
-                suffix_path(&self.path, MESSAGE_OFFSET),
-                self.num_nodes,
-            )
-            .context("Could not load message_offset")?,
-            tag_name: mmap(&suffix_path(&self.path, TAG_NAME))
-                .context("Could not load tag names")?,
-            tag_name_offset: NumberMmap::new(
-                suffix_path(&self.path, TAG_NAME_OFFSET),
-                self.num_nodes,
-            )
-            .context("Could not load tag_name_offset")?,
+            message: message?,
+            message_offset: message_offset?,
+            tag_name: tag_name?,
+            tag_name_offset: tag_name_offset?,
         };
         self.with_strings(strings)
     }
@@ -244,32 +277,44 @@ impl<
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, DynMappedStrings, LABELNAMES>>
     {
+        let strings = self.get_strings()?;
+        self.with_strings(strings)
+    }
+
+    fn get_strings(&self) -> Result<DynMappedStrings> {
         fn if_exists<T>(
             base_path: &Path,
             suffix: &'static str,
-            f: FnOnce(&Path) -> T,
-        ) -> Result<T, PropertyUnavailable> {
+            f: impl FnOnce(&Path) -> Result<T>,
+        ) -> Result<Result<T, PropertyUnavailable>> {
             let path = suffix_path(base_path, suffix);
-            if std::fs::exists(&path).map_err(|error| PropertyUnavailable::Io { path, error })? {
-                Ok(f(path))
+            if std::fs::exists(&path).map_err(|source| PropertyUnavailable {
+                path: path.clone(),
+                source: source.into(),
+            })? {
+                Ok(Ok(f(&path)?))
             } else {
-                Err(PropertyUnavailable::Io {
+                Ok(Err(PropertyUnavailable {
                     path,
-                    error: std::io::Error::new(std::io::ErrorKind::NotFound, "No such file"),
-                })
+                    source: std::io::Error::new(std::io::ErrorKind::NotFound, "No such file")
+                        .into(),
+                }))
             }
         }
-        let strings = DynMappedStrings {
-            message: if_exists(&self.path, MESSAGE, mmap),
+        Ok(DynMappedStrings {
+            message: if_exists(&self.path, MESSAGE, |path| mmap(path))
+                .context("Could not load message")?,
             message_offset: if_exists(&self.path, MESSAGE_OFFSET, |path| {
-                NumberMmap::new(path, self.num_nodes).context("Could not load message_offset")
-            }),
-            tag_name: if_exists(&self.path, TAG_NAME, mmap),
+                NumberMmap::new(path, self.num_nodes)
+            })
+            .context("Could not load message_offset")?,
+            tag_name: if_exists(&self.path, TAG_NAME, |path| mmap(path))
+                .context("Could not load tag_name")?,
             tag_name_offset: if_exists(&self.path, TAG_NAME_OFFSET, |path| {
-                NumberMmap::new(path, self.num_nodes).context("Could not load tag_name_offset")
-            }),
-        };
-        self.with_strings(strings)
+                NumberMmap::new(path, self.num_nodes)
+            })
+            .context("Could not load tag_name_offset")?,
+        })
     }
 
     /// Alternative to [`load_strings`](Self::load_strings) that allows using arbitrary
@@ -339,13 +384,10 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn message_base64(
-        &self,
-        node_id: NodeId,
-    ) -> <<STRINGS::Result<Option<&[u8]>> as PropertyResult>::MapResult<Option<&[u8]>> as PropertyResult>::Finalized{
-        self._try_message_base64(node_id)
-            .map(|message| message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e)))
-            .finalize()
+    pub fn message_base64(&self, node_id: NodeId) -> STRINGS::Result<Option<&[u8]>> {
+        self.map_message_base64(node_id, |message| {
+            message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+        })
     }
 
     /// Returns the base64-encoded message of a revision or release
@@ -356,20 +398,24 @@ impl<
     pub fn try_message_base64(
         &self,
         node_id: NodeId,
-    ) -> <<STRINGS::Result<(&[u8], STRINGS::Offsets<'_>)> as PropertyResult>::MapResult<
-        Result<Option<&[u8]>, OutOfBoundError>,
-    > as PropertyResult>::Finalized {
-        self._try_message_base64(node_id).finalize()
+    ) -> STRINGS::Result<Result<Option<&[u8]>, OutOfBoundError>> {
+        self.map_message_base64(node_id, |message| message)
     }
-    fn _try_message_base64(
-        &self,
+    #[inline]
+    fn map_message_base64<'a, T>(
+        &'a self,
         node_id: NodeId,
-    ) -> <STRINGS::Result<(&[u8], STRINGS::Offsets<'_>)> as PropertyResult>::MapResult<
-        Result<Option<&[u8]>, OutOfBoundError>,
-    > {
-        self.strings.message().map(|(message, message_offset)| {
-            Self::message_or_tag_name_base64("message", message, message_offset, node_id)
-        })
+        f: impl FnOnce(Result<Option<&'a [u8]>, OutOfBoundError>) -> T,
+    ) -> STRINGS::Result<T> {
+        self.strings
+            .map_message_and_offsets(|message, message_offset| {
+                f(Self::message_or_tag_name_base64(
+                    "message",
+                    message,
+                    message_offset,
+                    node_id,
+                ))
+            })
     }
     /// Returns the message of a revision or release,
     /// or the URL of an origin
@@ -378,9 +424,10 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn message(&self, node_id: NodeId) -> Option<Vec<u8>> {
-        self.try_message(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+    pub fn message(&self, node_id: NodeId) -> STRINGS::Result<Option<Vec<u8>>> {
+        self.map_message(node_id, |message| {
+            message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+        })
     }
 
     /// Returns the message of a revision or release,
@@ -389,14 +436,28 @@ impl<
     /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
     /// no message.
     #[inline]
-    pub fn try_message(&self, node_id: NodeId) -> Result<Option<Vec<u8>>, OutOfBoundError> {
+    pub fn try_message(
+        &self,
+        node_id: NodeId,
+    ) -> STRINGS::Result<Result<Option<Vec<u8>>, OutOfBoundError>> {
+        self.map_message(node_id, |message| message)
+    }
+
+    #[inline]
+    fn map_message<T>(
+        &self,
+        node_id: NodeId,
+        f: impl FnOnce(Result<Option<Vec<u8>>, OutOfBoundError>) -> T,
+    ) -> STRINGS::Result<T> {
         let base64 = base64_simd::STANDARD;
-        self.try_message_base64(node_id).map(|message_opt| {
-            message_opt.map(|message| {
-                base64
-                    .decode_to_vec(message)
-                    .unwrap_or_else(|e| panic!("Could not decode node message: {}", e))
-            })
+        self.map_message_base64(node_id, |message_opt_res| {
+            f(message_opt_res.map(|message_opt| {
+                message_opt.map(|message| {
+                    base64
+                        .decode_to_vec(message)
+                        .unwrap_or_else(|e| panic!("Could not decode node message: {}", e))
+                })
+            }))
         })
     }
 
@@ -406,9 +467,10 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn tag_name_base64(&self, node_id: NodeId) -> Option<&[u8]> {
-        self.try_tag_name_base64(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node tag: {}", e))
+    pub fn tag_name_base64(&self, node_id: NodeId) -> STRINGS::Result<Option<&[u8]>> {
+        self.map_tag_name_base64(node_id, |tag_name| {
+            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag: {}", e))
+        })
     }
 
     /// Returns the tag name of a release, base64-encoded
@@ -416,13 +478,27 @@ impl<
     /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
     /// no tag name.
     #[inline]
-    pub fn try_tag_name_base64(&self, node_id: NodeId) -> Result<Option<&[u8]>, OutOfBoundError> {
-        Self::message_or_tag_name_base64(
-            "tag_name",
-            self.strings.tag_name(),
-            self.strings.tag_name_offset(),
-            node_id,
-        )
+    pub fn try_tag_name_base64(
+        &self,
+        node_id: NodeId,
+    ) -> STRINGS::Result<Result<Option<&[u8]>, OutOfBoundError>> {
+        self.map_tag_name_base64(node_id, |tag_name| tag_name)
+    }
+
+    fn map_tag_name_base64<'a, T>(
+        &'a self,
+        node_id: NodeId,
+        f: impl FnOnce(Result<Option<&'a [u8]>, OutOfBoundError>) -> T,
+    ) -> STRINGS::Result<T> {
+        self.strings
+            .map_tag_name_and_offsets(|tag_name, tag_name_offset| {
+                f(Self::message_or_tag_name_base64(
+                    "tag_name",
+                    tag_name,
+                    tag_name_offset,
+                    node_id,
+                ))
+            })
     }
 
     /// Returns the tag name of a release
@@ -431,9 +507,10 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn tag_name(&self, node_id: NodeId) -> Option<Vec<u8>> {
-        self.try_tag_name(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node tag name: {}", e))
+    pub fn tag_name(&self, node_id: NodeId) -> STRINGS::Result<Option<Vec<u8>>> {
+        self.map_tag_name(node_id, |tag_name| {
+            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag name: {}", e))
+        })
     }
 
     /// Returns the tag name of a release
@@ -441,17 +518,30 @@ impl<
     /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
     /// no tag name.
     #[inline]
-    pub fn try_tag_name(&self, node_id: NodeId) -> Result<Option<Vec<u8>>, OutOfBoundError> {
+    pub fn try_tag_name(
+        &self,
+        node_id: NodeId,
+    ) -> STRINGS::Result<Result<Option<Vec<u8>>, OutOfBoundError>> {
+        self.map_tag_name(node_id, |tag_name| tag_name)
+    }
+
+    fn map_tag_name<T>(
+        &self,
+        node_id: NodeId,
+        f: impl FnOnce(Result<Option<Vec<u8>>, OutOfBoundError>) -> T,
+    ) -> STRINGS::Result<T> {
         let base64 = base64_simd::STANDARD;
-        self.try_tag_name_base64(node_id).map(|tag_name_opt| {
-            tag_name_opt.map(|tag_name| {
-                base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
-                    panic!(
-                        "Could not decode tag_name of node {}: {:?}",
-                        node_id, tag_name
-                    )
+        self.map_tag_name_base64(node_id, |tag_name_opt_res| {
+            f(tag_name_opt_res.map(|tag_name_opt| {
+                tag_name_opt.map(|tag_name| {
+                    base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
+                        panic!(
+                            "Could not decode tag_name of node {}: {:?}",
+                            node_id, tag_name
+                        )
+                    })
                 })
-            })
+            }))
         })
     }
 }
