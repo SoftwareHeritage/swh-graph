@@ -342,6 +342,37 @@ impl<
 {
 }
 
+/// Alias for structures representing a graph with all arcs, arc labels, and node properties
+/// loaded (conditional on them being actually present on disk)
+pub trait SwhFullDynGraph:
+    SwhLabeledForwardGraph
+    + SwhLabeledBackwardGraph
+    + SwhGraphWithProperties<
+        Maps: crate::properties::Maps,
+        Timestamps: crate::properties::Timestamps,
+        Persons: crate::properties::Persons,
+        Contents: crate::properties::Contents,
+        Strings: crate::properties::LoadedStrings,
+        LabelNames: crate::properties::LabelNames,
+    >
+{
+}
+
+impl<
+        G: SwhLabeledForwardGraph
+            + SwhLabeledBackwardGraph
+            + SwhGraphWithProperties<
+                Maps: crate::properties::Maps,
+                Timestamps: crate::properties::Timestamps,
+                Persons: crate::properties::Persons,
+                Contents: crate::properties::Contents,
+                Strings: crate::properties::LoadedStrings,
+                LabelNames: crate::properties::LabelNames,
+            >,
+    > SwhFullDynGraph for G
+{
+}
+
 /// Class representing the compressed Software Heritage graph in a single direction.
 ///
 /// Type parameters:
@@ -513,7 +544,7 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
         }
     }
 
-    /// Enriches the graph with more properties mmapped from disk
+    /// Enriches the graph with all properties, mmapped from disk
     ///
     /// # Example
     ///
@@ -543,6 +574,38 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
     > {
         self.init_properties()
             .load_properties(|properties| properties.load_all())
+    }
+
+    /// Enriches the graph with all properties available on disk by mapping them
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    ///
+    /// swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
+    ///     .expect("Could not load graph")
+    ///     .load_dyn_all_properties::<GOVMPH>()
+    ///     .expect("Could not load properties");
+    /// ```
+    pub fn load_dyn_all_properties<MPHF: SwhidMphf>(
+        self,
+    ) -> Result<
+        SwhUnidirectionalGraph<
+            properties::SwhGraphProperties<
+                properties::MappedMaps<MPHF>,
+                properties::MappedTimestamps,
+                properties::MappedPersons,
+                properties::MappedContents,
+                properties::DynMappedStrings,
+                properties::MappedLabelNames,
+            >,
+            G,
+        >,
+    > {
+        self.init_properties()
+            .load_properties(|properties| properties.load_all_dyn())
     }
 }
 
@@ -858,6 +921,39 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
         self.init_properties()
             .load_properties(|properties| properties.load_all())
     }
+
+    /// Enriches the graph with all properties available on disk by mapping them
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    ///
+    /// swh_graph::graph::SwhBidirectionalGraph::new(PathBuf::from("./graph"))
+    ///     .expect("Could not load graph")
+    ///     .load_dyn_all_properties::<GOVMPH>()
+    ///     .expect("Could not load properties");
+    /// ```
+    pub fn load_dyn_all_properties<MPHF: SwhidMphf>(
+        self,
+    ) -> Result<
+        SwhBidirectionalGraph<
+            properties::SwhGraphProperties<
+                properties::MappedMaps<MPHF>,
+                properties::MappedTimestamps,
+                properties::MappedPersons,
+                properties::MappedContents,
+                properties::DynMappedStrings,
+                properties::MappedLabelNames,
+            >,
+            FG,
+            BG,
+        >,
+    > {
+        self.init_properties()
+            .load_properties(|properties| properties.load_all_dyn())
+    }
 }
 
 impl<
@@ -1006,6 +1102,54 @@ pub fn load_full<MPHF: SwhidMphf>(
     SwhBidirectionalGraph::new(basepath)
         .context("Could not load graph")?
         .load_all_properties()
+        .context("Could not load properties")?
+        .load_labels()
+        .context("Could not load labels")
+}
+
+/// Loads a bidirectional graph, then tries to load all its properties, then its labels.
+///
+/// This is a shorthand for:
+///
+/// ```no_run
+/// # use std::path::PathBuf;
+/// # use anyhow::{Context, Result};
+/// # use swh_graph::graph::SwhBidirectionalGraph;
+/// # use swh_graph::mph::SwhidMphf;
+/// #
+/// # fn f<MPHF: SwhidMphf>() -> Result<()> {
+/// # let basepath = PathBuf::from("./graph");
+/// let graph = SwhBidirectionalGraph::new(basepath)
+///     .context("Could not load graph")?
+///     .load_dyn_all_properties::<MPHF>()
+///     .context("Could not load properties")?
+///     .load_labels()
+///     .context("Could not load labels")?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Compared to [`load_full`] or loading properties one by one, this may introduce a
+/// small performance overhead on each property access.
+pub fn load_full_dyn<MPHF: SwhidMphf>(
+    basepath: impl AsRef<Path>,
+) -> Result<
+    SwhBidirectionalGraph<
+        properties::SwhGraphProperties<
+            properties::MappedMaps<MPHF>,
+            properties::MappedTimestamps,
+            properties::MappedPersons,
+            properties::MappedContents,
+            properties::DynMappedStrings,
+            properties::MappedLabelNames,
+        >,
+        Zip<DefaultUnderlyingGraph, SwhLabeling>,
+        Zip<DefaultUnderlyingGraph, SwhLabeling>,
+    >,
+> {
+    SwhBidirectionalGraph::new(basepath)
+        .context("Could not load graph")?
+        .load_dyn_all_properties()
         .context("Could not load properties")?
         .load_labels()
         .context("Could not load labels")

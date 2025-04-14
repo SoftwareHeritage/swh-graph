@@ -130,6 +130,15 @@ pub type AllSwhGraphProperties<MPHF> = SwhGraphProperties<
     MappedLabelNames,
 >;
 
+pub type AllSwhGraphDynProperties<MPHF> = SwhGraphProperties<
+    MappedMaps<MPHF>,
+    MappedTimestamps,
+    MappedPersons,
+    MappedContents,
+    DynMappedStrings,
+    MappedLabelNames,
+>;
+
 fn mmap(path: impl AsRef<Path>) -> Result<Mmap> {
     let path = path.as_ref();
     let file_len = path
@@ -209,6 +218,48 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
             .load_strings()?
             .load_label_names()
     }
+
+    /// Consumes an empty [`SwhGraphProperties`] instance and returns a new one
+    /// with all properties  available on disk loaded and all methods available.
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    ///  use swh_graph::graph::SwhGraphWithProperties;
+    /// use swh_graph::mph::DynMphf;
+    /// use swh_graph::SwhGraphProperties;
+    ///
+    /// SwhGraphProperties::new(PathBuf::from("./graph"), 123)
+    ///     .load_all_dyn::<DynMphf>()
+    ///     .expect("Could not load properties");
+    /// ```
+    ///
+    /// is equivalent to:
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// use swh_graph::mph::DynMphf;
+    /// use swh_graph::SwhGraphProperties;
+    ///
+    /// SwhGraphProperties::new(PathBuf::from("./graph"), 123)
+    ///     .load_maps::<DynMphf>()
+    ///     .expect("Could not load node2swhid/swhid2node")
+    ///     .load_timestamps()
+    ///     .expect("Could not load timestamp properties")
+    ///     .load_persons()
+    ///     .expect("Could not load person properties")
+    ///     .load_contents()
+    ///     .expect("Could not load content properties")
+    ///     .load_dyn_strings()
+    ///     .expect("Could not load string properties");
+    /// ```
+    pub fn load_all_dyn<MPHF: SwhidMphf>(self) -> Result<AllSwhGraphDynProperties<MPHF>> {
+        self.load_maps()?
+            .load_timestamps()?
+            .load_persons()?
+            .load_contents()?
+            .load_strings_dyn()?
+            .load_label_names()
+    }
 }
 
 mod maps;
@@ -224,7 +275,9 @@ mod contents;
 pub use contents::{Contents, MappedContents, MaybeContents, NoContents, VecContents};
 
 mod strings;
-pub use strings::{MappedStrings, MaybeStrings, NoStrings, Strings, VecStrings};
+pub use strings::{
+    DynMappedStrings, LoadedStrings, MappedStrings, MaybeStrings, NoStrings, Strings, VecStrings,
+};
 
 mod label_names;
 pub use label_names::{
