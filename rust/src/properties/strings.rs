@@ -39,6 +39,8 @@ pub trait LoadedStrings: MaybeStrings {
         &'a self,
         f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
     ) -> Self::Result<T>;
+
+    fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty>;
 }
 
 #[diagnostic::on_unimplemented(
@@ -131,6 +133,10 @@ impl LoadedStrings for DynMappedStrings {
             (Err(e), _) => Err(e.clone()),
             (_, Err(e)) => Err(e.clone()),
         }
+    }
+
+    fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty> {
+        value
     }
 }
 

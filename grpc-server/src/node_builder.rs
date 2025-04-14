@@ -1,11 +1,14 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
 use super::proto;
-use swh_graph::graph::SwhFullGraph;
+use swh_graph::graph::*;
 use swh_graph::labels::{EdgeLabel, VisitStatus};
+use swh_graph::properties::{
+    Contents, LabelNames, LoadedStrings, Maps, Persons, Timestamps, UnavailableProperty,
+};
 use swh_graph::NodeType;
 
 /// Bit masks selecting which fields should be included by [`NodeBuilder`], based on
@@ -69,7 +72,21 @@ pub struct NodeBuilder<G: Clone + Send + Sync + 'static> {
     bitmask: u32,
 }
 
-impl<G: SwhFullGraph + Clone + Send + Sync + 'static> NodeBuilder<G> {
+impl<
+        G: SwhLabeledForwardGraph
+            + SwhGraphWithProperties<
+                Maps: Maps,
+                Strings: LoadedStrings,
+                LabelNames: LabelNames,
+                Contents: Contents,
+                Persons: Persons,
+                Timestamps: Timestamps,
+            > + Clone
+            + Send
+            + Sync
+            + 'static,
+    > NodeBuilder<G>
+{
     pub fn new(graph: G, mask: Option<prost_types::FieldMask>) -> Result<Self, tonic::Status> {
         let Some(mask) = mask else {
             return Ok(NodeBuilder {
@@ -252,7 +269,9 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> NodeBuilder<G> {
             committer_date_offset: self.if_mask(REV_COMMITTER_DATE_OFFSET, || {
                 Some(properties.committer_timestamp_offset(node_id)?.into())
             }),
-            message: self.if_mask(REV_MESSAGE, || properties.message(node_id)),
+            message: self.if_mask_dyn(REV_MESSAGE, || {
+                G::Strings::make_result(properties.message(node_id))
+            }),
         })
     }
     fn build_release_data(&self, node_id: usize) -> proto::node::Data {
@@ -263,15 +282,20 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> NodeBuilder<G> {
             author_date_offset: self.if_mask(REL_AUTHOR_DATE_OFFSET, || {
                 Some(properties.author_timestamp_offset(node_id)?.into())
             }),
-            name: self.if_mask(REL_NAME, || properties.tag_name(node_id)),
-            message: self.if_mask(REL_MESSAGE, || properties.message(node_id)),
+            name: self.if_mask_dyn(REL_NAME, || {
+                G::Strings::make_result(properties.tag_name(node_id))
+            }),
+            message: self.if_mask_dyn(REL_MESSAGE, || {
+                G::Strings::make_result(properties.message(node_id))
+            }),
         })
     }
     fn build_origin_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Ori(proto::OriginData {
-            url: self.if_mask(ORI_URL, || {
-                Some(String::from_utf8_lossy(&properties.message(node_id)?).into())
+            url: self.if_mask_dyn(ORI_URL, || {
+                let message: Option<_> = G::Strings::make_result(properties.message(node_id))?;
+                Ok(message.map(|message| String::from_utf8_lossy(&message).into()))
             }),
         })
     }
@@ -281,6 +305,18 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> NodeBuilder<G> {
             T::default()
         } else {
             f()
+        }
+    }
+
+    fn if_mask_dyn<T: Default>(
+        &self,
+        mask: u32,
+        f: impl FnOnce() -> Result<T, UnavailableProperty>,
+    ) -> T {
+        if self.bitmask & mask == 0 {
+            T::default()
+        } else {
+            f().unwrap_or_default()
         }
     }
 }

@@ -16,7 +16,7 @@ use tonic::{Request, Response};
 use tonic_middleware::MiddlewareFor;
 use tracing::{instrument, Level};
 
-use swh_graph::graph::SwhFullGraph;
+use swh_graph::graph::SwhFullDynGraph;
 use swh_graph::properties::NodeIdFromSwhidError;
 use swh_graph::utils::suffix_path;
 use swh_graph::views::Subgraph;
@@ -54,12 +54,12 @@ pub(crate) fn scoped_spawn_blocking<R: Send + Sync + 'static, F: FnOnce() -> R +
 
 type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
-pub struct TraversalService<G: SwhFullGraph + Clone + Send + Sync + 'static> {
+pub struct TraversalService<G: SwhFullDynGraph + Clone + Send + Sync + 'static> {
     graph: G,
     pub statsd_client: Option<Arc<StatsdClient>>,
 }
 
-impl<G: SwhFullGraph + Clone + Send + Sync + 'static> TraversalService<G> {
+impl<G: SwhFullDynGraph + Clone + Send + Sync + 'static> TraversalService<G> {
     pub fn new(graph: G, statsd_client: Option<Arc<StatsdClient>>) -> Self {
         TraversalService {
             graph,
@@ -69,13 +69,13 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> TraversalService<G> {
 }
 
 pub trait TraversalServiceTrait {
-    type Graph: SwhFullGraph + Clone + Send + Sync + 'static;
+    type Graph: SwhFullDynGraph + Clone + Send + Sync + 'static;
     fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status>;
     fn graph(&self) -> &Self::Graph;
     fn statsd_client(&self) -> Option<&Arc<StatsdClient>>;
 }
 
-impl<G: SwhFullGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
+impl<G: SwhFullDynGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
     for TraversalService<G>
 {
     type Graph = G;
@@ -119,7 +119,7 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
 }
 
 #[tonic::async_trait]
-impl<G: SwhFullGraph + Send + Sync + Clone + 'static>
+impl<G: SwhFullDynGraph + Send + Sync + Clone + 'static>
     proto::traversal_service_server::TraversalService for TraversalService<G>
 {
     async fn get_node(&self, request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
@@ -311,7 +311,7 @@ where
         })
 }
 
-pub async fn serve<G: SwhFullGraph + Sync + Send + 'static>(
+pub async fn serve<G: SwhFullDynGraph + Sync + Send + 'static>(
     graph: G,
     bind_addr: std::net::SocketAddr,
     statsd_client: cadence::StatsdClient,
