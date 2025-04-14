@@ -88,19 +88,23 @@ impl<S: Strings> LoadedStrings for S {
     ) -> Self::Result<T> {
         f(self.tag_name(), self.tag_name_offset())
     }
+
+    fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty> {
+        Ok(value)
+    }
 }
 
 /// Variant of [`MappedStrings`] that checks at runtime that files are present every time
 /// it is accessed
 pub struct DynMappedStrings {
-    message: Result<Mmap, PropertyUnavailable>,
-    message_offset: Result<NumberMmap<BigEndian, u64, Mmap>, PropertyUnavailable>,
-    tag_name: Result<Mmap, PropertyUnavailable>,
-    tag_name_offset: Result<NumberMmap<BigEndian, u64, Mmap>, PropertyUnavailable>,
+    message: Result<Mmap, UnavailableProperty>,
+    message_offset: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
+    tag_name: Result<Mmap, UnavailableProperty>,
+    tag_name_offset: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
 }
 impl MaybeStrings for DynMappedStrings {}
 impl LoadedStrings for DynMappedStrings {
-    type Result<T> = Result<T, PropertyUnavailable>;
+    type Result<T> = Result<T, UnavailableProperty>;
     type Offsets<'a>
         = &'a NumberMmap<BigEndian, u64, Mmap>
     where
@@ -286,15 +290,15 @@ impl<
             base_path: &Path,
             suffix: &'static str,
             f: impl FnOnce(&Path) -> Result<T>,
-        ) -> Result<Result<T, PropertyUnavailable>> {
+        ) -> Result<Result<T, UnavailableProperty>> {
             let path = suffix_path(base_path, suffix);
-            if std::fs::exists(&path).map_err(|source| PropertyUnavailable {
+            if std::fs::exists(&path).map_err(|source| UnavailableProperty {
                 path: path.clone(),
                 source: source.into(),
             })? {
                 Ok(Ok(f(&path)?))
             } else {
-                Ok(Err(PropertyUnavailable {
+                Ok(Err(UnavailableProperty {
                     path,
                     source: std::io::Error::new(std::io::ErrorKind::NotFound, "No such file")
                         .into(),
