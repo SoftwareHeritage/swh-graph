@@ -25,6 +25,7 @@
 //! ```
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use byteorder::BigEndian;
@@ -53,97 +54,12 @@ pub(crate) mod suffixes {
     pub const LABEL_NAME: &str = ".labels.fcl";
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum PropertyUnavailable {
-    #[error("Could not load {path}: {error}")]
-    Io {
-        path: PathBuf,
-        error: std::io::Error,
-    },
-    #[error("Property was never loaded (missing call to .load_properties())")]
-    NotLoaded,
-}
-
-/// Trait implemented by results that depend on a specific properties file being loaded
-pub trait PropertyResult {
-    type Value;
-    type MapResult<R>: PropertyResult<Value = R>;
-    type Finalized;
-
-    fn map<R>(self, f: impl FnOnce(Self::Value) -> R) -> Self::MapResult<R>;
-    fn and_then<R>(self, f: impl FnOnce(Self::Value) -> Self::MapResult<R>) -> Self::MapResult<R>;
-    fn into_result(self) -> Result<Self::Value, PropertyUnavailable>;
-    fn finalize(self) -> Self::Finalized;
-}
-
-/// Implementation of [`PropertyResult`] for properties that are guaranteed at compile-time
-/// to be loaded at runtime
-pub struct AlwaysPropertyResult<T>(T);
-impl<T> PropertyResult for AlwaysPropertyResult<T> {
-    type Value = T;
-    type MapResult<R> = AlwaysPropertyResult<R>;
-    type Finalized = T;
-
-    fn map<R>(self, f: impl FnOnce(Self::Value) -> R) -> Self::MapResult<R> {
-        AlwaysPropertyResult(f(self.0))
-    }
-    fn and_then<R>(self, f: impl FnOnce(Self::Value) -> Self::MapResult<R>) -> Self::MapResult<R> {
-        f(self.0)
-    }
-    fn into_result(self) -> Result<Self::Value, PropertyUnavailable> {
-        Ok(self.0)
-    }
-    fn finalize(self) -> Self::Finalized {
-        self.0
-    }
-}
-
-/// Implementation of [`PropertyResult`] for properties that are guaranteed at compile-time
-/// to not be loaded at runtime
-pub struct NeverPropertyResult<T>(std::marker::PhantomData<T>);
-impl<T> PropertyResult for NeverPropertyResult<T> {
-    type Value = T;
-    type MapResult<R> = NeverPropertyResult<R>;
-    type Finalized = ();
-
-    fn map<R>(self, _f: impl FnOnce(Self::Value) -> R) -> Self::MapResult<R> {
-        NeverPropertyResult::default()
-    }
-    fn and_then<R>(self, _f: impl FnOnce(Self::Value) -> Self::MapResult<R>) -> Self::MapResult<R> {
-        NeverPropertyResult::default()
-    }
-    fn into_result(self) -> Result<Self::Value, PropertyUnavailable> {
-        Err(PropertyUnavailable::NotLoaded)
-    }
-    fn finalize(self) -> Self::Finalized {}
-}
-
-impl<T> Default for NeverPropertyResult<T> {
-    fn default() -> Self {
-        NeverPropertyResult(Default::default())
-    }
-}
-
-/// Implementation of [`PropertyResult`] for properties whose availability is
-/// checked at runtime instead of compile-time
-pub struct DynPropertyResult<T>(Result<T, PropertyUnavailable>);
-impl<T> PropertyResult for DynPropertyResult<T> {
-    type Value = T;
-    type MapResult<R> = DynPropertyResult<R>;
-    type Finalized = Result<T, PropertyUnavailable>;
-
-    fn map<R>(self, f: impl FnOnce(Self::Value) -> R) -> Self::MapResult<R> {
-        DynPropertyResult(self.0.map(f))
-    }
-    fn and_then<R>(self, f: impl FnOnce(Self::Value) -> Self::MapResult<R>) -> Self::MapResult<R> {
-        DynPropertyResult(self.0.and_then(|value| f(value).into_result()))
-    }
-    fn into_result(self) -> Result<Self::Value, PropertyUnavailable> {
-        self.0
-    }
-    fn finalize(self) -> Self::Finalized {
-        self.0
-    }
+#[derive(thiserror::Error, Debug, Clone)]
+#[error("{path} cannot be loaded: {source}")]
+pub struct PropertyUnavailable {
+    path: PathBuf,
+    #[source]
+    source: Arc<std::io::Error>,
 }
 
 /// Properties on graph nodes
