@@ -56,7 +56,7 @@ pub(crate) mod suffixes {
 
 #[derive(thiserror::Error, Debug, Clone)]
 #[error("{path} cannot be loaded: {source}")]
-pub struct PropertyUnavailable {
+pub struct UnavailableProperty {
     path: PathBuf,
     #[source]
     source: Arc<std::io::Error>,
