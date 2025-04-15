@@ -15,6 +15,11 @@ use crate::utils::suffix_path;
 /// to allow loading string properties only if needed.
 pub trait MaybeStrings {}
 
+/// Placeholder for when string properties are not loaded
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct NoStrings;
+impl MaybeStrings for NoStrings {}
+
 #[diagnostic::on_unimplemented(
     label = "does not have String properties loaded",
     note = "Use `let graph = graph.load_properties(|props| props.load_string()).unwrap()` to load them",
@@ -26,9 +31,12 @@ pub trait LoadedStrings: MaybeStrings + PropertiesBackend {
     where
         Self: 'a;
 
-    fn message_and_offsets(&self) -> PropertiesResult<(&[u8], Self::Offsets<'_>), Self>;
-    fn tag_name_and_offsets(&self) -> PropertiesResult<(&[u8], Self::Offsets<'_>), Self>;
+    fn message(&self) -> PropertiesResult<&[u8], Self>;
+    fn message_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self>;
+    fn tag_name(&self) -> PropertiesResult<&[u8], Self>;
+    fn tag_name_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self>;
 }
+impl<S: LoadedStrings> MaybeStrings for S {}
 
 #[diagnostic::on_unimplemented(
     label = "does not have String properties loaded",
@@ -36,44 +44,8 @@ pub trait LoadedStrings: MaybeStrings + PropertiesBackend {
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait for backend storage of string properties (either in-memory or memory-mapped)
-pub trait Strings {
-    type Offsets<'a>: GetIndex<Output = u64> + 'a
-    where
-        Self: 'a;
-
-    fn message(&self) -> &[u8];
-    fn message_offset(&self) -> Self::Offsets<'_>;
-    fn tag_name(&self) -> &[u8];
-    fn tag_name_offset(&self) -> Self::Offsets<'_>;
-}
-
-/// [`Strings`] implementation backed by files guaranteed to be present once the graph is loaded
-pub struct MappedStrings {
-    message: Mmap,
-    message_offset: NumberMmap<BigEndian, u64, Mmap>,
-    tag_name: Mmap,
-    tag_name_offset: NumberMmap<BigEndian, u64, Mmap>,
-}
-impl<S: Strings> MaybeStrings for S {}
-
-impl<S: Strings> PropertiesBackend for S {
-    type DataFilesAvailability = GuaranteedDataFiles;
-}
-impl<S: Strings> LoadedStrings for S {
-    type Offsets<'a>
-        = <Self as Strings>::Offsets<'a>
-    where
-        Self: 'a;
-
-    #[inline(always)]
-    fn message_and_offsets(&self) -> PropertiesResult<(&[u8], Self::Offsets<'_>), Self> {
-        (self.message(), self.message_offset())
-    }
-    #[inline(always)]
-    fn tag_name_and_offsets(&self) -> PropertiesResult<(&[u8], Self::Offsets<'_>), Self> {
-        (self.tag_name(), self.tag_name_offset())
-    }
-}
+pub trait Strings: LoadedStrings<DataFilesAvailability = GuaranteedDataFiles> {}
+impl<S: LoadedStrings<DataFilesAvailability = GuaranteedDataFiles>> Strings for S {}
 
 /// Variant of [`MappedStrings`] that checks at runtime that files are present every time
 /// it is accessed
@@ -83,7 +55,6 @@ pub struct DynMappedStrings {
     tag_name: Result<Mmap, UnavailableProperty>,
     tag_name_offset: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
 }
-impl MaybeStrings for DynMappedStrings {}
 impl PropertiesBackend for DynMappedStrings {
     type DataFilesAvailability = OptionalDataFiles;
 }
@@ -94,29 +65,35 @@ impl LoadedStrings for DynMappedStrings {
         Self: 'a;
 
     #[inline(always)]
-    fn message_and_offsets(&self) -> PropertiesResult<(&[u8], Self::Offsets<'_>), Self> {
-        match (&self.message, &self.message_offset) {
-            (Ok(message), Ok(message_offset)) => Ok((message, message_offset)),
-            (Err(e), _) => Err(e.clone()),
-            (_, Err(e)) => Err(e.clone()),
-        }
+    fn message(&self) -> PropertiesResult<&[u8], Self> {
+        self.message.as_deref().map_err(Clone::clone)
     }
     #[inline(always)]
-    fn tag_name_and_offsets(&self) -> PropertiesResult<(&[u8], Self::Offsets<'_>), Self> {
-        match (&self.tag_name, &self.tag_name_offset) {
-            (Ok(message), Ok(message_offset)) => Ok((message, message_offset)),
-            (Err(e), _) => Err(e.clone()),
-            (_, Err(e)) => Err(e.clone()),
-        }
+    fn message_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self> {
+        self.message_offset.as_ref().map_err(Clone::clone)
+    }
+    #[inline(always)]
+    fn tag_name(&self) -> PropertiesResult<&[u8], Self> {
+        self.tag_name.as_deref().map_err(Clone::clone)
+    }
+    #[inline(always)]
+    fn tag_name_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self> {
+        self.tag_name_offset.as_ref().map_err(Clone::clone)
     }
 }
 
-/// Placeholder for when string properties are not loaded
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct NoStrings;
-impl MaybeStrings for NoStrings {}
+/// [`Strings`] implementation backed by files guaranteed to be present once the graph is loaded
+pub struct MappedStrings {
+    message: Mmap,
+    message_offset: NumberMmap<BigEndian, u64, Mmap>,
+    tag_name: Mmap,
+    tag_name_offset: NumberMmap<BigEndian, u64, Mmap>,
+}
 
-impl Strings for MappedStrings {
+impl PropertiesBackend for MappedStrings {
+    type DataFilesAvailability = GuaranteedDataFiles;
+}
+impl LoadedStrings for MappedStrings {
     type Offsets<'a>
         = &'a NumberMmap<BigEndian, u64, Mmap>
     where
@@ -200,7 +177,10 @@ impl VecStrings {
     }
 }
 
-impl Strings for VecStrings {
+impl PropertiesBackend for VecStrings {
+    type DataFilesAvailability = GuaranteedDataFiles;
+}
+impl LoadedStrings for VecStrings {
     type Offsets<'a>
         = &'a [u64]
     where
@@ -388,7 +368,10 @@ impl<
         node_id: NodeId,
     ) -> PropertiesResult<Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
         <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
-            self.strings.message_and_offsets(),
+            <STRINGS::DataFilesAvailability as DataFilesAvailability>::zip(
+                self.strings.message(),
+                self.strings.message_offset(),
+            ),
             |(message, message_offset)| {
                 Self::message_or_tag_name_base64("message", message, message_offset, node_id)
             },
@@ -456,7 +439,10 @@ impl<
         node_id: NodeId,
     ) -> PropertiesResult<Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
         <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
-            self.strings.tag_name_and_offsets(),
+            <STRINGS::DataFilesAvailability as DataFilesAvailability>::zip(
+                self.strings.tag_name(),
+                self.strings.tag_name_offset(),
+            ),
             |(tag_name, tag_name_offset)| {
                 Self::message_or_tag_name_base64("tag_name", tag_name, tag_name_offset, node_id)
             },

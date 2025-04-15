@@ -90,6 +90,7 @@ pub trait DataFilesAvailability {
     type Result<T>;
 
     fn map<T, U>(v: Self::Result<T>, f: impl FnOnce(T) -> U) -> Self::Result<U>;
+    fn zip<T1, T2>(v1: Self::Result<T1>, v2: Self::Result<T2>) -> Self::Result<(T1, T2)>;
     fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty>;
 }
 
@@ -112,6 +113,10 @@ impl DataFilesAvailability for OptionalDataFiles {
         v.map(f)
     }
 
+    fn zip<T1, T2>(v1: Self::Result<T1>, v2: Self::Result<T2>) -> Self::Result<(T1, T2)> {
+        v1.and_then(|v1| v2.map(|v2| (v1, v2)))
+    }
+
     fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty> {
         value
     }
@@ -122,6 +127,10 @@ impl DataFilesAvailability for GuaranteedDataFiles {
 
     fn map<T, U>(v: Self::Result<T>, f: impl FnOnce(T) -> U) -> Self::Result<U> {
         f(v)
+    }
+
+    fn zip<T1, T2>(v1: Self::Result<T1>, v2: Self::Result<T2>) -> Self::Result<(T1, T2)> {
+        (v1, v2)
     }
 
     fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty> {
