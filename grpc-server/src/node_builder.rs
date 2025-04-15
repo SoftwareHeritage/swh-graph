@@ -16,8 +16,8 @@ use swh_graph::NodeType;
 /// "successor.label").
 #[rustfmt::skip]
 mod node_builder_bitmasks {
-    //                                                                            xxx
-    pub const SUCCESSOR: u32 =                  0b00000000_00000000_00000000_00000111;
+    //                                                                          xxxxx
+    pub const SUCCESSOR: u32 =                  0b00000000_00000000_00000000_00011111;
     pub const SUCCESSOR_SWHID: u32 =            0b00000000_00000000_00000000_00000001;
 
     //                                                                          xxxx
