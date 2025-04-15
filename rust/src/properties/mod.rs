@@ -73,8 +73,12 @@ pub trait DataFilesAvailability {
     fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty>;
 }
 
-pub struct OptionalDataFiles;
-pub struct GuaranteedDataFiles;
+pub struct OptionalDataFiles {
+    _marker: (), // Prevents users from instantiating
+}
+pub struct GuaranteedDataFiles {
+    _marker: (), // Prevents users from instantiating
+}
 
 impl DataFilesAvailability for OptionalDataFiles {
     type Result<T> = Result<T, UnavailableProperty>;
