@@ -342,37 +342,6 @@ impl<
 {
 }
 
-/// Alias for structures representing a graph with all arcs, arc labels, and node properties
-/// loaded (conditional on them being actually present on disk)
-pub trait SwhFullDynGraph:
-    SwhLabeledForwardGraph
-    + SwhLabeledBackwardGraph
-    + SwhGraphWithProperties<
-        Maps: crate::properties::Maps,
-        Timestamps: crate::properties::Timestamps,
-        Persons: crate::properties::Persons,
-        Contents: crate::properties::Contents,
-        Strings: crate::properties::LoadedStrings,
-        LabelNames: crate::properties::LabelNames,
-    >
-{
-}
-
-impl<
-        G: SwhLabeledForwardGraph
-            + SwhLabeledBackwardGraph
-            + SwhGraphWithProperties<
-                Maps: crate::properties::Maps,
-                Timestamps: crate::properties::Timestamps,
-                Persons: crate::properties::Persons,
-                Contents: crate::properties::Contents,
-                Strings: crate::properties::LoadedStrings,
-                LabelNames: crate::properties::LabelNames,
-            >,
-    > SwhFullDynGraph for G
-{
-}
-
 /// Class representing the compressed Software Heritage graph in a single direction.
 ///
 /// Type parameters:
