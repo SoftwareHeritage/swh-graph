@@ -26,12 +26,8 @@ pub trait LoadedStrings: MaybeStrings + PropertiesBackend {
     where
         Self: 'a;
 
-    fn message_and_offsets(
-        &self,
-    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(&[u8], Self::Offsets<'_>)>;
-    fn tag_name_and_offsets(
-        &self,
-    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(&[u8], Self::Offsets<'_>)>;
+    fn message_and_offsets(&self) -> PropertiesResult<(&[u8], Self::Offsets<'_>), Self>;
+    fn tag_name_and_offsets(&self) -> PropertiesResult<(&[u8], Self::Offsets<'_>), Self>;
 }
 
 #[diagnostic::on_unimplemented(
@@ -70,17 +66,11 @@ impl<S: Strings> LoadedStrings for S {
         Self: 'a;
 
     #[inline(always)]
-    fn message_and_offsets(
-        &self,
-    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(&[u8], Self::Offsets<'_>)>
-    {
+    fn message_and_offsets(&self) -> PropertiesResult<(&[u8], Self::Offsets<'_>), Self> {
         (self.message(), self.message_offset())
     }
     #[inline(always)]
-    fn tag_name_and_offsets(
-        &self,
-    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(&[u8], Self::Offsets<'_>)>
-    {
+    fn tag_name_and_offsets(&self) -> PropertiesResult<(&[u8], Self::Offsets<'_>), Self> {
         (self.tag_name(), self.tag_name_offset())
     }
 }
@@ -104,10 +94,7 @@ impl LoadedStrings for DynMappedStrings {
         Self: 'a;
 
     #[inline(always)]
-    fn message_and_offsets(
-        &self,
-    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(&[u8], Self::Offsets<'_>)>
-    {
+    fn message_and_offsets(&self) -> PropertiesResult<(&[u8], Self::Offsets<'_>), Self> {
         match (&self.message, &self.message_offset) {
             (Ok(message), Ok(message_offset)) => Ok((message, message_offset)),
             (Err(e), _) => Err(e.clone()),
@@ -115,10 +102,7 @@ impl LoadedStrings for DynMappedStrings {
         }
     }
     #[inline(always)]
-    fn tag_name_and_offsets(
-        &self,
-    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(&[u8], Self::Offsets<'_>)>
-    {
+    fn tag_name_and_offsets(&self) -> PropertiesResult<(&[u8], Self::Offsets<'_>), Self> {
         match (&self.tag_name, &self.tag_name_offset) {
             (Ok(message), Ok(message_offset)) => Ok((message, message_offset)),
             (Err(e), _) => Err(e.clone()),
