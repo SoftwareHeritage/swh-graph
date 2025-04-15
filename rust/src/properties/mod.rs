@@ -62,6 +62,18 @@ pub struct UnavailableProperty {
     source: Arc<std::io::Error>,
 }
 
+/// Wrapper for the return type of [`SwhGraphProperties`] methods.
+///
+/// When `B` implements `GuaranteedDataFiles` (the most common case), `PropertiesResult<T, B>`
+/// is exactly the same type as `T`.
+///
+/// aWhen `B` implements `OptionalDataFiles` (which is the case when using
+/// [`load_all_dyn`](SwhGraphProperties::load_all_dyn) instead of
+/// [`load_dyn`](SwhGraphProperties::load_all) for example), then `PropertiesResult<T, B>`
+/// is exactly the same type as `Result<T, UnavailableProperty>`.
+pub type PropertiesResult<T, B> =
+    <<B as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::Result<T>;
+
 pub trait PropertiesBackend {
     type DataFilesAvailability: DataFilesAvailability;
 }
