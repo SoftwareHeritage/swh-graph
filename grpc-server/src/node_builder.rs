@@ -7,7 +7,8 @@ use super::proto;
 use swh_graph::graph::*;
 use swh_graph::labels::{EdgeLabel, VisitStatus};
 use swh_graph::properties::{
-    Contents, LabelNames, LoadedStrings, Maps, Persons, Timestamps, UnavailableProperty,
+    Contents, DataFilesAvailability, LabelNames, LoadedStrings, Maps, Persons, PropertiesBackend,
+    Timestamps,
 };
 use swh_graph::NodeType;
 
@@ -269,9 +270,7 @@ impl<
             committer_date_offset: self.if_mask(REV_COMMITTER_DATE_OFFSET, || {
                 Some(properties.committer_timestamp_offset(node_id)?.into())
             }),
-            message: self.if_mask_dyn(REV_MESSAGE, || {
-                G::Strings::make_result(properties.message(node_id))
-            }),
+            message: self.if_mask_dyn::<G::Strings, _>(REV_MESSAGE, || properties.message(node_id)),
         })
     }
     fn build_release_data(&self, node_id: usize) -> proto::node::Data {
@@ -282,20 +281,16 @@ impl<
             author_date_offset: self.if_mask(REL_AUTHOR_DATE_OFFSET, || {
                 Some(properties.author_timestamp_offset(node_id)?.into())
             }),
-            name: self.if_mask_dyn(REL_NAME, || {
-                G::Strings::make_result(properties.tag_name(node_id))
-            }),
-            message: self.if_mask_dyn(REL_MESSAGE, || {
-                G::Strings::make_result(properties.message(node_id))
-            }),
+            name: self.if_mask_dyn::<G::Strings, _>(REL_NAME, || properties.tag_name(node_id)),
+            message: self.if_mask_dyn::<G::Strings, _>(REL_MESSAGE, || properties.message(node_id)),
         })
     }
     fn build_origin_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Ori(proto::OriginData {
-            url: self.if_mask_dyn(ORI_URL, || {
-                let message: Option<_> = G::Strings::make_result(properties.message(node_id))?;
-                Ok(message.map(|message| String::from_utf8_lossy(&message).into()))
+            url: self.if_mask_dyn::<G::Strings, _>(ORI_URL, || {
+                <<G::Strings as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::map(properties.message(node_id), |message: Option<_>|
+                message.map(|message| String::from_utf8_lossy(&message).into()))
             }),
         })
     }
@@ -308,15 +303,15 @@ impl<
         }
     }
 
-    fn if_mask_dyn<T: Default>(
+    fn if_mask_dyn<PB: PropertiesBackend, T: Default>(
         &self,
         mask: u32,
-        f: impl FnOnce() -> Result<T, UnavailableProperty>,
+        f: impl FnOnce() -> <PB::DataFilesAvailability as DataFilesAvailability>::Result<T>,
     ) -> T {
         if self.bitmask & mask == 0 {
             T::default()
         } else {
-            f().unwrap_or_default()
+            PB::DataFilesAvailability::make_result(f()).unwrap_or_default()
         }
     }
 }

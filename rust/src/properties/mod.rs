@@ -62,6 +62,44 @@ pub struct UnavailableProperty {
     source: Arc<std::io::Error>,
 }
 
+pub trait PropertiesBackend {
+    type DataFilesAvailability: DataFilesAvailability;
+}
+
+pub trait DataFilesAvailability {
+    type Result<T>;
+
+    fn map<T, U>(v: Self::Result<T>, f: impl FnOnce(T) -> U) -> Self::Result<U>;
+    fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty>;
+}
+
+pub struct OptionalDataFiles;
+pub struct GuaranteedDataFiles;
+
+impl DataFilesAvailability for OptionalDataFiles {
+    type Result<T> = Result<T, UnavailableProperty>;
+
+    fn map<T, U>(v: Self::Result<T>, f: impl FnOnce(T) -> U) -> Self::Result<U> {
+        v.map(f)
+    }
+
+    fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty> {
+        value
+    }
+}
+
+impl DataFilesAvailability for GuaranteedDataFiles {
+    type Result<T> = T;
+
+    fn map<T, U>(v: Self::Result<T>, f: impl FnOnce(T) -> U) -> Self::Result<U> {
+        f(v)
+    }
+
+    fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty> {
+        Ok(value)
+    }
+}
+
 /// Properties on graph nodes
 ///
 /// This structures has many type parameters, to allow loading only some properties,
