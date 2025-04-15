@@ -16,7 +16,8 @@ use tonic::{Request, Response};
 use tonic_middleware::MiddlewareFor;
 use tracing::{instrument, Level};
 
-use swh_graph::graph::SwhFullDynGraph;
+use swh_graph::graph::{SwhGraphWithProperties, SwhLabeledBackwardGraph, SwhLabeledForwardGraph};
+use swh_graph::properties;
 use swh_graph::properties::NodeIdFromSwhidError;
 use swh_graph::utils::suffix_path;
 use swh_graph::views::Subgraph;
@@ -40,6 +41,37 @@ pub mod statsd;
 mod traversal;
 mod utils;
 pub mod visitor;
+
+/// Alias for structures representing a graph with all arcs, arc labels, and node properties
+/// loaded (conditional on them being actually present on disk)
+pub trait SwhFullDynGraph:
+    SwhLabeledForwardGraph
+    + SwhLabeledBackwardGraph
+    + SwhGraphWithProperties<
+        Maps: properties::Maps,
+        Timestamps: properties::Timestamps,
+        Persons: properties::Persons,
+        Contents: properties::Contents,
+        Strings: properties::LoadedStrings,
+        LabelNames: properties::LabelNames,
+    >
+{
+}
+
+impl<
+        G: SwhLabeledForwardGraph
+            + SwhLabeledBackwardGraph
+            + SwhGraphWithProperties<
+                Maps: properties::Maps,
+                Timestamps: properties::Timestamps,
+                Persons: properties::Persons,
+                Contents: properties::Contents,
+                Strings: properties::LoadedStrings,
+                LabelNames: properties::LabelNames,
+            >,
+    > SwhFullDynGraph for G
+{
+}
 
 /// Runs a long-running function in a separate thread so it does not block.
 ///
