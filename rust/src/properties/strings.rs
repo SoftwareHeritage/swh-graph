@@ -21,26 +21,17 @@ pub trait MaybeStrings {}
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait implemented by all implementors of [`MaybeStrings`] but [`NoStrings`]
-pub trait LoadedStrings: MaybeStrings {
-    type Result<T>;
+pub trait LoadedStrings: MaybeStrings + PropertiesBackend {
     type Offsets<'a>: GetIndex<Output = u64> + 'a
     where
         Self: 'a;
 
-    // Applies the given function to the underlying message bytestring and offsets, if both are
-    // loaded
-    fn map_message_and_offsets<'a, T>(
-        &'a self,
-        f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
-    ) -> Self::Result<T>;
-    // Applies the given function to the underlying tag_name bytestring and offsets, if both are
-    // loaded
-    fn map_tag_name_and_offsets<'a, T>(
-        &'a self,
-        f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
-    ) -> Self::Result<T>;
-
-    fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty>;
+    fn message_and_offsets(
+        &self,
+    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(&[u8], Self::Offsets<'_>)>;
+    fn tag_name_and_offsets(
+        &self,
+    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(&[u8], Self::Offsets<'_>)>;
 }
 
 #[diagnostic::on_unimplemented(
@@ -69,30 +60,28 @@ pub struct MappedStrings {
 }
 impl<S: Strings> MaybeStrings for S {}
 
+impl<S: Strings> PropertiesBackend for S {
+    type DataFilesAvailability = GuaranteedDataFiles;
+}
 impl<S: Strings> LoadedStrings for S {
-    type Result<T> = T;
     type Offsets<'a>
         = <Self as Strings>::Offsets<'a>
     where
         Self: 'a;
 
     #[inline(always)]
-    fn map_message_and_offsets<'a, T>(
-        &'a self,
-        f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
-    ) -> Self::Result<T> {
-        f(self.message(), self.message_offset())
+    fn message_and_offsets(
+        &self,
+    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(&[u8], Self::Offsets<'_>)>
+    {
+        (self.message(), self.message_offset())
     }
     #[inline(always)]
-    fn map_tag_name_and_offsets<'a, T>(
-        &'a self,
-        f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
-    ) -> Self::Result<T> {
-        f(self.tag_name(), self.tag_name_offset())
-    }
-
-    fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty> {
-        Ok(value)
+    fn tag_name_and_offsets(
+        &self,
+    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(&[u8], Self::Offsets<'_>)>
+    {
+        (self.tag_name(), self.tag_name_offset())
     }
 }
 
@@ -105,38 +94,36 @@ pub struct DynMappedStrings {
     tag_name_offset: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
 }
 impl MaybeStrings for DynMappedStrings {}
+impl PropertiesBackend for DynMappedStrings {
+    type DataFilesAvailability = OptionalDataFiles;
+}
 impl LoadedStrings for DynMappedStrings {
-    type Result<T> = Result<T, UnavailableProperty>;
     type Offsets<'a>
         = &'a NumberMmap<BigEndian, u64, Mmap>
     where
         Self: 'a;
 
     #[inline(always)]
-    fn map_message_and_offsets<'a, T>(
-        &'a self,
-        f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
-    ) -> Self::Result<T> {
+    fn message_and_offsets(
+        &self,
+    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(&[u8], Self::Offsets<'_>)>
+    {
         match (&self.message, &self.message_offset) {
-            (Ok(message), Ok(message_offset)) => Ok(f(message, message_offset)),
+            (Ok(message), Ok(message_offset)) => Ok((message, message_offset)),
             (Err(e), _) => Err(e.clone()),
             (_, Err(e)) => Err(e.clone()),
         }
     }
     #[inline(always)]
-    fn map_tag_name_and_offsets<'a, T>(
-        &'a self,
-        f: impl FnOnce(&'a [u8], Self::Offsets<'a>) -> T,
-    ) -> Self::Result<T> {
+    fn tag_name_and_offsets(
+        &self,
+    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(&[u8], Self::Offsets<'_>)>
+    {
         match (&self.tag_name, &self.tag_name_offset) {
-            (Ok(message), Ok(message_offset)) => Ok(f(message, message_offset)),
+            (Ok(message), Ok(message_offset)) => Ok((message, message_offset)),
             (Err(e), _) => Err(e.clone()),
             (_, Err(e)) => Err(e.clone()),
         }
-    }
-
-    fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty> {
-        value
     }
 }
 
@@ -394,10 +381,16 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn message_base64(&self, node_id: NodeId) -> STRINGS::Result<Option<&[u8]>> {
-        self.map_message_base64(node_id, |message| {
-            message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
-        })
+    pub fn message_base64(
+        &self,
+        node_id: NodeId,
+    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<Option<&[u8]>> {
+        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
+            self.try_message_base64(node_id),
+            |message: Result<_, OutOfBoundError>| {
+                message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+            },
+        )
     }
 
     /// Returns the base64-encoded message of a revision or release
@@ -408,24 +401,15 @@ impl<
     pub fn try_message_base64(
         &self,
         node_id: NodeId,
-    ) -> STRINGS::Result<Result<Option<&[u8]>, OutOfBoundError>> {
-        self.map_message_base64(node_id, |message| message)
-    }
-    #[inline]
-    fn map_message_base64<'a, T>(
-        &'a self,
-        node_id: NodeId,
-        f: impl FnOnce(Result<Option<&'a [u8]>, OutOfBoundError>) -> T,
-    ) -> STRINGS::Result<T> {
-        self.strings
-            .map_message_and_offsets(|message, message_offset| {
-                f(Self::message_or_tag_name_base64(
-                    "message",
-                    message,
-                    message_offset,
-                    node_id,
-                ))
-            })
+    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<
+        Result<Option<&[u8]>, OutOfBoundError>,
+    > {
+        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
+            self.strings.message_and_offsets(),
+            |(message, message_offset)| {
+                Self::message_or_tag_name_base64("message", message, message_offset, node_id)
+            },
+        )
     }
     /// Returns the message of a revision or release,
     /// or the URL of an origin
@@ -434,10 +418,14 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn message(&self, node_id: NodeId) -> STRINGS::Result<Option<Vec<u8>>> {
-        self.map_message(node_id, |message| {
-            message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
-        })
+    pub fn message(
+        &self,
+        node_id: NodeId,
+    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<Option<Vec<u8>>> {
+        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
+            self.try_message(node_id),
+            |message| message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e)),
+        )
     }
 
     /// Returns the message of a revision or release,
@@ -449,26 +437,22 @@ impl<
     pub fn try_message(
         &self,
         node_id: NodeId,
-    ) -> STRINGS::Result<Result<Option<Vec<u8>>, OutOfBoundError>> {
-        self.map_message(node_id, |message| message)
-    }
-
-    #[inline]
-    fn map_message<T>(
-        &self,
-        node_id: NodeId,
-        f: impl FnOnce(Result<Option<Vec<u8>>, OutOfBoundError>) -> T,
-    ) -> STRINGS::Result<T> {
+    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<
+        Result<Option<Vec<u8>>, OutOfBoundError>,
+    > {
         let base64 = base64_simd::STANDARD;
-        self.map_message_base64(node_id, |message_opt_res| {
-            f(message_opt_res.map(|message_opt| {
-                message_opt.map(|message| {
-                    base64
-                        .decode_to_vec(message)
-                        .unwrap_or_else(|e| panic!("Could not decode node message: {}", e))
+        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
+            self.try_message_base64(node_id),
+            |message_opt_res| {
+                message_opt_res.map(|message_opt| {
+                    message_opt.map(|message| {
+                        base64
+                            .decode_to_vec(message)
+                            .unwrap_or_else(|e| panic!("Could not decode node message: {}", e))
+                    })
                 })
-            }))
-        })
+            },
+        )
     }
 
     /// Returns the tag name of a release, base64-encoded
@@ -477,10 +461,14 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn tag_name_base64(&self, node_id: NodeId) -> STRINGS::Result<Option<&[u8]>> {
-        self.map_tag_name_base64(node_id, |tag_name| {
-            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag: {}", e))
-        })
+    pub fn tag_name_base64(
+        &self,
+        node_id: NodeId,
+    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<Option<&[u8]>> {
+        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
+            self.try_tag_name_base64(node_id),
+            |tag_name| tag_name.unwrap_or_else(|e| panic!("Cannot get node tag: {}", e)),
+        )
     }
 
     /// Returns the tag name of a release, base64-encoded
@@ -491,24 +479,15 @@ impl<
     pub fn try_tag_name_base64(
         &self,
         node_id: NodeId,
-    ) -> STRINGS::Result<Result<Option<&[u8]>, OutOfBoundError>> {
-        self.map_tag_name_base64(node_id, |tag_name| tag_name)
-    }
-
-    fn map_tag_name_base64<'a, T>(
-        &'a self,
-        node_id: NodeId,
-        f: impl FnOnce(Result<Option<&'a [u8]>, OutOfBoundError>) -> T,
-    ) -> STRINGS::Result<T> {
-        self.strings
-            .map_tag_name_and_offsets(|tag_name, tag_name_offset| {
-                f(Self::message_or_tag_name_base64(
-                    "tag_name",
-                    tag_name,
-                    tag_name_offset,
-                    node_id,
-                ))
-            })
+    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<
+        Result<Option<&[u8]>, OutOfBoundError>,
+    > {
+        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
+            self.strings.tag_name_and_offsets(),
+            |(tag_name, tag_name_offset)| {
+                Self::message_or_tag_name_base64("tag_name", tag_name, tag_name_offset, node_id)
+            },
+        )
     }
 
     /// Returns the tag name of a release
@@ -517,10 +496,14 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn tag_name(&self, node_id: NodeId) -> STRINGS::Result<Option<Vec<u8>>> {
-        self.map_tag_name(node_id, |tag_name| {
-            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag name: {}", e))
-        })
+    pub fn tag_name(
+        &self,
+        node_id: NodeId,
+    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<Option<Vec<u8>>> {
+        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
+            self.try_tag_name(node_id),
+            |tag_name| tag_name.unwrap_or_else(|e| panic!("Cannot get node tag name: {}", e)),
+        )
     }
 
     /// Returns the tag name of a release
@@ -531,27 +514,24 @@ impl<
     pub fn try_tag_name(
         &self,
         node_id: NodeId,
-    ) -> STRINGS::Result<Result<Option<Vec<u8>>, OutOfBoundError>> {
-        self.map_tag_name(node_id, |tag_name| tag_name)
-    }
-
-    fn map_tag_name<T>(
-        &self,
-        node_id: NodeId,
-        f: impl FnOnce(Result<Option<Vec<u8>>, OutOfBoundError>) -> T,
-    ) -> STRINGS::Result<T> {
+    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<
+        Result<Option<Vec<u8>>, OutOfBoundError>,
+    > {
         let base64 = base64_simd::STANDARD;
-        self.map_tag_name_base64(node_id, |tag_name_opt_res| {
-            f(tag_name_opt_res.map(|tag_name_opt| {
-                tag_name_opt.map(|tag_name| {
-                    base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
-                        panic!(
-                            "Could not decode tag_name of node {}: {:?}",
-                            node_id, tag_name
-                        )
+        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
+            self.try_tag_name_base64(node_id),
+            |tag_name_opt_res| {
+                tag_name_opt_res.map(|tag_name_opt| {
+                    tag_name_opt.map(|tag_name| {
+                        base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
+                            panic!(
+                                "Could not decode tag_name of node {}: {:?}",
+                                node_id, tag_name
+                            )
+                        })
                     })
                 })
-            }))
-        })
+            },
+        )
     }
 }
