@@ -381,10 +381,7 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn message_base64(
-        &self,
-        node_id: NodeId,
-    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<Option<&[u8]>> {
+    pub fn message_base64(&self, node_id: NodeId) -> PropertiesResult<Option<&[u8]>, STRINGS> {
         <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
             self.try_message_base64(node_id),
             |message: Result<_, OutOfBoundError>| {
@@ -401,9 +398,7 @@ impl<
     pub fn try_message_base64(
         &self,
         node_id: NodeId,
-    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<
-        Result<Option<&[u8]>, OutOfBoundError>,
-    > {
+    ) -> PropertiesResult<Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
         <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
             self.strings.message_and_offsets(),
             |(message, message_offset)| {
@@ -418,10 +413,7 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn message(
-        &self,
-        node_id: NodeId,
-    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<Option<Vec<u8>>> {
+    pub fn message(&self, node_id: NodeId) -> PropertiesResult<Option<Vec<u8>>, STRINGS> {
         <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
             self.try_message(node_id),
             |message| message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e)),
@@ -437,9 +429,7 @@ impl<
     pub fn try_message(
         &self,
         node_id: NodeId,
-    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<
-        Result<Option<Vec<u8>>, OutOfBoundError>,
-    > {
+    ) -> PropertiesResult<Result<Option<Vec<u8>>, OutOfBoundError>, STRINGS> {
         let base64 = base64_simd::STANDARD;
         <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
             self.try_message_base64(node_id),
@@ -461,10 +451,7 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn tag_name_base64(
-        &self,
-        node_id: NodeId,
-    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<Option<&[u8]>> {
+    pub fn tag_name_base64(&self, node_id: NodeId) -> PropertiesResult<Option<&[u8]>, STRINGS> {
         <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
             self.try_tag_name_base64(node_id),
             |tag_name| tag_name.unwrap_or_else(|e| panic!("Cannot get node tag: {}", e)),
@@ -479,9 +466,7 @@ impl<
     pub fn try_tag_name_base64(
         &self,
         node_id: NodeId,
-    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<
-        Result<Option<&[u8]>, OutOfBoundError>,
-    > {
+    ) -> PropertiesResult<Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
         <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
             self.strings.tag_name_and_offsets(),
             |(tag_name, tag_name_offset)| {
@@ -496,10 +481,7 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn tag_name(
-        &self,
-        node_id: NodeId,
-    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<Option<Vec<u8>>> {
+    pub fn tag_name(&self, node_id: NodeId) -> PropertiesResult<Option<Vec<u8>>, STRINGS> {
         <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
             self.try_tag_name(node_id),
             |tag_name| tag_name.unwrap_or_else(|e| panic!("Cannot get node tag name: {}", e)),
@@ -514,9 +496,7 @@ impl<
     pub fn try_tag_name(
         &self,
         node_id: NodeId,
-    ) -> <STRINGS::DataFilesAvailability as DataFilesAvailability>::Result<
-        Result<Option<Vec<u8>>, OutOfBoundError>,
-    > {
+    ) -> PropertiesResult<Result<Option<Vec<u8>>, OutOfBoundError>, STRINGS> {
         let base64 = base64_simd::STANDARD;
         <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
             self.try_tag_name_base64(node_id),
