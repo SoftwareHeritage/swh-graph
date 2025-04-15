@@ -138,15 +138,19 @@ impl Strings for MappedStrings {
     where
         Self: 'a;
 
+    #[inline(always)]
     fn message(&self) -> &[u8] {
         &self.message
     }
+    #[inline(always)]
     fn message_offset(&self) -> Self::Offsets<'_> {
         &self.message_offset
     }
+    #[inline(always)]
     fn tag_name(&self) -> &[u8] {
         &self.tag_name
     }
+    #[inline(always)]
     fn tag_name_offset(&self) -> Self::Offsets<'_> {
         &self.tag_name_offset
     }

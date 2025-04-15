@@ -74,10 +74,18 @@ pub struct UnavailableProperty {
 pub type PropertiesResult<T, B> =
     <<B as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::Result<T>;
 
+/// Common trait for type parameters of [`SwhGraphProperties`]
 pub trait PropertiesBackend {
     type DataFilesAvailability: DataFilesAvailability;
 }
 
+/// Helper trait to work with [`PropertiesResult`]
+///
+/// It is implemented by:
+/// * [`GuaranteedDataFiles`]: the common case, where data files are guaranteed to exist
+///   once a graph is loaded, in which case `Self::Result<T>` is the same type as `T`
+/// * [`OptionalDataFiles`]: when they are not, in which case `Self::Result<T>`
+///   is the same type as `Result<T, UnavailableProperty>`.
 pub trait DataFilesAvailability {
     type Result<T>;
 
@@ -85,9 +93,14 @@ pub trait DataFilesAvailability {
     fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty>;
 }
 
+/// Helper type that implements [`DataFilesAvailability`] to signal underlying data files
+/// may be missing at runtime
 pub struct OptionalDataFiles {
     _marker: (), // Prevents users from instantiating
 }
+
+/// Helper type that implements [`DataFilesAvailability`] to signal underlying data files
+/// are guaranteed to be available once the graph is loaded
 pub struct GuaranteedDataFiles {
     _marker: (), // Prevents users from instantiating
 }
