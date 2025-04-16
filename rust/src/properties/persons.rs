@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -9,17 +9,11 @@ use mmap_rs::Mmap;
 use super::suffixes::*;
 use super::*;
 use crate::graph::NodeId;
-use crate::utils::suffix_path;
 
 /// Trait implemented by both [`NoPersons`] and all implementors of [`Persons`],
 /// to allow loading person ids only if needed.
 pub trait MaybePersons {}
-
-pub struct MappedPersons {
-    author_id: NumberMmap<BigEndian, u32, Mmap>,
-    committer_id: NumberMmap<BigEndian, u32, Mmap>,
-}
-impl<P: Persons> MaybePersons for P {}
+impl<P: LoadedPersons> MaybePersons for P {}
 
 /// Placeholder for when person ids are not loaded
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -32,16 +26,57 @@ impl MaybePersons for NoPersons {}
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait for backend storage of person properties (either in-memory or memory-mapped)
-pub trait Persons {
+pub trait LoadedPersons: MaybePersons + PropertiesBackend {
     type PersonIds<'a>: GetIndex<Output = u32>
     where
         Self: 'a;
 
-    fn author_id(&self) -> Self::PersonIds<'_>;
-    fn committer_id(&self) -> Self::PersonIds<'_>;
+    fn author_id(&self) -> PropertiesResult<Self::PersonIds<'_>, Self>;
+    fn committer_id(&self) -> PropertiesResult<Self::PersonIds<'_>, Self>;
 }
 
-impl Persons for MappedPersons {
+#[diagnostic::on_unimplemented(
+    label = "does not have Person properties loaded",
+    note = "Use `let graph = graph.load_properties(|props| props.load_persons()).unwrap()` to load them",
+    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
+)]
+/// Trait for backend storage of person properties (either in-memory or memory-mapped)
+pub trait Persons: LoadedPersons<DataFilesAvailability = GuaranteedDataFiles> {}
+impl<S: LoadedPersons<DataFilesAvailability = GuaranteedDataFiles>> Persons for S {}
+
+pub struct DynMappedPersons {
+    author_id: Result<NumberMmap<BigEndian, u32, Mmap>, UnavailableProperty>,
+    committer_id: Result<NumberMmap<BigEndian, u32, Mmap>, UnavailableProperty>,
+}
+impl PropertiesBackend for DynMappedPersons {
+    type DataFilesAvailability = OptionalDataFiles;
+}
+impl LoadedPersons for DynMappedPersons {
+    type PersonIds<'a>
+        = &'a NumberMmap<BigEndian, u32, Mmap>
+    where
+        Self: 'a;
+
+    #[inline(always)]
+    fn author_id(&self) -> PropertiesResult<Self::PersonIds<'_>, Self> {
+        self.author_id.as_ref().map_err(UnavailableProperty::clone)
+    }
+    #[inline(always)]
+    fn committer_id(&self) -> PropertiesResult<Self::PersonIds<'_>, Self> {
+        self.committer_id
+            .as_ref()
+            .map_err(UnavailableProperty::clone)
+    }
+}
+
+pub struct MappedPersons {
+    author_id: NumberMmap<BigEndian, u32, Mmap>,
+    committer_id: NumberMmap<BigEndian, u32, Mmap>,
+}
+impl PropertiesBackend for MappedPersons {
+    type DataFilesAvailability = GuaranteedDataFiles;
+}
+impl LoadedPersons for MappedPersons {
     type PersonIds<'a>
         = &'a NumberMmap<BigEndian, u32, Mmap>
     where
@@ -81,7 +116,10 @@ impl VecPersons {
     }
 }
 
-impl Persons for VecPersons {
+impl PropertiesBackend for VecPersons {
+    type DataFilesAvailability = GuaranteedDataFiles;
+}
+impl LoadedPersons for VecPersons {
     type PersonIds<'a>
         = &'a [u32]
     where
@@ -114,13 +152,35 @@ impl<
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, MappedPersons, CONTENTS, STRINGS, LABELNAMES>>
     {
+        let DynMappedPersons {
+            author_id,
+            committer_id,
+        } = self.get_persons()?;
         let persons = MappedPersons {
-            author_id: NumberMmap::new(suffix_path(&self.path, AUTHOR_ID), self.num_nodes)
-                .context("Could not load author_id")?,
-            committer_id: NumberMmap::new(suffix_path(&self.path, COMMITTER_ID), self.num_nodes)
-                .context("Could not load committer_id")?,
+            author_id: author_id?,
+            committer_id: committer_id?,
         };
         self.with_persons(persons)
+    }
+
+    /// Equivalent to [`Self::load_persons`] that does not require all files to be present
+    pub fn load_persons_dyn(
+        self,
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, DynMappedPersons, CONTENTS, STRINGS, LABELNAMES>>
+    {
+        let persons = self.get_persons()?;
+        self.with_persons(persons)
+    }
+
+    fn get_persons(&self) -> Result<DynMappedPersons> {
+        Ok(DynMappedPersons {
+            author_id: load_if_exists(&self.path, AUTHOR_ID, |path| {
+                NumberMmap::new(path, self.num_nodes).context("Could not load author_id")
+            })?,
+            committer_id: load_if_exists(&self.path, COMMITTER_ID, |path| {
+                NumberMmap::new(path, self.num_nodes).context("Could not load committer_id")
+            })?,
+        })
     }
 
     /// Alternative to [`load_persons`](Self::load_persons) that allows using arbitrary
@@ -150,7 +210,7 @@ impl<
 impl<
         MAPS: MaybeMaps,
         TIMESTAMPS: MaybeTimestamps,
-        PERSONS: Persons,
+        PERSONS: LoadedPersons,
         CONTENTS: MaybeContents,
         STRINGS: MaybeStrings,
         LABELNAMES: MaybeLabelNames,
@@ -162,9 +222,10 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn author_id(&self, node_id: NodeId) -> Option<u32> {
-        self.try_author_id(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node author: {}", e))
+    pub fn author_id(&self, node_id: NodeId) -> PropertiesResult<Option<u32>, PERSONS> {
+        PERSONS::map_if_available(self.try_author_id(node_id), |author_id| {
+            author_id.unwrap_or_else(|e| panic!("Cannot get node author: {}", e))
+        })
     }
 
     /// Returns the id of the author of a revision or release, if any
@@ -172,16 +233,21 @@ impl<
     /// Returns `Err` if the node id does not exist, and `Ok(None)` if the node
     /// has no author
     #[inline]
-    pub fn try_author_id(&self, node_id: NodeId) -> Result<Option<u32>, OutOfBoundError> {
-        match self.persons.author_id().get(node_id) {
-            None => Err(OutOfBoundError {
-                // Invalid node id
-                index: node_id,
-                len: self.persons.author_id().len(),
-            }),
-            Some(u32::MAX) => Ok(None), // No author
-            Some(id) => Ok(Some(id)),
-        }
+    pub fn try_author_id(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Result<Option<u32>, OutOfBoundError>, PERSONS> {
+        PERSONS::map_if_available(self.persons.author_id(), |author_ids| {
+            match author_ids.get(node_id) {
+                None => Err(OutOfBoundError {
+                    // Invalid node id
+                    index: node_id,
+                    len: author_ids.len(),
+                }),
+                Some(u32::MAX) => Ok(None), // No author
+                Some(id) => Ok(Some(id)),
+            }
+        })
     }
 
     /// Returns the id of the committer of a revision, if any
@@ -190,9 +256,10 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn committer_id(&self, node_id: NodeId) -> Option<u32> {
-        self.try_committer_id(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node committer: {}", e))
+    pub fn committer_id(&self, node_id: NodeId) -> PropertiesResult<Option<u32>, PERSONS> {
+        PERSONS::map_if_available(self.try_committer_id(node_id), |committer_id| {
+            committer_id.unwrap_or_else(|e| panic!("Cannot get node committer: {}", e))
+        })
     }
 
     /// Returns the id of the committer of a revision, if any
@@ -200,15 +267,21 @@ impl<
     /// Returns `None` if the node id does not exist, and `Ok(None)` if the node
     /// has no author
     #[inline]
-    pub fn try_committer_id(&self, node_id: NodeId) -> Result<Option<u32>, OutOfBoundError> {
-        match self.persons.committer_id().get(node_id) {
-            None => Err(OutOfBoundError {
-                // Invalid node id
-                index: node_id,
-                len: self.persons.committer_id().len(),
-            }),
-            Some(u32::MAX) => Ok(None), // No committer
-            Some(id) => Ok(Some(id)),
-        }
+    pub fn try_committer_id(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Result<Option<u32>, OutOfBoundError>, PERSONS> {
+        PERSONS::map_if_available(
+            self.persons.committer_id(),
+            |committer_ids| match committer_ids.get(node_id) {
+                None => Err(OutOfBoundError {
+                    // Invalid node id
+                    index: node_id,
+                    len: committer_ids.len(),
+                }),
+                Some(u32::MAX) => Ok(None), // No committer
+                Some(id) => Ok(Some(id)),
+            },
+        )
     }
 }
