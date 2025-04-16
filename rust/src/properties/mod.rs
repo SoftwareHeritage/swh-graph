@@ -77,6 +77,22 @@ pub type PropertiesResult<T, B> =
 /// Common trait for type parameters of [`SwhGraphProperties`]
 pub trait PropertiesBackend {
     type DataFilesAvailability: DataFilesAvailability;
+
+    /// Applies the given function `f` to the value `v` if the value is available
+    ///
+    /// This is an alias for `<Self::DataFilesAvailability as DataFilesAvailability>::map(v, f)`,
+    /// meaning that:
+    ///
+    /// 1. if `Self::DataFilesAvailability` is `GuaranteedDataFiles`, then `map_if_available(v, f)`
+    ///    is equivalent to `f(v)` and has type `U`
+    /// 2. if `Self::DataFilesAvailability` is `OptionalDataFiles`, then `map_if_available(v, f)`
+    ///    is equivalent to `v.map(f)` and has type `Result<U, UnavailableProperty>`
+    fn map_if_available<T, U>(
+        v: <Self::DataFilesAvailability as DataFilesAvailability>::Result<T>,
+        f: impl FnOnce(T) -> U,
+    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<U> {
+        <Self::DataFilesAvailability as DataFilesAvailability>::map(v, f)
+    }
 }
 
 /// Helper trait to work with [`PropertiesResult`]
