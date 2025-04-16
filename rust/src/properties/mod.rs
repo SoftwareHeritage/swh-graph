@@ -93,6 +93,23 @@ pub trait PropertiesBackend {
     ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<U> {
         <Self::DataFilesAvailability as DataFilesAvailability>::map(v, f)
     }
+
+    /// Returns `(v1, v2)` if both are available, or an error otherwise
+    ///
+    /// This is an alias for `<Self::DataFilesAvailability as DataFilesAvailability>::zip(v, f)`,
+    /// meaning that:
+    ///
+    /// 1. if `Self::DataFilesAvailability` is `GuaranteedDataFiles`, then `zip_if_available(v1, v2)`
+    ///    is equivalent to `(v1, v2)` and has type `(T1, T2)`
+    /// 2. if `Self::DataFilesAvailability` is `OptionalDataFiles`, then `zip_if_available(v1, v2)`
+    ///    is equivalent to `v1.and_then(|v1| v2.map(|v2| (v1, v2)))` and has type
+    ///    `Result<(T1, T2), UnavailableProperty>`
+    fn zip_if_available<T1, T2>(
+        v1: <Self::DataFilesAvailability as DataFilesAvailability>::Result<T1>,
+        v2: <Self::DataFilesAvailability as DataFilesAvailability>::Result<T2>,
+    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(T1, T2)> {
+        <Self::DataFilesAvailability as DataFilesAvailability>::zip(v1, v2)
+    }
 }
 
 /// Helper trait to work with [`PropertiesResult`]
