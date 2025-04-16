@@ -237,13 +237,10 @@ impl<
     /// If the node id does not exist.
     #[inline]
     pub fn is_skipped_content(&self, node_id: NodeId) -> PropertiesResult<bool, CONTENTS> {
-        <CONTENTS::DataFilesAvailability as DataFilesAvailability>::map(
-            self.try_is_skipped_content(node_id),
-            |is_skipped_content| {
-                is_skipped_content
-                    .unwrap_or_else(|e| panic!("Cannot get is_skipped_content bit of node: {}", e))
-            },
-        )
+        CONTENTS::map_if_available(self.try_is_skipped_content(node_id), |is_skipped_content| {
+            is_skipped_content
+                .unwrap_or_else(|e| panic!("Cannot get is_skipped_content bit of node: {}", e))
+        })
     }
 
     /// Returns whether the node is a skipped content, or `Err` if the node id does not exist
@@ -254,25 +251,22 @@ impl<
         &self,
         node_id: NodeId,
     ) -> PropertiesResult<Result<bool, OutOfBoundError>, CONTENTS> {
-        <CONTENTS::DataFilesAvailability as DataFilesAvailability>::map(
-            self.contents.is_skipped_content(),
-            |is_skipped_content| {
-                if node_id >= self.num_nodes {
-                    return Err(OutOfBoundError {
-                        index: node_id,
-                        len: self.num_nodes,
-                    });
-                }
-                let cell_id = node_id / (u64::BITS as usize);
-                let mask = 1 << (node_id % (u64::BITS as usize));
+        CONTENTS::map_if_available(self.contents.is_skipped_content(), |is_skipped_content| {
+            if node_id >= self.num_nodes {
+                return Err(OutOfBoundError {
+                    index: node_id,
+                    len: self.num_nodes,
+                });
+            }
+            let cell_id = node_id / (u64::BITS as usize);
+            let mask = 1 << (node_id % (u64::BITS as usize));
 
-                // Safe because we checked node_id is lower than the length, and the length of
-                // self.contents.is_skipped_content() is checked when creating the mmap
-                let cell = unsafe { is_skipped_content.get_unchecked(cell_id) };
+            // Safe because we checked node_id is lower than the length, and the length of
+            // self.contents.is_skipped_content() is checked when creating the mmap
+            let cell = unsafe { is_skipped_content.get_unchecked(cell_id) };
 
-                Ok((cell & mask) != 0)
-            },
-        )
+            Ok((cell & mask) != 0)
+        })
     }
 
     /// Returns the length of the given content.
@@ -284,12 +278,9 @@ impl<
     /// If the node id does not exist.
     #[inline]
     pub fn content_length(&self, node_id: NodeId) -> PropertiesResult<Option<u64>, CONTENTS> {
-        <CONTENTS::DataFilesAvailability as DataFilesAvailability>::map(
-            self.try_content_length(node_id),
-            |content_length| {
-                content_length.unwrap_or_else(|e| panic!("Cannot get content length: {}", e))
-            },
-        )
+        CONTENTS::map_if_available(self.try_content_length(node_id), |content_length| {
+            content_length.unwrap_or_else(|e| panic!("Cannot get content length: {}", e))
+        })
     }
 
     /// Returns the length of the given content, or `Err` if the node id does not exist
@@ -300,9 +291,8 @@ impl<
         &self,
         node_id: NodeId,
     ) -> PropertiesResult<Result<Option<u64>, OutOfBoundError>, CONTENTS> {
-        <CONTENTS::DataFilesAvailability as DataFilesAvailability>::map(
-            self.contents.content_length(),
-            |content_length| match content_length.get(node_id) {
+        CONTENTS::map_if_available(self.contents.content_length(), |content_length| {
+            match content_length.get(node_id) {
                 None => Err(OutOfBoundError {
                     // id does not exist
                     index: node_id,
@@ -310,7 +300,7 @@ impl<
                 }),
                 Some(u64::MAX) => Ok(None), // Skipped content with no length
                 Some(length) => Ok(Some(length)),
-            },
-        )
+            }
+        })
     }
 }

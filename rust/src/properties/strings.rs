@@ -332,7 +332,7 @@ impl<
     /// If the node id does not exist
     #[inline]
     pub fn message_base64(&self, node_id: NodeId) -> PropertiesResult<Option<&[u8]>, STRINGS> {
-        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
+        STRINGS::map_if_available(
             self.try_message_base64(node_id),
             |message: Result<_, OutOfBoundError>| {
                 message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
@@ -349,11 +349,8 @@ impl<
         &self,
         node_id: NodeId,
     ) -> PropertiesResult<Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
-        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
-            <STRINGS::DataFilesAvailability as DataFilesAvailability>::zip(
-                self.strings.message(),
-                self.strings.message_offset(),
-            ),
+        STRINGS::map_if_available(
+            STRINGS::zip_if_available(self.strings.message(), self.strings.message_offset()),
             |(message, message_offset)| {
                 Self::message_or_tag_name_base64("message", message, message_offset, node_id)
             },
@@ -367,10 +364,9 @@ impl<
     /// If the node id does not exist
     #[inline]
     pub fn message(&self, node_id: NodeId) -> PropertiesResult<Option<Vec<u8>>, STRINGS> {
-        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
-            self.try_message(node_id),
-            |message| message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e)),
-        )
+        STRINGS::map_if_available(self.try_message(node_id), |message| {
+            message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+        })
     }
 
     /// Returns the message of a revision or release,
@@ -384,18 +380,15 @@ impl<
         node_id: NodeId,
     ) -> PropertiesResult<Result<Option<Vec<u8>>, OutOfBoundError>, STRINGS> {
         let base64 = base64_simd::STANDARD;
-        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
-            self.try_message_base64(node_id),
-            |message_opt_res| {
-                message_opt_res.map(|message_opt| {
-                    message_opt.map(|message| {
-                        base64
-                            .decode_to_vec(message)
-                            .unwrap_or_else(|e| panic!("Could not decode node message: {}", e))
-                    })
+        STRINGS::map_if_available(self.try_message_base64(node_id), |message_opt_res| {
+            message_opt_res.map(|message_opt| {
+                message_opt.map(|message| {
+                    base64
+                        .decode_to_vec(message)
+                        .unwrap_or_else(|e| panic!("Could not decode node message: {}", e))
                 })
-            },
-        )
+            })
+        })
     }
 
     /// Returns the tag name of a release, base64-encoded
@@ -405,10 +398,9 @@ impl<
     /// If the node id does not exist
     #[inline]
     pub fn tag_name_base64(&self, node_id: NodeId) -> PropertiesResult<Option<&[u8]>, STRINGS> {
-        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
-            self.try_tag_name_base64(node_id),
-            |tag_name| tag_name.unwrap_or_else(|e| panic!("Cannot get node tag: {}", e)),
-        )
+        STRINGS::map_if_available(self.try_tag_name_base64(node_id), |tag_name| {
+            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag: {}", e))
+        })
     }
 
     /// Returns the tag name of a release, base64-encoded
@@ -420,11 +412,8 @@ impl<
         &self,
         node_id: NodeId,
     ) -> PropertiesResult<Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
-        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
-            <STRINGS::DataFilesAvailability as DataFilesAvailability>::zip(
-                self.strings.tag_name(),
-                self.strings.tag_name_offset(),
-            ),
+        STRINGS::map_if_available(
+            STRINGS::zip_if_available(self.strings.tag_name(), self.strings.tag_name_offset()),
             |(tag_name, tag_name_offset)| {
                 Self::message_or_tag_name_base64("tag_name", tag_name, tag_name_offset, node_id)
             },
@@ -438,10 +427,9 @@ impl<
     /// If the node id does not exist
     #[inline]
     pub fn tag_name(&self, node_id: NodeId) -> PropertiesResult<Option<Vec<u8>>, STRINGS> {
-        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
-            self.try_tag_name(node_id),
-            |tag_name| tag_name.unwrap_or_else(|e| panic!("Cannot get node tag name: {}", e)),
-        )
+        STRINGS::map_if_available(self.try_tag_name(node_id), |tag_name| {
+            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag name: {}", e))
+        })
     }
 
     /// Returns the tag name of a release
@@ -454,20 +442,17 @@ impl<
         node_id: NodeId,
     ) -> PropertiesResult<Result<Option<Vec<u8>>, OutOfBoundError>, STRINGS> {
         let base64 = base64_simd::STANDARD;
-        <STRINGS::DataFilesAvailability as DataFilesAvailability>::map(
-            self.try_tag_name_base64(node_id),
-            |tag_name_opt_res| {
-                tag_name_opt_res.map(|tag_name_opt| {
-                    tag_name_opt.map(|tag_name| {
-                        base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
-                            panic!(
-                                "Could not decode tag_name of node {}: {:?}",
-                                node_id, tag_name
-                            )
-                        })
+        STRINGS::map_if_available(self.try_tag_name_base64(node_id), |tag_name_opt_res| {
+            tag_name_opt_res.map(|tag_name_opt| {
+                tag_name_opt.map(|tag_name| {
+                    base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
+                        panic!(
+                            "Could not decode tag_name of node {}: {:?}",
+                            node_id, tag_name
+                        )
                     })
                 })
-            },
-        )
+            })
+        })
     }
 }
