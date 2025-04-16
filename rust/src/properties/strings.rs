@@ -3,17 +3,16 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::{Context, Result};
 use mmap_rs::Mmap;
 
 use super::suffixes::*;
 use super::*;
 use crate::graph::NodeId;
-use crate::utils::suffix_path;
 
 /// Trait implemented by both [`NoStrings`] and all implementors of [`Strings`],
 /// to allow loading string properties only if needed.
 pub trait MaybeStrings {}
+impl<S: LoadedStrings> MaybeStrings for S {}
 
 /// Placeholder for when string properties are not loaded
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -36,7 +35,6 @@ pub trait LoadedStrings: MaybeStrings + PropertiesBackend {
     fn tag_name(&self) -> PropertiesResult<&[u8], Self>;
     fn tag_name_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self>;
 }
-impl<S: LoadedStrings> MaybeStrings for S {}
 
 #[diagnostic::on_unimplemented(
     label = "does not have String properties loaded",
@@ -66,19 +64,23 @@ impl LoadedStrings for DynMappedStrings {
 
     #[inline(always)]
     fn message(&self) -> PropertiesResult<&[u8], Self> {
-        self.message.as_deref().map_err(Clone::clone)
+        self.message.as_deref().map_err(UnavailableProperty::clone)
     }
     #[inline(always)]
     fn message_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self> {
-        self.message_offset.as_ref().map_err(Clone::clone)
+        self.message_offset
+            .as_ref()
+            .map_err(UnavailableProperty::clone)
     }
     #[inline(always)]
     fn tag_name(&self) -> PropertiesResult<&[u8], Self> {
-        self.tag_name.as_deref().map_err(Clone::clone)
+        self.tag_name.as_deref().map_err(UnavailableProperty::clone)
     }
     #[inline(always)]
     fn tag_name_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self> {
-        self.tag_name_offset.as_ref().map_err(Clone::clone)
+        self.tag_name_offset
+            .as_ref()
+            .map_err(UnavailableProperty::clone)
     }
 }
 
@@ -89,7 +91,6 @@ pub struct MappedStrings {
     tag_name: Mmap,
     tag_name_offset: NumberMmap<BigEndian, u64, Mmap>,
 }
-
 impl PropertiesBackend for MappedStrings {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
@@ -247,35 +248,16 @@ impl<
     }
 
     fn get_strings(&self) -> Result<DynMappedStrings> {
-        fn if_exists<T>(
-            base_path: &Path,
-            suffix: &'static str,
-            f: impl FnOnce(&Path) -> Result<T>,
-        ) -> Result<Result<T, UnavailableProperty>> {
-            let path = suffix_path(base_path, suffix);
-            if std::fs::exists(&path).map_err(|source| UnavailableProperty {
-                path: path.clone(),
-                source: source.into(),
-            })? {
-                Ok(Ok(f(&path)?))
-            } else {
-                Ok(Err(UnavailableProperty {
-                    path,
-                    source: std::io::Error::new(std::io::ErrorKind::NotFound, "No such file")
-                        .into(),
-                }))
-            }
-        }
         Ok(DynMappedStrings {
-            message: if_exists(&self.path, MESSAGE, |path| mmap(path))
+            message: load_if_exists(&self.path, MESSAGE, |path| mmap(path))
                 .context("Could not load message")?,
-            message_offset: if_exists(&self.path, MESSAGE_OFFSET, |path| {
+            message_offset: load_if_exists(&self.path, MESSAGE_OFFSET, |path| {
                 NumberMmap::new(path, self.num_nodes)
             })
             .context("Could not load message_offset")?,
-            tag_name: if_exists(&self.path, TAG_NAME, |path| mmap(path))
+            tag_name: load_if_exists(&self.path, TAG_NAME, |path| mmap(path))
                 .context("Could not load tag_name")?,
-            tag_name_offset: if_exists(&self.path, TAG_NAME_OFFSET, |path| {
+            tag_name_offset: load_if_exists(&self.path, TAG_NAME_OFFSET, |path| {
                 NumberMmap::new(path, self.num_nodes)
             })
             .context("Could not load tag_name_offset")?,

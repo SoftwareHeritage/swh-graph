@@ -210,31 +210,10 @@ pub type AllSwhGraphDynProperties<MPHF> = SwhGraphProperties<
     MappedMaps<MPHF>,
     MappedTimestamps,
     MappedPersons,
-    MappedContents,
+    DynMappedContents,
     DynMappedStrings,
     MappedLabelNames,
 >;
-
-fn mmap(path: impl AsRef<Path>) -> Result<Mmap> {
-    let path = path.as_ref();
-    let file_len = path
-        .metadata()
-        .with_context(|| format!("Could not stat {}", path.display()))?
-        .len();
-    let file =
-        std::fs::File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
-    let data = unsafe {
-        mmap_rs::MmapOptions::new(file_len as _)
-            .with_context(|| format!("Could not initialize mmap of size {}", file_len))?
-            .with_flags(
-                mmap_rs::MmapFlags::TRANSPARENT_HUGE_PAGES | mmap_rs::MmapFlags::RANDOM_ACCESS,
-            )
-            .with_file(&file, 0)
-            .map()
-            .with_context(|| format!("Could not mmap {}", path.display()))?
-    };
-    Ok(data)
-}
 
 impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, NoLabelNames> {
     /// Creates an empty [`SwhGraphProperties`] instance, which will load properties
@@ -332,7 +311,7 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
         self.load_maps()?
             .load_timestamps()?
             .load_persons()?
-            .load_contents()?
+            .load_contents_dyn()?
             .load_strings_dyn()?
             .load_label_names()
     }
@@ -348,7 +327,10 @@ mod persons;
 pub use persons::{MappedPersons, MaybePersons, NoPersons, Persons, VecPersons};
 
 mod contents;
-pub use contents::{Contents, MappedContents, MaybeContents, NoContents, VecContents};
+pub use contents::{
+    Contents, DynMappedContents, LoadedContents, MappedContents, MaybeContents, NoContents,
+    VecContents,
+};
 
 mod strings;
 pub use strings::{
@@ -360,3 +342,6 @@ pub use label_names::{
     LabelIdFromNameError, LabelNames, MappedLabelNames, MaybeLabelNames, NoLabelNames,
     VecLabelNames,
 };
+
+mod utils;
+use utils::*;
