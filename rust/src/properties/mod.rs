@@ -333,11 +333,11 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
     ///     .expect("Could not load node2swhid/swhid2node")
     ///     .load_timestamps()
     ///     .expect("Could not load timestamp properties")
-    ///     .load_persons()
+    ///     .load_persons_dyn()
     ///     .expect("Could not load person properties")
-    ///     .load_contents()
+    ///     .load_contents_dyn()
     ///     .expect("Could not load content properties")
-    ///     .load_dyn_strings()
+    ///     .load_strings_dyn()
     ///     .expect("Could not load string properties");
     /// ```
     pub fn load_all_dyn<MPHF: SwhidMphf>(self) -> Result<AllSwhGraphDynProperties<MPHF>> {
