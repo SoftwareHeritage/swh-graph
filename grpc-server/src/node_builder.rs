@@ -240,15 +240,21 @@ impl<
         let properties = self.graph.properties();
         proto::node::Data::Cnt(proto::ContentData {
             length: self.if_mask_dyn::<G::Contents, _>(CNT_LENGTH, || {
-                <<G::Contents as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::map(
+                G::Contents::map_if_available(
                     properties.content_length(node_id),
-                    |content_length: Option<u64>| Some(content_length?.try_into().expect("Content length overflowed i64"))
+                    |content_length: Option<u64>| {
+                        Some(
+                            content_length?
+                                .try_into()
+                                .expect("Content length overflowed i64"),
+                        )
+                    },
                 )
             }),
             is_skipped: self.if_mask_dyn::<G::Contents, _>(CNT_IS_SKIPPED, || {
-                <<G::Contents as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::map(
+                G::Contents::map_if_available(
                     properties.is_skipped_content(node_id),
-                    |is_skipped_content: bool| Some(is_skipped_content)
+                    |is_skipped_content: bool| Some(is_skipped_content),
                 )
             }),
         })
@@ -290,10 +296,9 @@ impl<
         let properties = self.graph.properties();
         proto::node::Data::Ori(proto::OriginData {
             url: self.if_mask_dyn::<G::Strings, _>(ORI_URL, || {
-                <<G::Strings as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::map(
-                    properties.message(node_id),
-                    |message: Option<_>| message.map(|message| String::from_utf8_lossy(&message).into())
-                )
+                G::Strings::map_if_available(properties.message(node_id), |message: Option<_>| {
+                    message.map(|message| String::from_utf8_lossy(&message).into())
+                })
             }),
         })
     }
