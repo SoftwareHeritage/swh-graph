@@ -565,7 +565,7 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
             properties::SwhGraphProperties<
                 properties::MappedMaps<MPHF>,
                 properties::MappedTimestamps,
-                properties::MappedPersons,
+                properties::DynMappedPersons,
                 properties::DynMappedContents,
                 properties::DynMappedStrings,
                 properties::MappedLabelNames,
@@ -911,7 +911,7 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
             properties::SwhGraphProperties<
                 properties::MappedMaps<MPHF>,
                 properties::MappedTimestamps,
-                properties::MappedPersons,
+                properties::DynMappedPersons,
                 properties::DynMappedContents,
                 properties::DynMappedStrings,
                 properties::MappedLabelNames,
@@ -1107,7 +1107,7 @@ pub fn load_full_dyn<MPHF: SwhidMphf>(
         properties::SwhGraphProperties<
             properties::MappedMaps<MPHF>,
             properties::MappedTimestamps,
-            properties::MappedPersons,
+            properties::DynMappedPersons,
             properties::DynMappedContents,
             properties::DynMappedStrings,
             properties::MappedLabelNames,

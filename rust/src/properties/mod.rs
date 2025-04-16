@@ -242,7 +242,7 @@ pub type AllSwhGraphProperties<MPHF> = SwhGraphProperties<
 pub type AllSwhGraphDynProperties<MPHF> = SwhGraphProperties<
     MappedMaps<MPHF>,
     MappedTimestamps,
-    MappedPersons,
+    DynMappedPersons,
     DynMappedContents,
     DynMappedStrings,
     MappedLabelNames,
@@ -343,7 +343,7 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
     pub fn load_all_dyn<MPHF: SwhidMphf>(self) -> Result<AllSwhGraphDynProperties<MPHF>> {
         self.load_maps()?
             .load_timestamps()?
-            .load_persons()?
+            .load_persons_dyn()?
             .load_contents_dyn()?
             .load_strings_dyn()?
             .load_label_names()
@@ -357,7 +357,9 @@ mod timestamps;
 pub use timestamps::{MappedTimestamps, MaybeTimestamps, NoTimestamps, Timestamps, VecTimestamps};
 
 mod persons;
-pub use persons::{MappedPersons, MaybePersons, NoPersons, Persons, VecPersons};
+pub use persons::{
+    DynMappedPersons, LoadedPersons, MappedPersons, MaybePersons, NoPersons, Persons, VecPersons,
+};
 
 mod contents;
 pub use contents::{

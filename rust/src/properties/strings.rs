@@ -351,8 +351,8 @@ impl<
     ) -> PropertiesResult<Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
         STRINGS::map_if_available(
             STRINGS::zip_if_available(self.strings.message(), self.strings.message_offset()),
-            |(message, message_offset)| {
-                Self::message_or_tag_name_base64("message", message, message_offset, node_id)
+            |(messages, message_offsets)| {
+                Self::message_or_tag_name_base64("message", messages, message_offsets, node_id)
             },
         )
     }
@@ -414,8 +414,8 @@ impl<
     ) -> PropertiesResult<Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
         STRINGS::map_if_available(
             STRINGS::zip_if_available(self.strings.tag_name(), self.strings.tag_name_offset()),
-            |(tag_name, tag_name_offset)| {
-                Self::message_or_tag_name_base64("tag_name", tag_name, tag_name_offset, node_id)
+            |(tag_names, tag_name_offsets)| {
+                Self::message_or_tag_name_base64("tag_name", tag_names, tag_name_offsets, node_id)
             },
         )
     }

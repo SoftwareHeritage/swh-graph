@@ -7,7 +7,7 @@ use super::proto;
 use swh_graph::graph::*;
 use swh_graph::labels::{EdgeLabel, VisitStatus};
 use swh_graph::properties::{
-    DataFilesAvailability, LabelNames, LoadedContents, LoadedStrings, Maps, Persons,
+    DataFilesAvailability, LabelNames, LoadedContents, LoadedPersons, LoadedStrings, Maps,
     PropertiesBackend, Timestamps,
 };
 use swh_graph::NodeType;
@@ -80,7 +80,7 @@ impl<
                 Strings: LoadedStrings,
                 LabelNames: LabelNames,
                 Contents: LoadedContents,
-                Persons: Persons,
+                Persons: LoadedPersons,
                 Timestamps: Timestamps,
             > + Clone
             + Send
@@ -263,13 +263,19 @@ impl<
     fn build_revision_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Rev(proto::RevisionData {
-            author: self.if_mask(REV_AUTHOR, || Some(properties.author_id(node_id)? as i64)),
+            author: self.if_mask_dyn::<G::Persons, _>(REV_AUTHOR, || {
+                G::Persons::map_if_available(properties.author_id(node_id), |author_id| {
+                    Some(author_id? as i64)
+                })
+            }),
             author_date: self.if_mask(REV_AUTHOR_DATE, || properties.author_timestamp(node_id)),
             author_date_offset: self.if_mask(REV_AUTHOR_DATE_OFFSET, || {
                 Some(properties.author_timestamp_offset(node_id)?.into())
             }),
-            committer: self.if_mask(REV_COMMITTER, || {
-                Some(properties.committer_id(node_id)? as i64)
+            committer: self.if_mask_dyn::<G::Persons, _>(REV_COMMITTER, || {
+                G::Persons::map_if_available(properties.committer_id(node_id), |committer_id| {
+                    Some(committer_id? as i64)
+                })
             }),
             committer_date: self.if_mask(REV_COMMITTER_DATE, || {
                 properties.committer_timestamp(node_id)
@@ -283,7 +289,11 @@ impl<
     fn build_release_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Rel(proto::ReleaseData {
-            author: self.if_mask(REL_AUTHOR, || Some(properties.author_id(node_id)? as i64)),
+            author: self.if_mask_dyn::<G::Persons, _>(REL_AUTHOR, || {
+                G::Persons::map_if_available(properties.author_id(node_id), |author_id| {
+                    Some(author_id? as i64)
+                })
+            }),
             author_date: self.if_mask(REL_AUTHOR_DATE, || properties.author_timestamp(node_id)),
             author_date_offset: self.if_mask(REL_AUTHOR_DATE_OFFSET, || {
                 Some(properties.author_timestamp_offset(node_id)?.into())

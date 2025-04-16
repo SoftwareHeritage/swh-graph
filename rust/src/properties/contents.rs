@@ -251,7 +251,7 @@ impl<
         &self,
         node_id: NodeId,
     ) -> PropertiesResult<Result<bool, OutOfBoundError>, CONTENTS> {
-        CONTENTS::map_if_available(self.contents.is_skipped_content(), |is_skipped_content| {
+        CONTENTS::map_if_available(self.contents.is_skipped_content(), |is_skipped_contents| {
             if node_id >= self.num_nodes {
                 return Err(OutOfBoundError {
                     index: node_id,
@@ -263,7 +263,7 @@ impl<
 
             // Safe because we checked node_id is lower than the length, and the length of
             // self.contents.is_skipped_content() is checked when creating the mmap
-            let cell = unsafe { is_skipped_content.get_unchecked(cell_id) };
+            let cell = unsafe { is_skipped_contents.get_unchecked(cell_id) };
 
             Ok((cell & mask) != 0)
         })
@@ -291,12 +291,12 @@ impl<
         &self,
         node_id: NodeId,
     ) -> PropertiesResult<Result<Option<u64>, OutOfBoundError>, CONTENTS> {
-        CONTENTS::map_if_available(self.contents.content_length(), |content_length| {
-            match content_length.get(node_id) {
+        CONTENTS::map_if_available(self.contents.content_length(), |content_lengths| {
+            match content_lengths.get(node_id) {
                 None => Err(OutOfBoundError {
                     // id does not exist
                     index: node_id,
-                    len: content_length.len(),
+                    len: content_lengths.len(),
                 }),
                 Some(u64::MAX) => Ok(None), // Skipped content with no length
                 Some(length) => Ok(Some(length)),
