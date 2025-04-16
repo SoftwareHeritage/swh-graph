@@ -9,17 +9,11 @@ use mmap_rs::Mmap;
 use super::suffixes::*;
 use super::*;
 use crate::graph::NodeId;
-use crate::utils::suffix_path;
 
 /// Trait implemented by both [`NoContents`] and all implementors of [`Contents`],
 /// to allow loading content properties only if needed.
 pub trait MaybeContents {}
-
-pub struct MappedContents {
-    is_skipped_content: NumberMmap<BigEndian, u64, Mmap>,
-    content_length: NumberMmap<BigEndian, u64, Mmap>,
-}
-impl<C: Contents> MaybeContents for C {}
+impl<C: LoadedContents> MaybeContents for C {}
 
 /// Placeholder for when "contents" properties are not loaded.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -31,17 +25,62 @@ impl MaybeContents for NoContents {}
     note = "Use `let graph = graph.load_properties(|props| props.load_contents()).unwrap()` to load them",
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
-/// Trait for backend storage of content properties (either in-memory or memory-mapped)
-pub trait Contents {
+/// Trait implemented by all implementors of [`MaybeContents`] but [`NoContents`]
+pub trait LoadedContents: MaybeContents + PropertiesBackend {
     type Data<'a>: GetIndex<Output = u64> + 'a
     where
         Self: 'a;
 
-    fn is_skipped_content(&self) -> Self::Data<'_>;
-    fn content_length(&self) -> Self::Data<'_>;
+    fn is_skipped_content(&self) -> PropertiesResult<Self::Data<'_>, Self>;
+    fn content_length(&self) -> PropertiesResult<Self::Data<'_>, Self>;
 }
 
-impl Contents for MappedContents {
+#[diagnostic::on_unimplemented(
+    label = "does not have Content properties loaded",
+    note = "Use `let graph = graph.load_properties(|props| props.load_contents()).unwrap()` to load them",
+    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
+)]
+/// Trait for backend storage of content properties (either in-memory or memory-mapped)
+pub trait Contents: LoadedContents<DataFilesAvailability = GuaranteedDataFiles> {}
+impl<S: LoadedContents<DataFilesAvailability = GuaranteedDataFiles>> Contents for S {}
+
+/// Variant of [`MappedStrings`] that checks at runtime that files are present every time
+/// it is accessed
+pub struct DynMappedContents {
+    is_skipped_content: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
+    content_length: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
+}
+impl PropertiesBackend for DynMappedContents {
+    type DataFilesAvailability = OptionalDataFiles;
+}
+impl LoadedContents for DynMappedContents {
+    type Data<'a>
+        = &'a NumberMmap<BigEndian, u64, Mmap>
+    where
+        Self: 'a;
+
+    #[inline(always)]
+    fn is_skipped_content(&self) -> PropertiesResult<Self::Data<'_>, Self> {
+        self.is_skipped_content
+            .as_ref()
+            .map_err(UnavailableProperty::clone)
+    }
+    #[inline(always)]
+    fn content_length(&self) -> PropertiesResult<Self::Data<'_>, Self> {
+        self.content_length
+            .as_ref()
+            .map_err(UnavailableProperty::clone)
+    }
+}
+
+pub struct MappedContents {
+    is_skipped_content: NumberMmap<BigEndian, u64, Mmap>,
+    content_length: NumberMmap<BigEndian, u64, Mmap>,
+}
+impl PropertiesBackend for MappedContents {
+    type DataFilesAvailability = GuaranteedDataFiles;
+}
+impl LoadedContents for MappedContents {
     type Data<'a>
         = &'a NumberMmap<BigEndian, u64, Mmap>
     where
@@ -88,7 +127,10 @@ impl VecContents {
     }
 }
 
-impl Contents for VecContents {
+impl PropertiesBackend for VecContents {
+    type DataFilesAvailability = GuaranteedDataFiles;
+}
+impl LoadedContents for VecContents {
     type Data<'a>
         = &'a [u64]
     where
@@ -121,19 +163,36 @@ impl<
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, MappedContents, STRINGS, LABELNAMES>>
     {
+        let DynMappedContents {
+            is_skipped_content,
+            content_length,
+        } = self.get_contents()?;
         let contents = MappedContents {
-            is_skipped_content: NumberMmap::new(
-                suffix_path(&self.path, CONTENT_IS_SKIPPED),
-                self.num_nodes.div_ceil(u64::BITS.try_into().unwrap()),
-            )
-            .context("Could not load is_skipped_content")?,
-            content_length: NumberMmap::new(
-                suffix_path(&self.path, CONTENT_LENGTH),
-                self.num_nodes,
-            )
-            .context("Could not load content_length")?,
+            is_skipped_content: is_skipped_content?,
+            content_length: content_length?,
         };
         self.with_contents(contents)
+    }
+
+    /// Equivalent to [`Self::load_contents`] that does not require all files to be present
+    pub fn load_contents_dyn(
+        self,
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, DynMappedContents, STRINGS, LABELNAMES>>
+    {
+        let contents = self.get_contents()?;
+        self.with_contents(contents)
+    }
+
+    fn get_contents(&self) -> Result<DynMappedContents> {
+        Ok(DynMappedContents {
+            is_skipped_content: load_if_exists(&self.path, CONTENT_IS_SKIPPED, |path| {
+                let num_bytes = self.num_nodes.div_ceil(u64::BITS.try_into().unwrap());
+                NumberMmap::new(path, num_bytes).context("Could not load is_skipped_content")
+            })?,
+            content_length: load_if_exists(&self.path, CONTENT_LENGTH, |path| {
+                NumberMmap::new(path, self.num_nodes).context("Could not load content_length")
+            })?,
+        })
     }
 
     /// Alternative to [`load_contents`](Self::load_contents) that allows using arbitrary
@@ -164,7 +223,7 @@ impl<
         MAPS: MaybeMaps,
         TIMESTAMPS: MaybeTimestamps,
         PERSONS: MaybePersons,
-        CONTENTS: Contents,
+        CONTENTS: LoadedContents,
         STRINGS: MaybeStrings,
         LABELNAMES: MaybeLabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
@@ -177,30 +236,43 @@ impl<
     ///
     /// If the node id does not exist.
     #[inline]
-    pub fn is_skipped_content(&self, node_id: NodeId) -> bool {
-        self.try_is_skipped_content(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get is_skipped_content bit of node: {}", e))
+    pub fn is_skipped_content(&self, node_id: NodeId) -> PropertiesResult<bool, CONTENTS> {
+        <CONTENTS::DataFilesAvailability as DataFilesAvailability>::map(
+            self.try_is_skipped_content(node_id),
+            |is_skipped_content| {
+                is_skipped_content
+                    .unwrap_or_else(|e| panic!("Cannot get is_skipped_content bit of node: {}", e))
+            },
+        )
     }
 
     /// Returns whether the node is a skipped content, or `Err` if the node id does not exist
     ///
     /// Non-content objects get a `false` value, like non-skipped contents.
     #[inline]
-    pub fn try_is_skipped_content(&self, node_id: NodeId) -> Result<bool, OutOfBoundError> {
-        if node_id >= self.num_nodes {
-            return Err(OutOfBoundError {
-                index: node_id,
-                len: self.num_nodes,
-            });
-        }
-        let cell_id = node_id / (u64::BITS as usize);
-        let mask = 1 << (node_id % (u64::BITS as usize));
+    pub fn try_is_skipped_content(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Result<bool, OutOfBoundError>, CONTENTS> {
+        <CONTENTS::DataFilesAvailability as DataFilesAvailability>::map(
+            self.contents.is_skipped_content(),
+            |is_skipped_content| {
+                if node_id >= self.num_nodes {
+                    return Err(OutOfBoundError {
+                        index: node_id,
+                        len: self.num_nodes,
+                    });
+                }
+                let cell_id = node_id / (u64::BITS as usize);
+                let mask = 1 << (node_id % (u64::BITS as usize));
 
-        // Safe because we checked node_id is lower than the length, and the length of
-        // self.contents.is_skipped_content() is checked when creating the mmap
-        let cell = unsafe { self.contents.is_skipped_content().get_unchecked(cell_id) };
+                // Safe because we checked node_id is lower than the length, and the length of
+                // self.contents.is_skipped_content() is checked when creating the mmap
+                let cell = unsafe { is_skipped_content.get_unchecked(cell_id) };
 
-        Ok((cell & mask) != 0)
+                Ok((cell & mask) != 0)
+            },
+        )
     }
 
     /// Returns the length of the given content.
@@ -211,24 +283,34 @@ impl<
     ///
     /// If the node id does not exist.
     #[inline]
-    pub fn content_length(&self, node_id: NodeId) -> Option<u64> {
-        self.try_content_length(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get content length: {}", e))
+    pub fn content_length(&self, node_id: NodeId) -> PropertiesResult<Option<u64>, CONTENTS> {
+        <CONTENTS::DataFilesAvailability as DataFilesAvailability>::map(
+            self.try_content_length(node_id),
+            |content_length| {
+                content_length.unwrap_or_else(|e| panic!("Cannot get content length: {}", e))
+            },
+        )
     }
 
     /// Returns the length of the given content, or `Err` if the node id does not exist
     ///
     /// May be `Ok(None)` for skipped contents
     #[inline]
-    pub fn try_content_length(&self, node_id: NodeId) -> Result<Option<u64>, OutOfBoundError> {
-        match self.contents.content_length().get(node_id) {
-            None => Err(OutOfBoundError {
-                // id does not exist
-                index: node_id,
-                len: self.contents.content_length().len(),
-            }),
-            Some(u64::MAX) => Ok(None), // Skipped content with no length
-            Some(length) => Ok(Some(length)),
-        }
+    pub fn try_content_length(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Result<Option<u64>, OutOfBoundError>, CONTENTS> {
+        <CONTENTS::DataFilesAvailability as DataFilesAvailability>::map(
+            self.contents.content_length(),
+            |content_length| match content_length.get(node_id) {
+                None => Err(OutOfBoundError {
+                    // id does not exist
+                    index: node_id,
+                    len: content_length.len(),
+                }),
+                Some(u64::MAX) => Ok(None), // Skipped content with no length
+                Some(length) => Ok(Some(length)),
+            },
+        )
     }
 }

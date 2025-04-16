@@ -51,7 +51,7 @@ pub trait SwhFullDynGraph:
         Maps: properties::Maps,
         Timestamps: properties::Timestamps,
         Persons: properties::Persons,
-        Contents: properties::Contents,
+        Contents: properties::LoadedContents,
         Strings: properties::LoadedStrings,
         LabelNames: properties::LabelNames,
     >
@@ -65,7 +65,7 @@ impl<
                 Maps: properties::Maps,
                 Timestamps: properties::Timestamps,
                 Persons: properties::Persons,
-                Contents: properties::Contents,
+                Contents: properties::LoadedContents,
                 Strings: properties::LoadedStrings,
                 LabelNames: properties::LabelNames,
             >,

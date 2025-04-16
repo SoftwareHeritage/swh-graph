@@ -7,8 +7,8 @@ use super::proto;
 use swh_graph::graph::*;
 use swh_graph::labels::{EdgeLabel, VisitStatus};
 use swh_graph::properties::{
-    Contents, DataFilesAvailability, LabelNames, LoadedStrings, Maps, Persons, PropertiesBackend,
-    Timestamps,
+    DataFilesAvailability, LabelNames, LoadedContents, LoadedStrings, Maps, Persons,
+    PropertiesBackend, Timestamps,
 };
 use swh_graph::NodeType;
 
@@ -79,7 +79,7 @@ impl<
                 Maps: Maps,
                 Strings: LoadedStrings,
                 LabelNames: LabelNames,
-                Contents: Contents,
+                Contents: LoadedContents,
                 Persons: Persons,
                 Timestamps: Timestamps,
             > + Clone
@@ -239,16 +239,17 @@ impl<
     fn build_content_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Cnt(proto::ContentData {
-            length: self.if_mask(CNT_LENGTH, || {
-                Some(
-                    properties
-                        .content_length(node_id)?
-                        .try_into()
-                        .expect("Content length overflowed i64"),
+            length: self.if_mask_dyn::<G::Contents, _>(CNT_LENGTH, || {
+                <<G::Contents as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::map(
+                    properties.content_length(node_id),
+                    |content_length: Option<u64>| Some(content_length?.try_into().expect("Content length overflowed i64"))
                 )
             }),
-            is_skipped: self.if_mask(CNT_IS_SKIPPED, || {
-                Some(properties.is_skipped_content(node_id))
+            is_skipped: self.if_mask_dyn::<G::Contents, _>(CNT_IS_SKIPPED, || {
+                <<G::Contents as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::map(
+                    properties.is_skipped_content(node_id),
+                    |is_skipped_content: bool| Some(is_skipped_content)
+                )
             }),
         })
     }
@@ -289,8 +290,10 @@ impl<
         let properties = self.graph.properties();
         proto::node::Data::Ori(proto::OriginData {
             url: self.if_mask_dyn::<G::Strings, _>(ORI_URL, || {
-                <<G::Strings as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::map(properties.message(node_id), |message: Option<_>|
-                message.map(|message| String::from_utf8_lossy(&message).into()))
+                <<G::Strings as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::map(
+                    properties.message(node_id),
+                    |message: Option<_>| message.map(|message| String::from_utf8_lossy(&message).into())
+                )
             }),
         })
     }
