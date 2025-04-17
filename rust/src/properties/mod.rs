@@ -68,7 +68,7 @@ pub struct UnavailableProperty {
 /// is exactly the same type as `T`.
 ///
 /// aWhen `B` implements `OptionalDataFiles` (which is the case when using
-/// [`opt_load_all`](SwhGraphProperties::load_all_dyn) instead of
+/// [`opt_load_all`](SwhGraphProperties::opt_load_all) instead of
 /// [`load_opt`](SwhGraphProperties::load_all) for example), then `PropertiesResult<T, B>`
 /// is exactly the same type as `Result<T, UnavailableProperty>`.
 pub type PropertiesResult<T, B> =
