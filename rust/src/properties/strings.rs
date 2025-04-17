@@ -48,10 +48,10 @@ impl<S: OptStrings<DataFilesAvailability = GuaranteedDataFiles>> Strings for S {
 /// Variant of [`MappedStrings`] that checks at runtime that files are present every time
 /// it is accessed
 pub struct OptMappedStrings {
-    message: Result<Mmap, Arc<UnavailableProperty>>,
-    message_offset: Result<NumberMmap<BigEndian, u64, Mmap>, Arc<UnavailableProperty>>,
-    tag_name: Result<Mmap, Arc<UnavailableProperty>>,
-    tag_name_offset: Result<NumberMmap<BigEndian, u64, Mmap>, Arc<UnavailableProperty>>,
+    message: Result<Mmap, UnavailableProperty>,
+    message_offset: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
+    tag_name: Result<Mmap, UnavailableProperty>,
+    tag_name_offset: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
 }
 impl PropertiesBackend for OptMappedStrings {
     type DataFilesAvailability = OptionalDataFiles;
@@ -63,20 +63,20 @@ impl OptStrings for OptMappedStrings {
         Self: 'a;
 
     #[inline(always)]
-    fn message(&self) -> PropertiesResult<&[u8], Self> {
-        self.message.as_deref().map_err(Arc::clone)
+    fn message(&self) -> PropertiesResult<'_, &[u8], Self> {
+        self.message.as_deref()
     }
     #[inline(always)]
-    fn message_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self> {
-        self.message_offset.as_ref().map_err(Arc::clone)
+    fn message_offset(&self) -> PropertiesResult<'_, Self::Offsets<'_>, Self> {
+        self.message_offset.as_ref()
     }
     #[inline(always)]
-    fn tag_name(&self) -> PropertiesResult<&[u8], Self> {
-        self.tag_name.as_deref().map_err(Arc::clone)
+    fn tag_name(&self) -> PropertiesResult<'_, &[u8], Self> {
+        self.tag_name.as_deref()
     }
     #[inline(always)]
-    fn tag_name_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self> {
-        self.tag_name_offset.as_ref().map_err(Arc::clone)
+    fn tag_name_offset(&self) -> PropertiesResult<'_, Self::Offsets<'_>, Self> {
+        self.tag_name_offset.as_ref()
     }
 }
 

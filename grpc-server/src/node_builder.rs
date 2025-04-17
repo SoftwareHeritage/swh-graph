@@ -343,10 +343,10 @@ impl<
         }
     }
 
-    fn if_mask_opt<PB: PropertiesBackend, T: Default>(
+    fn if_mask_opt<'err, PB: PropertiesBackend, T: Default>(
         &self,
         mask: u32,
-        f: impl FnOnce() -> <PB::DataFilesAvailability as DataFilesAvailability>::Result<T>,
+        f: impl FnOnce() -> <PB::DataFilesAvailability as DataFilesAvailability>::Result<'err, T>,
     ) -> T {
         if self.bitmask & mask == 0 {
             T::default()

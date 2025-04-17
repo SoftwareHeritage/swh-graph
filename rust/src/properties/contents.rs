@@ -31,8 +31,8 @@ pub trait OptContents: MaybeContents + PropertiesBackend {
     where
         Self: 'a;
 
-    fn is_skipped_content(&self) -> PropertiesResult<Self::Data<'_>, Self>;
-    fn content_length(&self) -> PropertiesResult<Self::Data<'_>, Self>;
+    fn is_skipped_content(&self) -> PropertiesResult<'_, Self::Data<'_>, Self>;
+    fn content_length(&self) -> PropertiesResult<'_, Self::Data<'_>, Self>;
 }
 
 #[diagnostic::on_unimplemented(
@@ -47,8 +47,8 @@ impl<S: OptContents<DataFilesAvailability = GuaranteedDataFiles>> Contents for S
 /// Variant of [`MappedStrings`] that checks at runtime that files are present every time
 /// it is accessed
 pub struct OptMappedContents {
-    is_skipped_content: Result<NumberMmap<BigEndian, u64, Mmap>, Arc<UnavailableProperty>>,
-    content_length: Result<NumberMmap<BigEndian, u64, Mmap>, Arc<UnavailableProperty>>,
+    is_skipped_content: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
+    content_length: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
 }
 impl PropertiesBackend for OptMappedContents {
     type DataFilesAvailability = OptionalDataFiles;
@@ -60,12 +60,12 @@ impl OptContents for OptMappedContents {
         Self: 'a;
 
     #[inline(always)]
-    fn is_skipped_content(&self) -> PropertiesResult<Self::Data<'_>, Self> {
-        self.is_skipped_content.as_ref().map_err(Arc::clone)
+    fn is_skipped_content(&self) -> PropertiesResult<'_, Self::Data<'_>, Self> {
+        self.is_skipped_content.as_ref()
     }
     #[inline(always)]
-    fn content_length(&self) -> PropertiesResult<Self::Data<'_>, Self> {
-        self.content_length.as_ref().map_err(Arc::clone)
+    fn content_length(&self) -> PropertiesResult<'_, Self::Data<'_>, Self> {
+        self.content_length.as_ref()
     }
 }
 
