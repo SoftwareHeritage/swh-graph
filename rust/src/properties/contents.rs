@@ -46,14 +46,14 @@ impl<S: OptContents<DataFilesAvailability = GuaranteedDataFiles>> Contents for S
 
 /// Variant of [`MappedStrings`] that checks at runtime that files are present every time
 /// it is accessed
-pub struct DynMappedContents {
+pub struct OptMappedContents {
     is_skipped_content: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
     content_length: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
 }
-impl PropertiesBackend for DynMappedContents {
+impl PropertiesBackend for OptMappedContents {
     type DataFilesAvailability = OptionalDataFiles;
 }
-impl OptContents for DynMappedContents {
+impl OptContents for OptMappedContents {
     type Data<'a>
         = &'a NumberMmap<BigEndian, u64, Mmap>
     where
@@ -163,7 +163,7 @@ impl<
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, MappedContents, STRINGS, LABELNAMES>>
     {
-        let DynMappedContents {
+        let OptMappedContents {
             is_skipped_content,
             content_length,
         } = self.get_contents()?;
@@ -177,14 +177,14 @@ impl<
     /// Equivalent to [`Self::load_contents`] that does not require all files to be present
     pub fn opt_load_contents(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, DynMappedContents, STRINGS, LABELNAMES>>
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, OptMappedContents, STRINGS, LABELNAMES>>
     {
         let contents = self.get_contents()?;
         self.with_contents(contents)
     }
 
-    fn get_contents(&self) -> Result<DynMappedContents> {
-        Ok(DynMappedContents {
+    fn get_contents(&self) -> Result<OptMappedContents> {
+        Ok(OptMappedContents {
             is_skipped_content: load_if_exists(&self.path, CONTENT_IS_SKIPPED, |path| {
                 let num_bytes = self.num_nodes.div_ceil(u64::BITS.try_into().unwrap());
                 NumberMmap::new(path, num_bytes).context("Could not load is_skipped_content")

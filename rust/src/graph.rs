@@ -564,10 +564,10 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
         SwhUnidirectionalGraph<
             properties::SwhGraphProperties<
                 properties::MappedMaps<MPHF>,
-                properties::DynMappedTimestamps,
-                properties::DynMappedPersons,
-                properties::DynMappedContents,
-                properties::DynMappedStrings,
+                properties::OptMappedTimestamps,
+                properties::OptMappedPersons,
+                properties::OptMappedContents,
+                properties::OptMappedStrings,
                 properties::MappedLabelNames,
             >,
             G,
@@ -910,10 +910,10 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
         SwhBidirectionalGraph<
             properties::SwhGraphProperties<
                 properties::MappedMaps<MPHF>,
-                properties::DynMappedTimestamps,
-                properties::DynMappedPersons,
-                properties::DynMappedContents,
-                properties::DynMappedStrings,
+                properties::OptMappedTimestamps,
+                properties::OptMappedPersons,
+                properties::OptMappedContents,
+                properties::OptMappedStrings,
                 properties::MappedLabelNames,
             >,
             FG,
@@ -1106,10 +1106,10 @@ pub fn opt_load_full<MPHF: SwhidMphf>(
     SwhBidirectionalGraph<
         properties::SwhGraphProperties<
             properties::MappedMaps<MPHF>,
-            properties::DynMappedTimestamps,
-            properties::DynMappedPersons,
-            properties::DynMappedContents,
-            properties::DynMappedStrings,
+            properties::OptMappedTimestamps,
+            properties::OptMappedPersons,
+            properties::OptMappedContents,
+            properties::OptMappedStrings,
             properties::MappedLabelNames,
         >,
         Zip<DefaultUnderlyingGraph, SwhLabeling>,
