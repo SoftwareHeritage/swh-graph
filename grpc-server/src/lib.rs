@@ -49,7 +49,7 @@ pub trait SwhFullDynGraph:
     + SwhLabeledBackwardGraph
     + SwhGraphWithProperties<
         Maps: properties::Maps,
-        Timestamps: properties::Timestamps,
+        Timestamps: properties::LoadedTimestamps,
         Persons: properties::LoadedPersons,
         Contents: properties::LoadedContents,
         Strings: properties::LoadedStrings,
@@ -63,7 +63,7 @@ impl<
             + SwhLabeledBackwardGraph
             + SwhGraphWithProperties<
                 Maps: properties::Maps,
-                Timestamps: properties::Timestamps,
+                Timestamps: properties::LoadedTimestamps,
                 Persons: properties::LoadedPersons,
                 Contents: properties::LoadedContents,
                 Strings: properties::LoadedStrings,
