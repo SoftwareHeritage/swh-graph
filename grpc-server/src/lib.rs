@@ -86,13 +86,13 @@ pub(crate) fn scoped_spawn_blocking<R: Send + Sync + 'static, F: FnOnce() -> R +
 
 type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
-pub struct TraversalService<G: SwhFullOptGraph + Clone + Send + Sync + 'static> {
-    graph: G,
+pub struct TraversalService<G: SwhFullOptGraph + Send + Sync + 'static> {
+    graph: Arc<G>,
     pub statsd_client: Option<Arc<StatsdClient>>,
 }
 
-impl<G: SwhFullOptGraph + Clone + Send + Sync + 'static> TraversalService<G> {
-    pub fn new(graph: G, statsd_client: Option<Arc<StatsdClient>>) -> Self {
+impl<G: SwhFullOptGraph + Send + Sync + 'static> TraversalService<G> {
+    pub fn new(graph: Arc<G>, statsd_client: Option<Arc<StatsdClient>>) -> Self {
         TraversalService {
             graph,
             statsd_client,
@@ -101,15 +101,13 @@ impl<G: SwhFullOptGraph + Clone + Send + Sync + 'static> TraversalService<G> {
 }
 
 pub trait TraversalServiceTrait {
-    type Graph: SwhFullOptGraph + Clone + Send + Sync + 'static;
+    type Graph: SwhFullOptGraph + Send + Sync + 'static;
     fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status>;
-    fn graph(&self) -> &Self::Graph;
+    fn graph(&self) -> &Arc<Self::Graph>;
     fn statsd_client(&self) -> Option<&Arc<StatsdClient>>;
 }
 
-impl<G: SwhFullOptGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
-    for TraversalService<G>
-{
+impl<G: SwhFullOptGraph + Send + Sync + 'static> TraversalServiceTrait for TraversalService<G> {
     type Graph = G;
 
     #[inline]
@@ -140,7 +138,7 @@ impl<G: SwhFullOptGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
     }
 
     #[inline(always)]
-    fn graph(&self) -> &Self::Graph {
+    fn graph(&self) -> &Arc<Self::Graph> {
         &self.graph
     }
 
@@ -151,8 +149,8 @@ impl<G: SwhFullOptGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
 }
 
 #[tonic::async_trait]
-impl<G: SwhFullOptGraph + Send + Sync + Clone + 'static>
-    proto::traversal_service_server::TraversalService for TraversalService<G>
+impl<G: SwhFullOptGraph + Send + Sync + 'static> proto::traversal_service_server::TraversalService
+    for TraversalService<G>
 {
     async fn get_node(&self, request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
         let arc_checker = filters::ArcFilterChecker::new(self.graph.clone(), None)?;
