@@ -50,10 +50,10 @@ pub trait Timestamps: OptTimestamps<DataFilesAvailability = GuaranteedDataFiles>
 impl<T: OptTimestamps<DataFilesAvailability = GuaranteedDataFiles>> Timestamps for T {}
 
 pub struct OptMappedTimestamps {
-    author_timestamp: Result<NumberMmap<BigEndian, i64, Mmap>, UnavailableProperty>,
-    author_timestamp_offset: Result<NumberMmap<BigEndian, i16, Mmap>, UnavailableProperty>,
-    committer_timestamp: Result<NumberMmap<BigEndian, i64, Mmap>, UnavailableProperty>,
-    committer_timestamp_offset: Result<NumberMmap<BigEndian, i16, Mmap>, UnavailableProperty>,
+    author_timestamp: Result<NumberMmap<BigEndian, i64, Mmap>, Arc<UnavailableProperty>>,
+    author_timestamp_offset: Result<NumberMmap<BigEndian, i16, Mmap>, Arc<UnavailableProperty>>,
+    committer_timestamp: Result<NumberMmap<BigEndian, i64, Mmap>, Arc<UnavailableProperty>>,
+    committer_timestamp_offset: Result<NumberMmap<BigEndian, i16, Mmap>, Arc<UnavailableProperty>>,
 }
 impl PropertiesBackend for OptMappedTimestamps {
     type DataFilesAvailability = OptionalDataFiles;
@@ -64,27 +64,19 @@ impl OptTimestamps for OptMappedTimestamps {
 
     #[inline(always)]
     fn author_timestamp(&self) -> PropertiesResult<Self::Timestamps<'_>, Self> {
-        self.author_timestamp
-            .as_ref()
-            .map_err(UnavailableProperty::clone)
+        self.author_timestamp.as_ref().map_err(Arc::clone)
     }
     #[inline(always)]
     fn author_timestamp_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self> {
-        self.author_timestamp_offset
-            .as_ref()
-            .map_err(UnavailableProperty::clone)
+        self.author_timestamp_offset.as_ref().map_err(Arc::clone)
     }
     #[inline(always)]
     fn committer_timestamp(&self) -> PropertiesResult<Self::Timestamps<'_>, Self> {
-        self.committer_timestamp
-            .as_ref()
-            .map_err(UnavailableProperty::clone)
+        self.committer_timestamp.as_ref().map_err(Arc::clone)
     }
     #[inline(always)]
     fn committer_timestamp_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self> {
-        self.committer_timestamp_offset
-            .as_ref()
-            .map_err(UnavailableProperty::clone)
+        self.committer_timestamp_offset.as_ref().map_err(Arc::clone)
     }
 }
 
