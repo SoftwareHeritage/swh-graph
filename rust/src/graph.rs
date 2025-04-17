@@ -555,10 +555,10 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
     ///
     /// swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     ///     .expect("Could not load graph")
-    ///     .load_dyn_all_properties::<GOVMPH>()
+    ///     .opt_load_all_properties::<GOVMPH>()
     ///     .expect("Could not load properties");
     /// ```
-    pub fn load_dyn_all_properties<MPHF: SwhidMphf>(
+    pub fn opt_load_all_properties<MPHF: SwhidMphf>(
         self,
     ) -> Result<
         SwhUnidirectionalGraph<
@@ -574,7 +574,7 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
         >,
     > {
         self.init_properties()
-            .load_properties(|properties| properties.load_all_dyn())
+            .load_properties(|properties| properties.opt_load_all())
     }
 }
 
@@ -901,10 +901,10 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
     ///
     /// swh_graph::graph::SwhBidirectionalGraph::new(PathBuf::from("./graph"))
     ///     .expect("Could not load graph")
-    ///     .load_dyn_all_properties::<GOVMPH>()
+    ///     .opt_load_all_properties::<GOVMPH>()
     ///     .expect("Could not load properties");
     /// ```
-    pub fn load_dyn_all_properties<MPHF: SwhidMphf>(
+    pub fn opt_load_all_properties<MPHF: SwhidMphf>(
         self,
     ) -> Result<
         SwhBidirectionalGraph<
@@ -921,7 +921,7 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
         >,
     > {
         self.init_properties()
-            .load_properties(|properties| properties.load_all_dyn())
+            .load_properties(|properties| properties.opt_load_all())
     }
 }
 
@@ -1090,7 +1090,7 @@ pub fn load_full<MPHF: SwhidMphf>(
 /// # let basepath = PathBuf::from("./graph");
 /// let graph = SwhBidirectionalGraph::new(basepath)
 ///     .context("Could not load graph")?
-///     .load_dyn_all_properties::<MPHF>()
+///     .opt_load_all_properties::<MPHF>()
 ///     .context("Could not load properties")?
 ///     .load_labels()
 ///     .context("Could not load labels")?;
@@ -1100,7 +1100,7 @@ pub fn load_full<MPHF: SwhidMphf>(
 ///
 /// Compared to [`load_full`] or loading properties one by one, this may introduce a
 /// small performance overhead on each property access.
-pub fn load_full_dyn<MPHF: SwhidMphf>(
+pub fn opt_load_full<MPHF: SwhidMphf>(
     basepath: impl AsRef<Path>,
 ) -> Result<
     SwhBidirectionalGraph<
@@ -1118,7 +1118,7 @@ pub fn load_full_dyn<MPHF: SwhidMphf>(
 > {
     SwhBidirectionalGraph::new(basepath)
         .context("Could not load graph")?
-        .load_dyn_all_properties()
+        .opt_load_all_properties()
         .context("Could not load properties")?
         .load_labels()
         .context("Could not load labels")

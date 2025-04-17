@@ -7,8 +7,8 @@ use super::proto;
 use swh_graph::graph::*;
 use swh_graph::labels::{EdgeLabel, VisitStatus};
 use swh_graph::properties::{
-    DataFilesAvailability, LabelNames, LoadedContents, LoadedPersons, LoadedStrings,
-    LoadedTimestamps, Maps, PropertiesBackend,
+    DataFilesAvailability, LabelNames, Maps, OptContents, OptPersons, OptStrings, OptTimestamps,
+    PropertiesBackend,
 };
 use swh_graph::NodeType;
 
@@ -77,11 +77,11 @@ impl<
         G: SwhLabeledForwardGraph
             + SwhGraphWithProperties<
                 Maps: Maps,
-                Strings: LoadedStrings,
+                Strings: OptStrings,
                 LabelNames: LabelNames,
-                Contents: LoadedContents,
-                Persons: LoadedPersons,
-                Timestamps: LoadedTimestamps,
+                Contents: OptContents,
+                Persons: OptPersons,
+                Timestamps: OptTimestamps,
             > + Clone
             + Send
             + Sync
@@ -239,7 +239,7 @@ impl<
     fn build_content_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Cnt(proto::ContentData {
-            length: self.if_mask_dyn::<G::Contents, _>(CNT_LENGTH, || {
+            length: self.if_mask_opt::<G::Contents, _>(CNT_LENGTH, || {
                 G::Contents::map_if_available(
                     properties.content_length(node_id),
                     |content_length: Option<u64>| {
@@ -251,7 +251,7 @@ impl<
                     },
                 )
             }),
-            is_skipped: self.if_mask_dyn::<G::Contents, _>(CNT_IS_SKIPPED, || {
+            is_skipped: self.if_mask_opt::<G::Contents, _>(CNT_IS_SKIPPED, || {
                 G::Contents::map_if_available(
                     properties.is_skipped_content(node_id),
                     |is_skipped_content: bool| Some(is_skipped_content),
@@ -263,15 +263,15 @@ impl<
     fn build_revision_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Rev(proto::RevisionData {
-            author: self.if_mask_dyn::<G::Persons, _>(REV_AUTHOR, || {
+            author: self.if_mask_opt::<G::Persons, _>(REV_AUTHOR, || {
                 G::Persons::map_if_available(properties.author_id(node_id), |author_id| {
                     Some(author_id? as i64)
                 })
             }),
-            author_date: self.if_mask_dyn::<G::Timestamps, _>(REV_AUTHOR_DATE, || {
+            author_date: self.if_mask_opt::<G::Timestamps, _>(REV_AUTHOR_DATE, || {
                 properties.author_timestamp(node_id)
             }),
-            author_date_offset: self.if_mask_dyn::<G::Timestamps, _>(
+            author_date_offset: self.if_mask_opt::<G::Timestamps, _>(
                 REV_AUTHOR_DATE_OFFSET,
                 || {
                     G::Timestamps::map_if_available(
@@ -280,15 +280,15 @@ impl<
                     )
                 },
             ),
-            committer: self.if_mask_dyn::<G::Persons, _>(REV_COMMITTER, || {
+            committer: self.if_mask_opt::<G::Persons, _>(REV_COMMITTER, || {
                 G::Persons::map_if_available(properties.committer_id(node_id), |committer_id| {
                     Some(committer_id? as i64)
                 })
             }),
-            committer_date: self.if_mask_dyn::<G::Timestamps, _>(REV_COMMITTER_DATE, || {
+            committer_date: self.if_mask_opt::<G::Timestamps, _>(REV_COMMITTER_DATE, || {
                 properties.committer_timestamp(node_id)
             }),
-            committer_date_offset: self.if_mask_dyn::<G::Timestamps, _>(
+            committer_date_offset: self.if_mask_opt::<G::Timestamps, _>(
                 REV_COMMITTER_DATE_OFFSET,
                 || {
                     G::Timestamps::map_if_available(
@@ -297,21 +297,21 @@ impl<
                     )
                 },
             ),
-            message: self.if_mask_dyn::<G::Strings, _>(REV_MESSAGE, || properties.message(node_id)),
+            message: self.if_mask_opt::<G::Strings, _>(REV_MESSAGE, || properties.message(node_id)),
         })
     }
     fn build_release_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Rel(proto::ReleaseData {
-            author: self.if_mask_dyn::<G::Persons, _>(REL_AUTHOR, || {
+            author: self.if_mask_opt::<G::Persons, _>(REL_AUTHOR, || {
                 G::Persons::map_if_available(properties.author_id(node_id), |author_id| {
                     Some(author_id? as i64)
                 })
             }),
-            author_date: self.if_mask_dyn::<G::Timestamps, _>(REL_AUTHOR_DATE, || {
+            author_date: self.if_mask_opt::<G::Timestamps, _>(REL_AUTHOR_DATE, || {
                 properties.author_timestamp(node_id)
             }),
-            author_date_offset: self.if_mask_dyn::<G::Timestamps, _>(
+            author_date_offset: self.if_mask_opt::<G::Timestamps, _>(
                 REL_AUTHOR_DATE_OFFSET,
                 || {
                     G::Timestamps::map_if_available(
@@ -320,14 +320,14 @@ impl<
                     )
                 },
             ),
-            name: self.if_mask_dyn::<G::Strings, _>(REL_NAME, || properties.tag_name(node_id)),
-            message: self.if_mask_dyn::<G::Strings, _>(REL_MESSAGE, || properties.message(node_id)),
+            name: self.if_mask_opt::<G::Strings, _>(REL_NAME, || properties.tag_name(node_id)),
+            message: self.if_mask_opt::<G::Strings, _>(REL_MESSAGE, || properties.message(node_id)),
         })
     }
     fn build_origin_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Ori(proto::OriginData {
-            url: self.if_mask_dyn::<G::Strings, _>(ORI_URL, || {
+            url: self.if_mask_opt::<G::Strings, _>(ORI_URL, || {
                 G::Strings::map_if_available(properties.message(node_id), |message: Option<_>| {
                     message.map(|message| String::from_utf8_lossy(&message).into())
                 })
@@ -343,7 +343,7 @@ impl<
         }
     }
 
-    fn if_mask_dyn<PB: PropertiesBackend, T: Default>(
+    fn if_mask_opt<PB: PropertiesBackend, T: Default>(
         &self,
         mask: u32,
         f: impl FnOnce() -> <PB::DataFilesAvailability as DataFilesAvailability>::Result<T>,

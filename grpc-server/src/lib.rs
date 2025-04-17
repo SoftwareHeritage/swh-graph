@@ -49,10 +49,10 @@ pub trait SwhFullDynGraph:
     + SwhLabeledBackwardGraph
     + SwhGraphWithProperties<
         Maps: properties::Maps,
-        Timestamps: properties::LoadedTimestamps,
-        Persons: properties::LoadedPersons,
-        Contents: properties::LoadedContents,
-        Strings: properties::LoadedStrings,
+        Timestamps: properties::OptTimestamps,
+        Persons: properties::OptPersons,
+        Contents: properties::OptContents,
+        Strings: properties::OptStrings,
         LabelNames: properties::LabelNames,
     >
 {
@@ -63,10 +63,10 @@ impl<
             + SwhLabeledBackwardGraph
             + SwhGraphWithProperties<
                 Maps: properties::Maps,
-                Timestamps: properties::LoadedTimestamps,
-                Persons: properties::LoadedPersons,
-                Contents: properties::LoadedContents,
-                Strings: properties::LoadedStrings,
+                Timestamps: properties::OptTimestamps,
+                Persons: properties::OptPersons,
+                Contents: properties::OptContents,
+                Strings: properties::OptStrings,
                 LabelNames: properties::LabelNames,
             >,
     > SwhFullDynGraph for G

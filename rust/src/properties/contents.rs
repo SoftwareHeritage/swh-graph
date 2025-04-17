@@ -13,7 +13,7 @@ use crate::graph::NodeId;
 /// Trait implemented by both [`NoContents`] and all implementors of [`Contents`],
 /// to allow loading content properties only if needed.
 pub trait MaybeContents {}
-impl<C: LoadedContents> MaybeContents for C {}
+impl<C: OptContents> MaybeContents for C {}
 
 /// Placeholder for when "contents" properties are not loaded.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -26,7 +26,7 @@ impl MaybeContents for NoContents {}
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait implemented by all implementors of [`MaybeContents`] but [`NoContents`]
-pub trait LoadedContents: MaybeContents + PropertiesBackend {
+pub trait OptContents: MaybeContents + PropertiesBackend {
     type Data<'a>: GetIndex<Output = u64> + 'a
     where
         Self: 'a;
@@ -41,8 +41,8 @@ pub trait LoadedContents: MaybeContents + PropertiesBackend {
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait for backend storage of content properties (either in-memory or memory-mapped)
-pub trait Contents: LoadedContents<DataFilesAvailability = GuaranteedDataFiles> {}
-impl<S: LoadedContents<DataFilesAvailability = GuaranteedDataFiles>> Contents for S {}
+pub trait Contents: OptContents<DataFilesAvailability = GuaranteedDataFiles> {}
+impl<S: OptContents<DataFilesAvailability = GuaranteedDataFiles>> Contents for S {}
 
 /// Variant of [`MappedStrings`] that checks at runtime that files are present every time
 /// it is accessed
@@ -53,7 +53,7 @@ pub struct DynMappedContents {
 impl PropertiesBackend for DynMappedContents {
     type DataFilesAvailability = OptionalDataFiles;
 }
-impl LoadedContents for DynMappedContents {
+impl OptContents for DynMappedContents {
     type Data<'a>
         = &'a NumberMmap<BigEndian, u64, Mmap>
     where
@@ -80,7 +80,7 @@ pub struct MappedContents {
 impl PropertiesBackend for MappedContents {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
-impl LoadedContents for MappedContents {
+impl OptContents for MappedContents {
     type Data<'a>
         = &'a NumberMmap<BigEndian, u64, Mmap>
     where
@@ -130,7 +130,7 @@ impl VecContents {
 impl PropertiesBackend for VecContents {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
-impl LoadedContents for VecContents {
+impl OptContents for VecContents {
     type Data<'a>
         = &'a [u64]
     where
@@ -175,7 +175,7 @@ impl<
     }
 
     /// Equivalent to [`Self::load_contents`] that does not require all files to be present
-    pub fn load_contents_dyn(
+    pub fn opt_load_contents(
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, DynMappedContents, STRINGS, LABELNAMES>>
     {
@@ -223,7 +223,7 @@ impl<
         MAPS: MaybeMaps,
         TIMESTAMPS: MaybeTimestamps,
         PERSONS: MaybePersons,
-        CONTENTS: LoadedContents,
+        CONTENTS: OptContents,
         STRINGS: MaybeStrings,
         LABELNAMES: MaybeLabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>

@@ -13,7 +13,7 @@ use crate::graph::NodeId;
 /// Trait implemented by both [`NoTimestamps`] and all implementors of [`Timestamps`],
 /// to allow loading timestamp properties only if needed.
 pub trait MaybeTimestamps {}
-impl<T: LoadedTimestamps> MaybeTimestamps for T {}
+impl<T: OptTimestamps> MaybeTimestamps for T {}
 
 /// Placeholder for when timestamp properties are not loaded
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -26,7 +26,7 @@ impl MaybeTimestamps for NoTimestamps {}
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait for backend storage of timestamp properties (either in-memory or memory-mapped)
-pub trait LoadedTimestamps: MaybeTimestamps + PropertiesBackend {
+pub trait OptTimestamps: MaybeTimestamps + PropertiesBackend {
     type Timestamps<'a>: GetIndex<Output = i64> + 'a
     where
         Self: 'a;
@@ -46,8 +46,8 @@ pub trait LoadedTimestamps: MaybeTimestamps + PropertiesBackend {
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait for backend storage of timestamp properties (either in-memory or memory-mapped)
-pub trait Timestamps: LoadedTimestamps<DataFilesAvailability = GuaranteedDataFiles> {}
-impl<T: LoadedTimestamps<DataFilesAvailability = GuaranteedDataFiles>> Timestamps for T {}
+pub trait Timestamps: OptTimestamps<DataFilesAvailability = GuaranteedDataFiles> {}
+impl<T: OptTimestamps<DataFilesAvailability = GuaranteedDataFiles>> Timestamps for T {}
 
 pub struct DynMappedTimestamps {
     author_timestamp: Result<NumberMmap<BigEndian, i64, Mmap>, UnavailableProperty>,
@@ -58,7 +58,7 @@ pub struct DynMappedTimestamps {
 impl PropertiesBackend for DynMappedTimestamps {
     type DataFilesAvailability = OptionalDataFiles;
 }
-impl LoadedTimestamps for DynMappedTimestamps {
+impl OptTimestamps for DynMappedTimestamps {
     type Timestamps<'a> = &'a NumberMmap<BigEndian, i64, Mmap>;
     type Offsets<'a> = &'a NumberMmap<BigEndian, i16, Mmap>;
 
@@ -98,7 +98,7 @@ impl PropertiesBackend for MappedTimestamps {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
 
-impl LoadedTimestamps for MappedTimestamps {
+impl OptTimestamps for MappedTimestamps {
     type Timestamps<'a> = &'a NumberMmap<BigEndian, i64, Mmap>;
     type Offsets<'a> = &'a NumberMmap<BigEndian, i16, Mmap>;
 
@@ -177,7 +177,7 @@ impl VecTimestamps {
 impl PropertiesBackend for VecTimestamps {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
-impl LoadedTimestamps for VecTimestamps {
+impl OptTimestamps for VecTimestamps {
     type Timestamps<'a> = &'a [i64];
     type Offsets<'a> = &'a [i16];
 
@@ -234,7 +234,7 @@ impl<
     }
 
     /// Equivalent to [`Self::load_timestamps`] that does not require all files to be present
-    pub fn load_timestamps_dyn(
+    pub fn opt_load_timestamps(
         self,
     ) -> Result<SwhGraphProperties<MAPS, DynMappedTimestamps, PERSONS, CONTENTS, STRINGS, LABELNAMES>>
     {
@@ -291,7 +291,7 @@ impl<
 /// or [`load_all_properties`](crate::graph::SwhBidirectionalGraph::load_all_properties)
 impl<
         MAPS: MaybeMaps,
-        TIMESTAMPS: LoadedTimestamps,
+        TIMESTAMPS: OptTimestamps,
         PERSONS: MaybePersons,
         CONTENTS: MaybeContents,
         STRINGS: MaybeStrings,

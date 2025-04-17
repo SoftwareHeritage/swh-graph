@@ -12,7 +12,7 @@ use crate::graph::NodeId;
 /// Trait implemented by both [`NoStrings`] and all implementors of [`Strings`],
 /// to allow loading string properties only if needed.
 pub trait MaybeStrings {}
-impl<S: LoadedStrings> MaybeStrings for S {}
+impl<S: OptStrings> MaybeStrings for S {}
 
 /// Placeholder for when string properties are not loaded
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -25,7 +25,7 @@ impl MaybeStrings for NoStrings {}
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait implemented by all implementors of [`MaybeStrings`] but [`NoStrings`]
-pub trait LoadedStrings: MaybeStrings + PropertiesBackend {
+pub trait OptStrings: MaybeStrings + PropertiesBackend {
     type Offsets<'a>: GetIndex<Output = u64> + 'a
     where
         Self: 'a;
@@ -42,8 +42,8 @@ pub trait LoadedStrings: MaybeStrings + PropertiesBackend {
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait for backend storage of string properties (either in-memory or memory-mapped)
-pub trait Strings: LoadedStrings<DataFilesAvailability = GuaranteedDataFiles> {}
-impl<S: LoadedStrings<DataFilesAvailability = GuaranteedDataFiles>> Strings for S {}
+pub trait Strings: OptStrings<DataFilesAvailability = GuaranteedDataFiles> {}
+impl<S: OptStrings<DataFilesAvailability = GuaranteedDataFiles>> Strings for S {}
 
 /// Variant of [`MappedStrings`] that checks at runtime that files are present every time
 /// it is accessed
@@ -56,7 +56,7 @@ pub struct DynMappedStrings {
 impl PropertiesBackend for DynMappedStrings {
     type DataFilesAvailability = OptionalDataFiles;
 }
-impl LoadedStrings for DynMappedStrings {
+impl OptStrings for DynMappedStrings {
     type Offsets<'a>
         = &'a NumberMmap<BigEndian, u64, Mmap>
     where
@@ -94,7 +94,7 @@ pub struct MappedStrings {
 impl PropertiesBackend for MappedStrings {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
-impl LoadedStrings for MappedStrings {
+impl OptStrings for MappedStrings {
     type Offsets<'a>
         = &'a NumberMmap<BigEndian, u64, Mmap>
     where
@@ -181,7 +181,7 @@ impl VecStrings {
 impl PropertiesBackend for VecStrings {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
-impl LoadedStrings for VecStrings {
+impl OptStrings for VecStrings {
     type Offsets<'a>
         = &'a [u64]
     where
@@ -239,7 +239,7 @@ impl<
         self.with_strings(strings)
     }
     /// Equivalent to [`Self::load_strings`] that does not require all files to be present
-    pub fn load_strings_dyn(
+    pub fn opt_load_strings(
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, DynMappedStrings, LABELNAMES>>
     {
@@ -293,7 +293,7 @@ impl<
         TIMESTAMPS: MaybeTimestamps,
         PERSONS: MaybePersons,
         CONTENTS: MaybeContents,
-        STRINGS: LoadedStrings,
+        STRINGS: OptStrings,
         LABELNAMES: MaybeLabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {

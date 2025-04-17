@@ -56,7 +56,7 @@ pub fn main() -> Result<()> {
     let statsd_client = swh_graph_grpc_server::statsd::statsd_client(args.statsd_host)?;
 
     log::info!("Loading graph");
-    let graph = load_full_dyn::<swh_graph::mph::DynMphf>(args.graph_path)?;
+    let graph = opt_load_full::<swh_graph::mph::DynMphf>(args.graph_path)?;
 
     let mut masked_nodes = HashSet::new();
     if let Some(masked_nodes_path) = args.masked_nodes {
