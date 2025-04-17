@@ -68,8 +68,8 @@ pub struct UnavailableProperty {
 /// is exactly the same type as `T`.
 ///
 /// aWhen `B` implements `OptionalDataFiles` (which is the case when using
-/// [`load_all_dyn`](SwhGraphProperties::load_all_dyn) instead of
-/// [`load_dyn`](SwhGraphProperties::load_all) for example), then `PropertiesResult<T, B>`
+/// [`opt_load_all`](SwhGraphProperties::load_all_dyn) instead of
+/// [`load_opt`](SwhGraphProperties::load_all) for example), then `PropertiesResult<T, B>`
 /// is exactly the same type as `Result<T, UnavailableProperty>`.
 pub type PropertiesResult<T, B> =
     <<B as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::Result<T>;
@@ -317,7 +317,7 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
     /// use swh_graph::SwhGraphProperties;
     ///
     /// SwhGraphProperties::new(PathBuf::from("./graph"), 123)
-    ///     .load_all_dyn::<DynMphf>()
+    ///     .opt_load_all::<DynMphf>()
     ///     .expect("Could not load properties");
     /// ```
     ///
@@ -333,19 +333,19 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
     ///     .expect("Could not load node2swhid/swhid2node")
     ///     .load_timestamps()
     ///     .expect("Could not load timestamp properties")
-    ///     .load_persons_dyn()
+    ///     .opt_load_persons()
     ///     .expect("Could not load person properties")
-    ///     .load_contents_dyn()
+    ///     .opt_load_contents()
     ///     .expect("Could not load content properties")
-    ///     .load_strings_dyn()
+    ///     .opt_load_strings()
     ///     .expect("Could not load string properties");
     /// ```
-    pub fn load_all_dyn<MPHF: SwhidMphf>(self) -> Result<AllSwhGraphDynProperties<MPHF>> {
+    pub fn opt_load_all<MPHF: SwhidMphf>(self) -> Result<AllSwhGraphDynProperties<MPHF>> {
         self.load_maps()?
-            .load_timestamps_dyn()?
-            .load_persons_dyn()?
-            .load_contents_dyn()?
-            .load_strings_dyn()?
+            .opt_load_timestamps()?
+            .opt_load_persons()?
+            .opt_load_contents()?
+            .opt_load_strings()?
             .load_label_names()
     }
 }
@@ -355,24 +355,24 @@ pub use maps::{MappedMaps, Maps, MaybeMaps, NoMaps, NodeIdFromSwhidError, VecMap
 
 mod timestamps;
 pub use timestamps::{
-    DynMappedTimestamps, LoadedTimestamps, MappedTimestamps, MaybeTimestamps, NoTimestamps,
+    DynMappedTimestamps, MappedTimestamps, MaybeTimestamps, NoTimestamps, OptTimestamps,
     Timestamps, VecTimestamps,
 };
 
 mod persons;
 pub use persons::{
-    DynMappedPersons, LoadedPersons, MappedPersons, MaybePersons, NoPersons, Persons, VecPersons,
+    DynMappedPersons, MappedPersons, MaybePersons, NoPersons, OptPersons, Persons, VecPersons,
 };
 
 mod contents;
 pub use contents::{
-    Contents, DynMappedContents, LoadedContents, MappedContents, MaybeContents, NoContents,
+    Contents, DynMappedContents, MappedContents, MaybeContents, NoContents, OptContents,
     VecContents,
 };
 
 mod strings;
 pub use strings::{
-    DynMappedStrings, LoadedStrings, MappedStrings, MaybeStrings, NoStrings, Strings, VecStrings,
+    DynMappedStrings, MappedStrings, MaybeStrings, NoStrings, OptStrings, Strings, VecStrings,
 };
 
 mod label_names;

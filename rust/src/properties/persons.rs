@@ -13,7 +13,7 @@ use crate::graph::NodeId;
 /// Trait implemented by both [`NoPersons`] and all implementors of [`Persons`],
 /// to allow loading person ids only if needed.
 pub trait MaybePersons {}
-impl<P: LoadedPersons> MaybePersons for P {}
+impl<P: OptPersons> MaybePersons for P {}
 
 /// Placeholder for when person ids are not loaded
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -26,7 +26,7 @@ impl MaybePersons for NoPersons {}
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait for backend storage of person properties (either in-memory or memory-mapped)
-pub trait LoadedPersons: MaybePersons + PropertiesBackend {
+pub trait OptPersons: MaybePersons + PropertiesBackend {
     type PersonIds<'a>: GetIndex<Output = u32>
     where
         Self: 'a;
@@ -41,8 +41,8 @@ pub trait LoadedPersons: MaybePersons + PropertiesBackend {
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait for backend storage of person properties (either in-memory or memory-mapped)
-pub trait Persons: LoadedPersons<DataFilesAvailability = GuaranteedDataFiles> {}
-impl<P: LoadedPersons<DataFilesAvailability = GuaranteedDataFiles>> Persons for P {}
+pub trait Persons: OptPersons<DataFilesAvailability = GuaranteedDataFiles> {}
+impl<P: OptPersons<DataFilesAvailability = GuaranteedDataFiles>> Persons for P {}
 
 pub struct DynMappedPersons {
     author_id: Result<NumberMmap<BigEndian, u32, Mmap>, UnavailableProperty>,
@@ -51,7 +51,7 @@ pub struct DynMappedPersons {
 impl PropertiesBackend for DynMappedPersons {
     type DataFilesAvailability = OptionalDataFiles;
 }
-impl LoadedPersons for DynMappedPersons {
+impl OptPersons for DynMappedPersons {
     type PersonIds<'a>
         = &'a NumberMmap<BigEndian, u32, Mmap>
     where
@@ -76,7 +76,7 @@ pub struct MappedPersons {
 impl PropertiesBackend for MappedPersons {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
-impl LoadedPersons for MappedPersons {
+impl OptPersons for MappedPersons {
     type PersonIds<'a>
         = &'a NumberMmap<BigEndian, u32, Mmap>
     where
@@ -119,7 +119,7 @@ impl VecPersons {
 impl PropertiesBackend for VecPersons {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
-impl LoadedPersons for VecPersons {
+impl OptPersons for VecPersons {
     type PersonIds<'a>
         = &'a [u32]
     where
@@ -164,7 +164,7 @@ impl<
     }
 
     /// Equivalent to [`Self::load_persons`] that does not require all files to be present
-    pub fn load_persons_dyn(
+    pub fn opt_load_persons(
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, DynMappedPersons, CONTENTS, STRINGS, LABELNAMES>>
     {
@@ -210,7 +210,7 @@ impl<
 impl<
         MAPS: MaybeMaps,
         TIMESTAMPS: MaybeTimestamps,
-        PERSONS: LoadedPersons,
+        PERSONS: OptPersons,
         CONTENTS: MaybeContents,
         STRINGS: MaybeStrings,
         LABELNAMES: MaybeLabelNames,
