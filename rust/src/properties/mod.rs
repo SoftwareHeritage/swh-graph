@@ -25,7 +25,6 @@
 //! ```
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use byteorder::BigEndian;
@@ -64,15 +63,15 @@ pub struct UnavailableProperty {
 
 /// Wrapper for the return type of [`SwhGraphProperties`] methods.
 ///
-/// When `B` implements `GuaranteedDataFiles` (the most common case), `PropertiesResult<T, B>`
+/// When `B` implements `GuaranteedDataFiles` (the most common case), `PropertiesResult<'err, T, B>`
 /// is exactly the same type as `T`.
 ///
 /// aWhen `B` implements `OptionalDataFiles` (which is the case when using
 /// [`opt_load_all`](SwhGraphProperties::opt_load_all) instead of
-/// [`load_opt`](SwhGraphProperties::load_all) for example), then `PropertiesResult<T, B>`
-/// is exactly the same type as `Result<T, Arc<UnavailableProperty>>`.
-pub type PropertiesResult<T, B> =
-    <<B as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::Result<T>;
+/// [`load_opt`](SwhGraphProperties::load_all) for example), then `PropertiesResult<'err, T, B>`
+/// is exactly the same type as `Result<T, &'err UnavailableProperty>`.
+pub type PropertiesResult<'err, T, B> =
+    <<B as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::Result<'err, T>;
 
 /// Common trait for type parameters of [`SwhGraphProperties`]
 pub trait PropertiesBackend {
@@ -86,11 +85,11 @@ pub trait PropertiesBackend {
     /// 1. if `Self::DataFilesAvailability` is `GuaranteedDataFiles`, then `map_if_available(v, f)`
     ///    is equivalent to `f(v)` and has type `U`
     /// 2. if `Self::DataFilesAvailability` is `OptionalDataFiles`, then `map_if_available(v, f)`
-    ///    is equivalent to `v.map(f)` and has type `Result<U, Arc<UnavailableProperty>>`
+    ///    is equivalent to `v.map(f)` and has type `Result<U, &'err UnavailableProperty>`
     fn map_if_available<T, U>(
-        v: <Self::DataFilesAvailability as DataFilesAvailability>::Result<T>,
+        v: <Self::DataFilesAvailability as DataFilesAvailability>::Result<'_, T>,
         f: impl FnOnce(T) -> U,
-    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<U> {
+    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<'_, U> {
         <Self::DataFilesAvailability as DataFilesAvailability>::map(v, f)
     }
 
@@ -103,11 +102,11 @@ pub trait PropertiesBackend {
     ///    is equivalent to `(v1, v2)` and has type `(T1, T2)`
     /// 2. if `Self::DataFilesAvailability` is `OptionalDataFiles`, then `zip_if_available(v1, v2)`
     ///    is equivalent to `v1.and_then(|v1| v2.map(|v2| (v1, v2)))` and has type
-    ///    `Result<(T1, T2), Arc<UnavailableProperty>>`
-    fn zip_if_available<T1, T2>(
-        v1: <Self::DataFilesAvailability as DataFilesAvailability>::Result<T1>,
-        v2: <Self::DataFilesAvailability as DataFilesAvailability>::Result<T2>,
-    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<(T1, T2)> {
+    ///    `Result<(T1, T2), &'err UnavailableProperty>`
+    fn zip_if_available<'err, T1, T2>(
+        v1: <Self::DataFilesAvailability as DataFilesAvailability>::Result<'err, T1>,
+        v2: <Self::DataFilesAvailability as DataFilesAvailability>::Result<'err, T2>,
+    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<'err, (T1, T2)> {
         <Self::DataFilesAvailability as DataFilesAvailability>::zip(v1, v2)
     }
 }
@@ -116,15 +115,18 @@ pub trait PropertiesBackend {
 ///
 /// It is implemented by:
 /// * [`GuaranteedDataFiles`]: the common case, where data files are guaranteed to exist
-///   once a graph is loaded, in which case `Self::Result<T>` is the same type as `T`
+///   once a graph is loaded, in which case `Self::Result<'err, T>` is the same type as `T`
 /// * [`OptionalDataFiles`]: when they are not, in which case `Self::Result<T>`
-///   is the same type as `Result<T, Arc<UnavailableProperty>>`.
+///   is the same type as `Result<T, &'err UnavailableProperty>`.
 pub trait DataFilesAvailability {
-    type Result<T>;
+    type Result<'err, T>;
 
-    fn map<T, U>(v: Self::Result<T>, f: impl FnOnce(T) -> U) -> Self::Result<U>;
-    fn zip<T1, T2>(v1: Self::Result<T1>, v2: Self::Result<T2>) -> Self::Result<(T1, T2)>;
-    fn make_result<T>(value: Self::Result<T>) -> Result<T, Arc<UnavailableProperty>>;
+    fn map<T, U>(v: Self::Result<'_, T>, f: impl FnOnce(T) -> U) -> Self::Result<'_, U>;
+    fn zip<'err, T1, T2>(
+        v1: Self::Result<'err, T1>,
+        v2: Self::Result<'err, T2>,
+    ) -> Self::Result<'err, (T1, T2)>;
+    fn make_result<T>(value: Self::Result<'_, T>) -> Result<T, &UnavailableProperty>;
 }
 
 /// Helper type that implements [`DataFilesAvailability`] to signal underlying data files
@@ -140,33 +142,39 @@ pub struct GuaranteedDataFiles {
 }
 
 impl DataFilesAvailability for OptionalDataFiles {
-    type Result<T> = Result<T, Arc<UnavailableProperty>>;
+    type Result<'err, T> = Result<T, &'err UnavailableProperty>;
 
-    fn map<T, U>(v: Self::Result<T>, f: impl FnOnce(T) -> U) -> Self::Result<U> {
+    fn map<T, U>(v: Self::Result<'_, T>, f: impl FnOnce(T) -> U) -> Self::Result<'_, U> {
         v.map(f)
     }
 
-    fn zip<T1, T2>(v1: Self::Result<T1>, v2: Self::Result<T2>) -> Self::Result<(T1, T2)> {
+    fn zip<'err, T1, T2>(
+        v1: Self::Result<'err, T1>,
+        v2: Self::Result<'err, T2>,
+    ) -> Self::Result<'err, (T1, T2)> {
         v1.and_then(|v1| v2.map(|v2| (v1, v2)))
     }
 
-    fn make_result<T>(value: Self::Result<T>) -> Result<T, Arc<UnavailableProperty>> {
+    fn make_result<T>(value: Self::Result<'_, T>) -> Result<T, &UnavailableProperty> {
         value
     }
 }
 
 impl DataFilesAvailability for GuaranteedDataFiles {
-    type Result<T> = T;
+    type Result<'err, T> = T;
 
-    fn map<T, U>(v: Self::Result<T>, f: impl FnOnce(T) -> U) -> Self::Result<U> {
+    fn map<T, U>(v: Self::Result<'_, T>, f: impl FnOnce(T) -> U) -> Self::Result<'_, U> {
         f(v)
     }
 
-    fn zip<T1, T2>(v1: Self::Result<T1>, v2: Self::Result<T2>) -> Self::Result<(T1, T2)> {
+    fn zip<'err, T1, T2>(
+        v1: Self::Result<'err, T1>,
+        v2: Self::Result<'err, T2>,
+    ) -> Self::Result<'err, (T1, T2)> {
         (v1, v2)
     }
 
-    fn make_result<T>(value: Self::Result<T>) -> Result<T, Arc<UnavailableProperty>> {
+    fn make_result<T>(value: Self::Result<'_, T>) -> Result<T, &UnavailableProperty> {
         Ok(value)
     }
 }

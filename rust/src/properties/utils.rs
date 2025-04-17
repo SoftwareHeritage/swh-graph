@@ -4,7 +4,6 @@
 // See top-level LICENSE file for more information
 
 use std::path::Path;
-use std::sync::Arc;
 
 use anyhow::{Context, Result};
 
@@ -15,20 +14,18 @@ pub(super) fn load_if_exists<T>(
     base_path: &Path,
     suffix: &'static str,
     f: impl FnOnce(&Path) -> Result<T>,
-) -> Result<Result<T, Arc<UnavailableProperty>>> {
+) -> Result<Result<T, UnavailableProperty>> {
     let path = suffix_path(base_path, suffix);
-    if std::fs::exists(&path).map_err(|source| {
-        Arc::new(UnavailableProperty {
-            path: path.clone(),
-            source,
-        })
+    if std::fs::exists(&path).map_err(|source| UnavailableProperty {
+        path: path.clone(),
+        source,
     })? {
         Ok(Ok(f(&path)?))
     } else {
-        Ok(Err(Arc::new(UnavailableProperty {
+        Ok(Err(UnavailableProperty {
             path,
             source: std::io::Error::new(std::io::ErrorKind::NotFound, "No such file"),
-        })))
+        }))
     }
 }
 
