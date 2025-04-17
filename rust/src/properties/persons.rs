@@ -42,7 +42,7 @@ pub trait LoadedPersons: MaybePersons + PropertiesBackend {
 )]
 /// Trait for backend storage of person properties (either in-memory or memory-mapped)
 pub trait Persons: LoadedPersons<DataFilesAvailability = GuaranteedDataFiles> {}
-impl<S: LoadedPersons<DataFilesAvailability = GuaranteedDataFiles>> Persons for S {}
+impl<P: LoadedPersons<DataFilesAvailability = GuaranteedDataFiles>> Persons for P {}
 
 pub struct DynMappedPersons {
     author_id: Result<NumberMmap<BigEndian, u32, Mmap>, UnavailableProperty>,

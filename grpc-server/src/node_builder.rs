@@ -7,8 +7,8 @@ use super::proto;
 use swh_graph::graph::*;
 use swh_graph::labels::{EdgeLabel, VisitStatus};
 use swh_graph::properties::{
-    DataFilesAvailability, LabelNames, LoadedContents, LoadedPersons, LoadedStrings, Maps,
-    PropertiesBackend, Timestamps,
+    DataFilesAvailability, LabelNames, LoadedContents, LoadedPersons, LoadedStrings,
+    LoadedTimestamps, Maps, PropertiesBackend,
 };
 use swh_graph::NodeType;
 
@@ -81,7 +81,7 @@ impl<
                 LabelNames: LabelNames,
                 Contents: LoadedContents,
                 Persons: LoadedPersons,
-                Timestamps: Timestamps,
+                Timestamps: LoadedTimestamps,
             > + Clone
             + Send
             + Sync
@@ -268,21 +268,35 @@ impl<
                     Some(author_id? as i64)
                 })
             }),
-            author_date: self.if_mask(REV_AUTHOR_DATE, || properties.author_timestamp(node_id)),
-            author_date_offset: self.if_mask(REV_AUTHOR_DATE_OFFSET, || {
-                Some(properties.author_timestamp_offset(node_id)?.into())
+            author_date: self.if_mask_dyn::<G::Timestamps, _>(REV_AUTHOR_DATE, || {
+                properties.author_timestamp(node_id)
             }),
+            author_date_offset: self.if_mask_dyn::<G::Timestamps, _>(
+                REV_AUTHOR_DATE_OFFSET,
+                || {
+                    G::Timestamps::map_if_available(
+                        properties.author_timestamp_offset(node_id),
+                        |author_timestamp_offset| Some(author_timestamp_offset?.into()),
+                    )
+                },
+            ),
             committer: self.if_mask_dyn::<G::Persons, _>(REV_COMMITTER, || {
                 G::Persons::map_if_available(properties.committer_id(node_id), |committer_id| {
                     Some(committer_id? as i64)
                 })
             }),
-            committer_date: self.if_mask(REV_COMMITTER_DATE, || {
+            committer_date: self.if_mask_dyn::<G::Timestamps, _>(REV_COMMITTER_DATE, || {
                 properties.committer_timestamp(node_id)
             }),
-            committer_date_offset: self.if_mask(REV_COMMITTER_DATE_OFFSET, || {
-                Some(properties.committer_timestamp_offset(node_id)?.into())
-            }),
+            committer_date_offset: self.if_mask_dyn::<G::Timestamps, _>(
+                REV_COMMITTER_DATE_OFFSET,
+                || {
+                    G::Timestamps::map_if_available(
+                        properties.committer_timestamp_offset(node_id),
+                        |committer_timestamp_offset| Some(committer_timestamp_offset?.into()),
+                    )
+                },
+            ),
             message: self.if_mask_dyn::<G::Strings, _>(REV_MESSAGE, || properties.message(node_id)),
         })
     }
@@ -294,10 +308,18 @@ impl<
                     Some(author_id? as i64)
                 })
             }),
-            author_date: self.if_mask(REL_AUTHOR_DATE, || properties.author_timestamp(node_id)),
-            author_date_offset: self.if_mask(REL_AUTHOR_DATE_OFFSET, || {
-                Some(properties.author_timestamp_offset(node_id)?.into())
+            author_date: self.if_mask_dyn::<G::Timestamps, _>(REL_AUTHOR_DATE, || {
+                properties.author_timestamp(node_id)
             }),
+            author_date_offset: self.if_mask_dyn::<G::Timestamps, _>(
+                REL_AUTHOR_DATE_OFFSET,
+                || {
+                    G::Timestamps::map_if_available(
+                        properties.author_timestamp_offset(node_id),
+                        |author_timestamp_offset| Some(author_timestamp_offset?.into()),
+                    )
+                },
+            ),
             name: self.if_mask_dyn::<G::Strings, _>(REL_NAME, || properties.tag_name(node_id)),
             message: self.if_mask_dyn::<G::Strings, _>(REL_MESSAGE, || properties.message(node_id)),
         })
