@@ -67,9 +67,8 @@ pub struct UnavailableProperty {
 /// is exactly the same type as `T`.
 ///
 /// aWhen `B` implements `OptionalDataFiles` (which is the case when using
-/// [`opt_load_all`](SwhGraphProperties::opt_load_all) instead of
-/// [`load_opt`](SwhGraphProperties::load_all) for example), then `PropertiesResult<'err, T, B>`
-/// is exactly the same type as `Result<T, &'err UnavailableProperty>`.
+/// `opt_load_*` instead of `load_*` or [`load_all`](SwhGraphProperties::load_all) for example),
+/// then `PropertiesResult<'err, T, B>` is exactly the same type as `Result<T, &'err UnavailableProperty>`.
 pub type PropertiesResult<'err, T, B> =
     <<B as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::Result<'err, T>;
 
@@ -312,48 +311,6 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
             .load_persons()?
             .load_contents()?
             .load_strings()?
-            .load_label_names()
-    }
-
-    /// Consumes an empty [`SwhGraphProperties`] instance and returns a new one
-    /// with all properties  available on disk loaded and all methods available.
-    ///
-    /// ```no_run
-    /// # use std::path::PathBuf;
-    ///  use swh_graph::graph::SwhGraphWithProperties;
-    /// use swh_graph::mph::DynMphf;
-    /// use swh_graph::SwhGraphProperties;
-    ///
-    /// SwhGraphProperties::new(PathBuf::from("./graph"), 123)
-    ///     .opt_load_all::<DynMphf>()
-    ///     .expect("Could not load properties");
-    /// ```
-    ///
-    /// is equivalent to:
-    ///
-    /// ```no_run
-    /// # use std::path::PathBuf;
-    /// use swh_graph::mph::DynMphf;
-    /// use swh_graph::SwhGraphProperties;
-    ///
-    /// SwhGraphProperties::new(PathBuf::from("./graph"), 123)
-    ///     .load_maps::<DynMphf>()
-    ///     .expect("Could not load node2swhid/swhid2node")
-    ///     .load_timestamps()
-    ///     .expect("Could not load timestamp properties")
-    ///     .opt_load_persons()
-    ///     .expect("Could not load person properties")
-    ///     .opt_load_contents()
-    ///     .expect("Could not load content properties")
-    ///     .opt_load_strings()
-    ///     .expect("Could not load string properties");
-    /// ```
-    pub fn opt_load_all<MPHF: SwhidMphf>(self) -> Result<AllSwhGraphDynProperties<MPHF>> {
-        self.load_maps()?
-            .opt_load_timestamps()?
-            .opt_load_persons()?
-            .opt_load_contents()?
-            .opt_load_strings()?
             .load_label_names()
     }
 }
