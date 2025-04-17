@@ -45,8 +45,8 @@ pub trait Persons: OptPersons<DataFilesAvailability = GuaranteedDataFiles> {}
 impl<P: OptPersons<DataFilesAvailability = GuaranteedDataFiles>> Persons for P {}
 
 pub struct OptMappedPersons {
-    author_id: Result<NumberMmap<BigEndian, u32, Mmap>, UnavailableProperty>,
-    committer_id: Result<NumberMmap<BigEndian, u32, Mmap>, UnavailableProperty>,
+    author_id: Result<NumberMmap<BigEndian, u32, Mmap>, Arc<UnavailableProperty>>,
+    committer_id: Result<NumberMmap<BigEndian, u32, Mmap>, Arc<UnavailableProperty>>,
 }
 impl PropertiesBackend for OptMappedPersons {
     type DataFilesAvailability = OptionalDataFiles;
@@ -59,13 +59,11 @@ impl OptPersons for OptMappedPersons {
 
     #[inline(always)]
     fn author_id(&self) -> PropertiesResult<Self::PersonIds<'_>, Self> {
-        self.author_id.as_ref().map_err(UnavailableProperty::clone)
+        self.author_id.as_ref().map_err(Arc::clone)
     }
     #[inline(always)]
     fn committer_id(&self) -> PropertiesResult<Self::PersonIds<'_>, Self> {
-        self.committer_id
-            .as_ref()
-            .map_err(UnavailableProperty::clone)
+        self.committer_id.as_ref().map_err(Arc::clone)
     }
 }
 

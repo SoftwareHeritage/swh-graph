@@ -54,12 +54,12 @@ pub(crate) mod suffixes {
     pub const LABEL_NAME: &str = ".labels.fcl";
 }
 
-#[derive(thiserror::Error, Debug, Clone)]
+#[derive(thiserror::Error, Debug)]
 #[error("{path} cannot be loaded: {source}")]
 pub struct UnavailableProperty {
     path: PathBuf,
     #[source]
-    source: Arc<std::io::Error>,
+    source: std::io::Error,
 }
 
 /// Wrapper for the return type of [`SwhGraphProperties`] methods.
@@ -70,7 +70,7 @@ pub struct UnavailableProperty {
 /// aWhen `B` implements `OptionalDataFiles` (which is the case when using
 /// [`opt_load_all`](SwhGraphProperties::opt_load_all) instead of
 /// [`load_opt`](SwhGraphProperties::load_all) for example), then `PropertiesResult<T, B>`
-/// is exactly the same type as `Result<T, UnavailableProperty>`.
+/// is exactly the same type as `Result<T, Arc<UnavailableProperty>>`.
 pub type PropertiesResult<T, B> =
     <<B as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::Result<T>;
 
@@ -86,7 +86,7 @@ pub trait PropertiesBackend {
     /// 1. if `Self::DataFilesAvailability` is `GuaranteedDataFiles`, then `map_if_available(v, f)`
     ///    is equivalent to `f(v)` and has type `U`
     /// 2. if `Self::DataFilesAvailability` is `OptionalDataFiles`, then `map_if_available(v, f)`
-    ///    is equivalent to `v.map(f)` and has type `Result<U, UnavailableProperty>`
+    ///    is equivalent to `v.map(f)` and has type `Result<U, Arc<UnavailableProperty>>`
     fn map_if_available<T, U>(
         v: <Self::DataFilesAvailability as DataFilesAvailability>::Result<T>,
         f: impl FnOnce(T) -> U,
@@ -103,7 +103,7 @@ pub trait PropertiesBackend {
     ///    is equivalent to `(v1, v2)` and has type `(T1, T2)`
     /// 2. if `Self::DataFilesAvailability` is `OptionalDataFiles`, then `zip_if_available(v1, v2)`
     ///    is equivalent to `v1.and_then(|v1| v2.map(|v2| (v1, v2)))` and has type
-    ///    `Result<(T1, T2), UnavailableProperty>`
+    ///    `Result<(T1, T2), Arc<UnavailableProperty>>`
     fn zip_if_available<T1, T2>(
         v1: <Self::DataFilesAvailability as DataFilesAvailability>::Result<T1>,
         v2: <Self::DataFilesAvailability as DataFilesAvailability>::Result<T2>,
@@ -118,13 +118,13 @@ pub trait PropertiesBackend {
 /// * [`GuaranteedDataFiles`]: the common case, where data files are guaranteed to exist
 ///   once a graph is loaded, in which case `Self::Result<T>` is the same type as `T`
 /// * [`OptionalDataFiles`]: when they are not, in which case `Self::Result<T>`
-///   is the same type as `Result<T, UnavailableProperty>`.
+///   is the same type as `Result<T, Arc<UnavailableProperty>>`.
 pub trait DataFilesAvailability {
     type Result<T>;
 
     fn map<T, U>(v: Self::Result<T>, f: impl FnOnce(T) -> U) -> Self::Result<U>;
     fn zip<T1, T2>(v1: Self::Result<T1>, v2: Self::Result<T2>) -> Self::Result<(T1, T2)>;
-    fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty>;
+    fn make_result<T>(value: Self::Result<T>) -> Result<T, Arc<UnavailableProperty>>;
 }
 
 /// Helper type that implements [`DataFilesAvailability`] to signal underlying data files
@@ -140,7 +140,7 @@ pub struct GuaranteedDataFiles {
 }
 
 impl DataFilesAvailability for OptionalDataFiles {
-    type Result<T> = Result<T, UnavailableProperty>;
+    type Result<T> = Result<T, Arc<UnavailableProperty>>;
 
     fn map<T, U>(v: Self::Result<T>, f: impl FnOnce(T) -> U) -> Self::Result<U> {
         v.map(f)
@@ -150,7 +150,7 @@ impl DataFilesAvailability for OptionalDataFiles {
         v1.and_then(|v1| v2.map(|v2| (v1, v2)))
     }
 
-    fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty> {
+    fn make_result<T>(value: Self::Result<T>) -> Result<T, Arc<UnavailableProperty>> {
         value
     }
 }
@@ -166,7 +166,7 @@ impl DataFilesAvailability for GuaranteedDataFiles {
         (v1, v2)
     }
 
-    fn make_result<T>(value: Self::Result<T>) -> Result<T, UnavailableProperty> {
+    fn make_result<T>(value: Self::Result<T>) -> Result<T, Arc<UnavailableProperty>> {
         Ok(value)
     }
 }
