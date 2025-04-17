@@ -47,16 +47,16 @@ impl<S: OptStrings<DataFilesAvailability = GuaranteedDataFiles>> Strings for S {
 
 /// Variant of [`MappedStrings`] that checks at runtime that files are present every time
 /// it is accessed
-pub struct DynMappedStrings {
+pub struct OptMappedStrings {
     message: Result<Mmap, UnavailableProperty>,
     message_offset: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
     tag_name: Result<Mmap, UnavailableProperty>,
     tag_name_offset: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
 }
-impl PropertiesBackend for DynMappedStrings {
+impl PropertiesBackend for OptMappedStrings {
     type DataFilesAvailability = OptionalDataFiles;
 }
-impl OptStrings for DynMappedStrings {
+impl OptStrings for OptMappedStrings {
     type Offsets<'a>
         = &'a NumberMmap<BigEndian, u64, Mmap>
     where
@@ -224,7 +224,7 @@ impl<
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, MappedStrings, LABELNAMES>>
     {
-        let DynMappedStrings {
+        let OptMappedStrings {
             message,
             message_offset,
             tag_name,
@@ -241,14 +241,14 @@ impl<
     /// Equivalent to [`Self::load_strings`] that does not require all files to be present
     pub fn opt_load_strings(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, DynMappedStrings, LABELNAMES>>
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, OptMappedStrings, LABELNAMES>>
     {
         let strings = self.get_strings()?;
         self.with_strings(strings)
     }
 
-    fn get_strings(&self) -> Result<DynMappedStrings> {
-        Ok(DynMappedStrings {
+    fn get_strings(&self) -> Result<OptMappedStrings> {
+        Ok(OptMappedStrings {
             message: load_if_exists(&self.path, MESSAGE, |path| mmap(path))
                 .context("Could not load message")?,
             message_offset: load_if_exists(&self.path, MESSAGE_OFFSET, |path| {

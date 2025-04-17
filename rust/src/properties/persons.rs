@@ -44,14 +44,14 @@ pub trait OptPersons: MaybePersons + PropertiesBackend {
 pub trait Persons: OptPersons<DataFilesAvailability = GuaranteedDataFiles> {}
 impl<P: OptPersons<DataFilesAvailability = GuaranteedDataFiles>> Persons for P {}
 
-pub struct DynMappedPersons {
+pub struct OptMappedPersons {
     author_id: Result<NumberMmap<BigEndian, u32, Mmap>, UnavailableProperty>,
     committer_id: Result<NumberMmap<BigEndian, u32, Mmap>, UnavailableProperty>,
 }
-impl PropertiesBackend for DynMappedPersons {
+impl PropertiesBackend for OptMappedPersons {
     type DataFilesAvailability = OptionalDataFiles;
 }
-impl OptPersons for DynMappedPersons {
+impl OptPersons for OptMappedPersons {
     type PersonIds<'a>
         = &'a NumberMmap<BigEndian, u32, Mmap>
     where
@@ -152,7 +152,7 @@ impl<
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, MappedPersons, CONTENTS, STRINGS, LABELNAMES>>
     {
-        let DynMappedPersons {
+        let OptMappedPersons {
             author_id,
             committer_id,
         } = self.get_persons()?;
@@ -166,14 +166,14 @@ impl<
     /// Equivalent to [`Self::load_persons`] that does not require all files to be present
     pub fn opt_load_persons(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, DynMappedPersons, CONTENTS, STRINGS, LABELNAMES>>
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, OptMappedPersons, CONTENTS, STRINGS, LABELNAMES>>
     {
         let persons = self.get_persons()?;
         self.with_persons(persons)
     }
 
-    fn get_persons(&self) -> Result<DynMappedPersons> {
-        Ok(DynMappedPersons {
+    fn get_persons(&self) -> Result<OptMappedPersons> {
+        Ok(OptMappedPersons {
             author_id: load_if_exists(&self.path, AUTHOR_ID, |path| {
                 NumberMmap::new(path, self.num_nodes).context("Could not load author_id")
             })?,

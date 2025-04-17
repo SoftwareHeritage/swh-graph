@@ -241,10 +241,10 @@ pub type AllSwhGraphProperties<MPHF> = SwhGraphProperties<
 
 pub type AllSwhGraphDynProperties<MPHF> = SwhGraphProperties<
     MappedMaps<MPHF>,
-    DynMappedTimestamps,
-    DynMappedPersons,
-    DynMappedContents,
-    DynMappedStrings,
+    OptMappedTimestamps,
+    OptMappedPersons,
+    OptMappedContents,
+    OptMappedStrings,
     MappedLabelNames,
 >;
 
@@ -355,24 +355,24 @@ pub use maps::{MappedMaps, Maps, MaybeMaps, NoMaps, NodeIdFromSwhidError, VecMap
 
 mod timestamps;
 pub use timestamps::{
-    DynMappedTimestamps, MappedTimestamps, MaybeTimestamps, NoTimestamps, OptTimestamps,
+    MappedTimestamps, MaybeTimestamps, NoTimestamps, OptMappedTimestamps, OptTimestamps,
     Timestamps, VecTimestamps,
 };
 
 mod persons;
 pub use persons::{
-    DynMappedPersons, MappedPersons, MaybePersons, NoPersons, OptPersons, Persons, VecPersons,
+    MappedPersons, MaybePersons, NoPersons, OptMappedPersons, OptPersons, Persons, VecPersons,
 };
 
 mod contents;
 pub use contents::{
-    Contents, DynMappedContents, MappedContents, MaybeContents, NoContents, OptContents,
+    Contents, MappedContents, MaybeContents, NoContents, OptContents, OptMappedContents,
     VecContents,
 };
 
 mod strings;
 pub use strings::{
-    DynMappedStrings, MappedStrings, MaybeStrings, NoStrings, OptStrings, Strings, VecStrings,
+    MappedStrings, MaybeStrings, NoStrings, OptMappedStrings, OptStrings, Strings, VecStrings,
 };
 
 mod label_names;

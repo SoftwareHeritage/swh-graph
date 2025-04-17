@@ -49,16 +49,16 @@ pub trait OptTimestamps: MaybeTimestamps + PropertiesBackend {
 pub trait Timestamps: OptTimestamps<DataFilesAvailability = GuaranteedDataFiles> {}
 impl<T: OptTimestamps<DataFilesAvailability = GuaranteedDataFiles>> Timestamps for T {}
 
-pub struct DynMappedTimestamps {
+pub struct OptMappedTimestamps {
     author_timestamp: Result<NumberMmap<BigEndian, i64, Mmap>, UnavailableProperty>,
     author_timestamp_offset: Result<NumberMmap<BigEndian, i16, Mmap>, UnavailableProperty>,
     committer_timestamp: Result<NumberMmap<BigEndian, i64, Mmap>, UnavailableProperty>,
     committer_timestamp_offset: Result<NumberMmap<BigEndian, i16, Mmap>, UnavailableProperty>,
 }
-impl PropertiesBackend for DynMappedTimestamps {
+impl PropertiesBackend for OptMappedTimestamps {
     type DataFilesAvailability = OptionalDataFiles;
 }
-impl OptTimestamps for DynMappedTimestamps {
+impl OptTimestamps for OptMappedTimestamps {
     type Timestamps<'a> = &'a NumberMmap<BigEndian, i64, Mmap>;
     type Offsets<'a> = &'a NumberMmap<BigEndian, i16, Mmap>;
 
@@ -218,7 +218,7 @@ impl<
         self,
     ) -> Result<SwhGraphProperties<MAPS, MappedTimestamps, PERSONS, CONTENTS, STRINGS, LABELNAMES>>
     {
-        let DynMappedTimestamps {
+        let OptMappedTimestamps {
             author_timestamp,
             author_timestamp_offset,
             committer_timestamp,
@@ -236,14 +236,14 @@ impl<
     /// Equivalent to [`Self::load_timestamps`] that does not require all files to be present
     pub fn opt_load_timestamps(
         self,
-    ) -> Result<SwhGraphProperties<MAPS, DynMappedTimestamps, PERSONS, CONTENTS, STRINGS, LABELNAMES>>
+    ) -> Result<SwhGraphProperties<MAPS, OptMappedTimestamps, PERSONS, CONTENTS, STRINGS, LABELNAMES>>
     {
         let timestamps = self.get_timestamps()?;
         self.with_timestamps(timestamps)
     }
 
-    fn get_timestamps(&self) -> Result<DynMappedTimestamps> {
-        Ok(DynMappedTimestamps {
+    fn get_timestamps(&self) -> Result<OptMappedTimestamps> {
+        Ok(OptMappedTimestamps {
             author_timestamp: load_if_exists(&self.path, AUTHOR_TIMESTAMP, |path| {
                 NumberMmap::new(path, self.num_nodes).context("Could not load author_timestamp")
             })?,
