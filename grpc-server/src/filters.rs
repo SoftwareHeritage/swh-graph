@@ -126,7 +126,7 @@ pub struct ArcFilterChecker<G: Clone + Send + Sync + 'static> {
 
 impl<G: Clone + Send + Sync + 'static> ArcFilterChecker<G>
 where
-    G: SwhForwardGraph + SwhGraphWithProperties + Sized,
+    G: SwhGraphWithProperties + SwhGraphWithProperties + Sized,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
     pub fn new(graph: G, types: Option<String>) -> Result<Self, tonic::Status> {

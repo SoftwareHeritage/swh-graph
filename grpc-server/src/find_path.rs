@@ -14,10 +14,11 @@ use swh_graph::properties;
 use swh_graph::views::{Subgraph, Transposed};
 
 use super::filters::{ArcFilterChecker, NodeFilterChecker};
+use super::graph::{ConstOption, ConstOption2};
 use super::node_builder::NodeBuilder;
 use super::proto;
 use super::visitor::{SimpleBfsVisitor, VisitFlow};
-use super::{scoped_spawn_blocking, TraversalServiceTrait};
+use super::{scoped_spawn_blocking, FullOptGraph, TraversalServiceTrait};
 
 /// [Never type](https://github.com/rust-lang/rust/issues/35121)
 enum NeverError {}
@@ -46,7 +47,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
     #[allow(clippy::type_complexity)]
     fn make_visitor<
         'a,
-        G: SwhForwardGraph + SwhGraphWithProperties + Clone + Send + Sync + 'static,
+        G: SwhForwardGraph + SwhGraphWithProperties + Send + Sync + 'static,
         Error: Send + 'a,
     >(
         &'a self,
@@ -84,19 +85,15 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             })?,
         };
 
-        let mut visitor = SimpleBfsVisitor::new(
-            graph.clone(),
-            max_depth,
-            on_node,
-            move |src, dst, _depth| {
+        let mut visitor =
+            SimpleBfsVisitor::new(graph, max_depth, on_node, move |src, dst, _depth| {
                 if max_edges == 0 {
                     Ok(VisitFlow::Ignore)
                 } else {
                     max_edges -= 1;
                     on_arc(src, dst)
                 }
-            },
-        );
+            });
         for src_item in src {
             visitor.push(src_item);
         }
@@ -245,10 +242,10 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
 
         match direction {
             proto::GraphDirection::Forward => {
-                find_path_to!(graph)
+                find_path_to!(graph.with_forward_arcs().get_graph()?)
             }
             proto::GraphDirection::Backward => {
-                let graph = Arc::new(Transposed(graph));
+                let graph = Arc::new(Transposed(graph.with_backward_arcs()?));
                 find_path_to!(graph)
             }
         }
@@ -364,7 +361,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             }),
         )?;
         let backward_node_builder = NodeBuilder::new(
-            transpose_subgraph.clone(),
+            transpose_subgraph.with_forward_arcs(),
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask
                     .paths
@@ -428,7 +425,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                 }));
                 let mut visitor_reverse = self.make_visitor(
                     reverse_visitor_config,
-                    subgraph,
+                    subgraph.with_forward_arcs(),
                     on_node_reverse,
                     on_arc_reverse,
                 )?;
@@ -451,8 +448,12 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
         }
         match direction {
             proto::GraphDirection::Forward => {
-                let mut visitor =
-                    self.make_visitor(visitor_config, subgraph.clone(), on_node, on_arc)?;
+                let mut visitor = self.make_visitor(
+                    visitor_config,
+                    subgraph.clone().with_forward_arcs().get_graph()?,
+                    on_node,
+                    on_arc,
+                )?;
                 match direction_reverse {
                     proto::GraphDirection::Forward => {
                         find_path_between!(visitor, graph)

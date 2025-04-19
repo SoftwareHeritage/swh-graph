@@ -3,7 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use super::proto;
 use swh_graph::graph::*;
 use swh_graph::labels::{EdgeLabel, VisitStatus};
 use swh_graph::properties::{
@@ -11,6 +10,9 @@ use swh_graph::properties::{
     PropertiesBackend,
 };
 use swh_graph::NodeType;
+
+use super::proto;
+use super::FullOptGraph;
 
 /// Bit masks selecting which fields should be included by [`NodeBuilder`], based on
 /// [`proto::FieldMask`].
@@ -73,21 +75,7 @@ pub struct NodeBuilder<G: Clone + Send + Sync + 'static> {
     bitmask: u32,
 }
 
-impl<
-        G: SwhLabeledForwardGraph
-            + SwhGraphWithProperties<
-                Maps: Maps,
-                Strings: OptStrings,
-                LabelNames: LabelNames,
-                Contents: OptContents,
-                Persons: OptPersons,
-                Timestamps: OptTimestamps,
-            > + Clone
-            + Send
-            + Sync
-            + 'static,
-    > NodeBuilder<G>
-{
+impl<G: FullOptGraph + Clone + Send + Sync + 'static> NodeBuilder<G> {
     pub fn new(graph: G, mask: Option<prost_types::FieldMask>) -> Result<Self, tonic::Status> {
         let Some(mask) = mask else {
             return Ok(NodeBuilder {

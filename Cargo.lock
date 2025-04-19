@@ -4343,6 +4343,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "swh-graph",
+ "thiserror 1.0.51",
  "tokio",
  "tokio-stream",
  "tonic",

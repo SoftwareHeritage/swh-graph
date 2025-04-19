@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use swh_graph::graph::SwhForwardGraph;
+use swh_graph::graph::*;
 
 #[derive(Debug)]
 pub enum VisitFlow {
@@ -32,7 +32,7 @@ const DEPTH_SENTINEL: usize = usize::MAX;
 /// for that node, with the number of arcs that were not ignored by `on_arc` as last parameter.
 #[derive(Debug)]
 pub struct SimpleBfsVisitor<
-    G: SwhForwardGraph + Clone,
+    G: SwhForwardGraph,
     Error,
     OnNode: FnMut(usize, u64, Option<u64>) -> Result<VisitFlow, Error>,
     OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
@@ -47,7 +47,7 @@ pub struct SimpleBfsVisitor<
 }
 
 impl<
-        G: SwhForwardGraph + Clone,
+        G: SwhForwardGraph,
         Error,
         OnNode: FnMut(usize, u64, Option<u64>) -> Result<VisitFlow, Error>,
         OnArc: FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
@@ -145,7 +145,7 @@ impl<
     pub fn visit_node(&mut self, node: usize) -> Result<VisitFlow, Error> {
         let num_successors = if self.depth < self.max_depth {
             let mut num_successors = 0;
-            for successor in self.graph.clone().successors(node) {
+            for successor in self.graph.successors(node) {
                 match self.visit_arc(node, successor)? {
                     VisitFlow::Continue => num_successors += 1,
                     VisitFlow::Ignore => {}

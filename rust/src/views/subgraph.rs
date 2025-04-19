@@ -144,6 +144,7 @@ make_filtered_labeled_arcs_iterator! {
 
 /// A view over [`SwhGraph`] and related traits, that filters out some nodes and arcs
 /// based on arbitrary closures.
+#[derive(Clone)]
 pub struct Subgraph<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
 {
     pub graph: G,

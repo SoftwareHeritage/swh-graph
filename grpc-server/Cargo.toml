@@ -11,6 +11,7 @@ categories = ["compression", "science"]
 rust-version = "1.79"
 
 [dependencies]
+thiserror = "1.0.51"
 anyhow.workspace = true
 itertools.workspace = true
 java-properties = "1.4.1"
