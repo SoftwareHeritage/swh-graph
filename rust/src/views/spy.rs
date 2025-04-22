@@ -60,16 +60,20 @@ impl<G: SwhGraph> SwhGraph for GraphSpy<G> {
 }
 
 impl<G: SwhForwardGraph> SwhForwardGraph for GraphSpy<G> {
+    type DataFilesAvailability = <G as SwhForwardGraph>::DataFilesAvailability;
     type Successors<'succ>
         = <G as SwhForwardGraph>::Successors<'succ>
     where
         Self: 'succ;
 
-    fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
+    fn successors(
+        &self,
+        node_id: NodeId,
+    ) -> GraphResult<'_, Self::Successors<'_>, Self::DataFilesAvailability> {
         self.record("successors", (node_id,));
         self.graph.successors(node_id)
     }
-    fn outdegree(&self, node_id: NodeId) -> usize {
+    fn outdegree(&self, node_id: NodeId) -> GraphResult<'_, usize, Self::DataFilesAvailability> {
         self.record("outdegree", (node_id,));
         self.graph.outdegree(node_id)
     }
@@ -92,16 +96,20 @@ impl<G: SwhLabeledForwardGraph> SwhLabeledForwardGraph for GraphSpy<G> {
 }
 
 impl<G: SwhBackwardGraph> SwhBackwardGraph for GraphSpy<G> {
+    type DataFilesAvailability = <G as SwhBackwardGraph>::DataFilesAvailability;
     type Predecessors<'succ>
         = <G as SwhBackwardGraph>::Predecessors<'succ>
     where
         Self: 'succ;
 
-    fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
+    fn predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> GraphResult<'_, Self::Predecessors<'_>, Self::DataFilesAvailability> {
         self.record("predecessors", (node_id,));
         self.graph.predecessors(node_id)
     }
-    fn indegree(&self, node_id: NodeId) -> usize {
+    fn indegree(&self, node_id: NodeId) -> GraphResult<'_, usize, Self::DataFilesAvailability> {
         self.record("indegree", (node_id,));
         self.graph.indegree(node_id)
     }

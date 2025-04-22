@@ -38,6 +38,8 @@ use crate::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use crate::utils::shuffle::par_iter_shuffled_range;
 use crate::utils::suffix_path;
 
+use crate::properties::{DataFilesAvailability, GuaranteedDataFiles}; // FIXME: move this elsewhere
+
 /// Alias for [`usize`], which may become a newtype in a future version.
 pub type NodeId = usize;
 
@@ -205,14 +207,18 @@ pub trait SwhGraph {
 }
 
 pub trait SwhForwardGraph: SwhGraph {
+    type DataFilesAvailability: DataFilesAvailability = GuaranteedDataFiles;
     type Successors<'succ>: IntoIterator<Item = usize>
     where
         Self: 'succ;
 
     /// Return an [`IntoIterator`] over the successors of a node.
-    fn successors(&self, node_id: NodeId) -> Self::Successors<'_>;
+    fn successors(
+        &self,
+        node_id: NodeId,
+    ) -> GraphResult<'_, Self::Successors<'_>, Self::DataFilesAvailability>;
     /// Return the number of successors of a node.
-    fn outdegree(&self, node_id: NodeId) -> usize;
+    fn outdegree(&self, node_id: NodeId) -> GraphResult<'_, usize, Self::DataFilesAvailability>;
 }
 
 pub trait SwhLabeledForwardGraph: SwhForwardGraph {
@@ -249,14 +255,18 @@ pub trait SwhLabeledForwardGraph: SwhForwardGraph {
 }
 
 pub trait SwhBackwardGraph: SwhGraph {
+    type DataFilesAvailability: DataFilesAvailability;
     type Predecessors<'succ>: IntoIterator<Item = usize>
     where
         Self: 'succ;
 
     /// Return an [`IntoIterator`] over the predecessors of a node.
-    fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_>;
+    fn predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> GraphResult<'_, Self::Predecessors<'_>, Self::DataFilesAvailability>;
     /// Return the number of predecessors of a node.
-    fn indegree(&self, node_id: NodeId) -> usize;
+    fn indegree(&self, node_id: NodeId) -> GraphResult<'_, usize, Self::DataFilesAvailability>;
 }
 
 pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
@@ -407,19 +417,26 @@ impl<P, G: UnderlyingGraph> SwhGraph for SwhUnidirectionalGraph<P, G> {
     }
 }
 
+pub type GraphResult<'err, T, DAF> = <DAF as DataFilesAvailability>::Result<'err, T>;
+
 impl<P, G: UnderlyingGraph> SwhForwardGraph for SwhUnidirectionalGraph<P, G> {
+    type DataFilesAvailability = GuaranteedDataFiles;
+
     type Successors<'succ>
         = <G as UnderlyingGraph>::UnlabeledSuccessors<'succ>
     where
         Self: 'succ;
 
     /// Return an [`IntoIterator`] over the successors of a node.
-    fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
+    fn successors(
+        &self,
+        node_id: NodeId,
+    ) -> GraphResult<Self::Successors<'_>, Self::DataFilesAvailability> {
         self.graph.unlabeled_successors(node_id)
     }
 
     /// Return the number of successors of a node.
-    fn outdegree(&self, node_id: NodeId) -> usize {
+    fn outdegree(&self, node_id: NodeId) -> GraphResult<usize, Self::DataFilesAvailability> {
         self.graph.outdegree(node_id)
     }
 }
@@ -678,6 +695,7 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhGraph for SwhBidirectionalG
 impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhForwardGraph
     for SwhBidirectionalGraph<P, FG, BG>
 {
+    type DataFilesAvailability = GuaranteedDataFiles;
     type Successors<'succ>
         = <FG as UnderlyingGraph>::UnlabeledSuccessors<'succ>
     where
@@ -714,6 +732,7 @@ where
 impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBackwardGraph
     for SwhBidirectionalGraph<P, FG, BG>
 {
+    type DataFilesAvailability = GuaranteedDataFiles;
     type Predecessors<'succ>
         = <BG as UnderlyingGraph>::UnlabeledSuccessors<'succ>
     where

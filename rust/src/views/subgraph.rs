@@ -235,6 +235,7 @@ impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> 
 impl<G: SwhForwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
     SwhForwardGraph for Subgraph<G, NodeFilter, ArcFilter>
 {
+    type DataFilesAvailability = <G as SwhForwardGraph>::DataFilesAvailability;
     type Successors<'succ>
         = FilteredSuccessors<
         'succ,
@@ -245,7 +246,10 @@ impl<G: SwhForwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usi
     where
         Self: 'succ;
 
-    fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
+    fn successors(
+        &self,
+        node_id: NodeId,
+    ) -> GraphResult<'_, Self::Successors<'_>, Self::DataFilesAvailability> {
         FilteredSuccessors {
             inner: self.graph.successors(node_id).into_iter(),
             node: node_id,
@@ -253,7 +257,7 @@ impl<G: SwhForwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usi
             arc_filter: &self.arc_filter,
         }
     }
-    fn outdegree(&self, node_id: NodeId) -> usize {
+    fn outdegree(&self, node_id: NodeId) -> GraphResult<'_, usize, Self::DataFilesAvailability> {
         self.successors(node_id).count()
     }
 }
@@ -261,6 +265,7 @@ impl<G: SwhForwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usi
 impl<G: SwhBackwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
     SwhBackwardGraph for Subgraph<G, NodeFilter, ArcFilter>
 {
+    type DataFilesAvailability = G::DataFilesAvailability;
     type Predecessors<'succ>
         = FilteredPredecessors<
         'succ,
@@ -271,7 +276,10 @@ impl<G: SwhBackwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, us
     where
         Self: 'succ;
 
-    fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
+    fn predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> GraphResult<'_, Self::Predecessors<'_>, Self::DataFilesAvailability> {
         FilteredPredecessors {
             inner: self.graph.predecessors(node_id).into_iter(),
             node: node_id,
@@ -279,7 +287,7 @@ impl<G: SwhBackwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, us
             arc_filter: &self.arc_filter,
         }
     }
-    fn indegree(&self, node_id: NodeId) -> usize {
+    fn indegree(&self, node_id: NodeId) -> GraphResult<'_, usize, Self::DataFilesAvailability> {
         self.predecessors(node_id).count()
     }
 }
