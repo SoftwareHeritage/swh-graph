@@ -36,6 +36,15 @@ where
     pub(crate) successors: Successors,
 }
 
+impl<Successors: Iterator> LabeledSuccessorIterator<Successors>
+where
+    <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator<Item: Borrow<u64>>>,
+{
+    pub fn new(successors: Successors) -> Self {
+        LabeledSuccessorIterator { successors }
+    }
+}
+
 impl<Successors: Iterator> Iterator for LabeledSuccessorIterator<Successors>
 where
     <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator<Item: Borrow<u64>>>,
