@@ -306,3 +306,31 @@ impl<G: SwhGraphWithProperties> SwhGraphWithProperties for StubBackwardArcs<G> {
         self.0.properties()
     }
 }
+
+/// Empty implementation of [`properties::Labels`] that never returns values
+pub struct StubLabelNames;
+
+pub struct EmptyGetIndex<Output>(std::marker::PhantomData<Output>);
+impl<Output> swh_graph::utils::GetIndex for EmptyGetIndex<Output> {
+    type Output = Output;
+    fn len(&self) -> usize {
+        0
+    }
+    fn get(&self, _: usize) -> std::option::Option<<Self as swh_graph::utils::GetIndex>::Output> {
+        None
+    }
+    unsafe fn get_unchecked(&self, _: usize) -> <Self as swh_graph::utils::GetIndex>::Output {
+        panic!("EmptyGetIndex::get_unchecked")
+    }
+}
+
+impl properties::LabelNames for StubLabelNames {
+    type LabelNames<'a>
+        = EmptyGetIndex<Vec<u8>>
+    where
+        Self: 'a;
+
+    fn label_names(&self) -> Self::LabelNames<'_> {
+        EmptyGetIndex(std::marker::PhantomData)
+    }
+}

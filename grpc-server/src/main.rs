@@ -16,7 +16,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use swh_graph::graph::*;
 use swh_graph::views::Subgraph;
 
-use swh_graph_grpc_server::graph::SwhOptFullGraph;
+use swh_graph_grpc_server::graph::*;
 
 #[derive(ValueEnum, Clone, Debug)]
 enum Direction {
@@ -85,9 +85,7 @@ pub fn main() -> Result<()> {
                     .opt_load_contents()
                     .context("Could not load content properties")?
                     .opt_load_strings()
-                    .context("Could not load string properties")?
-                    .load_label_names()
-                    .context("Could not load label names")
+                    .context("Could not load string properties")
             })
         };
     }
@@ -98,11 +96,21 @@ pub fn main() -> Result<()> {
             let graph = load_properties!(graph)?;
             match args.labels {
                 Labels::Bidirectional => {
-                    let graph = graph.load_labels().context("Could not load labels")?;
+                    let graph = graph
+                        .load_properties(|properties| {
+                            properties
+                                .load_label_names()
+                                .context("Could not load label names")
+                        })?
+                        .load_labels()
+                        .context("Could not load labels")?;
                     main2(graph, args)
                 }
                 Labels::None => {
-                    let graph = swh_graph_grpc_server::graph::StubLabels::new(graph);
+                    let graph = graph.load_properties(|properties| {
+                        properties.with_label_names(StubLabelNames)
+                    })?;
+                    let graph = StubLabels::new(graph);
                     main2(graph, args)
                 }
             }
@@ -113,13 +121,23 @@ pub fn main() -> Result<()> {
             let graph = load_properties!(graph)?;
             match args.labels {
                 Labels::Bidirectional => {
-                    let graph = graph.load_labels().context("Could not load labels")?;
-                    let graph = swh_graph_grpc_server::graph::StubBackwardArcs::new(graph);
+                    let graph = graph
+                        .load_properties(|properties| {
+                            properties
+                                .load_label_names()
+                                .context("Could not load label names")
+                        })?
+                        .load_labels()
+                        .context("Could not load labels")?;
+                    let graph = StubBackwardArcs::new(graph);
                     main2(graph, args)
                 }
                 Labels::None => {
-                    let graph = swh_graph_grpc_server::graph::StubBackwardArcs::new(graph);
-                    let graph = swh_graph_grpc_server::graph::StubLabels::new(graph);
+                    let graph = graph.load_properties(|properties| {
+                        properties.with_label_names(StubLabelNames)
+                    })?;
+                    let graph = StubBackwardArcs::new(graph);
+                    let graph = StubLabels::new(graph);
                     main2(graph, args)
                 }
             }
