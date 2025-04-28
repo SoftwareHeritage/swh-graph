@@ -45,16 +45,12 @@ Some steps also involve sorting the entire set of edges and their labels, by
 using large on-disk buffer files, sometimes reaching the size of the input
 dataself itself.
 
-The machine we used to compress the entire graph (dataset version 2022-04-25)
-has the following hardware specs:
+The machine we used to compress the entire graph (dataset version 2024-12-06)
+is a HPE ProLiant DL380 Gen10 Plus with the following hardware specs:
 
-- 2 TiB of RAM (DDR4 ECC 2400Mhz)
-- 64 vCPUs (Dual AMD EPYC 7302 16-Core)
-- 24 TiB of SSD (NVMe)
-
-The server we rented is from the
-`HGR-HCI-4 <https://www.ovhcloud.com/en/bare-metal/high-grade/hgr-hci-4/>`_
-series from OVH.
+- 4 TiB of RAM (30 × DDR4 LRDIMM 128 Go )
+- 2 CPUs with 48 threads each (Intel Xeon Gold 6342 CPU @ 2.80GHz)
+- 77 TiB of SSD (NVMe)
 
 
 Input dataset
@@ -122,12 +118,11 @@ It is also possible to run single steps or step ranges from the CLI:
 
 See ``swh graph compress --help`` for syntax and usage details.
 
-For some steps, Java will try to allocate terabytes of memory in sub-gigabyte
-segments, so you should increase the number of allowed allocations first:
+For some steps, we will need to open many files, so you should increase the limit if possible:
 
 .. code:: bash
 
-    sudo sysctl -w vm.max_map_count=1966080
+    ulimit -Sn 1048576
 
 .. _swh-graph-compression-steps:
 
