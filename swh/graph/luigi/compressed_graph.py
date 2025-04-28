@@ -823,7 +823,7 @@ class TransposeEf(_CompressionStepTask):
 class Maps(_CompressionStepTask):
     STEP = CompressionStep.MAPS
     INPUT_FILES = {".pthash", ".pthash.order", ".nodes/"}
-    OUTPUT_FILES = {".node2swhid.bin"}
+    OUTPUT_FILES = {".node2swhid.bin", ".node2type.bin"}
 
     def _large_allocations(self) -> int:
         mph_size = self._mph_size()
@@ -1080,6 +1080,138 @@ _duplicate_outputs = [
     if count != 1
 ]
 assert not _duplicate_outputs, f"Duplicate outputs: {_duplicate_outputs}"
+
+
+def _make_dot_diagram() -> str:
+    import io
+
+    def normalize_filename(filename: str) -> str:
+        return filename.replace("-", "_").replace(".", "_").replace("/", "_dir")
+
+    def is_node_properties_file(filename: str) -> bool:
+        return filename.startswith(".property.")
+
+    s = io.StringIO()
+    s.write('digraph "Compression steps" {\n')
+    s.write("    node [shape = none];\n\n")
+    s.write('    orc_dataset [label="ORC Graph\nDataset"];\n')
+
+    filenames = set()
+    for cls in _CompressionStepTask.__subclasses__():
+        filenames.update(cls.INPUT_FILES)
+        filenames.update(cls.OUTPUT_FILES)
+
+    # filter out the many graph.properties.* files
+    filenames = {
+        filename for filename in filenames if not is_node_properties_file(filename)
+    }
+
+    # TODO: auto-generate this from CLEAN_TMP step
+    temporary_filenames = {
+        filename
+        for filename in filenames
+        if filename.startswith(("-base.", "-bfs.", "-bfs-", "-llp."))
+        or filename.endswith(".csv.zst")
+        or filename in (".nodes/",)
+    }
+
+    # non-temporary file nodes
+    s.write('    node_properties [label="graph.properties.*"];\n')
+    for filename in filenames - temporary_filenames:
+        s.write(f'    {normalize_filename(filename)} [label="graph{filename}"]\n')
+
+    # temporary file nodes
+    s.write("    subgraph {\n")
+    s.write("    node [fontcolor=darkgray];\n")
+    for filename in temporary_filenames:
+        s.write(f'    {normalize_filename(filename)} [label="graph{filename}"]\n')
+    s.write("    }\n\n")
+
+    # task nodes
+    s.write("    subgraph {\n")
+    s.write('        node [shape=box, fontname="Courier New"];\n')
+    for cls in _CompressionStepTask.__subclasses__():
+        s.write(f"        {cls.STEP};\n")
+    s.write("    }\n\n")
+
+    # cluster label-related steps together
+    s.write("    subgraph cluster_labels {\n")
+    s.write('        style = "dashed";\n')
+    s.write('        label = "edge labels";\n')
+    for filename in filenames:
+        if "label" in filename:
+            s.write(f"        {normalize_filename(filename)}\n")
+    for cls in _CompressionStepTask.__subclasses__():
+        if "label" in str(cls.STEP).lower():
+            s.write(f"        {cls.STEP};\n")
+    s.write("    }\n\n")
+
+    """
+    # cluster extract/stats generation steps together
+    s.write("    subgraph cluster_extract_and_stats {\n")
+    s.write('        style = "dashed";\n')
+    s.write('        label = "extraction and counts";\n')
+    for cls in _CompressionStepTask.__subclasses__():
+        if str(cls.STEP).startswith("EXTRACT_") or str(cls.STEP).endswith("_STATS"):
+            s.write(f"        {cls.STEP};\n")
+            for filename in cls.OUTPUT_FILES:
+                s.write(f"        {normalize_filename(filename)}\n")
+    s.write("    }\n\n")
+    """
+
+    # cluster node ordering-related steps together
+    s.write("    subgraph cluster_node_order {\n")
+    s.write('        style = "dashed";\n')
+    s.write('        label = "node ordering";\n')
+    for cls in _CompressionStepTask.__subclasses__():
+        if cls.STEP in {
+            CompressionStep.MPH,
+            CompressionStep.BV,
+            CompressionStep.BV_EF,
+            CompressionStep.LLP,
+            CompressionStep.COMPOSE_ORDERS,
+        } or "BFS" in str(cls.STEP):
+            s.write(f"        {cls.STEP};\n")
+            for filename in cls.OUTPUT_FILES:
+                s.write(f"        {normalize_filename(filename)}\n")
+    s.write("    }\n\n")
+
+    # cluster .graph generation steps together
+    s.write("    subgraph cluster_arclists {\n")
+    s.write('        style = "dashed";\n')
+    s.write('        label = "arc lists";\n')
+    for cls in _CompressionStepTask.__subclasses__():
+        if cls.STEP in {
+            CompressionStep.PERMUTE_LLP,
+            CompressionStep.OFFSETS,
+            CompressionStep.EF,
+            CompressionStep.TRANSPOSE,
+            CompressionStep.TRANSPOSE_OFFSETS,
+            CompressionStep.TRANSPOSE_EF,
+        }:
+            s.write(f"        {cls.STEP};\n")
+            for filename in cls.OUTPUT_FILES:
+                s.write(f"        {normalize_filename(filename)}\n")
+    s.write("    }\n\n")
+
+    # arcs
+    for cls in _CompressionStepTask.__subclasses__():
+        if cls.EXPORT_AS_INPUT:
+            s.write(f"orc_dataset -> {cls.STEP};\n")
+        for filename in cls.INPUT_FILES:
+            assert not is_node_properties_file(filename)
+            s.write(f"{normalize_filename(filename)} -> {cls.STEP};\n")
+        if cls.STEP == CompressionStep.NODE_PROPERTIES:
+            s.write(f"{cls.STEP} -> node_properties;\n")
+            assert all(map(is_node_properties_file, cls.OUTPUT_FILES))
+        else:
+            for filename in cls.OUTPUT_FILES:
+                assert not is_node_properties_file(filename), cls.STEP
+                s.write(f"{cls.STEP} -> {normalize_filename(filename)};\n")
+
+    s.write("}\n")
+
+    return s.getvalue()
 
 
 class CompressGraph(luigi.Task):
