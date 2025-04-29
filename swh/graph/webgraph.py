@@ -49,11 +49,9 @@ class CompressionStep(Enum):
     LLP = 100
     COMPOSE_ORDERS = 110
     PERMUTE_LLP = 120
-    OFFSETS = 130
     EF = 140
     TRANSPOSE = 160
-    TRANSPOSE_OFFSETS = 170
-    TRANSPOSE_EF = 175
+    TRANSPOSE_EF = 170
     MAPS = 180
     EXTRACT_PERSONS = 190
     PERSONS_STATS = 195
@@ -227,11 +225,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--permutation",
         "{out_dir}/{graph_name}.pthash.order",
     ],
-    CompressionStep.OFFSETS: [
-        "{rust_executable_dir}/swh-graph-index",
-        "offsets",
-        "{out_dir}/{graph_name}",
-    ],
     CompressionStep.EF: [
         "{rust_executable_dir}/swh-graph-index",
         "ef",
@@ -241,11 +234,6 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{rust_executable_dir}/swh-graph-compress",
         "transpose",
         "{out_dir}/{graph_name}",
-        "{out_dir}/{graph_name}-transposed",
-    ],
-    CompressionStep.TRANSPOSE_OFFSETS: [
-        "{rust_executable_dir}/swh-graph-index",
-        "offsets",
         "{out_dir}/{graph_name}-transposed",
     ],
     CompressionStep.TRANSPOSE_EF: [

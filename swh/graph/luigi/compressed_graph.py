@@ -747,7 +747,7 @@ class Llp(_CompressionStepTask):
 class PermuteLlp(_CompressionStepTask):
     STEP = CompressionStep.PERMUTE_LLP
     INPUT_FILES = {".pthash.order", "-base.graph", "-base.ef"}
-    OUTPUT_FILES = {".graph", ".properties"}
+    OUTPUT_FILES = {".graph", ".offsets", ".properties"}
 
     def _large_allocations(self) -> int:
         # TODO: this was written for the Java implementation; update this for Rust
@@ -770,15 +770,6 @@ class PermuteLlp(_CompressionStepTask):
 
         extra_size = self._nb_nodes() * 16  # FIXME: why is this needed?
         return permutation_size + source_batch_size + target_batch_size + extra_size
-
-
-class Offsets(_CompressionStepTask):
-    STEP = CompressionStep.OFFSETS
-    INPUT_FILES = {".graph"}
-    OUTPUT_FILES = {".offsets"}
-
-    def _large_allocations(self) -> int:
-        return 0
 
 
 class Ef(_CompressionStepTask):
@@ -805,7 +796,11 @@ class Transpose(_CompressionStepTask):
     # .obl is an optional input; but we need to make sure it's not being written
     # while Transpose is starting, or Transpose would error with EOF while reading it
     INPUT_FILES = {".graph", ".ef"}
-    OUTPUT_FILES = {"-transposed.graph", "-transposed.properties"}
+    OUTPUT_FILES = {
+        "-transposed.graph",
+        "-transposed.offsets",
+        "-transposed.properties",
+    }
 
     def _large_allocations(self) -> int:
         from swh.graph.config import check_config
@@ -822,16 +817,6 @@ class Transpose(_CompressionStepTask):
         return (
             permutation_size + source_batch_size + target_batch_size + start_batch_size
         )
-
-
-class TransposeOffsets(_CompressionStepTask):
-    STEP = CompressionStep.TRANSPOSE_OFFSETS
-    INPUT_FILES = {"-transposed.graph"}
-    OUTPUT_FILES = {"-transposed.offsets"}
-
-    def _large_allocations(self) -> int:
-        bvgraph_size = self._bvgraph_allocation()
-        return bvgraph_size
 
 
 class TransposeEf(_CompressionStepTask):
@@ -1249,10 +1234,8 @@ def _make_dot_diagram() -> str:
     for cls in _CompressionStepTask.__subclasses__():
         if cls.STEP in {
             CompressionStep.PERMUTE_LLP,
-            CompressionStep.OFFSETS,
             CompressionStep.EF,
             CompressionStep.TRANSPOSE,
-            CompressionStep.TRANSPOSE_OFFSETS,
             CompressionStep.TRANSPOSE_EF,
         }:
             s.write(f"        {cls.STEP};\n")
