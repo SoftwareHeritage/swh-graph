@@ -447,8 +447,8 @@ node ID matching the input SWHID in the graph.
 .. _graph-compression-transpose-offsets:
 .. _graph-compression-transpose-ef:
 
-TRANSPOSE / TRANSPOSE_OFFSETS / TRANSPOSE_EF
---------------------------------------------
+TRANSPOSE / TRANSPOSE_EF
+------------------------
 
 Transpose the graph to allow backward traversal.
 The resulting transposed graph is stored as the
