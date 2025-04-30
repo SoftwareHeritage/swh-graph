@@ -95,7 +95,7 @@ def test_reindex(mocker, tmpdir, option):
             [
                 "--config-file",
                 config_path,
-                "--target",
+                "--profile",
                 "debug",
                 "reindex",
                 f"{tmpdir}/example",

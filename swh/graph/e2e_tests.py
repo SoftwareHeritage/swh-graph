@@ -23,7 +23,7 @@ def run_e2e_test(
     in_dir: Optional[str],
     out_dir: Optional[str],
     test_flavor: Optional[str],
-    target: str = "release",
+    profile: str = "release",
 ):
     """Empirically test the graph compression correctness.
 
@@ -37,7 +37,7 @@ def run_e2e_test(
         in_dir: input directory, where the uncompressed graph can be found
         out_dir: output directory, where the compressed graph will be stored
         test_flavor: which flavor of tests to run
-        target: Which Rust executables to use
+        profile: Which Rust executables to use
 
     Raises:
         Exception: GRPC server unexpectedly stopped
@@ -52,7 +52,7 @@ def run_e2e_test(
     from swh.graph.grpc_server import spawn_rust_grpc_server, stop_grpc_server
 
     conf = check_config_compress(
-        {"target": target}, graph_name, in_dir, out_dir, test_flavor
+        {"profile": profile}, graph_name, in_dir, out_dir, test_flavor
     )
 
     graph_name = conf["graph_name"]

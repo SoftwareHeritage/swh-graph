@@ -411,13 +411,13 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         in_dir=sys.argv[2],\
         out_dir=sys.argv[3],\
         test_flavor=sys.argv[4],\
-        target=sys.argv[5],\
+        profile=sys.argv[5],\
         )'",
         "{graph_name}",
         "{in_dir}",
         "{out_dir}",
         "{test_flavor}",
-        "{target}",
+        "{profile}",
     ],
     CompressionStep.CLEAN_TMP: [
         "rm",

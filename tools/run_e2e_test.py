@@ -15,5 +15,5 @@ run_e2e_test(
     in_dir="swh/graph/example_dataset/orc/",
     out_dir="swh/graph/example_dataset/compressed/",
     test_flavor="example",
-    target="debug",
+    profile="debug",
 )

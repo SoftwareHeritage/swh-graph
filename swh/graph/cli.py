@@ -92,13 +92,13 @@ DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {
     help="YAML configuration file",
 )
 @click.option(
-    "--target",
+    "--profile",
     type=str,
-    help="Which Rust target to use executables from, usually 'release' "
+    help="Which Rust profile to use executables from, usually 'release' "
     "(the default) or 'debug'.",
 )
 @click.pass_context
-def graph_cli_group(ctx, config_file, target):
+def graph_cli_group(ctx, config_file, profile):
     """Software Heritage graph tools."""
     from swh.core import config
 
@@ -110,9 +110,9 @@ def graph_cli_group(ctx, config_file, target):
         )
     ctx.obj["config"] = conf
 
-    if target is None:
-        target = conf.get("target", "release")
-    conf["target"] = target
+    if profile is None:
+        profile = conf.get("profile", "release")
+    conf["profile"] = profile
 
 
 @graph_cli_group.command(name="rpc-serve")
