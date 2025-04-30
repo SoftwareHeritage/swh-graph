@@ -334,16 +334,40 @@ fn label_width(mphf: &LabelNameMphf) -> usize {
         .expect("Could not get current time")
         .as_secs();
 
-    [
+    let max_label = [
         EdgeLabel::Branch(Branch::new(FilenameId(num_label_names)).unwrap()),
         EdgeLabel::DirEntry(DirEntry::new(Permission::None, FilenameId(num_label_names)).unwrap()),
         EdgeLabel::Visit(Visit::new(VisitStatus::Full, max_visit_timestamp).unwrap()),
     ]
     .into_iter()
     .map(|label| UntypedEdgeLabel::from(label).0) // Convert to on-disk representation
-    .map(|label| label.checked_ilog2().unwrap() + 1) // Number of bits needed to represent it
     .max()
-    .unwrap() as usize
+    .unwrap();
+    width_for_max_label_value(max_label)
+}
+
+/// Given the maximum label, returns the number of bits needed to represent labels
+fn width_for_max_label_value(max_label: u64) -> usize {
+    let num_label_values = max_label + 1; // because we want to represent all values from 0 to max_label inclusive
+    let num_values = num_label_values + 1; // because the max value is used to represent the lack of value (ie. None)
+    num_values
+        .next_power_of_two() // because checked_ilog2() rounds down
+        .checked_ilog2()
+        .unwrap() as usize
+}
+
+#[test]
+fn test_width_for_max_label_value() {
+    assert_eq!(width_for_max_label_value(0), 1); // values are 0 and None
+    assert_eq!(width_for_max_label_value(1), 2); // values are 0, 1, and None
+    assert_eq!(width_for_max_label_value(2), 2); // values are 0, 1, 2, and None
+    for i in 3..=6 {
+        assert_eq!(width_for_max_label_value(i), 3);
+    }
+    for i in 7..=14 {
+        assert_eq!(width_for_max_label_value(i), 4);
+    }
+    assert_eq!(width_for_max_label_value(15), 5);
 }
 
 #[derive(Clone, Copy)]
