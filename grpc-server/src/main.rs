@@ -56,7 +56,26 @@ pub fn main() -> Result<()> {
     let statsd_client = swh_graph_grpc_server::statsd::statsd_client(args.statsd_host)?;
 
     log::info!("Loading graph");
-    let graph = load_full::<swh_graph::mph::DynMphf>(args.graph_path)?;
+    let graph = SwhBidirectionalGraph::new(args.graph_path)
+        .context("Could not load graph")?
+        .init_properties()
+        .load_properties(|properties| {
+            properties
+                .load_maps::<swh_graph::mph::DynMphf>()
+                .context("Could not load maps")?
+                .opt_load_timestamps()
+                .context("Could not load timestamp properties")?
+                .opt_load_persons()
+                .context("Could not load person properties")?
+                .opt_load_contents()
+                .context("Could not load content properties")?
+                .opt_load_strings()
+                .context("Could not load string properties")?
+                .load_label_names()
+                .context("Could not load label names")
+        })?
+        .load_labels()
+        .context("Could not load labels")?;
 
     let mut masked_nodes = HashSet::new();
     if let Some(masked_nodes_path) = args.masked_nodes {

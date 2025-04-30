@@ -1,11 +1,15 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
 use super::proto;
-use swh_graph::graph::SwhFullGraph;
+use swh_graph::graph::*;
 use swh_graph::labels::{EdgeLabel, VisitStatus};
+use swh_graph::properties::{
+    DataFilesAvailability, LabelNames, Maps, OptContents, OptPersons, OptStrings, OptTimestamps,
+    PropertiesBackend,
+};
 use swh_graph::NodeType;
 
 /// Bit masks selecting which fields should be included by [`NodeBuilder`], based on
@@ -69,7 +73,21 @@ pub struct NodeBuilder<G: Clone + Send + Sync + 'static> {
     bitmask: u32,
 }
 
-impl<G: SwhFullGraph + Clone + Send + Sync + 'static> NodeBuilder<G> {
+impl<
+        G: SwhLabeledForwardGraph
+            + SwhGraphWithProperties<
+                Maps: Maps,
+                Strings: OptStrings,
+                LabelNames: LabelNames,
+                Contents: OptContents,
+                Persons: OptPersons,
+                Timestamps: OptTimestamps,
+            > + Clone
+            + Send
+            + Sync
+            + 'static,
+    > NodeBuilder<G>
+{
     pub fn new(graph: G, mask: Option<prost_types::FieldMask>) -> Result<Self, tonic::Status> {
         let Some(mask) = mask else {
             return Ok(NodeBuilder {
@@ -221,16 +239,23 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> NodeBuilder<G> {
     fn build_content_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Cnt(proto::ContentData {
-            length: self.if_mask(CNT_LENGTH, || {
-                Some(
-                    properties
-                        .content_length(node_id)?
-                        .try_into()
-                        .expect("Content length overflowed i64"),
+            length: self.if_mask_opt::<G::Contents, _>(CNT_LENGTH, || {
+                G::Contents::map_if_available(
+                    properties.content_length(node_id),
+                    |content_length: Option<u64>| {
+                        Some(
+                            content_length?
+                                .try_into()
+                                .expect("Content length overflowed i64"),
+                        )
+                    },
                 )
             }),
-            is_skipped: self.if_mask(CNT_IS_SKIPPED, || {
-                Some(properties.is_skipped_content(node_id))
+            is_skipped: self.if_mask_opt::<G::Contents, _>(CNT_IS_SKIPPED, || {
+                G::Contents::map_if_available(
+                    properties.is_skipped_content(node_id),
+                    |is_skipped_content: bool| Some(is_skipped_content),
+                )
             }),
         })
     }
@@ -238,40 +263,74 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> NodeBuilder<G> {
     fn build_revision_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Rev(proto::RevisionData {
-            author: self.if_mask(REV_AUTHOR, || Some(properties.author_id(node_id)? as i64)),
-            author_date: self.if_mask(REV_AUTHOR_DATE, || properties.author_timestamp(node_id)),
-            author_date_offset: self.if_mask(REV_AUTHOR_DATE_OFFSET, || {
-                Some(properties.author_timestamp_offset(node_id)?.into())
+            author: self.if_mask_opt::<G::Persons, _>(REV_AUTHOR, || {
+                G::Persons::map_if_available(properties.author_id(node_id), |author_id| {
+                    Some(author_id? as i64)
+                })
             }),
-            committer: self.if_mask(REV_COMMITTER, || {
-                Some(properties.committer_id(node_id)? as i64)
+            author_date: self.if_mask_opt::<G::Timestamps, _>(REV_AUTHOR_DATE, || {
+                properties.author_timestamp(node_id)
             }),
-            committer_date: self.if_mask(REV_COMMITTER_DATE, || {
+            author_date_offset: self.if_mask_opt::<G::Timestamps, _>(
+                REV_AUTHOR_DATE_OFFSET,
+                || {
+                    G::Timestamps::map_if_available(
+                        properties.author_timestamp_offset(node_id),
+                        |author_timestamp_offset| Some(author_timestamp_offset?.into()),
+                    )
+                },
+            ),
+            committer: self.if_mask_opt::<G::Persons, _>(REV_COMMITTER, || {
+                G::Persons::map_if_available(properties.committer_id(node_id), |committer_id| {
+                    Some(committer_id? as i64)
+                })
+            }),
+            committer_date: self.if_mask_opt::<G::Timestamps, _>(REV_COMMITTER_DATE, || {
                 properties.committer_timestamp(node_id)
             }),
-            committer_date_offset: self.if_mask(REV_COMMITTER_DATE_OFFSET, || {
-                Some(properties.committer_timestamp_offset(node_id)?.into())
-            }),
-            message: self.if_mask(REV_MESSAGE, || properties.message(node_id)),
+            committer_date_offset: self.if_mask_opt::<G::Timestamps, _>(
+                REV_COMMITTER_DATE_OFFSET,
+                || {
+                    G::Timestamps::map_if_available(
+                        properties.committer_timestamp_offset(node_id),
+                        |committer_timestamp_offset| Some(committer_timestamp_offset?.into()),
+                    )
+                },
+            ),
+            message: self.if_mask_opt::<G::Strings, _>(REV_MESSAGE, || properties.message(node_id)),
         })
     }
     fn build_release_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Rel(proto::ReleaseData {
-            author: self.if_mask(REL_AUTHOR, || Some(properties.author_id(node_id)? as i64)),
-            author_date: self.if_mask(REL_AUTHOR_DATE, || properties.author_timestamp(node_id)),
-            author_date_offset: self.if_mask(REL_AUTHOR_DATE_OFFSET, || {
-                Some(properties.author_timestamp_offset(node_id)?.into())
+            author: self.if_mask_opt::<G::Persons, _>(REL_AUTHOR, || {
+                G::Persons::map_if_available(properties.author_id(node_id), |author_id| {
+                    Some(author_id? as i64)
+                })
             }),
-            name: self.if_mask(REL_NAME, || properties.tag_name(node_id)),
-            message: self.if_mask(REL_MESSAGE, || properties.message(node_id)),
+            author_date: self.if_mask_opt::<G::Timestamps, _>(REL_AUTHOR_DATE, || {
+                properties.author_timestamp(node_id)
+            }),
+            author_date_offset: self.if_mask_opt::<G::Timestamps, _>(
+                REL_AUTHOR_DATE_OFFSET,
+                || {
+                    G::Timestamps::map_if_available(
+                        properties.author_timestamp_offset(node_id),
+                        |author_timestamp_offset| Some(author_timestamp_offset?.into()),
+                    )
+                },
+            ),
+            name: self.if_mask_opt::<G::Strings, _>(REL_NAME, || properties.tag_name(node_id)),
+            message: self.if_mask_opt::<G::Strings, _>(REL_MESSAGE, || properties.message(node_id)),
         })
     }
     fn build_origin_data(&self, node_id: usize) -> proto::node::Data {
         let properties = self.graph.properties();
         proto::node::Data::Ori(proto::OriginData {
-            url: self.if_mask(ORI_URL, || {
-                Some(String::from_utf8_lossy(&properties.message(node_id)?).into())
+            url: self.if_mask_opt::<G::Strings, _>(ORI_URL, || {
+                G::Strings::map_if_available(properties.message(node_id), |message: Option<_>| {
+                    message.map(|message| String::from_utf8_lossy(&message).into())
+                })
             }),
         })
     }
@@ -281,6 +340,18 @@ impl<G: SwhFullGraph + Clone + Send + Sync + 'static> NodeBuilder<G> {
             T::default()
         } else {
             f()
+        }
+    }
+
+    fn if_mask_opt<'err, PB: PropertiesBackend, T: Default>(
+        &self,
+        mask: u32,
+        f: impl FnOnce() -> <PB::DataFilesAvailability as DataFilesAvailability>::Result<'err, T>,
+    ) -> T {
+        if self.bitmask & mask == 0 {
+            T::default()
+        } else {
+            PB::DataFilesAvailability::make_result(f()).unwrap_or_default()
         }
     }
 }

@@ -53,6 +53,131 @@ pub(crate) mod suffixes {
     pub const LABEL_NAME: &str = ".labels.fcl";
 }
 
+#[derive(thiserror::Error, Debug)]
+#[error("{path} cannot be loaded: {source}")]
+pub struct UnavailableProperty {
+    path: PathBuf,
+    #[source]
+    source: std::io::Error,
+}
+
+/// Wrapper for the return type of [`SwhGraphProperties`] methods.
+///
+/// When `B` implements `GuaranteedDataFiles` (the most common case), `PropertiesResult<'err, T, B>`
+/// is exactly the same type as `T`.
+///
+/// aWhen `B` implements `OptionalDataFiles` (which is the case when using
+/// `opt_load_*` instead of `load_*` or [`load_all`](SwhGraphProperties::load_all) for example),
+/// then `PropertiesResult<'err, T, B>` is exactly the same type as `Result<T, &'err UnavailableProperty>`.
+pub type PropertiesResult<'err, T, B> =
+    <<B as PropertiesBackend>::DataFilesAvailability as DataFilesAvailability>::Result<'err, T>;
+
+/// Common trait for type parameters of [`SwhGraphProperties`]
+pub trait PropertiesBackend {
+    type DataFilesAvailability: DataFilesAvailability;
+
+    /// Applies the given function `f` to the value `v` if the value is available
+    ///
+    /// This is an alias for `<Self::DataFilesAvailability as DataFilesAvailability>::map(v, f)`,
+    /// meaning that:
+    ///
+    /// 1. if `Self::DataFilesAvailability` is `GuaranteedDataFiles`, then `map_if_available(v, f)`
+    ///    is equivalent to `f(v)` and has type `U`
+    /// 2. if `Self::DataFilesAvailability` is `OptionalDataFiles`, then `map_if_available(v, f)`
+    ///    is equivalent to `v.map(f)` and has type `Result<U, &'err UnavailableProperty>`
+    fn map_if_available<T, U>(
+        v: <Self::DataFilesAvailability as DataFilesAvailability>::Result<'_, T>,
+        f: impl FnOnce(T) -> U,
+    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<'_, U> {
+        <Self::DataFilesAvailability as DataFilesAvailability>::map(v, f)
+    }
+
+    /// Returns `(v1, v2)` if both are available, or an error otherwise
+    ///
+    /// This is an alias for `<Self::DataFilesAvailability as DataFilesAvailability>::zip(v, f)`,
+    /// meaning that:
+    ///
+    /// 1. if `Self::DataFilesAvailability` is `GuaranteedDataFiles`, then `zip_if_available(v1, v2)`
+    ///    is equivalent to `(v1, v2)` and has type `(T1, T2)`
+    /// 2. if `Self::DataFilesAvailability` is `OptionalDataFiles`, then `zip_if_available(v1, v2)`
+    ///    is equivalent to `v1.and_then(|v1| v2.map(|v2| (v1, v2)))` and has type
+    ///    `Result<(T1, T2), &'err UnavailableProperty>`
+    fn zip_if_available<'err, T1, T2>(
+        v1: <Self::DataFilesAvailability as DataFilesAvailability>::Result<'err, T1>,
+        v2: <Self::DataFilesAvailability as DataFilesAvailability>::Result<'err, T2>,
+    ) -> <Self::DataFilesAvailability as DataFilesAvailability>::Result<'err, (T1, T2)> {
+        <Self::DataFilesAvailability as DataFilesAvailability>::zip(v1, v2)
+    }
+}
+
+/// Helper trait to work with [`PropertiesResult`]
+///
+/// It is implemented by:
+/// * [`GuaranteedDataFiles`]: the common case, where data files are guaranteed to exist
+///   once a graph is loaded, in which case `Self::Result<'err, T>` is the same type as `T`
+/// * [`OptionalDataFiles`]: when they are not, in which case `Self::Result<T>`
+///   is the same type as `Result<T, &'err UnavailableProperty>`.
+pub trait DataFilesAvailability {
+    type Result<'err, T>;
+
+    fn map<T, U>(v: Self::Result<'_, T>, f: impl FnOnce(T) -> U) -> Self::Result<'_, U>;
+    fn zip<'err, T1, T2>(
+        v1: Self::Result<'err, T1>,
+        v2: Self::Result<'err, T2>,
+    ) -> Self::Result<'err, (T1, T2)>;
+    fn make_result<T>(value: Self::Result<'_, T>) -> Result<T, &UnavailableProperty>;
+}
+
+/// Helper type that implements [`DataFilesAvailability`] to signal underlying data files
+/// may be missing at runtime
+pub struct OptionalDataFiles {
+    _marker: (), // Prevents users from instantiating
+}
+
+/// Helper type that implements [`DataFilesAvailability`] to signal underlying data files
+/// are guaranteed to be available once the graph is loaded
+pub struct GuaranteedDataFiles {
+    _marker: (), // Prevents users from instantiating
+}
+
+impl DataFilesAvailability for OptionalDataFiles {
+    type Result<'err, T> = Result<T, &'err UnavailableProperty>;
+
+    fn map<T, U>(v: Self::Result<'_, T>, f: impl FnOnce(T) -> U) -> Self::Result<'_, U> {
+        v.map(f)
+    }
+
+    fn zip<'err, T1, T2>(
+        v1: Self::Result<'err, T1>,
+        v2: Self::Result<'err, T2>,
+    ) -> Self::Result<'err, (T1, T2)> {
+        v1.and_then(|v1| v2.map(|v2| (v1, v2)))
+    }
+
+    fn make_result<T>(value: Self::Result<'_, T>) -> Result<T, &UnavailableProperty> {
+        value
+    }
+}
+
+impl DataFilesAvailability for GuaranteedDataFiles {
+    type Result<'err, T> = T;
+
+    fn map<T, U>(v: Self::Result<'_, T>, f: impl FnOnce(T) -> U) -> Self::Result<'_, U> {
+        f(v)
+    }
+
+    fn zip<'err, T1, T2>(
+        v1: Self::Result<'err, T1>,
+        v2: Self::Result<'err, T2>,
+    ) -> Self::Result<'err, (T1, T2)> {
+        (v1, v2)
+    }
+
+    fn make_result<T>(value: Self::Result<'_, T>) -> Result<T, &UnavailableProperty> {
+        Ok(value)
+    }
+}
+
 /// Properties on graph nodes
 ///
 /// This structures has many type parameters, to allow loading only some properties,
@@ -121,25 +246,14 @@ pub type AllSwhGraphProperties<MPHF> = SwhGraphProperties<
     MappedLabelNames,
 >;
 
-fn mmap(path: &Path) -> Result<Mmap> {
-    let file_len = path
-        .metadata()
-        .with_context(|| format!("Could not stat {}", path.display()))?
-        .len();
-    let file =
-        std::fs::File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
-    let data = unsafe {
-        mmap_rs::MmapOptions::new(file_len as _)
-            .with_context(|| format!("Could not initialize mmap of size {}", file_len))?
-            .with_flags(
-                mmap_rs::MmapFlags::TRANSPARENT_HUGE_PAGES | mmap_rs::MmapFlags::RANDOM_ACCESS,
-            )
-            .with_file(&file, 0)
-            .map()
-            .with_context(|| format!("Could not mmap {}", path.display()))?
-    };
-    Ok(data)
-}
+pub type AllSwhGraphDynProperties<MPHF> = SwhGraphProperties<
+    MappedMaps<MPHF>,
+    OptMappedTimestamps,
+    OptMappedPersons,
+    OptMappedContents,
+    OptMappedStrings,
+    MappedLabelNames,
+>;
 
 impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, NoLabelNames> {
     /// Creates an empty [`SwhGraphProperties`] instance, which will load properties
@@ -205,19 +319,32 @@ mod maps;
 pub use maps::{MappedMaps, Maps, MaybeMaps, NoMaps, NodeIdFromSwhidError, VecMaps};
 
 mod timestamps;
-pub use timestamps::{MappedTimestamps, MaybeTimestamps, NoTimestamps, Timestamps, VecTimestamps};
+pub use timestamps::{
+    MappedTimestamps, MaybeTimestamps, NoTimestamps, OptMappedTimestamps, OptTimestamps,
+    Timestamps, VecTimestamps,
+};
 
 mod persons;
-pub use persons::{MappedPersons, MaybePersons, NoPersons, Persons, VecPersons};
+pub use persons::{
+    MappedPersons, MaybePersons, NoPersons, OptMappedPersons, OptPersons, Persons, VecPersons,
+};
 
 mod contents;
-pub use contents::{Contents, MappedContents, MaybeContents, NoContents, VecContents};
+pub use contents::{
+    Contents, MappedContents, MaybeContents, NoContents, OptContents, OptMappedContents,
+    VecContents,
+};
 
 mod strings;
-pub use strings::{MappedStrings, MaybeStrings, NoStrings, Strings, VecStrings};
+pub use strings::{
+    MappedStrings, MaybeStrings, NoStrings, OptMappedStrings, OptStrings, Strings, VecStrings,
+};
 
 mod label_names;
 pub use label_names::{
     LabelIdFromNameError, LabelNames, MappedLabelNames, MaybeLabelNames, NoLabelNames,
     VecLabelNames,
 };
+
+mod utils;
+use utils::*;

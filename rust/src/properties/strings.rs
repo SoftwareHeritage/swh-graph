@@ -3,25 +3,16 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::{Context, Result};
 use mmap_rs::Mmap;
 
 use super::suffixes::*;
 use super::*;
 use crate::graph::NodeId;
-use crate::utils::suffix_path;
 
 /// Trait implemented by both [`NoStrings`] and all implementors of [`Strings`],
 /// to allow loading string properties only if needed.
 pub trait MaybeStrings {}
-
-pub struct MappedStrings {
-    message: Mmap,
-    message_offset: NumberMmap<BigEndian, u64, Mmap>,
-    tag_name: Mmap,
-    tag_name_offset: NumberMmap<BigEndian, u64, Mmap>,
-}
-impl<S: Strings> MaybeStrings for S {}
+impl<S: OptStrings> MaybeStrings for S {}
 
 /// Placeholder for when string properties are not loaded
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -33,19 +24,73 @@ impl MaybeStrings for NoStrings {}
     note = "Use `let graph = graph.load_properties(|props| props.load_string()).unwrap()` to load them",
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
-/// Trait for backend storage of string properties (either in-memory or memory-mapped)
-pub trait Strings {
+/// Trait implemented by all implementors of [`MaybeStrings`] but [`NoStrings`]
+pub trait OptStrings: MaybeStrings + PropertiesBackend {
     type Offsets<'a>: GetIndex<Output = u64> + 'a
     where
         Self: 'a;
 
-    fn message(&self) -> &[u8];
-    fn message_offset(&self) -> Self::Offsets<'_>;
-    fn tag_name(&self) -> &[u8];
-    fn tag_name_offset(&self) -> Self::Offsets<'_>;
+    fn message(&self) -> PropertiesResult<&[u8], Self>;
+    fn message_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self>;
+    fn tag_name(&self) -> PropertiesResult<&[u8], Self>;
+    fn tag_name_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self>;
 }
 
-impl Strings for MappedStrings {
+#[diagnostic::on_unimplemented(
+    label = "does not have String properties loaded",
+    note = "Use `let graph = graph.load_properties(|props| props.load_string()).unwrap()` to load them",
+    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
+)]
+/// Trait for backend storage of string properties (either in-memory or memory-mapped)
+pub trait Strings: OptStrings<DataFilesAvailability = GuaranteedDataFiles> {}
+impl<S: OptStrings<DataFilesAvailability = GuaranteedDataFiles>> Strings for S {}
+
+/// Variant of [`MappedStrings`] that checks at runtime that files are present every time
+/// it is accessed
+pub struct OptMappedStrings {
+    message: Result<Mmap, UnavailableProperty>,
+    message_offset: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
+    tag_name: Result<Mmap, UnavailableProperty>,
+    tag_name_offset: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
+}
+impl PropertiesBackend for OptMappedStrings {
+    type DataFilesAvailability = OptionalDataFiles;
+}
+impl OptStrings for OptMappedStrings {
+    type Offsets<'a>
+        = &'a NumberMmap<BigEndian, u64, Mmap>
+    where
+        Self: 'a;
+
+    #[inline(always)]
+    fn message(&self) -> PropertiesResult<'_, &[u8], Self> {
+        self.message.as_deref()
+    }
+    #[inline(always)]
+    fn message_offset(&self) -> PropertiesResult<'_, Self::Offsets<'_>, Self> {
+        self.message_offset.as_ref()
+    }
+    #[inline(always)]
+    fn tag_name(&self) -> PropertiesResult<'_, &[u8], Self> {
+        self.tag_name.as_deref()
+    }
+    #[inline(always)]
+    fn tag_name_offset(&self) -> PropertiesResult<'_, Self::Offsets<'_>, Self> {
+        self.tag_name_offset.as_ref()
+    }
+}
+
+/// [`Strings`] implementation backed by files guaranteed to be present once the graph is loaded
+pub struct MappedStrings {
+    message: Mmap,
+    message_offset: NumberMmap<BigEndian, u64, Mmap>,
+    tag_name: Mmap,
+    tag_name_offset: NumberMmap<BigEndian, u64, Mmap>,
+}
+impl PropertiesBackend for MappedStrings {
+    type DataFilesAvailability = GuaranteedDataFiles;
+}
+impl OptStrings for MappedStrings {
     type Offsets<'a>
         = &'a NumberMmap<BigEndian, u64, Mmap>
     where
@@ -129,7 +174,10 @@ impl VecStrings {
     }
 }
 
-impl Strings for VecStrings {
+impl PropertiesBackend for VecStrings {
+    type DataFilesAvailability = GuaranteedDataFiles;
+}
+impl OptStrings for VecStrings {
     type Offsets<'a>
         = &'a [u64]
     where
@@ -172,22 +220,44 @@ impl<
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, MappedStrings, LABELNAMES>>
     {
+        let OptMappedStrings {
+            message,
+            message_offset,
+            tag_name,
+            tag_name_offset,
+        } = self.get_strings()?;
         let strings = MappedStrings {
-            message: mmap(&suffix_path(&self.path, MESSAGE)).context("Could not load messages")?,
-            message_offset: NumberMmap::new(
-                suffix_path(&self.path, MESSAGE_OFFSET),
-                self.num_nodes,
-            )
-            .context("Could not load message_offset")?,
-            tag_name: mmap(&suffix_path(&self.path, TAG_NAME))
-                .context("Could not load tag names")?,
-            tag_name_offset: NumberMmap::new(
-                suffix_path(&self.path, TAG_NAME_OFFSET),
-                self.num_nodes,
-            )
-            .context("Could not load tag_name_offset")?,
+            message: message?,
+            message_offset: message_offset?,
+            tag_name: tag_name?,
+            tag_name_offset: tag_name_offset?,
         };
         self.with_strings(strings)
+    }
+    /// Equivalent to [`Self::load_strings`] that does not require all files to be present
+    pub fn opt_load_strings(
+        self,
+    ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, OptMappedStrings, LABELNAMES>>
+    {
+        let strings = self.get_strings()?;
+        self.with_strings(strings)
+    }
+
+    fn get_strings(&self) -> Result<OptMappedStrings> {
+        Ok(OptMappedStrings {
+            message: load_if_exists(&self.path, MESSAGE, |path| mmap(path))
+                .context("Could not load message")?,
+            message_offset: load_if_exists(&self.path, MESSAGE_OFFSET, |path| {
+                NumberMmap::new(path, self.num_nodes)
+            })
+            .context("Could not load message_offset")?,
+            tag_name: load_if_exists(&self.path, TAG_NAME, |path| mmap(path))
+                .context("Could not load tag_name")?,
+            tag_name_offset: load_if_exists(&self.path, TAG_NAME_OFFSET, |path| {
+                NumberMmap::new(path, self.num_nodes)
+            })
+            .context("Could not load tag_name_offset")?,
+        })
     }
 
     /// Alternative to [`load_strings`](Self::load_strings) that allows using arbitrary
@@ -219,7 +289,7 @@ impl<
         TIMESTAMPS: MaybeTimestamps,
         PERSONS: MaybePersons,
         CONTENTS: MaybeContents,
-        STRINGS: Strings,
+        STRINGS: OptStrings,
         LABELNAMES: MaybeLabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
@@ -257,9 +327,13 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn message_base64(&self, node_id: NodeId) -> Option<&[u8]> {
-        self.try_message_base64(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+    pub fn message_base64(&self, node_id: NodeId) -> PropertiesResult<Option<&[u8]>, STRINGS> {
+        STRINGS::map_if_available(
+            self.try_message_base64(node_id),
+            |message: Result<_, OutOfBoundError>| {
+                message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+            },
+        )
     }
 
     /// Returns the base64-encoded message of a revision or release
@@ -267,12 +341,15 @@ impl<
     /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
     /// no message.
     #[inline]
-    pub fn try_message_base64(&self, node_id: NodeId) -> Result<Option<&[u8]>, OutOfBoundError> {
-        Self::message_or_tag_name_base64(
-            "message",
-            self.strings.message(),
-            self.strings.message_offset(),
-            node_id,
+    pub fn try_message_base64(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
+        STRINGS::map_if_available(
+            STRINGS::zip_if_available(self.strings.message(), self.strings.message_offset()),
+            |(messages, message_offsets)| {
+                Self::message_or_tag_name_base64("message", messages, message_offsets, node_id)
+            },
         )
     }
     /// Returns the message of a revision or release,
@@ -282,9 +359,10 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn message(&self, node_id: NodeId) -> Option<Vec<u8>> {
-        self.try_message(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+    pub fn message(&self, node_id: NodeId) -> PropertiesResult<Option<Vec<u8>>, STRINGS> {
+        STRINGS::map_if_available(self.try_message(node_id), |message| {
+            message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+        })
     }
 
     /// Returns the message of a revision or release,
@@ -293,13 +371,18 @@ impl<
     /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
     /// no message.
     #[inline]
-    pub fn try_message(&self, node_id: NodeId) -> Result<Option<Vec<u8>>, OutOfBoundError> {
+    pub fn try_message(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Result<Option<Vec<u8>>, OutOfBoundError>, STRINGS> {
         let base64 = base64_simd::STANDARD;
-        self.try_message_base64(node_id).map(|message_opt| {
-            message_opt.map(|message| {
-                base64
-                    .decode_to_vec(message)
-                    .unwrap_or_else(|e| panic!("Could not decode node message: {}", e))
+        STRINGS::map_if_available(self.try_message_base64(node_id), |message_opt_res| {
+            message_opt_res.map(|message_opt| {
+                message_opt.map(|message| {
+                    base64
+                        .decode_to_vec(message)
+                        .unwrap_or_else(|e| panic!("Could not decode node message: {}", e))
+                })
             })
         })
     }
@@ -310,9 +393,10 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn tag_name_base64(&self, node_id: NodeId) -> Option<&[u8]> {
-        self.try_tag_name_base64(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node tag: {}", e))
+    pub fn tag_name_base64(&self, node_id: NodeId) -> PropertiesResult<Option<&[u8]>, STRINGS> {
+        STRINGS::map_if_available(self.try_tag_name_base64(node_id), |tag_name| {
+            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag: {}", e))
+        })
     }
 
     /// Returns the tag name of a release, base64-encoded
@@ -320,12 +404,15 @@ impl<
     /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
     /// no tag name.
     #[inline]
-    pub fn try_tag_name_base64(&self, node_id: NodeId) -> Result<Option<&[u8]>, OutOfBoundError> {
-        Self::message_or_tag_name_base64(
-            "tag_name",
-            self.strings.tag_name(),
-            self.strings.tag_name_offset(),
-            node_id,
+    pub fn try_tag_name_base64(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
+        STRINGS::map_if_available(
+            STRINGS::zip_if_available(self.strings.tag_name(), self.strings.tag_name_offset()),
+            |(tag_names, tag_name_offsets)| {
+                Self::message_or_tag_name_base64("tag_name", tag_names, tag_name_offsets, node_id)
+            },
         )
     }
 
@@ -335,9 +422,10 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn tag_name(&self, node_id: NodeId) -> Option<Vec<u8>> {
-        self.try_tag_name(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node tag name: {}", e))
+    pub fn tag_name(&self, node_id: NodeId) -> PropertiesResult<Option<Vec<u8>>, STRINGS> {
+        STRINGS::map_if_available(self.try_tag_name(node_id), |tag_name| {
+            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag name: {}", e))
+        })
     }
 
     /// Returns the tag name of a release
@@ -345,15 +433,20 @@ impl<
     /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
     /// no tag name.
     #[inline]
-    pub fn try_tag_name(&self, node_id: NodeId) -> Result<Option<Vec<u8>>, OutOfBoundError> {
+    pub fn try_tag_name(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Result<Option<Vec<u8>>, OutOfBoundError>, STRINGS> {
         let base64 = base64_simd::STANDARD;
-        self.try_tag_name_base64(node_id).map(|tag_name_opt| {
-            tag_name_opt.map(|tag_name| {
-                base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
-                    panic!(
-                        "Could not decode tag_name of node {}: {:?}",
-                        node_id, tag_name
-                    )
+        STRINGS::map_if_available(self.try_tag_name_base64(node_id), |tag_name_opt_res| {
+            tag_name_opt_res.map(|tag_name_opt| {
+                tag_name_opt.map(|tag_name| {
+                    base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
+                        panic!(
+                            "Could not decode tag_name of node {}: {:?}",
+                            node_id, tag_name
+                        )
+                    })
                 })
             })
         })

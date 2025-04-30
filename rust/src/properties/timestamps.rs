@@ -9,20 +9,13 @@ use mmap_rs::Mmap;
 use super::suffixes::*;
 use super::*;
 use crate::graph::NodeId;
-use crate::utils::suffix_path;
 
 /// Trait implemented by both [`NoTimestamps`] and all implementors of [`Timestamps`],
 /// to allow loading timestamp properties only if needed.
 pub trait MaybeTimestamps {}
+impl<T: OptTimestamps> MaybeTimestamps for T {}
 
-pub struct MappedTimestamps {
-    author_timestamp: NumberMmap<BigEndian, i64, Mmap>,
-    author_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
-    committer_timestamp: NumberMmap<BigEndian, i64, Mmap>,
-    committer_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
-}
-impl<T: Timestamps> MaybeTimestamps for T {}
-
+/// Placeholder for when timestamp properties are not loaded
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NoTimestamps;
 impl MaybeTimestamps for NoTimestamps {}
@@ -33,7 +26,7 @@ impl MaybeTimestamps for NoTimestamps {}
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 /// Trait for backend storage of timestamp properties (either in-memory or memory-mapped)
-pub trait Timestamps {
+pub trait OptTimestamps: MaybeTimestamps + PropertiesBackend {
     type Timestamps<'a>: GetIndex<Output = i64> + 'a
     where
         Self: 'a;
@@ -41,13 +34,63 @@ pub trait Timestamps {
     where
         Self: 'a;
 
-    fn author_timestamp(&self) -> Self::Timestamps<'_>;
-    fn author_timestamp_offset(&self) -> Self::Offsets<'_>;
-    fn committer_timestamp(&self) -> Self::Timestamps<'_>;
-    fn committer_timestamp_offset(&self) -> Self::Offsets<'_>;
+    fn author_timestamp(&self) -> PropertiesResult<Self::Timestamps<'_>, Self>;
+    fn author_timestamp_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self>;
+    fn committer_timestamp(&self) -> PropertiesResult<Self::Timestamps<'_>, Self>;
+    fn committer_timestamp_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self>;
 }
 
-impl Timestamps for MappedTimestamps {
+#[diagnostic::on_unimplemented(
+    label = "does not have Timestamp properties loaded",
+    note = "Use `let graph = graph.load_properties(|props| props.load_timestamps()).unwrap()` to load them",
+    note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
+)]
+/// Trait for backend storage of timestamp properties (either in-memory or memory-mapped)
+pub trait Timestamps: OptTimestamps<DataFilesAvailability = GuaranteedDataFiles> {}
+impl<T: OptTimestamps<DataFilesAvailability = GuaranteedDataFiles>> Timestamps for T {}
+
+pub struct OptMappedTimestamps {
+    author_timestamp: Result<NumberMmap<BigEndian, i64, Mmap>, UnavailableProperty>,
+    author_timestamp_offset: Result<NumberMmap<BigEndian, i16, Mmap>, UnavailableProperty>,
+    committer_timestamp: Result<NumberMmap<BigEndian, i64, Mmap>, UnavailableProperty>,
+    committer_timestamp_offset: Result<NumberMmap<BigEndian, i16, Mmap>, UnavailableProperty>,
+}
+impl PropertiesBackend for OptMappedTimestamps {
+    type DataFilesAvailability = OptionalDataFiles;
+}
+impl OptTimestamps for OptMappedTimestamps {
+    type Timestamps<'a> = &'a NumberMmap<BigEndian, i64, Mmap>;
+    type Offsets<'a> = &'a NumberMmap<BigEndian, i16, Mmap>;
+
+    #[inline(always)]
+    fn author_timestamp(&self) -> PropertiesResult<'_, Self::Timestamps<'_>, Self> {
+        self.author_timestamp.as_ref()
+    }
+    #[inline(always)]
+    fn author_timestamp_offset(&self) -> PropertiesResult<'_, Self::Offsets<'_>, Self> {
+        self.author_timestamp_offset.as_ref()
+    }
+    #[inline(always)]
+    fn committer_timestamp(&self) -> PropertiesResult<'_, Self::Timestamps<'_>, Self> {
+        self.committer_timestamp.as_ref()
+    }
+    #[inline(always)]
+    fn committer_timestamp_offset(&self) -> PropertiesResult<'_, Self::Offsets<'_>, Self> {
+        self.committer_timestamp_offset.as_ref()
+    }
+}
+
+pub struct MappedTimestamps {
+    author_timestamp: NumberMmap<BigEndian, i64, Mmap>,
+    author_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
+    committer_timestamp: NumberMmap<BigEndian, i64, Mmap>,
+    committer_timestamp_offset: NumberMmap<BigEndian, i16, Mmap>,
+}
+impl PropertiesBackend for MappedTimestamps {
+    type DataFilesAvailability = GuaranteedDataFiles;
+}
+
+impl OptTimestamps for MappedTimestamps {
     type Timestamps<'a> = &'a NumberMmap<BigEndian, i64, Mmap>;
     type Offsets<'a> = &'a NumberMmap<BigEndian, i16, Mmap>;
 
@@ -123,7 +166,10 @@ impl VecTimestamps {
     }
 }
 
-impl Timestamps for VecTimestamps {
+impl PropertiesBackend for VecTimestamps {
+    type DataFilesAvailability = GuaranteedDataFiles;
+}
+impl OptTimestamps for VecTimestamps {
     type Timestamps<'a> = &'a [i64];
     type Offsets<'a> = &'a [i16];
 
@@ -164,29 +210,51 @@ impl<
         self,
     ) -> Result<SwhGraphProperties<MAPS, MappedTimestamps, PERSONS, CONTENTS, STRINGS, LABELNAMES>>
     {
+        let OptMappedTimestamps {
+            author_timestamp,
+            author_timestamp_offset,
+            committer_timestamp,
+            committer_timestamp_offset,
+        } = self.get_timestamps()?;
         let timestamps = MappedTimestamps {
-            author_timestamp: NumberMmap::new(
-                suffix_path(&self.path, AUTHOR_TIMESTAMP),
-                self.num_nodes,
-            )
-            .context("Could not load author_timestamp")?,
-            author_timestamp_offset: NumberMmap::new(
-                suffix_path(&self.path, AUTHOR_TIMESTAMP_OFFSET),
-                self.num_nodes,
-            )
-            .context("Could not load author_timestamp_offset")?,
-            committer_timestamp: NumberMmap::new(
-                suffix_path(&self.path, COMMITTER_TIMESTAMP),
-                self.num_nodes,
-            )
-            .context("Could not load committer_timestamp")?,
-            committer_timestamp_offset: NumberMmap::new(
-                suffix_path(&self.path, COMMITTER_TIMESTAMP_OFFSET),
-                self.num_nodes,
-            )
-            .context("Could not load committer_timestamp_offset")?,
+            author_timestamp: author_timestamp?,
+            author_timestamp_offset: author_timestamp_offset?,
+            committer_timestamp: committer_timestamp?,
+            committer_timestamp_offset: committer_timestamp_offset?,
         };
         self.with_timestamps(timestamps)
+    }
+
+    /// Equivalent to [`Self::load_timestamps`] that does not require all files to be present
+    pub fn opt_load_timestamps(
+        self,
+    ) -> Result<SwhGraphProperties<MAPS, OptMappedTimestamps, PERSONS, CONTENTS, STRINGS, LABELNAMES>>
+    {
+        let timestamps = self.get_timestamps()?;
+        self.with_timestamps(timestamps)
+    }
+
+    fn get_timestamps(&self) -> Result<OptMappedTimestamps> {
+        Ok(OptMappedTimestamps {
+            author_timestamp: load_if_exists(&self.path, AUTHOR_TIMESTAMP, |path| {
+                NumberMmap::new(path, self.num_nodes).context("Could not load author_timestamp")
+            })?,
+            author_timestamp_offset: load_if_exists(&self.path, AUTHOR_TIMESTAMP_OFFSET, |path| {
+                NumberMmap::new(path, self.num_nodes)
+                    .context("Could not load author_timestamp_offset")
+            })?,
+            committer_timestamp: load_if_exists(&self.path, COMMITTER_TIMESTAMP, |path| {
+                NumberMmap::new(path, self.num_nodes).context("Could not load committer_timestamp")
+            })?,
+            committer_timestamp_offset: load_if_exists(
+                &self.path,
+                COMMITTER_TIMESTAMP_OFFSET,
+                |path| {
+                    NumberMmap::new(path, self.num_nodes)
+                        .context("Could not load committer_timestamp_offset")
+                },
+            )?,
+        })
     }
 
     /// Alternative to [`load_timestamps`](Self::load_timestamps) that allows using arbitrary
@@ -215,7 +283,7 @@ impl<
 /// or [`load_all_properties`](crate::graph::SwhBidirectionalGraph::load_all_properties)
 impl<
         MAPS: MaybeMaps,
-        TIMESTAMPS: Timestamps,
+        TIMESTAMPS: OptTimestamps,
         PERSONS: MaybePersons,
         CONTENTS: MaybeContents,
         STRINGS: MaybeStrings,
@@ -229,9 +297,10 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn author_timestamp(&self, node_id: NodeId) -> Option<i64> {
-        self.try_author_timestamp(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get author timestamp: {}", e))
+    pub fn author_timestamp(&self, node_id: NodeId) -> PropertiesResult<Option<i64>, TIMESTAMPS> {
+        TIMESTAMPS::map_if_available(self.try_author_timestamp(node_id), |author_timestamp| {
+            author_timestamp.unwrap_or_else(|e| panic!("Cannot get author timestamp: {}", e))
+        })
     }
 
     /// Returns the number of seconds since Epoch that a release or revision was
@@ -240,15 +309,20 @@ impl<
     /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
     /// no author timestamp
     #[inline]
-    pub fn try_author_timestamp(&self, node_id: NodeId) -> Result<Option<i64>, OutOfBoundError> {
-        match self.timestamps.author_timestamp().get(node_id) {
-            None => Err(OutOfBoundError {
-                index: node_id,
-                len: self.timestamps.author_timestamp().len(),
-            }),
-            Some(i64::MIN) => Ok(None),
-            Some(ts) => Ok(Some(ts)),
-        }
+    pub fn try_author_timestamp(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Result<Option<i64>, OutOfBoundError>, TIMESTAMPS> {
+        TIMESTAMPS::map_if_available(self.timestamps.author_timestamp(), |author_timestamps| {
+            match author_timestamps.get(node_id) {
+                None => Err(OutOfBoundError {
+                    index: node_id,
+                    len: author_timestamps.len(),
+                }),
+                Some(i64::MIN) => Ok(None),
+                Some(ts) => Ok(Some(ts)),
+            }
+        })
     }
 
     /// Returns the UTC offset in minutes of a release or revision's authorship date
@@ -257,9 +331,17 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn author_timestamp_offset(&self, node_id: NodeId) -> Option<i16> {
-        self.try_author_timestamp_offset(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get author timestamp offset: {}", e))
+    pub fn author_timestamp_offset(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Option<i16>, TIMESTAMPS> {
+        TIMESTAMPS::map_if_available(
+            self.try_author_timestamp_offset(node_id),
+            |author_timestamp_offset| {
+                author_timestamp_offset
+                    .unwrap_or_else(|e| panic!("Cannot get author timestamp offset: {}", e))
+            },
+        )
     }
 
     /// Returns the UTC offset in minutes of a release or revision's authorship date
@@ -270,15 +352,18 @@ impl<
     pub fn try_author_timestamp_offset(
         &self,
         node_id: NodeId,
-    ) -> Result<Option<i16>, OutOfBoundError> {
-        match self.timestamps.author_timestamp_offset().get(node_id) {
-            None => Err(OutOfBoundError {
-                index: node_id,
-                len: self.timestamps.author_timestamp_offset().len(),
-            }),
-            Some(i16::MIN) => Ok(None),
-            Some(offset) => Ok(Some(offset)),
-        }
+    ) -> PropertiesResult<Result<Option<i16>, OutOfBoundError>, TIMESTAMPS> {
+        TIMESTAMPS::map_if_available(
+            self.timestamps.author_timestamp_offset(),
+            |author_timestamp_offsets| match author_timestamp_offsets.get(node_id) {
+                None => Err(OutOfBoundError {
+                    index: node_id,
+                    len: author_timestamp_offsets.len(),
+                }),
+                Some(i16::MIN) => Ok(None),
+                Some(offset) => Ok(Some(offset)),
+            },
+        )
     }
 
     /// Returns the number of seconds since Epoch that a revision was committed at
@@ -287,9 +372,17 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn committer_timestamp(&self, node_id: NodeId) -> Option<i64> {
-        self.try_committer_timestamp(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get committer timestamp: {}", e))
+    pub fn committer_timestamp(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Option<i64>, TIMESTAMPS> {
+        TIMESTAMPS::map_if_available(
+            self.try_committer_timestamp(node_id),
+            |committer_timestamp| {
+                committer_timestamp
+                    .unwrap_or_else(|e| panic!("Cannot get committer timestamp: {}", e))
+            },
+        )
     }
 
     /// Returns the number of seconds since Epoch that a revision was committed at
@@ -297,15 +390,21 @@ impl<
     /// Returns `Err` if the node id is unknown, and `Ok(None)` if the node has
     /// no committer timestamp
     #[inline]
-    pub fn try_committer_timestamp(&self, node_id: NodeId) -> Result<Option<i64>, OutOfBoundError> {
-        match self.timestamps.committer_timestamp().get(node_id) {
-            None => Err(OutOfBoundError {
-                index: node_id,
-                len: self.timestamps.committer_timestamp().len(),
-            }),
-            Some(i64::MIN) => Ok(None),
-            Some(ts) => Ok(Some(ts)),
-        }
+    pub fn try_committer_timestamp(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Result<Option<i64>, OutOfBoundError>, TIMESTAMPS> {
+        TIMESTAMPS::map_if_available(
+            self.timestamps.committer_timestamp(),
+            |committer_timestamps| match committer_timestamps.get(node_id) {
+                None => Err(OutOfBoundError {
+                    index: node_id,
+                    len: committer_timestamps.len(),
+                }),
+                Some(i64::MIN) => Ok(None),
+                Some(ts) => Ok(Some(ts)),
+            },
+        )
     }
 
     /// Returns the UTC offset in minutes of a revision's committer date
@@ -314,9 +413,17 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn committer_timestamp_offset(&self, node_id: NodeId) -> Option<i16> {
-        self.try_committer_timestamp_offset(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get committer timestamp: {}", e))
+    pub fn committer_timestamp_offset(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<Option<i16>, TIMESTAMPS> {
+        TIMESTAMPS::map_if_available(
+            self.try_committer_timestamp_offset(node_id),
+            |committer_timestamp_offset| {
+                committer_timestamp_offset
+                    .unwrap_or_else(|e| panic!("Cannot get committer timestamp: {}", e))
+            },
+        )
     }
 
     /// Returns the UTC offset in minutes of a revision's committer date
@@ -327,14 +434,17 @@ impl<
     pub fn try_committer_timestamp_offset(
         &self,
         node_id: NodeId,
-    ) -> Result<Option<i16>, OutOfBoundError> {
-        match self.timestamps.committer_timestamp_offset().get(node_id) {
-            None => Err(OutOfBoundError {
-                index: node_id,
-                len: self.timestamps.committer_timestamp_offset().len(),
-            }),
-            Some(i16::MIN) => Ok(None),
-            Some(offset) => Ok(Some(offset)),
-        }
+    ) -> PropertiesResult<Result<Option<i16>, OutOfBoundError>, TIMESTAMPS> {
+        TIMESTAMPS::map_if_available(
+            self.timestamps.committer_timestamp_offset(),
+            |committer_timestamp_offsets| match committer_timestamp_offsets.get(node_id) {
+                None => Err(OutOfBoundError {
+                    index: node_id,
+                    len: committer_timestamp_offsets.len(),
+                }),
+                Some(i16::MIN) => Ok(None),
+                Some(offset) => Ok(Some(offset)),
+            },
+        )
     }
 }

@@ -513,7 +513,7 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
         }
     }
 
-    /// Enriches the graph with more properties mmapped from disk
+    /// Enriches the graph with all properties, mmapped from disk
     ///
     /// # Example
     ///
