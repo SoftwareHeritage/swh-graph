@@ -54,6 +54,7 @@ impl<G: SwhGraph> StubLabels<G> {
 }
 
 impl<G: SwhGraph> SwhGraph for StubLabels<G> {
+    #[inline(always)]
     fn path(&self) -> &Path {
         self.0.path()
     }
@@ -169,6 +170,7 @@ impl<G: SwhGraphWithProperties> SwhGraphWithProperties for StubLabels<G> {
     type Strings = <G as SwhGraphWithProperties>::Strings;
     type LabelNames = <G as SwhGraphWithProperties>::LabelNames;
 
+    #[inline(always)]
     fn properties(
         &self,
     ) -> &properties::SwhGraphProperties<
@@ -187,12 +189,14 @@ impl<G: SwhGraphWithProperties> SwhGraphWithProperties for StubLabels<G> {
 pub struct StubBackwardArcs<G: SwhGraph>(G);
 
 impl<G: SwhGraph> StubBackwardArcs<G> {
+    #[inline(always)]
     pub fn new(graph: G) -> Self {
         StubBackwardArcs(graph)
     }
 }
 
 impl<G: SwhGraph> SwhGraph for StubBackwardArcs<G> {
+    #[inline(always)]
     fn path(&self) -> &Path {
         self.0.path()
     }
@@ -234,6 +238,7 @@ impl<G: SwhForwardGraph> SwhForwardGraph for StubBackwardArcs<G> {
     }
 }
 
+#[inline(always)]
 fn succ_to_labeled_succ(node_id: NodeId) -> (NodeId, Empty<u64>) {
     (node_id, empty())
 }
@@ -280,6 +285,7 @@ impl<G: SwhGraph> SwhLabeledBackwardGraph for StubBackwardArcs<G> {
     where
         Self: 'arc;
 
+    #[inline(always)]
     fn untyped_labeled_predecessors(&self, _node_id: NodeId) -> Self::LabeledPredecessors<'_> {
         LabeledSuccessorIterator::new(empty())
     }
@@ -293,6 +299,7 @@ impl<G: SwhGraphWithProperties> SwhGraphWithProperties for StubBackwardArcs<G> {
     type Strings = <G as SwhGraphWithProperties>::Strings;
     type LabelNames = <G as SwhGraphWithProperties>::LabelNames;
 
+    #[inline(always)]
     fn properties(
         &self,
     ) -> &properties::SwhGraphProperties<
@@ -313,9 +320,11 @@ pub struct StubLabelNames;
 pub struct EmptyGetIndex<Output>(std::marker::PhantomData<Output>);
 impl<Output> swh_graph::utils::GetIndex for EmptyGetIndex<Output> {
     type Output = Output;
+    #[inline(always)]
     fn len(&self) -> usize {
         0
     }
+    #[inline(always)]
     fn get(&self, _: usize) -> std::option::Option<<Self as swh_graph::utils::GetIndex>::Output> {
         None
     }
@@ -330,6 +339,7 @@ impl properties::LabelNames for StubLabelNames {
     where
         Self: 'a;
 
+    #[inline(always)]
     fn label_names(&self) -> Self::LabelNames<'_> {
         EmptyGetIndex(std::marker::PhantomData)
     }
