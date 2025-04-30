@@ -35,11 +35,10 @@ def check_config(conf, base_rust_executable_dir: Optional[Path] = None):
     debug_mode = (
         os.environ.get("PYTEST_VERSION") is not None or conf.get("profile") == "debug"
     )
-    if debug_mode:
-        conf["profile"] = "debug"
+    if "profile" not in conf:
+        conf["profile"] = "debug" if debug_mode else "release"
     if "rust_executable_dir" not in conf:
         # look for a target/ directory in the sources root directory
-        profile = "debug" if debug_mode else "release"
 
         if base_rust_executable_dir is None:
             # in editable installs, __file__ is a symlink to the original file in
@@ -48,7 +47,7 @@ def check_config(conf, base_rust_executable_dir: Optional[Path] = None):
             # directory relative to the actual python file.
             path = Path(__file__).resolve()
             base_rust_executable_dir = path.parent.parent.parent / "target"
-        conf["rust_executable_dir"] = str(base_rust_executable_dir / profile)
+        conf["rust_executable_dir"] = str(base_rust_executable_dir / conf["profile"])
     if not conf["rust_executable_dir"].endswith("/"):
         conf["rust_executable_dir"] += "/"
 

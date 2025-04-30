@@ -110,9 +110,8 @@ def graph_cli_group(ctx, config_file, profile):
         )
     ctx.obj["config"] = conf
 
-    if profile is None:
-        profile = conf.get("profile", "release")
-    conf["profile"] = profile
+    if profile is not None:
+        conf["profile"] = profile
 
 
 @graph_cli_group.command(name="rpc-serve")
