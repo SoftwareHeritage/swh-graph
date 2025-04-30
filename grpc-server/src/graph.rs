@@ -307,7 +307,7 @@ impl<G: SwhGraphWithProperties> SwhGraphWithProperties for StubBackwardArcs<G> {
     }
 }
 
-/// Empty implementation of [`properties::Labels`] that never returns values
+/// Empty implementation of [`properties::LabelNames`] that never returns values
 pub struct StubLabelNames;
 
 pub struct EmptyGetIndex<Output>(std::marker::PhantomData<Output>);
