@@ -11,3 +11,5 @@ mod subgraph;
 pub use subgraph::Subgraph;
 mod transposed;
 pub use transposed::Transposed;
+mod webgraph;
+pub use webgraph::WebgraphAdapter;
