@@ -45,6 +45,7 @@ def build_rust_grpc_server_cmdline(**config):
         cmd.extend(["--masked-nodes", config["masked_nodes"]])
     logger.debug("Configuration: %r", config)
     cmd.extend(["--bind", f"[::]:{port}", str(config["path"])])
+    cmd.extend(config.get("extra_options", []))
     print(f"Started GRPC using dataset from {str(config['path'])}")
     return cmd, port
 

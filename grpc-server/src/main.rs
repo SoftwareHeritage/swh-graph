@@ -4,7 +4,7 @@
 // See top-level LICENSE file for more information
 
 use anyhow::{Context, Result};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -16,12 +16,30 @@ use tracing_subscriber::util::SubscriberInitExt;
 use swh_graph::graph::*;
 use swh_graph::views::Subgraph;
 
+use swh_graph_grpc_server::graph::*;
+
+#[derive(ValueEnum, Clone, Debug)]
+enum Direction {
+    Forward,
+    Bidirectional,
+}
+
+#[derive(ValueEnum, Clone, Debug)]
+enum Labels {
+    None,
+    Bidirectional,
+}
+
 #[derive(Parser, Debug)]
 #[command(about = "gRPC server for the compressed Software Heritage graph", long_about = None)]
 struct Args {
     graph_path: PathBuf,
     #[arg(long, default_value = "[::]:50091")]
     bind: std::net::SocketAddr,
+    #[arg(long, default_value = "bidirectional")]
+    direction: Direction,
+    #[arg(long, default_value = "bidirectional")]
+    labels: Labels,
     #[arg(long)]
     /// A line-separated list of node SWHIDs to exclude from the graph
     masked_nodes: Option<PathBuf>,
@@ -53,29 +71,82 @@ pub fn main() -> Result<()> {
         .try_init()
         .context("Could not initialize logging")?;
 
-    let statsd_client = swh_graph_grpc_server::statsd::statsd_client(args.statsd_host)?;
-
     log::info!("Loading graph");
-    let graph = SwhBidirectionalGraph::new(args.graph_path)
-        .context("Could not load graph")?
-        .init_properties()
-        .load_properties(|properties| {
-            properties
-                .load_maps::<swh_graph::mph::DynMphf>()
-                .context("Could not load maps")?
-                .opt_load_timestamps()
-                .context("Could not load timestamp properties")?
-                .opt_load_persons()
-                .context("Could not load person properties")?
-                .opt_load_contents()
-                .context("Could not load content properties")?
-                .opt_load_strings()
-                .context("Could not load string properties")?
-                .load_label_names()
-                .context("Could not load label names")
-        })?
-        .load_labels()
-        .context("Could not load labels")?;
+    macro_rules! load_properties {
+        ($graph:expr) => {
+            $graph.init_properties().load_properties(|properties| {
+                properties
+                    .load_maps::<swh_graph::mph::DynMphf>()
+                    .context("Could not load maps")?
+                    .opt_load_timestamps()
+                    .context("Could not load timestamp properties")?
+                    .opt_load_persons()
+                    .context("Could not load person properties")?
+                    .opt_load_contents()
+                    .context("Could not load content properties")?
+                    .opt_load_strings()
+                    .context("Could not load string properties")
+            })
+        };
+    }
+    match args.direction {
+        Direction::Bidirectional => {
+            let graph =
+                SwhBidirectionalGraph::new(&args.graph_path).context("Could not load graph")?;
+            let graph = load_properties!(graph)?;
+            match args.labels {
+                Labels::Bidirectional => {
+                    let graph = graph
+                        .load_properties(|properties| {
+                            properties
+                                .load_label_names()
+                                .context("Could not load label names")
+                        })?
+                        .load_labels()
+                        .context("Could not load labels")?;
+                    main2(graph, args)
+                }
+                Labels::None => {
+                    let graph = graph.load_properties(|properties| {
+                        properties.with_label_names(StubLabelNames)
+                    })?;
+                    let graph = StubLabels::new(graph);
+                    main2(graph, args)
+                }
+            }
+        }
+        Direction::Forward => {
+            let graph =
+                SwhUnidirectionalGraph::new(&args.graph_path).context("Could not load graph")?;
+            let graph = load_properties!(graph)?;
+            match args.labels {
+                Labels::Bidirectional => {
+                    let graph = graph
+                        .load_properties(|properties| {
+                            properties
+                                .load_label_names()
+                                .context("Could not load label names")
+                        })?
+                        .load_labels()
+                        .context("Could not load labels")?;
+                    let graph = StubBackwardArcs::new(graph);
+                    main2(graph, args)
+                }
+                Labels::None => {
+                    let graph = graph.load_properties(|properties| {
+                        properties.with_label_names(StubLabelNames)
+                    })?;
+                    let graph = StubBackwardArcs::new(graph);
+                    let graph = StubLabels::new(graph);
+                    main2(graph, args)
+                }
+            }
+        }
+    }
+}
+
+fn main2<G: SwhOptFullGraph + Sync + Send + 'static>(graph: G, args: Args) -> Result<()> {
+    let statsd_client = swh_graph_grpc_server::statsd::statsd_client(args.statsd_host)?;
 
     let mut masked_nodes = HashSet::new();
     if let Some(masked_nodes_path) = args.masked_nodes {

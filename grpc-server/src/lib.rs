@@ -16,8 +16,6 @@ use tonic::{Request, Response};
 use tonic_middleware::MiddlewareFor;
 use tracing::{instrument, Level};
 
-use swh_graph::graph::{SwhGraphWithProperties, SwhLabeledBackwardGraph, SwhLabeledForwardGraph};
-use swh_graph::properties;
 use swh_graph::properties::NodeIdFromSwhidError;
 use swh_graph::utils::suffix_path;
 use swh_graph::views::Subgraph;
@@ -33,6 +31,7 @@ use proto::traversal_service_server::TraversalServiceServer;
 
 mod filters;
 mod find_path;
+pub mod graph;
 pub mod metrics;
 mod node_builder;
 #[cfg(feature = "sentry")]
@@ -42,36 +41,7 @@ mod traversal;
 mod utils;
 pub mod visitor;
 
-/// Alias for structures representing a graph with all arcs, arc labels, and node properties
-/// loaded (conditional on them being actually present on disk)
-pub trait SwhFullOptGraph:
-    SwhLabeledForwardGraph
-    + SwhLabeledBackwardGraph
-    + SwhGraphWithProperties<
-        Maps: properties::Maps,
-        Timestamps: properties::OptTimestamps,
-        Persons: properties::OptPersons,
-        Contents: properties::OptContents,
-        Strings: properties::OptStrings,
-        LabelNames: properties::LabelNames,
-    >
-{
-}
-
-impl<
-        G: SwhLabeledForwardGraph
-            + SwhLabeledBackwardGraph
-            + SwhGraphWithProperties<
-                Maps: properties::Maps,
-                Timestamps: properties::OptTimestamps,
-                Persons: properties::OptPersons,
-                Contents: properties::OptContents,
-                Strings: properties::OptStrings,
-                LabelNames: properties::LabelNames,
-            >,
-    > SwhFullOptGraph for G
-{
-}
+use graph::SwhOptFullGraph;
 
 /// Runs a long-running function in a separate thread so it does not block.
 ///
@@ -86,12 +56,12 @@ pub(crate) fn scoped_spawn_blocking<R: Send + Sync + 'static, F: FnOnce() -> R +
 
 type TonicResult<T> = Result<tonic::Response<T>, tonic::Status>;
 
-pub struct TraversalService<G: SwhFullOptGraph + Clone + Send + Sync + 'static> {
+pub struct TraversalService<G: SwhOptFullGraph + Clone + Send + Sync + 'static> {
     graph: G,
     pub statsd_client: Option<Arc<StatsdClient>>,
 }
 
-impl<G: SwhFullOptGraph + Clone + Send + Sync + 'static> TraversalService<G> {
+impl<G: SwhOptFullGraph + Clone + Send + Sync + 'static> TraversalService<G> {
     pub fn new(graph: G, statsd_client: Option<Arc<StatsdClient>>) -> Self {
         TraversalService {
             graph,
@@ -101,13 +71,13 @@ impl<G: SwhFullOptGraph + Clone + Send + Sync + 'static> TraversalService<G> {
 }
 
 pub trait TraversalServiceTrait {
-    type Graph: SwhFullOptGraph + Clone + Send + Sync + 'static;
+    type Graph: SwhOptFullGraph + Clone + Send + Sync + 'static;
     fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status>;
     fn graph(&self) -> &Self::Graph;
     fn statsd_client(&self) -> Option<&Arc<StatsdClient>>;
 }
 
-impl<G: SwhFullOptGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
+impl<G: SwhOptFullGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
     for TraversalService<G>
 {
     type Graph = G;
@@ -151,7 +121,7 @@ impl<G: SwhFullOptGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
 }
 
 #[tonic::async_trait]
-impl<G: SwhFullOptGraph + Send + Sync + Clone + 'static>
+impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
     proto::traversal_service_server::TraversalService for TraversalService<G>
 {
     async fn get_node(&self, request: Request<proto::GetNodeRequest>) -> TonicResult<proto::Node> {
@@ -343,7 +313,7 @@ where
         })
 }
 
-pub async fn serve<G: SwhFullOptGraph + Sync + Send + 'static>(
+pub async fn serve<G: SwhOptFullGraph + Sync + Send + 'static>(
     graph: G,
     bind_addr: std::net::SocketAddr,
     statsd_client: cadence::StatsdClient,

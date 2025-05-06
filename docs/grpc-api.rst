@@ -41,7 +41,30 @@ Or::
 Getting a compressed graph
 --------------------------
 
-See :ref:`swh-export-list`.
+See :ref:`swh-export-list`. Unless you have disk space constraints, we recommend you download
+all files of the compressed graph and skip to the next section.
+
+If not, you can cherry-pick which files you download, based on what you need.
+
+The following files are required:
+
+* :file:`graph.pthash` and :file:`graph.pthash.order` (or :file:`graph.cmph` and :file:`graph.order` for old graphs)
+* :file:`graph.node2swhid.bin` and :file:`graph.node2type.bin`
+* :file:`graph.properties` and :file:`graph.stats`
+* :file:`graph.graph` and :file:`graph.ef`
+
+The following files are optional:
+
+* file:`graph-transposed.graph` and :file:`graph-transposed.ef` which store arcs of the backward graph,
+  and can be skipped with ``--direction forward``
+* :file:`graph-labelled.*` which store arc labels of the forward graph,
+  and can be skipped with ``--labels none``
+* :file:`graph-transposed labelled.*` which store arc labels of the backward graph,
+  and can be skipped with either ``--labels none`` or ``--direction forward``
+* :file:`graph.properties.*` which store node properties, and whose presence is dynamically detected
+
+It is currently not possible to load only the backward graph, or only some labels
+
 
 Starting the server
 -------------------
