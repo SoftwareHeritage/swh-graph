@@ -8,7 +8,40 @@ use webgraph::prelude::*;
 
 use crate::graph::*;
 
-/// Converts a [`SwhForwardGraph`] into a [`RandomAccessGraph`]
+/// Wraps a [`SwhForwardGraph`] in order to implements webgraph's [`RandomAccessGraph`]
+///
+/// # Example
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// use webgraph::prelude::VecGraph;
+///
+/// use swh_graph::graph::{SwhForwardGraph, SwhUnidirectionalGraph};
+/// use swh_graph::views::WebgraphAdapter;
+///
+/// fn get_graph() -> impl SwhForwardGraph {
+/// #    if false {
+///     // loads this graph:
+///     // 1 --.
+///     // |    \
+///     // v     v
+///     // 0 --> 2
+///     SwhUnidirectionalGraph::new("./example").unwrap()
+/// #    ; }
+/// #    SwhUnidirectionalGraph::from_underlying_graph(
+/// #        PathBuf::new(),
+/// #        VecGraph::from_arcs(vec![(0, 2), (1, 2), (1, 0)]),
+/// #    )
+/// }
+///
+/// let graph = get_graph();
+/// let adapter = WebgraphAdapter(graph);
+///
+/// // We can now call generic webgraph algorithms on the adapter
+/// let order = webgraph::algo::BfsOrder::new(&adapter);
+/// assert_eq!(order.collect::<Vec<_>>(), vec![0, 2, 1]);
+/// ```
 pub struct WebgraphAdapter<G: SwhForwardGraph>(pub G);
 
 impl<G: SwhForwardGraph> SequentialLabeling for WebgraphAdapter<G> {
@@ -62,7 +95,7 @@ impl<G: SwhForwardGraph> RandomAccessLabeling for WebgraphAdapter<G> {
 impl<G: SwhForwardGraph> SequentialGraph for WebgraphAdapter<G> {}
 impl<G: SwhForwardGraph> RandomAccessGraph for WebgraphAdapter<G> {}
 
-/// Manual re-implementation of |`webgraph::traits::labels::IteratorImpl`]
+/// Manual re-implementation of [`webgraph::traits::labels::IteratorImpl`]
 pub struct LenderSwhForwardGraph<'node, G: SwhForwardGraph> {
     graph: &'node G,
     node_id: NodeId,
