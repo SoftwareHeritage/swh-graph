@@ -1,9 +1,9 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use clap::{Parser, ValueEnum};
 use std::collections::HashSet;
 use std::fs::File;
@@ -14,25 +14,35 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use swh_graph::graph::*;
+use swh_graph::properties;
 use swh_graph::views::Subgraph;
 
 use swh_graph_grpc_server::graph::*;
 
-#[derive(ValueEnum, Clone, Debug)]
+#[derive(ValueEnum, Clone, Debug, PartialEq, Eq)]
 enum Direction {
     Forward,
     Bidirectional,
 }
 
-#[derive(ValueEnum, Clone, Debug)]
+#[derive(ValueEnum, Clone, Debug, PartialEq, Eq)]
 enum Labels {
     None,
     Bidirectional,
 }
 
+/// On-disk format of the graph. This should always be `Webgraph` unless testing.
+#[derive(ValueEnum, Clone, Debug)]
+enum GraphFormat {
+    Webgraph,
+    Json,
+}
+
 #[derive(Parser, Debug)]
 #[command(about = "gRPC server for the compressed Software Heritage graph", long_about = None)]
 struct Args {
+    #[arg(long, value_enum, default_value_t = GraphFormat::Webgraph)]
+    graph_format: GraphFormat,
     graph_path: PathBuf,
     #[arg(long, default_value = "[::]:50091")]
     bind: std::net::SocketAddr,
@@ -89,58 +99,85 @@ pub fn main() -> Result<()> {
             })
         };
     }
-    match args.direction {
-        Direction::Bidirectional => {
-            let graph =
-                SwhBidirectionalGraph::new(&args.graph_path).context("Could not load graph")?;
-            let graph = load_properties!(graph)?;
-            match args.labels {
-                Labels::Bidirectional => {
-                    let graph = graph
-                        .load_properties(|properties| {
-                            properties
-                                .load_label_names()
-                                .context("Could not load label names")
-                        })?
-                        .load_labels()
-                        .context("Could not load labels")?;
-                    main2(graph, args)
-                }
-                Labels::None => {
-                    let graph = graph.load_properties(|properties| {
-                        properties.with_label_names(StubLabelNames)
-                    })?;
-                    let graph = StubLabels::new(graph);
-                    main2(graph, args)
-                }
-            }
-        }
-        Direction::Forward => {
-            let graph =
-                SwhUnidirectionalGraph::new(&args.graph_path).context("Could not load graph")?;
-            let graph = load_properties!(graph)?;
-            match args.labels {
-                Labels::Bidirectional => {
-                    let graph = graph
-                        .load_properties(|properties| {
-                            properties
-                                .load_label_names()
-                                .context("Could not load label names")
-                        })?
-                        .load_labels()
-                        .context("Could not load labels")?;
-                    let graph = StubBackwardArcs::new(graph);
-                    main2(graph, args)
-                }
-                Labels::None => {
-                    let graph = graph.load_properties(|properties| {
-                        properties.with_label_names(StubLabelNames)
-                    })?;
-                    let graph = StubBackwardArcs::new(graph);
-                    let graph = StubLabels::new(graph);
-                    main2(graph, args)
+    match args.graph_format {
+        GraphFormat::Webgraph => match args.direction {
+            Direction::Bidirectional => {
+                let graph =
+                    SwhBidirectionalGraph::new(&args.graph_path).context("Could not load graph")?;
+                let graph = load_properties!(graph)?;
+                match args.labels {
+                    Labels::Bidirectional => {
+                        let graph = graph
+                            .load_properties(|properties| {
+                                properties
+                                    .load_label_names()
+                                    .context("Could not load label names")
+                            })?
+                            .load_labels()
+                            .context("Could not load labels")?;
+                        main2(graph, args)
+                    }
+                    Labels::None => {
+                        let graph = graph.load_properties(|properties| {
+                            properties.with_label_names(StubLabelNames)
+                        })?;
+                        let graph = StubLabels::new(graph);
+                        main2(graph, args)
+                    }
                 }
             }
+            Direction::Forward => {
+                let graph = SwhUnidirectionalGraph::new(&args.graph_path)
+                    .context("Could not load graph")?;
+                let graph = load_properties!(graph)?;
+                match args.labels {
+                    Labels::Bidirectional => {
+                        let graph = graph
+                            .load_properties(|properties| {
+                                properties
+                                    .load_label_names()
+                                    .context("Could not load label names")
+                            })?
+                            .load_labels()
+                            .context("Could not load labels")?;
+                        let graph = StubBackwardArcs::new(graph);
+                        main2(graph, args)
+                    }
+                    Labels::None => {
+                        let graph = graph.load_properties(|properties| {
+                            properties.with_label_names(StubLabelNames)
+                        })?;
+                        let graph = StubBackwardArcs::new(graph);
+                        let graph = StubLabels::new(graph);
+                        main2(graph, args)
+                    }
+                }
+            }
+        },
+        GraphFormat::Json => {
+            ensure!(args.direction == Direction::Bidirectional, "--graph-format json and --direction are mutually exclusive (graphs deserialized from JSON are always bidirectional)");
+            ensure!(args.labels == Labels::Bidirectional, "--graph-format json and --labels are mutually exclusive (graphs' JSON serialization always contains labels)");
+
+            let file = std::fs::File::open(&args.graph_path)
+                .with_context(|| format!("Could not open {}", args.graph_path.display()))?;
+            let mut deserializer = serde_json::Deserializer::from_reader(BufReader::new(file));
+            let graph: SwhBidirectionalGraph<
+                properties::SwhGraphProperties<
+                    _,
+                    properties::VecTimestamps,
+                    properties::VecPersons,
+                    properties::VecContents,
+                    properties::VecStrings,
+                    properties::VecLabelNames,
+                >,
+                _,
+                _,
+            > = swh_graph::serde::deserialize_with_labels_and_maps(
+                &mut deserializer,
+                args.graph_path.clone(),
+            )
+            .map_err(|e| anyhow!("Could not read JSON graph: {e}"))?;
+            main2(graph, args)
         }
     }
 }

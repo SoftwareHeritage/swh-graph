@@ -5,6 +5,8 @@
 
 //! Serialization and deserialization of (small) graphs using [`serde`]
 
+use std::path::PathBuf;
+
 use serde::de::*;
 use serde::ser::*;
 use serde::*;
@@ -68,6 +70,8 @@ where
 /// Deserializes a (small) graph using [`serde`] instead of the normal deserialization, and
 /// returns a fully in-memory graph, as if built by
 /// [`GraphBuilder`](crate::graph_builder::GraphBuilder)
+///
+/// The `path` is not read, but is used to set the return value of [`SwhBidirectionalGraph::path`].
 pub fn deserialize_with_labels_and_maps<
     'de,
     D: Deserializer<'de>,
@@ -78,6 +82,7 @@ pub fn deserialize_with_labels_and_maps<
     LABELNAMES: properties::MaybeLabelNames + Deserialize<'de>,
 >(
     deserializer: D,
+    path: PathBuf,
 ) -> Result<
     SwhBidirectionalGraph<
         SwhGraphProperties<properties::VecMaps, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
@@ -122,7 +127,7 @@ pub fn deserialize_with_labels_and_maps<
         })
         .collect();
     Ok(SwhBidirectionalGraph::from_underlying_graphs(
-        std::path::PathBuf::default(),
+        path,
         LabeledVecGraph::from_arcs(forward_arcs),
         LabeledVecGraph::from_arcs(backward_arcs),
     )
