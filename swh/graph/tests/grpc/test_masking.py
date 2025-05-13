@@ -69,6 +69,7 @@ def test_not_found(graph_grpc_stub, graph_grpc_backend_implementation):
     assert excinfo.value.code() == grpc.StatusCode.NOT_FOUND
 
 
+@pytest.mark.timeout(timeout=10)
 def test_invalid_swhid(graph_grpc_stub, graph_grpc_backend_implementation):
     with pytest.raises(grpc.RpcError) as excinfo:
         graph_grpc_stub.GetNode(
