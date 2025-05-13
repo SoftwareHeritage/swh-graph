@@ -54,6 +54,7 @@ def graph_grpc_server_started(graph_grpc_server_process):
     )
 
 
+@pytest.mark.timeout(timeout=10)
 def test_not_found(graph_grpc_stub, graph_grpc_backend_implementation):
     with pytest.raises(grpc.RpcError) as excinfo:
         graph_grpc_stub.GetNode(

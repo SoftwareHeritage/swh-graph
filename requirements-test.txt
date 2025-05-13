@@ -1,6 +1,7 @@
 pytest >= 8.1
 pytest-mock
 pytest-postgresql
+pytest-timeout
 swh.core[testing] >= 3.0.0
 
 types-click
