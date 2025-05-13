@@ -33,12 +33,19 @@ class GraphServerProcess(multiprocessing.Process):
         # Lazy import to allow debian packaging
         from swh.graph.http_rpc_server import make_app
 
+        print("GraphServerProcess.run")
+
         try:
             with loop_context() as loop:
+                print("GraphServerProcess.run -> loop_context")
                 app = make_app(config=self.config)
+                print("GraphServerProcess.run -> make_app")
                 client = TestClient(TestServer(app), loop=loop)
+                print("GraphServerProcess.run -> TestClient")
                 loop.run_until_complete(client.start_server())
+                print("GraphServerProcess.run -> loop.run_until_complete")
                 url = client.make_url("/graph/")
+                print("GraphServerProcess.run -> client.make_url")
                 self.q.put(
                     {
                         "server_url": url,
@@ -46,7 +53,9 @@ class GraphServerProcess(multiprocessing.Process):
                         "pid": app["local_server"].pid,
                     }
                 )
+                print("GraphServerProcess.run -> self.q.put")
                 loop.run_forever()
+                print("GraphServerProcess.run -> loop.run_forever")
         except Exception as e:
             if isinstance(e, ExecutableNotFound):
                 # hack to add a bit more context and help to the user,
@@ -59,8 +68,11 @@ class GraphServerProcess(multiprocessing.Process):
                     "the rust/README.md file in the swh-graph "
                     "source code directory.",
                 )
+            print("GraphServerProcess.run -> exc")
             logger.exception(e)
+            print("GraphServerProcess.run -> logger.exception")
             self.q.put(e)
+        print("GraphServerProcess.run -> done")
 
     def start(self, *args, **kwargs):
         super().start()
