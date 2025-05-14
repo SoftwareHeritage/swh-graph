@@ -42,9 +42,7 @@ enum Commands {
     /// Only suitable for labeled graphs.
     LabelsEf {
         base_path: PathBuf,
-        /// The number of elements to be inserted in the Elias-Fano
-        /// starting from a label offset file. It is usually one more than
-        /// the number of nodes in the graph.
+        /// The number of nodes in the graph
         num_nodes: usize,
     },
 

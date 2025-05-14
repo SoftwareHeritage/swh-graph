@@ -385,13 +385,13 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{rust_executable_dir}/swh-graph-index",
         "labels-ef",
         "{out_dir}/{graph_name}-labelled",
-        "$((1+ $(cat {out_dir}/{graph_name}.nodes.count.txt)))",
+        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
     ],
     CompressionStep.EDGE_LABELS_TRANSPOSE_EF: [
         "{rust_executable_dir}/swh-graph-index",
         "labels-ef",
         "{out_dir}/{graph_name}-transposed-labelled",
-        "$((1+ $(cat {out_dir}/{graph_name}.nodes.count.txt)))",
+        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
     ],
     CompressionStep.STATS: [
         "{rust_executable_dir}/swh-graph-compress",
