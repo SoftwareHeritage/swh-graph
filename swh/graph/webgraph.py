@@ -479,10 +479,9 @@ def do_step(step, conf) -> "List[RunResult]":
     try:
         results = command.wait()
     except CommandException as e:
-        raise CompressionSubprocessError(
-            f"Compression step {step} returned non-zero exit code {e.returncode}",
-            log_path,
-        )
+        msg = f"Compression step {step} returned non-zero exit code {e.returncode}"
+        step_logger.critical(msg)
+        raise CompressionSubprocessError(msg, log_path)
     step_end_time = datetime.now()
     step_duration = step_end_time - step_start_time
     step_logger.info(
