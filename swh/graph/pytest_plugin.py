@@ -134,8 +134,9 @@ def graph_grpc_server_config(graph_grpc_backend_implementation, graph_statsd_ser
 
 
 @pytest.fixture(scope="session")
-def graph_grpc_server_process(graph_grpc_server_config, graph_statsd_server):
-    server = GraphServerProcess(graph_grpc_server_config)
+def graph_grpc_server_process(graph_grpc_server_config, graph_statsd_server, capsys):
+    with capsys.disabled():
+        server = GraphServerProcess(graph_grpc_server_config)
 
     yield server
 
