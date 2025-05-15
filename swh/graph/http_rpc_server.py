@@ -62,23 +62,37 @@ async def _aiorpcerror_middleware(app, handler):
 
 class GraphServerApp(aiohttp.web.Application):
     def __init__(self, *args, middlewares=(), **kwargs):
+        print("GraphServerApp.__init__", file=sys.stderr)
         middlewares = (_aiorpcerror_middleware,) + middlewares
+        print("GraphServerApp.__init__ middlewares", file=sys.stderr)
         super().__init__(*args, middlewares=middlewares, **kwargs)
+        print("GraphServerApp.__init__ -> super init", file=sys.stderr)
         self.on_startup.append(self._start)
         self.on_shutdown.append(self._stop)
+        print("GraphServerApp.__init__ -> done", file=sys.stderr)
 
     @staticmethod
     async def _start(app):
+        print("GraphServerApp._start", file=sys.stderr)
         app["channel"] = grpc.aio.insecure_channel(app["rpc_url"])
+        print("GraphServerApp._start -> got channel", file=sys.stderr)
         await app["channel"].__aenter__()
+        print("GraphServerApp._start -> aenter", file=sys.stderr)
         app["rpc_client"] = TraversalServiceStub(app["channel"])
+        print("GraphServerApp._start -> stub", file=sys.stderr)
         await app["rpc_client"].Stats(StatsRequest(), wait_for_ready=True)
+        print("GraphServerApp._start -> stats", file=sys.stderr)
 
     @staticmethod
     async def _stop(app):
+        print("GraphServerApp._stop", file=sys.stderr)
         await app["channel"].__aexit__(None, None, None)
+        print("GraphServerApp._stop -> aexit", file=sys.stderr)
         if app.get("local_server"):
+            print("GraphServerApp._stop -> local_server", file=sys.stderr)
             stop_grpc_server(app["local_server"])
+            print("GraphServerApp._stop -> stop_grpc_server", file=sys.stderr)
+        print("GraphServerApp._stop -> done", file=sys.stderr)
 
 
 async def index(request):
