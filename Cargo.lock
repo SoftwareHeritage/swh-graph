@@ -5214,7 +5214,7 @@ dependencies = [
 [[package]]
 name = "webgraph"
 version = "0.2.1"
-source = "git+https://github.com/vigna/webgraph-rs.git?rev=b86d628ff30e0b10dd7bcdc005aaee062adc92bb#b86d628ff30e0b10dd7bcdc005aaee062adc92bb"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=e4375a4f91eb060601bcd1cb3241b5e46fd843dc#e4375a4f91eb060601bcd1cb3241b5e46fd843dc"
 dependencies = [
  "anyhow",
  "bitflags 2.6.0",
@@ -5245,7 +5245,7 @@ dependencies = [
 [[package]]
 name = "webgraph-algo"
 version = "0.1.1"
-source = "git+https://github.com/vigna/webgraph-rs.git?rev=b86d628ff30e0b10dd7bcdc005aaee062adc92bb#b86d628ff30e0b10dd7bcdc005aaee062adc92bb"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=e4375a4f91eb060601bcd1cb3241b5e46fd843dc#e4375a4f91eb060601bcd1cb3241b5e46fd843dc"
 dependencies = [
  "anyhow",
  "card-est-array",
@@ -5253,6 +5253,7 @@ dependencies = [
  "epserde",
  "kahan",
  "lender",
+ "log",
  "no-break",
  "nonmax",
  "parallel_frontier",
@@ -5268,10 +5269,11 @@ dependencies = [
 [[package]]
 name = "webgraph-cli"
 version = "0.1.0"
-source = "git+https://github.com/vigna/webgraph-rs.git?rev=b86d628ff30e0b10dd7bcdc005aaee062adc92bb#b86d628ff30e0b10dd7bcdc005aaee062adc92bb"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=e4375a4f91eb060601bcd1cb3241b5e46fd843dc#e4375a4f91eb060601bcd1cb3241b5e46fd843dc"
 dependencies = [
  "anyhow",
  "built",
+ "card-est-array",
  "chrono",
  "clap",
  "clap_complete",
@@ -5294,6 +5296,7 @@ dependencies = [
  "tempfile",
  "webgraph",
  "webgraph-algo",
+ "zstd 0.13.2",
 ]
 
 [[package]]

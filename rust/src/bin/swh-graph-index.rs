@@ -71,7 +71,7 @@ pub fn main() -> Result<()> {
                 args.webgraph_args,
                 CliArgs {
                     src: base_path,
-                    n: None,
+                    number_of_nodes: None,
                 },
             )?;
         }
@@ -96,7 +96,7 @@ pub fn main() -> Result<()> {
                 args.webgraph_args,
                 CliArgs {
                     src: base_path,
-                    n: Some(num_nodes),
+                    number_of_nodes: Some(num_nodes),
                 },
             )?;
         }
