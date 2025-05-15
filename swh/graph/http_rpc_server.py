@@ -10,6 +10,7 @@ A proxy HTTP server for swh-graph, talking to the Rust code via the gRPC API.
 import json
 import logging
 import os
+import sys
 from typing import Optional
 
 import aiohttp.test_utils
@@ -376,6 +377,7 @@ def make_app(config=None):
       http_rpc_server section.
 
     """
+    print("make_app start", file=sys.stderr)
     if config is None:
         config = {}
     if "graph" not in config:
@@ -388,7 +390,9 @@ def make_app(config=None):
         cfg = config["graph"].copy()
     cls = cfg.pop("cls")
     grpc_cfg = cfg.pop("grpc_server", {})
+    print("make_app -> got config", file=sys.stderr)
     app = GraphServerApp(**cfg.get("http_rpc_server", {}))
+    print("make_app -> GraphServerApp", file=sys.stderr)
     if cls == "remote":
         if "url" not in cfg:
             raise KeyError("Missing 'url' configuration entry in the [graph] section")
@@ -398,6 +402,7 @@ def make_app(config=None):
         rpc_url = f"localhost:{port}"
     else:
         raise ValueError(f"Unknown swh.graph class cls={cls}")
+    print("make_app -> rpc_url", file=sys.stderr)
     app.add_routes(
         [
             aiohttp.web.get("/", index),
@@ -412,8 +417,10 @@ def make_app(config=None):
             aiohttp.web.view("/graph/visit/nodes/count/{src}", CountVisitNodesView),
         ]
     )
+    print("make_app -> routes", file=sys.stderr)
 
     app["rpc_url"] = rpc_url
+    print("make_app -> return", file=sys.stderr)
     return app
 
 
