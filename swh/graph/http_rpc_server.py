@@ -74,7 +74,20 @@ class GraphServerApp(aiohttp.web.Application):
     @staticmethod
     async def _start(app):
         print("GraphServerApp._start", file=sys.stderr)
-        app["channel"] = grpc.aio.insecure_channel(app["rpc_url"])
+
+        # reduce timeouts when running tests
+        factor = 0.01 if "pytest" in sys.modules else 1.0
+        options = [
+            ("grpc.http2.max_pings_without_data", 0),
+            ("grpc.http2.min_time_between_pings_ms", 30000 * factor),
+            ("grpc.http2.min_ping_interval_without_data_ms", 30000 * factor),
+            ("grpc.keepalive_time_ms", 30000 * factor),
+            ("grpc.keepalive_timeout_ms", 30000 * factor),
+            ("grpc.keepalive_permit_without_calls", 1),
+        ]
+
+        print("GraphServerApp._start -> options", file=sys.stderr)
+        app["channel"] = grpc.aio.insecure_channel(app["rpc_url"], options=options)
         print("GraphServerApp._start -> got channel", file=sys.stderr)
         await app["channel"].__aenter__()
         print("GraphServerApp._start -> aenter", file=sys.stderr)
