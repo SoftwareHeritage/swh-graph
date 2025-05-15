@@ -87,8 +87,11 @@ class GraphServerApp(aiohttp.web.Application):
         ]
 
         print("GraphServerApp._start -> options", file=sys.stderr)
+        os.environ["GRPC_VERBOSITY"] = "DEBUG"
+        os.environ["GRPC_TRACE"] = "*"
         app["channel"] = grpc.aio.insecure_channel(app["rpc_url"], options=options)
         print("GraphServerApp._start -> got channel", file=sys.stderr)
+        del os.environ["GRPC_VERBOSITY"], os.environ["GRPC_TRACE"]
         await app["channel"].__aenter__()
         print("GraphServerApp._start -> aenter", file=sys.stderr)
         app["rpc_client"] = TraversalServiceStub(app["channel"])
