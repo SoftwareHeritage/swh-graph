@@ -89,21 +89,22 @@ class GraphServerApp(aiohttp.web.Application):
         print("GraphServerApp._start -> options", file=sys.stderr)
         os.environ["GRPC_VERBOSITY"] = "DEBUG"
         os.environ["GRPC_TRACE"] = "*"
-        app["channel"] = grpc.aio.insecure_channel(app["rpc_url"], options=options)
+        channel = grpc.aio.insecure_channel(app["rpc_url"], options=options)
         print("GraphServerApp._start -> got channel", file=sys.stderr)
         del os.environ["GRPC_VERBOSITY"], os.environ["GRPC_TRACE"]
-        await app["channel"].__aenter__()
-        print("GraphServerApp._start -> aenter", file=sys.stderr)
-        app["rpc_client"] = TraversalServiceStub(app["channel"])
-        print("GraphServerApp._start -> stub", file=sys.stderr)
-        await app["rpc_client"].Stats(StatsRequest(), wait_for_ready=True)
-        print("GraphServerApp._start -> stats", file=sys.stderr)
+        async with channel:
+            print("GraphServerApp._start -> aenter", file=sys.stderr)
+            app["rpc_client"] = TraversalServiceStub(channel)
+            print("GraphServerApp._start -> stub", file=sys.stderr)
+            await app["rpc_client"].Stats(StatsRequest(), wait_for_ready=True)
+            print("GraphServerApp._start -> stats", file=sys.stderr)
+        print("GraphServerApp._start -> aexit", file=sys.stderr)
 
     @staticmethod
     async def _stop(app):
         print("GraphServerApp._stop", file=sys.stderr)
-        await app["channel"].__aexit__(None, None, None)
-        print("GraphServerApp._stop -> aexit", file=sys.stderr)
+        # await app["channel"].__aexit__(None, None, None)
+        # print("GraphServerApp._stop -> aexit", file=sys.stderr)
         if app.get("local_server"):
             print("GraphServerApp._stop -> local_server", file=sys.stderr)
             stop_grpc_server(app["local_server"])
