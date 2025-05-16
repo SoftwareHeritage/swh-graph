@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2024  The Software Heritage developers
+# Copyright (C) 2019-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -6,6 +6,8 @@
 import contextlib
 import logging
 import multiprocessing
+import os
+import signal
 import socket
 import subprocess
 import threading
@@ -66,6 +68,17 @@ class GraphServerProcess(multiprocessing.Process):
         super().start()
         self.result = self.q.get()
 
+    def stop(self):
+        try:
+            self.kill()
+            # ensure to terminate swh-graph-grpc-serve process spawned
+            # by graph HTTP server process
+            if not isinstance(self.result, Exception):
+                os.kill(self.result["pid"], signal.SIGKILL)
+        except AttributeError:
+            # server was never started
+            pass
+
 
 class StatsdServer:
     def __init__(self):
@@ -124,14 +137,8 @@ def graph_grpc_server_config(graph_grpc_backend_implementation, graph_statsd_ser
 @pytest.fixture(scope="session")
 def graph_grpc_server_process(graph_grpc_server_config, graph_statsd_server):
     server = GraphServerProcess(graph_grpc_server_config)
-
     yield server
-
-    try:
-        server.kill()
-    except AttributeError:
-        # server was never started
-        pass
+    server.stop()
 
 
 @pytest.fixture(scope="session")
@@ -141,7 +148,7 @@ def graph_grpc_server_started(graph_grpc_server_process):
     if isinstance(server.result, Exception):
         raise server.result
     yield server
-    server.kill()
+    server.stop()
 
 
 @pytest.fixture(scope="module")

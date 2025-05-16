@@ -34,4 +34,4 @@ def test_leaves(graph_grpc_server_config):
         with pytest.raises(TransientRemoteException, match="failed to connect"):
             list(it)
     finally:
-        server.kill()
+        server.stop()

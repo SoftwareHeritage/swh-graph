@@ -27,5 +27,5 @@ def test_grpc_server_not_found(mocker):
     try:
         server.start()
     finally:
-        server.kill()
+        server.stop()
     assert isinstance(server.result, ExecutableNotFound)
