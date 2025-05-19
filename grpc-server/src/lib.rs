@@ -72,6 +72,7 @@ impl<G: SwhOptFullGraph + Clone + Send + Sync + 'static> TraversalService<G> {
 
 pub trait TraversalServiceTrait {
     type Graph: SwhOptFullGraph + Clone + Send + Sync + 'static;
+    #[allow(clippy::result_large_err)] // implementation is short enough to be inlined
     fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status>;
     fn graph(&self) -> &Self::Graph;
     fn statsd_client(&self) -> Option<&Arc<StatsdClient>>;
@@ -82,7 +83,7 @@ impl<G: SwhOptFullGraph + Clone + Send + Sync + 'static> TraversalServiceTrait
 {
     type Graph = G;
 
-    #[inline]
+    #[inline(always)]
     fn try_get_node_id(&self, swhid: &str) -> Result<usize, tonic::Status> {
         let node = self
             .graph
@@ -276,6 +277,8 @@ fn load_export_meta(path: &Path) -> Option<ExportMeta> {
     Some(export_meta)
 }
 
+#[inline(always)]
+#[allow(clippy::result_large_err)] // it's inlined
 fn load_properties(path: &Path, suffix: &str) -> Result<HashMap<String, String>, tonic::Status> {
     let file = std::fs::File::open(path).map_err(|e| {
         log::error!("Could not open {}: {}", path.display(), e);
@@ -288,6 +291,8 @@ fn load_properties(path: &Path, suffix: &str) -> Result<HashMap<String, String>,
     Ok(properties)
 }
 
+#[inline(always)]
+#[allow(clippy::result_large_err)] // it's inlined
 fn get_property<V: FromStr>(
     properties: &HashMap<String, String>,
     properties_path: &Path,

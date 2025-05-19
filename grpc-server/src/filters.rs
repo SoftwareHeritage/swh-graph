@@ -9,6 +9,8 @@ use swh_graph::{ArcType, NodeType};
 
 use super::proto;
 
+#[inline(always)]
+#[allow(clippy::result_large_err)] // it's inlined
 /// Parses `*`, `cnt`, `dir`, `rev`, `rel`, `snp`, `ori` to [`NodeType`]
 fn parse_node_type(type_name: &str) -> Result<NodeType, tonic::Status> {
     type_name
@@ -16,6 +18,8 @@ fn parse_node_type(type_name: &str) -> Result<NodeType, tonic::Status> {
         .map_err(|_| tonic::Status::invalid_argument(format!("Invalid node type: {}", type_name)))
 }
 
+#[inline(always)]
+#[allow(clippy::result_large_err)] // it's inlined
 /// Parses comma -separated `src:dst` pairs of node types (see [`parse_node_type`]).
 ///
 /// Returns `*` if the node type is `*`
@@ -64,6 +68,7 @@ where
     G: SwhForwardGraph + SwhGraphWithProperties + Sized,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
+    #[allow(clippy::result_large_err)] // this is called by implementations of Tonic traits, which can't return Result<_, Box<Status>>
     pub fn new(graph: G, filter: proto::NodeFilter) -> Result<Self, tonic::Status> {
         let proto::NodeFilter {
             types,
@@ -129,6 +134,7 @@ where
     G: SwhForwardGraph + SwhGraphWithProperties + Sized,
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
+    #[allow(clippy::result_large_err)] // this is called by implementations of Tonic traits, which can't return Result<_, Box<Status>>
     pub fn new(graph: G, types: Option<String>) -> Result<Self, tonic::Status> {
         let types = types.unwrap_or("*".to_owned());
         Ok(ArcFilterChecker {

@@ -88,6 +88,7 @@ impl<
             + 'static,
     > NodeBuilder<G>
 {
+    #[allow(clippy::result_large_err)] // this is called by implementations of Tonic traits, which can't return Result<_, Box<Status>>
     pub fn new(graph: G, mask: Option<prost_types::FieldMask>) -> Result<Self, tonic::Status> {
         let Some(mask) = mask else {
             return Ok(NodeBuilder {

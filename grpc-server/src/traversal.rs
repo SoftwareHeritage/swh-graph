@@ -31,6 +31,7 @@ pub struct SimpleTraversal<'s, S: TraversalServiceTrait + Sync + 'static> {
 }
 
 impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
+    #[allow(clippy::result_large_err)] // this is called by implementations of Tonic traits, which can't return Result<_, Box<Status>>
     #[allow(clippy::type_complexity)]
     fn make_visitor<
         'a,

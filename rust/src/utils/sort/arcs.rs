@@ -342,7 +342,7 @@ fn flush<
     label_deserializer: D,
 ) -> Result<BatchIterator<D>> {
     use rand::Rng;
-    let sorter_id = rand::thread_rng().gen::<u64>();
+    let sorter_id = rand::thread_rng().r#gen::<u64>();
     let mut sorter_temp_file = temp_dir.to_owned();
     sorter_temp_file.push(format!("sort-arcs-permute-{:#x}", sorter_id));
 
