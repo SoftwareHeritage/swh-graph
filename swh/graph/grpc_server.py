@@ -1,4 +1,4 @@
-# Copyright (C) 2021-2023  The Software Heritage developers
+# Copyright (C) 2021-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -35,7 +35,7 @@ def build_rust_grpc_server_cmdline(**config):
         logger.debug("Port not configured, using random port %s", port)
 
     grpc_path = config["rust_executable_dir"] + "swh-graph-grpc-serve"
-    if not os.path.isfile(grpc_path):
+    if not os.path.isfile(grpc_path) and config.get("search_system_paths", True):
         grpc_path = shutil.which("swh-graph-grpc-serve")
     if not grpc_path or not os.path.isfile(grpc_path):
         raise ExecutableNotFound("swh-graph-grpc-serve executable not found")

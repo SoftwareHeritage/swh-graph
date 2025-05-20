@@ -136,6 +136,9 @@ def graph_grpc_server_config(graph_grpc_backend_implementation, graph_statsd_ser
 
 @pytest.fixture(scope="session")
 def graph_grpc_server_process(graph_grpc_server_config, graph_statsd_server):
+    # The default on Python < 3.14 on Linux is "fork", which is not safe
+    # as forking a multithreaded process is problematic
+    multiprocessing.set_start_method("forkserver", force=True)
     server = GraphServerProcess(graph_grpc_server_config)
     yield server
     server.stop()
