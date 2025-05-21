@@ -762,7 +762,7 @@ pub fn main() -> Result<()> {
         } => {
             use log::info;
             use swh_graph::compress::properties::*;
-            use swh_graph::mph::SwhidMphf;
+            use swh_graph::mph::{LoadableSwhidMphf, SwhidMphf};
 
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
@@ -833,7 +833,7 @@ pub fn main() -> Result<()> {
 
             match mph_algo {
                 MphAlgorithm::Pthash => {
-                    let swhid_mph = SwhidMphf::load(function).context("Cannot load mph")?;
+                    let swhid_mph = LoadableSwhidMphf::load(function).context("Cannot load mph")?;
                     let property_writer = PropertyWriter {
                         swhid_mph,
                         person_mph,
@@ -846,7 +846,7 @@ pub fn main() -> Result<()> {
                     f::<SwhidPthash>(property_writer)?;
                 }
                 MphAlgorithm::Cmph => {
-                    let swhid_mph = SwhidMphf::load(function).context("Cannot load mph")?;
+                    let swhid_mph = LoadableSwhidMphf::load(function).context("Cannot load mph")?;
                     let property_writer = PropertyWriter {
                         swhid_mph,
                         person_mph,

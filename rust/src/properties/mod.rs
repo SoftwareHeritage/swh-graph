@@ -30,7 +30,7 @@ use anyhow::{Context, Result};
 use byteorder::BigEndian;
 use mmap_rs::Mmap;
 
-use crate::mph::SwhidMphf;
+use crate::mph::LoadableSwhidMphf;
 use crate::utils::mmap::NumberMmap;
 use crate::utils::GetIndex;
 use crate::OutOfBoundError;
@@ -305,7 +305,7 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
     ///     .load_strings()
     ///     .expect("Could not load string properties");
     /// ```
-    pub fn load_all<MPHF: SwhidMphf>(self) -> Result<AllSwhGraphProperties<MPHF>> {
+    pub fn load_all<MPHF: LoadableSwhidMphf>(self) -> Result<AllSwhGraphProperties<MPHF>> {
         self.load_maps()?
             .load_timestamps()?
             .load_persons()?

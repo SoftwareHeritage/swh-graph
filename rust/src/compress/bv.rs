@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -27,10 +27,10 @@ use super::iter_labeled_arcs::iter_labeled_arcs;
 use super::label_names::{LabelNameHasher, LabelNameMphf};
 use super::stats::estimate_edge_count;
 use crate::map::{MappedPermutation, Permutation};
-use crate::mph::SwhidMphf;
+use crate::mph::LoadableSwhidMphf;
 use crate::utils::sort::par_sort_arcs;
 
-pub fn bv<MPHF: SwhidMphf + Sync>(
+pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
     sort_batch_size: usize,
     partitions_per_thread: usize,
     mph_basepath: PathBuf,
@@ -130,7 +130,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
 
 /// Writes `-labelled.labels`,  `-labelled.labeloffsets`, and returns the label width
 #[allow(clippy::too_many_arguments)]
-pub fn edge_labels<MPHF: SwhidMphf + Sync>(
+pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     sort_batch_size: usize,
     partitions_per_thread: usize,
     mph_basepath: PathBuf,
