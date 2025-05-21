@@ -124,7 +124,7 @@ pub fn build_order(
 
     let mut order: Vec<_> = (0..num_labels).map(|_| usize::MAX).collect();
     for (i, label) in iter_labels(&path)?.enumerate() {
-        ProgressLog::light_update(&mut pl);
+        pl.light_update();
         let hash = mphf.hash(&label) as usize;
         ensure!(hash < num_labels, "{} is not minimal", mphf_path.display());
         ensure!(

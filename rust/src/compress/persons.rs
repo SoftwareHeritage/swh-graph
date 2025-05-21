@@ -57,7 +57,7 @@ pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonMphf> {
         pl.start(format!("Reading persons (pass #{})", pass_counter));
         iter_persons(&path)
             .expect("Could not read persons")
-            .inspect(move |_| ProgressLog::light_update(&mut pl))
+            .inspect(move |_| pl.light_update())
     };
     let temp_dir = tempfile::tempdir().unwrap();
 
