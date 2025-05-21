@@ -22,7 +22,7 @@ use std::sync::mpsc::{sync_channel, SyncSender};
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, ValueEnum};
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
 use mmap_rs::MmapFlags;
 use rayon::prelude::*;
 
@@ -174,7 +174,7 @@ where
         .map(|_| AtomicU32::new(0))
         .collect();
 
-    let mut pl = progress_logger!(
+    let mut pl = concurrent_progress_logger!(
         display_memory = true,
         item_name = "node",
         local_speed = true,
@@ -186,7 +186,7 @@ where
     let mut leaves = Vec::new();
 
     graph
-        .par_iter_nodes(&mut pl)
+        .par_iter_nodes(pl.clone())
         .try_fold_with(
             (
                 0,          // total_arcs

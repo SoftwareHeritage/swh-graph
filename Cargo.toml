@@ -23,7 +23,7 @@ swh-graph = { version = "6.1.0", path = "./rust/" }
 # CLI
 env_logger = "0.11.5"
 clap = { version = "4.1.6", features = ["derive"] }
-dsi-progress-logger = "0.2.4"
+dsi-progress-logger = "0.8.0"
 log = "0.4.17"
 
 

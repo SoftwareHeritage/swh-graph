@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024  The Software Heritage developers
+# Copyright (c) 2022-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -21,11 +21,11 @@ def hash_swhids_with_node2swhid(swhids: Iterable[str]) -> List[int]:
             "--num-nodes",
             (DATASET_DIR / "compressed/example.nodes.count.txt").read_text().strip(),
             "--mph-algo",
-            "cmph",
+            "pthash",
             "--mph",
             DATASET_DIR / "compressed/example",
             "--permutation",
-            DATASET_DIR / "compressed/example.order",
+            DATASET_DIR / "compressed/example.pthash.order",
             "--node2swhid",
             DATASET_DIR / "compressed/example.node2swhid.bin"
         )

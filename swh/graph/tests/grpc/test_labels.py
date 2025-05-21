@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023 The Software Heritage developers
+# Copyright (c) 2022-2025 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -69,11 +69,11 @@ def test_traverse_forward_labels(graph_grpc_stub):
             successor=[
                 Successor(
                     swhid="swh:1:cnt:0000000000000000000000000000000000000004",
-                    label=[EdgeLabel(name=b"README.md", permission=0o100644)],
+                    label=[EdgeLabel(name=b"README.rst", permission=0o100644)],
                 ),
                 Successor(
                     swhid="swh:1:cnt:0000000000000000000000000000000000000005",
-                    label=[EdgeLabel(name=b"parser.c", permission=0o100644)],
+                    label=[EdgeLabel(name=b"main.py", permission=0o100644)],
                 ),
             ],
         ),

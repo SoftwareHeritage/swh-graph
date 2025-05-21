@@ -1406,26 +1406,14 @@ dependencies = [
 
 [[package]]
 name = "dsi-progress-logger"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54266433c4391d39c2cc10a39c112b87484f8a8884d62809a0d86aecbe905059"
-dependencies = [
- "log",
- "num-format",
- "pluralizer 0.4.0",
- "sysinfo 0.29.11",
-]
-
-[[package]]
-name = "dsi-progress-logger"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e25d8c5d79771b81f6cc126853c15ed818d9e49980ddbc50830afb8341aaba2a"
 dependencies = [
  "log",
  "num-format",
- "pluralizer 0.5.0",
- "sysinfo 0.33.1",
+ "pluralizer",
+ "sysinfo",
 ]
 
 [[package]]
@@ -3317,16 +3305,6 @@ dependencies = [
 
 [[package]]
 name = "pluralizer"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35e4616e94b67b8b61846ea69d4bf041a62147d569d16f437689229e2677d38c"
-dependencies = [
- "lazy_static",
- "regex",
-]
-
-[[package]]
-name = "pluralizer"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b3eba432a00a1f6c16f39147847a870e94e2e9b992759b503e330efec778cbe"
@@ -4285,7 +4263,7 @@ dependencies = [
  "crossbeam-channel",
  "derivative",
  "derive_setters",
- "dsi-progress-logger 0.8.1",
+ "dsi-progress-logger",
  "env_logger 0.11.5",
  "epserde",
  "flate2",
@@ -4327,7 +4305,7 @@ dependencies = [
  "crossbeam",
  "dary_heap",
  "dsi-bitstream 0.5.0",
- "dsi-progress-logger 0.2.4",
+ "dsi-progress-logger",
  "env_logger 0.11.5",
  "epserde",
  "faster-hex",
@@ -4410,7 +4388,7 @@ dependencies = [
  "csv",
  "dataset-writer",
  "dsi-bitstream 0.4.0",
- "dsi-progress-logger 0.2.4",
+ "dsi-progress-logger",
  "env_logger 0.11.5",
  "itertools 0.11.0",
  "log",
@@ -4482,21 +4460,6 @@ dependencies = [
  "libc",
  "thiserror 1.0.51",
  "walkdir",
-]
-
-[[package]]
-name = "sysinfo"
-version = "0.29.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd727fc423c2060f6c92d9534cef765c65a6ed3f428a03d7def74a8c4348e666"
-dependencies = [
- "cfg-if",
- "core-foundation-sys",
- "libc",
- "ntapi",
- "once_cell",
- "rayon",
- "winapi",
 ]
 
 [[package]]
@@ -5222,7 +5185,7 @@ dependencies = [
  "crossbeam-channel",
  "dary_heap",
  "dsi-bitstream 0.5.0",
- "dsi-progress-logger 0.8.1",
+ "dsi-progress-logger",
  "epserde",
  "impl-tools",
  "itertools 0.14.0",
@@ -5249,7 +5212,7 @@ source = "git+https://github.com/vigna/webgraph-rs.git?rev=e4375a4f91eb060601bcd
 dependencies = [
  "anyhow",
  "card-est-array",
- "dsi-progress-logger 0.8.1",
+ "dsi-progress-logger",
  "epserde",
  "kahan",
  "lender",
@@ -5279,7 +5242,7 @@ dependencies = [
  "clap_complete",
  "common_traits 0.11.2",
  "dsi-bitstream 0.5.0",
- "dsi-progress-logger 0.8.1",
+ "dsi-progress-logger",
  "env_logger 0.11.5",
  "epserde",
  "itertools 0.14.0",
@@ -5292,7 +5255,7 @@ dependencies = [
  "rand 0.9.0",
  "rayon",
  "sux",
- "sysinfo 0.33.1",
+ "sysinfo",
  "tempfile",
  "webgraph",
  "webgraph-algo",

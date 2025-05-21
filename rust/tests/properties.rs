@@ -7,14 +7,14 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 use swh_graph::graph::*;
-use swh_graph::java_compat::mph::gov::GOVMPH;
+use swh_graph::mph::SwhidPthash;
 use swh_graph::properties::NodeIdFromSwhidError;
 use swh_graph::AllSwhGraphProperties;
 use swh_graph::{NodeType, OutOfBoundError, StrSWHIDDeserializationError, SWHID};
 
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
-fn graph() -> Result<SwhUnidirectionalGraph<AllSwhGraphProperties<GOVMPH>>> {
+fn graph() -> Result<SwhUnidirectionalGraph<AllSwhGraphProperties<SwhidPthash>>> {
     SwhUnidirectionalGraph::new(PathBuf::from(BASENAME))
         .context("Could not load graph")?
         .load_all_properties()

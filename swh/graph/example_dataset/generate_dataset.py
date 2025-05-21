@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2021-2022  The Software Heritage developers
+# Copyright (C) 2021-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -40,9 +40,9 @@ def main():
     for name, exporter in exporters.items():
         if (output_path / name).exists():
             shutil.rmtree(output_path / name)
-        with exporter(config, output_path / name) as e:
+        with exporter(config, output_path / name, sensitive_export_path=None) as e:
             for obj in DATASET:
-                e.process_object(obj.object_type, obj.to_dict())
+                e.process_object(obj.object_type, obj)
 
     if args.compress:
         if (output_path / "compressed").exists():

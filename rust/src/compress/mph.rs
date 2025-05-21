@@ -4,10 +4,9 @@
 // See top-level LICENSE file for more information
 
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use pthash::{BuildConfiguration, PartitionedPhf, Phf};
 use rayon::prelude::*;
 
@@ -19,14 +18,13 @@ pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidP
     let mut pass_counter = 0;
     let iter_swhids = || {
         pass_counter += 1;
-        let mut pl = progress_logger!(
+        let mut pl = concurrent_progress_logger!(
             display_memory = true,
             item_name = "SWHID",
             local_speed = true,
             expected_updates = Some(num_nodes),
         );
         pl.start(format!("Reading SWHIDs (pass #{})", pass_counter));
-        let pl = Arc::new(Mutex::new(Box::new(pl)));
         par_iter_lines_from_dir(&swhids_dir, pl).map(HashableSWHID::<Vec<u8>>)
     };
     let temp_dir = tempfile::tempdir().unwrap();

@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024  The Software Heritage developers
+# Copyright (c) 2022-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -65,7 +65,6 @@ def test_stats(graph_client):
     assert isinstance(stats["compression_ratio"], float)
     assert isinstance(stats["bits_per_node"], float)
     assert isinstance(stats["bits_per_edge"], float)
-    assert isinstance(stats["avg_locality"], float)
     assert stats["indegree_min"] == 0
     assert stats["indegree_max"] == 4
     assert isinstance(stats["indegree_avg"], float)

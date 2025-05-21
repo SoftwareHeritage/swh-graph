@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023-2024  The Software Heritage developers
+ * Copyright (C) 2023-2025  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -15,13 +15,11 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use dsi_bitstream::prelude::*;
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use mmap_rs::MmapFlags;
 use rayon::prelude::*;
 use webgraph::prelude::{ArcMmapHelper, BitDeserializer, BitSerializer, MmapHelper};
 use webgraph::utils::sort_pairs::{BatchIterator, BitReader, BitWriter, KMergeIters, Triple};
-
-use crate::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 
 pub struct PartitionedBuffer<
     L: Ord + Copy + Send + Sync,
@@ -208,21 +206,20 @@ where
     std::fs::create_dir(&merged_sorted_dir)
         .with_context(|| format!("Could not create {}", merged_sorted_dir.display()))?;
 
-    let mut pl = progress_logger!(
+    let mut pl = concurrent_progress_logger!(
         display_memory = true,
         item_name = "arc",
         local_speed = true,
         expected_updates = Some(num_arcs),
     );
     pl.start("Merging sorted arcs");
-    let pl = Arc::new(Mutex::new(Box::new(pl)));
 
     let merged_sorted_iterators = sorted_iterators
         .into_par_iter()
         .enumerate()
         // Concatenate partitions
         .map_with(
-            BufferedProgressLogger::new(pl),
+            pl.clone(),
             |thread_pl, (partition_id, partition_sorted_iterators)| {
                 // In the previous step, each of the N threads generated M partitions,
                 // so N×M lists. (Unless Rayon did something funny, N=M.)
@@ -238,16 +235,12 @@ where
                     KMergeIters::new(partition_sorted_iterators),
                 )?;
 
-                if Arc::strong_count(thread_pl.inner()) == 1 {
-                    // We are in the last thread that still had a reference to the
-                    // progress logger.
-                    thread_pl.inner().lock().unwrap().done();
-                }
-
                 deserialize(&path, label_deserializer, num_arcs_in_partition)
             },
         )
         .collect::<Result<Vec<_>>>()?;
+
+    pl.done();
 
     log::info!("Deleted unmerged sorted files");
     std::fs::remove_dir_all(&unmerged_sorted_dir)
@@ -259,7 +252,7 @@ where
 
 fn serialize<L, S>(
     path: &Path,
-    pl: &mut impl MinimalProgressLog,
+    pl: &mut impl ProgressLog,
     label_serializer: S,
     arcs: impl Iterator<Item = (usize, usize, L)>,
 ) -> Result<usize>

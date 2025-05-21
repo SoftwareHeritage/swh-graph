@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use rayon::prelude::*;
 use serde::Serialize;
 
@@ -148,7 +148,7 @@ pub fn main() -> Result<()> {
     let snapshot_writers = ParallelDatasetWriter::new(output_dir.join("snapshot"))
         .context("Could not create snapshot writer")?;
 
-    let mut pl = progress_logger!(
+    let mut pl = concurrent_progress_logger!(
         display_memory = true,
         local_speed = true,
         item_name = "node",
@@ -157,7 +157,7 @@ pub fn main() -> Result<()> {
     pl.start("Listing nodes and edges...");
 
     graph
-        .par_iter_nodes(&mut pl)
+        .par_iter_nodes(pl.clone())
         .try_for_each(|node| -> Result<()> {
             let node_type = graph.properties().node_type(node);
 

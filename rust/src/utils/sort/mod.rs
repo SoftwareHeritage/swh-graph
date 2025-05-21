@@ -14,12 +14,10 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use dary_heap::{PeekMut, QuaternaryHeap};
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, ConcurrentProgressLog, ProgressLog};
 use itertools::Itertools;
 use rayon::prelude::*;
 use tempfile::TempDir;
-
-use crate::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 
 mod arcs;
 pub use arcs::{par_sort_arcs, PartitionedBuffer};
@@ -133,7 +131,7 @@ trait ParallelDeduplicatingExternalSorter<Item: Eq + Ord + Send>: Sync + Sized {
             .context("Sorting items failed before merging")?;
         pl.done();
 
-        let mut pl = progress_logger!(
+        let mut pl = concurrent_progress_logger!(
             display_memory = true,
             item_name = "item",
             local_speed = true,
@@ -150,7 +148,7 @@ trait ParallelDeduplicatingExternalSorter<Item: Eq + Ord + Send>: Sync + Sized {
         drop(unmerged_tmpdir); // Free disk space
         log::info!("Done");
 
-        let mut pl = progress_logger!(
+        let mut pl = concurrent_progress_logger!(
             display_memory = true,
             item_name = "item",
             local_speed = true,
@@ -232,13 +230,12 @@ trait ParallelDeduplicatingExternalSorter<Item: Eq + Ord + Send>: Sync + Sized {
         &self,
         unmerged_paths: Vec<PathBuf>,
         tmpdir: &TempDir,
-        pl: &mut (impl ProgressLog + Send),
+        pl: &mut impl ConcurrentProgressLog,
     ) -> Result<(usize, Vec<PathBuf>)> {
         let num_items_estimate = AtomicUsize::new(0);
         let pre_merged_paths = std::thread::scope(|s| {
             let tmpdir = &tmpdir;
             let num_items_estimate = &num_items_estimate;
-            let pl = BufferedProgressLogger::new(Arc::new(Mutex::new(pl)));
             let chunks_size = unmerged_paths.len().div_ceil(num_cpus::get());
             unmerged_paths
                 .into_iter()
@@ -290,7 +287,7 @@ trait ParallelDeduplicatingExternalSorter<Item: Eq + Ord + Send>: Sync + Sized {
     fn merge_sorted(
         unmerged_paths: Vec<PathBuf>,
         input_dir: TempDir,
-        mut pl: impl ProgressLog + Send,
+        mut pl: impl ConcurrentProgressLog,
     ) -> Result<impl Iterator<Item = Item>> {
         let buffers = unmerged_paths
             .into_iter()
@@ -298,7 +295,7 @@ trait ParallelDeduplicatingExternalSorter<Item: Eq + Ord + Send>: Sync + Sized {
             .collect::<Result<Vec<_>>>()?;
         drop(input_dir); // Prevent deletion before we opened the input files
         Ok(KMergeIters::new(buffers)
-            .inspect(move |_| ProgressLog::light_update(&mut pl))
+            .inspect(move |_| pl.light_update())
             .dedup())
     }
 }
