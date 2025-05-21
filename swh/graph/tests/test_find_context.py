@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2024  The Software Heritage developers
+# Copyright (C) 2019-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -18,8 +18,8 @@ def test_find_context_content(graph_grpc_server):
         "swh:1:cnt:0000000000000000000000000000000000000001;"
         "path=/oldproject/README.md;"
         "anchor=swh:1:rev:0000000000000000000000000000000000000009;"
-        "visit=swh:1:snp:0000000000000000000000000000000000000022;"
-        "origin=https://example.com/swh/graph2\n"
+        "visit=swh:1:snp:0000000000000000000000000000000000000020;"
+        "origin=https://example.com/swh/graph\n"
     )
     assert result.exit_code == 0, result
     assert result.output == expected_fqswhid, result.output
@@ -49,8 +49,8 @@ def test_find_context_revision(graph_grpc_server):
     )
     expected_fqswhid = (
         "swh:1:rev:0000000000000000000000000000000000000009;"
-        "visit=swh:1:snp:0000000000000000000000000000000000000022;"
-        "origin=https://example.com/swh/graph2\n"
+        "visit=swh:1:snp:0000000000000000000000000000000000000020;"
+        "origin=https://example.com/swh/graph\n"
     )
     assert result.exit_code == 0, result
     assert result.output == expected_fqswhid, result.output
@@ -64,8 +64,8 @@ def test_find_context_release(graph_grpc_server):
     )
     expected_fqswhid = (
         "swh:1:rel:0000000000000000000000000000000000000010;"
-        "visit=swh:1:snp:0000000000000000000000000000000000000022;"
-        "origin=https://example.com/swh/graph2\n"
+        "visit=swh:1:snp:0000000000000000000000000000000000000020;"
+        "origin=https://example.com/swh/graph\n"
     )
     assert result.exit_code == 0, result
     assert result.output == expected_fqswhid, result.output

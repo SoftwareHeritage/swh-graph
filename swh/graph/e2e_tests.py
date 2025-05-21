@@ -1135,11 +1135,13 @@ def run_e2e_test(
                     "successor": [
                         {
                             "swhid": "swh:1:cnt:0000000000000000000000000000000000000005",
-                            "label": [{"name": "cGFyc2VyLmM=", "permission": 33188}],
+                            "label": [{"name": "bWFpbi5weQ==", "permission": 33188}],
                         },
                         {
                             "swhid": "swh:1:cnt:0000000000000000000000000000000000000004",
-                            "label": [{"name": "UkVBRE1FLm1k", "permission": 33188}],
+                            "label": [
+                                {"name": "UkVBRE1FLnJzdA==", "permission": 33188}
+                            ],
                         },
                     ],
                     "numSuccessors": "2",

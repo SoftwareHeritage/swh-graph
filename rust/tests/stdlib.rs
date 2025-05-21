@@ -9,8 +9,8 @@ use anyhow::Result;
 
 use swh_graph::graph::*;
 use swh_graph::graph_builder::GraphBuilder;
-use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::labels::{Visit, VisitStatus};
+use swh_graph::mph::SwhidPthash;
 use swh_graph::stdlib::*;
 use swh_graph::swhid;
 
@@ -21,7 +21,7 @@ const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 #[test]
 fn test_find_root_dir() -> Result<()> {
     let graph = SwhUnidirectionalGraph::new(BASENAME)?
-        .load_all_properties::<GOVMPH>()?
+        .load_all_properties::<SwhidPthash>()?
         .load_labels()?;
     let props = graph.properties();
 
