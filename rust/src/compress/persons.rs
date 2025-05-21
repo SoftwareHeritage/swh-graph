@@ -6,16 +6,13 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use pthash::{
     BuildConfiguration, DictionaryDictionary, Hashable, Minimal, MurmurHash2_64, PartitionedPhf,
     Phf,
 };
-
-use crate::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 
 pub struct Person<T: AsRef<[u8]>>(pub T);
 
@@ -51,17 +48,16 @@ pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonMphf> {
     let mut pass_counter = 0;
     let iter_persons = || {
         pass_counter += 1;
-        let mut pl = progress_logger!(
+        let mut pl = concurrent_progress_logger!(
             display_memory = true,
             item_name = "person",
             local_speed = true,
             expected_updates = Some(num_persons),
         );
         pl.start(format!("Reading persons (pass #{})", pass_counter));
-        let mut pl = BufferedProgressLogger::new(Arc::new(Mutex::new(Box::new(pl))));
         iter_persons(&path)
             .expect("Could not read persons")
-            .inspect(move |_| MinimalProgressLog::light_update(&mut pl))
+            .inspect(move |_| ProgressLog::light_update(&mut pl))
     };
     let temp_dir = tempfile::tempdir().unwrap();
 

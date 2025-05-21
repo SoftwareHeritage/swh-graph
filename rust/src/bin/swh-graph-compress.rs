@@ -14,7 +14,7 @@ use std::sync::Mutex;
 use anyhow::{anyhow, ensure, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_bitstream::prelude::BE;
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
 use webgraph::prelude::*;
 
 use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
@@ -580,20 +580,18 @@ pub fn main() -> Result<()> {
 
             let mut rclb = RearCodedListBuilder::new(stripe_length);
 
-            let mut pl = progress_logger!(
+            let mut pl = concurrent_progress_logger!(
                 display_memory = true,
                 item_name = "label",
                 local_speed = true,
                 expected_updates = Some(num_lines),
             );
             pl.start("Reading labels");
-            iter_lines_from_dir(&input_dir, Arc::new(Mutex::new(&mut pl))).for_each(
-                |line: Vec<u8>| {
-                    // Each line is base64-encode, so it is guaranteed to be ASCII.
-                    let line = unsafe { std::str::from_utf8_unchecked(&line[..]) };
-                    rclb.push(line);
-                },
-            );
+            iter_lines_from_dir(&input_dir, pl.clone()).for_each(|line: Vec<u8>| {
+                // Each line is base64-encode, so it is guaranteed to be ASCII.
+                let line = unsafe { std::str::from_utf8_unchecked(&line[..]) };
+                rclb.push(line);
+            });
             pl.done();
 
             // Disabled because of https://github.com/vigna/sux-rs/issues/18

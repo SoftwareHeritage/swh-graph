@@ -6,10 +6,9 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 
 use anyhow::{ensure, Context, Result};
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
 use pthash::{
     BuildConfiguration, DictionaryDictionary, Hashable, Minimal, MurmurHash2_128, PartitionedPhf,
     Phf,
@@ -18,7 +17,6 @@ use rayon::prelude::*;
 
 use crate::labels::FilenameId;
 use crate::map::{MappedPermutation, OwnedPermutation, Permutation};
-use crate::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 
 pub struct LabelName<T: AsRef<[u8]>>(pub T);
 
@@ -60,17 +58,16 @@ pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
     let mut pass_counter = 0;
     let iter_labels = || {
         pass_counter += 1;
-        let mut pl = progress_logger!(
+        let mut pl = concurrent_progress_logger!(
             display_memory = true,
             item_name = "label",
             local_speed = true,
             expected_updates = Some(num_labels),
         );
         pl.start(format!("Reading labels (pass #{})", pass_counter));
-        let mut pl = BufferedProgressLogger::new(Arc::new(Mutex::new(Box::new(pl))));
         iter_labels(&path)
             .expect("Could not read labels")
-            .inspect(move |_| MinimalProgressLog::light_update(&mut pl))
+            .inspect(move |_| pl.light_update())
     };
     let temp_dir = tempfile::tempdir().unwrap();
 

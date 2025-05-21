@@ -12,7 +12,6 @@ use anyhow::{anyhow, Context, Result};
 use crate::{NodeConstraint, NodeType};
 
 pub mod mmap;
-pub mod progress_logger;
 pub mod shuffle;
 pub mod sort;
 
