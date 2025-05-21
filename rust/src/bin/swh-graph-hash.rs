@@ -14,7 +14,7 @@ use mmap_rs::Mmap;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::map::Node2SWHID;
 use swh_graph::map::{MappedPermutation, Permutation};
-use swh_graph::mph::{SwhidMphf, SwhidPthash};
+use swh_graph::mph::{LoadableSwhidMphf, SwhidMphf, SwhidPthash};
 use swh_graph::{OutOfBoundError, SWHID};
 
 #[derive(Parser, Debug)]
@@ -115,7 +115,7 @@ pub fn main() -> Result<()> {
     }
 }
 
-fn hash_swhids<MPHF: SwhidMphf>(
+fn hash_swhids<MPHF: LoadableSwhidMphf>(
     mph: PathBuf,
     permutation: MappedPermutation,
     node2swhid: Option<Node2SWHID<Mmap>>,

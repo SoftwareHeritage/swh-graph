@@ -31,7 +31,7 @@ use crate::arc_iterators::{
 pub use crate::arc_iterators::IntoFlattenedLabeledArcsIterator;
 use crate::labeling::SwhLabeling;
 use crate::labels::{EdgeLabel, UntypedEdgeLabel};
-use crate::mph::SwhidMphf;
+use crate::mph::LoadableSwhidMphf;
 use crate::properties;
 pub use crate::underlying_graph::DefaultUnderlyingGraph;
 use crate::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
@@ -526,7 +526,7 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
     ///     .load_all_properties::<GOVMPH>()
     ///     .expect("Could not load properties");
     /// ```
-    pub fn load_all_properties<MPHF: SwhidMphf>(
+    pub fn load_all_properties<MPHF: LoadableSwhidMphf>(
         self,
     ) -> Result<
         SwhUnidirectionalGraph<
@@ -839,7 +839,7 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
     ///     .load_all_properties::<GOVMPH>()
     ///     .expect("Could not load properties");
     /// ```
-    pub fn load_all_properties<MPHF: SwhidMphf>(
+    pub fn load_all_properties<MPHF: LoadableSwhidMphf>(
         self,
     ) -> Result<
         SwhBidirectionalGraph<
@@ -969,9 +969,9 @@ pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectional
 /// # use std::path::PathBuf;
 /// # use anyhow::{Context, Result};
 /// # use swh_graph::graph::SwhBidirectionalGraph;
-/// # use swh_graph::mph::SwhidMphf;
+/// # use swh_graph::mph::LoadableSwhidMphf;
 /// #
-/// # fn f<MPHF: SwhidMphf>() -> Result<()> {
+/// # fn f<MPHF: LoadableSwhidMphf>() -> Result<()> {
 /// # let basepath = PathBuf::from("./graph");
 /// let graph = SwhBidirectionalGraph::new(basepath)
 ///     .context("Could not load graph")?
@@ -987,7 +987,7 @@ pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectional
 /// (ie. load unidirectional if you don't need the backward graph, don't load properties
 /// that are not needed, don't load labels unless they need to be read), so users can
 /// run your code without a complete graph locally.
-pub fn load_full<MPHF: SwhidMphf>(
+pub fn load_full<MPHF: LoadableSwhidMphf>(
     basepath: impl AsRef<Path>,
 ) -> Result<
     SwhBidirectionalGraph<

@@ -11,7 +11,7 @@ use pyo3::prelude::*;
 use pyo3::Bound;
 
 use swh_graph::graph::*;
-use swh_graph::mph::{DynMphf, SwhidMphf};
+use swh_graph::mph::{DynMphf, LoadableSwhidMphf, SwhidMphf};
 
 create_exception!(
     swh_graph,
