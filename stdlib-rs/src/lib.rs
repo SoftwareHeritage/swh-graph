@@ -7,10 +7,10 @@
 
 use anyhow::{ensure, Result};
 
-use crate::graph::*;
-use crate::labels::{EdgeLabel, VisitStatus};
-use crate::properties;
-use crate::NodeType;
+use swh_graph::graph::*;
+use swh_graph::labels::{EdgeLabel, VisitStatus};
+use swh_graph::properties;
+use swh_graph::NodeType;
 
 /// Given a graph and an origin node in it, return the node id and timestamp
 /// (as a number of seconds since Epoch) of the most recent snapshot of that

@@ -7,10 +7,10 @@
 
 use anyhow::{ensure, Result};
 
-use crate::graph::*;
-use crate::labels::{EdgeLabel, FilenameId};
-use crate::properties;
-use crate::NodeType;
+use swh_graph::graph::*;
+use swh_graph::labels::{EdgeLabel, FilenameId};
+use swh_graph::properties;
+use swh_graph::NodeType;
 
 /// Names of references ("branches") that are considered to be pointing to the
 /// HEAD revision in a VCS, by [find_head_rev] below. Names are tried in order,

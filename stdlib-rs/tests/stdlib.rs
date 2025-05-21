@@ -11,8 +11,8 @@ use swh_graph::graph::*;
 use swh_graph::graph_builder::GraphBuilder;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::labels::{Visit, VisitStatus};
-use swh_graph::stdlib::*;
 use swh_graph::swhid;
+use swh_graph_stdlib::*;
 
 mod data;
 
@@ -144,7 +144,7 @@ fn test_fs_ls_tree() -> Result<()> {
     let doc_dir = props.node_id("swh:1:dir:0000000000000000000000000000000000000002")?;
 
     use swh_graph::labels::Permission;
-    use swh_graph::stdlib::FsTree::*;
+    use swh_graph_stdlib::FsTree::*;
     assert_eq!(
         fs_ls_tree(&graph, doc_dir)?,
         Directory(HashMap::from([(

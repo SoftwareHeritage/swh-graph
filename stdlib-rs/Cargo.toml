@@ -1,0 +1,11 @@
+[package]
+name = "swh-graph-stdlib"
+edition = "2021"
+repository.workspace = true
+license.workspace = true
+version = "0.1.0"
+
+[dependencies]
+anyhow.workspace = true
+log.workspace = true
+swh-graph.workspace = true

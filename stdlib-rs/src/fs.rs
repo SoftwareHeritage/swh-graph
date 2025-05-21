@@ -10,10 +10,10 @@ use std::collections::HashMap;
 use anyhow::{ensure, Context, Result};
 use log::warn;
 
-use crate::graph::*;
-use crate::labels::{EdgeLabel, FilenameId, Permission};
-use crate::properties;
-use crate::NodeType;
+use swh_graph::graph::*;
+use swh_graph::labels::{EdgeLabel, FilenameId, Permission};
+use swh_graph::properties;
+use swh_graph::NodeType;
 
 fn msg_no_filename_id(name: impl AsRef<[u8]>) -> String {
     format!(

@@ -5,9 +5,9 @@
 
 use anyhow::{bail, ensure, Result};
 
-use crate::graph::*;
-use crate::properties;
-use crate::NodeType;
+use swh_graph::graph::*;
+use swh_graph::properties;
+use swh_graph::NodeType;
 
 /// Given a node id pointing to a revision or release, returns the node id of
 /// the associated topmost ("root") directory.

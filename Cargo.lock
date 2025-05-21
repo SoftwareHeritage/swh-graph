@@ -4392,6 +4392,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "swh-graph-stdlib"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "swh-graph",
+]
+
+[[package]]
 name = "swh_graph_pyo3"
 version = "6.7.0"
 dependencies = [
