@@ -588,7 +588,7 @@ pub fn main() -> Result<()> {
             );
             pl.start("Reading labels");
             iter_lines_from_dir(&input_dir, pl.clone()).for_each(|line: Vec<u8>| {
-                // Each line is base64-encode, so it is guaranteed to be ASCII.
+                // Each line is base64-encoded, so it is guaranteed to be ASCII.
                 let line = unsafe { std::str::from_utf8_unchecked(&line[..]) };
                 rclb.push(line);
             });
