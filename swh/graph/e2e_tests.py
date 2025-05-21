@@ -1161,6 +1161,16 @@ def run_e2e_test(
                     for l_key in level_keys:
                         if elt.swhid == val[l_key]["swhid"]:
                             elt_dict = MessageToDict(elt)
+                            if "successor" in elt_dict:
+                                # ensure same ordering in successor lists for comparison
+                                for node_dict in (elt_dict, val[l_key]):
+                                    assert isinstance(node_dict["successor"], list)
+                                    node_dict["successor"] = list(
+                                        sorted(
+                                            node_dict["successor"],
+                                            key=lambda succ: succ["swhid"],
+                                        )
+                                    )
                             if elt_dict == val[l_key]:
                                 status_table[key][l_key] = True
                             else:
