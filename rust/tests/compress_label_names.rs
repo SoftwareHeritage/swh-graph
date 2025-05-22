@@ -21,7 +21,7 @@ fn test_build_mphf_and_order() -> Result<()> {
     let mphf_path = tmpdir.path().join("mphf");
 
     let mut f = BufWriter::new(File::create(&labels_path)?);
-    let labels = ["abc", "def", "ghijkl", "opqrstuv", "wyx", "z"];
+    let labels = ["abc", "def", "ghijkl", "opqrstuv", "wyx", "z", "foo", "bar"];
     let base64 = base64_simd::STANDARD;
     for label in labels {
         f.write_all(base64.encode_to_string(label).as_bytes())?;
