@@ -540,7 +540,7 @@ class ExtractNodes(_CompressionStepTask):
     OUTPUT_FILES = {
         ".nodes/",
     }
-    USES_ALL_CPU_THREADS = True
+    USES_ALL_CPU_THREADS = False
 
     def _large_allocations(self) -> int:
         return 0
@@ -553,7 +553,7 @@ class ExtractLabels(_CompressionStepTask):
     OUTPUT_FILES = {
         ".labels.csv.zst",
     }
-    USES_ALL_CPU_THREADS = True
+    USES_ALL_CPU_THREADS = False
 
     priority = -100
     """low priority, because it is not on the critical path"""
