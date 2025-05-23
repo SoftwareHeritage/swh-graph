@@ -192,17 +192,17 @@ fn hash_persons_pthash(mph: PathBuf) -> Result<()> {
 
 fn hash_persons_pthash_2024_08_23(mph: PathBuf) -> Result<()> {
     use pthash::Phf;
-    use swh_graph::compress::label_names::{LabelName, LabelNameMphf};
+    use swh_graph::compress::label_names::{LabelName, LabelNamePthashMphf};
 
     log::info!("Loading MPH function...");
-    let mph = <LabelNameMphf as Phf>::load(&mph)
+    let mph = <LabelNamePthashMphf as Phf>::load(&mph)
         .with_context(|| format!("Could not load MPH from {}", mph.display()))?;
 
     log::info!("Hashing input...");
 
     for (i, line) in std::io::stdin().lines().enumerate() {
         let line = line.with_context(|| format!("Could not read input line {}", i))?;
-        println!("{}", mph.hash(LabelName(&line)));
+        println!("{}", mph.hash(LabelName(line.as_bytes())));
     }
 
     Ok(())

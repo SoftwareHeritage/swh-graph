@@ -15,7 +15,6 @@ use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressL
 use itertools::Itertools;
 use lender::{for_, Lender};
 use nonmax::NonMaxU64;
-use pthash::Phf;
 use rayon::prelude::*;
 use tempfile;
 use webgraph::graphs::arc_list_graph::ArcListGraph;
@@ -24,7 +23,7 @@ use webgraph::prelude::*;
 
 use super::iter_arcs::iter_arcs;
 use super::iter_labeled_arcs::iter_labeled_arcs;
-use super::label_names::{LabelNameHasher, LabelNameMphf};
+use super::label_names::LabelNameHasher;
 use super::stats::estimate_edge_count;
 use crate::map::{MappedPermutation, Permutation};
 use crate::mph::SwhidMphf;
@@ -135,7 +134,7 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
     partitions_per_thread: usize,
     mph_basepath: PathBuf,
     order: MappedPermutation,
-    label_name_hasher: LabelNameHasher,
+    label_name_hasher: &LabelNameHasher,
     num_nodes: usize,
     dataset_dir: PathBuf,
     allowed_node_types: &[crate::NodeType],
@@ -149,7 +148,7 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
     let num_threads = num_cpus::get();
     let num_partitions = num_threads * partitions_per_thread;
     let nodes_per_partition = num_nodes.div_ceil(num_partitions);
-    let label_width = label_width(label_name_hasher.mphf());
+    let label_width = label_width(label_name_hasher);
 
     // Avoid empty partitions at the end when there are very few nodes
     let num_partitions = num_nodes.div_ceil(nodes_per_partition);
@@ -309,11 +308,11 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
     Ok(label_width)
 }
 
-fn label_width(mphf: &LabelNameMphf) -> usize {
+fn label_width(mphf: &LabelNameHasher) -> usize {
     use crate::labels::{
         Branch, DirEntry, EdgeLabel, FilenameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
     };
-    let num_label_names = mphf.num_keys();
+    let num_label_names = u64::try_from(mphf.len()).expect("num labels overflowed u64");
 
     // Visit timestamps cannot be larger than the current timestamp
     let max_visit_timestamp = SystemTime::now()

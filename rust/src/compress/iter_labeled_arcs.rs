@@ -18,7 +18,7 @@ use rayon::prelude::*;
 use super::iter_arcs::{iter_arcs_from_rel, iter_arcs_from_rev, iter_arcs_from_rev_history};
 use super::orc::{get_dataset_readers, iter_arrow};
 use super::TextSwhid;
-use crate::compress::label_names::LabelNameHasher;
+use crate::compress::label_names::{LabelName, LabelNameHasher};
 use crate::labels::{
     Branch, DirEntry, EdgeLabel, Permission, UntypedEdgeLabel, Visit, VisitStatus,
 };
@@ -27,7 +27,7 @@ use crate::NodeType;
 pub fn iter_labeled_arcs<'a>(
     dataset_dir: &'a PathBuf,
     allowed_node_types: &'a [NodeType],
-    label_name_hasher: LabelNameHasher<'a>,
+    label_name_hasher: &'a LabelNameHasher,
 ) -> Result<impl ParallelIterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
@@ -100,7 +100,7 @@ where
 
 fn iter_labeled_arcs_from_dir_entry<'a, R: ChunkReader + Send + 'a>(
     reader_builder: ArrowReaderBuilder<R>,
-    label_name_hasher: LabelNameHasher<'a>,
+    label_name_hasher: &'a LabelNameHasher,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct DirectoryEntry {
@@ -126,7 +126,7 @@ fn iter_labeled_arcs_from_dir_entry<'a, R: ChunkReader + Send + 'a>(
                     .and_then(Permission::from_git)
                     .unwrap_or(Permission::None),
                 label_name_hasher
-                    .hash(entry.name)
+                    .hash(LabelName(entry.name))
                     .expect("Could not hash dir entry name"),
             )
             .map(EdgeLabel::DirEntry),
@@ -176,7 +176,7 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
 
 fn iter_labeled_arcs_from_snp_branch<'a, R: ChunkReader + Send + 'a>(
     reader_builder: ArrowReaderBuilder<R>,
-    label_name_hasher: LabelNameHasher<'a>,
+    label_name_hasher: &'a LabelNameHasher,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct SnapshotBranch {
@@ -201,7 +201,7 @@ fn iter_labeled_arcs_from_snp_branch<'a, R: ChunkReader + Send + 'a>(
                 dst,
                 Branch::new(
                     label_name_hasher
-                        .hash(branch.name)
+                        .hash(LabelName(branch.name))
                         .expect("Could not hash branch name"),
                 )
                 .map(EdgeLabel::Branch),

@@ -160,8 +160,6 @@ enum Commands {
         #[arg(long)]
         label_name_mphf: PathBuf,
         #[arg(long)]
-        label_name_order: PathBuf,
-        #[arg(long)]
         num_nodes: usize,
         #[arg(long, action)]
         transposed: bool,
@@ -578,22 +576,17 @@ pub fn main() -> Result<()> {
             function,
             order,
             label_name_mphf,
-            label_name_order,
             num_nodes,
             transposed,
             dataset_dir,
             target_dir,
         } => {
-            use pthash::Phf;
-            use swh_graph::compress::label_names::{LabelNameHasher, LabelNameMphf};
+            use swh_graph::compress::label_names::LabelNameHasher;
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
             let order = MappedPermutation::load_unchecked(&order)
                 .with_context(|| format!("Could not load {}", order.display()))?;
-            let label_name_mphf = LabelNameMphf::load(&label_name_mphf)
+            let label_name_hasher = LabelNameHasher::load(&label_name_mphf)
                 .with_context(|| format!("Could not load {}", label_name_mphf.display()))?;
-            let label_name_order = MappedPermutation::load_unchecked(&label_name_order)
-                .with_context(|| format!("Could not load {}", label_name_order.display()))?;
-            let label_name_hasher = LabelNameHasher::new(&label_name_mphf, &label_name_order)?;
 
             let label_width = match mph_algo {
                 MphAlgorithm::Pthash => swh_graph::compress::bv::edge_labels::<SwhidPthash>(
@@ -601,7 +594,7 @@ pub fn main() -> Result<()> {
                     partitions_per_thread,
                     function,
                     order,
-                    label_name_hasher,
+                    &label_name_hasher,
                     num_nodes,
                     dataset_dir,
                     &allowed_node_types,
@@ -614,7 +607,7 @@ pub fn main() -> Result<()> {
                         partitions_per_thread,
                         function,
                         order,
-                        label_name_hasher,
+                        &label_name_hasher,
                         num_nodes,
                         dataset_dir,
                         &allowed_node_types,

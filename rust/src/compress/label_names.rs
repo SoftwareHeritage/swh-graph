@@ -1,26 +1,28 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use anyhow::{ensure, Context, Result};
 use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
-use pthash::{
-    BuildConfiguration, DictionaryDictionary, Hashable, Minimal, MurmurHash2_128, PartitionedPhf,
-    Phf,
-};
-use rayon::prelude::*;
+use epserde::prelude::{Deserialize, Flags, MemCase, Serialize};
+use lender::{IteratorExt, Lender};
+use pthash::{DictionaryDictionary, Minimal, MurmurHash2_128, PartitionedPhf, Phf};
+use sux::prelude::{BitFieldSlice, VBuilder, VFunc};
+use sux::utils::{FromIntoIterator, FromLenderFactory};
 
 use crate::labels::FilenameId;
-use crate::map::{MappedPermutation, OwnedPermutation, Permutation};
+use crate::map::{MappedPermutation, Permutation};
 
+#[derive(Debug)]
 pub struct LabelName<T: AsRef<[u8]>>(pub T);
 
-impl<T: AsRef<[u8]>> Hashable for LabelName<T> {
+impl<T: AsRef<[u8]>> pthash::Hashable for LabelName<T> {
     type Bytes<'a>
         = &'a [u8]
     where
@@ -30,11 +32,7 @@ impl<T: AsRef<[u8]>> Hashable for LabelName<T> {
     }
 }
 
-// pthash requires 128-bits hash when using over 2^30 keys, and the 2024-05-16 production
-// graph has just over 2^32 keys
-pub type LabelNameMphf = PartitionedPhf<Minimal, MurmurHash2_128, DictionaryDictionary>;
-
-fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>> {
+fn iter_labels(path: &Path) -> Result<impl Iterator<Item = Box<[u8]>>> {
     let base64 = base64_simd::STANDARD;
     let labels_file =
         File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
@@ -42,21 +40,28 @@ fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>
         .lines()
         .map(move |label_base64| {
             let label_base64 = label_base64.expect("Could not read line");
-            LabelName(
-                base64
-                    .decode_to_vec(&label_base64)
-                    .unwrap_or_else(|_| {
-                        panic!("Label {}, could not be base64-decoded", label_base64)
-                    })
-                    .into_boxed_slice(),
-            )
+            base64
+                .decode_to_vec(&label_base64)
+                .unwrap_or_else(|_| panic!("Label {}, could not be base64-decoded", label_base64))
+                .into_boxed_slice()
         }))
 }
 
+#[derive(Debug)]
+struct CannotReadLabelsError(anyhow::Error);
+
+impl std::fmt::Display for CannotReadLabelsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Could not read labels: {}", self.0)
+    }
+}
+
+impl std::error::Error for CannotReadLabelsError {}
+
 /// Reads base64-encoded labels from the path and return a MPH function for them.
-pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
+pub fn build_hasher(path: PathBuf, num_labels: usize) -> Result<LabelNameHasher<Box<[usize]>>> {
     let mut pass_counter = 0;
-    let iter_labels = || {
+    let iter_labels = || -> Result<_, CannotReadLabelsError> {
         pass_counter += 1;
         let mut pl = concurrent_progress_logger!(
             display_memory = true,
@@ -65,93 +70,92 @@ pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
             expected_updates = Some(num_labels),
         );
         pl.start(format!("Reading labels (pass #{})", pass_counter));
-        iter_labels(&path)
-            .expect("Could not read labels")
-            .inspect(move |_| pl.light_update())
+        Ok(iter_labels(&path)
+            .map_err(CannotReadLabelsError)?
+            .into_lender()
+            .inspect(move |_| pl.light_update()))
     };
-    let temp_dir = tempfile::tempdir().unwrap();
 
-    // From zack's benchmarks on the 2023-09-06 graph (4 billion label names)
-    let mut config = BuildConfiguration::new(temp_dir.path().to_owned());
-    config.c = 4.000000;
-    config.alpha = 0.940000;
-    config.num_partitions = (num_labels as u64).div_ceil(40000000);
-    config.num_threads = num_cpus::get() as u64;
+    let builder = VBuilder::<_, Box<[usize]>>::default().expected_num_keys(num_labels);
+    let mphf = builder
+        .try_build_func(
+            FromLenderFactory::new(iter_labels)
+                .context("Could not initialize FromLenderFactory")?,
+            FromIntoIterator::from(0..num_labels),
+            &mut progress_logger!(
+                display_memory = true,
+                item_name = "pass",
+                local_speed = true,
+            ),
+        )
+        .context("Failed to build VFunc")?
+        .into();
 
-    log::info!("Building MPH with parameters: {:?}", config);
-
-    assert_ne!(
-        config.num_partitions, 0,
-        "Cannot build MPHF for empty label list"
-    );
-
-    let mut f = LabelNameMphf::new();
-    f.build_in_internal_memory_from_bytes(iter_labels, &config)
-        .context("Failed to build MPH")?;
-    Ok(f)
+    Ok(LabelNameHasher { mphf })
 }
 
-/// Reads base64-encoded labels from the path and a MPH function for these labels
-/// (as returned by [`build_mphf`]) and returns a permutation that maps their hashes
-/// to their position in the (sorted) list.
-pub fn build_order(
-    path: PathBuf,
-    mphf_path: PathBuf,
-    num_labels: usize,
-) -> Result<OwnedPermutation<Vec<usize>>> {
-    assert_eq!(
-        usize::BITS,
-        u64::BITS,
-        "Only 64-bits architectures are supported"
-    );
+type LabelNameMphf<D> = VFunc<[u8], usize, D>;
 
-    let mphf = LabelNameMphf::load(&mphf_path)
-        .with_context(|| format!("Could not load MPH from {}", mphf_path.display()))?;
-    ensure!(
-        mphf.num_keys() == num_labels as u64,
-        "mphf.num_keys() == {} does not match expected number of keys ({})",
-        mphf.num_keys(),
-        num_labels
-    );
+/// Wrapper of [`VFunc`] that can hash label names
+pub struct LabelNameHasher<
+    D: BitFieldSlice<usize> = &'static [usize],
+    M: Deref<Target = LabelNameMphf<D>> = MemCase<LabelNameMphf<D>>,
+> {
+    mphf: M,
+}
 
-    let mut pl = progress_logger!(
-        display_memory = true,
-        item_name = "label",
-        local_speed = true,
-        expected_updates = Some(num_labels),
-    );
-    pl.start("Reading labels");
+impl LabelNameHasher {
+    pub fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let path = path.as_ref();
+        let mphf = LabelNameMphf::<Box<[usize]>>::mmap(path, Flags::empty())
+            .with_context(|| format!("Could not mmap VFunc from {}", path.display()))?;
+        Ok(LabelNameHasher { mphf })
+    }
+}
 
-    let mut order: Vec<_> = (0..num_labels).map(|_| usize::MAX).collect();
-    for (i, label) in iter_labels(&path)?.enumerate() {
-        pl.light_update();
-        let hash = mphf.hash(&label) as usize;
-        ensure!(hash < num_labels, "{} is not minimal", mphf_path.display());
-        ensure!(
-            order[hash] == usize::MAX,
-            "hash collision involving {}",
-            String::from_utf8_lossy(&label.0)
-        );
-        order[hash] = i;
+impl<D: BitFieldSlice<usize>, M: Deref<Target = LabelNameMphf<D>>> LabelNameHasher<D, M>
+where
+    <M as Deref>::Target: Serialize,
+{
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+        let path = path.as_ref();
+        let mut file = std::fs::File::create(path)
+            .with_context(|| format!("Could not create {}", path.display()))?;
+        self.mphf
+            .serialize(&mut file)
+            .with_context(|| format!("Could not serialize VFunc to {}", path.display()))?;
+        Ok(())
+    }
+}
+
+impl<D: BitFieldSlice<usize>> LabelNameHasher<D> {
+    #[allow(clippy::len_without_is_empty)] // VFunc can't be empty
+    pub fn len(&self) -> usize {
+        self.mphf.len()
     }
 
-    log::info!("Checking permutation...");
-    order.par_iter().enumerate().try_for_each(|(i, value)| {
-        ensure!(*value != usize::MAX, "no label hash equals {}", i);
-        Ok(())
-    })?;
-
-    Ok(OwnedPermutation::new_unchecked(order))
+    pub fn hash(&self, label_name: LabelName<impl AsRef<[u8]>>) -> Result<FilenameId> {
+        Ok(FilenameId(
+            self.mphf
+                .get(label_name.0.as_ref())
+                .try_into()
+                .expect("label MPH overflowed"),
+        ))
+    }
 }
 
+// pthash requires 128-bits hash when using over 2^30 keys, and the 2024-05-16 production
+// graph has just over 2^32 keys
+pub type LabelNamePthashMphf = PartitionedPhf<Minimal, MurmurHash2_128, DictionaryDictionary>;
+
 #[derive(Clone, Copy)]
-pub struct LabelNameHasher<'a> {
-    mphf: &'a LabelNameMphf,
+pub struct LabelNamePthasher<'a> {
+    mphf: &'a LabelNamePthashMphf,
     order: &'a MappedPermutation,
 }
 
-impl<'a> LabelNameHasher<'a> {
-    pub fn new(mphf: &'a LabelNameMphf, order: &'a MappedPermutation) -> Result<Self> {
+impl<'a> LabelNamePthasher<'a> {
+    pub fn new(mphf: &'a LabelNamePthashMphf, order: &'a MappedPermutation) -> Result<Self> {
         ensure!(
             mphf.num_keys() == order.len() as u64,
             "Number of MPHF keys ({}) does not match permutation length ({})",
@@ -159,14 +163,10 @@ impl<'a> LabelNameHasher<'a> {
             order.len()
         );
 
-        Ok(LabelNameHasher { mphf, order })
+        Ok(LabelNamePthasher { mphf, order })
     }
 
-    pub fn mphf(&self) -> &'a LabelNameMphf {
-        self.mphf
-    }
-
-    pub fn hash<T: AsRef<[u8]>>(&self, label_name: T) -> Result<FilenameId> {
+    pub fn hash(&self, label_name: Box<[u8]>) -> Result<FilenameId> {
         Ok(FilenameId(
             self.order
                 .get(
