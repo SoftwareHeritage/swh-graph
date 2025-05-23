@@ -865,7 +865,7 @@ class MphPersons(_CompressionStepTask):
 
 class NodeProperties(_CompressionStepTask):
     STEP = CompressionStep.NODE_PROPERTIES
-    INPUT_FILES = {".pthash.order", ".pthash", ".persons.pthash", ".node2swhid.bin"}
+    INPUT_FILES = {".pthash.order", ".pthash", ".persons.pthash"}
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
         ".property.content.is_skipped.bits",
