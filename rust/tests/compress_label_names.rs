@@ -19,13 +19,16 @@ fn test_build_hasher() -> Result<()> {
     let labels_path = tmpdir.path().join("labels");
     let mphf_path = tmpdir.path().join("mphf");
 
-    let mut f = BufWriter::new(File::create(&labels_path)?);
+    let f = BufWriter::new(File::create(&labels_path)?);
+    let mut encoder =
+        zstd::stream::write::Encoder::new(f, 1).context("Could not create encoder")?;
     let labels = ["abc", "def", "ghijkl", "opqrstuv", "wyx", "z", "foo", "bar"];
     let base64 = base64_simd::STANDARD;
     for label in labels {
-        f.write_all(base64.encode_to_string(label).as_bytes())?;
-        f.write_all(b"\n")?;
+        encoder.write_all(base64.encode_to_string(label).as_bytes())?;
+        encoder.write_all(b"\n")?;
     }
+    let f = encoder.finish().context("Could not finish compressing")?;
     drop(f);
 
     let mphf = build_hasher(labels_path.clone(), labels.len()).context("Could not build MPHF")?;
