@@ -4,17 +4,17 @@
 // See top-level LICENSE file for more information
 
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::BufReader;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use anyhow::{ensure, Context, Result};
 use dsi_progress_logger::progress_logger;
 use epserde::prelude::{Deserialize, Flags, MemCase, Serialize};
-use lender::IteratorExt;
+use lender::Lender;
 use pthash::{DictionaryDictionary, Minimal, MurmurHash2_128, PartitionedPhf, Phf};
 use sux::prelude::{BitFieldSlice, VBuilder, VFunc};
-use sux::utils::{FromIntoIterator, FromLenderFactory};
+use sux::utils::{FromIntoIterator, FromLenderFactory, ZstdLineLender};
 
 use crate::labels::FilenameId;
 use crate::map::{MappedPermutation, Permutation};
@@ -32,16 +32,16 @@ impl<T: AsRef<[u8]>> pthash::Hashable for LabelName<T> {
     }
 }
 
-fn iter_labels(path: &Path) -> Result<impl Iterator<Item = Box<[u8]>>> {
+fn iter_labels(path: &Path) -> Result<impl Lender<Lend = Box<[u8]>>> {
     let base64 = base64_simd::STANDARD;
     let labels_file =
         File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
-    Ok(BufReader::new(labels_file)
-        .lines()
-        .map(move |label_base64| {
+    Ok(ZstdLineLender::new(BufReader::new(labels_file))
+        .with_context(|| format!("Could not open {} as a zstd file", path.display()))?
+        .map(move |label_base64: std::io::Result<&str>| {
             let label_base64 = label_base64.expect("Could not read line");
             base64
-                .decode_to_vec(&label_base64)
+                .decode_to_vec(label_base64)
                 .unwrap_or_else(|_| panic!("Label {}, could not be base64-decoded", label_base64))
                 .into_boxed_slice()
         }))
@@ -63,9 +63,7 @@ pub fn build_hasher(path: PathBuf, num_labels: usize) -> Result<LabelNameHasher<
     let mut pass_counter = 0;
     let iter_labels = || -> Result<_, CannotReadLabelsError> {
         pass_counter += 1;
-        Ok(iter_labels(&path)
-            .map_err(CannotReadLabelsError)?
-            .into_lender())
+        iter_labels(&path).map_err(CannotReadLabelsError)
     };
 
     let builder = VBuilder::<_, Box<[usize]>>::default().expected_num_keys(num_labels);
