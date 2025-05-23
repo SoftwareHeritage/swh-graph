@@ -9,9 +9,9 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use anyhow::{ensure, Context, Result};
-use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
+use dsi_progress_logger::progress_logger;
 use epserde::prelude::{Deserialize, Flags, MemCase, Serialize};
-use lender::{IteratorExt, Lender};
+use lender::IteratorExt;
 use pthash::{DictionaryDictionary, Minimal, MurmurHash2_128, PartitionedPhf, Phf};
 use sux::prelude::{BitFieldSlice, VBuilder, VFunc};
 use sux::utils::{FromIntoIterator, FromLenderFactory};
@@ -63,17 +63,9 @@ pub fn build_hasher(path: PathBuf, num_labels: usize) -> Result<LabelNameHasher<
     let mut pass_counter = 0;
     let iter_labels = || -> Result<_, CannotReadLabelsError> {
         pass_counter += 1;
-        let mut pl = concurrent_progress_logger!(
-            display_memory = true,
-            item_name = "label",
-            local_speed = true,
-            expected_updates = Some(num_labels),
-        );
-        pl.start(format!("Reading labels (pass #{})", pass_counter));
         Ok(iter_labels(&path)
             .map_err(CannotReadLabelsError)?
-            .into_lender()
-            .inspect(move |_| pl.light_update()))
+            .into_lender())
     };
 
     let builder = VBuilder::<_, Box<[usize]>>::default().expected_num_keys(num_labels);
@@ -82,11 +74,7 @@ pub fn build_hasher(path: PathBuf, num_labels: usize) -> Result<LabelNameHasher<
             FromLenderFactory::new(iter_labels)
                 .context("Could not initialize FromLenderFactory")?,
             FromIntoIterator::from(0..num_labels),
-            &mut progress_logger!(
-                display_memory = true,
-                item_name = "pass",
-                local_speed = true,
-            ),
+            &mut progress_logger!(display_memory = true, local_speed = true,),
         )
         .context("Failed to build VFunc")?
         .into();
