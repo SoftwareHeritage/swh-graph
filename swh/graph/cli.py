@@ -323,8 +323,8 @@ def reindex(ctx, force: bool, ef: bool, graph: str):
 
     ef = ef or force
     conf = ctx.obj["config"]
-    if "target" not in conf:
-        conf["target"] = "release"
+    if "profile" not in conf:
+        conf["profile"] = "release"
 
     if (
         ef
@@ -394,8 +394,8 @@ def grpc_serve(ctx, port, graph):
 
     config = ctx.obj["config"]
 
-    target = ctx.obj["config"].get("target", "release")
-    config["graph"]["target"] = target
+    profile = ctx.obj["config"].get("profile", "release")
+    config["graph"]["profile"] = profile
 
     if graph is not None:
         config["graph"]["path"] = graph
@@ -473,9 +473,9 @@ def compress(ctx, input_dataset, output_directory, graph_name, steps, test_flavo
         conf = {}  # use defaults
 
     try:
-        conf["target"] = ctx.obj["config"]["target"]
+        conf["profile"] = ctx.obj["config"]["profile"]
     except KeyError:
-        conf["target"] = "release"  # use release builds by default
+        conf["profile"] = "release"  # use release builds by default
 
     if test_flavor is None:
         # TODO: see is this can be None

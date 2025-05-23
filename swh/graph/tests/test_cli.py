@@ -33,7 +33,7 @@ def test_pipeline():
     # bare bone configuration, to allow testing the compression pipeline
     # with minimum RAM requirements on trivial graphs
     config = {
-        "target": "debug",
+        "profile": "debug",
         "graph": {
             "compress": {
                 "batch_size": 1000,
