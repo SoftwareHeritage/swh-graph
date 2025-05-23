@@ -18,9 +18,8 @@ anyhow.workspace = true
 mmap-rs = "0.6.1"
 sux = "0.7.2"
 #sux = {path = "../../../sux-rs" }
-#webgraph = "0.2.1"
-webgraph = { git = "https://github.com/vigna/webgraph-rs.git", rev = "e4375a4f91eb060601bcd1cb3241b5e46fd843dc"  }
-webgraph-cli = { git = "https://github.com/vigna/webgraph-rs.git", rev = "e4375a4f91eb060601bcd1cb3241b5e46fd843dc" }
+webgraph = "0.3.0"
+webgraph-cli = "0.1.0"
 #webgraph = { path = "../../../webgraph-rs/webgraph" }
 #webgraph_cli = { path = "../../../webgraph-rs/cli" }
 pthash = { version = "0.4.0", features = ["rayon"] }
