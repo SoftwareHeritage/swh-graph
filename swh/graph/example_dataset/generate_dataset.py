@@ -40,7 +40,7 @@ def main():
     for name, exporter in exporters.items():
         if (output_path / name).exists():
             shutil.rmtree(output_path / name)
-        with exporter(config, output_path / name, sensitive_export_path=None) as e:
+        with exporter(config, output_path / name) as e:
             for obj in DATASET:
                 e.process_object(obj.object_type, obj)
 

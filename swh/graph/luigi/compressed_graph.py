@@ -114,7 +114,7 @@ import collections
 import itertools
 import math
 from pathlib import Path
-from typing import Any, Dict, List, MutableSequence, Sequence, Set
+from typing import Any, Dict, List, MutableSequence, Optional, Sequence, Set
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -223,7 +223,9 @@ class _CompressionStepTask(luigi.Task):
     because running them concurrently does not improve run time."""
 
     local_export_path = luigi.PathParameter(significant=False)
-    local_sensitive_export_path = luigi.PathParameter(significant=False)
+    local_sensitive_export_path: Optional[Path] = luigi.OptionalPathParameter(
+        default=None
+    )
     graph_name = luigi.Parameter(default="graph")
     local_graph_path: Path = luigi.PathParameter()
 
@@ -1216,7 +1218,9 @@ def _make_dot_diagram() -> str:
 
 class CompressGraph(luigi.Task):
     local_export_path = luigi.PathParameter(significant=False)
-    local_sensitive_export_path = luigi.PathParameter(significant=False)
+    local_sensitive_export_path: Optional[Path] = luigi.OptionalPathParameter(
+        default=None
+    )
     graph_name = luigi.Parameter(default="graph")
     local_graph_path: Path = luigi.PathParameter()
     batch_size = luigi.IntParameter(
