@@ -9,13 +9,12 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 
 use anyhow::{Context, Result};
-use pthash::Phf;
 
 use swh_graph::compress::label_names::*;
-use swh_graph::map::Permutation;
+use swh_graph::labels::FilenameId;
 
 #[test]
-fn test_build_mphf_and_order() -> Result<()> {
+fn test_build_hasher() -> Result<()> {
     let tmpdir = tempfile::tempdir()?;
     let labels_path = tmpdir.path().join("labels");
     let mphf_path = tmpdir.path().join("mphf");
@@ -29,16 +28,14 @@ fn test_build_mphf_and_order() -> Result<()> {
     }
     drop(f);
 
-    let mut mphf = build_mphf(labels_path.clone(), labels.len()).context("Could not build MPHF")?;
-    assert_eq!(mphf.num_keys(), labels.len() as u64);
+    let mphf = build_hasher(labels_path.clone(), labels.len()).context("Could not build MPHF")?;
+    assert_eq!(mphf.len(), labels.len());
     mphf.save(&mphf_path).context("Could not save MPHF")?;
-    let order =
-        build_order(labels_path, mphf_path, labels.len()).context("Could not build order")?;
 
     for (i, label) in labels.iter().enumerate() {
         assert_eq!(
-            order.get(mphf.hash(LabelName(label.as_bytes())) as usize),
-            Some(i)
+            mphf.hash(LabelName(label.as_bytes())).unwrap(),
+            FilenameId(i as u64)
         );
     }
 

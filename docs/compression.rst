@@ -541,46 +541,20 @@ The results are stored in the following list of files:
 .. _graph-compression-mph-labels:
 .. _graph-compression-labels-order:
 
-MPH_LABELS / LABELS_ORDER
--------------------------
+MPH_LABELS
+----------
 
-The MPH_LABELS step computes a Minimal Perfect Hash function on the set of all the unique
-*arc label names* extracted in the :ref:`graph-compression-extract-labels` step. Each
-individual arc label name (i.e., directory entry names and snapshot branch
-names) is mapped to a unique integer in :math:`[0, n-1]`, where *n*
-is the total number of unique arc label names.
+The MPH_LABELS step computes a `"static function" <https://docs.rs/sux/latest/sux/func/struct.VFunc.html>`__
+on the set of all the unique *arc label names* extracted in the :ref:`graph-compression-extract-labels` step.
+Each individual arc label name (i.e., directory entry names and snapshot branch
+names) is monotonely mapped to a unique integer in :math:`[0, n-1]`, where *n*
+is the total number of unique arc label names, which corresponds to their
+**lexical rank** in the set of all arc labels.
 
-Then, LABELS_ORDER computes a permutation so these *n* values can be (uniquely)
-mapped to the position in the sorted list of labels.
-
-The results are stored in:
+The result is stored in:
 
 * ``graph.labels.pthash``
-* ``graph.labels.pthash.order``
 
-.. note::
-
-    This step formerly computed a **monotone** Minimal Perfect Hash function on the set of
-    all the unique *arc label names* extracted in the EXTRACT_NODES step. Each
-    individual arc label name (i.e., directory entry names and snapshot branch
-    names) is monotonely mapped to a unique integer in :math:`[0, n-1]`, where *n*
-    is the total number of unique arc label names, which corresponds to their
-    **lexical rank** in the set of all arc labels.
-
-    In other words, that MPH being monotone meant that the hash of the *k*-th item
-    in the sorted input list of arc labels will always be *k*.
-    We use the `LcpMonotoneMinimalPerfectHashFunction
-    <https://sux.di.unimi.it/docs/it/unimi/dsi/sux4j/mph/LcpMonotoneMinimalPerfectHashFunction.html>`_
-    of Sux4J to generate this function.
-
-    The rationale for using a monotone function here is that it allowed us to
-    quickly get back the arc label from its hash without having to store an
-    additional permutation.
-    The resulting MPH function is serialized and stored in the ``graph.labels.mph``
-    file.
-
-    As PTHash does not support monotone MPHs, we now compute a permutation in
-    :ref:`graph-compression-labels-order` instead.
 
 
 .. _graph-compression-fcl-labels:
@@ -589,8 +563,8 @@ FCL_LABELS
 ----------
 
 This step computes a *reverse-mapping* for arc labels, i.e., a way to
-efficiently get the arc label name from its hash computed with the MPH + permutation
-of the MPH_LABELS and LABELS_ORDER steps.
+efficiently get the arc label name from its hash computed with the static function
+of the MPH_LABELS step.
 
 For this purpose, we use a reimplementation of the `MappedFrontCodedStringBigList
 <https://dsiutils.di.unimi.it/docs/it/unimi/dsi/big/util/MappedFrontCodedStringBigList.html>`_

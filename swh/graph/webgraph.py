@@ -60,7 +60,6 @@ class CompressionStep(Enum):
     MPH_PERSONS = 200
     NODE_PROPERTIES = 210
     MPH_LABELS = 220
-    LABELS_ORDER = 225
     FCL_LABELS = 230
     EDGE_LABELS = 240
     EDGE_LABELS_TRANSPOSE = 250
@@ -317,20 +316,11 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
     ],
     CompressionStep.MPH_LABELS: [
         "{rust_executable_dir}/swh-graph-compress",
-        "pthash-labels",
+        "vfunc-labels",
         "--num-labels",
         "$(cat {out_dir}/{graph_name}.labels.count.txt)",
         "<(zstdcat {out_dir}/{graph_name}.labels.csv.zst)",
-        "{out_dir}/{graph_name}.labels.pthash",
-    ],
-    CompressionStep.LABELS_ORDER: [
-        "{rust_executable_dir}/swh-graph-compress",
-        "pthash-labels-order",
-        "--num-labels",
-        "$(cat {out_dir}/{graph_name}.labels.count.txt)",
-        "<(zstdcat {out_dir}/{graph_name}.labels.csv.zst)",
-        "{out_dir}/{graph_name}.labels.pthash",
-        "{out_dir}/{graph_name}.labels.pthash.order",
+        "{out_dir}/{graph_name}.labels.vfunc",
     ],
     CompressionStep.FCL_LABELS: [
         "{rust_executable_dir}/swh-graph-compress",
@@ -352,9 +342,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--order",
         "{out_dir}/{graph_name}.pthash.order",
         "--label-name-mphf",
-        "{out_dir}/{graph_name}.labels.pthash",
-        "--label-name-order",
-        "{out_dir}/{graph_name}.labels.pthash.order",
+        "{out_dir}/{graph_name}.labels.vfunc",
         "--num-nodes",
         "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
         "{in_dir}",
@@ -372,9 +360,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--order",
         "{out_dir}/{graph_name}.pthash.order",
         "--label-name-mphf",
-        "{out_dir}/{graph_name}.labels.pthash",
-        "--label-name-order",
-        "{out_dir}/{graph_name}.labels.pthash.order",
+        "{out_dir}/{graph_name}.labels.vfunc",
         "--num-nodes",
         "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
         "--transposed",

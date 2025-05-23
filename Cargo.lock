@@ -1536,8 +1536,7 @@ dependencies = [
 [[package]]
 name = "epserde"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c40d342ff20a2ce62d9a85ce406e672dfa137f902ac9670034533184f1533976"
+source = "git+https://github.com/vigna/epserde-rs.git?rev=5f6dcec2d4fcf1afaf29ae2a86a7e37f17434fac#5f6dcec2d4fcf1afaf29ae2a86a7e37f17434fac"
 dependencies = [
  "anyhow",
  "bitflags 2.6.0",
@@ -4259,9 +4258,8 @@ dependencies = [
 
 [[package]]
 name = "sux"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "897923ab4c0f3f8d193247bc33c794bab1e0ff2bbf0014cb3d2a3bb049114a20"
+version = "0.7.4"
+source = "git+https://github.com/vigna/sux-rs.git?rev=3156367f58e1d072a255a1bbc8b23b85a49dd246#3156367f58e1d072a255a1bbc8b23b85a49dd246"
 dependencies = [
  "ambassador",
  "anyhow",
@@ -4283,7 +4281,6 @@ dependencies = [
  "libc",
  "log",
  "mem_dbg",
- "mmap-rs",
  "rand 0.9.0",
  "rayon",
  "rdst",

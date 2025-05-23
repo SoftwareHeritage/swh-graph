@@ -181,20 +181,11 @@ enum Commands {
     },
 
     /// Builds a MPH from the given a stream of base64-encoded labels
-    PthashLabels {
+    VfuncLabels {
         #[arg(long)]
         num_labels: usize,
         labels: PathBuf,
         output_mphf: PathBuf,
-    },
-    /// Builds a permutation mapping label hashes to their position in the sorted stream of
-    /// base64-encoded labels
-    PthashLabelsOrder {
-        #[arg(long)]
-        num_labels: usize,
-        labels: PathBuf,
-        mphf: PathBuf,
-        output_order: PathBuf,
     },
 }
 
@@ -636,32 +627,15 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
         }
 
-        Commands::PthashLabels {
+        Commands::VfuncLabels {
             num_labels,
             labels,
             output_mphf,
         } => {
-            use pthash::Phf;
-
-            let mut mphf = swh_graph::compress::label_names::build_mphf(labels, num_labels)?;
+            let mphf = swh_graph::compress::label_names::build_hasher(labels, num_labels)?;
             log::info!("Saving MPHF...");
             mphf.save(&output_mphf)
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
-        }
-        Commands::PthashLabelsOrder {
-            num_labels,
-            labels,
-            mphf,
-            output_order,
-        } => {
-            let order = swh_graph::compress::label_names::build_order(labels, mphf, num_labels)?;
-
-            log::info!("Saving order");
-            let mut f = File::create(&output_order)
-                .with_context(|| format!("Could not create {}", output_order.display()))?;
-            order
-                .dump(&mut f)
-                .with_context(|| format!("Could not write order to {}", output_order.display()))?;
         }
     }
 

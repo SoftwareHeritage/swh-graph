@@ -35,3 +35,7 @@ overflow-checks = false   # Disable integer overflow checks.
 debug = true              # Include debug info.
 debug-assertions = false  # Disables debug assertions.
 codegen-units=1           # slower compile times, but maybe better perf
+
+[patch.crates-io]
+sux = { git = "https://github.com/vigna/sux-rs.git", rev = "3156367f58e1d072a255a1bbc8b23b85a49dd246" }
+epserde = { git = "https://github.com/vigna/epserde-rs.git", rev = "5f6dcec2d4fcf1afaf29ae2a86a7e37f17434fac" }
