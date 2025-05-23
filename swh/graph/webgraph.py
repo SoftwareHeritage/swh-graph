@@ -319,7 +319,7 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "vfunc-labels",
         "--num-labels",
         "$(cat {out_dir}/{graph_name}.labels.count.txt)",
-        "<(zstdcat {out_dir}/{graph_name}.labels.csv.zst)",
+        "{out_dir}/{graph_name}.labels.csv.zst",
         "{out_dir}/{graph_name}.labels.vfunc",
     ],
     CompressionStep.FCL_LABELS: [
