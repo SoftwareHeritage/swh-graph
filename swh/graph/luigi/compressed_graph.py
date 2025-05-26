@@ -1063,6 +1063,30 @@ class Stats(_CompressionStepTask):
         return 0
 
 
+class EndToEndTest(_CompressionStepTask):
+    STEP = CompressionStep.E2E_TEST
+    INPUT_FILES = {
+        ".ef",
+        ".graph",
+        ".node2type.bin",
+        ".node2swhid.bin",
+        ".properties",
+        "-labelled.labels",
+        "-labelled.ef",
+        "-labelled.properties",
+        "-transposed.graph",
+        "-transposed.ef",
+        "-transposed-labelled.labels",
+        "-transposed-labelled.ef",
+        "-transposed-labelled.properties",
+        ".stats",
+    }
+    OUTPUT_FILES = set()
+
+    def _large_allocations(self) -> int:
+        return 0
+
+
 _duplicate_steps = [
     step
     for (step, count) in collections.Counter(
@@ -1282,6 +1306,7 @@ class CompressGraph(luigi.Task):
             Maps(**kwargs),
             NodeProperties(**kwargs),
             Stats(**kwargs),
+            EndToEndTest(**kwargs),
             *label_tasks,
         ]
 
@@ -1333,7 +1358,6 @@ class CompressGraph(luigi.Task):
 
         steps = [json.loads(path.read_text()) for path in step_stamp_paths]
 
-        do_step(CompressionStep.E2E_TEST, conf=conf)
         do_step(CompressionStep.CLEAN_TMP, conf=conf)
 
         # Copy export metadata
