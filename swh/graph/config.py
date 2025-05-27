@@ -35,7 +35,12 @@ def check_config(
         logger.debug("llp_gammas not configured, defaulting to %s", conf["llp_gammas"])
     # rust related config entries
     debug_mode = (
-        os.environ.get("PYTEST_VERSION") is not None or conf.get("profile") == "debug"
+        os.environ.get("PYTEST_VERSION") is not None
+        or conf.get("profile") == "debug"
+        or (
+            "rust_executable_dir" in conf
+            and Path(conf["rust_executable_dir"]).name == "debug"
+        )
     )
     if "profile" not in conf:
         conf["profile"] = "debug" if debug_mode else "release"
