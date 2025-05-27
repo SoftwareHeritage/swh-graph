@@ -753,7 +753,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b7380e4fc7189b00e529829576a449c6673dced13b6f8e670b33d7bc991a4f5"
 dependencies = [
  "anyhow",
- "common_traits 0.11.2",
+ "common_traits",
  "sux",
  "sync-cell-slice",
  "xxhash-rust",
@@ -962,19 +962,9 @@ dependencies = [
 
 [[package]]
 name = "common_traits"
-version = "0.10.2"
+version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6963264945d9ccb66c17ba1cc1af34d06812f45bc14c250dda5a1566905b0af0"
-dependencies = [
- "anyhow",
- "half",
-]
-
-[[package]]
-name = "common_traits"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d293fa3c98c2ccae74c330b54b04a253151671bc4628ebcd789d6fee2f13402b"
+checksum = "af10ce0d9d58d055a641bb3c496cff570c4585b657807474621e91d85e0a082a"
 dependencies = [
  "anyhow",
  "half",
@@ -1041,7 +1031,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "counters"
-version = "6.7.4"
+version = "6.7.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -1387,7 +1377,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "400457d3d4d2713527bdf85aacb4a41b06293b6005957bbdc210a12912e1d470"
 dependencies = [
- "common_traits 0.11.2",
+ "common_traits",
  "rand 0.8.5",
 ]
 
@@ -1398,7 +1388,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49c971cdf87e1d91ee3bfb29b070b94ccc5c574eb72497011f96343a96277456"
 dependencies = [
  "anyhow",
- "common_traits 0.11.2",
+ "common_traits",
  "impl-tools",
  "mem_dbg",
  "rand 0.9.0",
@@ -1551,7 +1541,7 @@ checksum = "c40d342ff20a2ce62d9a85ce406e672dfa137f902ac9670034533184f1533976"
 dependencies = [
  "anyhow",
  "bitflags 2.6.0",
- "common_traits 0.11.2",
+ "common_traits",
  "epserde-derive",
  "maligned",
  "mem_dbg",
@@ -2561,7 +2551,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -4278,7 +4268,7 @@ dependencies = [
  "arbitrary-chunks",
  "bitflags 2.6.0",
  "clap",
- "common_traits 0.11.2",
+ "common_traits",
  "crossbeam-channel",
  "derivative",
  "derive_setters",
@@ -4306,7 +4296,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph"
-version = "6.7.4"
+version = "6.7.5"
 dependencies = [
  "anyhow",
  "ar_row",
@@ -4318,7 +4308,7 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "clap",
- "common_traits 0.10.2",
+ "common_traits",
  "const-hex",
  "const_panic",
  "crossbeam",
@@ -4357,7 +4347,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph-grpc-server"
-version = "6.7.4"
+version = "6.7.5"
 dependencies = [
  "anyhow",
  "async-scoped",
@@ -4390,7 +4380,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_pyo3"
-version = "6.7.4"
+version = "6.7.5"
 dependencies = [
  "pyo3",
  "swh-graph",
@@ -4398,7 +4388,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_topology"
-version = "6.7.4"
+version = "6.7.5"
 dependencies = [
  "anyhow",
  "arrow",
@@ -5214,7 +5204,7 @@ checksum = "a8e303a93e2d399b6b3d022230ac5b3b79b9acee622c7c4b69418e4e863d930c"
 dependencies = [
  "anyhow",
  "bitflags 2.6.0",
- "common_traits 0.11.2",
+ "common_traits",
  "crossbeam-channel",
  "dary_heap",
  "dsi-bitstream 0.5.0",
@@ -5277,7 +5267,7 @@ dependencies = [
  "chrono",
  "clap",
  "clap_complete",
- "common_traits 0.11.2",
+ "common_traits",
  "dsi-bitstream 0.5.0",
  "dsi-progress-logger",
  "env_logger 0.11.5",
