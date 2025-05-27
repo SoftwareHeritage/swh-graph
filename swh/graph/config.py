@@ -6,7 +6,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -15,8 +15,10 @@ import psutil
 logger = logging.getLogger(__name__)
 
 
-def check_config(conf, base_rust_executable_dir: Optional[Path] = None):
-    """check configuration and propagate defaults
+def check_config(
+    conf: dict[str, Any], base_rust_executable_dir: Optional[Path] = None
+) -> dict[str, Any]:
+    """Check configuration and propagate defaults.
 
     Arguments:
         base_rust_executable_dir: path to the directory that contains the local project's
