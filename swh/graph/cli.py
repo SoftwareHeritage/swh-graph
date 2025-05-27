@@ -681,8 +681,11 @@ def luigi(
     import luigi
     import psutil
 
+    from swh.core.config import merge_configs
+
     # Popular the list of subclasses of luigi.Task
     import swh.export.luigi  # noqa
+    from swh.graph.config import check_config, check_config_compress
     import swh.graph.luigi  # noqa
 
     config = configparser.ConfigParser()
@@ -717,6 +720,17 @@ def luigi(
         f"{hostname}_ram_mb": str(max_ram_mb),
     }
 
+    base_rust_executable_dir = ctx.obj["config"].get("base_rust_executable_dir")
+    swh_config = check_config(ctx.obj["config"], base_rust_executable_dir)
+    if "compress" in swh_config.get("graph", {}):
+        swh_config = check_config_compress(
+            swh_config,
+            graph_name=swh_config["graph"].get("path"),
+            in_dir=swh_config["graph"]["compress"].get("in_dir"),
+            out_dir=swh_config["graph"]["compress"].get("out_dir"),
+            test_flavor=swh_config["graph"]["compress"].get("test_flavor"),
+        )
+
     export_name = export_name or dataset_name
     parent_export_name = parent_export_name or parent_dataset_name
 
@@ -733,6 +747,8 @@ def luigi(
         export_name=export_name,
         dataset_name=dataset_name,
     )
+
+    default_values = merge_configs(default_values, swh_config)
 
     if graph_base_directory:
         default_values["local_graph_path"] = graph_base_directory
