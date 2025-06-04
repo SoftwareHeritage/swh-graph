@@ -37,8 +37,12 @@ class GraphServerProcess(multiprocessing.Process):
 
         try:
             with loop_context() as loop:
+
+                async def make_client():
+                    return TestClient(TestServer(app))
+
                 app = make_app(config=self.config)
-                client = TestClient(TestServer(app), loop=loop)
+                client = loop.run_until_complete(make_client())
                 loop.run_until_complete(client.start_server())
                 url = client.make_url("/graph/")
                 self.q.put(
