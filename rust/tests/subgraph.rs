@@ -10,8 +10,6 @@ use swh_graph::graph_builder::GraphBuilder;
 use swh_graph::views::Subgraph;
 use swh_graph::{swhid, NodeConstraint};
 
-mod data;
-
 #[test]
 fn test_node_constraint() -> Result<()> {
     let mut builder = GraphBuilder::default();
