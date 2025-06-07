@@ -7,16 +7,14 @@
 
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use rayon::prelude::*;
 
 use swh_graph::graph::*;
 use swh_graph::mph::DynMphf;
-use swh_graph::utils::progress_logger::{BufferedProgressLogger, MinimalProgressLog};
 use swh_graph::utils::shuffle::par_iter_shuffled_range;
 use swh_graph::views::Transposed;
 use swh_graph::NodeType;
@@ -142,7 +140,7 @@ where
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
     let num_nodes = graph2.num_nodes();
-    let mut pl = progress_logger!(
+    let mut pl = concurrent_progress_logger!(
         display_memory = true,
         local_speed = true,
         item_name = "node",
@@ -150,7 +148,7 @@ where
     );
     pl.start("Checking SWHIDs...");
     (0..num_nodes).into_par_iter().try_for_each_with(
-        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+        pl.clone(),
         |thread_pl, node| -> Result<()> {
             if graph1.properties().swhid(node) != graph1.properties().swhid(node) {
                 log::error!(
@@ -178,7 +176,7 @@ where
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
     let num_nodes = graph2.num_nodes();
-    let mut pl = progress_logger!(
+    let mut pl = concurrent_progress_logger!(
         display_memory = true,
         local_speed = true,
         item_name = "node",
@@ -186,7 +184,7 @@ where
     );
     pl.start("Checking successors...");
     par_iter_shuffled_range(0..num_nodes).try_for_each_with(
-        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+        pl.clone(),
         |thread_pl, node| -> Result<()> {
             let successors1: Vec<_> = graph1.successors(node).into_iter().collect();
             let successors2: Vec<_> = graph2.successors(node).into_iter().collect();
@@ -229,7 +227,7 @@ where
 {
     assert_eq!(graph1.is_transposed(), graph2.is_transposed());
     let num_nodes = graph2.num_nodes();
-    let mut pl = progress_logger!(
+    let mut pl = concurrent_progress_logger!(
         display_memory = true,
         local_speed = true,
         item_name = "node",
@@ -237,7 +235,7 @@ where
     );
     pl.start("Checking arc labels...");
     par_iter_shuffled_range(0..num_nodes).try_for_each_with(
-        BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+        pl.clone(),
         |thread_pl, node| -> Result<()> {
         for ((succ1, labels1), (succ2, labels2)) in graph1
             .labeled_successors(node)
@@ -300,7 +298,7 @@ where
 
     macro_rules! check_property {
         ($property:ident) => {{
-            let mut pl = progress_logger!(
+            let mut pl = concurrent_progress_logger!(
                 display_memory = true,
                 local_speed = true,
                 item_name = "node",
@@ -308,7 +306,7 @@ where
             );
             pl.start(&format!("Checking {}...", stringify!($property)));
             (0..num_nodes).into_par_iter().try_for_each_with(
-                BufferedProgressLogger::new(Arc::new(Mutex::new(&mut pl))),
+                pl.clone(),
                 |thread_pl, node| -> Result<()> {
                     if graph1.properties().$property(node) != graph2.properties().$property(node) {
                         log::error!(

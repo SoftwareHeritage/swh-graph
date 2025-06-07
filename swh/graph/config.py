@@ -6,7 +6,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -15,8 +15,10 @@ import psutil
 logger = logging.getLogger(__name__)
 
 
-def check_config(conf, base_rust_executable_dir: Optional[Path] = None):
-    """check configuration and propagate defaults
+def check_config(
+    conf: dict[str, Any], base_rust_executable_dir: Optional[Path] = None
+) -> dict[str, Any]:
+    """Check configuration and propagate defaults.
 
     Arguments:
         base_rust_executable_dir: path to the directory that contains the local project's
@@ -33,7 +35,12 @@ def check_config(conf, base_rust_executable_dir: Optional[Path] = None):
         logger.debug("llp_gammas not configured, defaulting to %s", conf["llp_gammas"])
     # rust related config entries
     debug_mode = (
-        os.environ.get("PYTEST_VERSION") is not None or conf.get("profile") == "debug"
+        os.environ.get("PYTEST_VERSION") is not None
+        or conf.get("profile") == "debug"
+        or (
+            "rust_executable_dir" in conf
+            and Path(conf["rust_executable_dir"]).name == "debug"
+        )
     )
     if "profile" not in conf:
         conf["profile"] = "debug" if debug_mode else "release"

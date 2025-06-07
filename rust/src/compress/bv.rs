@@ -6,13 +6,12 @@
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Context, Result};
 use dsi_bitstream::codes::GammaWrite;
 use dsi_bitstream::prelude::{BitRead, BitWrite, BufBitWriter, WordAdapter, BE, NE};
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
 use itertools::Itertools;
 use lender::{for_, Lender};
 use nonmax::NonMaxU64;
@@ -29,9 +28,6 @@ use super::label_names::{LabelNameHasher, LabelNameMphf};
 use super::stats::estimate_edge_count;
 use crate::map::{MappedPermutation, Permutation};
 use crate::mph::SwhidMphf;
-use crate::utils::progress_logger::{
-    BufferedProgressLogger, CountingProgressLogger, MinimalProgressLog,
-};
 use crate::utils::sort::par_sort_arcs;
 
 pub fn bv<MPHF: SwhidMphf + Sync>(
@@ -54,7 +50,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     // Avoid empty partitions at the end when there are very few nodes
     let num_partitions = num_nodes.div_ceil(nodes_per_partition);
 
-    let mut pl = progress_logger!(
+    let mut pl = concurrent_progress_logger!(
         display_memory = true,
         item_name = "arc",
         local_speed = true,
@@ -66,7 +62,6 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
     pl.start("Reading arcs");
 
     // Sort in parallel in a bunch of SortPairs instances
-    let pl = Arc::new(Mutex::new(&mut pl));
     let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
     let sorted_arcs_path = temp_dir.path().join("sorted_arcs");
     std::fs::create_dir(&sorted_arcs_path)
@@ -76,13 +71,10 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
         sort_batch_size,
         iter_arcs(&dataset_dir, allowed_node_types)
             .context("Could not open input files to read arcs")?
-            .map_with(
-                BufferedProgressLogger::new(pl.clone()),
-                |thread_pl, (src, dst)| {
-                    thread_pl.light_update();
-                    (src, dst)
-                },
-            ),
+            .map_with(pl.clone(), |thread_pl, (src, dst)| {
+                thread_pl.light_update();
+                (src, dst)
+            }),
         num_partitions,
         (),
         (),
@@ -100,7 +92,7 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
             Ok(())
         },
     )?;
-    pl.lock().unwrap().done();
+    pl.done();
 
     let arc_list_graphs =
         sorted_arcs
@@ -162,7 +154,7 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
     // Avoid empty partitions at the end when there are very few nodes
     let num_partitions = num_nodes.div_ceil(nodes_per_partition);
 
-    let mut pl = progress_logger!(
+    let mut pl = concurrent_progress_logger!(
         display_memory = true,
         item_name = "arc",
         local_speed = true,
@@ -172,10 +164,8 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
         ),
     );
     pl.start("Reading and sorting arcs");
-    let mut pl = CountingProgressLogger::new(&mut pl);
 
     // Sort in parallel in a bunch of SortPairs instances
-    let pl = Arc::new(Mutex::new(&mut pl));
     let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
     let sorted_arcs_path = temp_dir.path().join("sorted_arcs");
     std::fs::create_dir(&sorted_arcs_path)
@@ -185,13 +175,10 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
         sort_batch_size,
         iter_labeled_arcs(&dataset_dir, allowed_node_types, label_name_hasher)
             .context("Could not open input files to read arcs")?
-            .map_with(
-                BufferedProgressLogger::new(pl.clone()),
-                |thread_pl, (src, dst, label)| {
-                    thread_pl.light_update();
-                    (src, dst, label)
-                },
-            ),
+            .map_with(pl.clone(), |thread_pl, (src, dst, label)| {
+                thread_pl.light_update();
+                (src, dst, label)
+            }),
         num_partitions,
         LabelSerializer { label_width },
         LabelDeserializer { label_width },
@@ -214,8 +201,8 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
             Ok(())
         },
     )?;
-    pl.lock().unwrap().inner_mut().done();
-    let total_labeled_arcs = pl.lock().unwrap().total();
+    let total_labeled_arcs = pl.count();
+    pl.done();
 
     let arc_list_graphs =
         sorted_arcs
@@ -268,7 +255,7 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
                     .map(|label: NonMaxU64| u64::from(label))
                     .collect();
                 labels.par_sort_unstable();
-                ProgressLog::update_with_count(&mut pl, labels.len());
+                pl.update_with_count(labels.len());
 
                 // Write length-prefixed list of labels
                 offset_bits = offset_bits

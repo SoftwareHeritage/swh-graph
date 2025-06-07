@@ -1,4 +1,4 @@
-# Copyright (C) 2021-2022  The Software Heritage developers
+# Copyright (C) 2021-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -121,13 +121,13 @@ DIRECTORIES: List[Directory] = [
         id=h(6),
         entries=(
             DirectoryEntry(
-                name=b"README.md",
+                name=b"README.rst",
                 perms=0o100644,
                 type="file",
                 target=h(4),
             ),
             DirectoryEntry(
-                name=b"parser.c",
+                name=b"main.py",
                 perms=0o100644,
                 type="file",
                 target=h(5),
@@ -213,8 +213,8 @@ DIRECTORIES: List[Directory] = [
 
   * ``swh:1:dir:0000000000000000000000000000000000000006``
 
-    - ``README.md`` → ``swh:1:cnt:0000000000000000000000000000000000000004``
-    - ``parser.c`` → ``swh:1:cnt:0000000000000000000000000000000000000005``
+    - ``README.rst`` → ``swh:1:cnt:0000000000000000000000000000000000000004``
+    - ``main.py`` → ``swh:1:cnt:0000000000000000000000000000000000000005``
 
   * ``swh:1:dir:0000000000000000000000000000000000000008``
 

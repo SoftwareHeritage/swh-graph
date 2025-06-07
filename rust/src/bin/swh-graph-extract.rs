@@ -8,12 +8,11 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::Mutex;
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
 use itertools::Itertools;
 use mimalloc::MiMalloc;
 use rayon::prelude::*;
@@ -381,7 +380,7 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Could not open {}", target_count.display()))?;
 
             let bits_per_line = 20; // A little more than this, actually
-            let mut pl = progress_logger!(
+            let mut pl = concurrent_progress_logger!(
                 display_memory = true,
                 item_name = "node",
                 local_speed = true,
@@ -389,7 +388,7 @@ pub fn main() -> Result<()> {
             );
             pl.start("Computing node stats");
 
-            let stats = par_iter_lines_from_dir(&swhids_dir, Arc::new(Mutex::new(&mut pl)))
+            let stats = par_iter_lines_from_dir(&swhids_dir, pl.clone())
                 .map(|line: [u8; 50]| {
                     let ty = NodeType::try_from(&line[6..9]).expect("Unexpected SWHID type");
                     let mut stats = [0usize; NodeType::NUMBER_OF_TYPES];
@@ -402,6 +401,8 @@ pub fn main() -> Result<()> {
                     }
                     left_1d
                 });
+
+            pl.done();
 
             let mut stats_lines = Vec::new();
             let mut total = 0;

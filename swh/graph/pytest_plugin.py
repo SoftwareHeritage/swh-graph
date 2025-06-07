@@ -25,10 +25,12 @@ from swh.graph.http_naive_client import NaiveClient
 logger = logging.getLogger(__name__)
 
 
-class GraphServerProcess(multiprocessing.Process):
+# The default on Python < 3.14 on Linux is "fork", which is not safe
+# as forking a multithreaded process is problematic
+class GraphServerProcess(multiprocessing.context.ForkServerProcess):
     def __init__(self, config, *args, **kwargs):
         self.config = config
-        self.q = multiprocessing.Queue()
+        self.q = multiprocessing.get_context("forkserver").Queue()
         super().__init__(*args, **kwargs)
 
     def run(self):
@@ -37,8 +39,12 @@ class GraphServerProcess(multiprocessing.Process):
 
         try:
             with loop_context() as loop:
+
+                async def make_client():
+                    return TestClient(TestServer(app))
+
                 app = make_app(config=self.config)
-                client = TestClient(TestServer(app), loop=loop)
+                client = loop.run_until_complete(make_client())
                 loop.run_until_complete(client.start_server())
                 url = client.make_url("/graph/")
                 self.q.put(
@@ -136,9 +142,6 @@ def graph_grpc_server_config(graph_grpc_backend_implementation, graph_statsd_ser
 
 @pytest.fixture(scope="session")
 def graph_grpc_server_process(graph_grpc_server_config, graph_statsd_server):
-    # The default on Python < 3.14 on Linux is "fork", which is not safe
-    # as forking a multithreaded process is problematic
-    multiprocessing.set_start_method("forkserver", force=True)
     server = GraphServerProcess(graph_grpc_server_config)
     yield server
     server.stop()

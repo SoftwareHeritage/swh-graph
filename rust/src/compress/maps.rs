@@ -6,11 +6,10 @@
  */
 
 use std::path::Path;
-use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use crossbeam::atomic::AtomicCell;
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use rayon::prelude::*;
 
 use crate::compress::zst_dir::*;
@@ -35,7 +34,7 @@ pub fn ordered_swhids<MPHF: SwhidMphf + Sync + Send, P: Permutation + Sync + Sen
         })
         .collect();
 
-    let mut pl = progress_logger!(
+    let mut pl = concurrent_progress_logger!(
         display_memory = true,
         item_name = "node",
         local_speed = true,
@@ -43,24 +42,22 @@ pub fn ordered_swhids<MPHF: SwhidMphf + Sync + Send, P: Permutation + Sync + Sen
     );
     pl.start("Computing node2swhid");
 
-    par_iter_lines_from_dir(swhids_dir, Arc::new(Mutex::new(&mut pl))).for_each(
-        |line: [u8; 50]| {
-            let node_id = order
-                .get(mph.hash_str_array(&line).expect("Failed to hash line"))
-                .unwrap();
-            let swhid = SWHID::try_from(unsafe { std::str::from_utf8_unchecked(&line[..]) })
-                .expect("Invalid SWHID");
-            assert!(
-                node_id < num_nodes,
-                "hashing {} returned {}, which is greater than the number of nodes ({})",
-                swhid,
-                node_id,
-                num_nodes
-            );
+    par_iter_lines_from_dir(swhids_dir, pl.clone()).for_each(|line: [u8; 50]| {
+        let node_id = order
+            .get(mph.hash_str_array(&line).expect("Failed to hash line"))
+            .unwrap();
+        let swhid = SWHID::try_from(unsafe { std::str::from_utf8_unchecked(&line[..]) })
+            .expect("Invalid SWHID");
+        assert!(
+            node_id < num_nodes,
+            "hashing {} returned {}, which is greater than the number of nodes ({})",
+            swhid,
+            node_id,
+            num_nodes
+        );
 
-            swhids[node_id].store(swhid);
-        },
-    );
+        swhids[node_id].store(swhid);
+    });
 
     pl.done();
 

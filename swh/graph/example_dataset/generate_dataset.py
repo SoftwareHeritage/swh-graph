@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2021-2022  The Software Heritage developers
+# Copyright (C) 2021-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -29,7 +29,7 @@ def main():
         help="Also compress the dataset",
     )
     parser.add_argument(
-        "--target", default="release", help="rust target to use for compression"
+        "--profile", default="release", help="rust profile to use for compression"
     )
     parser.add_argument("output", help="output directory", nargs="?", default=".")
     args = parser.parse_args()
@@ -42,7 +42,7 @@ def main():
             shutil.rmtree(output_path / name)
         with exporter(config, output_path / name) as e:
             for obj in DATASET:
-                e.process_object(obj.object_type, obj.to_dict())
+                e.process_object(obj.object_type, obj)
 
     if args.compress:
         if (output_path / "compressed").exists():
@@ -52,7 +52,7 @@ def main():
             output_path / "orc",
             output_path / "compressed",
             "example",
-            conf={"target": args.target},
+            conf={"profile": args.profile},
         )
 
 

@@ -1135,11 +1135,13 @@ def run_e2e_test(
                     "successor": [
                         {
                             "swhid": "swh:1:cnt:0000000000000000000000000000000000000005",
-                            "label": [{"name": "cGFyc2VyLmM=", "permission": 33188}],
+                            "label": [{"name": "bWFpbi5weQ==", "permission": 33188}],
                         },
                         {
                             "swhid": "swh:1:cnt:0000000000000000000000000000000000000004",
-                            "label": [{"name": "UkVBRE1FLm1k", "permission": 33188}],
+                            "label": [
+                                {"name": "UkVBRE1FLnJzdA==", "permission": 33188}
+                            ],
                         },
                     ],
                     "numSuccessors": "2",
@@ -1161,6 +1163,16 @@ def run_e2e_test(
                     for l_key in level_keys:
                         if elt.swhid == val[l_key]["swhid"]:
                             elt_dict = MessageToDict(elt)
+                            if "successor" in elt_dict:
+                                # ensure same ordering in successor lists for comparison
+                                for node_dict in (elt_dict, val[l_key]):
+                                    assert isinstance(node_dict["successor"], list)
+                                    node_dict["successor"] = list(
+                                        sorted(
+                                            node_dict["successor"],
+                                            key=lambda succ: succ["swhid"],
+                                        )
+                                    )
                             if elt_dict == val[l_key]:
                                 status_table[key][l_key] = True
                             else:
