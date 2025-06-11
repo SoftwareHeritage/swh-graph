@@ -417,6 +417,7 @@ class _CompressionStepTask(luigi.Task):
                         local_graph_path=self.local_graph_path,
                         object_types=self.object_types,
                         rust_executable_dir=self.rust_executable_dir,
+                        test_flavor=self.test_flavor,
                     )
                     if self.batch_size:
                         kwargs["batch_size"] = self.batch_size
@@ -1282,6 +1283,7 @@ class CompressGraph(luigi.Task):
             local_graph_path=self.local_graph_path,
             object_types=self.object_types,
             rust_executable_dir=self.rust_executable_dir,
+            test_flavor=self.test_flavor,
         )
         if set(self.object_types).isdisjoint({"dir", "snp", "ori"}):
             # Only nodes of these three types have outgoing arcs with labels
