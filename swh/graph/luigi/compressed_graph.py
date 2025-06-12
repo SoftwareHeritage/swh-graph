@@ -385,7 +385,10 @@ class _CompressionStepTask(luigi.Task):
             if path.is_file():
                 if path.stat().st_size == 0:
                     if path.name.endswith(
-                        (".labels.fcl.bytearray", ".labels.fcl.pointers")
+                        (
+                            ".labels.fcl.bytearray",
+                            ".labels.fcl.pointers",
+                        )
                     ) and {"dir", "snp", "ori"}.isdisjoint(set(self.object_types)):
                         # It's expected that .labels.fcl.bytearray is empty when both dir
                         # and snp are excluded, because these are the only objects
@@ -404,10 +407,25 @@ class _CompressionStepTask(luigi.Task):
 
         return True
 
+    def _is_expected_output_file(self, filename: str) -> bool:
+        if filename.endswith(
+            (
+                "-labelled.labels",
+                "-labelled.ef",
+                "-labelled.properties",
+            )
+        ):
+            return not {"dir", "snp", "ori"}.isdisjoint(set(self.object_types))
+        else:
+            return True
+
     def requires(self) -> Sequence[luigi.Task]:
         """Returns a list of luigi tasks matching :attr:`PREVIOUS_STEPS`."""
         requirements_d = {}
         for input_file in self.INPUT_FILES:
+            if not self._is_expected_output_file(input_file):
+                # These files are only generated for graphs that have labels
+                continue
             for cls in _CompressionStepTask.__subclasses__():
                 if input_file in cls.OUTPUT_FILES:
                     kwargs = dict(
@@ -458,6 +476,8 @@ class _CompressionStepTask(luigi.Task):
         from swh.graph.config import check_config_compress
 
         for input_file in self.INPUT_FILES:
+            if not self._is_expected_output_file(input_file):
+                continue
             path = self.local_graph_path / f"{self.graph_name}{input_file}"
             if not path.exists():
                 raise Exception(f"expected input {path} does not exist")
