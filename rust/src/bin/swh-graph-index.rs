@@ -7,7 +7,7 @@
 
 use std::path::PathBuf;
 
-use anyhow::{ensure, Result};
+use anyhow::{ensure, Context, Result};
 use clap::{Parser, Subcommand};
 use dsi_bitstream::prelude::BE;
 
@@ -52,6 +52,16 @@ enum Commands {
     ///
     /// Only suitable for unlabeled graphs.
     Dcf { base_path: PathBuf },
+
+    /// Reads the lengths of the full names and builds the corresponding Elias-Fano
+    /// offsets file.
+    FullnamesEf {
+        #[arg(long)]
+        num_persons: usize,
+        fullnames_path: PathBuf,
+        offsets_path: PathBuf,
+        ef_path: PathBuf,
+    },
 }
 
 pub fn main() -> Result<()> {
@@ -104,6 +114,59 @@ pub fn main() -> Result<()> {
         Commands::Dcf { base_path } => {
             use webgraph_cli::build::dcf::{build_dcf, CliArgs};
             build_dcf::<BE>(args.webgraph_args, CliArgs { src: base_path })?;
+        }
+
+        Commands::FullnamesEf {
+            num_persons,
+            fullnames_path,
+            offsets_path,
+            ef_path,
+        } => {
+            use dsi_bitstream::prelude::*;
+            use epserde::ser::Serialize;
+            use std::{fs::File, io::BufReader};
+            use sux::dict::EliasFanoBuilder;
+
+            let offsets_file = File::open(&offsets_path)
+                .with_context(|| format!("Could not open {}", offsets_path.display()))?;
+            let mut offsets_reader = <BufBitReader<BE, _>>::new(<WordAdapter<u64, _>>::new(
+                BufReader::with_capacity(1 << 20, offsets_file),
+            ));
+
+            let max_offset = std::fs::metadata(&fullnames_path)
+                .with_context(|| format!("Could not stat {}", fullnames_path.display()))?
+                .len();
+            let max_offset = usize::try_from(max_offset).context("offset overflowed usize")?;
+
+            let mut ef_builder = EliasFanoBuilder::new(num_persons + 1, max_offset);
+            let mut offset = 0usize;
+            ef_builder.push(offset);
+            for _ in 0..num_persons {
+                let delta = offsets_reader
+                    .read_gamma()
+                    .context("Could not read gamma")?;
+                offset = offset.checked_add(delta as usize).with_context(|| {
+                    format!(
+                        "Sum of lengths in {} overflowed usize",
+                        offsets_path.display()
+                    )
+                })?;
+                ensure!(
+                    offset < max_offset,
+                    "Sum of sizes in {} is greater than the size of {}",
+                    offsets_path.display(),
+                    fullnames_path.display(),
+                );
+                ef_builder.push(offset);
+            }
+            let ef_offsets = ef_builder.build_with_seq();
+
+            log::info!("Writing Elias-Fano file for full names offsets...");
+            let mut ef_file = File::create(&ef_path)
+                .with_context(|| format!("Could not create {}", ef_path.display()))?;
+            ef_offsets
+                .serialize(&mut ef_file)
+                .context("Could not write full names offsets elias-fano file")?;
         }
     }
 

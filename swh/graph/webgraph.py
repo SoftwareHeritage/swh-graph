@@ -58,6 +58,8 @@ class CompressionStep(Enum):
     EXTRACT_PERSONS = 190
     PERSONS_STATS = 195
     MPH_PERSONS = 200
+    EXTRACT_FULLNAMES = 203
+    FULLNAMES_EF = 207
     NODE_PROPERTIES = 210
     MPH_LABELS = 220
     LABELS_ORDER = 225
@@ -288,6 +290,32 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "{out_dir}/{graph_name}.persons.pthash\n",
         "else\n",
         "echo '' > {out_dir}/{graph_name}.persons.pthash;",
+        "fi",
+    ],
+    CompressionStep.EXTRACT_FULLNAMES: [
+        # skip this step when compressing a graph with no revisions or releases
+        'if [[ $(cat {out_dir}/{graph_name}.persons.count.txt) != "0" ]] &&',
+        '[ -d "{in_dir}/person" ]; then\n',
+        "{rust_executable_dir}/swh-graph-extract",
+        "extract-fullnames",
+        "--person-function",
+        "{out_dir}/{graph_name}.persons.pthash",
+        "{in_dir}",
+        "{out_dir}/{graph_name}.fullnames",
+        "{out_dir}/{graph_name}.fullnames.offsets\n",
+        "fi",
+    ],
+    CompressionStep.FULLNAMES_EF: [
+        # skip this step when compressing a graph with no revisions or releases
+        'if [[ $(cat {out_dir}/{graph_name}.persons.count.txt) != "0" ]] &&',
+        '[ -d "{in_dir}/person" ]; then\n',
+        "{rust_executable_dir}/swh-graph-index",
+        "fullnames-ef",
+        "--num-persons",
+        "$(cat {out_dir}/{graph_name}.persons.count.txt)",
+        "{out_dir}/{graph_name}.fullnames",
+        "{out_dir}/{graph_name}.fullnames.offsets",
+        "{out_dir}/{graph_name}.fullnames.ef\n",
         "fi",
     ],
     CompressionStep.PERSONS_STATS: [

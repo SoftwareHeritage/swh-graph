@@ -2182,6 +2182,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "id2fullname"
+version = "6.7.5"
+dependencies = [
+ "anyhow",
+ "base64-simd",
+ "clap",
+ "csv",
+ "epserde",
+ "mmap-rs",
+ "sux",
+]
+
+[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

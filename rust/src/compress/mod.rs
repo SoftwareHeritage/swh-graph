@@ -32,6 +32,11 @@ mod iter_persons;
 pub use iter_persons::iter_persons;
 
 #[cfg(feature = "orc")]
+mod iter_fullnames;
+#[cfg(feature = "orc")]
+pub use iter_fullnames::iter_fullnames;
+
+#[cfg(feature = "orc")]
 mod iter_swhids;
 #[cfg(feature = "orc")]
 pub use iter_swhids::iter_swhids;
