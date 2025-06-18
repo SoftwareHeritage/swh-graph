@@ -68,7 +68,7 @@ impl NodeSet for BitVec {
 /// ```
 /// # use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 /// let mut node_set = AdaptiveNodeSet::new(100);
-/// assert_eq!(format!("{:?}", node_set), "Sparse { max_items: 100, data: {} }");
+/// assert_eq!(format!("{:?}", node_set), "Empty { max_items: 100 }");
 /// node_set.insert(10);
 /// assert_eq!(format!("{:?}", node_set), "Sparse { max_items: 100, data: {10} }");
 /// for i in 20..30 {
