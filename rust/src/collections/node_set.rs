@@ -79,23 +79,23 @@ impl NodeSet for BitVec {
 /// assert_eq!(format!("{:?}", node_set), "Dense { data: BitVec { bits: [1072694272, 0], len: 100 } }");
 /// ```
 #[derive(Debug)]
-pub enum AdaptiveNodeSet<S: BuildHasher = RapidBuildHasher> {
+pub enum AdaptiveNodeSet {
     Sparse {
         max_items: usize,
-        data: HashSet<NodeId, S>,
+        data: HashSet<NodeId, RapidBuildHasher>,
     },
     Dense {
         data: BitVec,
     },
 }
 
-impl<S: BuildHasher + Default> AdaptiveNodeSet<S> {
+impl AdaptiveNodeSet {
     /// Creates an empty `AdaptiveNodeSet` that may only store node ids from `0` to `max_items-1`
     #[inline(always)]
     pub fn new(max_items: usize) -> Self {
         AdaptiveNodeSet::Sparse {
             max_items,
-            data: HashSet::with_hasher(S::default()),
+            data: HashSet::with_hasher(RapidBuildHasher::default()),
         }
     }
 
@@ -109,13 +109,13 @@ impl<S: BuildHasher + Default> AdaptiveNodeSet<S> {
         } else {
             AdaptiveNodeSet::Sparse {
                 max_items,
-                data: HashSet::with_capacity_and_hasher(capacity, S::default()),
+                data: HashSet::with_capacity_and_hasher(capacity, RapidBuildHasher::default()),
             }
         }
     }
 }
 
-impl<S: BuildHasher> NodeSet for AdaptiveNodeSet<S> {
+impl NodeSet for AdaptiveNodeSet {
     /// Adds a node to the set
     ///
     /// # Panics
