@@ -585,7 +585,7 @@ def test_ignore_nodes(graph_grpc_stub):
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],
             direction=GraphDirection.FORWARD,
-            ignore_nodes=["swh:1:dir:0000000000000000000000000000000000000008"],
+            ignore_node=["swh:1:dir:0000000000000000000000000000000000000008"],
         )
     )
     actual = [node.swhid for node in request]
@@ -602,7 +602,7 @@ def test_ignore_nodes(graph_grpc_stub):
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],
             direction=GraphDirection.FORWARD,
-            ignore_nodes=[
+            ignore_node=[
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000002",
             ],
