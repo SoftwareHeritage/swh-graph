@@ -10,7 +10,9 @@
 //! based on its content.
 
 use std::collections::HashSet;
+use std::hash::BuildHasher;
 
+use rapidhash::RapidBuildHasher;
 use sux::bits::bit_vec::BitVec;
 
 /// Constant controlling when a [`AdaptiveNodeSet`] should be promoted from sparse to dense.
@@ -34,7 +36,7 @@ pub trait NodeSet {
     fn contains(&self, node: NodeId) -> bool;
 }
 
-impl NodeSet for HashSet<usize> {
+impl<S: BuildHasher> NodeSet for HashSet<usize, S> {
     #[inline(always)]
     fn insert(&mut self, node: usize) {
         HashSet::insert(self, node);
@@ -77,23 +79,23 @@ impl NodeSet for BitVec {
 /// assert_eq!(format!("{:?}", node_set), "Dense { data: BitVec { bits: [1072694272, 0], len: 100 } }");
 /// ```
 #[derive(Debug)]
-pub enum AdaptiveNodeSet {
+pub enum AdaptiveNodeSet<S: BuildHasher = RapidBuildHasher> {
     Sparse {
         max_items: usize,
-        data: HashSet<NodeId>,
+        data: HashSet<NodeId, S>,
     },
     Dense {
         data: BitVec,
     },
 }
 
-impl AdaptiveNodeSet {
+impl<S: BuildHasher + Default> AdaptiveNodeSet<S> {
     /// Creates an empty `AdaptiveNodeSet` that may only store node ids from `0` to `max_items-1`
     #[inline(always)]
     pub fn new(max_items: usize) -> Self {
         AdaptiveNodeSet::Sparse {
             max_items,
-            data: HashSet::new(),
+            data: HashSet::with_hasher(S::default()),
         }
     }
 
@@ -107,13 +109,13 @@ impl AdaptiveNodeSet {
         } else {
             AdaptiveNodeSet::Sparse {
                 max_items,
-                data: HashSet::new(),
+                data: HashSet::with_capacity_and_hasher(capacity, S::default()),
             }
         }
     }
 }
 
-impl NodeSet for AdaptiveNodeSet {
+impl<S: BuildHasher> NodeSet for AdaptiveNodeSet<S> {
     /// Adds a node to the set
     ///
     /// # Panics
