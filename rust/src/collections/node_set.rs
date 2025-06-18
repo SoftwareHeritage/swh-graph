@@ -161,3 +161,11 @@ impl NodeSet for AdaptiveNodeSet {
         }
     }
 }
+
+impl Extend<NodeId> for AdaptiveNodeSet {
+    fn extend<T: IntoIterator<Item = NodeId>>(&mut self, iter: T) {
+        for node in iter {
+            self.insert(node)
+        }
+    }
+}

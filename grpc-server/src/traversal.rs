@@ -100,13 +100,12 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
         let mut num_matching_nodes = 0;
         let mut ignore_nodes_set =
             AdaptiveNodeSet::with_capacity(graph.num_nodes(), ignore_nodes.len());
-        for node in ignore_nodes
-            .iter()
-            .map(|swhid| self.service.try_get_node_id(swhid))
-            .collect::<Result<Vec<_>, _>>()?
-        {
-            ignore_nodes_set.insert(node);
-        }
+        ignore_nodes_set.extend(
+            ignore_nodes
+                .iter()
+                .map(|swhid| self.service.try_get_node_id(swhid))
+                .collect::<Result<Vec<_>, _>>()?,
+        );
         let subgraph = Subgraph {
             graph: graph.clone(),
             node_filter: move |node| !ignore_nodes_set.contains(node),
