@@ -78,6 +78,9 @@ impl NodeSet for BitVec {
 /// ```
 #[derive(Debug)]
 pub enum AdaptiveNodeSet {
+    Empty {
+        max_items: usize,
+    },
     Sparse {
         max_items: usize,
         data: HashSet<NodeId>,
@@ -91,16 +94,15 @@ impl AdaptiveNodeSet {
     /// Creates an empty `AdaptiveNodeSet` that may only store node ids from `0` to `max_items-1`
     #[inline(always)]
     pub fn new(max_items: usize) -> Self {
-        AdaptiveNodeSet::Sparse {
-            max_items,
-            data: HashSet::new(),
-        }
+        AdaptiveNodeSet::Empty { max_items }
     }
 
     /// Creates an empty `AdaptiveNodeSet` with at least the specified capacity
     #[inline(always)]
     pub fn with_capacity(max_items: usize, capacity: usize) -> Self {
-        if capacity > max_items / PROMOTION_THRESHOLD {
+        if capacity == 0 {
+            AdaptiveNodeSet::Empty { max_items }
+        } else if capacity > max_items / PROMOTION_THRESHOLD {
             AdaptiveNodeSet::Dense {
                 data: BitVec::new(max_items),
             }
@@ -122,6 +124,14 @@ impl NodeSet for AdaptiveNodeSet {
     #[inline(always)]
     fn insert(&mut self, node: usize) {
         match self {
+            AdaptiveNodeSet::Empty { max_items } => {
+                let mut data = HashSet::new();
+                data.insert(node);
+                *self = AdaptiveNodeSet::Sparse {
+                    max_items: *max_items,
+                    data,
+                };
+            }
             AdaptiveNodeSet::Sparse { max_items, data } => {
                 data.insert(node);
                 if data.len() > *max_items / PROMOTION_THRESHOLD {
@@ -145,6 +155,7 @@ impl NodeSet for AdaptiveNodeSet {
     #[inline(always)]
     fn contains(&self, node: usize) -> bool {
         match self {
+            AdaptiveNodeSet::Empty { max_items: _ } => false,
             AdaptiveNodeSet::Sparse { max_items: _, data } => data.contains(&node),
             AdaptiveNodeSet::Dense { data } => data.contains(node),
         }

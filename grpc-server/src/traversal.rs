@@ -10,6 +10,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response};
 
+use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::{SwhForwardGraph, SwhGraphWithProperties};
 use swh_graph::properties;
 use swh_graph::views::{Subgraph, Transposed};
@@ -65,6 +66,7 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             return_nodes,
             mask: _, // Handled by caller
             max_matching_nodes,
+            skip_nodes,
         } = request.get_ref().clone();
         let min_depth = match min_depth {
             None => 0,
@@ -96,8 +98,20 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             NodeFilterChecker::new(graph.clone(), return_nodes.unwrap_or_default())?;
         let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
         let mut num_matching_nodes = 0;
-        let subgraph =
-            Subgraph::with_arc_filter(graph.clone(), move |src, dst| arc_checker.matches(src, dst));
+        let mut skip_nodes_set =
+            AdaptiveNodeSet::with_capacity(graph.num_nodes(), skip_nodes.len());
+        for node in skip_nodes
+            .iter()
+            .map(|swhid| self.service.try_get_node_id(swhid))
+            .collect::<Result<Vec<_>, _>>()?
+        {
+            skip_nodes_set.insert(node);
+        }
+        let subgraph = Subgraph {
+            graph: graph.clone(),
+            node_filter: move |node| !skip_nodes_set.contains(node),
+            arc_filter: move |src, dst| arc_checker.matches(src, dst),
+        };
         let mut visitor = SimpleBfsVisitor::new(
             Arc::new(subgraph),
             max_depth,
