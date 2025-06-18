@@ -75,7 +75,7 @@ class TraversalRequest(google.protobuf.message.Message):
     RETURN_NODES_FIELD_NUMBER: builtins.int
     MASK_FIELD_NUMBER: builtins.int
     MAX_MATCHING_NODES_FIELD_NUMBER: builtins.int
-    SKIP_NODES_FIELD_NUMBER: builtins.int
+    IGNORE_NODE_FIELD_NUMBER: builtins.int
     @property
     def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]:
         """Set of source nodes (SWHIDs)"""
@@ -121,9 +121,9 @@ class TraversalRequest(google.protobuf.message.Message):
     """
 
     @property
-    def skip_nodes(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]:
-        """Set of nodes (SWHIDs) that should be ignored as part of the traversal,
-        as if they were removed from the graph.
+    def ignore_node(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[typing.Text]:
+        """Set of nodes (SWHIDs) that should be skipped during the traversal
+        and from the 'successor' set, as if they were removed from the graph.
         """
         pass
     def __init__(self,
@@ -137,10 +137,10 @@ class TraversalRequest(google.protobuf.message.Message):
         return_nodes: typing.Optional[global___NodeFilter] = ...,
         mask: typing.Optional[google.protobuf.field_mask_pb2.FieldMask] = ...,
         max_matching_nodes: typing.Optional[builtins.int] = ...,
-        skip_nodes: typing.Optional[typing.Iterable[typing.Text]] = ...,
+        ignore_node: typing.Optional[typing.Iterable[typing.Text]] = ...,
         ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_max_matching_nodes",b"_max_matching_nodes","_min_depth",b"_min_depth","_return_nodes",b"_return_nodes","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","max_matching_nodes",b"max_matching_nodes","min_depth",b"min_depth","return_nodes",b"return_nodes"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_max_matching_nodes",b"_max_matching_nodes","_min_depth",b"_min_depth","_return_nodes",b"_return_nodes","direction",b"direction","edges",b"edges","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","max_matching_nodes",b"max_matching_nodes","min_depth",b"min_depth","return_nodes",b"return_nodes","skip_nodes",b"skip_nodes","src",b"src"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_edges",b"_edges","_mask",b"_mask","_max_depth",b"_max_depth","_max_edges",b"_max_edges","_max_matching_nodes",b"_max_matching_nodes","_min_depth",b"_min_depth","_return_nodes",b"_return_nodes","direction",b"direction","edges",b"edges","ignore_node",b"ignore_node","mask",b"mask","max_depth",b"max_depth","max_edges",b"max_edges","max_matching_nodes",b"max_matching_nodes","min_depth",b"min_depth","return_nodes",b"return_nodes","src",b"src"]) -> None: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_edges",b"_edges"]) -> typing.Optional[typing_extensions.Literal["edges"]]: ...
     @typing.overload

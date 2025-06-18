@@ -66,7 +66,7 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             return_nodes,
             mask: _, // Handled by caller
             max_matching_nodes,
-            ignore_nodes,
+            ignore_node,
         } = request.get_ref().clone();
         let min_depth = match min_depth {
             None => 0,
@@ -99,9 +99,9 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
         let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
         let mut num_matching_nodes = 0;
         let mut ignore_nodes_set =
-            AdaptiveNodeSet::with_capacity(graph.num_nodes(), ignore_nodes.len());
+            AdaptiveNodeSet::with_capacity(graph.num_nodes(), ignore_node.len());
         ignore_nodes_set.extend(
-            ignore_nodes
+            ignore_node
                 .iter()
                 .map(|swhid| self.service.try_get_node_id(swhid))
                 .collect::<Result<Vec<_>, _>>()?,

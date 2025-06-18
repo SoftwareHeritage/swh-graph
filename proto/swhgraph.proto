@@ -111,7 +111,7 @@ message TraversalRequest {
     optional int64 max_matching_nodes = 9;
     /* Set of nodes (SWHIDs) that should be skipped during the traversal
      * and from the 'successor' set, as if they were removed from the graph. */
-    repeated string ignore_nodes = 10;
+    repeated string ignore_node = 10;
 }
 
 /* FindPathToRequest describes a request to find a shortest path between a
