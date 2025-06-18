@@ -3718,6 +3718,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidhash"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9813f789f95ee4fe6b4d01834404d7cccacbc3f6c029343af910b3c2835eb9f1"
+
+[[package]]
 name = "rayon"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4344,6 +4350,7 @@ dependencies = [
  "orc-rust",
  "pthash",
  "rand 0.8.5",
+ "rapidhash",
  "rayon",
  "rdst",
  "serde",

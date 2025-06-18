@@ -10,7 +10,9 @@
 //! based on its content.
 
 use std::collections::HashSet;
+use std::hash::BuildHasher;
 
+use rapidhash::RapidBuildHasher;
 use sux::bits::bit_vec::BitVec;
 
 /// Constant controlling when a [`AdaptiveNodeSet`] should be promoted from sparse to dense.
@@ -34,7 +36,7 @@ pub trait NodeSet {
     fn contains(&self, node: NodeId) -> bool;
 }
 
-impl NodeSet for HashSet<usize> {
+impl<S: BuildHasher> NodeSet for HashSet<usize, S> {
     #[inline(always)]
     fn insert(&mut self, node: usize) {
         HashSet::insert(self, node);
@@ -80,7 +82,7 @@ impl NodeSet for BitVec {
 pub enum AdaptiveNodeSet {
     Sparse {
         max_items: usize,
-        data: HashSet<NodeId>,
+        data: HashSet<NodeId, RapidBuildHasher>,
     },
     Dense {
         data: BitVec,
@@ -93,7 +95,7 @@ impl AdaptiveNodeSet {
     pub fn new(max_items: usize) -> Self {
         AdaptiveNodeSet::Sparse {
             max_items,
-            data: HashSet::new(),
+            data: HashSet::with_hasher(RapidBuildHasher::default()),
         }
     }
 
@@ -107,7 +109,7 @@ impl AdaptiveNodeSet {
         } else {
             AdaptiveNodeSet::Sparse {
                 max_items,
-                data: HashSet::new(),
+                data: HashSet::with_capacity_and_hasher(capacity, RapidBuildHasher::default()),
             }
         }
     }
