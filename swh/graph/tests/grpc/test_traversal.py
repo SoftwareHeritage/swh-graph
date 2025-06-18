@@ -580,12 +580,12 @@ def test_max_edges_7(graph_grpc_stub):
     assert set(actual) == set(expected)
 
 
-def test_skip_nodes(graph_grpc_stub):
+def test_ignore_nodes(graph_grpc_stub):
     request = graph_grpc_stub.Traverse(
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],
             direction=GraphDirection.FORWARD,
-            skip_nodes=["swh:1:dir:0000000000000000000000000000000000000008"],
+            ignore_nodes=["swh:1:dir:0000000000000000000000000000000000000008"],
         )
     )
     actual = [node.swhid for node in request]
@@ -602,7 +602,7 @@ def test_skip_nodes(graph_grpc_stub):
         TraversalRequest(
             src=["swh:1:rel:0000000000000000000000000000000000000010"],
             direction=GraphDirection.FORWARD,
-            skip_nodes=[
+            ignore_nodes=[
                 "swh:1:dir:0000000000000000000000000000000000000008",
                 "swh:1:dir:0000000000000000000000000000000000000002",
             ],

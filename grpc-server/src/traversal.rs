@@ -66,7 +66,7 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             return_nodes,
             mask: _, // Handled by caller
             max_matching_nodes,
-            skip_nodes,
+            ignore_nodes,
         } = request.get_ref().clone();
         let min_depth = match min_depth {
             None => 0,
@@ -98,18 +98,18 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             NodeFilterChecker::new(graph.clone(), return_nodes.unwrap_or_default())?;
         let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
         let mut num_matching_nodes = 0;
-        let mut skip_nodes_set =
-            AdaptiveNodeSet::with_capacity(graph.num_nodes(), skip_nodes.len());
-        for node in skip_nodes
+        let mut ignore_nodes_set =
+            AdaptiveNodeSet::with_capacity(graph.num_nodes(), ignore_nodes.len());
+        for node in ignore_nodes
             .iter()
             .map(|swhid| self.service.try_get_node_id(swhid))
             .collect::<Result<Vec<_>, _>>()?
         {
-            skip_nodes_set.insert(node);
+            ignore_nodes_set.insert(node);
         }
         let subgraph = Subgraph {
             graph: graph.clone(),
-            node_filter: move |node| !skip_nodes_set.contains(node),
+            node_filter: move |node| !ignore_nodes_set.contains(node),
             arc_filter: move |src, dst| arc_checker.matches(src, dst),
         };
         let mut visitor = SimpleBfsVisitor::new(

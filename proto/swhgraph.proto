@@ -109,9 +109,9 @@ message TraversalRequest {
     /* Maximum number of matching results before stopping. For Traverse(), this is
      * the total number of results. Defaults to infinite. */
     optional int64 max_matching_nodes = 9;
-    /* Set of nodes (SWHIDs) that should be ignored as part of the traversal,
-     * as if they were removed from the graph. */
-    repeated string skip_nodes = 10;
+    /* Set of nodes (SWHIDs) that should be skipped during the traversal
+     * and from the 'successor' set, as if they were removed from the graph. */
+    repeated string ignore_nodes = 10;
 }
 
 /* FindPathToRequest describes a request to find a shortest path between a
