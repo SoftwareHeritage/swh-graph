@@ -28,10 +28,10 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 # gRPC
 prost = "0.13"
 prost-types = "0.13"
-tonic = "0.12.2"
-tonic-health = "0.12.2"
-tonic-reflection = "0.12.2"
-tonic-middleware = "0.2.1"
+tonic = "0.13.1"
+tonic-health = "0.13.1"
+tonic-reflection = "0.13.1"
+tonic-middleware = "0.3.0"
 http-body = "1"  # must match the version used by tonic
 
 # serde
@@ -48,7 +48,7 @@ tokio-stream = "0.1"
 swh-graph = { workspace = true, features = ["serde"] }
 
 [build-dependencies]
-tonic-build = "0.11.0"
+tonic-build = "0.13.0"
 
 [dev-dependencies]
 futures = "0.3.30"

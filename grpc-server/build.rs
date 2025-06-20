@@ -13,6 +13,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
         .file_descriptor_set_path(out_dir.join("swhgraph_descriptor.bin"))
         .protoc_arg("--experimental_allow_proto3_optional") // Needed on Debian 11
-        .compile(&[PROTO_PATH], &[PROTO_DIR])?;
+        .compile_protos(&[PROTO_PATH], &[PROTO_DIR])?;
     Ok(())
 }

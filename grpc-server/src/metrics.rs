@@ -10,8 +10,8 @@ use std::task::{Context, Poll};
 
 use cadence::{Counted, StatsdClient, Timed};
 use tokio::time::Instant;
-use tonic::body::BoxBody;
-use tonic::transport::Body;
+use tonic::body::Body;
+use tonic::transport::Body as BodyTrait;
 use tonic_middleware::{Middleware, ServiceBound};
 use tracing::{span, Instrument, Level, Span};
 
@@ -39,9 +39,9 @@ where
 {
     async fn call(
         &self,
-        req: tonic::codegen::http::Request<BoxBody>,
+        req: tonic::codegen::http::Request<Body>,
         mut service: S,
-    ) -> Result<tonic::codegen::http::Response<BoxBody>, S::Error> {
+    ) -> Result<tonic::codegen::http::Response<Body>, S::Error> {
         let incoming_request_time = Instant::now();
         let uri = req.uri().clone();
         let request_id = self.request_id.fetch_add(1, Ordering::Relaxed);
@@ -66,7 +66,7 @@ where
                     // end of the stream. Therefore, we must log it here.
                     body.publish_metrics();
                 }
-                let resp = tonic::codegen::http::Response::from_parts(parts, BoxBody::new(body));
+                let resp = tonic::codegen::http::Response::from_parts(parts, Body::new(body));
                 Ok(resp)
             }
             Err(e) => {
@@ -80,7 +80,7 @@ where
     }
 }
 
-struct TimedBody<B: Body + Unpin> {
+struct TimedBody<B: BodyTrait + Unpin> {
     statsd_client: Arc<StatsdClient>,
     body: B,
     status: tonic::codegen::http::StatusCode,
@@ -91,7 +91,7 @@ struct TimedBody<B: Body + Unpin> {
     span: Span,
 }
 
-impl<B: Body + Unpin> TimedBody<B> {
+impl<B: BodyTrait + Unpin> TimedBody<B> {
     fn publish_metrics(&self) {
         // runs the log statement within the same tracing span as the rest of the request
         let _guard = self.span.enter();
@@ -128,7 +128,7 @@ impl<B: Body + Unpin> TimedBody<B> {
     }
 }
 
-impl<B: Body + Unpin> Body for TimedBody<B> {
+impl<B: BodyTrait + Unpin> BodyTrait for TimedBody<B> {
     type Data = B::Data;
     type Error = B::Error;
 
