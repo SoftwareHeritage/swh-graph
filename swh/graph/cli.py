@@ -201,7 +201,7 @@ def serve(ctx, host, port, graph_path):
     type=click.Path(
         file_okay=False,
         writable=True,
-        path_type=Path,  # type: ignore[type-var]
+        path_type=Path,
     ),
 )
 @click.pass_context
