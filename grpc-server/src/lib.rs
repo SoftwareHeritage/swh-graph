@@ -326,7 +326,7 @@ pub async fn serve<G: SwhOptFullGraph + Sync + Send + 'static>(
     let statsd_client = Arc::new(statsd_client);
     let graph = Arc::new(graph);
 
-    let (mut health_reporter, health_service) = tonic_health::server::health_reporter();
+    let (health_reporter, health_service) = tonic_health::server::health_reporter();
     health_reporter
         .set_serving::<TraversalServiceServer<TraversalService<Arc<G>>>>()
         .await;

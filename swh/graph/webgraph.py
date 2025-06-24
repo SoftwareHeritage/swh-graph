@@ -301,8 +301,8 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "--person-function",
         "{out_dir}/{graph_name}.persons.pthash",
         "{in_dir}",
-        "{out_dir}/{graph_name}.fullnames",
-        "{out_dir}/{graph_name}.fullnames.offsets\n",
+        "{out_dir}/{graph_name}.persons",
+        "{out_dir}/{graph_name}.persons.lengths\n",
         "fi",
     ],
     CompressionStep.FULLNAMES_EF: [
@@ -313,9 +313,9 @@ STEP_ARGV: Dict[CompressionStep, List[str]] = {
         "fullnames-ef",
         "--num-persons",
         "$(cat {out_dir}/{graph_name}.persons.count.txt)",
-        "{out_dir}/{graph_name}.fullnames",
-        "{out_dir}/{graph_name}.fullnames.offsets",
-        "{out_dir}/{graph_name}.fullnames.ef\n",
+        "{out_dir}/{graph_name}.persons",
+        "{out_dir}/{graph_name}.persons.lengths",
+        "{out_dir}/{graph_name}.persons.ef\n",
         "fi",
     ],
     CompressionStep.PERSONS_STATS: [

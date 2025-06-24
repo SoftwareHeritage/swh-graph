@@ -3,7 +3,6 @@ pytest-mock
 pytest-postgresql
 swh.core[testing] >= 3.0.0
 
-types-click
 types-psutil
 types-pyyaml
 types-requests

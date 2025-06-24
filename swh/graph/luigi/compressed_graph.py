@@ -120,7 +120,7 @@ from typing import Any, Dict, List, MutableSequence, Optional, Sequence, Set
 # control
 import luigi
 
-from swh.export.luigi import Format, LocalExport
+from swh.export.luigi import ExportGraph, Format, LocalExport
 from swh.export.luigi import ObjectType as Table
 from swh.export.luigi import S3PathParameter
 from swh.graph.webgraph import CompressionStep, do_step
@@ -886,6 +886,25 @@ class MphPersons(_CompressionStepTask):
         return bitvector_size
 
 
+class ExtractFullnames(_CompressionStepTask):
+    STEP = CompressionStep.EXTRACT_FULLNAMES
+    INPUT_FILES = {".persons.pthash"}
+    EXPORT_AS_INPUT = True
+    OUTPUT_FILES = {".persons", ".persons.lengths"}
+
+    def _large_allocations(self) -> int:
+        return 0
+
+
+class FullnamesEf(_CompressionStepTask):
+    STEP = CompressionStep.FULLNAMES_EF
+    INPUT_FILES = {".persons", ".persons.lengths"}
+    OUTPUT_FILES = {".persons.ef"}
+
+    def _large_allocations(self) -> int:
+        return 0
+
+
 class NodeProperties(_CompressionStepTask):
     STEP = CompressionStep.NODE_PROPERTIES
     INPUT_FILES = {".pthash.order", ".pthash", ".persons.pthash"}
@@ -1316,16 +1335,24 @@ class CompressGraph(luigi.Task):
                 EdgeLabelsEf(**kwargs),
                 EdgeLabelsTransposeEf(**kwargs),
             ]
+        local_export = LocalExport(
+            local_export_path=self.local_export_path,
+            local_sensitive_export_path=self.local_sensitive_export_path,
+            formats=[Format.orc],  # type: ignore[attr-defined]
+            object_types=_tables_for_object_types(self.object_types),
+        )
+        fullname_tasks = (
+            [ExtractFullnames(**kwargs), FullnamesEf(**kwargs)]
+            if issubclass(local_export.export_task_type, ExportGraph)
+            and not {"rel", "rev"}.isdisjoint(set(self.object_types))
+            else []
+        )
         return [
-            LocalExport(
-                local_export_path=self.local_export_path,
-                local_sensitive_export_path=self.local_sensitive_export_path,
-                formats=[Format.orc],  # type: ignore[attr-defined]
-                object_types=_tables_for_object_types(self.object_types),
-            ),
+            local_export,
             NodeStats(**kwargs),
             TransposeEf(**kwargs),
             Maps(**kwargs),
+            *fullname_tasks,
             NodeProperties(**kwargs),
             Stats(**kwargs),
             EndToEndTest(**kwargs),
