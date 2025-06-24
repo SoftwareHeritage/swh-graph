@@ -329,4 +329,9 @@ message StatsResponse {
     optional int64 export_started_at = 13;
     /* Time when the export ended */
     optional int64 export_ended_at = 14;
+
+    /* maps node types (ie. 'cnt', 'dir', etc.) to the number of nodes of that type */
+    map<string, int64> num_nodes_by_type = 16;
+    /* maps edge types (ie. 'dir:cnt', 'dir:dir', 'rev:'dir', etc.) to the number of nodes of that type */
+    map<string, int64> num_arcs_by_type = 17;
 }
