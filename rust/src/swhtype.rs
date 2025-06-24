@@ -189,7 +189,7 @@ impl core::fmt::Display for NodeType {
 type NodeTypeSet = BitArr!(for NodeType::NUMBER_OF_TYPES, in u8, Msb0);
 
 /// Constraint on allowed node types, as a set of node types.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct NodeConstraint(pub NodeTypeSet);
 
 impl NodeConstraint {

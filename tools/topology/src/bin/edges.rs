@@ -16,16 +16,15 @@ use dataset_writer::{CsvZstTableWriter, ParallelDatasetWriter, TableWriter};
 use swh_graph::graph::*;
 use swh_graph::labels::{Branch, DirEntry, Visit, VisitStatus};
 use swh_graph::mph::DynMphf;
-use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::views::Subgraph;
-use swh_graph::{NodeType, SWHID};
+use swh_graph::{NodeConstraint, NodeType, SWHID};
 
 #[derive(Parser, Debug)]
 #[command(about = "Reads a graph and re-creates the list of edges used to create the graph", long_about = None)]
 struct Args {
     graph_path: PathBuf,
     #[arg(short, long, default_value = "*")]
-    node_types: String,
+    node_types: NodeConstraint,
     #[arg(short, long, default_value_t = 3)]
     compression_level: i32,
     #[arg(short, long)]
@@ -110,8 +109,6 @@ impl TableWriter for NodeAndEdgeWriter<'_> {
 pub fn main() -> Result<()> {
     let args = Args::parse();
 
-    let node_types = parse_allowed_node_types(&args.node_types)?;
-
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     log::info!("Loading graph");
@@ -127,9 +124,7 @@ pub fn main() -> Result<()> {
 
     let num_nodes = graph.num_nodes();
 
-    let graph = Arc::new(Subgraph::with_node_filter(&graph, |node| {
-        node_types.contains(&graph.properties().node_type(node))
-    }));
+    let graph = Arc::new(Subgraph::with_node_constraint(&graph, args.node_types));
 
     let output_dir = args.output_dir;
     std::fs::create_dir(&output_dir)

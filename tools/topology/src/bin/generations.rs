@@ -28,9 +28,8 @@ use rayon::prelude::*;
 
 use swh_graph::graph::*;
 use swh_graph::mph::DynMphf;
-use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::views::{Subgraph, Transposed};
-use swh_graph::NodeType;
+use swh_graph::NodeConstraint;
 
 use swh_graph_topology::generations::GenerationsWriter;
 
@@ -48,7 +47,7 @@ struct Args {
     #[arg(short, long)]
     direction: Direction,
     #[arg(short, long, default_value = "*")]
-    node_types: String,
+    node_types: NodeConstraint,
     #[arg(long)]
     /// Path where to write the output order, and the accompanying .ef delimiting offsets between
     /// generations
@@ -62,8 +61,6 @@ pub fn main() -> Result<()> {
     let args = Args::parse();
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-
-    let node_types = parse_allowed_node_types(&args.node_types)?;
 
     log::info!("Loading graph");
     let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph_path)
@@ -97,9 +94,9 @@ pub fn main() -> Result<()> {
             .name("toposort".to_owned())
             .spawn_scoped(s, || -> Result<_> {
                 match args.direction {
-                    Direction::Forward => toposort(&graph, &node_types, generations_tx),
+                    Direction::Forward => toposort(&graph, args.node_types, generations_tx),
                     Direction::Backward => {
-                        toposort(Transposed(&graph), &node_types, generations_tx)
+                        toposort(Transposed(&graph), args.node_types, generations_tx)
                     }
                 }
             })
@@ -157,16 +154,14 @@ pub fn main() -> Result<()> {
 
 fn toposort<G>(
     graph: G,
-    node_types: &[NodeType],
+    node_constraint: NodeConstraint,
     generations_tx: SyncSender<Vec<NodeId>>,
 ) -> Result<Vec<u32>>
 where
     G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties + Sync,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    let graph = Subgraph::with_node_filter(&graph, |node| {
-        node_types.contains(&graph.properties().node_type(node))
-    });
+    let graph = Subgraph::with_node_constraint(&graph, node_constraint);
 
     log::info!("Initializing predecessor counters...");
     let num_unvisited_predecessors: Vec<_> = (0..graph.num_nodes())
