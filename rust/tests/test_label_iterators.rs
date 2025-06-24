@@ -1,16 +1,17 @@
 /*
- * Copyright (C) 2024  The Software Heritage developers
+ * Copyright (C) 2024-2025  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
  */
 
 use anyhow::Result;
+use rayon::prelude::*;
 
 use swh_graph::arc_iterators::LabeledArcIterator;
 use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
-use swh_graph::labels::{Branch, Visit, VisitStatus};
+use swh_graph::labels::{Branch, FilenameId, Visit, VisitStatus};
 use swh_graph::swhid;
 
 /// ```
@@ -54,6 +55,26 @@ fn build_graph() -> Result<BuiltGraph> {
     builder.snp_arc(3, 5, b"refs/heads/snp3-to-rev5-dupe");
 
     builder.done()
+}
+
+#[test]
+fn test_num_label_names() -> Result<()> {
+    let graph = build_graph()?;
+
+    assert_eq!(graph.properties().num_label_names(), 4);
+    assert_eq!(
+        graph.properties().iter_filename_ids().collect::<Vec<_>>(),
+        (0..4).map(FilenameId).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        graph
+            .properties()
+            .par_iter_filename_ids()
+            .collect::<Vec<_>>(),
+        (0..4).map(FilenameId).collect::<Vec<_>>()
+    );
+
+    Ok(())
 }
 
 #[test]

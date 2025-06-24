@@ -1,12 +1,16 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::{Context, Result};
+use std::collections::HashSet;
 use std::path::PathBuf;
 
+use anyhow::{Context, Result};
+use rayon::prelude::*;
+
 use swh_graph::graph::*;
+use swh_graph::labels::FilenameId;
 use swh_graph::mph::SwhidPthash;
 use swh_graph::properties::NodeIdFromSwhidError;
 use swh_graph::AllSwhGraphProperties;
@@ -276,6 +280,45 @@ fn test_snapshot_properties() -> Result<()> {
     assert_eq!(props.tag_name(node), None);
     assert_eq!(props.author_id(node), None);
     assert_eq!(props.committer_id(node), None);
+
+    Ok(())
+}
+
+#[test]
+fn test_labels() -> Result<()> {
+    let graph = graph()?;
+
+    assert_eq!(graph.properties().num_label_names(), 11);
+    assert_eq!(
+        graph.properties().iter_filename_ids().collect::<Vec<_>>(),
+        (0..11).map(FilenameId).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        graph
+            .properties()
+            .par_iter_filename_ids()
+            .map(
+                |filename_id| String::from_utf8_lossy(&graph.properties().label_name(filename_id))
+                    .into_owned()
+            )
+            .collect::<HashSet<_>>(),
+        vec![
+            "README.md",
+            "README.rst",
+            "TODO.txt",
+            "main.py",
+            "old",
+            "oldproject",
+            "parser.c",
+            "refs/heads/master",
+            "refs/tags/v1.0",
+            "refs/tags/v2.0-anonymous",
+            "tests"
+        ]
+        .into_iter()
+        .map(|label_name| label_name.to_string())
+        .collect::<HashSet<_>>()
+    );
 
     Ok(())
 }
