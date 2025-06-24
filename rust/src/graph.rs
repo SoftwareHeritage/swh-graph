@@ -13,10 +13,11 @@
 #![allow(clippy::type_complexity)]
 
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::iter::Iterator;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{ConcurrentProgressLog, ProgressLog};
 use rayon::prelude::*;
@@ -35,6 +36,7 @@ use crate::properties;
 pub use crate::underlying_graph::DefaultUnderlyingGraph;
 use crate::utils::shuffle::par_iter_shuffled_range;
 use crate::utils::suffix_path;
+use crate::NodeType;
 
 /// Alias for [`usize`], which may become a newtype in a future version.
 pub type NodeId = usize;
@@ -146,7 +148,13 @@ pub trait SwhGraph {
     /// (with a few `dir->rev` arcs)
     fn is_transposed(&self) -> bool;
 
-    /// Return the number of nodes in the graph.
+    /// Return the largest node id in the graph plus one.
+    ///
+    /// For graphs directly loaded from disk this is the actual number of nodes,
+    /// but it is an overestimate for some graphs (eg. [`Subgraph`](crate::views::Subgraph)).
+    ///
+    /// Use [`actual_num_nodes`](Self::actual_num_nodes) if you need the exact number of
+    /// nodes in the graph.
     fn num_nodes(&self) -> usize;
 
     /// Returns whether the given node id exists in the graph
@@ -159,6 +167,57 @@ pub trait SwhGraph {
 
     /// Return the number of arcs in the graph.
     fn num_arcs(&self) -> u64;
+
+    /// Returns the number of nodes of each type, if known.
+    fn num_nodes_by_type(&self) -> Result<HashMap<NodeType, usize>> {
+        let path = self.path().with_extension("nodes.stats.txt");
+        std::fs::read_to_string(&path)
+            .with_context(|| format!("Could not read {}", path.display()))?
+            .lines()
+            .map(|line| {
+                let (type_, count) = line
+                    .split_once(' ')
+                    .with_context(|| format!("Unexpected line in {}: {}", path.display(), line))?;
+                let type_: NodeType = type_
+                    .parse()
+                    .map_err(|_| anyhow!("Unknown node type in {}: {}", path.display(), type_))?;
+                let count = count
+                    .parse()
+                    .map_err(|_| anyhow!("Invalid integer in {}: {}", path.display(), count))?;
+                Ok((type_, count))
+            })
+            .collect()
+    }
+    /// Returns the number of nodes in the graph, if known.
+    fn actual_num_nodes(&self) -> Result<usize> {
+        Ok(self.num_nodes_by_type()?.values().sum())
+    }
+    /// Returns the number of arcs of each type, if known.
+    fn num_arcs_by_type(&self) -> Result<HashMap<(NodeType, NodeType), usize>> {
+        let path = self.path().with_extension("edges.stats.txt");
+        std::fs::read_to_string(&path)
+            .with_context(|| format!("Could not read {}", path.display()))?
+            .lines()
+            .map(|line| {
+                let (type_, count) = line
+                    .split_once(' ')
+                    .with_context(|| format!("Unexpected line in {}: {}", path.display(), line))?;
+                let (src_type, dst_type) = type_
+                    .split_once(':')
+                    .with_context(|| format!("Unexpected line in {}: {}", path.display(), line))?;
+                let src_type: NodeType = src_type.parse().map_err(|_| {
+                    anyhow!("Unknown node type in {}: {}", path.display(), src_type)
+                })?;
+                let dst_type: NodeType = dst_type.parse().map_err(|_| {
+                    anyhow!("Unknown node type in {}: {}", path.display(), dst_type)
+                })?;
+                let count = count
+                    .parse()
+                    .map_err(|_| anyhow!("Invalid integer in {}: {}", path.display(), count))?;
+                Ok(((src_type, dst_type), count))
+            })
+            .collect()
+    }
 
     /// Return whether there is an arc going from `src_node_id` to `dst_node_id`.
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool;
