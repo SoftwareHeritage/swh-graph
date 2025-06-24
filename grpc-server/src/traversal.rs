@@ -181,7 +181,7 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
                 // Spawning a thread because Tonic currently only supports Tokio, which
                 // requires futures to be sendable between threads, and webgraph's
                 // successor iterators are not
-                tokio::spawn(async move { std::thread::spawn(move || visitor.visit()).join() })
+                tokio::task::spawn_blocking(|| visitor.visit())
             }};
         }
         match request.get_ref().direction.try_into() {
