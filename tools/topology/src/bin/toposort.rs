@@ -14,9 +14,8 @@ use serde::Serialize;
 
 use swh_graph::graph::*;
 use swh_graph::mph::DynMphf;
-use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::views::{Subgraph, Transposed};
-use swh_graph::NodeType;
+use swh_graph::NodeConstraint;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Algorithm {
@@ -39,7 +38,7 @@ struct Args {
     #[arg(short, long)]
     direction: Direction,
     #[arg(short, long, default_value = "*")]
-    node_types: String,
+    node_types: NodeConstraint,
 }
 
 #[derive(Debug, Serialize)]
@@ -57,8 +56,6 @@ pub fn main() -> Result<()> {
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    let node_types = parse_allowed_node_types(&args.node_types)?;
-
     log::info!("Loading graph");
     let graph = swh_graph::graph::SwhBidirectionalGraph::new(args.graph_path)
         .context("Could not load graph")?
@@ -67,13 +64,13 @@ pub fn main() -> Result<()> {
         .context("Could not load maps")?;
 
     match (args.algorithm, args.direction) {
-        (Algorithm::Dfs, Direction::Forward) => toposort::<Stack, _>(graph, &node_types)?,
-        (Algorithm::Bfs, Direction::Forward) => toposort::<Queue, _>(graph, &node_types)?,
+        (Algorithm::Dfs, Direction::Forward) => toposort::<Stack, _>(graph, args.node_types)?,
+        (Algorithm::Bfs, Direction::Forward) => toposort::<Queue, _>(graph, args.node_types)?,
         (Algorithm::Dfs, Direction::Backward) => {
-            toposort::<Stack, _>(Transposed(&graph), &node_types)?
+            toposort::<Stack, _>(Transposed(&graph), args.node_types)?
         }
         (Algorithm::Bfs, Direction::Backward) => {
-            toposort::<Queue, _>(Transposed(&graph), &node_types)?
+            toposort::<Queue, _>(Transposed(&graph), args.node_types)?
         }
     }
 
@@ -107,14 +104,12 @@ impl ReadySet for Queue {
     }
 }
 
-fn toposort<R: ReadySet, G>(graph: G, node_types: &[NodeType]) -> Result<()>
+fn toposort<R: ReadySet, G>(graph: G, node_constraint: NodeConstraint) -> Result<()>
 where
     G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::Maps: swh_graph::properties::Maps,
 {
-    let graph = Subgraph::with_node_filter(&graph, |node| {
-        node_types.contains(&graph.properties().node_type(node))
-    });
+    let graph = Subgraph::with_node_constraint(&graph, node_constraint);
 
     let mut pl = progress_logger!(
         display_memory = true,
