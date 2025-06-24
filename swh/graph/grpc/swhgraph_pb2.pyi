@@ -648,6 +648,32 @@ global___StatsRequest = StatsRequest
 
 class StatsResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    class NumNodesByTypeEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: typing.Text
+        value: builtins.int
+        def __init__(self,
+            *,
+            key: typing.Text = ...,
+            value: builtins.int = ...,
+            ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key",b"key","value",b"value"]) -> None: ...
+
+    class NumArcsByTypeEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: typing.Text
+        value: builtins.int
+        def __init__(self,
+            *,
+            key: typing.Text = ...,
+            value: builtins.int = ...,
+            ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key",b"key","value",b"value"]) -> None: ...
+
     NUM_NODES_FIELD_NUMBER: builtins.int
     NUM_EDGES_FIELD_NUMBER: builtins.int
     COMPRESSION_RATIO_FIELD_NUMBER: builtins.int
@@ -662,6 +688,8 @@ class StatsResponse(google.protobuf.message.Message):
     OUTDEGREE_AVG_FIELD_NUMBER: builtins.int
     EXPORT_STARTED_AT_FIELD_NUMBER: builtins.int
     EXPORT_ENDED_AT_FIELD_NUMBER: builtins.int
+    NUM_NODES_BY_TYPE_FIELD_NUMBER: builtins.int
+    NUM_ARCS_BY_TYPE_FIELD_NUMBER: builtins.int
     num_nodes: builtins.int
     """Number of nodes in the graph"""
 
@@ -708,6 +736,14 @@ class StatsResponse(google.protobuf.message.Message):
     export_ended_at: builtins.int
     """Time when the export ended"""
 
+    @property
+    def num_nodes_by_type(self) -> google.protobuf.internal.containers.ScalarMap[typing.Text, builtins.int]:
+        """maps node types (ie. 'cnt', 'dir', etc.) to the number of nodes of that type"""
+        pass
+    @property
+    def num_arcs_by_type(self) -> google.protobuf.internal.containers.ScalarMap[typing.Text, builtins.int]:
+        """maps edge types (ie. 'dir:cnt', 'dir:dir', 'rev:'dir', etc.) to the number of nodes of that type"""
+        pass
     def __init__(self,
         *,
         num_nodes: builtins.int = ...,
@@ -724,9 +760,11 @@ class StatsResponse(google.protobuf.message.Message):
         outdegree_avg: builtins.float = ...,
         export_started_at: typing.Optional[builtins.int] = ...,
         export_ended_at: typing.Optional[builtins.int] = ...,
+        num_nodes_by_type: typing.Optional[typing.Mapping[typing.Text, builtins.int]] = ...,
+        num_arcs_by_type: typing.Optional[typing.Mapping[typing.Text, builtins.int]] = ...,
         ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["_avg_locality",b"_avg_locality","_bits_per_edge",b"_bits_per_edge","_bits_per_node",b"_bits_per_node","_compression_ratio",b"_compression_ratio","_export_ended_at",b"_export_ended_at","_export_started_at",b"_export_started_at","avg_locality",b"avg_locality","bits_per_edge",b"bits_per_edge","bits_per_node",b"bits_per_node","compression_ratio",b"compression_ratio","export_ended_at",b"export_ended_at","export_started_at",b"export_started_at"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["_avg_locality",b"_avg_locality","_bits_per_edge",b"_bits_per_edge","_bits_per_node",b"_bits_per_node","_compression_ratio",b"_compression_ratio","_export_ended_at",b"_export_ended_at","_export_started_at",b"_export_started_at","avg_locality",b"avg_locality","bits_per_edge",b"bits_per_edge","bits_per_node",b"bits_per_node","compression_ratio",b"compression_ratio","export_ended_at",b"export_ended_at","export_started_at",b"export_started_at","indegree_avg",b"indegree_avg","indegree_max",b"indegree_max","indegree_min",b"indegree_min","num_edges",b"num_edges","num_nodes",b"num_nodes","outdegree_avg",b"outdegree_avg","outdegree_max",b"outdegree_max","outdegree_min",b"outdegree_min"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_avg_locality",b"_avg_locality","_bits_per_edge",b"_bits_per_edge","_bits_per_node",b"_bits_per_node","_compression_ratio",b"_compression_ratio","_export_ended_at",b"_export_ended_at","_export_started_at",b"_export_started_at","avg_locality",b"avg_locality","bits_per_edge",b"bits_per_edge","bits_per_node",b"bits_per_node","compression_ratio",b"compression_ratio","export_ended_at",b"export_ended_at","export_started_at",b"export_started_at","indegree_avg",b"indegree_avg","indegree_max",b"indegree_max","indegree_min",b"indegree_min","num_arcs_by_type",b"num_arcs_by_type","num_edges",b"num_edges","num_nodes",b"num_nodes","num_nodes_by_type",b"num_nodes_by_type","outdegree_avg",b"outdegree_avg","outdegree_max",b"outdegree_max","outdegree_min",b"outdegree_min"]) -> None: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing_extensions.Literal["_avg_locality",b"_avg_locality"]) -> typing.Optional[typing_extensions.Literal["avg_locality"]]: ...
     @typing.overload

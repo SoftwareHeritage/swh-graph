@@ -247,6 +247,36 @@ impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
             outdegree_avg: get_property(&stats, stats_path, "avgoutdegree")?,
             export_started_at: export_meta.map(|export_meta| export_meta.export_start.timestamp()),
             export_ended_at: export_meta.map(|export_meta| export_meta.export_end.timestamp()),
+            num_nodes_by_type: self
+                .graph
+                .num_nodes_by_type()
+                .unwrap_or_else(|e| {
+                    log::info!("Missing num_nodes_by_type: {}", e);
+                    HashMap::new()
+                })
+                .into_iter()
+                .map(|(type_, count)| {
+                    (
+                        format!("{type_}"),
+                        i64::try_from(count).expect("Node count overflowed i64"),
+                    )
+                })
+                .collect(),
+            num_arcs_by_type: self
+                .graph
+                .num_arcs_by_type()
+                .unwrap_or_else(|e| {
+                    log::info!("Missing num_arcs_by_type: {}", e);
+                    HashMap::new()
+                })
+                .into_iter()
+                .map(|((src_type, dst_type), count)| {
+                    (
+                        format!("{src_type}:{dst_type}"),
+                        i64::try_from(count).expect("Arc count overflowed i64"),
+                    )
+                })
+                .collect(),
         }))
     }
 }
