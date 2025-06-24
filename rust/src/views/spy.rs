@@ -3,11 +3,15 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+use anyhow::Result;
+
 use crate::graph::*;
 use crate::properties;
+use crate::NodeType;
 
 /// Wraps a graph, and records calls to its methods, useful for tests
 pub struct GraphSpy<G: SwhGraph> {
@@ -52,6 +56,14 @@ impl<G: SwhGraph> SwhGraph for GraphSpy<G> {
     fn num_arcs(&self) -> u64 {
         self.record("num_arcs", ());
         self.graph.num_arcs()
+    }
+    fn num_nodes_by_type(&self) -> Result<HashMap<NodeType, usize>> {
+        self.record("num_nodes_by_type", ());
+        self.graph.num_nodes_by_type()
+    }
+    fn num_arcs_by_type(&self) -> Result<HashMap<(NodeType, NodeType), usize>> {
+        self.record("num_arcs_by_type", ());
+        self.graph.num_arcs_by_type()
     }
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         self.record("has_arc", (src_node_id, dst_node_id));

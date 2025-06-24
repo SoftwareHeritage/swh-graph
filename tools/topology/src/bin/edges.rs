@@ -122,8 +122,6 @@ pub fn main() -> Result<()> {
         .load_properties(|props| props.load_label_names())
         .context("Could not load maps")?;
 
-    let num_nodes = graph.num_nodes();
-
     let graph = Arc::new(Subgraph::with_node_constraint(&graph, args.node_types));
 
     let output_dir = args.output_dir;
@@ -147,7 +145,7 @@ pub fn main() -> Result<()> {
         display_memory = true,
         local_speed = true,
         item_name = "node",
-        expected_updates = Some(num_nodes),
+        expected_updates = Some(graph.actual_num_nodes().unwrap_or(graph.num_nodes())),
     );
     pl.start("Listing nodes and edges...");
 

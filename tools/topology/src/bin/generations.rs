@@ -173,7 +173,7 @@ where
         display_memory = true,
         item_name = "node",
         local_speed = true,
-        expected_updates = Some(graph.num_nodes()),
+        expected_updates = Some(graph.actual_num_nodes().unwrap_or(graph.num_nodes())),
     );
     pl.start("Listing leaves...");
 
