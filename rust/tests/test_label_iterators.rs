@@ -63,13 +63,13 @@ fn test_num_label_names() -> Result<()> {
 
     assert_eq!(graph.properties().num_label_names(), 4);
     assert_eq!(
-        graph.properties().iter_filename_ids().collect::<Vec<_>>(),
+        graph.properties().iter_label_name_ids().collect::<Vec<_>>(),
         (0..4).map(FilenameId).collect::<Vec<_>>()
     );
     assert_eq!(
         graph
             .properties()
-            .par_iter_filename_ids()
+            .par_iter_label_name_ids()
             .collect::<Vec<_>>(),
         (0..4).map(FilenameId).collect::<Vec<_>>()
     );

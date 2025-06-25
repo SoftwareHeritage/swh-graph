@@ -150,12 +150,12 @@ impl<
     }
 
     /// Returns an iterator on [`FilenameId`]s for this graph
-    pub fn iter_filename_ids(&self) -> impl Iterator<Item = FilenameId> {
+    pub fn iter_label_name_ids(&self) -> impl Iterator<Item = FilenameId> {
         (0..self.num_label_names()).map(FilenameId)
     }
 
     /// Returns an iterator on [`FilenameId`]s for this graph
-    pub fn par_iter_filename_ids(&self) -> impl ParallelIterator<Item = FilenameId> {
+    pub fn par_iter_label_name_ids(&self) -> impl ParallelIterator<Item = FilenameId> {
         (0..self.num_label_names()).into_par_iter().map(FilenameId)
     }
 

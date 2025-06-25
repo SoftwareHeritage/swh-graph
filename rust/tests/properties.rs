@@ -290,13 +290,13 @@ fn test_labels() -> Result<()> {
 
     assert_eq!(graph.properties().num_label_names(), 11);
     assert_eq!(
-        graph.properties().iter_filename_ids().collect::<Vec<_>>(),
+        graph.properties().iter_label_name_ids().collect::<Vec<_>>(),
         (0..11).map(FilenameId).collect::<Vec<_>>()
     );
     assert_eq!(
         graph
             .properties()
-            .par_iter_filename_ids()
+            .par_iter_label_name_ids()
             .map(
                 |filename_id| String::from_utf8_lossy(&graph.properties().label_name(filename_id))
                     .into_owned()
