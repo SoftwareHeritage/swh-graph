@@ -11,7 +11,7 @@ use thiserror::Error;
 use super::suffixes::*;
 use super::*;
 use crate::front_coded_list::FrontCodedList;
-use crate::labels::FilenameId;
+use crate::labels::LabelNameId;
 use crate::utils::suffix_path;
 
 /// Trait implemented by both [`NoLabelNames`] and all implementors of [`LabelNames`],
@@ -149,14 +149,14 @@ impl<
             .expect("label_names.len() overflowed u64")
     }
 
-    /// Returns an iterator on [`FilenameId`]s for this graph
-    pub fn iter_label_name_ids(&self) -> impl Iterator<Item = FilenameId> {
-        (0..self.num_label_names()).map(FilenameId)
+    /// Returns an iterator on [`LabelNameId`]s for this graph
+    pub fn iter_label_name_ids(&self) -> impl Iterator<Item = LabelNameId> {
+        (0..self.num_label_names()).map(LabelNameId)
     }
 
-    /// Returns an iterator on [`FilenameId`]s for this graph
-    pub fn par_iter_label_name_ids(&self) -> impl ParallelIterator<Item = FilenameId> {
-        (0..self.num_label_names()).into_par_iter().map(FilenameId)
+    /// Returns an iterator on [`LabelNameId`]s for this graph
+    pub fn par_iter_label_name_ids(&self) -> impl ParallelIterator<Item = LabelNameId> {
+        (0..self.num_label_names()).into_par_iter().map(LabelNameId)
     }
 
     /// Returns the base64-encoded name of an arc label
@@ -168,7 +168,7 @@ impl<
     ///
     /// If `filename_id` does not exist
     #[inline]
-    pub fn label_name_base64(&self, filename_id: FilenameId) -> Vec<u8> {
+    pub fn label_name_base64(&self, filename_id: LabelNameId) -> Vec<u8> {
         self.try_label_name_base64(filename_id)
             .unwrap_or_else(|e| panic!("Cannot get label name: {}", e))
     }
@@ -180,7 +180,7 @@ impl<
     #[inline]
     pub fn try_label_name_base64(
         &self,
-        filename_id: FilenameId,
+        filename_id: LabelNameId,
     ) -> Result<Vec<u8>, OutOfBoundError> {
         let index = filename_id
             .0
@@ -204,7 +204,7 @@ impl<
     ///
     /// If `filename_id` does not exist
     #[inline]
-    pub fn label_name(&self, filename_id: FilenameId) -> Vec<u8> {
+    pub fn label_name(&self, filename_id: LabelNameId) -> Vec<u8> {
         self.try_label_name(filename_id)
             .unwrap_or_else(|e| panic!("Cannot get label name: {}", e))
     }
@@ -214,7 +214,7 @@ impl<
     /// This is the file name (resp. branch name) of a label on an arc from a directory
     /// (resp. snapshot)
     #[inline]
-    pub fn try_label_name(&self, filename_id: FilenameId) -> Result<Vec<u8>, OutOfBoundError> {
+    pub fn try_label_name(&self, filename_id: LabelNameId) -> Result<Vec<u8>, OutOfBoundError> {
         let base64 = base64_simd::STANDARD;
         self.try_label_name_base64(filename_id).map(|name| {
             base64.decode_to_vec(name).unwrap_or_else(|name| {
@@ -237,7 +237,7 @@ impl<
     pub fn label_name_id(
         &self,
         name: impl AsRef<[u8]>,
-    ) -> Result<FilenameId, LabelIdFromNameError> {
+    ) -> Result<LabelNameId, LabelIdFromNameError> {
         use std::cmp::Ordering::*;
 
         let base64 = base64_simd::STANDARD;
@@ -247,7 +247,7 @@ impl<
         macro_rules! bisect {
             ($compare_pivot:expr) => {{
                 let compare_pivot = $compare_pivot;
-                let res: Result<FilenameId, LabelIdFromNameError> = {
+                let res: Result<LabelNameId, LabelIdFromNameError> = {
                     // both inclusive
                     let mut min = 0;
                     let mut max = self
@@ -260,7 +260,7 @@ impl<
 
                     while min <= max {
                         let pivot = (min + max) / 2;
-                        let pivot_id = FilenameId(pivot);
+                        let pivot_id = LabelNameId(pivot);
                         let pivot_name = self.label_name_base64(pivot_id);
                         if min == max {
                             if pivot_name.as_slice() == name_base64 {

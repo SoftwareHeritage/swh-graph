@@ -156,15 +156,15 @@ impl Branch {
     /// Returns a new [`Branch`]
     ///
     /// or `None` if `filename_id` is 2^61 or greater
-    pub fn new(filename_id: FilenameId) -> Option<Branch> {
+    pub fn new(filename_id: LabelNameId) -> Option<Branch> {
         filename_id.0.checked_shl(3).map(Branch)
     }
 
     /// Returns an id of the filename of the entry.
     ///
     /// The id can be resolved to the filename through graph properties.
-    pub fn filename_id(self) -> FilenameId {
-        FilenameId(self.0 >> 3)
+    pub fn filename_id(self) -> LabelNameId {
+        LabelNameId(self.0 >> 3)
     }
 }
 
@@ -181,7 +181,7 @@ impl DirEntry {
     /// Returns a new [`DirEntry`]
     ///
     /// or `None` if `filename_id` is 2^61 or greater
-    pub fn new(permission: Permission, filename_id: FilenameId) -> Option<DirEntry> {
+    pub fn new(permission: Permission, filename_id: LabelNameId) -> Option<DirEntry> {
         filename_id
             .0
             .checked_shl(3)
@@ -191,8 +191,8 @@ impl DirEntry {
     /// Returns an id of the filename of the entry.
     ///
     /// The id can be resolved to the filename through graph properties.
-    pub fn filename_id(self) -> FilenameId {
-        FilenameId(self.0 >> 3)
+    pub fn filename_id(self) -> LabelNameId {
+        LabelNameId(self.0 >> 3)
     }
 
     /// Returns the file permission of the given directory entry
@@ -233,7 +233,10 @@ impl DirEntry {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct FilenameId(pub u64);
+pub struct LabelNameId(pub u64);
+
+#[deprecated(since = "6.8.0", note = "FilenameId was renamed to LabelNameId")]
+pub type FilenameId = LabelNameId;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]

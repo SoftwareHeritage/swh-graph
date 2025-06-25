@@ -11,7 +11,7 @@ use anyhow::{ensure, Context, Result};
 use log::warn;
 
 use swh_graph::graph::*;
-use swh_graph::labels::{EdgeLabel, FilenameId, Permission};
+use swh_graph::labels::{EdgeLabel, LabelNameId, Permission};
 use swh_graph::properties;
 use swh_graph::NodeType;
 
@@ -46,10 +46,10 @@ where
     fs_resolve_name_by_id(&graph, dir, name_id)
 }
 
-/// Same as [fs_resolve_name], but using a pre-resolved [FilenameId] as entry
+/// Same as [fs_resolve_name], but using a pre-resolved [LabelNameId] as entry
 /// name. Using this function is more efficient in case the same name (e.g.,
 /// "README.md") is to be looked up in many directories.
-pub fn fs_resolve_name_by_id<G>(graph: &G, dir: NodeId, name: FilenameId) -> Result<Option<NodeId>>
+pub fn fs_resolve_name_by_id<G>(graph: &G, dir: NodeId, name: LabelNameId) -> Result<Option<NodeId>>
 where
     G: SwhLabeledForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
@@ -98,17 +98,17 @@ where
                 .label_name_id(name)
                 .with_context(|| msg_no_filename_id(name))
         })
-        .collect::<Result<Vec<FilenameId>, _>>()?;
+        .collect::<Result<Vec<LabelNameId>, _>>()?;
     fs_resolve_path_by_id(&graph, dir, &path)
 }
 
 /// Same as [fs_resolve_path], but using as path a sequence of pre-resolved
-/// [FilenameId]-s. Using this function is more efficient in case the same path
+/// [LabelNameId]-s. Using this function is more efficient in case the same path
 /// (e.g., "src/main.c") is to be looked up in many directories.
 pub fn fs_resolve_path_by_id<G>(
     graph: &G,
     dir: NodeId,
-    path: &[FilenameId],
+    path: &[LabelNameId],
 ) -> Result<Option<NodeId>>
 where
     G: SwhLabeledForwardGraph + SwhGraphWithProperties,
