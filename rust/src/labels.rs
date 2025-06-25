@@ -155,15 +155,21 @@ impl From<u64> for Branch {
 impl Branch {
     /// Returns a new [`Branch`]
     ///
-    /// or `None` if `filename_id` is 2^61 or greater
-    pub fn new(filename_id: LabelNameId) -> Option<Branch> {
-        filename_id.0.checked_shl(3).map(Branch)
+    /// or `None` if `label_name_id` is 2^61 or greater
+    pub fn new(label_name_id: LabelNameId) -> Option<Branch> {
+        label_name_id.0.checked_shl(3).map(Branch)
     }
 
-    /// Returns an id of the filename of the entry.
-    ///
-    /// The id can be resolved to the filename through graph properties.
+    #[deprecated(since = "6.8.0", note = "filename_id was renamed label_name_id")]
+    /// Deprecated alias for [`label_name_id`](Self::label_name_id)
     pub fn filename_id(self) -> LabelNameId {
+        self.label_name_id()
+    }
+
+    /// Returns an id of the label name of the entry.
+    ///
+    /// The id can be resolved to the label name through graph properties.
+    pub fn label_name_id(self) -> LabelNameId {
         LabelNameId(self.0 >> 3)
     }
 }
@@ -180,18 +186,24 @@ impl From<u64> for DirEntry {
 impl DirEntry {
     /// Returns a new [`DirEntry`]
     ///
-    /// or `None` if `filename_id` is 2^61 or greater
-    pub fn new(permission: Permission, filename_id: LabelNameId) -> Option<DirEntry> {
-        filename_id
+    /// or `None` if `label_name_id` is 2^61 or greater
+    pub fn new(permission: Permission, label_name_id: LabelNameId) -> Option<DirEntry> {
+        label_name_id
             .0
             .checked_shl(3)
-            .map(|shifted_filename_id| DirEntry(shifted_filename_id | (permission as u64)))
+            .map(|shifted_label_name_id| DirEntry(shifted_label_name_id | (permission as u64)))
+    }
+
+    #[deprecated(since = "6.8.0", note = "filename_id was renamed label_name_id")]
+    /// Deprecated alias for [`label_name_id`](Self::label_name_id)
+    pub fn filename_id(self) -> LabelNameId {
+        self.label_name_id()
     }
 
     /// Returns an id of the filename of the entry.
     ///
-    /// The id can be resolved to the filename through graph properties.
-    pub fn filename_id(self) -> LabelNameId {
+    /// The id can be resolved to the label name through graph properties.
+    pub fn label_name_id(self) -> LabelNameId {
         LabelNameId(self.0 >> 3)
     }
 

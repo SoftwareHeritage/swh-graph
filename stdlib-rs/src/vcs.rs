@@ -43,7 +43,7 @@ where
 /// branch names are pre-resolved to integers once (before calling this
 /// function) and compared as integers.  See the source code of [find_head_rev]
 /// for an example of how to translate a given set of branch names (like
-/// [HEAD_REF_NAMES]) to filename IDs for this function.
+/// [HEAD_REF_NAMES]) to label-name IDs for this function.
 pub fn find_head_rev_by_refs<G>(
     graph: &G,
     snp: NodeId,
@@ -67,7 +67,7 @@ where
         }
         for label in labels {
             if let EdgeLabel::Branch(branch) = label {
-                if ref_name_ids.contains(&branch.filename_id()) {
+                if ref_name_ids.contains(&branch.label_name_id()) {
                     return Ok(Some(succ));
                 }
             }

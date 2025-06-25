@@ -201,7 +201,7 @@ impl<
         match label {
             EdgeLabel::Branch(label) => proto::EdgeLabel {
                 name: self.if_mask(SUCCESSOR_LABEL_NAME, || {
-                    Some(self.graph.properties().label_name(label.filename_id()))
+                    Some(self.graph.properties().label_name(label.label_name_id()))
                 }),
                 permission: None,
                 visit_timestamp: None,
@@ -209,7 +209,7 @@ impl<
             },
             EdgeLabel::DirEntry(label) => proto::EdgeLabel {
                 name: self.if_mask(SUCCESSOR_LABEL_NAME, || {
-                    Some(self.graph.properties().label_name(label.filename_id()))
+                    Some(self.graph.properties().label_name(label.label_name_id()))
                 }),
                 permission: self.if_mask(SUCCESSOR_LABEL_PERMISSION, || {
                     Some(

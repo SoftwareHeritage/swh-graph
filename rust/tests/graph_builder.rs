@@ -121,7 +121,7 @@ fn test_dir_labels() -> Result<()> {
                     let label: swh_graph::labels::DirEntry = label.into();
                     (
                         label.permission(),
-                        graph.properties().label_name(label.filename_id()),
+                        graph.properties().label_name(label.label_name_id()),
                     )
                 })
                 .collect::<Vec<_>>(),
@@ -235,7 +235,7 @@ fn test_duplicate_labels() -> Result<()> {
                     let label: swh_graph::labels::DirEntry = label.into();
                     (
                         label.permission(),
-                        graph.properties().label_name(label.filename_id()),
+                        graph.properties().label_name(label.label_name_id()),
                     )
                 })
                 .collect::<Vec<_>>(),
@@ -328,7 +328,7 @@ fn test_snp_labels() -> Result<()> {
             labels
                 .map(|label| {
                     let label: swh_graph::labels::Branch = label.into();
-                    graph.properties().label_name(label.filename_id())
+                    graph.properties().label_name(label.label_name_id())
                 })
                 .collect::<Vec<_>>(),
         )
@@ -553,7 +553,7 @@ fn test_multiarc() -> Result<()> {
                     let label: swh_graph::labels::DirEntry = label.into();
                     (
                         label.permission(),
-                        graph.properties().label_name(label.filename_id()),
+                        graph.properties().label_name(label.label_name_id()),
                     )
                 })
                 .collect::<Vec<_>>(),

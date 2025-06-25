@@ -297,10 +297,10 @@ fn test_labels() -> Result<()> {
         graph
             .properties()
             .par_iter_label_name_ids()
-            .map(
-                |filename_id| String::from_utf8_lossy(&graph.properties().label_name(filename_id))
-                    .into_owned()
+            .map(|label_name_id| String::from_utf8_lossy(
+                &graph.properties().label_name(label_name_id)
             )
+            .into_owned())
             .collect::<HashSet<_>>(),
         vec![
             "README.md",

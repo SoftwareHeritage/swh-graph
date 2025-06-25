@@ -90,7 +90,7 @@ fn test_untyped() -> Result<()> {
             labels
                 .map(|label| {
                     let label: Branch = label.into();
-                    graph.properties().label_name(label.filename_id())
+                    graph.properties().label_name(label.label_name_id())
                 })
                 .collect::<Vec<_>>(),
         )
@@ -152,7 +152,7 @@ fn test_flattened_untyped() -> Result<()> {
                 succ,
                 graph
                     .properties()
-                    .label_name(Branch::from(label).filename_id())
+                    .label_name(Branch::from(label).label_name_id())
             ))
             .collect::<Vec<_>>(),
         vec![

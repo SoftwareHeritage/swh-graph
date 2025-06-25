@@ -15,9 +15,9 @@ use swh_graph::labels::{EdgeLabel, LabelNameId, Permission};
 use swh_graph::properties;
 use swh_graph::NodeType;
 
-fn msg_no_filename_id(name: impl AsRef<[u8]>) -> String {
+fn msg_no_label_name_id(name: impl AsRef<[u8]>) -> String {
     format!(
-        "no filename id found for entry \"{}\"",
+        "no label_name id found for entry \"{}\"",
         String::from_utf8_lossy(name.as_ref())
     )
 }
@@ -42,7 +42,7 @@ where
     let props = graph.properties();
     let name_id = props
         .label_name_id(name.as_ref())
-        .with_context(|| msg_no_filename_id(name))?;
+        .with_context(|| msg_no_label_name_id(name))?;
     fs_resolve_name_by_id(&graph, dir, name_id)
 }
 
@@ -63,7 +63,7 @@ where
 
     for (succ, label) in graph.labeled_successors(dir).flatten_labels() {
         if let EdgeLabel::DirEntry(dentry) = label {
-            if dentry.filename_id() == name {
+            if dentry.label_name_id() == name {
                 return Ok(Some(succ));
             }
         }
@@ -96,7 +96,7 @@ where
         .map(|name| {
             props
                 .label_name_id(name)
-                .with_context(|| msg_no_filename_id(name))
+                .with_context(|| msg_no_label_name_id(name))
         })
         .collect::<Result<Vec<LabelNameId>, _>>()?;
     fs_resolve_path_by_id(&graph, dir, &path)
@@ -162,7 +162,7 @@ where
         let node_type = props.node_type(succ);
         for label in labels {
             if let EdgeLabel::DirEntry(dentry) = label {
-                let file_name = props.label_name(dentry.filename_id());
+                let file_name = props.label_name(dentry.label_name_id());
                 let perm = dentry.permission();
                 match node_type {
                     NodeType::Content => {

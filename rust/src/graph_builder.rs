@@ -250,7 +250,7 @@ impl GraphBuilder {
                             UntypedEdgeLabel::from(match label {
                                 EdgeLabel::Branch(branch) => EdgeLabel::Branch(
                                     Branch::new(LabelNameId(
-                                        label_permutation[branch.filename_id().0 as usize] as u64,
+                                        label_permutation[branch.label_name_id().0 as usize] as u64,
                                     ))
                                     .expect("Label name permutation overflowed"),
                                 ),
@@ -258,7 +258,7 @@ impl GraphBuilder {
                                     DirEntry::new(
                                         entry.permission().expect("invalid permission"),
                                         LabelNameId(
-                                            label_permutation[entry.filename_id().0 as usize]
+                                            label_permutation[entry.label_name_id().0 as usize]
                                                 as u64,
                                         ),
                                     )
@@ -509,13 +509,13 @@ pub fn codegen_from_full_graph<
                             node,
                             succ,
                             label.permission().expect("Invalid permission"),
-                            bytestring(graph.properties().label_name(label.filename_id())),
+                            bytestring(graph.properties().label_name(label.label_name_id())),
                         ),
                         EdgeLabel::Branch(label) => format!(
                             "builder.snp_arc({}, {}, b\"{}\".to_vec());\n",
                             node,
                             succ,
-                            bytestring(graph.properties().label_name(label.filename_id())),
+                            bytestring(graph.properties().label_name(label.label_name_id())),
                         ),
                         EdgeLabel::Visit(label) => format!(
                             "builder.ori_arc({}, {}, VisitStatus::{:?}, {});\n",
