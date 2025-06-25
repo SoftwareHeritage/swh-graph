@@ -140,7 +140,7 @@ impl<
         LABELNAMES: LabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
-    /// Returns the maximum value of [`FilenameId`] plus one
+    /// Returns the total number of labels in the graph
     pub fn num_label_names(&self) -> u64 {
         self.label_names
             .label_names()
