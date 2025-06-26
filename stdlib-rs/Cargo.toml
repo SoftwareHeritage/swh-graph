@@ -12,3 +12,4 @@ version = "0.1.0"
 anyhow.workspace = true
 log.workspace = true
 swh-graph.workspace = true
+rapidhash = "1.4.0"
