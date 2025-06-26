@@ -58,11 +58,14 @@ where
 mod fs;
 pub use fs::*;
 
+mod root_directory;
+pub use root_directory::find_root_dir;
+
+mod small_node_set;
+pub use small_node_set::SmallNodeSet;
+
 mod vcs;
 pub use vcs::*;
 
 mod visit;
 pub use visit::*;
-
-mod root_directory;
-pub use root_directory::find_root_dir;
