@@ -55,7 +55,7 @@ impl<E: ByteOrder, N: common_traits::AsBytes> NumberMmap<E, N, Mmap> {
         let file_len = len * N::BYTES;
         let data = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)
-                .with_context(|| format!("Could not initialize mmap of size {}", file_len))?
+                .with_context(|| format!("Could not initialize mmap of size {file_len}"))?
                 .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES | MmapFlags::RANDOM_ACCESS)
                 .with_file(&file, 0)
                 .map()

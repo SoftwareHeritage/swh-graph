@@ -227,7 +227,7 @@ where
                 // and merge them together, to get only M lists.
                 // This is done *in parallel*, and saves work when *sequentially* consuming
                 // the final iterator
-                let path = merged_sorted_dir.join(format!("part_{}", partition_id));
+                let path = merged_sorted_dir.join(format!("part_{partition_id}"));
                 let num_arcs_in_partition = serialize(
                     &path,
                     thread_pl,
@@ -337,7 +337,7 @@ fn flush<
     use rand::Rng;
     let sorter_id = rand::thread_rng().r#gen::<u64>();
     let mut sorter_temp_file = temp_dir.to_owned();
-    sorter_temp_file.push(format!("sort-arcs-permute-{:#x}", sorter_id));
+    sorter_temp_file.push(format!("sort-arcs-permute-{sorter_id:#x}"));
 
     // This is equivalent to BatchIterator::new_from_vec(&sorter_temp_file, buffer),
     // but without parallelism, which would cause Rayon to re-enter

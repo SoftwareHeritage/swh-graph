@@ -153,7 +153,7 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
         ovs.snapshot.as_ref().map(|snapshot| {
             (
                 format!("swh:1:ori:{:x}", hasher.finalize(),),
-                format!("swh:1:snp:{}", snapshot),
+                format!("swh:1:snp:{snapshot}"),
                 Visit::new(
                     match ovs.status.as_str() {
                         "full" => VisitStatus::Full,

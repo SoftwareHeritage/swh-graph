@@ -450,7 +450,7 @@ pub fn codegen_from_full_graph<
             )
             .as_bytes(),
         )?;
-        let mut write_line = |s: String| writer.write_all(format!("    {}\n", s).as_bytes());
+        let mut write_line = |s: String| writer.write_all(format!("    {s}\n").as_bytes());
         match graph.properties().node_type(node) {
             NodeType::Content => {
                 write_line(format!(
@@ -465,7 +465,7 @@ pub fn codegen_from_full_graph<
             | NodeType::Origin => {}
         }
         if let Some(v) = graph.properties().content_length(node) {
-            write_line(format!(".content_length({})", v))?;
+            write_line(format!(".content_length({v})"))?;
         }
         if let Some(v) = graph.properties().message(node) {
             write_line(format!(".message(b\"{}\".to_vec())", bytestring(v)))?;
@@ -474,24 +474,24 @@ pub fn codegen_from_full_graph<
             write_line(format!(".tag_name(b\"{}\".to_vec())", bytestring(v)))?;
         }
         if let Some(v) = graph.properties().author_id(node) {
-            write_line(format!(".author(b\"{}\".to_vec())", v))?;
+            write_line(format!(".author(b\"{v}\".to_vec())"))?;
         }
         if let Some(ts) = graph.properties().author_timestamp(node) {
             let offset = graph
                 .properties()
                 .author_timestamp_offset(node)
                 .expect("Node has author_timestamp but no author_timestamp_offset");
-            write_line(format!(".author_timestamp({}, {})", ts, offset))?;
+            write_line(format!(".author_timestamp({ts}, {offset})"))?;
         }
         if let Some(v) = graph.properties().committer_id(node) {
-            write_line(format!(".committer(b\"{}\".to_vec())", v))?;
+            write_line(format!(".committer(b\"{v}\".to_vec())"))?;
         }
         if let Some(ts) = graph.properties().committer_timestamp(node) {
             let offset = graph
                 .properties()
                 .committer_timestamp_offset(node)
                 .expect("Node has committer_timestamp but no committer_timestamp_offset");
-            write_line(format!(".committer_timestamp({}, {})", ts, offset))?;
+            write_line(format!(".committer_timestamp({ts}, {offset})"))?;
         }
         writer.write_all(b"    .done();\n")?;
     }
@@ -530,7 +530,7 @@ pub fn codegen_from_full_graph<
                 has_labels = true;
             }
             if !has_labels {
-                writer.write_all(format!("builder.arc({}, {});\n", node, succ).as_bytes())?;
+                writer.write_all(format!("builder.arc({node}, {succ});\n").as_bytes())?;
             }
         }
     }

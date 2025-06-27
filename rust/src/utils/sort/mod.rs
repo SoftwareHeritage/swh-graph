@@ -185,7 +185,7 @@ trait ParallelDeduplicatingExternalSorter<Item: Eq + Ord + Send>: Sync + Sized {
                 self.sort_vec(buf).context("Could not sort buffer")?;
 
                 let buffer_id = num_flushed_buffers.fetch_add(1, Ordering::Relaxed);
-                let buf_path = tmpdir.path().join(format!("step1_{}", buffer_id));
+                let buf_path = tmpdir.path().join(format!("step1_{buffer_id}"));
 
                 let buf_len = buf.len();
 
@@ -256,7 +256,7 @@ trait ParallelDeduplicatingExternalSorter<Item: Eq + Ord + Send>: Sync + Sized {
                                 .collect::<Result<Vec<_>>>()?
                                 .into_iter(),
                         );
-                        let merged_path = tmpdir.path().join(format!("step2_{}", i));
+                        let merged_path = tmpdir.path().join(format!("step2_{i}"));
                         Self::serialize(
                             merged_path.clone(),
                             merged_items

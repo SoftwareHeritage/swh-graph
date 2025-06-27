@@ -28,7 +28,7 @@ impl<G: SwhGraph> GraphSpy<G> {
         self.history
             .lock()
             .unwrap()
-            .push((method, format!("{:?}", arguments)));
+            .push((method, format!("{arguments:?}")));
     }
 }
 

@@ -16,7 +16,7 @@ fn test_write() -> Result<()> {
     for i in [
         0, 1, 2, 3, 4, 10, 20, 30, 31, 32, 33, 34, 62, 63, 64, 65, 66, 98, 99,
     ] {
-        let path = temp_dir.path().join(format!("bitvec_{}.bin", i));
+        let path = temp_dir.path().join(format!("bitvec_{i}.bin"));
         let mut bitvec = BitVec::<Vec<usize>>::new(100);
         bitvec.set(i, true);
 

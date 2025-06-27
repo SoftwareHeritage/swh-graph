@@ -260,20 +260,20 @@ pub fn main() -> Result<()> {
                         .lines()
                         .flat_map(|line| {
                             let mut line =
-                                line.unwrap_or_else(|e| panic!("Could not parse line: {}", e));
+                                line.unwrap_or_else(|e| panic!("Could not parse line: {e}"));
                             while line.ends_with('\n') || line.ends_with('\r') {
                                 line.pop();
                             }
                             if line.is_empty() {
                                 return None;
                             }
-                            assert_eq!(line.len(), 50, "Unexpected line length: {:?}", line);
+                            assert_eq!(line.len(), 50, "Unexpected line length: {line:?}");
 
                             pl.light_update();
 
                             Some(
                                 mph.hash_str(&line)
-                                    .unwrap_or_else(|| panic!("Could not hash {:?}", line)),
+                                    .unwrap_or_else(|| panic!("Could not hash {line:?}")),
                             )
                         })
                         .collect();

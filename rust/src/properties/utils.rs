@@ -39,7 +39,7 @@ pub(super) fn mmap(path: impl AsRef<Path>) -> Result<Mmap> {
         std::fs::File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
     let data = unsafe {
         mmap_rs::MmapOptions::new(file_len as _)
-            .with_context(|| format!("Could not initialize mmap of size {}", file_len))?
+            .with_context(|| format!("Could not initialize mmap of size {file_len}"))?
             .with_flags(
                 mmap_rs::MmapFlags::TRANSPARENT_HUGE_PAGES | mmap_rs::MmapFlags::RANDOM_ACCESS,
             )

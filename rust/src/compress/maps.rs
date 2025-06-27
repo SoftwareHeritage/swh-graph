@@ -50,10 +50,7 @@ pub fn ordered_swhids<MPHF: SwhidMphf + Sync + Send, P: Permutation + Sync + Sen
             .expect("Invalid SWHID");
         assert!(
             node_id < num_nodes,
-            "hashing {} returned {}, which is greater than the number of nodes ({})",
-            swhid,
-            node_id,
-            num_nodes
+            "hashing {swhid} returned {node_id}, which is greater than the number of nodes ({num_nodes})"
         );
 
         swhids[node_id].store(swhid);

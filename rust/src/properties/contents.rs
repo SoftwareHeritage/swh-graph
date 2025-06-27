@@ -235,7 +235,7 @@ impl<
     pub fn is_skipped_content(&self, node_id: NodeId) -> PropertiesResult<bool, CONTENTS> {
         CONTENTS::map_if_available(self.try_is_skipped_content(node_id), |is_skipped_content| {
             is_skipped_content
-                .unwrap_or_else(|e| panic!("Cannot get is_skipped_content bit of node: {}", e))
+                .unwrap_or_else(|e| panic!("Cannot get is_skipped_content bit of node: {e}"))
         })
     }
 
@@ -275,7 +275,7 @@ impl<
     #[inline]
     pub fn content_length(&self, node_id: NodeId) -> PropertiesResult<Option<u64>, CONTENTS> {
         CONTENTS::map_if_available(self.try_content_length(node_id), |content_length| {
-            content_length.unwrap_or_else(|e| panic!("Cannot get content length: {}", e))
+            content_length.unwrap_or_else(|e| panic!("Cannot get content length: {e}"))
         })
     }
 

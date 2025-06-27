@@ -150,7 +150,7 @@ impl<
     #[inline]
     pub fn label_name_base64(&self, filename_id: FilenameId) -> Vec<u8> {
         self.try_label_name_base64(filename_id)
-            .unwrap_or_else(|e| panic!("Cannot get label name: {}", e))
+            .unwrap_or_else(|e| panic!("Cannot get label name: {e}"))
     }
 
     /// Returns the base64-encoded name of an arc label
@@ -186,7 +186,7 @@ impl<
     #[inline]
     pub fn label_name(&self, filename_id: FilenameId) -> Vec<u8> {
         self.try_label_name(filename_id)
-            .unwrap_or_else(|e| panic!("Cannot get label name: {}", e))
+            .unwrap_or_else(|e| panic!("Cannot get label name: {e}"))
     }
 
     /// Returns the name of an arc label

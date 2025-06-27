@@ -222,7 +222,7 @@ impl<
     #[inline]
     pub fn author_id(&self, node_id: NodeId) -> PropertiesResult<Option<u32>, PERSONS> {
         PERSONS::map_if_available(self.try_author_id(node_id), |author_id| {
-            author_id.unwrap_or_else(|e| panic!("Cannot get node author: {}", e))
+            author_id.unwrap_or_else(|e| panic!("Cannot get node author: {e}"))
         })
     }
 
@@ -256,7 +256,7 @@ impl<
     #[inline]
     pub fn committer_id(&self, node_id: NodeId) -> PropertiesResult<Option<u32>, PERSONS> {
         PERSONS::map_if_available(self.try_committer_id(node_id), |committer_id| {
-            committer_id.unwrap_or_else(|e| panic!("Cannot get node committer: {}", e))
+            committer_id.unwrap_or_else(|e| panic!("Cannot get node committer: {e}"))
         })
     }
 

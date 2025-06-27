@@ -210,7 +210,7 @@ impl<
             self.maps
                 .mphf()
                 .hash_swhid(swhid)
-                .unwrap_or_else(|| panic!("Unknown SWHID {}", swhid)),
+                .unwrap_or_else(|| panic!("Unknown SWHID {swhid}")),
         )
     }
 
@@ -292,7 +292,7 @@ impl<
     #[inline]
     pub fn swhid(&self, node_id: NodeId) -> SWHID {
         self.try_swhid(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node SWHID: {}", e))
+            .unwrap_or_else(|e| panic!("Cannot get node SWHID: {e}"))
     }
 
     /// Returns the SWHID of a given node, or `None` if the node id does not exist
@@ -309,7 +309,7 @@ impl<
     #[inline]
     pub fn node_type(&self, node_id: NodeId) -> NodeType {
         self.try_node_type(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node type: {}", e))
+            .unwrap_or_else(|e| panic!("Cannot get node type: {e}"))
     }
 
     /// Returns the type of a given node, or `None` if the node id does not exist
