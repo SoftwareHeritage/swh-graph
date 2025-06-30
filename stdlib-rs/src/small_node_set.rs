@@ -23,6 +23,9 @@ union _SmallNodeSet {
     nodes: *mut HashSet<usize, RapidBuildHasher>,
 }
 
+// SAFETY: HashSet is send, so sending a pointer to it is safe
+unsafe impl Send for _SmallNodeSet {}
+
 impl Drop for _SmallNodeSet {
     fn drop(&mut self) {
         match unsafe { self.node } {
