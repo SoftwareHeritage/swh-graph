@@ -5,6 +5,8 @@
 
 #![allow(clippy::single_element_loop)]
 
+use itertools::Itertools;
+
 use swh_graph::collections::NodeSet;
 use swh_graph::graph::NodeId;
 
@@ -23,6 +25,10 @@ fn test_smallnodeset_size() {
 fn test_smallnodeset_insert_ascending() {
     let mut node_set = SmallNodeSet::default();
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        Vec::<usize>::new()
+    );
     for node in [
         0,
         1,
@@ -44,6 +50,7 @@ fn test_smallnodeset_insert_ascending() {
 
     node_set.insert(0);
 
+    assert_eq!(node_set.iter().sorted().collect::<Vec<_>>(), vec![0]);
     for node in [
         1,
         2,
@@ -70,6 +77,7 @@ fn test_smallnodeset_insert_ascending() {
 
     node_set.insert(1);
 
+    assert_eq!(node_set.iter().sorted().collect::<Vec<_>>(), vec![0, 1]);
     for node in [2, 3, 4, 5, 6, 7, usize::MAX - 2, usize::MAX - 1, usize::MAX] {
         assert!(
             !node_set.contains(node),
@@ -85,6 +93,7 @@ fn test_smallnodeset_insert_ascending() {
 
     node_set.insert(2);
 
+    assert_eq!(node_set.iter().sorted().collect::<Vec<_>>(), vec![0, 1, 2]);
     for node in [3, 4, 5, 6, 7, usize::MAX - 2, usize::MAX - 1, usize::MAX] {
         assert!(
             !node_set.contains(node),
@@ -100,6 +109,10 @@ fn test_smallnodeset_insert_ascending() {
 
     node_set.insert(usize::MAX - 1);
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        vec![0, 1, 2, usize::MAX - 1]
+    );
     for node in [3, 4, 5, 6, 7, usize::MAX - 2, usize::MAX] {
         assert!(
             !node_set.contains(node),
@@ -115,6 +128,10 @@ fn test_smallnodeset_insert_ascending() {
 
     node_set.insert(usize::MAX);
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        vec![0, 1, 2, usize::MAX - 1, usize::MAX]
+    );
     for node in [3, 4, 5, 6, 7, usize::MAX - 2] {
         assert!(
             !node_set.contains(node),
@@ -133,6 +150,10 @@ fn test_smallnodeset_insert_ascending() {
 fn test_smallnodeset_insert_descending() {
     let mut node_set = SmallNodeSet::default();
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        Vec::<usize>::new()
+    );
     for node in [
         0,
         1,
@@ -154,6 +175,10 @@ fn test_smallnodeset_insert_descending() {
 
     node_set.insert(usize::MAX - 1);
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        vec![usize::MAX - 1]
+    );
     for node in [0, 1, 2, 3, 4, 5, 6, 7, usize::MAX - 2, usize::MAX] {
         assert!(
             !node_set.contains(node),
@@ -169,6 +194,10 @@ fn test_smallnodeset_insert_descending() {
 
     node_set.insert(usize::MAX - 2);
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        vec![usize::MAX - 2, usize::MAX - 1]
+    );
     for node in [0, 1, 2, 3, 4, 5, 6, 7, usize::MAX] {
         assert!(
             !node_set.contains(node),
@@ -184,6 +213,10 @@ fn test_smallnodeset_insert_descending() {
 
     node_set.insert(5);
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        vec![5, usize::MAX - 2, usize::MAX - 1]
+    );
     for node in [0, 1, 2, 3, 4, 6, 7, usize::MAX] {
         assert!(
             !node_set.contains(node),
@@ -199,6 +232,10 @@ fn test_smallnodeset_insert_descending() {
 
     node_set.insert(0);
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        vec![0, 5, usize::MAX - 2, usize::MAX - 1]
+    );
     for node in [1, 2, 3, 4, 6, 7, usize::MAX] {
         assert!(
             !node_set.contains(node),
@@ -217,6 +254,10 @@ fn test_smallnodeset_insert_descending() {
 fn test_smallnodeset_insert_usize_max_first() {
     let mut node_set = SmallNodeSet::default();
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        Vec::<usize>::new()
+    );
     for node in [
         0,
         1,
@@ -238,6 +279,10 @@ fn test_smallnodeset_insert_usize_max_first() {
 
     node_set.insert(usize::MAX);
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        vec![usize::MAX]
+    );
     for node in [0, 1, 2, 3, 4, 5, 6, 7, usize::MAX - 2, usize::MAX - 1] {
         assert!(
             !node_set.contains(node),
@@ -253,6 +298,10 @@ fn test_smallnodeset_insert_usize_max_first() {
 
     node_set.insert(usize::MAX - 1);
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        vec![usize::MAX - 1, usize::MAX]
+    );
     for node in [0, 1, 2, 3, 4, 5, 6, 7, usize::MAX - 2] {
         assert!(
             !node_set.contains(node),
@@ -271,6 +320,10 @@ fn test_smallnodeset_insert_usize_max_first() {
 fn test_smallnodeset_insert_usize_max_second() {
     let mut node_set = SmallNodeSet::default();
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        Vec::<usize>::new()
+    );
     for node in [
         0,
         1,
@@ -292,6 +345,10 @@ fn test_smallnodeset_insert_usize_max_second() {
 
     node_set.insert(usize::MAX - 1);
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        vec![usize::MAX - 1]
+    );
     for node in [0, 1, 2, 3, 4, 5, 6, 7, usize::MAX - 2, usize::MAX] {
         assert!(
             !node_set.contains(node),
@@ -307,6 +364,10 @@ fn test_smallnodeset_insert_usize_max_second() {
 
     node_set.insert(usize::MAX);
 
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        vec![usize::MAX - 1, usize::MAX]
+    );
     for node in [0, 1, 2, 3, 4, 5, 6, 7, usize::MAX - 2] {
         assert!(
             !node_set.contains(node),
@@ -319,4 +380,39 @@ fn test_smallnodeset_insert_usize_max_second() {
             "SmallNodeSet claims not to contain {node}"
         );
     }
+}
+
+#[test]
+fn test_smallnodeset_deep_clone() {
+    let mut node_set = SmallNodeSet::default();
+
+    node_set.insert(0);
+    node_set.insert(1);
+    node_set.insert(10);
+
+    assert_eq!(node_set.iter().sorted().collect::<Vec<_>>(), vec![0, 1, 10]);
+
+    let mut node_set_2 = node_set.clone();
+
+    node_set.insert(100);
+
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        vec![0, 1, 10, 100]
+    );
+    assert_eq!(
+        node_set_2.iter().sorted().collect::<Vec<_>>(),
+        vec![0, 1, 10]
+    );
+
+    node_set_2.insert(200);
+
+    assert_eq!(
+        node_set.iter().sorted().collect::<Vec<_>>(),
+        vec![0, 1, 10, 100]
+    );
+    assert_eq!(
+        node_set_2.iter().sorted().collect::<Vec<_>>(),
+        vec![0, 1, 10, 200]
+    );
 }

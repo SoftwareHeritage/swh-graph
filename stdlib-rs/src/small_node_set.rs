@@ -43,11 +43,30 @@ impl Drop for _SmallNodeSet {
     }
 }
 
+impl Clone for _SmallNodeSet {
+    fn clone(&self) -> Self {
+        match unsafe { self.node } {
+            EMPTY => _SmallNodeSet { node: EMPTY },
+            value if value & 0b1 == 1 => _SmallNodeSet { node: value },
+            _ => {
+                let hashset = unsafe { (*self.nodes).clone() };
+                let hashset_ptr = Box::into_raw(Box::new(hashset));
+                assert!(
+                    (hashset_ptr as usize) & 0b1 == 0,
+                    "hashset_ptr is not aligned: {hashset_ptr:?}"
+                );
+                _SmallNodeSet { nodes: hashset_ptr }
+            }
+        }
+    }
+}
+
 /// A [`NodeSet`] implementation optimized to store zero or one node
 ///
 /// When storing zero or a single node, this structure takes only the size of one node.
 /// When storing two nodes or more, it is equivalent to `Box<HashSet<NodeId, RapidBuildHasher>>`.
 #[repr(transparent)]
+#[derive(Clone)]
 pub struct SmallNodeSet(_SmallNodeSet);
 
 impl Default for SmallNodeSet {
@@ -56,13 +75,72 @@ impl Default for SmallNodeSet {
     }
 }
 
+impl SmallNodeSet {
+    pub fn iter(&self) -> Iter<'_> {
+        match unsafe { self.0.node } {
+            EMPTY => Iter {
+                next: None,
+                iter: None,
+            },
+            value if value & 0b1 == 1 => Iter {
+                // single value
+                next: Some(value >> 1),
+                iter: None,
+            },
+            _ => {
+                let mut iter = unsafe { self.get_hashset() }.iter();
+                Iter {
+                    next: iter.next().copied(),
+                    iter: Some(iter),
+                }
+            }
+        }
+    }
+
+    unsafe fn get_hashset(&self) -> &HashSet<NodeId, RapidBuildHasher> {
+        unsafe { &*self.0.nodes }
+    }
+
+    unsafe fn get_hashset_mut(&mut self) -> &mut HashSet<NodeId, RapidBuildHasher> {
+        unsafe { &mut *self.0.nodes }
+    }
+}
+
+pub struct Iter<'a> {
+    next: Option<NodeId>,
+    iter: Option<std::collections::hash_set::Iter<'a, NodeId>>,
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = NodeId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.next?;
+        self.next = self.iter.as_mut().and_then(|iter| iter.next()).copied();
+        Some(next)
+    }
+}
+
 impl NodeSet for SmallNodeSet {
     fn insert(&mut self, node: NodeId) {
         match unsafe { self.0.node } {
-            EMPTY if node & (0b1 << (usize::BITS - 1)) == 0 => {
-                // the set is empty AND the node does fits in 63 bits: set the node in the
-                // 63 most significant bits
-                self.0.node = (node << 1) | 0b1;
+            EMPTY => {
+                if node & (0b1 << (usize::BITS - 1)) == 0 {
+                    // the set is empty AND the node does fits in 63 bits: set the node in the
+                    // 63 most significant bits
+                    self.0.node = (node << 1) | 0b1;
+                } else {
+                    // promote directly to hashset because the node does not fit in 63 bits
+                    // (and we need the least-significant bit to indicate that this is a single
+                    // node)
+                    let hashset: HashSet<_, _> = [node].into_iter().collect();
+                    let hashset_ptr = Box::into_raw(Box::new(hashset));
+                    assert!(
+                        (hashset_ptr as usize) & 0b1 == 0,
+                        "hashset_ptr is not aligned: {hashset_ptr:?}"
+                    );
+                    self.0.nodes = hashset_ptr
+                }
             }
             value if value & 0b1 == 1 => {
                 // the set has one item: we need to promote it to a hashset
@@ -77,7 +155,7 @@ impl NodeSet for SmallNodeSet {
             }
             _ => {
                 // the set is already a hashset
-                unsafe { &mut *self.0.nodes }.insert(node);
+                unsafe { self.get_hashset_mut() }.insert(node);
             }
         }
     }
@@ -94,7 +172,7 @@ impl NodeSet for SmallNodeSet {
             }
             _ => {
                 // the set is a hashset
-                unsafe { &*self.0.nodes }.contains(&node)
+                unsafe { self.get_hashset() }.contains(&node)
             }
         }
     }
