@@ -12,7 +12,7 @@ use anyhow::{Context, Result};
 use swh_graph::arc_iterators::LabeledArcIterator;
 use swh_graph::graph::*;
 use swh_graph::graph_builder::GraphBuilder;
-use swh_graph::labels::{FilenameId, Permission, Visit, VisitStatus};
+use swh_graph::labels::{LabelNameId, Permission, Visit, VisitStatus};
 use swh_graph::swhid;
 
 #[test]
@@ -121,7 +121,7 @@ fn test_dir_labels() -> Result<()> {
                     let label: swh_graph::labels::DirEntry = label.into();
                     (
                         label.permission(),
-                        graph.properties().label_name(label.filename_id()),
+                        graph.properties().label_name(label.label_name_id()),
                     )
                 })
                 .collect::<Vec<_>>(),
@@ -193,15 +193,15 @@ fn test_dir_labels() -> Result<()> {
 
     assert_eq!(
         graph.properties().label_name_id(b"run.sh"),
-        Ok(FilenameId(0))
+        Ok(LabelNameId(0))
     );
     assert_eq!(
         graph.properties().label_name_id(b"test.c"),
-        Ok(FilenameId(1))
+        Ok(LabelNameId(1))
     );
     assert_eq!(
         graph.properties().label_name_id(b"tests"),
-        Ok(FilenameId(2))
+        Ok(LabelNameId(2))
     );
     assert!(graph.properties().label_name_id(b"non-existent").is_err());
 
@@ -235,7 +235,7 @@ fn test_duplicate_labels() -> Result<()> {
                     let label: swh_graph::labels::DirEntry = label.into();
                     (
                         label.permission(),
-                        graph.properties().label_name(label.filename_id()),
+                        graph.properties().label_name(label.label_name_id()),
                     )
                 })
                 .collect::<Vec<_>>(),
@@ -268,11 +268,11 @@ fn test_duplicate_labels() -> Result<()> {
 
     assert_eq!(
         graph.properties().label_name_id(b"run.sh"),
-        Ok(FilenameId(0))
+        Ok(LabelNameId(0))
     );
     assert_eq!(
         graph.properties().label_name_id(b"tests"),
-        Ok(FilenameId(1))
+        Ok(LabelNameId(1))
     );
     assert!(graph.properties().label_name_id(b"non-existent").is_err());
 
@@ -328,7 +328,7 @@ fn test_snp_labels() -> Result<()> {
             labels
                 .map(|label| {
                     let label: swh_graph::labels::Branch = label.into();
-                    graph.properties().label_name(label.filename_id())
+                    graph.properties().label_name(label.label_name_id())
                 })
                 .collect::<Vec<_>>(),
         )
@@ -401,11 +401,11 @@ fn test_snp_labels() -> Result<()> {
 
     assert_eq!(
         graph.properties().label_name_id(b"refs/heads/feature/foo"),
-        Ok(FilenameId(0))
+        Ok(LabelNameId(0))
     );
     assert_eq!(
         graph.properties().label_name_id(b"refs/heads/main"),
-        Ok(FilenameId(1))
+        Ok(LabelNameId(1))
     );
     assert!(graph.properties().label_name_id(b"non-existent").is_err());
 
@@ -553,7 +553,7 @@ fn test_multiarc() -> Result<()> {
                     let label: swh_graph::labels::DirEntry = label.into();
                     (
                         label.permission(),
-                        graph.properties().label_name(label.filename_id()),
+                        graph.properties().label_name(label.label_name_id()),
                     )
                 })
                 .collect::<Vec<_>>(),

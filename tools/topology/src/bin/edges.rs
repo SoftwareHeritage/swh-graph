@@ -269,7 +269,7 @@ where
             got_entry = true;
             let label = graph
                 .properties()
-                .label_name_base64(dir_entry.filename_id());
+                .label_name_base64(dir_entry.label_name_id());
             edge_writer
                 .serialize(DirectoryEdge {
                     src: swhid,
@@ -323,7 +323,7 @@ where
         for branch in branches {
             got_entry = true;
             let branch = Branch::from(branch);
-            let label = graph.properties().label_name_base64(branch.filename_id());
+            let label = graph.properties().label_name_base64(branch.label_name_id());
             edge_writer
                 .serialize(SnapshotEdge {
                     src: swhid,

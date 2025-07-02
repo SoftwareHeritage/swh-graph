@@ -3,12 +3,12 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use crate::labels::FilenameId;
+use crate::labels::LabelNameId;
 
 /// Value in the path_stack between two lists of path parts
-const PATH_SEPARATOR: FilenameId = FilenameId(u64::MAX);
+const PATH_SEPARATOR: LabelNameId = LabelNameId(u64::MAX);
 
-/// A stack that stores sequences of [`FilenameId`] as a single array
+/// A stack that stores sequences of [`LabelNameId`] as a single array
 ///
 /// Internally, it is a flattened array of paths. Each sequence is made of parts represented
 /// by an id, and sequences are separated by PATH_SEPARATOR.
@@ -17,10 +17,10 @@ const PATH_SEPARATOR: FilenameId = FilenameId(u64::MAX);
 ///
 /// ```
 /// use swh_graph::collections::PathStack;
-/// use swh_graph::labels::FilenameId;
+/// use swh_graph::labels::LabelNameId;
 ///
-/// let path1 = [FilenameId(0), FilenameId(10)];
-/// let path2 = [FilenameId(1)];
+/// let path1 = [LabelNameId(0), LabelNameId(10)];
+/// let path2 = [LabelNameId(1)];
 ///
 /// let mut stack = PathStack::new();
 /// stack.push(path1);
@@ -30,7 +30,7 @@ const PATH_SEPARATOR: FilenameId = FilenameId(u64::MAX);
 /// assert!(stack.pop().is_none());
 /// ```
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
-pub struct PathStack(Vec<FilenameId>);
+pub struct PathStack(Vec<LabelNameId>);
 
 impl PathStack {
     pub fn new() -> PathStack {
@@ -46,9 +46,9 @@ impl PathStack {
     ///
     /// # Panics
     ///
-    /// If any of the [`FilenameId`] path parts was manually built from `u64::MAX`.
+    /// If any of the [`LabelNameId`] path parts was manually built from `u64::MAX`.
     #[inline]
-    pub fn push<Iter: IntoIterator<Item = FilenameId>>(&mut self, path: Iter)
+    pub fn push<Iter: IntoIterator<Item = LabelNameId>>(&mut self, path: Iter)
     where
         <Iter as IntoIterator>::IntoIter: DoubleEndedIterator,
     {
@@ -66,9 +66,9 @@ impl PathStack {
     ///
     /// # Panics
     ///
-    /// If the [`FilenameId`] path parts was manually built from `u64::MAX`.
+    /// If the [`LabelNameId`] path parts was manually built from `u64::MAX`.
     #[inline]
-    pub fn push_filename(&mut self, item: FilenameId) {
+    pub fn push_filename(&mut self, item: LabelNameId) {
         assert_ne!(
             item, PATH_SEPARATOR,
             "u64::MAX may not be used as path part"
@@ -94,7 +94,7 @@ impl PathStack {
 pub struct PopPathStack<'a>(&'a mut PathStack);
 
 impl Iterator for PopPathStack<'_> {
-    type Item = FilenameId;
+    type Item = LabelNameId;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -135,8 +135,8 @@ fn test_path_stack_empty() {
 #[test]
 /// Checks that dropping PopPathStack does pop the rest of the path from the stack
 fn test_path_stack_drop() {
-    let path1 = [FilenameId(0), FilenameId(10)];
-    let path2 = [FilenameId(1)];
+    let path1 = [LabelNameId(0), LabelNameId(10)];
+    let path2 = [LabelNameId(1)];
 
     let mut stack = PathStack::new();
     stack.push(path1);

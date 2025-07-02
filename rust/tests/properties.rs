@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use rayon::prelude::*;
 
 use swh_graph::graph::*;
-use swh_graph::labels::FilenameId;
+use swh_graph::labels::LabelNameId;
 use swh_graph::mph::SwhidPthash;
 use swh_graph::properties::NodeIdFromSwhidError;
 use swh_graph::AllSwhGraphProperties;
@@ -291,16 +291,16 @@ fn test_labels() -> Result<()> {
     assert_eq!(graph.properties().num_label_names(), 11);
     assert_eq!(
         graph.properties().iter_label_name_ids().collect::<Vec<_>>(),
-        (0..11).map(FilenameId).collect::<Vec<_>>()
+        (0..11).map(LabelNameId).collect::<Vec<_>>()
     );
     assert_eq!(
         graph
             .properties()
             .par_iter_label_name_ids()
-            .map(
-                |filename_id| String::from_utf8_lossy(&graph.properties().label_name(filename_id))
-                    .into_owned()
+            .map(|label_name_id| String::from_utf8_lossy(
+                &graph.properties().label_name(label_name_id)
             )
+            .into_owned())
             .collect::<HashSet<_>>(),
         vec![
             "README.md",

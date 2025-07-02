@@ -80,8 +80,8 @@ pub fn main() -> Result<()> {
             for label in labels {
                 match label {
                     EdgeLabel::Branch(label) => {
-                        let filename = graph.properties().label_name(label.filename_id());
-                        debug!("    has name {:?}", String::from_utf8_lossy(&filename),);
+                        let label_name = graph.properties().label_name(label.label_name_id());
+                        debug!("    has name {:?}", String::from_utf8_lossy(&label_name),);
                     }
                     EdgeLabel::Visit(label) => {
                         debug!(
@@ -91,10 +91,10 @@ pub fn main() -> Result<()> {
                         );
                     }
                     EdgeLabel::DirEntry(label) => {
-                        let filename = graph.properties().label_name(label.filename_id());
+                        let label_name = graph.properties().label_name(label.label_name_id());
                         debug!(
                             "    has name {:?} and perm {:?}",
-                            String::from_utf8_lossy(&filename),
+                            String::from_utf8_lossy(&label_name),
                             label.permission().unwrap()
                         );
                     }

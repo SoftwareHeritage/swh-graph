@@ -15,7 +15,7 @@ use pthash::{
 };
 use rayon::prelude::*;
 
-use crate::labels::FilenameId;
+use crate::labels::LabelNameId;
 use crate::map::{MappedPermutation, OwnedPermutation, Permutation};
 
 pub struct LabelName<T: AsRef<[u8]>>(pub T);
@@ -164,8 +164,8 @@ impl<'a> LabelNameHasher<'a> {
         self.mphf
     }
 
-    pub fn hash<T: AsRef<[u8]>>(&self, label_name: T) -> Result<FilenameId> {
-        Ok(FilenameId(
+    pub fn hash<T: AsRef<[u8]>>(&self, label_name: T) -> Result<LabelNameId> {
+        Ok(LabelNameId(
             self.order
                 .get(
                     self.mphf

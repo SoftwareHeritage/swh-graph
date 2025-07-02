@@ -15,12 +15,12 @@ members = [
 [workspace.package]
 repository = "https://gitlab.softwareheritage.org/swh/devel/swh-graph"
 license = "GPL-3.0-or-later"
-version = "6.7.5"
+version = "7.0.0"
 
 [workspace.dependencies]
 anyhow = { version="1.0.79", features=["backtrace"] }
 itertools = { version = "0.11.0" }
-swh-graph = { version = "6.1.0", path = "./rust/" }
+swh-graph = { version = "7.0.0", path = "./rust/" }
 
 # CLI
 env_logger = "0.11.5"

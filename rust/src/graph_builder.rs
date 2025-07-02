@@ -16,7 +16,7 @@ use webgraph::graphs::vec_graph::LabeledVecGraph;
 
 use crate::graph::*;
 use crate::labels::{
-    Branch, DirEntry, EdgeLabel, FilenameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
+    Branch, DirEntry, EdgeLabel, LabelNameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
 };
 use crate::properties;
 use crate::SwhGraphProperties;
@@ -164,7 +164,7 @@ impl GraphBuilder {
         self.l_arc(
             src,
             dst,
-            DirEntry::new(permission, FilenameId(name_id))
+            DirEntry::new(permission, LabelNameId(name_id))
                 .expect("label_names is larger than 2^61 items"),
         );
     }
@@ -181,7 +181,7 @@ impl GraphBuilder {
         self.l_arc(
             src,
             dst,
-            Branch::new(FilenameId(name_id)).expect("label_names is larger than 2^61 items"),
+            Branch::new(LabelNameId(name_id)).expect("label_names is larger than 2^61 items"),
         );
     }
 
@@ -249,16 +249,16 @@ impl GraphBuilder {
                         labels.map(|label| {
                             UntypedEdgeLabel::from(match label {
                                 EdgeLabel::Branch(branch) => EdgeLabel::Branch(
-                                    Branch::new(FilenameId(
-                                        label_permutation[branch.filename_id().0 as usize] as u64,
+                                    Branch::new(LabelNameId(
+                                        label_permutation[branch.label_name_id().0 as usize] as u64,
                                     ))
                                     .expect("Label name permutation overflowed"),
                                 ),
                                 EdgeLabel::DirEntry(entry) => EdgeLabel::DirEntry(
                                     DirEntry::new(
                                         entry.permission().expect("invalid permission"),
-                                        FilenameId(
-                                            label_permutation[entry.filename_id().0 as usize]
+                                        LabelNameId(
+                                            label_permutation[entry.label_name_id().0 as usize]
                                                 as u64,
                                         ),
                                     )
@@ -509,13 +509,13 @@ pub fn codegen_from_full_graph<
                             node,
                             succ,
                             label.permission().expect("Invalid permission"),
-                            bytestring(graph.properties().label_name(label.filename_id())),
+                            bytestring(graph.properties().label_name(label.label_name_id())),
                         ),
                         EdgeLabel::Branch(label) => format!(
                             "builder.snp_arc({}, {}, b\"{}\".to_vec());\n",
                             node,
                             succ,
-                            bytestring(graph.properties().label_name(label.filename_id())),
+                            bytestring(graph.properties().label_name(label.label_name_id())),
                         ),
                         EdgeLabel::Visit(label) => format!(
                             "builder.ori_arc({}, {}, VisitStatus::{:?}, {});\n",

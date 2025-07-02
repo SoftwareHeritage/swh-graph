@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 
 use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder, LabelNamesOrder};
-use swh_graph::labels::FilenameId;
+use swh_graph::labels::LabelNameId;
 use swh_graph::swhid;
 
 #[test]
@@ -41,42 +41,42 @@ fn test_label_name_order() -> Result<()> {
     // base64("sel") == "c2Vs" < "cmVm" < base64("ref")
     assert_eq!(
         (0..3)
-            .map(|i| old_graph.properties().label_name(FilenameId(i)))
+            .map(|i| old_graph.properties().label_name(LabelNameId(i)))
             .collect::<Vec<_>>(),
         [b"sel", b"ref", b"zzz"]
     );
     // "ref" < "sel"
     assert_eq!(
         (0..3)
-            .map(|i| new_graph.properties().label_name(FilenameId(i)))
+            .map(|i| new_graph.properties().label_name(LabelNameId(i)))
             .collect::<Vec<_>>(),
         [b"ref", b"sel", b"zzz"]
     );
 
     assert_eq!(
         old_graph.properties().label_name_id("sel"),
-        Ok(FilenameId(0))
+        Ok(LabelNameId(0))
     );
     assert_eq!(
         old_graph.properties().label_name_id("ref"),
-        Ok(FilenameId(1))
+        Ok(LabelNameId(1))
     );
     assert_eq!(
         old_graph.properties().label_name_id("zzz"),
-        Ok(FilenameId(2))
+        Ok(LabelNameId(2))
     );
 
     assert_eq!(
         new_graph.properties().label_name_id("ref"),
-        Ok(FilenameId(0))
+        Ok(LabelNameId(0))
     );
     assert_eq!(
         new_graph.properties().label_name_id("sel"),
-        Ok(FilenameId(1))
+        Ok(LabelNameId(1))
     );
     assert_eq!(
         new_graph.properties().label_name_id("zzz"),
-        Ok(FilenameId(2))
+        Ok(LabelNameId(2))
     );
 
     Ok(())

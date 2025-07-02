@@ -8,7 +8,7 @@
 use anyhow::{ensure, Result};
 
 use swh_graph::graph::*;
-use swh_graph::labels::{EdgeLabel, FilenameId};
+use swh_graph::labels::{EdgeLabel, LabelNameId};
 use swh_graph::properties;
 use swh_graph::NodeType;
 
@@ -26,7 +26,7 @@ where
     <G as SwhGraphWithProperties>::Maps: properties::Maps,
 {
     let props = graph.properties();
-    let head_ref_name_ids: Vec<FilenameId> = HEAD_REF_NAMES
+    let head_ref_name_ids: Vec<LabelNameId> = HEAD_REF_NAMES
         .into_iter()
         .filter_map(|name| props.label_name_id(name.as_bytes()).ok())
         // Note, we ignore errors on purpose here, because some ref names that
@@ -43,11 +43,11 @@ where
 /// branch names are pre-resolved to integers once (before calling this
 /// function) and compared as integers.  See the source code of [find_head_rev]
 /// for an example of how to translate a given set of branch names (like
-/// [HEAD_REF_NAMES]) to filename IDs for this function.
+/// [HEAD_REF_NAMES]) to label-name IDs for this function.
 pub fn find_head_rev_by_refs<G>(
     graph: &G,
     snp: NodeId,
-    ref_name_ids: &[FilenameId],
+    ref_name_ids: &[LabelNameId],
 ) -> Result<Option<NodeId>>
 where
     G: SwhLabeledForwardGraph + SwhGraphWithProperties,
@@ -67,7 +67,7 @@ where
         }
         for label in labels {
             if let EdgeLabel::Branch(branch) = label {
-                if ref_name_ids.contains(&branch.filename_id()) {
+                if ref_name_ids.contains(&branch.label_name_id()) {
                     return Ok(Some(succ));
                 }
             }

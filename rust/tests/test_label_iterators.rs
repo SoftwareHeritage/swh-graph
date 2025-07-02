@@ -11,7 +11,7 @@ use rayon::prelude::*;
 use swh_graph::arc_iterators::LabeledArcIterator;
 use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
-use swh_graph::labels::{Branch, FilenameId, Visit, VisitStatus};
+use swh_graph::labels::{Branch, LabelNameId, Visit, VisitStatus};
 use swh_graph::swhid;
 
 /// ```
@@ -64,14 +64,14 @@ fn test_num_label_names() -> Result<()> {
     assert_eq!(graph.properties().num_label_names(), 4);
     assert_eq!(
         graph.properties().iter_label_name_ids().collect::<Vec<_>>(),
-        (0..4).map(FilenameId).collect::<Vec<_>>()
+        (0..4).map(LabelNameId).collect::<Vec<_>>()
     );
     assert_eq!(
         graph
             .properties()
             .par_iter_label_name_ids()
             .collect::<Vec<_>>(),
-        (0..4).map(FilenameId).collect::<Vec<_>>()
+        (0..4).map(LabelNameId).collect::<Vec<_>>()
     );
 
     Ok(())
@@ -90,7 +90,7 @@ fn test_untyped() -> Result<()> {
             labels
                 .map(|label| {
                     let label: Branch = label.into();
-                    graph.properties().label_name(label.filename_id())
+                    graph.properties().label_name(label.label_name_id())
                 })
                 .collect::<Vec<_>>(),
         )
@@ -152,7 +152,7 @@ fn test_flattened_untyped() -> Result<()> {
                 succ,
                 graph
                     .properties()
-                    .label_name(Branch::from(label).filename_id())
+                    .label_name(Branch::from(label).label_name_id())
             ))
             .collect::<Vec<_>>(),
         vec![

@@ -22,7 +22,7 @@ rayon = { version = "1.9.0" }
 serde = { version = "1.0", features = ["derive"] }
 env_logger = "0.11.5"
 rdst = { version  ="0.20.14", features = ["multi-threaded"] }
-swh-graph = { path = "../../rust/", features = ["serde"], version = "6.2.0" }
+swh-graph = { path = "../../rust/", features = ["serde"], version = "7.0.0" }
 
 [[bin]]
 name = "toposort"

@@ -11,13 +11,13 @@ use anyhow::{ensure, Context, Result};
 use log::warn;
 
 use swh_graph::graph::*;
-use swh_graph::labels::{EdgeLabel, FilenameId, Permission};
+use swh_graph::labels::{EdgeLabel, LabelNameId, Permission};
 use swh_graph::properties;
 use swh_graph::NodeType;
 
-fn msg_no_filename_id(name: impl AsRef<[u8]>) -> String {
+fn msg_no_label_name_id(name: impl AsRef<[u8]>) -> String {
     format!(
-        "no filename id found for entry \"{}\"",
+        "no label_name id found for entry \"{}\"",
         String::from_utf8_lossy(name.as_ref())
     )
 }
@@ -42,14 +42,14 @@ where
     let props = graph.properties();
     let name_id = props
         .label_name_id(name.as_ref())
-        .with_context(|| msg_no_filename_id(name))?;
+        .with_context(|| msg_no_label_name_id(name))?;
     fs_resolve_name_by_id(&graph, dir, name_id)
 }
 
-/// Same as [fs_resolve_name], but using a pre-resolved [FilenameId] as entry
+/// Same as [fs_resolve_name], but using a pre-resolved [LabelNameId] as entry
 /// name. Using this function is more efficient in case the same name (e.g.,
 /// "README.md") is to be looked up in many directories.
-pub fn fs_resolve_name_by_id<G>(graph: &G, dir: NodeId, name: FilenameId) -> Result<Option<NodeId>>
+pub fn fs_resolve_name_by_id<G>(graph: &G, dir: NodeId, name: LabelNameId) -> Result<Option<NodeId>>
 where
     G: SwhLabeledForwardGraph + SwhGraphWithProperties,
     <G as SwhGraphWithProperties>::LabelNames: properties::LabelNames,
@@ -63,7 +63,7 @@ where
 
     for (succ, label) in graph.labeled_successors(dir).flatten_labels() {
         if let EdgeLabel::DirEntry(dentry) = label {
-            if dentry.filename_id() == name {
+            if dentry.label_name_id() == name {
                 return Ok(Some(succ));
             }
         }
@@ -96,19 +96,19 @@ where
         .map(|name| {
             props
                 .label_name_id(name)
-                .with_context(|| msg_no_filename_id(name))
+                .with_context(|| msg_no_label_name_id(name))
         })
-        .collect::<Result<Vec<FilenameId>, _>>()?;
+        .collect::<Result<Vec<LabelNameId>, _>>()?;
     fs_resolve_path_by_id(&graph, dir, &path)
 }
 
 /// Same as [fs_resolve_path], but using as path a sequence of pre-resolved
-/// [FilenameId]-s. Using this function is more efficient in case the same path
+/// [LabelNameId]-s. Using this function is more efficient in case the same path
 /// (e.g., "src/main.c") is to be looked up in many directories.
 pub fn fs_resolve_path_by_id<G>(
     graph: &G,
     dir: NodeId,
-    path: &[FilenameId],
+    path: &[LabelNameId],
 ) -> Result<Option<NodeId>>
 where
     G: SwhLabeledForwardGraph + SwhGraphWithProperties,
@@ -162,7 +162,7 @@ where
         let node_type = props.node_type(succ);
         for label in labels {
             if let EdgeLabel::DirEntry(dentry) = label {
-                let file_name = props.label_name(dentry.filename_id());
+                let file_name = props.label_name(dentry.label_name_id());
                 let perm = dentry.permission();
                 match node_type {
                     NodeType::Content => {

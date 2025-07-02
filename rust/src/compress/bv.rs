@@ -311,7 +311,7 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
 
 fn label_width(mphf: &LabelNameMphf) -> usize {
     use crate::labels::{
-        Branch, DirEntry, EdgeLabel, FilenameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
+        Branch, DirEntry, EdgeLabel, LabelNameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
     };
     let num_label_names = mphf.num_keys();
 
@@ -322,8 +322,8 @@ fn label_width(mphf: &LabelNameMphf) -> usize {
         .as_secs();
 
     let max_label = [
-        EdgeLabel::Branch(Branch::new(FilenameId(num_label_names)).unwrap()),
-        EdgeLabel::DirEntry(DirEntry::new(Permission::None, FilenameId(num_label_names)).unwrap()),
+        EdgeLabel::Branch(Branch::new(LabelNameId(num_label_names)).unwrap()),
+        EdgeLabel::DirEntry(DirEntry::new(Permission::None, LabelNameId(num_label_names)).unwrap()),
         EdgeLabel::Visit(Visit::new(VisitStatus::Full, max_visit_timestamp).unwrap()),
     ]
     .into_iter()
