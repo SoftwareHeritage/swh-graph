@@ -5,6 +5,7 @@
 
 use anyhow::{Context, Result};
 use mmap_rs::Mmap;
+use rayon::prelude::*;
 use thiserror::Error;
 
 use super::suffixes::*;
@@ -139,6 +140,25 @@ impl<
         LABELNAMES: LabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
+    /// Returns the total number of labels in the graph
+    pub fn num_label_names(&self) -> u64 {
+        self.label_names
+            .label_names()
+            .len()
+            .try_into()
+            .expect("label_names.len() overflowed u64")
+    }
+
+    /// Returns an iterator on [`FilenameId`]s for this graph
+    pub fn iter_label_name_ids(&self) -> impl Iterator<Item = FilenameId> {
+        (0..self.num_label_names()).map(FilenameId)
+    }
+
+    /// Returns an iterator on [`FilenameId`]s for this graph
+    pub fn par_iter_label_name_ids(&self) -> impl ParallelIterator<Item = FilenameId> {
+        (0..self.num_label_names()).into_par_iter().map(FilenameId)
+    }
+
     /// Returns the base64-encoded name of an arc label
     ///
     /// This is the file name (resp. branch name) of a label on an arc from a directory
