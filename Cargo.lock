@@ -1007,7 +1007,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "counters"
-version = "6.8.0"
+version = "7.0.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -2159,7 +2159,7 @@ dependencies = [
 
 [[package]]
 name = "id2fullname"
-version = "6.8.0"
+version = "7.0.0"
 dependencies = [
  "anyhow",
  "base64-simd",
@@ -4259,7 +4259,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph"
-version = "6.8.0"
+version = "7.0.0"
 dependencies = [
  "anyhow",
  "ar_row",
@@ -4311,7 +4311,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph-grpc-server"
-version = "6.8.0"
+version = "7.0.0"
 dependencies = [
  "anyhow",
  "async-scoped",
@@ -4353,7 +4353,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_pyo3"
-version = "6.8.0"
+version = "7.0.0"
 dependencies = [
  "pyo3",
  "swh-graph",
@@ -4361,7 +4361,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_topology"
-version = "6.8.0"
+version = "7.0.0"
 dependencies = [
  "anyhow",
  "arrow",

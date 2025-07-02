@@ -160,7 +160,7 @@ impl Branch {
         label_name_id.0.checked_shl(3).map(Branch)
     }
 
-    #[deprecated(since = "6.8.0", note = "filename_id was renamed label_name_id")]
+    #[deprecated(since = "7.0.0", note = "filename_id was renamed label_name_id")]
     /// Deprecated alias for [`label_name_id`](Self::label_name_id)
     pub fn filename_id(self) -> LabelNameId {
         self.label_name_id()
@@ -194,7 +194,7 @@ impl DirEntry {
             .map(|shifted_label_name_id| DirEntry(shifted_label_name_id | (permission as u64)))
     }
 
-    #[deprecated(since = "6.8.0", note = "filename_id was renamed label_name_id")]
+    #[deprecated(since = "7.0.0", note = "filename_id was renamed label_name_id")]
     /// Deprecated alias for [`label_name_id`](Self::label_name_id)
     pub fn filename_id(self) -> LabelNameId {
         self.label_name_id()
@@ -247,7 +247,7 @@ impl DirEntry {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct LabelNameId(pub u64);
 
-#[deprecated(since = "6.8.0", note = "FilenameId was renamed to LabelNameId")]
+#[deprecated(since = "7.0.0", note = "FilenameId was renamed to LabelNameId")]
 pub type FilenameId = LabelNameId;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
