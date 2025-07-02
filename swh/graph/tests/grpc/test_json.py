@@ -79,7 +79,7 @@ def graph_grpc_server_config(
 
     # make metadata files accessible too
     for extension in ("properties", "stats", "nodes.stats.txt", "edges.stats.txt"):
-        (json_graph_path.parent / f"graph.json.{extension}").symlink_to(
+        (json_graph_path.parent / f"graph.{extension}").symlink_to(
             full_graph_dir / f"example.{extension}"
         )
     (json_graph_path.parent / "meta").symlink_to(full_graph_dir / "meta")

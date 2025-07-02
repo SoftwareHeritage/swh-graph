@@ -17,7 +17,6 @@ use tonic_middleware::MiddlewareFor;
 use tracing::{instrument, Level};
 
 use swh_graph::properties::NodeIdFromSwhidError;
-use swh_graph::utils::suffix_path;
 use swh_graph::views::Subgraph;
 
 pub mod proto {
@@ -205,12 +204,12 @@ impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
     ) -> TonicResult<proto::StatsResponse> {
         tracing::info!("{:?}", request.get_ref());
         // Load properties
-        let properties_path = suffix_path(self.graph.path(), ".properties");
+        let properties_path = self.graph.path().with_extension("properties");
         let properties_path = properties_path.as_path();
         let properties = load_properties(properties_path, ".stats")?;
 
         // Load stats
-        let stats_path = suffix_path(self.graph.path(), ".stats");
+        let stats_path = self.graph.path().with_extension("stats");
         let stats_path = stats_path.as_path();
         let stats = load_properties(stats_path, ".stats")?;
 
