@@ -252,7 +252,7 @@ pub fn main() -> Result<()> {
             // by consumers
             let mut shard_id = 0;
             let mut next_shard = || -> Result<_> {
-                let path = target_dir.join(format!("nodes.txt.{:0>8}.zst", shard_id));
+                let path = target_dir.join(format!("nodes.txt.{shard_id:0>8}.zst"));
                 shard_id += 1;
                 let file = std::fs::File::create_new(&path)
                     .with_context(|| format!("Could not create {}", path.display()))?;
@@ -285,7 +285,7 @@ pub fn main() -> Result<()> {
                     writer = next_shard()?;
                 }
                 writer
-                    .write_all(format!("{}\n", swhid).as_bytes())
+                    .write_all(format!("{swhid}\n").as_bytes())
                     .context("Could not write SWHID")?;
             }
         }
@@ -506,7 +506,7 @@ pub fn main() -> Result<()> {
                 .write_all(stats_lines.join("").as_bytes())
                 .context("Could not write node stats")?;
             count_file
-                .write_all(format!("{}\n", total).as_bytes())
+                .write_all(format!("{total}\n").as_bytes())
                 .context("Could not write node count")?;
         }
         Commands::EdgeStats {
@@ -563,7 +563,7 @@ pub fn main() -> Result<()> {
                 for dst_type in NodeType::all() {
                     let count = stats[src_type as usize][dst_type as usize];
                     if count != 0 {
-                        stats_lines.push(format!("{}:{} {}\n", src_type, dst_type, count));
+                        stats_lines.push(format!("{src_type}:{dst_type} {count}\n"));
                         total += count;
                     }
                 }
@@ -574,7 +574,7 @@ pub fn main() -> Result<()> {
                 .write_all(stats_lines.join("").as_bytes())
                 .context("Could not write edge stats")?;
             count_file
-                .write_all(format!("{}\n", total).as_bytes())
+                .write_all(format!("{total}\n").as_bytes())
                 .context("Could not write edge count")?;
         }
 
@@ -614,7 +614,7 @@ pub fn main() -> Result<()> {
                 log::info!("Writing origins...");
                 for (_url, id) in origins {
                     target_file
-                        .write_all(format!("{}\n", id).as_bytes())
+                        .write_all(format!("{id}\n").as_bytes())
                         .context("Could not write origin")?;
                 }
             }
@@ -731,8 +731,7 @@ pub fn main() -> Result<()> {
                     (
                         "labelspec".to_string(),
                         format!(
-                            "org.softwareheritage.graph.labels.SwhLabel(DirEntry,{})",
-                            label_width
+                            "org.softwareheritage.graph.labels.SwhLabel(DirEntry,{label_width})"
                         ),
                     ),
                     (

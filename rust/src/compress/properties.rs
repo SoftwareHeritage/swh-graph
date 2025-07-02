@@ -87,7 +87,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
             .get(
                 self.swhid_mph
                     .hash_str(swhid)
-                    .unwrap_or_else(|| panic!("unknown SWHID {}", swhid)),
+                    .unwrap_or_else(|| panic!("unknown SWHID {swhid}")),
             )
             .unwrap()
     }
@@ -235,7 +235,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
         let f = |cnt: Content| {
             if let Some(id) = cnt.sha1_git {
                 if let Some(length) = cnt.length {
-                    let swhid = format!("swh:1:cnt:{}", id);
+                    let swhid = format!("swh:1:cnt:{id}");
                     self.set_atomic(&lengths, &swhid, (length as u64).to_be());
                 }
             }
@@ -267,7 +267,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
         log::info!("Reading...");
         self.par_for_each_row("skipped_content", |cnt: SkippedContent| {
             if let Some(id) = cnt.sha1_git {
-                let swhid = format!("swh:1:cnt:{}", id);
+                let swhid = format!("swh:1:cnt:{id}");
                 is_skipped.set(
                     self.node_id(&swhid),
                     true,
@@ -417,7 +417,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
 
         let mut f = |type_: &str, id: String, message: Option<Box<[u8]>>| {
             if let Some(message) = message {
-                let swhid = format!("swh:1:{}:{}", type_, id);
+                let swhid = format!("swh:1:{type_}:{id}");
                 let mut encoded_message = base64.encode_to_string(message);
                 encoded_message.push('\n');
                 let encoded_message = encoded_message.as_bytes();

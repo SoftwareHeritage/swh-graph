@@ -299,7 +299,7 @@ impl<
     #[inline]
     pub fn author_timestamp(&self, node_id: NodeId) -> PropertiesResult<Option<i64>, TIMESTAMPS> {
         TIMESTAMPS::map_if_available(self.try_author_timestamp(node_id), |author_timestamp| {
-            author_timestamp.unwrap_or_else(|e| panic!("Cannot get author timestamp: {}", e))
+            author_timestamp.unwrap_or_else(|e| panic!("Cannot get author timestamp: {e}"))
         })
     }
 
@@ -339,7 +339,7 @@ impl<
             self.try_author_timestamp_offset(node_id),
             |author_timestamp_offset| {
                 author_timestamp_offset
-                    .unwrap_or_else(|e| panic!("Cannot get author timestamp offset: {}", e))
+                    .unwrap_or_else(|e| panic!("Cannot get author timestamp offset: {e}"))
             },
         )
     }
@@ -380,7 +380,7 @@ impl<
             self.try_committer_timestamp(node_id),
             |committer_timestamp| {
                 committer_timestamp
-                    .unwrap_or_else(|e| panic!("Cannot get committer timestamp: {}", e))
+                    .unwrap_or_else(|e| panic!("Cannot get committer timestamp: {e}"))
             },
         )
     }
@@ -421,7 +421,7 @@ impl<
             self.try_committer_timestamp_offset(node_id),
             |committer_timestamp_offset| {
                 committer_timestamp_offset
-                    .unwrap_or_else(|e| panic!("Cannot get committer timestamp: {}", e))
+                    .unwrap_or_else(|e| panic!("Cannot get committer timestamp: {e}"))
             },
         )
     }

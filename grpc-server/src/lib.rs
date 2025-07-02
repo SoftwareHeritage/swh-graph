@@ -282,11 +282,11 @@ fn load_export_meta(path: &Path) -> Option<ExportMeta> {
 fn load_properties(path: &Path, suffix: &str) -> Result<HashMap<String, String>, tonic::Status> {
     let file = std::fs::File::open(path).map_err(|e| {
         log::error!("Could not open {}: {}", path.display(), e);
-        tonic::Status::internal(format!("Could not open {} file", suffix))
+        tonic::Status::internal(format!("Could not open {suffix} file"))
     })?;
     let properties = java_properties::read(std::io::BufReader::new(file)).map_err(|e| {
         log::error!("Could not parse {}: {}", path.display(), e);
-        tonic::Status::internal(format!("Could not parse {} file", suffix))
+        tonic::Status::internal(format!("Could not parse {suffix} file"))
     })?;
     Ok(properties)
 }
@@ -305,7 +305,7 @@ where
         .get(name)
         .ok_or_else(|| {
             log::error!("Missing {} in {}", name, properties_path.display());
-            tonic::Status::internal(format!("Could not read {} from .properties", name))
+            tonic::Status::internal(format!("Could not read {name} from .properties"))
         })?
         .parse()
         .map_err(|e| {
@@ -314,7 +314,7 @@ where
                 name,
                 properties_path.display()
             );
-            tonic::Status::internal(format!("Could not parse {} from .properties: {}", name, e))
+            tonic::Status::internal(format!("Could not parse {name} from .properties: {e}"))
         })
 }
 
@@ -326,7 +326,7 @@ pub async fn serve<G: SwhOptFullGraph + Sync + Send + 'static>(
     let statsd_client = Arc::new(statsd_client);
     let graph = Arc::new(graph);
 
-    let (mut health_reporter, health_service) = tonic_health::server::health_reporter();
+    let (health_reporter, health_service) = tonic_health::server::health_reporter();
     health_reporter
         .set_serving::<TraversalServiceServer<TraversalService<Arc<G>>>>()
         .await;

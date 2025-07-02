@@ -531,8 +531,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     dst[0..5].iter().chain([&"...".to_owned()]).join(", ")
                 };
                 Err(tonic::Status::not_found(format!(
-                    "Could not find a path from the sources ({}) to any destination ({})",
-                    sources, destinations
+                    "Could not find a path from the sources ({sources}) to any destination ({destinations})"
                 )))
             }
         }

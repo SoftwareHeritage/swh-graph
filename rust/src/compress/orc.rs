@@ -100,7 +100,7 @@ where
 
     reader.flat_map(move |chunk| {
         let chunk: arrow_array::RecordBatch =
-            chunk.unwrap_or_else(|e| panic!("Could not read chunk: {}", e));
+            chunk.unwrap_or_else(|e| panic!("Could not read chunk: {e}"));
         let items: Vec<T> = T::from_record_batch(chunk).expect("Could not deserialize from arrow");
         items.into_iter().flat_map(&mut f).collect::<Vec<_>>()
     })
@@ -133,7 +133,7 @@ where
 
     reader.par_bridge().flat_map_iter(move |chunk| {
         let chunk: arrow_array::RecordBatch =
-            chunk.unwrap_or_else(|e| panic!("Could not read chunk: {}", e));
+            chunk.unwrap_or_else(|e| panic!("Could not read chunk: {e}"));
         let items: Vec<T> = T::from_record_batch(chunk).expect("Could not deserialize from arrow");
         items.into_iter().flat_map(&f).collect::<Vec<_>>()
     })

@@ -39,14 +39,10 @@ const SWHIDS: &[&str] = &[
 
 #[test]
 fn test_load_node2swhid() -> Result<()> {
-    let node2swhid_path = format!("{}.node2swhid.bin", BASENAME);
+    let node2swhid_path = format!("{BASENAME}.node2swhid.bin");
     info!("loading node ID -> SWHID map from {node2swhid_path} ...");
-    let node2swhid = Node2SWHID::load(&node2swhid_path).with_context(|| {
-        format!(
-            "While loading the .node2swhid.bin file: {}",
-            node2swhid_path
-        )
-    })?;
+    let node2swhid = Node2SWHID::load(&node2swhid_path)
+        .with_context(|| format!("While loading the .node2swhid.bin file: {node2swhid_path}"))?;
 
     assert_eq!(node2swhid.len(), 24);
 

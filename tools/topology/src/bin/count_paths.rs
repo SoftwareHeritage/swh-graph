@@ -167,7 +167,7 @@ pub fn main() -> Result<()> {
     let dataset_writers = (0..args.num_shards)
         .map(|i| {
             ParquetTableWriter::new(
-                args.out.join(format!("{}.parquet", i)),
+                args.out.join(format!("{i}.parquet")),
                 (Arc::new(schema()), writer_properties.clone()),
                 ParquetTableWriterConfig::default(),
             )
@@ -213,8 +213,8 @@ where
     ] {
         thread
             .join()
-            .unwrap_or_else(|e| panic!("Could not join {} thread: {:?}", name, e))
-            .with_context(|| format!("Error in {} thread", name))?;
+            .unwrap_or_else(|e| panic!("Could not join {name} thread: {e:?}"))
+            .with_context(|| format!("Error in {name} thread"))?;
     }
 
     Ok(())

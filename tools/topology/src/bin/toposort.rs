@@ -195,7 +195,7 @@ where
                 sample_ancestor1: sample_ancestors.get(0).map(String::as_str).unwrap_or(""),
                 sample_ancestor2: sample_ancestors.get(1).map(String::as_str).unwrap_or(""),
             })
-            .with_context(|| format!("Could not write {}", swhid))?;
+            .with_context(|| format!("Could not write {swhid}"))?;
     }
 
     Ok(())

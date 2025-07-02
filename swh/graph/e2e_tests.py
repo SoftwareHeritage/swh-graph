@@ -1192,8 +1192,11 @@ def run_e2e_test(
     for project, results in status_table.items():
         for level, res in results.items():
             if not res:
-                logger.error("Something went wrong with the compression.")
                 logger.error(f"{level} for project {project} is incorrect")
                 is_ok = False
     if is_ok:
-        logger.info("Compression seems to have gone well.")
+        logger.info("Compression seems to have gone well")
+    else:
+        raise Exception(
+            "Compression's end-to-end tests failed, see above logs for details"
+        )

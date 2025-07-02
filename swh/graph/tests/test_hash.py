@@ -30,7 +30,7 @@ def hash_swhids_with_node2swhid(swhids: Iterable[str]) -> List[int]:
             DATASET_DIR / "compressed/example.node2swhid.bin"
         )
         > Sink()
-    ).run().decode().strip().split("\n")
+    ).run().stdout.decode().strip().split("\n")
     # fmt: on
 
 

@@ -310,7 +310,7 @@ impl<
             Some(offset) => {
                 let offset = offset as usize;
                 let slice: &[u8] = data.get(offset..).unwrap_or_else(|| {
-                    panic!("Missing {} for node {} at offset {}", what, node_id, offset)
+                    panic!("Missing {what} for node {node_id} at offset {offset}")
                 });
                 Ok(slice
                     .iter()
@@ -331,7 +331,7 @@ impl<
         STRINGS::map_if_available(
             self.try_message_base64(node_id),
             |message: Result<_, OutOfBoundError>| {
-                message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+                message.unwrap_or_else(|e| panic!("Cannot get node message: {e}"))
             },
         )
     }
@@ -361,7 +361,7 @@ impl<
     #[inline]
     pub fn message(&self, node_id: NodeId) -> PropertiesResult<Option<Vec<u8>>, STRINGS> {
         STRINGS::map_if_available(self.try_message(node_id), |message| {
-            message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+            message.unwrap_or_else(|e| panic!("Cannot get node message: {e}"))
         })
     }
 
@@ -381,7 +381,7 @@ impl<
                 message_opt.map(|message| {
                     base64
                         .decode_to_vec(message)
-                        .unwrap_or_else(|e| panic!("Could not decode node message: {}", e))
+                        .unwrap_or_else(|e| panic!("Could not decode node message: {e}"))
                 })
             })
         })
@@ -395,7 +395,7 @@ impl<
     #[inline]
     pub fn tag_name_base64(&self, node_id: NodeId) -> PropertiesResult<Option<&[u8]>, STRINGS> {
         STRINGS::map_if_available(self.try_tag_name_base64(node_id), |tag_name| {
-            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag: {}", e))
+            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag: {e}"))
         })
     }
 
@@ -424,7 +424,7 @@ impl<
     #[inline]
     pub fn tag_name(&self, node_id: NodeId) -> PropertiesResult<Option<Vec<u8>>, STRINGS> {
         STRINGS::map_if_available(self.try_tag_name(node_id), |tag_name| {
-            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag name: {}", e))
+            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag name: {e}"))
         })
     }
 
@@ -442,10 +442,7 @@ impl<
             tag_name_opt_res.map(|tag_name_opt| {
                 tag_name_opt.map(|tag_name| {
                     base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
-                        panic!(
-                            "Could not decode tag_name of node {}: {:?}",
-                            node_id, tag_name
-                        )
+                        panic!("Could not decode tag_name of node {node_id}: {tag_name:?}")
                     })
                 })
             })

@@ -499,11 +499,10 @@ def do_step(step, conf) -> "List[RunResult]":
         cmd,
         env=cmd_env,
         encoding="utf8",
-        stderr=subprocess.STDOUT,
-    )._run(stdin=None, stdout=subprocess.PIPE)
+    )._run(stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     step_logger.info("Running: %s", cmd)
 
-    with command.proc.stdout as stdout:
+    with command.stdout() as stdout:
         for line in stdout:
             step_logger.info(line.rstrip())
     try:

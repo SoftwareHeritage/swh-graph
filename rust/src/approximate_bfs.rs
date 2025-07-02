@@ -141,8 +141,7 @@ pub fn almost_bfs_order<G: RandomAccessGraph + Send + Sync>(
 
     assert_eq!(
         i, num_nodes,
-        "graph has {} nodes, permutation has {}",
-        num_nodes, i
+        "graph has {num_nodes} nodes, permutation has {i}"
     );
 
     pl.done();

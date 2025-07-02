@@ -85,8 +85,8 @@ pub fn bv<MPHF: SwhidMphf + Sync>(
             let dst = mph
                 .hash_str_array(&dst)
                 .ok_or_else(|| anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&dst)))?;
-            assert!(src < num_nodes, "src node id is greater than {}", num_nodes);
-            assert!(dst < num_nodes, "dst node id is greater than {}", num_nodes);
+            assert!(src < num_nodes, "src node id is greater than {num_nodes}");
+            assert!(dst < num_nodes, "dst node id is greater than {num_nodes}");
             let partition_id = src / nodes_per_partition;
             buffer.insert(partition_id, src, dst)?;
             Ok(())
@@ -192,8 +192,8 @@ pub fn edge_labels<MPHF: SwhidMphf + Sync>(
             if transposed {
                 (src, dst) = (dst, src);
             }
-            assert!(src < num_nodes, "src node id is greater than {}", num_nodes);
-            assert!(dst < num_nodes, "dst node id is greater than {}", num_nodes);
+            assert!(src < num_nodes, "src node id is greater than {num_nodes}");
+            assert!(dst < num_nodes, "dst node id is greater than {num_nodes}");
             let src = order.get(src).expect("Could not permute src");
             let dst = order.get(dst).expect("Could not permute dst");
             let partition_id = src / nodes_per_partition;

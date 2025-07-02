@@ -32,12 +32,8 @@ pub fn main() -> Result<()> {
     // load the node ID -> SWHID map so we can convert it to a node2file
     let node2swhid_path = format!("{}.node2swhid.bin", args.basename);
     info!("loading node ID -> SWHID map from {node2swhid_path} ...");
-    let node2swhid = Node2SWHID::load(&node2swhid_path).with_context(|| {
-        format!(
-            "While loading the .node2swhid.bin file: {}",
-            node2swhid_path
-        )
-    })?;
+    let node2swhid = Node2SWHID::load(&node2swhid_path)
+        .with_context(|| format!("While loading the .node2swhid.bin file: {node2swhid_path}"))?;
     let num_nodes = node2swhid.len();
 
     // compute the path of the file we are creating
@@ -47,7 +43,7 @@ pub fn main() -> Result<()> {
     );
     // create a new node2type file that can index `num_nodes` nodes
     let node2type = Node2Type::new(&node2type_path, num_nodes)
-        .with_context(|| format!("While creating the .node2type.bin file: {}", node2type_path))?;
+        .with_context(|| format!("While creating the .node2type.bin file: {node2type_path}"))?;
     let node2type = Arc::new(Mutex::new(node2type));
 
     // init the progress logger
