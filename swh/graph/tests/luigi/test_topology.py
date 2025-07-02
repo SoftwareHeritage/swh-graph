@@ -210,7 +210,7 @@ def test_generations(tmpdir, direction: str):
             topological_order_path,
         )
         > Sink()
-    ).run()
+    ).run().stdout
     # fmt: on
 
     expected = TOPO_ORDER2_BACKWARD if direction == "backward" else TOPO_ORDER2_FORWARD
