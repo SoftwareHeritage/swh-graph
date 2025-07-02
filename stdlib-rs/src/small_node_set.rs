@@ -104,6 +104,30 @@ impl SmallNodeSet {
     unsafe fn get_hashset_mut(&mut self) -> &mut HashSet<NodeId, RapidBuildHasher> {
         unsafe { &mut *self.0.nodes }
     }
+
+    pub fn len(&self) -> usize {
+        match unsafe { self.0.node } {
+            EMPTY => 0,
+            value if value & 0b1 == 1 => 1,
+            _ => unsafe { self.get_hashset() }.len(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match unsafe { self.0.node } {
+            EMPTY => true,
+            _ => false, // we don't support deletion or with_capacity() yet
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a SmallNodeSet {
+    type IntoIter = Iter<'a>;
+    type Item = NodeId;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
 }
 
 pub struct Iter<'a> {
