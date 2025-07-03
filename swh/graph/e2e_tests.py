@@ -15,7 +15,7 @@ from google.protobuf.json_format import MessageToDict
 
 from .webgraph import check_config_compress
 
-logger = logging.getLogger(__name__)
+e2e_logger = logging.getLogger(__name__)
 
 
 def run_e2e_test(
@@ -24,6 +24,7 @@ def run_e2e_test(
     out_dir: Optional[str],
     test_flavor: Optional[str],
     profile: str = "release",
+    logger: Optional[logging.Logger] = None,
 ):
     """Empirically test the graph compression correctness.
 
@@ -50,6 +51,9 @@ def run_e2e_test(
     import swh.graph.grpc.swhgraph_pb2 as swhgraph
     import swh.graph.grpc.swhgraph_pb2_grpc as swhgraph_grpc
     from swh.graph.grpc_server import spawn_rust_grpc_server, stop_grpc_server
+
+    if logger is None:
+        logger = e2e_logger
 
     conf = check_config_compress(
         {"profile": profile}, graph_name, in_dir, out_dir, test_flavor
