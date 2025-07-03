@@ -222,6 +222,13 @@ class _CompressionStepTask(luigi.Task):
     These tasks should be scheduled in such a way they do not run at the same time,
     because running them concurrently does not improve run time."""
 
+    MINIMUM_OBJECT_TYPES: Set[str] = {"ori", "snp", "rel", "rev", "dir", "cnt"}
+    """Which object types should trigger the task.
+
+    The task should be triggered if and only if at least one of these
+    object types is included in the export
+    """
+
     local_export_path = luigi.PathParameter(significant=False)
     local_sensitive_export_path: Optional[Path] = luigi.OptionalPathParameter(
         default=None
@@ -375,6 +382,9 @@ class _CompressionStepTask(luigi.Task):
         :file:`meta/compression.json`"""
         import json
 
+        if self.MINIMUM_OBJECT_TYPES.isdisjoint(set(self.object_types)):
+            return True
+
         if not super().complete():
             return False
 
@@ -393,6 +403,10 @@ class _CompressionStepTask(luigi.Task):
                         # It's expected that .labels.fcl.bytearray is empty when both dir
                         # and snp are excluded, because these are the only objects
                         # with labels on their edges.
+                        continue
+                    elif path.name.endswith("-bfs.roots.txt") and {"ori"}.isdisjoint(
+                        set(self.object_types)
+                    ):
                         continue
                     raise Exception(f"expected output file {path} is empty")
             elif path.is_dir():
@@ -425,6 +439,8 @@ class _CompressionStepTask(luigi.Task):
         for input_file in self.INPUT_FILES:
             if not self._is_expected_output_file(input_file):
                 # These files are only generated for graphs that have labels
+                continue
+            if self.MINIMUM_OBJECT_TYPES.isdisjoint(set(self.object_types)):
                 continue
             for cls in _CompressionStepTask.__subclasses__():
                 if input_file in cls.OUTPUT_FILES:
@@ -466,7 +482,7 @@ class _CompressionStepTask(luigi.Task):
         ]
 
     def run(self) -> None:
-        """Runs the step, by shelling out to the relevant Java program"""
+        """Runs the step, by shelling out to the relevant Rust program"""
         import datetime
         from importlib.metadata import version
         import json
@@ -474,6 +490,9 @@ class _CompressionStepTask(luigi.Task):
         import time
 
         from swh.graph.config import check_config_compress
+
+        if self.MINIMUM_OBJECT_TYPES.isdisjoint(set(self.object_types)):
+            return
 
         for input_file in self.INPUT_FILES:
             if not self._is_expected_output_file(input_file):
@@ -483,6 +502,10 @@ class _CompressionStepTask(luigi.Task):
                 raise Exception(f"expected input {path} does not exist")
             if path.is_file():
                 if path.stat().st_size == 0:
+                    if path.name.endswith("-bfs.roots.txt") and {"ori"}.isdisjoint(
+                        set(self.object_types)
+                    ):
+                        continue
                     raise Exception(f"expected input file {path} is empty")
             elif path.is_dir():
                 if next(path.iterdir(), None) is None:
@@ -548,7 +571,7 @@ class _CompressionStepTask(luigi.Task):
                     "cgroup": str(res.cgroup) if res.cgroup else None,
                     "cgroup_stats": res.cgroup_stats,
                 }
-                for res in run_results
+                for res in (run_results or [])
             ],
         }
         self._stamp().parent.mkdir(parents=True, exist_ok=True)
@@ -577,6 +600,7 @@ class ExtractLabels(_CompressionStepTask):
         ".labels.csv.zst",
     }
     USES_ALL_CPU_THREADS = False
+    MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     priority = -100
     """low priority, because it is not on the critical path"""
@@ -623,6 +647,7 @@ class LabelStats(_CompressionStepTask):
         ".labels.count.txt",
     }
     USES_ALL_CPU_THREADS = True
+    MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     priority = 100
     """high priority, to help the scheduler allocate resources"""
@@ -846,6 +871,7 @@ class ExtractPersons(_CompressionStepTask):
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {".persons.csv.zst"}
     USES_ALL_CPU_THREADS = True
+    MINIMUM_OBJECT_TYPES = {"rel", "rev"}
 
     def _large_allocations(self) -> int:
         return 0
@@ -855,6 +881,7 @@ class PersonsStats(_CompressionStepTask):
     STEP = CompressionStep.PERSONS_STATS
     INPUT_FILES = {".persons.csv.zst"}
     OUTPUT_FILES = {".persons.count.txt"}
+    MINIMUM_OBJECT_TYPES = {"rel", "rev"}
 
     def _large_allocations(self) -> int:
         return 0
@@ -864,6 +891,7 @@ class MphPersons(_CompressionStepTask):
     STEP = CompressionStep.MPH_PERSONS
     INPUT_FILES = {".persons.csv.zst", ".persons.count.txt"}
     OUTPUT_FILES = {".persons.pthash"}
+    MINIMUM_OBJECT_TYPES = {"rel", "rev"}
 
     def _large_allocations(self) -> int:
         # TODO: estimate PTHash instead of GOV
@@ -876,6 +904,7 @@ class ExtractFullnames(_CompressionStepTask):
     INPUT_FILES = {".persons.pthash"}
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {".persons", ".persons.lengths"}
+    MINIMUM_OBJECT_TYPES = {"rel", "rev"}
 
     def _large_allocations(self) -> int:
         return 0
@@ -885,6 +914,7 @@ class FullnamesEf(_CompressionStepTask):
     STEP = CompressionStep.FULLNAMES_EF
     INPUT_FILES = {".persons", ".persons.lengths"}
     OUTPUT_FILES = {".persons.ef"}
+    MINIMUM_OBJECT_TYPES = {"rel", "rev"}
 
     def _large_allocations(self) -> int:
         return 0
@@ -912,9 +942,15 @@ class NodeProperties(_CompressionStepTask):
             "tag_name.offset",
         )
     }
+    MINIMUM_OBJECT_TYPES = {"rel", "rev", "cnt"}
 
     priority = 10
     """semi-high priority because it takes a very long time to run"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if {"rel", "rev"}.isdisjoint(self.object_types):
+            self.INPUT_FILES = {".pthash.order", ".pthash"}
 
     def output(self) -> List[luigi.LocalTarget]:
         """Returns a list of luigi targets matching :attr:`OUTPUT_FILES`."""
@@ -957,6 +993,8 @@ class NodeProperties(_CompressionStepTask):
         # * content length/writeMessages/writeTagNames (long array)
         # * writeTimestamps (long array + short array)
         # * writePersonIds (int array, but also loads the person MPH)
+        if {"rel", "rev"}.isdisjoint(self.object_types):
+            return self._mph_size() + self._nb_nodes() * (8 + 2)
         subtask_size = max(
             self._nb_nodes() * (8 + 2),  # writeTimestamps
             self._nb_nodes() * 4 + self._persons_mph_size(),
@@ -968,6 +1006,7 @@ class PthashLabels(_CompressionStepTask):
     STEP = CompressionStep.MPH_LABELS
     INPUT_FILES = {".labels.csv.zst", ".labels.count.txt"}
     OUTPUT_FILES = {".labels.pthash"}
+    MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     def _large_allocations(self) -> int:
         return 0
@@ -977,6 +1016,7 @@ class LabelsOrder(_CompressionStepTask):
     STEP = CompressionStep.LABELS_ORDER
     INPUT_FILES = {".labels.csv.zst", ".labels.pthash", ".labels.count.txt"}
     OUTPUT_FILES = {".labels.pthash.order"}
+    MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     def _large_allocations(self) -> int:
         return 0
@@ -990,6 +1030,7 @@ class FclLabels(_CompressionStepTask):
         ".labels.fcl.pointers",
         ".labels.fcl.properties",
     }
+    MINIMUM_OBJECT_TYPES = {"snp", "dir"}
 
     def _large_allocations(self) -> int:
         return self._labels_mph_size()
@@ -1009,6 +1050,7 @@ class EdgeLabels(_CompressionStepTask):
         "-labelled.labels",
         "-labelled.properties",
     }
+    MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     priority = 10
     """semi-high priority because it takes a long time to run"""
@@ -1042,6 +1084,7 @@ class EdgeLabelsTranspose(_CompressionStepTask):
         "-transposed-labelled.labels",
         "-transposed-labelled.properties",
     }
+    MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     priority = 10
     """semi-high priority because it takes a long time to run"""
@@ -1065,6 +1108,7 @@ class EdgeLabelsEf(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS_EF
     INPUT_FILES = {"-labelled.labels", "-labelled.labeloffsets"}
     OUTPUT_FILES = {"-labelled.ef"}
+    MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     def _large_allocations(self) -> int:
         return 0
@@ -1074,6 +1118,7 @@ class EdgeLabelsTransposeEf(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS_TRANSPOSE_EF
     INPUT_FILES = {"-transposed-labelled.labels", "-transposed-labelled.labeloffsets"}
     OUTPUT_FILES = {"-transposed-labelled.ef"}
+    MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     def _large_allocations(self) -> int:
         return 0
@@ -1330,6 +1375,11 @@ class CompressGraph(luigi.Task):
             and not {"rel", "rev"}.isdisjoint(set(self.object_types))
             else []
         )
+        if {"ori", "snp", "rel", "rev", "dir", "cnt"}.issubset(set(self.object_types)):
+            e2e_test_task = [EndToEndTest(**kwargs)]
+        else:
+            e2e_test_task = []
+
         return [
             local_export,
             NodeStats(**kwargs),
@@ -1338,7 +1388,7 @@ class CompressGraph(luigi.Task):
             *fullname_tasks,
             NodeProperties(**kwargs),
             Stats(**kwargs),
-            EndToEndTest(**kwargs),
+            *e2e_test_task,
             *label_tasks,
         ]
 

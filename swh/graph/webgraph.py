@@ -10,14 +10,14 @@ from enum import Enum
 import logging
 import os
 from pathlib import Path
-import shlex
 import subprocess
-import sys
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 from swh.graph.config import check_config_compress
+
+from .shell import AtomicFileSink, Command, CommandException, Rust
 
 if TYPE_CHECKING:
     from .shell import RunResult
@@ -77,382 +77,733 @@ class CompressionStep(Enum):
 # full compression pipeline
 COMP_SEQ = list(CompressionStep)
 
-# Mapping from compression steps to shell commands implementing them. Commands
-# will be executed by the shell, so be careful with meta characters. They are
-# specified here as lists of tokens that will be joined together only for ease
-# of line splitting. In commands, {tokens} will be interpolated with
-# configuration values, see :func:`compress`.
-STEP_ARGV: Dict[CompressionStep, List[str]] = {
-    CompressionStep.EXTRACT_NODES: [
-        "{rust_executable_dir}/swh-graph-extract",
+
+def _extract_nodes(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-extract",
         "extract-nodes",
         "--format",
         "orc",
         "--allowed-node-types",
-        "{object_types}",
-        "{in_dir}",
-        "{out_dir}/{graph_name}.nodes/",
-    ],
-    CompressionStep.EXTRACT_LABELS: [
-        "{rust_executable_dir}/swh-graph-extract",
+        conf.get("object_types", "*"),
+        f"{conf['in_dir']}",
+        f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
+        conf=conf,
+        env=env,
+    )
+
+
+def _extract_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
+    if {"dir", "snp", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
+        return None
+    return Rust(
+        "swh-graph-extract",
         "extract-labels",
         "--format",
         "orc",
         "--allowed-node-types",
-        "{object_types}",
-        "{in_dir}",
-        "| zstdmt > {out_dir}/{graph_name}.labels.csv.zst",
-    ],
-    CompressionStep.NODE_STATS: [
-        "{rust_executable_dir}/swh-graph-extract",
+        conf.get("object_types", "*"),
+        conf["in_dir"],
+        conf=conf,
+        env=env,
+    ) | Command.zstdmt() > AtomicFileSink(
+        Path(f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst")
+    )
+
+
+def _node_stats(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-extract",
         "node-stats",
         "--format",
         "orc",
         "--swhids-dir",
-        "{out_dir}/{graph_name}.nodes/",
+        f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
         "--target-stats",
-        "{out_dir}/{graph_name}.nodes.stats.txt",
+        f"{conf['out_dir']}/{conf['graph_name']}.nodes.stats.txt",
         "--target-count",
-        "{out_dir}/{graph_name}.nodes.count.txt",
-    ],
-    CompressionStep.EDGE_STATS: [
-        "{rust_executable_dir}/swh-graph-extract",
+        f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt",
+        conf=conf,
+        env=env,
+    )
+
+
+def _edge_stats(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-extract",
         "edge-stats",
         "--format",
         "orc",
         "--allowed-node-types",
-        "{object_types}",
+        conf.get("object_types", "*"),
         "--dataset-dir",
-        "{in_dir}",
+        f"{conf['in_dir']}",
         "--target-stats",
-        "{out_dir}/{graph_name}.edges.stats.txt",
+        f"{conf['out_dir']}/{conf['graph_name']}.edges.stats.txt",
         "--target-count",
-        "{out_dir}/{graph_name}.edges.count.txt",
-    ],
-    CompressionStep.LABEL_STATS: [
-        "zstdcat {out_dir}/{graph_name}.labels.csv.zst "
-        "| wc -l "
-        "> {out_dir}/{graph_name}.labels.count.txt"
-    ],
-    CompressionStep.MPH: [
-        "{rust_executable_dir}/swh-graph-compress",
+        f"{conf['out_dir']}/{conf['graph_name']}.edges.count.txt",
+        conf=conf,
+        env=env,
+    )
+
+
+def _label_stats(conf: Dict[str, Any], env: Dict[str, str]) -> AtomicFileSink:
+    if {"dir", "snp", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
+        return Command.echo("0") > AtomicFileSink(
+            Path(f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt")
+        )
+    return Command.zstdcat(
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst"
+    ) | Command.wc("-l") > AtomicFileSink(
+        Path(f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt")
+    )
+
+
+def _mph(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    with open(
+        f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt", "r"
+    ) as nodes_count:
+        num_nodes = nodes_count.readline().splitlines()
+        assert len(num_nodes) == 1
+    return Rust(
+        "swh-graph-compress",
         "pthash-swhids",
         "--num-nodes",
-        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
-        "{out_dir}/{graph_name}.nodes/",
-        "{out_dir}/{graph_name}.pthash",
-    ],
-    CompressionStep.BV: [
-        "{rust_executable_dir}/swh-graph-extract",
+        num_nodes[0],
+        f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
+        f"{conf['out_dir']}/{conf['graph_name']}.pthash",
+        conf=conf,
+        env=env,
+    )
+
+
+def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
+        num_nodes = nodes_count.readline().splitlines()
+        assert len(num_nodes) == 1
+    return Rust(
+        "swh-graph-extract",
         "bv",
         "--allowed-node-types",
-        "{object_types}",
+        conf.get("object_types", "*"),
         "--mph-algo",
         "pthash",
         "--function",
-        "{out_dir}/{graph_name}",
+        f"{conf['out_dir']}/{conf['graph_name']}",
         "--num-nodes",
-        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
-        "{in_dir}",
-        "{out_dir}/{graph_name}-base",
-    ],
-    CompressionStep.BV_EF: [
-        "{rust_executable_dir}/swh-graph-index",
+        num_nodes[0],
+        f"{conf['in_dir']}",
+        f"{conf['out_dir']}/{conf['graph_name']}-base",
+        conf=conf,
+        env=env,
+    )
+
+
+def _bv_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-index",
         "ef",
-        "{out_dir}/{graph_name}-base",
-    ],
-    CompressionStep.BFS_ROOTS: [
-        "{rust_executable_dir}/swh-graph-extract",
+        f"{conf['out_dir']}/{conf['graph_name']}-base",
+        conf=conf,
+        env=env,
+    )
+
+
+def _bfs_roots(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-extract",
         "bfs-roots",
-        "{in_dir}",
-        "{out_dir}/{graph_name}-bfs.roots.txt",
-    ],
-    CompressionStep.BFS: [
-        "{rust_executable_dir}/swh-graph-compress",
+        "--allowed-node-types",
+        conf.get("object_types", "*"),
+        f"{conf['in_dir']}",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs.roots.txt",
+        conf=conf,
+        env=env,
+    )
+
+
+def _bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-compress",
         "bfs",
         "--mph-algo",
         "pthash",
         "--function",
-        "{out_dir}/{graph_name}.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.pthash",
         "--init-roots",
-        "{out_dir}/{graph_name}-bfs.roots.txt",
-        "{out_dir}/{graph_name}-base",
-        "{out_dir}/{graph_name}-bfs.order",
-    ],
-    CompressionStep.PERMUTE_AND_SIMPLIFY_BFS: [
-        "{rust_executable_dir}/swh-graph-compress",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs.roots.txt",
+        f"{conf['out_dir']}/{conf['graph_name']}-base",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
+        conf=conf,
+        env=env,
+    )
+
+
+def _permute_and_simplify_bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-compress",
         "permute-and-symmetrize",
-        "{out_dir}/{graph_name}-base",
-        "{out_dir}/{graph_name}-bfs-simplified",
+        f"{conf['out_dir']}/{conf['graph_name']}-base",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs-simplified",
         "--permutation",
-        "{out_dir}/{graph_name}-bfs.order",
-    ],
-    CompressionStep.BFS_EF: [
-        "{rust_executable_dir}/swh-graph-index",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
+        conf=conf,
+        env=env,
+    )
+
+
+def _bfs_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-index",
         "ef",
-        "{out_dir}/{graph_name}-bfs-simplified",
-    ],
-    CompressionStep.BFS_DCF: [
-        "{rust_executable_dir}/swh-graph-index",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs-simplified",
+        conf=conf,
+        env=env,
+    )
+
+
+def _bfs_dcf(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-index",
         "dcf",
-        "{out_dir}/{graph_name}-bfs-simplified",
-    ],
-    CompressionStep.LLP: [
-        "{rust_executable_dir}/swh-graph-compress",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs-simplified",
+        conf=conf,
+        env=env,
+    )
+
+
+def _llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-compress",
         "llp",
         "-g",
-        "{llp_gammas}",
-        "{out_dir}/{graph_name}-bfs-simplified",
-        "{out_dir}/{graph_name}-llp.order",
-    ],
-    CompressionStep.COMPOSE_ORDERS: [
-        "{rust_executable_dir}/swh-graph-compress",
+        f"{conf['llp_gammas']}",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs-simplified",
+        f"{conf['out_dir']}/{conf['graph_name']}-llp.order",
+        conf=conf,
+        env=env,
+    )
+
+
+def _compose_orders(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
+        num_nodes = nodes_count.readline().splitlines()
+        assert len(num_nodes) == 1
+    return Rust(
+        "swh-graph-compress",
         "compose-orders",
         "--num-nodes",
-        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
+        num_nodes[0],
         "--input",
-        "{out_dir}/{graph_name}-bfs.order",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
         "--input",
-        "{out_dir}/{graph_name}-llp.order",
+        f"{conf['out_dir']}/{conf['graph_name']}-llp.order",
         "--output",
-        "{out_dir}/{graph_name}.pthash.order",
-    ],
-    CompressionStep.PERMUTE_LLP: [
-        "{rust_executable_dir}/swh-graph-compress",
+        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
+        conf=conf,
+        env=env,
+    )
+
+
+def _permute_llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-compress",
         "permute",
-        "{out_dir}/{graph_name}-base",
-        "{out_dir}/{graph_name}",
+        f"{conf['out_dir']}/{conf['graph_name']}-base",
+        f"{conf['out_dir']}/{conf['graph_name']}",
         "--permutation",
-        "{out_dir}/{graph_name}.pthash.order",
-    ],
-    CompressionStep.EF: [
-        "{rust_executable_dir}/swh-graph-index",
+        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
+        conf=conf,
+        env=env,
+    )
+
+
+def _ef(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-index",
         "ef",
-        "{out_dir}/{graph_name}",
-    ],
-    CompressionStep.TRANSPOSE: [
-        "{rust_executable_dir}/swh-graph-compress",
+        f"{conf['out_dir']}/{conf['graph_name']}",
+        conf=conf,
+        env=env,
+    )
+
+
+def _transpose(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-compress",
         "transpose",
-        "{out_dir}/{graph_name}",
-        "{out_dir}/{graph_name}-transposed",
-    ],
-    CompressionStep.TRANSPOSE_EF: [
-        "{rust_executable_dir}/swh-graph-index",
+        f"{conf['out_dir']}/{conf['graph_name']}",
+        f"{conf['out_dir']}/{conf['graph_name']}-transposed",
+        conf=conf,
+        env=env,
+    )
+
+
+def _transpose_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-index",
         "ef",
-        "{out_dir}/{graph_name}-transposed",
-    ],
-    CompressionStep.MAPS: [
-        "{rust_executable_dir}/swh-graph-compress",
+        f"{conf['out_dir']}/{conf['graph_name']}-transposed",
+        conf=conf,
+        env=env,
+    )
+
+
+def _maps(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
+        num_nodes = nodes_count.readline().splitlines()
+        assert len(num_nodes) == 1
+    return Rust(
+        "swh-graph-compress",
         "maps",
         "--num-nodes",
-        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
+        num_nodes[0],
         "--swhids-dir",
-        "{out_dir}/{graph_name}.nodes/",
+        f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
         "--mph-algo",
         "pthash",
         "--function",
-        "{out_dir}/{graph_name}.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.pthash",
         "--order",
-        "{out_dir}/{graph_name}.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
         "--node2swhid",
-        "{out_dir}/{graph_name}.node2swhid.bin",
+        f"{conf['out_dir']}/{conf['graph_name']}.node2swhid.bin",
         "--node2type",
-        "{out_dir}/{graph_name}.node2type.bin",
-    ],
-    CompressionStep.EXTRACT_PERSONS: [
-        "{rust_executable_dir}/swh-graph-extract",
+        f"{conf['out_dir']}/{conf['graph_name']}.node2type.bin",
+        conf=conf,
+        env=env,
+    )
+
+
+def _extract_persons(conf: Dict[str, Any], env: Dict[str, str]) -> AtomicFileSink:
+    if {"rel", "rev", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
+        return Command.echo("") | Command.zstdmt() > AtomicFileSink(
+            Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.csv.zst")
+        )
+    return Rust(
+        "swh-graph-extract",
         "extract-persons",
         "--allowed-node-types",
-        "{object_types}",
-        "{in_dir}",
-        "| zstdmt > {out_dir}/{graph_name}.persons.csv.zst",
-    ],
-    CompressionStep.MPH_PERSONS: [
-        # skip this step when compressing a graph with no revisions or releases
-        'if [[ $(cat {out_dir}/{graph_name}.persons.count.txt) != "0" ]]; then\n',
-        "{rust_executable_dir}/swh-graph-compress",
+        conf.get("object_types", "*"),
+        f"{conf['in_dir']}",
+        conf=conf,
+        env=env,
+    ) | Command.zstdmt() > AtomicFileSink(
+        Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.csv.zst")
+    )
+
+
+def _mph_persons(
+    conf: Dict[str, Any], env: Dict[str, str]
+) -> Union[Command, AtomicFileSink]:
+    with open(
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt"
+    ) as persons_count:
+        num_persons = persons_count.readline().splitlines()
+        assert len(num_persons) == 1
+    if num_persons[0] == "0":
+        return Command.echo("") > AtomicFileSink(
+            Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash")
+        )
+    return Rust(
+        "swh-graph-compress",
         "pthash-persons",
         "--num-persons",
-        "$(cat {out_dir}/{graph_name}.persons.count.txt)",
-        "<(zstdcat {out_dir}/{graph_name}.persons.csv.zst)",
-        "{out_dir}/{graph_name}.persons.pthash\n",
-        "else\n",
-        "echo '' > {out_dir}/{graph_name}.persons.pthash;",
-        "fi",
-    ],
-    CompressionStep.EXTRACT_FULLNAMES: [
-        # skip this step when compressing a graph with no revisions or releases
-        'if [[ $(cat {out_dir}/{graph_name}.persons.count.txt) != "0" ]] &&',
-        '[ -d "{in_dir}/person" ]; then\n',
-        "{rust_executable_dir}/swh-graph-extract",
+        num_persons[0],
+        Command.zstdcat(
+            f"{conf['out_dir']}/{conf['graph_name']}.persons.csv.zst",
+        ),
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
+        conf=conf,
+        env=env,
+    )
+
+
+def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
+    if {"rel", "rev", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
+        return None
+    if not (
+        Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
+        and Path(f"{conf['in_dir']}/person").exists()
+    ):
+        return None
+    with open(
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt"
+    ) as persons_count:
+        num_persons = persons_count.readline().splitlines()
+        assert len(num_persons) == 1
+    if num_persons[0] == "0":
+        return None
+    return Rust(
+        "swh-graph-extract",
         "extract-fullnames",
         "--person-function",
-        "{out_dir}/{graph_name}.persons.pthash",
-        "{in_dir}",
-        "{out_dir}/{graph_name}.persons",
-        "{out_dir}/{graph_name}.persons.lengths\n",
-        "fi",
-    ],
-    CompressionStep.FULLNAMES_EF: [
-        # skip this step when compressing a graph with no revisions or releases
-        'if [[ $(cat {out_dir}/{graph_name}.persons.count.txt) != "0" ]] &&',
-        '[ -d "{in_dir}/person" ]; then\n',
-        "{rust_executable_dir}/swh-graph-index",
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
+        f"{conf['in_dir']}",
+        f"{conf['out_dir']}/{conf['graph_name']}.persons"
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.lengths",
+    )
+
+
+def _fullnames_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
+    if {"rel", "rev", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
+        return None
+    if not (
+        Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
+        and Path(f"{conf['in_dir']}/person").exists()
+    ):
+        return None
+    with open(
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt"
+    ) as persons_count:
+        num_persons = persons_count.readline().splitlines()
+        assert len(num_persons) == 1
+    if num_persons[0] == "0":
+        return None
+    return Rust(
+        "swh-graph-index",
         "fullnames-ef",
         "--num-persons",
-        "$(cat {out_dir}/{graph_name}.persons.count.txt)",
-        "{out_dir}/{graph_name}.persons",
-        "{out_dir}/{graph_name}.persons.lengths",
-        "{out_dir}/{graph_name}.persons.ef\n",
-        "fi",
-    ],
-    CompressionStep.PERSONS_STATS: [
-        "zstdcat {out_dir}/{graph_name}.persons.csv.zst "
-        "| wc -l"
-        "> {out_dir}/{graph_name}.persons.count.txt",
-    ],
-    CompressionStep.NODE_PROPERTIES: [
-        "{rust_executable_dir}/swh-graph-extract",
+        num_persons[0],
+        f"{conf['out_dir']}/{conf['graph_name']}.persons"
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.lengths",
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.ef",
+    )
+
+
+def _persons_stats(conf: Dict[str, Any], env: Dict[str, str]) -> AtomicFileSink:
+    if {"rel", "rev", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
+        return Command.echo("0") > AtomicFileSink(
+            Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt")
+        )
+    return Command.zstdcat(
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.csv.zst"
+    ) | Command.wc("-l") > AtomicFileSink(
+        Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt")
+    )
+
+
+def _node_properties(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
+        num_nodes = nodes_count.readline().splitlines()
+        assert len(num_nodes) == 1
+    return Rust(
+        "swh-graph-extract",
         "node-properties",
         "--format",
         "orc",
         "--allowed-node-types",
-        "{object_types}",
+        conf.get("object_types", "*"),
         "--mph-algo",
         "pthash",
         "--function",
-        "{out_dir}/{graph_name}",
+        f"{conf['out_dir']}/{conf['graph_name']}",
         "--order",
-        "{out_dir}/{graph_name}.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
         "--person-function",
-        "{out_dir}/{graph_name}.persons.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
         "--num-nodes",
-        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
-        "{in_dir}",
-        "{out_dir}/{graph_name}",
-    ],
-    CompressionStep.MPH_LABELS: [
-        "{rust_executable_dir}/swh-graph-compress",
+        num_nodes[0],
+        f"{conf['in_dir']}",
+        f"{conf['out_dir']}/{conf['graph_name']}",
+        conf=conf,
+        env=env,
+    )
+
+
+def _mph_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
+    if {"dir", "snp", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
+        return None
+    with open(
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
+    ) as labels_count:
+        num_labels = labels_count.readline().splitlines()
+        assert len(num_labels) == 1
+    if num_labels[0] == "0":
+        return None
+    return Rust(
+        "swh-graph-compress",
         "pthash-labels",
         "--num-labels",
-        "$(cat {out_dir}/{graph_name}.labels.count.txt)",
-        "<(zstdcat {out_dir}/{graph_name}.labels.csv.zst)",
-        "{out_dir}/{graph_name}.labels.pthash",
-    ],
-    CompressionStep.LABELS_ORDER: [
-        "{rust_executable_dir}/swh-graph-compress",
+        num_labels[0],
+        Command.zstdcat(f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst"),
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash",
+        conf=conf,
+        env=env,
+    )
+
+
+def _labels_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
+    if {"dir", "snp", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
+        return None
+    with open(
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
+    ) as labels_count:
+        num_labels = labels_count.readline().splitlines()
+        assert len(num_labels) == 1
+    if num_labels[0] == "0":
+        return None
+    return Rust(
+        "swh-graph-compress",
         "pthash-labels-order",
         "--num-labels",
-        "$(cat {out_dir}/{graph_name}.labels.count.txt)",
-        "<(zstdcat {out_dir}/{graph_name}.labels.csv.zst)",
-        "{out_dir}/{graph_name}.labels.pthash",
-        "{out_dir}/{graph_name}.labels.pthash.order",
-    ],
-    CompressionStep.FCL_LABELS: [
-        "{rust_executable_dir}/swh-graph-compress",
+        num_labels[0],
+        Command.zstdcat(f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst"),
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash.order",
+        conf=conf,
+        env=env,
+    )
+
+
+def _fcl_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
+    if {"dir", "snp", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
+        return None
+    with open(
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
+    ) as labels_count:
+        num_labels = labels_count.readline().splitlines()
+        assert len(num_labels) == 1
+    return Rust(
+        "swh-graph-compress",
         "fcl",
         "--num-lines",
-        "$(cat {out_dir}/{graph_name}.labels.count.txt)",
-        "<(zstdcat {out_dir}/{graph_name}.labels.csv.zst)",
-        "{out_dir}/{graph_name}.labels.fcl",
-    ],
-    CompressionStep.EDGE_LABELS: [
-        "{rust_executable_dir}/swh-graph-extract",
+        num_labels[0],
+        Command.zstdcat(f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst"),
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fcl",
+        conf=conf,
+        env=env,
+    )
+
+
+def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
+    if {"dir", "snp", "ori", "*"}.isdisjoint(
+        set(conf.get("object_types", "*").split(","))
+    ):
+        return None
+    with open(
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
+    ) as labels_count:
+        num_labels = labels_count.readline().splitlines()
+        assert len(num_labels) == 1
+    if num_labels[0] == "0":
+        return None
+    with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
+        num_nodes = nodes_count.readline().splitlines()
+        assert len(num_nodes) == 1
+    if num_nodes[0] == "0":
+        return None
+    return Rust(
+        "swh-graph-extract",
         "edge-labels",
         "--allowed-node-types",
-        "{object_types}",
+        conf.get("object_types", "*"),
         "--mph-algo",
         "pthash",
         "--function",
-        "{out_dir}/{graph_name}",
+        f"{conf['out_dir']}/{conf['graph_name']}",
         "--order",
-        "{out_dir}/{graph_name}.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
         "--label-name-mphf",
-        "{out_dir}/{graph_name}.labels.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash",
         "--label-name-order",
-        "{out_dir}/{graph_name}.labels.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash.order",
         "--num-nodes",
-        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
-        "{in_dir}",
-        "{out_dir}/{graph_name}",
-    ],
-    CompressionStep.EDGE_LABELS_TRANSPOSE: [
-        "{rust_executable_dir}/swh-graph-extract",
+        num_nodes[0],
+        f"{conf['in_dir']}",
+        f"{conf['out_dir']}/{conf['graph_name']}",
+        conf=conf,
+        env=env,
+    )
+
+
+def _edge_labels_transpose(
+    conf: Dict[str, Any], env: Dict[str, str]
+) -> Optional[Command]:
+    if {"dir", "snp", "ori", "*"}.isdisjoint(
+        set(conf.get("object_types", "*").split(","))
+    ):
+        return None
+    with open(
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
+    ) as labels_count:
+        num_labels = labels_count.readline().splitlines()
+        assert len(num_labels) == 1
+    if num_labels[0] == "0":
+        return None
+    with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
+        num_nodes = nodes_count.readline().splitlines()
+        assert len(num_nodes) == 1
+    if num_nodes[0] == "0":
+        return None
+    return Rust(
+        "swh-graph-extract",
         "edge-labels",
         "--allowed-node-types",
-        "{object_types}",
+        conf.get("object_types", "*"),
         "--mph-algo",
         "pthash",
         "--function",
-        "{out_dir}/{graph_name}",
+        f"{conf['out_dir']}/{conf['graph_name']}",
         "--order",
-        "{out_dir}/{graph_name}.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
         "--label-name-mphf",
-        "{out_dir}/{graph_name}.labels.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash",
         "--label-name-order",
-        "{out_dir}/{graph_name}.labels.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash.order",
         "--num-nodes",
-        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
+        num_nodes[0],
         "--transposed",
-        "{in_dir}",
-        "{out_dir}/{graph_name}-transposed",
-    ],
-    CompressionStep.EDGE_LABELS_EF: [
-        "{rust_executable_dir}/swh-graph-index",
+        f"{conf['in_dir']}",
+        f"{conf['out_dir']}/{conf['graph_name']}-transposed",
+        conf=conf,
+        env=env,
+    )
+
+
+def _edge_labels_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
+    if {"dir", "snp", "ori", "*"}.isdisjoint(
+        set(conf.get("object_types", "*").split(","))
+    ):
+        return None
+    with open(
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
+    ) as labels_count:
+        num_labels = labels_count.readline().splitlines()
+        assert len(num_labels) == 1
+    if num_labels[0] == "0":
+        return None
+    with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
+        num_nodes = nodes_count.readline().splitlines()
+        assert len(num_nodes) == 1
+    return Rust(
+        "swh-graph-index",
         "labels-ef",
-        "{out_dir}/{graph_name}-labelled",
-        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
-    ],
-    CompressionStep.EDGE_LABELS_TRANSPOSE_EF: [
-        "{rust_executable_dir}/swh-graph-index",
+        f"{conf['out_dir']}/{conf['graph_name']}-labelled",
+        num_nodes[0],
+        conf=conf,
+        env=env,
+    )
+
+
+def _edge_labels_transpose_ef(
+    conf: Dict[str, Any], env: Dict[str, str]
+) -> Optional[Command]:
+    if {"dir", "snp", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
+        return None
+    with open(
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
+    ) as labels_count:
+        num_labels = labels_count.readline().splitlines()
+        assert len(num_labels) == 1
+    if num_labels[0] == "0":
+        return None
+    with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
+        num_nodes = nodes_count.readline().splitlines()
+        assert len(num_nodes) == 1
+    return Rust(
+        "swh-graph-index",
         "labels-ef",
-        "{out_dir}/{graph_name}-transposed-labelled",
-        "$(cat {out_dir}/{graph_name}.nodes.count.txt)",
-    ],
-    CompressionStep.STATS: [
-        "{rust_executable_dir}/swh-graph-compress",
+        f"{conf['out_dir']}/{conf['graph_name']}-transposed-labelled",
+        num_nodes[0],
+        conf=conf,
+        env=env,
+    )
+
+
+def _stats(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Rust(
+        "swh-graph-compress",
         "stats",
         "--graph",
-        "{out_dir}/{graph_name}",
+        f"{conf['out_dir']}/{conf['graph_name']}",
         "--stats",
-        "{out_dir}/{graph_name}.stats",
-    ],
-    CompressionStep.E2E_TEST: [
-        sys.executable,
-        "-c",
-        "'import sys;\
-        from swh.graph.e2e_tests import run_e2e_test;\
-        run_e2e_test(\
-        graph_name=sys.argv[1],\
-        in_dir=sys.argv[2],\
-        out_dir=sys.argv[3],\
-        test_flavor=sys.argv[4],\
-        profile=sys.argv[5],\
-        )'",
-        "{graph_name}",
-        "{in_dir}",
-        "{out_dir}",
-        "{test_flavor}",
-        "{profile}",
-    ],
-    CompressionStep.CLEAN_TMP: [
-        "rm",
+        f"{conf['out_dir']}/{conf['graph_name']}.stats",
+        conf=conf,
+        env=env,
+    )
+
+
+def _e2e_test(conf: Dict[str, Any], env: Dict[str, str]) -> Callable[[], None]:
+    from swh.graph.e2e_tests import run_e2e_test
+
+    return lambda: run_e2e_test(
+        graph_name=conf["graph_name"],
+        in_dir=conf["in_dir"],
+        out_dir=conf["out_dir"],
+        test_flavor=conf.get("test_flavor", "full"),
+        profile=conf.get("profile", "release"),
+    )
+
+
+def _clean_tmp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    return Command.rm(
         "-rf",
-        "{out_dir}/{graph_name}-base.*",
-        "{out_dir}/{graph_name}-bfs-simplified.*",
-        "{out_dir}/{graph_name}-bfs.order",
-        "{out_dir}/{graph_name}-llp.order",
-        "{out_dir}/{graph_name}.nodes/",
-        "{out_dir}/{graph_name}-bfs.roots.txt",
-        "{out_dir}/{graph_name}.labels.csv.zst",
-        "{out_dir}/{graph_name}.persons.csv.zst",
-        "{tmp_dir}",
+        f"{conf['out_dir']}/{conf['graph_name']}-base.*",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs-simplified.*",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
+        f"{conf['out_dir']}/{conf['graph_name']}-llp.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs.roots.txt",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst",
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.csv.zst",
+        f"{conf['tmp_dir']}",
+    )
+
+
+COMP_CMD: Dict[
+    CompressionStep,
+    Union[
+        Callable[[dict, dict], Optional[Command]],
+        Callable[[dict, dict], Optional[AtomicFileSink]],
+        Callable[[dict, dict], Union[Command, AtomicFileSink]],
+        Callable[[dict, dict], Callable[[], None]],
     ],
+] = {
+    CompressionStep.EXTRACT_NODES: _extract_nodes,
+    CompressionStep.EXTRACT_LABELS: _extract_labels,
+    CompressionStep.NODE_STATS: _node_stats,
+    CompressionStep.EDGE_STATS: _edge_stats,
+    CompressionStep.LABEL_STATS: _label_stats,
+    CompressionStep.MPH: _mph,
+    CompressionStep.BV: _bv,
+    CompressionStep.BV_EF: _bv_ef,
+    CompressionStep.BFS_ROOTS: _bfs_roots,
+    CompressionStep.BFS: _bfs,
+    CompressionStep.PERMUTE_AND_SIMPLIFY_BFS: _permute_and_simplify_bfs,
+    CompressionStep.BFS_EF: _bfs_ef,
+    CompressionStep.BFS_DCF: _bfs_dcf,
+    CompressionStep.LLP: _llp,
+    CompressionStep.COMPOSE_ORDERS: _compose_orders,
+    CompressionStep.PERMUTE_LLP: _permute_llp,
+    CompressionStep.EF: _ef,
+    CompressionStep.TRANSPOSE: _transpose,
+    CompressionStep.TRANSPOSE_EF: _transpose_ef,
+    CompressionStep.MAPS: _maps,
+    CompressionStep.EXTRACT_PERSONS: _extract_persons,
+    CompressionStep.MPH_PERSONS: _mph_persons,
+    CompressionStep.EXTRACT_FULLNAMES: _extract_fullnames,
+    CompressionStep.FULLNAMES_EF: _fullnames_ef,
+    CompressionStep.PERSONS_STATS: _persons_stats,
+    CompressionStep.NODE_PROPERTIES: _node_properties,
+    CompressionStep.MPH_LABELS: _mph_labels,
+    CompressionStep.LABELS_ORDER: _labels_order,
+    CompressionStep.FCL_LABELS: _fcl_labels,
+    CompressionStep.EDGE_LABELS: _edge_labels,
+    CompressionStep.EDGE_LABELS_TRANSPOSE: _edge_labels_transpose,
+    CompressionStep.EDGE_LABELS_EF: _edge_labels_ef,
+    CompressionStep.EDGE_LABELS_TRANSPOSE_EF: _edge_labels_transpose_ef,
+    CompressionStep.STATS: _stats,
+    CompressionStep.E2E_TEST: _e2e_test,
+    CompressionStep.CLEAN_TMP: _clean_tmp,
 }
 
 
-def do_step(step, conf) -> "List[RunResult]":
-    from .shell import Command, CommandException
+def do_step(step, conf, env=None) -> "List[RunResult]":
+    if env is None:
+        env = os.environ.copy()
+        env["TMPDIR"] = conf["tmp_dir"]
+        env["TZ"] = "UTC"
 
     log_dir = Path(conf["out_dir"]) / "logs"
     log_dir.mkdir(exist_ok=True)
@@ -475,40 +826,50 @@ def do_step(step, conf) -> "List[RunResult]":
     step_start_time = datetime.now()
     step_logger.info("Starting compression step %s at %s", step, step_start_time)
 
-    cmd = " ".join(STEP_ARGV[step]).format(
-        **{k: shlex.quote(str(v)) for (k, v) in conf.items()}
-    )
-    cmd_env = os.environ.copy()
-    cmd_env["TMPDIR"] = conf["tmp_dir"]
-    cmd_env["TZ"] = "UTC"
-    cmd_env["RUST_MIN_STACK"] = "8388608"  # 8MiB; avoids stack overflows in LLP
-    command = Command.bash(
-        "-c",
-        cmd,
-        env=cmd_env,
-        encoding="utf8",
-    )._run(stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    step_logger.info("Running: %s", cmd)
+    command = COMP_CMD[step](conf, env)
 
-    with command.stdout() as stdout:
-        for line in stdout:
-            step_logger.info(line.rstrip())
-    try:
-        results = command.wait()
-    except CommandException as e:
-        msg = f"Compression step {step} returned non-zero exit code {e.returncode}"
-        step_logger.critical(msg)
-        raise CompressionSubprocessError(msg, log_path)
-    step_end_time = datetime.now()
-    step_duration = step_end_time - step_start_time
-    step_logger.info(
-        "Compression step %s finished at %s (in %s)",
-        step,
-        step_end_time,
-        step_duration,
-    )
-    step_logger.removeHandler(step_handler)
-    step_handler.close()
+    if command is None:
+        step_logger.info("Compression step %s skipped", step)
+        step_logger.removeHandler(step_handler)
+        step_handler.close()
+        return []
+
+    step_start_time = datetime.now()
+    step_logger.info("Starting compression step %s at %s", step, step_start_time)
+    step_logger.info("Running: %s", command.__str__())
+
+    if isinstance(command, (Command, AtomicFileSink)):
+        running_command = command._run(
+            stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        )
+        with running_command.stdout() as stdout:
+            for line in stdout:
+                step_logger.info(line.rstrip())
+        try:
+            results = running_command.wait()
+        except CommandException as e:
+            msg = f"Compression step {step} returned non-zero exit code {e.returncode}"
+            step_logger.critical(msg)
+            raise CompressionSubprocessError(msg, log_path)
+        step_end_time = datetime.now()
+        step_duration = step_end_time - step_start_time
+        step_logger.info(
+            "Compression step %s finished at %s (in %s)",
+            step,
+            step_end_time,
+            step_duration,
+        )
+        step_logger.removeHandler(step_handler)
+        step_handler.close()
+    else:
+        # This allows for calling Python functions directly
+        try:
+            results = command()
+        except Exception as exc:
+            msg = f"Compression step {step} failed with the following error: {exc}"
+            step_logger.critical(msg)
+            raise CompressionSubprocessError(msg, log_path)
+
     return results
 
 
