@@ -724,15 +724,18 @@ def _stats(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     )
 
 
-def _e2e_test(conf: Dict[str, Any], env: Dict[str, str]) -> Callable[[], None]:
+def _e2e_test(
+    conf: Dict[str, Any], env: Dict[str, str]
+) -> Callable[[logging.Logger], None]:
     from swh.graph.e2e_tests import run_e2e_test
 
-    return lambda: run_e2e_test(
+    return lambda logger: run_e2e_test(
         graph_name=conf["graph_name"],
         in_dir=conf["in_dir"],
         out_dir=conf["out_dir"],
         test_flavor=conf.get("test_flavor", "full"),
         profile=conf.get("profile", "release"),
+        logger=logger,
     )
 
 
@@ -757,7 +760,7 @@ COMP_CMD: Dict[
         Callable[[dict, dict], Optional[Command]],
         Callable[[dict, dict], Optional[AtomicFileSink]],
         Callable[[dict, dict], Union[Command, AtomicFileSink]],
-        Callable[[dict, dict], Callable[[], None]],
+        Callable[[dict, dict], Callable[[logging.Logger], None]],
     ],
 ] = {
     CompressionStep.EXTRACT_NODES: _extract_nodes,
@@ -864,7 +867,7 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
     else:
         # This allows for calling Python functions directly
         try:
-            results = command()
+            results = command(step_logger)
         except Exception as exc:
             msg = f"Compression step {step} failed with the following error: {exc}"
             step_logger.critical(msg)
