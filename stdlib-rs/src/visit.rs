@@ -41,7 +41,7 @@ where
 
 impl<G> Iterator for NodeVisit<'_, G>
 where
-    G: SwhLabeledForwardGraph,
+    G: SwhForwardGraph,
 {
     type Item = NodeId;
 
