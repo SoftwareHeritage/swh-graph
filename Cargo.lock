@@ -4347,7 +4347,9 @@ name = "swh-graph-stdlib"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "itertools 0.11.0",
  "log",
+ "rapidhash",
  "swh-graph",
 ]
 
