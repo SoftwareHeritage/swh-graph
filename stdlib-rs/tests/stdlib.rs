@@ -168,6 +168,20 @@ fn test_iter_nodes() -> Result<()> {
     let ori1 = props.node_id(swhid!(swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054))?;
     let ori2 = props.node_id(swhid!(swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165))?;
 
+    assert_eq!(iter_nodes(&graph, [ori1]).count(), 12);
+    assert_eq!(iter_nodes(&graph, [ori2]).count(), 21);
+
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::needless_borrows_for_generic_args)]
+fn test_iter_nodes_backward_compat() -> Result<()> {
+    let graph = data::build_test_graph_1()?;
+    let props = graph.properties();
+    let ori1 = props.node_id(swhid!(swh:1:ori:83404f995118bd25774f4ac14422a8f175e7a054))?;
+    let ori2 = props.node_id(swhid!(swh:1:ori:8f50d3f60eae370ddbf85c86219c55108a350165))?;
+
     assert_eq!(iter_nodes(&graph, &[ori1]).count(), 12);
     assert_eq!(iter_nodes(&graph, &[ori2]).count(), 21);
 

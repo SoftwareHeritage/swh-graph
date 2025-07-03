@@ -3,6 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::borrow::Borrow;
 use std::collections::VecDeque;
 
 use swh_graph::graph::*;
@@ -30,11 +31,11 @@ impl<'a, G> NodeVisit<'a, G>
 where
     G: SwhForwardGraph,
 {
-    fn new(graph: &'a G, nodes: &[NodeId]) -> Self {
+    fn new<I: IntoIterator<Item: Borrow<NodeId>>>(graph: &'a G, nodes: I) -> Self {
         NodeVisit {
             graph,
             visited: AdaptiveNodeSet::new(graph.num_nodes()),
-            queue: VecDeque::from_iter(nodes.iter().copied()),
+            queue: nodes.into_iter().map(|item| *item.borrow()).collect(),
         }
     }
 }
@@ -63,11 +64,40 @@ where
 /// Iterate on the nodes of the sub-graph rooted at `start`, in BFS order.
 ///
 /// `start` is usually a single node id, passed as `&[node]`, but can be a
-/// non-singleton slice of nodes, to avoid independently re-visiting shared
+/// non-singleton slice or iterator of nodes, to avoid independently re-visiting shared
 /// sub-graphs from multiple starting points.
 ///
 /// See [NodeVisit] documentation for performance considerations.
-pub fn iter_nodes<'a, G>(graph: &'a G, start: &[NodeId]) -> NodeVisit<'a, G>
+///
+/// # Examples
+///
+/// ```
+/// # use swh_graph::graph::SwhForwardGraph;
+/// # use swh_graph_stdlib::iter_nodes;
+/// #
+/// # fn f<G: SwhForwardGraph>(graph: &G) {
+/// let src = &[1, 2, 3];
+/// for node in iter_nodes(graph, src) {
+///     println!("Visiting: {}", node);
+/// }
+/// # }
+/// ```
+///
+/// ```
+/// # use swh_graph::graph::SwhForwardGraph;
+/// # use swh_graph_stdlib::iter_nodes;
+/// #
+/// # fn f<G: SwhForwardGraph>(graph: &G) {
+/// let src = 1..4;
+/// for node in iter_nodes(graph, src) {
+///     println!("Visiting: {}", node);
+/// }
+/// # }
+/// ```
+pub fn iter_nodes<'a, G, I: IntoIterator<Item: Borrow<NodeId>>>(
+    graph: &'a G,
+    start: I,
+) -> NodeVisit<'a, G>
 where
     G: SwhForwardGraph,
 {
