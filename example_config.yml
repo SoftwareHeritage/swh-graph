@@ -6,7 +6,7 @@
 # Configuration file to run a graph compression with end to end test
 # on the example dataset provided in this repository
 
-target: debug
+profile: debug
 graph:
   path: swh/graph/example_dataset/compressed/example
   compress:
