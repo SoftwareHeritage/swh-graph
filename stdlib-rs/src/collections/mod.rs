@@ -10,3 +10,6 @@ pub use node_set::*;
 
 mod paths;
 pub use paths::*;
+
+mod small_node_set;
+pub use small_node_set::*;

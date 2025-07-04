@@ -5,8 +5,8 @@
 
 use std::collections::HashSet;
 
+use crate::collections::NodeSet;
 use rapidhash::RapidBuildHasher;
-use swh_graph::collections::NodeSet;
 
 type NodeId = usize;
 

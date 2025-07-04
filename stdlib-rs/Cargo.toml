@@ -11,6 +11,7 @@ version = "0.1.0"
 [dependencies]
 anyhow.workspace = true
 log.workspace = true
+rapidhash = "1.4.0"
+sux = "0.7.2"
 swh-graph.workspace = true
 itertools.workspace = true
-rapidhash = "1.4.0"

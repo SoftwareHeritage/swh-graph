@@ -5,8 +5,9 @@
 
 use std::collections::VecDeque;
 
-use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::*;
+
+use crate::collections::{AdaptiveNodeSet, NodeSet};
 
 /// Stateful BFS (breadth-first search) visit of (a part of) the Software
 /// Heritage graph, returning deduplicated node identifiers.

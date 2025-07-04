@@ -4294,7 +4294,6 @@ dependencies = [
  "orc-rust",
  "pthash",
  "rand 0.8.5",
- "rapidhash",
  "rayon",
  "rdst",
  "serde",
@@ -4350,6 +4349,7 @@ dependencies = [
  "itertools 0.11.0",
  "log",
  "rapidhash",
+ "sux",
  "swh-graph",
 ]
 

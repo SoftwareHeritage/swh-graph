@@ -20,7 +20,6 @@ pub use swhtype::{ArcType, NodeConstraint, NodeType};
 
 pub mod algos;
 pub mod arc_iterators;
-pub mod collections;
 pub mod front_coded_list;
 pub mod graph;
 pub mod graph_builder;

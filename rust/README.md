@@ -31,11 +31,17 @@ The provided API is:
   * a message or date if the node is a revision or a release, or
   * a length if the node is a content
 
-`swh_graph` also provides an implementation of a handful of recursive traversal queries
-on top of these building blocks, as a [gRPC API](https://docs.softwareheritage.org/devel/swh-graph/grpc-api.html)
-
 See the [Tutorial](crate::_tutorial), or the [Crash Course](crate::_crash_course) if you
 are already familiar with the Java API.
+
+Additionally, we provide the following tools based on these building blocks:
+
+* A "standard library" of functionalities and collections, in [the swh-graph-stdlib crate](https://docs.rs/swh-graph-stdlib/)
+* An implementation of a handful of recursive traversal queries
+  as a [gRPC API](https://docs.softwareheritage.org/devel/swh-graph/grpc-api.html)
+* An in-memory [small graph builder for tests](crate::graph_builder::GraphBuilder)
+* Wrappers for [`SwhGraph`](crate::graph::SwhGraph) that filter or change the nodes
+  and arcs it returns.
 
 ## Building a distribution
 

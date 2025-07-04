@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use crate::labels::LabelNameId;
+use swh_graph::labels::LabelNameId;
 
 /// Value in the path_stack between two lists of path parts
 const PATH_SEPARATOR: LabelNameId = LabelNameId(u64::MAX);
@@ -16,8 +16,8 @@ const PATH_SEPARATOR: LabelNameId = LabelNameId(u64::MAX);
 /// Parts are in the reverse order of insertion, to avoid lazily popping without peeking.
 ///
 /// ```
-/// use swh_graph::collections::PathStack;
 /// use swh_graph::labels::LabelNameId;
+/// use swh_graph_stdlib::collections::PathStack;
 ///
 /// let path1 = [LabelNameId(0), LabelNameId(10)];
 /// let path2 = [LabelNameId(1)];
