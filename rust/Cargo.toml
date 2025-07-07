@@ -26,7 +26,7 @@ pthash = { version = "0.4.0", features = ["rayon"] }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
 rayon = { version = "1.9.0" }
 crossbeam = "0.8.4"
-sha1 = { version = "0.10.1", optional = true }
+sha1 = { version = "0.10.6" }
 itertools.workspace = true
 thread_local = "1.1.7"
 tempfile = "3.7.1"
@@ -80,7 +80,7 @@ default = ["macros"]
 arrow = ["dep:arrow", "dep:arrow-array"]
 
 # Reads dataset from ORC files and produces a compressed graph
-compression = ["sha1"]
+compression = []
 
 orc = ["ar_row", "ar_row_derive", "arrow", "orc-rust", "mimalloc"]
 

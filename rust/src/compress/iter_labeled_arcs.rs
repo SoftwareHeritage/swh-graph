@@ -22,7 +22,7 @@ use crate::compress::label_names::LabelNameHasher;
 use crate::labels::{
     Branch, DirEntry, EdgeLabel, Permission, UntypedEdgeLabel, Visit, VisitStatus,
 };
-use crate::NodeType;
+use crate::{NodeType, SWHID};
 
 pub fn iter_labeled_arcs<'a>(
     dataset_dir: &'a PathBuf,
@@ -146,13 +146,9 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
     }
 
     map_labeled_arcs(reader_builder, |ovs: OriginVisitStatus| {
-        use sha1::Digest;
-        let mut hasher = sha1::Sha1::new();
-        hasher.update(ovs.origin.as_bytes());
-
         ovs.snapshot.as_ref().map(|snapshot| {
             (
-                format!("swh:1:ori:{:x}", hasher.finalize(),),
+                SWHID::from_origin_url(ovs.origin).to_string(),
                 format!("swh:1:snp:{snapshot}"),
                 Visit::new(
                     match ovs.status.as_str() {

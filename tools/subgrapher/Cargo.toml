@@ -1,0 +1,17 @@
+[package]
+name = "swh-subgrapher"
+version.workspace = true
+edition = "2021"
+readme = "README.md"
+description = "script to help with Software Heritage Sub-graph generation. It retrieves a list of SWHIDs from input Origins"
+license = "GPL-3.0-or-later"
+keywords = ["software-heritage", "graph", "webgraph"]
+categories = ["compression", "science"]
+
+[dependencies]
+anyhow = { workspace = true }
+clap = "4.1.6"
+dsi-progress-logger = { workspace = true }
+env_logger = "0.11.5"
+log = "0.4.17"
+swh-graph = { workspace = true }

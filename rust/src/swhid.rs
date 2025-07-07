@@ -6,6 +6,7 @@
 use std::str::FromStr;
 
 use rdst::RadixKey;
+use sha1::{Digest, Sha1};
 use thiserror::Error;
 
 use crate::NodeType;
@@ -36,6 +37,19 @@ pub struct SWHID {
 impl SWHID {
     /// The size of the binary representation of a SWHID
     pub const BYTES_SIZE: usize = 22;
+
+    /// Loads the SWHID representation for a origin uri
+    /// akin to "swh:1:ori:{}"
+    pub fn from_origin_url(origin: String) -> SWHID {
+        let mut hasher = Sha1::new();
+        hasher.update(origin);
+
+        SWHID {
+            namespace_version: 1,
+            node_type: NodeType::Origin,
+            hash: hasher.finalize().into(),
+        }
+    }
 }
 
 impl core::fmt::Display for SWHID {

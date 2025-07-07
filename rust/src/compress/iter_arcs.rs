@@ -17,6 +17,7 @@ use rayon::prelude::*;
 use super::orc::{get_dataset_readers, iter_arrow};
 use super::TextSwhid;
 use crate::NodeType;
+use crate::SWHID;
 
 pub fn iter_arcs(
     dataset_dir: &PathBuf,
@@ -115,13 +116,9 @@ pub(super) fn iter_arcs_from_ovs<R: ChunkReader + Send>(
     }
 
     map_arcs(reader_builder, |ovs: OriginVisitStatus| {
-        use sha1::Digest;
-        let mut hasher = sha1::Sha1::new();
-        hasher.update(ovs.origin.as_bytes());
-
         ovs.snapshot.as_ref().map(|snapshot| {
             (
-                format!("swh:1:ori:{:x}", hasher.finalize(),),
+                SWHID::from_origin_url(ovs.origin).to_string(),
                 format!("swh:1:snp:{snapshot}"),
             )
         })
