@@ -922,7 +922,16 @@ class FullnamesEf(_CompressionStepTask):
 
 class NodeProperties(_CompressionStepTask):
     STEP = CompressionStep.NODE_PROPERTIES
-    INPUT_FILES = {".pthash.order", ".pthash", ".persons.pthash"}
+
+    @property
+    def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
+        if {"rel", "rev"}.isdisjoint(self.object_types):
+            return {".pthash.order", ".pthash"}
+        else:
+            return self._INPUT_FILES
+
+    _INPUT_FILES = {".pthash.order", ".pthash", ".persons.pthash"}
+
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
         ".property.content.is_skipped.bits",
@@ -946,11 +955,6 @@ class NodeProperties(_CompressionStepTask):
 
     priority = 10
     """semi-high priority because it takes a very long time to run"""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if {"rel", "rev"}.isdisjoint(self.object_types):
-            self.INPUT_FILES = {".pthash.order", ".pthash"}
 
     def output(self) -> List[luigi.LocalTarget]:
         """Returns a list of luigi targets matching :attr:`OUTPUT_FILES`."""
@@ -1194,7 +1198,11 @@ def _make_dot_diagram() -> str:
 
     filenames = set()
     for cls in _CompressionStepTask.__subclasses__():
-        filenames.update(cls.INPUT_FILES)
+        if isinstance(cls.INPUT_FILES, property):
+            input_files = cls._INPUT_FILES  # type: ignore[attr-defined]
+        else:
+            input_files = cls.INPUT_FILES
+        filenames.update(input_files)
         filenames.update(cls.OUTPUT_FILES)
 
     # filter out the many graph.properties.* files
@@ -1292,7 +1300,11 @@ def _make_dot_diagram() -> str:
     for cls in _CompressionStepTask.__subclasses__():
         if cls.EXPORT_AS_INPUT:
             s.write(f"orc_dataset -> {cls.STEP};\n")
-        for filename in cls.INPUT_FILES:
+        if isinstance(cls.INPUT_FILES, property):
+            input_files = cls._INPUT_FILES  # type: ignore[attr-defined]
+        else:
+            input_files = cls.INPUT_FILES
+        for filename in input_files:
             assert not is_node_properties_file(filename)
             s.write(f"{normalize_filename(filename)} -> {cls.STEP};\n")
         if cls.STEP == CompressionStep.NODE_PROPERTIES:
