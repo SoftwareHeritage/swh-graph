@@ -38,28 +38,26 @@ impl MaybeMaps for NoMaps {}
 /// Trait for backend storage of maps (either in-memory, or loaded from disk and memory-mapped)
 pub trait Maps {
     type MPHF: SwhidMphf;
-    type Memory: AsRef<[u8]>;
 
     fn mphf(&self) -> &Self::MPHF;
-    fn node2swhid(&self) -> &Node2SWHID<Self::Memory>;
-    fn node2type(&self) -> &Node2Type<UsizeMmap<Self::Memory>>;
+    fn node2swhid(&self, node: NodeId) -> Result<SWHID, OutOfBoundError>;
+    fn node2type(&self, node: NodeId) -> Result<NodeType, OutOfBoundError>;
 }
 
 impl<MPHF: LoadableSwhidMphf> Maps for MappedMaps<MPHF> {
     type MPHF = <MPHF as LoadableSwhidMphf>::WithMappedPermutation;
-    type Memory = Mmap;
 
     #[inline(always)]
     fn mphf(&self) -> &Self::MPHF {
         &self.mphf
     }
     #[inline(always)]
-    fn node2swhid(&self) -> &Node2SWHID<Mmap> {
-        &self.node2swhid
+    fn node2swhid(&self, node: NodeId) -> Result<SWHID, OutOfBoundError> {
+        self.node2swhid.get(node)
     }
     #[inline(always)]
-    fn node2type(&self) -> &Node2Type<UsizeMmap<Mmap>> {
-        &self.node2type
+    fn node2type(&self, node: NodeId) -> Result<NodeType, OutOfBoundError> {
+        self.node2type.get(node)
     }
 }
 
@@ -85,19 +83,18 @@ impl VecMaps {
 
 impl Maps for VecMaps {
     type MPHF = VecMphf;
-    type Memory = Vec<u8>;
 
     #[inline(always)]
     fn mphf(&self) -> &Self::MPHF {
         &self.mphf
     }
     #[inline(always)]
-    fn node2swhid(&self) -> &Node2SWHID<Self::Memory> {
-        &self.node2swhid
+    fn node2swhid(&self, node: NodeId) -> Result<SWHID, OutOfBoundError> {
+        self.node2swhid.get(node)
     }
     #[inline(always)]
-    fn node2type(&self) -> &Node2Type<UsizeMmap<Self::Memory>> {
-        &self.node2type
+    fn node2type(&self, node: NodeId) -> Result<NodeType, OutOfBoundError> {
+        self.node2type.get(node)
     }
 }
 
@@ -209,8 +206,7 @@ impl<
             .ok_or(UnknownSwhid(swhid))?;
         let actual_swhid = self
             .maps
-            .node2swhid()
-            .get(node_id)
+            .node2swhid(node_id)
             .map_err(|_| InternalError("node2swhid map is shorter than SWHID hash value"))?;
         if actual_swhid == swhid {
             Ok(node_id)
@@ -242,8 +238,7 @@ impl<
             })?;
         let actual_swhid = self
             .maps
-            .node2swhid()
-            .get(node_id)
+            .node2swhid(node_id)
             .map_err(|_| InternalError("node2swhid map is shorter than SWHID hash value"))?;
         let swhid = SWHID::try_from(swhid).map_err(InvalidSwhid)?;
         if actual_swhid == swhid {
@@ -267,7 +262,7 @@ impl<
     /// Returns the SWHID of a given node, or `None` if the node id does not exist
     #[inline]
     pub fn try_swhid(&self, node_id: NodeId) -> Result<SWHID, OutOfBoundError> {
-        self.maps.node2swhid().get(node_id)
+        self.maps.node2swhid(node_id)
     }
 
     /// Returns the type of a given node
@@ -284,6 +279,6 @@ impl<
     /// Returns the type of a given node, or `None` if the node id does not exist
     #[inline]
     pub fn try_node_type(&self, node_id: NodeId) -> Result<NodeType, OutOfBoundError> {
-        self.maps.node2type().get(node_id)
+        self.maps.node2type(node_id)
     }
 }
