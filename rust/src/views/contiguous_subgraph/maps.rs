@@ -18,6 +18,9 @@ impl<
     >
     ContiguousSubgraph<G, N, properties::NoMaps, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
+    /// Makes [`properties::Maps`] available on this [`ContiguousSubgraph`].
+    ///
+    /// Requires the underlying graph to implement [`properties::Maps`].
     pub fn with_maps(
         self,
     ) -> ContiguousSubgraph<

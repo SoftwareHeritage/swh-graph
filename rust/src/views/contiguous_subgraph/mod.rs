@@ -16,6 +16,7 @@ use crate::properties;
 use crate::{NodeType, OutOfBoundError, SWHID};
 
 mod iterators;
+mod label_names;
 mod maps;
 
 /// Alias for [`IndexedSeq`] + [`IndexedDict`] mapping from [`NodeId`] to [`NodeId`].
