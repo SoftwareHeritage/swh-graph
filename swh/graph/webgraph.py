@@ -465,7 +465,7 @@ def _fullnames_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command
         "fullnames-ef",
         "--num-persons",
         num_persons[0],
-        f"{conf['out_dir']}/{conf['graph_name']}.persons"
+        f"{conf['out_dir']}/{conf['graph_name']}.persons",
         f"{conf['out_dir']}/{conf['graph_name']}.persons.lengths",
         f"{conf['out_dir']}/{conf['graph_name']}.persons.ef",
     )
