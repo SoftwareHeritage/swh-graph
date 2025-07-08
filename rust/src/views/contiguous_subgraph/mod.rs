@@ -8,6 +8,9 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{bail, Result};
+use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
+use rayon::prelude::*;
+use sux::dict::elias_fano::{EfSeqDict, EliasFanoBuilder};
 use sux::prelude::{IndexedDict, IndexedSeq};
 
 use crate::graph::*;
@@ -56,8 +59,8 @@ impl<N: NodeMapBackend> NodeMap<N> {
     }
 }
 
-/// A view over [`SwhGraph`] and related traits, that filters out some node_map and arcs
-/// based on arbitrary closures.
+/// A view over [`SwhGraph`] and related traits, that filters out some nodes, and renumbers
+/// remaining nodes so that the set of valid nodes becomes a range.
 ///
 /// Due to limitations in the Rust type system, properties available on the underlying
 /// [`SwhGraph`] are not automatically available on [`ContiguousSubgraph`].
@@ -76,11 +79,40 @@ impl<N: NodeMapBackend> NodeMap<N> {
 ///
 /// ```
 /// use dsi_progress_logger::progress_logger;
-/// use sux::dict::elias_fano::{EliasFanoBuilder, EfSeqDict};
 /// use swh_graph::properties;
-/// use swh_graph::NodeType;
+/// use swh_graph::NodeConstraint;
 /// use swh_graph::graph::SwhGraphWithProperties;
-/// use swh_graph::views::{ContiguousSubgraph, NodeMap};
+/// use swh_graph::views::{ContiguousSubgraph, NodeMap, Subgraph, NodeMapBackend};
+///
+/// fn filesystem_subgraph<G>(graph: &G) -> ContiguousSubgraph<
+///         Subgraph<&'_ G, impl Fn(usize) -> bool + use<'_, G>, fn(usize, usize) -> bool>,
+///         impl NodeMapBackend,
+///         properties::NoMaps,
+///         properties::NoTimestamps,
+///         properties::NoPersons,
+///         properties::NoContents,
+///         properties::NoStrings,
+///         properties::NoLabelNames,
+///     >
+///     where G: SwhGraphWithProperties<Maps: properties::Maps> + Sync {
+///     let sparse_subgraph = Subgraph::with_node_constraint(graph, "cnt,ori".parse().unwrap());
+///     ContiguousSubgraph::new_from_noncontiguous_graph(sparse_subgraph)
+/// }
+/// ```
+///
+/// The graph created above is slightly suboptimal, as `ContiguousSubgraph` wraps
+/// a `Subgraph`, causing `Subgraph` to add needless overhead by checking that nodes
+/// exist, even though `ContiguousSubgraph` does it too.
+/// This should not be noticeable, but if it is an issue, you can skip the Subgraph
+/// by manually building a [`NodeMap`]:
+///
+/// ```
+/// use dsi_progress_logger::progress_logger;
+/// use sux::dict::elias_fano::{EfSeqDict, EliasFanoBuilder};
+/// use swh_graph::properties;
+/// use swh_graph::{NodeType};
+/// use swh_graph::graph::SwhGraphWithProperties;
+/// use swh_graph::views::{ContiguousSubgraph, NodeMap, Subgraph, NodeMapBackend};
 ///
 /// fn filesystem_subgraph<G>(graph: &G) -> ContiguousSubgraph<
 ///         &'_ G,
@@ -119,7 +151,7 @@ impl<N: NodeMapBackend> NodeMap<N> {
 ///     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
 ///
 ///     // assemble the subgraph
-///     ContiguousSubgraph::new(graph, node_map)
+///     ContiguousSubgraph::new_from_node_map(graph, node_map)
 /// }
 /// ```
 pub struct ContiguousSubgraph<
@@ -149,7 +181,8 @@ impl<G: SwhGraphWithProperties, N: NodeMapBackend>
         properties::NoLabelNames,
     >
 {
-    pub fn new(graph: G, node_map: NodeMap<N>) -> Self {
+    /// Creates a new [`ContiguousSubgraph`] by keeping only nodes in the [`NodeMap`]
+    pub fn new_from_node_map(graph: G, node_map: NodeMap<N>) -> Self {
         let path = graph.properties().path.clone();
         let num_nodes = node_map.0.len();
         let inner = Arc::new(ContiguousSubgraphInner {
@@ -170,6 +203,52 @@ impl<G: SwhGraphWithProperties, N: NodeMapBackend>
             },
             inner,
         }
+    }
+}
+
+impl<G: SwhGraphWithProperties>
+    ContiguousSubgraph<
+        G,
+        EfSeqDict,
+        properties::NoMaps,
+        properties::NoTimestamps,
+        properties::NoPersons,
+        properties::NoContents,
+        properties::NoStrings,
+        properties::NoLabelNames,
+    >
+{
+    /// Creates a new [`ContiguousSubgraph`] from an existing graph with "holes".
+    pub fn new_from_noncontiguous_graph(graph: G) -> Self
+    where
+        G: Sync,
+    {
+        // compute exact number of nodes in the subgraph, which is required
+        // by EliasFanoBuilder
+        let actual_num_nodes = graph.actual_num_nodes().unwrap_or_else(|_| {
+            let mut pl = concurrent_progress_logger!(
+                item_name = "node",
+                expected_updates = Some(graph.num_nodes()),
+            );
+            pl.start("Computing number of nodes");
+            let actual_num_nodes = graph
+                .par_iter_nodes(pl.clone())
+                .filter(|&node| graph.has_node(node))
+                .count();
+            pl.done();
+            actual_num_nodes
+        });
+
+        // compute set of nodes in the subgraph
+        let mut nodes_efb = EliasFanoBuilder::new(actual_num_nodes, graph.num_nodes());
+        for node in 0..graph.num_nodes() {
+            if graph.has_node(node) {
+                nodes_efb.push(node);
+            }
+        }
+        let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
+
+        Self::new_from_node_map(graph, node_map)
     }
 }
 

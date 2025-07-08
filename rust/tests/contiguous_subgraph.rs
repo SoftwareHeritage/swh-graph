@@ -11,7 +11,7 @@ use sux::prelude::EliasFanoBuilder;
 use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
 use swh_graph::labels::{Branch, DirEntry, EdgeLabel, Permission};
-use swh_graph::views::{ContiguousSubgraph, NodeMap};
+use swh_graph::views::{ContiguousSubgraph, NodeMap, Subgraph};
 use swh_graph::{swhid, NodeType};
 
 fn build_graph() -> Result<BuiltGraph> {
@@ -62,8 +62,54 @@ fn build_graph() -> Result<BuiltGraph> {
 }
 
 #[test]
-fn test_contiguous_full_graph() -> Result<()> {
+fn test_contiguous_full_graph_direct() -> Result<()> {
     let graph = build_graph()?;
+    let full_graph = ContiguousSubgraph::new_from_noncontiguous_graph(&graph)
+        .with_maps()
+        .with_contents()
+        .with_timestamps()
+        .with_persons()
+        .with_strings()
+        .with_label_names();
+    test_contiguous_full_graph(&graph, &full_graph)
+}
+
+#[test]
+fn test_contiguous_full_graph_from_subgraph() -> Result<()> {
+    let graph = build_graph()?;
+    let full_graph =
+        ContiguousSubgraph::new_from_noncontiguous_graph(Subgraph::with_node_constraint(
+            &graph,
+            "*".parse().expect("Could not parse node constraint"),
+        ))
+        .with_maps()
+        .with_contents()
+        .with_timestamps()
+        .with_persons()
+        .with_strings()
+        .with_label_names();
+    test_contiguous_full_graph(&graph, &full_graph)
+}
+
+#[test]
+fn test_contiguous_full_graph_from_node_map() -> Result<()> {
+    let graph = build_graph()?;
+    let mut nodes_efb = EliasFanoBuilder::new(graph.num_nodes(), graph.num_nodes());
+    for node in 0..graph.num_nodes() {
+        nodes_efb.push(node);
+    }
+    let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
+    let full_graph = ContiguousSubgraph::new_from_node_map(&graph, node_map)
+        .with_maps()
+        .with_contents()
+        .with_timestamps()
+        .with_persons()
+        .with_strings()
+        .with_label_names();
+    test_contiguous_full_graph(&graph, &full_graph)
+}
+
+fn test_contiguous_full_graph(graph: &BuiltGraph, full_graph: &impl SwhFullGraph) -> Result<()> {
     let props = graph.properties();
 
     let ori_node = props.node_id(swhid!(swh:1:ori:0000000000000000000000000000000000000001))?;
@@ -74,28 +120,23 @@ fn test_contiguous_full_graph() -> Result<()> {
     let cnt_node1 = props.node_id(swhid!(swh:1:cnt:0000000000000000000000000000000000000001))?;
     let cnt_node2 = props.node_id(swhid!(swh:1:cnt:0000000000000000000000000000000000000002))?;
 
-    let mut nodes_efb = EliasFanoBuilder::new(graph.num_nodes(), graph.num_nodes());
-    for node in 0..graph.num_nodes() {
-        nodes_efb.push(node);
-    }
-    let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
-    let full_graph = ContiguousSubgraph::new(&graph, node_map)
-        .with_maps()
-        .with_contents()
-        .with_timestamps()
-        .with_persons()
-        .with_strings();
     for node in 0..graph.num_nodes() {
         assert!(full_graph.has_node(node));
 
         // iterators
         assert_eq!(
-            full_graph.successors(node).collect::<Vec<_>>(),
-            full_graph.successors(node).collect::<Vec<_>>()
+            full_graph.successors(node).into_iter().collect::<Vec<_>>(),
+            full_graph.successors(node).into_iter().collect::<Vec<_>>()
         );
         assert_eq!(
-            full_graph.predecessors(node).collect::<Vec<_>>(),
-            full_graph.predecessors(node).collect::<Vec<_>>()
+            full_graph
+                .predecessors(node)
+                .into_iter()
+                .collect::<Vec<_>>(),
+            full_graph
+                .predecessors(node)
+                .into_iter()
+                .collect::<Vec<_>>()
         );
         assert_eq!(
             full_graph
@@ -180,7 +221,25 @@ fn test_contiguous_full_graph() -> Result<()> {
 }
 
 #[test]
-fn test_contiguous_fs_graph() -> Result<()> {
+fn test_contiguous_fs_graph_from_subgraph() -> Result<()> {
+    let graph = build_graph()?;
+    let fs_graph =
+        ContiguousSubgraph::new_from_noncontiguous_graph(Subgraph::with_node_constraint(
+            &graph,
+            "cnt,dir".parse().expect("Could not parse node constraint"),
+        ))
+        .with_maps()
+        .with_contents()
+        .with_timestamps()
+        .with_persons()
+        .with_strings()
+        .with_label_names();
+
+    test_contiguous_fs_graph(&fs_graph)
+}
+
+#[test]
+fn test_contiguous_fs_graph_from_node_map() -> Result<()> {
     let graph = build_graph()?;
     let mut nodes_efb = EliasFanoBuilder::new(3, graph.num_nodes());
     for node in 0..graph.num_nodes() {
@@ -190,13 +249,18 @@ fn test_contiguous_fs_graph() -> Result<()> {
         }
     }
     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
-    let fs_graph = ContiguousSubgraph::new(&graph, node_map)
+    let fs_graph = ContiguousSubgraph::new_from_node_map(&graph, node_map)
         .with_maps()
         .with_contents()
         .with_timestamps()
         .with_persons()
         .with_strings()
         .with_label_names();
+
+    test_contiguous_fs_graph(&fs_graph)
+}
+
+fn test_contiguous_fs_graph(fs_graph: &impl SwhFullGraph) -> Result<()> {
     assert_eq!(
         (0..3)
             .map(|node| fs_graph.properties().swhid(node))
@@ -240,21 +304,30 @@ fn test_contiguous_fs_graph() -> Result<()> {
     assert!(!fs_graph.has_node(3));
 
     // iterators
-    assert_eq!(fs_graph.successors(0).collect::<Vec<_>>(), vec![1, 2]);
     assert_eq!(
-        fs_graph.successors(1).collect::<Vec<_>>(),
+        fs_graph.successors(0).into_iter().collect::<Vec<_>>(),
+        vec![1, 2]
+    );
+    assert_eq!(
+        fs_graph.successors(1).into_iter().collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
     assert_eq!(
-        fs_graph.successors(2).collect::<Vec<_>>(),
+        fs_graph.successors(2).into_iter().collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
     assert_eq!(
-        fs_graph.predecessors(0).collect::<Vec<_>>(),
+        fs_graph.predecessors(0).into_iter().collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
-    assert_eq!(fs_graph.predecessors(1).collect::<Vec<_>>(), vec![0]);
-    assert_eq!(fs_graph.predecessors(2).collect::<Vec<_>>(), vec![0]);
+    assert_eq!(
+        fs_graph.predecessors(1).into_iter().collect::<Vec<_>>(),
+        vec![0]
+    );
+    assert_eq!(
+        fs_graph.predecessors(2).into_iter().collect::<Vec<_>>(),
+        vec![0]
+    );
     let filename1 = fs_graph
         .properties()
         .label_name_id(b"file1")
@@ -405,7 +478,27 @@ fn test_contiguous_fs_graph() -> Result<()> {
 }
 
 #[test]
-fn test_contiguous_history_graph() -> Result<()> {
+fn test_contiguous_history_graph_from_subgraph() -> Result<()> {
+    let graph = build_graph()?;
+    let history_graph =
+        ContiguousSubgraph::new_from_noncontiguous_graph(Subgraph::with_node_constraint(
+            &graph,
+            "rev,rel,snp"
+                .parse()
+                .expect("Could not parse node constraint"),
+        ))
+        .with_maps()
+        .with_contents()
+        .with_timestamps()
+        .with_persons()
+        .with_strings()
+        .with_label_names();
+
+    test_contiguous_history_graph(&graph, &history_graph)
+}
+
+#[test]
+fn test_contiguous_history_graph_from_node_map() -> Result<()> {
     let graph = build_graph()?;
     let mut nodes_efb = EliasFanoBuilder::new(3, graph.num_nodes());
     for node in 0..graph.num_nodes() {
@@ -415,7 +508,7 @@ fn test_contiguous_history_graph() -> Result<()> {
         }
     }
     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
-    let history_graph = ContiguousSubgraph::new(&graph, node_map)
+    let history_graph = ContiguousSubgraph::new_from_node_map(&graph, node_map)
         .with_maps()
         .with_contents()
         .with_timestamps()
@@ -423,6 +516,13 @@ fn test_contiguous_history_graph() -> Result<()> {
         .with_strings()
         .with_label_names();
 
+    test_contiguous_history_graph(&graph, &history_graph)
+}
+
+fn test_contiguous_history_graph(
+    graph: &BuiltGraph,
+    history_graph: &impl SwhFullGraph,
+) -> Result<()> {
     assert_eq!(
         (0..3)
             .map(|node| history_graph.properties().swhid(node))
@@ -466,10 +566,16 @@ fn test_contiguous_history_graph() -> Result<()> {
     assert!(!history_graph.has_node(3));
 
     // iterators
-    assert_eq!(history_graph.successors(0).collect::<Vec<_>>(), vec![1]);
-    assert_eq!(history_graph.successors(1).collect::<Vec<_>>(), vec![2]);
     assert_eq!(
-        history_graph.successors(2).collect::<Vec<_>>(),
+        history_graph.successors(0).into_iter().collect::<Vec<_>>(),
+        vec![1]
+    );
+    assert_eq!(
+        history_graph.successors(1).into_iter().collect::<Vec<_>>(),
+        vec![2]
+    );
+    assert_eq!(
+        history_graph.successors(2).into_iter().collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
     let branch_name_id = history_graph
