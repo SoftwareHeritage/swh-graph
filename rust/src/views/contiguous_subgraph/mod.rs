@@ -15,6 +15,7 @@ use crate::mph::SwhidMphf;
 use crate::properties;
 use crate::{NodeType, OutOfBoundError, SWHID};
 
+mod contents;
 mod iterators;
 mod label_names;
 mod maps;

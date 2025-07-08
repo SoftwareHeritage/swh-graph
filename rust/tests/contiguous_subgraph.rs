@@ -43,9 +43,13 @@ fn build_graph() -> Result<BuiltGraph> {
         .done();
     let cnt01 = builder
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000001))?
+        .content_length(1001)
+        .is_skipped_content(false)
         .done();
     let cnt02 = builder
         .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000002))?
+        .content_length(1002)
+        .is_skipped_content(true)
         .done();
     builder.arc(ori01, snp20);
     builder.arc(snp20, rev09);
@@ -76,6 +80,7 @@ fn test_contiguous_full_graph() -> Result<()> {
     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
     let full_graph = ContiguousSubgraph::new(&graph, node_map)
         .with_maps()
+        .with_contents()
         .with_timestamps()
         .with_persons()
         .with_strings();
@@ -113,6 +118,14 @@ fn test_contiguous_full_graph() -> Result<()> {
             full_graph.properties().tag_name(node),
             graph.properties().tag_name(node)
         );
+        assert_eq!(
+            full_graph.properties().is_skipped_content(node),
+            graph.properties().is_skipped_content(node)
+        );
+        assert_eq!(
+            full_graph.properties().content_length(node),
+            graph.properties().content_length(node)
+        );
         let swhid = graph.properties().swhid(node);
         assert_eq!(full_graph.properties().swhid(node), swhid);
         assert_eq!(full_graph.properties().node_id(swhid), Ok(node));
@@ -138,6 +151,7 @@ fn test_contiguous_fs_graph() -> Result<()> {
     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
     let fs_graph = ContiguousSubgraph::new(&graph, node_map)
         .with_maps()
+        .with_contents()
         .with_timestamps()
         .with_persons()
         .with_strings();
@@ -195,6 +209,20 @@ fn test_contiguous_fs_graph() -> Result<()> {
     assert!(fs_graph.has_arc(0, 1));
     assert!(fs_graph.has_arc(0, 2));
     assert!(!fs_graph.has_arc(1, 2));
+
+    // contents
+    assert_eq!(
+        (0..3)
+            .map(|node| fs_graph.properties().is_skipped_content(node))
+            .collect::<Vec<_>>(),
+        vec![false, false, true]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|node| fs_graph.properties().content_length(node))
+            .collect::<Vec<_>>(),
+        vec![None, Some(1001), Some(1002)]
+    );
 
     // persons
     assert_eq!(
@@ -266,6 +294,7 @@ fn test_contiguous_history_graph() -> Result<()> {
     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
     let history_graph = ContiguousSubgraph::new(&graph, node_map)
         .with_maps()
+        .with_contents()
         .with_timestamps()
         .with_persons()
         .with_strings();
@@ -321,6 +350,20 @@ fn test_contiguous_history_graph() -> Result<()> {
     assert!(history_graph.has_arc(0, 1));
     assert!(history_graph.has_arc(1, 2));
     assert!(!history_graph.has_arc(0, 2));
+
+    // contents
+    assert_eq!(
+        (0..3)
+            .map(|node| history_graph.properties().is_skipped_content(node))
+            .collect::<Vec<_>>(),
+        vec![false, false, false]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|node| history_graph.properties().content_length(node))
+            .collect::<Vec<_>>(),
+        vec![None, None, None]
+    );
 
     // persons
     assert_eq!(
