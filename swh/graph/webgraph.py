@@ -440,7 +440,7 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
         "--person-function",
         f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
         f"{conf['in_dir']}",
-        f"{conf['out_dir']}/{conf['graph_name']}.persons"
+        f"{conf['out_dir']}/{conf['graph_name']}.persons",
         f"{conf['out_dir']}/{conf['graph_name']}.persons.lengths",
     )
 
