@@ -204,6 +204,18 @@ impl<G: SwhGraphWithProperties, N: NodeMapBackend>
             inner,
         }
     }
+
+    /// Returns the graph this graph is a subgraph of
+    ///
+    /// Use [`Self::node_map`] to get the mapping between both sets of node ids
+    pub fn underlying_graph(&self) -> &G {
+        &self.inner.underlying_graph
+    }
+
+    /// The structure used to match the underlying graph's node ids with this graph's node ids
+    pub fn node_map(&self) -> &NodeMap<N> {
+        &self.inner.node_map
+    }
 }
 
 impl<G: SwhGraphWithProperties>
