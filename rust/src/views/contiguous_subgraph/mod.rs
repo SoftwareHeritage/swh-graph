@@ -58,6 +58,70 @@ impl<N: NodeMapBackend> NodeMap<N> {
 
 /// A view over [`SwhGraph`] and related traits, that filters out some node_map and arcs
 /// based on arbitrary closures.
+///
+/// Due to limitations in the Rust type system, properties available on the underlying
+/// [`SwhGraph`] are not automatically available on [`ContiguousSubgraph`].
+/// They need to be explicitly enabled in a builder-like pattern on `ContiguousSubgraph`
+/// using these methods:
+/// * [`with_maps`][`ContiguousSubgraph::with_maps`],
+/// * [`with_timestamps`][`ContiguousSubgraph::with_timestamps`],
+/// * [`with_persons`][`ContiguousSubgraph::with_persons`],
+/// * [`with_contents`][`ContiguousSubgraph::with_contents`],
+/// * [`with_strings`][`ContiguousSubgraph::with_strings`],
+/// * [`with_label_names`][`ContiguousSubgraph::with_label_names`],
+///
+/// # Examples
+///
+/// Build a `ContiguousSubgraph` made of only content and directory nodes:
+///
+/// ```
+/// use dsi_progress_logger::progress_logger;
+/// use sux::dict::elias_fano::{EliasFanoBuilder, EfSeqDict};
+/// use swh_graph::properties;
+/// use swh_graph::NodeType;
+/// use swh_graph::graph::SwhGraphWithProperties;
+/// use swh_graph::views::{ContiguousSubgraph, NodeMap};
+///
+/// fn filesystem_subgraph<G>(graph: &G) -> ContiguousSubgraph<
+///         &'_ G,
+///         EfSeqDict,
+///         properties::NoMaps,
+///         properties::NoTimestamps,
+///         properties::NoPersons,
+///         properties::NoContents,
+///         properties::NoStrings,
+///         properties::NoLabelNames,
+///     >
+///     where G: SwhGraphWithProperties<Maps: properties::Maps> {
+///
+///     // compute exact number of nodes in the subgraph, which is required
+///     // by EliasFanoBuilder
+///     let pl = progress_logger!(
+///         item_name = "node",
+///         expected_updates = Some(graph.num_nodes()),
+///     );
+///     let num_nodes = graph
+///         .iter_nodes(pl)
+///         .filter(|&node| match graph.properties().node_type(node) {
+///             NodeType::Content | NodeType::Directory => true,
+///             _ => false,
+///         })
+///         .count();
+///
+///     // compute set of nodes in the subgraph
+///     let mut nodes_efb = EliasFanoBuilder::new(num_nodes, graph.num_nodes());
+///     for node in 0..graph.num_nodes() {
+///         match graph.properties().node_type(node) {
+///             NodeType::Content | NodeType::Directory => nodes_efb.push(node),
+///             _ => (),
+///         }
+///     }
+///     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
+///
+///     // assemble the subgraph
+///     ContiguousSubgraph::new(graph, node_map)
+/// }
+/// ```
 pub struct ContiguousSubgraph<
     G: SwhGraph,
     N: NodeMapBackend,
