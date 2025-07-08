@@ -15,16 +15,16 @@ macro_rules! make_filtered_arcs_iterator {
         pub struct $name<
             'a,
             $inner: Iterator<Item = NodeId> + 'a,
-            N: NodeMapBackend
+            N: ContractionBackend
         > {
             inner: $inner,
-            node_map: &'a NodeMap<N>,
+            contraction: &'a Contraction<N>,
         }
 
         impl<
             'a,
             $inner: Iterator<Item = NodeId> + 'a,
-            N: NodeMapBackend,
+            N: ContractionBackend,
 
         > Iterator for $name<'a, $inner, N> {
             type Item = $inner::Item;
@@ -39,7 +39,7 @@ make_filtered_arcs_iterator! {
     Successors,
     fn next(&mut self) -> Option<Self::Item> {
         for underlying_successor in self.inner.by_ref() {
-            if let Some(self_successor) = self.node_map.node_id_from_underlying(underlying_successor) {
+            if let Some(self_successor) = self.contraction.node_id_from_underlying(underlying_successor) {
                 return Some(self_successor)
             }
         }
@@ -53,17 +53,17 @@ macro_rules! make_filtered_labeled_arcs_iterator {
             'a,
             Labels,
             $inner: Iterator<Item = (NodeId, Labels)> + 'a,
-            N: NodeMapBackend
+            N: ContractionBackend
         > {
             inner: $inner,
-            node_map: &'a NodeMap<N>,
+            contraction: &'a Contraction<N>,
         }
 
         impl<
             'a,
             Labels,
             $inner: Iterator<Item = (NodeId, Labels)> + 'a,
-            N: NodeMapBackend
+            N: ContractionBackend
         > Iterator for $name<'a, Labels, $inner, N> {
             type Item = $inner::Item;
 
@@ -74,7 +74,7 @@ macro_rules! make_filtered_labeled_arcs_iterator {
             'a,
             Labels: IntoIterator,
             $inner: Iterator<Item = (NodeId, Labels)> + 'a,
-            N: NodeMapBackend
+            N: ContractionBackend
         > IntoFlattenedLabeledArcsIterator<<Labels as IntoIterator>::Item> for $name<'a, Labels, $inner, N> {
             type Flattened = FlattenedSuccessorsIterator<Self>;
 
@@ -90,7 +90,7 @@ make_filtered_labeled_arcs_iterator! {
     LabeledSuccessors,
     fn next(&mut self) -> Option<Self::Item> {
         for (underlying_successor, label) in self.inner.by_ref() {
-            if let Some(self_successor) = self.node_map.node_id_from_underlying(underlying_successor) {
+            if let Some(self_successor) = self.contraction.node_id_from_underlying(underlying_successor) {
                 return Some((self_successor, label))
             }
         }
@@ -105,7 +105,7 @@ type TranslatedLabeledPredecessors<'a, Labels, G, N> =
 
 impl<
         G: SwhForwardGraph,
-        N: NodeMapBackend,
+        N: ContractionBackend,
         MAPS: properties::MaybeMaps,
         TIMESTAMPS: properties::MaybeTimestamps,
         PERSONS: properties::MaybePersons,
@@ -129,9 +129,9 @@ impl<
             inner: self
                 .inner
                 .underlying_graph
-                .successors(self.inner.node_map.underlying_node_id(node_id))
+                .successors(self.inner.contraction.underlying_node_id(node_id))
                 .into_iter(),
-            node_map: &self.inner.node_map,
+            contraction: &self.inner.contraction,
         }
     }
     fn outdegree(&self, node_id: NodeId) -> usize {
@@ -141,7 +141,7 @@ impl<
 
 impl<
         G: SwhBackwardGraph,
-        N: NodeMapBackend,
+        N: ContractionBackend,
         MAPS: properties::MaybeMaps,
         TIMESTAMPS: properties::MaybeTimestamps,
         PERSONS: properties::MaybePersons,
@@ -165,9 +165,9 @@ impl<
             inner: self
                 .inner
                 .underlying_graph
-                .predecessors(self.inner.node_map.underlying_node_id(node_id))
+                .predecessors(self.inner.contraction.underlying_node_id(node_id))
                 .into_iter(),
-            node_map: &self.inner.node_map,
+            contraction: &self.inner.contraction,
         }
     }
     fn indegree(&self, node_id: NodeId) -> usize {
@@ -177,7 +177,7 @@ impl<
 
 impl<
         G: SwhLabeledForwardGraph,
-        N: NodeMapBackend,
+        N: ContractionBackend,
         MAPS: properties::MaybeMaps,
         TIMESTAMPS: properties::MaybeTimestamps,
         PERSONS: properties::MaybePersons,
@@ -206,16 +206,16 @@ impl<
             inner: self
                 .inner
                 .underlying_graph
-                .untyped_labeled_successors(self.inner.node_map.underlying_node_id(node_id))
+                .untyped_labeled_successors(self.inner.contraction.underlying_node_id(node_id))
                 .into_iter(),
-            node_map: &self.inner.node_map,
+            contraction: &self.inner.contraction,
         }
     }
 }
 
 impl<
         G: SwhLabeledBackwardGraph,
-        N: NodeMapBackend,
+        N: ContractionBackend,
         MAPS: properties::MaybeMaps,
         TIMESTAMPS: properties::MaybeTimestamps,
         PERSONS: properties::MaybePersons,
@@ -244,9 +244,9 @@ impl<
             inner: self
                 .inner
                 .underlying_graph
-                .untyped_labeled_predecessors(self.inner.node_map.underlying_node_id(node_id))
+                .untyped_labeled_predecessors(self.inner.contraction.underlying_node_id(node_id))
                 .into_iter(),
-            node_map: &self.inner.node_map,
+            contraction: &self.inner.contraction,
         }
     }
 }

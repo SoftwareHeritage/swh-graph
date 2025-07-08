@@ -9,7 +9,7 @@ use super::*;
 
 impl<
         G: SwhGraphWithProperties<Maps: properties::Maps>,
-        N: NodeMapBackend,
+        N: ContractionBackend,
         TIMESTAMPS: properties::MaybeTimestamps,
         PERSONS: properties::MaybePersons,
         CONTENTS: properties::MaybeContents,
@@ -74,13 +74,13 @@ impl<
 /// View for [`MaybeMaps`] that renumbers nodes, as part of [`ContiguousSubgraph`
 pub struct ContiguousSubgraphMaps<
     G: SwhGraphWithProperties<Maps: properties::Maps>,
-    N: NodeMapBackend,
+    N: ContractionBackend,
 > {
     graph: Arc<ContiguousSubgraphInner<G, N>>,
     mphf: ContiguousSubgraphMphf<G, N>,
 }
 
-impl<G: SwhGraphWithProperties<Maps: properties::Maps>, N: NodeMapBackend> properties::Maps
+impl<G: SwhGraphWithProperties<Maps: properties::Maps>, N: ContractionBackend> properties::Maps
     for ContiguousSubgraphMaps<G, N>
 {
     type MPHF = ContiguousSubgraphMphf<G, N>;
@@ -95,7 +95,7 @@ impl<G: SwhGraphWithProperties<Maps: properties::Maps>, N: NodeMapBackend> prope
             .underlying_graph
             .properties()
             .maps
-            .node2swhid(self.graph.node_map.underlying_node_id(node))
+            .node2swhid(self.graph.contraction.underlying_node_id(node))
     }
     #[inline(always)]
     fn node2type(&self, node: NodeId) -> Result<NodeType, OutOfBoundError> {
@@ -103,19 +103,19 @@ impl<G: SwhGraphWithProperties<Maps: properties::Maps>, N: NodeMapBackend> prope
             .underlying_graph
             .properties()
             .maps
-            .node2type(self.graph.node_map.underlying_node_id(node))
+            .node2type(self.graph.contraction.underlying_node_id(node))
     }
 }
 
 /// View for [`SwhidMphf`] that renumbers nodes, as part of [`ContiguousSubgraph`]
 pub struct ContiguousSubgraphMphf<
     G: SwhGraphWithProperties<Maps: properties::Maps>,
-    N: NodeMapBackend,
+    N: ContractionBackend,
 > {
     graph: Arc<ContiguousSubgraphInner<G, N>>,
 }
 
-impl<G: SwhGraphWithProperties<Maps: properties::Maps>, N: NodeMapBackend> SwhidMphf
+impl<G: SwhGraphWithProperties<Maps: properties::Maps>, N: ContractionBackend> SwhidMphf
     for ContiguousSubgraphMphf<G, N>
 {
     #[inline(always)]
@@ -129,7 +129,9 @@ impl<G: SwhGraphWithProperties<Maps: properties::Maps>, N: NodeMapBackend> Swhid
             .mphf()
             .hash_array(swhid)
             .and_then(|underlying_node| {
-                self.graph.node_map.node_id_from_underlying(underlying_node)
+                self.graph
+                    .contraction
+                    .node_id_from_underlying(underlying_node)
             })
     }
 
@@ -145,7 +147,9 @@ impl<G: SwhGraphWithProperties<Maps: properties::Maps>, N: NodeMapBackend> Swhid
             .mphf()
             .hash_str(swhid)
             .and_then(|underlying_node| {
-                self.graph.node_map.node_id_from_underlying(underlying_node)
+                self.graph
+                    .contraction
+                    .node_id_from_underlying(underlying_node)
             })
     }
 
@@ -161,7 +165,9 @@ impl<G: SwhGraphWithProperties<Maps: properties::Maps>, N: NodeMapBackend> Swhid
             .mphf()
             .hash_str_array(swhid)
             .and_then(|underlying_node| {
-                self.graph.node_map.node_id_from_underlying(underlying_node)
+                self.graph
+                    .contraction
+                    .node_id_from_underlying(underlying_node)
             })
     }
 
@@ -177,7 +183,9 @@ impl<G: SwhGraphWithProperties<Maps: properties::Maps>, N: NodeMapBackend> Swhid
             .mphf()
             .hash_swhid(swhid)
             .and_then(|underlying_node| {
-                self.graph.node_map.node_id_from_underlying(underlying_node)
+                self.graph
+                    .contraction
+                    .node_id_from_underlying(underlying_node)
             })
     }
 }
