@@ -429,7 +429,11 @@ class _CompressionStepTask(luigi.Task):
                 "-labelled.properties",
             )
         ):
+            # These files are only generated for graphs that have labels
             return not {"dir", "snp", "ori"}.isdisjoint(set(self.object_types))
+        elif filename.endswith((".persons", ".persons.lengths")):
+            # These files are only generated when there is a `person` directory in `in_dir`
+            return False
         else:
             return True
 
@@ -438,7 +442,6 @@ class _CompressionStepTask(luigi.Task):
         requirements_d = {}
         for input_file in self.INPUT_FILES:
             if not self._is_expected_output_file(input_file):
-                # These files are only generated for graphs that have labels
                 continue
             if self.MINIMUM_OBJECT_TYPES.isdisjoint(set(self.object_types)):
                 continue
