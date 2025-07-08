@@ -18,6 +18,7 @@ use crate::{NodeType, OutOfBoundError, SWHID};
 mod iterators;
 mod label_names;
 mod maps;
+mod persons;
 
 /// Alias for [`IndexedSeq`] + [`IndexedDict`] mapping from [`NodeId`] to [`NodeId`].
 pub trait NodeMapBackend:

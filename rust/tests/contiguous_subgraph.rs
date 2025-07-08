@@ -23,9 +23,13 @@ fn build_graph() -> Result<BuiltGraph> {
         .done();
     let rev09 = builder
         .node(swhid!(swh:1:rev:0000000000000000000000000000000000000009))?
+        .author(b"Rev9 author".into())
+        .committer(b"Rev9 committer".into())
         .done();
     let rev10 = builder
         .node(swhid!(swh:1:rev:0000000000000000000000000000000000000010))?
+        .author(b"Rev10 author".into())
+        .committer(b"Rev10 committer".into())
         .done();
     let dir08 = builder
         .node(swhid!(swh:1:dir:0000000000000000000000000000000000000008))?
@@ -63,9 +67,19 @@ fn test_contiguous_full_graph() -> Result<()> {
         nodes_efb.push(node);
     }
     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
-    let full_graph = ContiguousSubgraph::new(&graph, node_map).with_maps();
+    let full_graph = ContiguousSubgraph::new(&graph, node_map)
+        .with_maps()
+        .with_persons();
     for node in 0..graph.num_nodes() {
         assert!(full_graph.has_node(node));
+        assert_eq!(
+            full_graph.properties().author_id(node),
+            graph.properties().author_id(node)
+        );
+        assert_eq!(
+            full_graph.properties().committer_id(node),
+            graph.properties().committer_id(node)
+        );
         let swhid = graph.properties().swhid(node);
         assert_eq!(full_graph.properties().swhid(node), swhid);
         assert_eq!(full_graph.properties().node_id(swhid), Ok(node));
@@ -89,7 +103,9 @@ fn test_contiguous_fs_graph() -> Result<()> {
         }
     }
     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
-    let fs_graph = ContiguousSubgraph::new(&graph, node_map).with_maps();
+    let fs_graph = ContiguousSubgraph::new(&graph, node_map)
+        .with_maps()
+        .with_persons();
     assert_eq!(
         (0..3)
             .map(|node| fs_graph.properties().swhid(node))
@@ -144,6 +160,20 @@ fn test_contiguous_fs_graph() -> Result<()> {
     assert!(fs_graph.has_arc(0, 1));
     assert!(fs_graph.has_arc(0, 2));
     assert!(!fs_graph.has_arc(1, 2));
+
+    assert_eq!(
+        (0..3)
+            .map(|node| fs_graph.properties().author_id(node))
+            .collect::<Vec<_>>(),
+        vec![None, None, None]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|node| fs_graph.properties().committer_id(node))
+            .collect::<Vec<_>>(),
+        vec![None, None, None]
+    );
+
     Ok(())
 }
 
@@ -158,7 +188,9 @@ fn test_contiguous_history_graph() -> Result<()> {
         }
     }
     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
-    let history_graph = ContiguousSubgraph::new(&graph, node_map).with_maps();
+    let history_graph = ContiguousSubgraph::new(&graph, node_map)
+        .with_maps()
+        .with_persons();
 
     assert_eq!(
         (0..3)
@@ -211,6 +243,27 @@ fn test_contiguous_history_graph() -> Result<()> {
     assert!(history_graph.has_arc(0, 1));
     assert!(history_graph.has_arc(1, 2));
     assert!(!history_graph.has_arc(0, 2));
+
+    assert_eq!(
+        (0..3)
+            .map(|node| history_graph.properties().author_id(node))
+            .collect::<Vec<_>>(),
+        vec![
+            graph.properties().author_id(1), // snp_node
+            graph.properties().author_id(2), // rev_node1
+            graph.properties().author_id(3), // rev_node2
+        ]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|node| history_graph.properties().committer_id(node))
+            .collect::<Vec<_>>(),
+        vec![
+            graph.properties().committer_id(1), // snp_node
+            graph.properties().committer_id(2), // rev_node1
+            graph.properties().committer_id(3), // rev_node2
+        ]
+    );
 
     Ok(())
 }
