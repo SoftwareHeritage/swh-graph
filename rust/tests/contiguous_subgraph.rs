@@ -27,6 +27,7 @@ fn build_graph() -> Result<BuiltGraph> {
         .committer(b"Rev9 committer".into())
         .author_timestamp(10009, 60)
         .committer_timestamp(20009, 120)
+        .message(b"revision 9".into())
         .done();
     let rev10 = builder
         .node(swhid!(swh:1:rev:0000000000000000000000000000000000000010))?
@@ -34,6 +35,8 @@ fn build_graph() -> Result<BuiltGraph> {
         .committer(b"Rev10 committer".into())
         .author_timestamp(10010, 180)
         .committer_timestamp(20010, 240)
+        .message(b"revision 10".into())
+        .tag_name(b"tag name (illegal for a revision, but who cares, it's a test)".into())
         .done();
     let dir08 = builder
         .node(swhid!(swh:1:dir:0000000000000000000000000000000000000008))?
@@ -74,7 +77,8 @@ fn test_contiguous_full_graph() -> Result<()> {
     let full_graph = ContiguousSubgraph::new(&graph, node_map)
         .with_maps()
         .with_timestamps()
-        .with_persons();
+        .with_persons()
+        .with_strings();
     for node in 0..graph.num_nodes() {
         assert!(full_graph.has_node(node));
         assert_eq!(
@@ -100,6 +104,14 @@ fn test_contiguous_full_graph() -> Result<()> {
         assert_eq!(
             full_graph.properties().committer_timestamp_offset(node),
             graph.properties().committer_timestamp_offset(node)
+        );
+        assert_eq!(
+            full_graph.properties().message(node),
+            graph.properties().message(node)
+        );
+        assert_eq!(
+            full_graph.properties().tag_name(node),
+            graph.properties().tag_name(node)
         );
         let swhid = graph.properties().swhid(node);
         assert_eq!(full_graph.properties().swhid(node), swhid);
@@ -127,7 +139,8 @@ fn test_contiguous_fs_graph() -> Result<()> {
     let fs_graph = ContiguousSubgraph::new(&graph, node_map)
         .with_maps()
         .with_timestamps()
-        .with_persons();
+        .with_persons()
+        .with_strings();
     assert_eq!(
         (0..3)
             .map(|node| fs_graph.properties().swhid(node))
@@ -183,6 +196,7 @@ fn test_contiguous_fs_graph() -> Result<()> {
     assert!(fs_graph.has_arc(0, 2));
     assert!(!fs_graph.has_arc(1, 2));
 
+    // persons
     assert_eq!(
         (0..3)
             .map(|node| fs_graph.properties().author_id(node))
@@ -196,6 +210,7 @@ fn test_contiguous_fs_graph() -> Result<()> {
         vec![None, None, None]
     );
 
+    // timestamps
     assert_eq!(
         (0..3)
             .map(|node| fs_graph.properties().author_timestamp(node))
@@ -221,6 +236,20 @@ fn test_contiguous_fs_graph() -> Result<()> {
         vec![None, None, None]
     );
 
+    // strings
+    assert_eq!(
+        (0..3)
+            .map(|node| fs_graph.properties().message(node))
+            .collect::<Vec<_>>(),
+        vec![None, None, None]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|node| fs_graph.properties().tag_name(node))
+            .collect::<Vec<_>>(),
+        vec![None, None, None]
+    );
+
     Ok(())
 }
 
@@ -238,7 +267,8 @@ fn test_contiguous_history_graph() -> Result<()> {
     let history_graph = ContiguousSubgraph::new(&graph, node_map)
         .with_maps()
         .with_timestamps()
-        .with_persons();
+        .with_persons()
+        .with_strings();
 
     assert_eq!(
         (0..3)
@@ -292,6 +322,7 @@ fn test_contiguous_history_graph() -> Result<()> {
     assert!(history_graph.has_arc(1, 2));
     assert!(!history_graph.has_arc(0, 2));
 
+    // persons
     assert_eq!(
         (0..3)
             .map(|node| history_graph.properties().author_id(node))
@@ -313,6 +344,7 @@ fn test_contiguous_history_graph() -> Result<()> {
         ]
     );
 
+    // timestamps
     assert_eq!(
         (0..3)
             .map(|node| history_graph.properties().author_timestamp(node))
@@ -336,6 +368,28 @@ fn test_contiguous_history_graph() -> Result<()> {
             .map(|node| history_graph.properties().committer_timestamp_offset(node))
             .collect::<Vec<_>>(),
         vec![None, Some(120), Some(240)]
+    );
+
+    // strings
+    assert_eq!(
+        (0..3)
+            .map(|node| history_graph.properties().message(node))
+            .collect::<Vec<_>>(),
+        vec![
+            None,
+            Some(b"revision 9".into()),
+            Some(b"revision 10".into())
+        ]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|node| history_graph.properties().tag_name(node))
+            .collect::<Vec<_>>(),
+        vec![
+            None,
+            None,
+            Some(b"tag name (illegal for a revision, but who cares, it's a test)".into())
+        ]
     );
 
     Ok(())

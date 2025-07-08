@@ -19,6 +19,7 @@ mod iterators;
 mod label_names;
 mod maps;
 mod persons;
+mod strings;
 mod timestamps;
 
 /// Alias for [`IndexedSeq`] + [`IndexedDict`] mapping from [`NodeId`] to [`NodeId`].
