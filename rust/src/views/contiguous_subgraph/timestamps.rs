@@ -20,9 +20,9 @@ impl<
         LABELNAMES: properties::MaybeLabelNames,
     > ContiguousSubgraph<G, N, MAPS, NoTimestamps, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
-    /// Makes [`Timestamps`] available on this [`ContiguousSubgraph`].
+    /// Makes [`OptTimestamps`] available on this [`ContiguousSubgraph`].
     ///
-    /// Requires the underlying graph to implement [`Timestamps`].
+    /// Requires the underlying graph to implement [`OptTimestamps`].
     pub fn with_timestamps(
         self,
     ) -> ContiguousSubgraph<

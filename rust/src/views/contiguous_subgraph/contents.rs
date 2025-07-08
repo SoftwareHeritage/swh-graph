@@ -20,9 +20,9 @@ impl<
         LABELNAMES: properties::MaybeLabelNames,
     > ContiguousSubgraph<G, N, MAPS, TIMESTAMPS, PERSONS, NoContents, STRINGS, LABELNAMES>
 {
-    /// Makes [`Contents`] available on this [`ContiguousSubgraph`].
+    /// Makes [`OptContents`] available on this [`ContiguousSubgraph`].
     ///
-    /// Requires the underlying graph to implement [`Contents`].
+    /// Requires the underlying graph to implement [`OptContents`]
     pub fn with_contents(
         self,
     ) -> ContiguousSubgraph<

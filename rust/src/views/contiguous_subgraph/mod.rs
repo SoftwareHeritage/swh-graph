@@ -40,7 +40,7 @@ pub struct NodeMap<N: IndexedSeq<Input = NodeId, Output = NodeId>>(pub N);
 
 impl<N: IndexedSeq<Input = NodeId, Output = NodeId>> NodeMap<N> {
     /// Given a node id in a [`ContiguousSubgraph`], returns the corresponding node id
-    /// in the [`ContiguousSubgraph::underlying_node_id`]
+    /// in the [`ContiguousSubgraph`]'s underlying graph
     #[inline(always)]
     pub fn underlying_node_id(&self, self_node: NodeId) -> NodeId {
         self.0.get(self_node)
@@ -48,7 +48,7 @@ impl<N: IndexedSeq<Input = NodeId, Output = NodeId>> NodeMap<N> {
 }
 
 impl<N: NodeMapBackend> NodeMap<N> {
-    /// Given a node id in a [`ContiguousSubgraph::underlying_node_id`], returns the
+    /// Given a node id in a [`ContiguousSubgraph`]'s underlying graph, returns the
     /// corresponding node id in the [`ContiguousSubgraph`]
     #[inline(always)]
     pub fn node_id_from_underlying(&self, underlying_node: NodeId) -> Option<NodeId> {

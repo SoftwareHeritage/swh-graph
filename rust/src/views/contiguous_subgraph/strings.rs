@@ -18,9 +18,9 @@ impl<
         LABELNAMES: properties::MaybeLabelNames,
     > ContiguousSubgraph<G, N, MAPS, TIMESTAMPS, PERSONS, CONTENTS, NoStrings, LABELNAMES>
 {
-    /// Makes [`Strings`] available on this [`ContiguousSubgraph`].
+    /// Makes [`OptStrings`] available on this [`ContiguousSubgraph`].
     ///
-    /// Requires the underlying graph to implement [`Strings`].
+    /// Requires the underlying graph to implement [`OptStrings`].
     pub fn with_strings(
         self,
     ) -> ContiguousSubgraph<
