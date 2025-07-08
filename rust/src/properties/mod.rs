@@ -223,8 +223,8 @@ pub struct SwhGraphProperties<
     STRINGS: MaybeStrings,
     LABELNAMES: MaybeLabelNames,
 > {
-    path: PathBuf,
-    num_nodes: usize,
+    pub(crate) path: PathBuf,
+    pub(crate) num_nodes: usize,
     pub(crate) maps: MAPS,
     pub(crate) timestamps: TIMESTAMPS,
     pub(crate) persons: PERSONS,

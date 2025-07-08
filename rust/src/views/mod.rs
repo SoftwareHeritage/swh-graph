@@ -5,6 +5,10 @@
 
 //! Wrappers for [`SwhGraph`](crate::graph::SwhGraph) that filter or change the nodes and arcs it returns.
 
+#[cfg(feature = "unstable_contiguous_subgraph")]
+mod contiguous_subgraph;
+#[cfg(feature = "unstable_contiguous_subgraph")]
+pub use contiguous_subgraph::{ContiguousSubgraph, NodeMap};
 mod spy;
 pub use spy::GraphSpy;
 mod subgraph;
