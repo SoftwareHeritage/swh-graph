@@ -10,6 +10,7 @@ use sux::prelude::EliasFanoBuilder;
 
 use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
+use swh_graph::labels::{Branch, DirEntry, EdgeLabel, Permission};
 use swh_graph::views::{ContiguousSubgraph, NodeMap};
 use swh_graph::{swhid, NodeType};
 
@@ -52,11 +53,11 @@ fn build_graph() -> Result<BuiltGraph> {
         .is_skipped_content(true)
         .done();
     builder.arc(ori01, snp20);
-    builder.arc(snp20, rev09);
+    builder.snp_arc(snp20, rev09, b"branch");
     builder.arc(rev09, rev10);
     builder.arc(rev10, dir08);
-    builder.arc(dir08, cnt01);
-    builder.arc(dir08, cnt02);
+    builder.dir_arc(dir08, cnt01, Permission::Content, b"file1");
+    builder.dir_arc(dir08, cnt02, Permission::ExecutableContent, b"file2");
     builder.done()
 }
 
@@ -86,6 +87,53 @@ fn test_contiguous_full_graph() -> Result<()> {
         .with_strings();
     for node in 0..graph.num_nodes() {
         assert!(full_graph.has_node(node));
+
+        // iterators
+        assert_eq!(
+            full_graph.successors(node).collect::<Vec<_>>(),
+            full_graph.successors(node).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            full_graph.predecessors(node).collect::<Vec<_>>(),
+            full_graph.predecessors(node).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            full_graph
+                .labeled_successors(node)
+                .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+                .collect::<Vec<_>>(),
+            full_graph
+                .labeled_successors(node)
+                .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            full_graph
+                .labeled_predecessors(node)
+                .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+                .collect::<Vec<_>>(),
+            full_graph
+                .labeled_predecessors(node)
+                .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+                .collect::<Vec<_>>()
+        );
+
+        // maps
+        let swhid = graph.properties().swhid(node);
+        assert_eq!(full_graph.properties().swhid(node), swhid);
+        assert_eq!(full_graph.properties().node_id(swhid), Ok(node));
+
+        // contents
+        assert_eq!(
+            full_graph.properties().is_skipped_content(node),
+            graph.properties().is_skipped_content(node)
+        );
+        assert_eq!(
+            full_graph.properties().content_length(node),
+            graph.properties().content_length(node)
+        );
+
+        // persons
         assert_eq!(
             full_graph.properties().author_id(node),
             graph.properties().author_id(node)
@@ -94,6 +142,8 @@ fn test_contiguous_full_graph() -> Result<()> {
             full_graph.properties().committer_id(node),
             graph.properties().committer_id(node)
         );
+
+        // timestamps
         assert_eq!(
             full_graph.properties().author_timestamp(node),
             graph.properties().author_timestamp(node)
@@ -110,6 +160,8 @@ fn test_contiguous_full_graph() -> Result<()> {
             full_graph.properties().committer_timestamp_offset(node),
             graph.properties().committer_timestamp_offset(node)
         );
+
+        // strings
         assert_eq!(
             full_graph.properties().message(node),
             graph.properties().message(node)
@@ -118,17 +170,6 @@ fn test_contiguous_full_graph() -> Result<()> {
             full_graph.properties().tag_name(node),
             graph.properties().tag_name(node)
         );
-        assert_eq!(
-            full_graph.properties().is_skipped_content(node),
-            graph.properties().is_skipped_content(node)
-        );
-        assert_eq!(
-            full_graph.properties().content_length(node),
-            graph.properties().content_length(node)
-        );
-        let swhid = graph.properties().swhid(node);
-        assert_eq!(full_graph.properties().swhid(node), swhid);
-        assert_eq!(full_graph.properties().node_id(swhid), Ok(node));
     }
     assert!(full_graph.has_arc(ori_node, snp_node));
     assert!(full_graph.has_arc(rev_node1, rev_node2));
@@ -154,7 +195,8 @@ fn test_contiguous_fs_graph() -> Result<()> {
         .with_contents()
         .with_timestamps()
         .with_persons()
-        .with_strings();
+        .with_strings()
+        .with_label_names();
     assert_eq!(
         (0..3)
             .map(|node| fs_graph.properties().swhid(node))
@@ -197,6 +239,7 @@ fn test_contiguous_fs_graph() -> Result<()> {
     );
     assert!(!fs_graph.has_node(3));
 
+    // iterators
     assert_eq!(fs_graph.successors(0).collect::<Vec<_>>(), vec![1, 2]);
     assert_eq!(
         fs_graph.successors(1).collect::<Vec<_>>(),
@@ -206,6 +249,86 @@ fn test_contiguous_fs_graph() -> Result<()> {
         fs_graph.successors(2).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
+    assert_eq!(
+        fs_graph.predecessors(0).collect::<Vec<_>>(),
+        Vec::<NodeId>::new()
+    );
+    assert_eq!(fs_graph.predecessors(1).collect::<Vec<_>>(), vec![0]);
+    assert_eq!(fs_graph.predecessors(2).collect::<Vec<_>>(), vec![0]);
+    let filename1 = fs_graph
+        .properties()
+        .label_name_id(b"file1")
+        .expect("Could not get label name id of 'file1'");
+    let filename2 = fs_graph
+        .properties()
+        .label_name_id(b"file2")
+        .expect("Could not get label name id of 'file2'");
+    assert_eq!(
+        fs_graph
+            .labeled_successors(0)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>(),
+        vec![
+            (
+                1,
+                vec![EdgeLabel::DirEntry(
+                    DirEntry::new(Permission::Content, filename1).unwrap()
+                )]
+            ),
+            (
+                2,
+                vec![EdgeLabel::DirEntry(
+                    DirEntry::new(Permission::ExecutableContent, filename2).unwrap()
+                )]
+            )
+        ]
+    );
+    assert_eq!(
+        fs_graph
+            .labeled_successors(1)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>(),
+        Vec::new(),
+    );
+    assert_eq!(
+        fs_graph
+            .labeled_successors(2)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>(),
+        Vec::new(),
+    );
+    assert_eq!(
+        fs_graph
+            .labeled_predecessors(0)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>(),
+        Vec::new()
+    );
+    assert_eq!(
+        fs_graph
+            .labeled_predecessors(1)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>(),
+        vec![(
+            0,
+            vec![EdgeLabel::DirEntry(
+                DirEntry::new(Permission::Content, filename1).unwrap()
+            )]
+        )]
+    );
+    assert_eq!(
+        fs_graph
+            .labeled_predecessors(2)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>(),
+        vec![(
+            0,
+            vec![EdgeLabel::DirEntry(
+                DirEntry::new(Permission::ExecutableContent, filename2).unwrap()
+            )]
+        )]
+    );
+
     assert!(fs_graph.has_arc(0, 1));
     assert!(fs_graph.has_arc(0, 2));
     assert!(!fs_graph.has_arc(1, 2));
@@ -297,7 +420,8 @@ fn test_contiguous_history_graph() -> Result<()> {
         .with_contents()
         .with_timestamps()
         .with_persons()
-        .with_strings();
+        .with_strings()
+        .with_label_names();
 
     assert_eq!(
         (0..3)
@@ -341,12 +465,66 @@ fn test_contiguous_history_graph() -> Result<()> {
     );
     assert!(!history_graph.has_node(3));
 
+    // iterators
     assert_eq!(history_graph.successors(0).collect::<Vec<_>>(), vec![1]);
     assert_eq!(history_graph.successors(1).collect::<Vec<_>>(), vec![2]);
     assert_eq!(
         history_graph.successors(2).collect::<Vec<_>>(),
         Vec::<NodeId>::new()
     );
+    let branch_name_id = history_graph
+        .properties()
+        .label_name_id(b"branch")
+        .expect("Could not get label name id of 'branch'");
+    assert_eq!(
+        history_graph
+            .labeled_successors(0)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>(),
+        vec![(
+            1,
+            vec![EdgeLabel::Branch(Branch::new(branch_name_id).unwrap())]
+        ),]
+    );
+    assert_eq!(
+        history_graph
+            .labeled_successors(1)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>(),
+        vec![(2, vec![])],
+    );
+    assert_eq!(
+        history_graph
+            .labeled_successors(2)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>(),
+        Vec::new(),
+    );
+    assert_eq!(
+        history_graph
+            .labeled_predecessors(0)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>(),
+        Vec::new(),
+    );
+    assert_eq!(
+        history_graph
+            .labeled_predecessors(1)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>(),
+        vec![(
+            0,
+            vec![EdgeLabel::Branch(Branch::new(branch_name_id).unwrap())]
+        ),]
+    );
+    assert_eq!(
+        history_graph
+            .labeled_predecessors(2)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>(),
+        vec![(1, vec![])],
+    );
+
     assert!(history_graph.has_arc(0, 1));
     assert!(history_graph.has_arc(1, 2));
     assert!(!history_graph.has_arc(0, 2));
