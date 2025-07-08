@@ -25,11 +25,15 @@ fn build_graph() -> Result<BuiltGraph> {
         .node(swhid!(swh:1:rev:0000000000000000000000000000000000000009))?
         .author(b"Rev9 author".into())
         .committer(b"Rev9 committer".into())
+        .author_timestamp(10009, 60)
+        .committer_timestamp(20009, 120)
         .done();
     let rev10 = builder
         .node(swhid!(swh:1:rev:0000000000000000000000000000000000000010))?
         .author(b"Rev10 author".into())
         .committer(b"Rev10 committer".into())
+        .author_timestamp(10010, 180)
+        .committer_timestamp(20010, 240)
         .done();
     let dir08 = builder
         .node(swhid!(swh:1:dir:0000000000000000000000000000000000000008))?
@@ -69,6 +73,7 @@ fn test_contiguous_full_graph() -> Result<()> {
     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
     let full_graph = ContiguousSubgraph::new(&graph, node_map)
         .with_maps()
+        .with_timestamps()
         .with_persons();
     for node in 0..graph.num_nodes() {
         assert!(full_graph.has_node(node));
@@ -79,6 +84,22 @@ fn test_contiguous_full_graph() -> Result<()> {
         assert_eq!(
             full_graph.properties().committer_id(node),
             graph.properties().committer_id(node)
+        );
+        assert_eq!(
+            full_graph.properties().author_timestamp(node),
+            graph.properties().author_timestamp(node)
+        );
+        assert_eq!(
+            full_graph.properties().author_timestamp_offset(node),
+            graph.properties().author_timestamp_offset(node)
+        );
+        assert_eq!(
+            full_graph.properties().committer_timestamp(node),
+            graph.properties().committer_timestamp(node)
+        );
+        assert_eq!(
+            full_graph.properties().committer_timestamp_offset(node),
+            graph.properties().committer_timestamp_offset(node)
         );
         let swhid = graph.properties().swhid(node);
         assert_eq!(full_graph.properties().swhid(node), swhid);
@@ -105,6 +126,7 @@ fn test_contiguous_fs_graph() -> Result<()> {
     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
     let fs_graph = ContiguousSubgraph::new(&graph, node_map)
         .with_maps()
+        .with_timestamps()
         .with_persons();
     assert_eq!(
         (0..3)
@@ -174,6 +196,31 @@ fn test_contiguous_fs_graph() -> Result<()> {
         vec![None, None, None]
     );
 
+    assert_eq!(
+        (0..3)
+            .map(|node| fs_graph.properties().author_timestamp(node))
+            .collect::<Vec<_>>(),
+        vec![None, None, None]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|node| fs_graph.properties().author_timestamp_offset(node))
+            .collect::<Vec<_>>(),
+        vec![None, None, None]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|node| fs_graph.properties().committer_timestamp(node))
+            .collect::<Vec<_>>(),
+        vec![None, None, None]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|node| fs_graph.properties().committer_timestamp_offset(node))
+            .collect::<Vec<_>>(),
+        vec![None, None, None]
+    );
+
     Ok(())
 }
 
@@ -190,6 +237,7 @@ fn test_contiguous_history_graph() -> Result<()> {
     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
     let history_graph = ContiguousSubgraph::new(&graph, node_map)
         .with_maps()
+        .with_timestamps()
         .with_persons();
 
     assert_eq!(
@@ -263,6 +311,31 @@ fn test_contiguous_history_graph() -> Result<()> {
             graph.properties().committer_id(2), // rev_node1
             graph.properties().committer_id(3), // rev_node2
         ]
+    );
+
+    assert_eq!(
+        (0..3)
+            .map(|node| history_graph.properties().author_timestamp(node))
+            .collect::<Vec<_>>(),
+        vec![None, Some(10009), Some(10010)]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|node| history_graph.properties().author_timestamp_offset(node))
+            .collect::<Vec<_>>(),
+        vec![None, Some(60), Some(180)]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|node| history_graph.properties().committer_timestamp(node))
+            .collect::<Vec<_>>(),
+        vec![None, Some(20009), Some(20010)]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|node| history_graph.properties().committer_timestamp_offset(node))
+            .collect::<Vec<_>>(),
+        vec![None, Some(120), Some(240)]
     );
 
     Ok(())
