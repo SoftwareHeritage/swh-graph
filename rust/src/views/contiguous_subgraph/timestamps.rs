@@ -12,7 +12,7 @@ use properties::{
 
 impl<
         G: SwhGraphWithProperties<Timestamps: OptTimestamps>,
-        N: NodeMapBackend,
+        N: ContractionBackend,
         MAPS: properties::MaybeMaps,
         PERSONS: properties::MaybePersons,
         CONTENTS: properties::MaybeContents,
@@ -73,18 +73,18 @@ impl<
 /// View for [`MaybeTimestamps`] that renumbers nodes, as part of [`ContiguousSubgraph`]
 pub struct ContiguousSubgraphTimestamps<
     G: SwhGraphWithProperties<Timestamps: OptTimestamps>,
-    N: NodeMapBackend,
+    N: ContractionBackend,
 > {
     graph: Arc<ContiguousSubgraphInner<G, N>>,
 }
 
-impl<G: SwhGraphWithProperties<Timestamps: OptTimestamps>, N: NodeMapBackend> PropertiesBackend
+impl<G: SwhGraphWithProperties<Timestamps: OptTimestamps>, N: ContractionBackend> PropertiesBackend
     for ContiguousSubgraphTimestamps<G, N>
 {
     type DataFilesAvailability =
         <<G as SwhGraphWithProperties>::Timestamps as PropertiesBackend>::DataFilesAvailability;
 }
-impl<G: SwhGraphWithProperties<Timestamps: OptTimestamps>, N: NodeMapBackend> OptTimestamps
+impl<G: SwhGraphWithProperties<Timestamps: OptTimestamps>, N: ContractionBackend> OptTimestamps
     for ContiguousSubgraphTimestamps<G, N>
 {
     #[inline(always)]
@@ -93,7 +93,7 @@ impl<G: SwhGraphWithProperties<Timestamps: OptTimestamps>, N: NodeMapBackend> Op
             .underlying_graph
             .properties()
             .timestamps
-            .author_timestamp(self.graph.node_map.underlying_node_id(node))
+            .author_timestamp(self.graph.contraction.underlying_node_id(node))
     }
     #[inline(always)]
     fn author_timestamp_offset(&self, node: NodeId) -> PropertiesResult<'_, Option<i16>, Self> {
@@ -101,7 +101,7 @@ impl<G: SwhGraphWithProperties<Timestamps: OptTimestamps>, N: NodeMapBackend> Op
             .underlying_graph
             .properties()
             .timestamps
-            .author_timestamp_offset(self.graph.node_map.underlying_node_id(node))
+            .author_timestamp_offset(self.graph.contraction.underlying_node_id(node))
     }
     #[inline(always)]
     fn committer_timestamp(&self, node: NodeId) -> PropertiesResult<'_, Option<i64>, Self> {
@@ -109,7 +109,7 @@ impl<G: SwhGraphWithProperties<Timestamps: OptTimestamps>, N: NodeMapBackend> Op
             .underlying_graph
             .properties()
             .timestamps
-            .committer_timestamp(self.graph.node_map.underlying_node_id(node))
+            .committer_timestamp(self.graph.contraction.underlying_node_id(node))
     }
     #[inline(always)]
     fn committer_timestamp_offset(&self, node: NodeId) -> PropertiesResult<'_, Option<i16>, Self> {
@@ -117,6 +117,6 @@ impl<G: SwhGraphWithProperties<Timestamps: OptTimestamps>, N: NodeMapBackend> Op
             .underlying_graph
             .properties()
             .timestamps
-            .committer_timestamp_offset(self.graph.node_map.underlying_node_id(node))
+            .committer_timestamp_offset(self.graph.contraction.underlying_node_id(node))
     }
 }

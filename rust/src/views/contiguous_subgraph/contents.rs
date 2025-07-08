@@ -12,7 +12,7 @@ use properties::{
 
 impl<
         G: SwhGraphWithProperties<Contents: OptContents>,
-        N: NodeMapBackend,
+        N: ContractionBackend,
         MAPS: properties::MaybeMaps,
         TIMESTAMPS: properties::MaybeTimestamps,
         PERSONS: properties::MaybePersons,
@@ -73,18 +73,18 @@ impl<
 /// View for [`MaybeContents`] that renumbers nodes, as part of [`ContiguousSubgraph`]
 pub struct ContiguousSubgraphContents<
     G: SwhGraphWithProperties<Contents: OptContents>,
-    N: NodeMapBackend,
+    N: ContractionBackend,
 > {
     graph: Arc<ContiguousSubgraphInner<G, N>>,
 }
 
-impl<G: SwhGraphWithProperties<Contents: OptContents>, N: NodeMapBackend> PropertiesBackend
+impl<G: SwhGraphWithProperties<Contents: OptContents>, N: ContractionBackend> PropertiesBackend
     for ContiguousSubgraphContents<G, N>
 {
     type DataFilesAvailability =
         <<G as SwhGraphWithProperties>::Contents as PropertiesBackend>::DataFilesAvailability;
 }
-impl<G: SwhGraphWithProperties<Contents: OptContents>, N: NodeMapBackend> OptContents
+impl<G: SwhGraphWithProperties<Contents: OptContents>, N: ContractionBackend> OptContents
     for ContiguousSubgraphContents<G, N>
 {
     #[inline(always)]
@@ -93,7 +93,7 @@ impl<G: SwhGraphWithProperties<Contents: OptContents>, N: NodeMapBackend> OptCon
             .underlying_graph
             .properties()
             .contents
-            .is_skipped_content(self.graph.node_map.underlying_node_id(node))
+            .is_skipped_content(self.graph.contraction.underlying_node_id(node))
     }
     #[inline(always)]
     fn content_length(&self, node: NodeId) -> PropertiesResult<'_, Option<u64>, Self> {
@@ -101,6 +101,6 @@ impl<G: SwhGraphWithProperties<Contents: OptContents>, N: NodeMapBackend> OptCon
             .underlying_graph
             .properties()
             .contents
-            .content_length(self.graph.node_map.underlying_node_id(node))
+            .content_length(self.graph.contraction.underlying_node_id(node))
     }
 }

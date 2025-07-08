@@ -27,21 +27,21 @@ mod strings;
 mod timestamps;
 
 /// Alias for [`IndexedSeq`] + [`IndexedDict`] mapping from [`NodeId`] to [`NodeId`].
-pub trait NodeMapBackend:
+pub trait ContractionBackend:
     IndexedSeq<Input = NodeId, Output = NodeId> + IndexedDict<Input = NodeId, Output = NodeId>
 {
 }
 
 impl<
         B: IndexedSeq<Input = NodeId, Output = NodeId> + IndexedDict<Input = NodeId, Output = NodeId>,
-    > NodeMapBackend for B
+    > ContractionBackend for B
 {
 }
 
 /// See [`ContiguousSubgraph`]
-pub struct NodeMap<N: IndexedSeq<Input = NodeId, Output = NodeId>>(pub N);
+pub struct Contraction<N: IndexedSeq<Input = NodeId, Output = NodeId>>(pub N);
 
-impl<N: IndexedSeq<Input = NodeId, Output = NodeId>> NodeMap<N> {
+impl<N: IndexedSeq<Input = NodeId, Output = NodeId>> Contraction<N> {
     /// Given a node id in a [`ContiguousSubgraph`], returns the corresponding node id
     /// in the [`ContiguousSubgraph`]'s underlying graph
     #[inline(always)]
@@ -50,7 +50,7 @@ impl<N: IndexedSeq<Input = NodeId, Output = NodeId>> NodeMap<N> {
     }
 }
 
-impl<N: NodeMapBackend> NodeMap<N> {
+impl<N: ContractionBackend> Contraction<N> {
     /// Given a node id in a [`ContiguousSubgraph`]'s underlying graph, returns the
     /// corresponding node id in the [`ContiguousSubgraph`]
     #[inline(always)]
@@ -82,11 +82,11 @@ impl<N: NodeMapBackend> NodeMap<N> {
 /// use swh_graph::properties;
 /// use swh_graph::NodeConstraint;
 /// use swh_graph::graph::SwhGraphWithProperties;
-/// use swh_graph::views::{ContiguousSubgraph, NodeMap, Subgraph, NodeMapBackend};
+/// use swh_graph::views::{ContiguousSubgraph, Contraction, Subgraph, ContractionBackend};
 ///
 /// fn filesystem_subgraph<G>(graph: &G) -> ContiguousSubgraph<
 ///         Subgraph<&'_ G, impl Fn(usize) -> bool + use<'_, G>, fn(usize, usize) -> bool>,
-///         impl NodeMapBackend,
+///         impl ContractionBackend,
 ///         properties::NoMaps,
 ///         properties::NoTimestamps,
 ///         properties::NoPersons,
@@ -104,7 +104,7 @@ impl<N: NodeMapBackend> NodeMap<N> {
 /// a `Subgraph`, causing `Subgraph` to add needless overhead by checking that nodes
 /// exist, even though `ContiguousSubgraph` does it too.
 /// This should not be noticeable, but if it is an issue, you can skip the Subgraph
-/// by manually building a [`NodeMap`]:
+/// by manually building a [`Contraction`]:
 ///
 /// ```
 /// use dsi_progress_logger::progress_logger;
@@ -112,7 +112,7 @@ impl<N: NodeMapBackend> NodeMap<N> {
 /// use swh_graph::properties;
 /// use swh_graph::{NodeType};
 /// use swh_graph::graph::SwhGraphWithProperties;
-/// use swh_graph::views::{ContiguousSubgraph, NodeMap, Subgraph, NodeMapBackend};
+/// use swh_graph::views::{ContiguousSubgraph, Contraction, Subgraph, ContractionBackend};
 ///
 /// fn filesystem_subgraph<G>(graph: &G) -> ContiguousSubgraph<
 ///         &'_ G,
@@ -148,15 +148,15 @@ impl<N: NodeMapBackend> NodeMap<N> {
 ///             _ => (),
 ///         }
 ///     }
-///     let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
+///     let contraction = Contraction(nodes_efb.build_with_seq_and_dict());
 ///
 ///     // assemble the subgraph
-///     ContiguousSubgraph::new_from_node_map(graph, node_map)
+///     ContiguousSubgraph::new_from_contraction(graph, contraction)
 /// }
 /// ```
 pub struct ContiguousSubgraph<
     G: SwhGraph,
-    N: NodeMapBackend,
+    N: ContractionBackend,
     MAPS: properties::MaybeMaps,
     TIMESTAMPS: properties::MaybeTimestamps,
     PERSONS: properties::MaybePersons,
@@ -169,7 +169,7 @@ pub struct ContiguousSubgraph<
         properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
 }
 
-impl<G: SwhGraphWithProperties, N: NodeMapBackend>
+impl<G: SwhGraphWithProperties, N: ContractionBackend>
     ContiguousSubgraph<
         G,
         N,
@@ -181,13 +181,13 @@ impl<G: SwhGraphWithProperties, N: NodeMapBackend>
         properties::NoLabelNames,
     >
 {
-    /// Creates a new [`ContiguousSubgraph`] by keeping only nodes in the [`NodeMap`]
-    pub fn new_from_node_map(graph: G, node_map: NodeMap<N>) -> Self {
+    /// Creates a new [`ContiguousSubgraph`] by keeping only nodes in the [`Contraction`]
+    pub fn new_from_contraction(graph: G, contraction: Contraction<N>) -> Self {
         let path = graph.properties().path.clone();
-        let num_nodes = node_map.0.len();
+        let num_nodes = contraction.0.len();
         let inner = Arc::new(ContiguousSubgraphInner {
             underlying_graph: graph,
-            node_map,
+            contraction,
         });
         Self {
             properties: properties::SwhGraphProperties {
@@ -207,14 +207,14 @@ impl<G: SwhGraphWithProperties, N: NodeMapBackend>
 
     /// Returns the graph this graph is a subgraph of
     ///
-    /// Use [`Self::node_map`] to get the mapping between both sets of node ids
+    /// Use [`Self::contraction`] to get the mapping between both sets of node ids
     pub fn underlying_graph(&self) -> &G {
         &self.inner.underlying_graph
     }
 
     /// The structure used to match the underlying graph's node ids with this graph's node ids
-    pub fn node_map(&self) -> &NodeMap<N> {
-        &self.inner.node_map
+    pub fn contraction(&self) -> &Contraction<N> {
+        &self.inner.contraction
     }
 }
 
@@ -258,9 +258,9 @@ impl<G: SwhGraphWithProperties>
                 nodes_efb.push(node);
             }
         }
-        let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
+        let contraction = Contraction(nodes_efb.build_with_seq_and_dict());
 
-        Self::new_from_node_map(graph, node_map)
+        Self::new_from_contraction(graph, contraction)
     }
 }
 
@@ -268,14 +268,14 @@ impl<G: SwhGraphWithProperties>
 // ContiguousSubgraphMaps live as long as G (which is an accidental requirement of
 // SwhGraphWithProperties, which doesn't seem to be removable without making its
 // API painfully hard to use).
-struct ContiguousSubgraphInner<G: SwhGraph, N: NodeMapBackend> {
+struct ContiguousSubgraphInner<G: SwhGraph, N: ContractionBackend> {
     underlying_graph: G,
-    node_map: NodeMap<N>,
+    contraction: Contraction<N>,
 }
 
 impl<
         G: SwhGraph,
-        N: NodeMapBackend,
+        N: ContractionBackend,
         MAPS: properties::MaybeMaps,
         TIMESTAMPS: properties::MaybeTimestamps,
         PERSONS: properties::MaybePersons,
@@ -296,14 +296,14 @@ impl<
     #[inline(always)]
     // Note: this can be an overapproximation if the underlying graph is a subgraph
     fn num_nodes(&self) -> usize {
-        self.inner.node_map.0.len()
+        self.inner.contraction.0.len()
     }
     fn has_node(&self, node_id: NodeId) -> bool {
         node_id < self.num_nodes()
             && self
                 .inner
                 .underlying_graph
-                .has_node(self.inner.node_map.underlying_node_id(node_id))
+                .has_node(self.inner.contraction.underlying_node_id(node_id))
     }
     #[inline(always)]
     // Note: this return the number or arcs in the original graph, before
@@ -319,15 +319,15 @@ impl<
     }
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         self.inner.underlying_graph.has_arc(
-            self.inner.node_map.underlying_node_id(src_node_id),
-            self.inner.node_map.underlying_node_id(dst_node_id),
+            self.inner.contraction.underlying_node_id(src_node_id),
+            self.inner.contraction.underlying_node_id(dst_node_id),
         )
     }
 }
 
 impl<
         G: SwhGraphWithProperties,
-        N: NodeMapBackend,
+        N: ContractionBackend,
         MAPS: properties::MaybeMaps,
         TIMESTAMPS: properties::MaybeTimestamps,
         PERSONS: properties::MaybePersons,

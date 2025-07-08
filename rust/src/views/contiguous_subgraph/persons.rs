@@ -10,7 +10,7 @@ use properties::{NoPersons, OptPersons, PropertiesBackend, PropertiesResult, Swh
 
 impl<
         G: SwhGraphWithProperties<Persons: OptPersons>,
-        N: NodeMapBackend,
+        N: ContractionBackend,
         MAPS: properties::MaybeMaps,
         TIMESTAMPS: properties::MaybeTimestamps,
         CONTENTS: properties::MaybeContents,
@@ -71,18 +71,18 @@ impl<
 /// View for [`MaybePersons`] that renumbers nodes, as part of [`ContiguousSubgraph`]
 pub struct ContiguousSubgraphPersons<
     G: SwhGraphWithProperties<Persons: OptPersons>,
-    N: NodeMapBackend,
+    N: ContractionBackend,
 > {
     graph: Arc<ContiguousSubgraphInner<G, N>>,
 }
 
-impl<G: SwhGraphWithProperties<Persons: OptPersons>, N: NodeMapBackend> PropertiesBackend
+impl<G: SwhGraphWithProperties<Persons: OptPersons>, N: ContractionBackend> PropertiesBackend
     for ContiguousSubgraphPersons<G, N>
 {
     type DataFilesAvailability =
         <<G as SwhGraphWithProperties>::Persons as PropertiesBackend>::DataFilesAvailability;
 }
-impl<G: SwhGraphWithProperties<Persons: OptPersons>, N: NodeMapBackend> OptPersons
+impl<G: SwhGraphWithProperties<Persons: OptPersons>, N: ContractionBackend> OptPersons
     for ContiguousSubgraphPersons<G, N>
 {
     #[inline(always)]
@@ -91,7 +91,7 @@ impl<G: SwhGraphWithProperties<Persons: OptPersons>, N: NodeMapBackend> OptPerso
             .underlying_graph
             .properties()
             .persons
-            .author_id(self.graph.node_map.underlying_node_id(node))
+            .author_id(self.graph.contraction.underlying_node_id(node))
     }
     #[inline(always)]
     fn committer_id(&self, node: NodeId) -> PropertiesResult<'_, Option<u32>, Self> {
@@ -99,6 +99,6 @@ impl<G: SwhGraphWithProperties<Persons: OptPersons>, N: NodeMapBackend> OptPerso
             .underlying_graph
             .properties()
             .persons
-            .committer_id(self.graph.node_map.underlying_node_id(node))
+            .committer_id(self.graph.contraction.underlying_node_id(node))
     }
 }

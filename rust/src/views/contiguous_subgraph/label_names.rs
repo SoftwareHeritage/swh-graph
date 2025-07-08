@@ -9,7 +9,7 @@ use super::*;
 
 impl<
         G: SwhGraphWithProperties<LabelNames: properties::LabelNames>,
-        N: NodeMapBackend,
+        N: ContractionBackend,
         MAPS: properties::MaybeMaps,
         TIMESTAMPS: properties::MaybeTimestamps,
         PERSONS: properties::MaybePersons,
@@ -71,12 +71,12 @@ impl<
 /// View for [`MaybeMaps`] that renumbers nodes, as part of [`ContiguousSubgraph`
 pub struct ContiguousSubgraphLabelNames<
     G: SwhGraphWithProperties<LabelNames: properties::LabelNames>,
-    N: NodeMapBackend,
+    N: ContractionBackend,
 > {
     graph: Arc<ContiguousSubgraphInner<G, N>>,
 }
 
-impl<G: SwhGraphWithProperties<LabelNames: properties::LabelNames>, N: NodeMapBackend>
+impl<G: SwhGraphWithProperties<LabelNames: properties::LabelNames>, N: ContractionBackend>
     properties::LabelNames for ContiguousSubgraphLabelNames<G, N>
 {
     type LabelNames<'a>

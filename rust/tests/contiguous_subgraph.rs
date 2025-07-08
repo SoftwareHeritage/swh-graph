@@ -11,7 +11,7 @@ use sux::prelude::EliasFanoBuilder;
 use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
 use swh_graph::labels::{Branch, DirEntry, EdgeLabel, Permission};
-use swh_graph::views::{ContiguousSubgraph, NodeMap, Subgraph};
+use swh_graph::views::{ContiguousSubgraph, Contraction, Subgraph};
 use swh_graph::{swhid, NodeType};
 
 fn build_graph() -> Result<BuiltGraph> {
@@ -92,14 +92,14 @@ fn test_contiguous_full_graph_from_subgraph() -> Result<()> {
 }
 
 #[test]
-fn test_contiguous_full_graph_from_node_map() -> Result<()> {
+fn test_contiguous_full_graph_from_contraction() -> Result<()> {
     let graph = build_graph()?;
     let mut nodes_efb = EliasFanoBuilder::new(graph.num_nodes(), graph.num_nodes());
     for node in 0..graph.num_nodes() {
         nodes_efb.push(node);
     }
-    let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
-    let full_graph = ContiguousSubgraph::new_from_node_map(&graph, node_map)
+    let contraction = Contraction(nodes_efb.build_with_seq_and_dict());
+    let full_graph = ContiguousSubgraph::new_from_contraction(&graph, contraction)
         .with_maps()
         .with_contents()
         .with_timestamps()
@@ -239,7 +239,7 @@ fn test_contiguous_fs_graph_from_subgraph() -> Result<()> {
 }
 
 #[test]
-fn test_contiguous_fs_graph_from_node_map() -> Result<()> {
+fn test_contiguous_fs_graph_from_contraction() -> Result<()> {
     let graph = build_graph()?;
     let mut nodes_efb = EliasFanoBuilder::new(3, graph.num_nodes());
     for node in 0..graph.num_nodes() {
@@ -248,8 +248,8 @@ fn test_contiguous_fs_graph_from_node_map() -> Result<()> {
             _ => (),
         }
     }
-    let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
-    let fs_graph = ContiguousSubgraph::new_from_node_map(&graph, node_map)
+    let contraction = Contraction(nodes_efb.build_with_seq_and_dict());
+    let fs_graph = ContiguousSubgraph::new_from_contraction(&graph, contraction)
         .with_maps()
         .with_contents()
         .with_timestamps()
@@ -498,7 +498,7 @@ fn test_contiguous_history_graph_from_subgraph() -> Result<()> {
 }
 
 #[test]
-fn test_contiguous_history_graph_from_node_map() -> Result<()> {
+fn test_contiguous_history_graph_from_contraction() -> Result<()> {
     let graph = build_graph()?;
     let mut nodes_efb = EliasFanoBuilder::new(3, graph.num_nodes());
     for node in 0..graph.num_nodes() {
@@ -507,8 +507,8 @@ fn test_contiguous_history_graph_from_node_map() -> Result<()> {
             _ => (),
         }
     }
-    let node_map = NodeMap(nodes_efb.build_with_seq_and_dict());
-    let history_graph = ContiguousSubgraph::new_from_node_map(&graph, node_map)
+    let contraction = Contraction(nodes_efb.build_with_seq_and_dict());
+    let history_graph = ContiguousSubgraph::new_from_contraction(&graph, contraction)
         .with_maps()
         .with_contents()
         .with_timestamps()

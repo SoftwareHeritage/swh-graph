@@ -10,7 +10,7 @@ use properties::{NoStrings, OptStrings, PropertiesBackend, PropertiesResult, Swh
 
 impl<
         G: SwhGraphWithProperties<Strings: OptStrings>,
-        N: NodeMapBackend,
+        N: ContractionBackend,
         MAPS: properties::MaybeMaps,
         TIMESTAMPS: properties::MaybeTimestamps,
         PERSONS: properties::MaybePersons,
@@ -71,18 +71,18 @@ impl<
 /// View for [`MaybeStrings`] that renumbers nodes, as part of [`ContiguousSubgraph`]
 pub struct ContiguousSubgraphStrings<
     G: SwhGraphWithProperties<Strings: OptStrings>,
-    N: NodeMapBackend,
+    N: ContractionBackend,
 > {
     graph: Arc<ContiguousSubgraphInner<G, N>>,
 }
 
-impl<G: SwhGraphWithProperties<Strings: OptStrings>, N: NodeMapBackend> PropertiesBackend
+impl<G: SwhGraphWithProperties<Strings: OptStrings>, N: ContractionBackend> PropertiesBackend
     for ContiguousSubgraphStrings<G, N>
 {
     type DataFilesAvailability =
         <<G as SwhGraphWithProperties>::Strings as PropertiesBackend>::DataFilesAvailability;
 }
-impl<G: SwhGraphWithProperties<Strings: OptStrings>, N: NodeMapBackend> OptStrings
+impl<G: SwhGraphWithProperties<Strings: OptStrings>, N: ContractionBackend> OptStrings
     for ContiguousSubgraphStrings<G, N>
 {
     #[inline(always)]
@@ -96,7 +96,7 @@ impl<G: SwhGraphWithProperties<Strings: OptStrings>, N: NodeMapBackend> OptStrin
             .underlying_graph
             .properties()
             .strings
-            .message_offset(self.graph.node_map.underlying_node_id(node))
+            .message_offset(self.graph.contraction.underlying_node_id(node))
     }
     #[inline(always)]
     fn tag_name(&self) -> PropertiesResult<'_, &[u8], Self> {
@@ -109,6 +109,6 @@ impl<G: SwhGraphWithProperties<Strings: OptStrings>, N: NodeMapBackend> OptStrin
             .underlying_graph
             .properties()
             .strings
-            .tag_name_offset(self.graph.node_map.underlying_node_id(node))
+            .tag_name_offset(self.graph.contraction.underlying_node_id(node))
     }
 }
