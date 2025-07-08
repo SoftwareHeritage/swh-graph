@@ -8,7 +8,7 @@
 #[cfg(feature = "unstable_contiguous_subgraph")]
 mod contiguous_subgraph;
 #[cfg(feature = "unstable_contiguous_subgraph")]
-pub use contiguous_subgraph::{ContiguousSubgraph, NodeMap};
+pub use contiguous_subgraph::{ContiguousSubgraph, NodeMap, NodeMapBackend};
 mod spy;
 pub use spy::GraphSpy;
 mod subgraph;
