@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use dashmap::DashSet;
 use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use rayon::prelude::*;
@@ -77,19 +77,19 @@ impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
         nodes
             .into_par_iter()
             .for_each_with(pl.clone(), |pl, start_node| {
+                seen.insert(start_node);
                 let mut todo = vec![start_node];
 
-                // Find roots for this commit
                 while let Some(node) = todo.pop() {
                     pl.light_update();
-                    for pred in graph.successors(node) {
-                        let new = seen.contains(&pred);
+                    for pred in graph.predecessors(node) {
+                        let new = seen.insert(pred);
                         if new {
                             todo.push(pred);
                         }
                     }
                     for succ in graph.successors(node) {
-                        let new = seen.contains(&succ);
+                        let new = seen.insert(succ);
                         if new {
                             todo.push(succ);
                         }
@@ -155,6 +155,7 @@ impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
             display_memory = true,
             expected_updates = Some(nodes.len()),
         );
+        ensure!(!nodes.is_empty(), "Empty set of nodes"); // Makes EliasFanoConcurrentBuilder panic
         let efb = EliasFanoConcurrentBuilder::new(nodes.len(), graph.num_nodes());
         nodes
             .into_par_iter()
@@ -199,7 +200,7 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
             expected_updates = Some(contracted_graph.num_nodes()),
         );
         let sccs = webgraph_algo::sccs::symm_par(
-            &symmetrized_graph,
+            symmetrized_graph,
             &rayon::ThreadPoolBuilder::default()
                 .build()
                 .context("Could not build thread pool")?,
