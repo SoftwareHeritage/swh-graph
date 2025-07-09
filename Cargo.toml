@@ -22,6 +22,17 @@ version = "7.0.0"
 anyhow = { version="1.0.79", features=["backtrace"] }
 itertools = { version = "0.11.0" }
 swh-graph = { version = "7.0.0", path = "./rust/" }
+#webgraph = "0.3.0"
+#webgraph-cli = "0.1.0"
+#webgraph-algo = "0.2.0"
+webgraph = { git = "https://github.com/vigna/webgraph-rs.git", rev = "6d74ac3a0e91540c76b43a7369ea618a08a82791" }
+webgraph-cli = { git = "https://github.com/vigna/webgraph-rs.git", rev = "6d74ac3a0e91540c76b43a7369ea618a08a82791" }
+webgraph-algo = { git = "https://github.com/vigna/webgraph-rs.git", rev = "6d74ac3a0e91540c76b43a7369ea618a08a82791" }
+#webgraph = { path = "../../webgraph-rs/webgraph" }
+#webgraph-cli = { path = "../../webgraph-rs/cli" }
+#webgraph-algo =  { path = "../../webgraph-rs/algo" }
+sux = "0.8.0"
+#sux = {path = "../../../sux-rs" }
 
 # CLI
 env_logger = "0.11.5"

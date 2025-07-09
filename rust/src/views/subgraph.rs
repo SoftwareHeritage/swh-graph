@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::{anyhow, Result};
+use webgraph::traits::labels::SortedIterator;
 
 use crate::arc_iterators::FlattenedSuccessorsIterator;
 use crate::graph::*;
@@ -36,6 +37,15 @@ macro_rules! make_filtered_arcs_iterator {
             type Item = $inner::Item;
 
             $( $next )*
+        }
+
+        // SAFETY: filtering out elements out of an iterator preserves sortedness
+        unsafe impl<
+            'a,
+            $inner: SortedIterator<Item = NodeId> + 'a,
+            NodeFilter: Fn(NodeId) -> bool,
+            ArcFilter: Fn(NodeId, NodeId) -> bool,
+        > SortedIterator for $name<'a, $inner, NodeFilter, ArcFilter> {
         }
     }
 }
@@ -96,6 +106,19 @@ macro_rules! make_filtered_labeled_arcs_iterator {
             type Item = $inner::Item;
 
             $( $next )*
+        }
+
+        // SAFETY: filtering out elements out of an iterator preserves sortedness
+        // 'Labels' itself does not need to be sorted because we only implement
+        // SortedIterator on the outer iterator, not in the inner one.
+        unsafe impl<
+            'a,
+            Labels,
+            $inner: SortedIterator<Item = (NodeId, Labels)> + 'a,
+            NodeFilter: Fn(NodeId) -> bool,
+            ArcFilter: Fn(NodeId, NodeId) -> bool,
+        > SortedIterator for $name<'a, Labels, $inner, NodeFilter, ArcFilter>
+        {
         }
 
         impl<
