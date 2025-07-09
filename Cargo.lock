@@ -730,7 +730,7 @@ checksum = "7b7380e4fc7189b00e529829576a449c6673dced13b6f8e670b33d7bc991a4f5"
 dependencies = [
  "anyhow",
  "common_traits",
- "sux",
+ "sux 0.7.2",
  "sync-cell-slice",
  "xxhash-rust",
 ]
@@ -944,7 +944,7 @@ checksum = "af10ce0d9d58d055a641bb3c496cff570c4585b657807474621e91d85e0a082a"
 dependencies = [
  "anyhow",
  "half",
- "impl-tools",
+ "impl-tools 0.10.3",
 ]
 
 [[package]]
@@ -1365,7 +1365,7 @@ checksum = "49c971cdf87e1d91ee3bfb29b070b94ccc5c574eb72497011f96343a96277456"
 dependencies = [
  "anyhow",
  "common_traits",
- "impl-tools",
+ "impl-tools 0.10.3",
  "mem_dbg",
  "rand 0.9.0",
 ]
@@ -2167,7 +2167,7 @@ dependencies = [
  "csv",
  "epserde",
  "mmap-rs",
- "sux",
+ "sux 0.8.0",
 ]
 
 [[package]]
@@ -2210,10 +2210,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "impl-tools-lib"
-version = "0.11.1"
+name = "impl-tools"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a391adcea096a89a593317881fb61ef4e68d3e7d9de9e2338e6e1557be29e10"
+checksum = "e19bd783a5f6c6a3de6e850c90e1a9c5102ddcefd57c1503597862cacf629287"
+dependencies = [
+ "autocfg",
+ "impl-tools-lib",
+ "proc-macro-error2",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "impl-tools-lib"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc6a9b65dadb575faa21065e8464e88ec3e991b3d6745972dec69d1be6cffcfe"
 dependencies = [
  "proc-macro-error2",
  "proc-macro2",
@@ -4239,7 +4251,7 @@ dependencies = [
  "env_logger 0.11.5",
  "epserde",
  "flate2",
- "impl-tools",
+ "impl-tools 0.10.3",
  "itertools 0.14.0",
  "lambert_w",
  "lender",
@@ -4252,7 +4264,44 @@ dependencies = [
  "rdst",
  "tempfile",
  "thiserror 2.0.12",
- "thread-priority",
+ "thread-priority 1.2.0",
+ "xxhash-rust",
+ "zstd 0.13.2",
+]
+
+[[package]]
+name = "sux"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8fa277060967d1e232806a1ae332010e01b1caf67193c430d50360a0fac3d2a"
+dependencies = [
+ "ambassador",
+ "anyhow",
+ "arbitrary-chunks",
+ "bitflags 2.6.0",
+ "clap",
+ "common_traits",
+ "crossbeam-channel",
+ "derivative",
+ "derive_setters",
+ "dsi-progress-logger",
+ "env_logger 0.11.5",
+ "epserde",
+ "flate2",
+ "impl-tools 0.11.2",
+ "itertools 0.14.0",
+ "lambert_w",
+ "lender",
+ "libc",
+ "log",
+ "mem_dbg",
+ "rand 0.9.0",
+ "rayon",
+ "rdst",
+ "tempfile",
+ "thiserror 2.0.12",
+ "thread-priority 2.1.0",
+ "value-traits",
  "xxhash-rust",
  "zstd 0.13.2",
 ]
@@ -4299,7 +4348,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
- "sux",
+ "sux 0.8.0",
  "tempfile",
  "thiserror 1.0.51",
  "thread_local",
@@ -4349,7 +4398,7 @@ dependencies = [
  "itertools 0.11.0",
  "log",
  "rapidhash",
- "sux",
+ "sux 0.8.0",
  "swh-graph",
 ]
 
@@ -4571,6 +4620,20 @@ dependencies = [
  "log",
  "rustversion",
  "winapi",
+]
+
+[[package]]
+name = "thread-priority"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd4ef372b29fbcc6cb0cef97bcbf3ffa9da90e02eb23dbf14db48ce30d11d2d5"
+dependencies = [
+ "bitflags 2.6.0",
+ "cfg-if",
+ "libc",
+ "log",
+ "rustversion",
+ "windows 0.61.1",
 ]
 
 [[package]]
@@ -5062,6 +5125,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 
 [[package]]
+name = "value-traits"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73d78f130449a074810c6d60f468a81f8b04f5d1389a987758e98d055487926f"
+dependencies = [
+ "value-traits-derive",
+]
+
+[[package]]
+name = "value-traits-derive"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8febfaaaec469f9540ebdd455c552a6d874374551bf0a4702fe97967d6eb995"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
+]
+
+[[package]]
 name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5201,8 +5284,7 @@ dependencies = [
 [[package]]
 name = "webgraph"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8e303a93e2d399b6b3d022230ac5b3b79b9acee622c7c4b69418e4e863d930c"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=6d74ac3a0e91540c76b43a7369ea618a08a82791#6d74ac3a0e91540c76b43a7369ea618a08a82791"
 dependencies = [
  "anyhow",
  "bitflags 2.6.0",
@@ -5212,29 +5294,34 @@ dependencies = [
  "dsi-bitstream 0.5.0",
  "dsi-progress-logger",
  "epserde",
- "impl-tools",
+ "impl-tools 0.11.2",
+ "impl-tools-lib",
  "itertools 0.14.0",
  "java-properties 2.0.0",
  "lender",
  "libc",
  "log",
  "mmap-rs",
+ "no-break",
+ "nonmax",
  "num_cpus",
+ "parallel_frontier",
  "predicates",
  "rand 0.9.0",
  "rayon",
  "rdst",
  "sealed",
- "sux",
+ "sux 0.8.0",
  "sync-cell-slice",
  "tempfile",
+ "thiserror 2.0.12",
+ "value-traits",
 ]
 
 [[package]]
 name = "webgraph-algo"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "181b5e13d5079dbea5622bdc8e625a09ecaa3a808c7426f8ecf4d213e0fb494c"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=6d74ac3a0e91540c76b43a7369ea618a08a82791#6d74ac3a0e91540c76b43a7369ea618a08a82791"
 dependencies = [
  "anyhow",
  "card-est-array",
@@ -5246,22 +5333,21 @@ dependencies = [
  "no-break",
  "nonmax",
  "num_cpus",
- "parallel_frontier",
  "predicates",
  "rand 0.9.0",
  "rayon",
  "sealed",
- "sux",
+ "sux 0.8.0",
  "sync-cell-slice",
  "thiserror 2.0.12",
+ "value-traits",
  "webgraph",
 ]
 
 [[package]]
 name = "webgraph-cli"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "291e7bcf1e642b029ddf5d03a4ed5ca7e4edb13209b683c28c223997ffb46e1d"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=6d74ac3a0e91540c76b43a7369ea618a08a82791#6d74ac3a0e91540c76b43a7369ea618a08a82791"
 dependencies = [
  "anyhow",
  "built",
@@ -5283,7 +5369,7 @@ dependencies = [
  "predicates",
  "rand 0.9.0",
  "rayon",
- "sux",
+ "sux 0.8.0",
  "sysinfo 0.35.1",
  "tempfile",
  "webgraph",

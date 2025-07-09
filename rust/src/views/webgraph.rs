@@ -110,6 +110,13 @@ impl<'succ, G: SwhForwardGraph> NodeLabelsLender<'succ> for LenderSwhForwardGrap
     type IntoIterator = G::Successors<'succ>;
 }
 
+// SAFETY: LenderSwhForwardGraph yields nodes in order, and each node's successors
+// in the same order as the underlying iterator
+unsafe impl<G: SwhForwardGraph> SortedLender for LenderSwhForwardGraph<'_, G> where
+    for<'succ> <G as SwhForwardGraph>::Successors<'succ>: SortedLender
+{
+}
+
 impl<G: SwhForwardGraph> lender::Lender for LenderSwhForwardGraph<'_, G> {
     fn next(&mut self) -> Option<<Self as lender::Lending<'_>>::Lend> {
         let node_id = self.node_id;
