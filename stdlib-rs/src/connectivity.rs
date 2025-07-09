@@ -20,7 +20,7 @@ use webgraph::traits::labels::SortedIterator;
 use webgraph_algo::sccs::Sccs;
 
 /// A structure that gives access to connected components of a subgraph.
-pub struct SubgraphSccs<G: SwhGraph> {
+pub struct SubgraphWccs<G: SwhGraph> {
     graph: ContiguousSubgraph<
         G,
         EfSeqDict,
@@ -34,7 +34,7 @@ pub struct SubgraphSccs<G: SwhGraph> {
     sccs: Sccs,
 }
 
-impl<G: SwhGraph> SubgraphSccs<G> {
+impl<G: SwhGraph> SubgraphWccs<G> {
     /// Given a set of nodes, computes the set connected components that contain these nodes.
     pub fn build_from_nodes<I: IntoParallelIterator<Item = NodeId>>(
         graph: G,
