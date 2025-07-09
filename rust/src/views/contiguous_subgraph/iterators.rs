@@ -8,6 +8,8 @@
 
 use crate::arc_iterators::FlattenedSuccessorsIterator;
 
+use webgraph::traits::labels::SortedIterator;
+
 use super::*;
 
 macro_rules! make_filtered_arcs_iterator {
@@ -31,6 +33,15 @@ macro_rules! make_filtered_arcs_iterator {
 
             $( $next )*
         }
+
+        // SAFETY: filtering out elements out of an iterator preserves sortedness,
+        // and so does N (because it is monotone)
+        unsafe impl<
+            'a,
+            $inner: SortedIterator<Item = NodeId> + 'a,
+            N: MonotoneContractionBackend,
+
+        > SortedIterator for $name<'a, $inner, N> {}
     }
 }
 
@@ -69,6 +80,17 @@ macro_rules! make_filtered_labeled_arcs_iterator {
 
             $( $next )*
         }
+
+        // SAFETY: filtering out elements out of an iterator preserves sortedness,
+        // and so does N (because it is monotone).
+        // 'Labels' itself does not need to be sorted because we only implement
+        // SortedIterator on the outer iterator, not in the inner one.
+        unsafe impl<
+            'a,
+            Labels,
+            $inner: SortedIterator<Item = (NodeId, Labels)> + 'a,
+            N: MonotoneContractionBackend
+        > SortedIterator for $name<'a, Labels, $inner, N> {}
 
         impl<
             'a,
