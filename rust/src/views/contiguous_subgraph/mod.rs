@@ -204,7 +204,20 @@ impl<G: SwhGraphWithProperties, N: ContractionBackend>
             inner,
         }
     }
+}
 
+impl<G: SwhGraph, N: ContractionBackend>
+    ContiguousSubgraph<
+        G,
+        N,
+        properties::NoMaps,
+        properties::NoTimestamps,
+        properties::NoPersons,
+        properties::NoContents,
+        properties::NoStrings,
+        properties::NoLabelNames,
+    >
+{
     /// Returns the graph this graph is a subgraph of
     ///
     /// Use [`Self::contraction`] to get the mapping between both sets of node ids
