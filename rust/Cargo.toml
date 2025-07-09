@@ -21,7 +21,7 @@ webgraph.workspace = true
 webgraph-cli.workspace = true
 pthash = { version = "0.4.0", features = ["rayon"] }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
-rayon = { version = "1.9.0" }
+rayon.workspace = true
 crossbeam = "0.8.4"
 sha1 = { version = "0.10.6" }
 itertools.workspace = true

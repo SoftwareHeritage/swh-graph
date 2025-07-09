@@ -18,7 +18,7 @@ itertools = { version = "0.11.0" }
 log = "0.4.17"
 mmap-rs = "0.6.1"
 parquet = { version = "53.1.0", default-features = false, features = ["arrow", "zstd"] }
-rayon = { version = "1.9.0" }
+rayon.workspace = true
 serde = { version = "1.0", features = ["derive"] }
 env_logger = "0.11.5"
 rdst = { version  ="0.20.14", features = ["multi-threaded"] }

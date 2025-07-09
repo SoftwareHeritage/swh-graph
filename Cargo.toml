@@ -21,6 +21,7 @@ version = "7.0.0"
 [workspace.dependencies]
 anyhow = { version="1.0.79", features=["backtrace"] }
 itertools = { version = "0.11.0" }
+rayon = { version = "1.9.0" }
 swh-graph = { version = "7.0.0", path = "./rust/" }
 #webgraph = "0.3.0"
 #webgraph-cli = "0.1.0"

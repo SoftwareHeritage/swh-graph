@@ -56,6 +56,7 @@ where
 }
 
 pub mod collections;
+pub mod connectivity;
 
 mod fs;
 pub use fs::*;
