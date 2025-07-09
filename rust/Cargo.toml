@@ -16,12 +16,9 @@ rust-version = "1.81"
 rand = "0.8.5"
 anyhow.workspace = true
 mmap-rs = "0.6.1"
-sux = "0.7.2"
-#sux = {path = "../../../sux-rs" }
-webgraph = "0.3.0"
-webgraph-cli = "0.1.0"
-#webgraph = { path = "../../../webgraph-rs/webgraph" }
-#webgraph_cli = { path = "../../../webgraph-rs/cli" }
+sux.workspace = true
+webgraph.workspace = true
+webgraph-cli.workspace = true
 pthash = { version = "0.4.0", features = ["rayon"] }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
 rayon = { version = "1.9.0" }
