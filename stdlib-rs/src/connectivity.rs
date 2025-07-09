@@ -52,8 +52,9 @@ impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
     ///
     /// then:
     ///
-    /// * build_from_closure([A, D, F]) and build_from_closure([A, B, D, F]) compute [[A, B, C, D], [E, F, G]]
-    /// * build_from_closure([A]) computes [[A, B, C, D]]
+    /// * `build_from_closure([A, D, F])` and `build_from_closure([A, B, D, F])` compute
+    ///   `[[A, B, C, D], [E, F, G]]`
+    /// * `build_from_closure([A])` computes `[[A, B, C, D]]`
     pub fn build_from_closure<I: IntoParallelIterator<Item = NodeId>>(
         graph: G,
         nodes: I,
@@ -117,9 +118,9 @@ impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
     ///
     /// then:
     ///
-    /// * build_from_nodes([A, D, F]) computes [[A], [D], [F]]
-    /// * build_from_nodes([A, B, D, F]) compute [[A, B, D], [F]]
-    /// * build_from_nodes([A]) computes [[A]]
+    /// * `build_from_nodes([A, D, F])` computes `[[A], [D], [F]]`
+    /// * `build_from_nodes([A, B, D, F])` compute `[[A, B, D], [F]]`
+    /// * `build_from_nodes([A])` computes `[[A]]`
     pub fn build_from_nodes(graph: G, mut nodes: Vec<NodeId>) -> Result<Self>
     where
         // FIXME: G should not need to be 'static
