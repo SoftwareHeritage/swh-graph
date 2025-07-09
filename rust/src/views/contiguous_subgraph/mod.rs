@@ -96,7 +96,8 @@ impl<N: ContractionBackend> Contraction<N> {
 /// use swh_graph::properties;
 /// use swh_graph::NodeConstraint;
 /// use swh_graph::graph::SwhGraphWithProperties;
-/// use swh_graph::views::{ContiguousSubgraph, Contraction, Subgraph, ContractionBackend};
+/// use swh_graph::views::Subgraph;
+/// use swh_graph::views::contiguous_subgraph::{ContiguousSubgraph, Contraction, ContractionBackend};
 ///
 /// fn filesystem_subgraph<G>(graph: &G) -> ContiguousSubgraph<
 ///         Subgraph<&'_ G, impl Fn(usize) -> bool + use<'_, G>, fn(usize, usize) -> bool>,
@@ -126,7 +127,7 @@ impl<N: ContractionBackend> Contraction<N> {
 /// use swh_graph::properties;
 /// use swh_graph::{NodeType};
 /// use swh_graph::graph::SwhGraphWithProperties;
-/// use swh_graph::views::{ContiguousSubgraph, Contraction, Subgraph, ContractionBackend};
+/// use swh_graph::views::contiguous_subgraph::{ContiguousSubgraph, Contraction, ContractionBackend};
 ///
 /// fn filesystem_subgraph<G>(graph: &G) -> ContiguousSubgraph<
 ///         &'_ G,

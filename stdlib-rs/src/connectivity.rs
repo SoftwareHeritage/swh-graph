@@ -42,7 +42,7 @@ impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
     ///
     /// For example, if a graph is:
     ///
-    /// ```
+    /// ```ignore
     /// A -> B -> C
     ///      ^
     ///     /
@@ -108,7 +108,7 @@ impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
     ///
     /// For example, if a graph is:
     ///
-    /// ```
+    /// ```ignore
     /// A -> B -> C
     ///      ^
     ///     /
