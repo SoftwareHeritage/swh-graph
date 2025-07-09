@@ -15,15 +15,17 @@ use swh_graph::graph::{
     NodeId, SwhBackwardGraph, SwhForwardGraph, SwhGraph, SwhGraphWithProperties,
 };
 use swh_graph::properties;
-use swh_graph::views::{ContiguousSubgraph, Contraction};
+use swh_graph::views::contiguous_subgraph::{
+    ContiguousSubgraph, Contraction, MonotoneContractionBackend,
+};
 use webgraph::traits::labels::SortedIterator;
 use webgraph_algo::sccs::Sccs;
 
 /// A structure that gives access to connected components of a subgraph.
-pub struct SubgraphWccs<G: SwhGraph> {
+pub struct SubgraphWccs<G: SwhGraph, N: MonotoneContractionBackend = EfSeqDict> {
     graph: ContiguousSubgraph<
         G,
-        EfSeqDict,
+        N,
         properties::NoMaps,
         properties::NoTimestamps,
         properties::NoPersons,
@@ -34,9 +36,25 @@ pub struct SubgraphWccs<G: SwhGraph> {
     sccs: Sccs,
 }
 
-impl<G: SwhGraph> SubgraphWccs<G> {
-    /// Given a set of nodes, computes the set connected components that contain these nodes.
-    pub fn build_from_nodes<I: IntoParallelIterator<Item = NodeId>>(
+impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
+    /// Given a set of nodes, computes the connected components in the whole graph
+    /// that contain these nodes.
+    ///
+    /// For example, if a graph is:
+    ///
+    /// ```
+    /// A -> B -> C
+    ///      ^
+    ///     /
+    /// D --
+    /// E -> F -> G
+    /// ```
+    ///
+    /// then:
+    ///
+    /// * build_from_closure([A, D, F]) and build_from_closure([A, B, D, F]) compute [[A, B, C, D], [E, F, G]]
+    /// * build_from_closure([A]) computes [[A, B, C, D]]
+    pub fn build_from_closure<I: IntoParallelIterator<Item = NodeId>>(
         graph: G,
         nodes: I,
     ) -> Result<Self>
@@ -80,18 +98,65 @@ impl<G: SwhGraph> SubgraphWccs<G> {
             });
         pl.done();
 
-        log::info!("Sorting reachable nodes");
-        let mut reachable_nodes: Vec<_> = seen.into_par_iter().collect();
-        reachable_nodes.radix_sort_unstable();
+        let nodes: Vec<_> = seen.into_par_iter().collect();
+        Self::build_from_nodes(graph, nodes)
+    }
 
+    /// Given a set of nodes, computes the connected components in the subgraph made
+    /// of only these nodes.
+    ///
+    /// For example, if a graph is:
+    ///
+    /// ```
+    /// A -> B -> C
+    ///      ^
+    ///     /
+    /// D --
+    /// E -> F -> G
+    /// ```
+    ///
+    /// then:
+    ///
+    /// * build_from_nodes([A, D, F]) computes [[A], [D], [F]]
+    /// * build_from_nodes([A, B, D, F]) compute [[A, B, D], [F]]
+    /// * build_from_nodes([A]) computes [[A]]
+    pub fn build_from_nodes(graph: G, mut nodes: Vec<NodeId>) -> Result<Self>
+    where
+        // FIXME: G should not need to be 'static
+        G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties + Sync + Send + 'static,
+        for<'succ> <<G as SwhForwardGraph>::Successors<'succ> as IntoIterator>::IntoIter:
+            SortedIterator,
+        for<'pred> <<G as SwhBackwardGraph>::Predecessors<'pred> as IntoIterator>::IntoIter:
+            SortedIterator,
+    {
+        log::info!("Sorting reachable nodes");
+        nodes.radix_sort_unstable();
+
+        unsafe { Self::build_from_sorted_nodes(graph, nodes) }
+    }
+
+    /// Same as [`Self::build_from_nodes`] but assumes the vector of nodes is sorted.
+    ///
+    /// # Safety
+    ///
+    /// Undefined behavior if the vector is not sorted
+    pub unsafe fn build_from_sorted_nodes(graph: G, nodes: Vec<NodeId>) -> Result<Self>
+    where
+        // FIXME: G should not need to be 'static
+        G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties + Sync + Send + 'static,
+        for<'succ> <<G as SwhForwardGraph>::Successors<'succ> as IntoIterator>::IntoIter:
+            SortedIterator,
+        for<'pred> <<G as SwhBackwardGraph>::Predecessors<'pred> as IntoIterator>::IntoIter:
+            SortedIterator,
+    {
         let mut pl = concurrent_progress_logger!(
             item_name = "node",
             local_speed = true,
             display_memory = true,
-            expected_updates = Some(reachable_nodes.len()),
+            expected_updates = Some(nodes.len()),
         );
-        let efb = EliasFanoConcurrentBuilder::new(reachable_nodes.len(), graph.num_nodes());
-        reachable_nodes
+        let efb = EliasFanoConcurrentBuilder::new(nodes.len(), graph.num_nodes());
+        nodes
             .into_par_iter()
             .enumerate()
             // SAFETY: 'index' is unique, and the vector is sorted
@@ -103,7 +168,25 @@ impl<G: SwhGraph> SubgraphWccs<G> {
 
         let contraction = Contraction(efb.build_with_seq_and_dict());
 
-        // remove all nodes not in the connected components of any of the inputs
+        Self::build_from_contraction(graph, contraction)
+    }
+}
+
+impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
+    /// Same as [`Self::build_from_nodes`] but takes a [`Contraction`] as input
+    /// instead of a `Vec<usize>`
+    pub fn build_from_contraction(graph: G, contraction: Contraction<N>) -> Result<Self>
+    where
+        // FIXME: N should not need to be 'static
+        N: Send + Sync + 'static,
+        // FIXME: G should not need to be 'static
+        G: SwhForwardGraph + SwhBackwardGraph + SwhGraphWithProperties + Sync + Send + 'static,
+        for<'succ> <<G as SwhForwardGraph>::Successors<'succ> as IntoIterator>::IntoIter:
+            SortedIterator,
+        for<'pred> <<G as SwhBackwardGraph>::Predecessors<'pred> as IntoIterator>::IntoIter:
+            SortedIterator,
+    {
+        // only keep selected nodes
         let contracted_graph =
             Arc::new(ContiguousSubgraph::new_from_contraction(graph, contraction));
         let symmetrized_graph =
