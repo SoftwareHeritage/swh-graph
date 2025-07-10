@@ -74,7 +74,7 @@ impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
             local_speed = true,
             display_memory = true,
         };
-        pl.start("Listing nodes in connected component");
+        pl.start("Listing nodes in connected closure");
         nodes
             .into_par_iter()
             .for_each_with(pl.clone(), |pl, start_node| {
