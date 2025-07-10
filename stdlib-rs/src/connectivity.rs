@@ -231,7 +231,9 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
         &'a self,
         pl: impl ProgressLog + 'a,
     ) -> impl Iterator<Item = NodeId> + 'a {
-        self.graph.iter_nodes(pl)
+        self.graph
+            .iter_nodes(pl)
+            .map(|node| self.graph.contraction().underlying_node_id(node))
     }
     /// Returns a parallel iterator on all the nodes in any connected component
     ///
@@ -247,7 +249,9 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
         G: Sync + Send,
         N: Sync + Send,
     {
-        self.graph.par_iter_nodes(pl)
+        self.graph
+            .par_iter_nodes(pl)
+            .map(|node| self.graph.contraction().underlying_node_id(node))
     }
 
     /// Returns the number of strongly connected components.
