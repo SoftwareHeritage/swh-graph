@@ -8,6 +8,7 @@ use std::sync::Arc;
 use anyhow::{ensure, Context, Result};
 use dashmap::DashSet;
 use dsi_progress_logger::{concurrent_progress_logger, ConcurrentProgressLog, ProgressLog};
+use rapidhash::RapidBuildHasher;
 use rayon::prelude::*;
 use rdst::RadixSort;
 use sux::dict::elias_fano::{EfSeqDict, EliasFanoConcurrentBuilder};
@@ -55,8 +56,12 @@ impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
     /// * `build_from_closure([A, D, F])` and `build_from_closure([A, B, D, F])` compute
     ///   `[[A, B, C, D], [E, F, G]]`
     /// * `build_from_closure([A])` computes `[[A, B, C, D]]`
+    ///
+    /// `estimated_nodes_length` should be set to the number of values in the `nodes` iterator if
+    /// known, in order to log estimated time of completion.
     pub fn build_from_closure<I: IntoParallelIterator<Item = NodeId>>(
         graph: G,
+        estimated_nodes_length: Option<usize>,
         nodes: I,
     ) -> Result<Self>
     where
@@ -67,14 +72,15 @@ impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
         for<'pred> <<G as SwhBackwardGraph>::Predecessors<'pred> as IntoIterator>::IntoIter:
             SortedIterator,
     {
-        let seen = DashSet::new(); // shared between DFSs to avoid duplicate work
+        let seen = DashSet::with_hasher(RapidBuildHasher::default()); // shared between DFSs to avoid duplicate work
 
         let mut pl = concurrent_progress_logger! {
             item_name = "node",
             local_speed = true,
             display_memory = true,
+            expected_updates = estimated_nodes_length,
         };
-        pl.start("Listing nodes in connected component");
+        pl.start("Listing nodes in connected closure");
         nodes
             .into_par_iter()
             .for_each_with(pl.clone(), |pl, start_node| {
@@ -82,7 +88,6 @@ impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
                 let mut todo = vec![start_node];
 
                 while let Some(node) = todo.pop() {
-                    pl.light_update();
                     for pred in graph.predecessors(node) {
                         let new = seen.insert(pred);
                         if new {
@@ -96,6 +101,7 @@ impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
                         }
                     }
                 }
+                pl.light_update();
             });
         pl.done();
 

@@ -72,7 +72,7 @@ fn build_graph() -> BuiltGraph {
 fn test_subgraphwccs_from_closure_two_components() -> Result<()> {
     let graph = Arc::new(build_graph());
 
-    let mut wccs = SubgraphWccs::build_from_closure(graph.clone(), [0, 1, 2, 3, 4, 5, 6])?;
+    let mut wccs = SubgraphWccs::build_from_closure(graph.clone(), None, [0, 1, 2, 3, 4, 5, 6])?;
     assert_eq!(
         &*wccs.sort_by_size(),
         &[4, 3],
@@ -94,7 +94,7 @@ fn test_subgraphwccs_from_closure_two_components() -> Result<()> {
         ]
     );
 
-    let mut wccs = SubgraphWccs::build_from_closure(graph.clone(), [0, 1, 3, 6])?;
+    let mut wccs = SubgraphWccs::build_from_closure(graph.clone(), None, [0, 1, 3, 6])?;
     assert_eq!(
         &*wccs.sort_by_size(),
         &[4, 3],
@@ -116,7 +116,7 @@ fn test_subgraphwccs_from_closure_two_components() -> Result<()> {
         ]
     );
 
-    let mut wccs = SubgraphWccs::build_from_closure(graph.clone(), [0, 3, 6])?;
+    let mut wccs = SubgraphWccs::build_from_closure(graph.clone(), None, [0, 3, 6])?;
     assert_eq!(
         &*wccs.sort_by_size(),
         &[4, 3],
@@ -145,7 +145,7 @@ fn test_subgraphwccs_from_closure_two_components() -> Result<()> {
 fn test_subgraphwccs_from_closure_one_components() -> Result<()> {
     let graph = Arc::new(build_graph());
 
-    let mut wccs = SubgraphWccs::build_from_closure(graph.clone(), [0, 1, 2, 3])?;
+    let mut wccs = SubgraphWccs::build_from_closure(graph.clone(), None, [0, 1, 2, 3])?;
     assert_eq!(
         &*wccs.sort_by_size(),
         &[4],
@@ -167,7 +167,7 @@ fn test_subgraphwccs_from_closure_one_components() -> Result<()> {
         ]
     );
 
-    let mut wccs = SubgraphWccs::build_from_closure(graph.clone(), [3])?;
+    let mut wccs = SubgraphWccs::build_from_closure(graph.clone(), None, [3])?;
     assert_eq!(
         &*wccs.sort_by_size(),
         &[4],
