@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use anyhow::{ensure, Context, Result};
 use dashmap::DashSet;
-use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, ConcurrentProgressLog, ProgressLog};
 use rayon::prelude::*;
 use rdst::RadixSort;
 use sux::dict::elias_fano::{EfSeqDict, EliasFanoConcurrentBuilder};
@@ -214,6 +214,40 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
                 .expect("webgraph_algo::sccs::symm_par leaked its 'graph' argument"),
             sccs,
         })
+    }
+
+    /// Returns the total number in all connected components
+    pub fn num_nodes(&self) -> usize {
+        self.graph.num_nodes()
+    }
+
+    /// Returns an iterator on all the nodes in any connected component
+    ///
+    /// Order is not guaranteed.
+    ///
+    /// Updates the progress logger on every node id from 0 to `self.num_nodes()`,
+    /// even those that are filtered out by an underlying subgraph.
+    pub fn iter_nodes<'a>(
+        &'a self,
+        pl: impl ProgressLog + 'a,
+    ) -> impl Iterator<Item = NodeId> + 'a {
+        self.graph.iter_nodes(pl)
+    }
+    /// Returns a parallel iterator on all the nodes in any connected component
+    ///
+    /// Order is not guaranteed.
+    ///
+    /// Updates the progress logger on every node id from 0 to `self.num_nodes()`,
+    /// even those that are filtered out by an underlying subgraph.
+    pub fn par_iter_nodes<'a>(
+        &'a self,
+        pl: impl ConcurrentProgressLog + 'a,
+    ) -> impl ParallelIterator<Item = NodeId> + 'a
+    where
+        G: Sync + Send,
+        N: Sync + Send,
+    {
+        self.graph.par_iter_nodes(pl)
     }
 
     /// Returns the number of strongly connected components.
