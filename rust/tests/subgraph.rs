@@ -3,8 +3,10 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::Result;
 use std::rc::Rc;
+
+use anyhow::Result;
+
 use swh_graph::graph::*;
 use swh_graph::graph_builder::GraphBuilder;
 use swh_graph::views::Subgraph;

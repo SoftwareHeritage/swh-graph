@@ -78,6 +78,7 @@ futures = "0.3.30"
 [features]
 default = ["macros"]
 arrow = ["dep:arrow", "dep:arrow-array"]
+unstable_contiguous_subgraph = []
 
 # Reads dataset from ORC files and produces a compressed graph
 compression = []
