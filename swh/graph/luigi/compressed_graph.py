@@ -235,6 +235,9 @@ class _CompressionStepTask(luigi.Task):
     )
     graph_name = luigi.Parameter(default="graph")
     local_graph_path: Path = luigi.PathParameter()
+    local_sensitive_graph_path: Optional[Path] = luigi.OptionalPathParameter(
+        default=None
+    )
 
     # TODO: Only add this parameter to tasks that use it
     batch_size = luigi.IntParameter(
@@ -548,6 +551,8 @@ class _CompressionStepTask(luigi.Task):
             graph_name=self.graph_name,
             in_dir=self.local_export_path / "orc",
             out_dir=self.local_graph_path,
+            sensitive_in_dir=self.local_sensitive_export_path,
+            sensitive_out_dir=self.local_sensitive_graph_path,
             test_flavor=self.test_flavor,
         )
 
@@ -1330,6 +1335,9 @@ class CompressGraph(luigi.Task):
     )
     graph_name = luigi.Parameter(default="graph")
     local_graph_path: Path = luigi.PathParameter()
+    local_sensitive_graph_path: Optional[Path] = luigi.OptionalPathParameter(
+        default=None
+    )
     batch_size = luigi.IntParameter(
         default=0,
         significant=False,
@@ -1441,6 +1449,8 @@ class CompressGraph(luigi.Task):
             graph_name=self.graph_name,
             in_dir=self.local_export_path,
             out_dir=self.local_graph_path,
+            sensitive_in_dir=self.local_sensitive_export_path,
+            sensitive_out_dir=self.local_sensitive_graph_path,
             test_flavor=self.test_flavor,
         )
 

@@ -22,6 +22,8 @@ def run_e2e_test(
     graph_name: str,
     in_dir: Optional[str],
     out_dir: Optional[str],
+    sensitive_in_dir: Optional[str],
+    sensitive_out_dir: Optional[str],
     test_flavor: Optional[str],
     profile: str = "release",
     logger: Optional[logging.Logger] = None,
@@ -37,6 +39,10 @@ def run_e2e_test(
         graph_name: graph base name, relative to in_dir
         in_dir: input directory, where the uncompressed graph can be found
         out_dir: output directory, where the compressed graph will be stored
+        sensitive_in_dir: sensitive input directory, where the uncompressed
+            sensitive graph can be found
+        sensitive_out_dir: sensitive output directory, where the compressed
+            sensitive graph will be stored
         test_flavor: which flavor of tests to run
         profile: Which Rust executables to use
 
@@ -56,7 +62,13 @@ def run_e2e_test(
         logger = e2e_logger
 
     conf = check_config_compress(
-        {"profile": profile}, graph_name, in_dir, out_dir, test_flavor
+        {"profile": profile},
+        graph_name,
+        in_dir,
+        out_dir,
+        sensitive_in_dir,
+        sensitive_out_dir,
+        test_flavor,
     )
 
     graph_name = conf["graph_name"]

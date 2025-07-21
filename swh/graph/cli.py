@@ -426,10 +426,20 @@ def grpc_serve(ctx, port, graph):
     help="graph dataset directory, in ORC format",
 )
 @click.option(
+    "--sensitive-input-dataset",
+    type=PathlibPath(),
+    help="graph sensitive dataset directory, in ORC format",
+)
+@click.option(
     "--output-directory",
     "-o",
     type=PathlibPath(),
     help="directory where to store compressed graph",
+)
+@click.option(
+    "--sensitive-output-directory",
+    type=PathlibPath(),
+    help="directory where to store sensitive compressed graph data",
 )
 @click.option(
     "--graph-name",
@@ -447,7 +457,16 @@ def grpc_serve(ctx, port, graph):
 )
 @click.option("--test-flavor", "--test-flavour", type=str, help="Test flavo[u]r")
 @click.pass_context
-def compress(ctx, input_dataset, output_directory, graph_name, steps, test_flavor):
+def compress(
+    ctx,
+    input_dataset,
+    output_directory,
+    sensitive_input_dataset,
+    sensitive_output_directory,
+    graph_name,
+    steps,
+    test_flavor,
+):
     """Compress a graph using WebGraph
 
     Input: a directory containing a graph dataset in ORC format
@@ -484,7 +503,14 @@ def compress(ctx, input_dataset, output_directory, graph_name, steps, test_flavo
 
     try:
         webgraph.compress(
-            graph_name, input_dataset, output_directory, test_flavor, steps, conf
+            graph_name,
+            input_dataset,
+            output_directory,
+            sensitive_input_dataset,
+            sensitive_output_directory,
+            test_flavor,
+            steps,
+            conf,
         )
     except webgraph.CompressionSubprocessError as e:
         try:
@@ -728,6 +754,8 @@ def luigi(
             graph_name=swh_config["graph"].get("path"),
             in_dir=swh_config["graph"]["compress"].get("in_dir"),
             out_dir=swh_config["graph"]["compress"].get("out_dir"),
+            sensitive_in_dir=swh_config["graph"]["compress"].get("sensitive_in_dir"),
+            sensitive_out_dir=swh_config["graph"]["compress"].get("sensitive_out_dir"),
             test_flavor=swh_config["graph"]["compress"].get("test_flavor"),
         )
 

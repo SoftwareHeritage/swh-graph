@@ -64,7 +64,15 @@ def check_config(
     return conf
 
 
-def check_config_compress(config, graph_name, in_dir, out_dir, test_flavor):
+def check_config_compress(
+    config,
+    graph_name,
+    in_dir,
+    out_dir,
+    sensitive_in_dir,
+    sensitive_out_dir,
+    test_flavor,
+):
     """check compression-specific configuration and initialize its execution
     environment.
     """
@@ -84,10 +92,32 @@ def check_config_compress(config, graph_name, in_dir, out_dir, test_flavor):
 
     graph_name = _retrieve_value(graph_name, "graph_name")
     in_dir = Path(_retrieve_value(in_dir, "in_dir"))
+
+    if sensitive_in_dir is not None:
+        sensitive_in_dir = Path(_retrieve_value(sensitive_in_dir, "sensitive_in_dir"))
+    elif "sensitive_in_dir" in conf:
+        sensitive_in_dir = Path(conf["sensitive_in_dir"])
+    else:
+        sensitive_in_dir = Path(f"{in_dir.parent}-sensitive")
+        conf["sensitive_in_dir"] = str(sensitive_in_dir)
+
     out_dir = Path(_retrieve_value(out_dir, "out_dir"))
+
+    if sensitive_out_dir is not None:
+        sensitive_out_dir = Path(
+            _retrieve_value(sensitive_out_dir, "sensitive_out_dir")
+        )
+    elif "sensitive_out_dir" in conf:
+        sensitive_out_dir = Path(conf["sensitive_out_dir"])
+    else:
+        sensitive_out_dir = Path(f"{out_dir.parent}-sensitive")
+        conf["sensitive_out_dir"] = str(sensitive_out_dir)
+
     test_flavor = _retrieve_value(test_flavor, "test_flavor")
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    sensitive_out_dir.mkdir(parents=True, exist_ok=True)
+
     if "tmp_dir" not in conf:
         tmp_dir = out_dir / "tmp"
         conf["tmp_dir"] = str(tmp_dir)

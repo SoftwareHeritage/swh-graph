@@ -14,7 +14,7 @@ import pytest
 import yaml
 
 from swh.graph.cli import graph_cli_group
-from swh.graph.example_dataset import DATASET_DIR
+from swh.graph.example_dataset import DATASET_DIR, SENSITIVE_DIR
 
 
 def read_properties(properties_fname) -> Dict[str, str]:
@@ -58,6 +58,10 @@ def test_pipeline():
                 DATASET_DIR / "orc",
                 "--output-directory",
                 tmpdir,
+                "--sensitive-input-dataset",
+                SENSITIVE_DIR / "orc",
+                "--sensitive-output-directory",
+                SENSITIVE_DIR / "compressed",
                 "--graph-name",
                 "example",
             ],
