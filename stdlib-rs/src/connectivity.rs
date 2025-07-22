@@ -158,6 +158,7 @@ impl<G: SwhGraph> SubgraphWccs<G, EfSeqDict> {
         );
         ensure!(!nodes.is_empty(), "Empty set of nodes"); // Makes EliasFanoConcurrentBuilder panic
         let efb = EliasFanoConcurrentBuilder::new(nodes.len(), graph.num_nodes());
+        pl.start("Compressing set of reachable nodes");
         nodes
             .into_par_iter()
             .enumerate()
@@ -200,6 +201,7 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
             display_memory = true,
             expected_updates = Some(contracted_graph.num_nodes()),
         );
+        pl.start("Computing connected components");
         let sccs = webgraph_algo::sccs::symm_par(
             symmetrized_graph,
             &rayon::ThreadPoolBuilder::default()
