@@ -22,7 +22,7 @@ fn main() -> Result<(), Error> {
     let args = Args::parse();
     println!(
         "{}",
-        String::from_utf8_lossy(IdMapping::new(args.graph_path)?.map_id(args.id)?)
+        String::from_utf8_lossy(unsafe { IdMapping::new(args.graph_path) }?.map_id(args.id)?)
     );
     Ok(())
 }

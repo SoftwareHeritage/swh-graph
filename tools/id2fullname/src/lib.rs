@@ -28,12 +28,18 @@ pub struct IdMapping {
 
 impl IdMapping {
     /// Constructs a new `IdMapping`.
-    pub fn new(graph_path: PathBuf) -> Result<IdMapping, Error> {
+    ///
+    /// # Safety
+    ///
+    /// This [epserde-deserializes](epserde::deser::Deserialize) an [`EfSeq`] structure from disk
+    /// using [`mmap`](epserde::deser::Deserialize::mmap).
+    /// See their respective safety documentation.
+    pub unsafe fn new(graph_path: PathBuf) -> Result<IdMapping, Error> {
         let fullnames_path = suffix_path(&graph_path, ".fullnames");
         let offsets_path = suffix_path(&graph_path, ".fullnames.ef");
         let fullnames = mmap(&fullnames_path)
             .with_context(|| format!("Could not mmap {}", fullnames_path.display()))?;
-        let offsets = <EfSeq>::mmap(&offsets_path, Flags::RANDOM_ACCESS)
+        let offsets = unsafe { <EfSeq>::mmap(&offsets_path, Flags::RANDOM_ACCESS) }
             .with_context(|| format!("Could not mmap {}", offsets_path.display()))?;
         Ok(IdMapping { fullnames, offsets })
     }
@@ -55,7 +61,7 @@ fn suffix_path<P: AsRef<Path>, S: AsRef<std::ffi::OsStr>>(path: P, suffix: S) ->
     path.into()
 }
 
-fn mmap(path: &Path) -> Result<Mmap, Error> {
+unsafe fn mmap(path: &Path) -> Result<Mmap, Error> {
     let file_len = path
         .metadata()
         .with_context(|| format!("Could not stat {}", path.display()))?
