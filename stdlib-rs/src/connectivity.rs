@@ -201,7 +201,6 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
             display_memory = true,
             expected_updates = Some(contracted_graph.num_nodes()),
         );
-        pl.start("Computing connected components");
         let sccs = webgraph_algo::sccs::symm_par(
             symmetrized_graph,
             &rayon::ThreadPoolBuilder::default()
