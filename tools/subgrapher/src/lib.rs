@@ -41,7 +41,7 @@ where
 
     for origin_result in origins {
         let origin = origin_result.context("Could not decode input line")?;
-        let mut origin_swhid = SWHID::from_origin_url(origin.to_owned());
+        let mut origin_swhid = SWHID::from_origin_url(&origin);
 
         // Lookup SWHID
         info!("looking up SWHID {} ...", origin);
@@ -60,7 +60,7 @@ where
                     origin.to_owned()
                 };
 
-                origin_swhid = SWHID::from_origin_url(alternative_origin.to_owned());
+                origin_swhid = SWHID::from_origin_url(alternative_origin);
 
                 node_id_lookup = graph_props.node_id(origin_swhid);
                 if node_id_lookup.is_ok() {

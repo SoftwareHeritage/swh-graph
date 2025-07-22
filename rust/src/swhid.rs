@@ -40,9 +40,9 @@ impl SWHID {
 
     /// Loads the SWHID representation for a origin uri
     /// akin to "swh:1:ori:{}"
-    pub fn from_origin_url(origin: String) -> SWHID {
+    pub fn from_origin_url(origin: impl AsRef<str>) -> SWHID {
         let mut hasher = Sha1::new();
-        hasher.update(origin);
+        hasher.update(origin.as_ref());
 
         SWHID {
             namespace_version: 1,
