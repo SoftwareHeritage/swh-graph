@@ -39,15 +39,11 @@ mod tests {
         let mut builder = GraphBuilder::default();
 
         builder
-            .node(SWHID::from_origin_url(
-                "https://example.com/repo1".to_owned(),
-            ))
+            .node(SWHID::from_origin_url("https://example.com/repo1"))
             .unwrap()
             .done();
         builder
-            .node(SWHID::from_origin_url(
-                "https://example.com/repo2".to_owned(),
-            ))
+            .node(SWHID::from_origin_url("https://example.com/repo2"))
             .unwrap()
             .done();
         builder
@@ -83,9 +79,7 @@ mod tests {
 
         // disjoint graph
         builder
-            .node(SWHID::from_origin_url(
-                "https://example.com/discinnected".to_owned(),
-            ))
+            .node(SWHID::from_origin_url("https://example.com/discinnected"))
             .unwrap()
             .done();
         builder
