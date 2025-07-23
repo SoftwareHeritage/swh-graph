@@ -94,10 +94,7 @@ where
 /// }
 /// # }
 /// ```
-pub fn iter_nodes<'a, G, I: IntoIterator<Item: Borrow<NodeId>>>(
-    graph: &'a G,
-    start: I,
-) -> NodeVisit<'a, G>
+pub fn iter_nodes<G, I: IntoIterator<Item: Borrow<NodeId>>>(graph: &G, start: I) -> NodeVisit<'_, G>
 where
     G: SwhForwardGraph,
 {
