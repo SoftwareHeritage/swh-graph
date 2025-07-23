@@ -254,7 +254,7 @@ impl<
     ///
     /// If the node id does not exist.
     #[inline]
-    pub fn is_skipped_content(&self, node_id: NodeId) -> PropertiesResult<bool, CONTENTS> {
+    pub fn is_skipped_content(&self, node_id: NodeId) -> PropertiesResult<'_, bool, CONTENTS> {
         CONTENTS::map_if_available(self.try_is_skipped_content(node_id), |is_skipped_content| {
             is_skipped_content
                 .unwrap_or_else(|e| panic!("Cannot get is_skipped_content bit of node: {e}"))
@@ -268,7 +268,7 @@ impl<
     pub fn try_is_skipped_content(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<bool, OutOfBoundError>, CONTENTS> {
+    ) -> PropertiesResult<'_, Result<bool, OutOfBoundError>, CONTENTS> {
         CONTENTS::map_if_available(
             self.contents.is_skipped_content(node_id),
             |is_skipped_content| match is_skipped_content {
@@ -289,7 +289,7 @@ impl<
     ///
     /// If the node id does not exist.
     #[inline]
-    pub fn content_length(&self, node_id: NodeId) -> PropertiesResult<Option<u64>, CONTENTS> {
+    pub fn content_length(&self, node_id: NodeId) -> PropertiesResult<'_, Option<u64>, CONTENTS> {
         CONTENTS::map_if_available(self.try_content_length(node_id), |content_length| {
             content_length.unwrap_or_else(|e| panic!("Cannot get content length: {e}"))
         })
@@ -302,7 +302,7 @@ impl<
     pub fn try_content_length(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<u64>, OutOfBoundError>, CONTENTS> {
+    ) -> PropertiesResult<'_, Result<Option<u64>, OutOfBoundError>, CONTENTS> {
         CONTENTS::map_if_available(self.contents.content_length(node_id), |content_length| {
             match content_length {
                 None => Err(OutOfBoundError {
