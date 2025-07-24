@@ -8,7 +8,7 @@ use std::collections::VecDeque;
 
 use swh_graph::graph::*;
 
-use crate::collections::{AdaptiveNodeSet, NodeSet};
+use crate::collections::{AdaptiveNodeSet, NodeSet, ReadNodeSet};
 
 /// Stateful BFS (breadth-first search) visit of (a part of) the Software
 /// Heritage graph, returning deduplicated node identifiers.

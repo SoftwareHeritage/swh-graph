@@ -5,7 +5,7 @@
 
 use std::collections::HashSet;
 
-use crate::collections::NodeSet;
+use crate::collections::{NodeSet, ReadNodeSet};
 use rapidhash::RapidBuildHasher;
 
 type NodeId = usize;
@@ -183,6 +183,8 @@ impl NodeSet for SmallNodeSet {
             }
         }
     }
+}
+impl ReadNodeSet for SmallNodeSet {
     fn contains(&self, node: NodeId) -> bool {
         match unsafe { self.0.node } {
             EMPTY => {

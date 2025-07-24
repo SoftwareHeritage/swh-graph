@@ -9,7 +9,7 @@ use itertools::Itertools;
 
 use swh_graph::graph::NodeId;
 
-use swh_graph_stdlib::collections::{NodeSet, SmallNodeSet};
+use swh_graph_stdlib::collections::{NodeSet, ReadNodeSet, SmallNodeSet};
 
 #[test]
 fn test_smallnodeset_size() {
