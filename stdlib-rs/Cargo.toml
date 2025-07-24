@@ -10,8 +10,13 @@ version = "0.1.0"
 
 [dependencies]
 anyhow.workspace = true
+dsi-bitstream.workspace = true
+epserde.workspace = true
+itertools.workspace = true
 log.workspace = true
 rapidhash = "1.4.0"
 sux = "0.7.2"
 swh-graph.workspace = true
-itertools.workspace = true
+
+[dev-dependencies]
+tempfile = "3.7.1"

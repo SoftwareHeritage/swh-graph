@@ -4346,11 +4346,14 @@ name = "swh-graph-stdlib"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "dsi-bitstream 0.5.0",
+ "epserde",
  "itertools 0.11.0",
  "log",
  "rapidhash",
  "sux",
  "swh-graph",
+ "tempfile",
 ]
 
 [[package]]
