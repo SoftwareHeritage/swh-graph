@@ -3,10 +3,13 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::io::Seek;
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use epserde::prelude::{Deserialize, Serialize};
 
+use swh_graph::graph::SwhGraph;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
 use swh_graph::swhid;
 
@@ -283,6 +286,39 @@ fn test_subgraphwccs_from_nodes_two_components() -> Result<()> {
             None
         ]
     );
+
+    Ok(())
+}
+
+#[test]
+fn test_serialization_end_none() -> Result<()> {
+    let graph = Arc::new(build_graph());
+
+    let mut wccs = SubgraphWccs::build_from_closure(graph.clone(), [0, 1, 2, 3, 4, 5, 6])?;
+
+    let (_graph, state) = wccs.as_parts();
+    let mut serialized = std::io::Cursor::new(Vec::new());
+    state.contraction.serialize(&mut serialized);
+    state.sccs.serialize(&mut serialized);
+    state.graph_path_hint.serialize(&mut serialized);
+    state.serialize(&mut serialized);
+    serialized.rewind().unwrap();
+    let deserialized_wccs = SubgraphWccs::from_parts(
+        &graph,
+        <swh_graph_stdlib::connectivity::SubgraphWccsState as Deserialize>::deserialize_eps(
+            serialized.get_ref(),
+        )
+        .context("Could not deserialize")?,
+    )
+    .context("Could not build SubgraphWccs from parts")?;
+    for node in 0..graph.num_nodes() {
+        assert_eq!(
+            wccs.component(node),
+            deserialized_wccs.component(node),
+            "{}",
+            node
+        );
+    }
 
     Ok(())
 }

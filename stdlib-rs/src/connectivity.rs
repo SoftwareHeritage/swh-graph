@@ -8,6 +8,8 @@ use std::sync::Arc;
 use anyhow::{ensure, Context, Result};
 use dashmap::DashSet;
 use dsi_progress_logger::{concurrent_progress_logger, ConcurrentProgressLog, ProgressLog};
+use epserde::prelude::{Deserialize, Serialize};
+use epserde::Epserde;
 use rayon::prelude::*;
 use rdst::RadixSort;
 use sux::dict::elias_fano::{EfSeqDict, EliasFanoConcurrentBuilder};
@@ -21,9 +23,24 @@ use swh_graph::views::contiguous_subgraph::{
 use webgraph::traits::labels::SortedIterator;
 use webgraph_algo::sccs::Sccs;
 
+#[derive(Epserde)]
+/// [`SubgraphWccs`] minus the graph itself, so it can be (de)serialized without including the
+/// graph itself.
+pub struct SubgraphWccsState<N, S>
+where
+    N: MonotoneContractionBackend,
+    S: std::ops::Deref<Target = Sccs>,
+{
+    pub contraction: Contraction<N>,
+    pub sccs: S,
+    /// Not enforced (to allow copying SubgraphWccs across different computers), but it is printed
+    /// in case of error, to help debug mismatched graphs
+    pub graph_path_hint: String,
+}
+
 /// A structure that gives access to connected components of a subgraph.
 pub struct SubgraphWccs<G: SwhGraph, N: MonotoneContractionBackend = EfSeqDict> {
-    graph: ContiguousSubgraph<
+    subgraph: ContiguousSubgraph<
         G,
         N,
         properties::NoMaps,
@@ -211,15 +228,70 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
         pl.done();
 
         Ok(Self {
-            graph: Arc::into_inner(contracted_graph)
+            subgraph: Arc::into_inner(contracted_graph)
                 .expect("webgraph_algo::sccs::symm_par leaked its 'graph' argument"),
             sccs,
         })
     }
 
+    pub fn from_parts<S>(graph: G, state: SubgraphWccsState<N, S>) -> Result<Self>
+    where
+        G: SwhGraphWithProperties,
+    {
+        let SubgraphWccsState {
+            contraction,
+            sccs,
+            graph_path_hint,
+        } = state;
+        let sccs = *sccs;
+
+        // Check graph and state.contraction have compatible lengths
+        let num_nodes = graph.num_nodes();
+        let last_node = num_nodes - 1;
+        let graph_path = graph.path().display();
+        if graph.has_node(last_node) {
+            // We have to skip this test if the graph does not have its last node (which can happen
+            // if it is a Subgraph) because then we can't do it in constant time
+            ensure!(
+                contraction.node_id_from_underlying(last_node).is_some(),
+                "Contraction is smaller than expected (Graph has {num_nodes} nodes and node {last_node} is in graph but not in contraction). Note: SubgraphWccs was built for {graph_path_hint} and graph is at {graph_path}"
+            );
+        }
+        ensure!(
+            contraction.node_id_from_underlying(num_nodes).is_none(),
+            "Contraction is longer than expected (Graph has {num_nodes} nodes, but {num_nodes} is in the contraction). Note: SubgraphWccs was built for {graph_path_hint} and graph is at {graph_path}"
+        );
+
+        let subgraph = ContiguousSubgraph::new_from_contraction(graph, contraction);
+        ensure!(
+            sccs.components().len() == subgraph.num_nodes(),
+            "Sccs has {} nodes but contraction has {}.",
+            sccs.components().len(),
+            subgraph.num_nodes()
+        );
+
+        Ok(Self { subgraph, sccs })
+    }
+
+    pub fn as_parts(&self) -> (&G, SubgraphWccsState<&N, &Sccs>) {
+        (
+            self.subgraph.underlying_graph(),
+            SubgraphWccsState {
+                contraction: Contraction(&self.subgraph.contraction().0),
+                sccs: &self.sccs,
+                graph_path_hint: self
+                    .subgraph
+                    .underlying_graph()
+                    .path()
+                    .display()
+                    .to_string(),
+            },
+        )
+    }
+
     /// Returns the total number in all connected components
     pub fn num_nodes(&self) -> usize {
-        self.graph.num_nodes()
+        self.subgraph.num_nodes()
     }
 
     /// Returns an iterator on all the nodes in any connected component
@@ -232,9 +304,9 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
         &'a self,
         pl: impl ProgressLog + 'a,
     ) -> impl Iterator<Item = NodeId> + 'a {
-        self.graph
+        self.subgraph
             .iter_nodes(pl)
-            .map(|node| self.graph.contraction().underlying_node_id(node))
+            .map(|node| self.subgraph.contraction().underlying_node_id(node))
     }
     /// Returns a parallel iterator on all the nodes in any connected component
     ///
@@ -250,9 +322,9 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
         G: Sync + Send,
         N: Sync + Send,
     {
-        self.graph
+        self.subgraph
             .par_iter_nodes(pl)
-            .map(|node| self.graph.contraction().underlying_node_id(node))
+            .map(|node| self.subgraph.contraction().underlying_node_id(node))
     }
 
     /// Returns the number of strongly connected components.
@@ -267,7 +339,7 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
     /// See [`Sccs::compute_sizes`]
     #[inline(always)]
     pub fn component(&self, node: NodeId) -> Option<usize> {
-        self.graph
+        self.subgraph
             .contraction()
             .node_id_from_underlying(node)
             .and_then(|node| self.sccs.components().get(node))
