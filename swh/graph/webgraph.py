@@ -849,7 +849,7 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
         )
         with running_command.stdout() as stdout:
             for line in stdout:
-                step_logger.info(line.rstrip())
+                step_logger.info(line.rstrip().decode(errors="replace"))
         try:
             results = running_command.wait()
         except CommandException as e:
