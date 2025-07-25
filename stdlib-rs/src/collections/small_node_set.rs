@@ -5,7 +5,7 @@
 
 use std::collections::HashSet;
 
-use crate::collections::NodeSet;
+use crate::collections::{NodeSet, ReadNodeSet};
 use rapidhash::RapidBuildHasher;
 
 type NodeId = usize;
@@ -135,7 +135,7 @@ pub struct Iter<'a> {
     iter: Option<std::collections::hash_set::Iter<'a, NodeId>>,
 }
 
-impl<'a> Iterator for Iter<'a> {
+impl Iterator for Iter<'_> {
     type Item = NodeId;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -183,6 +183,8 @@ impl NodeSet for SmallNodeSet {
             }
         }
     }
+}
+impl ReadNodeSet for SmallNodeSet {
     fn contains(&self, node: NodeId) -> bool {
         match unsafe { self.0.node } {
             EMPTY => {

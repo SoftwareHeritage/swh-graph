@@ -31,9 +31,13 @@ const PROMOTION_THRESHOLD: usize = 64;
 pub type NodeId = usize;
 
 /// A set of `usize` with a known maximum value
-pub trait NodeSet {
-    fn insert(&mut self, node: NodeId);
+pub trait ReadNodeSet {
     fn contains(&self, node: NodeId) -> bool;
+}
+
+/// A set of `usize` with a known maximum value, that can be mutated
+pub trait NodeSet: ReadNodeSet {
+    fn insert(&mut self, node: NodeId);
 }
 
 impl<S: BuildHasher> NodeSet for HashSet<usize, S> {
@@ -41,6 +45,8 @@ impl<S: BuildHasher> NodeSet for HashSet<usize, S> {
     fn insert(&mut self, node: usize) {
         HashSet::insert(self, node);
     }
+}
+impl<S: BuildHasher> ReadNodeSet for HashSet<usize, S> {
     #[inline(always)]
     fn contains(&self, node: usize) -> bool {
         HashSet::contains(self, &node)
@@ -52,9 +58,27 @@ impl NodeSet for BitVec {
     fn insert(&mut self, node: usize) {
         self.set(node, true);
     }
+}
+impl ReadNodeSet for BitVec {
     #[inline(always)]
     fn contains(&self, node: usize) -> bool {
         self.get(node)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+/// A slice of `NodeId` whose values are in ascending order
+///
+/// # Safety
+///
+/// Unsafe code should not rely on this to be sorted, as safe code can build arbitrary instances
+pub struct SortedNodeIdSlice<S: AsRef<[NodeId]> + ?Sized>(pub S);
+
+impl<S: AsRef<[NodeId]> + ?Sized> ReadNodeSet for SortedNodeIdSlice<S> {
+    /// Runs in logarithmic time, as it performs a binary search
+    #[inline(always)]
+    fn contains(&self, node: usize) -> bool {
+        self.0.as_ref().binary_search(&node).is_ok()
     }
 }
 
@@ -138,7 +162,9 @@ impl NodeSet for AdaptiveNodeSet {
             AdaptiveNodeSet::Dense { data } => data.insert(node),
         }
     }
+}
 
+impl ReadNodeSet for AdaptiveNodeSet {
     /// Returns whether the node is part of the set
     ///
     /// # Panics

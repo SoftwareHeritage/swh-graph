@@ -11,6 +11,7 @@ version = "0.1.0"
 [dependencies]
 anyhow.workspace = true
 dashmap = { version = "6.1.0", features = ["rayon"] }
+dsi-bitstream.workspace = true
 dsi-progress-logger.workspace = true
 epserde.workspace = true
 itertools.workspace = true
@@ -25,3 +26,6 @@ webgraph-algo.workspace = true
 
 [features]
 unstable_contiguous_subgraph = ["swh-graph/unstable_contiguous_subgraph"]
+
+[dev-dependencies]
+tempfile = "3.7.1"

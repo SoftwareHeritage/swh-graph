@@ -4447,6 +4447,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dashmap",
+ "dsi-bitstream 0.5.0",
  "dsi-progress-logger",
  "epserde",
  "itertools 0.11.0",
@@ -4456,6 +4457,7 @@ dependencies = [
  "rdst",
  "sux 0.8.0",
  "swh-graph",
+ "tempfile",
  "webgraph",
  "webgraph-algo",
 ]

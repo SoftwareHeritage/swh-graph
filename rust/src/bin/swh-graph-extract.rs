@@ -408,7 +408,7 @@ pub fn main() -> Result<()> {
                     let person_hash = usize::try_from(
                         person_mph.hash(
                             base64
-                                .encode_to_string(sha256)
+                                .encode_to_string(&sha256)
                                 .into_bytes()
                                 .into_boxed_slice(),
                         )?,
@@ -418,8 +418,9 @@ pub fn main() -> Result<()> {
                         .get(person_hash)
                         .context("Person hash is greater than the number of persons")?
                         .set(fullname.clone())
-                        .map_err(|other_fullname| {
-                            anyhow!("Hash collision between {fullname:?} and {other_fullname:?}")
+                        .map_err(|_| {
+                            let other_fullname = fullnames.get(person_hash).unwrap().get().unwrap();
+                            anyhow!("Hash collision between {fullname:?} and {other_fullname:?}, with SHA256 {sha256:?}")
                         })?;
                     pl.update();
                     Ok(())

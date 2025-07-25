@@ -28,13 +28,13 @@ impl MaybeTimestamps for NoTimestamps {}
 /// Trait for backend storage of timestamp properties (either in-memory or memory-mapped)
 pub trait OptTimestamps: MaybeTimestamps + PropertiesBackend {
     /// Returns `None` if out of bound, `Some(i64::MIN)` if the node has no author timestamp
-    fn author_timestamp(&self, node: NodeId) -> PropertiesResult<Option<i64>, Self>;
+    fn author_timestamp(&self, node: NodeId) -> PropertiesResult<'_, Option<i64>, Self>;
     /// Returns `None` if out of bound, `Some(i16::MIN)` if the node has no author timestamp offset
-    fn author_timestamp_offset(&self, node: NodeId) -> PropertiesResult<Option<i16>, Self>;
+    fn author_timestamp_offset(&self, node: NodeId) -> PropertiesResult<'_, Option<i16>, Self>;
     /// Returns `None` if out of bound, `Some(i64::MIN)` if the node has no committer timestamp
-    fn committer_timestamp(&self, node: NodeId) -> PropertiesResult<Option<i64>, Self>;
+    fn committer_timestamp(&self, node: NodeId) -> PropertiesResult<'_, Option<i64>, Self>;
     /// Returns `None` if out of bound, `Some(i16::MIN)` if the node has no committer timestamp offset
-    fn committer_timestamp_offset(&self, node: NodeId) -> PropertiesResult<Option<i16>, Self>;
+    fn committer_timestamp_offset(&self, node: NodeId) -> PropertiesResult<'_, Option<i16>, Self>;
 }
 
 #[diagnostic::on_unimplemented(
@@ -293,7 +293,10 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn author_timestamp(&self, node_id: NodeId) -> PropertiesResult<Option<i64>, TIMESTAMPS> {
+    pub fn author_timestamp(
+        &self,
+        node_id: NodeId,
+    ) -> PropertiesResult<'_, Option<i64>, TIMESTAMPS> {
         TIMESTAMPS::map_if_available(self.try_author_timestamp(node_id), |author_timestamp| {
             author_timestamp.unwrap_or_else(|e| panic!("Cannot get author timestamp: {e}"))
         })
@@ -308,7 +311,7 @@ impl<
     pub fn try_author_timestamp(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<i64>, OutOfBoundError>, TIMESTAMPS> {
+    ) -> PropertiesResult<'_, Result<Option<i64>, OutOfBoundError>, TIMESTAMPS> {
         TIMESTAMPS::map_if_available(
             self.timestamps.author_timestamp(node_id),
             |author_timestamp| match author_timestamp {
@@ -331,7 +334,7 @@ impl<
     pub fn author_timestamp_offset(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Option<i16>, TIMESTAMPS> {
+    ) -> PropertiesResult<'_, Option<i16>, TIMESTAMPS> {
         TIMESTAMPS::map_if_available(
             self.try_author_timestamp_offset(node_id),
             |author_timestamp_offset| {
@@ -349,7 +352,7 @@ impl<
     pub fn try_author_timestamp_offset(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<i16>, OutOfBoundError>, TIMESTAMPS> {
+    ) -> PropertiesResult<'_, Result<Option<i16>, OutOfBoundError>, TIMESTAMPS> {
         TIMESTAMPS::map_if_available(
             self.timestamps.author_timestamp_offset(node_id),
             |author_timestamp_offset| match author_timestamp_offset {
@@ -372,7 +375,7 @@ impl<
     pub fn committer_timestamp(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Option<i64>, TIMESTAMPS> {
+    ) -> PropertiesResult<'_, Option<i64>, TIMESTAMPS> {
         TIMESTAMPS::map_if_available(
             self.try_committer_timestamp(node_id),
             |committer_timestamp| {
@@ -390,7 +393,7 @@ impl<
     pub fn try_committer_timestamp(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<i64>, OutOfBoundError>, TIMESTAMPS> {
+    ) -> PropertiesResult<'_, Result<Option<i64>, OutOfBoundError>, TIMESTAMPS> {
         TIMESTAMPS::map_if_available(
             self.timestamps.committer_timestamp(node_id),
             |committer_timestamp| match committer_timestamp {
@@ -413,7 +416,7 @@ impl<
     pub fn committer_timestamp_offset(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Option<i16>, TIMESTAMPS> {
+    ) -> PropertiesResult<'_, Option<i16>, TIMESTAMPS> {
         TIMESTAMPS::map_if_available(
             self.try_committer_timestamp_offset(node_id),
             |committer_timestamp_offset| {
@@ -431,7 +434,7 @@ impl<
     pub fn try_committer_timestamp_offset(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<i16>, OutOfBoundError>, TIMESTAMPS> {
+    ) -> PropertiesResult<'_, Result<Option<i16>, OutOfBoundError>, TIMESTAMPS> {
         TIMESTAMPS::map_if_available(
             self.timestamps.committer_timestamp_offset(node_id),
             |committer_timestamp_offset| match committer_timestamp_offset {

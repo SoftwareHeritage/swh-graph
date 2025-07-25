@@ -8,7 +8,7 @@ use std::collections::VecDeque;
 
 use swh_graph::graph::*;
 
-use crate::collections::{AdaptiveNodeSet, NodeSet};
+use crate::collections::{AdaptiveNodeSet, NodeSet, ReadNodeSet};
 
 /// Stateful BFS (breadth-first search) visit of (a part of) the Software
 /// Heritage graph, returning deduplicated node identifiers.
@@ -94,10 +94,7 @@ where
 /// }
 /// # }
 /// ```
-pub fn iter_nodes<'a, G, I: IntoIterator<Item: Borrow<NodeId>>>(
-    graph: &'a G,
-    start: I,
-) -> NodeVisit<'a, G>
+pub fn iter_nodes<G, I: IntoIterator<Item: Borrow<NodeId>>>(graph: &G, start: I) -> NodeVisit<'_, G>
 where
     G: SwhForwardGraph,
 {
