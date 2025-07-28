@@ -143,10 +143,12 @@ pub struct GuaranteedDataFiles {
 impl DataFilesAvailability for OptionalDataFiles {
     type Result<'err, T> = Result<T, &'err UnavailableProperty>;
 
+    #[inline(always)]
     fn map<T, U>(v: Self::Result<'_, T>, f: impl FnOnce(T) -> U) -> Self::Result<'_, U> {
         v.map(f)
     }
 
+    #[inline(always)]
     fn zip<'err, T1, T2>(
         v1: Self::Result<'err, T1>,
         v2: Self::Result<'err, T2>,
@@ -154,6 +156,7 @@ impl DataFilesAvailability for OptionalDataFiles {
         v1.and_then(|v1| v2.map(|v2| (v1, v2)))
     }
 
+    #[inline(always)]
     fn make_result<T>(value: Self::Result<'_, T>) -> Result<T, &UnavailableProperty> {
         value
     }
@@ -162,10 +165,12 @@ impl DataFilesAvailability for OptionalDataFiles {
 impl DataFilesAvailability for GuaranteedDataFiles {
     type Result<'err, T> = T;
 
+    #[inline(always)]
     fn map<T, U>(v: Self::Result<'_, T>, f: impl FnOnce(T) -> U) -> Self::Result<'_, U> {
         f(v)
     }
 
+    #[inline(always)]
     fn zip<'err, T1, T2>(
         v1: Self::Result<'err, T1>,
         v2: Self::Result<'err, T2>,
@@ -173,6 +178,7 @@ impl DataFilesAvailability for GuaranteedDataFiles {
         (v1, v2)
     }
 
+    #[inline(always)]
     fn make_result<T>(value: Self::Result<'_, T>) -> Result<T, &UnavailableProperty> {
         Ok(value)
     }
