@@ -48,6 +48,13 @@ impl<N: IndexedSeq<Input = NodeId, Output = NodeId>> Contraction<N> {
     pub fn underlying_node_id(&self, self_node: NodeId) -> NodeId {
         self.0.get(self_node)
     }
+
+    /// Returns the number of node ids in the [`ContiguousSubgraph`].
+    ///
+    /// Note: this can be an overapproximation if the underlying graph is a subgraph
+    pub fn num_nodes(&self) -> usize {
+        self.0.len()
+    }
 }
 
 impl<N: ContractionBackend> Contraction<N> {
@@ -184,7 +191,7 @@ impl<G: SwhGraphWithProperties, N: ContractionBackend>
     /// Creates a new [`ContiguousSubgraph`] by keeping only nodes in the [`Contraction`]
     pub fn new_from_contraction(graph: G, contraction: Contraction<N>) -> Self {
         let path = graph.properties().path.clone();
-        let num_nodes = contraction.0.len();
+        let num_nodes = contraction.num_nodes();
         let inner = Arc::new(ContiguousSubgraphInner {
             underlying_graph: graph,
             contraction,
@@ -309,7 +316,7 @@ impl<
     #[inline(always)]
     // Note: this can be an overapproximation if the underlying graph is a subgraph
     fn num_nodes(&self) -> usize {
-        self.inner.contraction.0.len()
+        self.inner.contraction.num_nodes()
     }
     fn has_node(&self, node_id: NodeId) -> bool {
         node_id < self.num_nodes()
