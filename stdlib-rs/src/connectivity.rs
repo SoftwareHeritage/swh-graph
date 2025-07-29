@@ -23,7 +23,7 @@ use webgraph_algo::sccs::Sccs;
 
 /// A structure that gives access to connected components of a subgraph.
 pub struct SubgraphWccs<G: SwhGraph, N: MonotoneContractionBackend = EfSeqDict> {
-    graph: ContiguousSubgraph<
+    subgraph: ContiguousSubgraph<
         G,
         N,
         properties::NoMaps,
@@ -211,7 +211,7 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
         pl.done();
 
         Ok(Self {
-            graph: Arc::into_inner(contracted_graph)
+            subgraph: Arc::into_inner(contracted_graph)
                 .expect("webgraph_algo::sccs::symm_par leaked its 'graph' argument"),
             sccs,
         })
@@ -219,7 +219,7 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
 
     /// Returns the total number in all connected components
     pub fn num_nodes(&self) -> usize {
-        self.graph.num_nodes()
+        self.subgraph.num_nodes()
     }
 
     /// Returns an iterator on all the nodes in any connected component
@@ -232,9 +232,9 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
         &'a self,
         pl: impl ProgressLog + 'a,
     ) -> impl Iterator<Item = NodeId> + 'a {
-        self.graph
+        self.subgraph
             .iter_nodes(pl)
-            .map(|node| self.graph.contraction().underlying_node_id(node))
+            .map(|node| self.subgraph.contraction().underlying_node_id(node))
     }
     /// Returns a parallel iterator on all the nodes in any connected component
     ///
@@ -250,9 +250,9 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
         G: Sync + Send,
         N: Sync + Send,
     {
-        self.graph
+        self.subgraph
             .par_iter_nodes(pl)
-            .map(|node| self.graph.contraction().underlying_node_id(node))
+            .map(|node| self.subgraph.contraction().underlying_node_id(node))
     }
 
     /// Returns the number of strongly connected components.
@@ -267,7 +267,7 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
     /// See [`Sccs::compute_sizes`]
     #[inline(always)]
     pub fn component(&self, node: NodeId) -> Option<usize> {
-        self.graph
+        self.subgraph
             .contraction()
             .node_id_from_underlying(node)
             .and_then(|node| self.sccs.components().get(node))
