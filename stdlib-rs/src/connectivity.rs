@@ -217,6 +217,10 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
         })
     }
 
+    pub fn contraction(&self) -> &Contraction<N> {
+        self.subgraph.contraction()
+    }
+
     /// Returns the total number in all connected components
     pub fn num_nodes(&self) -> usize {
         self.subgraph.num_nodes()
