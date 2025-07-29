@@ -30,8 +30,14 @@ class GraphArgumentException(Exception):
 class RemoteGraphClient(RPCClient):
     """Client to the Software Heritage Graph."""
 
-    def __init__(self, url, timeout=None):
-        super().__init__(api_exception=GraphAPIError, url=url, timeout=timeout)
+    def __init__(self, url, timeout=None, enable_requests_retry=True, **kwargs):
+        super().__init__(
+            api_exception=GraphAPIError,
+            url=url,
+            timeout=timeout,
+            enable_requests_retry=enable_requests_retry,
+            **kwargs,
+        )
         try:
             stats = self.stats()
         except GraphArgumentException as e:
