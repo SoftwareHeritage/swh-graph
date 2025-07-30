@@ -292,10 +292,11 @@ fn test_subgraphwccs_from_nodes_two_components() -> Result<()> {
 fn test_subgraphwccs_epserde() -> Result<()> {
     let graph = Arc::new(build_graph());
 
-    let mut original = SubgraphWccs::build_from_closure(graph.clone(), [0, 1, 2, 3, 4, 5, 6])?;
+    let original = SubgraphWccs::build_from_closure(graph.clone(), [0, 1, 2, 3, 4, 5, 6])?;
+    let consumed_original = SubgraphWccs::build_from_closure(graph.clone(), [0, 1, 2, 3, 4, 5, 6])?;
 
     let mut file = std::io::Cursor::new(vec![]);
-    let (_graph, original_state) = original.as_parts();
+    let (_graph, original_state) = consumed_original.into_parts();
     original_state.serialize(&mut file)?;
     let data = file.into_inner();
     let deserialized_state = <SubgraphWccsState>::deserialize_eps(&data)?;

@@ -190,7 +190,13 @@ pub struct ContiguousSubgraph<
     STRINGS: properties::MaybeStrings,
     LABELNAMES: properties::MaybeLabelNames,
 > {
-    inner: Arc<ContiguousSubgraphInner<G, N>>, // TODO: find a way to replace Arc with ouroboros
+    // Note: ContiguousSubgraph::into_raw_parts assumes there are no references
+    // to `inner` outside of `properties`. This means that `ContiguousSubgraph`
+    // cannot implement `Clone` (at least not without copying ContiguousSubgraphInner
+    // itself).
+    //
+    // TODO: find a way to replace Arc with ouroboros
+    inner: Arc<ContiguousSubgraphInner<G, N>>,
     properties:
         properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
 }
@@ -254,6 +260,11 @@ impl<G: SwhGraph, N: ContractionBackend>
     /// The structure used to match the underlying graph's node ids with this graph's node ids
     pub fn contraction(&self) -> &Contraction<N> {
         &self.inner.contraction
+    }
+
+    pub fn into_parts(self) -> (G, Contraction<N>) {
+        let inner = Arc::into_inner(self.inner).expect("Dangling references to ContiguousSubgraph::inner for ContiguousSubgraph with no properties");
+        (inner.underlying_graph, inner.contraction)
     }
 }
 

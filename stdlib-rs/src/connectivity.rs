@@ -29,10 +29,9 @@ use webgraph_algo::sccs::Sccs;
 pub struct SubgraphWccsState<
     N: MonotoneContractionBackend = EfSeqDict,
     C: AsRef<[NodeId]> = Box<[usize]>,
-    S: std::borrow::Borrow<Sccs<C>> = Sccs<C>,
 > {
     pub contraction: Contraction<N>,
-    pub sccs: S,
+    pub sccs: Sccs<C>,
     /// Not enforced (to allow copying SubgraphWccs across different computers), but it is printed
     /// in case of error, to help debug mismatched graphs
     pub graph_path_hint: String,
@@ -241,7 +240,7 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
 }
 
 impl<G: SwhGraph, N: MonotoneContractionBackend, C: AsRef<[NodeId]>> SubgraphWccs<G, N, C> {
-    pub fn from_parts(graph: G, state: SubgraphWccsState<N, C, Sccs<C>>) -> Result<Self>
+    pub fn from_parts(graph: G, state: SubgraphWccsState<N, C>) -> Result<Self>
     where
         G: SwhGraphWithProperties,
     {
@@ -253,20 +252,17 @@ impl<G: SwhGraph, N: MonotoneContractionBackend, C: AsRef<[NodeId]>> SubgraphWcc
         } = state;
 
         // Check graph and state.contraction have compatible lengths
-        let num_nodes = graph.num_nodes();
-        let last_node = num_nodes - 1;
+        let graph_num_nodes = graph.num_nodes();
+        let contraction_num_nodes = contraction.num_nodes();
+        let contraction_last_node = contraction_num_nodes - 1;
         let graph_path = graph.path().display();
-        if graph.has_node(last_node) {
-            // We have to skip this test if the graph does not have its last node (which can happen
-            // if it is a Subgraph) because then we can't do it in constant time
-            ensure!(
-                contraction.node_id_from_underlying(last_node).is_some(),
-                "Contraction is smaller than expected (Graph has {num_nodes} nodes and node {last_node} is in graph but not in contraction). Note: SubgraphWccs was built for {graph_path_hint} and graph is at {graph_path}"
-            );
-        }
+
         ensure!(
-            contraction.node_id_from_underlying(num_nodes).is_none(),
-            "Contraction is longer than expected (Graph has {num_nodes} nodes, but {num_nodes} is in the contraction). Note: SubgraphWccs was built for {graph_path_hint} and graph is at {graph_path}"
+            contraction_num_nodes <= graph_num_nodes,
+            "Contraction has {contraction_num_nodes} nodes, but the graph only has {graph_num_nodes} nodes. Hint: SubgraphWccs was built for {graph_path_hint} and graph is at {graph_path}");
+        ensure!(
+            graph.has_node(contraction.underlying_node_id(contraction_last_node)),
+            "Contraction's last node ({contraction_last_node}) is not in the graph.  Hint: SubgraphWccs was built for {graph_path_hint} and graph is at {graph_path}"
         );
 
         let subgraph = ContiguousSubgraph::new_from_contraction(graph, contraction);
@@ -280,18 +276,15 @@ impl<G: SwhGraph, N: MonotoneContractionBackend, C: AsRef<[NodeId]>> SubgraphWcc
         Ok(Self { subgraph, sccs })
     }
 
-    pub fn as_parts(&self) -> (&G, SubgraphWccsState<&N, C, &'_ Sccs<C>>) {
+    pub fn into_parts(self) -> (G, SubgraphWccsState<N, C>) {
+        let (underlying_graph, contraction) = self.subgraph.into_parts();
+        let graph_path_hint = underlying_graph.path().display().to_string();
         (
-            self.subgraph.underlying_graph(),
+            underlying_graph,
             SubgraphWccsState {
-                contraction: Contraction(&self.subgraph.contraction().0),
-                sccs: &self.sccs,
-                graph_path_hint: self
-                    .subgraph
-                    .underlying_graph()
-                    .path()
-                    .display()
-                    .to_string(),
+                contraction,
+                sccs: self.sccs,
+                graph_path_hint,
                 marker: PhantomData,
             },
         )
