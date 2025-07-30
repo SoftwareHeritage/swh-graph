@@ -1527,8 +1527,7 @@ dependencies = [
 [[package]]
 name = "epserde"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c40d342ff20a2ce62d9a85ce406e672dfa137f902ac9670034533184f1533976"
+source = "git+https://github.com/vigna/epserde-rs.git?rev=eda623ea3916de027ffb35b5e07ee2eb9317b79e#eda623ea3916de027ffb35b5e07ee2eb9317b79e"
 dependencies = [
  "anyhow",
  "bitflags 2.6.0",
@@ -5346,7 +5345,7 @@ dependencies = [
 [[package]]
 name = "webgraph"
 version = "0.3.0"
-source = "git+https://github.com/vigna/webgraph-rs.git?rev=6d74ac3a0e91540c76b43a7369ea618a08a82791#6d74ac3a0e91540c76b43a7369ea618a08a82791"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=dd7049ac56c1bb56868ecb76ac5acf469c08e91d#dd7049ac56c1bb56868ecb76ac5acf469c08e91d"
 dependencies = [
  "anyhow",
  "bitflags 2.6.0",
@@ -5383,7 +5382,7 @@ dependencies = [
 [[package]]
 name = "webgraph-algo"
 version = "0.2.0"
-source = "git+https://github.com/vigna/webgraph-rs.git?rev=6d74ac3a0e91540c76b43a7369ea618a08a82791#6d74ac3a0e91540c76b43a7369ea618a08a82791"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=dd7049ac56c1bb56868ecb76ac5acf469c08e91d#dd7049ac56c1bb56868ecb76ac5acf469c08e91d"
 dependencies = [
  "anyhow",
  "card-est-array",
@@ -5409,7 +5408,7 @@ dependencies = [
 [[package]]
 name = "webgraph-cli"
 version = "0.1.0"
-source = "git+https://github.com/vigna/webgraph-rs.git?rev=6d74ac3a0e91540c76b43a7369ea618a08a82791#6d74ac3a0e91540c76b43a7369ea618a08a82791"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=dd7049ac56c1bb56868ecb76ac5acf469c08e91d#dd7049ac56c1bb56868ecb76ac5acf469c08e91d"
 dependencies = [
  "anyhow",
  "built",

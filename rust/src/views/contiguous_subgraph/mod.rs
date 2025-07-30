@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use anyhow::{bail, Result};
 use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
+use epserde::Epserde;
 use rayon::prelude::*;
 use sux::dict::elias_fano::{EfSeqDict, EliasFano, EliasFanoBuilder};
 use sux::traits::indexed_dict::{IndexedDict, IndexedSeq};
@@ -52,6 +53,9 @@ pub unsafe trait MonotoneContractionBackend: ContractionBackend {}
 // SAFETY: EliasFano is monotone by definition
 unsafe impl<H, L> MonotoneContractionBackend for EliasFano<H, L> where Self: ContractionBackend {}
 
+unsafe impl<N: MonotoneContractionBackend> MonotoneContractionBackend for &N {}
+
+#[derive(Epserde)]
 /// See [`ContiguousSubgraph`]
 pub struct Contraction<N: IndexedSeq<Input = NodeId, Output = NodeId>>(pub N);
 

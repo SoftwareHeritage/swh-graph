@@ -28,9 +28,9 @@ swh-graph = { version = "7.0.0", path = "./rust/" }
 #webgraph = "0.3.0"
 #webgraph-cli = "0.1.0"
 #webgraph-algo = "0.2.0"
-webgraph = { git = "https://github.com/vigna/webgraph-rs.git", rev = "6d74ac3a0e91540c76b43a7369ea618a08a82791" }
-webgraph-cli = { git = "https://github.com/vigna/webgraph-rs.git", rev = "6d74ac3a0e91540c76b43a7369ea618a08a82791" }
-webgraph-algo = { git = "https://github.com/vigna/webgraph-rs.git", rev = "6d74ac3a0e91540c76b43a7369ea618a08a82791" }
+webgraph = { git = "https://github.com/vigna/webgraph-rs.git", rev = "dd7049ac56c1bb56868ecb76ac5acf469c08e91d" }
+webgraph-cli = { git = "https://github.com/vigna/webgraph-rs.git", rev = "dd7049ac56c1bb56868ecb76ac5acf469c08e91d" }
+webgraph-algo = { git = "https://github.com/vigna/webgraph-rs.git", rev = "dd7049ac56c1bb56868ecb76ac5acf469c08e91d" }
 #webgraph = { path = "../../webgraph-rs/webgraph" }
 #webgraph-cli = { path = "../../webgraph-rs/cli" }
 #webgraph-algo =  { path = "../../webgraph-rs/algo" }
@@ -51,3 +51,6 @@ overflow-checks = false   # Disable integer overflow checks.
 debug = true              # Include debug info.
 debug-assertions = false  # Disables debug assertions.
 codegen-units=1           # slower compile times, but maybe better perf
+
+[patch.crates-io]
+epserde = { git = "https://github.com/vigna/epserde-rs.git", rev = "eda623ea3916de027ffb35b5e07ee2eb9317b79e" }
