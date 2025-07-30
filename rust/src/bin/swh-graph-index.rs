@@ -152,7 +152,7 @@ pub fn main() -> Result<()> {
                     )
                 })?;
                 ensure!(
-                    offset < max_offset,
+                    offset <= max_offset,
                     "Sum of sizes in {} is greater than the size of {}",
                     lengths_path.display(),
                     fullnames_path.display(),
