@@ -59,7 +59,7 @@ enum Commands {
         #[arg(long)]
         num_persons: usize,
         fullnames_path: PathBuf,
-        offsets_path: PathBuf,
+        lengths_path: PathBuf,
         ef_path: PathBuf,
     },
 }
@@ -119,7 +119,7 @@ pub fn main() -> Result<()> {
         Commands::FullnamesEf {
             num_persons,
             fullnames_path,
-            offsets_path,
+            lengths_path,
             ef_path,
         } => {
             use dsi_bitstream::prelude::*;
@@ -127,10 +127,10 @@ pub fn main() -> Result<()> {
             use std::{fs::File, io::BufReader};
             use sux::dict::EliasFanoBuilder;
 
-            let offsets_file = File::open(&offsets_path)
-                .with_context(|| format!("Could not open {}", offsets_path.display()))?;
-            let mut offsets_reader = <BufBitReader<BE, _>>::new(<WordAdapter<u64, _>>::new(
-                BufReader::with_capacity(1 << 20, offsets_file),
+            let lengths_file = File::open(&lengths_path)
+                .with_context(|| format!("Could not open {}", lengths_path.display()))?;
+            let mut lengths_reader = <BufBitReader<BE, _>>::new(<WordAdapter<u64, _>>::new(
+                BufReader::with_capacity(1 << 20, lengths_file),
             ));
 
             let max_offset = std::fs::metadata(&fullnames_path)
@@ -142,19 +142,19 @@ pub fn main() -> Result<()> {
             let mut offset = 0usize;
             ef_builder.push(offset);
             for _ in 0..num_persons {
-                let delta = offsets_reader
+                let delta = lengths_reader
                     .read_gamma()
                     .context("Could not read gamma")?;
                 offset = offset.checked_add(delta as usize).with_context(|| {
                     format!(
                         "Sum of lengths in {} overflowed usize",
-                        offsets_path.display()
+                        lengths_path.display()
                     )
                 })?;
                 ensure!(
                     offset < max_offset,
                     "Sum of sizes in {} is greater than the size of {}",
-                    offsets_path.display(),
+                    lengths_path.display(),
                     fullnames_path.display(),
                 );
                 ef_builder.push(offset);
