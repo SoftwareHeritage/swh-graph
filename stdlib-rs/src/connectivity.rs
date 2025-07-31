@@ -20,7 +20,7 @@ use swh_graph::views::contiguous_subgraph::{
     ContiguousSubgraph, Contraction, MonotoneContractionBackend,
 };
 use webgraph::traits::labels::SortedIterator;
-use webgraph_algo::sccs::Sccs;
+pub use webgraph_algo::sccs::Sccs;
 
 #[derive(Epserde)]
 /// [`SubgraphWccs`] minus the graph itself, so it can be (de)serialized without including the
