@@ -78,41 +78,35 @@ def check_config_compress(
     """
     conf = check_config(config)
 
-    def _retrieve_value(value, name):
+    def _retrieve_value(value, name, default_value=None, is_path=False):
         if value is not None:
-            if isinstance(value, Path):
-                value = str(value)
-            conf[name] = value
+            value = str(value) if isinstance(value, Path) else value
+        elif name in conf:
+            value = conf[name]
+        elif default_value is not None:
+            value = (
+                str(default_value) if isinstance(default_value, Path) else default_value
+            )
         else:
-            if name not in conf:
-                raise ValueError(f"No {name} provided.")
-            else:
-                value = conf[name]
-        return value
+            raise ValueError(f"No {name} provided.")
+        conf[name] = value
+        return Path(value) if is_path else value
 
     graph_name = _retrieve_value(graph_name, "graph_name")
-    in_dir = Path(_retrieve_value(in_dir, "in_dir"))
-
-    if sensitive_in_dir is not None:
-        sensitive_in_dir = Path(_retrieve_value(sensitive_in_dir, "sensitive_in_dir"))
-    elif "sensitive_in_dir" in conf:
-        sensitive_in_dir = Path(conf["sensitive_in_dir"])
-    else:
-        sensitive_in_dir = Path(f"{in_dir.parent}-sensitive")
-        conf["sensitive_in_dir"] = str(sensitive_in_dir)
-
-    out_dir = Path(_retrieve_value(out_dir, "out_dir"))
-
-    if sensitive_out_dir is not None:
-        sensitive_out_dir = Path(
-            _retrieve_value(sensitive_out_dir, "sensitive_out_dir")
-        )
-    elif "sensitive_out_dir" in conf:
-        sensitive_out_dir = Path(conf["sensitive_out_dir"])
-    else:
-        sensitive_out_dir = Path(f"{out_dir.parent}-sensitive")
-        conf["sensitive_out_dir"] = str(sensitive_out_dir)
-
+    in_dir = _retrieve_value(in_dir, "in_dir", is_path=True)
+    sensitive_in_dir = _retrieve_value(
+        sensitive_in_dir,
+        "sensitive_in_dir",
+        default_value=Path(f"{in_dir.parent}-sensitive"),
+        is_path=True,
+    )
+    out_dir = _retrieve_value(out_dir, "out_dir", is_path=True)
+    sensitive_out_dir = _retrieve_value(
+        sensitive_out_dir,
+        "sensitive_out_dir",
+        default_value=Path(f"{out_dir.parent}-sensitive"),
+        is_path=True,
+    )
     test_flavor = _retrieve_value(test_flavor, "test_flavor")
 
     out_dir.mkdir(parents=True, exist_ok=True)
