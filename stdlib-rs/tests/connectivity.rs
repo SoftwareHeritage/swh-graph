@@ -5,8 +5,8 @@
 
 use std::sync::Arc;
 
-use anyhow::Result;
-use epserde::prelude::{Deserialize, Serialize};
+use anyhow::{Context, Result};
+use epserde::prelude::{Deserialize, Flags, Serialize};
 
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
 use swh_graph::swhid;
@@ -301,6 +301,33 @@ fn test_subgraphwccs_epserde() -> Result<()> {
     let data = file.into_inner();
     let deserialized_state = <SubgraphWccsState>::deserialize_eps(&data)?;
     let deserialized = SubgraphWccs::from_parts(graph, deserialized_state)?;
+
+    assert_eq!(original.num_components(), deserialized.num_components());
+    assert_eq!(
+        (0..9)
+            .map(|node| original.component(node))
+            .collect::<Vec<_>>(),
+        (0..9)
+            .map(|node| deserialized.component(node))
+            .collect::<Vec<_>>()
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_subgraphwccs_epserde_mmap() -> Result<()> {
+    let graph = Arc::new(build_graph());
+
+    let original = SubgraphWccs::build_from_closure(graph.clone(), [0, 1, 2, 3, 4, 5, 6])?;
+    let consumed_original = SubgraphWccs::build_from_closure(graph.clone(), [0, 1, 2, 3, 4, 5, 6])?;
+
+    let mut file = tempfile::NamedTempFile::new().context("Could not create temp file")?;
+    let (_graph, original_state) = consumed_original.into_parts();
+    original_state.serialize(&mut file)?;
+
+    let deserialized_state = <SubgraphWccsState>::mmap(file.path(), Flags::RANDOM_ACCESS)?;
+    let deserialized = SubgraphWccs::from_parts(graph, deserialized_state.clone())?;
 
     assert_eq!(original.num_components(), deserialized.num_components());
     assert_eq!(

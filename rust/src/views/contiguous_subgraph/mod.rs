@@ -55,7 +55,7 @@ unsafe impl<H, L> MonotoneContractionBackend for EliasFano<H, L> where Self: Con
 
 unsafe impl<N: MonotoneContractionBackend> MonotoneContractionBackend for &N {}
 
-#[derive(Epserde)]
+#[derive(Epserde, Copy, Clone, Debug)]
 /// See [`ContiguousSubgraph`]
 pub struct Contraction<N: IndexedSeq<Input = NodeId, Output = NodeId>>(pub N);
 

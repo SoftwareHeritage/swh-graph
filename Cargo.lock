@@ -729,7 +729,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b7380e4fc7189b00e529829576a449c6673dced13b6f8e670b33d7bc991a4f5"
 dependencies = [
  "anyhow",
- "common_traits",
+ "common_traits 0.11.3",
  "sux 0.7.2",
  "sync-cell-slice",
  "xxhash-rust",
@@ -945,6 +945,17 @@ dependencies = [
  "anyhow",
  "half",
  "impl-tools 0.10.3",
+]
+
+[[package]]
+name = "common_traits"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13e7c3f277f252af0ff02a8558072a39dadf0a38a21ce24e2bb8be08b55d8db4"
+dependencies = [
+ "anyhow",
+ "half",
+ "impl-tools 0.11.2",
 ]
 
 [[package]]
@@ -1368,7 +1379,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "400457d3d4d2713527bdf85aacb4a41b06293b6005957bbdc210a12912e1d470"
 dependencies = [
- "common_traits",
+ "common_traits 0.12.0",
  "rand 0.8.5",
 ]
 
@@ -1379,7 +1390,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49c971cdf87e1d91ee3bfb29b070b94ccc5c574eb72497011f96343a96277456"
 dependencies = [
  "anyhow",
- "common_traits",
+ "common_traits 0.12.0",
  "impl-tools 0.10.3",
  "mem_dbg",
  "rand 0.9.0",
@@ -1532,7 +1543,7 @@ checksum = "c40d342ff20a2ce62d9a85ce406e672dfa137f902ac9670034533184f1533976"
 dependencies = [
  "anyhow",
  "bitflags 2.6.0",
- "common_traits",
+ "common_traits 0.11.3",
  "epserde-derive",
  "maligned",
  "mem_dbg",
@@ -4296,7 +4307,7 @@ dependencies = [
  "arbitrary-chunks",
  "bitflags 2.6.0",
  "clap",
- "common_traits",
+ "common_traits 0.11.3",
  "crossbeam-channel",
  "derivative",
  "derive_setters",
@@ -4325,15 +4336,14 @@ dependencies = [
 [[package]]
 name = "sux"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8fa277060967d1e232806a1ae332010e01b1caf67193c430d50360a0fac3d2a"
+source = "git+https://github.com/vigna/sux-rs.git?rev=42a4fa654aeb59aa716d8f78a2bf35ede80c0413#42a4fa654aeb59aa716d8f78a2bf35ede80c0413"
 dependencies = [
  "ambassador",
  "anyhow",
  "arbitrary-chunks",
  "bitflags 2.6.0",
  "clap",
- "common_traits",
+ "common_traits 0.12.0",
  "crossbeam-channel",
  "derivative",
  "derive_setters",
@@ -4373,7 +4383,7 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "clap",
- "common_traits",
+ "common_traits 0.11.3",
  "const-hex",
  "const_panic",
  "crossbeam",
@@ -5346,11 +5356,11 @@ dependencies = [
 [[package]]
 name = "webgraph"
 version = "0.3.0"
-source = "git+https://github.com/vigna/webgraph-rs.git?rev=dd7049ac56c1bb56868ecb76ac5acf469c08e91d#dd7049ac56c1bb56868ecb76ac5acf469c08e91d"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=f033578b588d275c19f00d61f5435accb311bf74#f033578b588d275c19f00d61f5435accb311bf74"
 dependencies = [
  "anyhow",
  "bitflags 2.6.0",
- "common_traits",
+ "common_traits 0.11.3",
  "crossbeam-channel",
  "dary_heap",
  "dsi-bitstream 0.5.0",
@@ -5383,7 +5393,7 @@ dependencies = [
 [[package]]
 name = "webgraph-algo"
 version = "0.2.0"
-source = "git+https://github.com/vigna/webgraph-rs.git?rev=dd7049ac56c1bb56868ecb76ac5acf469c08e91d#dd7049ac56c1bb56868ecb76ac5acf469c08e91d"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=f033578b588d275c19f00d61f5435accb311bf74#f033578b588d275c19f00d61f5435accb311bf74"
 dependencies = [
  "anyhow",
  "card-est-array",
@@ -5409,7 +5419,7 @@ dependencies = [
 [[package]]
 name = "webgraph-cli"
 version = "0.1.0"
-source = "git+https://github.com/vigna/webgraph-rs.git?rev=dd7049ac56c1bb56868ecb76ac5acf469c08e91d#dd7049ac56c1bb56868ecb76ac5acf469c08e91d"
+source = "git+https://github.com/vigna/webgraph-rs.git?rev=f033578b588d275c19f00d61f5435accb311bf74#f033578b588d275c19f00d61f5435accb311bf74"
 dependencies = [
  "anyhow",
  "built",
@@ -5417,7 +5427,7 @@ dependencies = [
  "chrono",
  "clap",
  "clap_complete",
- "common_traits",
+ "common_traits 0.11.3",
  "dsi-bitstream 0.5.0",
  "dsi-progress-logger",
  "env_logger 0.11.5",

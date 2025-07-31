@@ -3,7 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::marker::PhantomData;
 use std::sync::Arc;
 
 use anyhow::{ensure, Context, Result};
@@ -26,16 +25,24 @@ use webgraph_algo::sccs::Sccs;
 #[derive(Epserde)]
 /// [`SubgraphWccs`] minus the graph itself, so it can be (de)serialized without including the
 /// graph itself.
-pub struct SubgraphWccsState<
-    N: MonotoneContractionBackend = EfSeqDict,
-    C: AsRef<[NodeId]> = Box<[usize]>,
-> {
-    pub contraction: Contraction<N>,
-    pub sccs: Sccs<C>,
+pub struct SubgraphWccsState<N: MonotoneContractionBackend = EfSeqDict, S = Sccs<Box<[usize]>>> {
+    contraction_backend: N,
+    sccs: S,
     /// Not enforced (to allow copying SubgraphWccs across different computers), but it is printed
     /// in case of error, to help debug mismatched graphs
-    pub graph_path_hint: String,
-    pub marker: PhantomData<C>,
+    graph_path_hint: String,
+}
+
+impl<N: MonotoneContractionBackend + Copy, C: AsRef<[NodeId]> + Copy> Clone
+    for SubgraphWccsState<N, Sccs<C>>
+{
+    fn clone(&self) -> Self {
+        Self {
+            contraction_backend: self.contraction_backend,
+            sccs: self.sccs,
+            graph_path_hint: self.graph_path_hint.clone(),
+        }
+    }
 }
 
 /// A structure that gives access to connected components of a subgraph.
@@ -240,16 +247,16 @@ impl<G: SwhGraph, N: MonotoneContractionBackend> SubgraphWccs<G, N> {
 }
 
 impl<G: SwhGraph, N: MonotoneContractionBackend, C: AsRef<[NodeId]>> SubgraphWccs<G, N, C> {
-    pub fn from_parts(graph: G, state: SubgraphWccsState<N, C>) -> Result<Self>
+    pub fn from_parts(graph: G, state: SubgraphWccsState<N, Sccs<C>>) -> Result<Self>
     where
         G: SwhGraphWithProperties,
     {
         let SubgraphWccsState {
-            contraction,
+            contraction_backend,
             sccs,
             graph_path_hint,
-            marker: PhantomData,
         } = state;
+        let contraction = Contraction(contraction_backend);
 
         // Check graph and state.contraction have compatible lengths
         let graph_num_nodes = graph.num_nodes();
@@ -276,16 +283,15 @@ impl<G: SwhGraph, N: MonotoneContractionBackend, C: AsRef<[NodeId]>> SubgraphWcc
         Ok(Self { subgraph, sccs })
     }
 
-    pub fn into_parts(self) -> (G, SubgraphWccsState<N, C>) {
-        let (underlying_graph, contraction) = self.subgraph.into_parts();
+    pub fn into_parts(self) -> (G, SubgraphWccsState<N, Sccs<C>>) {
+        let (underlying_graph, Contraction(contraction_backend)) = self.subgraph.into_parts();
         let graph_path_hint = underlying_graph.path().display().to_string();
         (
             underlying_graph,
             SubgraphWccsState {
-                contraction,
+                contraction_backend,
                 sccs: self.sccs,
                 graph_path_hint,
-                marker: PhantomData,
             },
         )
     }
