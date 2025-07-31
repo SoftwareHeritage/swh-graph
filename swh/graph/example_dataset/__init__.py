@@ -623,9 +623,3 @@ DATASET_DIR: Path = Path(__file__).parent
 
   :meta hide-value:
 """  # pylint: disable=W0105
-
-SENSITIVE_DIR: Path = Path(f"{DATASET_DIR}-sensitive")
-"""Path to the sensitive data directory
-
-  :meta hide-value:
-"""
