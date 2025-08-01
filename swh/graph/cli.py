@@ -929,6 +929,64 @@ def find_context(ctx, **kwargs):
     return lookup(**kwargs)
 
 
+@graph_cli_group.command(name="link")
+@click.argument(
+    "source-path", type=click.Path(dir_okay=True, exists=True, path_type=Path)
+)
+@click.argument(
+    "destination-path", type=click.Path(dir_okay=True, writable=True, path_type=Path)
+)
+@click.option(
+    "--verbose", "-v", is_flag=True, default=False, help="Explain what is being done"
+)
+@click.argument("force-copy", type=click.Path(path_type=Path), nargs=-1)
+@click.pass_context
+def link(
+    ctx,
+    source_path: Path,
+    destination_path: Path,
+    force_copy: Tuple[Path],
+    verbose: bool,
+):
+    """
+    Symlink (or copy) an existing graph to the desired location.
+
+    By default, all files are symlinked, but files and directories can be
+    specified to be copied instead.
+
+    This functionality is intended for internal use, and is there to ease the
+    process of sharing an existing graph between multiple users on the same
+    machine.
+    """
+    import shutil
+
+    from tqdm.contrib.concurrent import thread_map
+
+    destination_path.mkdir(parents=True, exist_ok=True)
+
+    for file_or_dir in source_path.rglob("*"):
+        if file_or_dir in force_copy:
+            continue
+        link_target = destination_path / file_or_dir.relative_to(source_path)
+        if file_or_dir.is_dir():
+            link_target.mkdir(parents=True, exist_ok=True)
+            continue
+        link_target.symlink_to(file_or_dir)
+        if verbose:
+            logger.info(f"Creating symlink from {file_or_dir} to {link_target}")
+
+    def _copy(source_item: Path):
+        if verbose:
+            logger.info(f"Copying {source_item} to {destination_path}")
+        if source_item.is_file():
+            shutil.copy(source_item, destination_path)
+        else:
+            shutil.copytree(source_item, destination_path)
+
+    if len(force_copy) > 0:
+        thread_map(_copy, force_copy, desc="Copying files", max_workers=len(force_copy))
+
+
 def main():
     return graph_cli_group(auto_envvar_prefix="SWH_GRAPH")
 
