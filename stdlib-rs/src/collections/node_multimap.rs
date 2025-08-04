@@ -15,7 +15,7 @@ use sux::dict::elias_fano::{EfSeq, EliasFanoBuilder};
 use sux::prelude::IndexedSeq;
 use sux::traits::BitFieldSliceCore;
 
-use super::{NodeId, ReadNodeSet, SortedNodeIdSlice};
+use super::{EmptyNodeSet, NodeId, ReadNodeSet, SortedNodeIdSlice};
 
 pub trait NodeMultimap {
     type NodeSet<'a>: ReadNodeSet
@@ -23,6 +23,17 @@ pub trait NodeMultimap {
         Self: 'a;
 
     fn get(&self, node: NodeId) -> Self::NodeSet<'_>;
+}
+
+pub struct EmptyNodeMultimap;
+
+impl NodeMultimap for EmptyNodeMultimap {
+    type NodeSet<'a> = EmptyNodeSet;
+
+    #[inline(always)]
+    fn get(&self, _node: NodeId) -> Self::NodeSet<'_> {
+        EmptyNodeSet
+    }
 }
 
 /// Builder for [`EfIndexedNodeMultimap`]
