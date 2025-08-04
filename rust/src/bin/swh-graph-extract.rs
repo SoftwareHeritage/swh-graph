@@ -417,10 +417,10 @@ pub fn main() -> Result<()> {
                     fullnames
                         .get(person_hash)
                         .context("Person hash is greater than the number of persons")?
-                        .set(fullname.clone())
-                        .map_err(|_| {
+                        .set(fullname)
+                        .map_err(|fullname| {
                             let other_fullname = fullnames.get(person_hash).unwrap().get().unwrap();
-                            anyhow!("Hash collision between {fullname:?} and {other_fullname:?}, with SHA256 {sha256:?}")
+                            anyhow!("Hash collision on SHA256 {sha256:?}, between {fullname:?} and {other_fullname:?}")
                         })?;
                     pl.update();
                     Ok(())

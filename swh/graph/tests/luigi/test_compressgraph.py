@@ -10,7 +10,7 @@ from click.testing import CliRunner
 import pytest
 
 from swh.graph.cli import graph_cli_group
-from swh.graph.example_dataset import DATASET_DIR, RELEASES, REVISIONS, SENSITIVE_DIR
+from swh.graph.example_dataset import DATASET_DIR, RELEASES, REVISIONS
 
 from ..test_cli import read_properties
 
@@ -36,8 +36,6 @@ def test_compressgraph(tmpdir, workers):
         "--local-scheduler",
         "--CompressGraph-local-export-path",
         DATASET_DIR,
-        "--CompressGraph-local-sensitive-export-path",
-        SENSITIVE_DIR,
         "--CompressGraph-local-graph-path",
         tmpdir / "compressed_graph",
         "--CompressGraph-rust-executable-dir",
@@ -120,8 +118,6 @@ def test_compressgraph_partial(tmpdir, workers, object_types):
         "--local-scheduler",
         "--CompressGraph-local-export-path",
         DATASET_DIR,
-        "--CompressGraph-local-sensitive-export-path",
-        SENSITIVE_DIR,
         "--CompressGraph-local-graph-path",
         tmpdir / "compressed_graph",
         f"--CompressGraph-object-types={object_types}",

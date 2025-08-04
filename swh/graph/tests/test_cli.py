@@ -58,6 +58,8 @@ def test_pipeline():
                 DATASET_DIR / "orc",
                 "--output-directory",
                 tmpdir,
+                "--sensitive-output-directory",
+                tmpdir,
                 "--graph-name",
                 "example",
             ],

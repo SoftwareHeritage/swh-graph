@@ -40,6 +40,24 @@ pub trait NodeSet: ReadNodeSet {
     fn insert(&mut self, node: NodeId);
 }
 
+pub struct EmptyNodeSet;
+
+impl ReadNodeSet for EmptyNodeSet {
+    #[inline(always)]
+    fn contains(&self, _node: usize) -> bool {
+        false
+    }
+}
+impl IntoIterator for EmptyNodeSet {
+    type Item = NodeId;
+    type IntoIter = std::iter::Empty<NodeId>;
+
+    #[inline(always)]
+    fn into_iter(self) -> Self::IntoIter {
+        std::iter::empty()
+    }
+}
+
 impl<S: BuildHasher> NodeSet for HashSet<usize, S> {
     #[inline(always)]
     fn insert(&mut self, node: usize) {

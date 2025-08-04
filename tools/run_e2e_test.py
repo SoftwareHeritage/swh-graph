@@ -14,6 +14,8 @@ run_e2e_test(
     graph_name="example",
     in_dir="swh/graph/example_dataset/orc/",
     out_dir="swh/graph/example_dataset/compressed/",
+    sensitive_in_dir="swh/graph/example_dataset-sensitive/orc/",
+    sensitive_out_dir="swh/graph/example_dataset-sensitive/compressed/",
     test_flavor="example",
     profile="debug",
 )

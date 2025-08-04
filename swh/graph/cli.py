@@ -426,10 +426,20 @@ def grpc_serve(ctx, port, graph):
     help="graph dataset directory, in ORC format",
 )
 @click.option(
+    "--sensitive-input-dataset",
+    type=PathlibPath(),
+    help="graph sensitive dataset directory, in ORC format",
+)
+@click.option(
     "--output-directory",
     "-o",
     type=PathlibPath(),
     help="directory where to store compressed graph",
+)
+@click.option(
+    "--sensitive-output-directory",
+    type=PathlibPath(),
+    help="directory where to store sensitive compressed graph data",
 )
 @click.option(
     "--graph-name",
@@ -447,7 +457,16 @@ def grpc_serve(ctx, port, graph):
 )
 @click.option("--test-flavor", "--test-flavour", type=str, help="Test flavo[u]r")
 @click.pass_context
-def compress(ctx, input_dataset, output_directory, graph_name, steps, test_flavor):
+def compress(
+    ctx,
+    input_dataset,
+    output_directory,
+    sensitive_input_dataset,
+    sensitive_output_directory,
+    graph_name,
+    steps,
+    test_flavor,
+):
     """Compress a graph using WebGraph
 
     Input: a directory containing a graph dataset in ORC format
@@ -484,7 +503,14 @@ def compress(ctx, input_dataset, output_directory, graph_name, steps, test_flavo
 
     try:
         webgraph.compress(
-            graph_name, input_dataset, output_directory, test_flavor, steps, conf
+            graph_name,
+            input_dataset,
+            output_directory,
+            sensitive_input_dataset,
+            sensitive_output_directory,
+            test_flavor,
+            steps,
+            conf,
         )
     except webgraph.CompressionSubprocessError as e:
         try:
@@ -728,6 +754,8 @@ def luigi(
             graph_name=swh_config["graph"].get("path"),
             in_dir=swh_config["graph"]["compress"].get("in_dir"),
             out_dir=swh_config["graph"]["compress"].get("out_dir"),
+            sensitive_in_dir=swh_config["graph"]["compress"].get("sensitive_in_dir"),
+            sensitive_out_dir=swh_config["graph"]["compress"].get("sensitive_out_dir"),
             test_flavor=swh_config["graph"]["compress"].get("test_flavor"),
         )
 
@@ -899,6 +927,64 @@ def find_context(ctx, **kwargs):
     from swh.graph.find_context import main as lookup
 
     return lookup(**kwargs)
+
+
+@graph_cli_group.command(name="link")
+@click.argument(
+    "source-path", type=click.Path(dir_okay=True, exists=True, path_type=Path)
+)
+@click.argument(
+    "destination-path", type=click.Path(dir_okay=True, writable=True, path_type=Path)
+)
+@click.option(
+    "--verbose", "-v", is_flag=True, default=False, help="Explain what is being done"
+)
+@click.argument("force-copy", type=click.Path(path_type=Path), nargs=-1)
+@click.pass_context
+def link(
+    ctx,
+    source_path: Path,
+    destination_path: Path,
+    force_copy: Tuple[Path],
+    verbose: bool,
+):
+    """
+    Symlink (or copy) an existing graph to the desired location.
+
+    By default, all files are symlinked, but files and directories can be
+    specified to be copied instead.
+
+    This functionality is intended for internal use, and is there to ease the
+    process of sharing an existing graph between multiple users on the same
+    machine.
+    """
+    import shutil
+
+    from tqdm.contrib.concurrent import thread_map
+
+    destination_path.mkdir(parents=True, exist_ok=True)
+
+    for file_or_dir in source_path.rglob("*"):
+        if file_or_dir in force_copy:
+            continue
+        link_target = destination_path / file_or_dir.relative_to(source_path)
+        if file_or_dir.is_dir():
+            link_target.mkdir(parents=True, exist_ok=True)
+            continue
+        link_target.symlink_to(file_or_dir)
+        if verbose:
+            logger.info(f"Creating symlink from {file_or_dir} to {link_target}")
+
+    def _copy(source_item: Path):
+        if verbose:
+            logger.info(f"Copying {source_item} to {destination_path}")
+        if source_item.is_file():
+            shutil.copy(source_item, destination_path)
+        else:
+            shutil.copytree(source_item, destination_path)
+
+    if len(force_copy) > 0:
+        thread_map(_copy, force_copy, desc="Copying files", max_workers=len(force_copy))
 
 
 def main():

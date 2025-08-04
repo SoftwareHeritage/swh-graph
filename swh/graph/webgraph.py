@@ -424,7 +424,7 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
         return None
     if not (
         Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
-        and Path(f"{conf['in_dir']}/person").exists()
+        and Path(f"{conf['sensitive_in_dir']}/person").exists()
     ):
         return None
     with open(
@@ -439,9 +439,9 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
         "extract-fullnames",
         "--person-function",
         f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
-        f"{conf['in_dir']}",
-        f"{conf['out_dir']}/{conf['graph_name']}.persons",
-        f"{conf['out_dir']}/{conf['graph_name']}.persons.lengths",
+        f"{conf['sensitive_in_dir']}",
+        f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons",
+        f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons.lengths",
     )
 
 
@@ -450,7 +450,7 @@ def _fullnames_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command
         return None
     if not (
         Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
-        and Path(f"{conf['in_dir']}/person").exists()
+        and Path(f"{conf['sensitive_in_dir']}/person").exists()
     ):
         return None
     with open(
@@ -465,9 +465,9 @@ def _fullnames_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command
         "fullnames-ef",
         "--num-persons",
         num_persons[0],
-        f"{conf['out_dir']}/{conf['graph_name']}.persons",
-        f"{conf['out_dir']}/{conf['graph_name']}.persons.lengths",
-        f"{conf['out_dir']}/{conf['graph_name']}.persons.ef",
+        f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons",
+        f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons.lengths",
+        f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons.ef",
     )
 
 
@@ -733,6 +733,8 @@ def _e2e_test(
         graph_name=conf["graph_name"],
         in_dir=conf["in_dir"],
         out_dir=conf["out_dir"],
+        sensitive_in_dir=conf.get("sensitive_in_dir"),
+        sensitive_out_dir=conf.get("sensitive_out_dir"),
         test_flavor=conf.get("test_flavor", "full"),
         profile=conf.get("profile", "release"),
         logger=logger,
@@ -847,7 +849,7 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
         )
         with running_command.stdout() as stdout:
             for line in stdout:
-                step_logger.info(line.rstrip())
+                step_logger.info(line.rstrip().decode(errors="replace"))
         try:
             results = running_command.wait()
         except CommandException as e:
@@ -880,6 +882,8 @@ def compress(
     graph_name: str,
     in_dir: str,
     out_dir: str,
+    sensitive_in_dir: Optional[str],
+    sensitive_out_dir: Optional[str],
     test_flavor: Optional[str],
     steps: Set[CompressionStep] = set(COMP_SEQ),
     conf: Dict[str, str] = {},
@@ -892,6 +896,10 @@ def compress(
         graph_name: graph base name, relative to in_dir
         in_dir: input directory, where the uncompressed graph can be found
         out_dir: output directory, where the compressed graph will be stored
+        sensitive_in_dir: sensitive input directory, where the uncompressed
+            sensitive graph can be found
+        sensitive_out_dir: sensitive output directory, where the compressed
+            sensitive graph will be stored
         test_flavor: which flavor of tests to run
         steps: compression steps to run (default: all steps)
         conf: compression configuration, supporting the following keys (all are
@@ -911,7 +919,15 @@ def compress(
     if not steps:
         steps = set(COMP_SEQ)
 
-    conf = check_config_compress(conf, graph_name, in_dir, out_dir, test_flavor)
+    conf = check_config_compress(
+        conf,
+        graph_name,
+        in_dir,
+        out_dir,
+        sensitive_in_dir,
+        sensitive_out_dir,
+        test_flavor,
+    )
 
     compression_start_time = datetime.now()
     logger.info("Starting compression at %s", compression_start_time)
