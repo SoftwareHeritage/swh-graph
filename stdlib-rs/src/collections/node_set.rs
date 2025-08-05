@@ -100,6 +100,29 @@ impl<S: AsRef<[NodeId]> + ?Sized> ReadNodeSet for SortedNodeIdSlice<S> {
     }
 }
 
+impl<S: AsRef<[NodeId]>> std::ops::Deref for SortedNodeIdSlice<S> {
+    type Target = S;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> IntoIterator for SortedNodeIdSlice<&'a [NodeId]> {
+    type Item = NodeId;
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, NodeId>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter().copied()
+    }
+}
+
+impl<'a, S: AsRef<[NodeId]>> From<&'a SortedNodeIdSlice<S>> for SortedNodeIdSlice<&'a [NodeId]> {
+    fn from(v: &'a SortedNodeIdSlice<S>) -> Self {
+        SortedNodeIdSlice(v.0.as_ref())
+    }
+}
+
 /// Implementation of [`NodeSet`] that dynamically changes the underlying representation
 /// based on its content
 ///
