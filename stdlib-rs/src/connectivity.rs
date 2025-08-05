@@ -33,12 +33,14 @@ pub struct SubgraphWccsState<N: MonotoneContractionBackend = EfSeqDict, S = Sccs
     graph_path_hint: String,
 }
 
-impl<N: MonotoneContractionBackend + Copy, C: AsRef<[NodeId]> + Copy> Clone
+// TODO: replace Clone with Copy as the trait bound for N once
+// https://github.com/vigna/sux-rs/pull/74 lands.
+impl<N: MonotoneContractionBackend + Clone, C: AsRef<[NodeId]> + Copy> Clone
     for SubgraphWccsState<N, Sccs<C>>
 {
     fn clone(&self) -> Self {
         Self {
-            contraction_backend: self.contraction_backend,
+            contraction_backend: self.contraction_backend.clone(),
             sccs: self.sccs,
             graph_path_hint: self.graph_path_hint.clone(),
         }
