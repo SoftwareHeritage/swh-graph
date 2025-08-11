@@ -68,3 +68,5 @@ pub use vcs::*;
 
 mod visit;
 pub use visit::*;
+
+pub mod diff;

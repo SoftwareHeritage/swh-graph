@@ -140,6 +140,11 @@ impl GraphBuilder {
         })
     }
 
+    /// Returns `NodeId` that represents this SWHID in the graph, if it exists
+    pub fn node_id(&self, swhid: SWHID) -> Option<NodeId> {
+        self.swhids.iter().position(|x| *x == swhid)
+    }
+
     /// Adds an unlabeled arc to the graph
     pub fn arc(&mut self, src: NodeId, dst: NodeId) {
         self.arcs.push((src, dst, None));
