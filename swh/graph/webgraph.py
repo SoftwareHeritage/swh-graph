@@ -181,6 +181,8 @@ def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
         num_nodes = nodes_count.readline().splitlines()
         assert len(num_nodes) == 1
+    batch_size = int(conf.get("batch_size", "0"))
+    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-extract",
         "bv",
@@ -192,6 +194,7 @@ def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--num-nodes",
         num_nodes[0],
+        *batching,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}-base",
         conf=conf,
@@ -240,6 +243,8 @@ def _bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 
 def _permute_and_simplify_bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    batch_size = int(conf.get("batch_size", "0"))
+    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-compress",
         "permute-and-symmetrize",
@@ -247,16 +252,20 @@ def _permute_and_simplify_bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Comm
         f"{conf['out_dir']}/{conf['graph_name']}-bfs-simplified",
         "--permutation",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
+        *batching,
         conf=conf,
         env=env,
     )
 
 
 def _bfs_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    batch_size = int(conf.get("batch_size", "0"))
+    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-index",
         "ef",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs-simplified",
+        *batching,
         conf=conf,
         env=env,
     )
@@ -306,6 +315,8 @@ def _compose_orders(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 
 def _permute_llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    batch_size = int(conf.get("batch_size", "0"))
+    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-compress",
         "permute",
@@ -313,6 +324,7 @@ def _permute_llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--permutation",
         f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
+        *batching,
         conf=conf,
         env=env,
     )
@@ -329,11 +341,14 @@ def _ef(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 
 def _transpose(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    batch_size = int(conf.get("batch_size", "0"))
+    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-compress",
         "transpose",
         f"{conf['out_dir']}/{conf['graph_name']}",
         f"{conf['out_dir']}/{conf['graph_name']}-transposed",
+        *batching,
         conf=conf,
         env=env,
     )
@@ -593,6 +608,8 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
         assert len(num_nodes) == 1
     if num_nodes[0] == "0":
         return None
+    batch_size = int(conf.get("batch_size", "0"))
+    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-extract",
         "edge-labels",
@@ -610,6 +627,7 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
         f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash.order",
         "--num-nodes",
         num_nodes[0],
+        *batching,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}",
         conf=conf,
@@ -636,6 +654,8 @@ def _edge_labels_transpose(
         assert len(num_nodes) == 1
     if num_nodes[0] == "0":
         return None
+    batch_size = int(conf.get("batch_size", "0"))
+    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-extract",
         "edge-labels",
@@ -654,6 +674,7 @@ def _edge_labels_transpose(
         "--num-nodes",
         num_nodes[0],
         "--transposed",
+        *batching,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}-transposed",
         conf=conf,
