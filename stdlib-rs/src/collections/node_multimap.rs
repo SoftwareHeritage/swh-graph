@@ -18,7 +18,8 @@ use sux::prelude::IndexedSeq;
 use super::{EmptyNodeSet, NodeId, SortedSlice};
 
 pub trait NodeMultimap<V> {
-    /// Values associated to a node. Usually also implements [`NodeSet`].
+    /// Values associated to a node. Usually also implements
+    /// [`NodeSet`](crate::collections::NodeSet).
     type Values<'a>: IntoIterator<Item = V>
     where
         Self: 'a;
