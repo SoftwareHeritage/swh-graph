@@ -259,13 +259,10 @@ def _permute_and_simplify_bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Comm
 
 
 def _bfs_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
-    batch_size = int(conf.get("batch_size", "0"))
-    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-index",
         "ef",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs-simplified",
-        *batching,
         conf=conf,
         env=env,
     )
