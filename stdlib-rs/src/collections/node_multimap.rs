@@ -4,6 +4,7 @@
 // See top-level LICENSE file for more information
 
 use std::borrow::Borrow;
+use std::marker::PhantomData;
 use std::ops::Range;
 use std::slice::SliceIndex;
 
@@ -13,25 +14,25 @@ use epserde::Epserde;
 use itertools::Itertools;
 use sux::dict::elias_fano::{EfSeq, EliasFanoBuilder};
 use sux::prelude::IndexedSeq;
-use sux::traits::BitFieldSliceCore;
 
-use super::{EmptyNodeSet, NodeId, ReadNodeSet, SortedNodeIdSlice};
+use super::{EmptyNodeSet, NodeId, SortedSlice};
 
-pub trait NodeMultimap {
-    type NodeSet<'a>: ReadNodeSet
+pub trait NodeMultimap<V> {
+    /// Values associated to a node. Usually also implements [`NodeSet`].
+    type Values<'a>: IntoIterator<Item = V>
     where
         Self: 'a;
 
-    fn get(&self, node: NodeId) -> Self::NodeSet<'_>;
+    fn get<KB: Borrow<NodeId>>(&self, node: KB) -> Self::Values<'_>;
 }
 
 pub struct EmptyNodeMultimap;
 
-impl NodeMultimap for EmptyNodeMultimap {
-    type NodeSet<'a> = EmptyNodeSet;
+impl NodeMultimap<NodeId> for EmptyNodeMultimap {
+    type Values<'a> = EmptyNodeSet;
 
     #[inline(always)]
-    fn get(&self, _node: NodeId) -> Self::NodeSet<'_> {
+    fn get<KB: Borrow<NodeId>>(&self, _node: KB) -> Self::Values<'_> {
         EmptyNodeSet
     }
 }
@@ -41,10 +42,10 @@ impl NodeMultimap for EmptyNodeMultimap {
 /// # Examples
 ///
 /// See [`EfIndexedNodeMultimap`]
-pub struct NodeMultimapBuilder {
+pub struct NodeMultimapBuilder<V> {
     num_keys: usize,
     /// All node sets concatenated as a plain array
-    values: Vec<NodeId>,
+    values: Vec<V>,
     /// Stores for each key the length of its set of values.
     ///
     /// By computing the cumulative sum, this gives the offset in the array where a node's set
@@ -53,7 +54,7 @@ pub struct NodeMultimapBuilder {
 }
 
 // can be replaced with a derive once https://github.com/vigna/dsi-bitstream-rs/pull/20 is merged
-impl Default for NodeMultimapBuilder {
+impl<V> Default for NodeMultimapBuilder<V> {
     fn default() -> Self {
         NodeMultimapBuilder {
             num_keys: 0,
@@ -63,14 +64,10 @@ impl Default for NodeMultimapBuilder {
     }
 }
 
-impl NodeMultimapBuilder {
-    pub fn push(&mut self, value: impl IntoIterator<Item: Borrow<NodeId>>) -> &mut Self {
+impl<V: Ord> NodeMultimapBuilder<V> {
+    pub fn push(&mut self, value: impl IntoIterator<Item = V>) -> &mut Self {
         self.num_keys += 1;
-        let value: Vec<_> = value
-            .into_iter()
-            .map(|node| *node.borrow())
-            .sorted()
-            .collect();
+        let value: Vec<_> = value.into_iter().sorted().collect();
         self.lengths
             .write_gamma(u64::try_from(value.len()).expect("number of node ids overflowed usize"))
             .expect("Could not write gamma");
@@ -78,7 +75,7 @@ impl NodeMultimapBuilder {
         self
     }
 
-    pub fn build(self) -> Result<SequentialNodeMultimap> {
+    pub fn build(self) -> Result<SequentialNodeMultimap<V>> {
         let Self {
             num_keys,
             values,
@@ -91,6 +88,7 @@ impl NodeMultimapBuilder {
                 .into_inner()
                 .expect("Could not flush to MemWordWriterVec")
                 .into_inner(),
+            marker: PhantomData,
         })
     }
 }
@@ -102,25 +100,27 @@ impl NodeMultimapBuilder {
 /// # Examples
 ///
 /// See [`EfIndexedNodeMultimap`]
-pub struct SequentialNodeMultimap<V: AsRef<[usize]> = Box<[usize]>, L: AsRef<[u64]> = Vec<u64>> {
+pub struct SequentialNodeMultimap<V, VA: AsRef<[V]> = Box<[V]>, L: AsRef<[u64]> = Vec<u64>> {
     num_keys: usize,
     /// All node sets concatenated as a plain array
-    values: V,
+    values: VA,
     /// Stores for each key the length of its set of values.
     ///
     /// By computing the cumulative sum, this gives the offset in the array where a node's set
     /// begins
     lengths: L,
+    marker: PhantomData<V>,
 }
 
-impl<V: AsRef<[usize]>, L: AsRef<[u64]>> SequentialNodeMultimap<V, L> {
-    pub fn build_index(self) -> Result<EfIndexedNodeMultimap<V, EfSeq>> {
+impl<V: Ord, VA: AsRef<[V]>, L: AsRef<[u64]>> SequentialNodeMultimap<V, VA, L> {
+    pub fn build_index(self) -> Result<EfIndexedNodeMultimap<V, VA, EfSeq>> {
         let Self {
             num_keys,
             values,
             lengths,
+            marker,
         } = self;
-        let mut efb = EliasFanoBuilder::new(num_keys + 1, values.len());
+        let mut efb = EliasFanoBuilder::new(num_keys + 1, values.as_ref().len());
         let mut offset = 0usize;
         efb.push(offset);
         let mut lengths_reader = BufBitReader::<LittleEndian, _>::new(MemWordReader::new(&lengths));
@@ -137,7 +137,11 @@ impl<V: AsRef<[usize]>, L: AsRef<[u64]>> SequentialNodeMultimap<V, L> {
             efb.push(offset);
         }
         let offsets = efb.build_with_seq();
-        Ok(EfIndexedNodeMultimap { values, offsets })
+        Ok(EfIndexedNodeMultimap {
+            values,
+            offsets,
+            marker,
+        })
     }
 
     // TODO: implement serialization to a plain non-epserde format (so it can be used from non-Rust)
@@ -161,7 +165,7 @@ impl<V: AsRef<[usize]>, L: AsRef<[u64]>> SequentialNodeMultimap<V, L> {
 ///     NodeMultimap,
 ///     NodeMultimapBuilder,
 ///     ReadNodeSet,
-///     SortedNodeIdSlice
+///     SortedSlice
 /// };
 ///
 /// let mut multimap_builder = NodeMultimapBuilder::default();
@@ -178,13 +182,13 @@ impl<V: AsRef<[usize]>, L: AsRef<[u64]>> SequentialNodeMultimap<V, L> {
 ///     .expect("Could not build multimap index");
 ///
 /// // has the expected values
-/// assert_eq!(multimap.get(0), SortedNodeIdSlice(&[1, 2, 3][..]));
+/// assert_eq!(multimap.get(0), SortedSlice(&[1, 2, 3][..]));
 /// assert!(multimap.get(0).contains(1));
 /// assert!(!multimap.get(0).contains(4));
-/// assert_eq!(multimap.get(1), SortedNodeIdSlice(&[][..]));
-/// assert_eq!(multimap.get(2), SortedNodeIdSlice(&[0, 4][..]));
-/// assert_eq!(multimap.get(3), SortedNodeIdSlice(&[][..]));
-/// assert_eq!(multimap.get(4), SortedNodeIdSlice(&[1, 3][..]));
+/// assert_eq!(multimap.get(1), SortedSlice(&[][..]));
+/// assert_eq!(multimap.get(2), SortedSlice(&[0, 4][..]));
+/// assert_eq!(multimap.get(3), SortedSlice(&[][..]));
+/// assert_eq!(multimap.get(4), SortedSlice(&[1, 3][..]));
 ///
 /// // can be serialized with epserde
 /// let tempdir = tempfile::tempdir().expect("Could not get temp dir");
@@ -196,33 +200,38 @@ impl<V: AsRef<[usize]>, L: AsRef<[u64]>> SequentialNodeMultimap<V, L> {
 /// let multimap = EfIndexedNodeMultimap::<Box<[usize]>, EfSeq>::mmap(&path, Flags::RANDOM_ACCESS).expect("Could not deserialize");
 ///
 /// // has the expected values
-/// assert_eq!(multimap.get(0), SortedNodeIdSlice(&[1, 2, 3][..]));
-/// assert_eq!(multimap.get(1), SortedNodeIdSlice(&[][..]));
-/// assert_eq!(multimap.get(2), SortedNodeIdSlice(&[0, 4][..]));
-/// assert_eq!(multimap.get(3), SortedNodeIdSlice(&[][..]));
-/// assert_eq!(multimap.get(4), SortedNodeIdSlice(&[1, 3][..]));
+/// assert_eq!(multimap.get(0), SortedSlice(&[1, 2, 3][..]));
+/// assert_eq!(multimap.get(1), SortedSlice(&[][..]));
+/// assert_eq!(multimap.get(2), SortedSlice(&[0, 4][..]));
+/// assert_eq!(multimap.get(3), SortedSlice(&[][..]));
+/// assert_eq!(multimap.get(4), SortedSlice(&[1, 3][..]));
 /// ```
 #[derive(Epserde)]
-pub struct EfIndexedNodeMultimap<V: AsRef<[usize]> = Box<[usize]>, O: IndexedSeq = EfSeq> {
-    values: V,
+pub struct EfIndexedNodeMultimap<V = NodeId, VA: AsRef<[V]> = Box<[V]>, O: IndexedSeq = EfSeq> {
+    values: VA,
     offsets: O,
+    marker: PhantomData<V>,
 }
 
-impl<V: AsRef<[usize]>, O: IndexedSeq<Output = usize>> NodeMultimap for EfIndexedNodeMultimap<V, O>
+impl<V: Copy + Ord + PartialOrd, VA: AsRef<[V]>, O: IndexedSeq<Output = usize>> NodeMultimap<V>
+    for EfIndexedNodeMultimap<V, VA, O>
 where
     Range<usize>: SliceIndex<[usize]>,
 {
-    type NodeSet<'a>
-        = SortedNodeIdSlice<&'a [NodeId]>
+    type Values<'a>
+        = SortedSlice<V, &'a [V]>
     where
         Self: 'a;
 
-    fn get(&self, node: NodeId) -> Self::NodeSet<'_> {
+    fn get<KB: Borrow<NodeId>>(&self, node: KB) -> Self::Values<'_> {
+        let node = *node.borrow();
         let start_offset = self.offsets.get(node);
         let end_offset = self
             .offsets
             .get(node.checked_add(1).expect("NodeId is too usize::MAX"));
-        SortedNodeIdSlice(&self.values.as_ref()[start_offset..end_offset])
+        SortedSlice {
+            slice: &self.values.as_ref()[start_offset..end_offset],
+            marker: PhantomData,
+        }
     }
 }
-impl<V: AsRef<[usize]>, O: IndexedSeq> EfIndexedNodeMultimap<V, O> {}

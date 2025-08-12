@@ -11,6 +11,7 @@
 
 use std::collections::HashSet;
 use std::hash::BuildHasher;
+use std::marker::PhantomData;
 
 use rapidhash::RapidBuildHasher;
 use sux::bits::bit_vec::BitVec;
@@ -90,36 +91,53 @@ impl ReadNodeSet for BitVec {
 /// # Safety
 ///
 /// Unsafe code should not rely on this to be sorted, as safe code can build arbitrary instances
-pub struct SortedNodeIdSlice<S: AsRef<[NodeId]> + ?Sized>(pub S);
+pub struct SortedSlice<Item: Ord, S: AsRef<[Item]> + ?Sized> {
+    pub marker: PhantomData<Item>,
+    pub slice: S,
+}
 
-impl<S: AsRef<[NodeId]> + ?Sized> ReadNodeSet for SortedNodeIdSlice<S> {
-    /// Runs in logarithmic time, as it performs a binary search
-    #[inline(always)]
-    fn contains(&self, node: usize) -> bool {
-        self.0.as_ref().binary_search(&node).is_ok()
+impl<Item: Ord, S: AsRef<[Item]>> SortedSlice<Item, S> {
+    pub fn new(slice: S) -> Self {
+        SortedSlice {
+            marker: PhantomData,
+            slice,
+        }
     }
 }
 
-impl<S: AsRef<[NodeId]>> std::ops::Deref for SortedNodeIdSlice<S> {
+impl<S: AsRef<[NodeId]> + ?Sized> ReadNodeSet for SortedSlice<NodeId, S> {
+    /// Runs in logarithmic time, as it performs a binary search
+    #[inline(always)]
+    fn contains(&self, node: NodeId) -> bool {
+        self.slice.as_ref().binary_search(&node).is_ok()
+    }
+}
+
+impl<Item: Ord, S: AsRef<[Item]>> std::ops::Deref for SortedSlice<Item, S> {
     type Target = S;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.slice
     }
 }
 
-impl<'a> IntoIterator for SortedNodeIdSlice<&'a [NodeId]> {
-    type Item = NodeId;
-    type IntoIter = std::iter::Copied<std::slice::Iter<'a, NodeId>>;
+impl<'a, Item: Ord + Copy> IntoIterator for SortedSlice<Item, &'a [Item]> {
+    type Item = Item;
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, Item>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.iter().copied()
+        self.slice.iter().copied()
     }
 }
 
-impl<'a, S: AsRef<[NodeId]>> From<&'a SortedNodeIdSlice<S>> for SortedNodeIdSlice<&'a [NodeId]> {
-    fn from(v: &'a SortedNodeIdSlice<S>) -> Self {
-        SortedNodeIdSlice(v.0.as_ref())
+impl<'a, Item: Ord, S: AsRef<[Item]>> From<&'a SortedSlice<Item, S>>
+    for SortedSlice<Item, &'a [Item]>
+{
+    fn from(v: &'a SortedSlice<Item, S>) -> Self {
+        SortedSlice {
+            marker: PhantomData,
+            slice: v.slice.as_ref(),
+        }
     }
 }
 
