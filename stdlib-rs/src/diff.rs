@@ -1,4 +1,12 @@
-use anyhow::{anyhow, bail, ensure, Result};
+// Copyright (C) 2025  The Software Heritage developers
+// See the AUTHORS file at the top-level directory of this distribution
+// License: GNU General Public License version 3, or any later version
+// See top-level LICENSE file for more information
+
+//! Recursively lists differences between two directory nodes.
+
+use anyhow::{bail, ensure, Result};
+
 use swh_graph::{
     graph::{NodeId, SwhGraphWithProperties, SwhLabeledForwardGraph},
     labels::{EdgeLabel, LabelNameId, Permission},
