@@ -64,7 +64,7 @@ class GraphDownloader:
             tmp_local_path = local_path.with_suffix(".tmp")
 
             proc = subprocess.Popen(
-                ["zstdmt", "--force", "-d", "-", "-o", str(tmp_local_path)],
+                ["zstdmt", "--force", "-q", "-d", "-", "-o", str(tmp_local_path)],
                 stdin=subprocess.PIPE,
             )
             for chunk in obj.get()["Body"].iter_chunks(102400):
