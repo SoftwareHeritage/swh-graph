@@ -203,3 +203,17 @@ impl ReadNodeSet for SmallNodeSet {
         }
     }
 }
+
+#[macro_export]
+macro_rules! smallnodeset {
+    [$($node:expr),* $(,)?] => {{
+        let mut nodes = SmallNodeSet::default();
+        $(
+            nodes.insert($node);
+        )*
+        nodes
+    }};
+
+}
+
+pub use smallnodeset;

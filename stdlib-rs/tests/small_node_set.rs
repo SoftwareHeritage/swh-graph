@@ -9,7 +9,7 @@ use itertools::Itertools;
 
 use swh_graph::graph::NodeId;
 
-use swh_graph_stdlib::collections::{NodeSet, ReadNodeSet, SmallNodeSet};
+use swh_graph_stdlib::collections::{smallnodeset, NodeSet, ReadNodeSet, SmallNodeSet};
 
 #[test]
 fn test_smallnodeset_size() {
@@ -17,6 +17,31 @@ fn test_smallnodeset_size() {
         std::mem::size_of::<SmallNodeSet>(),
         std::mem::size_of::<NodeId>(),
         "SmallNodeSet is bigger than NodeId",
+    );
+}
+
+#[test]
+fn test_macro() {
+    assert_eq!(
+        smallnodeset![].into_iter().collect::<Vec<_>>(),
+        Vec::<usize>::new()
+    );
+
+    let mut nodes = SmallNodeSet::default();
+    nodes.insert(123);
+    assert_eq!(
+        smallnodeset![123].into_iter().collect::<Vec<_>>(),
+        vec![123]
+    );
+
+    nodes.insert(456);
+    assert_eq!(
+        smallnodeset![123, 456].into_iter().collect::<Vec<_>>(),
+        nodes.iter().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        smallnodeset![456, 123].into_iter().collect::<Vec<_>>(),
+        nodes.iter().collect::<Vec<_>>()
     );
 }
 
