@@ -121,6 +121,30 @@ impl SmallNodeSet {
     }
 }
 
+impl std::fmt::Debug for SmallNodeSet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SmallNodeSet")
+            .field(&self.iter().collect::<HashSet<_>>())
+            .finish()
+    }
+}
+
+impl PartialEq for SmallNodeSet {
+    fn eq(&self, other: &Self) -> bool {
+        match unsafe { (self.0.node, other.0.node) } {
+            (EMPTY, EMPTY) => true,
+            (EMPTY, _) | (_, EMPTY) => false, // we don't support deletion or with_capacity() yet
+
+            (value1, value2) if value1 & 0b1 == 1 && value2 & 0b1 == 1 => value1 == value2,
+            (value1, _) if value1 & 0b1 == 1 => false, // ditto
+            (_, value2) if value2 & 0b1 == 1 => false, // ditto
+            (_, _) => unsafe { self.get_hashset() == other.get_hashset() },
+        }
+    }
+}
+
+impl Eq for SmallNodeSet {}
+
 impl<'a> IntoIterator for &'a SmallNodeSet {
     type IntoIter = Iter<'a>;
     type Item = NodeId;
