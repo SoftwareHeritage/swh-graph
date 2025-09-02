@@ -9,7 +9,7 @@ use itertools::Itertools;
 
 use swh_graph::graph::NodeId;
 
-use swh_graph_stdlib::collections::{NodeSet, ReadNodeSet, SmallNodeSet};
+use swh_graph_stdlib::collections::{smallnodeset, NodeSet, ReadNodeSet, SmallNodeSet};
 
 #[test]
 fn test_smallnodeset_size() {
@@ -18,6 +18,40 @@ fn test_smallnodeset_size() {
         std::mem::size_of::<NodeId>(),
         "SmallNodeSet is bigger than NodeId",
     );
+}
+
+#[test]
+fn test_macro_and_equality() {
+    assert_eq!(smallnodeset![], SmallNodeSet::default());
+
+    assert_eq!(smallnodeset![], smallnodeset![]);
+
+    assert_ne!(smallnodeset![123], smallnodeset![]);
+    assert_ne!(smallnodeset![], smallnodeset![123]);
+
+    assert_ne!(smallnodeset![123], smallnodeset![456]);
+    assert_ne!(smallnodeset![456], smallnodeset![123]);
+
+    assert_ne!(smallnodeset![123, 456], smallnodeset![]);
+    assert_ne!(smallnodeset![], smallnodeset![123, 456]);
+
+    assert_ne!(smallnodeset![123, 456], smallnodeset![123]);
+    assert_ne!(smallnodeset![123], smallnodeset![123, 456]);
+
+    assert_eq!(smallnodeset![usize::MAX], smallnodeset![usize::MAX]);
+    assert_ne!(smallnodeset![usize::MAX], smallnodeset![456]);
+
+    let mut nodes = SmallNodeSet::default();
+    nodes.insert(123);
+    assert_ne!(smallnodeset![], nodes);
+    assert_eq!(smallnodeset![123], nodes);
+    assert_ne!(smallnodeset![123, 456], nodes);
+
+    nodes.insert(456);
+    assert_ne!(smallnodeset![], nodes);
+    assert_ne!(smallnodeset![123], nodes);
+    assert_eq!(smallnodeset![123, 456], nodes);
+    assert_eq!(smallnodeset![456, 123], nodes);
 }
 
 #[test]

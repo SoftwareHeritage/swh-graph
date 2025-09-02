@@ -1375,16 +1375,6 @@ dependencies = [
 
 [[package]]
 name = "dsi-bitstream"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "400457d3d4d2713527bdf85aacb4a41b06293b6005957bbdc210a12912e1d470"
-dependencies = [
- "common_traits 0.12.0",
- "rand 0.8.5",
-]
-
-[[package]]
-name = "dsi-bitstream"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49c971cdf87e1d91ee3bfb29b070b94ccc5c574eb72497011f96343a96277456"
@@ -4388,7 +4378,7 @@ dependencies = [
  "const_panic",
  "crossbeam",
  "dary_heap",
- "dsi-bitstream 0.5.0",
+ "dsi-bitstream",
  "dsi-progress-logger",
  "env_logger 0.11.5",
  "epserde",
@@ -4459,7 +4449,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dashmap",
- "dsi-bitstream 0.5.0",
+ "dsi-bitstream",
  "dsi-progress-logger",
  "epserde",
  "itertools 0.11.0",
@@ -4504,7 +4494,7 @@ dependencies = [
  "clap",
  "csv",
  "dataset-writer",
- "dsi-bitstream 0.4.0",
+ "dsi-bitstream",
  "dsi-progress-logger",
  "env_logger 0.11.5",
  "itertools 0.11.0",
@@ -5363,7 +5353,7 @@ dependencies = [
  "common_traits 0.11.3",
  "crossbeam-channel",
  "dary_heap",
- "dsi-bitstream 0.5.0",
+ "dsi-bitstream",
  "dsi-progress-logger",
  "epserde",
  "impl-tools 0.11.2",
@@ -5428,7 +5418,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "common_traits 0.11.3",
- "dsi-bitstream 0.5.0",
+ "dsi-bitstream",
  "dsi-progress-logger",
  "env_logger 0.11.5",
  "epserde",
