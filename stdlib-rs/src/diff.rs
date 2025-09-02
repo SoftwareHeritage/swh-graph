@@ -15,25 +15,25 @@ use swh_graph::{
 
 /// An operation made between two revisions on a single directory entry
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TreeDiffOperation {
+pub enum TreeDiffOperation<Path: AsRef<[LabelNameId]> = Box<[LabelNameId]>> {
     /// Adds a single file or directory
     Added {
         /// Full path (from repo root) to the added file
-        path: Box<[LabelNameId]>,
+        path: Path,
         new_file: NodeId,
         new_perm: Option<Permission>,
     },
     /// Removes a single file or directory
     Deleted {
         /// Full path (from repo root) to the removed file
-        path: Box<[LabelNameId]>,
+        path: Path,
         old_file: NodeId,
         old_perm: Option<Permission>,
     },
     /// Edits a single file (it can't be a directory)
     Modified {
         /// Full path (from the repo root) to the removed file
-        path: Box<[LabelNameId]>,
+        path: Path,
         new_file: NodeId,
         old_file: NodeId,
         new_perm: Option<Permission>,
@@ -43,8 +43,8 @@ pub enum TreeDiffOperation {
     /// The file may have been edited in the process,
     /// in which case the two supplied node ids will differ.
     Moved {
-        old_path: Box<[LabelNameId]>,
-        new_path: Box<[LabelNameId]>,
+        old_path: Path,
+        new_path: Path,
         old_file: NodeId,
         new_file: NodeId,
         old_perm: Option<Permission>,
@@ -52,10 +52,71 @@ pub enum TreeDiffOperation {
     },
 }
 
+impl<Path: AsRef<[LabelNameId]>> TreeDiffOperation<Path> {
+    pub fn shallow_copy(&self) -> TreeDiffOperation<&[LabelNameId]> {
+        use TreeDiffOperation::*;
+
+        match self {
+            Added {
+                path,
+                new_file,
+                new_perm,
+            } => Added {
+                path: path.as_ref(),
+                new_file: *new_file,
+                new_perm: *new_perm,
+            },
+            Deleted {
+                path,
+                old_file,
+                old_perm,
+            } => Deleted {
+                path: path.as_ref(),
+                old_file: *old_file,
+                old_perm: *old_perm,
+            },
+            Modified {
+                path,
+                new_file,
+                old_file,
+                new_perm,
+                old_perm,
+            } => Modified {
+                path: path.as_ref(),
+                new_file: *new_file,
+                old_file: *old_file,
+                new_perm: *new_perm,
+                old_perm: *old_perm,
+            },
+            Moved {
+                old_path,
+                new_path,
+                new_file,
+                old_file,
+                new_perm,
+                old_perm,
+            } => Moved {
+                old_path: old_path.as_ref(),
+                new_path: new_path.as_ref(),
+                new_file: *new_file,
+                old_file: *old_file,
+                new_perm: *new_perm,
+                old_perm: *old_perm,
+            },
+        }
+    }
+}
+
 /// A diff between two trees, treating files as atomic units
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TreeDiff {
     operations: Vec<TreeDiffOperation>,
+}
+
+impl TreeDiff {
+    pub fn operations(&self) -> impl Iterator<Item = TreeDiffOperation<&[LabelNameId]>> + use<'_> {
+        self.operations.iter().map(TreeDiffOperation::shallow_copy)
+    }
 }
 
 /// Compute a tree diff between the old and new trees rooted in
@@ -648,9 +709,9 @@ mod tests {
         let (graph, diff) = diff_trees(&base_tree, &tree_with_addition, None)?;
 
         assert_eq!(
-            diff.operations,
+            diff.operations().collect::<Vec<_>>(),
             vec![TreeDiffOperation::Added {
-                path: parse_path(&graph, "music/gavotte_aven.wma"),
+                path: parse_path(&graph, "music/gavotte_aven.wma").as_ref(),
                 new_file: graph
                     .properties()
                     .node_id("swh:1:cnt:000000000000000000000000000000000000000c")?,
@@ -661,24 +722,24 @@ mod tests {
         let (graph, diff) = diff_trees(&base_tree, &tree_with_directory_deletion, None)?;
 
         assert_eq!(
-            diff.operations,
+            diff.operations().collect::<Vec<_>>(),
             vec![
                 TreeDiffOperation::Deleted {
-                    path: parse_path(&graph, "books/war_and_peace.doc"),
+                    path: parse_path(&graph, "books/war_and_peace.doc").as_ref(),
                     old_file: graph
                         .properties()
                         .node_id("swh:1:cnt:0000000000000000000000000000000000000004")?,
                     old_perm: Some(Permission::Content),
                 },
                 TreeDiffOperation::Deleted {
-                    path: parse_path(&graph, "books/revision_link"),
+                    path: parse_path(&graph, "books/revision_link").as_ref(),
                     old_file: graph
                         .properties()
                         .node_id("swh:1:rev:0000000000000000000000000000000000000009")?,
                     old_perm: Some(Permission::Revision),
                 },
                 TreeDiffOperation::Deleted {
-                    path: parse_path(&graph, "books/disparition.txt"),
+                    path: parse_path(&graph, "books/disparition.txt").as_ref(),
                     old_file: graph
                         .properties()
                         .node_id("swh:1:cnt:0000000000000000000000000000000000000003")?,
@@ -690,31 +751,31 @@ mod tests {
         let (graph, diff) = diff_trees(&tree_with_addition, &tree_with_directory_deletion, None)?;
 
         assert_eq!(
-            diff.operations,
+            diff.operations().collect::<Vec<_>>(),
             vec![
                 TreeDiffOperation::Deleted {
-                    path: parse_path(&graph, "books/war_and_peace.doc"),
+                    path: parse_path(&graph, "books/war_and_peace.doc").as_ref(),
                     old_file: graph
                         .properties()
                         .node_id("swh:1:cnt:0000000000000000000000000000000000000004")?,
                     old_perm: Some(Permission::Content),
                 },
                 TreeDiffOperation::Deleted {
-                    path: parse_path(&graph, "books/revision_link"),
+                    path: parse_path(&graph, "books/revision_link").as_ref(),
                     old_file: graph
                         .properties()
                         .node_id("swh:1:rev:0000000000000000000000000000000000000009")?,
                     old_perm: Some(Permission::Revision),
                 },
                 TreeDiffOperation::Deleted {
-                    path: parse_path(&graph, "books/disparition.txt"),
+                    path: parse_path(&graph, "books/disparition.txt").as_ref(),
                     old_file: graph
                         .properties()
                         .node_id("swh:1:cnt:0000000000000000000000000000000000000003")?,
                     old_perm: Some(Permission::Content),
                 },
                 TreeDiffOperation::Deleted {
-                    path: parse_path(&graph, "music/gavotte_aven.wma"),
+                    path: parse_path(&graph, "music/gavotte_aven.wma").as_ref(),
                     old_file: graph
                         .properties()
                         .node_id("swh:1:cnt:000000000000000000000000000000000000000c")?,
@@ -749,17 +810,17 @@ mod tests {
         // TODO: in the future we want to detect renames,
         // instead of registering this as an addition and deletion
         assert_eq!(
-            diff.operations,
+            diff.operations().collect::<Vec<_>>(),
             vec![
                 TreeDiffOperation::Deleted {
-                    path: parse_path(&graph, "readme.txt"),
+                    path: parse_path(&graph, "readme.txt").as_ref(),
                     old_file: graph
                         .properties()
                         .node_id("swh:1:cnt:0000000000000000000000000000000000000008")?,
                     old_perm: Some(Permission::Content),
                 },
                 TreeDiffOperation::Added {
-                    path: parse_path(&graph, "books/readme.txt"),
+                    path: parse_path(&graph, "books/readme.txt").as_ref(),
                     new_file: graph
                         .properties()
                         .node_id("swh:1:cnt:0000000000000000000000000000000000000008")?,
@@ -789,24 +850,24 @@ mod tests {
         let (graph, diff) = diff_trees(&base_tree, &modified_tree, None)?;
 
         assert_eq!(
-            diff.operations,
+            diff.operations().collect::<Vec<_>>(),
             vec![
                 TreeDiffOperation::Deleted {
-                    path: parse_path(&graph, "music/on_reflection.wav"),
+                    path: parse_path(&graph, "music/on_reflection.wav").as_ref(),
                     old_file: graph
                         .properties()
                         .node_id("swh:1:cnt:0000000000000000000000000000000000000007")?,
                     old_perm: Some(Permission::Content),
                 },
                 TreeDiffOperation::Deleted {
-                    path: parse_path(&graph, "music/lemon_tree.mp3"),
+                    path: parse_path(&graph, "music/lemon_tree.mp3").as_ref(),
                     old_file: graph
                         .properties()
                         .node_id("swh:1:cnt:0000000000000000000000000000000000000006")?,
                     old_perm: Some(Permission::Content),
                 },
                 TreeDiffOperation::Added {
-                    path: parse_path(&graph, "music"),
+                    path: parse_path(&graph, "music").as_ref(),
                     new_file: graph
                         .properties()
                         .node_id("swh:1:rev:000000000000000000000000000000000000000a")?,
@@ -841,17 +902,17 @@ mod tests {
         let (graph, diff) = diff_trees(&base_tree, &tree_with_edit, None)?;
 
         assert_eq!(
-            diff.operations,
+            diff.operations().collect::<Vec<_>>(),
             vec![
                 TreeDiffOperation::Deleted {
-                    path: parse_path(&graph, "books/revision_link"),
+                    path: parse_path(&graph, "books/revision_link").as_ref(),
                     old_file: graph
                         .properties()
                         .node_id("swh:1:rev:0000000000000000000000000000000000000009")?,
                     old_perm: Some(Permission::Revision),
                 },
                 TreeDiffOperation::Added {
-                    path: parse_path(&graph, "books/revision_link/readme.txt"),
+                    path: parse_path(&graph, "books/revision_link/readme.txt").as_ref(),
                     new_file: graph
                         .properties()
                         .node_id("swh:1:cnt:0000000000000000000000000000000000000008")?,
