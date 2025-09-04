@@ -8,7 +8,6 @@ members = [
     "rust",
     "stdlib-rs",
     "tools/counters",
-    "tools/id2fullname",
     "tools/topology",
     "tools/subgrapher",
 ]

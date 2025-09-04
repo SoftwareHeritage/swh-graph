@@ -21,26 +21,37 @@ type FullnamesOffsets = MemCase<
     >,
 >;
 
-pub struct IdMapping {
+pub struct FullnameMap {
     fullnames: Mmap,
     offsets: FullnamesOffsets,
 }
 
-impl IdMapping {
-    /// Constructs a new `IdMapping`.
-    pub fn new(graph_path: PathBuf) -> Result<IdMapping, Error> {
+impl FullnameMap {
+    /// Constructs a new `FullnameMap`.
+    pub fn new(graph_path: PathBuf) -> Result<FullnameMap, Error> {
         let fullnames_path = suffix_path(&graph_path, ".fullnames");
         let offsets_path = suffix_path(&graph_path, ".fullnames.ef");
         let fullnames = mmap(&fullnames_path)
             .with_context(|| format!("Could not mmap {}", fullnames_path.display()))?;
         let offsets = <EfSeq>::mmap(&offsets_path, Flags::RANDOM_ACCESS)
             .with_context(|| format!("Could not mmap {}", offsets_path.display()))?;
-        Ok(IdMapping { fullnames, offsets })
+        Ok(FullnameMap { fullnames, offsets })
     }
 
     /// Maps an author ID to its corresponding full name in the SWH graph
     ///
     /// Returns the full name corresponding the the ID.
+    ///
+    /// # Example
+    /// ```
+    /// use std::path::PathBuf;
+    /// use anyhow::Error;
+    /// use swh_graph::person::FullnameMap;
+    ///
+    /// fn get_fullname(id: usize, graph_path: PathBuf) -> Result<Vec<u8>, Error> {
+    ///     Ok(FullnameMap::new(graph_path)?.map_id(id)?.to_owned())
+    /// }
+    /// ```
     pub fn map_id(&self, id: usize) -> Result<&[u8], Error> {
         Ok(self
             .fullnames

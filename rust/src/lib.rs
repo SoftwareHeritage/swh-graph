@@ -44,6 +44,8 @@ pub mod java_compat;
 
 pub mod utils;
 
+pub mod person;
+
 pub use webgraph;
 
 /// Returned by a `try_` method when the given index is past the number of nodes

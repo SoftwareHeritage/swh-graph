@@ -3,10 +3,12 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::path::PathBuf;
+
 use anyhow::Error;
 use clap::Parser;
-use id2fullname::IdMapping;
-use std::path::PathBuf;
+
+use swh_graph::person::FullnameMap;
 
 #[derive(Parser)]
 #[command(about = "Maps an author ID to its corresponding full name in the SWH graph")]
@@ -22,7 +24,7 @@ fn main() -> Result<(), Error> {
     let args = Args::parse();
     println!(
         "{}",
-        String::from_utf8_lossy(IdMapping::new(args.graph_path)?.map_id(args.id)?)
+        String::from_utf8_lossy(FullnameMap::new(args.graph_path)?.map_id(args.id)?)
     );
     Ok(())
 }
