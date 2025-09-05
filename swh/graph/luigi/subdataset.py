@@ -19,6 +19,8 @@ from swh.export.luigi import (
     merge_lists,
 )
 
+from .compressed_graph import _tables_for_object_types
+
 
 class SelectTopGithubOrigins(luigi.Task):
     """Writes a list of origins selected from popular Github repositories"""
@@ -191,7 +193,7 @@ class CreateSubdatasetOnAthena(luigi.Task):
             "flavor": "subdataset",
             "export_start": start_date.isoformat(),
             "export_end": end_date.isoformat(),
-            "object_types": [object_type.name for object_type in self.object_types],
+            "object_types": _tables_for_object_types(self.object_types),
             "parent": parent_meta,
             "hostname": socket.getfqdn(),
             "tool": {
