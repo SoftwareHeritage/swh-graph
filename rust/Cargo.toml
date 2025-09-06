@@ -24,6 +24,7 @@ webgraph-cli = "0.1.0"
 #webgraph_cli = { path = "../../../webgraph-rs/cli" }
 pthash = { version = "0.4.0", features = ["rayon"] }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
+hex = { version = "0.4.3", optional = true }
 rayon = { version = "1.9.0" }
 crossbeam = "0.8.4"
 sha1 = { version = "0.10.6" }
@@ -85,8 +86,9 @@ compression = []
 
 orc = ["ar_row", "ar_row_derive", "arrow", "orc-rust", "mimalloc"]
 
-
 macros = ["const_panic", "const-hex"]
+
+miri = ["hex"]
 
 serde = [
     "dep:serde", "dep:serde_json",

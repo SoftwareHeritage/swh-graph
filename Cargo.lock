@@ -4250,6 +4250,7 @@ dependencies = [
  "epserde",
  "faster-hex",
  "futures",
+ "hex",
  "itertools 0.11.0",
  "java-properties 1.4.1",
  "lender",

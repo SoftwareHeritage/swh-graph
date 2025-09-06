@@ -18,7 +18,6 @@ use std::iter::Iterator;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
-use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{ConcurrentProgressLog, ProgressLog};
 use rayon::prelude::*;
 use webgraph::graphs::vec_graph::LabeledVecGraph;
@@ -414,12 +413,7 @@ pub struct SwhUnidirectionalGraph<P, G: UnderlyingGraph = DefaultUnderlyingGraph
 impl SwhUnidirectionalGraph<()> {
     pub fn new(basepath: impl AsRef<Path>) -> Result<Self> {
         let basepath = basepath.as_ref().to_owned();
-        let graph = DefaultUnderlyingGraph(
-            BvGraph::with_basename(&basepath)
-                .endianness::<BE>()
-                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-                .load()?,
-        );
+        let graph = DefaultUnderlyingGraph::new(&basepath)?;
         Ok(Self::from_underlying_graph(basepath, graph))
     }
 }
@@ -667,18 +661,8 @@ pub struct SwhBidirectionalGraph<
 impl SwhBidirectionalGraph<()> {
     pub fn new(basepath: impl AsRef<Path>) -> Result<Self> {
         let basepath = basepath.as_ref().to_owned();
-        let forward_graph = DefaultUnderlyingGraph(
-            BvGraph::with_basename(&basepath)
-                .endianness::<BE>()
-                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-                .load()?,
-        );
-        let backward_graph = DefaultUnderlyingGraph(
-            BvGraph::with_basename(suffix_path(&basepath, "-transposed"))
-                .endianness::<BE>()
-                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-                .load()?,
-        );
+        let forward_graph = DefaultUnderlyingGraph::new(&basepath)?;
+        let backward_graph = DefaultUnderlyingGraph::new(suffix_path(&basepath, "-transposed"))?;
         Ok(Self::from_underlying_graphs(
             basepath,
             forward_graph,

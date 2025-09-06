@@ -13,6 +13,8 @@ use crate::graph::*;
 /// # Example
 ///
 /// ```
+/// # #[cfg(not(miri))] // BfsOrder uses sysinfo (through dsi-progress-logger), which is not supported
+/// # {
 /// use std::path::PathBuf;
 ///
 /// use webgraph::prelude::VecGraph;
@@ -41,6 +43,7 @@ use crate::graph::*;
 /// // We can now call generic webgraph algorithms on the adapter
 /// let order = webgraph::algo::BfsOrder::new(&adapter);
 /// assert_eq!(order.collect::<Vec<_>>(), vec![0, 2, 1]);
+/// # }
 /// ```
 pub struct WebgraphAdapter<G: SwhForwardGraph>(pub G);
 

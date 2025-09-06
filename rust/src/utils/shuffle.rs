@@ -24,6 +24,8 @@ use rayon::prelude::*;
 /// # Example
 ///
 /// ```
+/// # #[cfg(not(miri))] // very slow to run on Miri
+/// # {
 /// use rayon::prelude::*;
 /// use swh_graph::utils::shuffle::par_iter_shuffled_range;
 ///
@@ -31,6 +33,7 @@ use rayon::prelude::*;
 /// assert_ne!(integers, (0..10000).collect::<Vec<_>>(), "integers are still sorted");
 /// integers.sort();
 /// assert_eq!(integers, (0..10000).collect::<Vec<_>>(), "integers do not match the input range");
+/// # }
 /// ```
 pub fn par_iter_shuffled_range<Item>(
     range: Range<Item>,

@@ -158,8 +158,18 @@ impl FromStr for SWHID {
             .parse::<NodeType>()
             .map_err(|e| Type(e.to_string()))?;
         let mut hash = [0u8; 20];
+
+        // Miri does not support the SIMD feature-probing in faster-hex, so we have
+        // to fall back to a different crate.
+        #[cfg(all(miri, feature = "miri"))]
+        hex::decode_to_slice(hex_hash.as_bytes(), &mut hash)
+            .map_err(|_| HashAlphabet(hex_hash.to_string()))?;
+        #[cfg(all(miri, not(feature = "miri")))]
+        std::compile_error!("'miri' feature is required to compile with miri");
+        #[cfg(not(miri))]
         faster_hex::hex_decode(hex_hash.as_bytes(), &mut hash)
             .map_err(|_| HashAlphabet(hex_hash.to_string()))?;
+
         Ok(Self {
             namespace_version: 1,
             node_type,
