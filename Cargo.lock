@@ -4320,7 +4320,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph-stdlib"
-version = "0.1.0"
+version = "8.0.3"
 dependencies = [
  "anyhow",
  "dsi-bitstream",
