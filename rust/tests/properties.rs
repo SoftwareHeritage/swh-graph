@@ -26,6 +26,7 @@ fn graph() -> Result<SwhUnidirectionalGraph<AllSwhGraphProperties<SwhidPthash>>>
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_swhids() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -66,6 +67,7 @@ fn test_swhids() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_node_id() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -111,6 +113,7 @@ fn test_node_id() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_node_id_from_string_swhid() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -144,6 +147,7 @@ fn test_node_id_from_string_swhid() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_out_of_bound_properties() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -170,6 +174,7 @@ fn test_out_of_bound_properties() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_content_properties() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -193,6 +198,7 @@ fn test_content_properties() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_skipped_content_properties() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -216,6 +222,7 @@ fn test_skipped_content_properties() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_revision_properties() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -239,6 +246,7 @@ fn test_revision_properties() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_release_properties() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -262,6 +270,7 @@ fn test_release_properties() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_snapshot_properties() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -285,6 +294,7 @@ fn test_snapshot_properties() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_labels() -> Result<()> {
     let graph = graph()?;
 

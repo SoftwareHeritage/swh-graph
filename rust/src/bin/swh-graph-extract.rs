@@ -22,7 +22,7 @@ use swh_graph::mph::SwhidPthash;
 use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::{NodeType, SWHID};
 
-#[global_allocator]
+#[cfg_attr(not(miri), global_allocator)] // Miri does not support Mimalloc
 static GLOBAL: MiMalloc = MiMalloc;
 
 #[derive(Parser, Debug)]

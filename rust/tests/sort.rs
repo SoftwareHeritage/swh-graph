@@ -14,6 +14,7 @@ use webgraph::prelude::*;
 use swh_graph::utils::sort::*;
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_par_sort_arcs() -> Result<()> {
     let tempdir = tempfile::tempdir().context("temp dir")?;
     assert_eq!(
@@ -40,6 +41,7 @@ fn test_par_sort_arcs() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_par_sort_arcs_empty_buffer() -> Result<()> {
     let tempdir = tempfile::tempdir().context("temp dir")?;
     assert_eq!(
@@ -92,6 +94,7 @@ impl BitSerializer<NE, BitWriter> for TestLabelSerializer {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_par_sort_arcs_labeled() -> Result<()> {
     let tempdir = tempfile::tempdir().context("temp dir")?;
     let res = par_sort_arcs(

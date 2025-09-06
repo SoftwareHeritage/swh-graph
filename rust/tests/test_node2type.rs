@@ -10,6 +10,7 @@ use swh_graph::map::{Node2SWHID, Node2Type};
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_load_node2type() -> Result<()> {
     // load the node ID -> SWHID map so we can convert it to a node2type
     let node2swhid_path = format!("{BASENAME}.node2swhid.bin");
@@ -36,6 +37,7 @@ fn test_load_node2type() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_new_node2type() -> Result<()> {
     // load the node ID -> SWHID map so we can convert it to a node2type
     let node2swhid_path = format!("{BASENAME}.node2swhid.bin");

@@ -19,6 +19,7 @@ mod data;
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_find_root_dir() -> Result<()> {
     let graph = SwhUnidirectionalGraph::new(BASENAME)?
         .load_all_properties::<SwhidPthash>()?

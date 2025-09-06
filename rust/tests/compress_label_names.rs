@@ -15,6 +15,7 @@ use swh_graph::compress::label_names::*;
 use swh_graph::map::Permutation;
 
 #[test]
+#[cfg_attr(miri, ignore)] // use PTHash which uses the FFI, and Miri does not support that.
 fn test_build_mphf_and_order() -> Result<()> {
     let tmpdir = tempfile::tempdir()?;
     let labels_path = tmpdir.path().join("labels");
