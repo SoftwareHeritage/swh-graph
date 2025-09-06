@@ -174,12 +174,12 @@ impl Node2Type<UsizeMmap<Mmap>> {
     }
 }
 
-impl Node2Type<UsizeMmap<Vec<u8>>> {
+impl Node2Type<Vec<usize>> {
     pub fn new_from_iter(types: impl ExactSizeIterator<Item = NodeType>) -> Self {
         let num_nodes = types.len();
         let file_len = ((num_nodes * NodeType::BITWIDTH) as u64).div_ceil(64) * 8;
-        let file_len = file_len.try_into().expect("num_nodes overflowed usize");
-        let data = UsizeMmap(vec![0; file_len]);
+        let file_len = usize::try_from(file_len).expect("num_nodes overflowed usize");
+        let data = vec![0usize; file_len.div_ceil((usize::BITS / 8).try_into().unwrap())];
         let data = unsafe { BitFieldVec::from_raw_parts(data, NodeType::BITWIDTH, num_nodes) };
         let mut node2type = Node2Type { data };
         for (i, type_) in types.enumerate() {
