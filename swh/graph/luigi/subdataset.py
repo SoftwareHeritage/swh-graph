@@ -74,6 +74,7 @@ class SubdatasetOriginsFromFile(luigi.Task):
         return luigi.LocalTarget(self.path or self.local_export_path / "origins.txt")
 
     def run(self) -> None:
+        """Does nothing"""
         pass
 
 
