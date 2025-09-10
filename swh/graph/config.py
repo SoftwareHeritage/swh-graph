@@ -31,7 +31,7 @@ def check_config(
         conf["batch_size"] = min(int(psutil.virtual_memory().total / 1000), 2**30 - 1)
         logger.debug("batch_size not configured, defaulting to %s", conf["batch_size"])
     if "llp_gammas" not in conf:
-        conf["llp_gammas"] = "-1,-2,-3,-4,-5,0-0"
+        conf["llp_gammas"] = "-1,-2,-3,-4"
         logger.debug("llp_gammas not configured, defaulting to %s", conf["llp_gammas"])
     # rust related config entries
     debug_mode = (
