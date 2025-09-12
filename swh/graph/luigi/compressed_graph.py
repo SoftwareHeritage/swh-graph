@@ -453,6 +453,7 @@ class _CompressionStepTask(luigi.Task):
                     kwargs = dict(
                         local_export_path=self.local_export_path,
                         local_sensitive_export_path=self.local_sensitive_export_path,
+                        local_sensitive_graph_path=self.local_sensitive_graph_path,
                         graph_name=self.graph_name,
                         local_graph_path=self.local_graph_path,
                         object_types=self.object_types,
@@ -1369,6 +1370,7 @@ class CompressGraph(luigi.Task):
         kwargs = dict(
             local_export_path=self.local_export_path,
             local_sensitive_export_path=self.local_sensitive_export_path,
+            local_sensitive_graph_path=self.local_sensitive_graph_path,
             graph_name=self.graph_name,
             local_graph_path=self.local_graph_path,
             object_types=self.object_types,
