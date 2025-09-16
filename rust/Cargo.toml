@@ -43,7 +43,6 @@ bytemuck = { version = "1.18.0", features = ["extern_crate_alloc"] }
 common_traits = "0.11.0"
 lender = "0.3.1"
 thiserror = "1.0.51"
-bitvec = { version = "1.0.1" }
 once_cell = "1.19.0"
 mimalloc = { version = "0.1", default-features = false, optional = true }
 
@@ -73,7 +72,6 @@ dary_heap = "0.3.6"
 rdst = { version  ="0.20.14", features = ["multi-threaded"] }
 
 [dev-dependencies]
-bitvec = { version = "1.0.1", features = ["atomic"] }
 futures = "0.3.30"
 
 [features]
