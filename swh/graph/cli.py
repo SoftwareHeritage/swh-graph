@@ -462,7 +462,7 @@ def grpc_serve(ctx, port, graph):
     type=StepOption(),
     help="run only these compression steps (default: all steps)",
 )
-@click.option("--test-flavor", "--test-flavour", type=str, help="Test flavo[u]r")
+@click.option("--check-flavor", type=str, help="Check flavor")
 @click.pass_context
 def compress(
     ctx,
@@ -472,7 +472,7 @@ def compress(
     sensitive_output_directory,
     graph_name,
     steps,
-    test_flavor,
+    check_flavor,
 ):
     """Compress a graph using WebGraph
 
@@ -503,10 +503,10 @@ def compress(
     except KeyError:
         conf["profile"] = "release"  # use release builds by default
 
-    if test_flavor is None:
+    if check_flavor is None:
         # TODO: see is this can be None
-        test_flavor = conf.get("test_flavor", "full")
-    conf["test_flavor"] = test_flavor
+        check_flavor = conf.get("check_flavor", "full")
+    conf["check_flavor"] = check_flavor
 
     try:
         webgraph.compress(
@@ -515,7 +515,7 @@ def compress(
             output_directory,
             sensitive_input_dataset,
             sensitive_output_directory,
-            test_flavor,
+            check_flavor,
             steps,
             conf,
         )
@@ -763,7 +763,7 @@ def luigi(
             out_dir=swh_config["graph"]["compress"].get("out_dir"),
             sensitive_in_dir=swh_config["graph"]["compress"].get("sensitive_in_dir"),
             sensitive_out_dir=swh_config["graph"]["compress"].get("sensitive_out_dir"),
-            test_flavor=swh_config["graph"]["compress"].get("test_flavor"),
+            check_flavor=swh_config["graph"]["compress"].get("check_flavor"),
         )
 
     export_name = export_name or dataset_name

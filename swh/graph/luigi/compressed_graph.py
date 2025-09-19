@@ -264,10 +264,10 @@ class _CompressionStepTask(luigi.Task):
 
     object_types: list[str] = ObjectTypesParameter()  # type: ignore[assignment]
 
-    test_flavor = luigi.Parameter(
+    check_flavor = luigi.Parameter(
         default="full",
         significant=False,
-        description="Test flavor for e2e test during compression",
+        description="Flavor for end-to-end check during compression",
     )
 
     def _get_count(self, count_name: str, task_name: str) -> int:
@@ -462,7 +462,7 @@ class _CompressionStepTask(luigi.Task):
                         local_graph_path=self.local_graph_path,
                         object_types=self.object_types,
                         rust_executable_dir=self.rust_executable_dir,
-                        test_flavor=self.test_flavor,
+                        check_flavor=self.check_flavor,
                     )
                     if self.batch_size:
                         kwargs["batch_size"] = self.batch_size
@@ -570,7 +570,7 @@ class _CompressionStepTask(luigi.Task):
             out_dir=self.local_graph_path,
             sensitive_in_dir=self.local_sensitive_export_path,
             sensitive_out_dir=self.local_sensitive_graph_path,
-            test_flavor=self.test_flavor,
+            check_flavor=self.check_flavor,
         )
 
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
@@ -1165,8 +1165,8 @@ class Stats(_CompressionStepTask):
         return 0
 
 
-class EndToEndTest(_CompressionStepTask):
-    STEP = CompressionStep.E2E_TEST
+class EndToEndCheck(_CompressionStepTask):
+    STEP = CompressionStep.E2E_CHECK
     INPUT_FILES = {
         ".ef",
         ".graph",
@@ -1377,10 +1377,10 @@ class CompressGraph(luigi.Task):
         default=list(_TABLES_PER_OBJECT_TYPE)
     )
 
-    test_flavor = luigi.Parameter(
+    check_flavor = luigi.Parameter(
         default="full",
         significant=False,
-        description="Test flavor for e2e test during compression",
+        description="Flavor for end-to-end check during compression",
     )
 
     def requires(self) -> List[luigi.Task]:
@@ -1394,7 +1394,7 @@ class CompressGraph(luigi.Task):
             local_graph_path=self.local_graph_path,
             object_types=self.object_types,
             rust_executable_dir=self.rust_executable_dir,
-            test_flavor=self.test_flavor,
+            check_flavor=self.check_flavor,
         )
         if set(self.object_types).isdisjoint({"dir", "snp", "ori"}):
             # Only nodes of these three types have outgoing arcs with labels
@@ -1420,9 +1420,9 @@ class CompressGraph(luigi.Task):
             else []
         )
         if {"ori", "snp", "rel", "rev", "dir", "cnt"}.issubset(set(self.object_types)):
-            e2e_test_task = [EndToEndTest(**kwargs)]
+            e2e_check_task = [EndToEndCheck(**kwargs)]
         else:
-            e2e_test_task = []
+            e2e_check_task = []
 
         return [
             local_export,
@@ -1432,7 +1432,7 @@ class CompressGraph(luigi.Task):
             *fullname_tasks,
             NodeProperties(**kwargs),
             Stats(**kwargs),
-            *e2e_test_task,
+            *e2e_check_task,
             *label_tasks,
         ]
 
@@ -1472,7 +1472,7 @@ class CompressGraph(luigi.Task):
             out_dir=self.local_graph_path,
             sensitive_in_dir=self.local_sensitive_export_path,
             sensitive_out_dir=self.local_sensitive_graph_path,
-            test_flavor=self.test_flavor,
+            check_flavor=self.check_flavor,
         )
 
         step_stamp_paths = []

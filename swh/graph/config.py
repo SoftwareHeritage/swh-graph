@@ -71,7 +71,7 @@ def check_config_compress(
     out_dir,
     sensitive_in_dir,
     sensitive_out_dir,
-    test_flavor,
+    check_flavor,
 ):
     """check compression-specific configuration and initialize its execution
     environment.
@@ -107,7 +107,7 @@ def check_config_compress(
         default_value=Path(f"{out_dir.parent}-sensitive"),
         is_path=True,
     )
-    test_flavor = _retrieve_value(test_flavor, "test_flavor")
+    check_flavor = _retrieve_value(check_flavor, "check_flavor")
 
     out_dir.mkdir(parents=True, exist_ok=True)
     sensitive_out_dir.mkdir(parents=True, exist_ok=True)
@@ -119,13 +119,13 @@ def check_config_compress(
         tmp_dir = Path(conf["tmp_dir"])
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
-    if test_flavor is None:
-        test_flavor = conf.get("test_flavor", "full")
-    conf["test_flavor"] = test_flavor
+    if check_flavor is None:
+        check_flavor = conf.get("check_flavor", "full")
+    conf["check_flavor"] = check_flavor
 
-    if conf["test_flavor"] not in ["full", "history_hosting", "example", "none"]:
+    if conf["check_flavor"] not in ["full", "history_hosting", "example", "none"]:
         raise ValueError(
-            f"Unsupported test flavor: {test_flavor}."
+            f"Unsupported check flavor: {check_flavor}."
             "Must be one of full, history_hosting, example or none."
         )
 

@@ -18,17 +18,17 @@ from .webgraph import check_config_compress
 e2e_logger = logging.getLogger(__name__)
 
 
-def run_e2e_test(
+def run_e2e_check(
     graph_name: str,
     in_dir: Optional[str],
     out_dir: Optional[str],
     sensitive_in_dir: Optional[str],
     sensitive_out_dir: Optional[str],
-    test_flavor: Optional[str],
+    check_flavor: Optional[str],
     profile: str = "release",
     logger: Optional[logging.Logger] = None,
 ):
-    """Empirically test the graph compression correctness.
+    """Empirically check the graph compression correctness.
 
     Check for a specific SWHID in the compressed graph and do
     simple traversal requests to ensure the compression went
@@ -43,7 +43,7 @@ def run_e2e_test(
             sensitive graph can be found
         sensitive_out_dir: sensitive output directory, where the compressed
             sensitive graph will be stored
-        test_flavor: which flavor of tests to run
+        check_flavor: which flavor of checks to run
         profile: Which Rust executables to use
 
     Raises:
@@ -68,16 +68,16 @@ def run_e2e_test(
         out_dir,
         sensitive_in_dir,
         sensitive_out_dir,
-        test_flavor,
+        check_flavor,
     )
 
     graph_name = conf["graph_name"]
     in_dir = conf["in_dir"]
     out_dir = conf["out_dir"]
-    test_flavor = conf["test_flavor"]
+    check_flavor = conf["check_flavor"]
 
-    if test_flavor == "none":
-        logger.info("End to end tests skipped.")
+    if check_flavor == "none":
+        logger.info("End to end checks skipped.")
         return
 
     if "graph_path" not in conf:
@@ -1120,7 +1120,7 @@ def run_e2e_test(
         },
     }
 
-    if test_flavor == "full":
+    if check_flavor == "full":
         traversal_start = "snp"
         status_table = {
             "parmap": {"cnt": False, "dir": False, "rev": False},
@@ -1131,7 +1131,7 @@ def run_e2e_test(
             "swh-graph": {"cnt": False, "dir": False, "rev": False},
         }
         level_keys = ["rev", "dir", "cnt"]
-    elif test_flavor == "history_hosting":
+    elif check_flavor == "history_hosting":
         traversal_start = "snp"
         status_table = {
             "parmap": {"rev": False},
@@ -1142,7 +1142,7 @@ def run_e2e_test(
             "swh-graph": {"rev": False},
         }
         level_keys = ["rev"]
-    else:  # test_flavor == "example"
+    else:  # check_flavor == "example"
         traversal_start = "rev"
         test_values = {
             "example": {
@@ -1214,5 +1214,5 @@ def run_e2e_test(
         logger.info("Compression seems to have gone well")
     else:
         raise Exception(
-            "Compression's end-to-end tests failed, see above logs for details"
+            "Compression's end-to-end checks failed, see above logs for details"
         )

@@ -691,7 +691,7 @@ The resulting label offset big list is stored in the
 
 .. _graph-compression-clean-tmp:
 
-E2E_TEST
+E2E_CHECK
 ---------
 
 This step runs an end-to-end test on the compressed graph, looking to find some
@@ -699,7 +699,7 @@ arbitrary content to check if the compression went well.
 It will raise an Exception if it fails, but only after the export is done, so
 that the results of the compression have already been saved to the declared
 location.
-To prevent this test from happening, set the ``test-flavor`` argument to ``none``.
+To prevent this test from happening, set the ``check-flavor`` argument to ``none``.
 
 CLEAN_TMP
 ---------
