@@ -33,7 +33,7 @@ def run_e2e_check(
     out_dir: str | None,
     sensitive_in_dir: str | None,
     sensitive_out_dir: str | None,
-    check_flavor: Literal["full", "history_hosting", "example", "none"],
+    check_flavor: Literal["full", "history_hosting", "staging", "example", "none"],
     profile: Literal["release", "debug"] = "release",
     logger: logging.Logger | None = None,
 ):
@@ -54,6 +54,7 @@ def run_e2e_check(
 
             - "full": for a dataset made from the entire archive
             - "history_hosting": for a history and hosting dataset
+            - "staging": for a dataset made from staging
             - "example": for the example dataset shipped with `swh-graph`
             - "none": for preventing to run the checks altogether
 
@@ -202,6 +203,17 @@ def run_e2e_check(
                 for swhid in swhids:
                     if swhid.startswith("swh:1:dir:") or swhid.startswith("swh:1:cnt:"):
                         swhids.remove(swhid)
+    # Before October 2025, only `parmap` and `apt` were in staging, so other origins need to
+    # be removed for the checks to succeed.
+    elif check_flavor == "staging":
+        for origin in [
+            "https://github.com/pallets/flask",
+            "https://github.com/home-assistant/core",
+            "https://github.com/neovim/neovim",
+            "https://gitlab.softwareheritage.org/swh/devel/swh-graph",
+        ]:
+            projects.pop(origin)
+            fullnames.pop(origin)
     # This is the example graph (`swh/graph/example_dataset/`). It is
     # mostly used for CI and testing purposes.
     elif check_flavor == "example":

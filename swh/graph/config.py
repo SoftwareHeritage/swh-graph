@@ -123,10 +123,16 @@ def check_config_compress(
         check_flavor = conf.get("check_flavor", "full")
     conf["check_flavor"] = check_flavor
 
-    if conf["check_flavor"] not in ["full", "history_hosting", "example", "none"]:
+    if conf["check_flavor"] not in [
+        "full",
+        "history_hosting",
+        "staging",
+        "example",
+        "none",
+    ]:
         raise ValueError(
             f"Unsupported check flavor: {check_flavor}."
-            "Must be one of full, history_hosting, example or none."
+            "Must be one of full, history_hosting, staging, example or none."
         )
 
     return conf
