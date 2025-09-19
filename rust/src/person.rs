@@ -29,8 +29,8 @@ pub struct FullnameMap {
 impl FullnameMap {
     /// Constructs a new `FullnameMap`.
     pub fn new(graph_path: PathBuf) -> Result<FullnameMap, Error> {
-        let fullnames_path = suffix_path(&graph_path, ".fullnames");
-        let offsets_path = suffix_path(&graph_path, ".fullnames.ef");
+        let fullnames_path = suffix_path(&graph_path, ".persons");
+        let offsets_path = suffix_path(&graph_path, ".persons.ef");
         let fullnames = mmap(&fullnames_path)
             .with_context(|| format!("Could not mmap {}", fullnames_path.display()))?;
         let offsets = <EfSeq>::mmap(&offsets_path, Flags::RANDOM_ACCESS)

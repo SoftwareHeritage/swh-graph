@@ -110,5 +110,8 @@ required-features = ["compression", "orc"]
 name = "swh-graph-hash"
 required-features = ["compression"]
 
+[[bin]]
+name = "swh-graph-person-id-to-name"
+
 [package.metadata.docs.rs]
 all-features = true
