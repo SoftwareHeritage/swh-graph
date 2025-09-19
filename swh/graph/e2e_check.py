@@ -6,7 +6,9 @@
 """Spawns a gRPC server on a newly compressed graph, and checks responses
 are as expected."""
 
+from base64 import b64decode
 import logging
+from pathlib import Path
 import socket
 import time
 from typing import Literal
@@ -19,6 +21,7 @@ from swh.graph.config import check_config_compress
 import swh.graph.grpc.swhgraph_pb2 as swhgraph
 import swh.graph.grpc.swhgraph_pb2_grpc as swhgraph_grpc
 from swh.graph.grpc_server import spawn_rust_grpc_server, stop_grpc_server
+from swh.graph.shell import Rust, Sink
 from swh.model.swhids import CoreSWHID, QualifiedSWHID
 
 e2e_logger = logging.getLogger(__name__)
@@ -168,6 +171,26 @@ def run_e2e_check(
         },
     }
 
+    # This is a dictionary holding the full names of the authors of the revisions included
+    # in the `projects` dictionary.
+    fullnames: dict[str, str] = {
+        "https://github.com/rdicosmo/parmap": (
+            "Um9iZXJ0byBEaSBDb3NtbyA8cm9iZXJ0b0BkaWNvc21vLm9yZz4="
+        ),
+        "https://github.com/pallets/flask": (
+            "ZGVwZW5kYWJvdFtib3RdIDw0OTY5OTMzMytkZXBlbmRhYm90W2JvdF1AdXNlcnMubm9yZXBseS5naXRodWIuY29tPg=="
+        ),
+        "https://github.com/home-assistant/core": (
+            "ZGVwZW5kYWJvdFtib3RdIDw0OTY5OTMzMytkZXBlbmRhYm90W2JvdF1AdXNlcnMubm9yZXBseS5naXRodWIuY29tPg=="
+        ),
+        "https://github.com/neovim/neovim": (
+            "ZGVwZW5kYWJvdFtib3RdIDw0OTY5OTMzMytkZXBlbmRhYm90W2JvdF1AdXNlcnMubm9yZXBseS5naXRodWIuY29tPg=="
+        ),
+        "https://gitlab.softwareheritage.org/swh/devel/swh-graph": (
+            "VmFsZW50aW4gTG9yZW50eiA8dmxvcmVudHpAc29mdHdhcmVoZXJpdGFnZS5vcmc+"
+        ),
+    }
+
     errors: list[str | int | QualifiedSWHID] = []
 
     # This is a compressed graph of only the “history and hosting” layer (origins,
@@ -227,6 +250,41 @@ def run_e2e_check(
                                     errors.append(full_swhid)
     finally:
         stop_grpc_server(server)
+
+    # Check if the author IDs previously checked match their full names. This is triggered
+    # only when the sensitive files containing said full names are present on disk.
+    if (
+        Path(f"{sensitive_out_dir}/{graph_name}.persons").exists()
+        and Path(f"{sensitive_out_dir}/{graph_name}.persons.ef").exists()
+    ):
+        for origin, author in authors.items():
+            if author is None:
+                return
+            fullname = (
+                (
+                    Rust(
+                        "swh-graph-person-id-to-name",
+                        f"{author}",
+                        f"{sensitive_out_dir}/{graph_name}",
+                    )
+                    > Sink()
+                )
+                .run()
+                .stdout
+            )
+            if fullname.removesuffix(b"\n") != b64decode(fullnames[origin]):
+                logger.error(
+                    f"Full name for author ID {author} for project {origin} is incorrect: "
+                    f"expected {b64decode(fullnames[origin]).decode()}, "
+                    f"got {fullname.decode(errors='replace')}"
+                )
+                errors.append(author)
+    else:
+        logger.warn(
+            f"Could not find {sensitive_out_dir}/{graph_name}.persons or "
+            f"{sensitive_out_dir}/{graph_name}.persons.ef.\n"
+            "End-to-end checks for full names skipped"
+        )
 
     for origin, project in projects.items():
         for snp_swhid, swhids in project.items():
