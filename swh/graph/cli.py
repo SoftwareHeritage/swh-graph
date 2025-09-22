@@ -142,7 +142,11 @@ def graph_cli_group(ctx, config_file, profile):
 )
 @click.pass_context
 def serve(ctx, host, port, graph_path):
-    """Run the graph RPC service."""
+    """Run the compressed graph HTTP RPC service.
+
+    The documentation of the HTTP RPC API is available on
+    https://docs.softwareheritage.org/devel/swh-graph/api.html
+    """
     import aiohttp.web
 
     from swh.graph.http_rpc_server import make_app
@@ -384,9 +388,12 @@ def reindex(ctx, force: bool, ef: bool, graph: str):
 @click.option("--graph", "-g", metavar="GRAPH", help="compressed graph basename")
 @click.pass_context
 def grpc_serve(ctx, port, graph):
-    """start the graph GRPC service
+    """Run the compressed graph gRPC service.
 
     This command uses execve to execute the Rust GRPC service.
+
+    The documentation of the gRPC API is available on
+    https://docs.softwareheritage.org/devel/swh-graph/grpc-api.html
     """
     import os
 
