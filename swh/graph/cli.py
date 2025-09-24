@@ -547,7 +547,7 @@ def get_all_subclasses(cls):
     return all_subclasses
 
 
-@graph_cli_group.command()
+@graph_cli_group.command(hidden=True)
 @click.option(
     "--base-directory",
     required=True,
@@ -672,42 +672,14 @@ def luigi(
     luigi_param: List[str],
 ):
     r"""
-    Internal command of swh-graph. Use 'swh export luigi' instead.
-
-    Calls Luigi with the given task and params, and automatically
-    configures paths based on --base-directory and --dataset-name.
-
-    The list of Luigi params should be prefixed with ``--`` so they are not interpreted
-    by the ``swh`` CLI. For example::
-
-        swh datasets luigi \
-                --base-directory ~/tmp/ \
-                --dataset-name 2022-12-05_test \
-                -- \
-                RunAll \
-                --local-scheduler
-
-    to pass ``RunAll --local-scheduler`` as Luigi params
-
-    Or, to compute a derived dataset::
-
-        swh graph luigi \
-                --graph-base-directory /dev/shm/swh-graph/default/ \
-                --base-directory /poolswh/softwareheritage/vlorentz/ \
-                --athena-prefix swh \
-                --dataset-name 2022-04-25 \
-                --s3-athena-output-location s3://some-bucket/tmp/athena \
-                -- \
-                --log-level INFO \
-                FindEarliestRevisions \
-                --scheduler-url http://localhost:50092/ \
-                --blob-filter citation
+    Internal command of swh-graph. Use 'swh datasets luigi' instead.
     """
     import configparser
     import os
     import secrets
     import socket
     import subprocess
+    import sys
     import tempfile
     import time
 
@@ -715,6 +687,11 @@ def luigi(
     import psutil
 
     from swh.core.config import merge_configs
+
+    if "pytest" not in sys.modules:
+        raise click.ClickException(
+            "Use 'swh datasets luigi' instead of 'swh graph luigi'."
+        )
 
     # Popular the list of subclasses of luigi.Task
     import swh.export.luigi  # noqa
