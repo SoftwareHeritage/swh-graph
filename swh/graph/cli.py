@@ -557,6 +557,14 @@ def get_all_subclasses(cls):
     For example: ``/poolswh/softwareheritage/``.""",
 )
 @click.option(
+    "--base-sensitive-directory",
+    required=False,
+    type=PathlibPath(),
+    help="""The base directory for any data that should not be publicly available
+    (eg. because it contains people's names).
+    For example: ``/poolswh/softwareheritage-sensitive/``.""",
+)
+@click.option(
     "--athena-prefix",
     required=False,
     type=str,
@@ -657,6 +665,7 @@ def luigi(
     base_directory: Path,
     graph_base_directory: Optional[Path],
     export_base_directory: Optional[Path],
+    base_sensitive_directory: Optional[Path],
     s3_prefix: Optional[str],
     athena_prefix: Optional[str],
     max_ram: Optional[str],
@@ -759,6 +768,19 @@ def luigi(
         export_name=export_name,
         dataset_name=dataset_name,
     )
+
+    if base_sensitive_directory:
+        sensitive_path = base_sensitive_directory / dataset_name
+        sensitive_export_path = base_sensitive_directory / export_name
+        sensitive_graph_path = base_sensitive_directory / export_name
+        default_values["local_sensitive_export_path"] = sensitive_export_path
+        default_values["local_sensitive_graph_path"] = sensitive_graph_path
+        default_values["deanonymized_origin_contributors_path"] = (
+            sensitive_path / "contributors_deanonymized.csv.zst"
+        )
+        default_values["deanonymization_table_path"] = (
+            sensitive_path / "persons_sha256_to_name.csv.zst"
+        )
 
     default_values = merge_configs(default_values, swh_config)
 
