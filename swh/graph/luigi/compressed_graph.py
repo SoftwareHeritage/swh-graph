@@ -490,10 +490,21 @@ class _CompressionStepTask(luigi.Task):
         Returns a list of luigi targets matching :attr:`OUTPUT_FILES` and
         :attr:`SENSITIVE_OUTPUT_FILES`.
         """
-        return [luigi.LocalTarget(self._stamp())] + [
-            luigi.LocalTarget(f"{self.local_graph_path / self.graph_name}{name}")
-            for name in self.OUTPUT_FILES.union(self.SENSITIVE_OUTPUT_FILES)
-        ]
+        return (
+            [luigi.LocalTarget(self._stamp())]
+            + [
+                luigi.LocalTarget(f"{self.local_graph_path / self.graph_name}{name}")
+                for name in self.OUTPUT_FILES
+            ]
+            + [
+                luigi.LocalTarget(
+                    f"{self.local_sensitive_graph_path / self.graph_name}{name}"
+                )
+                for name in self.SENSITIVE_OUTPUT_FILES
+                if self.local_sensitive_graph_path is not None
+                and self.SENSITIVE_OUTPUT_FILES is not None
+            ]
+        )
 
     def run(self) -> None:
         """Runs the step, by shelling out to the relevant Rust program"""
