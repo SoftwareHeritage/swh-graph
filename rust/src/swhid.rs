@@ -293,6 +293,14 @@ pub const fn __parse_swhid(node_type: crate::NodeType, hash: &'static str) -> SW
 ///     swhid!(swh:1:rev:0000000000000000000000000000000000000004).to_string(),
 ///     "swh:1:rev:0000000000000000000000000000000000000004".to_string(),
 /// );
+/// assert_eq!(
+///     swhid!(swh:1:rev:ffffffffffffffffffffffffffff000000000004).to_string(),
+///     "swh:1:rev:ffffffffffffffffffffffffffff000000000004".to_string(),
+/// );
+/// assert_eq!(
+///     swhid!(swh:1:rev:FFFFFFFFFFFFFFFFFFFFFFFFFFFF000000000004).to_string(),
+///     "swh:1:rev:ffffffffffffffffffffffffffff000000000004".to_string(),
+/// );
 /// ```
 ///
 /// ```compile_fail
@@ -306,6 +314,7 @@ pub const fn __parse_swhid(node_type: crate::NodeType, hash: &'static str) -> SW
 /// ```
 #[macro_export]
 macro_rules! swhid {
+    // hash starting with a decimal digit
     (swh:1:cnt:$hash:literal) => {{
         const swhid: ::swh_graph::SWHID = {
             let hash: &str = stringify!($hash);
@@ -342,6 +351,50 @@ macro_rules! swhid {
         swhid
     }};
     (swh:1:ori:$hash:literal) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Origin, hash)
+        };
+        swhid
+    }};
+
+    // hash starting with a to f
+    (swh:1:cnt:$hash:ident) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Content, hash)
+        };
+        swhid
+    }};
+    (swh:1:dir:$hash:ident) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Directory, hash)
+        };
+        swhid
+    }};
+    (swh:1:rev:$hash:ident) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Revision, hash)
+        };
+        swhid
+    }};
+    (swh:1:rel:$hash:ident) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Release, hash)
+        };
+        swhid
+    }};
+    (swh:1:snp:$hash:ident) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Snapshot, hash)
+        };
+        swhid
+    }};
+    (swh:1:ori:$hash:ident) => {{
         const swhid: ::swh_graph::SWHID = {
             let hash: &str = stringify!($hash);
             ::swh_graph::__parse_swhid(::swh_graph::NodeType::Origin, hash)
