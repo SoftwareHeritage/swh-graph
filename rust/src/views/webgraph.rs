@@ -18,6 +18,7 @@ use crate::graph::*;
 /// use std::path::PathBuf;
 ///
 /// use webgraph::prelude::VecGraph;
+/// use webgraph::visits::breadth_first::{Seq, IterEvent};
 ///
 /// use swh_graph::graph::{SwhForwardGraph, SwhUnidirectionalGraph};
 /// use swh_graph::views::WebgraphAdapter;
@@ -41,8 +42,27 @@ use crate::graph::*;
 /// let adapter = WebgraphAdapter(graph);
 ///
 /// // We can now call generic webgraph algorithms on the adapter
-/// let order = webgraph::algo::BfsOrder::new(&adapter);
-/// assert_eq!(order.collect::<Vec<_>>(), vec![0, 2, 1]);
+/// let mut order = Seq::new(&adapter);
+/// assert_eq!(order.into_iter().collect::<Vec<_>>(), vec![
+///     IterEvent {
+///         root: 0,
+///         parent: 0,
+///         node: 0,
+///         distance: 0,
+///     },
+///     IterEvent {
+///         root: 0,
+///         parent: 0,
+///         node: 2,
+///         distance: 0
+///     },
+///     IterEvent {
+///         root: 1,
+///         parent: 1,
+///         node: 1,
+///         distance: 0,
+///     }
+/// ]);
 /// # }
 /// ```
 pub struct WebgraphAdapter<G: SwhForwardGraph>(pub G);
