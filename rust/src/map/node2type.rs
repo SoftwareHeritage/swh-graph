@@ -8,7 +8,8 @@ use anyhow::{Context, Result};
 use log::info;
 use mmap_rs::{Mmap, MmapFlags, MmapMut};
 use std::path::Path;
-use sux::prelude::{BitFieldSlice, BitFieldSliceCore, BitFieldSliceMut, BitFieldVec};
+use sux::bits::BitFieldVec;
+use sux::traits::bit_field_slice::{BitFieldSlice, BitFieldSliceCore, BitFieldSliceMut};
 
 /// Struct to create and load a `.node2type.bin` file and convert node ids to types.
 pub struct Node2Type<B> {

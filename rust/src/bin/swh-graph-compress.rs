@@ -605,8 +605,9 @@ pub fn main() -> Result<()> {
                 File::create(&rcl_path)
                     .with_context(|| format!("Could not create {}", rcl_path.display()))?,
             );
-            rcl.serialize(&mut rcl_file)
-                .context("Could not write RCL")?;
+            // SAFETY: this might leak some internal memory, but this process does not access any
+            // sensitive information.
+            unsafe { rcl.serialize(&mut rcl_file) }.context("Could not write RCL")?;
         }
 
         Commands::PthashSwhids {

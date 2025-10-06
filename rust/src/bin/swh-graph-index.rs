@@ -164,8 +164,10 @@ pub fn main() -> Result<()> {
             log::info!("Writing Elias-Fano file for full names offsets...");
             let mut ef_file = File::create(&ef_path)
                 .with_context(|| format!("Could not create {}", ef_path.display()))?;
-            ef_offsets
-                .serialize(&mut ef_file)
+
+            // SAFETY: this might leak some internal memory, but we only ship this .ef alongside
+            // the data this process has access to.
+            unsafe { ef_offsets.serialize(&mut ef_file) }
                 .context("Could not write full names offsets elias-fano file")?;
         }
     }

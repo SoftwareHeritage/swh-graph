@@ -48,7 +48,7 @@ where
     let chunk_size = range.len().div_ceil(num_chunks);
     let mut chunks: Vec<usize> = (0..num_chunks).collect();
 
-    chunks.shuffle(&mut rand::thread_rng());
+    chunks.shuffle(&mut rand::rng());
 
     chunks
         .into_par_iter()
