@@ -108,7 +108,7 @@ ignore = [
     "W503" # line break before binary operator <https://github.com/psf/black/issues/52>
 ]
 max-line-length = 88
-extend-exclude = ["build/"]
+extend-exclude = ["build/", "swh/graph/grpc/"]
 
 [tool.pytest.ini_options]
 norecursedirs = "build docs .*"
