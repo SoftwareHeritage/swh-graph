@@ -1238,7 +1238,7 @@ def _make_dot_diagram() -> str:
     filenames = set()
     for cls in _CompressionStepTask.__subclasses__():
         if isinstance(cls.INPUT_FILES, property):
-            input_files = cls._INPUT_FILES  # type: ignore[attr-defined]
+            input_files = cls._INPUT_FILES
         else:
             input_files = cls.INPUT_FILES | cls.SENSITIVE_INPUT_FILES
         filenames.update(input_files)
@@ -1340,7 +1340,7 @@ def _make_dot_diagram() -> str:
         if cls.EXPORT_AS_INPUT:
             s.write(f"orc_dataset -> {cls.STEP};\n")
         if isinstance(cls.INPUT_FILES, property):
-            input_files = cls._INPUT_FILES  # type: ignore[attr-defined]
+            input_files = cls._INPUT_FILES
         else:
             input_files = cls.INPUT_FILES | cls.SENSITIVE_INPUT_FILES
         for filename in input_files:
