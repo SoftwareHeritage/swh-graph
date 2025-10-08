@@ -266,7 +266,8 @@ def run_e2e_check(
     # Check if the author IDs previously checked match their full names. This is triggered
     # only when the sensitive files containing said full names are present on disk.
     if (
-        Path(f"{sensitive_out_dir}/{graph_name}.persons").exists()
+        sensitive_out_dir is not None
+        and Path(f"{sensitive_out_dir}/{graph_name}.persons").exists()
         and Path(f"{sensitive_out_dir}/{graph_name}.persons.ef").exists()
     ):
         for origin, author in authors.items():
@@ -292,11 +293,7 @@ def run_e2e_check(
                 )
                 errors.append(author)
     else:
-        logger.warn(
-            f"Could not find {sensitive_out_dir}/{graph_name}.persons or "
-            f"{sensitive_out_dir}/{graph_name}.persons.ef.\n"
-            "End-to-end checks for full names skipped"
-        )
+        logger.warn("End-to-end checks for full names skipped")
 
     for origin, project in projects.items():
         for snp_swhid, swhids in project.items():

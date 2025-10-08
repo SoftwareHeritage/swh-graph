@@ -434,6 +434,10 @@ def _mph_persons(
 def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
     if {"rel", "rev", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
         return None
+    if "sensitive_in_dir" not in conf:
+        return None
+    if "sensitive_out_dir" not in conf:
+        return None
     if not (
         Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
         and Path(f"{conf['sensitive_in_dir']}/person").exists()
@@ -459,6 +463,10 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
 
 def _fullnames_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
     if {"rel", "rev", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
+        return None
+    if "sensitive_in_dir" not in conf:
+        return None
+    if "sensitive_out_dir" not in conf:
         return None
     if not (
         Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
