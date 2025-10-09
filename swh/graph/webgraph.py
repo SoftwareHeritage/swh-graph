@@ -440,7 +440,7 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
         return None
     if not (
         Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
-        and Path(f"{conf['sensitive_in_dir']}/person").exists()
+        and Path(f"{conf['sensitive_in_dir']}/orc/person").exists()
     ):
         return None
     with open(
