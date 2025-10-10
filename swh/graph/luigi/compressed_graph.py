@@ -1428,6 +1428,8 @@ class CompressGraph(luigi.Task):
             [ExtractFullnames(**kwargs), FullnamesEf(**kwargs)]
             if issubclass(local_export.export_task_type, ExportGraph)
             and not {"rel", "rev"}.isdisjoint(set(self.object_types))
+            and self.local_sensitive_export_path is not None
+            and self.local_sensitive_graph_path is not None
             else []
         )
         if {"ori", "snp", "rel", "rev", "dir", "cnt"}.issubset(set(self.object_types)):
