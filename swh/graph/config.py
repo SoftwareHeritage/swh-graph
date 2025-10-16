@@ -98,8 +98,11 @@ def check_config_compress(
     check_flavor = _retrieve_value(check_flavor, "check_flavor")
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    if sensitive_in_dir is not None:
+        conf["sensitive_in_dir"] = str(sensitive_in_dir)
     if sensitive_out_dir is not None:
-        sensitive_out_dir.mkdir(parents=True, exist_ok=True)
+        Path(sensitive_out_dir).mkdir(parents=True, exist_ok=True)
+        conf["sensitive_out_dir"] = str(sensitive_out_dir)
 
     if "tmp_dir" not in conf:
         tmp_dir = out_dir / "tmp"
