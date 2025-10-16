@@ -7,6 +7,8 @@
 are as expected."""
 
 from base64 import b64decode
+from importlib.metadata import version
+import json
 import logging
 from pathlib import Path
 import socket
@@ -81,8 +83,17 @@ def run_e2e_check(
     out_dir = conf["out_dir"]
     check_flavor = conf["check_flavor"]
 
+    meta_path = Path(out_dir) / "meta"
+    meta_path.mkdir(exist_ok=True, parents=True)
+    meta_data: dict[str, str | bool] = {}
+
+    meta_data["version"] = version("swh.graph")
+    meta_data["flavor"] = check_flavor
+
     if check_flavor == "none":
         logger.info("End-to-end checks skipped.")
+        with open(meta_path / "e2e-check.json", "w") as fd:
+            json.dump(meta_data, fd, indent=4)
         return
 
     if "graph_path" not in conf:
@@ -263,13 +274,17 @@ def run_e2e_check(
     finally:
         stop_grpc_server(server)
 
-    # Check if the author IDs previously checked match their full names. This is triggered
-    # only when the sensitive files containing said full names are present on disk.
-    if (
+    check_authors = (
         sensitive_out_dir is not None
         and Path(f"{sensitive_out_dir}/{graph_name}.persons").exists()
         and Path(f"{sensitive_out_dir}/{graph_name}.persons.ef").exists()
-    ):
+    )
+
+    meta_data["authors_checked"] = check_authors
+
+    # Check if the author IDs previously checked match their full names. This is triggered
+    # only when the sensitive files containing said full names are present on disk.
+    if check_authors:
         for origin, author in authors.items():
             if author is None:
                 return
@@ -294,6 +309,9 @@ def run_e2e_check(
                 errors.append(author)
     else:
         logger.warn("End-to-end checks for full names skipped")
+
+    with open(meta_path / "e2e-check.json", "w") as fd:
+        json.dump(meta_data, fd, indent=4)
 
     for origin, project in projects.items():
         for snp_swhid, swhids in project.items():
