@@ -142,7 +142,11 @@ def graph_cli_group(ctx, config_file, profile):
 )
 @click.pass_context
 def serve(ctx, host, port, graph_path):
-    """Run the graph RPC service."""
+    """Run the compressed graph HTTP RPC service.
+
+    The documentation of the HTTP RPC API is available on
+    https://docs.softwareheritage.org/devel/swh-graph/api.html
+    """
     import aiohttp.web
 
     from swh.graph.http_rpc_server import make_app
@@ -384,9 +388,12 @@ def reindex(ctx, force: bool, ef: bool, graph: str):
 @click.option("--graph", "-g", metavar="GRAPH", help="compressed graph basename")
 @click.pass_context
 def grpc_serve(ctx, port, graph):
-    """start the graph GRPC service
+    """Run the compressed graph gRPC service.
 
     This command uses execve to execute the Rust GRPC service.
+
+    The documentation of the gRPC API is available on
+    https://docs.softwareheritage.org/devel/swh-graph/grpc-api.html
     """
     import os
 
@@ -455,7 +462,7 @@ def grpc_serve(ctx, port, graph):
     type=StepOption(),
     help="run only these compression steps (default: all steps)",
 )
-@click.option("--test-flavor", "--test-flavour", type=str, help="Test flavo[u]r")
+@click.option("--check-flavor", type=str, help="Check flavor")
 @click.pass_context
 def compress(
     ctx,
@@ -465,7 +472,7 @@ def compress(
     sensitive_output_directory,
     graph_name,
     steps,
-    test_flavor,
+    check_flavor,
 ):
     """Compress a graph using WebGraph
 
@@ -496,10 +503,10 @@ def compress(
     except KeyError:
         conf["profile"] = "release"  # use release builds by default
 
-    if test_flavor is None:
+    if check_flavor is None:
         # TODO: see is this can be None
-        test_flavor = conf.get("test_flavor", "full")
-    conf["test_flavor"] = test_flavor
+        check_flavor = conf.get("check_flavor", "full")
+    conf["check_flavor"] = check_flavor
 
     try:
         webgraph.compress(
@@ -508,7 +515,7 @@ def compress(
             output_directory,
             sensitive_input_dataset,
             sensitive_output_directory,
-            test_flavor,
+            check_flavor,
             steps,
             conf,
         )
@@ -540,7 +547,7 @@ def get_all_subclasses(cls):
     return all_subclasses
 
 
-@graph_cli_group.command()
+@graph_cli_group.command(hidden=True)
 @click.option(
     "--base-directory",
     required=True,
@@ -665,42 +672,14 @@ def luigi(
     luigi_param: List[str],
 ):
     r"""
-    Internal command of swh-graph. Use 'swh export luigi' instead.
-
-    Calls Luigi with the given task and params, and automatically
-    configures paths based on --base-directory and --dataset-name.
-
-    The list of Luigi params should be prefixed with ``--`` so they are not interpreted
-    by the ``swh`` CLI. For example::
-
-        swh datasets luigi \
-                --base-directory ~/tmp/ \
-                --dataset-name 2022-12-05_test \
-                -- \
-                RunAll \
-                --local-scheduler
-
-    to pass ``RunAll --local-scheduler`` as Luigi params
-
-    Or, to compute a derived dataset::
-
-        swh graph luigi \
-                --graph-base-directory /dev/shm/swh-graph/default/ \
-                --base-directory /poolswh/softwareheritage/vlorentz/ \
-                --athena-prefix swh \
-                --dataset-name 2022-04-25 \
-                --s3-athena-output-location s3://some-bucket/tmp/athena \
-                -- \
-                --log-level INFO \
-                FindEarliestRevisions \
-                --scheduler-url http://localhost:50092/ \
-                --blob-filter citation
+    Internal command of swh-graph. Use 'swh datasets luigi' instead.
     """
     import configparser
     import os
     import secrets
     import socket
     import subprocess
+    import sys
     import tempfile
     import time
 
@@ -708,6 +687,11 @@ def luigi(
     import psutil
 
     from swh.core.config import merge_configs
+
+    if "pytest" not in sys.modules:
+        raise click.ClickException(
+            "Use 'swh datasets luigi' instead of 'swh graph luigi'."
+        )
 
     # Popular the list of subclasses of luigi.Task
     import swh.export.luigi  # noqa
@@ -756,7 +740,7 @@ def luigi(
             out_dir=swh_config["graph"]["compress"].get("out_dir"),
             sensitive_in_dir=swh_config["graph"]["compress"].get("sensitive_in_dir"),
             sensitive_out_dir=swh_config["graph"]["compress"].get("sensitive_out_dir"),
-            test_flavor=swh_config["graph"]["compress"].get("test_flavor"),
+            check_flavor=swh_config["graph"]["compress"].get("check_flavor"),
         )
 
     export_name = export_name or dataset_name

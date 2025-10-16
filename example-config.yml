@@ -3,13 +3,15 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-# Configuration file to run a graph compression with end to end test
+# Configuration file to run a graph compression with end-to-end checks
 # on the example dataset provided in this repository
 
 profile: debug
 graph:
-  path: swh/graph/example_dataset/compressed/example
+  path: example
   compress:
-    in_dir: swh/graph/example_dataset/orc/
+    in_dir: swh/graph/example_dataset/orc
     out_dir: /tmp/example_dataset/compressed
-    test_flavor: example
+    sensitive_in_dir: swh/graph/example_dataset-sensitive/orc
+    sensitive_out_dir: /tmp/example_dataset-sensitive/compressed
+    check_flavor: example

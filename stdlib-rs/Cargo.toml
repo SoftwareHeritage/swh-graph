@@ -6,7 +6,7 @@ repository.workspace = true
 license.workspace = true
 keywords = ["software-heritage", "graph", "compression", "webgraph"]
 categories = ["compression", "science"]
-version = "0.1.0"
+version.workspace = true
 
 [dependencies]
 anyhow.workspace = true

@@ -8,7 +8,6 @@ members = [
     "rust",
     "stdlib-rs",
     "tools/counters",
-    "tools/id2fullname",
     "tools/topology",
     "tools/subgrapher",
 ]
@@ -16,7 +15,7 @@ members = [
 [workspace.package]
 repository = "https://gitlab.softwareheritage.org/swh/devel/swh-graph"
 license = "GPL-3.0-or-later"
-version = "7.0.0"
+version = "8.0.10"
 
 [workspace.dependencies]
 anyhow = { version="1.0.79", features=["backtrace"] }
@@ -24,7 +23,7 @@ dsi-bitstream = "0.5.0"
 epserde = "0.8.0"
 itertools = { version = "0.11.0" }
 rayon = { version = "1.9.0" }
-swh-graph = { version = "7.0.0", path = "./rust/" }
+swh-graph = { version = "8.0.4", path = "./rust/" }
 #webgraph = "0.3.0"
 #webgraph-cli = "0.1.0"
 #webgraph-algo = "0.2.0"

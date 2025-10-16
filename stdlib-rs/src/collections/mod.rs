@@ -8,9 +8,6 @@
 mod node_set;
 pub use node_set::*;
 
-mod node_multimap;
-pub use node_multimap::*;
-
 mod paths;
 pub use paths::*;
 

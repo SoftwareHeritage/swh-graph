@@ -19,6 +19,8 @@ from swh.export.luigi import (
     merge_lists,
 )
 
+from .compressed_graph import _tables_for_object_types
+
 
 class SelectTopGithubOrigins(luigi.Task):
     """Writes a list of origins selected from popular Github repositories"""
@@ -57,11 +59,30 @@ class SelectTopGithubOrigins(luigi.Task):
                 fd.write(f"{url}\n")
 
 
+class SubdatasetOriginsFromFile(luigi.Task):
+    """Reads a list of origins from a local file, computed externally to Luigi."""
+
+    local_export_path = luigi.PathParameter()
+    path = luigi.Parameter(
+        default="",
+        description="What file to read origins from. "
+        "Defaults to local_export_path / origins.txt",
+    )
+
+    def output(self) -> luigi.LocalTarget:
+        """Text file with a list of origin URLs"""
+        return luigi.LocalTarget(self.path or self.local_export_path / "origins.txt")
+
+    def run(self) -> None:
+        """Does nothing"""
+        pass
+
+
 class ListSwhidsForSubdataset(luigi.Task):
     """Lists all SWHIDs reachable from a set of origins"""
 
     select_task = luigi.ChoiceParameter(
-        choices=["SelectTopGithubOrigins"],
+        choices=["SelectTopGithubOrigins", "SubdatasetOriginsFromFile"],
         default="SelectTopGithubOrigins",
         description="Which algorithm to use to generate the list of origins",
     )
@@ -191,7 +212,7 @@ class CreateSubdatasetOnAthena(luigi.Task):
             "flavor": "subdataset",
             "export_start": start_date.isoformat(),
             "export_end": end_date.isoformat(),
-            "object_types": [object_type.name for object_type in self.object_types],
+            "object_types": _tables_for_object_types(self.object_types),
             "parent": parent_meta,
             "hostname": socket.getfqdn(),
             "tool": {

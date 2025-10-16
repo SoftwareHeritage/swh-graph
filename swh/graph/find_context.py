@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2022  The Software Heritage developers
+# Copyright (C) 2022-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -21,17 +21,11 @@ from swh.model.exceptions import ValidationError
 # documentation: https://docs.softwareheritage.org/devel/apidoc/swh.model.swhids.html
 from swh.model.swhids import CoreSWHID, ExtendedObjectType, ExtendedSWHID
 
-# global variable holding headers parameters
-headers: dict = {}
-swhcli: dict = {}
-verbose = False
-
 GRAPH_GRPC_SERVER = "localhost:50091"
 
 
-def fqswhid_of_traversal(response):
+def fqswhid_of_traversal(response, verbose):
     # Build the Fully qualified SWHID
-    global verbose
     fqswhid = []
     coreswhidtype = ""
     needrevision = True
@@ -48,7 +42,6 @@ def fqswhid_of_traversal(response):
         parsedid = ExtendedSWHID.from_string(node.swhid)
         if parsedid.object_type == ExtendedObjectType.CONTENT:
             # print(parsedid.object_type)
-            # print(swhcli.get(node.swhid))
             pathids = [
                 label.name.decode()
                 for successor in node.successor
@@ -59,7 +52,6 @@ def fqswhid_of_traversal(response):
             coreswhidtype = "cnt"
         if parsedid.object_type == ExtendedObjectType.DIRECTORY:
             # print(parsedid.object_type)
-            # print(swhcli.get(node.swhid))
             if fqswhid:  # empty list signals coreswhid not found yet
                 pathids = [
                     label.name.decode()
@@ -120,10 +112,6 @@ def main(
     fqswhid,
     trace,
 ):
-    global headers
-    global swhcli
-    global verbose
-    verbose = trace
 
     # Check if content SWHID is valid
     try:
@@ -169,7 +157,7 @@ def main(
                                 mask=field_mask,
                             )
                         )
-                        print(fqswhid_of_traversal(response))
+                        print(fqswhid_of_traversal(response, verbose=trace))
                     else:
                         print(node.ori.url)
 
@@ -184,7 +172,7 @@ def main(
                     )
                 )
                 if fqswhid:
-                    print(fqswhid_of_traversal(response))
+                    print(fqswhid_of_traversal(response, verbose=trace))
                 else:
                     for node in response.node:
                         print(node.ori.url)
@@ -208,7 +196,7 @@ def main(
                         mask=field_mask,
                     )
                 )
-                print(fqswhid_of_traversal(response))
+                print(fqswhid_of_traversal(response, verbose=trace))
 
         except grpc.RpcError as e:
             print("Error from the GRPC API call: {}".format(e.details()))

@@ -67,7 +67,7 @@ class CompressionStep(Enum):
     EDGE_LABELS_EF = 270
     EDGE_LABELS_TRANSPOSE_EF = 280
     STATS = 290
-    E2E_TEST = 295
+    E2E_CHECK = 295
     CLEAN_TMP = 300
 
     def __str__(self):
@@ -434,9 +434,13 @@ def _mph_persons(
 def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
     if {"rel", "rev", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
         return None
+    if "sensitive_in_dir" not in conf:
+        return None
+    if "sensitive_out_dir" not in conf:
+        return None
     if not (
         Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
-        and Path(f"{conf['sensitive_in_dir']}/person").exists()
+        and Path(f"{conf['sensitive_in_dir']}/orc/person").exists()
     ):
         return None
     with open(
@@ -451,7 +455,7 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
         "extract-fullnames",
         "--person-function",
         f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
-        f"{conf['sensitive_in_dir']}",
+        f"{conf['sensitive_in_dir']}/orc",
         f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons",
         f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons.lengths",
     )
@@ -460,9 +464,13 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
 def _fullnames_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
     if {"rel", "rev", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
         return None
+    if "sensitive_in_dir" not in conf:
+        return None
+    if "sensitive_out_dir" not in conf:
+        return None
     if not (
         Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
-        and Path(f"{conf['sensitive_in_dir']}/person").exists()
+        and Path(f"{conf['sensitive_in_dir']}/orc/person").exists()
     ):
         return None
     with open(
@@ -742,18 +750,18 @@ def _stats(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     )
 
 
-def _e2e_test(
+def _e2e_check(
     conf: Dict[str, Any], env: Dict[str, str]
 ) -> Callable[[logging.Logger], None]:
-    from swh.graph.e2e_tests import run_e2e_test
+    from swh.graph.e2e_check import run_e2e_check
 
-    return lambda logger: run_e2e_test(
+    return lambda logger: run_e2e_check(
         graph_name=conf["graph_name"],
         in_dir=conf["in_dir"],
         out_dir=conf["out_dir"],
         sensitive_in_dir=conf.get("sensitive_in_dir"),
         sensitive_out_dir=conf.get("sensitive_out_dir"),
-        test_flavor=conf.get("test_flavor", "full"),
+        check_flavor=conf.get("check_flavor", "full"),
         profile=conf.get("profile", "release"),
         logger=logger,
     )
@@ -817,7 +825,7 @@ COMP_CMD: Dict[
     CompressionStep.EDGE_LABELS_EF: _edge_labels_ef,
     CompressionStep.EDGE_LABELS_TRANSPOSE_EF: _edge_labels_transpose_ef,
     CompressionStep.STATS: _stats,
-    CompressionStep.E2E_TEST: _e2e_test,
+    CompressionStep.E2E_CHECK: _e2e_check,
     CompressionStep.CLEAN_TMP: _clean_tmp,
 }
 
@@ -902,7 +910,7 @@ def compress(
     out_dir: str,
     sensitive_in_dir: Optional[str],
     sensitive_out_dir: Optional[str],
-    test_flavor: Optional[str],
+    check_flavor: Optional[str],
     steps: Set[CompressionStep] = set(COMP_SEQ),
     conf: Dict[str, str] = {},
     progress_cb: Callable[[int, CompressionStep], None] = lambda percentage, step: None,
@@ -918,7 +926,7 @@ def compress(
             sensitive graph can be found
         sensitive_out_dir: sensitive output directory, where the compressed
             sensitive graph will be stored
-        test_flavor: which flavor of tests to run
+        check_flavor: which flavor of checks to run
         steps: compression steps to run (default: all steps)
         conf: compression configuration, supporting the following keys (all are
           optional, so an empty configuration is fine and is the default)
@@ -944,7 +952,7 @@ def compress(
         out_dir,
         sensitive_in_dir,
         sensitive_out_dir,
-        test_flavor,
+        check_flavor,
     )
 
     compression_start_time = datetime.now()

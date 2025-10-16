@@ -56,6 +56,7 @@ where
 }
 
 pub mod collections;
+#[cfg(feature = "unstable_contiguous_subgraph")]
 pub mod connectivity;
 
 mod fs;

@@ -31,7 +31,7 @@ def check_config(
         conf["batch_size"] = min(int(psutil.virtual_memory().total / 1000), 2**30 - 1)
         logger.debug("batch_size not configured, defaulting to %s", conf["batch_size"])
     if "llp_gammas" not in conf:
-        conf["llp_gammas"] = "-1,-2,-3,-4,-5,0-0"
+        conf["llp_gammas"] = "-1,-2,-3,-4"
         logger.debug("llp_gammas not configured, defaulting to %s", conf["llp_gammas"])
     # rust related config entries
     debug_mode = (
@@ -71,7 +71,7 @@ def check_config_compress(
     out_dir,
     sensitive_in_dir,
     sensitive_out_dir,
-    test_flavor,
+    check_flavor,
 ):
     """check compression-specific configuration and initialize its execution
     environment.
@@ -94,23 +94,12 @@ def check_config_compress(
 
     graph_name = _retrieve_value(graph_name, "graph_name")
     in_dir = _retrieve_value(in_dir, "in_dir", is_path=True)
-    sensitive_in_dir = _retrieve_value(
-        sensitive_in_dir,
-        "sensitive_in_dir",
-        default_value=Path(f"{in_dir.parent}-sensitive"),
-        is_path=True,
-    )
     out_dir = _retrieve_value(out_dir, "out_dir", is_path=True)
-    sensitive_out_dir = _retrieve_value(
-        sensitive_out_dir,
-        "sensitive_out_dir",
-        default_value=Path(f"{out_dir.parent}-sensitive"),
-        is_path=True,
-    )
-    test_flavor = _retrieve_value(test_flavor, "test_flavor")
+    check_flavor = _retrieve_value(check_flavor, "check_flavor")
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    sensitive_out_dir.mkdir(parents=True, exist_ok=True)
+    if sensitive_out_dir is not None:
+        sensitive_out_dir.mkdir(parents=True, exist_ok=True)
 
     if "tmp_dir" not in conf:
         tmp_dir = out_dir / "tmp"
@@ -119,14 +108,20 @@ def check_config_compress(
         tmp_dir = Path(conf["tmp_dir"])
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
-    if test_flavor is None:
-        test_flavor = conf.get("test_flavor", "full")
-    conf["test_flavor"] = test_flavor
+    if check_flavor is None:
+        check_flavor = conf.get("check_flavor", "full")
+    conf["check_flavor"] = check_flavor
 
-    if conf["test_flavor"] not in ["full", "history_hosting", "example", "none"]:
+    if conf["check_flavor"] not in [
+        "full",
+        "history_hosting",
+        "staging",
+        "example",
+        "none",
+    ]:
         raise ValueError(
-            f"Unsupported test flavor: {test_flavor}."
-            "Must be one of full, history_hosting, example or none."
+            f"Unsupported check flavor: {check_flavor}."
+            "Must be one of full, history_hosting, staging, example or none."
         )
 
     return conf

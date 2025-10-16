@@ -13,6 +13,8 @@ use crate::graph::*;
 /// # Example
 ///
 /// ```
+/// # #[cfg(not(miri))] // BfsOrder uses sysinfo (through dsi-progress-logger), which is not supported
+/// # {
 /// use std::path::PathBuf;
 ///
 /// use webgraph::prelude::VecGraph;
@@ -61,6 +63,7 @@ use crate::graph::*;
 ///         distance: 0,
 ///     }
 /// ]);
+/// # }
 /// ```
 pub struct WebgraphAdapter<G: SwhForwardGraph>(pub G);
 

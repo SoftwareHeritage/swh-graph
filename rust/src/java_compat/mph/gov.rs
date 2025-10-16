@@ -158,14 +158,10 @@ impl GOVMPH {
             ($file:expr, $type:ty) => {{
                 // create a bytes buffer big enough for $len elements of type $type
                 let len = read!($file, u64) as usize;
-                let bytes = len * core::mem::size_of::<$type>();
-                let mut buffer: Vec<u8> = vec![0; bytes];
+                let mut buffer: Vec<u64> = vec![0; len];
                 // read the file in the buffer
-                $file.read_exact(&mut buffer)?;
-                // convert the buffer Vec<u8> into a Vec<$type>
-                let ptr = buffer.as_mut_ptr();
-                core::mem::forget(buffer);
-                unsafe { Vec::from_raw_parts(ptr as *mut $type, len, len) }
+                $file.read_exact(bytemuck::cast_slice_mut(&mut buffer))?;
+                buffer
             }};
         }
         // actually load the data :)

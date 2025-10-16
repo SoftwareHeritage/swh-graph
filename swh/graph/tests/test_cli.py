@@ -38,7 +38,7 @@ def test_pipeline():
             "compress": {
                 "batch_size": 1000,
                 "rust_executable_dir": "./target/debug/",
-                "test_flavor": "example",
+                "check_flavor": "example",
             }
         },
     }

@@ -206,8 +206,15 @@ class _CompressionStepTask(luigi.Task):
     INPUT_FILES: Set[str]
     """Dependencies of this step."""
 
+    SENSITIVE_INPUT_FILES: Set[str] = set()
+    """Sensitive dependencies of this step."""
+
     OUTPUT_FILES: Set[str]
     """List of files which this task produces, without the graph name as prefix.
+    """
+
+    SENSITIVE_OUTPUT_FILES: Set[str] = set()
+    """List of sensitive files which this task produces, without the graph name as prefix.
     """
 
     EXPORT_AS_INPUT: bool = False
@@ -257,10 +264,10 @@ class _CompressionStepTask(luigi.Task):
 
     object_types: list[str] = ObjectTypesParameter()  # type: ignore[assignment]
 
-    test_flavor = luigi.Parameter(
+    check_flavor = luigi.Parameter(
         default="full",
         significant=False,
-        description="Test flavor for e2e test during compression",
+        description="Flavor for end-to-end check during compression",
     )
 
     def _get_count(self, count_name: str, task_name: str) -> int:
@@ -434,30 +441,28 @@ class _CompressionStepTask(luigi.Task):
         ):
             # These files are only generated for graphs that have labels
             return not {"dir", "snp", "ori"}.isdisjoint(set(self.object_types))
-        elif filename.endswith((".persons", ".persons.lengths")):
-            # These files are only generated when there is a `person` directory in `in_dir`
-            return False
         else:
             return True
 
     def requires(self) -> Sequence[luigi.Task]:
         """Returns a list of luigi tasks matching :attr:`PREVIOUS_STEPS`."""
         requirements_d = {}
-        for input_file in self.INPUT_FILES:
+        for input_file in self.INPUT_FILES.union(self.SENSITIVE_INPUT_FILES):
             if not self._is_expected_output_file(input_file):
                 continue
             if self.MINIMUM_OBJECT_TYPES.isdisjoint(set(self.object_types)):
                 continue
             for cls in _CompressionStepTask.__subclasses__():
-                if input_file in cls.OUTPUT_FILES:
+                if input_file in cls.OUTPUT_FILES.union(cls.SENSITIVE_OUTPUT_FILES):
                     kwargs = dict(
                         local_export_path=self.local_export_path,
                         local_sensitive_export_path=self.local_sensitive_export_path,
+                        local_sensitive_graph_path=self.local_sensitive_graph_path,
                         graph_name=self.graph_name,
                         local_graph_path=self.local_graph_path,
                         object_types=self.object_types,
                         rust_executable_dir=self.rust_executable_dir,
-                        test_flavor=self.test_flavor,
+                        check_flavor=self.check_flavor,
                     )
                     if self.batch_size:
                         kwargs["batch_size"] = self.batch_size
@@ -481,11 +486,25 @@ class _CompressionStepTask(luigi.Task):
         return requirements
 
     def output(self) -> List[luigi.LocalTarget]:
-        """Returns a list of luigi targets matching :attr:`OUTPUT_FILES`."""
-        return [luigi.LocalTarget(self._stamp())] + [
-            luigi.LocalTarget(f"{self.local_graph_path / self.graph_name}{name}")
-            for name in self.OUTPUT_FILES
-        ]
+        """
+        Returns a list of luigi targets matching :attr:`OUTPUT_FILES` and
+        :attr:`SENSITIVE_OUTPUT_FILES`.
+        """
+        return (
+            [luigi.LocalTarget(self._stamp())]
+            + [
+                luigi.LocalTarget(f"{self.local_graph_path / self.graph_name}{name}")
+                for name in self.OUTPUT_FILES
+            ]
+            + [
+                luigi.LocalTarget(
+                    f"{self.local_sensitive_graph_path / self.graph_name}{name}"
+                )
+                for name in self.SENSITIVE_OUTPUT_FILES
+                if self.local_sensitive_graph_path is not None
+                and self.SENSITIVE_OUTPUT_FILES is not None
+            ]
+        )
 
     def run(self) -> None:
         """Runs the step, by shelling out to the relevant Rust program"""
@@ -500,24 +519,33 @@ class _CompressionStepTask(luigi.Task):
         if self.MINIMUM_OBJECT_TYPES.isdisjoint(set(self.object_types)):
             return
 
-        for input_file in self.INPUT_FILES:
-            if not self._is_expected_output_file(input_file):
-                continue
-            path = self.local_graph_path / f"{self.graph_name}{input_file}"
-            if not path.exists():
-                raise Exception(f"expected input {path} does not exist")
-            if path.is_file():
-                if path.stat().st_size == 0:
-                    if path.name.endswith("-bfs.roots.txt") and {"ori"}.isdisjoint(
-                        set(self.object_types)
-                    ):
-                        continue
-                    raise Exception(f"expected input file {path} is empty")
-            elif path.is_dir():
-                if next(path.iterdir(), None) is None:
-                    raise Exception(f"expected input directory {path} is empty")
-            else:
-                raise Exception(f"expected output {path} is not a file or directory")
+        def _check_task_files(input_files: Set[str], graph_path: Path):
+            for input_file in input_files:
+                if not self._is_expected_output_file(input_file):
+                    continue
+                path = graph_path / f"{self.graph_name}{input_file}"
+                if not path.exists():
+                    raise Exception(f"expected input {path} does not exist")
+                if path.is_file():
+                    if path.stat().st_size == 0:
+                        if path.name.endswith("-bfs.roots.txt") and {"ori"}.isdisjoint(
+                            set(self.object_types)
+                        ):
+                            continue
+                        raise Exception(f"expected input file {path} is empty")
+                elif path.is_dir():
+                    if next(path.iterdir(), None) is None:
+                        raise Exception(f"expected input directory {path} is empty")
+                else:
+                    raise Exception(
+                        f"expected output {path} is not a file or directory"
+                    )
+
+        _check_task_files(self.INPUT_FILES, self.local_graph_path)
+        if self.local_sensitive_graph_path is not None:
+            _check_task_files(
+                self.SENSITIVE_INPUT_FILES, self.local_sensitive_graph_path
+            )
 
         if self.EXPORT_AS_INPUT:
             export_meta = json.loads(
@@ -553,7 +581,7 @@ class _CompressionStepTask(luigi.Task):
             out_dir=self.local_graph_path,
             sensitive_in_dir=self.local_sensitive_export_path,
             sensitive_out_dir=self.local_sensitive_graph_path,
-            test_flavor=self.test_flavor,
+            check_flavor=self.check_flavor,
         )
 
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
@@ -911,7 +939,8 @@ class ExtractFullnames(_CompressionStepTask):
     STEP = CompressionStep.EXTRACT_FULLNAMES
     INPUT_FILES = {".persons.pthash"}
     EXPORT_AS_INPUT = True
-    OUTPUT_FILES = {".persons", ".persons.lengths"}
+    OUTPUT_FILES = set()
+    SENSITIVE_OUTPUT_FILES = {".persons", ".persons.lengths"}
     MINIMUM_OBJECT_TYPES = {"rel", "rev"}
 
     def _large_allocations(self) -> int:
@@ -920,8 +949,10 @@ class ExtractFullnames(_CompressionStepTask):
 
 class FullnamesEf(_CompressionStepTask):
     STEP = CompressionStep.FULLNAMES_EF
-    INPUT_FILES = {".persons", ".persons.lengths"}
-    OUTPUT_FILES = {".persons.ef"}
+    INPUT_FILES = set()
+    SENSITIVE_INPUT_FILES = {".persons", ".persons.lengths"}
+    OUTPUT_FILES = set()
+    SENSITIVE_OUTPUT_FILES = {".persons.ef"}
     MINIMUM_OBJECT_TYPES = {"rel", "rev"}
 
     def _large_allocations(self) -> int:
@@ -1145,8 +1176,8 @@ class Stats(_CompressionStepTask):
         return 0
 
 
-class EndToEndTest(_CompressionStepTask):
-    STEP = CompressionStep.E2E_TEST
+class EndToEndCheck(_CompressionStepTask):
+    STEP = CompressionStep.E2E_CHECK
     INPUT_FILES = {
         ".ef",
         ".graph",
@@ -1207,11 +1238,11 @@ def _make_dot_diagram() -> str:
     filenames = set()
     for cls in _CompressionStepTask.__subclasses__():
         if isinstance(cls.INPUT_FILES, property):
-            input_files = cls._INPUT_FILES  # type: ignore[attr-defined]
+            input_files = cls._INPUT_FILES
         else:
-            input_files = cls.INPUT_FILES
+            input_files = cls.INPUT_FILES | cls.SENSITIVE_INPUT_FILES
         filenames.update(input_files)
-        filenames.update(cls.OUTPUT_FILES)
+        filenames.update(cls.OUTPUT_FILES | cls.SENSITIVE_OUTPUT_FILES)
 
     # filter out the many graph.properties.* files
     filenames = {
@@ -1309,9 +1340,9 @@ def _make_dot_diagram() -> str:
         if cls.EXPORT_AS_INPUT:
             s.write(f"orc_dataset -> {cls.STEP};\n")
         if isinstance(cls.INPUT_FILES, property):
-            input_files = cls._INPUT_FILES  # type: ignore[attr-defined]
+            input_files = cls._INPUT_FILES
         else:
-            input_files = cls.INPUT_FILES
+            input_files = cls.INPUT_FILES | cls.SENSITIVE_INPUT_FILES
         for filename in input_files:
             assert not is_node_properties_file(filename)
             s.write(f"{normalize_filename(filename)} -> {cls.STEP};\n")
@@ -1319,7 +1350,7 @@ def _make_dot_diagram() -> str:
             s.write(f"{cls.STEP} -> node_properties;\n")
             assert all(map(is_node_properties_file, cls.OUTPUT_FILES))
         else:
-            for filename in cls.OUTPUT_FILES:
+            for filename in cls.OUTPUT_FILES | cls.SENSITIVE_OUTPUT_FILES:
                 assert not is_node_properties_file(filename), cls.STEP
                 s.write(f"{cls.STEP} -> {normalize_filename(filename)};\n")
 
@@ -1357,10 +1388,10 @@ class CompressGraph(luigi.Task):
         default=list(_TABLES_PER_OBJECT_TYPE)
     )
 
-    test_flavor = luigi.Parameter(
+    check_flavor = luigi.Parameter(
         default="full",
         significant=False,
-        description="Test flavor for e2e test during compression",
+        description="Flavor for end-to-end check during compression",
     )
 
     def requires(self) -> List[luigi.Task]:
@@ -1369,11 +1400,12 @@ class CompressGraph(luigi.Task):
         kwargs = dict(
             local_export_path=self.local_export_path,
             local_sensitive_export_path=self.local_sensitive_export_path,
+            local_sensitive_graph_path=self.local_sensitive_graph_path,
             graph_name=self.graph_name,
             local_graph_path=self.local_graph_path,
             object_types=self.object_types,
             rust_executable_dir=self.rust_executable_dir,
-            test_flavor=self.test_flavor,
+            check_flavor=self.check_flavor,
         )
         if set(self.object_types).isdisjoint({"dir", "snp", "ori"}):
             # Only nodes of these three types have outgoing arcs with labels
@@ -1396,12 +1428,14 @@ class CompressGraph(luigi.Task):
             [ExtractFullnames(**kwargs), FullnamesEf(**kwargs)]
             if issubclass(local_export.export_task_type, ExportGraph)
             and not {"rel", "rev"}.isdisjoint(set(self.object_types))
+            and self.local_sensitive_export_path is not None
+            and self.local_sensitive_graph_path is not None
             else []
         )
         if {"ori", "snp", "rel", "rev", "dir", "cnt"}.issubset(set(self.object_types)):
-            e2e_test_task = [EndToEndTest(**kwargs)]
+            e2e_check_task = [EndToEndCheck(**kwargs)]
         else:
-            e2e_test_task = []
+            e2e_check_task = []
 
         return [
             local_export,
@@ -1411,7 +1445,7 @@ class CompressGraph(luigi.Task):
             *fullname_tasks,
             NodeProperties(**kwargs),
             Stats(**kwargs),
-            *e2e_test_task,
+            *e2e_check_task,
             *label_tasks,
         ]
 
@@ -1451,7 +1485,7 @@ class CompressGraph(luigi.Task):
             out_dir=self.local_graph_path,
             sensitive_in_dir=self.local_sensitive_export_path,
             sensitive_out_dir=self.local_sensitive_graph_path,
-            test_flavor=self.test_flavor,
+            check_flavor=self.check_flavor,
         )
 
         step_stamp_paths = []
