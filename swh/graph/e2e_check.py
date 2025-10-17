@@ -6,7 +6,7 @@
 """Spawns a gRPC server on a newly compressed graph, and checks responses
 are as expected."""
 
-from base64 import b64decode
+from base64 import b64decode, b64encode
 from importlib.metadata import version
 import json
 import logging
@@ -237,6 +237,7 @@ def run_e2e_check(
                 ],
             }
         }
+        fullnames = {"https://example.com/swh/graph": b64encode(b"bar").decode()}
 
     # All authors of listed revisions should be the same, but we don't know their IDs
     # so we can only check whether they all have the same ID or not.
