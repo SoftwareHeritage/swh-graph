@@ -12,6 +12,7 @@ use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
 use ar_row_derive::ArRowDeserialize;
 use common_traits::{Atomic, IntoAtomic};
 use rayon::prelude::*;
+use sux::traits::AtomicBitVecOps;
 
 use super::orc::get_dataset_readers;
 use super::orc::{iter_arrow, par_iter_arrow};
@@ -278,7 +279,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
         .for_each(|()| ());
 
         log::info!("Converting...");
-        let (bitvec, len) = is_skipped.into_raw_parts();
+        let (bitbox, len) = is_skipped.into_raw_parts();
+        let bitvec = Vec::from(bitbox);
         assert_eq!(len, self.num_nodes);
         // Make its values big-endian
         let bitvec_be: Vec<u8> = bitvec

@@ -99,9 +99,15 @@ where
             .into_iter()
             .enumerate()
             .map(|(partition_id, sorted_arcs_partition)| {
-                webgraph::prelude::Left(ArcListGraph::new_labeled(num_nodes, sorted_arcs_partition))
+                (
+                    partition_id * nodes_per_partition,
+                    webgraph::prelude::Left(ArcListGraph::new_labeled(
+                        num_nodes,
+                        sorted_arcs_partition,
+                    ))
                     .iter_from(partition_id * nodes_per_partition)
-                    .take(nodes_per_partition)
+                    .take(nodes_per_partition),
+                )
             });
 
     let compression_flags = CompFlags {

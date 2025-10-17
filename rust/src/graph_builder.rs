@@ -12,6 +12,7 @@ use std::io::Write;
 
 use anyhow::{ensure, Context, Result};
 use itertools::Itertools;
+use sux::traits::bit_vec_ops::{BitVecOps, BitVecOpsMut};
 use webgraph::graphs::vec_graph::LabeledVecGraph;
 
 use crate::graph::*;

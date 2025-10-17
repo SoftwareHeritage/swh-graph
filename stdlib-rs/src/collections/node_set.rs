@@ -14,6 +14,7 @@ use std::hash::BuildHasher;
 
 use rapidhash::RapidBuildHasher;
 use sux::bits::bit_vec::BitVec;
+use sux::traits::{BitVecOps, BitVecOpsMut};
 
 /// Constant controlling when a [`AdaptiveNodeSet`] should be promoted from sparse to dense.
 ///

@@ -17,6 +17,7 @@ use dsi_progress_logger::{progress_logger, ProgressLog};
 use num_cpus;
 use rayon::prelude::*;
 use sux::prelude::AtomicBitVec;
+use sux::traits::AtomicBitVecOps;
 use thread_local::ThreadLocal;
 use webgraph::prelude::*;
 

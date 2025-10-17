@@ -15,7 +15,7 @@ rust-version = "1.81"
 [dependencies]
 rand = "0.9.0"
 anyhow.workspace = true
-mmap-rs = "0.6.1"
+mmap-rs.workspace = true
 sux.workspace = true
 webgraph.workspace = true
 webgraph-cli.workspace = true
@@ -38,11 +38,12 @@ dsi-bitstream.workspace = true
 epserde.workspace = true
 bytemuck = { version = "1.18.0", features = ["extern_crate_alloc"] }
 common_traits = "0.12.0"
-lender = "0.3.1"
+lender.workspace = true
 thiserror = "1.0.51"
 bitvec = { version = "1.0.1" }
 once_cell = "1.19.0"
 mimalloc = { version = "0.1", default-features = false, optional = true }
+value-traits.workspace = true
 
 # compression
 arrow = { version = ">=53.1.0,<57", optional = true }
