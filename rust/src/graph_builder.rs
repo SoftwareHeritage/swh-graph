@@ -101,7 +101,7 @@ pub struct GraphBuilder {
     name_to_id: HashMap<Vec<u8>, u64>,
     persons: HashMap<Vec<u8>, u32>,
 
-    arcs: Vec<(NodeId, NodeId, Option<EdgeLabel>)>,
+    arcs: Vec<((NodeId, NodeId), Option<EdgeLabel>)>,
 
     swhids: Vec<SWHID>,
     is_skipped_content: Vec<bool>,
@@ -148,7 +148,7 @@ impl GraphBuilder {
 
     /// Adds an unlabeled arc to the graph
     pub fn arc(&mut self, src: NodeId, dst: NodeId) {
-        self.arcs.push((src, dst, None));
+        self.arcs.push(((src, dst), None));
     }
 
     /// Adds a labeled dir->{cnt,dir,rev} arc to the graph
@@ -202,14 +202,14 @@ impl GraphBuilder {
 
     /// Adds a labeled arc to the graph
     pub fn l_arc<L: Into<EdgeLabel>>(&mut self, src: NodeId, dst: NodeId, label: L) {
-        self.arcs.push((src, dst, Some(label.into())));
+        self.arcs.push(((src, dst), Some(label.into())));
     }
 
     #[allow(clippy::type_complexity)]
     pub fn done(&self) -> Result<BuiltGraph> {
         let num_nodes = self.swhids.len();
         let mut seen = sux::prelude::BitVec::new(num_nodes);
-        for (src, dst, _) in self.arcs.iter() {
+        for ((src, dst), _) in self.arcs.iter() {
             seen.set(*src, true);
             seen.set(*dst, true);
         }
@@ -243,15 +243,15 @@ impl GraphBuilder {
             .collect();
 
         let mut arcs = self.arcs.clone();
-        arcs.sort_by_key(|(src, dst, _label)| (*src, *dst)); // stable sort, it makes tests easier to write
+        arcs.sort_by_key(|((src, dst), _label)| (*src, *dst)); // stable sort, it makes tests easier to write
 
-        let arcs: Vec<(NodeId, NodeId, Vec<u64>)> = arcs
+        let arcs: Vec<((NodeId, NodeId), Vec<u64>)> = arcs
             .into_iter()
-            .group_by(|(src, dst, _label)| (*src, *dst))
+            .group_by(|((src, dst), _label)| (*src, *dst))
             .into_iter()
-            .map(|((src, dst), arcs)| -> (NodeId, NodeId, Vec<u64>) {
+            .map(|((src, dst), arcs)| -> ((NodeId, NodeId), Vec<u64>) {
                 let labels = arcs
-                    .flat_map(|(_src, _dst, labels)| {
+                    .flat_map(|((_src, _dst), labels)| {
                         labels.map(|label| {
                             UntypedEdgeLabel::from(match label {
                                 EdgeLabel::Branch(branch) => EdgeLabel::Branch(
@@ -276,13 +276,13 @@ impl GraphBuilder {
                         })
                     })
                     .collect();
-                (src, dst, labels)
+                ((src, dst), labels)
             })
             .collect();
 
-        let backward_arcs: Vec<(NodeId, NodeId, Vec<u64>)> = arcs
+        let backward_arcs: Vec<((NodeId, NodeId), Vec<u64>)> = arcs
             .iter()
-            .map(|(src, dst, labels)| (*dst, *src, labels.clone()))
+            .map(|((src, dst), labels)| ((*dst, *src), labels.clone()))
             .collect();
 
         SwhBidirectionalGraph::from_underlying_graphs(

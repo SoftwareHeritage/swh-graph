@@ -34,7 +34,7 @@ fn test_par_sort_arcs() -> Result<()> {
         .into_iter()
         .flatten()
         .collect::<Vec<_>>(),
-        vec![(1, 5, ()), (1, 10, ()), (2, 1, ()), (2, 10, ())],
+        vec![((1, 5), ()), ((1, 10), ()), ((2, 1), ()), ((2, 10), ())],
     );
 
     Ok(())
@@ -61,7 +61,7 @@ fn test_par_sort_arcs_empty_buffer() -> Result<()> {
         .into_iter()
         .flatten()
         .collect::<Vec<_>>(),
-        vec![(1, 5, ()), (1, 10, ()), (2, 1, ()), (2, 10, ())],
+        vec![((1, 5), ()), ((1, 10), ()), ((2, 1), ()), ((2, 10), ())],
     );
 
     Ok(())
@@ -101,18 +101,18 @@ fn test_par_sort_arcs_labeled() -> Result<()> {
         tempdir.path(),
         100, // sort_batch_size
         vec![
-            (1, 10, 123),
-            (2, 1, 456),
-            (1, 10, 789),
-            (1, 5, -123),
-            (2, 10, -456),
+            ((1, 10), 123),
+            ((2, 1), 456),
+            ((1, 10), 789),
+            ((1, 5), -123),
+            ((2, 10), -456),
         ]
         .into_par_iter(),
         10, // num_partition
         TestLabelSerializer,
         TestLabelDeserializer,
         |buf: &mut PartitionedBuffer<i32, TestLabelSerializer, TestLabelDeserializer>,
-         (src, dst, label)| {
+         ((src, dst), label)| {
             let partition_id = src / 10;
             buf.insert_labeled(partition_id, src, dst, label)
         },
@@ -125,21 +125,21 @@ fn test_par_sort_arcs_labeled() -> Result<()> {
     // Two options, as labels are not sorted
     if res
         != vec![
-            (1, 5, -123),
-            (1, 10, 123),
-            (1, 10, 789),
-            (2, 1, 456),
-            (2, 10, -456),
+            ((1, 5), -123),
+            ((1, 10), 123),
+            ((1, 10), 789),
+            ((2, 1), 456),
+            ((2, 10), -456),
         ]
     {
         assert_eq!(
             res,
             vec![
-                (1, 5, -123),
-                (1, 10, 789),
-                (1, 10, 123),
-                (2, 1, 456),
-                (2, 10, -456)
+                ((1, 5), -123),
+                ((1, 10), 789),
+                ((1, 10), 123),
+                ((2, 1), 456),
+                ((2, 10), -456)
             ]
         )
     }

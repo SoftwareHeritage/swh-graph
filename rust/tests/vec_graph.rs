@@ -25,7 +25,8 @@ fn test_vec_graph() {
 
 #[test]
 fn test_labeled_vec_graph() {
-    let arcs: Vec<(usize, usize, &[u64])> = vec![(0, 1, &[0, 789]), (2, 0, &[123]), (2, 1, &[456])];
+    let arcs: Vec<((usize, usize), &[u64])> =
+        vec![((0, 1), &[0, 789]), ((2, 0), &[123]), ((2, 1), &[456])];
     let underlying_graph = LabeledVecGraph::from_arcs(arcs);
 
     let graph = SwhUnidirectionalGraph::from_underlying_graph(PathBuf::new(), underlying_graph);

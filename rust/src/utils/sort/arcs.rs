@@ -139,7 +139,7 @@ pub fn par_sort_arcs<Item, Iter, F, L, S, D>(
     label_serializer: S,
     label_deserializer: D,
     f: F,
-) -> Result<Vec<impl Iterator<Item = (usize, usize, L)> + Clone + Send + Sync>>
+) -> Result<Vec<impl Iterator<Item = ((usize, usize), L)> + Clone + Send + Sync>>
 where
     F: Fn(&mut PartitionedBuffer<L, S, D>, Item) -> Result<()> + Send + Sync,
     Iter: ParallelIterator<Item = Item>,
@@ -254,7 +254,7 @@ fn serialize<L, S>(
     path: &Path,
     pl: &mut impl ProgressLog,
     label_serializer: S,
-    arcs: impl Iterator<Item = (usize, usize, L)>,
+    arcs: impl Iterator<Item = ((usize, usize), L)>,
 ) -> Result<usize>
 where
     S: BitSerializer<NE, BitWriter, SerType = L> + Send + Sync + Copy,
@@ -266,7 +266,7 @@ where
     let mut prev_src = 0;
     let mut prev_dst = 0;
     let mut num_arcs_in_partition: usize = 0;
-    for (src, dst, label) in arcs {
+    for ((src, dst), label) in arcs {
         write_stream
             .write_gamma((src - prev_src).try_into().expect("usize overflowed u64"))
             .context("Could not write src gamma")?;
@@ -292,7 +292,7 @@ fn deserialize<L, D>(
     path: &Path,
     label_deserializer: D,
     num_arcs: usize,
-) -> Result<impl Iterator<Item = (usize, usize, L)> + Clone + Send + Sync>
+) -> Result<impl Iterator<Item = ((usize, usize), L)> + Clone + Send + Sync>
 where
     D: BitDeserializer<NE, BitReader, DeserType = L> + Send + Sync + Copy,
 {
@@ -319,7 +319,7 @@ where
         prev_dst = dst;
         let src = usize::try_from(src).expect("deserialized usize overflows usize");
         let dst = usize::try_from(dst).expect("deserialized usize overflows usize");
-        (src, dst, label)
+        ((src, dst), label)
     });
     Ok(arcs)
 }

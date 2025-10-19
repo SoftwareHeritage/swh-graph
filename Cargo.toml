@@ -26,9 +26,9 @@ lender = "0.4.0"
 mmap-rs = "0.7.0"
 swh-graph = { version = "8.0.4", path = "./rust/" }
 value-traits = "0.2.0"
-webgraph = { git = "https://github.com/vigna/webgraph-rs", rev = "f6cfdd017ec04554a23381157e72defd83d12747" }
-webgraph-algo = { git = "https://github.com/vigna/webgraph-rs", rev = "f6cfdd017ec04554a23381157e72defd83d12747" }
-webgraph-cli = { git = "https://github.com/vigna/webgraph-rs", rev = "f6cfdd017ec04554a23381157e72defd83d12747" }
+webgraph = { git = "https://github.com/vigna/webgraph-rs", rev = "b976e1db4c8b08b89047d8657a00de839409fb2a" }
+webgraph-algo = { git = "https://github.com/vigna/webgraph-rs", rev = "b976e1db4c8b08b89047d8657a00de839409fb2a" }
+webgraph-cli = { git = "https://github.com/vigna/webgraph-rs", rev = "b976e1db4c8b08b89047d8657a00de839409fb2a" }
 sux = "0.9.0"
 
 # CLI
