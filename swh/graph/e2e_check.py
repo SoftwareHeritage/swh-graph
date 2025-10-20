@@ -203,7 +203,7 @@ def run_e2e_check(
         ),
     }
 
-    errors: list[str | int | QualifiedSWHID] = []
+    errors: list[QualifiedSWHID | tuple[str, int]] = []
 
     # This is a compressed graph of only the “history and hosting” layer (origins,
     # snapshots, releases, revisions) and the root directory (or rarely content) of every
@@ -307,7 +307,7 @@ def run_e2e_check(
                     f"expected {b64decode(fullnames[origin]).decode()}, "
                     f"got {fullname.decode(errors='replace')}"
                 )
-                errors.append(author)
+                errors.append((origin, author))
     else:
         logger.warn("End-to-end checks for full names skipped")
 
