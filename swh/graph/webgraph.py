@@ -458,6 +458,8 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
         f"{conf['sensitive_in_dir']}/orc",
         f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons",
         f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons.lengths",
+        conf=conf,
+        env=env,
     )
 
 
@@ -488,6 +490,8 @@ def _fullnames_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command
         f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons",
         f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons.lengths",
         f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons.ef",
+        conf=conf,
+        env=env,
     )
 
 

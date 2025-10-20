@@ -294,6 +294,7 @@ def run_e2e_check(
                         "swh-graph-person-id-to-name",
                         f"{author}",
                         f"{sensitive_out_dir}/{graph_name}",
+                        conf=conf,
                     )
                     > Sink()
                 )
