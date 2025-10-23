@@ -1,3 +1,4 @@
+moto[server, s3]
 pytest >= 8.1
 pytest-mock
 pytest-postgresql
@@ -10,5 +11,6 @@ types-protobuf
 types-tqdm
 boto3-stubs
 botocore-stubs
+types-boto3[s3]
 grpc-stubs
 pyarrow-stubs

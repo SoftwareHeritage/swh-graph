@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2024  The Software Heritage developers
+# Copyright (C) 2019-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -229,14 +229,21 @@ def download(
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    GraphDownloader(
+    graph_downloader = GraphDownloader(
         local_graph_path=target_dir,
         s3_graph_path=s3_url,
         parallelism=parallelism,
-    ).download_graph(
-        progress_percent_cb=lambda _: None,
-        progress_status_cb=lambda _: None,
     )
+
+    if graph_downloader.download_graph():
+        click.echo(
+            f"Graph dataset {name} successfully downloaded to path {target_dir}."
+        )
+    else:
+        raise click.ClickException(
+            f"Graph dataset {name} partially downloaded to path {target_dir}.\n"
+            "Execute the same command again to resume download from the saved partial state."
+        )
 
 
 @graph_cli_group.command(name="list-datasets")
