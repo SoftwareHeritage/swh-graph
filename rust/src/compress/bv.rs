@@ -30,17 +30,27 @@ use crate::map::{MappedPermutation, Permutation};
 use crate::mph::LoadableSwhidMphf;
 use crate::utils::sort::par_sort_arcs;
 
+#[allow(clippy::too_many_arguments)]
 pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
     sort_batch_size: usize,
     partitions_per_thread: usize,
     mph_basepath: PathBuf,
     num_nodes: usize,
+    order: Option<PathBuf>,
     dataset_dir: PathBuf,
     allowed_node_types: &[crate::NodeType],
     target_dir: PathBuf,
 ) -> Result<()> {
     log::info!("Reading MPH");
     let mph = MPHF::load(mph_basepath).context("Could not load MPHF")?;
+    let order = order
+        .map(|order_path| {
+            log::info!("Mmapping order");
+            MappedPermutation::load(num_nodes, &order_path)
+                .with_context(|| format!("Could not mmap order from {}", order_path.display()))
+        })
+        .transpose()?;
+
     log::info!("MPH loaded, sorting arcs");
 
     let num_threads = num_cpus::get();
@@ -79,14 +89,22 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
         (),
         (),
         |buffer, (src, dst)| {
-            let src = mph
+            let mut src = mph
                 .hash_str_array(&src)
                 .ok_or_else(|| anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&src)))?;
-            let dst = mph
+            let mut dst = mph
                 .hash_str_array(&dst)
                 .ok_or_else(|| anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&dst)))?;
             assert!(src < num_nodes, "src node id is greater than {num_nodes}");
             assert!(dst < num_nodes, "dst node id is greater than {num_nodes}");
+            if let Some(order) = &order {
+                src = order
+                    .get(src)
+                    .expect("permuted src is greater than num_nodes");
+                dst = order
+                    .get(dst)
+                    .expect("permuted dst is greater than num_nodes");
+            }
             let partition_id = src / nodes_per_partition;
             buffer.insert(partition_id, src, dst)?;
             Ok(())
