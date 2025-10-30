@@ -75,7 +75,7 @@ enum Commands {
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long)]
-        permutation: PathBuf,
+        permutation: Vec<PathBuf>,
         graph_dir: PathBuf,
         target_dir: PathBuf,
     },
@@ -255,6 +255,10 @@ pub fn main() -> Result<()> {
             let previous_node2swhid = Node2SWHID::load(previous_node2swhid)?;
             let previous_num_nodes = previous_node2swhid.len();
 
+            if num_nodes < previous_num_nodes {
+                log::warn!("Previous graph was larger ({previous_num_nodes} nodes) than the one being compressed ({num_nodes} nodes). This is safe, but will cause suboptimal results.");
+            }
+
             log::info!("Allocating order...");
             let order: Vec<_> = (0..num_nodes)
                 .into_par_iter()
@@ -270,29 +274,33 @@ pub fn main() -> Result<()> {
                 expected_updates = Some(num_nodes),
             );
             pl.start("Filling new order from previous order...");
-            (0..previous_num_nodes).into_par_iter().try_for_each_with(pl.clone(), |pl, previous_node_id| -> Result<_> {
-                let swhid = previous_node2swhid.get(previous_node_id).expect("node2swhid too small"); // already checked
-                let new_unpermuted_node_id = mph.hash_swhid(&swhid).with_context(|| format!("Unknown SWHID: {swhid}"))?;
+            (0..previous_num_nodes.min(num_nodes))
+                .into_par_iter()
+                .try_for_each_with(
+                    pl.clone(),
+                    |pl, previous_node_id| -> Result<_> {
+                        let swhid = previous_node2swhid.get(previous_node_id).expect("node2swhid too small"); // already checked
+                        let new_unpermuted_node_id = mph.hash_swhid(&swhid).with_context(|| format!("Unknown SWHID: {swhid}"))?;
 
-                // assign new_unpermuted_node_id to a value only if it was not assigned to one
-                // already.
-                // We must not assign it to a new value if it already had one, because the previous
-                // value was already inserted in used_node_ids, which prevents using again, and
-                // this would leave a hole in the set of node ids.
-                match order[new_unpermuted_node_id].compare_exchange(usize::MAX, previous_node_id, Ordering::Relaxed, Ordering::Relaxed) {
-                    Ok(usize::MAX) => {
-                        used_node_ids.set(previous_node_id, true, Ordering::Relaxed);
-                    }
-                    Ok(ret) => unreachable!("compare_exchange return Ok({ret}) but current value is {}", usize::MAX),
-                    Err(swapped_value) => {
-                        log::warn!("Node {new_unpermuted_node_id} was already set to {swapped_value} but we tried to set it to {previous_node_id}. This probably because {swhid} or the node it collides with ({}) was removed from the graph.", previous_node2swhid.get(swapped_value).unwrap())
-                    }
-                }
+                        // assign new_unpermuted_node_id to a value only if it was not assigned to one
+                        // already.
+                        // We must not assign it to a new value if it already had one, because the previous
+                        // value was already inserted in used_node_ids, which prevents using again, and
+                        // this would leave a hole in the set of node ids.
+                        match order[new_unpermuted_node_id].compare_exchange(usize::MAX, previous_node_id, Ordering::Relaxed, Ordering::Relaxed) {
+                            Ok(usize::MAX) => {
+                                used_node_ids.set(previous_node_id, true, Ordering::Relaxed);
+                            }
+                            Ok(ret) => unreachable!("compare_exchange return Ok({ret}) but current value is {}", usize::MAX),
+                            Err(swapped_value) => {
+                                log::warn!("Node {new_unpermuted_node_id} was already set to {swapped_value} but we tried to set it to {previous_node_id}. This probably because {swhid} or the node it collides with ({}) was removed from the graph.", previous_node2swhid.get(swapped_value).unwrap())
+                            }
+                        }
 
-                pl.light_update();
+                        pl.light_update();
 
-                Ok(())
-            })?;
+                        Ok(())
+                })?;
             pl.done();
 
             let used_node_ids = BitVec::from(used_node_ids);
@@ -454,9 +462,7 @@ pub fn main() -> Result<()> {
                 .load()?;
             let num_nodes = graph.num_nodes();
 
-            log::info!("Loading permutation...");
-            let permutation = MappedPermutation::load(num_nodes, permutation.as_path())
-                .with_context(|| format!("Could not load {}", permutation.display()))?;
+            let permutation = compose_permutations(&permutation, num_nodes)?;
 
             log::info!("Permuting...");
             transform(
@@ -560,25 +566,9 @@ pub fn main() -> Result<()> {
             input,
             output,
         } => {
-            let num_permutations = input.len();
-            log::info!("Loading permutation 1/{}...", num_permutations);
             let mut output_file = File::create(&output)
                 .with_context(|| format!("Could not open {}", output.display()))?;
-            let mut inputs_iter = input.into_iter();
-            let input_path = inputs_iter
-                .next()
-                .ok_or(anyhow!("No permutation provided"))?;
-            let mut permutation = OwnedPermutation::load(num_nodes, input_path.as_path())
-                .with_context(|| format!("Could not load {}", input_path.display()))?;
-            for (i, next_input_path) in inputs_iter.enumerate() {
-                log::info!("Composing permutation {}/{}...", i + 2, num_permutations);
-                let next_permutation =
-                    MappedPermutation::load(num_nodes, next_input_path.as_path())
-                        .with_context(|| format!("Could not load {}", next_input_path.display()))?;
-                permutation
-                    .compose_in_place(next_permutation)
-                    .with_context(|| format!("Could not apply {}", next_input_path.display()))?;
-            }
+            let permutation = compose_permutations(&input, num_nodes)?;
 
             permutation.dump(&mut output_file)?;
         }
@@ -816,4 +806,25 @@ pub fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn compose_permutations(
+    paths: &[PathBuf],
+    num_nodes: usize,
+) -> Result<OwnedPermutation<Vec<usize>>> {
+    let num_permutations = paths.len();
+    log::info!("Loading permutation 1/{}...", num_permutations);
+    let mut paths = paths.into_iter();
+    let first_path = paths.next().ok_or(anyhow!("No permutation provided"))?;
+    let mut permutation = OwnedPermutation::load(num_nodes, &first_path)
+        .with_context(|| format!("Could not load {}", first_path.display()))?;
+    for (i, next_path) in paths.enumerate() {
+        log::info!("Composing permutation {}/{}...", i + 2, num_permutations);
+        let next_permutation = MappedPermutation::load(num_nodes, next_path.as_path())
+            .with_context(|| format!("Could not load {}", next_path.display()))?;
+        permutation
+            .compose_in_place(next_permutation)
+            .with_context(|| format!("Could not apply {}", next_path.display()))?;
+    }
+    Ok(permutation)
 }

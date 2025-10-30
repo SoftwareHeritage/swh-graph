@@ -405,13 +405,23 @@ def _compose_orders(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 def _permute_llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     batch_size = int(conf.get("batch_size", "0"))
     batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
+
+    # must not apply -base.order if present, because it was already applied
+    # to generate -base.graph
+
+    # Note that in the case where -base.order does not exist, we could apply
+    # .pthash.order only instead of applying both -bfs.order and -llp.order
+    # because it may be slightly faster, but we don't for the sake of simplicity.
+
     return Rust(
         "swh-graph-compress",
         "permute",
         f"{conf['out_dir']}/{conf['graph_name']}-base",
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--permutation",
-        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
+        "--permutation",
+        f"{conf['out_dir']}/{conf['graph_name']}-llp.order",
         *batching,
         conf=conf,
         env=env,

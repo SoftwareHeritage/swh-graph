@@ -759,7 +759,13 @@ class BfsRoots(_CompressionStepTask):
 
 class Bfs(_CompressionStepTask):
     STEP = CompressionStep.BFS
-    _INPUT_FILES = {"-base.graph", "-base.ef", "-bfs.roots.txt", ".pthash", "-base.order"}
+    _INPUT_FILES = {
+        "-base.graph",
+        "-base.ef",
+        "-bfs.roots.txt",
+        ".pthash",
+        "-base.order",
+    }
     OUTPUT_FILES = {"-bfs.order"}
 
     @property
@@ -835,7 +841,7 @@ class Llp(_CompressionStepTask):
 
 class PermuteLlp(_CompressionStepTask):
     STEP = CompressionStep.PERMUTE_LLP
-    INPUT_FILES = {".pthash.order", "-base.graph", "-base.ef"}
+    INPUT_FILES = {"-bfs.order", "-llp.order", "-base.graph", "-base.ef"}
     OUTPUT_FILES = {".graph", ".offsets", ".properties"}
 
     def _large_allocations(self) -> int:
