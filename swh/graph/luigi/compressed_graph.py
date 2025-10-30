@@ -245,6 +245,7 @@ class _CompressionStepTask(luigi.Task):
     local_sensitive_graph_path: Optional[Path] = luigi.OptionalPathParameter(
         default=None
     )
+    previous_graph_path: Optional[Path] = luigi.OptionalPathParameter(default=None)
 
     # TODO: Only add this parameter to tasks that use it
     batch_size = luigi.IntParameter(
@@ -460,6 +461,7 @@ class _CompressionStepTask(luigi.Task):
                         local_sensitive_graph_path=self.local_sensitive_graph_path,
                         graph_name=self.graph_name,
                         local_graph_path=self.local_graph_path,
+                        previous_graph_path=self.previous_graph_path,
                         object_types=self.object_types,
                         rust_executable_dir=self.rust_executable_dir,
                         check_flavor=self.check_flavor,
@@ -573,6 +575,8 @@ class _CompressionStepTask(luigi.Task):
         if self.STEP == CompressionStep.LLP and self.gammas:  # type: ignore[attr-defined]
             conf["llp_gammas"] = self.gammas  # type: ignore[attr-defined]
         conf["rust_executable_dir"] = self.rust_executable_dir
+        if self.previous_graph_path:
+            conf["previous_graph_path"] = str(self.previous_graph_path)
 
         conf = check_config_compress(
             conf,
@@ -702,11 +706,28 @@ class Mph(_CompressionStepTask):
         return 0
 
 
+class InitialOrder(_CompressionStepTask):
+    STEP = CompressionStep.INITIAL_ORDER
+    INPUT_FILES = {".pthash"}
+    OUTPUT_FILES = {"-base.order"}
+    USES_ALL_CPU_THREADS = True
+
+    def _large_allocations(self) -> int:
+        return 0
+
+
 class Bv(_CompressionStepTask):
     STEP = CompressionStep.BV
     EXPORT_AS_INPUT = True
-    INPUT_FILES = {".pthash"}
+    _INPUT_FILES = {"-base.order", ".pthash"}
     OUTPUT_FILES = {"-base.graph"}
+
+    @property
+    def INPUT_FILES(self) -> Set[str]:
+        files = set(self._INPUT_FILES)
+        if not self.previous_graph_path:
+            files.remove("-base.order")
+        return files
 
     def _large_allocations(self) -> int:
         import psutil
@@ -738,8 +759,15 @@ class BfsRoots(_CompressionStepTask):
 
 class Bfs(_CompressionStepTask):
     STEP = CompressionStep.BFS
-    INPUT_FILES = {"-base.graph", "-base.ef", "-bfs.roots.txt", ".pthash"}
+    _INPUT_FILES = {"-base.graph", "-base.ef", "-bfs.roots.txt", ".pthash", "-base.order"}
     OUTPUT_FILES = {"-bfs.order"}
+
+    @property
+    def INPUT_FILES(self) -> Set[str]:
+        files = set(self._INPUT_FILES)
+        if not self.previous_graph_path:
+            files.remove("-base.order")
+        return files
 
     def _large_allocations(self) -> int:
         bvgraph_size = self._bvgraph_allocation()
@@ -844,8 +872,15 @@ class Ef(_CompressionStepTask):
 
 class ComposeOrders(_CompressionStepTask):
     STEP = CompressionStep.COMPOSE_ORDERS
-    INPUT_FILES = {"-llp.order", "-bfs.order"}
+    _INPUT_FILES = {"-base.order", "-bfs.order", "-llp.order"}
     OUTPUT_FILES = {".pthash.order"}
+
+    @property
+    def INPUT_FILES(self) -> Set[str]:
+        files = set(self._INPUT_FILES)
+        if not self.previous_graph_path:
+            files.remove("-base.order")
+        return files
 
     def _large_allocations(self) -> int:
         permutation_size = self._nb_nodes() * 8  # longarray
@@ -1392,6 +1427,7 @@ class CompressGraph(luigi.Task):
     local_sensitive_graph_path: Optional[Path] = luigi.OptionalPathParameter(
         default=None
     )
+    previous_graph_path: Optional[Path] = luigi.OptionalPathParameter(default=None)
     batch_size = luigi.IntParameter(
         default=0,
         significant=False,
@@ -1426,6 +1462,7 @@ class CompressGraph(luigi.Task):
             local_sensitive_graph_path=self.local_sensitive_graph_path,
             graph_name=self.graph_name,
             local_graph_path=self.local_graph_path,
+            previous_graph_path=self.previous_graph_path,
             object_types=self.object_types,
             rust_executable_dir=self.rust_executable_dir,
             check_flavor=self.check_flavor,

@@ -36,15 +36,14 @@ struct Args {
 enum Commands {
     /// Creates a new order using the order already computed for an other graph
     InitialOrder {
+        #[arg(long)]
         mph_algo: MphAlgorithm,
         #[arg(long)]
         function: PathBuf,
         #[arg(long)]
-        graph_dir: PathBuf,
+        num_nodes: usize,
         #[arg(long)]
         previous_node2swhid: PathBuf,
-        #[arg(long)]
-        previous_num_nodes: usize,
         #[arg(long)]
         target_order: PathBuf,
     },
@@ -233,9 +232,8 @@ pub fn main() -> Result<()> {
         Commands::InitialOrder {
             mph_algo,
             function,
+            num_nodes,
             previous_node2swhid,
-            previous_num_nodes,
-            graph_dir,
             target_order,
         } => {
             use swh_graph::map::Node2SWHID;
@@ -253,16 +251,9 @@ pub fn main() -> Result<()> {
                     .into(),
             };
 
-            log::info!("Loading graph...");
-            let graph = BvGraph::with_basename(graph_dir)
-                .endianness::<BE>()
-                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-                .load()?;
-            let num_nodes = graph.num_nodes();
-            drop(graph); // don't need it anymore
-
             log::info!("Loading previous node2swhid...");
-            let previous_node2swhid = Node2SWHID::new(previous_node2swhid, previous_num_nodes)?;
+            let previous_node2swhid = Node2SWHID::load(previous_node2swhid)?;
+            let previous_num_nodes = previous_node2swhid.len();
 
             log::info!("Allocating order...");
             let order: Vec<_> = (0..num_nodes)
@@ -279,14 +270,23 @@ pub fn main() -> Result<()> {
                 expected_updates = Some(num_nodes),
             );
             pl.start("Filling new order from previous order...");
-            (0..num_nodes).into_par_iter().try_for_each_with(pl.clone(), |pl, previous_node_id| -> Result<_> {
+            (0..previous_num_nodes).into_par_iter().try_for_each_with(pl.clone(), |pl, previous_node_id| -> Result<_> {
                 let swhid = previous_node2swhid.get(previous_node_id).expect("node2swhid too small"); // already checked
                 let new_unpermuted_node_id = mph.hash_swhid(&swhid).with_context(|| format!("Unknown SWHID: {swhid}"))?;
 
-                let swapped_value = order[new_unpermuted_node_id].swap(previous_node_id, Ordering::Relaxed);
-                used_node_ids.set(previous_node_id, true, Ordering::Relaxed);
-                if swapped_value != usize::MAX {
-                    log::warn!("Node {new_unpermuted_node_id} was set twice: first to {swapped_value} then to {previous_node_id}. This probably because {swhid} or the node it collides with was removed from the graph.")
+                // assign new_unpermuted_node_id to a value only if it was not assigned to one
+                // already.
+                // We must not assign it to a new value if it already had one, because the previous
+                // value was already inserted in used_node_ids, which prevents using again, and
+                // this would leave a hole in the set of node ids.
+                match order[new_unpermuted_node_id].compare_exchange(usize::MAX, previous_node_id, Ordering::Relaxed, Ordering::Relaxed) {
+                    Ok(usize::MAX) => {
+                        used_node_ids.set(previous_node_id, true, Ordering::Relaxed);
+                    }
+                    Ok(ret) => unreachable!("compare_exchange return Ok({ret}) but current value is {}", usize::MAX),
+                    Err(swapped_value) => {
+                        log::warn!("Node {new_unpermuted_node_id} was already set to {swapped_value} but we tried to set it to {previous_node_id}. This probably because {swhid} or the node it collides with ({}) was removed from the graph.", previous_node2swhid.get(swapped_value).unwrap())
+                    }
                 }
 
                 pl.light_update();

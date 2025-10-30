@@ -49,6 +49,7 @@ class CompressionStep(Enum):
     EDGE_STATS = 3
     LABEL_STATS = 6
     MPH = 10
+    INITIAL_ORDER = 20
     BV = 30
     BV_EF = 40
     BFS_ROOTS = 50
@@ -88,17 +89,16 @@ class CompressionStep(Enum):
 COMP_SEQ = list(CompressionStep)
 
 
-COMP_CMD: Dict[
-    CompressionStep,
-    Union[
-        Callable[[dict, dict], Optional[Command]],
-        Callable[[dict, dict], Optional[AtomicFileSink]],
-        Callable[[dict, dict], Union[Command, AtomicFileSink]],
-        Callable[[dict, dict], Callable[[logging.Logger], None]],
-    ],
-] = {}
+CompressionStepCommand = Union[
+    Callable[[dict, dict], Optional[Command]],
+    Callable[[dict, dict], Optional[AtomicFileSink]],
+    Callable[[dict, dict], Union[Command, AtomicFileSink]],
+    Callable[[dict, dict], Callable[[logging.Logger], None]],
+]
 
-T = TypeVar("T", bound=Callable)
+COMP_CMD: Dict[CompressionStep, CompressionStepCommand] = {}
+
+T = TypeVar("T", bound=CompressionStepCommand)
 
 
 def _compression_step(f: T) -> T:
@@ -217,9 +217,37 @@ def _mph(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 
 @_compression_step
+def _initial_order(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
+        (num_nodes,) = nodes_count.readline().splitlines()
+
+    return Rust(
+        "swh-graph-compress",
+        "initial-order",
+        "--mph-algo",
+        "pthash",
+        "--function",
+        f"{conf['out_dir']}/{conf['graph_name']}.pthash",
+        "--num-nodes",
+        num_nodes,
+        "--previous-node2swhid",
+        f"{conf['previous_graph_path']}.node2swhid.bin",
+        "--target-order",
+        f"{conf['out_dir']}/{conf['graph_name']}-base.order",
+    )
+
+
+@_compression_step
 def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
         (num_nodes,) = nodes_count.readline().splitlines()
+
+    order = (
+        ["--order", f"{conf['out_dir']}/{conf['graph_name']}-base.order"]
+        if "previous_graph_path" in conf
+        else []
+    )
+
     batch_size = int(conf.get("batch_size", "0"))
     batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
@@ -234,6 +262,7 @@ def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--num-nodes",
         num_nodes,
         *batching,
+        *order,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}-base",
         conf=conf,
@@ -268,6 +297,12 @@ def _bfs_roots(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 @_compression_step
 def _bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    order = (
+        ["--order", f"{conf['out_dir']}/{conf['graph_name']}-base.order"]
+        if "previous_graph_path" in conf
+        else []
+    )
+
     return Rust(
         "swh-graph-compress",
         "bfs",
@@ -277,6 +312,7 @@ def _bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         f"{conf['out_dir']}/{conf['graph_name']}.pthash",
         "--init-roots",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.roots.txt",
+        *order,
         f"{conf['out_dir']}/{conf['graph_name']}-base",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
         conf=conf,
@@ -341,11 +377,19 @@ def _llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 def _compose_orders(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
         (num_nodes,) = nodes_count.readline().splitlines()
+
+    base_order = (
+        ["--input", f"{conf['out_dir']}/{conf['graph_name']}-base.order"]
+        if "previous_graph_path" in conf
+        else []
+    )
+
     return Rust(
         "swh-graph-compress",
         "compose-orders",
         "--num-nodes",
         num_nodes,
+        *base_order,
         "--input",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
         "--input",

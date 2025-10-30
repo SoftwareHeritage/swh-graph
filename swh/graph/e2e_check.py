@@ -323,14 +323,14 @@ def run_e2e_check(
                     origin=origin,
                     visit=CoreSWHID.from_string(snp_swhid),
                 )
-                logger.error(f"{full_swhid} has not been found during the traversal")
+                logger.error(f"{full_swhid} was not found during the traversal")
                 errors.append(full_swhid)
 
     if errors:
         error_msg = "\n".join([str(error) for error in errors])
         raise Exception(
             "End-to-end checks for compression failed. "
-            "The following errors have been detected:\n"
+            "The following traversals had unexpected results:\n"
             f"{error_msg}\n"
             "See above logs for more details"
         )
