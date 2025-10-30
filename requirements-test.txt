@@ -1,7 +1,7 @@
 pytest >= 8.1
 pytest-mock
 pytest-postgresql
-swh.core[testing] >= 3.0.0
+swh.core[testing] >= 4.6.0
 
 types-psutil
 types-pyyaml
@@ -10,5 +10,6 @@ types-protobuf
 types-tqdm
 boto3-stubs
 botocore-stubs
+types-boto3[s3]
 grpc-stubs
 pyarrow-stubs

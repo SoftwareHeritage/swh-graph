@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2024  The Software Heritage developers
+# Copyright (C) 2019-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -217,7 +217,11 @@ def download(
     parallelism: int,
     target_dir: Path,
 ):
-    """Downloads a compressed SWH graph to the given target directory"""
+    """Downloads a compressed SWH graph to the given target directory.
+
+    If some files fail to be fully downloaded, their downloads will be
+    resumed when re-executing the same download command.
+    """
     from swh.graph.download import GraphDownloader
 
     if s3_url and name:
@@ -229,14 +233,17 @@ def download(
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    GraphDownloader(
-        local_graph_path=target_dir,
-        s3_graph_path=s3_url,
+    graph_downloader = GraphDownloader(
+        local_path=target_dir,
+        s3_url=s3_url,
         parallelism=parallelism,
-    ).download_graph(
-        progress_percent_cb=lambda _: None,
-        progress_status_cb=lambda _: None,
     )
+
+    while not graph_downloader.download():
+        click.echo(
+            "Some dataset files were not fully downloaded, resuming their downloads."
+        )
+    click.echo(f"Graph dataset {name} successfully downloaded to path {target_dir}.")
 
 
 @graph_cli_group.command(name="list-datasets")
@@ -249,7 +256,7 @@ def download(
 @click.pass_context
 def list_datasets(
     ctx,
-    s3_bucket: Optional[str],
+    s3_bucket: str,
 ):
     """List graph datasets available for download.
 

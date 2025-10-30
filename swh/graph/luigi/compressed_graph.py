@@ -1710,10 +1710,10 @@ class DownloadGraphFromS3(luigi.Task):
         from swh.graph.download import GraphDownloader
 
         GraphDownloader(
-            local_graph_path=self.local_graph_path,
-            s3_graph_path=self.s3_graph_path,
+            local_path=self.local_graph_path,
+            s3_url=self.s3_graph_path,
             parallelism=10,
-        ).download_graph(
+        ).download(
             progress_percent_cb=self.set_progress_percentage,
             progress_status_cb=self.set_status_message,
         )
