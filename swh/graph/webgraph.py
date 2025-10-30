@@ -88,17 +88,16 @@ class CompressionStep(Enum):
 COMP_SEQ = list(CompressionStep)
 
 
-COMP_CMD: Dict[
-    CompressionStep,
-    Union[
-        Callable[[dict, dict], Optional[Command]],
-        Callable[[dict, dict], Optional[AtomicFileSink]],
-        Callable[[dict, dict], Union[Command, AtomicFileSink]],
-        Callable[[dict, dict], Callable[[logging.Logger], None]],
-    ],
-] = {}
+CompressionStepCommand = Union[
+    Callable[[dict, dict], Optional[Command]],
+    Callable[[dict, dict], Optional[AtomicFileSink]],
+    Callable[[dict, dict], Union[Command, AtomicFileSink]],
+    Callable[[dict, dict], Callable[[logging.Logger], None]],
+]
 
-T = TypeVar("T", bound=Callable)
+COMP_CMD: Dict[CompressionStep, CompressionStepCommand] = {}
+
+T = TypeVar("T", bound=CompressionStepCommand)
 
 
 def _compression_step(f: T) -> T:
