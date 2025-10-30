@@ -1315,7 +1315,28 @@ def _make_dot_diagram() -> str:
             CompressionStep.COMPOSE_ORDERS,
         } or "BFS" in str(cls.STEP):
             s.write(f"        {cls.STEP};\n")
-            for filename in cls.OUTPUT_FILES:
+            for filename in itertools.chain(
+                cls.OUTPUT_FILES, cls.SENSITIVE_OUTPUT_FILES
+            ):
+                s.write(f"        {normalize_filename(filename)}\n")
+    s.write("    }\n\n")
+
+    # cluster author/committer properties generation together
+    s.write("    subgraph cluster_persons {\n")
+    s.write('        style = "dashed";\n')
+    s.write('        label = "authors and committers";\n')
+    for cls in _CompressionStepTask.__subclasses__():
+        if cls.STEP in {
+            CompressionStep.EXTRACT_PERSONS,
+            CompressionStep.PERSONS_STATS,
+            CompressionStep.MPH_PERSONS,
+            CompressionStep.EXTRACT_FULLNAMES,
+            CompressionStep.FULLNAMES_EF,
+        }:
+            s.write(f"        {cls.STEP};\n")
+            for filename in itertools.chain(
+                cls.OUTPUT_FILES, cls.SENSITIVE_OUTPUT_FILES
+            ):
                 s.write(f"        {normalize_filename(filename)}\n")
     s.write("    }\n\n")
 
@@ -1331,7 +1352,9 @@ def _make_dot_diagram() -> str:
             CompressionStep.TRANSPOSE_EF,
         }:
             s.write(f"        {cls.STEP};\n")
-            for filename in cls.OUTPUT_FILES:
+            for filename in itertools.chain(
+                cls.OUTPUT_FILES, cls.SENSITIVE_OUTPUT_FILES
+            ):
                 s.write(f"        {normalize_filename(filename)}\n")
     s.write("    }\n\n")
 
