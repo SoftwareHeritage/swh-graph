@@ -219,8 +219,7 @@ def _mph(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 @_compression_step
 def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
+        (num_nodes,) = nodes_count.readline().splitlines()
     batch_size = int(conf.get("batch_size", "0"))
     batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
@@ -233,7 +232,7 @@ def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--function",
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--num-nodes",
-        num_nodes[0],
+        num_nodes,
         *batching,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}-base",
@@ -341,13 +340,12 @@ def _llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 @_compression_step
 def _compose_orders(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
+        (num_nodes,) = nodes_count.readline().splitlines()
     return Rust(
         "swh-graph-compress",
         "compose-orders",
         "--num-nodes",
-        num_nodes[0],
+        num_nodes,
         "--input",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
         "--input",
@@ -416,13 +414,12 @@ def _transpose_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 @_compression_step
 def _maps(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
+        (num_nodes,) = nodes_count.readline().splitlines()
     return Rust(
         "swh-graph-compress",
         "maps",
         "--num-nodes",
-        num_nodes[0],
+        num_nodes,
         "--swhids-dir",
         f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
         "--mph-algo",
@@ -568,8 +565,7 @@ def _persons_stats(conf: Dict[str, Any], env: Dict[str, str]) -> AtomicFileSink:
 @_compression_step
 def _node_properties(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
+        (num_nodes,) = nodes_count.readline().splitlines()
     return Rust(
         "swh-graph-extract",
         "node-properties",
@@ -586,7 +582,7 @@ def _node_properties(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--person-function",
         f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
         "--num-nodes",
-        num_nodes[0],
+        num_nodes,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}",
         conf=conf,
@@ -676,9 +672,8 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
     if num_labels[0] == "0":
         return None
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
-    if num_nodes[0] == "0":
+        (num_nodes,) = nodes_count.readline().splitlines()
+    if num_nodes == "0":
         return None
     batch_size = int(conf.get("batch_size", "0"))
     batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
@@ -698,7 +693,7 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
         "--label-name-order",
         f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash.order",
         "--num-nodes",
-        num_nodes[0],
+        num_nodes,
         *batching,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}",
@@ -723,9 +718,8 @@ def _edge_labels_transpose(
     if num_labels[0] == "0":
         return None
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
-    if num_nodes[0] == "0":
+        (num_nodes,) = nodes_count.readline().splitlines()
+    if num_nodes == "0":
         return None
     batch_size = int(conf.get("batch_size", "0"))
     batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
@@ -745,7 +739,7 @@ def _edge_labels_transpose(
         "--label-name-order",
         f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash.order",
         "--num-nodes",
-        num_nodes[0],
+        num_nodes,
         "--transposed",
         *batching,
         f"{conf['in_dir']}",
@@ -764,18 +758,16 @@ def _edge_labels_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Comma
     with open(
         f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
     ) as labels_count:
-        num_labels = labels_count.readline().splitlines()
-        assert len(num_labels) == 1
-    if num_labels[0] == "0":
+        (num_labels,) = labels_count.readline().splitlines()
+    if num_labels == "0":
         return None
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
+        (num_nodes,) = nodes_count.readline().splitlines()
     return Rust(
         "swh-graph-index",
         "labels-ef",
         f"{conf['out_dir']}/{conf['graph_name']}-labelled",
-        num_nodes[0],
+        num_nodes,
         conf=conf,
         env=env,
     )
@@ -790,18 +782,16 @@ def _edge_labels_transpose_ef(
     with open(
         f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
     ) as labels_count:
-        num_labels = labels_count.readline().splitlines()
-        assert len(num_labels) == 1
-    if num_labels[0] == "0":
+        (num_labels,) = labels_count.readline().splitlines()
+    if num_labels == "0":
         return None
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
+        (num_nodes,) = nodes_count.readline().splitlines()
     return Rust(
         "swh-graph-index",
         "labels-ef",
         f"{conf['out_dir']}/{conf['graph_name']}-transposed-labelled",
-        num_nodes[0],
+        num_nodes,
         conf=conf,
         env=env,
     )
