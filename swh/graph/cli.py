@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import logging
+import os
 from pathlib import Path
 import shlex
 import sys
@@ -103,6 +104,8 @@ def graph_cli_group(ctx, config_file, profile):
     from swh.core import config
 
     ctx.ensure_object(dict)
+    if not config_file:
+        config_file = os.environ.get("SWH_CONFIG_FILENAME")
     conf = config.read(config_file, DEFAULT_CONFIG)
     if "graph" not in conf:
         raise ValueError(
