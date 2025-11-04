@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 from hashlib import sha1
+import logging
 
 from google.protobuf.field_mask_pb2 import FieldMask
 import grpc
@@ -23,6 +24,8 @@ from swh.model.swhids import CoreSWHID, ExtendedObjectType, ExtendedSWHID
 
 GRAPH_GRPC_SERVER = "localhost:50091"
 
+logger = logging.getLogger(__name__)
+
 
 def fqswhid_of_traversal(response, verbose):
     # Build the Fully qualified SWHID
@@ -41,24 +44,27 @@ def fqswhid_of_traversal(response, verbose):
             url = node.ori.url
         parsedid = ExtendedSWHID.from_string(node.swhid)
         if parsedid.object_type == ExtendedObjectType.CONTENT:
-            # print(parsedid.object_type)
             pathids = [
                 label.name.decode()
                 for successor in node.successor
                 for label in successor.label
             ]
-            path.insert(0, pathids[0])  # raises exception if pathids is empty!
+            # pathids might be empty if content is not referenced in a directory (it
+            # exists cases in the archive as we archive single patch files for nix/guix)
+            if pathids:
+                path.insert(0, pathids[0])
             fqswhid.append(node.swhid)
             coreswhidtype = "cnt"
         if parsedid.object_type == ExtendedObjectType.DIRECTORY:
-            # print(parsedid.object_type)
             if fqswhid:  # empty list signals coreswhid not found yet
                 pathids = [
                     label.name.decode()
                     for successor in node.successor
                     for label in successor.label
                 ]
-                path.insert(0, pathids[0])  # raises exception if pathids is empty!
+                # pathids is empty for root directories not referenced in other directories
+                if pathids:
+                    path.insert(0, pathids[0])
             else:
                 fqswhid.append(node.swhid)
                 coreswhidtype = "dir"
@@ -199,8 +205,10 @@ def main(
                 print(fqswhid_of_traversal(response, verbose=trace))
 
         except grpc.RpcError as e:
+            logger.exception(e)
             print("Error from the GRPC API call: {}".format(e.details()))
             if filename:
                 print(filename + " has SWHID " + content_swhid)
         except Exception as e:
+            logger.exception(e)
             print("Unexpected error occurred: {}".format(e))
