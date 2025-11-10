@@ -842,8 +842,8 @@ def _e2e_check(
 def _clean_tmp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     return Command.rm(
         "-rf",
-        f"{conf['out_dir']}/{conf['graph_name']}-base.*",
-        f"{conf['out_dir']}/{conf['graph_name']}-bfs-simplified.*",
+        *Path(conf["out_dir"]).glob(f"{conf['graph_name']}-base.*"),
+        *Path(conf["out_dir"]).glob(f"{conf['graph_name']}-bfs-simplified.*"),
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
         f"{conf['out_dir']}/{conf['graph_name']}-llp.order",
         f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
