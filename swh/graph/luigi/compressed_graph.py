@@ -258,7 +258,7 @@ class _CompressionStepTask(luigi.Task):
     )
 
     rust_executable_dir = luigi.Parameter(
-        default="./target/release/",
+        default="",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
     )
@@ -575,6 +575,8 @@ class _CompressionStepTask(luigi.Task):
         if self.STEP == CompressionStep.LLP and self.gammas:  # type: ignore[attr-defined]
             conf["llp_gammas"] = self.gammas  # type: ignore[attr-defined]
         conf["rust_executable_dir"] = self.rust_executable_dir
+        if self.rust_executable_dir:
+            conf["rust_executable_dir"] = self.rust_executable_dir
         if self.previous_graph_path:
             conf["previous_graph_path"] = str(self.previous_graph_path)
 
@@ -1444,7 +1446,7 @@ class CompressGraph(luigi.Task):
     )
 
     rust_executable_dir = luigi.Parameter(
-        default="./target/release/",
+        default="",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
     )
@@ -1753,10 +1755,10 @@ class DownloadGraphFromS3(luigi.Task):
         from swh.graph.download import GraphDownloader
 
         GraphDownloader(
-            local_graph_path=self.local_graph_path,
-            s3_graph_path=self.s3_graph_path,
+            local_path=self.local_graph_path,
+            s3_url=self.s3_graph_path,
             parallelism=10,
-        ).download_graph(
+        ).download(
             progress_percent_cb=self.set_progress_percentage,
             progress_status_cb=self.set_status_message,
         )

@@ -1,2 +1,2 @@
-swh.core[http] >= 0.3
+swh.core[http,s3] >= 4.6.0
 swh.model >= 8.1.0

@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2022  The Software Heritage developers
+# Copyright (C) 2019-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -6,7 +6,6 @@
 import os
 from pathlib import Path
 import shutil
-from tempfile import TemporaryDirectory
 from typing import Dict
 
 from click.testing import CliRunner
@@ -15,6 +14,11 @@ import yaml
 
 from swh.graph.cli import graph_cli_group
 from swh.graph.example_dataset import DATASET_DIR
+
+
+@pytest.fixture
+def cli_runner():
+    return CliRunner()
 
 
 def read_properties(properties_fname) -> Dict[str, str]:
@@ -28,7 +32,7 @@ def read_properties(properties_fname) -> Dict[str, str]:
         return dict((k.strip(), v.strip()) for (k, v) in keyvalues)
 
 
-def test_pipeline():
+def test_pipeline(cli_runner, tmp_path):
     """run full compression pipeline"""
     # bare bone configuration, to allow testing the compression pipeline
     # with minimum RAM requirements on trivial graphs
@@ -42,37 +46,35 @@ def test_pipeline():
             }
         },
     }
-    runner = CliRunner()
 
-    with TemporaryDirectory(suffix=".swh-graph-test") as tmpdir:
-        config_path = Path(tmpdir, "config.yml")
-        config_path.write_text(yaml.dump(config))
+    config_path = Path(tmp_path, "config.yml")
+    config_path.write_text(yaml.dump(config))
 
-        result = runner.invoke(
-            graph_cli_group,
-            [
-                "--config-file",
-                config_path,
-                "compress",
-                "--input-dataset",
-                DATASET_DIR / "orc",
-                "--output-directory",
-                tmpdir,
-                "--sensitive-output-directory",
-                tmpdir,
-                "--graph-name",
-                "example",
-            ],
-        )
-        assert result.exit_code == 0, result
-        properties = read_properties(Path(tmpdir) / "example.properties")
+    result = cli_runner.invoke(
+        graph_cli_group,
+        [
+            "--config-file",
+            config_path,
+            "compress",
+            "--input-dataset",
+            DATASET_DIR / "orc",
+            "--output-directory",
+            tmp_path,
+            "--sensitive-output-directory",
+            tmp_path,
+            "--graph-name",
+            "example",
+        ],
+    )
+    assert result.exit_code == 0, result
+    properties = read_properties(tmp_path / "example.properties")
 
     assert int(properties["nodes"]) == 24
     assert int(properties["arcs"]) == 28
 
 
 @pytest.mark.parametrize("option", ["none", "--ef", "--force"])
-def test_reindex(mocker, tmpdir, option):
+def test_reindex(cli_runner, mocker, tmp_path, option):
     config = {
         "graph": {
             "compress": {
@@ -80,61 +82,57 @@ def test_reindex(mocker, tmpdir, option):
             }
         }
     }
-    runner = CliRunner()
 
     trailing = []
     if option != "none":
         trailing.append(option)
 
-    with TemporaryDirectory(suffix=".swh-graph-test") as tmpdir:
-        config_path = Path(tmpdir, "config.yml")
-        config_path.write_text(yaml.dump(config))
+    config_path = Path(tmp_path, "config.yml")
+    config_path.write_text(yaml.dump(config))
 
-        shutil.copytree(DATASET_DIR / "compressed", tmpdir, dirs_exist_ok=True)
+    shutil.copytree(DATASET_DIR / "compressed", tmp_path, dirs_exist_ok=True)
 
-        result = runner.invoke(
-            graph_cli_group,
-            [
-                "--config-file",
-                config_path,
-                "--profile",
-                "debug",
-                "reindex",
-                f"{tmpdir}/example",
-                *trailing,
-            ],
-        )
-        assert result.exit_code == 0, result
+    result = cli_runner.invoke(
+        graph_cli_group,
+        [
+            "--config-file",
+            config_path,
+            "--profile",
+            "debug",
+            "reindex",
+            f"{tmp_path}/example",
+            *trailing,
+        ],
+    )
+    assert result.exit_code == 0, result
 
 
 @pytest.mark.parametrize("exit_code", [0, 1])
-def test_luigi(mocker, tmpdir, exit_code):
+def test_luigi(cli_runner, mocker, tmp_path, exit_code):
     """calls Luigi with the given configuration"""
     # bare bone configuration, to allow testing the compression pipeline
     # with minimum RAM requirements on trivial graphs
-    runner = CliRunner()
 
     subprocess_run = mocker.patch("subprocess.run")
     subprocess_run.return_value.returncode = exit_code
 
-    with TemporaryDirectory(suffix=".swh-graph-test") as tmpdir:
-        result = runner.invoke(
-            graph_cli_group,
-            [
-                "luigi",
-                "--base-directory",
-                f"{tmpdir}/base_dir",
-                "--dataset-name",
-                "2022-12-07",
-                "--",
-                "foo",
-                "bar",
-                "--baz",
-                "qux",
-            ],
-            catch_exceptions=False,
-        )
-        assert result.exit_code == exit_code, result
+    result = cli_runner.invoke(
+        graph_cli_group,
+        [
+            "luigi",
+            "--base-directory",
+            f"{tmp_path}/base_dir",
+            "--dataset-name",
+            "2022-12-07",
+            "--",
+            "foo",
+            "bar",
+            "--baz",
+            "qux",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == exit_code, result
 
     luigi_config_path = subprocess_run.mock_calls[0][2]["env"]["LUIGI_CONFIG_PATH"]
     subprocess_run.assert_called_once_with(
@@ -151,3 +149,45 @@ def test_luigi(mocker, tmpdir, exit_code):
         ],
         env={"LUIGI_CONFIG_PATH": luigi_config_path, **os.environ},
     )
+
+
+def test_download_graph_ok(cli_runner, s3_graph_dataset_name, tmp_path, mocked_aws):
+    result = cli_runner.invoke(
+        graph_cli_group,
+        [
+            "download",
+            "--name",
+            s3_graph_dataset_name,
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "example.graph").exists()
+    assert (tmp_path / "meta/compression.json").exists()
+
+    assert (
+        f"Graph dataset {s3_graph_dataset_name} successfully downloaded to path {tmp_path}."
+    ) in result.output
+
+
+def test_download_graph_resumption(
+    cli_runner, s3_graph_dataset_name, mocker, tmp_path, mocked_aws
+):
+    mocker.patch("swh.graph.download.GraphDownloader.download").side_effect = [
+        False,
+        True,
+    ]
+    result = cli_runner.invoke(
+        graph_cli_group,
+        [
+            "download",
+            "--name",
+            s3_graph_dataset_name,
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    assert (
+        f"Graph dataset {s3_graph_dataset_name} successfully downloaded to path {tmp_path}."
+    ) in result.output

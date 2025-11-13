@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 from hashlib import sha1
+import logging
 
 from google.protobuf.field_mask_pb2 import FieldMask
 import grpc
@@ -23,70 +24,79 @@ from swh.model.swhids import CoreSWHID, ExtendedObjectType, ExtendedSWHID
 
 GRAPH_GRPC_SERVER = "localhost:50091"
 
+logger = logging.getLogger(__name__)
+
 
 def fqswhid_of_traversal(response, verbose):
     # Build the Fully qualified SWHID
     fqswhid = []
-    coreswhidtype = ""
     needrevision = True
     needrelease = True
     path = []
     url = ""
-    for node in response.node:
+    shortest_path = iter(response.node)
+    target_node = next(shortest_path)
+    core_swhid = target_node_swhid = ExtendedSWHID.from_string(target_node.swhid)
+    fqswhid.append(target_node.swhid)
+    for source_node in shortest_path:
         # response contains the nodes in the order content -> dir -> revision
         # -> release -> snapshot -> origin
         if verbose:
-            print(" examining node: " + node.swhid)
+            print(" examining node: " + target_node.swhid)
         if url == "":
-            url = node.ori.url
-        parsedid = ExtendedSWHID.from_string(node.swhid)
-        if parsedid.object_type == ExtendedObjectType.CONTENT:
-            # print(parsedid.object_type)
-            pathids = [
-                label.name.decode()
-                for successor in node.successor
-                for label in successor.label
-            ]
-            path.insert(0, pathids[0])  # raises exception if pathids is empty!
-            fqswhid.append(node.swhid)
-            coreswhidtype = "cnt"
-        if parsedid.object_type == ExtendedObjectType.DIRECTORY:
-            # print(parsedid.object_type)
-            if fqswhid:  # empty list signals coreswhid not found yet
-                pathids = [
+            url = source_node.ori.url
+        source_node_swhid = ExtendedSWHID.from_string(source_node.swhid)
+        if target_node_swhid.object_type == ExtendedObjectType.CONTENT:
+            pathid = next(
+                (
                     label.name.decode()
-                    for successor in node.successor
+                    for successor in target_node.successor
                     for label in successor.label
-                ]
-                path.insert(0, pathids[0])  # raises exception if pathids is empty!
-            else:
-                fqswhid.append(node.swhid)
-                coreswhidtype = "dir"
-        if parsedid.object_type == ExtendedObjectType.REVISION:
-            if fqswhid:  # empty list signals coreswhid not found yet
-                if needrevision:
-                    revision = node.swhid
-                    needrevision = False
-            else:
-                fqswhid.append(node.swhid)
-                coreswhidtype = "rev"
-        if parsedid.object_type == ExtendedObjectType.RELEASE:
-            if fqswhid:  # empty list signals coreswhid not found yet
-                if needrelease:
-                    release = node.swhid
-                    needrelease = False
-            else:
-                fqswhid.append(node.swhid)
-                coreswhidtype = "rel"
-        if parsedid.object_type == ExtendedObjectType.SNAPSHOT:
-            if fqswhid:  # empty list signals coreswhid not found yet
-                snapshot = node.swhid
-            else:
-                fqswhid.append(node.swhid)
-                coreswhidtype = "snp"
+                    if successor.swhid == source_node.swhid
+                    and source_node_swhid.object_type == ExtendedObjectType.DIRECTORY
+                ),
+                None,
+            )
+
+            # pathid might be empty if the content is referenced directly by a
+            # revision/release/snapshot (eg. because we archive single patch files
+            # for nix/guix)
+            if pathid:
+                path.insert(0, pathid)
+        if target_node_swhid.object_type == ExtendedObjectType.DIRECTORY:
+            pathid = next(
+                (
+                    label.name.decode()
+                    for successor in target_node.successor
+                    for label in successor.label
+                    if successor.swhid == source_node.swhid
+                    and source_node_swhid.object_type == ExtendedObjectType.DIRECTORY
+                ),
+                None,
+            )
+            # pathid is empty for a root directory
+            if pathid:
+                path.insert(0, pathid)
+
+        if target_node_swhid.object_type == ExtendedObjectType.REVISION:
+            if needrevision:
+                revision = target_node.swhid
+                needrevision = False
+        if target_node_swhid.object_type == ExtendedObjectType.RELEASE:
+            if needrelease:
+                release = target_node.swhid
+                needrelease = False
+        if target_node_swhid.object_type == ExtendedObjectType.SNAPSHOT:
+            snapshot = target_node.swhid
+        target_node = source_node
+        target_node_swhid = source_node_swhid
+
     # Now we have all the elements to print a FQ SWHID
     # We could also build and return a swh.model.swhids.QualifiedSWHID
-    if coreswhidtype == "cnt" or coreswhidtype == "dir":
+    if (
+        core_swhid.object_type == ExtendedObjectType.CONTENT
+        or core_swhid.object_type == ExtendedObjectType.DIRECTORY
+    ):
         fqswhid.append("path=/" + "/".join(path))
         if not needrevision:
             fqswhid.append("anchor=" + revision)
@@ -94,7 +104,10 @@ def fqswhid_of_traversal(response, verbose):
             fqswhid.append("anchor=" + release)
         if snapshot:
             fqswhid.append("visit=" + snapshot)
-    elif coreswhidtype == "rev" or coreswhidtype == "rel":
+    elif (
+        core_swhid.object_type == ExtendedObjectType.REVISION
+        or core_swhid.object_type == ExtendedObjectType.RELEASE
+    ):
         if snapshot:
             fqswhid.append("visit=" + snapshot)
     if url:
@@ -202,5 +215,5 @@ def main(
             print("Error from the GRPC API call: {}".format(e.details()))
             if filename:
                 print(filename + " has SWHID " + content_swhid)
-        except Exception as e:
-            print("Unexpected error occurred: {}".format(e))
+        except Exception:
+            logger.exception("Unexpected error occurred:")
