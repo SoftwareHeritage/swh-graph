@@ -22,7 +22,7 @@ from swh.graph.example_dataset import (
     SNAPSHOTS,
 )
 from swh.graph.shell import Rust, Sink
-from swh.model.swhids import CoreSWHID, ExtendedObjectType, ExtendedSWHID
+from swh.model.swhids import CoreSWHID, ExtendedSWHID
 
 from ..test_cli import read_properties
 
