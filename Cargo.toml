@@ -3,12 +3,10 @@
 resolver = "2"
 
 members = [
-    "grpc-server",
     "pyo3",
     "rust",
-    "stdlib-rs",
+    "grpc-server",
     "tools/counters",
-    "tools/topology",
     "tools/subgrapher",
 ]
 
