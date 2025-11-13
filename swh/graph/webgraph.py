@@ -218,6 +218,9 @@ def _mph(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 @_compression_step
 def _initial_order(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    if not conf.get("previous_graph_path"):
+        return None
+
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
         (num_nodes,) = nodes_count.readline().splitlines()
 
