@@ -814,9 +814,9 @@ fn compose_permutations(
 ) -> Result<OwnedPermutation<Vec<usize>>> {
     let num_permutations = paths.len();
     log::info!("Loading permutation 1/{}...", num_permutations);
-    let mut paths = paths.into_iter();
+    let mut paths = paths.iter();
     let first_path = paths.next().ok_or(anyhow!("No permutation provided"))?;
-    let mut permutation = OwnedPermutation::load(num_nodes, &first_path)
+    let mut permutation = OwnedPermutation::load(num_nodes, first_path)
         .with_context(|| format!("Could not load {}", first_path.display()))?;
     for (i, next_path) in paths.enumerate() {
         log::info!("Composing permutation {}/{}...", i + 2, num_permutations);
