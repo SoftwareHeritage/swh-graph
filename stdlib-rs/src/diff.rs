@@ -114,7 +114,7 @@ pub struct TreeDiff {
 }
 
 impl TreeDiff {
-    pub fn operations(&self) -> impl Iterator<Item = TreeDiffOperation<&[LabelNameId]>> + use<'_> {
+    pub fn operations(&self) -> impl Iterator<Item = TreeDiffOperation<&[LabelNameId]>> {
         self.operations.iter().map(TreeDiffOperation::shallow_copy)
     }
 }
