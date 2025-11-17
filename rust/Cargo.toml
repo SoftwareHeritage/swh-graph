@@ -106,6 +106,10 @@ name = "swh-graph-extract"
 required-features = ["compression", "orc"]
 
 [[bin]]
+name = "swh-graph-get-node"
+required-features = ["serde"]
+
+[[bin]]
 name = "swh-graph-hash"
 required-features = ["compression"]
 
