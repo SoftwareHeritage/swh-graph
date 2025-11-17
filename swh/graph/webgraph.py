@@ -217,7 +217,7 @@ def _mph(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 
 @_compression_step
-def _initial_order(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+def _initial_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
     if not conf.get("previous_graph_path"):
         return None
 

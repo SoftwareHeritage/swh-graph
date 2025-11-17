@@ -725,7 +725,7 @@ class Bv(_CompressionStepTask):
     OUTPUT_FILES = {"-base.graph"}
 
     @property
-    def INPUT_FILES(self) -> Set[str]:
+    def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
         files = set(self._INPUT_FILES)
         if not self.previous_graph_path:
             files.remove("-base.order")
@@ -771,7 +771,7 @@ class Bfs(_CompressionStepTask):
     OUTPUT_FILES = {"-bfs.order"}
 
     @property
-    def INPUT_FILES(self) -> Set[str]:
+    def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
         files = set(self._INPUT_FILES)
         if not self.previous_graph_path:
             files.remove("-base.order")
@@ -884,7 +884,7 @@ class ComposeOrders(_CompressionStepTask):
     OUTPUT_FILES = {".pthash.order"}
 
     @property
-    def INPUT_FILES(self) -> Set[str]:
+    def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
         files = set(self._INPUT_FILES)
         if not self.previous_graph_path:
             files.remove("-base.order")
