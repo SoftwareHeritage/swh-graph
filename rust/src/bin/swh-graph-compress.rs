@@ -51,8 +51,6 @@ enum Commands {
     Permute {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 1_000_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long)]
@@ -64,8 +62,6 @@ enum Commands {
     Transpose {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 1_000_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         graph_dir: PathBuf,
@@ -75,8 +71,6 @@ enum Commands {
     Simplify {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 1_000_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         graph_dir: PathBuf,
@@ -90,8 +84,6 @@ enum Commands {
     PermuteAndSymmetrize {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 1_000_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long)]
@@ -290,7 +282,6 @@ pub fn main() -> Result<()> {
         }
         Commands::Permute {
             input_batch_size,
-            sort_batch_size,
             partitions_per_thread,
             graph_dir,
             permutation,
@@ -311,7 +302,6 @@ pub fn main() -> Result<()> {
             log::info!("Permuting...");
             transform(
                 input_batch_size,
-                sort_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| unsafe {
@@ -326,7 +316,6 @@ pub fn main() -> Result<()> {
 
         Commands::Transpose {
             input_batch_size,
-            sort_batch_size,
             partitions_per_thread,
             graph_dir,
             target_dir,
@@ -342,7 +331,6 @@ pub fn main() -> Result<()> {
             log::info!("Transposing...");
             transform(
                 input_batch_size,
-                sort_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| [(dst, src)],
@@ -356,7 +344,6 @@ pub fn main() -> Result<()> {
 
         Commands::PermuteAndSymmetrize {
             input_batch_size,
-            sort_batch_size,
             partitions_per_thread,
             graph_dir,
             permutation,
@@ -383,7 +370,6 @@ pub fn main() -> Result<()> {
             log::info!("Permuting, transposing, and symmetrizing...");
             transform(
                 input_batch_size,
-                sort_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| {
@@ -578,7 +564,7 @@ pub fn main() -> Result<()> {
 
             use swh_graph::compress::zst_dir::*;
 
-            let mut rclb = RearCodedListBuilder::new(stripe_length);
+            let mut rclb = RearCodedListBuilder::<str, true>::new(stripe_length);
 
             let mut pl = concurrent_progress_logger!(
                 display_memory = true,
