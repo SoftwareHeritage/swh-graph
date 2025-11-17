@@ -412,8 +412,8 @@ fn get_properties<
     Ok(properties)
 }
 
-fn map<'err, PB: properties::PropertiesBackend, T: Default>(
-    value: <PB::DataFilesAvailability as properties::DataFilesAvailability>::Result<'err, T>,
+fn map<PB: properties::PropertiesBackend, T: Default>(
+    value: <PB::DataFilesAvailability as properties::DataFilesAvailability>::Result<'_, T>,
 ) -> T {
     use swh_graph::properties::DataFilesAvailability;
 
