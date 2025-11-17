@@ -49,6 +49,7 @@ class CompressionStep(Enum):
     EDGE_STATS = 3
     LABEL_STATS = 6
     MPH = 10
+    INITIAL_ORDER = 20
     BV = 30
     BV_EF = 40
     BFS_ROOTS = 50
@@ -216,10 +217,40 @@ def _mph(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 
 @_compression_step
+def _initial_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
+    if not conf.get("previous_graph_path"):
+        return None
+
+    with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
+        (num_nodes,) = nodes_count.readline().splitlines()
+
+    return Rust(
+        "swh-graph-compress",
+        "initial-order",
+        "--mph-algo",
+        "pthash",
+        "--function",
+        f"{conf['out_dir']}/{conf['graph_name']}.pthash",
+        "--num-nodes",
+        num_nodes,
+        "--previous-node2swhid",
+        f"{conf['previous_graph_path']}.node2swhid.bin",
+        "--target-order",
+        f"{conf['out_dir']}/{conf['graph_name']}-base.order",
+    )
+
+
+@_compression_step
 def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
+        (num_nodes,) = nodes_count.readline().splitlines()
+
+    order = (
+        ["--order", f"{conf['out_dir']}/{conf['graph_name']}-base.order"]
+        if "previous_graph_path" in conf
+        else []
+    )
+
     batch_size = int(conf.get("batch_size", "0"))
     batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
@@ -232,8 +263,9 @@ def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--function",
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--num-nodes",
-        num_nodes[0],
+        num_nodes,
         *batching,
+        *order,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}-base",
         conf=conf,
@@ -268,6 +300,12 @@ def _bfs_roots(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 @_compression_step
 def _bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
+    order = (
+        ["--order", f"{conf['out_dir']}/{conf['graph_name']}-base.order"]
+        if "previous_graph_path" in conf
+        else []
+    )
+
     return Rust(
         "swh-graph-compress",
         "bfs",
@@ -277,6 +315,7 @@ def _bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         f"{conf['out_dir']}/{conf['graph_name']}.pthash",
         "--init-roots",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.roots.txt",
+        *order,
         f"{conf['out_dir']}/{conf['graph_name']}-base",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
         conf=conf,
@@ -340,13 +379,20 @@ def _llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 @_compression_step
 def _compose_orders(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
+        (num_nodes,) = nodes_count.readline().splitlines()
+
+    base_order = (
+        ["--input", f"{conf['out_dir']}/{conf['graph_name']}-base.order"]
+        if "previous_graph_path" in conf
+        else []
+    )
+
     return Rust(
         "swh-graph-compress",
         "compose-orders",
         "--num-nodes",
-        num_nodes[0],
+        num_nodes,
+        *base_order,
         "--input",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
         "--input",
@@ -362,13 +408,23 @@ def _compose_orders(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 def _permute_llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     batch_size = int(conf.get("batch_size", "0"))
     batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
+
+    # must not apply -base.order if present, because it was already applied
+    # to generate -base.graph
+
+    # Note that in the case where -base.order does not exist, we could apply
+    # .pthash.order only instead of applying both -bfs.order and -llp.order
+    # because it may be slightly faster, but we don't for the sake of simplicity.
+
     return Rust(
         "swh-graph-compress",
         "permute",
         f"{conf['out_dir']}/{conf['graph_name']}-base",
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--permutation",
-        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
+        "--permutation",
+        f"{conf['out_dir']}/{conf['graph_name']}-llp.order",
         *batching,
         conf=conf,
         env=env,
@@ -415,13 +471,12 @@ def _transpose_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 @_compression_step
 def _maps(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
+        (num_nodes,) = nodes_count.readline().splitlines()
     return Rust(
         "swh-graph-compress",
         "maps",
         "--num-nodes",
-        num_nodes[0],
+        num_nodes,
         "--swhids-dir",
         f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
         "--mph-algo",
@@ -567,8 +622,7 @@ def _persons_stats(conf: Dict[str, Any], env: Dict[str, str]) -> AtomicFileSink:
 @_compression_step
 def _node_properties(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
+        (num_nodes,) = nodes_count.readline().splitlines()
     return Rust(
         "swh-graph-extract",
         "node-properties",
@@ -585,7 +639,7 @@ def _node_properties(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--person-function",
         f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
         "--num-nodes",
-        num_nodes[0],
+        num_nodes,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}",
         conf=conf,
@@ -675,9 +729,8 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
     if num_labels[0] == "0":
         return None
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
-    if num_nodes[0] == "0":
+        (num_nodes,) = nodes_count.readline().splitlines()
+    if num_nodes == "0":
         return None
     batch_size = int(conf.get("batch_size", "0"))
     batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
@@ -697,7 +750,7 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
         "--label-name-order",
         f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash.order",
         "--num-nodes",
-        num_nodes[0],
+        num_nodes,
         *batching,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}",
@@ -722,9 +775,8 @@ def _edge_labels_transpose(
     if num_labels[0] == "0":
         return None
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
-    if num_nodes[0] == "0":
+        (num_nodes,) = nodes_count.readline().splitlines()
+    if num_nodes == "0":
         return None
     batch_size = int(conf.get("batch_size", "0"))
     batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
@@ -744,7 +796,7 @@ def _edge_labels_transpose(
         "--label-name-order",
         f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash.order",
         "--num-nodes",
-        num_nodes[0],
+        num_nodes,
         "--transposed",
         *batching,
         f"{conf['in_dir']}",
@@ -763,18 +815,16 @@ def _edge_labels_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Comma
     with open(
         f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
     ) as labels_count:
-        num_labels = labels_count.readline().splitlines()
-        assert len(num_labels) == 1
-    if num_labels[0] == "0":
+        (num_labels,) = labels_count.readline().splitlines()
+    if num_labels == "0":
         return None
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
+        (num_nodes,) = nodes_count.readline().splitlines()
     return Rust(
         "swh-graph-index",
         "labels-ef",
         f"{conf['out_dir']}/{conf['graph_name']}-labelled",
-        num_nodes[0],
+        num_nodes,
         conf=conf,
         env=env,
     )
@@ -789,18 +839,16 @@ def _edge_labels_transpose_ef(
     with open(
         f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
     ) as labels_count:
-        num_labels = labels_count.readline().splitlines()
-        assert len(num_labels) == 1
-    if num_labels[0] == "0":
+        (num_labels,) = labels_count.readline().splitlines()
+    if num_labels == "0":
         return None
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
-        num_nodes = nodes_count.readline().splitlines()
-        assert len(num_nodes) == 1
+        (num_nodes,) = nodes_count.readline().splitlines()
     return Rust(
         "swh-graph-index",
         "labels-ef",
         f"{conf['out_dir']}/{conf['graph_name']}-transposed-labelled",
-        num_nodes[0],
+        num_nodes,
         conf=conf,
         env=env,
     )

@@ -311,7 +311,7 @@ def run_e2e_check(
         error_msg = "\n".join([str(error) for error in errors])
         raise Exception(
             "End-to-end checks for compression failed. "
-            "The following errors have been detected:\n"
+            "The following traversals had unexpected results:\n"
             f"{error_msg}\n"
             "See above logs for more details"
         )

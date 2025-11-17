@@ -257,6 +257,23 @@ The step produces a ``graph.pthash`` file, containing a function which takes a S
    class of the `Sux4J <http://sux.di.unimi.it/>`_ library, instead of ``graph.pthash``,
    as well as a ``graph.cmph`` which is a portable representation of the same data.
 
+.. _graph-compression-initial-order:
+
+Initial order
+-------------
+
+This step is optional, but significantly improves memory requirement of the next step.
+
+The :ref:`graph-compression-mph` step causes nodes to be in a random order.
+A random order on nodes causes the graph produced by :ref:`graph-compression-bv-compress` step to be very big, to the point it takes 3.6TB for the 2025-10-08 graph.
+This is a major issue for performance, because most of that graph needs to fit in memory for the :ref:`graph-compression-bfs` step, otherwise its runtime can be goes from days to weeks.
+
+This optional step works around the issue by replacing the random order of the :ref:`graph-compression-mph` step with an order constructed from a graph that was already compressed months ago.
+All nodes present in the current graph but not in the older graph are still in a random order, but they are a minority.
+
+If enabled, this step produces its result in:
+
+- ``graph-base.order``
 
 .. _graph-compression-bv-compress:
 
