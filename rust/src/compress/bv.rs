@@ -88,7 +88,18 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
         )
         .context("Could not sort pairs")?;
     pl.done();
-    let sorted_arcs = Vec::from(sorted_arcs); // Vector of iterators
+
+    let arc_list_graphs = Vec::from(sorted_arcs.iters).into_iter().enumerate().map(
+        |(partition_id, sorted_arcs_partition)| {
+            ArcListGraph::new(num_nodes, sorted_arcs_partition.into_iter().dedup())
+                .iter_from(sorted_arcs.boundaries[partition_id])
+                .take(
+                    sorted_arcs.boundaries[partition_id + 1]
+                        .checked_sub(sorted_arcs.boundaries[partition_id])
+                        .expect("sorted_arcs.boundaries is not sorted"),
+                )
+        },
+    );
 
     let comp_flags = Default::default();
 
@@ -97,7 +108,7 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
         .with_context(|| format!("Could not create {}", temp_bv_dir.display()))?;
     BvComp::parallel_iter::<BE, _>(
         target_dir,
-        sorted_arcs.into_iter(),
+        arc_list_graphs.into_iter(),
         num_nodes,
         comp_flags,
         &rayon::ThreadPoolBuilder::default()
@@ -192,11 +203,9 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
             ArcListGraph::new_labeled(num_nodes, sorted_arcs_partition.into_iter())
                 .iter_from(sorted_arcs.boundaries[partition_id])
                 .take(
-                    sorted_arcs
-                        .boundaries
-                        .get(partition_id + 1)
-                        .copied()
-                        .unwrap_or(usize::MAX),
+                    sorted_arcs.boundaries[partition_id + 1]
+                        .checked_sub(sorted_arcs.boundaries[partition_id])
+                        .expect("sorted_arcs.boundaries is not sorted"),
                 )
         },
     );

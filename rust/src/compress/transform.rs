@@ -9,9 +9,12 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
+use itertools::Itertools;
 use lender::{IntoIteratorExt, IntoLender, Lender};
+use rayon::prelude::*;
+use webgraph::graphs::arc_list_graph::ArcListGraph;
 use webgraph::prelude::*;
-use webgraph::utils::ParSortIters;
+use webgraph::utils::ParSortPairs;
 
 /// Writes a new graph on disk, obtained by applying the function to all arcs
 /// on the source graph.
@@ -63,7 +66,7 @@ where
 
     // Merge sorted arc lists into a single sorted arc list
     let pair_sorter =
-        ParSortIters::new(num_nodes)?.num_partitions(NonZeroUsize::new(num_partitions).unwrap());
+        ParSortPairs::new(num_nodes)?.num_partitions(NonZeroUsize::new(num_partitions).unwrap());
     let transformation = &transformation;
     let sorted_arcs = {
         let pl = pl.clone();
@@ -72,13 +75,20 @@ where
                 graph
                     .split_iter(num_partitions)
                     .into_iter()
-                    .map(move |partition| {
+                    .collect::<Vec<_>>()
+                    .into_par_iter()
+                    .flat_map_iter(move |partition| {
                         let mut pl = pl.clone();
                         partition
                             .flat_map(move |(src, succ)| {
                                 let transformed_succ: Vec<_> = succ
                                     .into_iter()
-                                    .flat_map(move |dst| transformation(src, dst))
+                                    .flat_map(move |dst| {
+                                        let res: Vec<_> =
+                                            transformation(src, dst).into_iter().collect();
+                                        println!("{src}->{dst}   ->    {res:?}");
+                                        res.into_iter()
+                                    })
                                     .collect();
                                 pl.light_update();
                                 transformed_succ.into_into_lender().into_lender()
@@ -89,7 +99,18 @@ where
             .context("Could not sort arcs")?
     };
     pl.done();
-    let sorted_arcs = Vec::from(sorted_arcs); // Vector of iterators
+
+    let arc_list_graphs = Vec::from(sorted_arcs.iters).into_iter().enumerate().map(
+        |(partition_id, sorted_arcs_partition)| {
+            ArcListGraph::new(num_nodes, sorted_arcs_partition.into_iter().dedup())
+                .iter_from(sorted_arcs.boundaries[partition_id])
+                .take(
+                    sorted_arcs.boundaries[partition_id + 1]
+                        .checked_sub(sorted_arcs.boundaries[partition_id])
+                        .expect("sorted_arcs.boundaries is not sorted"),
+                )
+        },
+    );
 
     let compression_flags = CompFlags {
         compression_window: 1,
@@ -103,7 +124,7 @@ where
         .with_context(|| format!("Could not create {}", temp_bv_dir.display()))?;
     BvComp::parallel_iter::<BE, _>(
         target_path,
-        sorted_arcs,
+        arc_list_graphs.into_iter(),
         num_nodes,
         compression_flags,
         &rayon::ThreadPoolBuilder::default()
