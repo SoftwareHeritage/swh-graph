@@ -38,7 +38,7 @@ impl SWHID {
     /// The size of the binary representation of a SWHID
     pub const BYTES_SIZE: usize = 22;
 
-    /// Loads the SWHID representation for a origin uri
+    /// Returns the pseudo-SWHID representation for a origin URI
     /// akin to "swh:1:ori:{}"
     pub fn from_origin_url(origin: impl AsRef<str>) -> SWHID {
         let mut hasher = Sha1::new();

@@ -3,13 +3,16 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::collections::VecDeque;
+use std::path::PathBuf;
+
 use anyhow::{Context, Result};
-use bitvec::prelude::*;
 use clap::Parser;
 use dsi_progress_logger::{progress_logger, ProgressLog};
 use log::{debug, info};
-use std::collections::VecDeque;
-use std::path::PathBuf;
+use sux::bits::bit_vec::BitVec;
+use sux::traits::BitVecOpsMut;
+
 use swh_graph::graph::*;
 use swh_graph::mph::DynMphf;
 
@@ -44,7 +47,7 @@ pub fn main() -> Result<()> {
 
     // Setup a queue and a visited bitmap for the visit
     let num_nodes = graph.num_nodes();
-    let mut visited = bitvec![u64, Lsb0; 0; num_nodes];
+    let mut visited = BitVec::new(num_nodes);
     let mut queue: VecDeque<usize> = VecDeque::new();
     assert!(node_id < num_nodes);
     queue.push_back(node_id);

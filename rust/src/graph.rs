@@ -1091,6 +1091,5 @@ fn zip_labels<G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
             )
         })?;
 
-    debug_assert!(webgraph::prelude::Zip(&graph, &labels).verify());
     Ok(Zip(graph, labels))
 }

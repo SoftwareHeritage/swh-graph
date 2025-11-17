@@ -94,23 +94,15 @@ def check_config_compress(
 
     graph_name = _retrieve_value(graph_name, "graph_name")
     in_dir = _retrieve_value(in_dir, "in_dir", is_path=True)
-    sensitive_in_dir = _retrieve_value(
-        sensitive_in_dir,
-        "sensitive_in_dir",
-        default_value=Path(f"{in_dir.parent}-sensitive"),
-        is_path=True,
-    )
     out_dir = _retrieve_value(out_dir, "out_dir", is_path=True)
-    sensitive_out_dir = _retrieve_value(
-        sensitive_out_dir,
-        "sensitive_out_dir",
-        default_value=Path(f"{out_dir.parent}-sensitive"),
-        is_path=True,
-    )
     check_flavor = _retrieve_value(check_flavor, "check_flavor")
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    sensitive_out_dir.mkdir(parents=True, exist_ok=True)
+    if sensitive_in_dir is not None:
+        conf["sensitive_in_dir"] = str(sensitive_in_dir)
+    if sensitive_out_dir is not None:
+        Path(sensitive_out_dir).mkdir(parents=True, exist_ok=True)
+        conf["sensitive_out_dir"] = str(sensitive_out_dir)
 
     if "tmp_dir" not in conf:
         tmp_dir = out_dir / "tmp"

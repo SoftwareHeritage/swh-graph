@@ -16,10 +16,27 @@ def test_find_context_content(graph_grpc_server):
     )
     expected_fqswhid = (
         "swh:1:cnt:0000000000000000000000000000000000000001;"
-        "path=/oldproject/README.md;"
+        "path=/README.md;"
         "anchor=swh:1:rev:0000000000000000000000000000000000000009;"
         "visit=swh:1:snp:0000000000000000000000000000000000000020;"
         "origin=https://example.com/swh/graph\n"
+    )
+    assert result.exit_code == 0, result
+    assert result.output == expected_fqswhid, result.output
+
+
+def test_find_context_content_in_root_directory(graph_grpc_server):
+    swhid = "swh:1:cnt:0000000000000000000000000000000000000014"
+    runner = CliRunner()
+    result = runner.invoke(
+        graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
+    )
+    expected_fqswhid = (
+        "swh:1:cnt:0000000000000000000000000000000000000014;"
+        "path=/TODO.txt;"
+        "anchor=swh:1:rev:0000000000000000000000000000000000000018;"
+        "visit=swh:1:snp:0000000000000000000000000000000000000022;"
+        "origin=https://example.com/swh/graph2\n"
     )
     assert result.exit_code == 0, result
     assert result.output == expected_fqswhid, result.output

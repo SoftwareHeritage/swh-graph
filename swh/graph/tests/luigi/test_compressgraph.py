@@ -10,7 +10,13 @@ from click.testing import CliRunner
 import pytest
 
 from swh.graph.cli import graph_cli_group
-from swh.graph.example_dataset import DATASET_DIR, RELEASES, REVISIONS
+from swh.graph.example_dataset import (
+    DATASET_DIR,
+    RELEASES,
+    REVISIONS,
+    SENSITIVE_DATASET_DIR,
+)
+from swh.graph.shell import Rust, Sink
 
 from ..test_cli import read_properties
 
@@ -84,6 +90,73 @@ def test_compressgraph(tmpdir, workers):
     expected_timestamps.sort()
 
     assert timestamps == expected_timestamps
+
+    assert [item.name for item in tmpdir.iterdir()] == ["compressed_graph"]
+
+
+def test_compressgraph_sensitive(tmpdir):
+    tmpdir = Path(tmpdir)
+
+    runner = CliRunner()
+
+    command = [
+        "luigi",
+        "--base-directory",
+        tmpdir / "base_dir",
+        "--dataset-name",
+        "testdataset",
+        "CompressGraph",
+        "--batch-size=1000",  # small value, to go fast on the trivial dataset
+        "--retry-luigi-delay=1",  # retry quickly
+        "--",
+        "--CompressGraph-check-flavor",
+        "example",
+        "--local-scheduler",
+        "--CompressGraph-local-export-path",
+        DATASET_DIR,
+        "--CompressGraph-local-sensitive-export-path",
+        SENSITIVE_DATASET_DIR,
+        "--CompressGraph-local-graph-path",
+        tmpdir / "compressed_graph",
+        "--CompressGraph-local-sensitive-graph-path",
+        tmpdir / "compressed_graph_sensitive",
+        "--CompressGraph-rust-executable-dir",
+        "./target/debug/",
+        "--LocalExport-export-task-type",
+        "ExportGraph",
+    ]
+
+    result = runner.invoke(graph_cli_group, command)
+    assert result.exit_code == 0, result.stdout
+
+    assert (tmpdir / "compressed_graph_sensitive").exists()
+    assert [item.name for item in tmpdir.iterdir()] == [
+        "compressed_graph_sensitive",
+        "compressed_graph",
+    ]
+
+    e2e_data = json.loads((tmpdir / "compressed_graph/meta/e2e-check.json").read_text())
+    assert e2e_data["flavor"] == "example"
+    assert e2e_data["authors_checked"]
+
+    fullnames = sorted(
+        [
+            (
+                Rust(
+                    "swh-graph-person-id-to-name",
+                    str(i),
+                    (tmpdir / "compressed_graph_sensitive/graph"),
+                    conf={"profile": "debug"},
+                )
+                > Sink()
+            )
+            .run()
+            .stdout.removesuffix(b"\n")
+            for i in range(3)
+        ]
+    )
+
+    assert fullnames == [b"bar", b"baz", b"foo"]
 
 
 @pytest.mark.parametrize(

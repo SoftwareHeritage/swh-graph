@@ -257,7 +257,7 @@ class _CompressionStepTask(luigi.Task):
     )
 
     rust_executable_dir = luigi.Parameter(
-        default="./target/release/",
+        default="",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
     )
@@ -572,7 +572,8 @@ class _CompressionStepTask(luigi.Task):
             conf["batch_size"] = self.batch_size
         if self.STEP == CompressionStep.LLP and self.gammas:  # type: ignore[attr-defined]
             conf["llp_gammas"] = self.gammas  # type: ignore[attr-defined]
-        conf["rust_executable_dir"] = self.rust_executable_dir
+        if self.rust_executable_dir:
+            conf["rust_executable_dir"] = self.rust_executable_dir
 
         conf = check_config_compress(
             conf,
@@ -1238,7 +1239,7 @@ def _make_dot_diagram() -> str:
     filenames = set()
     for cls in _CompressionStepTask.__subclasses__():
         if isinstance(cls.INPUT_FILES, property):
-            input_files = cls._INPUT_FILES  # type: ignore[attr-defined]
+            input_files = cls._INPUT_FILES
         else:
             input_files = cls.INPUT_FILES | cls.SENSITIVE_INPUT_FILES
         filenames.update(input_files)
@@ -1315,7 +1316,28 @@ def _make_dot_diagram() -> str:
             CompressionStep.COMPOSE_ORDERS,
         } or "BFS" in str(cls.STEP):
             s.write(f"        {cls.STEP};\n")
-            for filename in cls.OUTPUT_FILES:
+            for filename in itertools.chain(
+                cls.OUTPUT_FILES, cls.SENSITIVE_OUTPUT_FILES
+            ):
+                s.write(f"        {normalize_filename(filename)}\n")
+    s.write("    }\n\n")
+
+    # cluster author/committer properties generation together
+    s.write("    subgraph cluster_persons {\n")
+    s.write('        style = "dashed";\n')
+    s.write('        label = "authors and committers";\n')
+    for cls in _CompressionStepTask.__subclasses__():
+        if cls.STEP in {
+            CompressionStep.EXTRACT_PERSONS,
+            CompressionStep.PERSONS_STATS,
+            CompressionStep.MPH_PERSONS,
+            CompressionStep.EXTRACT_FULLNAMES,
+            CompressionStep.FULLNAMES_EF,
+        }:
+            s.write(f"        {cls.STEP};\n")
+            for filename in itertools.chain(
+                cls.OUTPUT_FILES, cls.SENSITIVE_OUTPUT_FILES
+            ):
                 s.write(f"        {normalize_filename(filename)}\n")
     s.write("    }\n\n")
 
@@ -1331,7 +1353,9 @@ def _make_dot_diagram() -> str:
             CompressionStep.TRANSPOSE_EF,
         }:
             s.write(f"        {cls.STEP};\n")
-            for filename in cls.OUTPUT_FILES:
+            for filename in itertools.chain(
+                cls.OUTPUT_FILES, cls.SENSITIVE_OUTPUT_FILES
+            ):
                 s.write(f"        {normalize_filename(filename)}\n")
     s.write("    }\n\n")
 
@@ -1340,7 +1364,7 @@ def _make_dot_diagram() -> str:
         if cls.EXPORT_AS_INPUT:
             s.write(f"orc_dataset -> {cls.STEP};\n")
         if isinstance(cls.INPUT_FILES, property):
-            input_files = cls._INPUT_FILES  # type: ignore[attr-defined]
+            input_files = cls._INPUT_FILES
         else:
             input_files = cls.INPUT_FILES | cls.SENSITIVE_INPUT_FILES
         for filename in input_files:
@@ -1379,7 +1403,7 @@ class CompressGraph(luigi.Task):
     )
 
     rust_executable_dir = luigi.Parameter(
-        default="./target/release/",
+        default="",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
     )
@@ -1428,6 +1452,8 @@ class CompressGraph(luigi.Task):
             [ExtractFullnames(**kwargs), FullnamesEf(**kwargs)]
             if issubclass(local_export.export_task_type, ExportGraph)
             and not {"rel", "rev"}.isdisjoint(set(self.object_types))
+            and self.local_sensitive_export_path is not None
+            and self.local_sensitive_graph_path is not None
             else []
         )
         if {"ori", "snp", "rel", "rev", "dir", "cnt"}.issubset(set(self.object_types)):
@@ -1685,10 +1711,10 @@ class DownloadGraphFromS3(luigi.Task):
         from swh.graph.download import GraphDownloader
 
         GraphDownloader(
-            local_graph_path=self.local_graph_path,
-            s3_graph_path=self.s3_graph_path,
+            local_path=self.local_graph_path,
+            s3_url=self.s3_graph_path,
             parallelism=10,
-        ).download_graph(
+        ).download(
             progress_percent_cb=self.set_progress_percentage,
             progress_status_cb=self.set_status_message,
         )
