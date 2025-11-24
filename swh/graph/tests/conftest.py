@@ -62,9 +62,9 @@ def s3_graph_dataset_url(
 
 @pytest.fixture
 def graph_example_dataset_path():
-    import swh
+    from swh.graph import example_dataset
 
-    return Path(swh.graph.__file__).parent / "example_dataset" / "compressed"
+    return Path(example_dataset.__file__).parent / "compressed"
 
 
 @pytest.fixture
