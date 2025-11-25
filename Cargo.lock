@@ -2352,9 +2352,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "lender"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1be15bcb008455f62df9154c02f5bbe9411fff6776a547497198e203c151ca77"
+checksum = "c150e24afda8f769930a339cb5ad6e182101fdf1165c30c157b33ce5050fd7ad"
 dependencies = [
  "fallible-iterator",
  "lender-derive",
@@ -5072,9 +5072,8 @@ dependencies = [
 
 [[package]]
 name = "webgraph"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6705df65630f467998f2299ed8cf384590f2eefc6c8b045d3bcb967d0d28cf01"
+version = "0.5.0"
+source = "git+https://github.com/vigna/webgraph-rs?rev=9db74639bc14b9e2ac03fd2665dad2d705427570#9db74639bc14b9e2ac03fd2665dad2d705427570"
 dependencies = [
  "anyhow",
  "bitflags 2.9.4",
@@ -5110,9 +5109,8 @@ dependencies = [
 
 [[package]]
 name = "webgraph-algo"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60aa3247ae3972eb03e1b71bbda01ba4aacb78ce6c51fceeb212d5b6e068aaa5"
+version = "0.5.0"
+source = "git+https://github.com/vigna/webgraph-rs?rev=9db74639bc14b9e2ac03fd2665dad2d705427570#9db74639bc14b9e2ac03fd2665dad2d705427570"
 dependencies = [
  "anyhow",
  "card-est-array",
@@ -5138,9 +5136,8 @@ dependencies = [
 
 [[package]]
 name = "webgraph-cli"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ef8491676faa5b41e98114e7fc2fdff4255dbd338c4efe759f706cae5939437"
+version = "0.3.0"
+source = "git+https://github.com/vigna/webgraph-rs?rev=9db74639bc14b9e2ac03fd2665dad2d705427570#9db74639bc14b9e2ac03fd2665dad2d705427570"
 dependencies = [
  "anyhow",
  "built",
