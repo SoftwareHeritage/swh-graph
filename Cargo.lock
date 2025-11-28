@@ -4147,9 +4147,9 @@ dependencies = [
 
 [[package]]
 name = "sux"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b04ada5cd2412d47327a09acf0e9ffa156e166029aaf0bcf68ff0b816e5ce160"
+checksum = "592a452caf0c963e7fd1d00ed44354250cbc16a561d94b2c35b41c2b428997e4"
 dependencies = [
  "ambassador",
  "anyhow",
@@ -4176,6 +4176,7 @@ dependencies = [
  "rand 0.9.0",
  "rayon",
  "rdst",
+ "sync-cell-slice",
  "tempfile",
  "thiserror 2.0.17",
  "thread-priority",
@@ -4227,7 +4228,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
- "sux 0.10.0",
+ "sux 0.10.1",
  "tempfile",
  "thiserror 1.0.51",
  "thread_local",
@@ -5090,7 +5091,8 @@ dependencies = [
 [[package]]
 name = "webgraph"
 version = "0.5.0"
-source = "git+https://github.com/vigna/webgraph-rs?rev=9db74639bc14b9e2ac03fd2665dad2d705427570#9db74639bc14b9e2ac03fd2665dad2d705427570"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fdb57388d6a299be06fd37077bc61ca6ef7a18b3f042caa6a90ef47c71f5e6f"
 dependencies = [
  "anyhow",
  "bitflags 2.9.4",
@@ -5115,7 +5117,7 @@ dependencies = [
  "rayon",
  "rdst",
  "sealed",
- "sux 0.10.0",
+ "sux 0.10.1",
  "sync-cell-slice",
  "sysinfo",
  "tempfile",
@@ -5127,7 +5129,8 @@ dependencies = [
 [[package]]
 name = "webgraph-algo"
 version = "0.5.0"
-source = "git+https://github.com/vigna/webgraph-rs?rev=9db74639bc14b9e2ac03fd2665dad2d705427570#9db74639bc14b9e2ac03fd2665dad2d705427570"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d95e017934d33ab6cb588403166d90467cf7024abac94b982b65d7b9ea4c6441"
 dependencies = [
  "anyhow",
  "card-est-array",
@@ -5144,7 +5147,7 @@ dependencies = [
  "rand 0.9.0",
  "rayon",
  "sealed",
- "sux 0.10.0",
+ "sux 0.10.1",
  "sync-cell-slice",
  "thiserror 2.0.17",
  "value-traits",
@@ -5154,7 +5157,8 @@ dependencies = [
 [[package]]
 name = "webgraph-cli"
 version = "0.3.0"
-source = "git+https://github.com/vigna/webgraph-rs?rev=9db74639bc14b9e2ac03fd2665dad2d705427570#9db74639bc14b9e2ac03fd2665dad2d705427570"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dce1032541b5a4061b6783e785b9bd5c6a27747873e32ce379baa34817e4f3cd"
 dependencies = [
  "anyhow",
  "built",
@@ -5176,7 +5180,7 @@ dependencies = [
  "predicates",
  "rand 0.9.0",
  "rayon",
- "sux 0.10.0",
+ "sux 0.10.1",
  "sysinfo",
  "tempfile",
  "value-traits",
