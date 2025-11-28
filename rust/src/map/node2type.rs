@@ -8,7 +8,8 @@ use anyhow::{Context, Result};
 use log::info;
 use mmap_rs::{Mmap, MmapFlags, MmapMut};
 use std::path::Path;
-use sux::prelude::{BitFieldSlice, BitFieldSliceCore, BitFieldSliceMut, BitFieldVec};
+use sux::bits::BitFieldVec;
+use value_traits::slices::{SliceByValue, SliceByValueMut};
 
 /// Struct to create and load a `.node2type.bin` file and convert node ids to types.
 pub struct Node2Type<B> {
@@ -23,13 +24,13 @@ impl<B: AsRef<[usize]>> Node2Type<B> {
     /// This function is unsafe because it does not check that `node_id` is
     /// within bounds of the array if debug asserts are disabled
     pub unsafe fn get_unchecked(&self, node_id: usize) -> NodeType {
-        NodeType::try_from(self.data.get_unchecked(node_id) as u8).unwrap()
+        NodeType::try_from(self.data.get_value_unchecked(node_id) as u8).unwrap()
     }
 
     #[inline]
     /// Get the type of a node with id `node_id`
     pub fn get(&self, node_id: usize) -> Result<NodeType, OutOfBoundError> {
-        NodeType::try_from(self.data.get(node_id) as u8).map_err(|_| OutOfBoundError {
+        NodeType::try_from(self.data.index_value(node_id) as u8).map_err(|_| OutOfBoundError {
             index: node_id,
             len: self.data.len(),
         })
@@ -44,13 +45,13 @@ impl<B: AsRef<[usize]> + AsMut<[usize]>> Node2Type<B> {
     /// This function is unsafe because it does not check that `node_id` is
     /// within bounds of the array if debug asserts are disabled
     pub unsafe fn set_unchecked(&mut self, node_id: usize, node_type: NodeType) {
-        self.data.set_unchecked(node_id, node_type as usize);
+        self.data.set_value_unchecked(node_id, node_type as usize);
     }
 
     #[inline]
     /// Set the type of a node with id `node_id`
     pub fn set(&mut self, node_id: usize, node_type: NodeType) {
-        self.data.set(node_id, node_type as usize);
+        self.data.set_value(node_id, node_type as usize);
     }
 }
 

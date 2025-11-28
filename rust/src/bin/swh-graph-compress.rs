@@ -18,6 +18,7 @@ use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
 use rayon::prelude::*;
 use sux::bits::{AtomicBitVec, BitVec};
+use sux::traits::BitVecOps;
 use webgraph::prelude::*;
 
 use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
@@ -70,8 +71,6 @@ enum Commands {
     Permute {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 1_000_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long)]
@@ -83,8 +82,6 @@ enum Commands {
     Transpose {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 1_000_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         graph_dir: PathBuf,
@@ -94,8 +91,6 @@ enum Commands {
     Simplify {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 1_000_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         graph_dir: PathBuf,
@@ -109,8 +104,6 @@ enum Commands {
     PermuteAndSymmetrize {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 1_000_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long)]
@@ -289,6 +282,7 @@ pub fn main() -> Result<()> {
                         // this would leave a hole in the set of node ids.
                         match order[new_unpermuted_node_id].compare_exchange(usize::MAX, previous_node_id, Ordering::Relaxed, Ordering::Relaxed) {
                             Ok(usize::MAX) => {
+                                use sux::traits::AtomicBitVecOps;
                                 used_node_ids.set(previous_node_id, true, Ordering::Relaxed);
                             }
                             Ok(ret) => unreachable!("compare_exchange return Ok({ret}) but current value is {}", usize::MAX),
@@ -303,7 +297,7 @@ pub fn main() -> Result<()> {
                 })?;
             pl.done();
 
-            let used_node_ids = BitVec::from(used_node_ids);
+            let used_node_ids: BitVec = BitVec::from(used_node_ids);
             let mut order: Vec<_> = order.into_iter().map(AtomicUsize::into_inner).collect(); // Compiles to no-op
 
             // At this point, assuming the previous graph was smaller, used_node_ids will be overwhelmingly 1s in range
@@ -448,7 +442,6 @@ pub fn main() -> Result<()> {
         }
         Commands::Permute {
             input_batch_size,
-            sort_batch_size,
             partitions_per_thread,
             graph_dir,
             permutation,
@@ -467,7 +460,6 @@ pub fn main() -> Result<()> {
             log::info!("Permuting...");
             transform(
                 input_batch_size,
-                sort_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| unsafe {
@@ -482,7 +474,6 @@ pub fn main() -> Result<()> {
 
         Commands::Transpose {
             input_batch_size,
-            sort_batch_size,
             partitions_per_thread,
             graph_dir,
             target_dir,
@@ -498,7 +489,6 @@ pub fn main() -> Result<()> {
             log::info!("Transposing...");
             transform(
                 input_batch_size,
-                sort_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| [(dst, src)],
@@ -512,7 +502,6 @@ pub fn main() -> Result<()> {
 
         Commands::PermuteAndSymmetrize {
             input_batch_size,
-            sort_batch_size,
             partitions_per_thread,
             graph_dir,
             permutation,
@@ -539,7 +528,6 @@ pub fn main() -> Result<()> {
             log::info!("Permuting, transposing, and symmetrizing...");
             transform(
                 input_batch_size,
-                sort_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| {
@@ -718,7 +706,7 @@ pub fn main() -> Result<()> {
 
             use swh_graph::compress::zst_dir::*;
 
-            let mut rclb = RearCodedListBuilder::new(stripe_length);
+            let mut rclb = RearCodedListBuilder::<str, true>::new(stripe_length);
 
             let mut pl = concurrent_progress_logger!(
                 display_memory = true,
@@ -745,8 +733,9 @@ pub fn main() -> Result<()> {
                 File::create(&rcl_path)
                     .with_context(|| format!("Could not create {}", rcl_path.display()))?,
             );
-            rcl.serialize(&mut rcl_file)
-                .context("Could not write RCL")?;
+            // SAFETY: this might leak some internal memory, but this process does not access any
+            // sensitive information.
+            unsafe { rcl.serialize(&mut rcl_file) }.context("Could not write RCL")?;
         }
 
         Commands::PthashSwhids {

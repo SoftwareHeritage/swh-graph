@@ -11,7 +11,7 @@ use anyhow::{bail, Result};
 use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use rayon::prelude::*;
 use sux::dict::elias_fano::{EfSeqDict, EliasFanoBuilder};
-use sux::prelude::{IndexedDict, IndexedSeq};
+use sux::traits::{IndexedDict, IndexedSeq};
 
 use crate::graph::*;
 use crate::mph::SwhidMphf;
@@ -27,21 +27,28 @@ mod strings;
 mod timestamps;
 
 /// Alias for [`IndexedSeq`] + [`IndexedDict`] mapping from [`NodeId`] to [`NodeId`].
-pub trait ContractionBackend:
-    IndexedSeq<Input = NodeId, Output = NodeId> + IndexedDict<Input = NodeId, Output = NodeId>
+pub trait ContractionBackend
+where
+    for<'a> Self: IndexedSeq<Input = NodeId, Output<'a> = NodeId>
+        + IndexedDict<Input = NodeId, Output<'a> = NodeId>,
 {
 }
 
-impl<
-        B: IndexedSeq<Input = NodeId, Output = NodeId> + IndexedDict<Input = NodeId, Output = NodeId>,
-    > ContractionBackend for B
+impl<B> ContractionBackend for B where
+    for<'a> Self: IndexedSeq<Input = NodeId, Output<'a> = NodeId>
+        + IndexedDict<Input = NodeId, Output<'a> = NodeId>
 {
 }
 
 /// See [`ContiguousSubgraph`]
-pub struct Contraction<N: IndexedSeq<Input = NodeId, Output = NodeId>>(pub N);
+pub struct Contraction<N>(pub N)
+where
+    for<'a> N: IndexedSeq<Input = NodeId, Output<'a> = NodeId>;
 
-impl<N: IndexedSeq<Input = NodeId, Output = NodeId>> Contraction<N> {
+impl<N> Contraction<N>
+where
+    for<'a> N: IndexedSeq<Input = NodeId, Output<'a> = NodeId>,
+{
     /// Given a node id in a [`ContiguousSubgraph`], returns the corresponding node id
     /// in the [`ContiguousSubgraph`]'s underlying graph
     #[inline(always)]

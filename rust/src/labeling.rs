@@ -8,7 +8,7 @@ use bitstream::Supply;
 use dsi_bitstream::codes::GammaRead;
 use dsi_bitstream::impls::{BufBitReader, MemWordReader};
 use dsi_bitstream::traits::{BitRead, BitSeek, Endianness, BE};
-use epserde::deser::{DeserType, Deserialize, Flags, MemCase};
+use epserde::deser::{Deserialize, Flags};
 use mmap_rs::MmapFlags;
 use std::path::Path;
 use webgraph::prelude::bitstream::BitStreamLabeling;
@@ -62,8 +62,7 @@ impl Supply for MmapReaderSupplier<BE> {
     }
 }
 
-pub type SwhLabelingInner =
-    BitStreamLabeling<BE, MmapReaderSupplier<BE>, SwhDeserializer, MemCase<DeserType<'static, EF>>>;
+pub type SwhLabelingInner = BitStreamLabeling<BE, MmapReaderSupplier<BE>, SwhDeserializer, EF>;
 
 pub struct SwhLabeling(pub SwhLabelingInner);
 
@@ -106,7 +105,7 @@ pub(crate) fn mmap(path: impl AsRef<Path>, bit_deser: SwhDeserializer) -> Result
     let path = path.as_ref();
     let labels_path = path.with_extension("labels");
     let ef_path = path.with_extension("ef");
-    let ef = EF::mmap(&ef_path, Flags::empty())
+    let ef = unsafe { EF::mmap(&ef_path, Flags::empty()) }
         .with_context(|| format!("Could not parse {}", ef_path.display()))?;
     Ok(SwhLabeling(BitStreamLabeling::new(
         MmapReaderSupplier {

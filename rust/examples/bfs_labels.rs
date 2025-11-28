@@ -11,6 +11,7 @@ use clap::Parser;
 use dsi_progress_logger::{progress_logger, ProgressLog};
 use log::{debug, info};
 use sux::bits::bit_vec::BitVec;
+use sux::traits::BitVecOpsMut;
 
 use swh_graph::graph::*;
 use swh_graph::labels::EdgeLabel;

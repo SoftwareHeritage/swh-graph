@@ -16,8 +16,8 @@ use sux::{
 
 type FullnamesOffsets = MemCase<
     EliasFano<
-        SelectAdaptConst<BitVec<&'static [usize]>, &'static [usize]>,
-        BitFieldVec<usize, &'static [usize]>,
+        SelectAdaptConst<BitVec<Box<[usize]>>, Box<[usize]>>,
+        BitFieldVec<usize, Box<[usize]>>,
     >,
 >;
 
@@ -33,7 +33,7 @@ impl FullnameMap {
         let offsets_path = suffix_path(&graph_path, ".persons.ef");
         let fullnames = mmap(&fullnames_path)
             .with_context(|| format!("Could not mmap {}", fullnames_path.display()))?;
-        let offsets = <EfSeq>::mmap(&offsets_path, Flags::RANDOM_ACCESS)
+        let offsets = unsafe { <EfSeq>::mmap(&offsets_path, Flags::RANDOM_ACCESS) }
             .with_context(|| format!("Could not mmap {}", offsets_path.display()))?;
         Ok(FullnameMap { fullnames, offsets })
     }
@@ -53,9 +53,10 @@ impl FullnameMap {
     /// }
     /// ```
     pub fn map_id(&self, id: usize) -> Result<&[u8], Error> {
+        let offsets = self.offsets.uncase();
         Ok(self
             .fullnames
-            .get(self.offsets.get(id)..self.offsets.get(id + 1))
+            .get(offsets.get(id)..offsets.get(id + 1))
             .unwrap())
     }
 }

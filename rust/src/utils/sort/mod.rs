@@ -19,8 +19,6 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use tempfile::TempDir;
 
-mod arcs;
-pub use arcs::{par_sort_arcs, PartitionedBuffer};
 mod strings;
 pub use strings::par_sort_strings;
 mod swhids;

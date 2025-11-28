@@ -251,8 +251,6 @@ def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         else []
     )
 
-    batch_size = int(conf.get("batch_size", "0"))
-    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-extract",
         "bv",
@@ -264,7 +262,6 @@ def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--num-nodes",
         num_nodes,
-        *batching,
         *order,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}-base",
@@ -325,8 +322,6 @@ def _bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 @_compression_step
 def _permute_and_simplify_bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
-    batch_size = int(conf.get("batch_size", "0"))
-    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-compress",
         "permute-and-symmetrize",
@@ -334,7 +329,6 @@ def _permute_and_simplify_bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Comm
         f"{conf['out_dir']}/{conf['graph_name']}-bfs-simplified",
         "--permutation",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
-        *batching,
         conf=conf,
         env=env,
     )
@@ -406,9 +400,6 @@ def _compose_orders(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 @_compression_step
 def _permute_llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
-    batch_size = int(conf.get("batch_size", "0"))
-    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
-
     # must not apply -base.order if present, because it was already applied
     # to generate -base.graph
 
@@ -425,7 +416,6 @@ def _permute_llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
         "--permutation",
         f"{conf['out_dir']}/{conf['graph_name']}-llp.order",
-        *batching,
         conf=conf,
         env=env,
     )
@@ -444,14 +434,11 @@ def _ef(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 @_compression_step
 def _transpose(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
-    batch_size = int(conf.get("batch_size", "0"))
-    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-compress",
         "transpose",
         f"{conf['out_dir']}/{conf['graph_name']}",
         f"{conf['out_dir']}/{conf['graph_name']}-transposed",
-        *batching,
         conf=conf,
         env=env,
     )
@@ -732,8 +719,6 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
         (num_nodes,) = nodes_count.readline().splitlines()
     if num_nodes == "0":
         return None
-    batch_size = int(conf.get("batch_size", "0"))
-    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-extract",
         "edge-labels",
@@ -751,7 +736,6 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
         f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash.order",
         "--num-nodes",
         num_nodes,
-        *batching,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}",
         conf=conf,
@@ -778,8 +762,6 @@ def _edge_labels_transpose(
         (num_nodes,) = nodes_count.readline().splitlines()
     if num_nodes == "0":
         return None
-    batch_size = int(conf.get("batch_size", "0"))
-    batching = ["--sort-batch-size", str(batch_size)] if batch_size else []
     return Rust(
         "swh-graph-extract",
         "edge-labels",
@@ -798,7 +780,6 @@ def _edge_labels_transpose(
         "--num-nodes",
         num_nodes,
         "--transposed",
-        *batching,
         f"{conf['in_dir']}",
         f"{conf['out_dir']}/{conf['graph_name']}-transposed",
         conf=conf,
@@ -1003,9 +984,6 @@ def compress(
         conf: compression configuration, supporting the following keys (all are
           optional, so an empty configuration is fine and is the default)
 
-          - batch_size: batch size for `WebGraph transformations
-            <http://webgraph.di.unimi.it/docs/it/unimi/dsi/webgraph/Transform.html>`_;
-            defaults to 1 billion
           - tmp_dir: temporary directory, defaults to the "tmp" subdir of
             out_dir
           - object_types: comma-separated list of object types to extract
