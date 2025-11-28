@@ -32,16 +32,26 @@ use super::stats::estimate_edge_count;
 use crate::map::{MappedPermutation, Permutation};
 use crate::mph::LoadableSwhidMphf;
 
+#[allow(clippy::too_many_arguments)]
 pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
     partitions_per_thread: usize,
     mph_basepath: PathBuf,
     num_nodes: usize,
+    order: Option<PathBuf>,
     dataset_dir: PathBuf,
     allowed_node_types: &[crate::NodeType],
     target_dir: PathBuf,
 ) -> Result<()> {
     log::info!("Reading MPH");
     let mph = MPHF::load(mph_basepath).context("Could not load MPHF")?;
+    let order = order
+        .map(|order_path| {
+            log::info!("Mmapping order");
+            MappedPermutation::load(num_nodes, &order_path)
+                .with_context(|| format!("Could not mmap order from {}", order_path.display()))
+        })
+        .transpose()?;
+
     log::info!("MPH loaded, sorting arcs");
 
     let num_threads = num_cpus::get();
@@ -74,14 +84,18 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
             iter_arcs(&dataset_dir, allowed_node_types)
                 .context("Could not open input files to read arcs")?
                 .map_with(pl.clone(), |thread_pl, (src, dst)| -> Result<_> {
-                    let src = mph.hash_str_array(&src).ok_or_else(|| {
+                    let mut src = mph.hash_str_array(&src).ok_or_else(|| {
                         anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&src))
                     })?;
-                    let dst = mph.hash_str_array(&dst).ok_or_else(|| {
+                    let mut dst = mph.hash_str_array(&dst).ok_or_else(|| {
                         anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&dst))
                     })?;
-                    assert!(src < num_nodes, "src node id is greater than {num_nodes}");
-                    assert!(dst < num_nodes, "dst node id is greater than {num_nodes}");
+                    if let Some(order) = &order {
+                        src = order.get(src).expect("src is greater than num_nodes");
+                        dst = order.get(dst).expect("dst is greater than num_nodes");
+                    }
+                    assert!(src < num_nodes, "permuted src is greater than {num_nodes}");
+                    assert!(dst < num_nodes, "permuted dst is greater than {num_nodes}");
                     thread_pl.light_update();
                     Ok((src, dst))
                 }),

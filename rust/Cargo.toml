@@ -45,9 +45,10 @@ mimalloc = { version = "0.1", default-features = false, optional = true }
 value-traits.workspace = true
 
 # compression
-arrow = { version = ">=53.1.0,<57", optional = true }
-arrow-array = { version = ">=53.1.0,<57", optional = true }
-orc-rust = { version = "0.6.0", optional = true, default-features = false }
+arrow = { version = "57.0.0", optional = true }
+arrow-array = { version = "57.0.0", optional = true }
+#orc-rust = { version = "0.7.0", optional = true, default-features = false }
+orc-rust = { git = "https://github.com/progval/orc-rust", rev = "09cecf7869ac94192b21d8a3032d1ffca8f8ba0c", optional = true, default-features = false }
 ar_row = { version = "1.0.0", optional = true }
 ar_row_derive = { version = "1.0.0", optional = true }
 
@@ -101,6 +102,10 @@ required-features = ["serde"]
 [[bin]]
 name = "swh-graph-extract"
 required-features = ["compression", "orc"]
+
+[[bin]]
+name = "swh-graph-get-node"
+required-features = ["serde"]
 
 [[bin]]
 name = "swh-graph-hash"

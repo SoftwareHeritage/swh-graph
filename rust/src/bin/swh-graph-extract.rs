@@ -149,6 +149,14 @@ enum Commands {
         function: PathBuf,
         #[arg(long)]
         num_nodes: usize,
+        #[arg(long)]
+        /// Permutation to apply after hashing a node with the `function`.
+        ///
+        /// Providing an initial order (eg. using `swh-graph-compress initial-order`)
+        /// can significantly reduce the size of the output graph.
+        ///
+        /// Defaults to the identity permutation.
+        order: Option<PathBuf>,
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
@@ -626,6 +634,7 @@ pub fn main() -> Result<()> {
             mph_algo,
             function,
             num_nodes,
+            order,
             dataset_dir,
             target_dir,
         } => {
@@ -636,6 +645,7 @@ pub fn main() -> Result<()> {
                     partitions_per_thread,
                     function,
                     num_nodes,
+                    order,
                     dataset_dir,
                     &allowed_node_types,
                     target_dir,
@@ -645,6 +655,7 @@ pub fn main() -> Result<()> {
                         partitions_per_thread,
                         function,
                         num_nodes,
+                        order,
                         dataset_dir,
                         &allowed_node_types,
                         target_dir,
