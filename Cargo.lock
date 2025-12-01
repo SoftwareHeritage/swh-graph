@@ -994,7 +994,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "counters"
-version = "8.0.11"
+version = "9.0.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -4188,7 +4188,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph"
-version = "8.0.11"
+version = "9.0.0"
 dependencies = [
  "anyhow",
  "ar_row",
@@ -4240,7 +4240,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph-grpc-server"
-version = "8.0.11"
+version = "9.0.0"
 dependencies = [
  "anyhow",
  "async-scoped",
@@ -4273,7 +4273,7 @@ dependencies = [
 
 [[package]]
 name = "swh-subgrapher"
-version = "8.0.11"
+version = "9.0.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -4285,7 +4285,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_pyo3"
-version = "8.0.11"
+version = "9.0.0"
 dependencies = [
  "pyo3",
  "swh-graph",
