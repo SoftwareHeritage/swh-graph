@@ -10,7 +10,7 @@ use std::sync::Arc;
 use anyhow::{bail, Result};
 use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use rayon::prelude::*;
-use sux::dict::elias_fano::{EfSeqDict, EliasFanoBuilder};
+use sux::dict::elias_fano::{EfSeqDict, EliasFano, EliasFanoBuilder};
 use sux::traits::{IndexedDict, IndexedSeq};
 
 use crate::graph::*;
@@ -39,6 +39,20 @@ impl<B> ContractionBackend for B where
         + IndexedDict<Input = NodeId, Output<'a> = NodeId>
 {
 }
+
+/// Marker trait for [`ContractionBackend`]s that guarantee that it represents a monotonic function
+///
+/// # Safety
+///
+/// Implementing this trait guarantees that for all `x` and `y`:
+///
+/// * `x < y` iff `self.get(x) < self.get(y)`, and
+/// * if `self.index_of(x) != None` and `self.index_of(y) != None`, then
+///   `x < y` iff `self.index_of(x) < self.index_of(y)`.
+pub unsafe trait MonotoneContractionBackend: ContractionBackend {}
+
+// SAFETY: EliasFano is monotone by definition
+unsafe impl<H, L> MonotoneContractionBackend for EliasFano<H, L> where Self: ContractionBackend {}
 
 /// See [`ContiguousSubgraph`]
 pub struct Contraction<N>(pub N)
@@ -96,7 +110,8 @@ impl<N: ContractionBackend> Contraction<N> {
 /// use swh_graph::properties;
 /// use swh_graph::NodeConstraint;
 /// use swh_graph::graph::SwhGraphWithProperties;
-/// use swh_graph::views::{ContiguousSubgraph, Contraction, Subgraph, ContractionBackend};
+/// use swh_graph::views::Subgraph;
+/// use swh_graph::views::contiguous_subgraph::{ContiguousSubgraph, Contraction, ContractionBackend};
 ///
 /// fn filesystem_subgraph<G>(graph: &G) -> ContiguousSubgraph<
 ///         Subgraph<&'_ G, impl Fn(usize) -> bool + use<'_, G>, fn(usize, usize) -> bool>,
@@ -126,7 +141,8 @@ impl<N: ContractionBackend> Contraction<N> {
 /// use swh_graph::properties;
 /// use swh_graph::{NodeType};
 /// use swh_graph::graph::SwhGraphWithProperties;
-/// use swh_graph::views::{ContiguousSubgraph, Contraction, Subgraph, ContractionBackend};
+/// use swh_graph::views::Subgraph;
+/// use swh_graph::views::contiguous_subgraph::{ContiguousSubgraph, Contraction, ContractionBackend};
 ///
 /// fn filesystem_subgraph<G>(graph: &G) -> ContiguousSubgraph<
 ///         &'_ G,

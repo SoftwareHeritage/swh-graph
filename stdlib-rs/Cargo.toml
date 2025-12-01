@@ -1,0 +1,17 @@
+[package]
+name = "swh-graph-stdlib"
+edition = "2021"
+description = "Library of algorithms and data structures for swh-graph"
+repository.workspace = true
+license.workspace = true
+keywords = ["software-heritage", "graph", "compression", "webgraph"]
+categories = ["compression", "science"]
+version = "0.1.0"
+
+[dependencies]
+anyhow.workspace = true
+log.workspace = true
+rapidhash = "1.4.0"
+sux.workspace = true
+swh-graph.workspace = true
+itertools.workspace = true
