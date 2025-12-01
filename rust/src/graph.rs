@@ -18,7 +18,6 @@ use std::iter::Iterator;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
-use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{ConcurrentProgressLog, ProgressLog};
 use rayon::prelude::*;
 use webgraph::graphs::vec_graph::LabeledVecGraph;
@@ -269,6 +268,10 @@ pub trait SwhForwardGraph: SwhGraph {
     fn outdegree(&self, node_id: NodeId) -> usize;
 }
 
+#[diagnostic::on_unimplemented(
+    label = "does not have forward labels loaded",
+    note = "Use `let graph = graph.load_labels()` to load them"
+)]
 pub trait SwhLabeledForwardGraph: SwhForwardGraph {
     type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
@@ -302,6 +305,10 @@ pub trait SwhLabeledForwardGraph: SwhForwardGraph {
     }
 }
 
+#[diagnostic::on_unimplemented(
+    label = "does not have backward arcs loaded",
+    note = "Use SwhBidirectionalGraph instead of SwhUnidirectionalGraph if you don't already"
+)]
 pub trait SwhBackwardGraph: SwhGraph {
     type Predecessors<'succ>: IntoIterator<Item = usize>
     where
@@ -313,6 +320,11 @@ pub trait SwhBackwardGraph: SwhGraph {
     fn indegree(&self, node_id: NodeId) -> usize;
 }
 
+#[diagnostic::on_unimplemented(
+    label = "does not have backward labels loaded",
+    note = "Use SwhBidirectionalGraph instead of SwhUnidirectionalGraph if you don't already",
+    note = "and `let graph = graph.load_labels()`"
+)]
 pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
     type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
@@ -414,12 +426,7 @@ pub struct SwhUnidirectionalGraph<P, G: UnderlyingGraph = DefaultUnderlyingGraph
 impl SwhUnidirectionalGraph<()> {
     pub fn new(basepath: impl AsRef<Path>) -> Result<Self> {
         let basepath = basepath.as_ref().to_owned();
-        let graph = DefaultUnderlyingGraph(
-            BvGraph::with_basename(&basepath)
-                .endianness::<BE>()
-                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-                .load()?,
-        );
+        let graph = DefaultUnderlyingGraph::new(&basepath)?;
         Ok(Self::from_underlying_graph(basepath, graph))
     }
 }
@@ -667,18 +674,8 @@ pub struct SwhBidirectionalGraph<
 impl SwhBidirectionalGraph<()> {
     pub fn new(basepath: impl AsRef<Path>) -> Result<Self> {
         let basepath = basepath.as_ref().to_owned();
-        let forward_graph = DefaultUnderlyingGraph(
-            BvGraph::with_basename(&basepath)
-                .endianness::<BE>()
-                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-                .load()?,
-        );
-        let backward_graph = DefaultUnderlyingGraph(
-            BvGraph::with_basename(suffix_path(&basepath, "-transposed"))
-                .endianness::<BE>()
-                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-                .load()?,
-        );
+        let forward_graph = DefaultUnderlyingGraph::new(&basepath)?;
+        let backward_graph = DefaultUnderlyingGraph::new(suffix_path(&basepath, "-transposed"))?;
         Ok(Self::from_underlying_graphs(
             basepath,
             forward_graph,
@@ -1107,6 +1104,5 @@ fn zip_labels<G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
             )
         })?;
 
-    debug_assert!(webgraph::prelude::Zip(&graph, &labels).verify());
     Ok(Zip(graph, labels))
 }

@@ -4,16 +4,18 @@
 # See top-level LICENSE file for more information
 
 """
-Script to run the end to end compression tests without having to
+Script to run the end to end compression checks without having to
 compress an entire graph.
 """
 
-from swh.graph.e2e_tests import run_e2e_test
+from swh.graph.e2e_check import run_e2e_check
 
-run_e2e_test(
+run_e2e_check(
     graph_name="example",
     in_dir="swh/graph/example_dataset/orc/",
     out_dir="swh/graph/example_dataset/compressed/",
-    test_flavor="example",
+    sensitive_in_dir="swh/graph/example_dataset_sensitive/orc/",
+    sensitive_out_dir="swh/graph/example_dataset_sensitive/compressed/",
+    check_flavor="example",
     profile="debug",
 )

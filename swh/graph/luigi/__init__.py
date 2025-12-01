@@ -31,18 +31,12 @@ The overall directory structure is::
                 meta/
                     export.json
                     compression.json
-            datasets/
-                contribution_graph.csv.zst
-            topology/
-                topological_order_dfs.csv.zst
 
 And optionally::
 
     sensitive_base_dir/
         <date>[_<flavor>]/
             persons_sha256_to_name.csv.zst
-            datasets/
-                contribution_graph.deanonymized.csv.zst
 """
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
@@ -50,4 +44,3 @@ And optionally::
 
 from .compressed_graph import *  # noqa
 from .subdataset import *  # noqa
-from .topology import *  # noqa

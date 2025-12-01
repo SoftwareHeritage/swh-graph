@@ -66,7 +66,7 @@ impl<MPHF: LoadableSwhidMphf> Maps for MappedMaps<MPHF> {
 pub struct VecMaps {
     mphf: VecMphf,
     node2swhid: Node2SWHID<Vec<u8>>,
-    node2type: Node2Type<UsizeMmap<Vec<u8>>>,
+    node2type: Node2Type<Vec<usize>>,
 }
 
 impl VecMaps {

@@ -13,14 +13,15 @@ rust-version = "1.81"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rand = "0.8.5"
+rand = "0.9.0"
 anyhow.workspace = true
-mmap-rs = "0.6.1"
+mmap-rs.workspace = true
 sux.workspace = true
 webgraph.workspace = true
 webgraph-cli.workspace = true
 pthash = { version = "0.4.0", features = ["rayon"] }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
+hex = { version = "0.4.3", optional = true }
 rayon = { version = "1.9.0" }
 crossbeam = "0.8.4"
 sha1 = { version = "0.10.6" }
@@ -33,20 +34,21 @@ num_cpus = "1.16.0"
 byteorder = "1.4.3"
 java-properties = "1.4.1"
 base64-simd = "0.8.0"
-dsi-bitstream = "0.5.0"
-epserde = "0.8.0"
+dsi-bitstream.workspace = true
+epserde.workspace = true
 bytemuck = { version = "1.18.0", features = ["extern_crate_alloc"] }
-common_traits = "0.11.0"
-lender = "0.3.1"
+common_traits = "0.12.0"
+lender.workspace = true
 thiserror = "1.0.51"
-bitvec = { version = "1.0.1" }
 once_cell = "1.19.0"
 mimalloc = { version = "0.1", default-features = false, optional = true }
+value-traits.workspace = true
 
 # compression
-arrow = { version = "53.1.0", optional = true }
-arrow-array = { version = "53.1.0", optional = true }
-orc-rust = { version = "0.6.0", optional = true, default-features = false }
+arrow = { version = "57.0.0", optional = true }
+arrow-array = { version = "57.0.0", optional = true }
+#orc-rust = { version = "0.7.0", optional = true, default-features = false }
+orc-rust = { git = "https://github.com/progval/orc-rust", rev = "09cecf7869ac94192b21d8a3032d1ffca8f8ba0c", optional = true, default-features = false }
 ar_row = { version = "1.0.0", optional = true }
 ar_row_derive = { version = "1.0.0", optional = true }
 
@@ -69,7 +71,6 @@ dary_heap = "0.3.6"
 rdst = { version  ="0.20.14", features = ["multi-threaded"] }
 
 [dev-dependencies]
-bitvec = { version = "1.0.1", features = ["atomic"] }
 futures = "0.3.30"
 
 [features]
@@ -82,8 +83,9 @@ compression = []
 
 orc = ["ar_row", "ar_row_derive", "arrow", "orc-rust", "mimalloc"]
 
-
 macros = ["const_panic", "const-hex"]
+
+miri = ["hex"]
 
 serde = [
     "dep:serde", "dep:serde_json",
@@ -102,8 +104,15 @@ name = "swh-graph-extract"
 required-features = ["compression", "orc"]
 
 [[bin]]
+name = "swh-graph-get-node"
+required-features = ["serde"]
+
+[[bin]]
 name = "swh-graph-hash"
 required-features = ["compression"]
+
+[[bin]]
+name = "swh-graph-person-id-to-name"
 
 [package.metadata.docs.rs]
 all-features = true

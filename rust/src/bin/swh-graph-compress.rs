@@ -8,6 +8,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -15,6 +16,9 @@ use anyhow::{anyhow, ensure, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
+use rayon::prelude::*;
+use sux::bits::{AtomicBitVec, BitVec};
+use sux::traits::BitVecOps;
 use webgraph::prelude::*;
 
 use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
@@ -31,6 +35,19 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Creates a new order using the order already computed for an other graph
+    InitialOrder {
+        #[arg(long)]
+        mph_algo: MphAlgorithm,
+        #[arg(long)]
+        function: PathBuf,
+        #[arg(long)]
+        num_nodes: usize,
+        #[arg(long)]
+        previous_node2swhid: PathBuf,
+        #[arg(long)]
+        target_order: PathBuf,
+    },
     /// Runs a BFS on the initial BvGraph to group similar node ids together
     Bfs {
         #[arg(long)]
@@ -39,6 +56,9 @@ enum Commands {
         /// Path to the MPH function. Must be provided iff --init-swhids is.
         #[arg(long)]
         function: Option<PathBuf>,
+        #[arg(long)]
+        /// Path to the order used to build the input graph.
+        order: Option<PathBuf>,
         #[arg(long, requires_all=["mph_algo", "function"])]
         /// Path to a list of SWHIDs to use as the BFS starting points
         init_roots: Option<PathBuf>,
@@ -51,12 +71,10 @@ enum Commands {
     Permute {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 1_000_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long)]
-        permutation: PathBuf,
+        permutation: Vec<PathBuf>,
         graph_dir: PathBuf,
         target_dir: PathBuf,
     },
@@ -64,8 +82,6 @@ enum Commands {
     Transpose {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 1_000_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         graph_dir: PathBuf,
@@ -75,8 +91,6 @@ enum Commands {
     Simplify {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 1_000_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         graph_dir: PathBuf,
@@ -90,8 +104,6 @@ enum Commands {
     PermuteAndSymmetrize {
         #[arg(long, default_value_t = 102400)]
         input_batch_size: usize,
-        #[arg(long, default_value_t = 1_000_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long)]
@@ -210,8 +222,133 @@ pub fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     match args.command {
+        Commands::InitialOrder {
+            mph_algo,
+            function,
+            num_nodes,
+            previous_node2swhid,
+            target_order,
+        } => {
+            use swh_graph::map::Node2SWHID;
+            use swh_graph::mph::SwhidMphf;
+
+            let mut permut_file = File::create(&target_order)
+                .with_context(|| format!("Could not open {}", target_order.display()))?;
+
+            let mph: swh_graph::mph::DynMphf = match mph_algo {
+                MphAlgorithm::Cmph => swh_graph::java_compat::mph::gov::GOVMPH::load(function)
+                    .context("Cannot load mph")?
+                    .into(),
+                MphAlgorithm::Pthash => SwhidPthash::load(function)
+                    .context("Cannot load mph")?
+                    .into(),
+            };
+
+            log::info!("Loading previous node2swhid...");
+            let previous_node2swhid = Node2SWHID::load(previous_node2swhid)?;
+            let previous_num_nodes = previous_node2swhid.len();
+
+            if num_nodes < previous_num_nodes {
+                log::warn!("Previous graph was larger ({previous_num_nodes} nodes) than the one being compressed ({num_nodes} nodes). This is safe, but will cause suboptimal results.");
+            }
+
+            log::info!("Allocating order...");
+            let order: Vec<_> = (0..num_nodes)
+                .into_par_iter()
+                .map(|_| AtomicUsize::new(usize::MAX))
+                .collect();
+
+            log::info!("Initializing set of used node ids...");
+            let used_node_ids = AtomicBitVec::new(num_nodes);
+            let mut pl = concurrent_progress_logger!(
+                display_memory = true,
+                item_name = "node",
+                local_speed = true,
+                expected_updates = Some(num_nodes),
+            );
+            pl.start("Filling new order from previous order...");
+            (0..previous_num_nodes.min(num_nodes))
+                .into_par_iter()
+                .try_for_each_with(
+                    pl.clone(),
+                    |pl, previous_node_id| -> Result<_> {
+                        let swhid = previous_node2swhid.get(previous_node_id).expect("node2swhid too small"); // already checked
+                        let new_unpermuted_node_id = mph.hash_swhid(&swhid).with_context(|| format!("Unknown SWHID: {swhid}"))?;
+
+                        // assign new_unpermuted_node_id to a value only if it was not assigned to one
+                        // already.
+                        // We must not assign it to a new value if it already had one, because the previous
+                        // value was already inserted in used_node_ids, which prevents using again, and
+                        // this would leave a hole in the set of node ids.
+                        match order[new_unpermuted_node_id].compare_exchange(usize::MAX, previous_node_id, Ordering::Relaxed, Ordering::Relaxed) {
+                            Ok(usize::MAX) => {
+                                use sux::traits::AtomicBitVecOps;
+                                used_node_ids.set(previous_node_id, true, Ordering::Relaxed);
+                            }
+                            Ok(ret) => unreachable!("compare_exchange return Ok({ret}) but current value is {}", usize::MAX),
+                            Err(swapped_value) => {
+                                log::warn!("Node {new_unpermuted_node_id} was already set to {swapped_value} but we tried to set it to {previous_node_id}. This probably because {swhid} or the node it collides with ({}) was removed from the graph.", previous_node2swhid.get(swapped_value).unwrap())
+                            }
+                        }
+
+                        pl.light_update();
+
+                        Ok(())
+                })?;
+            pl.done();
+
+            let used_node_ids: BitVec = BitVec::from(used_node_ids);
+            let mut order: Vec<_> = order.into_iter().map(AtomicUsize::into_inner).collect(); // Compiles to no-op
+
+            // At this point, assuming the previous graph was smaller, used_node_ids will be overwhelmingly 1s in range
+            // 0..previous_num_nodes (the zeros being deleted nodes) and *only* 0s in range previous_num_nodes..num_nodes
+
+            log::info!("Listing unused node ids...");
+            let mut unused_node_ids: Vec<_> = (0..previous_num_nodes.min(num_nodes))
+                .into_par_iter()
+                .filter(|&node_id| !used_node_ids.get(node_id))
+                .collect();
+
+            // Now we can attribute the unused node ids to all nodes that do not have one assigned.
+            // First, from the materialized list of 'unused_node_ids', then from the range
+            // previous_num_nodes..num_nodes.
+            // (We could do it in any order, it does not matter.)
+            let mut next_unused_node_id = previous_num_nodes;
+
+            let mut pl = progress_logger!(
+                display_memory = true,
+                item_name = "node",
+                local_speed = true,
+                expected_updates = Some(num_nodes),
+            );
+            pl.start("Assigning unused node ids...");
+            // TODO: parallelize this loop somehow?
+            for node_id in order.iter_mut() {
+                if *node_id == usize::MAX {
+                    // not assigned yet. pick one from unused_node_ids if there are still some
+                    // available
+                    if let Some(unused_node_id) = unused_node_ids.pop() {
+                        *node_id = unused_node_id;
+                    } else {
+                        ensure!(next_unused_node_id < num_nodes, "Tried to allocate node_id {next_unused_node_id} but the graph only has {num_nodes} nodes");
+                        *node_id = next_unused_node_id;
+                        next_unused_node_id += 1;
+                    }
+                }
+                pl.light_update()
+            }
+            pl.done();
+
+            log::info!("Checking permutation...");
+            let perm = OwnedPermutation::new(order)?;
+
+            log::info!("Writing permutation...");
+            perm.dump(&mut permut_file)
+                .context("Could not write permutation")?;
+        }
         Commands::Bfs {
             mph_algo,
+            order,
             function,
             init_roots,
             graph_dir,
@@ -219,15 +356,24 @@ pub fn main() -> Result<()> {
         } => {
             use swh_graph::mph::SwhidMphf;
 
-            let mut permut_file = File::create(&target_order)
-                .with_context(|| format!("Could not open {}", target_order.display()))?;
-
             log::info!("Loading graph...");
             let graph = BvGraph::with_basename(graph_dir)
                 .endianness::<BE>()
                 .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
                 .load()?;
             log::info!("Graph loaded");
+
+            let order = order
+                .map(|order_path| {
+                    log::info!("Mmapping order");
+                    MappedPermutation::load(graph.num_nodes(), &order_path).with_context(|| {
+                        format!("Could not mmap order from {}", order_path.display())
+                    })
+                })
+                .transpose()?;
+
+            let mut permut_file = File::create(&target_order)
+                .with_context(|| format!("Could not open {}", target_order.display()))?;
 
             let start_nodes = match init_roots {
                 None => Vec::new(),
@@ -271,10 +417,16 @@ pub fn main() -> Result<()> {
 
                             pl.light_update();
 
-                            Some(
-                                mph.hash_str(&line)
-                                    .unwrap_or_else(|| panic!("Could not hash {line:?}")),
-                            )
+                            let mut node_id = mph
+                                .hash_str(&line)
+                                .unwrap_or_else(|| panic!("Could not hash {line:?}"));
+                            if let Some(order) = &order {
+                                node_id = order
+                                    .get(node_id)
+                                    .unwrap_or_else(|| panic!("Invalid node id for {line:?}"));
+                            }
+
+                            Some(node_id)
                         })
                         .collect();
 
@@ -290,7 +442,6 @@ pub fn main() -> Result<()> {
         }
         Commands::Permute {
             input_batch_size,
-            sort_batch_size,
             partitions_per_thread,
             graph_dir,
             permutation,
@@ -304,14 +455,11 @@ pub fn main() -> Result<()> {
                 .load()?;
             let num_nodes = graph.num_nodes();
 
-            log::info!("Loading permutation...");
-            let permutation = MappedPermutation::load(num_nodes, permutation.as_path())
-                .with_context(|| format!("Could not load {}", permutation.display()))?;
+            let permutation = compose_permutations(&permutation, num_nodes)?;
 
             log::info!("Permuting...");
             transform(
                 input_batch_size,
-                sort_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| unsafe {
@@ -326,7 +474,6 @@ pub fn main() -> Result<()> {
 
         Commands::Transpose {
             input_batch_size,
-            sort_batch_size,
             partitions_per_thread,
             graph_dir,
             target_dir,
@@ -342,7 +489,6 @@ pub fn main() -> Result<()> {
             log::info!("Transposing...");
             transform(
                 input_batch_size,
-                sort_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| [(dst, src)],
@@ -356,7 +502,6 @@ pub fn main() -> Result<()> {
 
         Commands::PermuteAndSymmetrize {
             input_batch_size,
-            sort_batch_size,
             partitions_per_thread,
             graph_dir,
             permutation,
@@ -383,7 +528,6 @@ pub fn main() -> Result<()> {
             log::info!("Permuting, transposing, and symmetrizing...");
             transform(
                 input_batch_size,
-                sort_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| {
@@ -410,25 +554,9 @@ pub fn main() -> Result<()> {
             input,
             output,
         } => {
-            let num_permutations = input.len();
-            log::info!("Loading permutation 1/{}...", num_permutations);
             let mut output_file = File::create(&output)
                 .with_context(|| format!("Could not open {}", output.display()))?;
-            let mut inputs_iter = input.into_iter();
-            let input_path = inputs_iter
-                .next()
-                .ok_or(anyhow!("No permutation provided"))?;
-            let mut permutation = OwnedPermutation::load(num_nodes, input_path.as_path())
-                .with_context(|| format!("Could not load {}", input_path.display()))?;
-            for (i, next_input_path) in inputs_iter.enumerate() {
-                log::info!("Composing permutation {}/{}...", i + 2, num_permutations);
-                let next_permutation =
-                    MappedPermutation::load(num_nodes, next_input_path.as_path())
-                        .with_context(|| format!("Could not load {}", next_input_path.display()))?;
-                permutation
-                    .compose_in_place(next_permutation)
-                    .with_context(|| format!("Could not apply {}", next_input_path.display()))?;
-            }
+            let permutation = compose_permutations(&input, num_nodes)?;
 
             permutation.dump(&mut output_file)?;
         }
@@ -578,7 +706,7 @@ pub fn main() -> Result<()> {
 
             use swh_graph::compress::zst_dir::*;
 
-            let mut rclb = RearCodedListBuilder::new(stripe_length);
+            let mut rclb = RearCodedListBuilder::<str, true>::new(stripe_length);
 
             let mut pl = concurrent_progress_logger!(
                 display_memory = true,
@@ -605,8 +733,9 @@ pub fn main() -> Result<()> {
                 File::create(&rcl_path)
                     .with_context(|| format!("Could not create {}", rcl_path.display()))?,
             );
-            rcl.serialize(&mut rcl_file)
-                .context("Could not write RCL")?;
+            // SAFETY: this might leak some internal memory, but this process does not access any
+            // sensitive information.
+            unsafe { rcl.serialize(&mut rcl_file) }.context("Could not write RCL")?;
         }
 
         Commands::PthashSwhids {
@@ -666,4 +795,25 @@ pub fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn compose_permutations(
+    paths: &[PathBuf],
+    num_nodes: usize,
+) -> Result<OwnedPermutation<Vec<usize>>> {
+    let num_permutations = paths.len();
+    log::info!("Loading permutation 1/{}...", num_permutations);
+    let mut paths = paths.iter();
+    let first_path = paths.next().ok_or(anyhow!("No permutation provided"))?;
+    let mut permutation = OwnedPermutation::load(num_nodes, first_path)
+        .with_context(|| format!("Could not load {}", first_path.display()))?;
+    for (i, next_path) in paths.enumerate() {
+        log::info!("Composing permutation {}/{}...", i + 2, num_permutations);
+        let next_permutation = MappedPermutation::load(num_nodes, next_path.as_path())
+            .with_context(|| format!("Could not load {}", next_path.display()))?;
+        permutation
+            .compose_in_place(next_permutation)
+            .with_context(|| format!("Could not apply {}", next_path.display()))?;
+    }
+    Ok(permutation)
 }

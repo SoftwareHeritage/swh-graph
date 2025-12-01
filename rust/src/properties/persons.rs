@@ -28,9 +28,9 @@ impl MaybePersons for NoPersons {}
 /// Trait for backend storage of person properties (either in-memory or memory-mapped)
 pub trait OptPersons: MaybePersons + PropertiesBackend {
     /// Returns `None` if out of bounds, `Some(u32::MAX)` if the node has no author
-    fn author_id(&self, node: NodeId) -> PropertiesResult<Option<u32>, Self>;
+    fn author_id(&self, node: NodeId) -> PropertiesResult<'_, Option<u32>, Self>;
     /// Returns `None` if out of bounds, `Some(u32::MAX)` if the node has no committer
-    fn committer_id(&self, node: NodeId) -> PropertiesResult<Option<u32>, Self>;
+    fn committer_id(&self, node: NodeId) -> PropertiesResult<'_, Option<u32>, Self>;
 }
 
 #[diagnostic::on_unimplemented(
@@ -211,7 +211,7 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn author_id(&self, node_id: NodeId) -> PropertiesResult<Option<u32>, PERSONS> {
+    pub fn author_id(&self, node_id: NodeId) -> PropertiesResult<'_, Option<u32>, PERSONS> {
         PERSONS::map_if_available(self.try_author_id(node_id), |author_id| {
             author_id.unwrap_or_else(|e| panic!("Cannot get node author: {e}"))
         })
@@ -225,7 +225,7 @@ impl<
     pub fn try_author_id(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<u32>, OutOfBoundError>, PERSONS> {
+    ) -> PropertiesResult<'_, Result<Option<u32>, OutOfBoundError>, PERSONS> {
         PERSONS::map_if_available(self.persons.author_id(node_id), |author_id| {
             match author_id {
                 None => Err(OutOfBoundError {
@@ -245,7 +245,7 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn committer_id(&self, node_id: NodeId) -> PropertiesResult<Option<u32>, PERSONS> {
+    pub fn committer_id(&self, node_id: NodeId) -> PropertiesResult<'_, Option<u32>, PERSONS> {
         PERSONS::map_if_available(self.try_committer_id(node_id), |committer_id| {
             committer_id.unwrap_or_else(|e| panic!("Cannot get node committer: {e}"))
         })
@@ -259,7 +259,7 @@ impl<
     pub fn try_committer_id(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<u32>, OutOfBoundError>, PERSONS> {
+    ) -> PropertiesResult<'_, Result<Option<u32>, OutOfBoundError>, PERSONS> {
         PERSONS::map_if_available(self.persons.committer_id(node_id), |committer_id| {
             match committer_id {
                 None => Err(OutOfBoundError {

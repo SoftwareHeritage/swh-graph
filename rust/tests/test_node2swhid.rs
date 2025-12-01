@@ -38,6 +38,7 @@ const SWHIDS: &[&str] = &[
 ];
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_load_node2swhid() -> Result<()> {
     let node2swhid_path = format!("{BASENAME}.node2swhid.bin");
     info!("loading node ID -> SWHID map from {node2swhid_path} ...");
@@ -57,6 +58,7 @@ fn test_load_node2swhid() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_new_node2swhid() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let node2swhid_file = tempdir.path().join("tmp.node2swhid.bin").to_owned();

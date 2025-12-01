@@ -5,6 +5,7 @@
 
 use std::fs::File;
 use std::io::BufWriter;
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -19,8 +20,10 @@ use pthash::Phf;
 use rayon::prelude::*;
 use tempfile;
 use webgraph::graphs::arc_list_graph::ArcListGraph;
-use webgraph::prelude::sort_pairs::{BitReader, BitWriter};
 use webgraph::prelude::*;
+use webgraph::prelude::{BitReader, BitWriter};
+use webgraph::utils::grouped_gaps::GroupedGapsCodec;
+use webgraph::utils::ParSortPairs;
 
 use super::iter_arcs::iter_arcs;
 use super::iter_labeled_arcs::iter_labeled_arcs;
@@ -28,19 +31,27 @@ use super::label_names::{LabelNameHasher, LabelNameMphf};
 use super::stats::estimate_edge_count;
 use crate::map::{MappedPermutation, Permutation};
 use crate::mph::LoadableSwhidMphf;
-use crate::utils::sort::par_sort_arcs;
 
+#[allow(clippy::too_many_arguments)]
 pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
-    sort_batch_size: usize,
     partitions_per_thread: usize,
     mph_basepath: PathBuf,
     num_nodes: usize,
+    order: Option<PathBuf>,
     dataset_dir: PathBuf,
     allowed_node_types: &[crate::NodeType],
     target_dir: PathBuf,
 ) -> Result<()> {
     log::info!("Reading MPH");
     let mph = MPHF::load(mph_basepath).context("Could not load MPHF")?;
+    let order = order
+        .map(|order_path| {
+            log::info!("Mmapping order");
+            MappedPermutation::load(num_nodes, &order_path)
+                .with_context(|| format!("Could not mmap order from {}", order_path.display()))
+        })
+        .transpose()?;
+
     log::info!("MPH loaded, sorting arcs");
 
     let num_threads = num_cpus::get();
@@ -66,46 +77,44 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
     let sorted_arcs_path = temp_dir.path().join("sorted_arcs");
     std::fs::create_dir(&sorted_arcs_path)
         .with_context(|| format!("Could not create {}", sorted_arcs_path.display()))?;
-    let sorted_arcs = par_sort_arcs(
-        &sorted_arcs_path,
-        sort_batch_size,
-        iter_arcs(&dataset_dir, allowed_node_types)
-            .context("Could not open input files to read arcs")?
-            .map_with(pl.clone(), |thread_pl, (src, dst)| {
-                thread_pl.light_update();
-                (src, dst)
-            }),
-        num_partitions,
-        (),
-        (),
-        |buffer, (src, dst)| {
-            let src = mph
-                .hash_str_array(&src)
-                .ok_or_else(|| anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&src)))?;
-            let dst = mph
-                .hash_str_array(&dst)
-                .ok_or_else(|| anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&dst)))?;
-            assert!(src < num_nodes, "src node id is greater than {num_nodes}");
-            assert!(dst < num_nodes, "dst node id is greater than {num_nodes}");
-            let partition_id = src / nodes_per_partition;
-            buffer.insert(partition_id, src, dst)?;
-            Ok(())
-        },
-    )?;
+    let pair_sorter =
+        ParSortPairs::new(num_nodes)?.num_partitions(NonZeroUsize::new(num_partitions).unwrap());
+    let sorted_arcs = pair_sorter
+        .try_sort(
+            iter_arcs(&dataset_dir, allowed_node_types)
+                .context("Could not open input files to read arcs")?
+                .map_with(pl.clone(), |thread_pl, (src, dst)| -> Result<_> {
+                    let mut src = mph.hash_str_array(&src).ok_or_else(|| {
+                        anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&src))
+                    })?;
+                    let mut dst = mph.hash_str_array(&dst).ok_or_else(|| {
+                        anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&dst))
+                    })?;
+                    if let Some(order) = &order {
+                        src = order.get(src).expect("src is greater than num_nodes");
+                        dst = order.get(dst).expect("dst is greater than num_nodes");
+                    }
+                    assert!(src < num_nodes, "permuted src is greater than {num_nodes}");
+                    assert!(dst < num_nodes, "permuted dst is greater than {num_nodes}");
+                    thread_pl.light_update();
+                    Ok((src, dst))
+                }),
+        )
+        .context("Could not sort pairs")?;
     pl.done();
 
-    let arc_list_graphs =
-        sorted_arcs
-            .into_iter()
-            .enumerate()
-            .map(|(partition_id, sorted_arcs_partition)| {
-                webgraph::prelude::Left(ArcListGraph::new_labeled(
-                    num_nodes,
-                    sorted_arcs_partition.dedup(),
-                ))
-                .iter_from(partition_id * nodes_per_partition)
-                .take(nodes_per_partition)
-            });
+    let arc_list_graphs = Vec::from(sorted_arcs.iters).into_iter().enumerate().map(
+        |(partition_id, sorted_arcs_partition)| {
+            ArcListGraph::new(num_nodes, sorted_arcs_partition.into_iter().dedup())
+                .iter_from(sorted_arcs.boundaries[partition_id])
+                .take(
+                    sorted_arcs.boundaries[partition_id + 1]
+                        .checked_sub(sorted_arcs.boundaries[partition_id])
+                        .expect("sorted_arcs.boundaries is not sorted"),
+                )
+        },
+    );
+
     let comp_flags = Default::default();
 
     let temp_bv_dir = temp_dir.path().join("bv");
@@ -113,7 +122,7 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
         .with_context(|| format!("Could not create {}", temp_bv_dir.display()))?;
     BvComp::parallel_iter::<BE, _>(
         target_dir,
-        arc_list_graphs,
+        arc_list_graphs.into_iter(),
         num_nodes,
         comp_flags,
         &rayon::ThreadPoolBuilder::default()
@@ -131,7 +140,6 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
 /// Writes `-labelled.labels`,  `-labelled.labeloffsets`, and returns the label width
 #[allow(clippy::too_many_arguments)]
 pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
-    sort_batch_size: usize,
     partitions_per_thread: usize,
     mph_basepath: PathBuf,
     order: MappedPermutation,
@@ -170,50 +178,51 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     let sorted_arcs_path = temp_dir.path().join("sorted_arcs");
     std::fs::create_dir(&sorted_arcs_path)
         .with_context(|| format!("Could not create {}", sorted_arcs_path.display()))?;
-    let sorted_arcs = par_sort_arcs(
-        &sorted_arcs_path,
-        sort_batch_size,
-        iter_labeled_arcs(&dataset_dir, allowed_node_types, label_name_hasher)
-            .context("Could not open input files to read arcs")?
-            .map_with(pl.clone(), |thread_pl, (src, dst, label)| {
-                thread_pl.light_update();
-                (src, dst, label)
-            }),
-        num_partitions,
+    let pair_sorter =
+        ParSortPairs::new(num_nodes)?.num_partitions(NonZeroUsize::new(num_partitions).unwrap());
+    let codec: GroupedGapsCodec<NE, _, _> = GroupedGapsCodec::new(
         LabelSerializer { label_width },
         LabelDeserializer { label_width },
-        |buffer, (src, dst, label)| {
-            let mut src = mph
-                .hash_str_array(&src)
-                .ok_or_else(|| anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&src)))?;
-            let mut dst = mph
-                .hash_str_array(&dst)
-                .ok_or_else(|| anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&dst)))?;
-            if transposed {
-                (src, dst) = (dst, src);
-            }
-            assert!(src < num_nodes, "src node id is greater than {num_nodes}");
-            assert!(dst < num_nodes, "dst node id is greater than {num_nodes}");
-            let src = order.get(src).expect("Could not permute src");
-            let dst = order.get(dst).expect("Could not permute dst");
-            let partition_id = src / nodes_per_partition;
-            buffer.insert_labeled(partition_id, src, dst, label)?;
-            Ok(())
-        },
-    )?;
+    );
+    let sorted_arcs = pair_sorter
+        .try_sort_labeled(
+            &codec,
+            iter_labeled_arcs(&dataset_dir, allowed_node_types, label_name_hasher)
+                .context("Could not open input files to read arcs")?
+                .map_with(pl.clone(), |thread_pl, (src, dst, label)| -> Result<_> {
+                    let mut src = mph.hash_str_array(&src).ok_or_else(|| {
+                        anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&src))
+                    })?;
+                    let mut dst = mph.hash_str_array(&dst).ok_or_else(|| {
+                        anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&dst))
+                    })?;
+                    if transposed {
+                        (src, dst) = (dst, src);
+                    }
+                    assert!(src < num_nodes, "src node id is greater than {num_nodes}");
+                    assert!(dst < num_nodes, "dst node id is greater than {num_nodes}");
+                    let src = order.get(src).expect("Could not permute src");
+                    let dst = order.get(dst).expect("Could not permute dst");
+                    thread_pl.light_update();
+                    Ok(((src, dst), label))
+                }),
+        )
+        .context("Could not sort pairs")?;
     let total_labeled_arcs = pl.count();
     pl.done();
 
-    let arc_list_graphs =
-        sorted_arcs
-            .into_iter()
-            .enumerate()
-            .map(|(partition_id, sorted_arcs_partition)| {
-                // no sorted_arcs_partition.dedup() on labels
-                ArcListGraph::new_labeled(num_nodes, sorted_arcs_partition)
-                    .iter_from(partition_id * nodes_per_partition)
-                    .take(nodes_per_partition)
-            });
+    let arc_list_graphs = Vec::from(sorted_arcs.iters).into_iter().enumerate().map(
+        |(partition_id, sorted_arcs_partition)| {
+            // no sorted_arcs_partition.dedup() on labels
+            ArcListGraph::new_labeled(num_nodes, sorted_arcs_partition.into_iter())
+                .iter_from(sorted_arcs.boundaries[partition_id])
+                .take(
+                    sorted_arcs.boundaries[partition_id + 1]
+                        .checked_sub(sorted_arcs.boundaries[partition_id])
+                        .expect("sorted_arcs.boundaries is not sorted"),
+                )
+        },
+    );
 
     let mut labels_path = target_dir.to_owned();
     labels_path.as_mut_os_string().push("-labelled.labels");
@@ -246,8 +255,8 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
         .write_gamma(0)
         .context("Could not write initial offset")?;
 
-    for partition_graph in arc_list_graphs {
-        for_!( (_src, successors) in partition_graph {
+    for partition in arc_list_graphs {
+        for_!( (_src, successors) in partition {
             let mut offset_bits = 0u64;
             for (_dst, labels) in &successors.group_by(|(dst, _label)| *dst) {
                 let mut labels: Vec<u64> = labels
@@ -366,12 +375,12 @@ struct LabelSerializer {
     label_width: usize,
 }
 
-impl BitDeserializer<NE, BitReader> for LabelDeserializer {
+impl BitDeserializer<NE, BitReader<NE>> for LabelDeserializer {
     type DeserType = Option<NonMaxU64>;
     fn deserialize(
         &self,
-        bitstream: &mut BitReader,
-    ) -> Result<Self::DeserType, <BitReader as BitRead<NE>>::Error> {
+        bitstream: &mut BitReader<NE>,
+    ) -> Result<Self::DeserType, <BitReader<NE> as BitRead<NE>>::Error> {
         assert_ne!(self.label_width, 64, "label_width = 64 is not implemented");
         let max = (1u64 << self.label_width) - 1; // Largest value that fits in the given width
         let value = bitstream.read_bits(self.label_width)?;
@@ -384,13 +393,13 @@ impl BitDeserializer<NE, BitReader> for LabelDeserializer {
     }
 }
 
-impl BitSerializer<NE, BitWriter> for LabelSerializer {
+impl BitSerializer<NE, BitWriter<NE>> for LabelSerializer {
     type SerType = Option<NonMaxU64>;
     fn serialize(
         &self,
         value: &Self::SerType,
-        bitstream: &mut BitWriter,
-    ) -> Result<usize, <BitWriter as BitWrite<NE>>::Error> {
+        bitstream: &mut BitWriter<NE>,
+    ) -> Result<usize, <BitWriter<NE> as BitWrite<NE>>::Error> {
         assert_ne!(self.label_width, 64, "label_width = 64 is not implemented");
         let max = (1u64 << self.label_width) - 1;
         match *value {

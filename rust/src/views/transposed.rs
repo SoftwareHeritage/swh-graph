@@ -36,6 +36,9 @@ impl<G: SwhGraph> SwhGraph for Transposed<G> {
             .map(|((src_type, dst_type), count)| ((dst_type, src_type), count))
             .collect())
     }
+    fn has_node(&self, node_id: NodeId) -> bool {
+        self.0.has_node(node_id)
+    }
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         self.0.has_arc(dst_node_id, src_node_id)
     }

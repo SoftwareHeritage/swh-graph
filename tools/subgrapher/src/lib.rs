@@ -8,7 +8,7 @@ use swh_graph::SWHID;
 use std::collections::{HashSet, VecDeque};
 
 use anyhow::{Context, Result};
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::ProgressLog;
 use log::{debug, error, info, warn, Level};
 
 use swh_graph::graph::SwhForwardGraph;
@@ -31,7 +31,10 @@ where
     let mut visited = HashSet::new();
     let mut unknown_origins = vec![];
 
-    let mut pl = progress_logger!(
+    #[cfg(miri)]
+    let pl = dsi_progress_logger::no_logging!();
+    #[cfg(not(miri))] // uses sysinfo which is not supported by Miri
+    let mut pl = dsi_progress_logger::progress_logger!(
         display_memory = true,
         item_name = "node",
         local_speed = true,
@@ -41,7 +44,7 @@ where
 
     for origin_result in origins {
         let origin = origin_result.context("Could not decode input line")?;
-        let mut origin_swhid = SWHID::from_origin_url(origin.to_owned());
+        let mut origin_swhid = SWHID::from_origin_url(&origin);
 
         // Lookup SWHID
         info!("looking up SWHID {} ...", origin);
@@ -60,7 +63,7 @@ where
                     origin.to_owned()
                 };
 
-                origin_swhid = SWHID::from_origin_url(alternative_origin.to_owned());
+                origin_swhid = SWHID::from_origin_url(alternative_origin);
 
                 node_id_lookup = graph_props.node_id(origin_swhid);
                 if node_id_lookup.is_ok() {
