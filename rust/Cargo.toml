@@ -47,8 +47,7 @@ value-traits.workspace = true
 # compression
 arrow = { version = "57.0.0", optional = true }
 arrow-array = { version = "57.0.0", optional = true }
-orc-rust = { version = "0.7.0", optional = true, default-features = false }  # does not work on 2025-10-08 dataset because it's missing https://github.com/datafusion-contrib/orc-rust/commit/ed4839450d3f81ba257851eb7738a7e9b14422e5 .. But 0.7.1 is not released yet, so we hot-patched with:
-#orc-rust = { git = "https://github.com/progval/orc-rust", rev = "09cecf7869ac94192b21d8a3032d1ffca8f8ba0c", optional = true, default-features = false }
+orc-rust = { version = "0.7.1", optional = true, default-features = false }
 ar_row = { version = "1.0.0", optional = true }
 ar_row_derive = { version = "1.0.0", optional = true }
 
