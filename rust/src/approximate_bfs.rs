@@ -14,9 +14,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use dsi_progress_logger::{progress_logger, ProgressLog};
-use num_cpus;
 use rayon::prelude::*;
-use sux::prelude::AtomicBitVec;
+use sux::prelude::{AtomicBitVec, BitFieldVec};
+use sux::traits::AtomicBitVecOps;
 use thread_local::ThreadLocal;
 use webgraph::prelude::*;
 
@@ -32,32 +32,33 @@ pub fn almost_bfs_order<G: RandomAccessGraph + Send + Sync>(
 
     let visited = AtomicBitVec::new(num_nodes);
 
-    let visit_from_root_node = |thread_order: &mut Vec<NodeId>, root_node| -> Option<usize> {
-        if visited.get(root_node, Ordering::Relaxed) {
-            // Skip VecDeque allocation
-            return None;
-        }
-        let mut visited_nodes = 0;
-        let mut queue = VecDeque::new();
-        queue.push_back(root_node);
-        while let Some(node) = queue.pop_front() {
-            // As we are not atomically getting and setting 'visited' bit, other
-            // threads may also visit it at the same time. We will deduplicate that
-            // at the end, so the only effect is for some nodes to be double-counted
-            // by the progress logger.
-            if visited.get(node, Ordering::Relaxed) {
-                continue;
+    let visit_from_root_node =
+        |thread_order: &mut BitFieldVec<NodeId>, root_node| -> Option<usize> {
+            if visited.get(root_node, Ordering::Relaxed) {
+                // Skip VecDeque allocation
+                return None;
             }
-            visited.set(node, true, Ordering::Relaxed);
-            visited_nodes += 1;
-            thread_order.push(node);
+            let mut visited_nodes = 0;
+            let mut queue = VecDeque::new();
+            queue.push_back(root_node);
+            while let Some(node) = queue.pop_front() {
+                // As we are not atomically getting and setting 'visited' bit, other
+                // threads may also visit it at the same time. We will deduplicate that
+                // at the end, so the only effect is for some nodes to be double-counted
+                // by the progress logger.
+                if visited.get(node, Ordering::Relaxed) {
+                    continue;
+                }
+                visited.set(node, true, Ordering::Relaxed);
+                visited_nodes += 1;
+                thread_order.push(node);
 
-            for succ in graph.successors(node) {
-                queue.push_back(succ);
+                for succ in graph.successors(node) {
+                    queue.push_back(succ);
+                }
             }
-        }
-        Some(visited_nodes)
-    };
+            Some(visited_nodes)
+        };
 
     let mut pl = progress_logger!(
         display_memory = true,
@@ -70,7 +71,8 @@ pub fn almost_bfs_order<G: RandomAccessGraph + Send + Sync>(
 
     let thread_orders = ThreadLocal::new();
 
-    let num_threads = num_cpus::get();
+    let initial_capacity = 1024; // arbitrary
+    let bit_width = 8 * std::mem::size_of::<usize>() - (num_nodes.leading_zeros() as usize);
 
     if start_nodes.is_empty() {
         log::info!("No initial starting nodes; starting from arbitrary nodes...");
@@ -83,7 +85,9 @@ pub fn almost_bfs_order<G: RandomAccessGraph + Send + Sync>(
         start_nodes.into_par_iter().for_each_init(
             || {
                 thread_orders
-                    .get_or(|| RefCell::new(Vec::with_capacity(num_nodes / num_threads)))
+                    .get_or(|| {
+                        RefCell::new(BitFieldVec::with_capacity(bit_width, initial_capacity))
+                    })
                     .borrow_mut()
             },
             |thread_order, &root_node| {
@@ -106,7 +110,7 @@ pub fn almost_bfs_order<G: RandomAccessGraph + Send + Sync>(
     crate::utils::shuffle::par_iter_shuffled_range(0..num_nodes).for_each_init(
         || {
             thread_orders
-                .get_or(|| RefCell::new(Vec::with_capacity(num_nodes / num_threads)))
+                .get_or(|| RefCell::new(BitFieldVec::with_capacity(bit_width, initial_capacity)))
                 .borrow_mut()
         },
         |thread_order, root_node| {

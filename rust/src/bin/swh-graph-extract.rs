@@ -139,8 +139,6 @@ enum Commands {
     Bv {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
-        #[arg(long, default_value_t = 100_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long, default_value = "*")]
@@ -151,6 +149,14 @@ enum Commands {
         function: PathBuf,
         #[arg(long)]
         num_nodes: usize,
+        #[arg(long)]
+        /// Permutation to apply after hashing a node with the `function`.
+        ///
+        /// Providing an initial order (eg. using `swh-graph-compress initial-order`)
+        /// can significantly reduce the size of the output graph.
+        ///
+        /// Defaults to the identity permutation.
+        order: Option<PathBuf>,
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
@@ -158,8 +164,6 @@ enum Commands {
     EdgeLabels {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
-        #[arg(long, default_value_t = 100_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long, default_value = "*")]
@@ -625,12 +629,12 @@ pub fn main() -> Result<()> {
 
         Commands::Bv {
             format: DatasetFormat::Orc,
-            sort_batch_size,
             partitions_per_thread,
             allowed_node_types,
             mph_algo,
             function,
             num_nodes,
+            order,
             dataset_dir,
             target_dir,
         } => {
@@ -638,20 +642,20 @@ pub fn main() -> Result<()> {
 
             match mph_algo {
                 MphAlgorithm::Pthash => swh_graph::compress::bv::bv::<SwhidPthash>(
-                    sort_batch_size,
                     partitions_per_thread,
                     function,
                     num_nodes,
+                    order,
                     dataset_dir,
                     &allowed_node_types,
                     target_dir,
                 )?,
                 MphAlgorithm::Cmph => {
                     swh_graph::compress::bv::bv::<swh_graph::java_compat::mph::gov::GOVMPH>(
-                        sort_batch_size,
                         partitions_per_thread,
                         function,
                         num_nodes,
+                        order,
                         dataset_dir,
                         &allowed_node_types,
                         target_dir,
@@ -662,7 +666,6 @@ pub fn main() -> Result<()> {
 
         Commands::EdgeLabels {
             format: DatasetFormat::Orc,
-            sort_batch_size,
             partitions_per_thread,
             allowed_node_types,
             mph_algo,
@@ -688,7 +691,6 @@ pub fn main() -> Result<()> {
 
             let label_width = match mph_algo {
                 MphAlgorithm::Pthash => swh_graph::compress::bv::edge_labels::<SwhidPthash>(
-                    sort_batch_size,
                     partitions_per_thread,
                     function,
                     order,
@@ -701,7 +703,6 @@ pub fn main() -> Result<()> {
                 )?,
                 MphAlgorithm::Cmph => {
                     swh_graph::compress::bv::edge_labels::<swh_graph::java_compat::mph::gov::GOVMPH>(
-                        sort_batch_size,
                         partitions_per_thread,
                         function,
                         order,

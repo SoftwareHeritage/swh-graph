@@ -268,6 +268,10 @@ pub trait SwhForwardGraph: SwhGraph {
     fn outdegree(&self, node_id: NodeId) -> usize;
 }
 
+#[diagnostic::on_unimplemented(
+    label = "does not have forward labels loaded",
+    note = "Use `let graph = graph.load_labels()` to load them"
+)]
 pub trait SwhLabeledForwardGraph: SwhForwardGraph {
     type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
@@ -301,6 +305,10 @@ pub trait SwhLabeledForwardGraph: SwhForwardGraph {
     }
 }
 
+#[diagnostic::on_unimplemented(
+    label = "does not have backward arcs loaded",
+    note = "Use SwhBidirectionalGraph instead of SwhUnidirectionalGraph if you don't already"
+)]
 pub trait SwhBackwardGraph: SwhGraph {
     type Predecessors<'succ>: IntoIterator<Item = usize>
     where
@@ -312,6 +320,11 @@ pub trait SwhBackwardGraph: SwhGraph {
     fn indegree(&self, node_id: NodeId) -> usize;
 }
 
+#[diagnostic::on_unimplemented(
+    label = "does not have backward labels loaded",
+    note = "Use SwhBidirectionalGraph instead of SwhUnidirectionalGraph if you don't already",
+    note = "and `let graph = graph.load_labels()`"
+)]
 pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
     type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where

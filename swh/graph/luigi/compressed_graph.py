@@ -245,6 +245,7 @@ class _CompressionStepTask(luigi.Task):
     local_sensitive_graph_path: Optional[Path] = luigi.OptionalPathParameter(
         default=None
     )
+    previous_graph_path: Optional[Path] = luigi.OptionalPathParameter(default=None)
 
     # TODO: Only add this parameter to tasks that use it
     batch_size = luigi.IntParameter(
@@ -257,7 +258,7 @@ class _CompressionStepTask(luigi.Task):
     )
 
     rust_executable_dir = luigi.Parameter(
-        default="./target/release/",
+        default="",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
     )
@@ -460,6 +461,7 @@ class _CompressionStepTask(luigi.Task):
                         local_sensitive_graph_path=self.local_sensitive_graph_path,
                         graph_name=self.graph_name,
                         local_graph_path=self.local_graph_path,
+                        previous_graph_path=self.previous_graph_path,
                         object_types=self.object_types,
                         rust_executable_dir=self.rust_executable_dir,
                         check_flavor=self.check_flavor,
@@ -573,6 +575,10 @@ class _CompressionStepTask(luigi.Task):
         if self.STEP == CompressionStep.LLP and self.gammas:  # type: ignore[attr-defined]
             conf["llp_gammas"] = self.gammas  # type: ignore[attr-defined]
         conf["rust_executable_dir"] = self.rust_executable_dir
+        if self.rust_executable_dir:
+            conf["rust_executable_dir"] = self.rust_executable_dir
+        if self.previous_graph_path:
+            conf["previous_graph_path"] = str(self.previous_graph_path)
 
         conf = check_config_compress(
             conf,
@@ -702,11 +708,28 @@ class Mph(_CompressionStepTask):
         return 0
 
 
+class InitialOrder(_CompressionStepTask):
+    STEP = CompressionStep.INITIAL_ORDER
+    INPUT_FILES = {".pthash"}
+    OUTPUT_FILES = {"-base.order"}
+    USES_ALL_CPU_THREADS = True
+
+    def _large_allocations(self) -> int:
+        return 0
+
+
 class Bv(_CompressionStepTask):
     STEP = CompressionStep.BV
     EXPORT_AS_INPUT = True
-    INPUT_FILES = {".pthash"}
+    _INPUT_FILES = {"-base.order", ".pthash"}
     OUTPUT_FILES = {"-base.graph"}
+
+    @property
+    def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
+        files = set(self._INPUT_FILES)
+        if not self.previous_graph_path:
+            files.remove("-base.order")
+        return files
 
     def _large_allocations(self) -> int:
         import psutil
@@ -738,8 +761,21 @@ class BfsRoots(_CompressionStepTask):
 
 class Bfs(_CompressionStepTask):
     STEP = CompressionStep.BFS
-    INPUT_FILES = {"-base.graph", "-base.ef", "-bfs.roots.txt", ".pthash"}
+    _INPUT_FILES = {
+        "-base.graph",
+        "-base.ef",
+        "-bfs.roots.txt",
+        ".pthash",
+        "-base.order",
+    }
     OUTPUT_FILES = {"-bfs.order"}
+
+    @property
+    def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
+        files = set(self._INPUT_FILES)
+        if not self.previous_graph_path:
+            files.remove("-base.order")
+        return files
 
     def _large_allocations(self) -> int:
         bvgraph_size = self._bvgraph_allocation()
@@ -807,7 +843,7 @@ class Llp(_CompressionStepTask):
 
 class PermuteLlp(_CompressionStepTask):
     STEP = CompressionStep.PERMUTE_LLP
-    INPUT_FILES = {".pthash.order", "-base.graph", "-base.ef"}
+    INPUT_FILES = {"-bfs.order", "-llp.order", "-base.graph", "-base.ef"}
     OUTPUT_FILES = {".graph", ".offsets", ".properties"}
 
     def _large_allocations(self) -> int:
@@ -844,8 +880,15 @@ class Ef(_CompressionStepTask):
 
 class ComposeOrders(_CompressionStepTask):
     STEP = CompressionStep.COMPOSE_ORDERS
-    INPUT_FILES = {"-llp.order", "-bfs.order"}
+    _INPUT_FILES = {"-base.order", "-bfs.order", "-llp.order"}
     OUTPUT_FILES = {".pthash.order"}
+
+    @property
+    def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
+        files = set(self._INPUT_FILES)
+        if not self.previous_graph_path:
+            files.remove("-base.order")
+        return files
 
     def _large_allocations(self) -> int:
         permutation_size = self._nb_nodes() * 8  # longarray
@@ -1315,7 +1358,28 @@ def _make_dot_diagram() -> str:
             CompressionStep.COMPOSE_ORDERS,
         } or "BFS" in str(cls.STEP):
             s.write(f"        {cls.STEP};\n")
-            for filename in cls.OUTPUT_FILES:
+            for filename in itertools.chain(
+                cls.OUTPUT_FILES, cls.SENSITIVE_OUTPUT_FILES
+            ):
+                s.write(f"        {normalize_filename(filename)}\n")
+    s.write("    }\n\n")
+
+    # cluster author/committer properties generation together
+    s.write("    subgraph cluster_persons {\n")
+    s.write('        style = "dashed";\n')
+    s.write('        label = "authors and committers";\n')
+    for cls in _CompressionStepTask.__subclasses__():
+        if cls.STEP in {
+            CompressionStep.EXTRACT_PERSONS,
+            CompressionStep.PERSONS_STATS,
+            CompressionStep.MPH_PERSONS,
+            CompressionStep.EXTRACT_FULLNAMES,
+            CompressionStep.FULLNAMES_EF,
+        }:
+            s.write(f"        {cls.STEP};\n")
+            for filename in itertools.chain(
+                cls.OUTPUT_FILES, cls.SENSITIVE_OUTPUT_FILES
+            ):
                 s.write(f"        {normalize_filename(filename)}\n")
     s.write("    }\n\n")
 
@@ -1331,7 +1395,9 @@ def _make_dot_diagram() -> str:
             CompressionStep.TRANSPOSE_EF,
         }:
             s.write(f"        {cls.STEP};\n")
-            for filename in cls.OUTPUT_FILES:
+            for filename in itertools.chain(
+                cls.OUTPUT_FILES, cls.SENSITIVE_OUTPUT_FILES
+            ):
                 s.write(f"        {normalize_filename(filename)}\n")
     s.write("    }\n\n")
 
@@ -1369,6 +1435,7 @@ class CompressGraph(luigi.Task):
     local_sensitive_graph_path: Optional[Path] = luigi.OptionalPathParameter(
         default=None
     )
+    previous_graph_path: Optional[Path] = luigi.OptionalPathParameter(default=None)
     batch_size = luigi.IntParameter(
         default=0,
         significant=False,
@@ -1379,7 +1446,7 @@ class CompressGraph(luigi.Task):
     )
 
     rust_executable_dir = luigi.Parameter(
-        default="./target/release/",
+        default="",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
     )
@@ -1403,6 +1470,7 @@ class CompressGraph(luigi.Task):
             local_sensitive_graph_path=self.local_sensitive_graph_path,
             graph_name=self.graph_name,
             local_graph_path=self.local_graph_path,
+            previous_graph_path=self.previous_graph_path,
             object_types=self.object_types,
             rust_executable_dir=self.rust_executable_dir,
             check_flavor=self.check_flavor,
@@ -1687,10 +1755,10 @@ class DownloadGraphFromS3(luigi.Task):
         from swh.graph.download import GraphDownloader
 
         GraphDownloader(
-            local_graph_path=self.local_graph_path,
-            s3_graph_path=self.s3_graph_path,
+            local_path=self.local_graph_path,
+            s3_url=self.s3_graph_path,
             parallelism=10,
-        ).download_graph(
+        ).download(
             progress_percent_cb=self.set_progress_percentage,
             progress_status_cb=self.set_status_message,
         )

@@ -6,26 +6,12 @@ repository.workspace = true
 license.workspace = true
 keywords = ["software-heritage", "graph", "compression", "webgraph"]
 categories = ["compression", "science"]
-version.workspace = true
+version = "0.1.0"
 
 [dependencies]
 anyhow.workspace = true
-dashmap = { version = "6.1.0", features = ["rayon"] }
-dsi-bitstream.workspace = true
-dsi-progress-logger.workspace = true
-epserde.workspace = true
-itertools.workspace = true
 log.workspace = true
 rapidhash = "1.4.0"
-rayon.workspace = true
-rdst = { version  ="0.20.14", features = ["multi-threaded"] }
 sux.workspace = true
 swh-graph.workspace = true
-webgraph.workspace = true
-webgraph-algo.workspace = true
-
-[features]
-unstable_contiguous_subgraph = ["swh-graph/unstable_contiguous_subgraph"]
-
-[dev-dependencies]
-tempfile = "3.7.1"
+itertools.workspace = true

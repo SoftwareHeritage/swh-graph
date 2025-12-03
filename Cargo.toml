@@ -3,38 +3,32 @@
 resolver = "2"
 
 members = [
-    "grpc-server",
     "pyo3",
     "rust",
-    "stdlib-rs",
+    "grpc-server",
     "tools/counters",
-    "tools/topology",
     "tools/subgrapher",
 ]
 
 [workspace.package]
 repository = "https://gitlab.softwareheritage.org/swh/devel/swh-graph"
 license = "GPL-3.0-or-later"
-version = "8.0.10"
+version = "9.0.2"
 
 [workspace.dependencies]
 anyhow = { version="1.0.79", features=["backtrace"] }
 dsi-bitstream = "0.5.0"
-epserde = "0.8.0"
+epserde = "0.11.1"
 itertools = { version = "0.11.0" }
+lender = "0.4.2"
+mmap-rs = "0.6.1"
 rayon = { version = "1.9.0" }
-swh-graph = { version = "8.0.4", path = "./rust/" }
-#webgraph = "0.3.0"
-#webgraph-cli = "0.1.0"
-#webgraph-algo = "0.2.0"
-webgraph = { git = "https://github.com/vigna/webgraph-rs.git", rev = "f033578b588d275c19f00d61f5435accb311bf74" }
-webgraph-cli = { git = "https://github.com/vigna/webgraph-rs.git", rev = "f033578b588d275c19f00d61f5435accb311bf74" }
-webgraph-algo = { git = "https://github.com/vigna/webgraph-rs.git", rev = "f033578b588d275c19f00d61f5435accb311bf74" }
-#webgraph = { path = "../../webgraph-rs/webgraph" }
-#webgraph-cli = { path = "../../webgraph-rs/cli" }
-#webgraph-algo =  { path = "../../webgraph-rs/algo" }
-sux = "0.8.0"
-#sux = {path = "../../../sux-rs" }
+swh-graph = { version = "9.0.0", path = "./rust/" }
+webgraph = "0.5.0"
+webgraph-algo = "0.5.0"
+webgraph-cli = "0.3.0"
+sux = "0.10.0"
+value-traits = "0.2.0"
 
 # CLI
 env_logger = "0.11.5"
@@ -50,6 +44,3 @@ overflow-checks = false   # Disable integer overflow checks.
 debug = true              # Include debug info.
 debug-assertions = false  # Disables debug assertions.
 codegen-units=1           # slower compile times, but maybe better perf
-
-[patch.crates-io]
-sux = { git = "https://github.com/vigna/sux-rs.git", rev = "42a4fa654aeb59aa716d8f78a2bf35ede80c0413" }
