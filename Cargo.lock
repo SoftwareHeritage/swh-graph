@@ -994,7 +994,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "counters"
-version = "9.0.0"
+version = "9.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -3004,7 +3004,8 @@ dependencies = [
 [[package]]
 name = "orc-rust"
 version = "0.7.0"
-source = "git+https://github.com/progval/orc-rust?rev=09cecf7869ac94192b21d8a3032d1ffca8f8ba0c#09cecf7869ac94192b21d8a3032d1ffca8f8ba0c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3fb8ec75b363f91d3435c10182edd0e75516ff255455225b4cc3f0813ef2ebf"
 dependencies = [
  "arrow",
  "bytemuck",
@@ -4188,7 +4189,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph"
-version = "9.0.0"
+version = "9.0.1"
 dependencies = [
  "anyhow",
  "ar_row",
@@ -4240,7 +4241,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph-grpc-server"
-version = "9.0.0"
+version = "9.0.1"
 dependencies = [
  "anyhow",
  "async-scoped",
@@ -4273,7 +4274,7 @@ dependencies = [
 
 [[package]]
 name = "swh-subgrapher"
-version = "9.0.0"
+version = "9.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -4285,7 +4286,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_pyo3"
-version = "9.0.0"
+version = "9.0.1"
 dependencies = [
  "pyo3",
  "swh-graph",
