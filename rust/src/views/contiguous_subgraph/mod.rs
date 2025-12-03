@@ -11,7 +11,7 @@ use anyhow::{bail, Result};
 use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use rayon::prelude::*;
 use sux::dict::elias_fano::{EfSeqDict, EliasFano, EliasFanoBuilder};
-use sux::traits::{IndexedDict, IndexedSeq};
+use sux::traits::indexed_dict::{IndexedDict, IndexedSeq};
 
 use crate::graph::*;
 use crate::mph::SwhidMphf;
@@ -54,6 +54,9 @@ pub unsafe trait MonotoneContractionBackend: ContractionBackend {}
 // SAFETY: EliasFano is monotone by definition
 unsafe impl<H, L> MonotoneContractionBackend for EliasFano<H, L> where Self: ContractionBackend {}
 
+unsafe impl<N: MonotoneContractionBackend> MonotoneContractionBackend for &N {}
+
+#[derive(Copy, Clone, Debug)]
 /// See [`ContiguousSubgraph`]
 pub struct Contraction<N>(pub N)
 where
@@ -141,7 +144,6 @@ impl<N: ContractionBackend> Contraction<N> {
 /// use swh_graph::properties;
 /// use swh_graph::{NodeType};
 /// use swh_graph::graph::SwhGraphWithProperties;
-/// use swh_graph::views::Subgraph;
 /// use swh_graph::views::contiguous_subgraph::{ContiguousSubgraph, Contraction, ContractionBackend};
 ///
 /// fn filesystem_subgraph<G>(graph: &G) -> ContiguousSubgraph<
@@ -194,7 +196,13 @@ pub struct ContiguousSubgraph<
     STRINGS: properties::MaybeStrings,
     LABELNAMES: properties::MaybeLabelNames,
 > {
-    inner: Arc<ContiguousSubgraphInner<G, N>>, // TODO: find a way to replace Arc with ouroboros
+    // Note: ContiguousSubgraph::into_raw_parts assumes there are no references
+    // to `inner` outside of `properties`. This means that `ContiguousSubgraph`
+    // cannot implement `Clone` (at least not without copying ContiguousSubgraphInner
+    // itself).
+    //
+    // TODO: find a way to replace Arc with ouroboros
+    inner: Arc<ContiguousSubgraphInner<G, N>>,
     properties:
         properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
 }
@@ -258,6 +266,11 @@ impl<G: SwhGraph, N: ContractionBackend>
     /// The structure used to match the underlying graph's node ids with this graph's node ids
     pub fn contraction(&self) -> &Contraction<N> {
         &self.inner.contraction
+    }
+
+    pub fn into_parts(self) -> (G, Contraction<N>) {
+        let inner = Arc::into_inner(self.inner).expect("Dangling references to ContiguousSubgraph::inner for ContiguousSubgraph with no properties");
+        (inner.underlying_graph, inner.contraction)
     }
 }
 
