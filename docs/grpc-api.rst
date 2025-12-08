@@ -176,7 +176,6 @@ which prints:
     compression_ratio: 0.096
     bits_per_node: 43.993
     bits_per_edge: 3.101
-    avg_locality: 1030367242.935
     indegree_max: 381552037
     indegree_avg: 14.185788695346046
     outdegree_max: 1033207

@@ -70,7 +70,6 @@ def test_stats(graph_grpc_stub):
     assert isinstance(stats.compression_ratio, float)
     assert isinstance(stats.bits_per_node, float)
     assert isinstance(stats.bits_per_edge, float)
-    assert isinstance(stats.avg_locality, float)
     assert stats.indegree_min == 0
     assert stats.indegree_max == 4
     assert isinstance(stats.indegree_avg, float)

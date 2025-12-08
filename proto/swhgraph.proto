@@ -310,7 +310,8 @@ message StatsResponse {
     /* Number of bits per edge (overall graph size in bits divided by the
      * number of arcs). */
     optional double bits_per_edge = 5;
-    optional double avg_locality = 6;
+    /* removed:
+     * optional double avg_locality = 6; */
 
     /* Smallest indegree */
     int64 indegree_min = 7;

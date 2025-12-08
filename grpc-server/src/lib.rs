@@ -237,7 +237,6 @@ impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
             compression_ratio: get_property(&properties, properties_path, "compratio").ok(),
             bits_per_node: get_property(&properties, properties_path, "bitspernode").ok(),
             bits_per_edge: get_property(&properties, properties_path, "bitsperlink").ok(),
-            avg_locality: get_property(&stats, stats_path, "avglocality").ok(),
             indegree_min: get_property(&stats, stats_path, "minindegree")?,
             indegree_max: get_property(&stats, stats_path, "maxindegree")?,
             indegree_avg: get_property(&stats, stats_path, "avgindegree")?,

@@ -319,7 +319,6 @@ Stats
                 "compression": 0.367,
                 "bits_per_node": 5.846,
                 "bits_per_edge": 9.573,
-                "avg_locality": 270.369
             },
             "indegree": {
                 "min": 0,
