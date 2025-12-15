@@ -149,7 +149,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             edges,
             max_edges,
             max_depth,
-            mask,
+            mut mask,
         } = request.get_ref().clone();
 
         let direction: proto::GraphDirection = direction
@@ -184,6 +184,14 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     graph,
                     move |src, dst| arc_checker.matches(src, dst),
                 ));
+
+                if let Some(ref mask_ref) = mask {
+                    if mask_ref.paths.iter().any(|field| *field == "node") {
+                        // Disable filtering in node.*
+                        mask = None;
+                    }
+                }
+
                 let node_builder = NodeBuilder::new(
                     subgraph.clone(),
                     mask.map(|mask| prost_types::FieldMask {
@@ -287,7 +295,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             edges_reverse,
             max_edges,
             max_depth,
-            mask,
+            mut mask,
         } = request.get_ref().clone();
 
         let direction: proto::GraphDirection = direction
@@ -350,6 +358,13 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
         }));
         let transpose_subgraph = Arc::new(Transposed(subgraph.clone()));
         let transpose_graph = Arc::new(Transposed(graph.clone()));
+
+        if let Some(ref mask_ref) = mask {
+            if mask_ref.paths.iter().any(|field| *field == "node") {
+                // Disable filtering in node.*
+                mask = None;
+            }
+        }
 
         let forward_node_builder = NodeBuilder::new(
             subgraph.clone(),

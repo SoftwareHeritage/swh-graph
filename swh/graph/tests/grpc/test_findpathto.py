@@ -88,6 +88,55 @@ def test_forward_ori_to_first_dir(graph_grpc_stub):
     assert expected == actual
 
 
+def test_mask_node(graph_grpc_stub):
+    """
+    Test path between ori 1 and any dir (forward graph) with mask = ['node']
+    """
+    request = graph_grpc_stub.FindPathTo(
+        FindPathToRequest(
+            src=[TEST_ORIGIN_ID],
+            target=NodeFilter(types="dir"),
+            mask=FieldMask(paths=["node"]),
+        )
+    )
+    request_without_mask = graph_grpc_stub.FindPathTo(
+        FindPathToRequest(
+            src=[TEST_ORIGIN_ID],
+            target=NodeFilter(types="dir"),
+        )
+    )
+    assert request_without_mask == request
+
+
+def test_mask_unkown_field(graph_grpc_stub):
+    """
+    Test path between ori 1 and any dir (forward graph) with mask = ['foobar']
+    """
+    request = graph_grpc_stub.FindPathTo(
+        FindPathToRequest(
+            src=[TEST_ORIGIN_ID],
+            target=NodeFilter(types="dir"),
+            mask=FieldMask(paths=["foobar"]),
+        )
+    )
+    assert request == Path(
+        node=[
+            Node(
+                swhid=TEST_ORIGIN_ID,
+            ),
+            Node(
+                swhid="swh:1:snp:0000000000000000000000000000000000000020",
+            ),
+            Node(
+                swhid="swh:1:rev:0000000000000000000000000000000000000009",
+            ),
+            Node(
+                swhid="swh:1:dir:0000000000000000000000000000000000000008",
+            ),
+        ]
+    )
+
+
 def test_minimal_fields(graph_grpc_stub):
     """Test path between ori 1 and any dir (forward graph)"""
     request = graph_grpc_stub.FindPathTo(
