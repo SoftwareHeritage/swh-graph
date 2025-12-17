@@ -4142,9 +4142,49 @@ dependencies = [
 
 [[package]]
 name = "sux"
-version = "0.10.1"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "592a452caf0c963e7fd1d00ed44354250cbc16a561d94b2c35b41c2b428997e4"
+checksum = "29949eff4a64e05149a5147f1695fd8576c990504a217f28391c09e007d831dc"
+dependencies = [
+ "ambassador",
+ "anyhow",
+ "arbitrary-chunks",
+ "bitflags 2.9.4",
+ "clap",
+ "common_traits",
+ "crossbeam-channel",
+ "derivative",
+ "derive_setters",
+ "dsi-progress-logger",
+ "env_logger 0.11.5",
+ "epserde",
+ "fallible-iterator",
+ "flate2",
+ "impl-tools",
+ "itertools 0.14.0",
+ "jiff",
+ "lambert_w",
+ "lender",
+ "libc",
+ "log",
+ "mem_dbg",
+ "rand 0.9.0",
+ "rayon",
+ "rdst",
+ "sync-cell-slice",
+ "tempfile",
+ "thiserror 2.0.17",
+ "thread-priority",
+ "value-traits",
+ "xxhash-rust",
+ "zerocopy 0.8.27",
+ "zstd 0.13.2",
+]
+
+[[package]]
+name = "sux"
+version = "0.10.3"
+source = "git+https://github.com/progval/sux-rs?rev=b75f768837730ed685f0b30926979ad41c4da2f4#b75f768837730ed685f0b30926979ad41c4da2f4"
 dependencies = [
  "ambassador",
  "anyhow",
@@ -4223,7 +4263,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
- "sux 0.10.1",
+ "sux 0.10.3 (git+https://github.com/progval/sux-rs?rev=b75f768837730ed685f0b30926979ad41c4da2f4)",
  "tempfile",
  "thiserror 1.0.51",
  "thread_local",
@@ -5112,7 +5152,7 @@ dependencies = [
  "rayon",
  "rdst",
  "sealed",
- "sux 0.10.1",
+ "sux 0.10.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "sync-cell-slice",
  "sysinfo",
  "tempfile",
@@ -5142,7 +5182,7 @@ dependencies = [
  "rand 0.9.0",
  "rayon",
  "sealed",
- "sux 0.10.1",
+ "sux 0.10.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "sync-cell-slice",
  "thiserror 2.0.17",
  "value-traits",
@@ -5175,7 +5215,7 @@ dependencies = [
  "predicates",
  "rand 0.9.0",
  "rayon",
- "sux 0.10.1",
+ "sux 0.10.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "sysinfo",
  "tempfile",
  "value-traits",

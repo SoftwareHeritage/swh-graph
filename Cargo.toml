@@ -27,7 +27,8 @@ swh-graph = { version = "9.0.0", path = "./rust/" }
 webgraph = "0.5.0"
 webgraph-algo = "0.5.0"
 webgraph-cli = "0.3.0"
-sux = "0.10.0"
+#sux = { version = "0.10.3", features = ["epserde"] }
+sux = { git = "https://github.com/progval/sux-rs", rev = "b75f768837730ed685f0b30926979ad41c4da2f4", features = ["epserde"] } # https://github.com/vigna/sux-rs/pull/91
 value-traits = "0.2.0"
 
 # CLI
