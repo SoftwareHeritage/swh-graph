@@ -4184,7 +4184,7 @@ dependencies = [
 [[package]]
 name = "sux"
 version = "0.10.3"
-source = "git+https://github.com/progval/sux-rs?rev=b75f768837730ed685f0b30926979ad41c4da2f4#b75f768837730ed685f0b30926979ad41c4da2f4"
+source = "git+https://github.com/progval/sux-rs?rev=abc13be9db6cfa222c3ae8d38d4eb124a60b206a#abc13be9db6cfa222c3ae8d38d4eb124a60b206a"
 dependencies = [
  "ambassador",
  "anyhow",
@@ -4263,7 +4263,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
- "sux 0.10.3 (git+https://github.com/progval/sux-rs?rev=b75f768837730ed685f0b30926979ad41c4da2f4)",
+ "sux 0.10.3 (git+https://github.com/progval/sux-rs?rev=abc13be9db6cfa222c3ae8d38d4eb124a60b206a)",
  "tempfile",
  "thiserror 1.0.51",
  "thread_local",
