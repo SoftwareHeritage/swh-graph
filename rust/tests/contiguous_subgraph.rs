@@ -3,8 +3,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-#![cfg(feature = "unstable_contiguous_subgraph")]
-
 use anyhow::Result;
 use sux::prelude::EliasFanoBuilder;
 
