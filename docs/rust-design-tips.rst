@@ -7,6 +7,8 @@ Design tips for Rust code using swh-graph
 This page documents various designs that have proven to work well with swh-graph in terms of both maintainability and performance.
 They should also generalize to similar workloads, ie. when batch-processing immutable data on a single machine and negligible network access.
 
+Use `flamegraph <https://github.com/flamegraph-rs/flamegraph>`_ and `perf top <https://www.brendangregg.com/perf.html>`_ to find bottlenecks.
+
 Parallelism
 ===========
 
@@ -47,9 +49,10 @@ System configuration
 Avoid network filesystems at all cost for ``mmap``-ed arrays. Avoid compressed filesystems too, if possible.
 We do a lot of tiny random reads of ``mmap``-ed arrays, and this causes a high latency.
 
-Do not use GNU malloc (the default on GNU/Linux) in multithreaded code, it has high overhead.
-Use `jemalloc <https://jemalloc.net/>`_ or `mimalloc <https://microsoft.github.io/mimalloc/>`__, whichever is faster on your use-case.
-jemalloc is slow to compile, so default to mimalloc.
+If you see ``malloc`` or ``free`` in ``perf top``, it means your memory allocator is a bottleneck.
+The default malloc on GNU/Linux (GNU malloc) has high overhead in multithreaded code with many allocations.
+Replace it with `jemalloc <https://jemalloc.net/>`_ or `mimalloc <https://microsoft.github.io/mimalloc/>`__,
+whichever is faster on your use-case. jemalloc is slow to compile, so default to mimalloc.
 You may use either the Rust crates to set a global allocator or ``LD_PRELOAD``. Both seem to work equally.
 
 Avoid heap memory allocation in tight loops at all cost. Avoid small persistent structures on the heap.
