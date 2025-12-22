@@ -11,6 +11,7 @@
    api
    grpc-api
    Rust API <https://docs.rs/swh-graph/>
+   rust-design-tips
    memory
    compression
    cli
