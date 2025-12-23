@@ -3,9 +3,10 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use crate::label_builder::LabelBuilder;
+
 use super::proto;
 use swh_graph::graph::*;
-use swh_graph::labels::{EdgeLabel, VisitStatus};
 use swh_graph::properties::{
     DataFilesAvailability, LabelNames, Maps, OptContents, OptPersons, OptStrings, OptTimestamps,
     PropertiesBackend,
@@ -23,13 +24,6 @@ mod node_builder_bitmasks {
     //                                                                          xxxxx
     pub const SUCCESSOR: u32 =                  0b00000000_00000000_00000000_00011111;
     pub const SUCCESSOR_SWHID: u32 =            0b00000000_00000000_00000000_00000001;
-
-    //                                                                          xxxx
-    pub const SUCCESSOR_LABEL: u32 =            0b00000000_00000000_00000000_00011110;
-    pub const SUCCESSOR_LABEL_NAME: u32 =       0b00000000_00000000_00000000_00000010;
-    pub const SUCCESSOR_LABEL_PERMISSION: u32 = 0b00000000_00000000_00000000_00000100;
-    pub const SUCCESSOR_LABEL_VISIT_TS: u32 =   0b00000000_00000000_00000000_00001000;
-    pub const SUCCESSOR_LABEL_FULL_VISIT: u32 = 0b00000000_00000000_00000000_00010000;
 
     //                                                                       x
     pub const NUM_SUCCESSORS: u32 =             0b00000000_00000000_00000000_10000000;
@@ -62,6 +56,9 @@ mod node_builder_bitmasks {
     pub const ORI_URL: u32 =                    0b00010000_00000000_00000000_00000000;
 
     pub const DATA: u32 = REV | REL | CNT | ORI;
+
+    //                                            x
+    pub const SWHID: u32 =                      0b10000000_00000000_00000000_00000000;
 }
 
 use node_builder_bitmasks::*;
@@ -71,6 +68,7 @@ pub struct NodeBuilder<G: Clone + Send + Sync + 'static> {
     graph: G,
     // Which fields to include, based on the [`FieldMask`](proto::FieldMask)
     bitmask: u32,
+    label_builder: LabelBuilder<G>,
 }
 
 impl<
@@ -89,29 +87,58 @@ impl<
     > NodeBuilder<G>
 {
     #[allow(clippy::result_large_err)] // this is called by implementations of Tonic traits, which can't return Result<_, Box<Status>>
-    pub fn new(graph: G, mask: Option<prost_types::FieldMask>) -> Result<Self, tonic::Status> {
+    pub fn new(
+        graph: G,
+        mask: Option<prost_types::FieldMask>,
+        prefix: Option<&str>,
+    ) -> Result<Self, tonic::Status> {
+        let mut label_mask = mask.clone();
+        let label_prefix = match prefix {
+            Some(prefix) => format!("{prefix}.successor.label"),
+            None => String::from("successor.label"),
+        };
+        let mask = match (prefix, mask) {
+            (Some(prefix), Some(mask)) => {
+                if mask.paths.contains(&String::from(prefix)) {
+                    // Disable filtering in prefix.*
+                    label_mask = None;
+                    None
+                } else {
+                    let strip_prefix = format!("{prefix}.");
+                    Some(prost_types::FieldMask {
+                        paths: mask
+                            .paths
+                            .iter()
+                            .flat_map(|field| field.strip_prefix(&strip_prefix))
+                            .map(|field| field.to_owned())
+                            .collect(),
+                    })
+                }
+            }
+            (_, mask) => mask,
+        };
+
+        let label_builder = LabelBuilder::new(graph.clone(), label_mask, &label_prefix)?;
+
         let Some(mask) = mask else {
             return Ok(NodeBuilder {
-                graph,
+                graph: graph.clone(),
                 bitmask: u32::MAX,
+                label_builder,
             }); // All bits set
         };
         let mut node_builder = NodeBuilder {
             graph,
             bitmask: 0u32, // No bits set
+            label_builder,
         };
         for field in mask.paths {
             node_builder.bitmask |= match field.as_str() {
                 // Tonic does not allow omitting non-optional fields, so we have to
                 // include "swhid" unconditionally
-                "swhid" => 0,
+                "swhid" => SWHID,
                 "successor" => SUCCESSOR,
                 "successor.swhid" => SUCCESSOR_SWHID,
-                "successor.label" => SUCCESSOR_LABEL,
-                "successor.label.name" => SUCCESSOR_LABEL_NAME,
-                "successor.label.permission" => SUCCESSOR_LABEL_PERMISSION,
-                "successor.label.visit_timestamp" => SUCCESSOR_LABEL_VISIT_TS,
-                "successor.label.is_full_visit" => SUCCESSOR_LABEL_FULL_VISIT,
                 "num_successors" => NUM_SUCCESSORS,
                 "cnt" => CNT,
                 "cnt.length" => CNT_LENGTH,
@@ -144,20 +171,7 @@ impl<
 
     pub fn build_node(&self, node_id: usize) -> proto::Node {
         let successors: Vec<_> = self.if_mask(SUCCESSOR, || {
-            if self.bitmask & SUCCESSOR_LABEL != 0 {
-                self.graph
-                    .labeled_successors(node_id)
-                    .map(|(succ, labels)| proto::Successor {
-                        swhid: self.if_mask(SUCCESSOR_SWHID, || {
-                            Some(self.graph.properties().swhid(succ).to_string())
-                        }),
-                        label: labels
-                            .into_iter()
-                            .map(|label| self.build_edge_label(label))
-                            .collect(),
-                    })
-                    .collect()
-            } else {
+            if self.label_builder.empty_mask() {
                 self.graph
                     .successors(node_id)
                     .into_iter()
@@ -166,6 +180,20 @@ impl<
                             Some(self.graph.properties().swhid(succ).to_string())
                         }),
                         label: Vec::new(), // Not requested
+                    })
+                    .collect()
+            } else {
+                self.graph
+                    .labeled_successors(node_id)
+                    .map(|(succ, labels)| proto::Successor {
+                        swhid: self.if_mask(SUCCESSOR_SWHID, || {
+                            Some(self.graph.properties().swhid(succ).to_string())
+                        }),
+                        label: labels
+                            .into_iter()
+                            // Cannot panic because we made sure the mask is not empty
+                            .map(|label| self.label_builder.build_edge_label(label).unwrap())
+                            .collect(),
                     })
                     .collect()
             }
@@ -194,46 +222,6 @@ impl<
                 NodeType::Snapshot => None,
                 NodeType::Origin => self.if_mask(ORI, || Some(self.build_origin_data(node_id))),
             }),
-        }
-    }
-
-    fn build_edge_label(&self, label: EdgeLabel) -> proto::EdgeLabel {
-        match label {
-            EdgeLabel::Branch(label) => proto::EdgeLabel {
-                name: self.if_mask(SUCCESSOR_LABEL_NAME, || {
-                    Some(self.graph.properties().label_name(label.label_name_id()))
-                }),
-                permission: None,
-                visit_timestamp: None,
-                is_full_visit: None,
-            },
-            EdgeLabel::DirEntry(label) => proto::EdgeLabel {
-                name: self.if_mask(SUCCESSOR_LABEL_NAME, || {
-                    Some(self.graph.properties().label_name(label.label_name_id()))
-                }),
-                permission: self.if_mask(SUCCESSOR_LABEL_PERMISSION, || {
-                    Some(
-                        label
-                            .permission()
-                            .unwrap_or(swh_graph::labels::Permission::None)
-                            .to_git()
-                            .into(),
-                    )
-                }),
-                visit_timestamp: None,
-                is_full_visit: None,
-            },
-            EdgeLabel::Visit(label) => proto::EdgeLabel {
-                name: None,
-                permission: None,
-                visit_timestamp: self.if_mask(SUCCESSOR_LABEL_VISIT_TS, || Some(label.timestamp())),
-                is_full_visit: self.if_mask(SUCCESSOR_LABEL_FULL_VISIT, || {
-                    Some(match label.status() {
-                        VisitStatus::Full => true,
-                        VisitStatus::Partial => false,
-                    })
-                }),
-            },
         }
     }
 

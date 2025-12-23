@@ -31,6 +31,7 @@ use proto::traversal_service_server::TraversalServiceServer;
 mod filters;
 mod find_path;
 pub mod graph;
+mod label_builder;
 pub mod metrics;
 mod node_builder;
 #[cfg(feature = "sentry")]
@@ -136,6 +137,7 @@ impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask.paths.iter().map(|field| field.to_owned()).collect(),
             }),
+            None,
         )?;
         let node_id = self.try_get_node_id(&swhid)?;
         Ok(Response::new(node_builder.build_node(node_id)))

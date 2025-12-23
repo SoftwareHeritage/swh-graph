@@ -158,7 +158,7 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
                     arc_checker.matches(src, dst)
                 }));
                 let node_builder =
-                    NodeBuilder::new(subgraph.clone(), request.get_ref().mask.clone())?;
+                    NodeBuilder::new(subgraph.clone(), request.get_ref().mask.clone(), None)?;
                 let on_node = move |node, _num_successors| {
                     *num_returned_nodes += 1;
                     tx.blocking_send(Ok(node_builder.build_node(node)))

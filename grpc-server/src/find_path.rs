@@ -149,7 +149,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             edges,
             max_edges,
             max_depth,
-            mut mask,
+            mask,
         } = request.get_ref().clone();
 
         let direction: proto::GraphDirection = direction
@@ -185,27 +185,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     move |src, dst| arc_checker.matches(src, dst),
                 ));
 
-                if let Some(ref mask_ref) = mask {
-                    if mask_ref.paths.iter().any(|field| *field == "node") {
-                        // Disable filtering in node.*
-                        mask = None;
-                    }
-                }
-
-                let node_builder = NodeBuilder::new(
-                    subgraph.clone(),
-                    mask.map(|mask| prost_types::FieldMask {
-                        paths: mask
-                            .paths
-                            .iter()
-                            // also drops any field not starting with "node." because they would
-                            // apply to the overall structure (if we ever add fields), not to
-                            // the node.
-                            .flat_map(|field| field.strip_prefix("node."))
-                            .map(|field| field.to_owned())
-                            .collect(),
-                    }),
-                )?;
+                let node_builder = NodeBuilder::new(subgraph.clone(), mask.clone(), Some("node"))?;
 
                 let on_node = |node, depth, num_successors| {
                     if target_checker.matches(node, num_successors) {
@@ -295,7 +275,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             edges_reverse,
             max_edges,
             max_depth,
-            mut mask,
+            mask,
         } = request.get_ref().clone();
 
         let direction: proto::GraphDirection = direction
@@ -359,39 +339,9 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
         let transpose_subgraph = Arc::new(Transposed(subgraph.clone()));
         let transpose_graph = Arc::new(Transposed(graph.clone()));
 
-        if let Some(ref mask_ref) = mask {
-            if mask_ref.paths.iter().any(|field| *field == "node") {
-                // Disable filtering in node.*
-                mask = None;
-            }
-        }
-
-        let forward_node_builder = NodeBuilder::new(
-            subgraph.clone(),
-            mask.clone().map(|mask| prost_types::FieldMask {
-                paths: mask
-                    .paths
-                    .iter()
-                    // also drops any field not starting with "node." because they would
-                    // apply to the overall structure (if we ever add fields), not to
-                    // the node.
-                    .flat_map(|field| field.strip_prefix("node."))
-                    .map(|field| field.to_owned())
-                    .collect(),
-            }),
-        )?;
-        let backward_node_builder = NodeBuilder::new(
-            transpose_subgraph.clone(),
-            mask.map(|mask| prost_types::FieldMask {
-                paths: mask
-                    .paths
-                    .iter()
-                    // ditto
-                    .flat_map(|field| field.strip_prefix("node."))
-                    .map(|field| field.to_owned())
-                    .collect(),
-            }),
-        )?;
+        let forward_node_builder = NodeBuilder::new(subgraph.clone(), mask.clone(), Some("node"))?;
+        let backward_node_builder =
+            NodeBuilder::new(transpose_subgraph.clone(), mask.clone(), Some("node"))?;
 
         // Technically we don't need locks because the closures are called sequentially,
         // but I don't see a way around it without unsafe{}.
