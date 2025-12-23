@@ -296,7 +296,7 @@ def run_e2e_check(
                 )
                 errors.append((origin, author))
     else:
-        logger.warn("End-to-end checks for full names skipped")
+        logger.warning("End-to-end checks for full names skipped")
 
     with open(meta_path / "e2e-check.json", "w") as fd:
         json.dump(meta_data, fd, indent=4)
