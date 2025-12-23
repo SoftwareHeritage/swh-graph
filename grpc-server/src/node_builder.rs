@@ -169,6 +169,10 @@ impl<
         Ok(node_builder)
     }
 
+    pub fn empty_mask(&self) -> bool {
+        self.bitmask == 0 && self.label_builder.empty_mask()
+    }
+
     pub fn build_node(&self, node_id: usize) -> proto::Node {
         let successors: Vec<_> = self.if_mask(SUCCESSOR, || {
             if self.label_builder.empty_mask() {

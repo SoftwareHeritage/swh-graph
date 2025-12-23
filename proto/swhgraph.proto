@@ -217,6 +217,18 @@ message Path {
      * performing a FindPathBetween search with two backward graphs, this will
      * be the index of the common ancestor in the path. */
     optional int32 midpoint_index = 2;
+    /* List of nodes in the path, from source to destination, and labels between them.
+     * This allows getting the path within a directory structure, for example.
+     *
+     * Currently only implemented for FindPathTo requests. */
+    repeated LabeledNode labeled_node = 3;
+}
+
+/* Represents a node and the label between it and its successor. */
+message LabeledNode {
+  optional Node node = 1;
+
+  repeated EdgeLabel label = 2;
 }
 
 /* Represents a successor of a given node. */

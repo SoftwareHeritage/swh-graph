@@ -10,13 +10,16 @@ import grpc
 import pytest
 
 from swh.graph.grpc.swhgraph_pb2 import (
+    EdgeLabel,
     FindPathToRequest,
     GraphDirection,
+    LabeledNode,
     Node,
     NodeFilter,
     OriginData,
     Path,
     RevisionData,
+    Successor,
 )
 
 TEST_ORIGIN_ID = "swh:1:ori:{}".format(
@@ -99,16 +102,271 @@ def test_mask_node(graph_grpc_stub):
             mask=FieldMask(paths=["node"]),
         )
     )
-    request_without_mask = graph_grpc_stub.FindPathTo(
+    expected = Path(
+        node=[
+            Node(
+                swhid=TEST_ORIGIN_ID,
+                successor=[
+                    Successor(
+                        swhid="swh:1:snp:0000000000000000000000000000000000000020",
+                        label=[
+                            EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)
+                        ],
+                    ),
+                ],
+                ori=OriginData(url="https://example.com/swh/graph"),
+                num_successors=1,
+            ),
+            Node(
+                swhid="swh:1:snp:0000000000000000000000000000000000000020",
+                successor=[
+                    Successor(
+                        swhid="swh:1:rel:0000000000000000000000000000000000000010",
+                        label=[EdgeLabel(name=b"refs/tags/v1.0")],
+                    ),
+                    Successor(
+                        swhid="swh:1:rev:0000000000000000000000000000000000000009",
+                        label=[EdgeLabel(name=b"refs/heads/master")],
+                    ),
+                ],
+                num_successors=2,
+            ),
+            Node(
+                swhid="swh:1:rev:0000000000000000000000000000000000000009",
+                successor=[
+                    Successor(
+                        swhid="swh:1:rev:0000000000000000000000000000000000000003"
+                    ),
+                    Successor(
+                        swhid="swh:1:dir:0000000000000000000000000000000000000008"
+                    ),
+                ],
+                rev=RevisionData(
+                    author=2,
+                    author_date=1111144440,
+                    author_date_offset=120,
+                    committer=2,
+                    committer_date=1111155550,
+                    committer_date_offset=120,
+                    message=b"Add parser",
+                ),
+                num_successors=2,
+            ),
+            Node(
+                swhid="swh:1:dir:0000000000000000000000000000000000000008",
+                successor=[
+                    Successor(
+                        swhid="swh:1:cnt:0000000000000000000000000000000000000001",
+                        label=[EdgeLabel(name=b"README.md", permission=33188)],
+                    ),
+                    Successor(
+                        swhid="swh:1:cnt:0000000000000000000000000000000000000007",
+                        label=[EdgeLabel(name=b"parser.c", permission=33188)],
+                    ),
+                    Successor(
+                        swhid="swh:1:dir:0000000000000000000000000000000000000006",
+                        label=[EdgeLabel(name=b"tests", permission=33261)],
+                    ),
+                ],
+                num_successors=3,
+            ),
+        ]
+    )
+    assert request == expected
+
+
+def test_mask_node_swhid(graph_grpc_stub):
+    """
+    Test path between ori 1 and any dir (forward graph) with mask = ['node.swhid']
+    """
+    request = graph_grpc_stub.FindPathTo(
         FindPathToRequest(
             src=[TEST_ORIGIN_ID],
             target=NodeFilter(types="dir"),
+            mask=FieldMask(paths=["node.swhid"]),
         )
     )
-    assert request_without_mask == request
+    expected = Path(
+        node=[
+            Node(swhid=TEST_ORIGIN_ID),
+            Node(swhid="swh:1:snp:0000000000000000000000000000000000000020"),
+            Node(swhid="swh:1:rev:0000000000000000000000000000000000000009"),
+            Node(swhid="swh:1:dir:0000000000000000000000000000000000000008"),
+        ]
+    )
+    assert request == expected
 
 
-def test_mask_unkown_field(graph_grpc_stub):
+def test_mask_labeled_node(graph_grpc_stub):
+    """
+    Test path between ori 1 and any dir (forward graph) with mask = ['labeled_node.node']
+    """
+    request = graph_grpc_stub.FindPathTo(
+        FindPathToRequest(
+            src=[TEST_ORIGIN_ID],
+            target=NodeFilter(types="dir"),
+            mask=FieldMask(paths=["labeled_node.node"]),
+        )
+    )
+    expected = Path(
+        labeled_node=[
+            LabeledNode(
+                node=Node(
+                    swhid=TEST_ORIGIN_ID,
+                    successor=[
+                        Successor(
+                            swhid="swh:1:snp:0000000000000000000000000000000000000020",
+                            label=[
+                                EdgeLabel(
+                                    visit_timestamp=1367900441, is_full_visit=True
+                                )
+                            ],
+                        ),
+                    ],
+                    ori=OriginData(url="https://example.com/swh/graph"),
+                    num_successors=1,
+                ),
+            ),
+            LabeledNode(
+                node=Node(
+                    swhid="swh:1:snp:0000000000000000000000000000000000000020",
+                    successor=[
+                        Successor(
+                            swhid="swh:1:rel:0000000000000000000000000000000000000010",
+                            label=[EdgeLabel(name=b"refs/tags/v1.0")],
+                        ),
+                        Successor(
+                            swhid="swh:1:rev:0000000000000000000000000000000000000009",
+                            label=[EdgeLabel(name=b"refs/heads/master")],
+                        ),
+                    ],
+                    num_successors=2,
+                ),
+            ),
+            LabeledNode(
+                node=Node(
+                    swhid="swh:1:rev:0000000000000000000000000000000000000009",
+                    successor=[
+                        Successor(
+                            swhid="swh:1:rev:0000000000000000000000000000000000000003"
+                        ),
+                        Successor(
+                            swhid="swh:1:dir:0000000000000000000000000000000000000008"
+                        ),
+                    ],
+                    rev=RevisionData(
+                        author=2,
+                        author_date=1111144440,
+                        author_date_offset=120,
+                        committer=2,
+                        committer_date=1111155550,
+                        committer_date_offset=120,
+                        message=b"Add parser",
+                    ),
+                    num_successors=2,
+                ),
+            ),
+            LabeledNode(
+                node=Node(
+                    swhid="swh:1:dir:0000000000000000000000000000000000000008",
+                    successor=[
+                        Successor(
+                            swhid="swh:1:cnt:0000000000000000000000000000000000000001",
+                            label=[EdgeLabel(name=b"README.md", permission=33188)],
+                        ),
+                        Successor(
+                            swhid="swh:1:cnt:0000000000000000000000000000000000000007",
+                            label=[EdgeLabel(name=b"parser.c", permission=33188)],
+                        ),
+                        Successor(
+                            swhid="swh:1:dir:0000000000000000000000000000000000000006",
+                            label=[EdgeLabel(name=b"tests", permission=33261)],
+                        ),
+                    ],
+                    num_successors=3,
+                ),
+            ),
+        ]
+    )
+    assert request == expected
+
+
+def test_mask_labeled_node_swhid(graph_grpc_stub):
+    """
+    Test path between ori 1 and any dir (forward graph) with mask = ['labeled_node.node.swhid']
+    """
+    request = graph_grpc_stub.FindPathTo(
+        FindPathToRequest(
+            src=[TEST_ORIGIN_ID],
+            target=NodeFilter(types="dir"),
+            mask=FieldMask(paths=["labeled_node.node.swhid"]),
+        )
+    )
+    expected = Path(
+        labeled_node=[
+            LabeledNode(node=Node(swhid=TEST_ORIGIN_ID)),
+            LabeledNode(
+                node=Node(swhid="swh:1:snp:0000000000000000000000000000000000000020")
+            ),
+            LabeledNode(
+                node=Node(swhid="swh:1:rev:0000000000000000000000000000000000000009")
+            ),
+            LabeledNode(
+                node=Node(swhid="swh:1:dir:0000000000000000000000000000000000000008")
+            ),
+        ]
+    )
+    assert request == expected
+
+
+def test_mask_labeled_label(graph_grpc_stub):
+    """
+    Test path between ori 1 and any dir (forward graph) with mask = ['labeled_node.label']
+    """
+    request = graph_grpc_stub.FindPathTo(
+        FindPathToRequest(
+            src=[TEST_ORIGIN_ID],
+            target=NodeFilter(types="dir"),
+            mask=FieldMask(paths=["labeled_node.label"]),
+        )
+    )
+    expected = Path(
+        labeled_node=[
+            LabeledNode(
+                label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)]
+            ),
+            LabeledNode(label=[EdgeLabel(name=b"refs/heads/master")]),
+            LabeledNode(),
+            LabeledNode(),
+        ]
+    )
+    assert request == expected
+
+
+def test_mask_labeled_label_name(graph_grpc_stub):
+    """
+    Test path between ori 1 and any dir (forward graph) with mask = ['labeled_node.label.name']
+    """
+    request = graph_grpc_stub.FindPathTo(
+        FindPathToRequest(
+            src=[TEST_ORIGIN_ID],
+            target=NodeFilter(types="dir"),
+            mask=FieldMask(paths=["labeled_node.label.name"]),
+        )
+    )
+    print(request)
+    expected = Path(
+        labeled_node=[
+            LabeledNode(label=[EdgeLabel()]),
+            LabeledNode(label=[EdgeLabel(name=b"refs/heads/master")]),
+            LabeledNode(),
+            LabeledNode(),
+        ]
+    )
+    assert request == expected
+
+
+def test_mask_unknown_field(graph_grpc_stub):
     """
     Test path between ori 1 and any dir (forward graph) with mask = ['foobar']
     """
@@ -119,22 +377,7 @@ def test_mask_unkown_field(graph_grpc_stub):
             mask=FieldMask(paths=["foobar"]),
         )
     )
-    assert request == Path(
-        node=[
-            Node(
-                swhid=TEST_ORIGIN_ID,
-            ),
-            Node(
-                swhid="swh:1:snp:0000000000000000000000000000000000000020",
-            ),
-            Node(
-                swhid="swh:1:rev:0000000000000000000000000000000000000009",
-            ),
-            Node(
-                swhid="swh:1:dir:0000000000000000000000000000000000000008",
-            ),
-        ]
-    )
+    assert request == Path()
 
 
 def test_minimal_fields(graph_grpc_stub):
