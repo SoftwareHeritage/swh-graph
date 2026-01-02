@@ -61,6 +61,10 @@ This means ``Vec``/``String``, ``HashSet``/``HashMap``, etc.
 Associative data structures
 ===========================
 
+Use integer identifiers as much as possible, instead of SWHIDs or strings (eg. node labels).
+They are smaller (8 bytes integer instead of 8 bytes pointer + 8 bytes length + 8 bytes capacity + the string itself)
+and don't require heap allocations or dereferencing.
+
 Instead of a large ``HashMap<NodeId, T>``, use ``Vec<T>`` or ``Vec<Option<T>>`` if you know that most
 of your nodes are going to have a value.
 
