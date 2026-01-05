@@ -17,16 +17,19 @@ version = "9.1.0"
 
 [workspace.dependencies]
 anyhow = { version="1.0.79", features=["backtrace"] }
-dsi-bitstream = "0.5.0"
+dsi-bitstream = "0.6.0"
 epserde = "0.11.1"
 itertools = { version = "0.11.0" }
 lender = "0.4.2"
 mmap-rs = "0.6.1"
 rayon = { version = "1.9.0" }
 swh-graph = { version = "9.0.0", path = "./rust/" }
-webgraph = "0.5.0"
-webgraph-algo = "0.5.0"
-webgraph-cli = "0.3.0"
+#webgraph = "0.5.0"
+#webgraph-algo = "0.5.0"
+#webgraph-cli = "0.3.0"
+webgraph = { git = "https://github.com/vigna/webgraph-rs", rev = "756aced6aea0a43cc04767da8a65e730b0cbf037" }
+webgraph-algo = { git = "https://github.com/vigna/webgraph-rs", rev = "756aced6aea0a43cc04767da8a65e730b0cbf037" }
+webgraph-cli = { git = "https://github.com/vigna/webgraph-rs", rev = "756aced6aea0a43cc04767da8a65e730b0cbf037" }
 sux = "0.10.0"
 value-traits = "0.2.0"
 
