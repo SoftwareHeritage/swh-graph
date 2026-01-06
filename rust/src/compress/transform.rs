@@ -19,7 +19,6 @@ use webgraph::utils::ParSortPairs;
 /// Writes a new graph on disk, obtained by applying the function to all arcs
 /// on the source graph.
 pub fn transform<F, G, Iter>(
-    input_batch_size: usize,
     partitions_per_thread: usize,
     graph: G,
     transformation: F,
@@ -35,8 +34,6 @@ where
     // Adapted from https://github.com/vigna/webgraph-rs/blob/08969fb1ac4ea59aafdbae976af8e026a99c9ac5/src/bin/perm.rs
     let num_nodes = graph.num_nodes();
 
-    let num_batches = num_nodes.div_ceil(input_batch_size);
-
     let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
 
     let num_threads = num_cpus::get();
@@ -47,13 +44,11 @@ where
     let num_partitions = num_nodes.div_ceil(nodes_per_partition);
 
     log::info!(
-        "Transforming {} nodes with {} threads, {} partitions, {} nodes per partition, {} batches of size {}",
+        "Transforming {} nodes with {} threads, {} partitions, {} nodes per partition",
         num_nodes,
         num_threads,
         num_partitions,
         nodes_per_partition,
-        num_batches,
-        input_batch_size
     );
 
     let mut pl = concurrent_progress_logger!(

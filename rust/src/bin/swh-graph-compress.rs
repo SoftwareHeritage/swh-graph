@@ -69,8 +69,6 @@ enum Commands {
     /// Uses the permutation produced by the BFS or LLP to reorder nodes in the graph
     /// to get a more compressible graph
     Permute {
-        #[arg(long, default_value_t = 102400)]
-        input_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long)]
@@ -80,8 +78,6 @@ enum Commands {
     },
     /// Produces a new graph by inverting the direction of all arcs in the source graph
     Transpose {
-        #[arg(long, default_value_t = 102400)]
-        input_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         graph_dir: PathBuf,
@@ -89,8 +85,6 @@ enum Commands {
     },
     /// Combines a graph and its transposed graph into a single symmetric graph
     Simplify {
-        #[arg(long, default_value_t = 102400)]
-        input_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         graph_dir: PathBuf,
@@ -102,8 +96,6 @@ enum Commands {
     /// This is equivalent to Permute + Transpose + Simplify without generating temporary
     /// graphs
     PermuteAndSymmetrize {
-        #[arg(long, default_value_t = 102400)]
-        input_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long)]
@@ -441,7 +433,6 @@ pub fn main() -> Result<()> {
                 .context("Could not write permutation")?;
         }
         Commands::Permute {
-            input_batch_size,
             partitions_per_thread,
             graph_dir,
             permutation,
@@ -459,7 +450,6 @@ pub fn main() -> Result<()> {
 
             log::info!("Permuting...");
             transform(
-                input_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| unsafe {
@@ -473,7 +463,6 @@ pub fn main() -> Result<()> {
         }
 
         Commands::Transpose {
-            input_batch_size,
             partitions_per_thread,
             graph_dir,
             target_dir,
@@ -488,7 +477,6 @@ pub fn main() -> Result<()> {
 
             log::info!("Transposing...");
             transform(
-                input_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| [(dst, src)],
@@ -501,7 +489,6 @@ pub fn main() -> Result<()> {
         }
 
         Commands::PermuteAndSymmetrize {
-            input_batch_size,
             partitions_per_thread,
             graph_dir,
             permutation,
@@ -527,7 +514,6 @@ pub fn main() -> Result<()> {
 
             log::info!("Permuting, transposing, and symmetrizing...");
             transform(
-                input_batch_size,
                 partitions_per_thread,
                 graph,
                 |src, dst| {
