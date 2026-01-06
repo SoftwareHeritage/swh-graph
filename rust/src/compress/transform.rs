@@ -86,7 +86,6 @@ where
                                     .flat_map(move |dst| {
                                         let res: Vec<_> =
                                             transformation(src, dst).into_iter().collect();
-                                        println!("{src}->{dst}   ->    {res:?}");
                                         res.into_iter()
                                     })
                                     .collect();
