@@ -103,7 +103,7 @@ impl FrontCodedListBuilder {
                 writer
                     .write_all(&self.pointers)
                     .context("Could not write pointers")?;
-                writer.flush().context("Could not write bytearray")?;
+                writer.flush().context("Could not flush pointers")?;
                 Ok(())
             },
         );

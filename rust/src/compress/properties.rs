@@ -446,6 +446,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
             })?;
         }
 
+        writer.flush().context("Could not flush messages")?;
+
         log::info!("Writing offsets...");
         self.write(suffixes::MESSAGE_OFFSET, offsets)?;
         Ok(())
@@ -485,6 +487,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
 
             Ok(())
         })?;
+
+        writer.flush().context("Could not flush tag names")?;
 
         log::info!("Writing offsets...");
         self.write(suffixes::TAG_NAME_OFFSET, offsets)?;

@@ -308,7 +308,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
             .context("Could not close label offsets writer")?
             .into_inner()
             .into_inner()
-            .context("Could not flush label offsets bufwriter"),
+            .context("Could not flush label offsets bufwriter")?,
     );
 
     pl.done();
