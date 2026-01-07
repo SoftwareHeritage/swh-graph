@@ -99,7 +99,7 @@ impl VecPersons {
         let mut committer_id = Vec::with_capacity(data.len());
         for (a, c) in data.into_iter() {
             ensure!(a != Some(u32::MAX), "author_id may not be {}", u32::MAX);
-            ensure!(c != Some(u32::MAX), "author_id may not be {}", u32::MAX);
+            ensure!(c != Some(u32::MAX), "committer_id may not be {}", u32::MAX);
             author_id.push(a.unwrap_or(u32::MAX));
             committer_id.push(c.unwrap_or(u32::MAX));
         }
