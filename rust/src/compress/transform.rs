@@ -78,11 +78,7 @@ where
                             .flat_map(move |(src, succ)| {
                                 let transformed_succ: Vec<_> = succ
                                     .into_iter()
-                                    .flat_map(move |dst| {
-                                        let res: Vec<_> =
-                                            transformation(src, dst).into_iter().collect();
-                                        res.into_iter()
-                                    })
+                                    .flat_map(move |dst| transformation(src, dst).into_iter())
                                     .collect();
                                 pl.light_update();
                                 transformed_succ.into_into_lender().into_lender()
