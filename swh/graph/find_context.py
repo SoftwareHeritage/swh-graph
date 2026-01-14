@@ -6,6 +6,7 @@
 from hashlib import sha1
 import logging
 
+import attr
 from google.protobuf.field_mask_pb2 import FieldMask
 import grpc
 
@@ -29,15 +30,15 @@ logger = logging.getLogger(__name__)
 
 def fqswhid_of_traversal(response, verbose):
     # Build the Fully qualified SWHID
-    fqswhid = []
-    needrevision = True
-    needrelease = True
-    path = []
+    path_items = []
+    revision = None
+    release = None
+    snapshot = None
     url = ""
     shortest_path = iter(response.node)
     target_node = next(shortest_path)
+    swhid = target_node.swhid
     core_swhid = target_node_swhid = ExtendedSWHID.from_string(target_node.swhid)
-    fqswhid.append(target_node.swhid)
     for source_node in shortest_path:
         # response contains the nodes in the order content -> dir -> revision
         # -> release -> snapshot -> origin
@@ -62,7 +63,7 @@ def fqswhid_of_traversal(response, verbose):
             # revision/release/snapshot (eg. because we archive single patch files
             # for nix/guix)
             if pathid:
-                path.insert(0, pathid)
+                path_items.insert(0, pathid)
         if target_node_swhid.object_type == ExtendedObjectType.DIRECTORY:
             pathid = next(
                 (
@@ -76,43 +77,43 @@ def fqswhid_of_traversal(response, verbose):
             )
             # pathid is empty for a root directory
             if pathid:
-                path.insert(0, pathid)
+                path_items.insert(0, pathid)
 
         if target_node_swhid.object_type == ExtendedObjectType.REVISION:
-            if needrevision:
+            if revision is None:
                 revision = target_node.swhid
-                needrevision = False
         if target_node_swhid.object_type == ExtendedObjectType.RELEASE:
-            if needrelease:
+            if release is None:
                 release = target_node.swhid
-                needrelease = False
         if target_node_swhid.object_type == ExtendedObjectType.SNAPSHOT:
             snapshot = target_node.swhid
         target_node = source_node
         target_node_swhid = source_node_swhid
 
     # Now we have all the elements to print a FQ SWHID
-    # We could also build and return a swh.model.swhids.QualifiedSWHID
     if (
         core_swhid.object_type == ExtendedObjectType.CONTENT
         or core_swhid.object_type == ExtendedObjectType.DIRECTORY
     ):
-        fqswhid.append("path=/" + "/".join(path))
-        if not needrevision:
-            fqswhid.append("anchor=" + revision)
-        elif not needrelease:
-            fqswhid.append("anchor=" + release)
-        if snapshot:
-            fqswhid.append("visit=" + snapshot)
-    elif (
-        core_swhid.object_type == ExtendedObjectType.REVISION
-        or core_swhid.object_type == ExtendedObjectType.RELEASE
-    ):
-        if snapshot:
-            fqswhid.append("visit=" + snapshot)
-    if url:
-        fqswhid.append("origin=" + url)
-    return ";".join(fqswhid)
+        path = "/".join(path_items)
+        anchor = revision or release
+    else:
+        path = anchor = None
+
+    if core_swhid.object_type != ExtendedObjectType.SNAPSHOT:
+        visit = snapshot
+    else:
+        visit = None
+
+    fqswhid = attr.evolve(
+        CoreSWHID.from_string(swhid).to_qualified(),
+        path=f"/{path}" if path is not None else None,
+        anchor=anchor,
+        visit=visit,
+        origin=url or None,
+    )
+
+    return str(fqswhid)
 
 
 def main(
