@@ -56,11 +56,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     log::info!("Total length: {}", total_len.unwrap_or(0));
-    if max_length_swhid.is_some() {
+    if let Some(max_length_swhid) = max_length_swhid {
         log::info!(
             "Max content length: {}, in {}",
             max_length,
-            max_length_swhid.unwrap()
+            max_length_swhid
         );
     }
 

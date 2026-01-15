@@ -61,13 +61,12 @@ fn transform_schema(schema: &Schema) -> Arc<Schema> {
         schema
             .fields()
             .iter()
-            .cloned()
             .map(|field| match field.data_type() {
-                DataType::Timestamp(_, _) => (*field)
+                DataType::Timestamp(_, _) => (**field)
                     .clone()
                     //.with_data_type(DataType::Timestamp(TimeUnit::Microsecond, tz.clone())),
                     .with_data_type(DataType::Decimal128(Decimal128Type::MAX_SCALE as _, 9)),
-                _ => (*field).clone(),
+                _ => (**field).clone(),
             })
             .collect::<Vec<_>>(),
     ))
