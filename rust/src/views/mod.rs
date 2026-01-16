@@ -8,7 +8,7 @@
 pub mod contiguous_subgraph;
 pub use contiguous_subgraph::{ContiguousSubgraph, Contraction};
 mod spy;
-pub use spy::GraphSpy;
+pub use spy::{GraphAccessRecord, GraphSpy};
 mod subgraph;
 pub use subgraph::Subgraph;
 mod transposed;

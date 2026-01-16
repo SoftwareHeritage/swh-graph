@@ -10,14 +10,42 @@ use std::sync::{Arc, Mutex};
 use anyhow::Result;
 
 use crate::graph::*;
+use crate::labels::EdgeLabel;
 use crate::properties;
 use crate::NodeType;
+
+/// Record of a graph access operation
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GraphAccessRecord {
+    // Graph methods
+    Path,
+    IsTransposed,
+    NumNodes,
+    HasNode(NodeId),
+    NumArcs,
+    NumNodesByType,
+    NumArcsByType,
+    HasArc(NodeId, NodeId),
+
+    // Forward graph methods
+    Successors(NodeId),
+    Outdegree(NodeId),
+    UntypedLabeledSuccessors(NodeId),
+
+    // Backward graph methods
+    Predecessors(NodeId),
+    Indegree(NodeId),
+    UntypedLabeledPredecessors(NodeId),
+
+    // Properties access
+    Properties,
+}
 
 /// Wraps a graph, and records calls to its methods, useful for tests
 pub struct GraphSpy<G: SwhGraph> {
     pub graph: G,
-    /// Pairs of `(method, arguments)`
-    pub history: Arc<Mutex<Vec<(&'static str, String)>>>,
+    /// History of graph accesses
+    pub history: Arc<Mutex<Vec<GraphAccessRecord>>>,
 }
 
 impl<G: SwhGraph> GraphSpy<G> {
@@ -28,45 +56,42 @@ impl<G: SwhGraph> GraphSpy<G> {
         }
     }
 
-    fn record<Args: std::fmt::Debug>(&self, method: &'static str, arguments: Args) {
-        self.history
-            .lock()
-            .unwrap()
-            .push((method, format!("{arguments:?}")));
+    fn record(&self, record: GraphAccessRecord) {
+        self.history.lock().unwrap().push(record);
     }
 }
 
 impl<G: SwhGraph> SwhGraph for GraphSpy<G> {
     fn path(&self) -> &Path {
-        self.record("path", ());
+        self.record(GraphAccessRecord::Path);
         self.graph.path()
     }
     fn is_transposed(&self) -> bool {
-        self.record("is_transposed", ());
+        self.record(GraphAccessRecord::IsTransposed);
         self.graph.is_transposed()
     }
     fn num_nodes(&self) -> usize {
-        self.record("num_nodes", ());
+        self.record(GraphAccessRecord::NumNodes);
         self.graph.num_nodes()
     }
     fn has_node(&self, node_id: NodeId) -> bool {
-        self.record("has_node", (node_id,));
+        self.record(GraphAccessRecord::HasNode(node_id));
         self.graph.has_node(node_id)
     }
     fn num_arcs(&self) -> u64 {
-        self.record("num_arcs", ());
+        self.record(GraphAccessRecord::NumArcs);
         self.graph.num_arcs()
     }
     fn num_nodes_by_type(&self) -> Result<HashMap<NodeType, usize>> {
-        self.record("num_nodes_by_type", ());
+        self.record(GraphAccessRecord::NumNodesByType);
         self.graph.num_nodes_by_type()
     }
     fn num_arcs_by_type(&self) -> Result<HashMap<(NodeType, NodeType), usize>> {
-        self.record("num_arcs_by_type", ());
+        self.record(GraphAccessRecord::NumArcsByType);
         self.graph.num_arcs_by_type()
     }
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
-        self.record("has_arc", (src_node_id, dst_node_id));
+        self.record(GraphAccessRecord::HasArc(src_node_id, dst_node_id));
         self.graph.has_arc(src_node_id, dst_node_id)
     }
 }
@@ -78,11 +103,11 @@ impl<G: SwhForwardGraph> SwhForwardGraph for GraphSpy<G> {
         Self: 'succ;
 
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
-        self.record("successors", (node_id,));
+        self.record(GraphAccessRecord::Successors(node_id));
         self.graph.successors(node_id)
     }
     fn outdegree(&self, node_id: NodeId) -> usize {
-        self.record("outdegree", (node_id,));
+        self.record(GraphAccessRecord::Outdegree(node_id));
         self.graph.outdegree(node_id)
     }
 }
@@ -98,7 +123,7 @@ impl<G: SwhLabeledForwardGraph> SwhLabeledForwardGraph for GraphSpy<G> {
         Self: 'succ;
 
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
-        self.record("untyped_labeled_successors", (node_id,));
+        self.record(GraphAccessRecord::UntypedLabeledSuccessors(node_id));
         self.graph.untyped_labeled_successors(node_id)
     }
 }
@@ -110,11 +135,11 @@ impl<G: SwhBackwardGraph> SwhBackwardGraph for GraphSpy<G> {
         Self: 'succ;
 
     fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
-        self.record("predecessors", (node_id,));
+        self.record(GraphAccessRecord::Predecessors(node_id));
         self.graph.predecessors(node_id)
     }
     fn indegree(&self, node_id: NodeId) -> usize {
-        self.record("indegree", (node_id,));
+        self.record(GraphAccessRecord::Indegree(node_id));
         self.graph.indegree(node_id)
     }
 }
@@ -130,7 +155,7 @@ impl<G: SwhLabeledBackwardGraph> SwhLabeledBackwardGraph for GraphSpy<G> {
         Self: 'succ;
 
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
-        self.record("untyped_labeled_predecessors", (node_id,));
+        self.record(GraphAccessRecord::UntypedLabeledPredecessors(node_id));
         self.graph.untyped_labeled_predecessors(node_id)
     }
 }
@@ -153,7 +178,7 @@ impl<G: SwhGraphWithProperties> SwhGraphWithProperties for GraphSpy<G> {
         Self::Strings,
         Self::LabelNames,
     > {
-        self.record("properties", ());
+        self.record(GraphAccessRecord::Properties);
         self.graph.properties()
     }
 }
