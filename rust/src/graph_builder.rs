@@ -7,10 +7,10 @@
 
 //! Utility to dynamically build a small graph in memory
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use itertools::Itertools;
 use sux::traits::bit_vec_ops::{BitVecOps, BitVecOpsMut};
 use webgraph::graphs::vec_graph::LabeledVecGraph;
@@ -20,6 +20,7 @@ use crate::labels::{
     Branch, DirEntry, EdgeLabel, LabelNameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
 };
 use crate::properties;
+use crate::views::{GraphAccessRecord, GraphSpy, PropertyAccess};
 use crate::SwhGraphProperties;
 use crate::{NodeType, SWHID};
 
@@ -544,4 +545,240 @@ pub fn codegen_from_full_graph<
     writer.write_all(b"\nbuilder.done().expect(\"Could not build graph\")\n")?;
 
     Ok(())
+}
+
+/// Builds a [`BuiltGraph`] from a [`GraphSpy`]'s recorded history
+///
+/// This analyzes which nodes, arcs, and properties were accessed during execution
+/// and builds a minimal graph containing just those elements for bug reproduction.
+pub fn build_graph_from_spy<G>(
+    spy: &GraphSpy<
+        G,
+        impl properties::MaybeMaps,
+        impl properties::MaybeTimestamps,
+        impl properties::MaybePersons,
+        impl properties::MaybeContents,
+        impl properties::MaybeStrings,
+        impl properties::MaybeLabelNames,
+    >,
+) -> Result<BuiltGraph>
+where
+    G: SwhLabeledForwardGraph
+        + SwhLabeledBackwardGraph
+        + SwhGraphWithProperties<
+            Maps: properties::Maps,
+            Timestamps: properties::Timestamps,
+            Persons: properties::Persons,
+            Contents: properties::Contents,
+            Strings: properties::Strings,
+            LabelNames: properties::LabelNames,
+        >,
+{
+    let history = spy.history.lock().unwrap();
+
+    // all accessed nodes and arcs from history
+    let mut nodes = HashSet::<NodeId>::new();
+    let mut arcs = HashMap::<(NodeId, NodeId), Vec<EdgeLabel>>::new();
+
+    for record in history.iter() {
+        match record {
+            // SwhGraph
+            GraphAccessRecord::HasNode(node) => {
+                nodes.insert(*node);
+            }
+            GraphAccessRecord::HasArc(src, dst) => {
+                nodes.insert(*src);
+                nodes.insert(*dst);
+                arcs.entry((*src, *dst)).or_default();
+            }
+            GraphAccessRecord::Path => {
+                // GraphBuilder does not allow configuring this, and it probably doesn't matter
+                // anyway
+            }
+            GraphAccessRecord::NumNodes
+            | GraphAccessRecord::NumArcs
+            | GraphAccessRecord::NumNodesByType
+            | GraphAccessRecord::NumArcsByType => {
+                // not much we can do about this one short of copying every node/arc, but it would
+                // make the codegened graph huge, so it would be useless.
+                // so we have to assume it's fine not to preserve the number of nodes.
+                // perhaps in the future we can find a way to add "ghost" nodes in the built graph.
+            }
+            GraphAccessRecord::IsTransposed => {
+                if spy.graph().is_transposed() {
+                    // TODO
+                    bail!("build_graph_from_spy does not support building transposed graphs yet");
+                }
+            }
+
+            // SwhForwardGraph
+            GraphAccessRecord::Successors(node) | GraphAccessRecord::Outdegree(node) => {
+                nodes.insert(*node);
+                for succ in spy.graph().successors(*node) {
+                    nodes.insert(succ);
+                    arcs.entry((*node, succ)).or_default();
+                }
+            }
+
+            // SwhBackwardGraph
+            GraphAccessRecord::Predecessors(node) | GraphAccessRecord::Indegree(node) => {
+                nodes.insert(*node);
+                for pred in spy.graph().predecessors(*node) {
+                    nodes.insert(pred);
+                    arcs.entry((pred, *node)).or_default();
+                }
+            }
+
+            // SwhLabeledForwardGraph
+            GraphAccessRecord::LabeledSuccessors(node) => {
+                nodes.insert(*node);
+                for (succ, labels) in spy.graph().labeled_successors(*node) {
+                    nodes.insert(succ);
+                    arcs.entry((*node, succ))
+                        .or_insert_with(|| labels.into_iter().collect());
+                }
+            }
+
+            // SwhLabeledBackwardGraph
+            GraphAccessRecord::LabeledPredecessors(node) => {
+                nodes.insert(*node);
+                for (pred, labels) in spy.graph().labeled_predecessors(*node) {
+                    nodes.insert(pred);
+                    arcs.entry((pred, *node))
+                        .or_insert_with(|| labels.into_iter().collect());
+                }
+            }
+
+            // SwhGraphWithProperties
+            GraphAccessRecord::Property(PropertyAccess::Swhid(node))
+            | GraphAccessRecord::Property(PropertyAccess::NodeType(node))
+            | GraphAccessRecord::Property(PropertyAccess::IsSkippedContent(node))
+            | GraphAccessRecord::Property(PropertyAccess::ContentLength(node))
+            | GraphAccessRecord::Property(PropertyAccess::AuthorId(node))
+            | GraphAccessRecord::Property(PropertyAccess::CommitterId(node))
+            | GraphAccessRecord::Property(PropertyAccess::Message(node))
+            | GraphAccessRecord::Property(PropertyAccess::TagName(node))
+            | GraphAccessRecord::Property(PropertyAccess::AuthorTimestamp(node))
+            | GraphAccessRecord::Property(PropertyAccess::AuthorTimestampOffset(node))
+            | GraphAccessRecord::Property(PropertyAccess::CommitterTimestamp(node))
+            | GraphAccessRecord::Property(PropertyAccess::CommitterTimestampOffset(node)) => {
+                nodes.insert(*node);
+            }
+            GraphAccessRecord::Property(PropertyAccess::NodeId(swhid)) => {
+                if let Ok(node) = spy.graph().properties().node_id(*swhid) {
+                    nodes.insert(node);
+                }
+            }
+            GraphAccessRecord::Property(PropertyAccess::NodeIdForInvalidBytes(_))
+            | GraphAccessRecord::Property(PropertyAccess::NodeIdForInvalidString(_))
+            | GraphAccessRecord::Property(PropertyAccess::NodeIdForInvalidStrArray(_)) => {
+                // nothing to do about those; they come from strings/bytes that can't be parsed as
+                // SWHID, independently of what nodes are in te graph
+            }
+            GraphAccessRecord::Property(PropertyAccess::LabelNames) => {
+                // we'll catch the needed ones from the arc label accesses
+            }
+        }
+    }
+
+    let mut builder = GraphBuilder::default();
+
+    let mut new2old: Vec<_> = nodes.iter().copied().collect();
+    new2old.sort();
+
+    let old2new: HashMap<_, _> = new2old
+        .iter()
+        .enumerate()
+        .map(|(new, &old)| (old, new))
+        .collect();
+
+    // Build nodes
+    for &old_id in &new2old {
+        let swhid = spy.graph().properties().swhid(old_id);
+        let mut node_builder = builder
+            .node(swhid)
+            .with_context(|| format!("Could add node {swhid}"))?;
+
+        node_builder.is_skipped_content(spy.graph().properties().is_skipped_content(old_id));
+
+        if let Some(v) = spy.graph().properties().content_length(old_id) {
+            node_builder.content_length(v);
+        }
+
+        if let Some(v) = spy.graph().properties().message(old_id) {
+            node_builder.message(v);
+        }
+
+        if let Some(v) = spy.graph().properties().tag_name(old_id) {
+            node_builder.tag_name(v);
+        }
+
+        if let Some(v) = spy.graph().properties().author_id(old_id) {
+            // Convert PersonId to bytes (placeholder, since we don't have access to actual names)
+            node_builder.author(format!("{v}").into_bytes());
+        }
+
+        if let Some(ts) = spy.graph().properties().author_timestamp(old_id) {
+            let offset = spy
+                .graph()
+                .properties()
+                .author_timestamp_offset(old_id)
+                .expect("Node has author_timestamp but no author_timestamp_offset");
+            node_builder.author_timestamp(ts, offset);
+        }
+
+        if let Some(v) = spy.graph().properties().committer_id(old_id) {
+            // Convert PersonId to bytes (placeholder, since we don't have access to actual names)
+            node_builder.committer(format!("{v}").into_bytes());
+        }
+
+        if let Some(ts) = spy.graph().properties().committer_timestamp(old_id) {
+            let offset = spy
+                .graph()
+                .properties()
+                .committer_timestamp_offset(old_id)
+                .expect("Node has committer_timestamp but no committer_timestamp_offset");
+            node_builder.committer_timestamp(ts, offset);
+        }
+
+        let new_id = node_builder.done();
+        assert_eq!(new2old[new_id], old_id);
+        assert_eq!(old2new.get(&old_id), Some(&new_id));
+    }
+
+    // Build arcs
+    for ((old_src, old_dst), labels) in arcs {
+        let new_src = old2new[&old_src];
+        let new_dst = old2new[&old_dst];
+
+        if labels.is_empty() {
+            // unlabeled node, or node whose labels we never tried to read
+            builder.arc(new_src, new_dst)
+        } else {
+            for label in labels {
+                match label {
+                    EdgeLabel::DirEntry(label) => {
+                        builder.dir_arc(
+                            new_src,
+                            new_dst,
+                            label.permission().expect("Invalid permission"),
+                            spy.graph().properties().label_name(label.label_name_id()),
+                        );
+                    }
+                    EdgeLabel::Branch(label) => {
+                        builder.snp_arc(
+                            new_src,
+                            new_dst,
+                            spy.graph().properties().label_name(label.label_name_id()),
+                        );
+                    }
+                    EdgeLabel::Visit(label) => {
+                        builder.ori_arc(new_src, new_dst, label.status(), label.timestamp());
+                    }
+                }
+            }
+        }
+    }
+
+    builder.done()
 }
