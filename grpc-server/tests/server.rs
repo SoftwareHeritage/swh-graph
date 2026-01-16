@@ -12,7 +12,7 @@ use tonic::Request;
 
 use swh_graph::graph_builder::GraphBuilder;
 use swh_graph::swhid;
-use swh_graph::views::{GraphAccessRecord, GraphSpy};
+use swh_graph::views::{GraphAccessRecord, GraphSpy, PropertyAccess};
 use swh_graph_grpc_server::proto::traversal_service_server::TraversalService as _TraversalService;
 use swh_graph_grpc_server::proto::*;
 use swh_graph_grpc_server::TraversalService;
@@ -35,7 +35,15 @@ async fn test_count_nodes() -> Result<()> {
     builder.arc(b, c);
     let graph = builder.done().context("Could not make graph")?;
 
-    let spy_graph = Arc::new(GraphSpy::new(graph));
+    let spy_graph = Arc::new(
+        GraphSpy::new(graph)
+            .with_maps()
+            .with_timestamps()
+            .with_persons()
+            .with_contents()
+            .with_strings()
+            .with_label_names(),
+    );
 
     let traversal_service = TraversalService::new(spy_graph.clone(), None);
 
@@ -51,7 +59,10 @@ async fn test_count_nodes() -> Result<()> {
     assert_eq!(
         *spy_graph.history.lock().unwrap(),
         vec![
-            GraphAccessRecord::Properties, // swhid -> id
+            GraphAccessRecord::Property(PropertyAccess::NodeId(
+                swhid!(swh:1:snp:0000000000000000000000000000000000000010)
+            )),
+            GraphAccessRecord::Property(PropertyAccess::Swhid(0)),
             GraphAccessRecord::HasNode(0), // check not masked
             GraphAccessRecord::Successors(0),
             GraphAccessRecord::Successors(1),
@@ -74,7 +85,10 @@ async fn test_count_nodes() -> Result<()> {
     assert_eq!(
         *spy_graph.history.lock().unwrap(),
         vec![
-            GraphAccessRecord::Properties, // swhid -> id
+            GraphAccessRecord::Property(PropertyAccess::NodeId(
+                swhid!(swh:1:rel:0000000000000000000000000000000000000020)
+            )),
+            GraphAccessRecord::Property(PropertyAccess::Swhid(1)),
             GraphAccessRecord::HasNode(1), // check not masked
             GraphAccessRecord::Successors(1),
             GraphAccessRecord::Successors(2)
@@ -103,7 +117,15 @@ async fn test_count_neighbors() -> Result<()> {
     builder.arc(b, c);
     let graph = builder.done().context("Could not make graph")?;
 
-    let spy_graph = Arc::new(GraphSpy::new(graph));
+    let spy_graph = Arc::new(
+        GraphSpy::new(graph)
+            .with_maps()
+            .with_timestamps()
+            .with_persons()
+            .with_contents()
+            .with_strings()
+            .with_label_names(),
+    );
 
     let traversal_service = TraversalService::new(spy_graph.clone(), None);
 
@@ -121,7 +143,10 @@ async fn test_count_neighbors() -> Result<()> {
     assert_eq!(
         *spy_graph.history.lock().unwrap(),
         vec![
-            GraphAccessRecord::Properties, // swhid -> id
+            GraphAccessRecord::Property(PropertyAccess::NodeId(
+                swhid!(swh:1:snp:0000000000000000000000000000000000000010)
+            )),
+            GraphAccessRecord::Property(PropertyAccess::Swhid(0)),
             GraphAccessRecord::HasNode(0), // check not masked
             GraphAccessRecord::Successors(0)
         ]
@@ -158,7 +183,15 @@ async fn test_count_neighbors_max() -> Result<()> {
     builder.arc(a, e);
     let graph = builder.done().context("Could not make graph")?;
 
-    let spy_graph = Arc::new(GraphSpy::new(graph));
+    let spy_graph = Arc::new(
+        GraphSpy::new(graph)
+            .with_maps()
+            .with_timestamps()
+            .with_persons()
+            .with_contents()
+            .with_strings()
+            .with_label_names(),
+    );
 
     let traversal_service = TraversalService::new(spy_graph.clone(), None);
 
@@ -177,7 +210,10 @@ async fn test_count_neighbors_max() -> Result<()> {
     assert_eq!(
         *spy_graph.history.lock().unwrap(),
         vec![
-            GraphAccessRecord::Properties, // swhid -> id
+            GraphAccessRecord::Property(PropertyAccess::NodeId(
+                swhid!(swh:1:snp:0000000000000000000000000000000000000010)
+            )),
+            GraphAccessRecord::Property(PropertyAccess::Swhid(0)),
             GraphAccessRecord::HasNode(0), // check not masked
             GraphAccessRecord::Successors(0),
         ]
@@ -210,7 +246,15 @@ async fn test_neighbors() -> Result<()> {
     builder.arc(a, d);
     let graph = builder.done().context("Could not make graph")?;
 
-    let spy_graph = Arc::new(GraphSpy::new(graph));
+    let spy_graph = Arc::new(
+        GraphSpy::new(graph)
+            .with_maps()
+            .with_timestamps()
+            .with_persons()
+            .with_contents()
+            .with_strings()
+            .with_label_names(),
+    );
 
     let traversal_service = TraversalService::new(spy_graph.clone(), None);
 
@@ -237,12 +281,15 @@ async fn test_neighbors() -> Result<()> {
     assert_eq!(
         *spy_graph.history.lock().unwrap(),
         vec![
-            GraphAccessRecord::Properties, // swhid -> id
+            GraphAccessRecord::Property(PropertyAccess::NodeId(
+                swhid!(swh:1:snp:0000000000000000000000000000000000000010)
+            )),
+            GraphAccessRecord::Property(PropertyAccess::Swhid(0)),
             GraphAccessRecord::HasNode(0), // check not masked
             GraphAccessRecord::Successors(0),
-            GraphAccessRecord::Properties, // id -> swhids
-            GraphAccessRecord::Properties, // id -> swhids
-            GraphAccessRecord::Properties, // id -> swhids
+            GraphAccessRecord::Property(PropertyAccess::Swhid(1)),
+            GraphAccessRecord::Property(PropertyAccess::Swhid(2)),
+            GraphAccessRecord::Property(PropertyAccess::Swhid(3)),
         ]
     );
 
@@ -293,7 +340,15 @@ async fn test_neighbors_max() -> Result<()> {
     builder.arc(a, e);
     let graph = builder.done().context("Could not make graph")?;
 
-    let spy_graph = Arc::new(GraphSpy::new(graph));
+    let spy_graph = Arc::new(
+        GraphSpy::new(graph)
+            .with_maps()
+            .with_timestamps()
+            .with_persons()
+            .with_contents()
+            .with_strings()
+            .with_label_names(),
+    );
 
     let traversal_service = TraversalService::new(spy_graph.clone(), None);
 
@@ -321,11 +376,14 @@ async fn test_neighbors_max() -> Result<()> {
     assert_eq!(
         *spy_graph.history.lock().unwrap(),
         vec![
-            GraphAccessRecord::Properties, // swhid -> id
+            GraphAccessRecord::Property(PropertyAccess::NodeId(
+                swhid!(swh:1:snp:0000000000000000000000000000000000000010)
+            )),
+            GraphAccessRecord::Property(PropertyAccess::Swhid(0)),
             GraphAccessRecord::HasNode(0), // check not masked
             GraphAccessRecord::Successors(0),
-            GraphAccessRecord::Properties, // id -> swhids
-            GraphAccessRecord::Properties, // id -> swhids
+            GraphAccessRecord::Property(PropertyAccess::Swhid(1)),
+            GraphAccessRecord::Property(PropertyAccess::Swhid(2)),
         ]
     );
 
