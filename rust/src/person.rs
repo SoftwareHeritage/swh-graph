@@ -40,7 +40,7 @@ impl FullnameMap {
 
     /// Maps an author ID to its corresponding full name in the SWH graph
     ///
-    /// Returns the full name corresponding the the ID.
+    /// Returns the full name corresponding to the ID.
     ///
     /// # Example
     /// ```

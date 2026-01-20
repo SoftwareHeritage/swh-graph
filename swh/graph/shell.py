@@ -31,7 +31,7 @@ which is the equivalent of this bash command:
 return the stdout of the last process.
 
 Actual pipelines will usually write to a file instead, using
-:class:`AtomicFileSink`. This calls is similar to ``>`` in bash,
+:class:`AtomicFileSink`. This is similar to ``>`` in bash,
 with a twist: it is only written after all other commands in the pipeline
 succeeded (but unlike ``sponge`` from moreutils, it buffers to disk and
 rename the file at the end).

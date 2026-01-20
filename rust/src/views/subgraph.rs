@@ -59,7 +59,7 @@ make_filtered_arcs_iterator! {
         }
         for dst in self.inner.by_ref() {
             if (self.node_filter)(dst) && (self.arc_filter)(self.node, dst) {
-                return Some(dst)
+                return Some(dst);
             }
         }
         None
@@ -74,7 +74,7 @@ make_filtered_arcs_iterator! {
         }
         for src in self.inner.by_ref() {
             if (self.node_filter)(src) && (self.arc_filter)(src, self.node) {
-                return Some(src)
+                return Some(src);
             }
         }
         None

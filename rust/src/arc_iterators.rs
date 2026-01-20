@@ -25,7 +25,7 @@ pub trait IntoFlattenedLabeledArcsIterator<Label> {
     type Flattened: IntoIterator<Item = (NodeId, Label)>;
 
     /// Turns this `Iterator<Item=(succ, Iterator<Item=labels>)>` into an
-    /// `Iterator<ITem=(succ, label)>`.
+    /// `Iterator<Item=(succ, label)>`.
     fn flatten_labels(self) -> Self::Flattened;
 }
 

@@ -30,7 +30,7 @@ pub struct SWHID {
     pub namespace_version: u8,
     /// Node type
     pub node_type: NodeType,
-    /// SHA1 has of the node
+    /// SHA1 hash of the node
     pub hash: [u8; 20],
 }
 

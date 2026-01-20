@@ -51,7 +51,7 @@ impl<T: Sync + AsRef<[usize]>> OwnedPermutation<T> {
             .find_any(|&(_old, &new)| new >= perm.as_ref().len())
         {
             bail!(
-                "Found node {} has id {} in permutation, graph size is {}",
+                "Found node {} with id {} in permutation, graph size is {}",
                 old,
                 new,
                 perm.as_ref().len()

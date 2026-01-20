@@ -40,8 +40,8 @@ pub enum NodeType {
     ///
     /// Software development within a specific project is
     /// essentially a time-indexed series of copies of a single “root” directory
-    /// that contains the entire project source code. Software evolves when a d
-    /// eveloper modifies the content of one or more files in that directory
+    /// that contains the entire project source code. Software evolves when a
+    /// developer modifies the content of one or more files in that directory
     /// and record their changes.
     ///
     /// Each recorded copy of the root directory is known as a “revision”. It

@@ -34,7 +34,7 @@ where
     // Adapted from https://github.com/vigna/webgraph-rs/blob/08969fb1ac4ea59aafdbae976af8e026a99c9ac5/src/bin/perm.rs
     let num_nodes = graph.num_nodes();
 
-    let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
+    let temp_dir = tempfile::tempdir().context("Could not create temporary directory")?;
 
     let num_threads = num_cpus::get();
     let num_partitions = num_threads * partitions_per_thread;

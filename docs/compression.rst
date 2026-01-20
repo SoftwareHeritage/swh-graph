@@ -43,7 +43,7 @@ itself.
 
 Some steps also involve sorting the entire set of edges and their labels, by
 using large on-disk buffer files, sometimes reaching the size of the input
-dataself itself.
+data itself.
 
 The machine we used to compress the entire graph (dataset version 2024-12-06)
 is a HPE ProLiant DL380 Gen10 Plus with the following hardware specs:
