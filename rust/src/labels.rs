@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -100,6 +100,109 @@ impl_edgelabel_convert!(Branch(Branch));
 impl_edgelabel_convert!(DirEntry(DirEntry));
 impl_edgelabel_convert!(Visit(Visit));
 
+/// Lossy representation of visit types in the
+/// [SWH data model](https://docs.softwareheritage.org/devel/swh-model/data-model.html)
+///
+/// While the SWH data model precisely identifies the type of loader used to load content of an
+/// origin, swh-graph has to group them in order to fit in the compressed graph representation.
+///
+/// To get the exact visit type, you need to cross-reference with the [columnar
+/// export](https://docs.softwareheritage.org/devel/swh-export/graph/dataset.html)
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum VisitType {
+    /// tar, zip, ...
+    Archive,
+    /// single content, patch, ...
+    Misc,
+    /// npm, pypi, nixguix, ...
+    PackageManager,
+    /// partial archiving of a repository (git-checkout, hg-checkout, ...)
+    Partial,
+    /// deposit, possibly coar-notify in the future
+    Push,
+    /// git, hg, cvs, ...
+    Vcs,
+    /// Either a type not categorized above, or graph is too old to support visit types)
+    Unknown,
+}
+
+impl VisitType {
+    #[rustfmt::skip]
+    pub fn from_swh_type(swh_type: &str) -> Option<Self> {
+        Some(match swh_type {
+            "ftp" |
+            "tar" |
+            "tarball-directory"
+            => VisitType::Archive,
+
+            "content"
+            => VisitType::Misc,
+
+            "cran" |
+            "deb" |
+            "golang" |
+            "opam" |
+            "nixguix" |
+            "npm" |
+            "maven" |
+            "pypi" |
+            "pubdev"
+            => VisitType::PackageManager,
+
+            "hg-checkout" |
+            "git-checkout" |
+            "svn-export"
+            => VisitType::Partial,
+
+            "deposit"
+            => VisitType::Push,
+
+
+            "bzr" |
+            "cvs" |
+            "git" |
+            "hg" |
+            "svn"
+            => VisitType::Vcs,
+
+            _ => return None,
+        })
+    }
+
+    pub fn to_bits(self) -> u8 {
+        use VisitType::*;
+
+        match self {
+            Unknown => 0b000,
+            Archive => 0b001,
+            Misc => 0b010,
+            PackageManager => 0b011,
+            Partial => 0b100,
+            Push => 0b101,
+            Vcs => 0b110,
+        }
+    }
+
+    /// Returns `None` if any
+    pub fn from_bits(bits: u8) -> Self {
+        use VisitType::*;
+
+        match bits {
+            0b000 => Unknown, // used by graphs 2024-08-23 to 2025-10-08
+            0b001 => Archive,
+            0b010 => Misc,
+            0b011 => PackageManager,
+            0b100 => Partial,
+            0b101 => Push,
+            0b110 => Vcs,
+            0b111 => Unknown, // used by graph 2024-05-16
+            0b1000..=u8::MAX => {
+                panic!("VisitType::from_bits got value greater than 0b111");
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum VisitStatus {
     Full,
@@ -119,15 +222,17 @@ impl Visit {
     /// Returns a new [`Visit`]
     ///
     /// or `None` if `timestamp` is 2^59 or greater
-    pub fn new(status: VisitStatus, timestamp: u64) -> Option<Visit> {
+    pub fn new(status: VisitStatus, timestamp: u64, visit_type: VisitType) -> Option<Visit> {
         let is_full = match status {
             VisitStatus::Full => 1u64,
             VisitStatus::Partial => 0,
         };
         let reserved_bits = 0b1000u64;
-        timestamp
-            .checked_shl(5)
-            .map(|shifted_timestamp| Visit(shifted_timestamp | (is_full << 4) | reserved_bits))
+        let visit_type = u64::from(visit_type.to_bits());
+        assert!(visit_type <= 0b111);
+        timestamp.checked_shl(5).map(|shifted_timestamp| {
+            Visit(shifted_timestamp | (is_full << 4) | reserved_bits | visit_type)
+        })
     }
 
     pub fn timestamp(&self) -> u64 {
@@ -140,6 +245,10 @@ impl Visit {
         } else {
             VisitStatus::Partial
         }
+    }
+
+    pub fn visit_type(&self) -> VisitType {
+        VisitType::from_bits((self.0 & 0b111) as u8)
     }
 }
 

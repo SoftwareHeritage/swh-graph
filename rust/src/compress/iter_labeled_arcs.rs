@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -20,7 +20,7 @@ use super::orc::{get_dataset_readers, iter_arrow};
 use super::TextSwhid;
 use crate::compress::label_names::LabelNameHasher;
 use crate::labels::{
-    Branch, DirEntry, EdgeLabel, Permission, UntypedEdgeLabel, Visit, VisitStatus,
+    Branch, DirEntry, EdgeLabel, Permission, UntypedEdgeLabel, Visit, VisitStatus, VisitType,
 };
 use crate::{NodeType, SWHID};
 
@@ -143,6 +143,7 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
         date: Option<ar_row::Timestamp>,
         status: String,
         snapshot: Option<String>,
+        r#type: String,
     }
 
     map_labeled_arcs(reader_builder, |ovs: OriginVisitStatus| {
@@ -163,6 +164,12 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
                         .seconds
                         .try_into()
                         .expect("Negative visit date"),
+                    VisitType::from_swh_type(&ovs.r#type).unwrap_or_else(|| {
+                        panic!(
+                            "Unknown visit type: {}. You need to update VisitType::from_swh_type.",
+                            ovs.r#type
+                        )
+                    }),
                 )
                 .map(EdgeLabel::Visit),
             )

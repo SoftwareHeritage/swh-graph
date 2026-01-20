@@ -14,7 +14,7 @@ mod tests {
     // use swh_graph::labels::Permission;
     use swh_graph::swhid;
 
-    use swh_graph::labels::VisitStatus;
+    use swh_graph::labels::{VisitStatus, VisitType};
 
     // this graph is a based of the one found in
     // rust/tests/test_label_iterators.rs:build_graph
@@ -67,15 +67,15 @@ mod tests {
             .unwrap()
             .done();
 
-        builder.ori_arc(0, 2, VisitStatus::Full, 1000002000);
-        builder.ori_arc(0, 2, VisitStatus::Full, 1000002001);
-        builder.ori_arc(0, 3, VisitStatus::Full, 1000003000);
-        builder.ori_arc(1, 2, VisitStatus::Full, 1001002000);
+        builder.ori_arc(0, 2, VisitStatus::Full, 1000002000, VisitType::Unknown);
+        builder.ori_arc(0, 2, VisitStatus::Full, 1000002001, VisitType::Unknown);
+        builder.ori_arc(0, 3, VisitStatus::Full, 1000003000, VisitType::Unknown);
+        builder.ori_arc(1, 2, VisitStatus::Full, 1001002000, VisitType::Unknown);
         builder.snp_arc(2, 4, b"refs/heads/snp2-to-rev4");
         builder.snp_arc(2, 5, b"refs/heads/snp2-to-rev5");
         builder.snp_arc(3, 5, b"refs/heads/snp3-to-rev5");
         builder.snp_arc(3, 5, b"refs/heads/snp3-to-rev5-dupe");
-        builder.ori_arc(5, 6, VisitStatus::Full, 1001006000);
+        builder.ori_arc(5, 6, VisitStatus::Full, 1001006000, VisitType::Unknown);
 
         // disjoint graph
         builder
@@ -87,7 +87,7 @@ mod tests {
             .unwrap()
             .done();
 
-        builder.ori_arc(7, 8, VisitStatus::Full, 1001007000);
+        builder.ori_arc(7, 8, VisitStatus::Full, 1001007000, VisitType::Unknown);
 
         let graph = builder.done().unwrap();
 

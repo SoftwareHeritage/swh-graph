@@ -203,7 +203,7 @@ impl RadixKey for SWHID {
                 NodeType::Origin => 2,    // ori
                 NodeType::Release => 3,   // rel
                 NodeType::Revision => 4,  // rev
-                NodeType::Snapshot => 5,  // rel
+                NodeType::Snapshot => 5,  // snp
             },
             n => self.hash[n - 2],
         }

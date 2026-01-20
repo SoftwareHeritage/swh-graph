@@ -11,7 +11,7 @@ use rayon::prelude::*;
 use swh_graph::arc_iterators::LabeledArcIterator;
 use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
-use swh_graph::labels::{Branch, LabelNameId, Visit, VisitStatus};
+use swh_graph::labels::{Branch, LabelNameId, Visit, VisitStatus, VisitType};
 use swh_graph::swhid;
 
 /// ```
@@ -45,10 +45,10 @@ fn build_graph() -> Result<BuiltGraph> {
     builder
         .node(swhid!(swh:1:rev:0000000000000000000000000000000000000005))?
         .done();
-    builder.ori_arc(0, 2, VisitStatus::Full, 1000002000);
-    builder.ori_arc(0, 2, VisitStatus::Full, 1000002001);
-    builder.ori_arc(0, 3, VisitStatus::Full, 1000003000);
-    builder.ori_arc(1, 2, VisitStatus::Full, 1001002000);
+    builder.ori_arc(0, 2, VisitStatus::Full, 1000002000, VisitType::Unknown);
+    builder.ori_arc(0, 2, VisitStatus::Full, 1000002001, VisitType::Unknown);
+    builder.ori_arc(0, 3, VisitStatus::Full, 1000003000, VisitType::Unknown);
+    builder.ori_arc(1, 2, VisitStatus::Full, 1001002000, VisitType::Unknown);
     builder.snp_arc(2, 4, b"refs/heads/snp2-to-rev4");
     builder.snp_arc(2, 5, b"refs/heads/snp2-to-rev5");
     builder.snp_arc(3, 5, b"refs/heads/snp3-to-rev5");
@@ -105,11 +105,14 @@ fn test_untyped() -> Result<()> {
             (
                 2,
                 vec![
-                    Visit::new(VisitStatus::Full, 1000002000).unwrap(),
-                    Visit::new(VisitStatus::Full, 1000002001).unwrap()
+                    Visit::new(VisitStatus::Full, 1000002000, VisitType::Unknown).unwrap(),
+                    Visit::new(VisitStatus::Full, 1000002001, VisitType::Unknown).unwrap()
                 ]
             ),
-            (3, vec![Visit::new(VisitStatus::Full, 1000003000).unwrap()])
+            (
+                3,
+                vec![Visit::new(VisitStatus::Full, 1000003000, VisitType::Unknown).unwrap()]
+            )
         ]
     );
 
@@ -138,9 +141,18 @@ fn test_flattened_untyped() -> Result<()> {
             .map(|(succ, label)| (succ, Visit::from(label)))
             .collect::<Vec<_>>(),
         vec![
-            (2, Visit::new(VisitStatus::Full, 1000002000).unwrap()),
-            (2, Visit::new(VisitStatus::Full, 1000002001).unwrap()),
-            (3, Visit::new(VisitStatus::Full, 1000003000).unwrap())
+            (
+                2,
+                Visit::new(VisitStatus::Full, 1000002000, VisitType::Unknown).unwrap()
+            ),
+            (
+                2,
+                Visit::new(VisitStatus::Full, 1000002001, VisitType::Unknown).unwrap()
+            ),
+            (
+                3,
+                Visit::new(VisitStatus::Full, 1000003000, VisitType::Unknown).unwrap()
+            )
         ]
     );
 
@@ -177,13 +189,21 @@ fn test_typed() -> Result<()> {
             (
                 2,
                 vec![
-                    Visit::new(VisitStatus::Full, 1000002000).unwrap().into(),
-                    Visit::new(VisitStatus::Full, 1000002001).unwrap().into()
+                    Visit::new(VisitStatus::Full, 1000002000, VisitType::Unknown)
+                        .unwrap()
+                        .into(),
+                    Visit::new(VisitStatus::Full, 1000002001, VisitType::Unknown)
+                        .unwrap()
+                        .into()
                 ]
             ),
             (
                 3,
-                vec![Visit::new(VisitStatus::Full, 1000003000).unwrap().into()]
+                vec![
+                    Visit::new(VisitStatus::Full, 1000003000, VisitType::Unknown)
+                        .unwrap()
+                        .into()
+                ]
             )
         ]
     );
@@ -221,9 +241,24 @@ fn test_typed_flattened() -> Result<()> {
             .into_iter()
             .collect::<Vec<_>>(),
         vec![
-            (2, Visit::new(VisitStatus::Full, 1000002000).unwrap().into()),
-            (2, Visit::new(VisitStatus::Full, 1000002001).unwrap().into()),
-            (3, Visit::new(VisitStatus::Full, 1000003000).unwrap().into()),
+            (
+                2,
+                Visit::new(VisitStatus::Full, 1000002000, VisitType::Unknown)
+                    .unwrap()
+                    .into()
+            ),
+            (
+                2,
+                Visit::new(VisitStatus::Full, 1000002001, VisitType::Unknown)
+                    .unwrap()
+                    .into()
+            ),
+            (
+                3,
+                Visit::new(VisitStatus::Full, 1000003000, VisitType::Unknown)
+                    .unwrap()
+                    .into()
+            ),
         ]
     );
 
