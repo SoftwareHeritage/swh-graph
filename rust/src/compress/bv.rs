@@ -307,6 +307,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
 fn label_width(hasher: &LabelNameHasher<'_>) -> usize {
     use crate::labels::{
         Branch, DirEntry, EdgeLabel, LabelNameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
+        VisitType,
     };
     let num_label_names = u64::try_from(hasher.len()).expect("number of labels overflows u64");
 
@@ -319,7 +320,9 @@ fn label_width(hasher: &LabelNameHasher<'_>) -> usize {
     let max_label = [
         EdgeLabel::Branch(Branch::new(LabelNameId(num_label_names)).unwrap()),
         EdgeLabel::DirEntry(DirEntry::new(Permission::None, LabelNameId(num_label_names)).unwrap()),
-        EdgeLabel::Visit(Visit::new(VisitStatus::Full, max_visit_timestamp).unwrap()),
+        EdgeLabel::Visit(
+            Visit::new(VisitStatus::Full, max_visit_timestamp, VisitType::Unknown).unwrap(),
+        ),
     ]
     .into_iter()
     .map(|label| UntypedEdgeLabel::from(label).0) // Convert to on-disk representation
