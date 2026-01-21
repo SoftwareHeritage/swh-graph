@@ -115,13 +115,13 @@ pub enum VisitType {
     /// single content, patch, ...
     Misc,
     /// npm, pypi, nixguix, ...
-    PackageManager,
-    /// partial archiving of a repository (git-checkout, hg-checkout, ...)
-    Partial,
+    Package,
     /// deposit, possibly coar-notify in the future
     Push,
     /// git, hg, cvs, ...
     Vcs,
+    /// partial archiving of a repository (git-checkout, hg-checkout, svn-export)
+    VcsCheckout,
     /// Either a type not categorized above, or graph is too old to support visit types)
     Unknown,
 }
@@ -147,12 +147,7 @@ impl VisitType {
             "maven" |
             "pypi" |
             "pubdev"
-            => VisitType::PackageManager,
-
-            "hg-checkout" |
-            "git-checkout" |
-            "svn-export"
-            => VisitType::Partial,
+            => VisitType::Package,
 
             "deposit"
             => VisitType::Push,
@@ -165,6 +160,11 @@ impl VisitType {
             "svn"
             => VisitType::Vcs,
 
+            "hg-checkout" |
+            "git-checkout" |
+            "svn-export"
+            => VisitType::VcsCheckout,
+
             _ => return None,
         })
     }
@@ -176,10 +176,10 @@ impl VisitType {
             Unknown => 0b000,
             Archive => 0b001,
             Misc => 0b010,
-            PackageManager => 0b011,
-            Partial => 0b100,
-            Push => 0b101,
-            Vcs => 0b110,
+            Package => 0b011,
+            Push => 0b100,
+            Vcs => 0b101,
+            VcsCheckout => 0b110,
         }
     }
 
@@ -191,10 +191,10 @@ impl VisitType {
             0b000 => Unknown, // used by graphs 2024-08-23 to 2025-10-08
             0b001 => Archive,
             0b010 => Misc,
-            0b011 => PackageManager,
-            0b100 => Partial,
-            0b101 => Push,
-            0b110 => Vcs,
+            0b011 => Package,
+            0b100 => Push,
+            0b101 => Vcs,
+            0b110 => VcsCheckout,
             0b111 => Unknown, // used by graph 2024-05-16
             0b1000..=u8::MAX => {
                 panic!("VisitType::from_bits got value greater than 0b111");
