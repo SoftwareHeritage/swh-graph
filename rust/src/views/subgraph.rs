@@ -57,12 +57,10 @@ make_filtered_arcs_iterator! {
         if !(self.node_filter)(self.node) {
             return None;
         }
-        for dst in self.inner.by_ref() {
-            if (self.node_filter)(dst) && (self.arc_filter)(self.node, dst) {
-                return Some(dst);
-            }
-        }
-        None
+
+        self.inner
+            .by_ref()
+            .find(|&dst| (self.node_filter)(dst) && (self.arc_filter)(self.node, dst))
     }
 }
 make_filtered_arcs_iterator! {
@@ -72,12 +70,10 @@ make_filtered_arcs_iterator! {
         if !(self.node_filter)(self.node) {
             return None;
         }
-        for src in self.inner.by_ref() {
-            if (self.node_filter)(src) && (self.arc_filter)(src, self.node) {
-                return Some(src);
-            }
-        }
-        None
+
+        self.inner
+            .by_ref()
+            .find(|&src| (self.node_filter)(src) && (self.arc_filter)(src, self.node))
     }
 }
 
