@@ -122,7 +122,7 @@ pub enum VisitType {
     Vcs,
     /// partial archiving of a repository (git-checkout, hg-checkout, svn-export)
     VcsCheckout,
-    /// Either a type not categorized above, or graph is too old to support visit types)
+    /// Either a type not categorized above, or graph is too old to support visit types
     Unknown,
 }
 

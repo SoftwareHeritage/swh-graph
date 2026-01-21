@@ -16,6 +16,7 @@ from swh.graph.grpc.swhgraph_pb2 import (
     NodeFilter,
     Successor,
     TraversalRequest,
+    VisitType,
 )
 
 TEST_ORIGIN_ID = "swh:1:ori:{}".format(
@@ -99,7 +100,13 @@ def test_traverse_forward_labels(graph_grpc_stub):
             successor=[
                 Successor(
                     swhid="swh:1:snp:0000000000000000000000000000000000000020",
-                    label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
+                    label=[
+                        EdgeLabel(
+                            visit_timestamp=1367900441,
+                            is_full_visit=True,
+                            visit_type=VisitType.Vcs,
+                        )
+                    ],
                 ),
             ],
             ori=None,
@@ -241,7 +248,13 @@ def test_traverse_backward_labels(graph_grpc_stub):
             successor=[
                 Successor(
                     swhid=TEST_ORIGIN_ID2,
-                    label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
+                    label=[
+                        EdgeLabel(
+                            visit_timestamp=1367900441,
+                            is_full_visit=True,
+                            visit_type=VisitType.Vcs,
+                        )
+                    ],
                 ),
             ],
         ),
@@ -292,7 +305,13 @@ def assert_ori_to_rev(path):
             successor=[
                 Successor(
                     swhid="swh:1:snp:0000000000000000000000000000000000000020",
-                    label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
+                    label=[
+                        EdgeLabel(
+                            visit_timestamp=1367900441,
+                            is_full_visit=True,
+                            visit_type=VisitType.Vcs,
+                        )
+                    ],
                 ),
             ],
             ori=None,
@@ -374,7 +393,13 @@ def assert_rel_to_ori(path):
             successor=[
                 Successor(
                     swhid=TEST_ORIGIN_ID2,
-                    label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
+                    label=[
+                        EdgeLabel(
+                            visit_timestamp=1367900441,
+                            is_full_visit=True,
+                            visit_type=VisitType.Vcs,
+                        )
+                    ],
                 ),
             ],
         ),
@@ -416,7 +441,13 @@ def test_findpathbetween_common_parent_labels(graph_grpc_stub):
             successor=[
                 Successor(
                     swhid=TEST_ORIGIN_ID2,
-                    label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
+                    label=[
+                        EdgeLabel(
+                            visit_timestamp=1367900441,
+                            is_full_visit=True,
+                            visit_type=VisitType.Vcs,
+                        )
+                    ],
                 ),
             ],
         ),

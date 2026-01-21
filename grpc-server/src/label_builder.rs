@@ -5,7 +5,7 @@
 
 use super::proto;
 use swh_graph::graph::*;
-use swh_graph::labels::{EdgeLabel, VisitStatus};
+use swh_graph::labels::{EdgeLabel, VisitStatus, VisitType};
 use swh_graph::properties::LabelNames;
 
 /// Bit masks selecting which fields should be included by [`LabelBuilder`], based on
@@ -16,12 +16,13 @@ use swh_graph::properties::LabelNames;
 /// "label.permission").
 #[rustfmt::skip]
 mod label_builder_bitmasks {
-    //                                                                xxxx
-    pub const LABEL: u32 =            0b00000000_00000000_00000000_00011110;
+    //                                                               xxxxx
+    pub const LABEL: u32 =            0b00000000_00000000_00000000_00111110;
     pub const LABEL_NAME: u32 =       0b00000000_00000000_00000000_00000010;
     pub const LABEL_PERMISSION: u32 = 0b00000000_00000000_00000000_00000100;
     pub const LABEL_VISIT_TS: u32 =   0b00000000_00000000_00000000_00001000;
     pub const LABEL_FULL_VISIT: u32 = 0b00000000_00000000_00000000_00010000;
+    pub const LABEL_VISIT_TYPE: u32 = 0b00000000_00000000_00000000_00100000;
 }
 
 use label_builder_bitmasks::*;
@@ -78,6 +79,7 @@ impl<G: SwhGraphWithProperties<LabelNames: LabelNames> + Clone + Send + Sync + '
                 ".permission" => LABEL_PERMISSION,
                 ".visit_timestamp" => LABEL_VISIT_TS,
                 ".is_full_visit" => LABEL_FULL_VISIT,
+                ".visit_type" => LABEL_VISIT_TYPE,
                 field => {
                     log::warn!("Unknown field {:?}", field);
                     0 // Ignore unknown fields
@@ -104,6 +106,7 @@ impl<G: SwhGraphWithProperties<LabelNames: LabelNames> + Clone + Send + Sync + '
                 permission: None,
                 visit_timestamp: None,
                 is_full_visit: None,
+                visit_type: None,
             },
             EdgeLabel::DirEntry(label) => proto::EdgeLabel {
                 name: self.if_mask(LABEL_NAME, || {
@@ -120,6 +123,7 @@ impl<G: SwhGraphWithProperties<LabelNames: LabelNames> + Clone + Send + Sync + '
                 }),
                 visit_timestamp: None,
                 is_full_visit: None,
+                visit_type: None,
             },
             EdgeLabel::Visit(label) => proto::EdgeLabel {
                 name: None,
@@ -130,6 +134,22 @@ impl<G: SwhGraphWithProperties<LabelNames: LabelNames> + Clone + Send + Sync + '
                         VisitStatus::Full => true,
                         VisitStatus::Partial => false,
                     })
+                }),
+                visit_type: self.if_mask(LABEL_VISIT_TYPE, || {
+                    use proto::VisitType::*;
+
+                    Some(
+                        match label.visit_type() {
+                            VisitType::Unknown => Unknown,
+                            VisitType::Archive => Archive,
+                            VisitType::Misc => Misc,
+                            VisitType::Package => Package,
+                            VisitType::Push => Push,
+                            VisitType::Vcs => Vcs,
+                            VisitType::VcsCheckout => VcsCheckout,
+                        }
+                        .into(),
+                    )
                 }),
             },
         })

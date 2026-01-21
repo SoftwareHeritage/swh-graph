@@ -3,29 +3,29 @@
 isort:skip_file
 """
 
-import builtins
-import collections.abc
-import google.protobuf.descriptor
-import google.protobuf.field_mask_pb2
-import google.protobuf.internal.containers
-import google.protobuf.internal.enum_type_wrapper
-import google.protobuf.message
+from collections import abc as _abc
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import field_mask_pb2 as _field_mask_pb2
+from google.protobuf import message as _message
+from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+import builtins as _builtins
 import sys
-import typing
+import typing as _typing
 
 if sys.version_info >= (3, 10):
-    import typing as typing_extensions
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+DESCRIPTOR: _descriptor.FileDescriptor
 
 class _GraphDirection:
-    ValueType = typing.NewType("ValueType", builtins.int)
-    V: typing_extensions.TypeAlias = ValueType
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    V: _TypeAlias = ValueType  # noqa: Y015
 
-class _GraphDirectionEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_GraphDirection.ValueType], builtins.type):
-    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+class _GraphDirectionEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_GraphDirection.ValueType], _builtins.type):
+    DESCRIPTOR: _descriptor.EnumDescriptor
     FORWARD: _GraphDirection.ValueType  # 0
     """Forward DAG: ori -> snp -> rel -> rev -> dir -> cnt"""
     BACKWARD: _GraphDirection.ValueType  # 1
@@ -38,20 +38,59 @@ FORWARD: GraphDirection.ValueType  # 0
 """Forward DAG: ori -> snp -> rel -> rev -> dir -> cnt"""
 BACKWARD: GraphDirection.ValueType  # 1
 """Transposed DAG: cnt -> dir -> rev -> rel -> snp -> ori"""
-global___GraphDirection = GraphDirection
+Global___GraphDirection: _TypeAlias = GraphDirection  # noqa: Y015
 
-@typing.final
-class GetNodeRequest(google.protobuf.message.Message):
+class _VisitType:
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    V: _TypeAlias = ValueType  # noqa: Y015
+
+class _VisitTypeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_VisitType.ValueType], _builtins.type):
+    DESCRIPTOR: _descriptor.EnumDescriptor
+    Unknown: _VisitType.ValueType  # 0
+    """Either a type not categorized below, or graph is too old to support visit types"""
+    Archive: _VisitType.ValueType  # 1
+    """tar, zip, ..."""
+    Misc: _VisitType.ValueType  # 2
+    """single content, patch, ..."""
+    Package: _VisitType.ValueType  # 3
+    """npm, pypi, nixguix, ..."""
+    Push: _VisitType.ValueType  # 5
+    """deposit, possibly coar-notify in the future"""
+    Vcs: _VisitType.ValueType  # 6
+    """git, hg, cvs, ..."""
+    VcsCheckout: _VisitType.ValueType  # 4
+    """partial archiving of a repository (git-checkout, hg-checkout, ...)"""
+
+class VisitType(_VisitType, metaclass=_VisitTypeEnumTypeWrapper): ...
+
+Unknown: VisitType.ValueType  # 0
+"""Either a type not categorized below, or graph is too old to support visit types"""
+Archive: VisitType.ValueType  # 1
+"""tar, zip, ..."""
+Misc: VisitType.ValueType  # 2
+"""single content, patch, ..."""
+Package: VisitType.ValueType  # 3
+"""npm, pypi, nixguix, ..."""
+Push: VisitType.ValueType  # 5
+"""deposit, possibly coar-notify in the future"""
+Vcs: VisitType.ValueType  # 6
+"""git, hg, cvs, ..."""
+VcsCheckout: VisitType.ValueType  # 4
+"""partial archiving of a repository (git-checkout, hg-checkout, ...)"""
+Global___VisitType: _TypeAlias = VisitType  # noqa: Y015
+
+@_typing.final
+class GetNodeRequest(_message.Message):
     """Describe a node to return"""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SWHID_FIELD_NUMBER: builtins.int
-    MASK_FIELD_NUMBER: builtins.int
-    swhid: builtins.str
+    SWHID_FIELD_NUMBER: _builtins.int
+    MASK_FIELD_NUMBER: _builtins.int
+    swhid: _builtins.str
     """SWHID of the node to return"""
-    @property
-    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask:
+    @_builtins.property
+    def mask(self) -> _field_mask_pb2.FieldMask:
         """FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
         By default, all fields are returned.
         """
@@ -59,66 +98,70 @@ class GetNodeRequest(google.protobuf.message.Message):
     def __init__(
         self,
         *,
-        swhid: builtins.str = ...,
-        mask: google.protobuf.field_mask_pb2.FieldMask | None = ...,
+        swhid: _builtins.str = ...,
+        mask: _field_mask_pb2.FieldMask | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_mask", b"_mask", "mask", b"mask"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_mask", b"_mask", "mask", b"mask", "swhid", b"swhid"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing.Literal["_mask", b"_mask"]) -> typing.Literal["mask"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_mask", b"_mask", "mask", b"mask"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_mask", b"_mask", "mask", b"mask", "swhid", b"swhid"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__mask: _TypeAlias = _typing.Literal["mask"]  # noqa: Y015
+    _WhichOneofArgType__mask: _TypeAlias = _typing.Literal["_mask", b"_mask"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__mask) -> _WhichOneofReturnType__mask | None: ...
 
-global___GetNodeRequest = GetNodeRequest
+Global___GetNodeRequest: _TypeAlias = GetNodeRequest  # noqa: Y015
 
-@typing.final
-class TraversalRequest(google.protobuf.message.Message):
+@_typing.final
+class TraversalRequest(_message.Message):
     """TraversalRequest describes how a breadth-first traversal should be
     performed, and what should be returned to the client.
     """
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SRC_FIELD_NUMBER: builtins.int
-    DIRECTION_FIELD_NUMBER: builtins.int
-    EDGES_FIELD_NUMBER: builtins.int
-    MAX_EDGES_FIELD_NUMBER: builtins.int
-    MIN_DEPTH_FIELD_NUMBER: builtins.int
-    MAX_DEPTH_FIELD_NUMBER: builtins.int
-    RETURN_NODES_FIELD_NUMBER: builtins.int
-    MASK_FIELD_NUMBER: builtins.int
-    MAX_MATCHING_NODES_FIELD_NUMBER: builtins.int
-    direction: global___GraphDirection.ValueType
+    SRC_FIELD_NUMBER: _builtins.int
+    DIRECTION_FIELD_NUMBER: _builtins.int
+    EDGES_FIELD_NUMBER: _builtins.int
+    MAX_EDGES_FIELD_NUMBER: _builtins.int
+    MIN_DEPTH_FIELD_NUMBER: _builtins.int
+    MAX_DEPTH_FIELD_NUMBER: _builtins.int
+    RETURN_NODES_FIELD_NUMBER: _builtins.int
+    MASK_FIELD_NUMBER: _builtins.int
+    MAX_MATCHING_NODES_FIELD_NUMBER: _builtins.int
+    direction: Global___GraphDirection.ValueType
     """Direction of the graph to traverse. Defaults to FORWARD."""
-    edges: builtins.str
+    edges: _builtins.str
     """Edge restriction string (e.g. "rev:dir,dir:cnt").
     Defaults to "*" (all).
     """
-    max_edges: builtins.int
+    max_edges: _builtins.int
     """Maximum number of edges accessed in the traversal, after which it stops.
     Defaults to infinite.
     """
-    min_depth: builtins.int
+    min_depth: _builtins.int
     """Do not return nodes with a depth lower than this number.
     By default, all depths are returned.
     """
-    max_depth: builtins.int
+    max_depth: _builtins.int
     """Maximum depth of the traversal, after which it stops.
     Defaults to infinite.
     """
-    max_matching_nodes: builtins.int
+    max_matching_nodes: _builtins.int
     """Maximum number of matching results before stopping. For Traverse(), this is
     the total number of results. Defaults to infinite.
     """
-    @property
-    def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
+    @_builtins.property
+    def src(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
         """Set of source nodes (SWHIDs)"""
 
-    @property
-    def return_nodes(self) -> global___NodeFilter:
+    @_builtins.property
+    def return_nodes(self) -> Global___NodeFilter:
         """Filter which nodes will be sent to the stream. By default, all nodes are
         returned.
         """
 
-    @property
-    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask:
+    @_builtins.property
+    def mask(self) -> _field_mask_pb2.FieldMask:
         """FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
         By default, all fields are returned.
         """
@@ -126,75 +169,91 @@ class TraversalRequest(google.protobuf.message.Message):
     def __init__(
         self,
         *,
-        src: collections.abc.Iterable[builtins.str] | None = ...,
-        direction: global___GraphDirection.ValueType = ...,
-        edges: builtins.str | None = ...,
-        max_edges: builtins.int | None = ...,
-        min_depth: builtins.int | None = ...,
-        max_depth: builtins.int | None = ...,
-        return_nodes: global___NodeFilter | None = ...,
-        mask: google.protobuf.field_mask_pb2.FieldMask | None = ...,
-        max_matching_nodes: builtins.int | None = ...,
+        src: _abc.Iterable[_builtins.str] | None = ...,
+        direction: Global___GraphDirection.ValueType = ...,
+        edges: _builtins.str | None = ...,
+        max_edges: _builtins.int | None = ...,
+        min_depth: _builtins.int | None = ...,
+        max_depth: _builtins.int | None = ...,
+        return_nodes: Global___NodeFilter | None = ...,
+        mask: _field_mask_pb2.FieldMask | None = ...,
+        max_matching_nodes: _builtins.int | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "_max_matching_nodes", b"_max_matching_nodes", "_min_depth", b"_min_depth", "_return_nodes", b"_return_nodes", "edges", b"edges", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "max_matching_nodes", b"max_matching_nodes", "min_depth", b"min_depth", "return_nodes", b"return_nodes"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "_max_matching_nodes", b"_max_matching_nodes", "_min_depth", b"_min_depth", "_return_nodes", b"_return_nodes", "direction", b"direction", "edges", b"edges", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "max_matching_nodes", b"max_matching_nodes", "min_depth", b"min_depth", "return_nodes", b"return_nodes", "src", b"src"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_edges", b"_edges"]) -> typing.Literal["edges"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_mask", b"_mask"]) -> typing.Literal["mask"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_max_depth", b"_max_depth"]) -> typing.Literal["max_depth"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_max_edges", b"_max_edges"]) -> typing.Literal["max_edges"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_max_matching_nodes", b"_max_matching_nodes"]) -> typing.Literal["max_matching_nodes"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_min_depth", b"_min_depth"]) -> typing.Literal["min_depth"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_return_nodes", b"_return_nodes"]) -> typing.Literal["return_nodes"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "_max_matching_nodes", b"_max_matching_nodes", "_min_depth", b"_min_depth", "_return_nodes", b"_return_nodes", "edges", b"edges", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "max_matching_nodes", b"max_matching_nodes", "min_depth", b"min_depth", "return_nodes", b"return_nodes"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "_max_matching_nodes", b"_max_matching_nodes", "_min_depth", b"_min_depth", "_return_nodes", b"_return_nodes", "direction", b"direction", "edges", b"edges", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "max_matching_nodes", b"max_matching_nodes", "min_depth", b"min_depth", "return_nodes", b"return_nodes", "src", b"src"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__edges: _TypeAlias = _typing.Literal["edges"]  # noqa: Y015
+    _WhichOneofArgType__edges: _TypeAlias = _typing.Literal["_edges", b"_edges"]  # noqa: Y015
+    _WhichOneofReturnType__mask: _TypeAlias = _typing.Literal["mask"]  # noqa: Y015
+    _WhichOneofArgType__mask: _TypeAlias = _typing.Literal["_mask", b"_mask"]  # noqa: Y015
+    _WhichOneofReturnType__max_depth: _TypeAlias = _typing.Literal["max_depth"]  # noqa: Y015
+    _WhichOneofArgType__max_depth: _TypeAlias = _typing.Literal["_max_depth", b"_max_depth"]  # noqa: Y015
+    _WhichOneofReturnType__max_edges: _TypeAlias = _typing.Literal["max_edges"]  # noqa: Y015
+    _WhichOneofArgType__max_edges: _TypeAlias = _typing.Literal["_max_edges", b"_max_edges"]  # noqa: Y015
+    _WhichOneofReturnType__max_matching_nodes: _TypeAlias = _typing.Literal["max_matching_nodes"]  # noqa: Y015
+    _WhichOneofArgType__max_matching_nodes: _TypeAlias = _typing.Literal["_max_matching_nodes", b"_max_matching_nodes"]  # noqa: Y015
+    _WhichOneofReturnType__min_depth: _TypeAlias = _typing.Literal["min_depth"]  # noqa: Y015
+    _WhichOneofArgType__min_depth: _TypeAlias = _typing.Literal["_min_depth", b"_min_depth"]  # noqa: Y015
+    _WhichOneofReturnType__return_nodes: _TypeAlias = _typing.Literal["return_nodes"]  # noqa: Y015
+    _WhichOneofArgType__return_nodes: _TypeAlias = _typing.Literal["_return_nodes", b"_return_nodes"]  # noqa: Y015
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__edges) -> _WhichOneofReturnType__edges | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__mask) -> _WhichOneofReturnType__mask | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__max_depth) -> _WhichOneofReturnType__max_depth | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__max_edges) -> _WhichOneofReturnType__max_edges | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__max_matching_nodes) -> _WhichOneofReturnType__max_matching_nodes | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__min_depth) -> _WhichOneofReturnType__min_depth | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__return_nodes) -> _WhichOneofReturnType__return_nodes | None: ...
 
-global___TraversalRequest = TraversalRequest
+Global___TraversalRequest: _TypeAlias = TraversalRequest  # noqa: Y015
 
-@typing.final
-class FindPathToRequest(google.protobuf.message.Message):
+@_typing.final
+class FindPathToRequest(_message.Message):
     """FindPathToRequest describes a request to find a shortest path between a
     set of nodes and a given target criteria, as well as what should be returned
     in the path.
     """
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SRC_FIELD_NUMBER: builtins.int
-    TARGET_FIELD_NUMBER: builtins.int
-    DIRECTION_FIELD_NUMBER: builtins.int
-    EDGES_FIELD_NUMBER: builtins.int
-    MAX_EDGES_FIELD_NUMBER: builtins.int
-    MAX_DEPTH_FIELD_NUMBER: builtins.int
-    MASK_FIELD_NUMBER: builtins.int
-    direction: global___GraphDirection.ValueType
+    SRC_FIELD_NUMBER: _builtins.int
+    TARGET_FIELD_NUMBER: _builtins.int
+    DIRECTION_FIELD_NUMBER: _builtins.int
+    EDGES_FIELD_NUMBER: _builtins.int
+    MAX_EDGES_FIELD_NUMBER: _builtins.int
+    MAX_DEPTH_FIELD_NUMBER: _builtins.int
+    MASK_FIELD_NUMBER: _builtins.int
+    direction: Global___GraphDirection.ValueType
     """Direction of the graph to traverse. Defaults to FORWARD."""
-    edges: builtins.str
+    edges: _builtins.str
     """Edge restriction string (e.g. "rev:dir,dir:cnt").
     Defaults to "*" (all).
     """
-    max_edges: builtins.int
+    max_edges: _builtins.int
     """Maximum number of edges accessed in the traversal, after which it stops.
     Defaults to infinite.
     """
-    max_depth: builtins.int
+    max_depth: _builtins.int
     """Maximum depth of the traversal, after which it stops.
     Defaults to infinite.
     """
-    @property
-    def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
+    @_builtins.property
+    def src(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
         """Set of source nodes (SWHIDs)"""
 
-    @property
-    def target(self) -> global___NodeFilter:
+    @_builtins.property
+    def target(self) -> Global___NodeFilter:
         """Target criteria, i.e., what constitutes a valid path destination."""
 
-    @property
-    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask:
+    @_builtins.property
+    def mask(self) -> _field_mask_pb2.FieldMask:
         """FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
         By default, all fields are returned.
         """
@@ -202,60 +261,70 @@ class FindPathToRequest(google.protobuf.message.Message):
     def __init__(
         self,
         *,
-        src: collections.abc.Iterable[builtins.str] | None = ...,
-        target: global___NodeFilter | None = ...,
-        direction: global___GraphDirection.ValueType = ...,
-        edges: builtins.str | None = ...,
-        max_edges: builtins.int | None = ...,
-        max_depth: builtins.int | None = ...,
-        mask: google.protobuf.field_mask_pb2.FieldMask | None = ...,
+        src: _abc.Iterable[_builtins.str] | None = ...,
+        target: Global___NodeFilter | None = ...,
+        direction: Global___GraphDirection.ValueType = ...,
+        edges: _builtins.str | None = ...,
+        max_edges: _builtins.int | None = ...,
+        max_depth: _builtins.int | None = ...,
+        mask: _field_mask_pb2.FieldMask | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "edges", b"edges", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "target", b"target"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "direction", b"direction", "edges", b"edges", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "src", b"src", "target", b"target"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_edges", b"_edges"]) -> typing.Literal["edges"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_mask", b"_mask"]) -> typing.Literal["mask"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_max_depth", b"_max_depth"]) -> typing.Literal["max_depth"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_max_edges", b"_max_edges"]) -> typing.Literal["max_edges"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "edges", b"edges", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "target", b"target"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "direction", b"direction", "edges", b"edges", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "src", b"src", "target", b"target"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__edges: _TypeAlias = _typing.Literal["edges"]  # noqa: Y015
+    _WhichOneofArgType__edges: _TypeAlias = _typing.Literal["_edges", b"_edges"]  # noqa: Y015
+    _WhichOneofReturnType__mask: _TypeAlias = _typing.Literal["mask"]  # noqa: Y015
+    _WhichOneofArgType__mask: _TypeAlias = _typing.Literal["_mask", b"_mask"]  # noqa: Y015
+    _WhichOneofReturnType__max_depth: _TypeAlias = _typing.Literal["max_depth"]  # noqa: Y015
+    _WhichOneofArgType__max_depth: _TypeAlias = _typing.Literal["_max_depth", b"_max_depth"]  # noqa: Y015
+    _WhichOneofReturnType__max_edges: _TypeAlias = _typing.Literal["max_edges"]  # noqa: Y015
+    _WhichOneofArgType__max_edges: _TypeAlias = _typing.Literal["_max_edges", b"_max_edges"]  # noqa: Y015
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__edges) -> _WhichOneofReturnType__edges | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__mask) -> _WhichOneofReturnType__mask | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__max_depth) -> _WhichOneofReturnType__max_depth | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__max_edges) -> _WhichOneofReturnType__max_edges | None: ...
 
-global___FindPathToRequest = FindPathToRequest
+Global___FindPathToRequest: _TypeAlias = FindPathToRequest  # noqa: Y015
 
-@typing.final
-class FindPathBetweenRequest(google.protobuf.message.Message):
+@_typing.final
+class FindPathBetweenRequest(_message.Message):
     """FindPathToRequest describes a request to find a shortest path between a
     set of source nodes and a set of destination nodes. It works by performing a
     bidirectional breadth-first traversal from both sets at the same time.
     """
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SRC_FIELD_NUMBER: builtins.int
-    DST_FIELD_NUMBER: builtins.int
-    DIRECTION_FIELD_NUMBER: builtins.int
-    DIRECTION_REVERSE_FIELD_NUMBER: builtins.int
-    EDGES_FIELD_NUMBER: builtins.int
-    EDGES_REVERSE_FIELD_NUMBER: builtins.int
-    MAX_EDGES_FIELD_NUMBER: builtins.int
-    MAX_DEPTH_FIELD_NUMBER: builtins.int
-    MASK_FIELD_NUMBER: builtins.int
-    direction: global___GraphDirection.ValueType
+    SRC_FIELD_NUMBER: _builtins.int
+    DST_FIELD_NUMBER: _builtins.int
+    DIRECTION_FIELD_NUMBER: _builtins.int
+    DIRECTION_REVERSE_FIELD_NUMBER: _builtins.int
+    EDGES_FIELD_NUMBER: _builtins.int
+    EDGES_REVERSE_FIELD_NUMBER: _builtins.int
+    MAX_EDGES_FIELD_NUMBER: _builtins.int
+    MAX_DEPTH_FIELD_NUMBER: _builtins.int
+    MASK_FIELD_NUMBER: _builtins.int
+    direction: Global___GraphDirection.ValueType
     """Direction of the graph to traverse from the source set. Defaults to
     FORWARD.
     """
-    direction_reverse: global___GraphDirection.ValueType
+    direction_reverse: Global___GraphDirection.ValueType
     """Direction of the graph to traverse from the destination set. Defaults to
     the opposite of `direction`. If direction and direction_reverse are
     identical, it will find the first common successor of both sets in the
     given direction.
     """
-    edges: builtins.str
+    edges: _builtins.str
     """Edge restriction string for the traversal from the source set.
     (e.g. "rev:dir,dir:cnt"). Defaults to "*" (all).
     """
-    edges_reverse: builtins.str
+    edges_reverse: _builtins.str
     """Edge restriction string for the reverse traversal from the destination
     set.
     If not specified:
@@ -264,24 +333,24 @@ class FindPathBetweenRequest(google.protobuf.message.Message):
       - If direction != direction_reverse, defaults to the reverse of `edges`
         (e.g. "rev:dir" becomes "dir:rev").
     """
-    max_edges: builtins.int
+    max_edges: _builtins.int
     """Maximum number of edges accessed in the traversal, after which it stops.
     Defaults to infinite.
     """
-    max_depth: builtins.int
+    max_depth: _builtins.int
     """Maximum depth of the traversal, after which it stops.
     Defaults to infinite.
     """
-    @property
-    def src(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
+    @_builtins.property
+    def src(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
         """Set of source nodes (SWHIDs)"""
 
-    @property
-    def dst(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
+    @_builtins.property
+    def dst(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
         """Set of destination nodes (SWHIDs)"""
 
-    @property
-    def mask(self) -> google.protobuf.field_mask_pb2.FieldMask:
+    @_builtins.property
+    def mask(self) -> _field_mask_pb2.FieldMask:
         """FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
         By default, all fields are returned.
         """
@@ -289,143 +358,171 @@ class FindPathBetweenRequest(google.protobuf.message.Message):
     def __init__(
         self,
         *,
-        src: collections.abc.Iterable[builtins.str] | None = ...,
-        dst: collections.abc.Iterable[builtins.str] | None = ...,
-        direction: global___GraphDirection.ValueType = ...,
-        direction_reverse: global___GraphDirection.ValueType | None = ...,
-        edges: builtins.str | None = ...,
-        edges_reverse: builtins.str | None = ...,
-        max_edges: builtins.int | None = ...,
-        max_depth: builtins.int | None = ...,
-        mask: google.protobuf.field_mask_pb2.FieldMask | None = ...,
+        src: _abc.Iterable[_builtins.str] | None = ...,
+        dst: _abc.Iterable[_builtins.str] | None = ...,
+        direction: Global___GraphDirection.ValueType = ...,
+        direction_reverse: Global___GraphDirection.ValueType | None = ...,
+        edges: _builtins.str | None = ...,
+        edges_reverse: _builtins.str | None = ...,
+        max_edges: _builtins.int | None = ...,
+        max_depth: _builtins.int | None = ...,
+        mask: _field_mask_pb2.FieldMask | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_direction_reverse", b"_direction_reverse", "_edges", b"_edges", "_edges_reverse", b"_edges_reverse", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "direction_reverse", b"direction_reverse", "edges", b"edges", "edges_reverse", b"edges_reverse", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_direction_reverse", b"_direction_reverse", "_edges", b"_edges", "_edges_reverse", b"_edges_reverse", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "direction", b"direction", "direction_reverse", b"direction_reverse", "dst", b"dst", "edges", b"edges", "edges_reverse", b"edges_reverse", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "src", b"src"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_direction_reverse", b"_direction_reverse"]) -> typing.Literal["direction_reverse"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_edges", b"_edges"]) -> typing.Literal["edges"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_edges_reverse", b"_edges_reverse"]) -> typing.Literal["edges_reverse"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_mask", b"_mask"]) -> typing.Literal["mask"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_max_depth", b"_max_depth"]) -> typing.Literal["max_depth"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_max_edges", b"_max_edges"]) -> typing.Literal["max_edges"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_direction_reverse", b"_direction_reverse", "_edges", b"_edges", "_edges_reverse", b"_edges_reverse", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "direction_reverse", b"direction_reverse", "edges", b"edges", "edges_reverse", b"edges_reverse", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_direction_reverse", b"_direction_reverse", "_edges", b"_edges", "_edges_reverse", b"_edges_reverse", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "direction", b"direction", "direction_reverse", b"direction_reverse", "dst", b"dst", "edges", b"edges", "edges_reverse", b"edges_reverse", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "src", b"src"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__direction_reverse: _TypeAlias = _typing.Literal["direction_reverse"]  # noqa: Y015
+    _WhichOneofArgType__direction_reverse: _TypeAlias = _typing.Literal["_direction_reverse", b"_direction_reverse"]  # noqa: Y015
+    _WhichOneofReturnType__edges: _TypeAlias = _typing.Literal["edges"]  # noqa: Y015
+    _WhichOneofArgType__edges: _TypeAlias = _typing.Literal["_edges", b"_edges"]  # noqa: Y015
+    _WhichOneofReturnType__edges_reverse: _TypeAlias = _typing.Literal["edges_reverse"]  # noqa: Y015
+    _WhichOneofArgType__edges_reverse: _TypeAlias = _typing.Literal["_edges_reverse", b"_edges_reverse"]  # noqa: Y015
+    _WhichOneofReturnType__mask: _TypeAlias = _typing.Literal["mask"]  # noqa: Y015
+    _WhichOneofArgType__mask: _TypeAlias = _typing.Literal["_mask", b"_mask"]  # noqa: Y015
+    _WhichOneofReturnType__max_depth: _TypeAlias = _typing.Literal["max_depth"]  # noqa: Y015
+    _WhichOneofArgType__max_depth: _TypeAlias = _typing.Literal["_max_depth", b"_max_depth"]  # noqa: Y015
+    _WhichOneofReturnType__max_edges: _TypeAlias = _typing.Literal["max_edges"]  # noqa: Y015
+    _WhichOneofArgType__max_edges: _TypeAlias = _typing.Literal["_max_edges", b"_max_edges"]  # noqa: Y015
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__direction_reverse) -> _WhichOneofReturnType__direction_reverse | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__edges) -> _WhichOneofReturnType__edges | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__edges_reverse) -> _WhichOneofReturnType__edges_reverse | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__mask) -> _WhichOneofReturnType__mask | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__max_depth) -> _WhichOneofReturnType__max_depth | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__max_edges) -> _WhichOneofReturnType__max_edges | None: ...
 
-global___FindPathBetweenRequest = FindPathBetweenRequest
+Global___FindPathBetweenRequest: _TypeAlias = FindPathBetweenRequest  # noqa: Y015
 
-@typing.final
-class NodeFilter(google.protobuf.message.Message):
+@_typing.final
+class NodeFilter(_message.Message):
     """Represents various criteria that make a given node "valid". A node is
     only valid if all the subcriteria present in this message are fulfilled.
     """
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    TYPES_FIELD_NUMBER: builtins.int
-    MIN_TRAVERSAL_SUCCESSORS_FIELD_NUMBER: builtins.int
-    MAX_TRAVERSAL_SUCCESSORS_FIELD_NUMBER: builtins.int
-    types: builtins.str
+    TYPES_FIELD_NUMBER: _builtins.int
+    MIN_TRAVERSAL_SUCCESSORS_FIELD_NUMBER: _builtins.int
+    MAX_TRAVERSAL_SUCCESSORS_FIELD_NUMBER: _builtins.int
+    types: _builtins.str
     """Node restriction string. (e.g. "dir,cnt,rev"). Defaults to "*" (all)."""
-    min_traversal_successors: builtins.int
+    min_traversal_successors: _builtins.int
     """Minimum number of successors encountered *during the traversal*.
     Default: no constraint
     """
-    max_traversal_successors: builtins.int
+    max_traversal_successors: _builtins.int
     """Maximum number of successors encountered *during the traversal*.
     Default: no constraint
     """
     def __init__(
         self,
         *,
-        types: builtins.str | None = ...,
-        min_traversal_successors: builtins.int | None = ...,
-        max_traversal_successors: builtins.int | None = ...,
+        types: _builtins.str | None = ...,
+        min_traversal_successors: _builtins.int | None = ...,
+        max_traversal_successors: _builtins.int | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_max_traversal_successors", b"_max_traversal_successors", "_min_traversal_successors", b"_min_traversal_successors", "_types", b"_types", "max_traversal_successors", b"max_traversal_successors", "min_traversal_successors", b"min_traversal_successors", "types", b"types"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_max_traversal_successors", b"_max_traversal_successors", "_min_traversal_successors", b"_min_traversal_successors", "_types", b"_types", "max_traversal_successors", b"max_traversal_successors", "min_traversal_successors", b"min_traversal_successors", "types", b"types"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_max_traversal_successors", b"_max_traversal_successors"]) -> typing.Literal["max_traversal_successors"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_min_traversal_successors", b"_min_traversal_successors"]) -> typing.Literal["min_traversal_successors"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_types", b"_types"]) -> typing.Literal["types"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_max_traversal_successors", b"_max_traversal_successors", "_min_traversal_successors", b"_min_traversal_successors", "_types", b"_types", "max_traversal_successors", b"max_traversal_successors", "min_traversal_successors", b"min_traversal_successors", "types", b"types"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_max_traversal_successors", b"_max_traversal_successors", "_min_traversal_successors", b"_min_traversal_successors", "_types", b"_types", "max_traversal_successors", b"max_traversal_successors", "min_traversal_successors", b"min_traversal_successors", "types", b"types"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__max_traversal_successors: _TypeAlias = _typing.Literal["max_traversal_successors"]  # noqa: Y015
+    _WhichOneofArgType__max_traversal_successors: _TypeAlias = _typing.Literal["_max_traversal_successors", b"_max_traversal_successors"]  # noqa: Y015
+    _WhichOneofReturnType__min_traversal_successors: _TypeAlias = _typing.Literal["min_traversal_successors"]  # noqa: Y015
+    _WhichOneofArgType__min_traversal_successors: _TypeAlias = _typing.Literal["_min_traversal_successors", b"_min_traversal_successors"]  # noqa: Y015
+    _WhichOneofReturnType__types: _TypeAlias = _typing.Literal["types"]  # noqa: Y015
+    _WhichOneofArgType__types: _TypeAlias = _typing.Literal["_types", b"_types"]  # noqa: Y015
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__max_traversal_successors) -> _WhichOneofReturnType__max_traversal_successors | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__min_traversal_successors) -> _WhichOneofReturnType__min_traversal_successors | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__types) -> _WhichOneofReturnType__types | None: ...
 
-global___NodeFilter = NodeFilter
+Global___NodeFilter: _TypeAlias = NodeFilter  # noqa: Y015
 
-@typing.final
-class Node(google.protobuf.message.Message):
+@_typing.final
+class Node(_message.Message):
     """Represents a node in the graph."""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SWHID_FIELD_NUMBER: builtins.int
-    SUCCESSOR_FIELD_NUMBER: builtins.int
-    NUM_SUCCESSORS_FIELD_NUMBER: builtins.int
-    CNT_FIELD_NUMBER: builtins.int
-    REV_FIELD_NUMBER: builtins.int
-    REL_FIELD_NUMBER: builtins.int
-    ORI_FIELD_NUMBER: builtins.int
-    swhid: builtins.str
+    SWHID_FIELD_NUMBER: _builtins.int
+    SUCCESSOR_FIELD_NUMBER: _builtins.int
+    NUM_SUCCESSORS_FIELD_NUMBER: _builtins.int
+    CNT_FIELD_NUMBER: _builtins.int
+    REV_FIELD_NUMBER: _builtins.int
+    REL_FIELD_NUMBER: _builtins.int
+    ORI_FIELD_NUMBER: _builtins.int
+    swhid: _builtins.str
     """The SWHID of the graph node."""
-    num_successors: builtins.int
+    num_successors: _builtins.int
     """Number of relevant successors."""
-    @property
-    def successor(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Successor]:
+    @_builtins.property
+    def successor(self) -> _containers.RepeatedCompositeFieldContainer[Global___Successor]:
         """List of relevant successors of this node."""
 
-    @property
-    def cnt(self) -> global___ContentData: ...
-    @property
-    def rev(self) -> global___RevisionData: ...
-    @property
-    def rel(self) -> global___ReleaseData: ...
-    @property
-    def ori(self) -> global___OriginData: ...
+    @_builtins.property
+    def cnt(self) -> Global___ContentData: ...
+    @_builtins.property
+    def rev(self) -> Global___RevisionData: ...
+    @_builtins.property
+    def rel(self) -> Global___ReleaseData: ...
+    @_builtins.property
+    def ori(self) -> Global___OriginData: ...
     def __init__(
         self,
         *,
-        swhid: builtins.str = ...,
-        successor: collections.abc.Iterable[global___Successor] | None = ...,
-        num_successors: builtins.int | None = ...,
-        cnt: global___ContentData | None = ...,
-        rev: global___RevisionData | None = ...,
-        rel: global___ReleaseData | None = ...,
-        ori: global___OriginData | None = ...,
+        swhid: _builtins.str = ...,
+        successor: _abc.Iterable[Global___Successor] | None = ...,
+        num_successors: _builtins.int | None = ...,
+        cnt: Global___ContentData | None = ...,
+        rev: Global___RevisionData | None = ...,
+        rel: Global___ReleaseData | None = ...,
+        ori: Global___OriginData | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_num_successors", b"_num_successors", "cnt", b"cnt", "data", b"data", "num_successors", b"num_successors", "ori", b"ori", "rel", b"rel", "rev", b"rev"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_num_successors", b"_num_successors", "cnt", b"cnt", "data", b"data", "num_successors", b"num_successors", "ori", b"ori", "rel", b"rel", "rev", b"rev", "successor", b"successor", "swhid", b"swhid"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_num_successors", b"_num_successors"]) -> typing.Literal["num_successors"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["data", b"data"]) -> typing.Literal["cnt", "rev", "rel", "ori"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_num_successors", b"_num_successors", "cnt", b"cnt", "data", b"data", "num_successors", b"num_successors", "ori", b"ori", "rel", b"rel", "rev", b"rev"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_num_successors", b"_num_successors", "cnt", b"cnt", "data", b"data", "num_successors", b"num_successors", "ori", b"ori", "rel", b"rel", "rev", b"rev", "successor", b"successor", "swhid", b"swhid"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__num_successors: _TypeAlias = _typing.Literal["num_successors"]  # noqa: Y015
+    _WhichOneofArgType__num_successors: _TypeAlias = _typing.Literal["_num_successors", b"_num_successors"]  # noqa: Y015
+    _WhichOneofReturnType_data: _TypeAlias = _typing.Literal["cnt", "rev", "rel", "ori"]  # noqa: Y015
+    _WhichOneofArgType_data: _TypeAlias = _typing.Literal["data", b"data"]  # noqa: Y015
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__num_successors) -> _WhichOneofReturnType__num_successors | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_data) -> _WhichOneofReturnType_data | None: ...
 
-global___Node = Node
+Global___Node: _TypeAlias = Node  # noqa: Y015
 
-@typing.final
-class Path(google.protobuf.message.Message):
+@_typing.final
+class Path(_message.Message):
     """Represents a path in the graph."""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    NODE_FIELD_NUMBER: builtins.int
-    MIDPOINT_INDEX_FIELD_NUMBER: builtins.int
-    LABELED_NODE_FIELD_NUMBER: builtins.int
-    midpoint_index: builtins.int
+    NODE_FIELD_NUMBER: _builtins.int
+    MIDPOINT_INDEX_FIELD_NUMBER: _builtins.int
+    LABELED_NODE_FIELD_NUMBER: _builtins.int
+    midpoint_index: _builtins.int
     """Index of the "midpoint" of the path. For paths obtained with
     bidirectional search queries, this is the node that joined the two
     sets together. When looking for a common ancestor between two nodes by
     performing a FindPathBetween search with two backward graphs, this will
     be the index of the common ancestor in the path.
     """
-    @property
-    def node(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Node]:
+    @_builtins.property
+    def node(self) -> _containers.RepeatedCompositeFieldContainer[Global___Node]:
         """List of nodes in the path, from source to destination"""
 
-    @property
-    def labeled_node(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___LabeledNode]:
+    @_builtins.property
+    def labeled_node(self) -> _containers.RepeatedCompositeFieldContainer[Global___LabeledNode]:
         """List of nodes in the path, from source to destination, and labels between them.
         This allows getting the path within a directory structure, for example.
 
@@ -435,406 +532,491 @@ class Path(google.protobuf.message.Message):
     def __init__(
         self,
         *,
-        node: collections.abc.Iterable[global___Node] | None = ...,
-        midpoint_index: builtins.int | None = ...,
-        labeled_node: collections.abc.Iterable[global___LabeledNode] | None = ...,
+        node: _abc.Iterable[Global___Node] | None = ...,
+        midpoint_index: _builtins.int | None = ...,
+        labeled_node: _abc.Iterable[Global___LabeledNode] | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_midpoint_index", b"_midpoint_index", "midpoint_index", b"midpoint_index"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_midpoint_index", b"_midpoint_index", "labeled_node", b"labeled_node", "midpoint_index", b"midpoint_index", "node", b"node"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing.Literal["_midpoint_index", b"_midpoint_index"]) -> typing.Literal["midpoint_index"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_midpoint_index", b"_midpoint_index", "midpoint_index", b"midpoint_index"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_midpoint_index", b"_midpoint_index", "labeled_node", b"labeled_node", "midpoint_index", b"midpoint_index", "node", b"node"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__midpoint_index: _TypeAlias = _typing.Literal["midpoint_index"]  # noqa: Y015
+    _WhichOneofArgType__midpoint_index: _TypeAlias = _typing.Literal["_midpoint_index", b"_midpoint_index"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__midpoint_index) -> _WhichOneofReturnType__midpoint_index | None: ...
 
-global___Path = Path
+Global___Path: _TypeAlias = Path  # noqa: Y015
 
-@typing.final
-class LabeledNode(google.protobuf.message.Message):
+@_typing.final
+class LabeledNode(_message.Message):
     """Represents a node and the label between it and its successor."""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    NODE_FIELD_NUMBER: builtins.int
-    LABEL_FIELD_NUMBER: builtins.int
-    @property
-    def node(self) -> global___Node: ...
-    @property
-    def label(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___EdgeLabel]: ...
+    NODE_FIELD_NUMBER: _builtins.int
+    LABEL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def node(self) -> Global___Node: ...
+    @_builtins.property
+    def label(self) -> _containers.RepeatedCompositeFieldContainer[Global___EdgeLabel]: ...
     def __init__(
         self,
         *,
-        node: global___Node | None = ...,
-        label: collections.abc.Iterable[global___EdgeLabel] | None = ...,
+        node: Global___Node | None = ...,
+        label: _abc.Iterable[Global___EdgeLabel] | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_node", b"_node", "node", b"node"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_node", b"_node", "label", b"label", "node", b"node"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing.Literal["_node", b"_node"]) -> typing.Literal["node"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_node", b"_node", "node", b"node"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_node", b"_node", "label", b"label", "node", b"node"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__node: _TypeAlias = _typing.Literal["node"]  # noqa: Y015
+    _WhichOneofArgType__node: _TypeAlias = _typing.Literal["_node", b"_node"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__node) -> _WhichOneofReturnType__node | None: ...
 
-global___LabeledNode = LabeledNode
+Global___LabeledNode: _TypeAlias = LabeledNode  # noqa: Y015
 
-@typing.final
-class Successor(google.protobuf.message.Message):
+@_typing.final
+class Successor(_message.Message):
     """Represents a successor of a given node."""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SWHID_FIELD_NUMBER: builtins.int
-    LABEL_FIELD_NUMBER: builtins.int
-    swhid: builtins.str
+    SWHID_FIELD_NUMBER: _builtins.int
+    LABEL_FIELD_NUMBER: _builtins.int
+    swhid: _builtins.str
     """The SWHID of the successor"""
-    @property
-    def label(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___EdgeLabel]:
+    @_builtins.property
+    def label(self) -> _containers.RepeatedCompositeFieldContainer[Global___EdgeLabel]:
         """A list of edge labels for the given edge"""
 
     def __init__(
         self,
         *,
-        swhid: builtins.str | None = ...,
-        label: collections.abc.Iterable[global___EdgeLabel] | None = ...,
+        swhid: _builtins.str | None = ...,
+        label: _abc.Iterable[Global___EdgeLabel] | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_swhid", b"_swhid", "swhid", b"swhid"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_swhid", b"_swhid", "label", b"label", "swhid", b"swhid"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing.Literal["_swhid", b"_swhid"]) -> typing.Literal["swhid"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_swhid", b"_swhid", "swhid", b"swhid"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_swhid", b"_swhid", "label", b"label", "swhid", b"swhid"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__swhid: _TypeAlias = _typing.Literal["swhid"]  # noqa: Y015
+    _WhichOneofArgType__swhid: _TypeAlias = _typing.Literal["_swhid", b"_swhid"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__swhid) -> _WhichOneofReturnType__swhid | None: ...
 
-global___Successor = Successor
+Global___Successor: _TypeAlias = Successor  # noqa: Y015
 
-@typing.final
-class ContentData(google.protobuf.message.Message):
+@_typing.final
+class ContentData(_message.Message):
     """Content node properties"""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    LENGTH_FIELD_NUMBER: builtins.int
-    IS_SKIPPED_FIELD_NUMBER: builtins.int
-    length: builtins.int
+    LENGTH_FIELD_NUMBER: _builtins.int
+    IS_SKIPPED_FIELD_NUMBER: _builtins.int
+    length: _builtins.int
     """Length of the blob, in bytes"""
-    is_skipped: builtins.bool
+    is_skipped: _builtins.bool
     """Whether the content was skipped during ingestion."""
     def __init__(
         self,
         *,
-        length: builtins.int | None = ...,
-        is_skipped: builtins.bool | None = ...,
+        length: _builtins.int | None = ...,
+        is_skipped: _builtins.bool | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_is_skipped", b"_is_skipped", "_length", b"_length", "is_skipped", b"is_skipped", "length", b"length"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_is_skipped", b"_is_skipped", "_length", b"_length", "is_skipped", b"is_skipped", "length", b"length"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_is_skipped", b"_is_skipped"]) -> typing.Literal["is_skipped"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_length", b"_length"]) -> typing.Literal["length"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_is_skipped", b"_is_skipped", "_length", b"_length", "is_skipped", b"is_skipped", "length", b"length"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_is_skipped", b"_is_skipped", "_length", b"_length", "is_skipped", b"is_skipped", "length", b"length"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__is_skipped: _TypeAlias = _typing.Literal["is_skipped"]  # noqa: Y015
+    _WhichOneofArgType__is_skipped: _TypeAlias = _typing.Literal["_is_skipped", b"_is_skipped"]  # noqa: Y015
+    _WhichOneofReturnType__length: _TypeAlias = _typing.Literal["length"]  # noqa: Y015
+    _WhichOneofArgType__length: _TypeAlias = _typing.Literal["_length", b"_length"]  # noqa: Y015
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__is_skipped) -> _WhichOneofReturnType__is_skipped | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__length) -> _WhichOneofReturnType__length | None: ...
 
-global___ContentData = ContentData
+Global___ContentData: _TypeAlias = ContentData  # noqa: Y015
 
-@typing.final
-class RevisionData(google.protobuf.message.Message):
+@_typing.final
+class RevisionData(_message.Message):
     """Revision node properties"""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    AUTHOR_FIELD_NUMBER: builtins.int
-    AUTHOR_DATE_FIELD_NUMBER: builtins.int
-    AUTHOR_DATE_OFFSET_FIELD_NUMBER: builtins.int
-    COMMITTER_FIELD_NUMBER: builtins.int
-    COMMITTER_DATE_FIELD_NUMBER: builtins.int
-    COMMITTER_DATE_OFFSET_FIELD_NUMBER: builtins.int
-    MESSAGE_FIELD_NUMBER: builtins.int
-    author: builtins.int
+    AUTHOR_FIELD_NUMBER: _builtins.int
+    AUTHOR_DATE_FIELD_NUMBER: _builtins.int
+    AUTHOR_DATE_OFFSET_FIELD_NUMBER: _builtins.int
+    COMMITTER_FIELD_NUMBER: _builtins.int
+    COMMITTER_DATE_FIELD_NUMBER: _builtins.int
+    COMMITTER_DATE_OFFSET_FIELD_NUMBER: _builtins.int
+    MESSAGE_FIELD_NUMBER: _builtins.int
+    author: _builtins.int
     """Revision author ID (anonymized)"""
-    author_date: builtins.int
+    author_date: _builtins.int
     """UNIX timestamp of the revision date (UTC)"""
-    author_date_offset: builtins.int
+    author_date_offset: _builtins.int
     """Timezone of the revision author date as an offset from UTC"""
-    committer: builtins.int
+    committer: _builtins.int
     """Revision committer ID (anonymized)"""
-    committer_date: builtins.int
+    committer_date: _builtins.int
     """UNIX timestamp of the revision committer date (UTC)"""
-    committer_date_offset: builtins.int
+    committer_date_offset: _builtins.int
     """Timezone of the revision committer date as an offset from UTC"""
-    message: builtins.bytes
+    message: _builtins.bytes
     """Revision message"""
     def __init__(
         self,
         *,
-        author: builtins.int | None = ...,
-        author_date: builtins.int | None = ...,
-        author_date_offset: builtins.int | None = ...,
-        committer: builtins.int | None = ...,
-        committer_date: builtins.int | None = ...,
-        committer_date_offset: builtins.int | None = ...,
-        message: builtins.bytes | None = ...,
+        author: _builtins.int | None = ...,
+        author_date: _builtins.int | None = ...,
+        author_date_offset: _builtins.int | None = ...,
+        committer: _builtins.int | None = ...,
+        committer_date: _builtins.int | None = ...,
+        committer_date_offset: _builtins.int | None = ...,
+        message: _builtins.bytes | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_author", b"_author", "_author_date", b"_author_date", "_author_date_offset", b"_author_date_offset", "_committer", b"_committer", "_committer_date", b"_committer_date", "_committer_date_offset", b"_committer_date_offset", "_message", b"_message", "author", b"author", "author_date", b"author_date", "author_date_offset", b"author_date_offset", "committer", b"committer", "committer_date", b"committer_date", "committer_date_offset", b"committer_date_offset", "message", b"message"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_author", b"_author", "_author_date", b"_author_date", "_author_date_offset", b"_author_date_offset", "_committer", b"_committer", "_committer_date", b"_committer_date", "_committer_date_offset", b"_committer_date_offset", "_message", b"_message", "author", b"author", "author_date", b"author_date", "author_date_offset", b"author_date_offset", "committer", b"committer", "committer_date", b"committer_date", "committer_date_offset", b"committer_date_offset", "message", b"message"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_author", b"_author"]) -> typing.Literal["author"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_author_date", b"_author_date"]) -> typing.Literal["author_date"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_author_date_offset", b"_author_date_offset"]) -> typing.Literal["author_date_offset"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_committer", b"_committer"]) -> typing.Literal["committer"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_committer_date", b"_committer_date"]) -> typing.Literal["committer_date"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_committer_date_offset", b"_committer_date_offset"]) -> typing.Literal["committer_date_offset"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_message", b"_message"]) -> typing.Literal["message"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_author", b"_author", "_author_date", b"_author_date", "_author_date_offset", b"_author_date_offset", "_committer", b"_committer", "_committer_date", b"_committer_date", "_committer_date_offset", b"_committer_date_offset", "_message", b"_message", "author", b"author", "author_date", b"author_date", "author_date_offset", b"author_date_offset", "committer", b"committer", "committer_date", b"committer_date", "committer_date_offset", b"committer_date_offset", "message", b"message"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_author", b"_author", "_author_date", b"_author_date", "_author_date_offset", b"_author_date_offset", "_committer", b"_committer", "_committer_date", b"_committer_date", "_committer_date_offset", b"_committer_date_offset", "_message", b"_message", "author", b"author", "author_date", b"author_date", "author_date_offset", b"author_date_offset", "committer", b"committer", "committer_date", b"committer_date", "committer_date_offset", b"committer_date_offset", "message", b"message"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__author: _TypeAlias = _typing.Literal["author"]  # noqa: Y015
+    _WhichOneofArgType__author: _TypeAlias = _typing.Literal["_author", b"_author"]  # noqa: Y015
+    _WhichOneofReturnType__author_date: _TypeAlias = _typing.Literal["author_date"]  # noqa: Y015
+    _WhichOneofArgType__author_date: _TypeAlias = _typing.Literal["_author_date", b"_author_date"]  # noqa: Y015
+    _WhichOneofReturnType__author_date_offset: _TypeAlias = _typing.Literal["author_date_offset"]  # noqa: Y015
+    _WhichOneofArgType__author_date_offset: _TypeAlias = _typing.Literal["_author_date_offset", b"_author_date_offset"]  # noqa: Y015
+    _WhichOneofReturnType__committer: _TypeAlias = _typing.Literal["committer"]  # noqa: Y015
+    _WhichOneofArgType__committer: _TypeAlias = _typing.Literal["_committer", b"_committer"]  # noqa: Y015
+    _WhichOneofReturnType__committer_date: _TypeAlias = _typing.Literal["committer_date"]  # noqa: Y015
+    _WhichOneofArgType__committer_date: _TypeAlias = _typing.Literal["_committer_date", b"_committer_date"]  # noqa: Y015
+    _WhichOneofReturnType__committer_date_offset: _TypeAlias = _typing.Literal["committer_date_offset"]  # noqa: Y015
+    _WhichOneofArgType__committer_date_offset: _TypeAlias = _typing.Literal["_committer_date_offset", b"_committer_date_offset"]  # noqa: Y015
+    _WhichOneofReturnType__message: _TypeAlias = _typing.Literal["message"]  # noqa: Y015
+    _WhichOneofArgType__message: _TypeAlias = _typing.Literal["_message", b"_message"]  # noqa: Y015
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__author) -> _WhichOneofReturnType__author | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__author_date) -> _WhichOneofReturnType__author_date | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__author_date_offset) -> _WhichOneofReturnType__author_date_offset | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__committer) -> _WhichOneofReturnType__committer | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__committer_date) -> _WhichOneofReturnType__committer_date | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__committer_date_offset) -> _WhichOneofReturnType__committer_date_offset | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__message) -> _WhichOneofReturnType__message | None: ...
 
-global___RevisionData = RevisionData
+Global___RevisionData: _TypeAlias = RevisionData  # noqa: Y015
 
-@typing.final
-class ReleaseData(google.protobuf.message.Message):
+@_typing.final
+class ReleaseData(_message.Message):
     """Release node properties"""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    AUTHOR_FIELD_NUMBER: builtins.int
-    AUTHOR_DATE_FIELD_NUMBER: builtins.int
-    AUTHOR_DATE_OFFSET_FIELD_NUMBER: builtins.int
-    NAME_FIELD_NUMBER: builtins.int
-    MESSAGE_FIELD_NUMBER: builtins.int
-    author: builtins.int
+    AUTHOR_FIELD_NUMBER: _builtins.int
+    AUTHOR_DATE_FIELD_NUMBER: _builtins.int
+    AUTHOR_DATE_OFFSET_FIELD_NUMBER: _builtins.int
+    NAME_FIELD_NUMBER: _builtins.int
+    MESSAGE_FIELD_NUMBER: _builtins.int
+    author: _builtins.int
     """Release author ID (anonymized)"""
-    author_date: builtins.int
+    author_date: _builtins.int
     """UNIX timestamp of the release date (UTC)"""
-    author_date_offset: builtins.int
+    author_date_offset: _builtins.int
     """Timezone of the release author date as an offset from UTC"""
-    name: builtins.bytes
+    name: _builtins.bytes
     """Release name"""
-    message: builtins.bytes
+    message: _builtins.bytes
     """Release message"""
     def __init__(
         self,
         *,
-        author: builtins.int | None = ...,
-        author_date: builtins.int | None = ...,
-        author_date_offset: builtins.int | None = ...,
-        name: builtins.bytes | None = ...,
-        message: builtins.bytes | None = ...,
+        author: _builtins.int | None = ...,
+        author_date: _builtins.int | None = ...,
+        author_date_offset: _builtins.int | None = ...,
+        name: _builtins.bytes | None = ...,
+        message: _builtins.bytes | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_author", b"_author", "_author_date", b"_author_date", "_author_date_offset", b"_author_date_offset", "_message", b"_message", "_name", b"_name", "author", b"author", "author_date", b"author_date", "author_date_offset", b"author_date_offset", "message", b"message", "name", b"name"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_author", b"_author", "_author_date", b"_author_date", "_author_date_offset", b"_author_date_offset", "_message", b"_message", "_name", b"_name", "author", b"author", "author_date", b"author_date", "author_date_offset", b"author_date_offset", "message", b"message", "name", b"name"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_author", b"_author"]) -> typing.Literal["author"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_author_date", b"_author_date"]) -> typing.Literal["author_date"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_author_date_offset", b"_author_date_offset"]) -> typing.Literal["author_date_offset"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_message", b"_message"]) -> typing.Literal["message"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_name", b"_name"]) -> typing.Literal["name"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_author", b"_author", "_author_date", b"_author_date", "_author_date_offset", b"_author_date_offset", "_message", b"_message", "_name", b"_name", "author", b"author", "author_date", b"author_date", "author_date_offset", b"author_date_offset", "message", b"message", "name", b"name"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_author", b"_author", "_author_date", b"_author_date", "_author_date_offset", b"_author_date_offset", "_message", b"_message", "_name", b"_name", "author", b"author", "author_date", b"author_date", "author_date_offset", b"author_date_offset", "message", b"message", "name", b"name"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__author: _TypeAlias = _typing.Literal["author"]  # noqa: Y015
+    _WhichOneofArgType__author: _TypeAlias = _typing.Literal["_author", b"_author"]  # noqa: Y015
+    _WhichOneofReturnType__author_date: _TypeAlias = _typing.Literal["author_date"]  # noqa: Y015
+    _WhichOneofArgType__author_date: _TypeAlias = _typing.Literal["_author_date", b"_author_date"]  # noqa: Y015
+    _WhichOneofReturnType__author_date_offset: _TypeAlias = _typing.Literal["author_date_offset"]  # noqa: Y015
+    _WhichOneofArgType__author_date_offset: _TypeAlias = _typing.Literal["_author_date_offset", b"_author_date_offset"]  # noqa: Y015
+    _WhichOneofReturnType__message: _TypeAlias = _typing.Literal["message"]  # noqa: Y015
+    _WhichOneofArgType__message: _TypeAlias = _typing.Literal["_message", b"_message"]  # noqa: Y015
+    _WhichOneofReturnType__name: _TypeAlias = _typing.Literal["name"]  # noqa: Y015
+    _WhichOneofArgType__name: _TypeAlias = _typing.Literal["_name", b"_name"]  # noqa: Y015
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__author) -> _WhichOneofReturnType__author | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__author_date) -> _WhichOneofReturnType__author_date | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__author_date_offset) -> _WhichOneofReturnType__author_date_offset | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__message) -> _WhichOneofReturnType__message | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__name) -> _WhichOneofReturnType__name | None: ...
 
-global___ReleaseData = ReleaseData
+Global___ReleaseData: _TypeAlias = ReleaseData  # noqa: Y015
 
-@typing.final
-class OriginData(google.protobuf.message.Message):
+@_typing.final
+class OriginData(_message.Message):
     """Origin node properties"""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    URL_FIELD_NUMBER: builtins.int
-    url: builtins.str
+    URL_FIELD_NUMBER: _builtins.int
+    url: _builtins.str
     """URL of the origin"""
     def __init__(
         self,
         *,
-        url: builtins.str | None = ...,
+        url: _builtins.str | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_url", b"_url", "url", b"url"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_url", b"_url", "url", b"url"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing.Literal["_url", b"_url"]) -> typing.Literal["url"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_url", b"_url", "url", b"url"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_url", b"_url", "url", b"url"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__url: _TypeAlias = _typing.Literal["url"]  # noqa: Y015
+    _WhichOneofArgType__url: _TypeAlias = _typing.Literal["_url", b"_url"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__url) -> _WhichOneofReturnType__url | None: ...
 
-global___OriginData = OriginData
+Global___OriginData: _TypeAlias = OriginData  # noqa: Y015
 
-@typing.final
-class EdgeLabel(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class EdgeLabel(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    NAME_FIELD_NUMBER: builtins.int
-    PERMISSION_FIELD_NUMBER: builtins.int
-    VISIT_TIMESTAMP_FIELD_NUMBER: builtins.int
-    IS_FULL_VISIT_FIELD_NUMBER: builtins.int
-    name: builtins.bytes
+    NAME_FIELD_NUMBER: _builtins.int
+    PERMISSION_FIELD_NUMBER: _builtins.int
+    VISIT_TIMESTAMP_FIELD_NUMBER: _builtins.int
+    IS_FULL_VISIT_FIELD_NUMBER: _builtins.int
+    VISIT_TYPE_FIELD_NUMBER: _builtins.int
+    name: _builtins.bytes
     """Directory entry name for directories, branch name for snapshots"""
-    permission: builtins.int
+    permission: _builtins.int
     """Entry permission (only set for directories)."""
-    visit_timestamp: builtins.int
+    visit_timestamp: _builtins.int
     """For origin->snapshot (or snapshot->origin in the transposed graph), this is
     the UNIX timestamp (UTC) of the visit that found the snapshot to be
     the current state of the origin at that time.
     """
-    is_full_visit: builtins.bool
+    is_full_visit: _builtins.bool
     """For origin->snapshot (or snapshot->origin in the transposed graph), this
     indicates whether the visit was fully complete; ie. if the snapshot is the
     full state of the origin (instead of a partial state).
     """
+    visit_type: Global___VisitType.ValueType
+    """For origin->snapshot (or snapshot->origin in the transposed graph), this
+    indicates what loader created the snapshot.
+    """
     def __init__(
         self,
         *,
-        name: builtins.bytes | None = ...,
-        permission: builtins.int | None = ...,
-        visit_timestamp: builtins.int | None = ...,
-        is_full_visit: builtins.bool | None = ...,
+        name: _builtins.bytes | None = ...,
+        permission: _builtins.int | None = ...,
+        visit_timestamp: _builtins.int | None = ...,
+        is_full_visit: _builtins.bool | None = ...,
+        visit_type: Global___VisitType.ValueType | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_is_full_visit", b"_is_full_visit", "_name", b"_name", "_permission", b"_permission", "_visit_timestamp", b"_visit_timestamp", "is_full_visit", b"is_full_visit", "name", b"name", "permission", b"permission", "visit_timestamp", b"visit_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_is_full_visit", b"_is_full_visit", "_name", b"_name", "_permission", b"_permission", "_visit_timestamp", b"_visit_timestamp", "is_full_visit", b"is_full_visit", "name", b"name", "permission", b"permission", "visit_timestamp", b"visit_timestamp"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_is_full_visit", b"_is_full_visit"]) -> typing.Literal["is_full_visit"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_name", b"_name"]) -> typing.Literal["name"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_permission", b"_permission"]) -> typing.Literal["permission"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_visit_timestamp", b"_visit_timestamp"]) -> typing.Literal["visit_timestamp"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_is_full_visit", b"_is_full_visit", "_name", b"_name", "_permission", b"_permission", "_visit_timestamp", b"_visit_timestamp", "_visit_type", b"_visit_type", "is_full_visit", b"is_full_visit", "name", b"name", "permission", b"permission", "visit_timestamp", b"visit_timestamp", "visit_type", b"visit_type"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_is_full_visit", b"_is_full_visit", "_name", b"_name", "_permission", b"_permission", "_visit_timestamp", b"_visit_timestamp", "_visit_type", b"_visit_type", "is_full_visit", b"is_full_visit", "name", b"name", "permission", b"permission", "visit_timestamp", b"visit_timestamp", "visit_type", b"visit_type"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__is_full_visit: _TypeAlias = _typing.Literal["is_full_visit"]  # noqa: Y015
+    _WhichOneofArgType__is_full_visit: _TypeAlias = _typing.Literal["_is_full_visit", b"_is_full_visit"]  # noqa: Y015
+    _WhichOneofReturnType__name: _TypeAlias = _typing.Literal["name"]  # noqa: Y015
+    _WhichOneofArgType__name: _TypeAlias = _typing.Literal["_name", b"_name"]  # noqa: Y015
+    _WhichOneofReturnType__permission: _TypeAlias = _typing.Literal["permission"]  # noqa: Y015
+    _WhichOneofArgType__permission: _TypeAlias = _typing.Literal["_permission", b"_permission"]  # noqa: Y015
+    _WhichOneofReturnType__visit_timestamp: _TypeAlias = _typing.Literal["visit_timestamp"]  # noqa: Y015
+    _WhichOneofArgType__visit_timestamp: _TypeAlias = _typing.Literal["_visit_timestamp", b"_visit_timestamp"]  # noqa: Y015
+    _WhichOneofReturnType__visit_type: _TypeAlias = _typing.Literal["visit_type"]  # noqa: Y015
+    _WhichOneofArgType__visit_type: _TypeAlias = _typing.Literal["_visit_type", b"_visit_type"]  # noqa: Y015
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__is_full_visit) -> _WhichOneofReturnType__is_full_visit | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__name) -> _WhichOneofReturnType__name | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__permission) -> _WhichOneofReturnType__permission | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__visit_timestamp) -> _WhichOneofReturnType__visit_timestamp | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__visit_type) -> _WhichOneofReturnType__visit_type | None: ...
 
-global___EdgeLabel = EdgeLabel
+Global___EdgeLabel: _TypeAlias = EdgeLabel  # noqa: Y015
 
-@typing.final
-class CountResponse(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class CountResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    COUNT_FIELD_NUMBER: builtins.int
-    count: builtins.int
+    COUNT_FIELD_NUMBER: _builtins.int
+    count: _builtins.int
     def __init__(
         self,
         *,
-        count: builtins.int = ...,
+        count: _builtins.int = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["count", b"count"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["count", b"count"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___CountResponse = CountResponse
+Global___CountResponse: _TypeAlias = CountResponse  # noqa: Y015
 
-@typing.final
-class StatsRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class StatsRequest(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
     def __init__(
         self,
     ) -> None: ...
 
-global___StatsRequest = StatsRequest
+Global___StatsRequest: _TypeAlias = StatsRequest  # noqa: Y015
 
-@typing.final
-class StatsResponse(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class StatsResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    @typing.final
-    class NumNodesByTypeEntry(google.protobuf.message.Message):
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    @_typing.final
+    class NumNodesByTypeEntry(_message.Message):
+        DESCRIPTOR: _descriptor.Descriptor
 
-        KEY_FIELD_NUMBER: builtins.int
-        VALUE_FIELD_NUMBER: builtins.int
-        key: builtins.str
-        value: builtins.int
+        KEY_FIELD_NUMBER: _builtins.int
+        VALUE_FIELD_NUMBER: _builtins.int
+        key: _builtins.str
+        value: _builtins.int
         def __init__(
             self,
             *,
-            key: builtins.str = ...,
-            value: builtins.int = ...,
+            key: _builtins.str = ...,
+            value: _builtins.int = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    @typing.final
-    class NumArcsByTypeEntry(google.protobuf.message.Message):
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    @_typing.final
+    class NumArcsByTypeEntry(_message.Message):
+        DESCRIPTOR: _descriptor.Descriptor
 
-        KEY_FIELD_NUMBER: builtins.int
-        VALUE_FIELD_NUMBER: builtins.int
-        key: builtins.str
-        value: builtins.int
+        KEY_FIELD_NUMBER: _builtins.int
+        VALUE_FIELD_NUMBER: _builtins.int
+        key: _builtins.str
+        value: _builtins.int
         def __init__(
             self,
             *,
-            key: builtins.str = ...,
-            value: builtins.int = ...,
+            key: _builtins.str = ...,
+            value: _builtins.int = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    NUM_NODES_FIELD_NUMBER: builtins.int
-    NUM_EDGES_FIELD_NUMBER: builtins.int
-    COMPRESSION_RATIO_FIELD_NUMBER: builtins.int
-    BITS_PER_NODE_FIELD_NUMBER: builtins.int
-    BITS_PER_EDGE_FIELD_NUMBER: builtins.int
-    INDEGREE_MIN_FIELD_NUMBER: builtins.int
-    INDEGREE_MAX_FIELD_NUMBER: builtins.int
-    INDEGREE_AVG_FIELD_NUMBER: builtins.int
-    OUTDEGREE_MIN_FIELD_NUMBER: builtins.int
-    OUTDEGREE_MAX_FIELD_NUMBER: builtins.int
-    OUTDEGREE_AVG_FIELD_NUMBER: builtins.int
-    EXPORT_STARTED_AT_FIELD_NUMBER: builtins.int
-    EXPORT_ENDED_AT_FIELD_NUMBER: builtins.int
-    NUM_NODES_BY_TYPE_FIELD_NUMBER: builtins.int
-    NUM_ARCS_BY_TYPE_FIELD_NUMBER: builtins.int
-    num_nodes: builtins.int
+    NUM_NODES_FIELD_NUMBER: _builtins.int
+    NUM_EDGES_FIELD_NUMBER: _builtins.int
+    COMPRESSION_RATIO_FIELD_NUMBER: _builtins.int
+    BITS_PER_NODE_FIELD_NUMBER: _builtins.int
+    BITS_PER_EDGE_FIELD_NUMBER: _builtins.int
+    INDEGREE_MIN_FIELD_NUMBER: _builtins.int
+    INDEGREE_MAX_FIELD_NUMBER: _builtins.int
+    INDEGREE_AVG_FIELD_NUMBER: _builtins.int
+    OUTDEGREE_MIN_FIELD_NUMBER: _builtins.int
+    OUTDEGREE_MAX_FIELD_NUMBER: _builtins.int
+    OUTDEGREE_AVG_FIELD_NUMBER: _builtins.int
+    EXPORT_STARTED_AT_FIELD_NUMBER: _builtins.int
+    EXPORT_ENDED_AT_FIELD_NUMBER: _builtins.int
+    NUM_NODES_BY_TYPE_FIELD_NUMBER: _builtins.int
+    NUM_ARCS_BY_TYPE_FIELD_NUMBER: _builtins.int
+    num_nodes: _builtins.int
     """Number of nodes in the graph"""
-    num_edges: builtins.int
+    num_edges: _builtins.int
     """Number of edges in the graph"""
-    compression_ratio: builtins.float
+    compression_ratio: _builtins.float
     """Ratio between the graph size and the information-theoretical lower
     bound
     """
-    bits_per_node: builtins.float
+    bits_per_node: _builtins.float
     """Number of bits per node (overall graph size in bits divided by the
     number of nodes)
     """
-    bits_per_edge: builtins.float
+    bits_per_edge: _builtins.float
     """Number of bits per edge (overall graph size in bits divided by the
     number of arcs).
     removed:
     optional double avg_locality = 6;
     """
-    indegree_min: builtins.int
+    indegree_min: _builtins.int
     """Smallest indegree"""
-    indegree_max: builtins.int
+    indegree_max: _builtins.int
     """Largest indegree"""
-    indegree_avg: builtins.float
+    indegree_avg: _builtins.float
     """Average indegree"""
-    outdegree_min: builtins.int
+    outdegree_min: _builtins.int
     """Smallest outdegree"""
-    outdegree_max: builtins.int
+    outdegree_max: _builtins.int
     """Largest outdegree"""
-    outdegree_avg: builtins.float
+    outdegree_avg: _builtins.float
     """Average outdegree"""
-    export_started_at: builtins.int
+    export_started_at: _builtins.int
     """Time when the export started"""
-    export_ended_at: builtins.int
+    export_ended_at: _builtins.int
     """Time when the export ended"""
-    @property
-    def num_nodes_by_type(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.int]:
+    @_builtins.property
+    def num_nodes_by_type(self) -> _containers.ScalarMap[_builtins.str, _builtins.int]:
         """maps node types (ie. 'cnt', 'dir', etc.) to the number of nodes of that type"""
 
-    @property
-    def num_arcs_by_type(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.int]:
+    @_builtins.property
+    def num_arcs_by_type(self) -> _containers.ScalarMap[_builtins.str, _builtins.int]:
         """maps edge types (ie. 'dir:cnt', 'dir:dir', 'rev:'dir', etc.) to the number of nodes of that type"""
 
     def __init__(
         self,
         *,
-        num_nodes: builtins.int = ...,
-        num_edges: builtins.int = ...,
-        compression_ratio: builtins.float | None = ...,
-        bits_per_node: builtins.float | None = ...,
-        bits_per_edge: builtins.float | None = ...,
-        indegree_min: builtins.int = ...,
-        indegree_max: builtins.int = ...,
-        indegree_avg: builtins.float = ...,
-        outdegree_min: builtins.int = ...,
-        outdegree_max: builtins.int = ...,
-        outdegree_avg: builtins.float = ...,
-        export_started_at: builtins.int | None = ...,
-        export_ended_at: builtins.int | None = ...,
-        num_nodes_by_type: collections.abc.Mapping[builtins.str, builtins.int] | None = ...,
-        num_arcs_by_type: collections.abc.Mapping[builtins.str, builtins.int] | None = ...,
+        num_nodes: _builtins.int = ...,
+        num_edges: _builtins.int = ...,
+        compression_ratio: _builtins.float | None = ...,
+        bits_per_node: _builtins.float | None = ...,
+        bits_per_edge: _builtins.float | None = ...,
+        indegree_min: _builtins.int = ...,
+        indegree_max: _builtins.int = ...,
+        indegree_avg: _builtins.float = ...,
+        outdegree_min: _builtins.int = ...,
+        outdegree_max: _builtins.int = ...,
+        outdegree_avg: _builtins.float = ...,
+        export_started_at: _builtins.int | None = ...,
+        export_ended_at: _builtins.int | None = ...,
+        num_nodes_by_type: _abc.Mapping[_builtins.str, _builtins.int] | None = ...,
+        num_arcs_by_type: _abc.Mapping[_builtins.str, _builtins.int] | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["_bits_per_edge", b"_bits_per_edge", "_bits_per_node", b"_bits_per_node", "_compression_ratio", b"_compression_ratio", "_export_ended_at", b"_export_ended_at", "_export_started_at", b"_export_started_at", "bits_per_edge", b"bits_per_edge", "bits_per_node", b"bits_per_node", "compression_ratio", b"compression_ratio", "export_ended_at", b"export_ended_at", "export_started_at", b"export_started_at"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_bits_per_edge", b"_bits_per_edge", "_bits_per_node", b"_bits_per_node", "_compression_ratio", b"_compression_ratio", "_export_ended_at", b"_export_ended_at", "_export_started_at", b"_export_started_at", "bits_per_edge", b"bits_per_edge", "bits_per_node", b"bits_per_node", "compression_ratio", b"compression_ratio", "export_ended_at", b"export_ended_at", "export_started_at", b"export_started_at", "indegree_avg", b"indegree_avg", "indegree_max", b"indegree_max", "indegree_min", b"indegree_min", "num_arcs_by_type", b"num_arcs_by_type", "num_edges", b"num_edges", "num_nodes", b"num_nodes", "num_nodes_by_type", b"num_nodes_by_type", "outdegree_avg", b"outdegree_avg", "outdegree_max", b"outdegree_max", "outdegree_min", b"outdegree_min"]) -> None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_bits_per_edge", b"_bits_per_edge"]) -> typing.Literal["bits_per_edge"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_bits_per_node", b"_bits_per_node"]) -> typing.Literal["bits_per_node"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_compression_ratio", b"_compression_ratio"]) -> typing.Literal["compression_ratio"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_export_ended_at", b"_export_ended_at"]) -> typing.Literal["export_ended_at"] | None: ...
-    @typing.overload
-    def WhichOneof(self, oneof_group: typing.Literal["_export_started_at", b"_export_started_at"]) -> typing.Literal["export_started_at"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_bits_per_edge", b"_bits_per_edge", "_bits_per_node", b"_bits_per_node", "_compression_ratio", b"_compression_ratio", "_export_ended_at", b"_export_ended_at", "_export_started_at", b"_export_started_at", "bits_per_edge", b"bits_per_edge", "bits_per_node", b"bits_per_node", "compression_ratio", b"compression_ratio", "export_ended_at", b"export_ended_at", "export_started_at", b"export_started_at"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_bits_per_edge", b"_bits_per_edge", "_bits_per_node", b"_bits_per_node", "_compression_ratio", b"_compression_ratio", "_export_ended_at", b"_export_ended_at", "_export_started_at", b"_export_started_at", "bits_per_edge", b"bits_per_edge", "bits_per_node", b"bits_per_node", "compression_ratio", b"compression_ratio", "export_ended_at", b"export_ended_at", "export_started_at", b"export_started_at", "indegree_avg", b"indegree_avg", "indegree_max", b"indegree_max", "indegree_min", b"indegree_min", "num_arcs_by_type", b"num_arcs_by_type", "num_edges", b"num_edges", "num_nodes", b"num_nodes", "num_nodes_by_type", b"num_nodes_by_type", "outdegree_avg", b"outdegree_avg", "outdegree_max", b"outdegree_max", "outdegree_min", b"outdegree_min"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__bits_per_edge: _TypeAlias = _typing.Literal["bits_per_edge"]  # noqa: Y015
+    _WhichOneofArgType__bits_per_edge: _TypeAlias = _typing.Literal["_bits_per_edge", b"_bits_per_edge"]  # noqa: Y015
+    _WhichOneofReturnType__bits_per_node: _TypeAlias = _typing.Literal["bits_per_node"]  # noqa: Y015
+    _WhichOneofArgType__bits_per_node: _TypeAlias = _typing.Literal["_bits_per_node", b"_bits_per_node"]  # noqa: Y015
+    _WhichOneofReturnType__compression_ratio: _TypeAlias = _typing.Literal["compression_ratio"]  # noqa: Y015
+    _WhichOneofArgType__compression_ratio: _TypeAlias = _typing.Literal["_compression_ratio", b"_compression_ratio"]  # noqa: Y015
+    _WhichOneofReturnType__export_ended_at: _TypeAlias = _typing.Literal["export_ended_at"]  # noqa: Y015
+    _WhichOneofArgType__export_ended_at: _TypeAlias = _typing.Literal["_export_ended_at", b"_export_ended_at"]  # noqa: Y015
+    _WhichOneofReturnType__export_started_at: _TypeAlias = _typing.Literal["export_started_at"]  # noqa: Y015
+    _WhichOneofArgType__export_started_at: _TypeAlias = _typing.Literal["_export_started_at", b"_export_started_at"]  # noqa: Y015
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__bits_per_edge) -> _WhichOneofReturnType__bits_per_edge | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__bits_per_node) -> _WhichOneofReturnType__bits_per_node | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__compression_ratio) -> _WhichOneofReturnType__compression_ratio | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__export_ended_at) -> _WhichOneofReturnType__export_ended_at | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__export_started_at) -> _WhichOneofReturnType__export_started_at | None: ...
 
-global___StatsResponse = StatsResponse
+Global___StatsResponse: _TypeAlias = StatsResponse  # noqa: Y015

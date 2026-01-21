@@ -298,7 +298,27 @@ message EdgeLabel {
      * indicates whether the visit was fully complete; ie. if the snapshot is the
      * full state of the origin (instead of a partial state). */
     optional bool is_full_visit = 4;
+    /* For origin->snapshot (or snapshot->origin in the transposed graph), this
+     * indicates what loader created the snapshot. */
+    optional VisitType visit_type = 5;
 }
+
+enum VisitType {
+    /* Either a type not categorized below, or graph is too old to support visit types */
+    Unknown = 0;
+    /* tar, zip, ... */
+    Archive = 1;
+    /* single content, patch, ... */
+    Misc = 2;
+    /* npm, pypi, nixguix, ... */
+    Package = 3;
+    /* deposit, possibly coar-notify in the future */
+    Push = 5;
+    /* git, hg, cvs, ... */
+    Vcs = 6;
+    /* partial archiving of a repository (git-checkout, hg-checkout, ...) */
+    VcsCheckout = 4;
+  }
 
 message CountResponse {
     int64 count = 1;
