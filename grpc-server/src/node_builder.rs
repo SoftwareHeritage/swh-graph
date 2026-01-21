@@ -160,8 +160,10 @@ impl<
                 "ori" => ORI,
                 "ori.url" => ORI_URL,
                 field => {
-                    log::warn!("Unknown field {:?}", field);
-                    0 // Ignore unknown fields
+                    if !field.starts_with("successor.label.") {
+                        log::warn!("Unknown field {:?}", field);
+                    }
+                    0
                 }
             }
         }

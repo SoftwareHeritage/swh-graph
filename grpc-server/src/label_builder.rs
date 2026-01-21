@@ -79,7 +79,7 @@ impl<G: SwhGraphWithProperties<LabelNames: LabelNames> + Clone + Send + Sync + '
                 ".visit_timestamp" => LABEL_VISIT_TS,
                 ".is_full_visit" => LABEL_FULL_VISIT,
                 field => {
-                    log::warn!("Unknown field {:?}", field);
+                    log::warn!("Unknown field {:?}", format!("{prefix}{field}"));
                     0 // Ignore unknown fields
                 }
             }
