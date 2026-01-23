@@ -213,7 +213,7 @@ class CreateSubdatasetOnAthena(luigi.Task):
             "export_start": start_date.isoformat(),
             "export_end": end_date.isoformat(),
             "object_types": _tables_for_object_types(
-                [obj_type.value for obj_type in self.object_types]
+                [obj_type.name for obj_type in self.object_types]
             ),
             "parent": parent_meta,
             "hostname": socket.getfqdn(),
