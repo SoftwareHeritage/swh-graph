@@ -11,15 +11,9 @@ from typing import Dict, List
 import luigi
 import requests
 
-from swh.export.luigi import (
-    AthenaDatabaseTarget,
-    CreateAthena,
-    ObjectType,
-    S3PathParameter,
-    merge_lists,
-)
+from swh.export.luigi import AthenaDatabaseTarget, CreateAthena, S3PathParameter
 
-from .compressed_graph import _tables_for_object_types
+from .compressed_graph import _TABLES_PER_OBJECT_TYPE, ObjectTypesParameter
 
 
 class SelectTopGithubOrigins(luigi.Task):
@@ -155,8 +149,8 @@ class CreateSubdatasetOnAthena(luigi.Task):
     s3_athena_output_location = S3PathParameter()
     athena_db_name = luigi.Parameter()
     athena_parent_db_name = luigi.Parameter()
-    object_types = luigi.EnumListParameter(
-        enum=ObjectType, default=list(ObjectType), batch_method=merge_lists
+    object_types: list[str] = ObjectTypesParameter(  # type: ignore[assignment]
+        default=list(_TABLES_PER_OBJECT_TYPE)
     )
 
     def requires(self) -> Dict[str, luigi.Task]:
@@ -212,9 +206,7 @@ class CreateSubdatasetOnAthena(luigi.Task):
             "flavor": "subdataset",
             "export_start": start_date.isoformat(),
             "export_end": end_date.isoformat(),
-            "object_types": _tables_for_object_types(
-                [obj_type.name for obj_type in self.object_types]
-            ),
+            "object_types": ",".join(self.object_types),
             "parent": parent_meta,
             "hostname": socket.getfqdn(),
             "tool": {
