@@ -1,4 +1,4 @@
-// Copyright (C) 2025  The Software Heritage developers
+// Copyright (C) 2025-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -60,12 +60,8 @@ pub fn main() -> Result<()> {
 
     debug!("Writing list of nodes to '{}'...", args.output.display());
 
-    // Call the function and handle the result
     write_items_to_file(
-        visited
-            .iter()
-            // convert NodeID into SWHID
-            .map(|node| graph.properties().swhid(*node)),
+        visited.iter().map(|node| graph.properties().swhid(*node)),
         args.output.clone(),
     )?;
     info!(
@@ -82,8 +78,7 @@ pub fn main() -> Result<()> {
             errors_filename.display()
         );
 
-        // Call the function and handle the result
-        write_items_to_file(&unknown_origins, errors_filename)?;
+        write_items_to_file(unknown_origins.into_iter(), errors_filename)?;
     }
 
     Ok(())
@@ -92,19 +87,15 @@ pub fn main() -> Result<()> {
 // write_items_to_file can take hanshmaps and vecs
 fn write_items_to_file<P, I>(items: I, filename: P) -> Result<()>
 where
-    P: AsRef<Path>, // Accept anything convertible to a Path reference (like &str, String, PathBuf)
-    I: IntoIterator, // The input must be iterable
-    I::Item: Display, // The items produced by the iterator must implement Display
+    P: AsRef<Path>,
+    I: IntoIterator<Item: Display>,
 {
     let filename = filename.as_ref();
     let file =
         File::create(filename).with_context(|| format!("Could not open {}", filename.display()))?;
 
-    // Wrap the file in a BufWriter for better performance.
-    // Writing directly to a file can be slow due to many small system calls.
-    // BufWriter collects writes in a buffer and flushes them in larger chunks.
     let mut writer = BufWriter::new(file);
-    // Iterate over the elements (strings) in the HashSet.
+
     for item in items {
         writeln!(writer, "{item}")
             .with_context(|| format!("Could not write to {}", filename.display()))?;
