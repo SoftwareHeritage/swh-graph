@@ -31,19 +31,30 @@ where
     let unknown_origins = DashSet::new();
 
     #[cfg(miri)]
-    let pl = dsi_progress_logger::no_logging!();
+    let node_pl = dsi_progress_logger::no_logging!();
     #[cfg(not(miri))] // uses sysinfo which is not supported by Miri
-    let mut pl = dsi_progress_logger::concurrent_progress_logger!(
+    let mut node_pl = dsi_progress_logger::concurrent_progress_logger!(
         display_memory = true,
         item_name = "node",
         local_speed = true,
         expected_updates = Some(num_nodes),
     );
-    pl.start("visiting graph ...");
+    node_pl.start("visiting graph ...");
 
-    origins
-        .par_bridge()
-        .try_for_each_with(pl.clone(), |pl, origin_result| -> Result<()> {
+    #[cfg(miri)]
+    let origin_pl = dsi_progress_logger::no_logging!();
+    #[cfg(not(miri))] // uses sysinfo which is not supported by Miri
+    let mut origin_pl = dsi_progress_logger::concurrent_progress_logger!(
+        display_memory = true,
+        item_name = "origin",
+        local_speed = true,
+    );
+    origin_pl.start("visiting graph ...");
+
+    origins.par_bridge().try_for_each_with(
+        (node_pl.clone(), origin_pl.clone()),
+        |(node_pl, origin_pl), origin_result| -> Result<()> {
+            origin_pl.light_update();
             let origin = origin_result.context("Could not decode input line")?;
             let mut origin_swhid = SWHID::from_origin_url(&origin);
 
@@ -84,7 +95,6 @@ where
             assert!(node_id < num_nodes);
 
             let mut todo = vec![node_id];
-            pl.light_update();
 
             debug!("starting bfs for the origin: {origin}");
 
@@ -92,7 +102,7 @@ where
             while let Some(current_node) = todo.pop() {
                 let new = visited.insert(current_node);
                 if new {
-                    pl.light_update();
+                    node_pl.light_update();
                     for succ in graph.successors(current_node) {
                         todo.push(succ);
                     }
@@ -100,8 +110,10 @@ where
             }
 
             Ok(())
-        })?;
-    pl.done();
+        },
+    )?;
+    origin_pl.done();
+    node_pl.done();
 
     Ok((visited, unknown_origins))
 }
