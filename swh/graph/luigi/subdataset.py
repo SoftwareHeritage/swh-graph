@@ -115,7 +115,13 @@ class ListSwhidsForSubdataset(luigi.Task):
             f"swh:1:ori:{hashlib.sha1(url.encode()).hexdigest()}" for url in origin_urls
         ]
 
-        with grpc.insecure_channel(self.grpc_api) as channel:
+        with grpc.insecure_channel(
+            self.grpc_api,
+            options=[
+                ("grpc.max_concurrent_streams", -1),
+                ("grpc.max_receive_message_length", -1),
+            ],
+        ) as channel:
             stub = swhgraph_grpc.TraversalServiceStub(channel)
 
             known_origin_swhids = []
@@ -212,7 +218,7 @@ class CreateSubdatasetOnAthena(luigi.Task):
             "flavor": "subdataset",
             "export_start": start_date.isoformat(),
             "export_end": end_date.isoformat(),
-            "object_types": _tables_for_object_types(self.object_types),
+            "object_types": [obj_type.name for obj_type in self.object_types],
             "parent": parent_meta,
             "hostname": socket.getfqdn(),
             "tool": {

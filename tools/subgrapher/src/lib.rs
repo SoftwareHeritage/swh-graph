@@ -41,68 +41,66 @@ where
     );
     pl.start("visiting graph ...");
 
-    origins.par_bridge().try_for_each_with(pl.clone(), |pl, origin_result| -> Result<()> {
-        let origin = origin_result.context("Could not decode input line")?;
-        let mut origin_swhid = SWHID::from_origin_url(&origin);
+    origins
+        .par_bridge()
+        .try_for_each_with(pl.clone(), |pl, origin_result| -> Result<()> {
+            let origin = origin_result.context("Could not decode input line")?;
+            let mut origin_swhid = SWHID::from_origin_url(&origin);
 
-        // Lookup SWHID
-        debug!("looking up SWHID {} ...", origin);
-        let mut node_id_lookup = graph.properties().node_id(origin_swhid);
+            // Lookup SWHID
+            debug!("looking up SWHID {} ...", origin);
+            let mut node_id_lookup = graph.properties().node_id(origin_swhid);
 
-        if node_id_lookup.is_err() && allow_protocol_variations {
-            warn!("origin {origin} not in graph. Will look for other protocols");
-            // try with other protocols
-            if origin.contains("git://") || origin.contains("https://") {
-                // try to switch the protocol. Only https and git available
-                let alternative_origin = if origin.contains("git://") {
-                    origin.replace("git://", "https://")
-                } else if origin.contains("https://") {
-                    origin.replace("https://", "git://")
-                } else {
-                    origin.to_owned()
-                };
+            if node_id_lookup.is_err() && allow_protocol_variations {
+                warn!("origin {origin} not in graph. Will look for other protocols");
+                // try with other protocols
+                if origin.contains("git://") || origin.contains("https://") {
+                    // try to switch the protocol. Only https and git available
+                    let alternative_origin = if origin.contains("git://") {
+                        origin.replace("git://", "https://")
+                    } else if origin.contains("https://") {
+                        origin.replace("https://", "git://")
+                    } else {
+                        origin.to_owned()
+                    };
 
-                origin_swhid = SWHID::from_origin_url(alternative_origin);
+                    origin_swhid = SWHID::from_origin_url(alternative_origin);
 
-                node_id_lookup = graph.properties().node_id(origin_swhid);
-                if node_id_lookup.is_ok() {
-                    debug!("origin found with different protocol: {origin}");
+                    node_id_lookup = graph.properties().node_id(origin_swhid);
+                    if node_id_lookup.is_ok() {
+                        debug!("origin found with different protocol: {origin}");
+                    }
                 }
             }
-        }
 
-        // if node_id is still err, attempts to switch protocols failed
-        // the original url from the origins file should be logged
-        let Ok(node_id) = node_id_lookup else {
-            error!("origin {origin} not in graph");
-            unknown_origins.insert(origin);
-            return Ok(());
-        };
-        debug!("obtained node ID {node_id} ...");
-        assert!(node_id < num_nodes);
+            // if node_id is still err, attempts to switch protocols failed
+            // the original url from the origins file should be logged
+            let Ok(node_id) = node_id_lookup else {
+                error!("origin {origin} not in graph");
+                unknown_origins.insert(origin);
+                return Ok(());
+            };
+            debug!("obtained node ID {node_id} ...");
+            assert!(node_id < num_nodes);
 
-        let mut todo = vec![node_id];
-        pl.light_update();
+            let mut todo = vec![node_id];
+            pl.light_update();
 
-        debug!("starting bfs for the origin: {origin}");
+            debug!("starting bfs for the origin: {origin}");
 
-        // iterative BFS
-        while let Some(current_node) = todo.pop() {
-            let new = visited.insert(current_node);
-            if new {
-                for succ in graph.successors(current_node) {
-                    todo.push(succ);
+            // iterative BFS
+            while let Some(current_node) = todo.pop() {
+                let new = visited.insert(current_node);
+                if new {
                     pl.light_update();
+                    for succ in graph.successors(current_node) {
+                        todo.push(succ);
+                    }
                 }
-            } else {
-                debug!(
-                    "stopping bfs because this node was foud in a previous bfs run (from another origin) {current_node}"
-                );
             }
-        }
 
-        Ok(())
-    })?;
+            Ok(())
+        })?;
     pl.done();
 
     Ok((visited, unknown_origins))

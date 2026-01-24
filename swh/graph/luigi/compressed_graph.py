@@ -447,6 +447,7 @@ class _CompressionStepTask(luigi.Task):
 
     def requires(self) -> Sequence[luigi.Task]:
         """Returns a list of luigi tasks matching :attr:`PREVIOUS_STEPS`."""
+        assert self.rust_executable_dir != "/"
         requirements_d = {}
         for input_file in self.INPUT_FILES.union(self.SENSITIVE_INPUT_FILES):
             if not self._is_expected_output_file(input_file):
@@ -517,6 +518,8 @@ class _CompressionStepTask(luigi.Task):
         import time
 
         from swh.graph.config import check_config_compress
+
+        assert self.rust_executable_dir != "/"
 
         if self.MINIMUM_OBJECT_TYPES.isdisjoint(set(self.object_types)):
             return

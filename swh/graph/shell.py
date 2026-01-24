@@ -267,6 +267,7 @@ class Command(metaclass=_MetaCommand):
             else:
                 final_args.append(arg)
 
+        print(self.kwargs)
         proc = subprocess.Popen(
             final_args,
             stdin=stdin,
