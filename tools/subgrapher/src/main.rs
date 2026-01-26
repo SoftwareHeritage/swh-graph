@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::Parser;
+use dsi_progress_logger::ProgressLog;
 use log::{debug, info, warn};
 
 use swh_graph::graph::{SwhGraphWithProperties, SwhUnidirectionalGraph};
@@ -58,16 +59,21 @@ pub fn main() -> Result<()> {
         args.allow_protocol_variations,
     )?;
 
-    debug!("Writing list of nodes to '{}'...", args.output.display());
+    let mut pl = dsi_progress_logger::concurrent_progress_logger!(
+        display_memory = true,
+        item_name = "node",
+        local_speed = true,
+    );
+    pl.start("Writing list of nodes...");
 
     write_items_to_file(
-        visited.iter().map(|node| graph.properties().swhid(*node)),
+        visited.iter().map(|node| {
+            pl.light_update();
+            graph.properties().swhid(*node)
+        }),
         args.output.clone(),
     )?;
-    info!(
-        "Successfully wrote list of nodes to '{}'.",
-        args.output.display()
-    );
+    pl.done();
 
     // if there are origins that failed to be found
     if !unknown_origins.is_empty() {
