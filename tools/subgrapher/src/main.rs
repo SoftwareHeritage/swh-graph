@@ -63,6 +63,7 @@ pub fn main() -> Result<()> {
         display_memory = true,
         item_name = "node",
         local_speed = true,
+        expected_updates = Some(visited.len()),
     );
     pl.start("Writing list of nodes...");
 
