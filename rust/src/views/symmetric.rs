@@ -11,15 +11,14 @@ use anyhow::Result;
 use itertools::{Either, Itertools, Merge};
 
 use crate::arc_iterators::{
-    FlattenedSuccessorsIterator, IntoFlattenedLabeledArcsIterator, LabelTypingArcIterator,
-    LabelTypingSuccessorIterator,
+    FlattenedSuccessorsIterator, IntoFlattenedLabeledArcsIterator, LabelTypingSuccessorIterator,
 };
 use crate::graph::*;
-use crate::labels::{EdgeLabel, UntypedEdgeLabel};
+use crate::labels::EdgeLabel;
 use crate::properties;
 use crate::NodeType;
 
-/// A view over [`SwhGraph`] and related traits, that flips the direction of all arcs
+/// A view over [`SwhGraph`] that makes all arcs bidirectional.
 ///
 /// Beware of passing this structure to external code, as it breaks the assumption that graphs are
 /// acyclic.
@@ -73,187 +72,65 @@ impl<G: SwhForwardGraph + SwhBackwardGraph> SwhForwardGraph for Symmetric<G> {
             .merge(self.0.predecessors(node_id))
     }
     fn outdegree(&self, node_id: NodeId) -> usize {
-        // assume the underlying graph is not itself symmetric
         self.0.indegree(node_id) + self.0.outdegree(node_id)
     }
 }
 
-pub struct MergedLabeledArcs<'arc, G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'arc>(
-    Either<
-        <G as SwhLabeledForwardGraph>::LabeledArcs<'arc>,
-        <G as SwhLabeledBackwardGraph>::LabeledArcs<'arc>,
-    >,
-);
-impl<'arc, G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'arc> Iterator
-    for MergedLabeledArcs<'arc, G>
-{
-    type Item = UntypedEdgeLabel;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
+/// Merges two sorted iterators of `(NodeId, Labels)` pairs, wrapping labels
+/// in [`Either`] to track which side they came from.
+///
+/// Panics if both iterators yield the same `NodeId` (the underlying graph has a loop).
+pub struct MergingSortedPairs<F: Iterator, B: Iterator> {
+    forward: Peekable<F>,
+    backward: Peekable<B>,
 }
 
-#[allow(clippy::type_complexity)]
-struct MergedTypedLabeledArcs<'arc, G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'arc>(
-    Either<
-        <LabelTypingArcIterator<
-            'arc,
-            Symmetric<G>,
-            <G as SwhLabeledForwardGraph>::LabeledArcs<'arc>,
-        > as IntoIterator>::IntoIter,
-        <LabelTypingArcIterator<
-            'arc,
-            Symmetric<G>,
-            <G as SwhLabeledBackwardGraph>::LabeledArcs<'arc>,
-        > as IntoIterator>::IntoIter,
-    >,
-)
-where
-    Symmetric<G>: SwhGraphWithProperties,
-    <Symmetric<G> as SwhGraphWithProperties>::Maps: crate::properties::Maps;
-impl<'arc, G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'arc> Iterator
-    for MergedTypedLabeledArcs<'arc, G>
-where
-    Symmetric<G>: SwhGraphWithProperties,
-    <Symmetric<G> as SwhGraphWithProperties>::Maps: crate::properties::Maps,
-{
-    type Item = EdgeLabel;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-}
-
-pub struct MergedLabeledSuccessors<
-    'node,
-    G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'node,
-> {
-    forward: <G as SwhLabeledForwardGraph>::LabeledSuccessors<'node>,
-    backward: <G as SwhLabeledBackwardGraph>::LabeledPredecessors<'node>,
-}
-
-impl<'node, G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'node>
-    IntoFlattenedLabeledArcsIterator<UntypedEdgeLabel> for MergedLabeledSuccessors<'node, G>
-{
-    type Flattened = FlattenedSuccessorsIterator<MergedLabeledSuccessorsIterator<'node, G>>;
-
-    fn flatten_labels(self) -> Self::Flattened {
-        FlattenedSuccessorsIterator::new(self.into_iter())
-    }
-}
-
-impl<'node, G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'node> IntoIterator
-    for MergedLabeledSuccessors<'node, G>
-{
-    type Item = (NodeId, MergedLabeledArcs<'node, G>);
-    type IntoIter = MergedLabeledSuccessorsIterator<'node, G>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let Self { forward, backward } = self;
-        MergedLabeledSuccessorsIterator {
-            forward: forward.into_iter().peekable(),
-            backward: backward.into_iter().peekable(),
+impl<F: Iterator, B: Iterator> MergingSortedPairs<F, B> {
+    fn new(forward: F, backward: B) -> Self {
+        Self {
+            forward: forward.peekable(),
+            backward: backward.peekable(),
         }
     }
 }
 
-pub struct MergedLabeledSuccessorsIterator<
-    'node,
-    G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'node,
-> {
-    forward: Peekable<
-        <<G as SwhLabeledForwardGraph>::LabeledSuccessors<'node> as IntoIterator>::IntoIter,
-    >,
-    backward: Peekable<
-        <<G as SwhLabeledBackwardGraph>::LabeledPredecessors<'node> as IntoIterator>::IntoIter,
-    >,
-}
+impl<F, B, FL, BL> Iterator for MergingSortedPairs<F, B>
+where
+    F: Iterator<Item = (NodeId, FL)>,
+    B: Iterator<Item = (NodeId, BL)>,
+{
+    type Item = (NodeId, Either<FL, BL>);
 
-macro_rules! merge {
-    ($forward:expr, $backward:expr, $newtype:ident) => {{
-        let forward = $forward;
-        let backward = $backward;
-        match (forward.peek(), backward.peek()) {
-            (Some((succ, _)), Some((pred, _))) => {
-                if succ < pred {
-                    let (succ, labels) = forward.next().expect("item disappeared");
-                    Some((succ, $newtype(Either::Left(labels))))
+    fn next(&mut self) -> Option<Self::Item> {
+        match (self.forward.peek(), self.backward.peek()) {
+            (Some((f_id, _)), Some((b_id, _))) => {
+                if f_id < b_id {
+                    let (id, labels) = self.forward.next().expect("item disappeared");
+                    Some((id, Either::Left(labels)))
                 } else {
-                    assert_ne!(succ, pred, "Symmetric's backend has a loop");
-                    let (pred, labels) = backward.next().expect("item disappeared");
-                    Some((pred, $newtype(Either::Right(labels))))
+                    assert_ne!(f_id, b_id, "Symmetric's backend has a loop");
+                    let (id, labels) = self.backward.next().expect("item disappeared");
+                    Some((id, Either::Right(labels)))
                 }
             }
             (Some(_), None) => {
-                let (succ, labels) = forward.next().expect("item disappeared");
-                Some((succ, $newtype(Either::Left(labels))))
+                let (id, labels) = self.forward.next().expect("item disappeared");
+                Some((id, Either::Left(labels)))
             }
             (None, Some(_)) => {
-                let (pred, labels) = backward.next().expect("item disappeared");
-                Some((pred, $newtype(Either::Right(labels))))
+                let (id, labels) = self.backward.next().expect("item disappeared");
+                Some((id, Either::Right(labels)))
             }
             (None, None) => None,
         }
-    }};
-}
-impl<'node, G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'node> Iterator
-    for MergedLabeledSuccessorsIterator<'node, G>
-{
-    type Item = (usize, MergedLabeledArcs<'node, G>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // FIXME: less naive implementation, eg. using Itertools::merge
-        merge!(&mut self.forward, &mut self.backward, MergedLabeledArcs)
     }
 }
 
-struct MergedTypedLabeledSuccessorsIterator<
-    'node,
-    G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'node,
-> where
-    Symmetric<G>: SwhGraphWithProperties,
-    <Symmetric<G> as SwhGraphWithProperties>::Maps: crate::properties::Maps,
-{
-    forward: Peekable<
-        LabelTypingSuccessorIterator<
-            'node,
-            Symmetric<G>,
-            <<G as SwhLabeledForwardGraph>::LabeledSuccessors<'node> as IntoIterator>::IntoIter,
-        >,
-    >,
-    backward: Peekable<
-        LabelTypingSuccessorIterator<
-            'node,
-            Symmetric<G>,
-            <<G as SwhLabeledBackwardGraph>::LabeledPredecessors<'node> as IntoIterator>::IntoIter,
-        >,
-    >,
-}
-
-impl<'node, G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'node> Iterator
-    for MergedTypedLabeledSuccessorsIterator<'node, G>
+impl<F, B, FL, BL, Label> IntoFlattenedLabeledArcsIterator<Label> for MergingSortedPairs<F, B>
 where
-    Symmetric<G>: SwhGraphWithProperties,
-    <Symmetric<G> as SwhGraphWithProperties>::Maps: crate::properties::Maps,
-{
-    type Item = (NodeId, MergedTypedLabeledArcs<'node, G>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // FIXME: less naive implementation, eg. using Itertools::merge
-        merge!(
-            &mut self.forward,
-            &mut self.backward,
-            MergedTypedLabeledArcs
-        )
-    }
-}
-
-impl<'node, G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'node>
-    IntoFlattenedLabeledArcsIterator<EdgeLabel> for MergedTypedLabeledSuccessorsIterator<'node, G>
-where
-    Symmetric<G>: SwhGraphWithProperties,
-    <Symmetric<G> as SwhGraphWithProperties>::Maps: crate::properties::Maps,
+    F: Iterator<Item = (NodeId, FL)>,
+    B: Iterator<Item = (NodeId, BL)>,
+    Either<FL, BL>: IntoIterator<Item = Label>,
 {
     type Flattened = FlattenedSuccessorsIterator<Self>;
 
@@ -262,21 +139,28 @@ where
     }
 }
 
+#[allow(clippy::type_complexity)]
 impl<G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph> SwhLabeledForwardGraph for Symmetric<G> {
     type LabeledArcs<'arc>
-        = MergedLabeledArcs<'arc, G>
+        = Either<
+        <G as SwhLabeledForwardGraph>::LabeledArcs<'arc>,
+        <G as SwhLabeledBackwardGraph>::LabeledArcs<'arc>,
+    >
     where
         Self: 'arc;
     type LabeledSuccessors<'succ>
-        = MergedLabeledSuccessors<'succ, G>
+        = MergingSortedPairs<
+        <<G as SwhLabeledForwardGraph>::LabeledSuccessors<'succ> as IntoIterator>::IntoIter,
+        <<G as SwhLabeledBackwardGraph>::LabeledPredecessors<'succ> as IntoIterator>::IntoIter,
+    >
     where
         Self: 'succ;
 
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
-        MergedLabeledSuccessors {
-            forward: self.0.untyped_labeled_successors(node_id),
-            backward: self.0.untyped_labeled_predecessors(node_id),
-        }
+        MergingSortedPairs::new(
+            self.0.untyped_labeled_successors(node_id).into_iter(),
+            self.0.untyped_labeled_predecessors(node_id).into_iter(),
+        )
     }
 
     fn labeled_successors(
@@ -288,21 +172,20 @@ impl<G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph> SwhLabeledForwardGraph
         Self: SwhGraphWithProperties + Sized,
         <Self as SwhGraphWithProperties>::Maps: crate::properties::Maps,
     {
-        let forward = LabelTypingSuccessorIterator {
-            graph: self,
-            is_transposed: self.0.is_transposed(),
-            src: node_id,
-            successors: self.0.untyped_labeled_successors(node_id).into_iter(),
-        }
-        .peekable();
-        let backward = LabelTypingSuccessorIterator {
-            graph: self,
-            is_transposed: !self.0.is_transposed(),
-            src: node_id,
-            successors: self.0.untyped_labeled_predecessors(node_id).into_iter(),
-        }
-        .peekable();
-        MergedTypedLabeledSuccessorsIterator { forward, backward }
+        MergingSortedPairs::new(
+            LabelTypingSuccessorIterator {
+                graph: self,
+                is_transposed: self.0.is_transposed(),
+                src: node_id,
+                successors: self.0.untyped_labeled_successors(node_id).into_iter(),
+            },
+            LabelTypingSuccessorIterator {
+                graph: self,
+                is_transposed: !self.0.is_transposed(),
+                src: node_id,
+                successors: self.0.untyped_labeled_predecessors(node_id).into_iter(),
+            },
+        )
     }
 }
 

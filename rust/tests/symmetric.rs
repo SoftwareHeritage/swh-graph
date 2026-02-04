@@ -66,7 +66,6 @@ fn test_symmetric_labeled_graph() {
     let collect_successors = |node_id| {
         symmetric
             .untyped_labeled_successors(node_id)
-            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>()
     };
@@ -193,10 +192,7 @@ fn test_symmetric_detects_loop_labeled() {
     );
     let symmetric = Symmetric(graph);
 
-    let _ = symmetric
-        .untyped_labeled_successors(0)
-        .into_iter()
-        .collect::<Vec<_>>();
+    let _ = symmetric.untyped_labeled_successors(0).collect::<Vec<_>>();
 }
 
 #[test]
@@ -211,10 +207,7 @@ fn test_symmetric_detects_self_loop_labeled() {
     );
     let symmetric = Symmetric(graph);
 
-    let _ = symmetric
-        .untyped_labeled_successors(0)
-        .into_iter()
-        .collect::<Vec<_>>();
+    let _ = symmetric.untyped_labeled_successors(0).collect::<Vec<_>>();
 }
 
 #[test]
@@ -229,8 +222,5 @@ fn test_symmetric_detects_inconsistent_backends_labeled() {
     );
     let symmetric = Symmetric(graph);
 
-    let _ = symmetric
-        .untyped_labeled_successors(0)
-        .into_iter()
-        .collect::<Vec<_>>();
+    let _ = symmetric.untyped_labeled_successors(0).collect::<Vec<_>>();
 }
