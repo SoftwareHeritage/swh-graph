@@ -114,7 +114,7 @@ import collections
 import itertools
 import math
 from pathlib import Path
-from typing import Any, Dict, List, MutableSequence, Optional, Sequence, Set
+from typing import Any, Dict, List, MutableSequence, Optional, Sequence, Set, Tuple
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -166,16 +166,16 @@ assert set(itertools.chain.from_iterable(_TABLES_PER_OBJECT_TYPE.values())) == s
 )
 
 
-def _tables_for_object_types(object_types: List[str]) -> List[Table]:
+def _tables_for_object_types(object_types: List[str]) -> Tuple[Table]:
     """Returns the list of ORC tables required to produce a compressed graph with
     the given object types."""
     tables = []
     for object_type in object_types:
         tables.extend(_TABLES_PER_OBJECT_TYPE[object_type])
-    return tables
+    return tuple(tables)
 
 
-class ObjectTypesParameter(luigi.Parameter):
+class ObjectTypesParameter(luigi.Parameter[List[str]]):
     """A parameter type whose value is either ``*`` or a set of comma-separated
     object types (eg. ``ori,snp,rel,rev,dir,cnt``).
     """
@@ -237,15 +237,11 @@ class _CompressionStepTask(luigi.Task):
     """
 
     local_export_path = luigi.PathParameter(significant=False)
-    local_sensitive_export_path: Optional[Path] = luigi.OptionalPathParameter(
-        default=None
-    )
+    local_sensitive_export_path = luigi.OptionalPathParameter(default=None)
     graph_name = luigi.Parameter(default="graph")
-    local_graph_path: Path = luigi.PathParameter()
-    local_sensitive_graph_path: Optional[Path] = luigi.OptionalPathParameter(
-        default=None
-    )
-    previous_graph_path: Optional[Path] = luigi.OptionalPathParameter(default=None)
+    local_graph_path = luigi.PathParameter()
+    local_sensitive_graph_path = luigi.OptionalPathParameter(default=None)
+    previous_graph_path = luigi.OptionalPathParameter(default=None)
 
     # TODO: Only add this parameter to tasks that use it
     batch_size = luigi.IntParameter(
@@ -263,7 +259,7 @@ class _CompressionStepTask(luigi.Task):
         description="Path to the Rust executable used to manipulate the graph.",
     )
 
-    object_types: list[str] = ObjectTypesParameter()  # type: ignore[assignment]
+    object_types = ObjectTypesParameter()
 
     check_flavor = luigi.Parameter(
         default="full",
@@ -456,7 +452,7 @@ class _CompressionStepTask(luigi.Task):
                 continue
             for cls in _CompressionStepTask.__subclasses__():
                 if input_file in cls.OUTPUT_FILES.union(cls.SENSITIVE_OUTPUT_FILES):
-                    kwargs = dict(
+                    kwargs: Dict[str, Any] = dict(
                         local_export_path=self.local_export_path,
                         local_sensitive_export_path=self.local_sensitive_export_path,
                         local_sensitive_graph_path=self.local_sensitive_graph_path,
@@ -481,7 +477,7 @@ class _CompressionStepTask(luigi.Task):
                 LocalExport(
                     local_export_path=self.local_export_path,
                     local_sensitive_export_path=self.local_sensitive_export_path,
-                    formats=[Format.orc],  # type: ignore[attr-defined]
+                    formats=(Format.orc,),  # type: ignore[attr-defined]
                     object_types=_tables_for_object_types(self.object_types),
                 )
             )
@@ -502,6 +498,8 @@ class _CompressionStepTask(luigi.Task):
             + [
                 luigi.LocalTarget(
                     f"{self.local_sensitive_graph_path / self.graph_name}{name}"
+                    if self.local_sensitive_graph_path
+                    else None
                 )
                 for name in self.SENSITIVE_OUTPUT_FILES
                 if self.local_sensitive_graph_path is not None
@@ -726,7 +724,7 @@ class Bv(_CompressionStepTask):
     _INPUT_FILES = {"-base.order", ".pthash"}
     OUTPUT_FILES = {"-base.graph"}
 
-    @property
+    @property  # type: ignore[misc]
     def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
         files = set(self._INPUT_FILES)
         if not self.previous_graph_path:
@@ -772,7 +770,7 @@ class Bfs(_CompressionStepTask):
     }
     OUTPUT_FILES = {"-bfs.order"}
 
-    @property
+    @property  # type: ignore[misc]
     def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
         files = set(self._INPUT_FILES)
         if not self.previous_graph_path:
@@ -885,7 +883,7 @@ class ComposeOrders(_CompressionStepTask):
     _INPUT_FILES = {"-base.order", "-bfs.order", "-llp.order"}
     OUTPUT_FILES = {".pthash.order"}
 
-    @property
+    @property  # type: ignore[misc]
     def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
         files = set(self._INPUT_FILES)
         if not self.previous_graph_path:
@@ -1007,7 +1005,7 @@ class FullnamesEf(_CompressionStepTask):
 class NodeProperties(_CompressionStepTask):
     STEP = CompressionStep.NODE_PROPERTIES
 
-    @property
+    @property  # type: ignore[misc]
     def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
         if {"rel", "rev"}.isdisjoint(self.object_types):
             return {".pthash.order", ".pthash"}
@@ -1444,15 +1442,11 @@ def _make_dot_diagram() -> str:
 
 class CompressGraph(luigi.Task):
     local_export_path = luigi.PathParameter(significant=False)
-    local_sensitive_export_path: Optional[Path] = luigi.OptionalPathParameter(
-        default=None
-    )
-    graph_name = luigi.Parameter(default="graph")
-    local_graph_path: Path = luigi.PathParameter()
-    local_sensitive_graph_path: Optional[Path] = luigi.OptionalPathParameter(
-        default=None
-    )
-    previous_graph_path: Optional[Path] = luigi.OptionalPathParameter(default=None)
+    local_sensitive_export_path = luigi.OptionalPathParameter(default=None)
+    graph_name = luigi.StrParameter(default="graph")
+    local_graph_path = luigi.PathParameter()
+    local_sensitive_graph_path = luigi.OptionalPathParameter(default=None)
+    previous_graph_path = luigi.OptionalPathParameter(default=None)
     batch_size = luigi.IntParameter(
         default=0,
         significant=False,
@@ -1468,9 +1462,7 @@ class CompressGraph(luigi.Task):
         description="Path to the Rust executable used to manipulate the graph.",
     )
 
-    object_types: list[str] = ObjectTypesParameter(  # type: ignore[assignment]
-        default=list(_TABLES_PER_OBJECT_TYPE)
-    )
+    object_types = ObjectTypesParameter(default=list(_TABLES_PER_OBJECT_TYPE))
 
     check_flavor = luigi.Parameter(
         default="full",
@@ -1481,7 +1473,7 @@ class CompressGraph(luigi.Task):
     def requires(self) -> List[luigi.Task]:
         """Returns a :class:`LocalExport` task, and leaves of the compression dependency
         graph"""
-        kwargs = dict(
+        kwargs: Dict[str, Any] = dict(
             local_export_path=self.local_export_path,
             local_sensitive_export_path=self.local_sensitive_export_path,
             local_sensitive_graph_path=self.local_sensitive_graph_path,
@@ -1506,10 +1498,10 @@ class CompressGraph(luigi.Task):
         local_export = LocalExport(
             local_export_path=self.local_export_path,
             local_sensitive_export_path=self.local_sensitive_export_path,
-            formats=[Format.orc],  # type: ignore[attr-defined]
+            formats=(Format.orc,),  # type: ignore[attr-defined]
             object_types=_tables_for_object_types(self.object_types),
         )
-        fullname_tasks = (
+        fullname_tasks: List[luigi.Task] = (
             [ExtractFullnames(**kwargs), FullnamesEf(**kwargs)]
             if issubclass(local_export.export_task_type, ExportGraph)
             and not {"rel", "rev"}.isdisjoint(set(self.object_types))
@@ -1764,8 +1756,8 @@ class DownloadGraphFromS3(luigi.Task):
                 --s3-graph-path=s3://softwareheritage/graph/swh_2022-11-08/compressed/
     """
 
-    local_graph_path: Path = luigi.PathParameter()
-    s3_graph_path: str = S3PathParameter(significant=False)  # type: ignore[assignment]
+    local_graph_path = luigi.PathParameter()
+    s3_graph_path = S3PathParameter(significant=False)
 
     def requires(self) -> List[luigi.Task]:
         """Returns a :class:`UploadGraphToS3` task that writes local files to S3."""
@@ -1802,8 +1794,8 @@ class LocalGraph(luigi.Task):
     :class:`ExportGraph` or via :class:`DownloadGraphFromS3`.
     """
 
-    local_graph_path: Path = luigi.PathParameter()
-    local_sensitive_graph_path: Path = luigi.OptionalPathParameter(default=None)
+    local_graph_path = luigi.PathParameter()
+    local_sensitive_graph_path = luigi.OptionalPathParameter(default=None)
     compression_task_type = luigi.TaskParameter(
         default=DownloadGraphFromS3,
         significant=False,

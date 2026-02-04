@@ -5,7 +5,6 @@
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
-from pathlib import Path
 from typing import Dict, List
 
 import luigi
@@ -143,18 +142,18 @@ class CreateSubdatasetOnAthena(luigi.Task):
     """Generates an ORC export from an existing ORC export, filtering out SWHIDs
     not in the given list."""
 
-    local_export_path: Path = luigi.PathParameter()
-    s3_parent_export_path: str = S3PathParameter(  # type: ignore[assignment]
+    local_export_path = luigi.PathParameter()
+    s3_parent_export_path = S3PathParameter(
         description="s3:// URL to the existing complete export",
     )
-    s3_export_path: str = S3PathParameter(  # type: ignore[assignment]
+    s3_export_path = S3PathParameter(
         description="s3:// URL to the export to produce",
     )
     s3_athena_output_location = S3PathParameter()
     athena_db_name = luigi.Parameter()
     athena_parent_db_name = luigi.Parameter()
     object_types = luigi.EnumListParameter(
-        enum=ObjectType, default=list(ObjectType), batch_method=merge_lists
+        enum=ObjectType, default=tuple(ObjectType), batch_method=merge_lists
     )
 
     def requires(self) -> Dict[str, luigi.Task]:
