@@ -102,26 +102,21 @@ where
     type Item = (NodeId, Either<FL, BL>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        match (self.forward.peek(), self.backward.peek()) {
+        let take_forward = match (self.forward.peek(), self.backward.peek()) {
             (Some((f_id, _)), Some((b_id, _))) => {
-                if f_id < b_id {
-                    let (id, labels) = self.forward.next().expect("item disappeared");
-                    Some((id, Either::Left(labels)))
-                } else {
-                    assert_ne!(f_id, b_id, "Symmetric's backend has a loop");
-                    let (id, labels) = self.backward.next().expect("item disappeared");
-                    Some((id, Either::Right(labels)))
-                }
+                assert_ne!(f_id, b_id, "Symmetric's backend has a loop");
+                f_id < b_id
             }
-            (Some(_), None) => {
-                let (id, labels) = self.forward.next().expect("item disappeared");
-                Some((id, Either::Left(labels)))
-            }
-            (None, Some(_)) => {
-                let (id, labels) = self.backward.next().expect("item disappeared");
-                Some((id, Either::Right(labels)))
-            }
-            (None, None) => None,
+            (Some(_), None) => true,
+            (None, Some(_)) => false,
+            (None, None) => return None,
+        };
+        if take_forward {
+            let (id, labels) = self.forward.next().expect("item disappeared");
+            Some((id, Either::Left(labels)))
+        } else {
+            let (id, labels) = self.backward.next().expect("item disappeared");
+            Some((id, Either::Right(labels)))
         }
     }
 }
