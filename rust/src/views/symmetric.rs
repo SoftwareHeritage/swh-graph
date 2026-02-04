@@ -139,7 +139,6 @@ where
     }
 }
 
-#[allow(clippy::type_complexity)]
 impl<G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph> SwhLabeledForwardGraph for Symmetric<G> {
     type LabeledArcs<'arc>
         = Either<
