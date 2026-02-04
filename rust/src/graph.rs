@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -273,7 +273,7 @@ pub trait SwhForwardGraph: SwhGraph {
     note = "Use `let graph = graph.load_labels()` to load them"
 )]
 pub trait SwhLabeledForwardGraph: SwhForwardGraph {
-    type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
+    type LabeledArcs<'arc>: Iterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
     type LabeledSuccessors<'node>: IntoIterator<Item = (usize, Self::LabeledArcs<'node>)>
@@ -326,7 +326,7 @@ pub trait SwhBackwardGraph: SwhGraph {
     note = "and `let graph = graph.load_labels()`"
 )]
 pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
-    type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
+    type LabeledArcs<'arc>: Iterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
     type LabeledPredecessors<'node>: IntoIterator<Item = (usize, Self::LabeledArcs<'node>)>
