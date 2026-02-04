@@ -273,7 +273,7 @@ pub trait SwhForwardGraph: SwhGraph {
     note = "Use `let graph = graph.load_labels()` to load them"
 )]
 pub trait SwhLabeledForwardGraph: SwhForwardGraph {
-    type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
+    type LabeledArcs<'arc>: Iterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
     type LabeledSuccessors<'node>: IntoIterator<Item = (usize, Self::LabeledArcs<'node>)>
@@ -326,7 +326,7 @@ pub trait SwhBackwardGraph: SwhGraph {
     note = "and `let graph = graph.load_labels()`"
 )]
 pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
-    type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
+    type LabeledArcs<'arc>: Iterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
     type LabeledPredecessors<'node>: IntoIterator<Item = (usize, Self::LabeledArcs<'node>)>

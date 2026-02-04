@@ -21,7 +21,7 @@ use crate::NodeType;
 
 /// A view over [`SwhGraph`] and related traits, that flips the direction of all arcs
 ///
-/// Beware of passing this structure to external code, as it breaks the asumption that graphs are
+/// Beware of passing this structure to external code, as it breaks the assumption that graphs are
 /// acyclic.
 ///
 /// # Panics
@@ -278,30 +278,28 @@ pub struct MergedLabeledArcs<'arc, G: SwhLabeledForwardGraph + SwhLabeledBackwar
         <G as SwhLabeledBackwardGraph>::LabeledArcs<'arc>,
     >,
 );
-impl<'arc, G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'arc> IntoIterator
+impl<'arc, G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'arc> Iterator
     for MergedLabeledArcs<'arc, G>
 {
     type Item = UntypedEdgeLabel;
-    type IntoIter = Either<
-        <<G as SwhLabeledForwardGraph>::LabeledArcs<'arc> as IntoIterator>::IntoIter,
-        <<G as SwhLabeledBackwardGraph>::LabeledArcs<'arc> as IntoIterator>::IntoIter,
-    >;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
     }
 }
+
+#[allow(clippy::type_complexity)]
 struct MergedTypedLabeledArcs<'arc, G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph + 'arc>(
     Either<
         <LabelTypingArcIterator<
             'arc,
             Symmetric<G>,
-            <<G as SwhLabeledForwardGraph>::LabeledArcs<'arc> as IntoIterator>::IntoIter,
+            <G as SwhLabeledForwardGraph>::LabeledArcs<'arc>,
         > as IntoIterator>::IntoIter,
         <LabelTypingArcIterator<
             'arc,
             Symmetric<G>,
-            <<G as SwhLabeledBackwardGraph>::LabeledArcs<'arc> as IntoIterator>::IntoIter,
+            <G as SwhLabeledBackwardGraph>::LabeledArcs<'arc>,
         > as IntoIterator>::IntoIter,
     >,
 )
