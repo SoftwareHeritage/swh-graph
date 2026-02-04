@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -139,20 +139,24 @@ fn test_contiguous_full_graph(graph: &BuiltGraph, full_graph: &impl SwhFullGraph
         assert_eq!(
             full_graph
                 .labeled_successors(node)
+                .into_iter()
                 .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
                 .collect::<Vec<_>>(),
             full_graph
                 .labeled_successors(node)
+                .into_iter()
                 .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
                 .collect::<Vec<_>>()
         );
         assert_eq!(
             full_graph
                 .labeled_predecessors(node)
+                .into_iter()
                 .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
                 .collect::<Vec<_>>(),
             full_graph
                 .labeled_predecessors(node)
+                .into_iter()
                 .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
                 .collect::<Vec<_>>()
         );
@@ -337,6 +341,7 @@ fn test_contiguous_fs_graph(fs_graph: &impl SwhFullGraph) -> Result<()> {
     assert_eq!(
         fs_graph
             .labeled_successors(0)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         vec![
@@ -357,6 +362,7 @@ fn test_contiguous_fs_graph(fs_graph: &impl SwhFullGraph) -> Result<()> {
     assert_eq!(
         fs_graph
             .labeled_successors(1)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         Vec::new(),
@@ -364,6 +370,7 @@ fn test_contiguous_fs_graph(fs_graph: &impl SwhFullGraph) -> Result<()> {
     assert_eq!(
         fs_graph
             .labeled_successors(2)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         Vec::new(),
@@ -371,6 +378,7 @@ fn test_contiguous_fs_graph(fs_graph: &impl SwhFullGraph) -> Result<()> {
     assert_eq!(
         fs_graph
             .labeled_predecessors(0)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         Vec::new()
@@ -378,6 +386,7 @@ fn test_contiguous_fs_graph(fs_graph: &impl SwhFullGraph) -> Result<()> {
     assert_eq!(
         fs_graph
             .labeled_predecessors(1)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         vec![(
@@ -390,6 +399,7 @@ fn test_contiguous_fs_graph(fs_graph: &impl SwhFullGraph) -> Result<()> {
     assert_eq!(
         fs_graph
             .labeled_predecessors(2)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         vec![(
@@ -583,6 +593,7 @@ fn test_contiguous_history_graph(
     assert_eq!(
         history_graph
             .labeled_successors(0)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         vec![(
@@ -593,6 +604,7 @@ fn test_contiguous_history_graph(
     assert_eq!(
         history_graph
             .labeled_successors(1)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         vec![(2, vec![])],
@@ -600,6 +612,7 @@ fn test_contiguous_history_graph(
     assert_eq!(
         history_graph
             .labeled_successors(2)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         Vec::new(),
@@ -607,6 +620,7 @@ fn test_contiguous_history_graph(
     assert_eq!(
         history_graph
             .labeled_predecessors(0)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         Vec::new(),
@@ -614,6 +628,7 @@ fn test_contiguous_history_graph(
     assert_eq!(
         history_graph
             .labeled_predecessors(1)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         vec![(
@@ -624,6 +639,7 @@ fn test_contiguous_history_graph(
     assert_eq!(
         history_graph
             .labeled_predecessors(2)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         vec![(1, vec![])],

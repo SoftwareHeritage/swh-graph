@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024-2025  The Software Heritage developers
+ * Copyright (C) 2024-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -171,6 +171,7 @@ fn test_typed() -> Result<()> {
     assert_eq!(
         graph
             .labeled_successors(0)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect::<Vec<_>>(),
         vec![
@@ -199,6 +200,7 @@ fn test_typed() -> Result<()> {
     assert_eq!(
         graph
             .labeled_successors(2)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect::<Vec<_>>(),
         vec![

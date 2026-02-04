@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023-2024  The Software Heritage developers
+ * Copyright (C) 2023-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -239,7 +239,8 @@ where
         |thread_pl, node| -> Result<()> {
         for ((succ1, labels1), (succ2, labels2)) in graph1
             .labeled_successors(node)
-            .zip(graph2.labeled_successors(node))
+            .into_iter()
+            .zip(graph2.labeled_successors(node).into_iter())
         {
             ensure!(succ1 == succ2, "Successors mismatch");
             let labels1: Vec<_> = labels1.collect();

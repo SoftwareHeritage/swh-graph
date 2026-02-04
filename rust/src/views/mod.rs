@@ -11,6 +11,8 @@ mod spy;
 pub use spy::GraphSpy;
 mod subgraph;
 pub use subgraph::Subgraph;
+mod symmetric;
+pub use symmetric::Symmetric;
 mod transposed;
 pub use transposed::Transposed;
 mod webgraph;

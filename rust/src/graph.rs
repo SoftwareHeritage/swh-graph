@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -290,7 +290,7 @@ pub trait SwhLabeledForwardGraph: SwhForwardGraph {
     fn labeled_successors(
         &self,
         node_id: NodeId,
-    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
     where
         Self: SwhGraphWithProperties + Sized,
@@ -343,7 +343,7 @@ pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
     fn labeled_predecessors(
         &self,
         node_id: NodeId,
-    ) -> impl Iterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
     where
         Self: SwhGraphWithProperties + Sized,
         <Self as SwhGraphWithProperties>::Maps: crate::properties::Maps,

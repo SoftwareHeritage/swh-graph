@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -12,7 +12,7 @@ use tonic::{Request, Response};
 
 use swh_graph::graph::{SwhForwardGraph, SwhGraphWithProperties};
 use swh_graph::properties;
-use swh_graph::views::{Subgraph, Transposed};
+use swh_graph::views::{Subgraph, Symmetric, Transposed};
 
 use super::filters::{ArcFilterChecker, NodeFilterChecker};
 use super::node_builder::NodeBuilder;
@@ -179,6 +179,10 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
                 let graph = Arc::new(Transposed(graph));
                 traverse!(graph);
             }
+            Ok(proto::GraphDirection::Both) => {
+                let graph = Arc::new(Symmetric(graph));
+                traverse!(graph);
+            }
             Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
         }
         Ok(Response::new(ReceiverStream::new(rx)))
@@ -210,6 +214,11 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             }
             Ok(proto::GraphDirection::Backward) => {
                 let graph = Arc::new(Transposed(graph));
+                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                scoped_spawn_blocking(|| visitor.visit())?;
+            }
+            Ok(proto::GraphDirection::Both) => {
+                let graph = Arc::new(Symmetric(graph));
                 let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
                 scoped_spawn_blocking(|| visitor.visit())?;
             }
@@ -245,6 +254,11 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             }
             Ok(proto::GraphDirection::Backward) => {
                 let graph = Arc::new(Transposed(graph));
+                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                scoped_spawn_blocking(|| visitor.visit())?;
+            }
+            Ok(proto::GraphDirection::Both) => {
+                let graph = Arc::new(Symmetric(graph));
                 let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
                 scoped_spawn_blocking(|| visitor.visit())?;
             }

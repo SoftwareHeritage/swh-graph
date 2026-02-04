@@ -217,8 +217,8 @@ where
     #[inline(always)]
     fn labels(&self, node_id: NodeId) -> Self::Labels<'_> {
         webgraph::graphs::union_graph::Succ::new(
-            Some(<G as SwhForwardGraph>::successors(&self.0, node_id).into_iter()),
-            Some(<G as SwhBackwardGraph>::predecessors(&self.0, node_id).into_iter()),
+            Some(self.0.successors(node_id).into_iter()),
+            Some(self.0.predecessors(node_id).into_iter()),
         )
     }
 }

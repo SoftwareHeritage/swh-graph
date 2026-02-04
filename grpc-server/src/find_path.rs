@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -11,7 +11,7 @@ use tonic::{Request, Response};
 
 use swh_graph::graph::{SwhForwardGraph, SwhGraphWithProperties, SwhLabeledForwardGraph};
 use swh_graph::properties;
-use swh_graph::views::{Subgraph, Transposed};
+use swh_graph::views::{Subgraph, Symmetric, Transposed};
 
 use super::filters::{ArcFilterChecker, NodeFilterChecker};
 use super::label_builder::LabelBuilder;
@@ -233,6 +233,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                                         } else {
                                             let (_succ, labels) = subgraph
                                                 .labeled_successors(node_id)
+                                                .into_iter()
                                                 .filter(|(succ, _labels)| succ == &path[idx - 1])
                                                 .next()
                                                 .expect("node on path is missing a successor");
@@ -288,6 +289,10 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                 let graph = Arc::new(Transposed(graph));
                 find_path_to!(graph)
             }
+            proto::GraphDirection::Both => {
+                let graph = Arc::new(Symmetric(graph));
+                find_path_to!(graph)
+            }
         }
     }
 
@@ -334,11 +339,29 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                 match direction {
                     proto::GraphDirection::Forward => proto::GraphDirection::Backward,
                     proto::GraphDirection::Backward => proto::GraphDirection::Forward,
+                    proto::GraphDirection::Both => proto::GraphDirection::Both,
                 }
                 .into(),
             )
             .try_into()
             .map_err(|_| tonic::Status::invalid_argument("Invalid direction_reverse"))?;
+
+        // Having only one of them be Both has the same search space, but does not necessarily
+        // return the shortest path; so it is most likely a user error.
+        match (direction, direction_reverse) {
+            (proto::GraphDirection::Both, proto::GraphDirection::Both) => (),
+            (proto::GraphDirection::Both, _) => {
+                return Err(tonic::Status::invalid_argument(
+                    "direction=Both, but direction_reverse!=Both",
+                ))
+            }
+            (_, proto::GraphDirection::Both) => {
+                return Err(tonic::Status::invalid_argument(
+                    "direction_reverse=Both, but direction!=Both",
+                ))
+            }
+            (_, _) => (),
+        }
 
         let edges_reverse = edges_reverse.or_else(|| {
             // If edges_reverse is not specified:
@@ -384,11 +407,15 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             arc_checker.matches(src, dst)
         }));
         let transpose_subgraph = Arc::new(Transposed(subgraph.clone()));
+        let symmetric_subgraph = Arc::new(Symmetric(subgraph.clone()));
         let transpose_graph = Arc::new(Transposed(graph.clone()));
+        let symmetric_graph = Arc::new(Symmetric(graph.clone()));
 
         let forward_node_builder = NodeBuilder::new(subgraph.clone(), mask.clone(), Some("node"))?;
         let backward_node_builder =
             NodeBuilder::new(transpose_subgraph.clone(), mask.clone(), Some("node"))?;
+        let symmetric_node_builder =
+            NodeBuilder::new(symmetric_graph.clone(), mask.clone(), Some("node"))?;
 
         // Technically we don't need locks because the closures are called sequentially,
         // but I don't see a way around it without unsafe{}.
@@ -474,6 +501,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     proto::GraphDirection::Backward => {
                         find_path_between!(visitor, transpose_graph)
                     }
+                    proto::GraphDirection::Both => panic!("Inconsistent directions"),
                 }
             }
             proto::GraphDirection::Backward => {
@@ -486,7 +514,13 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     proto::GraphDirection::Backward => {
                         find_path_between!(visitor, transpose_graph)
                     }
+                    proto::GraphDirection::Both => panic!("Inconsistent directions"),
                 }
+            }
+            proto::GraphDirection::Both => {
+                let mut visitor =
+                    self.make_visitor(visitor_config, symmetric_subgraph.clone(), on_node, on_arc)?;
+                find_path_between!(visitor, symmetric_graph)
             }
         }
 
@@ -507,6 +541,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                         proto::GraphDirection::Backward => {
                             backward_node_builder.build_node(node_id)
                         }
+                        proto::GraphDirection::Both => symmetric_node_builder.build_node(node_id),
                     }),
                 );
                 let midpoint_index = path.len() - 1;
@@ -523,6 +558,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                         proto::GraphDirection::Backward => {
                             backward_node_builder.build_node(node_id)
                         }
+                        proto::GraphDirection::Both => symmetric_node_builder.build_node(node_id),
                     }),
                 );
                 // TODO: build and return labeled_node

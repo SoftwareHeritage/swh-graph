@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025  The Software Heritage developers
+ * Copyright (C) 2025-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -306,9 +306,10 @@ fn collect_labeled_successors<
     G: SwhGraphWithProperties<Maps: properties::Maps, LabelNames: properties::LabelNames>,
 >(
     graph: G,
-    successors: impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>,
+    successors: impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>,
 ) -> Result<Vec<Succ>> {
     successors
+        .into_iter()
         .map(|(succ, labels)| -> Result<_> {
             Ok(Succ {
                 swhid: graph.properties().swhid(succ),
@@ -324,9 +325,10 @@ fn collect_labeled_successors<
 
 fn collect_successors<G: SwhGraphWithProperties<Maps: properties::Maps>>(
     graph: G,
-    successors: impl Iterator<Item = usize>,
+    successors: impl IntoIterator<Item = usize>,
 ) -> Result<Vec<Succ>> {
     successors
+        .into_iter()
         .map(|succ| -> Result<_> {
             Ok(Succ {
                 swhid: graph.properties().swhid(succ),
