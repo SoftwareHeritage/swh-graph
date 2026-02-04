@@ -374,6 +374,7 @@ macro_rules! merge {
                     let (succ, labels) = forward.next().expect("item disappeared");
                     Some((succ, $newtype(Either::Left(labels))))
                 } else {
+                    assert_ne!(succ, pred, "Symmetric's backend has a loop");
                     let (pred, labels) = backward.next().expect("item disappeared");
                     Some((pred, $newtype(Either::Right(labels))))
                 }
