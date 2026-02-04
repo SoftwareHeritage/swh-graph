@@ -43,12 +43,11 @@ impl<G: SwhGraph> SwhGraph for Symmetric<G> {
         self.0.num_arcs()
     }
     fn num_arcs_by_type(&self) -> Result<HashMap<(NodeType, NodeType), usize>> {
-        Ok(self
-            .0
-            .num_arcs_by_type()?
-            .into_iter()
-            .map(|((src_type, dst_type), count)| ((dst_type, src_type), count))
-            .collect())
+        let mut counts = self.0.num_arcs_by_type()?;
+        for (k, v) in super::Transposed(&self.0).num_arcs_by_type()? {
+            *counts.entry(k).or_default() += v
+        }
+        Ok(counts)
     }
     fn has_node(&self, node_id: NodeId) -> bool {
         self.0.has_node(node_id)
