@@ -1,4 +1,4 @@
-# Copyright (C) 2023-2026  The Software Heritage developers
+# Copyright (C) 2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -267,7 +267,6 @@ class Command(metaclass=_MetaCommand):
             else:
                 final_args.append(arg)
 
-        print(self.kwargs)
         proc = subprocess.Popen(
             final_args,
             stdin=stdin,
