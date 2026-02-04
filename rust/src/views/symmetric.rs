@@ -40,7 +40,7 @@ impl<G: SwhGraph> SwhGraph for Symmetric<G> {
         self.0.num_nodes()
     }
     fn num_arcs(&self) -> u64 {
-        self.0.num_arcs()
+        self.0.num_arcs() * 2
     }
     fn num_arcs_by_type(&self) -> Result<HashMap<(NodeType, NodeType), usize>> {
         let mut counts = self.0.num_arcs_by_type()?;
@@ -53,7 +53,7 @@ impl<G: SwhGraph> SwhGraph for Symmetric<G> {
         self.0.has_node(node_id)
     }
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
-        self.0.has_arc(dst_node_id, src_node_id)
+        self.0.has_arc(src_node_id, dst_node_id) || self.0.has_arc(dst_node_id, src_node_id)
     }
 }
 
