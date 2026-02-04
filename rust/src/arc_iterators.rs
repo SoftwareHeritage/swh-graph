@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -212,6 +212,7 @@ where
                 succ,
                 LabelTypingArcIterator {
                     graph: self.graph,
+                    is_transposed: self.is_transposed,
                     labels: labels.into_iter(),
                     src,
                     dst,
@@ -242,6 +243,7 @@ where
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
     graph: &'a G,
+    is_transposed: bool,
     labels: Labels,
     src: NodeId,
     dst: NodeId,
@@ -262,7 +264,7 @@ where
                 .for_edge_type(
                     props.node_type(self.src),
                     props.node_type(self.dst),
-                    self.graph.is_transposed(),
+                    self.is_transposed,
                 )
                 .unwrap_or_else(|e| {
                     panic!(
