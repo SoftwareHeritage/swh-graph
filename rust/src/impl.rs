@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -9,6 +9,7 @@ use std::ops::Deref;
 use std::path::Path;
 
 use crate::graph::*;
+use crate::labels::EdgeLabel;
 use crate::properties;
 
 impl<T: Deref> SwhGraph for T
@@ -68,6 +69,14 @@ where
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
         self.deref().untyped_labeled_successors(node_id)
     }
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        self.deref().labeled_successors(node_id)
+    }
 }
 
 impl<T: Deref> SwhBackwardGraph for T
@@ -102,6 +111,14 @@ where
 
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
         self.deref().untyped_labeled_predecessors(node_id)
+    }
+    fn labeled_predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        self.deref().labeled_predecessors(node_id)
     }
 }
 impl<T: Deref> SwhGraphWithProperties for T

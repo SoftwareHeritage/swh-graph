@@ -178,10 +178,10 @@ where
     G: SwhGraphWithProperties + ?Sized,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
-    pub(crate) graph: &'a G,
-    pub(crate) is_transposed: bool,
-    pub(crate) successors: Successors,
-    pub(crate) src: NodeId,
+    pub graph: &'a G,
+    pub is_transposed: bool,
+    pub successors: Successors,
+    pub src: NodeId,
 }
 
 impl<'a, G, Successors: Iterator> Iterator for LabelTypingSuccessorIterator<'a, G, Successors>

@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::Result;
 
 use crate::graph::*;
+use crate::labels::EdgeLabel;
 use crate::properties;
 use crate::NodeType;
 
@@ -101,6 +102,16 @@ impl<G: SwhLabeledForwardGraph> SwhLabeledForwardGraph for GraphSpy<G> {
         self.record("untyped_labeled_successors", (node_id,));
         self.graph.untyped_labeled_successors(node_id)
     }
+
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        self.record("labeled_successors", (node_id,));
+        self.graph.labeled_successors(node_id)
+    }
 }
 
 impl<G: SwhBackwardGraph> SwhBackwardGraph for GraphSpy<G> {
@@ -132,6 +143,16 @@ impl<G: SwhLabeledBackwardGraph> SwhLabeledBackwardGraph for GraphSpy<G> {
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
         self.record("untyped_labeled_predecessors", (node_id,));
         self.graph.untyped_labeled_predecessors(node_id)
+    }
+
+    fn labeled_predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        self.record("labeled_predecessors", (node_id,));
+        self.graph.labeled_predecessors(node_id)
     }
 }
 
