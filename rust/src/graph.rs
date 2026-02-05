@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -272,7 +272,9 @@ pub trait SwhForwardGraph: SwhGraph {
     label = "does not have forward labels loaded",
     note = "Use `let graph = graph.load_labels()` to load them"
 )]
-pub trait SwhLabeledForwardGraph: SwhForwardGraph {
+pub trait SwhLabeledForwardGraph:
+    SwhForwardGraph + SwhGraphWithProperties<Maps: properties::Maps>
+{
     type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
@@ -292,10 +294,7 @@ pub trait SwhLabeledForwardGraph: SwhForwardGraph {
         node_id: NodeId,
     ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
-    where
-        Self: SwhGraphWithProperties + Sized,
-        <Self as SwhGraphWithProperties>::Maps: crate::properties::Maps,
-    {
+           + '_ {
         LabelTypingSuccessorIterator {
             graph: self,
             is_transposed: false,
@@ -325,7 +324,9 @@ pub trait SwhBackwardGraph: SwhGraph {
     note = "Use SwhBidirectionalGraph instead of SwhUnidirectionalGraph if you don't already",
     note = "and `let graph = graph.load_labels()`"
 )]
-pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
+pub trait SwhLabeledBackwardGraph:
+    SwhBackwardGraph + SwhGraphWithProperties<Maps: properties::Maps>
+{
     type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
@@ -343,11 +344,9 @@ pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
     fn labeled_predecessors(
         &self,
         node_id: NodeId,
-    ) -> impl Iterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
-    where
-        Self: SwhGraphWithProperties + Sized,
-        <Self as SwhGraphWithProperties>::Maps: crate::properties::Maps,
-    {
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
         LabelTypingSuccessorIterator {
             graph: self,
             is_transposed: true,
@@ -383,12 +382,12 @@ pub trait SwhFullGraph:
     SwhLabeledForwardGraph
     + SwhLabeledBackwardGraph
     + SwhGraphWithProperties<
-        Maps: crate::properties::Maps,
-        Timestamps: crate::properties::Timestamps,
-        Persons: crate::properties::Persons,
-        Contents: crate::properties::Contents,
-        Strings: crate::properties::Strings,
-        LabelNames: crate::properties::LabelNames,
+        Maps: properties::Maps,
+        Timestamps: properties::Timestamps,
+        Persons: properties::Persons,
+        Contents: properties::Contents,
+        Strings: properties::Strings,
+        LabelNames: properties::LabelNames,
     >
 {
 }
@@ -397,12 +396,12 @@ impl<
         G: SwhLabeledForwardGraph
             + SwhLabeledBackwardGraph
             + SwhGraphWithProperties<
-                Maps: crate::properties::Maps,
-                Timestamps: crate::properties::Timestamps,
-                Persons: crate::properties::Persons,
-                Contents: crate::properties::Contents,
-                Strings: crate::properties::Strings,
-                LabelNames: crate::properties::LabelNames,
+                Maps: properties::Maps,
+                Timestamps: properties::Timestamps,
+                Persons: properties::Persons,
+                Contents: properties::Contents,
+                Strings: properties::Strings,
+                LabelNames: properties::LabelNames,
             >,
     > SwhFullGraph for G
 {
@@ -490,6 +489,7 @@ where
     <G as SequentialLabeling>::Label: Pair<Left = NodeId, Right: IntoIterator<Item: Borrow<u64>>>,
     for<'succ> <G as RandomAccessLabeling>::Labels<'succ>:
         Iterator<Item = (usize, <<G as SequentialLabeling>::Label as Pair>::Right)>,
+    Self: SwhGraphWithProperties<Maps: properties::Maps>,
 {
     type LabeledArcs<'arc> = LabeledArcIterator<<<<<G as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
     type LabeledSuccessors<'succ>
@@ -748,6 +748,7 @@ where
     <FG as SequentialLabeling>::Label: Pair<Left = NodeId, Right: IntoIterator<Item: Borrow<u64>>>,
     for<'succ> <FG as RandomAccessLabeling>::Labels<'succ>:
         Iterator<Item = (usize, <<FG as SequentialLabeling>::Label as Pair>::Right)>,
+    Self: SwhGraphWithProperties<Maps: properties::Maps>,
 {
     type LabeledArcs<'arc> = LabeledArcIterator<<<<<FG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
     type LabeledSuccessors<'succ>
@@ -785,6 +786,7 @@ where
     <BG as SequentialLabeling>::Label: Pair<Left = NodeId, Right: IntoIterator<Item: Borrow<u64>>>,
     for<'succ> <BG as RandomAccessLabeling>::Labels<'succ>:
         Iterator<Item = (usize, <<BG as SequentialLabeling>::Label as Pair>::Right)>,
+    Self: SwhGraphWithProperties<Maps: properties::Maps>,
 {
     type LabeledArcs<'arc> = LabeledArcIterator<<<<<BG as RandomAccessLabeling>::Labels<'arc> as Iterator>::Item as Pair>::Right as IntoIterator>::IntoIter> where Self: 'arc;
     type LabeledPredecessors<'succ>

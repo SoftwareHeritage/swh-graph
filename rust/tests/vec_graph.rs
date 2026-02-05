@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -9,7 +9,7 @@ use swh_graph::graph::*;
 use swh_graph::labels::LabelNameId;
 use swh_graph::properties::*;
 use swh_graph::webgraph::graphs::vec_graph::{LabeledVecGraph, VecGraph};
-use swh_graph::{NodeType, SWHID};
+use swh_graph::{swhid, NodeType, SWHID};
 
 #[test]
 fn test_vec_graph() {
@@ -29,7 +29,16 @@ fn test_labeled_vec_graph() {
         vec![((0, 1), &[0, 789]), ((2, 0), &[123]), ((2, 1), &[456])];
     let underlying_graph = LabeledVecGraph::from_arcs(arcs);
 
-    let graph = SwhUnidirectionalGraph::from_underlying_graph(PathBuf::new(), underlying_graph);
+    let graph = SwhUnidirectionalGraph::from_underlying_graph(PathBuf::new(), underlying_graph)
+        .init_properties()
+        .load_properties(|properties| {
+            properties.with_maps(VecMaps::new(vec![
+                swhid!(swh:1:dir:0000000000000000000000000000000000000000),
+                swhid!(swh:1:cnt:0000000000000000000000000000000000000001),
+                swhid!(swh:1:dir:0000000000000000000000000000000000000002),
+            ]))
+        })
+        .unwrap();
 
     assert_eq!(graph.successors(0).collect::<Vec<_>>(), vec![1]);
     assert_eq!(graph.successors(1).collect::<Vec<_>>(), Vec::<usize>::new());
