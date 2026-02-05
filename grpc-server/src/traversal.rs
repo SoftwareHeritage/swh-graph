@@ -1,8 +1,9 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use cadence::Counted;
@@ -65,6 +66,7 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             return_nodes,
             mask: _, // Handled by caller
             max_matching_nodes,
+            ignore_node,
         } = request.get_ref().clone();
         let min_depth = match min_depth {
             None => 0,
@@ -96,8 +98,17 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             NodeFilterChecker::new(graph.clone(), return_nodes.unwrap_or_default())?;
         let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
         let mut num_matching_nodes = 0;
-        let subgraph =
-            Subgraph::with_arc_filter(graph.clone(), move |src, dst| arc_checker.matches(src, dst));
+        let ignore_nodes_set = ignore_node
+            .iter()
+            .map(|swhid| self.service.try_get_node_id(swhid))
+            .collect::<Result<HashSet<_>, _>>()?;
+        let subgraph = Subgraph {
+            graph: graph.clone(),
+            num_nodes_by_type: None,
+            num_arcs_by_type: None,
+            node_filter: move |node| !ignore_nodes_set.contains(&node),
+            arc_filter: move |src, dst| arc_checker.matches(src, dst),
+        };
         let mut visitor = SimpleBfsVisitor::new(
             Arc::new(subgraph),
             max_depth,
