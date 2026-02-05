@@ -5,7 +5,12 @@
 
 use std::path::PathBuf;
 
+use anyhow::Result;
+use swh_graph::arc_iterators::IntoFlattenedLabeledArcsIterator;
 use swh_graph::graph::*;
+use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
+use swh_graph::labels::{Permission, Visit, VisitStatus};
+use swh_graph::swhid;
 use swh_graph::views::{Subgraph, Symmetric};
 use swh_graph::webgraph::graphs::vec_graph::{LabeledVecGraph, VecGraph};
 
@@ -224,3 +229,356 @@ fn test_symmetric_detects_inconsistent_backends_labeled() {
 
     let _ = symmetric.untyped_labeled_successors(0).collect::<Vec<_>>();
 }
+
+// Tests for labeled_successors with typed edges
+
+/// ```
+/// ori0 --> snp1
+/// ```
+fn build_ori_snp_graph() -> Result<BuiltGraph> {
+    let mut builder = GraphBuilder::default();
+    builder
+        .node(swhid!(swh:1:ori:0000000000000000000000000000000000000000))?
+        .done();
+    builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000001))?
+        .done();
+    builder.ori_arc(0, 1, VisitStatus::Full, 1770248300);
+    builder.ori_arc(0, 1, VisitStatus::Partial, 1770248399);
+    builder.done()
+}
+
+#[test]
+fn test_symmetric_ori_snp_labeled_successors() -> Result<()> {
+    let graph = build_ori_snp_graph()?;
+    let symmetric = Symmetric(graph);
+
+    // Test ori0's successors: should have snp1 with two visit labels (forward direction)
+    let ori0_successors = symmetric
+        .labeled_successors(0)
+        .into_iter()
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        ori0_successors,
+        vec![(
+            1,
+            vec![
+                Visit::new(VisitStatus::Full, 1770248300).unwrap().into(),
+                Visit::new(VisitStatus::Partial, 1770248399).unwrap().into()
+            ]
+        )]
+    );
+
+    let snp1_successors: Vec<(_, Vec<_>)> = symmetric
+        .labeled_successors(1)
+        .into_iter()
+        .map(|(succ, labels)| (succ, labels.collect()))
+        .collect();
+
+    assert_eq!(snp1_successors, vec![(0, vec![Visit::new(VisitStatus::Full, 1770248300).unwrap().into(), Visit::new(VisitStatus::Partial, 1770248399).unwrap().into()])]);
+
+    Ok(())
+}
+
+/// ```
+/// snp0 --> rev1
+/// ```
+fn build_snp_rev_graph() -> Result<BuiltGraph> {
+    let mut builder = GraphBuilder::default();
+    builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000000))?
+        .done();
+    builder
+        .node(swhid!(swh:1:rev:0000000000000000000000000000000000000001))?
+        .done();
+    builder.snp_arc(0, 1, b"refs/heads/main");
+    builder.snp_arc(0, 1, b"refs/heads/develop");
+    builder.done()
+}
+
+#[test]
+fn test_symmetric_snp_rev_labeled_successors() -> Result<()> {
+    let graph = build_snp_rev_graph()?;
+    let symmetric = Symmetric(graph);
+
+    let main_label = symmetric
+        .properties()
+        .label_name_id(b"refs/heads/main")
+        .unwrap();
+    let develop_label = symmetric
+        .properties()
+        .label_name_id(b"refs/heads/develop")
+        .unwrap();
+
+    // Test snp0's successors: should have rev1 with branch labels (forward direction)
+    let snp0_successors: Vec<(_, Vec<_>)> = symmetric
+        .labeled_successors(0)
+        .into_iter()
+        .map(|(succ, labels)| (succ, labels.collect()))
+        .collect();
+
+    assert_eq!(
+        snp0_successors,
+        vec![(
+            1,
+            vec![
+                swh_graph::labels::Branch::new(main_label).unwrap().into(),
+                swh_graph::labels::Branch::new(develop_label)
+                    .unwrap()
+                    .into()
+            ]
+        )]
+    );
+
+    let rev1_successors: Vec<(_, Vec<_>)> = symmetric
+        .labeled_successors(1)
+        .into_iter()
+        .map(|(succ, labels)| (succ, labels.collect()))
+        .collect();
+
+    assert_eq!(
+        rev1_successors,
+        vec![(
+            0,
+            vec![
+                swh_graph::labels::Branch::new(main_label).unwrap().into(),
+                swh_graph::labels::Branch::new(develop_label)
+                    .unwrap()
+                    .into()
+            ]
+        )]
+    );
+
+    Ok(())
+}
+
+/// ```
+/// dir0 --> cnt1
+///      \-> dir2
+/// ```
+fn build_fs_graph() -> Result<BuiltGraph> {
+    let mut builder = GraphBuilder::default();
+    builder
+        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000000))?
+        .done();
+    builder
+        .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000001))?
+        .done();
+    builder
+        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000002))?
+        .done();
+    builder.dir_arc(0, 1, Permission::Content, b"file.txt");
+    builder.dir_arc(0, 2, Permission::Directory, b"subdir");
+    builder.done()
+}
+
+#[test]
+fn test_symmetric_fs_labeled_successors() -> Result<()> {
+    let graph = build_fs_graph()?;
+    let symmetric = Symmetric(graph);
+
+    let file_label = symmetric.properties().label_name_id(b"file.txt").unwrap();
+    let subdir_label = symmetric.properties().label_name_id(b"subdir").unwrap();
+
+    // Test dir0's successors: should have cnt1 and dir2 (forward direction)
+    let dir0_successors: Vec<(_, Vec<_>)> = symmetric
+        .labeled_successors(0)
+        .into_iter()
+        .map(|(succ, labels)| (succ, labels.collect()))
+        .collect();
+
+    assert_eq!(
+        dir0_successors,
+        vec![
+            (
+                1,
+                vec![
+                    swh_graph::labels::DirEntry::new(Permission::Content, file_label)
+                        .unwrap()
+                        .into()
+                ]
+            ),
+            (
+                2,
+                vec![
+                    swh_graph::labels::DirEntry::new(Permission::Directory, subdir_label)
+                        .unwrap()
+                        .into()
+                ]
+            )
+        ]
+    );
+
+    let cnt1_successors: Vec<(_, Vec<_>)> = symmetric
+        .labeled_successors(1)
+        .into_iter()
+        .map(|(succ, labels)| (succ, labels.collect()))
+        .collect();
+
+    assert_eq!(
+        cnt1_successors,
+        vec![(
+            0,
+            vec![
+                swh_graph::labels::DirEntry::new(Permission::Content, file_label)
+                    .unwrap()
+                    .into()
+            ]
+        )]
+    );
+
+    let dir2_successors: Vec<(_, Vec<_>)> = symmetric
+        .labeled_successors(2)
+        .into_iter()
+        .map(|(succ, labels)| (succ, labels.collect()))
+        .collect();
+
+    assert_eq!(
+        dir2_successors,
+        vec![(
+            0,
+            vec![
+                swh_graph::labels::DirEntry::new(Permission::Directory, subdir_label)
+                    .unwrap()
+                    .into()
+            ]
+        )]
+    );
+
+    Ok(())
+}
+
+/// ```
+/// ori0 --> snp1 --> rev2
+///                \-> rel3
+/// ```
+fn build_histhost_graph() -> Result<BuiltGraph> {
+    let mut builder = GraphBuilder::default();
+    builder
+        .node(swhid!(swh:1:ori:0000000000000000000000000000000000000000))?
+        .done();
+    builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000001))?
+        .done();
+    builder
+        .node(swhid!(swh:1:rev:0000000000000000000000000000000000000002))?
+        .done();
+    builder
+        .node(swhid!(swh:1:rel:0000000000000000000000000000000000000003))?
+        .done();
+    builder.ori_arc(0, 1, VisitStatus::Full, 1770248300);
+    builder.snp_arc(1, 2, b"refs/heads/main");
+    builder.snp_arc(1, 3, b"refs/tags/v1.0");
+    builder.done()
+}
+
+#[test]
+fn test_symmetric_histhost_labeled_successors() -> Result<()> {
+    let graph = build_histhost_graph()?;
+    let symmetric = Symmetric(graph);
+
+    let main_label = symmetric
+        .properties()
+        .label_name_id(b"refs/heads/main")
+        .unwrap();
+    let tag_label = symmetric
+        .properties()
+        .label_name_id(b"refs/tags/v1.0")
+        .unwrap();
+
+    let ori0_successors: Vec<(_, Vec<_>)> = symmetric
+        .labeled_successors(0)
+        .into_iter()
+        .map(|(succ, labels)| (succ, labels.collect()))
+        .collect();
+
+    assert_eq!(
+        ori0_successors,
+        vec![(
+            1,
+            vec![Visit::new(VisitStatus::Full, 1770248300).unwrap().into()]
+        )]
+    );
+
+    let snp1_successors: Vec<(_, Vec<_>)> = symmetric
+        .labeled_successors(1)
+        .into_iter()
+        .map(|(succ, labels)| (succ, labels.collect()))
+        .collect();
+
+    assert_eq!(
+        snp1_successors,
+        vec![
+            (
+                0,
+                vec![Visit::new(VisitStatus::Full, 1770248300).unwrap().into()]
+            ),
+            (
+                2,
+                vec![swh_graph::labels::Branch::new(main_label).unwrap().into()]
+            ),
+            (
+                3,
+                vec![swh_graph::labels::Branch::new(tag_label).unwrap().into()]
+            )
+        ]
+    );
+
+    let rev2_successors: Vec<(_, Vec<_>)> = symmetric
+        .labeled_successors(2)
+        .into_iter()
+        .map(|(succ, labels)| (succ, labels.collect()))
+        .collect();
+
+    assert_eq!(
+        rev2_successors,
+        vec![(
+            1,
+            vec![swh_graph::labels::Branch::new(main_label).unwrap().into()]
+        )]
+    );
+
+    let rel3_successors: Vec<(_, Vec<_>)> = symmetric
+        .labeled_successors(3)
+        .into_iter()
+        .map(|(succ, labels)| (succ, labels.collect()))
+        .collect();
+
+    assert_eq!(
+        rel3_successors,
+        vec![(
+            1,
+            vec![swh_graph::labels::Branch::new(tag_label).unwrap().into()]
+        )]
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_symmetric_flattened_labels() -> Result<()> {
+    let graph = build_ori_snp_graph()?;
+    let symmetric = Symmetric(graph);
+
+    let ori0_labels = symmetric
+        .labeled_successors(0)
+        .flatten_labels()
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        ori0_labels,
+        vec![
+            (1, Visit::new(VisitStatus::Full, 1770248300).unwrap().into()),
+            (
+                1,
+                Visit::new(VisitStatus::Partial, 1770248399).unwrap().into()
+            )
+        ]
+    );
+
+    Ok(())
+}
+

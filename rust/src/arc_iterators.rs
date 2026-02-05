@@ -202,19 +202,14 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         self.successors.next().map(|pair| {
-            let mut src = self.src;
-            let (mut dst, labels) = pair.into_pair();
-            let succ = dst;
-            if self.is_transposed {
-                (src, dst) = (dst, src)
-            }
+            let (dst, labels) = pair.into_pair();
             (
-                succ,
+                dst,
                 LabelTypingArcIterator {
                     graph: self.graph,
                     is_transposed: self.is_transposed,
                     labels: labels.into_iter(),
-                    src,
+                    src: self.src,
                     dst,
                 },
             )

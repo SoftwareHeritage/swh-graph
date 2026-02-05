@@ -251,3 +251,115 @@ fn test_typed_flattened() -> Result<()> {
 
     Ok(())
 }
+
+fn build_snp_rev_graph() -> Result<BuiltGraph> {
+    let mut builder = GraphBuilder::default();
+    builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000000))?
+        .done();
+    builder
+        .node(swhid!(swh:1:rev:0000000000000000000000000000000000000001))?
+        .done();
+    builder.snp_arc(0, 1, b"refs/heads/main");
+    builder.snp_arc(0, 1, b"refs/heads/develop");
+    builder.done()
+}
+
+fn build_dir_cnt_graph() -> Result<BuiltGraph> {
+    let mut builder = GraphBuilder::default();
+    builder
+        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000000))?
+        .done();
+    builder
+        .node(swhid!(swh:1:cnt:0000000000000000000000000000000000000001))?
+        .done();
+    builder.dir_arc(0, 1, swh_graph::labels::Permission::Content, b"file.txt");
+    builder.done()
+}
+
+fn build_ori_snp_graph_preds() -> Result<BuiltGraph> {
+    let mut builder = GraphBuilder::default();
+    builder
+        .node(swhid!(swh:1:ori:0000000000000000000000000000000000000000))?
+        .done();
+    builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000001))?
+        .done();
+    builder.ori_arc(0, 1, VisitStatus::Full, 1000001000);
+    builder.done()
+}
+
+#[test]
+fn test_labeled_predecessors_snp_rev() -> Result<()> {
+    let graph = build_snp_rev_graph()?;
+
+    let main_label = graph
+        .properties()
+        .label_name_id(b"refs/heads/main")
+        .unwrap();
+    let develop_label = graph
+        .properties()
+        .label_name_id(b"refs/heads/develop")
+        .unwrap();
+
+    let rev1_preds: Vec<(_, Vec<_>)> = graph
+        .labeled_predecessors(1)
+        .into_iter()
+        .map(|(pred, labels)| (pred, labels.collect()))
+        .collect();
+
+    assert_eq!(
+        rev1_preds,
+        vec![(
+            0,
+            vec![
+                Branch::new(main_label).unwrap().into(),
+                Branch::new(develop_label).unwrap().into()
+            ]
+        )]
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_labeled_predecessors_dir_cnt() -> Result<()> {
+    let graph = build_dir_cnt_graph()?;
+
+    let file_label = graph.properties().label_name_id(b"file.txt").unwrap();
+
+    let cnt1_preds: Vec<(_, Vec<_>)> = graph
+        .labeled_predecessors(1)
+        .into_iter()
+        .map(|(pred, labels)| (pred, labels.collect()))
+        .collect();
+
+    assert_eq!(
+        cnt1_preds,
+        vec![(
+            0,
+            vec![swh_graph::labels::DirEntry::new(
+                swh_graph::labels::Permission::Content,
+                file_label
+            )
+            .unwrap()
+            .into()]
+        )]
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_labeled_predecessors_ori_snp() -> Result<()> {
+    let graph = build_ori_snp_graph_preds()?;
+
+    let snp1_preds: Vec<(_, Vec<_>)> = graph
+        .labeled_predecessors(1)
+        .into_iter()
+        .map(|(pred, labels)| (pred, labels.collect()))
+        .collect();
+
+    assert_eq!(snp1_preds, vec![(0, vec![Visit::new(VisitStatus::Full, 1000001000).unwrap().into()])]);
+    Ok(())
+}
