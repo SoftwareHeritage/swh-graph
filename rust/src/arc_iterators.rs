@@ -202,18 +202,14 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         self.successors.next().map(|pair| {
-            let mut src = self.src;
-            let (mut dst, labels) = pair.into_pair();
-            let succ = dst;
-            if self.is_transposed {
-                (src, dst) = (dst, src)
-            }
+            let (dst, labels) = pair.into_pair();
             (
-                succ,
+                dst,
                 LabelTypingArcIterator {
                     graph: self.graph,
+                    is_transposed: self.is_transposed,
                     labels: labels.into_iter(),
-                    src,
+                    src: self.src,
                     dst,
                 },
             )
@@ -242,6 +238,7 @@ where
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
     graph: &'a G,
+    is_transposed: bool,
     labels: Labels,
     src: NodeId,
     dst: NodeId,
@@ -262,7 +259,7 @@ where
                 .for_edge_type(
                     props.node_type(self.src),
                     props.node_type(self.dst),
-                    self.graph.is_transposed(),
+                    self.is_transposed,
                 )
                 .unwrap_or_else(|e| {
                     panic!(
