@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -298,7 +298,7 @@ pub trait SwhLabeledForwardGraph: SwhForwardGraph {
     {
         LabelTypingSuccessorIterator {
             graph: self,
-            is_transposed: false,
+            is_transposed: self.is_transposed(),
             src: node_id,
             successors: self.untyped_labeled_successors(node_id).into_iter(),
         }
@@ -350,7 +350,7 @@ pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
     {
         LabelTypingSuccessorIterator {
             graph: self,
-            is_transposed: true,
+            is_transposed: !self.is_transposed(),
             src: node_id,
             successors: self.untyped_labeled_predecessors(node_id).into_iter(),
         }
