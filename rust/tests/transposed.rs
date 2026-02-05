@@ -5,7 +5,12 @@
 
 use std::path::PathBuf;
 
+use anyhow::Result;
+
 use swh_graph::graph::*;
+use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
+use swh_graph::labels::{Visit, VisitStatus};
+use swh_graph::swhid;
 use swh_graph::views::{Subgraph, Transposed};
 use swh_graph::webgraph::graphs::vec_graph::{LabeledVecGraph, VecGraph};
 
@@ -206,4 +211,74 @@ fn test_transpose_with_filtered_arcs() {
         transposed.successors(2).collect::<Vec<_>>(),
         Vec::<usize>::new()
     );
+}
+
+/// Build a simple graph: ori0 -> snp1
+fn build_ori_snp_graph() -> Result<BuiltGraph> {
+    let mut builder = GraphBuilder::default();
+    builder
+        .node(swhid!(swh:1:ori:0000000000000000000000000000000000000000))?
+        .done();
+    builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000001))?
+        .done();
+    builder.ori_arc(0, 1, VisitStatus::Full, 1770248300);
+    builder.ori_arc(0, 1, VisitStatus::Partial, 1770248399);
+    builder.done()
+}
+
+#[test]
+fn test_transpose_labeled_successors() -> Result<()> {
+    let graph = build_ori_snp_graph()?;
+    let transposed = Transposed(graph);
+
+    // In the original graph: ori0 -> snp1 with Visit labels
+    // In the transposed graph: snp1 -> ori0 with Visit labels
+    let snp1_successors: Vec<_> = transposed
+        .labeled_successors(1)
+        .into_iter()
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+
+    assert_eq!(
+        snp1_successors,
+        vec![(
+            0,
+            vec![
+                Visit::new(VisitStatus::Full, 1770248300).unwrap().into(),
+                Visit::new(VisitStatus::Partial, 1770248399).unwrap().into()
+            ]
+        )],
+        "Transposed snapshot -> origin edges should have Visit labels"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_transpose_labeled_predecessors() -> Result<()> {
+    let graph = build_ori_snp_graph()?;
+    let transposed = Transposed(graph);
+
+    // In the original graph: ori0 -> snp1 with Visit labels
+    // In the transposed graph: ori0 <- snp1 with Visit labels
+    let ori0_predecessors: Vec<_> = transposed
+        .labeled_predecessors(0)
+        .into_iter()
+        .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
+        .collect();
+
+    assert_eq!(
+        ori0_predecessors,
+        vec![(
+            1,
+            vec![
+                Visit::new(VisitStatus::Full, 1770248300).unwrap().into(),
+                Visit::new(VisitStatus::Partial, 1770248399).unwrap().into()
+            ]
+        )],
+        "Transposed origin <- snapshot edges should have Visit labels"
+    );
+
+    Ok(())
 }
