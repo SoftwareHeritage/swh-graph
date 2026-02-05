@@ -161,11 +161,7 @@ impl<G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph> SwhLabeledForwardGraph
         &self,
         node_id: NodeId,
     ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
-           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
-    where
-        Self: SwhGraphWithProperties + Sized,
-        <Self as SwhGraphWithProperties>::Maps: crate::properties::Maps,
-    {
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel> {
         MergingSortedPairs::new(
             LabelTypingSuccessorIterator {
                 graph: self,

@@ -89,7 +89,7 @@ where
     }
 }
 
-pub struct FlattenedSuccessorsIterator<Successors: Iterator>
+pub struct FlattenedSuccessorsIterator<Successors: Iterator + ?Sized>
 where
     <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator>,
 {
@@ -112,7 +112,7 @@ where
     }
 }
 
-impl<Successors: Iterator> Iterator for FlattenedSuccessorsIterator<Successors>
+impl<Successors: Iterator + ?Sized> Iterator for FlattenedSuccessorsIterator<Successors>
 where
     <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator>,
 {
@@ -175,7 +175,7 @@ pub struct LabelTypingSuccessorIterator<'a, G, Successors: Iterator>
 where
     <Successors as Iterator>::Item:
         Pair<Left = usize, Right: IntoIterator<Item = UntypedEdgeLabel>>,
-    G: SwhGraphWithProperties,
+    G: SwhGraphWithProperties + ?Sized,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
     pub(crate) graph: &'a G,
@@ -188,7 +188,7 @@ impl<'a, G, Successors: Iterator> Iterator for LabelTypingSuccessorIterator<'a, 
 where
     <Successors as Iterator>::Item:
         Pair<Left = usize, Right: IntoIterator<Item = UntypedEdgeLabel>>,
-    G: SwhGraphWithProperties,
+    G: SwhGraphWithProperties + ?Sized,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
     type Item = (
@@ -222,7 +222,7 @@ impl<G, Successors: Iterator> IntoFlattenedLabeledArcsIterator<EdgeLabel>
 where
     <Successors as Iterator>::Item:
         Pair<Left = usize, Right: IntoIterator<Item = UntypedEdgeLabel>>,
-    G: SwhGraphWithProperties,
+    G: SwhGraphWithProperties + ?Sized,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
     type Flattened = FlattenedSuccessorsIterator<Self>;
@@ -234,7 +234,7 @@ where
 
 pub struct LabelTypingArcIterator<'a, G, Labels: Iterator<Item = UntypedEdgeLabel>>
 where
-    G: SwhGraphWithProperties,
+    G: SwhGraphWithProperties + ?Sized,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
     graph: &'a G,
@@ -247,7 +247,7 @@ where
 impl<G, Labels: Iterator<Item = UntypedEdgeLabel>> Iterator
     for LabelTypingArcIterator<'_, G, Labels>
 where
-    G: SwhGraphWithProperties,
+    G: SwhGraphWithProperties + ?Sized,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
     type Item = EdgeLabel;
