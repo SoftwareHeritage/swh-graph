@@ -10,9 +10,7 @@ use std::path::Path;
 use anyhow::Result;
 use itertools::{Either, Itertools, Merge};
 
-use crate::arc_iterators::{
-    FlattenedSuccessorsIterator, IntoFlattenedLabeledArcsIterator, LabelTypingSuccessorIterator,
-};
+use crate::arc_iterators::{FlattenedSuccessorsIterator, IntoFlattenedLabeledArcsIterator};
 use crate::graph::*;
 use crate::labels::EdgeLabel;
 use crate::properties;
@@ -163,18 +161,8 @@ impl<G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph> SwhLabeledForwardGraph
     ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel> {
         MergingSortedPairs::new(
-            LabelTypingSuccessorIterator {
-                graph: self,
-                is_transposed: self.0.is_transposed(),
-                src: node_id,
-                successors: self.0.untyped_labeled_successors(node_id).into_iter(),
-            },
-            LabelTypingSuccessorIterator {
-                graph: self,
-                is_transposed: !self.0.is_transposed(),
-                src: node_id,
-                successors: self.0.untyped_labeled_predecessors(node_id).into_iter(),
-            },
+            self.0.labeled_successors(node_id).into_iter(),
+            self.0.labeled_predecessors(node_id).into_iter(),
         )
     }
 }
