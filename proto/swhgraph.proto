@@ -137,6 +137,9 @@ message FindPathToRequest {
     /* FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
      * By default, all fields are returned. */
     optional google.protobuf.FieldMask mask = 7;
+    /* Set of nodes (SWHIDs) that should be skipped during the traversal
+     * and from the 'successor' set, as if they were removed from the graph. */
+    repeated string ignore_node = 8;
 }
 
 /* FindPathToRequest describes a request to find a shortest path between a
@@ -177,6 +180,9 @@ message FindPathBetweenRequest {
     /* FieldMask of which fields are to be returned (e.g., "swhid,cnt.length").
      * By default, all fields are returned. */
     optional google.protobuf.FieldMask mask = 9;
+    /* Set of nodes (SWHIDs) that should be skipped during the traversal
+     * and from the 'successor' set, as if they were removed from the graph. */
+    repeated string ignore_node = 10;
 }
 
 /* Represents various criteria that make a given node "valid". A node is

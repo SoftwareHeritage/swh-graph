@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2023  The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -644,3 +644,58 @@ def test_max_edges(graph_grpc_stub):
             max_edges=3 + backtracked_edges,
         )
     assert exc_info.value.code() == grpc.StatusCode.NOT_FOUND
+
+
+def test_ignore_node_forward(graph_grpc_stub):
+    """Ignore a directory node, forcing an alternate path through a different directory"""
+    actual = get_path(
+        graph_grpc_stub,
+        ["swh:1:rel:0000000000000000000000000000000000000010"],
+        "cnt",
+        ignore_node=["swh:1:dir:0000000000000000000000000000000000000008"],
+    )
+    expected = [
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        "swh:1:rev:0000000000000000000000000000000000000009",
+        "swh:1:rev:0000000000000000000000000000000000000003",
+        "swh:1:dir:0000000000000000000000000000000000000002",
+        "swh:1:cnt:0000000000000000000000000000000000000001",
+    ]
+    assert expected == actual
+
+
+def test_ignore_node_makes_path_impossible(graph_grpc_stub):
+    """Ignore a node that blocks all paths to the target"""
+    with pytest.raises(grpc.RpcError) as exc_info:
+        get_path(
+            graph_grpc_stub,
+            ["swh:1:rel:0000000000000000000000000000000000000010"],
+            "cnt",
+            ignore_node=[
+                "swh:1:rev:0000000000000000000000000000000000000003",
+                "swh:1:dir:0000000000000000000000000000000000000008",
+            ],
+        )
+    assert exc_info.value.code() == grpc.StatusCode.NOT_FOUND
+
+
+def test_ignore_node_backward(graph_grpc_stub):
+    """Ignore a node in backward traversal, forcing an alternate path"""
+    actual = get_path(
+        graph_grpc_stub,
+        ["swh:1:cnt:0000000000000000000000000000000000000001"],
+        "ori",
+        direction=GraphDirection.BACKWARD,
+        ignore_node=["swh:1:rev:0000000000000000000000000000000000000009"],
+    )
+    expected = [
+        "swh:1:cnt:0000000000000000000000000000000000000001",
+        "swh:1:dir:0000000000000000000000000000000000000008",
+        "swh:1:dir:0000000000000000000000000000000000000012",
+        "swh:1:rev:0000000000000000000000000000000000000013",
+        "swh:1:rev:0000000000000000000000000000000000000018",
+        "swh:1:rel:0000000000000000000000000000000000000021",
+        "swh:1:snp:0000000000000000000000000000000000000022",
+        TEST_ORIGIN_ID2,
+    ]
+    assert expected == actual
