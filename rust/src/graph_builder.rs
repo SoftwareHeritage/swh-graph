@@ -12,11 +12,12 @@ use std::io::Write;
 
 use anyhow::{ensure, Context, Result};
 use itertools::Itertools;
+use sux::traits::bit_vec_ops::{BitVecOps, BitVecOpsMut};
 use webgraph::graphs::vec_graph::LabeledVecGraph;
 
 use crate::graph::*;
 use crate::labels::{
-    Branch, DirEntry, EdgeLabel, FilenameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
+    Branch, DirEntry, EdgeLabel, LabelNameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
 };
 use crate::properties;
 use crate::SwhGraphProperties;
@@ -100,7 +101,7 @@ pub struct GraphBuilder {
     name_to_id: HashMap<Vec<u8>, u64>,
     persons: HashMap<Vec<u8>, u32>,
 
-    arcs: Vec<(NodeId, NodeId, Option<EdgeLabel>)>,
+    arcs: Vec<((NodeId, NodeId), Option<EdgeLabel>)>,
 
     swhids: Vec<SWHID>,
     is_skipped_content: Vec<bool>,
@@ -140,9 +141,14 @@ impl GraphBuilder {
         })
     }
 
+    /// Returns `NodeId` that represents this SWHID in the graph, if it exists
+    pub fn node_id(&self, swhid: SWHID) -> Option<NodeId> {
+        self.swhids.iter().position(|x| *x == swhid)
+    }
+
     /// Adds an unlabeled arc to the graph
     pub fn arc(&mut self, src: NodeId, dst: NodeId) {
-        self.arcs.push((src, dst, None));
+        self.arcs.push(((src, dst), None));
     }
 
     /// Adds a labeled dir->{cnt,dir,rev} arc to the graph
@@ -164,7 +170,7 @@ impl GraphBuilder {
         self.l_arc(
             src,
             dst,
-            DirEntry::new(permission, FilenameId(name_id))
+            DirEntry::new(permission, LabelNameId(name_id))
                 .expect("label_names is larger than 2^61 items"),
         );
     }
@@ -181,7 +187,7 @@ impl GraphBuilder {
         self.l_arc(
             src,
             dst,
-            Branch::new(FilenameId(name_id)).expect("label_names is larger than 2^61 items"),
+            Branch::new(LabelNameId(name_id)).expect("label_names is larger than 2^61 items"),
         );
     }
 
@@ -196,14 +202,14 @@ impl GraphBuilder {
 
     /// Adds a labeled arc to the graph
     pub fn l_arc<L: Into<EdgeLabel>>(&mut self, src: NodeId, dst: NodeId, label: L) {
-        self.arcs.push((src, dst, Some(label.into())));
+        self.arcs.push(((src, dst), Some(label.into())));
     }
 
     #[allow(clippy::type_complexity)]
     pub fn done(&self) -> Result<BuiltGraph> {
         let num_nodes = self.swhids.len();
         let mut seen = sux::prelude::BitVec::new(num_nodes);
-        for (src, dst, _) in self.arcs.iter() {
+        for ((src, dst), _) in self.arcs.iter() {
             seen.set(*src, true);
             seen.set(*dst, true);
         }
@@ -237,28 +243,28 @@ impl GraphBuilder {
             .collect();
 
         let mut arcs = self.arcs.clone();
-        arcs.sort_by_key(|(src, dst, _label)| (*src, *dst)); // stable sort, it makes tests easier to write
+        arcs.sort_by_key(|((src, dst), _label)| (*src, *dst)); // stable sort, it makes tests easier to write
 
-        let arcs: Vec<(NodeId, NodeId, Vec<u64>)> = arcs
+        let arcs: Vec<((NodeId, NodeId), Vec<u64>)> = arcs
             .into_iter()
-            .group_by(|(src, dst, _label)| (*src, *dst))
+            .group_by(|((src, dst), _label)| (*src, *dst))
             .into_iter()
-            .map(|((src, dst), arcs)| -> (NodeId, NodeId, Vec<u64>) {
+            .map(|((src, dst), arcs)| -> ((NodeId, NodeId), Vec<u64>) {
                 let labels = arcs
-                    .flat_map(|(_src, _dst, labels)| {
+                    .flat_map(|((_src, _dst), labels)| {
                         labels.map(|label| {
                             UntypedEdgeLabel::from(match label {
                                 EdgeLabel::Branch(branch) => EdgeLabel::Branch(
-                                    Branch::new(FilenameId(
-                                        label_permutation[branch.filename_id().0 as usize] as u64,
+                                    Branch::new(LabelNameId(
+                                        label_permutation[branch.label_name_id().0 as usize] as u64,
                                     ))
                                     .expect("Label name permutation overflowed"),
                                 ),
                                 EdgeLabel::DirEntry(entry) => EdgeLabel::DirEntry(
                                     DirEntry::new(
                                         entry.permission().expect("invalid permission"),
-                                        FilenameId(
-                                            label_permutation[entry.filename_id().0 as usize]
+                                        LabelNameId(
+                                            label_permutation[entry.label_name_id().0 as usize]
                                                 as u64,
                                         ),
                                     )
@@ -270,13 +276,13 @@ impl GraphBuilder {
                         })
                     })
                     .collect();
-                (src, dst, labels)
+                ((src, dst), labels)
             })
             .collect();
 
-        let backward_arcs: Vec<(NodeId, NodeId, Vec<u64>)> = arcs
+        let backward_arcs: Vec<((NodeId, NodeId), Vec<u64>)> = arcs
             .iter()
-            .map(|(src, dst, labels)| (*dst, *src, labels.clone()))
+            .map(|((src, dst), labels)| ((*dst, *src), labels.clone()))
             .collect();
 
         SwhBidirectionalGraph::from_underlying_graphs(
@@ -450,7 +456,7 @@ pub fn codegen_from_full_graph<
             )
             .as_bytes(),
         )?;
-        let mut write_line = |s: String| writer.write_all(format!("    {}\n", s).as_bytes());
+        let mut write_line = |s: String| writer.write_all(format!("    {s}\n").as_bytes());
         match graph.properties().node_type(node) {
             NodeType::Content => {
                 write_line(format!(
@@ -465,7 +471,7 @@ pub fn codegen_from_full_graph<
             | NodeType::Origin => {}
         }
         if let Some(v) = graph.properties().content_length(node) {
-            write_line(format!(".content_length({})", v))?;
+            write_line(format!(".content_length({v})"))?;
         }
         if let Some(v) = graph.properties().message(node) {
             write_line(format!(".message(b\"{}\".to_vec())", bytestring(v)))?;
@@ -474,24 +480,24 @@ pub fn codegen_from_full_graph<
             write_line(format!(".tag_name(b\"{}\".to_vec())", bytestring(v)))?;
         }
         if let Some(v) = graph.properties().author_id(node) {
-            write_line(format!(".author(b\"{}\".to_vec())", v))?;
+            write_line(format!(".author(b\"{v}\".to_vec())"))?;
         }
         if let Some(ts) = graph.properties().author_timestamp(node) {
             let offset = graph
                 .properties()
                 .author_timestamp_offset(node)
                 .expect("Node has author_timestamp but no author_timestamp_offset");
-            write_line(format!(".author_timestamp({}, {})", ts, offset))?;
+            write_line(format!(".author_timestamp({ts}, {offset})"))?;
         }
         if let Some(v) = graph.properties().committer_id(node) {
-            write_line(format!(".committer(b\"{}\".to_vec())", v))?;
+            write_line(format!(".committer(b\"{v}\".to_vec())"))?;
         }
         if let Some(ts) = graph.properties().committer_timestamp(node) {
             let offset = graph
                 .properties()
                 .committer_timestamp_offset(node)
                 .expect("Node has committer_timestamp but no committer_timestamp_offset");
-            write_line(format!(".committer_timestamp({}, {})", ts, offset))?;
+            write_line(format!(".committer_timestamp({ts}, {offset})"))?;
         }
         writer.write_all(b"    .done();\n")?;
     }
@@ -509,13 +515,13 @@ pub fn codegen_from_full_graph<
                             node,
                             succ,
                             label.permission().expect("Invalid permission"),
-                            bytestring(graph.properties().label_name(label.filename_id())),
+                            bytestring(graph.properties().label_name(label.label_name_id())),
                         ),
                         EdgeLabel::Branch(label) => format!(
                             "builder.snp_arc({}, {}, b\"{}\".to_vec());\n",
                             node,
                             succ,
-                            bytestring(graph.properties().label_name(label.filename_id())),
+                            bytestring(graph.properties().label_name(label.label_name_id())),
                         ),
                         EdgeLabel::Visit(label) => format!(
                             "builder.ori_arc({}, {}, VisitStatus::{:?}, {});\n",
@@ -530,7 +536,7 @@ pub fn codegen_from_full_graph<
                 has_labels = true;
             }
             if !has_labels {
-                writer.write_all(format!("builder.arc({}, {});\n", node, succ).as_bytes())?;
+                writer.write_all(format!("builder.arc({node}, {succ});\n").as_bytes())?;
             }
         }
     }

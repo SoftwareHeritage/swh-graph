@@ -13,11 +13,11 @@
 #![allow(clippy::type_complexity)]
 
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::iter::Iterator;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
-use dsi_bitstream::prelude::BE;
+use anyhow::{anyhow, bail, Context, Result};
 use dsi_progress_logger::{ConcurrentProgressLog, ProgressLog};
 use rayon::prelude::*;
 use webgraph::graphs::vec_graph::LabeledVecGraph;
@@ -30,11 +30,12 @@ use crate::arc_iterators::{
 pub use crate::arc_iterators::IntoFlattenedLabeledArcsIterator;
 use crate::labeling::SwhLabeling;
 use crate::labels::{EdgeLabel, UntypedEdgeLabel};
-use crate::mph::SwhidMphf;
+use crate::mph::LoadableSwhidMphf;
 use crate::properties;
 pub use crate::underlying_graph::DefaultUnderlyingGraph;
 use crate::utils::shuffle::par_iter_shuffled_range;
 use crate::utils::suffix_path;
+use crate::NodeType;
 
 /// Alias for [`usize`], which may become a newtype in a future version.
 pub type NodeId = usize;
@@ -146,7 +147,13 @@ pub trait SwhGraph {
     /// (with a few `dir->rev` arcs)
     fn is_transposed(&self) -> bool;
 
-    /// Return the number of nodes in the graph.
+    /// Return the largest node id in the graph plus one.
+    ///
+    /// For graphs directly loaded from disk this is the actual number of nodes,
+    /// but it is an overestimate for some graphs (eg. [`Subgraph`](crate::views::Subgraph)).
+    ///
+    /// Use [`actual_num_nodes`](Self::actual_num_nodes) if you need the exact number of
+    /// nodes in the graph.
     fn num_nodes(&self) -> usize;
 
     /// Returns whether the given node id exists in the graph
@@ -159,6 +166,57 @@ pub trait SwhGraph {
 
     /// Return the number of arcs in the graph.
     fn num_arcs(&self) -> u64;
+
+    /// Returns the number of nodes of each type, if known.
+    fn num_nodes_by_type(&self) -> Result<HashMap<NodeType, usize>> {
+        let path = self.path().with_extension("nodes.stats.txt");
+        std::fs::read_to_string(&path)
+            .with_context(|| format!("Could not read {}", path.display()))?
+            .lines()
+            .map(|line| {
+                let (type_, count) = line
+                    .split_once(' ')
+                    .with_context(|| format!("Unexpected line in {}: {}", path.display(), line))?;
+                let type_: NodeType = type_
+                    .parse()
+                    .map_err(|_| anyhow!("Unknown node type in {}: {}", path.display(), type_))?;
+                let count = count
+                    .parse()
+                    .map_err(|_| anyhow!("Invalid integer in {}: {}", path.display(), count))?;
+                Ok((type_, count))
+            })
+            .collect()
+    }
+    /// Returns the number of nodes in the graph, if known.
+    fn actual_num_nodes(&self) -> Result<usize> {
+        Ok(self.num_nodes_by_type()?.values().sum())
+    }
+    /// Returns the number of arcs of each type, if known.
+    fn num_arcs_by_type(&self) -> Result<HashMap<(NodeType, NodeType), usize>> {
+        let path = self.path().with_extension("edges.stats.txt");
+        std::fs::read_to_string(&path)
+            .with_context(|| format!("Could not read {}", path.display()))?
+            .lines()
+            .map(|line| {
+                let (type_, count) = line
+                    .split_once(' ')
+                    .with_context(|| format!("Unexpected line in {}: {}", path.display(), line))?;
+                let (src_type, dst_type) = type_
+                    .split_once(':')
+                    .with_context(|| format!("Unexpected line in {}: {}", path.display(), line))?;
+                let src_type: NodeType = src_type.parse().map_err(|_| {
+                    anyhow!("Unknown node type in {}: {}", path.display(), src_type)
+                })?;
+                let dst_type: NodeType = dst_type.parse().map_err(|_| {
+                    anyhow!("Unknown node type in {}: {}", path.display(), dst_type)
+                })?;
+                let count = count
+                    .parse()
+                    .map_err(|_| anyhow!("Invalid integer in {}: {}", path.display(), count))?;
+                Ok(((src_type, dst_type), count))
+            })
+            .collect()
+    }
 
     /// Return whether there is an arc going from `src_node_id` to `dst_node_id`.
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool;
@@ -210,6 +268,10 @@ pub trait SwhForwardGraph: SwhGraph {
     fn outdegree(&self, node_id: NodeId) -> usize;
 }
 
+#[diagnostic::on_unimplemented(
+    label = "does not have forward labels loaded",
+    note = "Use `let graph = graph.load_labels()` to load them"
+)]
 pub trait SwhLabeledForwardGraph: SwhForwardGraph {
     type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
@@ -243,6 +305,10 @@ pub trait SwhLabeledForwardGraph: SwhForwardGraph {
     }
 }
 
+#[diagnostic::on_unimplemented(
+    label = "does not have backward arcs loaded",
+    note = "Use SwhBidirectionalGraph instead of SwhUnidirectionalGraph if you don't already"
+)]
 pub trait SwhBackwardGraph: SwhGraph {
     type Predecessors<'succ>: IntoIterator<Item = usize>
     where
@@ -254,6 +320,11 @@ pub trait SwhBackwardGraph: SwhGraph {
     fn indegree(&self, node_id: NodeId) -> usize;
 }
 
+#[diagnostic::on_unimplemented(
+    label = "does not have backward labels loaded",
+    note = "Use SwhBidirectionalGraph instead of SwhUnidirectionalGraph if you don't already",
+    note = "and `let graph = graph.load_labels()`"
+)]
 pub trait SwhLabeledBackwardGraph: SwhBackwardGraph {
     type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
     where
@@ -355,12 +426,7 @@ pub struct SwhUnidirectionalGraph<P, G: UnderlyingGraph = DefaultUnderlyingGraph
 impl SwhUnidirectionalGraph<()> {
     pub fn new(basepath: impl AsRef<Path>) -> Result<Self> {
         let basepath = basepath.as_ref().to_owned();
-        let graph = DefaultUnderlyingGraph(
-            BvGraph::with_basename(&basepath)
-                .endianness::<BE>()
-                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-                .load()?,
-        );
+        let graph = DefaultUnderlyingGraph::new(&basepath)?;
         Ok(Self::from_underlying_graph(basepath, graph))
     }
 }
@@ -521,7 +587,7 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
     ///     .load_all_properties::<GOVMPH>()
     ///     .expect("Could not load properties");
     /// ```
-    pub fn load_all_properties<MPHF: SwhidMphf>(
+    pub fn load_all_properties<MPHF: LoadableSwhidMphf>(
         self,
     ) -> Result<
         SwhUnidirectionalGraph<
@@ -608,18 +674,8 @@ pub struct SwhBidirectionalGraph<
 impl SwhBidirectionalGraph<()> {
     pub fn new(basepath: impl AsRef<Path>) -> Result<Self> {
         let basepath = basepath.as_ref().to_owned();
-        let forward_graph = DefaultUnderlyingGraph(
-            BvGraph::with_basename(&basepath)
-                .endianness::<BE>()
-                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-                .load()?,
-        );
-        let backward_graph = DefaultUnderlyingGraph(
-            BvGraph::with_basename(suffix_path(&basepath, "-transposed"))
-                .endianness::<BE>()
-                .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS)
-                .load()?,
-        );
+        let forward_graph = DefaultUnderlyingGraph::new(&basepath)?;
+        let backward_graph = DefaultUnderlyingGraph::new(suffix_path(&basepath, "-transposed"))?;
         Ok(Self::from_underlying_graphs(
             basepath,
             forward_graph,
@@ -834,7 +890,7 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
     ///     .load_all_properties::<GOVMPH>()
     ///     .expect("Could not load properties");
     /// ```
-    pub fn load_all_properties<MPHF: SwhidMphf>(
+    pub fn load_all_properties<MPHF: LoadableSwhidMphf>(
         self,
     ) -> Result<
         SwhBidirectionalGraph<
@@ -964,9 +1020,9 @@ pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectional
 /// # use std::path::PathBuf;
 /// # use anyhow::{Context, Result};
 /// # use swh_graph::graph::SwhBidirectionalGraph;
-/// # use swh_graph::mph::SwhidMphf;
+/// # use swh_graph::mph::LoadableSwhidMphf;
 /// #
-/// # fn f<MPHF: SwhidMphf>() -> Result<()> {
+/// # fn f<MPHF: LoadableSwhidMphf>() -> Result<()> {
 /// # let basepath = PathBuf::from("./graph");
 /// let graph = SwhBidirectionalGraph::new(basepath)
 ///     .context("Could not load graph")?
@@ -982,7 +1038,7 @@ pub fn load_bidirectional(basepath: impl AsRef<Path>) -> Result<SwhBidirectional
 /// (ie. load unidirectional if you don't need the backward graph, don't load properties
 /// that are not needed, don't load labels unless they need to be read), so users can
 /// run your code without a complete graph locally.
-pub fn load_full<MPHF: SwhidMphf>(
+pub fn load_full<MPHF: LoadableSwhidMphf>(
     basepath: impl AsRef<Path>,
 ) -> Result<
     SwhBidirectionalGraph<
@@ -1048,6 +1104,5 @@ fn zip_labels<G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
             )
         })?;
 
-    debug_assert!(webgraph::prelude::Zip(&graph, &labels).verify());
     Ok(Zip(graph, labels))
 }

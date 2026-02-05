@@ -1,0 +1,17 @@
+# Copyright (C) 2019-2025  The Software Heritage developers
+# See the AUTHORS file at the top-level directory of this distribution
+# License: GNU General Public License version 3, or any later version
+# See top-level LICENSE file for more information
+
+# Configuration file to run a graph compression with end-to-end checks
+# on the example dataset provided in this repository
+
+profile: debug
+graph:
+  path: example
+  compress:
+    in_dir: swh/graph/example_dataset/orc
+    out_dir: /tmp/example_dataset/compressed
+    sensitive_in_dir: swh/graph/example_dataset-sensitive/orc
+    sensitive_out_dir: /tmp/example_dataset-sensitive/compressed
+    check_flavor: example

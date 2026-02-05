@@ -46,6 +46,13 @@ impl<G: SwhGraph> SwhGraph for DynamicView<G> {
             self.graph.has_arc(src_node_id, dst_node_id)
         }
     }
+    fn num_arcs_by_type(&self) -> Result<HashMap<(NodeType, NodeType), usize>> {
+        if self.transposed {
+            Transposed(self.graph).num_arcs_by_type()
+        } else {
+            self.graph.num_arcs_by_type()
+        }
+    }
 }
 impl<G: SwhForwardGraph + SwhBackwardGraph> SwhForwardGraph for DynamicView<G> {
     type Successors<'succ>

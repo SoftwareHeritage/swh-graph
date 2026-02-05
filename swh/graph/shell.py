@@ -1,4 +1,4 @@
-# Copyright (C) 2023 The Software Heritage developers
+# Copyright (C) 2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -15,7 +15,7 @@ Pipelines are built like this:
 ...     | Command.cat("-", Command.echo("bar") | Command.zstdmt())
 ...     | Command.zstdcat()
 ...     > Sink()
-... ).run()
+... ).run().stdout
 b'foo\nbar\n'
 
 which is the equivalent of this bash command:
@@ -27,11 +27,11 @@ which is the equivalent of this bash command:
     | cat - <(echo bar | zstdmt) \
     | zstdcat
 
-:class:`Sink` is mainly meant for tests; it causes ``.run()`` to return
-the stdout of the last process.
+:class:`Sink` is mainly meant for tests; it causes ``.run().stdout`` to
+return the stdout of the last process.
 
 Actual pipelines will usually write to a file instead, using
-:class:`AtomicFileSink`. This calls is similar to ``>`` in bash,
+:class:`AtomicFileSink`. This is similar to ``>`` in bash,
 with a twist: it is only written after all other commands in the pipeline
 succeeded (but unlike ``sponge`` from moreutils, it buffers to disk and
 rename the file at the end).
@@ -47,7 +47,7 @@ from pathlib import Path
 import shlex
 import signal
 import subprocess
-from typing import Any, Dict, List, NoReturn, Optional, Tuple, TypeVar, Union
+from typing import Any, BinaryIO, Dict, List, Optional, Tuple, TypeVar, Union
 
 try:
     import luigi
@@ -229,18 +229,36 @@ class Command(metaclass=_MetaCommand):
             move_to_cgroup(self.cgroup)
         self.preexec_fn()
 
-    def _run(self, stdin, stdout) -> _RunningCommand:
+    def _run(self, stdin, stdout, stderr) -> _RunningCommand:
         cgroup = create_cgroup(str(self.args[0]).split("/")[-1])
         pass_fds = []
         children = []
         final_args = []
+        pipes_to_close: List[int] = []
+        stdout_read = None
+        stderr_read = None
+
+        if stderr is subprocess.STDOUT:
+            if stdout is subprocess.PIPE:
+                (r, w) = os.pipe()
+                stdout = w
+                stderr = w
+                stdout_read = r
+                pipes_to_close.append(w)
+            else:
+                stderr = stdout
+        elif stderr is subprocess.PIPE:
+            raise NotImplementedError(
+                "swh.graph.shell.Command._run(..., stderr=subprocess.PIPE)"
+            )
+
         for arg in self.args:
             if isinstance(arg, (Command, Pipe)):
                 # command stdout piped to a non-stdin FD
                 (r, w) = os.pipe()
                 pass_fds.append(r)
                 final_args.append(f"/dev/fd/{r}")
-                children.append(arg._run(None, w))
+                children.append(arg._run(None, w, stderr))
                 os.close(w)
             elif isinstance(arg, LocalTarget):
                 final_args.append(arg.path)
@@ -253,14 +271,35 @@ class Command(metaclass=_MetaCommand):
             final_args,
             stdin=stdin,
             stdout=stdout,
+            stderr=stderr,
             pass_fds=pass_fds,
             preexec_fn=self._preexec_fn,
             **self.kwargs,
         )
-        return _RunningCommand(self, proc, children, cgroup, check=self.check)
 
-    def run(self) -> None:
-        self._run(None, None).wait()
+        for pipe in pipes_to_close:
+            os.close(pipe)
+
+        return _RunningCommand(
+            self,
+            proc,
+            children,
+            cgroup,
+            stdout=(
+                os.fdopen(stdout_read, "rb")
+                if isinstance(stdout_read, int)
+                else stdout_read
+            ),
+            stderr=(
+                os.fdopen(stderr_read, "rb")
+                if isinstance(stderr_read, int)
+                else stderr_read
+            ),
+            check=self.check,
+        )
+
+    def run(self, stderr=None) -> List[RunResult]:
+        return self._run(None, None, stderr).wait()
 
     def __or__(self, other: Union[Command, Pipe]) -> Pipe:
         """``self | other``: pipe self's stdout to other's stdin"""
@@ -310,6 +349,8 @@ class _RunningCommand:
         proc: subprocess.Popen,
         running_children: List[Union[_RunningCommand, _RunningPipe]],
         cgroup: Optional[Path],
+        stdout: Optional[BinaryIO] = None,
+        stderr: Optional[BinaryIO] = None,
         check: bool = True,
     ):
         self.command = command
@@ -317,9 +358,14 @@ class _RunningCommand:
         self.running_children = running_children
         self.cgroup = cgroup
         self.check = check
+        self._stdout = stdout
+        self._stderr = stderr
 
     def stdout(self):
-        return self.proc.stdout
+        return self._stdout or self.proc.stdout
+
+    def stderr(self):
+        return self._stderr or self.proc.stderr
 
     def is_alive(self) -> bool:
         return self.proc.poll() is None
@@ -369,20 +415,38 @@ class Pipe:
     def __init__(self, children: List[Union[Command, Pipe]]):
         self.children = children
 
-    def _run(self, stdin, stdout) -> _RunningPipe:
+    def _run(self, stdin, stdout, stderr) -> _RunningPipe:
         read_pipes: List[Any] = [stdin]
         write_pipes: List[Any] = []
         pipes_to_close: List[int] = []
         for _ in range(len(self.children) - 1):
             (r, w) = os.pipe()
-            read_pipes.append(os.fdopen(r, "rb"))
-            write_pipes.append(os.fdopen(w, "wb"))
+            read_pipes.append(r)
+            write_pipes.append(w)
             pipes_to_close.append(r)
             pipes_to_close.append(w)
+
+        if stdout is subprocess.PIPE:
+            (r, w) = os.pipe()
+            stdout = w
+            stdout_read = os.fdopen(r, "rb")
+            pipes_to_close.append(w)
+        elif stdout is subprocess.DEVNULL:
+            stdout_read = None
+        else:
+            stdout_read = os.fdopen(stdout, "rb") if isinstance(stdout, int) else stdout
+
         write_pipes.append(stdout)
 
+        if stderr is subprocess.STDOUT:
+            stderr = stdout
+        elif stderr is subprocess.PIPE:
+            raise NotImplementedError(
+                "swh.graph.shell.Pipe._run(..., stderr=subprocess.PIPE)"
+            )
+
         running_children = [
-            child._run(r, w)
+            child._run(r, w, stderr)
             for (r, w, child) in zip(read_pipes, write_pipes, self.children)
         ]
 
@@ -398,10 +462,10 @@ class Pipe:
         for pipe in pipes_to_close:
             os.close(pipe)
 
-        return _RunningPipe(self, running_children)
+        return _RunningPipe(self, running_children, stdout_read)
 
-    def run(self) -> None:
-        self._run(None, None).wait()
+    def run(self) -> List[RunResult]:
+        return self._run(None, None, None).wait()
 
     def __or__(self, other) -> Pipe:
         if isinstance(other, Pipe):
@@ -419,18 +483,22 @@ class Pipe:
 
 
 def wc(source: Union[Command, Pipe], *args: str) -> int:
-    return int((source | Command.wc(*args) > Sink()).run().strip())
+    return int((source | Command.wc(*args) > Sink()).run().stdout.strip())
 
 
 class _RunningPipe:
     def __init__(
-        self, pipe: Pipe, children: List[Union[_RunningCommand, _RunningPipe]]
+        self,
+        pipe: Pipe,
+        children: List[Union[_RunningCommand, _RunningPipe]],
+        stdout: Optional[BinaryIO],
     ):
         self.pipe = pipe
         self.children = children
+        self._stdout = stdout
 
     def stdout(self):
-        return self.children[-1].stdout()
+        return self._stdout
 
     def is_alive(self) -> bool:
         return all(child.is_alive() for child in self.children)
@@ -458,7 +526,7 @@ class _BaseSink:
     def __init__(self) -> None:
         self.source_pipe: Union[None, Command, Pipe] = None
 
-    def _run(self, stdin, stdout) -> NoReturn:
+    def _run(self, stdin, stdout, stderr) -> Any:
         raise TypeError(f"{self.__class__.__name__} must be the end of a pipeline.")
 
     def __lt__(self: TSink, other: Union[Command, Pipe]) -> TSink:
@@ -474,14 +542,26 @@ class _BaseSink:
             )
 
 
+class _SinkResult:
+    def __init__(self, result: List[RunResult], stdout: bytes) -> None:
+        self.result = result
+        self.stdout = stdout
+
+
 class Sink(_BaseSink):
     """Captures the final output instead of sending it to the process' stdout"""
 
-    def run(self) -> bytes:
+    def run(self, stderr=None) -> _SinkResult:
         if self.source_pipe is None:
             raise TypeError("AtomicFileSink has no stdin")
+        if stderr is subprocess.STDOUT:
+            raise NotImplementedError(
+                "swh.graph.shell.Sink.run(stderr=subprocess.STDOUT)"
+            )
 
-        source = self.source_pipe._run(stdin=None, stdout=subprocess.PIPE)
+        source = self.source_pipe._run(
+            stdin=None, stdout=subprocess.PIPE, stderr=stderr
+        )
 
         chunks = []
         while True:
@@ -490,9 +570,45 @@ class Sink(_BaseSink):
                 break
             chunks.append(new_chunk)
 
-        source.wait()
+        return _SinkResult(result=source.wait(), stdout=b"".join(chunks))
 
-        return b"".join(chunks)
+
+class _RunningAtomicFileSink:
+    """Properly distributes ``stdout`` and ``stderr`` during ``AtomicFileSink``."""
+
+    def __init__(
+        self,
+        source_pipe,
+        stdout: Optional[BinaryIO],
+        stderr: Optional[BinaryIO],
+        path,
+        tmp_path,
+        tmp_fd,
+    ):
+        self.source_pipe = source_pipe
+        self._stdout = stdout
+        self._stderr = stderr
+        self.path = path
+        self.tmp_path = tmp_path
+        self.tmp_fd = tmp_fd
+
+    def stdout(self):
+        return self._stdout
+
+    def stderr(self):
+        return self._stderr
+
+    def wait(self):
+        try:
+            result = self.source_pipe.wait()
+        except BaseException:
+            self.tmp_fd.close()
+            self.tmp_path.unlink()
+            raise
+        else:
+            self.tmp_fd.close()
+            self.tmp_path.replace(self.path)
+            return result
 
 
 class AtomicFileSink(_BaseSink):
@@ -505,7 +621,7 @@ class AtomicFileSink(_BaseSink):
             path = Path(path.path)
         self.path = path
 
-    def run(self) -> None:
+    def _run(self, stdin, stdout, stderr) -> _RunningAtomicFileSink:
         if self.source_pipe is None:
             raise TypeError("AtomicFileSink has no stdin")
 
@@ -513,17 +629,41 @@ class AtomicFileSink(_BaseSink):
         if tmp_path.exists():
             tmp_path.unlink()
         tmp_fd = tmp_path.open("wb")
-        running_source = self.source_pipe._run(stdin=None, stdout=tmp_fd)
 
-        try:
-            running_source.wait()
-        except BaseException:
-            tmp_fd.close()
-            tmp_path.unlink()
-            raise
+        pipes_to_close: List[int] = []
+
+        if stderr is subprocess.STDOUT:
+            (r, w) = os.pipe()
+            stdout = os.fdopen(r, "rb")
+            stderr_read = stdout
+            stderr = w
+            pipes_to_close.append(w)
+        elif stderr is subprocess.PIPE:
+            (r, w) = os.pipe()
+            stdout = None
+            stderr_read = os.fdopen(r, "rb")
+            stderr = w
+            pipes_to_close.append(w)
         else:
-            tmp_fd.close()
-            tmp_path.replace(self.path)
+            stdout = None
+            stderr_read = None
+
+        running_sink = _RunningAtomicFileSink(
+            source_pipe=self.source_pipe._run(stdin=None, stdout=tmp_fd, stderr=stderr),
+            stdout=stdout,
+            stderr=stderr_read,
+            path=self.path,
+            tmp_path=tmp_path,
+            tmp_fd=tmp_fd,
+        )
+
+        for pipe in pipes_to_close:
+            os.close(pipe)
+
+        return running_sink
+
+    def run(self, stderr=None) -> List[RunResult]:
+        return self._run(None, None, stderr).wait()
 
     def __str__(self) -> str:
         return f"{self.source_pipe} > AtomicFileSink({self.path})"

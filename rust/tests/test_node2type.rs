@@ -10,23 +10,20 @@ use swh_graph::map::{Node2SWHID, Node2Type};
 const BASENAME: &str = "../swh/graph/example_dataset/compressed/example";
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_load_node2type() -> Result<()> {
     // load the node ID -> SWHID map so we can convert it to a node2type
-    let node2swhid_path = format!("{}.node2swhid.bin", BASENAME);
+    let node2swhid_path = format!("{BASENAME}.node2swhid.bin");
     info!("loading node ID -> SWHID map from {node2swhid_path} ...");
-    let node2swhid = Node2SWHID::load(&node2swhid_path).with_context(|| {
-        format!(
-            "While loading the .node2swhid.bin file: {}",
-            node2swhid_path
-        )
-    })?;
+    let node2swhid = Node2SWHID::load(&node2swhid_path)
+        .with_context(|| format!("While loading the .node2swhid.bin file: {node2swhid_path}"))?;
     let num_nodes = node2swhid.len();
 
     // load the node2type file
-    let node2type_path = format!("{}.node2type.bin", BASENAME);
+    let node2type_path = format!("{BASENAME}.node2type.bin");
     info!("loading node ID -> type map from {node2type_path} ...");
     let node2type = Node2Type::load(&node2type_path, num_nodes)
-        .with_context(|| format!("While loading the .node2type.bin file: {}", node2type_path))?;
+        .with_context(|| format!("While loading the .node2type.bin file: {node2type_path}"))?;
 
     // check that the the node2type matches with the node2swhid
     for node_id in 0..num_nodes {
@@ -40,16 +37,13 @@ fn test_load_node2type() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_new_node2type() -> Result<()> {
     // load the node ID -> SWHID map so we can convert it to a node2type
-    let node2swhid_path = format!("{}.node2swhid.bin", BASENAME);
+    let node2swhid_path = format!("{BASENAME}.node2swhid.bin");
     info!("loading node ID -> SWHID map from {node2swhid_path} ...");
-    let node2swhid = Node2SWHID::load(&node2swhid_path).with_context(|| {
-        format!(
-            "While loading the .node2swhid.bin file: {}",
-            node2swhid_path
-        )
-    })?;
+    let node2swhid = Node2SWHID::load(&node2swhid_path)
+        .with_context(|| format!("While loading the .node2swhid.bin file: {node2swhid_path}"))?;
     let num_nodes = node2swhid.len();
 
     let tempdir = tempfile::tempdir()?;
@@ -62,7 +56,7 @@ fn test_new_node2type() -> Result<()> {
 
     assert_eq!(
         std::fs::read(node2type_file)?,
-        std::fs::read(format!("{}.node2type.bin", BASENAME))?
+        std::fs::read(format!("{BASENAME}.node2type.bin"))?
     );
 
     Ok(())

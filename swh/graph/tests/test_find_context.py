@@ -16,10 +16,27 @@ def test_find_context_content(graph_grpc_server):
     )
     expected_fqswhid = (
         "swh:1:cnt:0000000000000000000000000000000000000001;"
-        "path=/oldproject/README.md;"
-        "anchor=swh:1:rev:0000000000000000000000000000000000000009;"
+        "origin=https://example.com/swh/graph;"
         "visit=swh:1:snp:0000000000000000000000000000000000000020;"
-        "origin=https://example.com/swh/graph\n"
+        "anchor=swh:1:rev:0000000000000000000000000000000000000009;"
+        "path=/README.md\n"
+    )
+    assert result.exit_code == 0, result
+    assert result.output == expected_fqswhid, result.output
+
+
+def test_find_context_content_in_root_directory(graph_grpc_server):
+    swhid = "swh:1:cnt:0000000000000000000000000000000000000014"
+    runner = CliRunner()
+    result = runner.invoke(
+        graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
+    )
+    expected_fqswhid = (
+        "swh:1:cnt:0000000000000000000000000000000000000014;"
+        "origin=https://example.com/swh/graph2;"
+        "visit=swh:1:snp:0000000000000000000000000000000000000022;"
+        "anchor=swh:1:rev:0000000000000000000000000000000000000018;"
+        "path=/TODO.txt\n"
     )
     assert result.exit_code == 0, result
     assert result.output == expected_fqswhid, result.output
@@ -32,10 +49,11 @@ def test_find_context_directory(graph_grpc_server):
         graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
     )
     expected_fqswhid = (
-        "swh:1:dir:0000000000000000000000000000000000000012;path=/;"
-        "anchor=swh:1:rev:0000000000000000000000000000000000000013;"
+        "swh:1:dir:0000000000000000000000000000000000000012;"
+        "origin=https://example.com/swh/graph2;"
         "visit=swh:1:snp:0000000000000000000000000000000000000022;"
-        "origin=https://example.com/swh/graph2\n"
+        "anchor=swh:1:rev:0000000000000000000000000000000000000013;"
+        "path=/\n"
     )
     assert result.exit_code == 0, result
     assert result.output == expected_fqswhid, result.output
@@ -49,8 +67,8 @@ def test_find_context_revision(graph_grpc_server):
     )
     expected_fqswhid = (
         "swh:1:rev:0000000000000000000000000000000000000009;"
-        "visit=swh:1:snp:0000000000000000000000000000000000000020;"
-        "origin=https://example.com/swh/graph\n"
+        "origin=https://example.com/swh/graph;"
+        "visit=swh:1:snp:0000000000000000000000000000000000000020\n"
     )
     assert result.exit_code == 0, result
     assert result.output == expected_fqswhid, result.output
@@ -64,8 +82,8 @@ def test_find_context_release(graph_grpc_server):
     )
     expected_fqswhid = (
         "swh:1:rel:0000000000000000000000000000000000000010;"
-        "visit=swh:1:snp:0000000000000000000000000000000000000020;"
-        "origin=https://example.com/swh/graph\n"
+        "origin=https://example.com/swh/graph;"
+        "visit=swh:1:snp:0000000000000000000000000000000000000020\n"
     )
     assert result.exit_code == 0, result
     assert result.output == expected_fqswhid, result.output

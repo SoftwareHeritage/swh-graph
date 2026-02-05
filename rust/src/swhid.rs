@@ -6,6 +6,7 @@
 use std::str::FromStr;
 
 use rdst::RadixKey;
+use sha1::{Digest, Sha1};
 use thiserror::Error;
 
 use crate::NodeType;
@@ -29,13 +30,26 @@ pub struct SWHID {
     pub namespace_version: u8,
     /// Node type
     pub node_type: NodeType,
-    /// SHA1 has of the node
+    /// SHA1 hash of the node
     pub hash: [u8; 20],
 }
 
 impl SWHID {
     /// The size of the binary representation of a SWHID
     pub const BYTES_SIZE: usize = 22;
+
+    /// Returns the pseudo-SWHID representation for a origin URI
+    /// akin to "swh:1:ori:{}"
+    pub fn from_origin_url(origin: impl AsRef<str>) -> SWHID {
+        let mut hasher = Sha1::new();
+        hasher.update(origin.as_ref());
+
+        SWHID {
+            namespace_version: 1,
+            node_type: NodeType::Origin,
+            hash: hasher.finalize().into(),
+        }
+    }
 }
 
 impl core::fmt::Display for SWHID {
@@ -47,7 +61,7 @@ impl core::fmt::Display for SWHID {
             self.node_type.to_str(),
         )?;
         for byte in self.hash.iter() {
-            write!(f, "{:02x}", byte)?;
+            write!(f, "{byte:02x}")?;
         }
         Ok(())
     }
@@ -144,8 +158,18 @@ impl FromStr for SWHID {
             .parse::<NodeType>()
             .map_err(|e| Type(e.to_string()))?;
         let mut hash = [0u8; 20];
+
+        // Miri does not support the SIMD feature-probing in faster-hex, so we have
+        // to fall back to a different crate.
+        #[cfg(all(miri, feature = "miri"))]
+        hex::decode_to_slice(hex_hash.as_bytes(), &mut hash)
+            .map_err(|_| HashAlphabet(hex_hash.to_string()))?;
+        #[cfg(all(miri, not(feature = "miri")))]
+        std::compile_error!("'miri' feature is required to compile with miri");
+        #[cfg(not(miri))]
         faster_hex::hex_decode(hex_hash.as_bytes(), &mut hash)
             .map_err(|_| HashAlphabet(hex_hash.to_string()))?;
+
         Ok(Self {
             namespace_version: 1,
             node_type,
@@ -269,6 +293,14 @@ pub const fn __parse_swhid(node_type: crate::NodeType, hash: &'static str) -> SW
 ///     swhid!(swh:1:rev:0000000000000000000000000000000000000004).to_string(),
 ///     "swh:1:rev:0000000000000000000000000000000000000004".to_string(),
 /// );
+/// assert_eq!(
+///     swhid!(swh:1:rev:ffffffffffffffffffffffffffff000000000004).to_string(),
+///     "swh:1:rev:ffffffffffffffffffffffffffff000000000004".to_string(),
+/// );
+/// assert_eq!(
+///     swhid!(swh:1:rev:FFFFFFFFFFFFFFFFFFFFFFFFFFFF000000000004).to_string(),
+///     "swh:1:rev:ffffffffffffffffffffffffffff000000000004".to_string(),
+/// );
 /// ```
 ///
 /// ```compile_fail
@@ -282,6 +314,7 @@ pub const fn __parse_swhid(node_type: crate::NodeType, hash: &'static str) -> SW
 /// ```
 #[macro_export]
 macro_rules! swhid {
+    // hash starting with a decimal digit
     (swh:1:cnt:$hash:literal) => {{
         const swhid: ::swh_graph::SWHID = {
             let hash: &str = stringify!($hash);
@@ -318,6 +351,50 @@ macro_rules! swhid {
         swhid
     }};
     (swh:1:ori:$hash:literal) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Origin, hash)
+        };
+        swhid
+    }};
+
+    // hash starting with a to f
+    (swh:1:cnt:$hash:ident) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Content, hash)
+        };
+        swhid
+    }};
+    (swh:1:dir:$hash:ident) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Directory, hash)
+        };
+        swhid
+    }};
+    (swh:1:rev:$hash:ident) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Revision, hash)
+        };
+        swhid
+    }};
+    (swh:1:rel:$hash:ident) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Release, hash)
+        };
+        swhid
+    }};
+    (swh:1:snp:$hash:ident) => {{
+        const swhid: ::swh_graph::SWHID = {
+            let hash: &str = stringify!($hash);
+            ::swh_graph::__parse_swhid(::swh_graph::NodeType::Snapshot, hash)
+        };
+        swhid
+    }};
+    (swh:1:ori:$hash:ident) => {{
         const swhid: ::swh_graph::SWHID = {
             let hash: &str = stringify!($hash);
             ::swh_graph::__parse_swhid(::swh_graph::NodeType::Origin, hash)

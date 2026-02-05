@@ -3,10 +3,14 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::collections::HashMap;
 use std::path::Path;
+
+use anyhow::Result;
 
 use crate::graph::*;
 use crate::properties;
+use crate::NodeType;
 
 /// A view over [`SwhGraph`] and related trait, that flips the direction of all arcs
 pub struct Transposed<G: SwhGraph>(pub G);
@@ -23,6 +27,17 @@ impl<G: SwhGraph> SwhGraph for Transposed<G> {
     }
     fn num_arcs(&self) -> u64 {
         self.0.num_arcs()
+    }
+    fn num_arcs_by_type(&self) -> Result<HashMap<(NodeType, NodeType), usize>> {
+        Ok(self
+            .0
+            .num_arcs_by_type()?
+            .into_iter()
+            .map(|((src_type, dst_type), count)| ((dst_type, src_type), count))
+            .collect())
+    }
+    fn has_node(&self, node_id: NodeId) -> bool {
+        self.0.has_node(node_id)
     }
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         self.0.has_arc(dst_node_id, src_node_id)

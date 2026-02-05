@@ -27,12 +27,10 @@ impl MaybePersons for NoPersons {}
 )]
 /// Trait for backend storage of person properties (either in-memory or memory-mapped)
 pub trait OptPersons: MaybePersons + PropertiesBackend {
-    type PersonIds<'a>: GetIndex<Output = u32>
-    where
-        Self: 'a;
-
-    fn author_id(&self) -> PropertiesResult<Self::PersonIds<'_>, Self>;
-    fn committer_id(&self) -> PropertiesResult<Self::PersonIds<'_>, Self>;
+    /// Returns `None` if out of bounds, `Some(u32::MAX)` if the node has no author
+    fn author_id(&self, node: NodeId) -> PropertiesResult<'_, Option<u32>, Self>;
+    /// Returns `None` if out of bounds, `Some(u32::MAX)` if the node has no committer
+    fn committer_id(&self, node: NodeId) -> PropertiesResult<'_, Option<u32>, Self>;
 }
 
 #[diagnostic::on_unimplemented(
@@ -52,18 +50,17 @@ impl PropertiesBackend for OptMappedPersons {
     type DataFilesAvailability = OptionalDataFiles;
 }
 impl OptPersons for OptMappedPersons {
-    type PersonIds<'a>
-        = &'a NumberMmap<BigEndian, u32, Mmap>
-    where
-        Self: 'a;
-
     #[inline(always)]
-    fn author_id(&self) -> PropertiesResult<'_, Self::PersonIds<'_>, Self> {
-        self.author_id.as_ref()
+    fn author_id(&self, node: NodeId) -> PropertiesResult<'_, Option<u32>, Self> {
+        self.author_id
+            .as_ref()
+            .map(|author_ids| author_ids.get(node))
     }
     #[inline(always)]
-    fn committer_id(&self) -> PropertiesResult<'_, Self::PersonIds<'_>, Self> {
-        self.committer_id.as_ref()
+    fn committer_id(&self, node: NodeId) -> PropertiesResult<'_, Option<u32>, Self> {
+        self.committer_id
+            .as_ref()
+            .map(|committer_ids| committer_ids.get(node))
     }
 }
 
@@ -75,18 +72,17 @@ impl PropertiesBackend for MappedPersons {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
 impl OptPersons for MappedPersons {
-    type PersonIds<'a>
-        = &'a NumberMmap<BigEndian, u32, Mmap>
-    where
-        Self: 'a;
-
+    /// Returns `None` if author ids are not loaded, `Some(u32::MAX)` if they are
+    /// loaded and the node has no author, or `Some(Some(_))` if they are loaded
+    /// and the node has an author
     #[inline(always)]
-    fn author_id(&self) -> Self::PersonIds<'_> {
-        &self.author_id
+    fn author_id(&self, node: NodeId) -> Option<u32> {
+        (&self.author_id).get(node)
     }
+    /// See [`Self::author_id`]
     #[inline(always)]
-    fn committer_id(&self) -> Self::PersonIds<'_> {
-        &self.committer_id
+    fn committer_id(&self, node: NodeId) -> Option<u32> {
+        (&self.committer_id).get(node)
     }
 }
 
@@ -103,7 +99,7 @@ impl VecPersons {
         let mut committer_id = Vec::with_capacity(data.len());
         for (a, c) in data.into_iter() {
             ensure!(a != Some(u32::MAX), "author_id may not be {}", u32::MAX);
-            ensure!(c != Some(u32::MAX), "author_id may not be {}", u32::MAX);
+            ensure!(c != Some(u32::MAX), "committer_id may not be {}", u32::MAX);
             author_id.push(a.unwrap_or(u32::MAX));
             committer_id.push(c.unwrap_or(u32::MAX));
         }
@@ -118,18 +114,13 @@ impl PropertiesBackend for VecPersons {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
 impl OptPersons for VecPersons {
-    type PersonIds<'a>
-        = &'a [u32]
-    where
-        Self: 'a;
-
     #[inline(always)]
-    fn author_id(&self) -> Self::PersonIds<'_> {
-        self.author_id.as_slice()
+    fn author_id(&self, node: NodeId) -> Option<u32> {
+        self.author_id.get(node)
     }
     #[inline(always)]
-    fn committer_id(&self) -> Self::PersonIds<'_> {
-        self.committer_id.as_slice()
+    fn committer_id(&self, node: NodeId) -> Option<u32> {
+        self.committer_id.get(node)
     }
 }
 
@@ -220,9 +211,9 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn author_id(&self, node_id: NodeId) -> PropertiesResult<Option<u32>, PERSONS> {
+    pub fn author_id(&self, node_id: NodeId) -> PropertiesResult<'_, Option<u32>, PERSONS> {
         PERSONS::map_if_available(self.try_author_id(node_id), |author_id| {
-            author_id.unwrap_or_else(|e| panic!("Cannot get node author: {}", e))
+            author_id.unwrap_or_else(|e| panic!("Cannot get node author: {e}"))
         })
     }
 
@@ -234,13 +225,13 @@ impl<
     pub fn try_author_id(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<u32>, OutOfBoundError>, PERSONS> {
-        PERSONS::map_if_available(self.persons.author_id(), |author_ids| {
-            match author_ids.get(node_id) {
+    ) -> PropertiesResult<'_, Result<Option<u32>, OutOfBoundError>, PERSONS> {
+        PERSONS::map_if_available(self.persons.author_id(node_id), |author_id| {
+            match author_id {
                 None => Err(OutOfBoundError {
                     // Invalid node id
                     index: node_id,
-                    len: author_ids.len(),
+                    len: self.num_nodes,
                 }),
                 Some(u32::MAX) => Ok(None), // No author
                 Some(id) => Ok(Some(id)),
@@ -254,9 +245,9 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn committer_id(&self, node_id: NodeId) -> PropertiesResult<Option<u32>, PERSONS> {
+    pub fn committer_id(&self, node_id: NodeId) -> PropertiesResult<'_, Option<u32>, PERSONS> {
         PERSONS::map_if_available(self.try_committer_id(node_id), |committer_id| {
-            committer_id.unwrap_or_else(|e| panic!("Cannot get node committer: {}", e))
+            committer_id.unwrap_or_else(|e| panic!("Cannot get node committer: {e}"))
         })
     }
 
@@ -268,18 +259,17 @@ impl<
     pub fn try_committer_id(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<u32>, OutOfBoundError>, PERSONS> {
-        PERSONS::map_if_available(
-            self.persons.committer_id(),
-            |committer_ids| match committer_ids.get(node_id) {
+    ) -> PropertiesResult<'_, Result<Option<u32>, OutOfBoundError>, PERSONS> {
+        PERSONS::map_if_available(self.persons.committer_id(node_id), |committer_id| {
+            match committer_id {
                 None => Err(OutOfBoundError {
                     // Invalid node id
                     index: node_id,
-                    len: committer_ids.len(),
+                    len: self.num_nodes,
                 }),
                 Some(u32::MAX) => Ok(None), // No committer
                 Some(id) => Ok(Some(id)),
-            },
-        )
+            }
+        })
     }
 }

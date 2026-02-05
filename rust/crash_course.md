@@ -124,7 +124,7 @@ for (succ, labels) in graph.labeled_successors(node_id) {
                 succ,
                 label.permission(),
                 String::from_utf8(
-                    graph.properties().label_name(label.filename_id())
+                    graph.properties().label_name(label.label_name_id())
                 ).expect("Could not decode file name as UTF-8")
             );
         }

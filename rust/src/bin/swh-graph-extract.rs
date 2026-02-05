@@ -22,7 +22,7 @@ use swh_graph::mph::SwhidPthash;
 use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::{NodeType, SWHID};
 
-#[global_allocator]
+#[cfg_attr(not(miri), global_allocator)] // Miri does not support Mimalloc
 static GLOBAL: MiMalloc = MiMalloc;
 
 #[derive(Parser, Debug)]
@@ -139,8 +139,6 @@ enum Commands {
     Bv {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
-        #[arg(long, default_value_t = 100_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long, default_value = "*")]
@@ -151,6 +149,14 @@ enum Commands {
         function: PathBuf,
         #[arg(long)]
         num_nodes: usize,
+        #[arg(long)]
+        /// Permutation to apply after hashing a node with the `function`.
+        ///
+        /// Providing an initial order (eg. using `swh-graph-compress initial-order`)
+        /// can significantly reduce the size of the output graph.
+        ///
+        /// Defaults to the identity permutation.
+        order: Option<PathBuf>,
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
@@ -158,8 +164,6 @@ enum Commands {
     EdgeLabels {
         #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
         format: DatasetFormat,
-        #[arg(long, default_value_t = 100_000_000)]
-        sort_batch_size: usize,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long, default_value = "*")]
@@ -252,7 +256,7 @@ pub fn main() -> Result<()> {
             // by consumers
             let mut shard_id = 0;
             let mut next_shard = || -> Result<_> {
-                let path = target_dir.join(format!("nodes.txt.{:0>8}.zst", shard_id));
+                let path = target_dir.join(format!("nodes.txt.{shard_id:0>8}.zst"));
                 shard_id += 1;
                 let file = std::fs::File::create_new(&path)
                     .with_context(|| format!("Could not create {}", path.display()))?;
@@ -285,7 +289,7 @@ pub fn main() -> Result<()> {
                     writer = next_shard()?;
                 }
                 writer
-                    .write_all(format!("{}\n", swhid).as_bytes())
+                    .write_all(format!("{swhid}\n").as_bytes())
                     .context("Could not write SWHID")?;
             }
         }
@@ -408,7 +412,7 @@ pub fn main() -> Result<()> {
                     let person_hash = usize::try_from(
                         person_mph.hash(
                             base64
-                                .encode_to_string(sha256)
+                                .encode_to_string(&sha256)
                                 .into_bytes()
                                 .into_boxed_slice(),
                         )?,
@@ -417,9 +421,10 @@ pub fn main() -> Result<()> {
                     fullnames
                         .get(person_hash)
                         .context("Person hash is greater than the number of persons")?
-                        .set(fullname.clone())
-                        .map_err(|other_fullname| {
-                            anyhow!("Hash collision between {fullname:?} and {other_fullname:?}")
+                        .set(fullname)
+                        .map_err(|fullname| {
+                            let other_fullname = fullnames.get(person_hash).unwrap().get().unwrap();
+                            anyhow!("Hash collision on SHA256 {sha256:?}, between {fullname:?} and {other_fullname:?}")
                         })?;
                     pl.update();
                     Ok(())
@@ -506,7 +511,7 @@ pub fn main() -> Result<()> {
                 .write_all(stats_lines.join("").as_bytes())
                 .context("Could not write node stats")?;
             count_file
-                .write_all(format!("{}\n", total).as_bytes())
+                .write_all(format!("{total}\n").as_bytes())
                 .context("Could not write node count")?;
         }
         Commands::EdgeStats {
@@ -563,7 +568,7 @@ pub fn main() -> Result<()> {
                 for dst_type in NodeType::all() {
                     let count = stats[src_type as usize][dst_type as usize];
                     if count != 0 {
-                        stats_lines.push(format!("{}:{} {}\n", src_type, dst_type, count));
+                        stats_lines.push(format!("{src_type}:{dst_type} {count}\n"));
                         total += count;
                     }
                 }
@@ -574,7 +579,7 @@ pub fn main() -> Result<()> {
                 .write_all(stats_lines.join("").as_bytes())
                 .context("Could not write edge stats")?;
             count_file
-                .write_all(format!("{}\n", total).as_bytes())
+                .write_all(format!("{total}\n").as_bytes())
                 .context("Could not write edge count")?;
         }
 
@@ -614,7 +619,7 @@ pub fn main() -> Result<()> {
                 log::info!("Writing origins...");
                 for (_url, id) in origins {
                     target_file
-                        .write_all(format!("{}\n", id).as_bytes())
+                        .write_all(format!("{id}\n").as_bytes())
                         .context("Could not write origin")?;
                 }
             }
@@ -624,12 +629,12 @@ pub fn main() -> Result<()> {
 
         Commands::Bv {
             format: DatasetFormat::Orc,
-            sort_batch_size,
             partitions_per_thread,
             allowed_node_types,
             mph_algo,
             function,
             num_nodes,
+            order,
             dataset_dir,
             target_dir,
         } => {
@@ -637,20 +642,20 @@ pub fn main() -> Result<()> {
 
             match mph_algo {
                 MphAlgorithm::Pthash => swh_graph::compress::bv::bv::<SwhidPthash>(
-                    sort_batch_size,
                     partitions_per_thread,
                     function,
                     num_nodes,
+                    order,
                     dataset_dir,
                     &allowed_node_types,
                     target_dir,
                 )?,
                 MphAlgorithm::Cmph => {
                     swh_graph::compress::bv::bv::<swh_graph::java_compat::mph::gov::GOVMPH>(
-                        sort_batch_size,
                         partitions_per_thread,
                         function,
                         num_nodes,
+                        order,
                         dataset_dir,
                         &allowed_node_types,
                         target_dir,
@@ -661,7 +666,6 @@ pub fn main() -> Result<()> {
 
         Commands::EdgeLabels {
             format: DatasetFormat::Orc,
-            sort_batch_size,
             partitions_per_thread,
             allowed_node_types,
             mph_algo,
@@ -687,7 +691,6 @@ pub fn main() -> Result<()> {
 
             let label_width = match mph_algo {
                 MphAlgorithm::Pthash => swh_graph::compress::bv::edge_labels::<SwhidPthash>(
-                    sort_batch_size,
                     partitions_per_thread,
                     function,
                     order,
@@ -700,7 +703,6 @@ pub fn main() -> Result<()> {
                 )?,
                 MphAlgorithm::Cmph => {
                     swh_graph::compress::bv::edge_labels::<swh_graph::java_compat::mph::gov::GOVMPH>(
-                        sort_batch_size,
                         partitions_per_thread,
                         function,
                         order,
@@ -731,8 +733,7 @@ pub fn main() -> Result<()> {
                     (
                         "labelspec".to_string(),
                         format!(
-                            "org.softwareheritage.graph.labels.SwhLabel(DirEntry,{})",
-                            label_width
+                            "org.softwareheritage.graph.labels.SwhLabel(DirEntry,{label_width})"
                         ),
                     ),
                     (
@@ -763,7 +764,7 @@ pub fn main() -> Result<()> {
         } => {
             use log::info;
             use swh_graph::compress::properties::*;
-            use swh_graph::mph::SwhidMphf;
+            use swh_graph::mph::{LoadableSwhidMphf, SwhidMphf};
 
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
@@ -834,7 +835,7 @@ pub fn main() -> Result<()> {
 
             match mph_algo {
                 MphAlgorithm::Pthash => {
-                    let swhid_mph = SwhidMphf::load(function).context("Cannot load mph")?;
+                    let swhid_mph = LoadableSwhidMphf::load(function).context("Cannot load mph")?;
                     let property_writer = PropertyWriter {
                         swhid_mph,
                         person_mph,
@@ -847,7 +848,7 @@ pub fn main() -> Result<()> {
                     f::<SwhidPthash>(property_writer)?;
                 }
                 MphAlgorithm::Cmph => {
-                    let swhid_mph = SwhidMphf::load(function).context("Cannot load mph")?;
+                    let swhid_mph = LoadableSwhidMphf::load(function).context("Cannot load mph")?;
                     let property_writer = PropertyWriter {
                         swhid_mph,
                         person_mph,

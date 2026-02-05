@@ -5,25 +5,29 @@
 
 #![allow(clippy::type_complexity)]
 
+use std::path::Path;
+
+use anyhow::Result;
+use dsi_bitstream::prelude::BE;
 use webgraph::prelude::*;
 
 use crate::graph::{NodeId, UnderlyingGraph};
 
+#[cfg(not(miri))]
 type DefaultUnderlyingGraphInner = BvGraph<
     DynCodesDecoderFactory<
         dsi_bitstream::prelude::BE,
         MmapHelper<u32>,
-        // like webgraph::graphs::bvgraph::EF, but with `&'static [usize]` instead of
-        // `Box<[usize]>`
-        sux::dict::EliasFano<
-            sux::rank_sel::SelectAdaptConst<
-                sux::bits::BitVec<&'static [usize]>,
-                &'static [usize],
-                12,
-                4,
-            >,
-            sux::bits::BitFieldVec<usize, &'static [usize]>,
-        >,
+        webgraph::graphs::bvgraph::EF,
+    >,
+>;
+// Miri does not support file-backed mmap
+#[cfg(miri)]
+type DefaultUnderlyingGraphInner = BvGraph<
+    DynCodesDecoderFactory<
+        dsi_bitstream::prelude::BE,
+        webgraph::prelude::MemoryFactory<dsi_bitstream::traits::BigEndian, std::boxed::Box<[u32]>>,
+        webgraph::graphs::bvgraph::EF,
     >,
 >;
 
@@ -31,6 +35,22 @@ type DefaultUnderlyingGraphInner = BvGraph<
 ///
 /// This indirection reduces the size of error messages.
 pub struct DefaultUnderlyingGraph(pub DefaultUnderlyingGraphInner);
+
+impl DefaultUnderlyingGraph {
+    pub fn new(basepath: impl AsRef<Path>) -> Result<DefaultUnderlyingGraph> {
+        let basepath = basepath.as_ref().to_owned();
+        let graph_load_config = BvGraph::with_basename(&basepath)
+            .endianness::<BE>()
+            .flags(MemoryFlags::TRANSPARENT_HUGE_PAGES | MemoryFlags::RANDOM_ACCESS);
+
+        // Miri does not support file-backed mmap, so we have to copy the graph to memory
+        // instead of just mapping it.
+        #[cfg(miri)]
+        let graph_load_config = graph_load_config.mode::<webgraph::graphs::bvgraph::LoadMem>();
+
+        Ok(DefaultUnderlyingGraph(graph_load_config.load()?))
+    }
+}
 
 impl SequentialLabeling for DefaultUnderlyingGraph {
     type Label = <DefaultUnderlyingGraphInner as SequentialLabeling>::Label;

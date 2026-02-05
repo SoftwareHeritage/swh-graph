@@ -25,7 +25,7 @@ pub trait IntoFlattenedLabeledArcsIterator<Label> {
     type Flattened: IntoIterator<Item = (NodeId, Label)>;
 
     /// Turns this `Iterator<Item=(succ, Iterator<Item=labels>)>` into an
-    /// `Iterator<ITem=(succ, label)>`.
+    /// `Iterator<Item=(succ, label)>`.
     fn flatten_labels(self) -> Self::Flattened;
 }
 
@@ -67,6 +67,14 @@ where
             )
         })
     }
+}
+
+// SAFETY: if Successors is a sorted iterator of (usize, into sorted iterator),
+// then LabeledSuccessorIterator is sorted because it preserves order
+unsafe impl<Successors: SortedIterator> SortedIterator for LabeledSuccessorIterator<Successors> where
+    <Successors as Iterator>::Item:
+        Pair<Left = usize, Right: IntoIterator<Item: Borrow<u64>, IntoIter: SortedIterator>>
+{
 }
 
 impl<Successors: Iterator> IntoFlattenedLabeledArcsIterator<UntypedEdgeLabel>
@@ -137,17 +145,19 @@ where
     }
 }
 
-pub struct LabeledArcIterator<T: Iterator>
-where
-    <T as Iterator>::Item: Borrow<u64>,
+// SAFETY: if Successors is a sorted iterator of (usize, into sorted iterator),
+// then FlattenedSuccessorsIterator is sorted because it preserves order
+unsafe impl<Successors: SortedIterator> SortedIterator for FlattenedSuccessorsIterator<Successors> where
+    <Successors as Iterator>::Item:
+        Pair<Left = usize, Right: IntoIterator<Item: Borrow<u64>, IntoIter: SortedIterator>>
 {
+}
+
+pub struct LabeledArcIterator<T: Iterator<Item: Borrow<u64>>> {
     arc_label_ids: T,
 }
 
-impl<T: Iterator> Iterator for LabeledArcIterator<T>
-where
-    <T as Iterator>::Item: Borrow<u64>,
-{
+impl<T: Iterator<Item: Borrow<u64>>> Iterator for LabeledArcIterator<T> {
     type Item = UntypedEdgeLabel;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -156,6 +166,10 @@ where
             .map(|label| UntypedEdgeLabel::from(*label.borrow()))
     }
 }
+
+// SAFETY: if T is a sorted iterator of u64,
+// then LabeledArcIterator is sorted because it preserves order
+unsafe impl<T: SortedIterator<Item: Borrow<u64>>> SortedIterator for LabeledArcIterator<T> {}
 
 pub struct LabelTypingSuccessorIterator<'a, G, Successors: Iterator>
 where
@@ -265,16 +279,10 @@ where
 }
 
 /// Wraps an iterator of labeled successors, and yields only the successors
-pub struct DelabelingIterator<Successors: Iterator>
-where
-    <Successors as Iterator>::Item: Pair<Left = usize>,
-{
+pub struct DelabelingIterator<Successors: Iterator<Item: Pair<Left = usize>>> {
     pub(crate) successors: Successors,
 }
-impl<Successors: Iterator> Iterator for DelabelingIterator<Successors>
-where
-    <Successors as Iterator>::Item: Pair<Left = usize>,
-{
+impl<Successors: Iterator<Item: Pair<Left = usize>>> Iterator for DelabelingIterator<Successors> {
     type Item = NodeId;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -283,4 +291,9 @@ where
             successor
         })
     }
+}
+// SAFETY: DelabelingIterator preserves order
+unsafe impl<Successors: SortedIterator<Item: Pair<Left = usize>>> SortedIterator
+    for DelabelingIterator<Successors>
+{
 }

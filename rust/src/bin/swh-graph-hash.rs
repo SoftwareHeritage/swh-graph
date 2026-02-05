@@ -14,7 +14,7 @@ use mmap_rs::Mmap;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::map::Node2SWHID;
 use swh_graph::map::{MappedPermutation, Permutation};
-use swh_graph::mph::{SwhidMphf, SwhidPthash};
+use swh_graph::mph::{LoadableSwhidMphf, SwhidMphf, SwhidPthash};
 use swh_graph::{OutOfBoundError, SWHID};
 
 #[derive(Parser, Debug)]
@@ -115,7 +115,7 @@ pub fn main() -> Result<()> {
     }
 }
 
-fn hash_swhids<MPHF: SwhidMphf>(
+fn hash_swhids<MPHF: LoadableSwhidMphf>(
     mph: PathBuf,
     permutation: MappedPermutation,
     node2swhid: Option<Node2SWHID<Mmap>>,
@@ -127,9 +127,9 @@ fn hash_swhids<MPHF: SwhidMphf>(
     log::info!("Hashing input...");
 
     for (i, line) in std::io::stdin().lines().enumerate() {
-        let line = line.with_context(|| format!("Could not read input line {}", i))?;
+        let line = line.with_context(|| format!("Could not read input line {i}"))?;
         let swhid = SWHID::try_from(line.as_str())
-            .with_context(|| format!("Could not parse SWHID {}", line))?;
+            .with_context(|| format!("Could not parse SWHID {line}"))?;
         let node_id = permutation
             .get(
                 mph.hash_swhid(&swhid)
@@ -143,7 +143,7 @@ fn hash_swhids<MPHF: SwhidMphf>(
                 _ => bail!("Unknown SWHID {}", swhid), // hash collision
             }
         }
-        println!("{}", node_id);
+        println!("{node_id}");
     }
 
     Ok(())
@@ -157,7 +157,7 @@ fn hash_persons_cmph(mph: PathBuf) -> Result<()> {
     log::info!("Hashing input...");
 
     for (i, line) in std::io::stdin().lines().enumerate() {
-        let line = line.with_context(|| format!("Could not read input line {}", i))?;
+        let line = line.with_context(|| format!("Could not read input line {i}"))?;
         println!(
             "{}",
             mph.hash_str(&line)
@@ -178,12 +178,12 @@ fn hash_persons_pthash(mph: PathBuf) -> Result<()> {
     log::info!("Hashing input...");
 
     for (i, line) in std::io::stdin().lines().enumerate() {
-        let line = line.with_context(|| format!("Could not read input line {}", i))?;
+        let line = line.with_context(|| format!("Could not read input line {i}"))?;
         println!(
             "{}",
             hasher
                 .hash(&line)
-                .with_context(|| format!("Unknown value {}", line))?
+                .with_context(|| format!("Unknown value {line}"))?
         );
     }
 
@@ -201,7 +201,7 @@ fn hash_persons_pthash_2024_08_23(mph: PathBuf) -> Result<()> {
     log::info!("Hashing input...");
 
     for (i, line) in std::io::stdin().lines().enumerate() {
-        let line = line.with_context(|| format!("Could not read input line {}", i))?;
+        let line = line.with_context(|| format!("Could not read input line {i}"))?;
         println!("{}", mph.hash(LabelName(&line)));
     }
 

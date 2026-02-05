@@ -108,22 +108,22 @@ pub fn deserialize_with_labels_and_maps<
     D::Error,
 > {
     let graph: SerializedGraph<_, _, _, _, _> = SerializedGraph::deserialize(deserializer)?;
-    let forward_arcs: Vec<(NodeId, NodeId, Vec<u64>)> = graph
+    let forward_arcs: Vec<((NodeId, NodeId), Vec<u64>)> = graph
         .arcs
         .iter()
         .enumerate()
         .flat_map(|(src, arcs)| {
             arcs.iter()
-                .map(move |(dst, labels)| (src, *dst, labels.clone()))
+                .map(move |(dst, labels)| ((src, *dst), labels.clone()))
         })
         .collect();
-    let backward_arcs: Vec<(NodeId, NodeId, Vec<u64>)> = graph
+    let backward_arcs: Vec<((NodeId, NodeId), Vec<u64>)> = graph
         .arcs
         .iter()
         .enumerate()
         .flat_map(|(src, arcs)| {
             arcs.iter()
-                .map(move |(dst, labels)| (*dst, src, labels.clone()))
+                .map(move |(dst, labels)| ((*dst, src), labels.clone()))
         })
         .collect();
     Ok(SwhBidirectionalGraph::from_underlying_graphs(

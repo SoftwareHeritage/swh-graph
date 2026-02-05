@@ -17,7 +17,6 @@ use tonic_middleware::MiddlewareFor;
 use tracing::{instrument, Level};
 
 use swh_graph::properties::NodeIdFromSwhidError;
-use swh_graph::utils::suffix_path;
 use swh_graph::views::Subgraph;
 
 pub mod proto {
@@ -32,6 +31,7 @@ use proto::traversal_service_server::TraversalServiceServer;
 mod filters;
 mod find_path;
 pub mod graph;
+mod label_builder;
 pub mod metrics;
 mod node_builder;
 #[cfg(feature = "sentry")]
@@ -137,6 +137,7 @@ impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
             mask.map(|mask| prost_types::FieldMask {
                 paths: mask.paths.iter().map(|field| field.to_owned()).collect(),
             }),
+            None,
         )?;
         let node_id = self.try_get_node_id(&swhid)?;
         Ok(Response::new(node_builder.build_node(node_id)))
@@ -205,12 +206,12 @@ impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
     ) -> TonicResult<proto::StatsResponse> {
         tracing::info!("{:?}", request.get_ref());
         // Load properties
-        let properties_path = suffix_path(self.graph.path(), ".properties");
+        let properties_path = self.graph.path().with_extension("properties");
         let properties_path = properties_path.as_path();
         let properties = load_properties(properties_path, ".stats")?;
 
         // Load stats
-        let stats_path = suffix_path(self.graph.path(), ".stats");
+        let stats_path = self.graph.path().with_extension("stats");
         let stats_path = stats_path.as_path();
         let stats = load_properties(stats_path, ".stats")?;
 
@@ -238,7 +239,6 @@ impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
             compression_ratio: get_property(&properties, properties_path, "compratio").ok(),
             bits_per_node: get_property(&properties, properties_path, "bitspernode").ok(),
             bits_per_edge: get_property(&properties, properties_path, "bitsperlink").ok(),
-            avg_locality: get_property(&stats, stats_path, "avglocality").ok(),
             indegree_min: get_property(&stats, stats_path, "minindegree")?,
             indegree_max: get_property(&stats, stats_path, "maxindegree")?,
             indegree_avg: get_property(&stats, stats_path, "avgindegree")?,
@@ -247,6 +247,36 @@ impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
             outdegree_avg: get_property(&stats, stats_path, "avgoutdegree")?,
             export_started_at: export_meta.map(|export_meta| export_meta.export_start.timestamp()),
             export_ended_at: export_meta.map(|export_meta| export_meta.export_end.timestamp()),
+            num_nodes_by_type: self
+                .graph
+                .num_nodes_by_type()
+                .unwrap_or_else(|e| {
+                    log::info!("Missing num_nodes_by_type: {}", e);
+                    HashMap::new()
+                })
+                .into_iter()
+                .map(|(type_, count)| {
+                    (
+                        format!("{type_}"),
+                        i64::try_from(count).expect("Node count overflowed i64"),
+                    )
+                })
+                .collect(),
+            num_arcs_by_type: self
+                .graph
+                .num_arcs_by_type()
+                .unwrap_or_else(|e| {
+                    log::info!("Missing num_arcs_by_type: {}", e);
+                    HashMap::new()
+                })
+                .into_iter()
+                .map(|((src_type, dst_type), count)| {
+                    (
+                        format!("{src_type}:{dst_type}"),
+                        i64::try_from(count).expect("Arc count overflowed i64"),
+                    )
+                })
+                .collect(),
         }))
     }
 }
@@ -282,11 +312,11 @@ fn load_export_meta(path: &Path) -> Option<ExportMeta> {
 fn load_properties(path: &Path, suffix: &str) -> Result<HashMap<String, String>, tonic::Status> {
     let file = std::fs::File::open(path).map_err(|e| {
         log::error!("Could not open {}: {}", path.display(), e);
-        tonic::Status::internal(format!("Could not open {} file", suffix))
+        tonic::Status::internal(format!("Could not open {suffix} file"))
     })?;
     let properties = java_properties::read(std::io::BufReader::new(file)).map_err(|e| {
         log::error!("Could not parse {}: {}", path.display(), e);
-        tonic::Status::internal(format!("Could not parse {} file", suffix))
+        tonic::Status::internal(format!("Could not parse {suffix} file"))
     })?;
     Ok(properties)
 }
@@ -305,7 +335,7 @@ where
         .get(name)
         .ok_or_else(|| {
             log::error!("Missing {} in {}", name, properties_path.display());
-            tonic::Status::internal(format!("Could not read {} from .properties", name))
+            tonic::Status::internal(format!("Could not read {name} from .properties"))
         })?
         .parse()
         .map_err(|e| {
@@ -314,7 +344,7 @@ where
                 name,
                 properties_path.display()
             );
-            tonic::Status::internal(format!("Could not parse {} from .properties: {}", name, e))
+            tonic::Status::internal(format!("Could not parse {name} from .properties: {e}"))
         })
 }
 

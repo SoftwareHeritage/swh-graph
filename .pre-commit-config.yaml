@@ -1,23 +1,23 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: check-json
       - id: check-yaml
 
   - repo: https://github.com/python/black
-    rev: 25.1.0
+    rev: 25.9.0
     hooks:
       - id: black
 
   - repo: https://github.com/PyCQA/isort
-    rev: 6.0.0
+    rev: 6.1.0
     hooks:
       - id: isort
 
   - repo: https://github.com/pycqa/flake8
-    rev: 7.1.1
+    rev: 7.3.0
     hooks:
       - id: flake8
         additional_dependencies: [flake8-bugbear==24.12.12, flake8-pyproject]
@@ -64,5 +64,25 @@ repos:
         args: ["--all-features"]
       - id: clippy
         args: ["--all-features", "--all-targets", "--", "--deny", "warnings"]
+
+  - repo: https://github.com/nanoufo/copyright-hook
+    rev: v1.1.0
+    hooks:
+      - id: update-copyright
+        args: [--required]
+        files: ^.*\.(py|rs)$
+        exclude: >
+          (?x)^(
+            .*__init__.py|
+            docs/conf.py|
+            rust/src/java_compat/mph/gov.rs|
+            rust/src/java_compat/mph/mod.rs|
+            rust/src/java_compat/mph/spooky.rs|
+            rust/src/java_compat/sf/gov3.rs|
+            rust/src/java_compat/sf/mod.rs|
+            rust/tests/gov.rs|
+            rust/src/_tutorial.rs|
+            rust/src/_crash_course.rs
+          )$
 
 exclude: ^swh/graph/grpc/

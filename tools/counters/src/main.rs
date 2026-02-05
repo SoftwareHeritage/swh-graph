@@ -1,3 +1,8 @@
+// Copyright (C) 2025  The Software Heritage developers
+// See the AUTHORS file at the top-level directory of this distribution
+// License: GNU General Public License version 3, or any later version
+// See top-level LICENSE file for more information
+
 use anyhow::{Context, Result};
 use clap::Parser;
 use std::collections::HashMap;
@@ -56,11 +61,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     log::info!("Total length: {}", total_len.unwrap_or(0));
-    if max_length_swhid.is_some() {
+    if let Some(max_length_swhid) = max_length_swhid {
         log::info!(
             "Max content length: {}, in {}",
             max_length,
-            max_length_swhid.unwrap()
+            max_length_swhid
         );
     }
 

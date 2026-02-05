@@ -11,7 +11,7 @@ use pyo3::prelude::*;
 use pyo3::Bound;
 
 use swh_graph::graph::*;
-use swh_graph::mph::{DynMphf, SwhidMphf};
+use swh_graph::mph::{DynMphf, LoadableSwhidMphf, SwhidMphf};
 
 create_exception!(
     swh_graph,
@@ -30,15 +30,13 @@ impl BidirectionalGraph {
         let g = SwhBidirectionalGraph::new(path)
             .map_err(|e| {
                 SwhGraphError::new_err(format!(
-                    "Could not initialize BidirectionalGraph properties: {:?}",
-                    e
+                    "Could not initialize BidirectionalGraph properties: {e:?}"
                 ))
             })?
             .load_all_properties::<DynMphf>()
             .map_err(|e| {
                 SwhGraphError::new_err(format!(
-                    "Could not load BidirectionalGraph properties: {:?}",
-                    e
+                    "Could not load BidirectionalGraph properties: {e:?}"
                 ))
             })?;
         Ok(BidirectionalGraph(g))
@@ -93,7 +91,7 @@ impl Mphf {
     fn new(path: PathBuf) -> PyResult<Mphf> {
         match DynMphf::load(path) {
             Ok(mphf) => Ok(Mphf(mphf)),
-            Err(e) => Err(SwhGraphError::new_err(format!("{:?}", e))),
+            Err(e) => Err(SwhGraphError::new_err(format!("{e:?}"))),
         }
     }
 

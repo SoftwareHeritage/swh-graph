@@ -1,8 +1,9 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use cadence::Counted;
@@ -10,7 +11,6 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response};
 
-use swh_graph::collections::{AdaptiveNodeSet, NodeSet};
 use swh_graph::graph::{SwhForwardGraph, SwhGraphWithProperties};
 use swh_graph::properties;
 use swh_graph::views::{Subgraph, Transposed};
@@ -98,17 +98,15 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             NodeFilterChecker::new(graph.clone(), return_nodes.unwrap_or_default())?;
         let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
         let mut num_matching_nodes = 0;
-        let mut ignore_nodes_set =
-            AdaptiveNodeSet::with_capacity(graph.num_nodes(), ignore_node.len());
-        ignore_nodes_set.extend(
-            ignore_node
-                .iter()
-                .map(|swhid| self.service.try_get_node_id(swhid))
-                .collect::<Result<Vec<_>, _>>()?,
-        );
+        let ignore_nodes_set = ignore_node
+            .iter()
+            .map(|swhid| self.service.try_get_node_id(swhid))
+            .collect::<Result<HashSet<_>, _>>()?;
         let subgraph = Subgraph {
             graph: graph.clone(),
-            node_filter: move |node| !ignore_nodes_set.contains(node),
+            num_nodes_by_type: None,
+            num_arcs_by_type: None,
+            node_filter: move |node| !ignore_nodes_set.contains(&node),
             arc_filter: move |src, dst| arc_checker.matches(src, dst),
         };
         let mut visitor = SimpleBfsVisitor::new(
@@ -171,7 +169,7 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
                     arc_checker.matches(src, dst)
                 }));
                 let node_builder =
-                    NodeBuilder::new(subgraph.clone(), request.get_ref().mask.clone())?;
+                    NodeBuilder::new(subgraph.clone(), request.get_ref().mask.clone(), None)?;
                 let on_node = move |node, _num_successors| {
                     *num_returned_nodes += 1;
                     tx.blocking_send(Ok(node_builder.build_node(node)))

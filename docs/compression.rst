@@ -43,7 +43,7 @@ itself.
 
 Some steps also involve sorting the entire set of edges and their labels, by
 using large on-disk buffer files, sometimes reaching the size of the input
-dataself itself.
+data itself.
 
 The machine we used to compress the entire graph (dataset version 2024-12-06)
 is a HPE ProLiant DL380 Gen10 Plus with the following hardware specs:
@@ -257,6 +257,23 @@ The step produces a ``graph.pthash`` file, containing a function which takes a S
    class of the `Sux4J <http://sux.di.unimi.it/>`_ library, instead of ``graph.pthash``,
    as well as a ``graph.cmph`` which is a portable representation of the same data.
 
+.. _graph-compression-initial-order:
+
+Initial order
+-------------
+
+This step is optional, but significantly improves memory requirement of the next step.
+
+The :ref:`graph-compression-mph` step causes nodes to be in a random order.
+A random order on nodes causes the graph produced by :ref:`graph-compression-bv-compress` step to be very big, to the point it takes 3.6TB for the 2025-10-08 graph.
+This is a major issue for performance, because most of that graph needs to fit in memory for the :ref:`graph-compression-bfs` step, otherwise its runtime can be goes from days to weeks.
+
+This optional step works around the issue by replacing the random order of the :ref:`graph-compression-mph` step with an order constructed from a graph that was already compressed months ago.
+All nodes present in the current graph but not in the older graph are still in a random order, but they are a minority.
+
+If enabled, this step produces its result in:
+
+- ``graph-base.order``
 
 .. _graph-compression-bv-compress:
 
@@ -447,8 +464,8 @@ node ID matching the input SWHID in the graph.
 .. _graph-compression-transpose-offsets:
 .. _graph-compression-transpose-ef:
 
-TRANSPOSE / TRANSPOSE_OFFSETS / TRANSPOSE_EF
---------------------------------------------
+TRANSPOSE / TRANSPOSE_EF
+------------------------
 
 Transpose the graph to allow backward traversal.
 The resulting transposed graph is stored as the
@@ -641,14 +658,14 @@ the label field.
     ...
 
 Additionally, edges from origins to snapshots are inserted in the above list,
-with ``visit_timestamp << 2 | is_full_visit << 1 | 1`` in lieu of the filename
+with ``visit_timestamp << 2 | is_full_visit << 1 | 1`` in lieu of the label-name
 hash and unset permission (ie. ``111``).
 The ``is_full_visit`` distinguishes full snapshots of the origin from partial
 snapshots, and the four lower bits are set to 1 and reserved for future use.
 The rationale for this layout is to maximize the number of bits reserved for
 future use without significantly growing the label size on production graphs
-(which are going to need 33 bits for filename ids in 2024 or 2025 and timestamps
-can still be encoded on 31 bits; by the time timestamps reach 32 bits, filename
+(which are going to need 33 bits for label-name ids in 2024 or 2025 and timestamps
+can still be encoded on 31 bits; by the time timestamps reach 32 bits, label-name
 ids will need more than 34 bits anyway).
 
 These hashed edges and their compact-form labels are then put in large batches
@@ -691,7 +708,7 @@ The resulting label offset big list is stored in the
 
 .. _graph-compression-clean-tmp:
 
-E2E_TEST
+E2E_CHECK
 ---------
 
 This step runs an end-to-end test on the compressed graph, looking to find some
@@ -699,7 +716,7 @@ arbitrary content to check if the compression went well.
 It will raise an Exception if it fails, but only after the export is done, so
 that the results of the compression have already been saved to the declared
 location.
-To prevent this test from happening, set the ``test-flavor`` argument to ``none``.
+To prevent this test from happening, set the ``check-flavor`` argument to ``none``.
 
 CLEAN_TMP
 ---------

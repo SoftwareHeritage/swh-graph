@@ -8,7 +8,8 @@ use anyhow::{Context, Result};
 use log::info;
 use mmap_rs::{Mmap, MmapFlags, MmapMut};
 use std::path::Path;
-use sux::prelude::{BitFieldSlice, BitFieldSliceCore, BitFieldSliceMut, BitFieldVec};
+use sux::bits::BitFieldVec;
+use value_traits::slices::{SliceByValue, SliceByValueMut};
 
 /// Struct to create and load a `.node2type.bin` file and convert node ids to types.
 pub struct Node2Type<B> {
@@ -23,13 +24,13 @@ impl<B: AsRef<[usize]>> Node2Type<B> {
     /// This function is unsafe because it does not check that `node_id` is
     /// within bounds of the array if debug asserts are disabled
     pub unsafe fn get_unchecked(&self, node_id: usize) -> NodeType {
-        NodeType::try_from(self.data.get_unchecked(node_id) as u8).unwrap()
+        NodeType::try_from(self.data.get_value_unchecked(node_id) as u8).unwrap()
     }
 
     #[inline]
     /// Get the type of a node with id `node_id`
     pub fn get(&self, node_id: usize) -> Result<NodeType, OutOfBoundError> {
-        NodeType::try_from(self.data.get(node_id) as u8).map_err(|_| OutOfBoundError {
+        NodeType::try_from(self.data.index_value(node_id) as u8).map_err(|_| OutOfBoundError {
             index: node_id,
             len: self.data.len(),
         })
@@ -44,13 +45,13 @@ impl<B: AsRef<[usize]> + AsMut<[usize]>> Node2Type<B> {
     /// This function is unsafe because it does not check that `node_id` is
     /// within bounds of the array if debug asserts are disabled
     pub unsafe fn set_unchecked(&mut self, node_id: usize, node_type: NodeType) {
-        self.data.set_unchecked(node_id, node_type as usize);
+        self.data.set_value_unchecked(node_id, node_type as usize);
     }
 
     #[inline]
     /// Set the type of a node with id `node_id`
     pub fn set(&mut self, node_id: usize, node_type: NodeType) {
-        self.data.set(node_id, node_type as usize);
+        self.data.set_value(node_id, node_type as usize);
     }
 }
 
@@ -174,12 +175,12 @@ impl Node2Type<UsizeMmap<Mmap>> {
     }
 }
 
-impl Node2Type<UsizeMmap<Vec<u8>>> {
+impl Node2Type<Vec<usize>> {
     pub fn new_from_iter(types: impl ExactSizeIterator<Item = NodeType>) -> Self {
         let num_nodes = types.len();
         let file_len = ((num_nodes * NodeType::BITWIDTH) as u64).div_ceil(64) * 8;
-        let file_len = file_len.try_into().expect("num_nodes overflowed usize");
-        let data = UsizeMmap(vec![0; file_len]);
+        let file_len = usize::try_from(file_len).expect("num_nodes overflowed usize");
+        let data = vec![0usize; file_len.div_ceil((usize::BITS / 8).try_into().unwrap())];
         let data = unsafe { BitFieldVec::from_raw_parts(data, NodeType::BITWIDTH, num_nodes) };
         let mut node2type = Node2Type { data };
         for (i, type_) in types.enumerate() {

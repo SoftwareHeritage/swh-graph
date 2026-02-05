@@ -12,6 +12,7 @@ use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
 use ar_row_derive::ArRowDeserialize;
 use common_traits::{Atomic, IntoAtomic};
 use rayon::prelude::*;
+use sux::traits::AtomicBitVecOps;
 
 use super::orc::get_dataset_readers;
 use super::orc::{iter_arrow, par_iter_arrow};
@@ -87,7 +88,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
             .get(
                 self.swhid_mph
                     .hash_str(swhid)
-                    .unwrap_or_else(|| panic!("unknown SWHID {}", swhid)),
+                    .unwrap_or_else(|| panic!("unknown SWHID {swhid}")),
             )
             .unwrap()
     }
@@ -235,7 +236,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
         let f = |cnt: Content| {
             if let Some(id) = cnt.sha1_git {
                 if let Some(length) = cnt.length {
-                    let swhid = format!("swh:1:cnt:{}", id);
+                    let swhid = format!("swh:1:cnt:{id}");
                     self.set_atomic(&lengths, &swhid, (length as u64).to_be());
                 }
             }
@@ -267,7 +268,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
         log::info!("Reading...");
         self.par_for_each_row("skipped_content", |cnt: SkippedContent| {
             if let Some(id) = cnt.sha1_git {
-                let swhid = format!("swh:1:cnt:{}", id);
+                let swhid = format!("swh:1:cnt:{id}");
                 is_skipped.set(
                     self.node_id(&swhid),
                     true,
@@ -278,7 +279,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
         .for_each(|()| ());
 
         log::info!("Converting...");
-        let (bitvec, len) = is_skipped.into_raw_parts();
+        let (bitbox, len) = is_skipped.into_raw_parts();
+        let bitvec = Vec::from(bitbox);
         assert_eq!(len, self.num_nodes);
         // Make its values big-endian
         let bitvec_be: Vec<u8> = bitvec
@@ -417,7 +419,7 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
 
         let mut f = |type_: &str, id: String, message: Option<Box<[u8]>>| {
             if let Some(message) = message {
-                let swhid = format!("swh:1:{}:{}", type_, id);
+                let swhid = format!("swh:1:{type_}:{id}");
                 let mut encoded_message = base64.encode_to_string(message);
                 encoded_message.push('\n');
                 let encoded_message = encoded_message.as_bytes();
@@ -443,6 +445,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
                 f("ori", ori.id, Some(ori.url.as_bytes().into()))
             })?;
         }
+
+        writer.flush().context("Could not flush messages")?;
 
         log::info!("Writing offsets...");
         self.write(suffixes::MESSAGE_OFFSET, offsets)?;
@@ -483,6 +487,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
 
             Ok(())
         })?;
+
+        writer.flush().context("Could not flush tag names")?;
 
         log::info!("Writing offsets...");
         self.write(suffixes::TAG_NAME_OFFSET, offsets)?;

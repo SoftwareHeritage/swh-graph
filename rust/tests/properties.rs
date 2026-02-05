@@ -1,12 +1,16 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::{Context, Result};
+use std::collections::HashSet;
 use std::path::PathBuf;
 
+use anyhow::{Context, Result};
+use rayon::prelude::*;
+
 use swh_graph::graph::*;
+use swh_graph::labels::LabelNameId;
 use swh_graph::mph::SwhidPthash;
 use swh_graph::properties::NodeIdFromSwhidError;
 use swh_graph::AllSwhGraphProperties;
@@ -22,6 +26,7 @@ fn graph() -> Result<SwhUnidirectionalGraph<AllSwhGraphProperties<SwhidPthash>>>
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_swhids() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -62,6 +67,7 @@ fn test_swhids() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_node_id() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -107,6 +113,7 @@ fn test_node_id() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_node_id_from_string_swhid() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -140,6 +147,7 @@ fn test_node_id_from_string_swhid() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_out_of_bound_properties() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -166,6 +174,7 @@ fn test_out_of_bound_properties() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_content_properties() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -189,6 +198,7 @@ fn test_content_properties() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_skipped_content_properties() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -212,6 +222,7 @@ fn test_skipped_content_properties() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_revision_properties() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -235,6 +246,7 @@ fn test_revision_properties() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_release_properties() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -258,6 +270,7 @@ fn test_release_properties() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
 fn test_snapshot_properties() -> Result<()> {
     let graph = graph()?;
     let props = graph.properties();
@@ -276,6 +289,46 @@ fn test_snapshot_properties() -> Result<()> {
     assert_eq!(props.tag_name(node), None);
     assert_eq!(props.author_id(node), None);
     assert_eq!(props.committer_id(node), None);
+
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
+fn test_labels() -> Result<()> {
+    let graph = graph()?;
+
+    assert_eq!(graph.properties().num_label_names(), 11);
+    assert_eq!(
+        graph.properties().iter_label_name_ids().collect::<Vec<_>>(),
+        (0..11).map(LabelNameId).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        graph
+            .properties()
+            .par_iter_label_name_ids()
+            .map(|label_name_id| String::from_utf8_lossy(
+                &graph.properties().label_name(label_name_id)
+            )
+            .into_owned())
+            .collect::<HashSet<_>>(),
+        vec![
+            "README.md",
+            "README.rst",
+            "TODO.txt",
+            "main.py",
+            "old",
+            "oldproject",
+            "parser.c",
+            "refs/heads/master",
+            "refs/tags/v1.0",
+            "refs/tags/v2.0-anonymous",
+            "tests"
+        ]
+        .into_iter()
+        .map(|label_name| label_name.to_string())
+        .collect::<HashSet<_>>()
+    );
 
     Ok(())
 }

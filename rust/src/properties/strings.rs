@@ -26,14 +26,16 @@ impl MaybeStrings for NoStrings {}
 )]
 /// Trait implemented by all implementors of [`MaybeStrings`] but [`NoStrings`]
 pub trait OptStrings: MaybeStrings + PropertiesBackend {
-    type Offsets<'a>: GetIndex<Output = u64> + 'a
-    where
-        Self: 'a;
-
-    fn message(&self) -> PropertiesResult<&[u8], Self>;
-    fn message_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self>;
-    fn tag_name(&self) -> PropertiesResult<&[u8], Self>;
-    fn tag_name_offset(&self) -> PropertiesResult<Self::Offsets<'_>, Self>;
+    /// Returns an array with all messages, separated by `b'\n'`
+    fn message(&self) -> PropertiesResult<'_, &[u8], Self>;
+    /// Returns the position of the first character of `node`'s message in [`Self::message`],
+    /// or `None` if it is out of bound, or `Some(u64::MAX)` if the node has no message
+    fn message_offset(&self, node: NodeId) -> PropertiesResult<'_, Option<u64>, Self>;
+    /// Returns an array with all messages, separated by `b'\n'`
+    fn tag_name(&self) -> PropertiesResult<'_, &[u8], Self>;
+    /// Returns the position of the first character of `node`'s tag_name in [`Self::tag_name`],
+    /// or `None` if it is out of bound, or `Some(u64::MAX)` if the node has no tag_name
+    fn tag_name_offset(&self, node: NodeId) -> PropertiesResult<'_, Option<u64>, Self>;
 }
 
 #[diagnostic::on_unimplemented(
@@ -57,26 +59,25 @@ impl PropertiesBackend for OptMappedStrings {
     type DataFilesAvailability = OptionalDataFiles;
 }
 impl OptStrings for OptMappedStrings {
-    type Offsets<'a>
-        = &'a NumberMmap<BigEndian, u64, Mmap>
-    where
-        Self: 'a;
-
     #[inline(always)]
     fn message(&self) -> PropertiesResult<'_, &[u8], Self> {
         self.message.as_deref()
     }
     #[inline(always)]
-    fn message_offset(&self) -> PropertiesResult<'_, Self::Offsets<'_>, Self> {
-        self.message_offset.as_ref()
+    fn message_offset(&self, node: NodeId) -> PropertiesResult<'_, Option<u64>, Self> {
+        self.message_offset
+            .as_ref()
+            .map(|message_offsets| message_offsets.get(node))
     }
     #[inline(always)]
     fn tag_name(&self) -> PropertiesResult<'_, &[u8], Self> {
         self.tag_name.as_deref()
     }
     #[inline(always)]
-    fn tag_name_offset(&self) -> PropertiesResult<'_, Self::Offsets<'_>, Self> {
-        self.tag_name_offset.as_ref()
+    fn tag_name_offset(&self, node: NodeId) -> PropertiesResult<'_, Option<u64>, Self> {
+        self.tag_name_offset
+            .as_ref()
+            .map(|tag_name_offsets| tag_name_offsets.get(node))
     }
 }
 
@@ -91,26 +92,21 @@ impl PropertiesBackend for MappedStrings {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
 impl OptStrings for MappedStrings {
-    type Offsets<'a>
-        = &'a NumberMmap<BigEndian, u64, Mmap>
-    where
-        Self: 'a;
-
     #[inline(always)]
     fn message(&self) -> &[u8] {
         &self.message
     }
     #[inline(always)]
-    fn message_offset(&self) -> Self::Offsets<'_> {
-        &self.message_offset
+    fn message_offset(&self, node: NodeId) -> Option<u64> {
+        (&self.message_offset).get(node)
     }
     #[inline(always)]
     fn tag_name(&self) -> &[u8] {
         &self.tag_name
     }
     #[inline(always)]
-    fn tag_name_offset(&self) -> Self::Offsets<'_> {
-        &self.tag_name_offset
+    fn tag_name_offset(&self, node: NodeId) -> Option<u64> {
+        (&self.tag_name_offset).get(node)
     }
 }
 
@@ -178,26 +174,21 @@ impl PropertiesBackend for VecStrings {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
 impl OptStrings for VecStrings {
-    type Offsets<'a>
-        = &'a [u64]
-    where
-        Self: 'a;
-
     #[inline(always)]
     fn message(&self) -> &[u8] {
         self.message.as_slice()
     }
     #[inline(always)]
-    fn message_offset(&self) -> Self::Offsets<'_> {
-        self.message_offset.as_slice()
+    fn message_offset(&self, node: NodeId) -> Option<u64> {
+        self.message_offset.get(node)
     }
     #[inline(always)]
     fn tag_name(&self) -> &[u8] {
         self.tag_name.as_slice()
     }
     #[inline(always)]
-    fn tag_name_offset(&self) -> Self::Offsets<'_> {
-        self.tag_name_offset.as_slice()
+    fn tag_name_offset(&self, node: NodeId) -> Option<u64> {
+        self.tag_name_offset.get(node)
     }
 }
 
@@ -295,22 +286,23 @@ impl<
 {
     #[inline(always)]
     fn message_or_tag_name_base64<'a>(
+        &self,
         what: &'static str,
         data: &'a [u8],
-        offsets: impl GetIndex<Output = u64>,
+        offset: Option<u64>,
         node_id: NodeId,
     ) -> Result<Option<&'a [u8]>, OutOfBoundError> {
-        match offsets.get(node_id) {
+        match offset {
             None => Err(OutOfBoundError {
                 // Unknown node
                 index: node_id,
-                len: offsets.len(),
+                len: self.num_nodes,
             }),
             Some(u64::MAX) => Ok(None), // No message
             Some(offset) => {
                 let offset = offset as usize;
                 let slice: &[u8] = data.get(offset..).unwrap_or_else(|| {
-                    panic!("Missing {} for node {} at offset {}", what, node_id, offset)
+                    panic!("Missing {what} for node {node_id} at offset {offset}")
                 });
                 Ok(slice
                     .iter()
@@ -327,11 +319,11 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn message_base64(&self, node_id: NodeId) -> PropertiesResult<Option<&[u8]>, STRINGS> {
+    pub fn message_base64(&self, node_id: NodeId) -> PropertiesResult<'_, Option<&[u8]>, STRINGS> {
         STRINGS::map_if_available(
             self.try_message_base64(node_id),
             |message: Result<_, OutOfBoundError>| {
-                message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+                message.unwrap_or_else(|e| panic!("Cannot get node message: {e}"))
             },
         )
     }
@@ -344,11 +336,11 @@ impl<
     pub fn try_message_base64(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
+    ) -> PropertiesResult<'_, Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
         STRINGS::map_if_available(
-            STRINGS::zip_if_available(self.strings.message(), self.strings.message_offset()),
-            |(messages, message_offsets)| {
-                Self::message_or_tag_name_base64("message", messages, message_offsets, node_id)
+            STRINGS::zip_if_available(self.strings.message(), self.strings.message_offset(node_id)),
+            |(messages, message_offset)| {
+                self.message_or_tag_name_base64("message", messages, message_offset, node_id)
             },
         )
     }
@@ -359,9 +351,9 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn message(&self, node_id: NodeId) -> PropertiesResult<Option<Vec<u8>>, STRINGS> {
+    pub fn message(&self, node_id: NodeId) -> PropertiesResult<'_, Option<Vec<u8>>, STRINGS> {
         STRINGS::map_if_available(self.try_message(node_id), |message| {
-            message.unwrap_or_else(|e| panic!("Cannot get node message: {}", e))
+            message.unwrap_or_else(|e| panic!("Cannot get node message: {e}"))
         })
     }
 
@@ -374,14 +366,14 @@ impl<
     pub fn try_message(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<Vec<u8>>, OutOfBoundError>, STRINGS> {
+    ) -> PropertiesResult<'_, Result<Option<Vec<u8>>, OutOfBoundError>, STRINGS> {
         let base64 = base64_simd::STANDARD;
         STRINGS::map_if_available(self.try_message_base64(node_id), |message_opt_res| {
             message_opt_res.map(|message_opt| {
                 message_opt.map(|message| {
                     base64
                         .decode_to_vec(message)
-                        .unwrap_or_else(|e| panic!("Could not decode node message: {}", e))
+                        .unwrap_or_else(|e| panic!("Could not decode node message: {e}"))
                 })
             })
         })
@@ -393,9 +385,9 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn tag_name_base64(&self, node_id: NodeId) -> PropertiesResult<Option<&[u8]>, STRINGS> {
+    pub fn tag_name_base64(&self, node_id: NodeId) -> PropertiesResult<'_, Option<&[u8]>, STRINGS> {
         STRINGS::map_if_available(self.try_tag_name_base64(node_id), |tag_name| {
-            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag: {}", e))
+            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag: {e}"))
         })
     }
 
@@ -407,11 +399,14 @@ impl<
     pub fn try_tag_name_base64(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
+    ) -> PropertiesResult<'_, Result<Option<&[u8]>, OutOfBoundError>, STRINGS> {
         STRINGS::map_if_available(
-            STRINGS::zip_if_available(self.strings.tag_name(), self.strings.tag_name_offset()),
-            |(tag_names, tag_name_offsets)| {
-                Self::message_or_tag_name_base64("tag_name", tag_names, tag_name_offsets, node_id)
+            STRINGS::zip_if_available(
+                self.strings.tag_name(),
+                self.strings.tag_name_offset(node_id),
+            ),
+            |(tag_names, tag_name_offset)| {
+                self.message_or_tag_name_base64("tag_name", tag_names, tag_name_offset, node_id)
             },
         )
     }
@@ -422,9 +417,9 @@ impl<
     ///
     /// If the node id does not exist
     #[inline]
-    pub fn tag_name(&self, node_id: NodeId) -> PropertiesResult<Option<Vec<u8>>, STRINGS> {
+    pub fn tag_name(&self, node_id: NodeId) -> PropertiesResult<'_, Option<Vec<u8>>, STRINGS> {
         STRINGS::map_if_available(self.try_tag_name(node_id), |tag_name| {
-            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag name: {}", e))
+            tag_name.unwrap_or_else(|e| panic!("Cannot get node tag name: {e}"))
         })
     }
 
@@ -436,16 +431,13 @@ impl<
     pub fn try_tag_name(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<Vec<u8>>, OutOfBoundError>, STRINGS> {
+    ) -> PropertiesResult<'_, Result<Option<Vec<u8>>, OutOfBoundError>, STRINGS> {
         let base64 = base64_simd::STANDARD;
         STRINGS::map_if_available(self.try_tag_name_base64(node_id), |tag_name_opt_res| {
             tag_name_opt_res.map(|tag_name_opt| {
                 tag_name_opt.map(|tag_name| {
                     base64.decode_to_vec(tag_name).unwrap_or_else(|_| {
-                        panic!(
-                            "Could not decode tag_name of node {}: {:?}",
-                            node_id, tag_name
-                        )
+                        panic!("Could not decode tag_name of node {node_id}: {tag_name:?}")
                     })
                 })
             })

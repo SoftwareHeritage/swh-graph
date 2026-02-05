@@ -75,7 +75,7 @@ pub fn parse_allowed_node_types(s: &str) -> Result<Vec<NodeType>> {
 pub trait GetIndex {
     type Output;
 
-    /// Returns the total number of items in the collections
+    /// Returns the total number of items in the collection
     fn len(&self) -> usize;
 
     /// Returns an item of the collection

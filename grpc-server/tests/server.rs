@@ -51,7 +51,6 @@ async fn test_count_nodes() -> Result<()> {
     assert_eq!(
         *spy_graph.history.lock().unwrap(),
         vec![
-            ("num_nodes", "()".into()),  // initialize skip_nodes set
             ("properties", "()".into()), // swhid -> id
             ("has_node", "(0,)".into()), // check not masked
             ("successors", "(0,)".into()),
@@ -75,7 +74,6 @@ async fn test_count_nodes() -> Result<()> {
     assert_eq!(
         *spy_graph.history.lock().unwrap(),
         vec![
-            ("num_nodes", "()".into()),  // initialize skip_nodes set
             ("properties", "()".into()), // swhid -> id
             ("has_node", "(1,)".into()), // check not masked
             ("successors", "(1,)".into()),
@@ -123,7 +121,6 @@ async fn test_count_neighbors() -> Result<()> {
     assert_eq!(
         *spy_graph.history.lock().unwrap(),
         vec![
-            ("num_nodes", "()".into()),  // initialize skip_nodes set
             ("properties", "()".into()), // swhid -> id
             ("has_node", "(0,)".into()), // check not masked
             ("successors", "(0,)".into())
@@ -180,7 +177,6 @@ async fn test_count_neighbors_max() -> Result<()> {
     assert_eq!(
         *spy_graph.history.lock().unwrap(),
         vec![
-            ("num_nodes", "()".into()),  // initialize skip_nodes set
             ("properties", "()".into()), // swhid -> id
             ("has_node", "(0,)".into()), // check not masked
             ("successors", "(0,)".into()),
@@ -241,7 +237,6 @@ async fn test_neighbors() -> Result<()> {
     assert_eq!(
         *spy_graph.history.lock().unwrap(),
         vec![
-            ("num_nodes", "()".into()),  // initialize skip_nodes set
             ("properties", "()".into()), // swhid -> id
             ("has_node", "(0,)".into()), // check not masked
             ("successors", "(0,)".into()),
@@ -326,7 +321,6 @@ async fn test_neighbors_max() -> Result<()> {
     assert_eq!(
         *spy_graph.history.lock().unwrap(),
         vec![
-            ("num_nodes", "()".into()),  // initialize skip_nodes set
             ("properties", "()".into()), // swhid -> id
             ("has_node", "(0,)".into()), // check not masked
             ("successors", "(0,)".into()),

@@ -51,7 +51,7 @@ impl<T: Sync + AsRef<[usize]>> OwnedPermutation<T> {
             .find_any(|&(_old, &new)| new >= perm.as_ref().len())
         {
             bail!(
-                "Found node {} has id {} in permutation, graph size is {}",
+                "Found node {} with id {} in permutation, graph size is {}",
                 old,
                 new,
                 perm.as_ref().len()
@@ -146,7 +146,9 @@ impl OwnedPermutation<Vec<usize>> {
         if epserde {
             use epserde::prelude::*;
 
-            let perm = <Vec<usize>>::load_full(path)?;
+            // SAFETY: it's a plain vector and deserializing its values (usize) from any bytes is
+            // always valid
+            let perm = unsafe { <Vec<usize>>::load_full(path) }?;
             Ok(OwnedPermutation(perm))
         } else {
             let mut perm = Vec::with_capacity(num_nodes);

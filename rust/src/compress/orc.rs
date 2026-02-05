@@ -61,13 +61,12 @@ fn transform_schema(schema: &Schema) -> Arc<Schema> {
         schema
             .fields()
             .iter()
-            .cloned()
             .map(|field| match field.data_type() {
-                DataType::Timestamp(_, _) => (*field)
+                DataType::Timestamp(_, _) => (**field)
                     .clone()
                     //.with_data_type(DataType::Timestamp(TimeUnit::Microsecond, tz.clone())),
                     .with_data_type(DataType::Decimal128(Decimal128Type::MAX_SCALE as _, 9)),
-                _ => (*field).clone(),
+                _ => (**field).clone(),
             })
             .collect::<Vec<_>>(),
     ))
@@ -100,7 +99,7 @@ where
 
     reader.flat_map(move |chunk| {
         let chunk: arrow_array::RecordBatch =
-            chunk.unwrap_or_else(|e| panic!("Could not read chunk: {}", e));
+            chunk.unwrap_or_else(|e| panic!("Could not read chunk: {e}"));
         let items: Vec<T> = T::from_record_batch(chunk).expect("Could not deserialize from arrow");
         items.into_iter().flat_map(&mut f).collect::<Vec<_>>()
     })
@@ -133,7 +132,7 @@ where
 
     reader.par_bridge().flat_map_iter(move |chunk| {
         let chunk: arrow_array::RecordBatch =
-            chunk.unwrap_or_else(|e| panic!("Could not read chunk: {}", e));
+            chunk.unwrap_or_else(|e| panic!("Could not read chunk: {e}"));
         let items: Vec<T> = T::from_record_batch(chunk).expect("Could not deserialize from arrow");
         items.into_iter().flat_map(&f).collect::<Vec<_>>()
     })

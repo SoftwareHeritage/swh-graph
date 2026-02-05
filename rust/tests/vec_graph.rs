@@ -1,4 +1,4 @@
-// Copyright (C) 2024 The Software Heritage developers
+// Copyright (C) 2024  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 
 use swh_graph::graph::*;
-use swh_graph::labels::FilenameId;
+use swh_graph::labels::LabelNameId;
 use swh_graph::properties::*;
 use swh_graph::webgraph::graphs::vec_graph::{LabeledVecGraph, VecGraph};
 use swh_graph::{NodeType, SWHID};
@@ -25,7 +25,8 @@ fn test_vec_graph() {
 
 #[test]
 fn test_labeled_vec_graph() {
-    let arcs: Vec<(usize, usize, &[u64])> = vec![(0, 1, &[0, 789]), (2, 0, &[123]), (2, 1, &[456])];
+    let arcs: Vec<((usize, usize), &[u64])> =
+        vec![((0, 1), &[0, 789]), ((2, 0), &[123]), ((2, 1), &[456])];
     let underlying_graph = LabeledVecGraph::from_arcs(arcs);
 
     let graph = SwhUnidirectionalGraph::from_underlying_graph(PathBuf::new(), underlying_graph);
@@ -260,35 +261,35 @@ fn test_vec_graph_label_names() {
     .unwrap();
 
     assert_eq!(
-        graph.properties().label_name(FilenameId(0)),
+        graph.properties().label_name(LabelNameId(0)),
         b"abc".to_vec()
     );
     assert_eq!(
-        graph.properties().label_name_base64(FilenameId(0)),
+        graph.properties().label_name_base64(LabelNameId(0)),
         b"YWJj".to_vec()
     );
 
     assert_eq!(
-        graph.properties().label_name(FilenameId(1)),
+        graph.properties().label_name(LabelNameId(1)),
         b"defgh".to_vec()
     );
     assert_eq!(
-        graph.properties().label_name_base64(FilenameId(1)),
+        graph.properties().label_name_base64(LabelNameId(1)),
         b"ZGVmZ2g=".to_vec()
     );
 
-    assert_eq!(graph.properties().label_name(FilenameId(2)), b"".to_vec());
+    assert_eq!(graph.properties().label_name(LabelNameId(2)), b"".to_vec());
     assert_eq!(
-        graph.properties().label_name_base64(FilenameId(2)),
+        graph.properties().label_name_base64(LabelNameId(2)),
         b"".to_vec()
     );
 
     assert_eq!(
-        graph.properties().label_name(FilenameId(3)),
+        graph.properties().label_name(LabelNameId(3)),
         b"aaaaaaaaaaaaaaaaaaa".to_vec()
     );
     assert_eq!(
-        graph.properties().label_name_base64(FilenameId(3)),
+        graph.properties().label_name_base64(LabelNameId(3)),
         b"YWFhYWFhYWFhYWFhYWFhYWFhYQ==".to_vec()
     );
 }

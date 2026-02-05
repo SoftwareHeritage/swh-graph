@@ -5,8 +5,6 @@
 
 use std::str::FromStr;
 
-use bitvec::prelude::*;
-
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Object type of an SWHID
@@ -42,8 +40,8 @@ pub enum NodeType {
     ///
     /// Software development within a specific project is
     /// essentially a time-indexed series of copies of a single “root” directory
-    /// that contains the entire project source code. Software evolves when a d
-    /// eveloper modifies the content of one or more files in that directory
+    /// that contains the entire project source code. Software evolves when a
+    /// developer modifies the content of one or more files in that directory
     /// and record their changes.
     ///
     /// Each recorded copy of the root directory is known as a “revision”. It
@@ -186,11 +184,17 @@ impl core::fmt::Display for NodeType {
 }
 
 /// Compact representation of a set of [NodeType]-s, as a bit array.
-type NodeTypeSet = BitArr!(for NodeType::NUMBER_OF_TYPES, in u8, Msb0);
+type NodeTypeSet = u64;
 
 /// Constraint on allowed node types, as a set of node types.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct NodeConstraint(pub NodeTypeSet);
+
+impl Default for NodeConstraint {
+    fn default() -> Self {
+        Self(0b111111)
+    }
+}
 
 impl NodeConstraint {
     /// # Examples
@@ -213,20 +217,14 @@ impl NodeConstraint {
     /// }
     /// ```
     pub fn matches(&self, node_type: NodeType) -> bool {
-        *self.0.get(node_type.to_u8() as usize).unwrap()
+        self.0 & (1 << node_type.to_u8()) != 0
     }
 
     pub fn to_vec(&self) -> Vec<NodeType> {
-        self.0
-            .iter_ones() // Note: this iterates on all bits of the u8
-            .filter_map(|type_idx| (type_idx as u8).try_into().ok())
+        (0..NodeType::NUMBER_OF_TYPES as u8)
+            .filter(|type_idx| self.0 & (1 << type_idx) != 0)
+            .map(|type_idx| type_idx.try_into().unwrap())
             .collect()
-    }
-}
-
-impl Default for NodeConstraint {
-    fn default() -> Self {
-        Self(bitarr!(u8, Msb0; 1; NodeType::NUMBER_OF_TYPES))
     }
 }
 
@@ -237,21 +235,20 @@ impl FromStr for NodeConstraint {
     ///
     /// ```
     /// # use std::collections::HashSet;
-    /// # use bitvec::prelude::*;
     /// # use swh_graph::{NodeConstraint, NodeType};
     ///
-    /// assert_eq!("*".parse::<NodeConstraint>(), Ok(NodeConstraint(bitarr!(u8, Msb0; 1; 6))));
-    /// assert_eq!("rel".parse::<NodeConstraint>(), Ok(NodeConstraint(bitarr!(u8, Msb0; 0, 0, 0, 1, 0, 0))));
-    /// assert_eq!("dir,cnt".parse::<NodeConstraint>(), Ok(NodeConstraint(bitarr!(u8, Msb0; 1, 1, 0, 0, 0, 0))));
+    /// assert_eq!("*".parse::<NodeConstraint>(), Ok(NodeConstraint(0b111111)));
+    /// assert_eq!("rel".parse::<NodeConstraint>(), Ok(NodeConstraint(0b001000)));
+    /// assert_eq!("dir,cnt".parse::<NodeConstraint>(), Ok(NodeConstraint(0b000011)));
     /// assert!(matches!("xyz".parse::<NodeConstraint>(), Err(_)));
     /// ```
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s == "*" {
             Ok(NodeConstraint::default())
         } else {
-            let mut node_types = bitarr!(u8, Msb0; 0; NodeType::NUMBER_OF_TYPES);
+            let mut node_types = 0;
             for s in s.split(',') {
-                node_types.set(s.parse::<NodeType>()?.to_u8() as usize, true);
+                node_types |= 1 << s.parse::<NodeType>()?.to_u8();
             }
             Ok(NodeConstraint(node_types))
         }
@@ -261,21 +258,20 @@ impl FromStr for NodeConstraint {
 impl core::fmt::Display for NodeConstraint {
     /// ```
     /// # use std::collections::HashSet;
-    /// # use bitvec::prelude::*;
     /// # use swh_graph::{NodeConstraint, NodeType};
     ///
     /// assert_eq!(format!("{}", NodeConstraint::default()), "*");
     /// assert_eq!(
-    ///     format!("{}", NodeConstraint(bitarr!(u8, Msb0; 1, 1, 0, 0, 0, 0))),
+    ///     format!("{}", NodeConstraint(0b000011)),
     ///     "cnt,dir"
     /// );
     /// assert_eq!(
-    ///     format!("{}", NodeConstraint(bitarr!(u8, Msb0; 0, 0, 1, 1, 1, 1))),
+    ///     format!("{}", NodeConstraint(0b111100)),
     ///     "ori,rel,rev,snp"
     /// );
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0.all() {
+        if *self == Self::default() {
             write!(f, "*")?;
         } else {
             let mut type_strings: Vec<&str> = self.to_vec().iter().map(|t| t.to_str()).collect();

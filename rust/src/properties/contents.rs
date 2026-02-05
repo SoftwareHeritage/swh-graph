@@ -20,6 +20,29 @@ impl<C: OptContents> MaybeContents for C {}
 pub struct NoContents;
 impl MaybeContents for NoContents {}
 
+/// Returns the bit at the given position, or `None` if it is out of bound
+///
+/// # Safety
+///
+/// The array must have length >= `num_bits.div_ceil(usize::BITS)`
+unsafe fn get_bit(
+    array: impl GetIndex<Output = u64>,
+    num_bits: usize,
+    bit_position: usize,
+) -> Option<bool> {
+    if bit_position >= num_bits {
+        None
+    } else {
+        let cell_id = bit_position / (u64::BITS as usize);
+        let mask = 1 << (bit_position % (u64::BITS as usize));
+
+        // safety: relies on the caller giving the right value for num_bits
+        let cell = unsafe { array.get_unchecked(cell_id) };
+
+        Some((cell & mask) != 0)
+    }
+}
+
 #[diagnostic::on_unimplemented(
     label = "does not have Content properties loaded",
     note = "Use `let graph = graph.load_properties(|props| props.load_contents()).unwrap()` to load them",
@@ -27,12 +50,11 @@ impl MaybeContents for NoContents {}
 )]
 /// Trait implemented by all implementors of [`MaybeContents`] but [`NoContents`]
 pub trait OptContents: MaybeContents + PropertiesBackend {
-    type Data<'a>: GetIndex<Output = u64> + 'a
-    where
-        Self: 'a;
-
-    fn is_skipped_content(&self) -> PropertiesResult<'_, Self::Data<'_>, Self>;
-    fn content_length(&self) -> PropertiesResult<'_, Self::Data<'_>, Self>;
+    /// Returns whether the given node is a skipped content, or `None` if out of bounds
+    fn is_skipped_content(&self, node: NodeId) -> PropertiesResult<'_, Option<bool>, Self>;
+    /// Returns the content's length, or `None` if out of bounds, or `u64::MAX` if it
+    /// is not a content / does not not have a known length
+    fn content_length(&self, node: NodeId) -> PropertiesResult<'_, Option<u64>, Self>;
 }
 
 #[diagnostic::on_unimplemented(
@@ -47,6 +69,7 @@ impl<S: OptContents<DataFilesAvailability = GuaranteedDataFiles>> Contents for S
 /// Variant of [`MappedStrings`] that checks at runtime that files are present every time
 /// it is accessed
 pub struct OptMappedContents {
+    num_nodes: usize,
     is_skipped_content: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
     content_length: Result<NumberMmap<BigEndian, u64, Mmap>, UnavailableProperty>,
 }
@@ -54,22 +77,23 @@ impl PropertiesBackend for OptMappedContents {
     type DataFilesAvailability = OptionalDataFiles;
 }
 impl OptContents for OptMappedContents {
-    type Data<'a>
-        = &'a NumberMmap<BigEndian, u64, Mmap>
-    where
-        Self: 'a;
-
     #[inline(always)]
-    fn is_skipped_content(&self) -> PropertiesResult<'_, Self::Data<'_>, Self> {
-        self.is_skipped_content.as_ref()
+    fn is_skipped_content(&self, node: NodeId) -> PropertiesResult<'_, Option<bool>, Self> {
+        // SAFETY: we check that num_nodes matches the mmap size when creating this struct
+        self.is_skipped_content
+            .as_ref()
+            .map(|is_skipped_content| unsafe { get_bit(is_skipped_content, self.num_nodes, node) })
     }
     #[inline(always)]
-    fn content_length(&self) -> PropertiesResult<'_, Self::Data<'_>, Self> {
-        self.content_length.as_ref()
+    fn content_length(&self, node: NodeId) -> PropertiesResult<'_, Option<u64>, Self> {
+        self.content_length
+            .as_ref()
+            .map(|content_lengths| content_lengths.get(node))
     }
 }
 
 pub struct MappedContents {
+    num_nodes: usize,
     is_skipped_content: NumberMmap<BigEndian, u64, Mmap>,
     content_length: NumberMmap<BigEndian, u64, Mmap>,
 }
@@ -77,32 +101,30 @@ impl PropertiesBackend for MappedContents {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
 impl OptContents for MappedContents {
-    type Data<'a>
-        = &'a NumberMmap<BigEndian, u64, Mmap>
-    where
-        Self: 'a;
-
     #[inline(always)]
-    fn is_skipped_content(&self) -> Self::Data<'_> {
-        &self.is_skipped_content
+    fn is_skipped_content(&self, node: NodeId) -> Option<bool> {
+        // SAFETY: we check that num_nodes matches the mmap size when creating this struct
+        unsafe { get_bit(&self.is_skipped_content, self.num_nodes, node) }
     }
     #[inline(always)]
-    fn content_length(&self) -> Self::Data<'_> {
-        &self.content_length
+    fn content_length(&self, node: NodeId) -> Option<u64> {
+        (&self.content_length).get(node)
     }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VecContents {
+    num_nodes: usize,
     is_skipped_content: Vec<u64>,
     content_length: Vec<u64>,
 }
 
 impl VecContents {
     pub fn new(data: Vec<(bool, Option<u64>)>) -> Result<Self> {
-        let bit_vec_len = data.len().div_ceil(64);
+        let num_nodes = data.len();
+        let bit_vec_len = num_nodes.div_ceil(64);
         let mut is_skipped_content = vec![0; bit_vec_len];
-        let mut content_length = Vec::with_capacity(data.len());
+        let mut content_length = Vec::with_capacity(num_nodes);
         for (node_id, (is_skipped, length)) in data.into_iter().enumerate() {
             ensure!(
                 length != Some(u64::MAX),
@@ -117,6 +139,7 @@ impl VecContents {
             }
         }
         Ok(VecContents {
+            num_nodes,
             is_skipped_content,
             content_length,
         })
@@ -127,18 +150,14 @@ impl PropertiesBackend for VecContents {
     type DataFilesAvailability = GuaranteedDataFiles;
 }
 impl OptContents for VecContents {
-    type Data<'a>
-        = &'a [u64]
-    where
-        Self: 'a;
-
     #[inline(always)]
-    fn is_skipped_content(&self) -> Self::Data<'_> {
-        self.is_skipped_content.as_slice()
+    fn is_skipped_content(&self, node: NodeId) -> Option<bool> {
+        // SAFETY: we check that num_nodes matches the mmap size when creating this struct
+        unsafe { get_bit(self.is_skipped_content.as_slice(), self.num_nodes, node) }
     }
     #[inline(always)]
-    fn content_length(&self) -> Self::Data<'_> {
-        self.content_length.as_slice()
+    fn content_length(&self, node: NodeId) -> Option<u64> {
+        self.content_length.get(node)
     }
 }
 
@@ -162,10 +181,12 @@ impl<
         let OptMappedContents {
             is_skipped_content,
             content_length,
+            num_nodes,
         } = self.get_contents()?;
         let contents = MappedContents {
             is_skipped_content: is_skipped_content?,
             content_length: content_length?,
+            num_nodes,
         };
         self.with_contents(contents)
     }
@@ -181,6 +202,7 @@ impl<
 
     fn get_contents(&self) -> Result<OptMappedContents> {
         Ok(OptMappedContents {
+            num_nodes: self.num_nodes,
             is_skipped_content: load_if_exists(&self.path, CONTENT_IS_SKIPPED, |path| {
                 let num_bytes = self.num_nodes.div_ceil(u64::BITS.try_into().unwrap());
                 NumberMmap::new(path, num_bytes).context("Could not load is_skipped_content")
@@ -232,10 +254,10 @@ impl<
     ///
     /// If the node id does not exist.
     #[inline]
-    pub fn is_skipped_content(&self, node_id: NodeId) -> PropertiesResult<bool, CONTENTS> {
+    pub fn is_skipped_content(&self, node_id: NodeId) -> PropertiesResult<'_, bool, CONTENTS> {
         CONTENTS::map_if_available(self.try_is_skipped_content(node_id), |is_skipped_content| {
             is_skipped_content
-                .unwrap_or_else(|e| panic!("Cannot get is_skipped_content bit of node: {}", e))
+                .unwrap_or_else(|e| panic!("Cannot get is_skipped_content bit of node: {e}"))
         })
     }
 
@@ -246,23 +268,17 @@ impl<
     pub fn try_is_skipped_content(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<bool, OutOfBoundError>, CONTENTS> {
-        CONTENTS::map_if_available(self.contents.is_skipped_content(), |is_skipped_contents| {
-            if node_id >= self.num_nodes {
-                return Err(OutOfBoundError {
+    ) -> PropertiesResult<'_, Result<bool, OutOfBoundError>, CONTENTS> {
+        CONTENTS::map_if_available(
+            self.contents.is_skipped_content(node_id),
+            |is_skipped_content| match is_skipped_content {
+                None => Err(OutOfBoundError {
                     index: node_id,
                     len: self.num_nodes,
-                });
-            }
-            let cell_id = node_id / (u64::BITS as usize);
-            let mask = 1 << (node_id % (u64::BITS as usize));
-
-            // Safe because we checked node_id is lower than the length, and the length of
-            // self.contents.is_skipped_content() is checked when creating the mmap
-            let cell = unsafe { is_skipped_contents.get_unchecked(cell_id) };
-
-            Ok((cell & mask) != 0)
-        })
+                }),
+                Some(is_skipped_content) => Ok(is_skipped_content),
+            },
+        )
     }
 
     /// Returns the length of the given content.
@@ -273,9 +289,9 @@ impl<
     ///
     /// If the node id does not exist.
     #[inline]
-    pub fn content_length(&self, node_id: NodeId) -> PropertiesResult<Option<u64>, CONTENTS> {
+    pub fn content_length(&self, node_id: NodeId) -> PropertiesResult<'_, Option<u64>, CONTENTS> {
         CONTENTS::map_if_available(self.try_content_length(node_id), |content_length| {
-            content_length.unwrap_or_else(|e| panic!("Cannot get content length: {}", e))
+            content_length.unwrap_or_else(|e| panic!("Cannot get content length: {e}"))
         })
     }
 
@@ -286,13 +302,13 @@ impl<
     pub fn try_content_length(
         &self,
         node_id: NodeId,
-    ) -> PropertiesResult<Result<Option<u64>, OutOfBoundError>, CONTENTS> {
-        CONTENTS::map_if_available(self.contents.content_length(), |content_lengths| {
-            match content_lengths.get(node_id) {
+    ) -> PropertiesResult<'_, Result<Option<u64>, OutOfBoundError>, CONTENTS> {
+        CONTENTS::map_if_available(self.contents.content_length(node_id), |content_length| {
+            match content_length {
                 None => Err(OutOfBoundError {
                     // id does not exist
                     index: node_id,
-                    len: content_lengths.len(),
+                    len: self.num_nodes,
                 }),
                 Some(u64::MAX) => Ok(None), // Skipped content with no length
                 Some(length) => Ok(Some(length)),

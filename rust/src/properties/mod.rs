@@ -30,7 +30,7 @@ use anyhow::{Context, Result};
 use byteorder::BigEndian;
 use mmap_rs::Mmap;
 
-use crate::mph::SwhidMphf;
+use crate::mph::LoadableSwhidMphf;
 use crate::utils::mmap::NumberMmap;
 use crate::utils::GetIndex;
 use crate::OutOfBoundError;
@@ -143,10 +143,12 @@ pub struct GuaranteedDataFiles {
 impl DataFilesAvailability for OptionalDataFiles {
     type Result<'err, T> = Result<T, &'err UnavailableProperty>;
 
+    #[inline(always)]
     fn map<T, U>(v: Self::Result<'_, T>, f: impl FnOnce(T) -> U) -> Self::Result<'_, U> {
         v.map(f)
     }
 
+    #[inline(always)]
     fn zip<'err, T1, T2>(
         v1: Self::Result<'err, T1>,
         v2: Self::Result<'err, T2>,
@@ -154,6 +156,7 @@ impl DataFilesAvailability for OptionalDataFiles {
         v1.and_then(|v1| v2.map(|v2| (v1, v2)))
     }
 
+    #[inline(always)]
     fn make_result<T>(value: Self::Result<'_, T>) -> Result<T, &UnavailableProperty> {
         value
     }
@@ -162,10 +165,12 @@ impl DataFilesAvailability for OptionalDataFiles {
 impl DataFilesAvailability for GuaranteedDataFiles {
     type Result<'err, T> = T;
 
+    #[inline(always)]
     fn map<T, U>(v: Self::Result<'_, T>, f: impl FnOnce(T) -> U) -> Self::Result<'_, U> {
         f(v)
     }
 
+    #[inline(always)]
     fn zip<'err, T1, T2>(
         v1: Self::Result<'err, T1>,
         v2: Self::Result<'err, T2>,
@@ -173,6 +178,7 @@ impl DataFilesAvailability for GuaranteedDataFiles {
         (v1, v2)
     }
 
+    #[inline(always)]
     fn make_result<T>(value: Self::Result<'_, T>) -> Result<T, &UnavailableProperty> {
         Ok(value)
     }
@@ -223,8 +229,8 @@ pub struct SwhGraphProperties<
     STRINGS: MaybeStrings,
     LABELNAMES: MaybeLabelNames,
 > {
-    path: PathBuf,
-    num_nodes: usize,
+    pub(crate) path: PathBuf,
+    pub(crate) num_nodes: usize,
     pub(crate) maps: MAPS,
     pub(crate) timestamps: TIMESTAMPS,
     pub(crate) persons: PERSONS,
@@ -305,7 +311,7 @@ impl SwhGraphProperties<NoMaps, NoTimestamps, NoPersons, NoContents, NoStrings, 
     ///     .load_strings()
     ///     .expect("Could not load string properties");
     /// ```
-    pub fn load_all<MPHF: SwhidMphf>(self) -> Result<AllSwhGraphProperties<MPHF>> {
+    pub fn load_all<MPHF: LoadableSwhidMphf>(self) -> Result<AllSwhGraphProperties<MPHF>> {
         self.load_maps()?
             .load_timestamps()?
             .load_persons()?

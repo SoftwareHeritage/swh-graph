@@ -1,14 +1,18 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::collections::HashMap;
 use std::path::Path;
+
+use anyhow::{anyhow, Result};
+use webgraph::traits::labels::SortedIterator;
 
 use crate::arc_iterators::FlattenedSuccessorsIterator;
 use crate::graph::*;
 use crate::properties;
-use crate::NodeConstraint;
+use crate::{NodeConstraint, NodeType};
 
 macro_rules! make_filtered_arcs_iterator {
     ($name:ident, $inner:ident, $( $next:tt )*) => {
@@ -34,6 +38,15 @@ macro_rules! make_filtered_arcs_iterator {
 
             $( $next )*
         }
+
+        // SAFETY: filtering out elements out of an iterator preserves sortedness
+        unsafe impl<
+            'a,
+            $inner: SortedIterator<Item = NodeId> + 'a,
+            NodeFilter: Fn(NodeId) -> bool,
+            ArcFilter: Fn(NodeId, NodeId) -> bool,
+        > SortedIterator for $name<'a, $inner, NodeFilter, ArcFilter> {
+        }
     }
 }
 
@@ -44,12 +57,10 @@ make_filtered_arcs_iterator! {
         if !(self.node_filter)(self.node) {
             return None;
         }
-        for dst in self.inner.by_ref() {
-            if (self.node_filter)(dst) && (self.arc_filter)(self.node, dst) {
-                return Some(dst)
-            }
-        }
-        None
+
+        self.inner
+            .by_ref()
+            .find(|&dst| (self.node_filter)(dst) && (self.arc_filter)(self.node, dst))
     }
 }
 make_filtered_arcs_iterator! {
@@ -59,12 +70,10 @@ make_filtered_arcs_iterator! {
         if !(self.node_filter)(self.node) {
             return None;
         }
-        for src in self.inner.by_ref() {
-            if (self.node_filter)(src) && (self.arc_filter)(src, self.node) {
-                return Some(src)
-            }
-        }
-        None
+
+        self.inner
+            .by_ref()
+            .find(|&src| (self.node_filter)(src) && (self.arc_filter)(src, self.node))
     }
 }
 
@@ -93,6 +102,19 @@ macro_rules! make_filtered_labeled_arcs_iterator {
             type Item = $inner::Item;
 
             $( $next )*
+        }
+
+        // SAFETY: filtering out elements out of an iterator preserves sortedness
+        // 'Labels' itself does not need to be sorted because we only implement
+        // SortedIterator on the outer iterator, not in the inner one.
+        unsafe impl<
+            'a,
+            Labels,
+            $inner: SortedIterator<Item = (NodeId, Labels)> + 'a,
+            NodeFilter: Fn(NodeId) -> bool,
+            ArcFilter: Fn(NodeId, NodeId) -> bool,
+        > SortedIterator for $name<'a, Labels, $inner, NodeFilter, ArcFilter>
+        {
         }
 
         impl<
@@ -149,6 +171,8 @@ pub struct Subgraph<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(us
     pub graph: G,
     pub node_filter: NodeFilter,
     pub arc_filter: ArcFilter,
+    pub num_nodes_by_type: Option<HashMap<NodeType, usize>>,
+    pub num_arcs_by_type: Option<HashMap<(NodeType, NodeType), usize>>,
 }
 
 impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool> Subgraph<G, NodeFilter, fn(usize, usize) -> bool> {
@@ -163,6 +187,8 @@ impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool> Subgraph<G, NodeFilter, fn(usiz
             graph,
             node_filter,
             arc_filter: |_src, _dst| true,
+            num_nodes_by_type: None,
+            num_arcs_by_type: None,
         }
     }
 }
@@ -179,6 +205,8 @@ impl<G: SwhGraph, ArcFilter: Fn(usize, usize) -> bool> Subgraph<G, fn(usize) -> 
             graph,
             node_filter: |_node| true,
             arc_filter,
+            num_nodes_by_type: None,
+            num_arcs_by_type: None,
         }
     }
 }
@@ -196,6 +224,20 @@ where
     ) -> Subgraph<G, impl Fn(NodeId) -> bool, fn(usize, usize) -> bool> {
         Subgraph {
             graph: graph.clone(),
+            num_nodes_by_type: graph.num_nodes_by_type().ok().map(|counts| {
+                counts
+                    .into_iter()
+                    .filter(|&(type_, _count)| node_constraint.matches(type_))
+                    .collect()
+            }),
+            num_arcs_by_type: graph.num_arcs_by_type().ok().map(|counts| {
+                counts
+                    .into_iter()
+                    .filter(|&((src_type, dst_type), _count)| {
+                        node_constraint.matches(src_type) && node_constraint.matches(dst_type)
+                    })
+                    .collect()
+            }),
             node_filter: move |node| node_constraint.matches(graph.properties().node_type(node)),
             arc_filter: |_src, _dst| true,
         }
@@ -223,6 +265,16 @@ impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> 
     // subgraph filtering.
     fn num_arcs(&self) -> u64 {
         self.graph.num_arcs()
+    }
+    fn num_nodes_by_type(&self) -> Result<HashMap<NodeType, usize>> {
+        self.num_nodes_by_type.clone().ok_or(anyhow!(
+            "num_nodes_by_type is not supported by this Subgraph (if possible, use Subgraph::with_node_constraint to build it)"
+        ))
+    }
+    fn num_arcs_by_type(&self) -> Result<HashMap<(NodeType, NodeType), usize>> {
+        self.num_arcs_by_type.clone().ok_or(anyhow!(
+            "num_arcs_by_type is not supported by this Subgraph (if possible, use Subgraph::with_node_constraint to build it)"
+        ))
     }
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         (self.node_filter)(src_node_id)

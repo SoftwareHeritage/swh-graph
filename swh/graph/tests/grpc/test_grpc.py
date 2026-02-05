@@ -1,14 +1,16 @@
-# Copyright (c) 2022-2024 The Software Heritage developers
+# Copyright (C) 2022-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from collections import Counter
 import hashlib
 import re
 import time
 
 from google.protobuf.field_mask_pb2 import FieldMask
 
+from swh.graph.example_dataset import DATASET
 from swh.graph.grpc.swhgraph_pb2 import (
     GraphDirection,
     NodeFilter,
@@ -68,7 +70,6 @@ def test_stats(graph_grpc_stub):
     assert isinstance(stats.compression_ratio, float)
     assert isinstance(stats.bits_per_node, float)
     assert isinstance(stats.bits_per_edge, float)
-    assert isinstance(stats.avg_locality, float)
     assert stats.indegree_min == 0
     assert stats.indegree_max == 4
     assert isinstance(stats.indegree_avg, float)
@@ -77,6 +78,22 @@ def test_stats(graph_grpc_stub):
     assert isinstance(stats.outdegree_avg, float)
     assert stats.export_started_at == 1669888200
     assert stats.export_ended_at == 1669899600
+    assert stats.num_nodes_by_type == dict(
+        Counter(
+            node.swhid().object_type.value for node in DATASET if hasattr(node, "swhid")
+        )
+    )
+    # TODO: auto-generate this
+    assert stats.num_arcs_by_type == {
+        "ori:snp": 2,
+        "snp:rel": 3,
+        "snp:rev": 2,
+        "rel:rev": 3,
+        "rev:rev": 3,
+        "rev:dir": 4,
+        "dir:dir": 3,
+        "dir:cnt": 8,
+    }
 
 
 def test_leaves(graph_grpc_stub):

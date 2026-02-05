@@ -20,7 +20,6 @@ pub use swhtype::{ArcType, NodeConstraint, NodeType};
 
 pub mod algos;
 pub mod arc_iterators;
-pub mod collections;
 pub mod front_coded_list;
 pub mod graph;
 pub mod graph_builder;
@@ -45,6 +44,8 @@ pub mod java_compat;
 
 pub mod utils;
 
+pub mod person;
+
 pub use webgraph;
 
 /// Returned by a `try_` method when the given index is past the number of nodes
@@ -52,7 +53,7 @@ pub use webgraph;
 #[derive(Error, Debug, PartialEq, Eq, Hash, Clone)]
 #[error("Accessed property index {index} out of {len}")]
 pub struct OutOfBoundError {
-    /// Indexed that was accessed
+    /// Index that was accessed
     pub index: usize,
     /// Length of the underlying collection (maximum index + 1)
     pub len: usize,

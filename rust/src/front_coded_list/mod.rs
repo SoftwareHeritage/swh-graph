@@ -76,5 +76,5 @@ fn test_push_int() {
         r = r2;
     }
 
-    assert_eq!(r.len(), 0, "Leftovers in the slice: {:?}", r);
+    assert_eq!(r.len(), 0, "Leftovers in the slice: {r:?}");
 }

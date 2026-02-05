@@ -130,7 +130,6 @@ class NaiveClient:
             "compression_ratio": 1.0,
             "bits_per_edge": 100.0,
             "bits_per_node": 100.0,
-            "avg_locality": 0.0,
             "indegree_min": min(map(len, self.graph.backward_edges.values())),
             "indegree_max": max(map(len, self.graph.backward_edges.values())),
             "indegree_avg": statistics.mean(

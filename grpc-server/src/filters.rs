@@ -15,38 +15,36 @@ use super::proto;
 fn parse_node_type(type_name: &str) -> Result<NodeType, tonic::Status> {
     type_name
         .parse()
-        .map_err(|_| tonic::Status::invalid_argument(format!("Invalid node type: {}", type_name)))
+        .map_err(|_| tonic::Status::invalid_argument(format!("Invalid node type: {type_name}")))
 }
 
 #[inline(always)]
 #[allow(clippy::result_large_err)] // it's inlined
-/// Parses comma -separated `src:dst` pairs of node types (see [`parse_node_type`]).
+/// Parses comma-separated `src:dst` pairs of node types (see [`parse_node_type`]).
 ///
 /// Returns `*` if the node type is `*`
 fn parse_arc_type(type_name: &str) -> Result<ArcType, tonic::Status> {
     let mut splits = type_name.splitn(2, ':');
     let Some(src_type_name) = splits.next() else {
         return Err(tonic::Status::invalid_argument(format!(
-            "Invalid arc type: {} (should not be empty)",
-            type_name
+            "Invalid arc type: {type_name} (should not be empty)"
         )));
     };
     let Some(dst_type_name) = splits.next() else {
         return Err(tonic::Status::invalid_argument(format!(
-            "Invalid arc type: {} (should have a colon)",
-            type_name
+            "Invalid arc type: {type_name} (should have a colon)"
         )));
     };
     let src_type = match src_type_name {
         "*" => None,
         _ => Some(src_type_name.parse().map_err(|_| {
-            tonic::Status::invalid_argument(format!("Invalid node type: {}", src_type_name))
+            tonic::Status::invalid_argument(format!("Invalid node type: {src_type_name}"))
         })?),
     };
     let dst_type = match dst_type_name {
         "*" => None,
         _ => Some(dst_type_name.parse().map_err(|_| {
-            tonic::Status::invalid_argument(format!("Invalid node type: {}", dst_type_name))
+            tonic::Status::invalid_argument(format!("Invalid node type: {dst_type_name}"))
         })?),
     };
     Ok(ArcType {

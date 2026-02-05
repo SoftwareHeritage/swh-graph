@@ -220,6 +220,18 @@ message Path {
      * performing a FindPathBetween search with two backward graphs, this will
      * be the index of the common ancestor in the path. */
     optional int32 midpoint_index = 2;
+    /* List of nodes in the path, from source to destination, and labels between them.
+     * This allows getting the path within a directory structure, for example.
+     *
+     * Currently only implemented for FindPathTo requests. */
+    repeated LabeledNode labeled_node = 3;
+}
+
+/* Represents a node and the label between it and its successor. */
+message LabeledNode {
+  optional Node node = 1;
+
+  repeated EdgeLabel label = 2;
 }
 
 /* Represents a successor of a given node. */
@@ -313,7 +325,8 @@ message StatsResponse {
     /* Number of bits per edge (overall graph size in bits divided by the
      * number of arcs). */
     optional double bits_per_edge = 5;
-    optional double avg_locality = 6;
+    /* removed:
+     * optional double avg_locality = 6; */
 
     /* Smallest indegree */
     int64 indegree_min = 7;
@@ -332,4 +345,9 @@ message StatsResponse {
     optional int64 export_started_at = 13;
     /* Time when the export ended */
     optional int64 export_ended_at = 14;
+
+    /* maps node types (ie. 'cnt', 'dir', etc.) to the number of nodes of that type */
+    map<string, int64> num_nodes_by_type = 16;
+    /* maps edge types (ie. 'dir:cnt', 'dir:dir', 'rev:'dir', etc.) to the number of nodes of that type */
+    map<string, int64> num_arcs_by_type = 17;
 }

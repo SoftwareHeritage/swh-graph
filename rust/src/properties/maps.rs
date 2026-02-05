@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2025  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -10,9 +10,8 @@ use thiserror::Error;
 use super::suffixes::*;
 use super::*;
 use crate::graph::NodeId;
-use crate::map::{MappedPermutation, OwnedPermutation, Permutation};
 use crate::map::{Node2SWHID, Node2Type, UsizeMmap};
-use crate::mph::{SwhidMphf, VecMphf};
+use crate::mph::{LoadableSwhidMphf, SwhidMphf, VecMphf};
 use crate::utils::suffix_path;
 use crate::{swhid::StrSWHIDDeserializationError, NodeType, SWHID};
 
@@ -20,9 +19,8 @@ use crate::{swhid::StrSWHIDDeserializationError, NodeType, SWHID};
 /// to allow loading maps only if needed.
 pub trait MaybeMaps {}
 
-pub struct MappedMaps<MPHF: SwhidMphf> {
-    mphf: MPHF,
-    order: MappedPermutation,
+pub struct MappedMaps<MPHF: LoadableSwhidMphf> {
+    mphf: <MPHF as LoadableSwhidMphf>::WithMappedPermutation,
     node2swhid: Node2SWHID<Mmap>,
     node2type: Node2Type<UsizeMmap<Mmap>>,
 }
@@ -40,35 +38,26 @@ impl MaybeMaps for NoMaps {}
 /// Trait for backend storage of maps (either in-memory, or loaded from disk and memory-mapped)
 pub trait Maps {
     type MPHF: SwhidMphf;
-    type Perm: Permutation;
-    type Memory: AsRef<[u8]>;
 
     fn mphf(&self) -> &Self::MPHF;
-    fn order(&self) -> &Self::Perm;
-    fn node2swhid(&self) -> &Node2SWHID<Self::Memory>;
-    fn node2type(&self) -> &Node2Type<UsizeMmap<Self::Memory>>;
+    fn node2swhid(&self, node: NodeId) -> Result<SWHID, OutOfBoundError>;
+    fn node2type(&self, node: NodeId) -> Result<NodeType, OutOfBoundError>;
 }
 
-impl<MPHF: SwhidMphf> Maps for MappedMaps<MPHF> {
-    type MPHF = MPHF;
-    type Perm = MappedPermutation;
-    type Memory = Mmap;
+impl<MPHF: LoadableSwhidMphf> Maps for MappedMaps<MPHF> {
+    type MPHF = <MPHF as LoadableSwhidMphf>::WithMappedPermutation;
 
     #[inline(always)]
     fn mphf(&self) -> &Self::MPHF {
         &self.mphf
     }
     #[inline(always)]
-    fn order(&self) -> &MappedPermutation {
-        &self.order
+    fn node2swhid(&self, node: NodeId) -> Result<SWHID, OutOfBoundError> {
+        self.node2swhid.get(node)
     }
     #[inline(always)]
-    fn node2swhid(&self) -> &Node2SWHID<Mmap> {
-        &self.node2swhid
-    }
-    #[inline(always)]
-    fn node2type(&self) -> &Node2Type<UsizeMmap<Mmap>> {
-        &self.node2type
+    fn node2type(&self, node: NodeId) -> Result<NodeType, OutOfBoundError> {
+        self.node2type.get(node)
     }
 }
 
@@ -76,9 +65,8 @@ impl<MPHF: SwhidMphf> Maps for MappedMaps<MPHF> {
 /// instead of mmapping from disk
 pub struct VecMaps {
     mphf: VecMphf,
-    order: OwnedPermutation<Vec<usize>>,
     node2swhid: Node2SWHID<Vec<u8>>,
-    node2type: Node2Type<UsizeMmap<Vec<u8>>>,
+    node2type: Node2Type<Vec<usize>>,
 }
 
 impl VecMaps {
@@ -86,7 +74,6 @@ impl VecMaps {
         let node2swhid = Node2SWHID::new_from_iter(swhids.iter().cloned());
         let node2type = Node2Type::new_from_iter(swhids.iter().map(|swhid| swhid.node_type));
         VecMaps {
-            order: OwnedPermutation::new((0..swhids.len()).collect()).unwrap(),
             node2type,
             node2swhid,
             mphf: VecMphf { swhids },
@@ -96,24 +83,18 @@ impl VecMaps {
 
 impl Maps for VecMaps {
     type MPHF = VecMphf;
-    type Perm = OwnedPermutation<Vec<usize>>;
-    type Memory = Vec<u8>;
 
     #[inline(always)]
     fn mphf(&self) -> &Self::MPHF {
         &self.mphf
     }
     #[inline(always)]
-    fn order(&self) -> &Self::Perm {
-        &self.order
+    fn node2swhid(&self, node: NodeId) -> Result<SWHID, OutOfBoundError> {
+        self.node2swhid.get(node)
     }
     #[inline(always)]
-    fn node2swhid(&self) -> &Node2SWHID<Self::Memory> {
-        &self.node2swhid
-    }
-    #[inline(always)]
-    fn node2type(&self) -> &Node2Type<UsizeMmap<Self::Memory>> {
-        &self.node2type
+    fn node2type(&self, node: NodeId) -> Result<NodeType, OutOfBoundError> {
+        self.node2type.get(node)
     }
 }
 
@@ -132,19 +113,16 @@ impl<
     /// * [`SwhGraphProperties::node_id`]
     /// * [`SwhGraphProperties::swhid`]
     /// * [`SwhGraphProperties::node_type`]
-    pub fn load_maps<MPHF: SwhidMphf>(
+    pub fn load_maps<MPHF: LoadableSwhidMphf>(
         self,
     ) -> Result<
         SwhGraphProperties<MappedMaps<MPHF>, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
     > {
-        let mphf = MPHF::load(&self.path)?;
+        let mphf = MPHF::load(&self.path)
+            .context("Could not load MPHF")?
+            .with_mapped_permutation(&self.path)
+            .context("Could not load permutation")?;
         let maps = MappedMaps {
-            order: MappedPermutation::load_unchecked(&suffix_path(
-                &self.path,
-                mphf.order_suffix()
-                    .expect("MPHF does not support permutations"),
-            ))
-            .context("Could not load order")?,
             mphf,
             node2swhid: Node2SWHID::load(suffix_path(&self.path, NODE2SWHID))
                 .context("Could not load node2swhid")?,
@@ -206,12 +184,10 @@ impl<
     /// Undefined behavior if the swhid does not exist.
     #[inline]
     pub unsafe fn node_id_unchecked(&self, swhid: &SWHID) -> NodeId {
-        self.maps.order().get_unchecked(
-            self.maps
-                .mphf()
-                .hash_swhid(swhid)
-                .unwrap_or_else(|| panic!("Unknown SWHID {}", swhid)),
-        )
+        self.maps
+            .mphf()
+            .hash_swhid(swhid)
+            .unwrap_or_else(|| panic!("Unknown SWHID {swhid}"))
     }
 
     /// Returns the node id of the given SWHID, or `None` if it does not exist.
@@ -223,20 +199,14 @@ impl<
         use NodeIdFromSwhidError::*;
 
         let swhid = swhid.try_into().map_err(InvalidSwhid)?;
-        let hash = self
+        let node_id = self
             .maps
             .mphf()
             .hash_swhid(&swhid)
             .ok_or(UnknownSwhid(swhid))?;
-        let node_id = self
-            .maps
-            .order()
-            .get(hash)
-            .ok_or(InternalError(".order map is shorter than SWHID hash value"))?;
         let actual_swhid = self
             .maps
-            .node2swhid()
-            .get(node_id)
+            .node2swhid(node_id)
             .map_err(|_| InternalError("node2swhid map is shorter than SWHID hash value"))?;
         if actual_swhid == swhid {
             Ok(node_id)
@@ -258,7 +228,7 @@ impl<
         use NodeIdFromSwhidError::*;
 
         let swhid = swhid.as_ref();
-        let hash = self
+        let node_id = self
             .maps
             .mphf()
             .hash_str(swhid)
@@ -266,15 +236,9 @@ impl<
                 Ok(swhid) => UnknownSwhid(swhid),
                 Err(e) => InvalidSwhid(e),
             })?;
-        let node_id = self
-            .maps
-            .order()
-            .get(hash)
-            .ok_or(InternalError(".order map is shorter than SWHID hash value"))?;
         let actual_swhid = self
             .maps
-            .node2swhid()
-            .get(node_id)
+            .node2swhid(node_id)
             .map_err(|_| InternalError("node2swhid map is shorter than SWHID hash value"))?;
         let swhid = SWHID::try_from(swhid).map_err(InvalidSwhid)?;
         if actual_swhid == swhid {
@@ -292,13 +256,13 @@ impl<
     #[inline]
     pub fn swhid(&self, node_id: NodeId) -> SWHID {
         self.try_swhid(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node SWHID: {}", e))
+            .unwrap_or_else(|e| panic!("Cannot get node SWHID: {e}"))
     }
 
     /// Returns the SWHID of a given node, or `None` if the node id does not exist
     #[inline]
     pub fn try_swhid(&self, node_id: NodeId) -> Result<SWHID, OutOfBoundError> {
-        self.maps.node2swhid().get(node_id)
+        self.maps.node2swhid(node_id)
     }
 
     /// Returns the type of a given node
@@ -309,12 +273,12 @@ impl<
     #[inline]
     pub fn node_type(&self, node_id: NodeId) -> NodeType {
         self.try_node_type(node_id)
-            .unwrap_or_else(|e| panic!("Cannot get node type: {}", e))
+            .unwrap_or_else(|e| panic!("Cannot get node type: {e}"))
     }
 
     /// Returns the type of a given node, or `None` if the node id does not exist
     #[inline]
     pub fn try_node_type(&self, node_id: NodeId) -> Result<NodeType, OutOfBoundError> {
-        self.maps.node2type().get(node_id)
+        self.maps.node2type(node_id)
     }
 }

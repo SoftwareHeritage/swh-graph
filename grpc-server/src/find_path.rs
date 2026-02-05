@@ -9,11 +9,12 @@ use std::sync::{Arc, Mutex, OnceLock};
 use itertools::Itertools;
 use tonic::{Request, Response};
 
-use swh_graph::graph::{SwhForwardGraph, SwhGraphWithProperties};
+use swh_graph::graph::{SwhForwardGraph, SwhGraphWithProperties, SwhLabeledForwardGraph};
 use swh_graph::properties;
 use swh_graph::views::{Subgraph, Transposed};
 
 use super::filters::{ArcFilterChecker, NodeFilterChecker};
+use super::label_builder::LabelBuilder;
 use super::node_builder::NodeBuilder;
 use super::proto;
 use super::visitor::{SimpleBfsVisitor, VisitFlow};
@@ -184,20 +185,12 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     graph,
                     move |src, dst| arc_checker.matches(src, dst),
                 ));
-                let node_builder = NodeBuilder::new(
-                    subgraph.clone(),
-                    mask.map(|mask| prost_types::FieldMask {
-                        paths: mask
-                            .paths
-                            .iter()
-                            // also drops any field not starting with "node." because they would
-                            // apply to the overall structure (if we ever add fields), not to
-                            // the node.
-                            .flat_map(|field| field.strip_prefix("node."))
-                            .map(|field| field.to_owned())
-                            .collect(),
-                    }),
-                )?;
+
+                let node_builder = NodeBuilder::new(subgraph.clone(), mask.clone(), Some("node"))?;
+                let labeled_node_builder =
+                    NodeBuilder::new(subgraph.clone(), mask.clone(), Some("labeled_node.node"))?;
+                let labeled_label_builder =
+                    LabelBuilder::new(subgraph.clone(), mask.clone(), "labeled_node.label")?;
 
                 let on_node = |node, depth, num_successors| {
                     if target_checker.matches(node, num_successors) {
@@ -212,22 +205,64 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     parents.entry(dst).or_insert(src);
                     Ok(VisitFlow::Continue)
                 };
-                let visitor = self.make_visitor(visitor_config, subgraph, on_node, on_arc)?;
+                let visitor = self.make_visitor(visitor_config, subgraph.clone(), on_node, on_arc)?;
                 scoped_spawn_blocking(|| visitor.visit())?;
 
                 match found_target {
                     Some(found_target) => {
                         let target_depth = target_depth.unwrap(); // was set at the same time as found_target
-                        let path = self
-                            .path_from_visit(&parents, found_target, target_depth)?
-                            .into_iter()
-                            .map(|node_id| node_builder.build_node(node_id))
-                            .rev() // Reverse order to be src->target
-                            .collect();
+                        let path = self.path_from_visit(&parents, found_target, target_depth)?;
+                        let path_nodes: Vec<proto::Node> = if node_builder.empty_mask() {
+                            Vec::new()
+                        } else {
+                            path.iter()
+                                .map(|&node_id| node_builder.build_node(node_id))
+                                .rev() // Reverse order to be src->target
+                                .collect()
+                        };
+                        let labeled_path: Vec<proto::LabeledNode> =
+                            if labeled_node_builder.empty_mask() && labeled_label_builder.empty_mask() {
+                                Vec::new()
+                            } else {
+                                path.iter()
+                                    .enumerate() // counted from the end
+                                    .map(|(idx, &node_id)| {
+                                        let label = if idx == 0 {
+                                            // last node of the path
+                                            Vec::new()
+                                        } else {
+                                            let (_succ, labels) = subgraph
+                                                .labeled_successors(node_id)
+                                                .filter(|(succ, _labels)| succ == &path[idx - 1])
+                                                .next()
+                                                .expect("node on path is missing a successor");
+                                            if labeled_label_builder.empty_mask() {
+                                                Vec::new()
+                                            } else {
+                                                labels.map(|label| {
+                                                    // Cannot panic because we made sure the mask is not empty
+                                                    labeled_label_builder.build_edge_label(label).unwrap()
+                                                }).collect()
+                                            }
+                                        };
+                                        let node = if labeled_node_builder.empty_mask() {
+                                            None
+                                        } else {
+                                            Some(labeled_node_builder.build_node(node_id))
+                                        };
+                                        proto::LabeledNode {
+                                            node,
+                                            label,
+                                        }
+                                    })
+                                    .rev() // Reverse order to be src->target
+                                    .collect()
+                            };
 
                         Ok(Response::new(proto::Path {
-                            node: path,
+                            node: path_nodes,
                             midpoint_index: None,
+                            labeled_node: labeled_path,
                         }))
                     }
                     None => {
@@ -351,32 +386,9 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
         let transpose_subgraph = Arc::new(Transposed(subgraph.clone()));
         let transpose_graph = Arc::new(Transposed(graph.clone()));
 
-        let forward_node_builder = NodeBuilder::new(
-            subgraph.clone(),
-            mask.clone().map(|mask| prost_types::FieldMask {
-                paths: mask
-                    .paths
-                    .iter()
-                    // also drops any field not starting with "node." because they would
-                    // apply to the overall structure (if we ever add fields), not to
-                    // the node.
-                    .flat_map(|field| field.strip_prefix("node."))
-                    .map(|field| field.to_owned())
-                    .collect(),
-            }),
-        )?;
-        let backward_node_builder = NodeBuilder::new(
-            transpose_subgraph.clone(),
-            mask.map(|mask| prost_types::FieldMask {
-                paths: mask
-                    .paths
-                    .iter()
-                    // ditto
-                    .flat_map(|field| field.strip_prefix("node."))
-                    .map(|field| field.to_owned())
-                    .collect(),
-            }),
-        )?;
+        let forward_node_builder = NodeBuilder::new(subgraph.clone(), mask.clone(), Some("node"))?;
+        let backward_node_builder =
+            NodeBuilder::new(transpose_subgraph.clone(), mask.clone(), Some("node"))?;
 
         // Technically we don't need locks because the closures are called sequentially,
         // but I don't see a way around it without unsafe{}.
@@ -513,10 +525,13 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                         }
                     }),
                 );
+                // TODO: build and return labeled_node
+                let labeled_path: Vec<proto::LabeledNode> = Vec::new();
 
                 Ok(Response::new(proto::Path {
                     node: path,
                     midpoint_index: Some(midpoint_index as i32),
+                    labeled_node: labeled_path,
                 }))
             }
             None => {
@@ -531,8 +546,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     dst[0..5].iter().chain([&"...".to_owned()]).join(", ")
                 };
                 Err(tonic::Status::not_found(format!(
-                    "Could not find a path from the sources ({}) to any destination ({})",
-                    sources, destinations
+                    "Could not find a path from the sources ({sources}) to any destination ({destinations})"
                 )))
             }
         }

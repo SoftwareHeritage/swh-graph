@@ -15,7 +15,7 @@ use pthash::{
 };
 use rayon::prelude::*;
 
-use crate::labels::FilenameId;
+use crate::labels::LabelNameId;
 use crate::map::{MappedPermutation, OwnedPermutation, Permutation};
 
 pub struct LabelName<T: AsRef<[u8]>>(pub T);
@@ -45,9 +45,7 @@ fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>
             LabelName(
                 base64
                     .decode_to_vec(&label_base64)
-                    .unwrap_or_else(|_| {
-                        panic!("Label {}, could not be base64-decoded", label_base64)
-                    })
+                    .unwrap_or_else(|_| panic!("Label {label_base64}, could not be base64-decoded"))
                     .into_boxed_slice(),
             )
         }))
@@ -64,7 +62,7 @@ pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
             local_speed = true,
             expected_updates = Some(num_labels),
         );
-        pl.start(format!("Reading labels (pass #{})", pass_counter));
+        pl.start(format!("Reading labels (pass #{pass_counter})"));
         iter_labels(&path)
             .expect("Could not read labels")
             .inspect(move |_| pl.light_update())
@@ -166,8 +164,8 @@ impl<'a> LabelNameHasher<'a> {
         self.mphf
     }
 
-    pub fn hash<T: AsRef<[u8]>>(&self, label_name: T) -> Result<FilenameId> {
-        Ok(FilenameId(
+    pub fn hash<T: AsRef<[u8]>>(&self, label_name: T) -> Result<LabelNameId> {
+        Ok(LabelNameId(
             self.order
                 .get(
                     self.mphf
