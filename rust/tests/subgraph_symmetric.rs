@@ -98,10 +98,7 @@ fn test_symmetric_of_subgraph() -> Result<()> {
             .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect();
-        assert_eq!(
-            typed, *expected_labeled,
-            "labeled_successors({node})",
-        );
+        assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);
 
         let untyped: Vec<_> = symmetric
             .untyped_labeled_successors(node)
@@ -118,7 +115,6 @@ fn test_symmetric_of_subgraph() -> Result<()> {
 }
 
 #[test]
-#[should_panic(expected = "Called Symmetric::is_transposed()")]
 fn test_subgraph_of_symmetric() {
     let graph = build_graph().unwrap();
     let symmetric = Symmetric(graph);

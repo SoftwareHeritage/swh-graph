@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -11,6 +11,7 @@ use webgraph::traits::labels::SortedIterator;
 
 use crate::arc_iterators::FlattenedSuccessorsIterator;
 use crate::graph::*;
+use crate::labels::EdgeLabel;
 use crate::properties;
 use crate::{NodeConstraint, NodeType};
 
@@ -365,6 +366,20 @@ impl<
             arc_filter: &self.arc_filter,
         }
     }
+
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        FilteredLabeledSuccessors {
+            inner: self.graph.labeled_successors(node_id).into_iter(),
+            node: node_id,
+            node_filter: &self.node_filter,
+            arc_filter: &self.arc_filter,
+        }
+    }
 }
 
 impl<
@@ -391,6 +406,20 @@ impl<
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
         FilteredLabeledPredecessors {
             inner: self.graph.untyped_labeled_predecessors(node_id).into_iter(),
+            node: node_id,
+            node_filter: &self.node_filter,
+            arc_filter: &self.arc_filter,
+        }
+    }
+
+    fn labeled_predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        FilteredLabeledSuccessors {
+            inner: self.graph.labeled_predecessors(node_id).into_iter(),
             node: node_id,
             node_filter: &self.node_filter,
             arc_filter: &self.arc_filter,
