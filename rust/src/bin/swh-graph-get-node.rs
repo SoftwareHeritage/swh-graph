@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025  The Software Heritage developers
+ * Copyright (C) 2025-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -107,7 +107,7 @@ pub fn main() -> Result<()> {
                                     )?),
                                     predecessors: Some(collect_labeled_successors(
                                         &graph,
-                                        graph.labeled_predecessors(node)
+                                        graph.labeled_predecessors(node).into_iter()
                                     )?),
                                     swhid,
                                 })
@@ -229,7 +229,7 @@ pub fn main() -> Result<()> {
                         )?),
                         predecessors: Some(collect_labeled_successors(
                             &graph,
-                            graph.labeled_predecessors(node)
+                            graph.labeled_predecessors(node).into_iter()
                         )?),
                         swhid,
                     })
