@@ -42,17 +42,10 @@ fn test_symmetric_bidirectional_graph() {
     assert_eq!(symmetric.successors(0).collect::<Vec<_>>(), vec![1, 2]);
     assert_eq!(symmetric.successors(1).collect::<Vec<_>>(), vec![0, 2]);
     assert_eq!(symmetric.successors(2).collect::<Vec<_>>(), vec![0, 1]);
-    assert_eq!(symmetric.predecessors(0).collect::<Vec<_>>(), vec![1, 2]);
-    assert_eq!(symmetric.predecessors(1).collect::<Vec<_>>(), vec![0, 2]);
-    assert_eq!(symmetric.predecessors(2).collect::<Vec<_>>(), vec![0, 1]);
 
     assert_eq!(symmetric.outdegree(0), 2);
     assert_eq!(symmetric.outdegree(1), 2);
     assert_eq!(symmetric.outdegree(2), 2);
-
-    assert_eq!(symmetric.indegree(0), 2);
-    assert_eq!(symmetric.indegree(1), 2);
-    assert_eq!(symmetric.indegree(2), 2);
 }
 
 #[test]
@@ -102,13 +95,10 @@ fn test_symmetric_predecessors_equal_successors() {
     );
     let symmetric = Symmetric(graph);
 
-    assert_eq!(symmetric.predecessors(0).collect::<Vec<_>>(), vec![1, 2]);
     assert_eq!(symmetric.successors(0).collect::<Vec<_>>(), vec![1, 2]);
 
-    assert_eq!(symmetric.predecessors(1).collect::<Vec<_>>(), vec![0, 2]);
     assert_eq!(symmetric.successors(1).collect::<Vec<_>>(), vec![0, 2]);
 
-    assert_eq!(symmetric.predecessors(2).collect::<Vec<_>>(), vec![0, 1]);
     assert_eq!(symmetric.successors(2).collect::<Vec<_>>(), vec![0, 1]);
 }
 
@@ -277,7 +267,16 @@ fn test_symmetric_ori_snp_labeled_successors() -> Result<()> {
         .map(|(succ, labels)| (succ, labels.collect()))
         .collect();
 
-    assert_eq!(snp1_successors, vec![(0, vec![Visit::new(VisitStatus::Full, 1770248300).unwrap().into(), Visit::new(VisitStatus::Partial, 1770248399).unwrap().into()])]);
+    assert_eq!(
+        snp1_successors,
+        vec![(
+            0,
+            vec![
+                Visit::new(VisitStatus::Full, 1770248300).unwrap().into(),
+                Visit::new(VisitStatus::Partial, 1770248399).unwrap().into()
+            ]
+        )]
+    );
 
     Ok(())
 }
@@ -581,4 +580,3 @@ fn test_symmetric_flattened_labels() -> Result<()> {
 
     Ok(())
 }
-

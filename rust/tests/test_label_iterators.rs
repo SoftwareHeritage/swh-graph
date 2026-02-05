@@ -360,6 +360,12 @@ fn test_labeled_predecessors_ori_snp() -> Result<()> {
         .map(|(pred, labels)| (pred, labels.collect()))
         .collect();
 
-    assert_eq!(snp1_preds, vec![(0, vec![Visit::new(VisitStatus::Full, 1000001000).unwrap().into()])]);
+    assert_eq!(
+        snp1_preds,
+        vec![(
+            0,
+            vec![Visit::new(VisitStatus::Full, 1000001000).unwrap().into()]
+        )]
+    );
     Ok(())
 }

@@ -183,23 +183,6 @@ impl<G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph> SwhLabeledForwardGraph
     }
 }
 
-impl<G: SwhForwardGraph + SwhBackwardGraph> SwhBackwardGraph for Symmetric<G>
-where
-    Self: SwhForwardGraph,
-{
-    type Predecessors<'pred>
-        = <Self as SwhForwardGraph>::Successors<'pred>
-    where
-        Self: 'pred;
-
-    fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
-        self.successors(node_id)
-    }
-    fn indegree(&self, node_id: NodeId) -> usize {
-        self.outdegree(node_id)
-    }
-}
-
 impl<G: SwhGraphWithProperties> SwhGraphWithProperties for Symmetric<G> {
     type Maps = <G as SwhGraphWithProperties>::Maps;
     type Timestamps = <G as SwhGraphWithProperties>::Timestamps;
