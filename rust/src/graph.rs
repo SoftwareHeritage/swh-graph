@@ -275,7 +275,7 @@ pub trait SwhForwardGraph: SwhGraph {
 pub trait SwhLabeledForwardGraph:
     SwhForwardGraph + SwhGraphWithProperties<Maps: properties::Maps>
 {
-    type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
+    type LabeledArcs<'arc>: Iterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
     type LabeledSuccessors<'node>: IntoIterator<Item = (usize, Self::LabeledArcs<'node>)>
@@ -327,7 +327,7 @@ pub trait SwhBackwardGraph: SwhGraph {
 pub trait SwhLabeledBackwardGraph:
     SwhBackwardGraph + SwhGraphWithProperties<Maps: properties::Maps>
 {
-    type LabeledArcs<'arc>: IntoIterator<Item = UntypedEdgeLabel>
+    type LabeledArcs<'arc>: Iterator<Item = UntypedEdgeLabel>
     where
         Self: 'arc;
     type LabeledPredecessors<'node>: IntoIterator<Item = (usize, Self::LabeledArcs<'node>)>
