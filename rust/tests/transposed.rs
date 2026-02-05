@@ -150,6 +150,23 @@ fn test_transpose_with_filtered_arcs() {
     );
 }
 
+fn untype_labeled_successors(
+    labeled_successors: &[(NodeId, Vec<EdgeLabel>)],
+) -> Vec<(NodeId, Vec<UntypedEdgeLabel>)> {
+    labeled_successors
+        .iter()
+        .map(|(node_id, labels)| {
+            (
+                *node_id,
+                labels
+                    .iter()
+                    .map(|label| UntypedEdgeLabel::from(*label))
+                    .collect(),
+            )
+        })
+        .collect()
+}
+
 /// Build a simple graph: ori0 -> snp1
 fn build_ori_snp_graph() -> Result<BuiltGraph> {
     let mut builder = GraphBuilder::default();
@@ -174,30 +191,38 @@ fn test_transpose_labeled_successors() -> Result<()> {
 
     // In the original graph: ori0 -> snp1 with Visit labels
     // In the transposed graph: snp1 -> ori0 with Visit labels
-    let snp1_typed: Vec<_> = transposed
-        .labeled_successors(1)
-        .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(
-        snp1_typed,
-        vec![(0, vec![visit_full.into(), visit_partial.into()])]
-    );
+    let expected = [
+        (0, vec![], vec![]),
+        (
+            1,
+            vec![0],
+            vec![(0, vec![visit_full.into(), visit_partial.into()])],
+        ),
+    ];
 
-    let snp1_untyped: Vec<_> = transposed
-        .untyped_labeled_successors(1)
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(
-        snp1_untyped,
-        vec![(
-            0,
-            vec![
-                UntypedEdgeLabel::from(EdgeLabel::from(visit_full)),
-                UntypedEdgeLabel::from(EdgeLabel::from(visit_partial)),
-            ]
-        )]
-    );
+    for &(node, ref expected_untyped, ref expected_labeled) in &expected {
+        assert_eq!(
+            transposed.successors(node).collect::<Vec<_>>(),
+            *expected_untyped,
+            "successors({node})",
+        );
+        let typed: Vec<_> = transposed
+            .labeled_successors(node)
+            .into_iter()
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect();
+        assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);
+
+        let untyped: Vec<_> = transposed
+            .untyped_labeled_successors(node)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect();
+        assert_eq!(
+            untyped,
+            untype_labeled_successors(expected_labeled),
+            "untyped_labeled_successors({node})",
+        );
+    }
 
     Ok(())
 }
@@ -212,30 +237,38 @@ fn test_transpose_labeled_predecessors() -> Result<()> {
 
     // In the original graph: ori0 -> snp1 with Visit labels
     // In the transposed graph: ori0 <- snp1 with Visit labels
-    let ori0_typed: Vec<_> = transposed
-        .labeled_predecessors(0)
-        .into_iter()
-        .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(
-        ori0_typed,
-        vec![(1, vec![visit_full.into(), visit_partial.into()])]
-    );
+    let expected = [
+        (
+            0,
+            vec![1],
+            vec![(1, vec![visit_full.into(), visit_partial.into()])],
+        ),
+        (1, vec![], vec![]),
+    ];
 
-    let ori0_untyped: Vec<_> = transposed
-        .untyped_labeled_predecessors(0)
-        .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(
-        ori0_untyped,
-        vec![(
-            1,
-            vec![
-                UntypedEdgeLabel::from(EdgeLabel::from(visit_full)),
-                UntypedEdgeLabel::from(EdgeLabel::from(visit_partial)),
-            ]
-        )]
-    );
+    for &(node, ref expected_untyped, ref expected_labeled) in &expected {
+        assert_eq!(
+            transposed.predecessors(node).collect::<Vec<_>>(),
+            *expected_untyped,
+            "predecessors({node})",
+        );
+        let typed: Vec<_> = transposed
+            .labeled_predecessors(node)
+            .into_iter()
+            .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
+            .collect();
+        assert_eq!(typed, *expected_labeled, "labeled_predecessors({node})",);
+
+        let untyped: Vec<_> = transposed
+            .untyped_labeled_predecessors(node)
+            .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
+            .collect();
+        assert_eq!(
+            untyped,
+            untype_labeled_successors(expected_labeled),
+            "untyped_labeled_predecessors({node})",
+        );
+    }
 
     Ok(())
 }

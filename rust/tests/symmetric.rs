@@ -244,34 +244,42 @@ fn test_symmetric_ori_snp_labeled_successors() -> Result<()> {
     let visit_full = Visit::new(VisitStatus::Full, 1770248300).unwrap();
     let visit_partial = Visit::new(VisitStatus::Partial, 1770248399).unwrap();
 
-    // Test ori0's successors: should have snp1 with two visit labels (forward direction)
-    let ori0_typed: Vec<(_, Vec<_>)> = symmetric
-        .labeled_successors(0)
-        .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect()))
-        .collect();
-    let expected_ori0 = vec![(1, vec![visit_full.into(), visit_partial.into()])];
-    assert_eq!(ori0_typed, expected_ori0);
+    let expected = [
+        (
+            0,
+            vec![1],
+            vec![(1, vec![visit_full.into(), visit_partial.into()])],
+        ),
+        (
+            1,
+            vec![0],
+            vec![(0, vec![visit_full.into(), visit_partial.into()])],
+        ),
+    ];
 
-    let snp1_typed: Vec<(_, Vec<_>)> = symmetric
-        .labeled_successors(1)
-        .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect()))
-        .collect();
-    let expected_snp1 = vec![(0, vec![visit_full.into(), visit_partial.into()])];
-    assert_eq!(snp1_typed, expected_snp1);
+    for &(node, ref expected_untyped, ref expected_labeled) in &expected {
+        assert_eq!(
+            symmetric.successors(node).collect::<Vec<_>>(),
+            *expected_untyped,
+            "successors({node})",
+        );
+        let typed: Vec<(_, Vec<_>)> = symmetric
+            .labeled_successors(node)
+            .into_iter()
+            .map(|(succ, labels)| (succ, labels.collect()))
+            .collect();
+        assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);
 
-    let ori0_untyped: Vec<_> = symmetric
-        .untyped_labeled_successors(0)
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(ori0_untyped, untype_labeled_successors(&expected_ori0));
-
-    let snp1_untyped: Vec<_> = symmetric
-        .untyped_labeled_successors(1)
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(snp1_untyped, untype_labeled_successors(&expected_snp1));
+        let untyped: Vec<_> = symmetric
+            .untyped_labeled_successors(node)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect();
+        assert_eq!(
+            untyped,
+            untype_labeled_successors(expected_labeled),
+            "untyped_labeled_successors({node})",
+        );
+    }
 
     Ok(())
 }
@@ -311,34 +319,34 @@ fn test_symmetric_snp_rev_labeled_successors() -> Result<()> {
         .unwrap()
         .into();
 
-    let expected_snp0 = vec![(1, vec![branch_main, branch_develop])];
-    let expected_rev1 = vec![(0, vec![branch_main, branch_develop])];
+    let expected = [
+        (0, vec![1], vec![(1, vec![branch_main, branch_develop])]),
+        (1, vec![0], vec![(0, vec![branch_main, branch_develop])]),
+    ];
 
-    let snp0_typed: Vec<(_, Vec<_>)> = symmetric
-        .labeled_successors(0)
-        .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect()))
-        .collect();
-    assert_eq!(snp0_typed, expected_snp0);
+    for &(node, ref expected_untyped, ref expected_labeled) in &expected {
+        assert_eq!(
+            symmetric.successors(node).collect::<Vec<_>>(),
+            *expected_untyped,
+            "successors({node})",
+        );
+        let typed: Vec<(_, Vec<_>)> = symmetric
+            .labeled_successors(node)
+            .into_iter()
+            .map(|(succ, labels)| (succ, labels.collect()))
+            .collect();
+        assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);
 
-    let rev1_typed: Vec<(_, Vec<_>)> = symmetric
-        .labeled_successors(1)
-        .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect()))
-        .collect();
-    assert_eq!(rev1_typed, expected_rev1);
-
-    let snp0_untyped: Vec<_> = symmetric
-        .untyped_labeled_successors(0)
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(snp0_untyped, untype_labeled_successors(&expected_snp0));
-
-    let rev1_untyped: Vec<_> = symmetric
-        .untyped_labeled_successors(1)
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(rev1_untyped, untype_labeled_successors(&expected_rev1));
+        let untyped: Vec<_> = symmetric
+            .untyped_labeled_successors(node)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect();
+        assert_eq!(
+            untyped,
+            untype_labeled_successors(expected_labeled),
+            "untyped_labeled_successors({node})",
+        );
+    }
 
     Ok(())
 }
@@ -379,48 +387,39 @@ fn test_symmetric_fs_labeled_successors() -> Result<()> {
             .unwrap()
             .into();
 
-    let expected_dir0 = vec![(1, vec![entry_file]), (2, vec![entry_subdir])];
-    let expected_cnt1 = vec![(0, vec![entry_file])];
-    let expected_dir2 = vec![(0, vec![entry_subdir])];
+    let expected = [
+        (
+            0,
+            vec![1, 2],
+            vec![(1, vec![entry_file]), (2, vec![entry_subdir])],
+        ),
+        (1, vec![0], vec![(0, vec![entry_file])]),
+        (2, vec![0], vec![(0, vec![entry_subdir])]),
+    ];
 
-    let dir0_typed: Vec<(_, Vec<_>)> = symmetric
-        .labeled_successors(0)
-        .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect()))
-        .collect();
-    assert_eq!(dir0_typed, expected_dir0);
+    for &(node, ref expected_untyped, ref expected_labeled) in &expected {
+        assert_eq!(
+            symmetric.successors(node).collect::<Vec<_>>(),
+            *expected_untyped,
+            "successors({node})",
+        );
+        let typed: Vec<(_, Vec<_>)> = symmetric
+            .labeled_successors(node)
+            .into_iter()
+            .map(|(succ, labels)| (succ, labels.collect()))
+            .collect();
+        assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);
 
-    let cnt1_typed: Vec<(_, Vec<_>)> = symmetric
-        .labeled_successors(1)
-        .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect()))
-        .collect();
-    assert_eq!(cnt1_typed, expected_cnt1);
-
-    let dir2_typed: Vec<(_, Vec<_>)> = symmetric
-        .labeled_successors(2)
-        .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect()))
-        .collect();
-    assert_eq!(dir2_typed, expected_dir2);
-
-    let dir0_untyped: Vec<_> = symmetric
-        .untyped_labeled_successors(0)
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(dir0_untyped, untype_labeled_successors(&expected_dir0));
-
-    let cnt1_untyped: Vec<_> = symmetric
-        .untyped_labeled_successors(1)
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(cnt1_untyped, untype_labeled_successors(&expected_cnt1));
-
-    let dir2_untyped: Vec<_> = symmetric
-        .untyped_labeled_successors(2)
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(dir2_untyped, untype_labeled_successors(&expected_dir2));
+        let untyped: Vec<_> = symmetric
+            .untyped_labeled_successors(node)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect();
+        assert_eq!(
+            untyped,
+            untype_labeled_successors(expected_labeled),
+            "untyped_labeled_successors({node})",
+        );
+    }
 
     Ok(())
 }
@@ -467,66 +466,44 @@ fn test_symmetric_histhost_labeled_successors() -> Result<()> {
     let branch_main: EdgeLabel = swh_graph::labels::Branch::new(main_label).unwrap().into();
     let branch_tag: EdgeLabel = swh_graph::labels::Branch::new(tag_label).unwrap().into();
 
-    let expected_ori0 = vec![(1, vec![visit_full])];
-    let expected_snp1 = vec![
-        (0, vec![visit_full]),
-        (2, vec![branch_main]),
-        (3, vec![branch_tag]),
+    let expected = [
+        (0, vec![1], vec![(1, vec![visit_full])]),
+        (
+            1,
+            vec![0, 2, 3],
+            vec![
+                (0, vec![visit_full]),
+                (2, vec![branch_main]),
+                (3, vec![branch_tag]),
+            ],
+        ),
+        (2, vec![1], vec![(1, vec![branch_main])]),
+        (3, vec![1], vec![(1, vec![branch_tag])]),
     ];
-    let expected_rev2 = vec![(1, vec![branch_main])];
-    let expected_rel3 = vec![(1, vec![branch_tag])];
 
-    let ori0_typed: Vec<(_, Vec<_>)> = symmetric
-        .labeled_successors(0)
-        .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect()))
-        .collect();
-    assert_eq!(ori0_typed, expected_ori0);
+    for &(node, ref expected_untyped, ref expected_labeled) in &expected {
+        assert_eq!(
+            symmetric.successors(node).collect::<Vec<_>>(),
+            *expected_untyped,
+            "successors({node})",
+        );
+        let typed: Vec<(_, Vec<_>)> = symmetric
+            .labeled_successors(node)
+            .into_iter()
+            .map(|(succ, labels)| (succ, labels.collect()))
+            .collect();
+        assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);
 
-    let snp1_typed: Vec<(_, Vec<_>)> = symmetric
-        .labeled_successors(1)
-        .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect()))
-        .collect();
-    assert_eq!(snp1_typed, expected_snp1);
-
-    let rev2_typed: Vec<(_, Vec<_>)> = symmetric
-        .labeled_successors(2)
-        .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect()))
-        .collect();
-    assert_eq!(rev2_typed, expected_rev2);
-
-    let rel3_typed: Vec<(_, Vec<_>)> = symmetric
-        .labeled_successors(3)
-        .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect()))
-        .collect();
-    assert_eq!(rel3_typed, expected_rel3);
-
-    let ori0_untyped: Vec<_> = symmetric
-        .untyped_labeled_successors(0)
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(ori0_untyped, untype_labeled_successors(&expected_ori0));
-
-    let snp1_untyped: Vec<_> = symmetric
-        .untyped_labeled_successors(1)
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(snp1_untyped, untype_labeled_successors(&expected_snp1));
-
-    let rev2_untyped: Vec<_> = symmetric
-        .untyped_labeled_successors(2)
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(rev2_untyped, untype_labeled_successors(&expected_rev2));
-
-    let rel3_untyped: Vec<_> = symmetric
-        .untyped_labeled_successors(3)
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect();
-    assert_eq!(rel3_untyped, untype_labeled_successors(&expected_rel3));
+        let untyped: Vec<_> = symmetric
+            .untyped_labeled_successors(node)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect();
+        assert_eq!(
+            untyped,
+            untype_labeled_successors(expected_labeled),
+            "untyped_labeled_successors({node})",
+        );
+    }
 
     Ok(())
 }
