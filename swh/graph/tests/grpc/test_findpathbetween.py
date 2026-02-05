@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2023  The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -371,3 +371,61 @@ def test_max_edges(graph_grpc_stub):
             max_edges=2,
         )
     assert rpc_error.value.code() == grpc.StatusCode.NOT_FOUND
+
+
+def test_ignore_node_forward(graph_grpc_stub):
+    """Ignore a directory node, forcing an alternate path"""
+    (actual, _midpoint) = get_path(
+        graph_grpc_stub,
+        ["swh:1:rel:0000000000000000000000000000000000000010"],
+        ["swh:1:cnt:0000000000000000000000000000000000000001"],
+        ignore_node=["swh:1:dir:0000000000000000000000000000000000000008"],
+    )
+    expected = [
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        "swh:1:rev:0000000000000000000000000000000000000009",
+        "swh:1:rev:0000000000000000000000000000000000000003",
+        "swh:1:dir:0000000000000000000000000000000000000002",
+        "swh:1:cnt:0000000000000000000000000000000000000001",
+    ]
+    assert expected == actual
+
+
+def test_ignore_node_makes_path_impossible(graph_grpc_stub):
+    """Ignore a node that blocks all paths"""
+    with pytest.raises(grpc.RpcError) as rpc_error:
+        get_path(
+            graph_grpc_stub,
+            ["swh:1:rel:0000000000000000000000000000000000000010"],
+            ["swh:1:cnt:0000000000000000000000000000000000000001"],
+            ignore_node=[
+                "swh:1:rev:0000000000000000000000000000000000000003",
+                "swh:1:dir:0000000000000000000000000000000000000008",
+            ],
+        )
+    assert rpc_error.value.code() == grpc.StatusCode.NOT_FOUND
+
+
+def test_ignore_node_common_ancestor(graph_grpc_stub):
+    """Ignore a node in common ancestor search"""
+    (actual, midpoint) = get_path(
+        graph_grpc_stub,
+        ["swh:1:cnt:0000000000000000000000000000000000000004"],
+        ["swh:1:cnt:0000000000000000000000000000000000000015"],
+        direction=GraphDirection.BACKWARD,
+        direction_reverse=GraphDirection.BACKWARD,
+        ignore_node=["swh:1:rev:0000000000000000000000000000000000000009"],
+    )
+    expected = [
+        "swh:1:cnt:0000000000000000000000000000000000000004",
+        "swh:1:dir:0000000000000000000000000000000000000006",
+        "swh:1:dir:0000000000000000000000000000000000000008",
+        "swh:1:dir:0000000000000000000000000000000000000012",
+        "swh:1:rev:0000000000000000000000000000000000000013",
+        "swh:1:rev:0000000000000000000000000000000000000018",
+        "swh:1:dir:0000000000000000000000000000000000000017",
+        "swh:1:dir:0000000000000000000000000000000000000016",
+        "swh:1:cnt:0000000000000000000000000000000000000015",
+    ]
+    assert expected == actual
+    assert actual[midpoint] == "swh:1:rev:0000000000000000000000000000000000000018"

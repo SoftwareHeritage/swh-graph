@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use itertools::Itertools;
@@ -151,6 +151,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             max_edges,
             max_depth,
             mask,
+            ignore_node,
         } = request.get_ref().clone();
 
         let direction: proto::GraphDirection = direction
@@ -181,10 +182,17 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                 let graph = $graph;
                 let arc_checker = ArcFilterChecker::new(graph.clone(), edges.clone())?;
                 let target_checker = NodeFilterChecker::new(graph.clone(), target)?;
-                let subgraph = Arc::new(Subgraph::with_arc_filter(
-                    graph,
-                    move |src, dst| arc_checker.matches(src, dst),
-                ));
+                let ignore_nodes_set = ignore_node
+                    .iter()
+                    .map(|swhid| self.service.try_get_node_id(swhid))
+                    .collect::<Result<HashSet<_>, _>>()?;
+                let subgraph = Arc::new(Subgraph {
+                    graph: graph.clone(),
+                    num_nodes_by_type: None,
+                    num_arcs_by_type: None,
+                    node_filter: move |node| !ignore_nodes_set.contains(&node),
+                    arc_filter: move |src, dst| arc_checker.matches(src, dst),
+                });
 
                 let node_builder = NodeBuilder::new(subgraph.clone(), mask.clone(), Some("node"))?;
                 let labeled_node_builder =
@@ -328,6 +336,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             max_edges,
             max_depth,
             mask,
+            ignore_node,
         } = request.get_ref().clone();
 
         let direction: proto::GraphDirection = direction
@@ -403,9 +412,21 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
 
         let graph = self.service.graph().clone();
         let arc_checker = ArcFilterChecker::new(graph.clone(), edges.clone())?;
-        let subgraph = Arc::new(Subgraph::with_arc_filter(graph.clone(), move |src, dst| {
-            arc_checker.matches(src, dst)
-        }));
+        let ignore_nodes_set = ignore_node
+            .iter()
+            .map(|swhid| self.service.try_get_node_id(swhid))
+            .collect::<Result<HashSet<_>, _>>()?;
+        let ignore_nodes_set = Arc::new(ignore_nodes_set);
+        let subgraph = Arc::new(Subgraph {
+            graph: graph.clone(),
+            num_nodes_by_type: None,
+            num_arcs_by_type: None,
+            node_filter: {
+                let ignore_nodes_set = ignore_nodes_set.clone();
+                move |node| !ignore_nodes_set.contains(&node)
+            },
+            arc_filter: move |src, dst| arc_checker.matches(src, dst),
+        });
         let transpose_subgraph = Arc::new(Transposed(subgraph.clone()));
         let symmetric_subgraph = Arc::new(Symmetric(subgraph.clone()));
         let transpose_graph = Arc::new(Transposed(graph.clone()));
@@ -464,9 +485,14 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                 let graph = $graph;
                 let reverse_arc_checker =
                     ArcFilterChecker::new(graph.clone(), edges_reverse.clone())?;
-                let subgraph = Arc::new(Subgraph::with_arc_filter(graph, move |src, dst| {
-                    reverse_arc_checker.matches(src, dst)
-                }));
+                let ignore_nodes_set = ignore_nodes_set.clone();
+                let subgraph = Arc::new(Subgraph {
+                    graph,
+                    num_nodes_by_type: None,
+                    num_arcs_by_type: None,
+                    node_filter: move |node| !ignore_nodes_set.contains(&node),
+                    arc_filter: move |src, dst| reverse_arc_checker.matches(src, dst),
+                });
                 let mut visitor_reverse = self.make_visitor(
                     reverse_visitor_config,
                     subgraph,
