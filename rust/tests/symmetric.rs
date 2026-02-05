@@ -9,7 +9,7 @@ use anyhow::Result;
 use swh_graph::arc_iterators::IntoFlattenedLabeledArcsIterator;
 use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
-use swh_graph::labels::{Permission, Visit, VisitStatus};
+use swh_graph::labels::{EdgeLabel, Permission, UntypedEdgeLabel, Visit, VisitStatus};
 use swh_graph::swhid;
 use swh_graph::views::{Subgraph, Symmetric};
 use swh_graph::webgraph::graphs::vec_graph::{LabeledVecGraph, VecGraph};
@@ -46,40 +46,6 @@ fn test_symmetric_bidirectional_graph() {
     assert_eq!(symmetric.outdegree(0), 2);
     assert_eq!(symmetric.outdegree(1), 2);
     assert_eq!(symmetric.outdegree(2), 2);
-}
-
-#[test]
-fn test_symmetric_labeled_graph() {
-    let forward_arcs: Vec<((usize, usize), &[u64])> =
-        vec![((0, 1), &[0, 789]), ((2, 0), &[123]), ((2, 1), &[456])];
-    let backward_arcs: Vec<((usize, usize), &[u64])> =
-        vec![((1, 0), &[0, 789]), ((0, 2), &[123]), ((1, 2), &[456])];
-    let graph = SwhBidirectionalGraph::from_underlying_graphs(
-        PathBuf::new(),
-        LabeledVecGraph::from_arcs(forward_arcs),
-        LabeledVecGraph::from_arcs(backward_arcs),
-    );
-    let symmetric = Symmetric(graph);
-
-    let collect_successors = |node_id| {
-        symmetric
-            .untyped_labeled_successors(node_id)
-            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-            .collect::<Vec<_>>()
-    };
-
-    assert_eq!(
-        collect_successors(0),
-        vec![(1, vec![0.into(), 789.into()]), (2, vec![123.into()])]
-    );
-    assert_eq!(
-        collect_successors(1),
-        vec![(0, vec![0.into(), 789.into()]), (2, vec![456.into()])]
-    );
-    assert_eq!(
-        collect_successors(2),
-        vec![(0, vec![123.into()]), (1, vec![456.into()])]
-    );
 }
 
 #[test]
@@ -178,13 +144,18 @@ fn test_symmetric_is_transposed_panics() {
 #[test]
 #[should_panic(expected = "Symmetric's backend has a loop")]
 fn test_symmetric_detects_loop_labeled() {
-    let forward_arcs: Vec<((usize, usize), &[u64])> = vec![((0, 1), &[1]), ((1, 0), &[2])];
-    let backward_arcs: Vec<((usize, usize), &[u64])> = vec![((1, 0), &[1]), ((0, 1), &[2])];
-    let graph = SwhBidirectionalGraph::from_underlying_graphs(
-        PathBuf::new(),
-        LabeledVecGraph::from_arcs(forward_arcs),
-        LabeledVecGraph::from_arcs(backward_arcs),
-    );
+    let mut builder = GraphBuilder::default();
+    builder
+        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000000))
+        .unwrap()
+        .done();
+    builder
+        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000001))
+        .unwrap()
+        .done();
+    builder.dir_arc(0, 1, Permission::Directory, b"a");
+    builder.dir_arc(1, 0, Permission::Directory, b"b");
+    let graph = builder.done().unwrap();
     let symmetric = Symmetric(graph);
 
     let _ = symmetric.untyped_labeled_successors(0).collect::<Vec<_>>();
@@ -193,13 +164,13 @@ fn test_symmetric_detects_loop_labeled() {
 #[test]
 #[should_panic(expected = "Symmetric's backend has a loop")]
 fn test_symmetric_detects_self_loop_labeled() {
-    let forward_arcs: Vec<((usize, usize), &[u64])> = vec![((0, 0), &[1])];
-    let backward_arcs: Vec<((usize, usize), &[u64])> = vec![((0, 0), &[1])];
-    let graph = SwhBidirectionalGraph::from_underlying_graphs(
-        PathBuf::new(),
-        LabeledVecGraph::from_arcs(forward_arcs),
-        LabeledVecGraph::from_arcs(backward_arcs),
-    );
+    let mut builder = GraphBuilder::default();
+    builder
+        .node(swhid!(swh:1:dir:0000000000000000000000000000000000000000))
+        .unwrap()
+        .done();
+    builder.dir_arc(0, 0, Permission::Directory, b"self");
+    let graph = builder.done().unwrap();
     let symmetric = Symmetric(graph);
 
     let _ = symmetric.untyped_labeled_successors(0).collect::<Vec<_>>();
@@ -208,13 +179,23 @@ fn test_symmetric_detects_self_loop_labeled() {
 #[test]
 #[should_panic(expected = "Symmetric's backend has a loop")]
 fn test_symmetric_detects_inconsistent_backends_labeled() {
+    use swh_graph::properties::VecMaps;
+
     let forward_arcs: Vec<((usize, usize), &[u64])> = vec![((0, 1), &[1])];
     let backward_arcs: Vec<((usize, usize), &[u64])> = vec![((0, 1), &[1])];
     let graph = SwhBidirectionalGraph::from_underlying_graphs(
         PathBuf::new(),
         LabeledVecGraph::from_arcs(forward_arcs),
         LabeledVecGraph::from_arcs(backward_arcs),
-    );
+    )
+    .init_properties()
+    .load_properties(|properties| {
+        properties.with_maps(VecMaps::new(vec![
+            swhid!(swh:1:dir:0000000000000000000000000000000000000000),
+            swhid!(swh:1:dir:0000000000000000000000000000000000000001),
+        ]))
+    })
+    .unwrap();
     let symmetric = Symmetric(graph);
 
     let _ = symmetric.untyped_labeled_successors(0).collect::<Vec<_>>();
@@ -238,45 +219,59 @@ fn build_ori_snp_graph() -> Result<BuiltGraph> {
     builder.done()
 }
 
+fn untype_labeled_successors(
+    labeled_successors: &[(NodeId, Vec<EdgeLabel>)],
+) -> Vec<(NodeId, Vec<UntypedEdgeLabel>)> {
+    labeled_successors
+        .iter()
+        .map(|(node_id, labels)| {
+            (
+                *node_id,
+                labels
+                    .iter()
+                    .map(|label| UntypedEdgeLabel::from(*label))
+                    .collect(),
+            )
+        })
+        .collect()
+}
+
 #[test]
 fn test_symmetric_ori_snp_labeled_successors() -> Result<()> {
     let graph = build_ori_snp_graph()?;
     let symmetric = Symmetric(graph);
 
+    let visit_full = Visit::new(VisitStatus::Full, 1770248300).unwrap();
+    let visit_partial = Visit::new(VisitStatus::Partial, 1770248399).unwrap();
+
     // Test ori0's successors: should have snp1 with two visit labels (forward direction)
-    let ori0_successors = symmetric
+    let ori0_typed: Vec<(_, Vec<_>)> = symmetric
         .labeled_successors(0)
         .into_iter()
-        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-        .collect::<Vec<_>>();
+        .map(|(succ, labels)| (succ, labels.collect()))
+        .collect();
+    let expected_ori0 = vec![(1, vec![visit_full.into(), visit_partial.into()])];
+    assert_eq!(ori0_typed, expected_ori0);
 
-    assert_eq!(
-        ori0_successors,
-        vec![(
-            1,
-            vec![
-                Visit::new(VisitStatus::Full, 1770248300).unwrap().into(),
-                Visit::new(VisitStatus::Partial, 1770248399).unwrap().into()
-            ]
-        )]
-    );
-
-    let snp1_successors: Vec<(_, Vec<_>)> = symmetric
+    let snp1_typed: Vec<(_, Vec<_>)> = symmetric
         .labeled_successors(1)
         .into_iter()
         .map(|(succ, labels)| (succ, labels.collect()))
         .collect();
+    let expected_snp1 = vec![(0, vec![visit_full.into(), visit_partial.into()])];
+    assert_eq!(snp1_typed, expected_snp1);
 
-    assert_eq!(
-        snp1_successors,
-        vec![(
-            0,
-            vec![
-                Visit::new(VisitStatus::Full, 1770248300).unwrap().into(),
-                Visit::new(VisitStatus::Partial, 1770248399).unwrap().into()
-            ]
-        )]
-    );
+    let ori0_untyped: Vec<_> = symmetric
+        .untyped_labeled_successors(0)
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(ori0_untyped, untype_labeled_successors(&expected_ori0));
+
+    let snp1_untyped: Vec<_> = symmetric
+        .untyped_labeled_successors(1)
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(snp1_untyped, untype_labeled_successors(&expected_snp1));
 
     Ok(())
 }
@@ -311,44 +306,39 @@ fn test_symmetric_snp_rev_labeled_successors() -> Result<()> {
         .label_name_id(b"refs/heads/develop")
         .unwrap();
 
-    // Test snp0's successors: should have rev1 with branch labels (forward direction)
-    let snp0_successors: Vec<(_, Vec<_>)> = symmetric
+    let branch_main: EdgeLabel = swh_graph::labels::Branch::new(main_label).unwrap().into();
+    let branch_develop: EdgeLabel = swh_graph::labels::Branch::new(develop_label)
+        .unwrap()
+        .into();
+
+    let expected_snp0 = vec![(1, vec![branch_main, branch_develop])];
+    let expected_rev1 = vec![(0, vec![branch_main, branch_develop])];
+
+    let snp0_typed: Vec<(_, Vec<_>)> = symmetric
         .labeled_successors(0)
         .into_iter()
         .map(|(succ, labels)| (succ, labels.collect()))
         .collect();
+    assert_eq!(snp0_typed, expected_snp0);
 
-    assert_eq!(
-        snp0_successors,
-        vec![(
-            1,
-            vec![
-                swh_graph::labels::Branch::new(main_label).unwrap().into(),
-                swh_graph::labels::Branch::new(develop_label)
-                    .unwrap()
-                    .into()
-            ]
-        )]
-    );
-
-    let rev1_successors: Vec<(_, Vec<_>)> = symmetric
+    let rev1_typed: Vec<(_, Vec<_>)> = symmetric
         .labeled_successors(1)
         .into_iter()
         .map(|(succ, labels)| (succ, labels.collect()))
         .collect();
+    assert_eq!(rev1_typed, expected_rev1);
 
-    assert_eq!(
-        rev1_successors,
-        vec![(
-            0,
-            vec![
-                swh_graph::labels::Branch::new(main_label).unwrap().into(),
-                swh_graph::labels::Branch::new(develop_label)
-                    .unwrap()
-                    .into()
-            ]
-        )]
-    );
+    let snp0_untyped: Vec<_> = symmetric
+        .untyped_labeled_successors(0)
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(snp0_untyped, untype_labeled_successors(&expected_snp0));
+
+    let rev1_untyped: Vec<_> = symmetric
+        .untyped_labeled_successors(1)
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(rev1_untyped, untype_labeled_successors(&expected_rev1));
 
     Ok(())
 }
@@ -381,70 +371,56 @@ fn test_symmetric_fs_labeled_successors() -> Result<()> {
     let file_label = symmetric.properties().label_name_id(b"file.txt").unwrap();
     let subdir_label = symmetric.properties().label_name_id(b"subdir").unwrap();
 
-    // Test dir0's successors: should have cnt1 and dir2 (forward direction)
-    let dir0_successors: Vec<(_, Vec<_>)> = symmetric
+    let entry_file: EdgeLabel = swh_graph::labels::DirEntry::new(Permission::Content, file_label)
+        .unwrap()
+        .into();
+    let entry_subdir: EdgeLabel =
+        swh_graph::labels::DirEntry::new(Permission::Directory, subdir_label)
+            .unwrap()
+            .into();
+
+    let expected_dir0 = vec![(1, vec![entry_file]), (2, vec![entry_subdir])];
+    let expected_cnt1 = vec![(0, vec![entry_file])];
+    let expected_dir2 = vec![(0, vec![entry_subdir])];
+
+    let dir0_typed: Vec<(_, Vec<_>)> = symmetric
         .labeled_successors(0)
         .into_iter()
         .map(|(succ, labels)| (succ, labels.collect()))
         .collect();
+    assert_eq!(dir0_typed, expected_dir0);
 
-    assert_eq!(
-        dir0_successors,
-        vec![
-            (
-                1,
-                vec![
-                    swh_graph::labels::DirEntry::new(Permission::Content, file_label)
-                        .unwrap()
-                        .into()
-                ]
-            ),
-            (
-                2,
-                vec![
-                    swh_graph::labels::DirEntry::new(Permission::Directory, subdir_label)
-                        .unwrap()
-                        .into()
-                ]
-            )
-        ]
-    );
-
-    let cnt1_successors: Vec<(_, Vec<_>)> = symmetric
+    let cnt1_typed: Vec<(_, Vec<_>)> = symmetric
         .labeled_successors(1)
         .into_iter()
         .map(|(succ, labels)| (succ, labels.collect()))
         .collect();
+    assert_eq!(cnt1_typed, expected_cnt1);
 
-    assert_eq!(
-        cnt1_successors,
-        vec![(
-            0,
-            vec![
-                swh_graph::labels::DirEntry::new(Permission::Content, file_label)
-                    .unwrap()
-                    .into()
-            ]
-        )]
-    );
-
-    let dir2_successors: Vec<(_, Vec<_>)> = symmetric
+    let dir2_typed: Vec<(_, Vec<_>)> = symmetric
         .labeled_successors(2)
         .into_iter()
         .map(|(succ, labels)| (succ, labels.collect()))
         .collect();
+    assert_eq!(dir2_typed, expected_dir2);
 
-    assert_eq!(
-        dir2_successors,
-        vec![(
-            0,
-            vec![
-                swh_graph::labels::DirEntry::new(Permission::Directory, subdir_label)
-                    .unwrap()
-                    .into()
-            ]
-        )]
-    );
+    let dir0_untyped: Vec<_> = symmetric
+        .untyped_labeled_successors(0)
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(dir0_untyped, untype_labeled_successors(&expected_dir0));
+
+    let cnt1_untyped: Vec<_> = symmetric
+        .untyped_labeled_successors(1)
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(cnt1_untyped, untype_labeled_successors(&expected_cnt1));
+
+    let dir2_untyped: Vec<_> = symmetric
+        .untyped_labeled_successors(2)
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(dir2_untyped, untype_labeled_successors(&expected_dir2));
 
     Ok(())
 }
@@ -487,71 +463,70 @@ fn test_symmetric_histhost_labeled_successors() -> Result<()> {
         .label_name_id(b"refs/tags/v1.0")
         .unwrap();
 
-    let ori0_successors: Vec<(_, Vec<_>)> = symmetric
+    let visit_full: EdgeLabel = Visit::new(VisitStatus::Full, 1770248300).unwrap().into();
+    let branch_main: EdgeLabel = swh_graph::labels::Branch::new(main_label).unwrap().into();
+    let branch_tag: EdgeLabel = swh_graph::labels::Branch::new(tag_label).unwrap().into();
+
+    let expected_ori0 = vec![(1, vec![visit_full])];
+    let expected_snp1 = vec![
+        (0, vec![visit_full]),
+        (2, vec![branch_main]),
+        (3, vec![branch_tag]),
+    ];
+    let expected_rev2 = vec![(1, vec![branch_main])];
+    let expected_rel3 = vec![(1, vec![branch_tag])];
+
+    let ori0_typed: Vec<(_, Vec<_>)> = symmetric
         .labeled_successors(0)
         .into_iter()
         .map(|(succ, labels)| (succ, labels.collect()))
         .collect();
+    assert_eq!(ori0_typed, expected_ori0);
 
-    assert_eq!(
-        ori0_successors,
-        vec![(
-            1,
-            vec![Visit::new(VisitStatus::Full, 1770248300).unwrap().into()]
-        )]
-    );
-
-    let snp1_successors: Vec<(_, Vec<_>)> = symmetric
+    let snp1_typed: Vec<(_, Vec<_>)> = symmetric
         .labeled_successors(1)
         .into_iter()
         .map(|(succ, labels)| (succ, labels.collect()))
         .collect();
+    assert_eq!(snp1_typed, expected_snp1);
 
-    assert_eq!(
-        snp1_successors,
-        vec![
-            (
-                0,
-                vec![Visit::new(VisitStatus::Full, 1770248300).unwrap().into()]
-            ),
-            (
-                2,
-                vec![swh_graph::labels::Branch::new(main_label).unwrap().into()]
-            ),
-            (
-                3,
-                vec![swh_graph::labels::Branch::new(tag_label).unwrap().into()]
-            )
-        ]
-    );
-
-    let rev2_successors: Vec<(_, Vec<_>)> = symmetric
+    let rev2_typed: Vec<(_, Vec<_>)> = symmetric
         .labeled_successors(2)
         .into_iter()
         .map(|(succ, labels)| (succ, labels.collect()))
         .collect();
+    assert_eq!(rev2_typed, expected_rev2);
 
-    assert_eq!(
-        rev2_successors,
-        vec![(
-            1,
-            vec![swh_graph::labels::Branch::new(main_label).unwrap().into()]
-        )]
-    );
-
-    let rel3_successors: Vec<(_, Vec<_>)> = symmetric
+    let rel3_typed: Vec<(_, Vec<_>)> = symmetric
         .labeled_successors(3)
         .into_iter()
         .map(|(succ, labels)| (succ, labels.collect()))
         .collect();
+    assert_eq!(rel3_typed, expected_rel3);
 
-    assert_eq!(
-        rel3_successors,
-        vec![(
-            1,
-            vec![swh_graph::labels::Branch::new(tag_label).unwrap().into()]
-        )]
-    );
+    let ori0_untyped: Vec<_> = symmetric
+        .untyped_labeled_successors(0)
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(ori0_untyped, untype_labeled_successors(&expected_ori0));
+
+    let snp1_untyped: Vec<_> = symmetric
+        .untyped_labeled_successors(1)
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(snp1_untyped, untype_labeled_successors(&expected_snp1));
+
+    let rev2_untyped: Vec<_> = symmetric
+        .untyped_labeled_successors(2)
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(rev2_untyped, untype_labeled_successors(&expected_rev2));
+
+    let rel3_untyped: Vec<_> = symmetric
+        .untyped_labeled_successors(3)
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(rel3_untyped, untype_labeled_successors(&expected_rel3));
 
     Ok(())
 }

@@ -9,10 +9,10 @@ use anyhow::Result;
 
 use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
-use swh_graph::labels::{Visit, VisitStatus};
+use swh_graph::labels::{EdgeLabel, UntypedEdgeLabel, Visit, VisitStatus};
 use swh_graph::swhid;
 use swh_graph::views::{Subgraph, Transposed};
-use swh_graph::webgraph::graphs::vec_graph::{LabeledVecGraph, VecGraph};
+use swh_graph::webgraph::graphs::vec_graph::VecGraph;
 
 #[test]
 fn test_transpose_forward_graph() {
@@ -89,69 +89,6 @@ fn test_transpose_backward_graph() {
     assert_eq!(transposed.indegree(0), 1);
     assert_eq!(transposed.indegree(1), 0);
     assert_eq!(transposed.indegree(2), 2);
-}
-
-#[test]
-fn test_transpose_labeled_forward_graph() {
-    let forward_arcs: Vec<((usize, usize), &[u64])> =
-        vec![((0, 1), &[0, 789]), ((2, 0), &[123]), ((2, 1), &[456])];
-    let backward_arcs: Vec<((usize, usize), &[u64])> =
-        vec![((1, 0), &[0, 789]), ((0, 2), &[123]), ((1, 2), &[456])];
-    let graph = SwhBidirectionalGraph::from_underlying_graphs(
-        PathBuf::new(),
-        LabeledVecGraph::from_arcs(forward_arcs),
-        LabeledVecGraph::from_arcs(backward_arcs),
-    );
-    let transposed = Transposed(graph);
-
-    let collect_successors = |node_id| {
-        transposed
-            .untyped_labeled_successors(node_id)
-            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
-            .collect::<Vec<_>>()
-    };
-
-    // Original: 0 -> 1 [0, 789], 2 -> 0 [123], 2 -> 1 [456]
-    // Transposed: 1 -> 0 [0, 789], 0 -> 2 [123], 1 -> 2 [456]
-    assert_eq!(collect_successors(0), vec![(2, vec![123.into()])]);
-    assert_eq!(
-        collect_successors(1),
-        vec![(0, vec![0.into(), 789.into()]), (2, vec![456.into()])]
-    );
-    assert_eq!(collect_successors(2), vec![]);
-}
-
-#[test]
-fn test_transpose_labeled_backward_graph() {
-    let forward_arcs: Vec<((usize, usize), &[u64])> =
-        vec![((0, 1), &[0, 789]), ((2, 0), &[123]), ((2, 1), &[456])];
-    let backward_arcs: Vec<((usize, usize), &[u64])> =
-        vec![((1, 0), &[0, 789]), ((0, 2), &[123]), ((1, 2), &[456])];
-    let graph = SwhBidirectionalGraph::from_underlying_graphs(
-        PathBuf::new(),
-        LabeledVecGraph::from_arcs(forward_arcs),
-        LabeledVecGraph::from_arcs(backward_arcs),
-    );
-    let transposed = Transposed(graph);
-
-    let collect_predecessors = |node_id| {
-        transposed
-            .untyped_labeled_predecessors(node_id)
-            .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
-            .collect::<Vec<_>>()
-    };
-
-    // Original predecessors become successors, so we check predecessors
-    // which are the original successors
-    assert_eq!(
-        collect_predecessors(0),
-        vec![(1, vec![0.into(), 789.into()])]
-    );
-    assert_eq!(collect_predecessors(1), vec![]);
-    assert_eq!(
-        collect_predecessors(2),
-        vec![(0, vec![123.into()]), (1, vec![456.into()])]
-    );
 }
 
 #[test]
@@ -232,24 +169,34 @@ fn test_transpose_labeled_successors() -> Result<()> {
     let graph = build_ori_snp_graph()?;
     let transposed = Transposed(graph);
 
+    let visit_full = Visit::new(VisitStatus::Full, 1770248300).unwrap();
+    let visit_partial = Visit::new(VisitStatus::Partial, 1770248399).unwrap();
+
     // In the original graph: ori0 -> snp1 with Visit labels
     // In the transposed graph: snp1 -> ori0 with Visit labels
-    let snp1_successors: Vec<_> = transposed
+    let snp1_typed: Vec<_> = transposed
         .labeled_successors(1)
         .into_iter()
         .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
         .collect();
-
     assert_eq!(
-        snp1_successors,
+        snp1_typed,
+        vec![(0, vec![visit_full.into(), visit_partial.into()])]
+    );
+
+    let snp1_untyped: Vec<_> = transposed
+        .untyped_labeled_successors(1)
+        .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(
+        snp1_untyped,
         vec![(
             0,
             vec![
-                Visit::new(VisitStatus::Full, 1770248300).unwrap().into(),
-                Visit::new(VisitStatus::Partial, 1770248399).unwrap().into()
+                UntypedEdgeLabel::from(EdgeLabel::from(visit_full)),
+                UntypedEdgeLabel::from(EdgeLabel::from(visit_partial)),
             ]
-        )],
-        "Transposed snapshot -> origin edges should have Visit labels"
+        )]
     );
 
     Ok(())
@@ -260,24 +207,34 @@ fn test_transpose_labeled_predecessors() -> Result<()> {
     let graph = build_ori_snp_graph()?;
     let transposed = Transposed(graph);
 
+    let visit_full = Visit::new(VisitStatus::Full, 1770248300).unwrap();
+    let visit_partial = Visit::new(VisitStatus::Partial, 1770248399).unwrap();
+
     // In the original graph: ori0 -> snp1 with Visit labels
     // In the transposed graph: ori0 <- snp1 with Visit labels
-    let ori0_predecessors: Vec<_> = transposed
+    let ori0_typed: Vec<_> = transposed
         .labeled_predecessors(0)
         .into_iter()
         .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
         .collect();
-
     assert_eq!(
-        ori0_predecessors,
+        ori0_typed,
+        vec![(1, vec![visit_full.into(), visit_partial.into()])]
+    );
+
+    let ori0_untyped: Vec<_> = transposed
+        .untyped_labeled_predecessors(0)
+        .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
+        .collect();
+    assert_eq!(
+        ori0_untyped,
         vec![(
             1,
             vec![
-                Visit::new(VisitStatus::Full, 1770248300).unwrap().into(),
-                Visit::new(VisitStatus::Partial, 1770248399).unwrap().into()
+                UntypedEdgeLabel::from(EdgeLabel::from(visit_full)),
+                UntypedEdgeLabel::from(EdgeLabel::from(visit_partial)),
             ]
-        )],
-        "Transposed origin <- snapshot edges should have Visit labels"
+        )]
     );
 
     Ok(())
