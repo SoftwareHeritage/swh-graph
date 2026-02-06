@@ -1698,7 +1698,7 @@ class UploadGraphToS3(luigi.Task):
         client = luigi.contrib.s3.S3Client()
 
         relative_path = path.relative_to(self.local_graph_path)
-        if path.suffix == ".bin":
+        if path.suffix == ".bin" and "node2swhid" not in path.name:
             # Large sparse file; store it compressed on S3.
             with tempfile.NamedTemporaryFile(prefix=path.stem, suffix=".bin.zst") as fd:
                 self.__status_messages[path] = f"Compressing {relative_path}"
