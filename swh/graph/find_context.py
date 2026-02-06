@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2025  The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -28,95 +28,7 @@ GRAPH_GRPC_SERVER = "localhost:50091"
 logger = logging.getLogger(__name__)
 
 
-def fqswhid_of_traversal_fp_between(response, verbose):
-    # Build the Fully qualified SWHID
-    path_items = []
-    revision = None
-    release = None
-    snapshot = None
-    url = ""
-    shortest_path = iter(response.node)
-    target_node = next(shortest_path)
-    swhid = target_node.swhid
-    core_swhid = target_node_swhid = ExtendedSWHID.from_string(target_node.swhid)
-    for source_node in shortest_path:
-        # response contains the nodes in the order content -> dir -> revision
-        # -> release -> snapshot -> origin
-        if verbose:
-            print(" examining node: " + target_node.swhid)
-        if url == "":
-            url = source_node.ori.url
-        source_node_swhid = ExtendedSWHID.from_string(source_node.swhid)
-        if target_node_swhid.object_type == ExtendedObjectType.CONTENT:
-            pathid = next(
-                (
-                    label.name.decode()
-                    for successor in target_node.successor
-                    for label in successor.label
-                    if successor.swhid == source_node.swhid
-                    and source_node_swhid.object_type == ExtendedObjectType.DIRECTORY
-                ),
-                None,
-            )
-
-            # pathid might be empty if the content is referenced directly by a
-            # revision/release/snapshot (eg. because we archive single patch files
-            # for nix/guix)
-            if pathid:
-                path_items.insert(0, pathid)
-        if target_node_swhid.object_type == ExtendedObjectType.DIRECTORY:
-            pathid = next(
-                (
-                    label.name.decode()
-                    for successor in target_node.successor
-                    for label in successor.label
-                    if successor.swhid == source_node.swhid
-                    and source_node_swhid.object_type == ExtendedObjectType.DIRECTORY
-                ),
-                None,
-            )
-            # pathid is empty for a root directory
-            if pathid:
-                path_items.insert(0, pathid)
-
-        if target_node_swhid.object_type == ExtendedObjectType.REVISION:
-            if revision is None:
-                revision = target_node.swhid
-        if target_node_swhid.object_type == ExtendedObjectType.RELEASE:
-            if release is None:
-                release = target_node.swhid
-        if target_node_swhid.object_type == ExtendedObjectType.SNAPSHOT:
-            snapshot = target_node.swhid
-        target_node = source_node
-        target_node_swhid = source_node_swhid
-
-    # Now we have all the elements to print a FQ SWHID
-    if (
-        core_swhid.object_type == ExtendedObjectType.CONTENT
-        or core_swhid.object_type == ExtendedObjectType.DIRECTORY
-    ):
-        path = "/".join(path_items)
-        anchor = revision or release
-    else:
-        path = anchor = None
-
-    if core_swhid.object_type != ExtendedObjectType.SNAPSHOT:
-        visit = snapshot
-    else:
-        visit = None
-
-    fqswhid = attr.evolve(
-        CoreSWHID.from_string(swhid).to_qualified(),
-        path=f"/{path}" if path is not None else None,
-        anchor=anchor,
-        visit=visit,
-        origin=url or None,
-    )
-
-    return str(fqswhid)
-
-
-def fqswhid_of_traversal_fp_to(response, verbose):
+def fqswhid_of_traversal(response, verbose):
     """Build the fully qualified SWHID for a gRPC response.
 
     Args:
@@ -207,12 +119,11 @@ def main(
     with grpc.insecure_channel(graph_grpc_server) as channel:
         client = TraversalServiceStub(channel)
 
-        field_mask_fp_between = FieldMask(
+        field_mask_findpath = FieldMask(
             paths=[
-                "node.swhid",
-                "node.ori.url",
-                "node.successor.swhid",
-                "node.successor.label.name",
+                "labeled_node.node.swhid",
+                "labeled_node.node.ori.url",
+                "labeled_node.label.name",
             ]
         )
 
@@ -222,14 +133,6 @@ def main(
                 "node.ori.url",
                 "node.successor.swhid",
                 "node.successor.label.name",
-            ]
-        )
-
-        field_mask_fp_to = FieldMask(
-            paths=[
-                "labeled_node.node.swhid",
-                "labeled_node.node.ori.url",
-                "labeled_node.label.name",
             ]
         )
 
@@ -256,12 +159,11 @@ def main(
                                 src=[content_swhid],
                                 dst=[node.swhid],
                                 direction="BACKWARD",
-                                mask=field_mask_fp_between,
+                                mask=field_mask_findpath,
                             )
                         )
-                        print(fqswhid_of_traversal_fp_between(response, verbose=trace))
+                        print(fqswhid_of_traversal(response, verbose=trace))
                     else:
-                        # TODO: use labeled nodes here when FindPathBetween supports it
                         print(node.ori.url)
 
             # Traversal request to a (random) origin
@@ -271,11 +173,11 @@ def main(
                         src=[content_swhid],
                         target=NodeFilter(types="ori"),
                         direction="BACKWARD",
-                        mask=field_mask_fp_to,
+                        mask=field_mask_findpath,
                     )
                 )
                 if fqswhid:
-                    print(fqswhid_of_traversal_fp_to(response, verbose=trace))
+                    print(fqswhid_of_traversal(response, verbose=trace))
                 else:
                     for labeled_node in response.labeled_node.node:
                         print(labeled_node.node.ori.url)
@@ -296,10 +198,10 @@ def main(
                             )
                         ],
                         direction="BACKWARD",
-                        mask=field_mask_fp_between,
+                        mask=field_mask_findpath,
                     )
                 )
-                print(fqswhid_of_traversal_fp_between(response, verbose=trace))
+                print(fqswhid_of_traversal(response, verbose=trace))
 
         except grpc.RpcError as e:
             print("Error from the GRPC API call: {}".format(e.details()))
