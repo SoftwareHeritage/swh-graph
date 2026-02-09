@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024  The Software Heritage developers
+ * Copyright (C) 2024-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -190,7 +190,7 @@ trait ParallelDeduplicatingExternalSorter<Item: Eq + Ord + Send>: Sync + Sized {
                 // early deduplication to save some space
                 Self::serialize(buf_path.clone(), buf.drain(0..).dedup())
                     .context("Could not serialize sorted list")?;
-                log::debug!("Wrote {} items to {}", buf.len(), buf_path.display());
+                log::debug!("Wrote {} items to {}", buf_len, buf_path.display());
 
                 pl.lock().unwrap().update_with_count(buf_len);
                 num_items_estimate.fetch_add(buf_len, Ordering::Relaxed);
