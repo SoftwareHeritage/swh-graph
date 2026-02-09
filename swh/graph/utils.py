@@ -44,7 +44,7 @@ def link(
             elif copy_ef and source_file_path.suffix == ".ef":
                 copy_paths.append(source_file_path)
             else:
-                source_file_path.symlink_to(destination_file_path)
+                destination_file_path.symlink_to(source_file_path)
                 logger.info(
                     "Creating symlink from %s to %s",
                     destination_file_path,
