@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -233,6 +233,7 @@ impl MappedPermutation {
             "mmap has size {}, which is not a multiple of 8",
             perm.size()
         );
+        let num_nodes = perm.len() / 8;
 
         // Check the permutation's image has the same size as the preimage
         if let Some((old, new)) = perm
@@ -243,7 +244,7 @@ impl MappedPermutation {
                     as usize
             })
             .enumerate()
-            .find_any(|&(_old, new)| new >= perm.len())
+            .find_any(|&(_old, new)| new >= num_nodes)
         {
             bail!(
                 "Found node {} has id {} in permutation, graph size is {}",
@@ -255,7 +256,7 @@ impl MappedPermutation {
 
         // Check the permutation is injective
         let mut seen = Vec::with_capacity(perm.len() as _);
-        seen.extend((0..perm.len()).map(|_| AtomicBool::new(false)));
+        seen.extend((0..num_nodes).map(|_| AtomicBool::new(false)));
         if let Some((old, _)) = perm
             .par_iter()
             .chunks(8)
