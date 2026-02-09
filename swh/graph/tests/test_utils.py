@@ -96,3 +96,13 @@ def test_link_touches_ef_files(source_tree: Path, tmp_path: Path) -> None:
 
     # Destination .ef file should be touched (have a newer mtime than source)
     assert dest_mtime >= source_mtime
+
+
+def test_link_with_existing_destination(source_tree: Path, tmp_path: Path) -> None:
+    """Test that linking raises an error when destination already exists."""
+    dest = tmp_path / "dest"
+    dest.mkdir()
+    (dest / "existing.txt").write_text("already here")
+
+    with pytest.raises(FileExistsError):
+        link(source_tree, dest, copy_graph=False, copy_ef=False)

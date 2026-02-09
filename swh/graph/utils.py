@@ -28,7 +28,7 @@ def link(
     """
     logger = logging.getLogger(f"{__name__}.link")
 
-    destination_path.mkdir(parents=True, exist_ok=True)
+    destination_path.mkdir(parents=True, exist_ok=False)
 
     copy_paths = []
 

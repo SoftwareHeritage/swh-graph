@@ -984,12 +984,18 @@ def link(
     """
     from swh.graph.utils import link
 
-    link(
-        source_path=source_path,
-        destination_path=destination_path,
-        copy_graph=copy_graph,
-        copy_ef=copy_ef,
-    )
+    try:
+        link(
+            source_path=source_path,
+            destination_path=destination_path,
+            copy_graph=copy_graph,
+            copy_ef=copy_ef,
+        )
+    except FileExistsError:
+        raise click.ClickException(
+            f"Destination directory already exists: {destination_path}\n"
+            f"Please choose a different destination or remove the existing directory."
+        )
 
 
 def main():
