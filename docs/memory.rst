@@ -58,10 +58,28 @@ Here is a systemd service that can be used to perform this task automatically:
     [Service]
     Type=oneshot
     RemainAfterExit=yes
+    ExecStart=swh graph link /.../compressed/ /dev/shm/swh-graph/default
+    ExecStop=rm -rf /dev/shm/swh-graph/default
+
+    [Install]
+    WantedBy=multi-user.target
+
+of, if you cannot use ``pip install swh-graph``:
+
+.. code-block:: ini
+
+    [Unit]
+    Description=swh-graph memory sharing in tmpfs
+
+    [Service]
+    Type=oneshot
+    RemainAfterExit=yes
     ExecStart=mkdir -p /dev/shm/swh-graph/default
     ExecStart=sh -c "ln -s /.../compressed/* /dev/shm/swh-graph/default"
     ExecStart=cp --remove-destination /.../compressed/graph.graph /dev/shm/swh-graph/default
     ExecStart=cp --remove-destination /.../compressed/graph-transposed.graph /dev/shm/swh-graph/default
+    ExecStart=cp --remove-destination /.../compressed/graph.ef /dev/shm/swh-graph/default
+    ExecStart=cp --remove-destination /.../compressed/graph-transposed.ef /dev/shm/swh-graph/default
     ExecStop=rm -rf /dev/shm/swh-graph/default
 
     [Install]
