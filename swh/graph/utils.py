@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import logging
+import os
 from pathlib import Path
 import shutil
 
@@ -32,7 +33,11 @@ def link(
 
     copy_paths = []
 
-    for dirpath, dirnames, filenames in source_path.walk():
+    for dirpath, dirnames, filenames in map(
+        # TODO: replace os.walk by pathlib.Path.walk once Python 3.11 support dropped
+        lambda r: (Path(r[0]), r[1], r[2]),
+        os.walk(source_path),
+    ):
         destination_dirpath = destination_path / dirpath.relative_to(source_path)
         for dirname in dirnames:
             (destination_dirpath / dirname).mkdir(parents=True, exist_ok=True)
