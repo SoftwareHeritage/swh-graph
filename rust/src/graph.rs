@@ -70,12 +70,15 @@ impl<F: RandomAccessDecoderFactory> UnderlyingGraph for BvGraph<F> {
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         <Self as RandomAccessLabeling>::num_arcs(self)
     }
+    #[inline(always)]
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         <Self as RandomAccessGraph>::has_arc(self, src_node_id, dst_node_id)
     }
+    #[inline(always)]
     fn unlabeled_successors(&self, node_id: NodeId) -> Self::UnlabeledSuccessors<'_> {
         <Self as RandomAccessGraph>::successors(self, node_id)
     }
@@ -87,12 +90,15 @@ impl<G: UnderlyingGraph, L: RandomAccessLabeling> UnderlyingGraph for Zip<G, L> 
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         <G as UnderlyingGraph>::num_arcs(&self.0)
     }
+    #[inline(always)]
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         self.0.has_arc(src_node_id, dst_node_id)
     }
+    #[inline(always)]
     fn unlabeled_successors(&self, node_id: NodeId) -> Self::UnlabeledSuccessors<'_> {
         self.0.unlabeled_successors(node_id)
     }
@@ -104,12 +110,15 @@ impl UnderlyingGraph for VecGraph {
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         <Self as RandomAccessLabeling>::num_arcs(self)
     }
+    #[inline(always)]
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         <Self as RandomAccessGraph>::has_arc(self, src_node_id, dst_node_id)
     }
+    #[inline(always)]
     fn unlabeled_successors(&self, node_id: NodeId) -> Self::UnlabeledSuccessors<'_> {
         <Self as RandomAccessGraph>::successors(self, node_id)
     }
@@ -121,6 +130,7 @@ impl<L: Clone> UnderlyingGraph for LabeledVecGraph<L> {
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         <Self as RandomAccessLabeling>::num_arcs(self)
     }
@@ -132,6 +142,7 @@ impl<L: Clone> UnderlyingGraph for LabeledVecGraph<L> {
         }
         false
     }
+    #[inline(always)]
     fn unlabeled_successors(&self, node_id: NodeId) -> Self::UnlabeledSuccessors<'_> {
         DelabelingIterator {
             successors: <Self as RandomAccessLabeling>::labels(self, node_id),
@@ -441,6 +452,7 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
 }
 
 impl<P, G: UnderlyingGraph> SwhGraph for SwhUnidirectionalGraph<P, G> {
+    #[inline(always)]
     fn path(&self) -> &Path {
         self.basepath.as_path()
     }
@@ -454,14 +466,17 @@ impl<P, G: UnderlyingGraph> SwhGraph for SwhUnidirectionalGraph<P, G> {
         false
     }
 
+    #[inline(always)]
     fn num_nodes(&self) -> usize {
         self.graph.num_nodes()
     }
 
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         UnderlyingGraph::num_arcs(&self.graph)
     }
 
+    #[inline(always)]
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         self.graph.has_arc(src_node_id, dst_node_id)
     }
@@ -474,11 +489,13 @@ impl<P, G: UnderlyingGraph> SwhForwardGraph for SwhUnidirectionalGraph<P, G> {
         Self: 'succ;
 
     /// Return an [`IntoIterator`] over the successors of a node.
+    #[inline(always)]
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         self.graph.unlabeled_successors(node_id)
     }
 
     /// Return the number of successors of a node.
+    #[inline(always)]
     fn outdegree(&self, node_id: NodeId) -> usize {
         self.graph.outdegree(node_id)
     }
@@ -700,6 +717,7 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
 }
 
 impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhGraph for SwhBidirectionalGraph<P, FG, BG> {
+    #[inline(always)]
     fn path(&self) -> &Path {
         self.basepath.as_path()
     }
@@ -713,14 +731,17 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhGraph for SwhBidirectionalG
         false
     }
 
+    #[inline(always)]
     fn num_nodes(&self) -> usize {
         self.forward_graph.num_nodes()
     }
 
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         UnderlyingGraph::num_arcs(&self.forward_graph)
     }
 
+    #[inline(always)]
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         self.forward_graph.has_arc(src_node_id, dst_node_id)
     }
@@ -734,9 +755,11 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhForwardGraph
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         self.forward_graph.unlabeled_successors(node_id)
     }
+    #[inline(always)]
     fn outdegree(&self, node_id: NodeId) -> usize {
         self.forward_graph.outdegree(node_id)
     }
@@ -771,10 +794,12 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBackwardGraph
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
         self.backward_graph.unlabeled_successors(node_id)
     }
 
+    #[inline(always)]
     fn indegree(&self, node_id: NodeId) -> usize {
         self.backward_graph.outdegree(node_id)
     }
@@ -936,6 +961,7 @@ impl<
     type Strings = STRINGS;
     type LabelNames = LABELNAMES;
 
+    #[inline(always)]
     fn properties(
         &self,
     ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>

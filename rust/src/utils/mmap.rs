@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -79,6 +79,7 @@ impl<E: ByteOrder, N: common_traits::AsBytes> NumberMmap<E, N, Mmap> {
     }
 
     #[allow(clippy::len_without_is_empty)]
+    #[inline(always)]
     pub fn len(&self) -> usize {
         self.len
     }
@@ -101,11 +102,13 @@ macro_rules! impl_number_mmap {
         impl<E: ByteOrder> crate::utils::GetIndex for &NumberMmap<E, $ty, Mmap> {
             type Output = $ty;
 
+            #[inline(always)]
             fn len(&self) -> usize {
                 NumberMmap::len(self)
             }
 
             /// Returns an item
+            #[inline(always)]
             fn get(&self, index: usize) -> Option<$ty> {
                 self.get_slice(index).map(E::$fn)
             }
@@ -115,6 +118,7 @@ macro_rules! impl_number_mmap {
             /// # Safety
             ///
             /// Undefined behavior if `index >= len()`
+            #[inline(always)]
             unsafe fn get_unchecked(&self, index: usize) -> $ty {
                 E::$fn(self.get_slice_unchecked(index))
             }

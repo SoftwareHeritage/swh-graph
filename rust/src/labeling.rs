@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -74,9 +74,11 @@ impl SequentialLabeling for SwhLabeling {
         Self: 'node;
 
     // Required methods
+    #[inline(always)]
     fn num_nodes(&self) -> usize {
         self.0.num_nodes()
     }
+    #[inline(always)]
     fn iter_from(&self, from: usize) -> Self::Lender<'_> {
         self.0.iter_from(from)
     }
@@ -88,14 +90,17 @@ impl RandomAccessLabeling for SwhLabeling {
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         <SwhLabelingInner as RandomAccessLabeling>::num_arcs(&self.0)
     }
 
+    #[inline(always)]
     fn labels(&self, node_id: usize) -> <Self as RandomAccessLabeling>::Labels<'_> {
         <SwhLabelingInner as RandomAccessLabeling>::labels(&self.0, node_id)
     }
 
+    #[inline(always)]
     fn outdegree(&self, node_id: usize) -> usize {
         <SwhLabelingInner as RandomAccessLabeling>::outdegree(&self.0, node_id)
     }
