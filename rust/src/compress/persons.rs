@@ -79,10 +79,12 @@ pub struct PersonHasher<'a> {
 }
 
 impl<'a> PersonHasher<'a> {
+    #[inline(always)]
     pub fn new(mphf: &'a PersonMphf) -> Self {
         PersonHasher { mphf }
     }
 
+    #[inline(always)]
     pub fn mphf(&self) -> &'a PersonMphf {
         self.mphf
     }

@@ -28,6 +28,7 @@ struct BytestringExternalSorter {
 }
 
 impl ParallelDeduplicatingExternalSorter<Bytestring> for BytestringExternalSorter {
+    #[inline(always)]
     fn buffer_capacity(&self) -> usize {
         self.buffer_size
             .div_ceil(AVERAGE_STRING_LENGTH)

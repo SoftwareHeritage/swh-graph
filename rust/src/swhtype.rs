@@ -137,6 +137,7 @@ impl NodeType {
         + (!Self::NUMBER_OF_TYPES.is_power_of_two()) as usize;
 
     /// Convert a type to the str used in the SWHID
+    #[inline(always)]
     pub fn to_str(&self) -> &'static str {
         match self {
             Self::Content => "cnt",
@@ -152,6 +153,7 @@ impl NodeType {
     ///
     /// In all cases using this method is both safer and more concise than
     /// `(node_type as isize).try_into().unwrap()`.
+    #[inline(always)]
     pub fn to_u8(&self) -> u8 {
         match self {
             Self::Content => 0,
@@ -216,6 +218,7 @@ impl NodeConstraint {
     ///     assert!(all_nodes.matches(node_type));
     /// }
     /// ```
+    #[inline(always)]
     pub fn matches(&self, node_type: NodeType) -> bool {
         self.0 & (1 << node_type.to_u8()) != 0
     }

@@ -74,9 +74,11 @@ impl SequentialLabeling for SwhLabeling {
         Self: 'node;
 
     // Required methods
+    #[inline(always)]
     fn num_nodes(&self) -> usize {
         self.0.num_nodes()
     }
+    #[inline(always)]
     fn iter_from(&self, from: usize) -> Self::Lender<'_> {
         self.0.iter_from(from)
     }
@@ -88,14 +90,17 @@ impl RandomAccessLabeling for SwhLabeling {
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         <SwhLabelingInner as RandomAccessLabeling>::num_arcs(&self.0)
     }
 
+    #[inline(always)]
     fn labels(&self, node_id: usize) -> <Self as RandomAccessLabeling>::Labels<'_> {
         <SwhLabelingInner as RandomAccessLabeling>::labels(&self.0, node_id)
     }
 
+    #[inline(always)]
     fn outdegree(&self, node_id: usize) -> usize {
         <SwhLabelingInner as RandomAccessLabeling>::outdegree(&self.0, node_id)
     }

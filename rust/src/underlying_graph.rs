@@ -60,14 +60,17 @@ impl SequentialLabeling for DefaultUnderlyingGraph {
         Self: 'node;
 
     // Required methods
+    #[inline(always)]
     fn num_nodes(&self) -> usize {
         self.0.num_nodes()
     }
+    #[inline(always)]
     fn iter_from(&self, from: usize) -> Self::Lender<'_> {
         self.0.iter_from(from)
     }
 
     // Specialized methods
+    #[inline(always)]
     fn num_arcs_hint(&self) -> Option<u64> {
         self.0.num_arcs_hint()
     }
@@ -80,14 +83,17 @@ impl RandomAccessLabeling for DefaultUnderlyingGraph {
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         <DefaultUnderlyingGraphInner as RandomAccessLabeling>::num_arcs(&self.0)
     }
 
+    #[inline(always)]
     fn labels(&self, node_id: usize) -> <Self as RandomAccessLabeling>::Labels<'_> {
         <DefaultUnderlyingGraphInner as RandomAccessLabeling>::labels(&self.0, node_id)
     }
 
+    #[inline(always)]
     fn outdegree(&self, node_id: usize) -> usize {
         <DefaultUnderlyingGraphInner as RandomAccessLabeling>::outdegree(&self.0, node_id)
     }
@@ -101,12 +107,15 @@ impl UnderlyingGraph for DefaultUnderlyingGraph {
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         <DefaultUnderlyingGraphInner as UnderlyingGraph>::num_arcs(&self.0)
     }
+    #[inline(always)]
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         <DefaultUnderlyingGraphInner as UnderlyingGraph>::has_arc(&self.0, src_node_id, dst_node_id)
     }
+    #[inline(always)]
     fn unlabeled_successors(&self, node_id: NodeId) -> Self::UnlabeledSuccessors<'_> {
         <DefaultUnderlyingGraphInner as UnderlyingGraph>::unlabeled_successors(&self.0, node_id)
     }

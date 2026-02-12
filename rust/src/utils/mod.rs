@@ -92,14 +92,17 @@ pub trait GetIndex {
 impl<Item: Clone, T: std::ops::Deref<Target = [Item]>> GetIndex for T {
     type Output = Item;
 
+    #[inline(always)]
     fn len(&self) -> usize {
         <[Item]>::len(self)
     }
 
+    #[inline(always)]
     fn get(&self, index: usize) -> Option<Self::Output> {
         <[Item]>::get(self, index).cloned()
     }
 
+    #[inline(always)]
     unsafe fn get_unchecked(&self, index: usize) -> Self::Output {
         <[Item]>::get_unchecked(self, index).clone()
     }

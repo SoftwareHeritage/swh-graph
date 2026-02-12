@@ -40,6 +40,7 @@ impl<Successors: Iterator> LabeledSuccessorIterator<Successors>
 where
     <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator<Item: Borrow<u64>>>,
 {
+    #[inline(always)]
     pub fn new(successors: Successors) -> Self {
         LabeledSuccessorIterator { successors }
     }
@@ -84,6 +85,7 @@ where
 {
     type Flattened = FlattenedSuccessorsIterator<Self>;
 
+    #[inline(always)]
     fn flatten_labels(self) -> Self::Flattened {
         FlattenedSuccessorsIterator::new(self)
     }
@@ -104,6 +106,7 @@ impl<Successors: Iterator> FlattenedSuccessorsIterator<Successors>
 where
     <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator>,
 {
+    #[inline(always)]
     pub fn new(successors: Successors) -> Self {
         Self {
             current_node_and_labels: None,
@@ -231,6 +234,7 @@ where
 {
     type Flattened = FlattenedSuccessorsIterator<Self>;
 
+    #[inline(always)]
     fn flatten_labels(self) -> Self::Flattened {
         FlattenedSuccessorsIterator::new(self)
     }

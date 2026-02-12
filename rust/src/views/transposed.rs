@@ -16,15 +16,19 @@ use crate::NodeType;
 pub struct Transposed<G: SwhGraph>(pub G);
 
 impl<G: SwhGraph> SwhGraph for Transposed<G> {
+    #[inline(always)]
     fn path(&self) -> &Path {
         self.0.path()
     }
+    #[inline(always)]
     fn is_transposed(&self) -> bool {
         !self.0.is_transposed()
     }
+    #[inline(always)]
     fn num_nodes(&self) -> usize {
         self.0.num_nodes()
     }
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         self.0.num_arcs()
     }
@@ -36,9 +40,11 @@ impl<G: SwhGraph> SwhGraph for Transposed<G> {
             .map(|((src_type, dst_type), count)| ((dst_type, src_type), count))
             .collect())
     }
+    #[inline(always)]
     fn has_node(&self, node_id: NodeId) -> bool {
         self.0.has_node(node_id)
     }
+    #[inline(always)]
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         self.0.has_arc(dst_node_id, src_node_id)
     }
@@ -50,9 +56,11 @@ impl<G: SwhBackwardGraph> SwhForwardGraph for Transposed<G> {
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         self.0.predecessors(node_id)
     }
+    #[inline(always)]
     fn outdegree(&self, node_id: NodeId) -> usize {
         self.0.indegree(node_id)
     }
@@ -68,6 +76,7 @@ impl<G: SwhLabeledBackwardGraph> SwhLabeledForwardGraph for Transposed<G> {
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
         self.0.untyped_labeled_predecessors(node_id)
     }
@@ -79,9 +88,11 @@ impl<G: SwhForwardGraph> SwhBackwardGraph for Transposed<G> {
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
         self.0.successors(node_id)
     }
+    #[inline(always)]
     fn indegree(&self, node_id: NodeId) -> usize {
         self.0.outdegree(node_id)
     }
@@ -97,6 +108,7 @@ impl<G: SwhLabeledForwardGraph> SwhLabeledBackwardGraph for Transposed<G> {
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
         self.0.untyped_labeled_successors(node_id)
     }
@@ -110,6 +122,7 @@ impl<G: SwhGraphWithProperties> SwhGraphWithProperties for Transposed<G> {
     type Strings = <G as SwhGraphWithProperties>::Strings;
     type LabelNames = <G as SwhGraphWithProperties>::LabelNames;
 
+    #[inline(always)]
     fn properties(
         &self,
     ) -> &properties::SwhGraphProperties<
