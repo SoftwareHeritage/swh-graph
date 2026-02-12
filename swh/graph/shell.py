@@ -221,12 +221,11 @@ class Command(metaclass=_MetaCommand):
         self.args = args
         self.kwargs = dict(kwargs)
         self.preexec_fn = self.kwargs.pop("preexec_fn", lambda: None)
-        self.cgroup = None
         self.check = check
 
-    def _preexec_fn(self):
-        if self.cgroup is not None:
-            move_to_cgroup(self.cgroup)
+    def _preexec_fn(self, cgroup):
+        if cgroup is not None:
+            move_to_cgroup(cgroup)
         self.preexec_fn()
 
     def _run(self, stdin, stdout, stderr) -> _RunningCommand:
@@ -273,7 +272,7 @@ class Command(metaclass=_MetaCommand):
             stdout=stdout,
             stderr=stderr,
             pass_fds=pass_fds,
-            preexec_fn=self._preexec_fn,
+            preexec_fn=functools.partial(self._preexec_fn, cgroup),
             **self.kwargs,
         )
 
