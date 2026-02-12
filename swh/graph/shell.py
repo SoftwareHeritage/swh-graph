@@ -435,7 +435,8 @@ class Pipe:
         elif stdout is subprocess.DEVNULL:
             stdout_read = None
         else:
-            stdout_read = os.fdopen(stdout, "rb") if isinstance(stdout, int) else stdout
+            # Don't wrap raw int fds: the caller owns them and will close them.
+            stdout_read = stdout
 
         write_pipes.append(stdout)
 
