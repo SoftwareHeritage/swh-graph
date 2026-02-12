@@ -40,6 +40,7 @@ rename the file at the end).
 from __future__ import annotations
 
 import dataclasses
+import errno
 import functools
 import logging
 import os
@@ -47,6 +48,7 @@ from pathlib import Path
 import shlex
 import signal
 import subprocess
+import time
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple, TypeVar, Union
 
 try:
@@ -152,8 +154,18 @@ def base_cgroup() -> Optional[Path]:
             )
 
     def cleanup():
-        # Clean up the base cgroup we created
-        base_cgroup_path.rmdir()
+        # Remove any leftover child cgroups (they should be empty by now),
+        # then remove the base cgroup.
+        for child in base_cgroup_path.iterdir():
+            if child.is_dir():
+                try:
+                    _rmdir_cgroup(child)
+                except OSError:
+                    logger.warning("Failed to remove leftover cgroup %s", child)
+        try:
+            _rmdir_cgroup(base_cgroup_path)
+        except OSError:
+            logger.warning("Failed to remove base cgroup %s", base_cgroup_path)
 
     atexit.register(cleanup)
 
@@ -201,6 +213,37 @@ def move_to_cgroup(cgroup: Path, pid: Optional[int] = None) -> bool:
         return False
     else:
         return True
+
+
+_RMDIR_RETRIES = 50
+_RMDIR_DELAY = 0.1
+
+
+def _rmdir_cgroup(cgroup: Path) -> None:
+    """Remove a cgroup directory, retrying briefly on EBUSY.
+
+    After a child process exits, the kernel may not release the cgroup
+    immediately (e.g. accounting cleanup for sub-processes).
+    """
+    for _ in range(_RMDIR_RETRIES):
+        try:
+            cgroup.rmdir()
+            return
+        except OSError as e:
+            if e.errno != errno.EBUSY:
+                raise
+            time.sleep(_RMDIR_DELAY)
+
+    try:
+        cgroup.rmdir()
+    except OSError as e:
+        logger.warning(
+            "Could not remove cgroup %s after %s seconds: %s",
+            cgroup,
+            _RMDIR_RETRIES * _RMDIR_DELAY,
+            e,
+        )
+        raise
 
 
 class _MetaCommand(type):
@@ -409,7 +452,7 @@ class _RunningCommand:
 
     def _cleanup(self) -> None:
         if self.cgroup is not None:
-            self.cgroup.rmdir()
+            _rmdir_cgroup(self.cgroup)
 
 
 class Pipe:
