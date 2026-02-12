@@ -238,12 +238,14 @@ impl std::fmt::Debug for DynMphf {
 }
 
 impl From<GOVMPH> for DynMphf {
+    #[inline(always)]
     fn from(value: GOVMPH) -> DynMphf {
         DynMphf::GOV(value)
     }
 }
 
 impl From<SwhidPthash> for DynMphf {
+    #[inline(always)]
     fn from(value: SwhidPthash) -> DynMphf {
         DynMphf::Pthash(value)
     }

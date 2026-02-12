@@ -160,6 +160,7 @@ impl<'a> LabelNameHasher<'a> {
         Ok(LabelNameHasher { mphf, order })
     }
 
+    #[inline(always)]
     pub fn mphf(&self) -> &'a LabelNameMphf {
         self.mphf
     }

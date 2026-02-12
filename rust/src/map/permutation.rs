@@ -200,14 +200,17 @@ impl<T: Sync + AsRef<[usize]>> std::ops::Index<usize> for OwnedPermutation<T> {
 }
 
 impl<T: Sync + AsRef<[usize]>> Permutation for OwnedPermutation<T> {
+    #[inline(always)]
     fn len(&self) -> usize {
         self.as_ref().len()
     }
 
+    #[inline(always)]
     fn get(&self, old_node: usize) -> Option<usize> {
         self.0.as_ref().get(old_node).copied()
     }
 
+    #[inline(always)]
     unsafe fn get_unchecked(&self, old_node: usize) -> usize {
         *self.0.as_ref().get_unchecked(old_node)
     }
@@ -328,15 +331,18 @@ impl MappedPermutation {
 }
 
 impl Permutation for MappedPermutation {
+    #[inline(always)]
     fn len(&self) -> usize {
         self.0.size() / 8
     }
 
+    #[inline(always)]
     fn get(&self, old_node: usize) -> Option<usize> {
         let range = (old_node * 8)..((old_node + 1) * 8);
         Some(BigEndian::read_u64(self.0.get(range)?) as usize)
     }
 
+    #[inline(always)]
     unsafe fn get_unchecked(&self, old_node: usize) -> usize {
         let range = (old_node * 8)..((old_node + 1) * 8);
         BigEndian::read_u64(self.0.get_unchecked(range)) as usize

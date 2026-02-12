@@ -14,6 +14,7 @@ use crate::NodeType;
 pub struct UntypedEdgeLabel(pub(crate) u64);
 
 impl From<u64> for UntypedEdgeLabel {
+    #[inline(always)]
     fn from(n: u64) -> UntypedEdgeLabel {
         UntypedEdgeLabel(n)
     }
@@ -50,6 +51,7 @@ impl UntypedEdgeLabel {
 }
 
 impl From<EdgeLabel> for UntypedEdgeLabel {
+    #[inline(always)]
     fn from(label: EdgeLabel) -> Self {
         UntypedEdgeLabel(match label {
             EdgeLabel::Branch(branch) => branch.0,
@@ -110,6 +112,7 @@ pub enum VisitStatus {
 pub struct Visit(pub(crate) u64);
 
 impl From<u64> for Visit {
+    #[inline(always)]
     fn from(n: u64) -> Visit {
         Visit(n)
     }
@@ -130,10 +133,12 @@ impl Visit {
             .map(|shifted_timestamp| Visit(shifted_timestamp | (is_full << 4) | reserved_bits))
     }
 
+    #[inline(always)]
     pub fn timestamp(&self) -> u64 {
         self.0 >> 5
     }
 
+    #[inline(always)]
     pub fn status(&self) -> VisitStatus {
         if self.0 & 0b10000 != 0 {
             VisitStatus::Full
@@ -147,6 +152,7 @@ impl Visit {
 pub struct Branch(pub(crate) u64);
 
 impl From<u64> for Branch {
+    #[inline(always)]
     fn from(n: u64) -> Branch {
         Branch(n)
     }
@@ -162,6 +168,7 @@ impl Branch {
 
     #[deprecated(since = "7.0.0", note = "filename_id was renamed label_name_id")]
     /// Deprecated alias for [`label_name_id`](Self::label_name_id)
+    #[inline(always)]
     pub fn filename_id(self) -> LabelNameId {
         self.label_name_id()
     }
@@ -169,6 +176,7 @@ impl Branch {
     /// Returns an id of the label name of the entry.
     ///
     /// The id can be resolved to the label name through graph properties.
+    #[inline(always)]
     pub fn label_name_id(self) -> LabelNameId {
         LabelNameId(self.0 >> 3)
     }
@@ -178,6 +186,7 @@ impl Branch {
 pub struct DirEntry(pub(crate) u64);
 
 impl From<u64> for DirEntry {
+    #[inline(always)]
     fn from(n: u64) -> DirEntry {
         DirEntry(n)
     }
@@ -196,6 +205,7 @@ impl DirEntry {
 
     #[deprecated(since = "7.0.0", note = "filename_id was renamed label_name_id")]
     /// Deprecated alias for [`label_name_id`](Self::label_name_id)
+    #[inline(always)]
     pub fn filename_id(self) -> LabelNameId {
         self.label_name_id()
     }
@@ -203,6 +213,7 @@ impl DirEntry {
     /// Returns an id of the filename of the entry.
     ///
     /// The id can be resolved to the label name through graph properties.
+    #[inline(always)]
     pub fn label_name_id(self) -> LabelNameId {
         LabelNameId(self.0 >> 3)
     }
@@ -267,6 +278,7 @@ impl Permission {
     /// `0100644` for contents, `0100755` for executable contents, `0120000` for symbolic
     /// links, `0040000` for directories, and `0160000` for revisions (git submodules);
     /// or `0` if the [`DirEntry`] has no associated permission.
+    #[inline(always)]
     pub fn to_git(self) -> u16 {
         use Permission::*;
         match self {

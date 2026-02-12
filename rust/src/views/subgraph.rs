@@ -247,22 +247,27 @@ where
 impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool> SwhGraph
     for Subgraph<G, NodeFilter, ArcFilter>
 {
+    #[inline(always)]
     fn path(&self) -> &Path {
         self.graph.path()
     }
+    #[inline(always)]
     fn is_transposed(&self) -> bool {
         self.graph.is_transposed()
     }
     // Note: this return the number or nodes in the original graph, before
     // subgraph filtering.
+    #[inline(always)]
     fn num_nodes(&self) -> usize {
         self.graph.num_nodes()
     }
+    #[inline(always)]
     fn has_node(&self, node_id: NodeId) -> bool {
         (self.node_filter)(node_id)
     }
     // Note: this return the number or arcs in the original graph, before
     // subgraph filtering.
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         self.graph.num_arcs()
     }
@@ -276,6 +281,7 @@ impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> 
             "num_arcs_by_type is not supported by this Subgraph (if possible, use Subgraph::with_node_constraint to build it)"
         ))
     }
+    #[inline(always)]
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         (self.node_filter)(src_node_id)
             && (self.node_filter)(dst_node_id)
@@ -297,6 +303,7 @@ impl<G: SwhForwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usi
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         FilteredSuccessors {
             inner: self.graph.successors(node_id).into_iter(),
@@ -305,6 +312,7 @@ impl<G: SwhForwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usi
             arc_filter: &self.arc_filter,
         }
     }
+    #[inline(always)]
     fn outdegree(&self, node_id: NodeId) -> usize {
         self.successors(node_id).count()
     }
@@ -323,6 +331,7 @@ impl<G: SwhBackwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, us
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn predecessors(&self, node_id: NodeId) -> Self::Predecessors<'_> {
         FilteredPredecessors {
             inner: self.graph.predecessors(node_id).into_iter(),
@@ -331,6 +340,7 @@ impl<G: SwhBackwardGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, us
             arc_filter: &self.arc_filter,
         }
     }
+    #[inline(always)]
     fn indegree(&self, node_id: NodeId) -> usize {
         self.predecessors(node_id).count()
     }
@@ -357,6 +367,7 @@ impl<
     where
         Self: 'node;
 
+    #[inline(always)]
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
         FilteredLabeledSuccessors {
             inner: self.graph.untyped_labeled_successors(node_id).into_iter(),
@@ -388,6 +399,7 @@ impl<
     where
         Self: 'node;
 
+    #[inline(always)]
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
         FilteredLabeledPredecessors {
             inner: self.graph.untyped_labeled_predecessors(node_id).into_iter(),
@@ -411,6 +423,7 @@ impl<
     type Strings = <G as SwhGraphWithProperties>::Strings;
     type LabelNames = <G as SwhGraphWithProperties>::LabelNames;
 
+    #[inline(always)]
     fn properties(
         &self,
     ) -> &properties::SwhGraphProperties<

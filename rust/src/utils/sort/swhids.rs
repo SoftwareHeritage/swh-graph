@@ -26,6 +26,7 @@ struct SwhidExternalSorter {
 }
 
 impl ParallelDeduplicatingExternalSorter<SWHID> for SwhidExternalSorter {
+    #[inline(always)]
     fn buffer_capacity(&self) -> usize {
         self.buffer_size.div_ceil(SWHID::LEVELS).next_power_of_two()
     }

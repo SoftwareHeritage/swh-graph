@@ -142,6 +142,7 @@ impl GraphBuilder {
     }
 
     /// Returns `NodeId` that represents this SWHID in the graph, if it exists
+    #[inline(always)]
     pub fn node_id(&self, swhid: SWHID) -> Option<NodeId> {
         self.swhids.iter().position(|x| *x == swhid)
     }
@@ -357,6 +358,7 @@ pub struct NodeBuilder<'builder> {
 }
 
 impl NodeBuilder<'_> {
+    #[inline(always)]
     pub fn done(&self) -> NodeId {
         self.node_id
     }
