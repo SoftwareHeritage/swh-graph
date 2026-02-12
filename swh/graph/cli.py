@@ -975,8 +975,8 @@ def link(
     """
     Symlink (or copy) an existing graph to the desired location.
 
-    By default, all files but *.graph and *.ef are symlinked, but files and directories can be
-    specified to be copied instead.
+    By default, all files but ``*.graph`` and ``*.ef`` are symlinked,
+    but files and directories can be specified to be copied instead.
 
     This functionality is intended for internal use, and is there to ease the
     process of sharing an existing graph between multiple users on the same
