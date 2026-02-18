@@ -17,17 +17,17 @@ version = "10.0.0"
 
 [workspace.dependencies]
 anyhow = { version="1.0.79", features=["backtrace"] }
-dsi-bitstream = "0.5.0"
-epserde = "0.11.1"
+dsi-bitstream = "0.7.0"
+epserde = "0.12.0"
 itertools = { version = "0.11.0" }
-lender = "0.4.2"
-mmap-rs = "0.6.1"
+lender = "0.6.0"
+mmap-rs = "0.7.0"
 rayon = { version = "1.9.0" }
 swh-graph = { version = "10.0.0", path = "./rust/" }
-webgraph = "0.5.0"
-webgraph-algo = "0.5.0"
-webgraph-cli = "0.3.0"
-sux = "0.10.0"
+webgraph = "0.6.0"
+webgraph-algo = "0.6.0"
+webgraph-cli = "0.4.0"
+sux = "0.12.0"
 value-traits = "0.2.0"
 
 # CLI

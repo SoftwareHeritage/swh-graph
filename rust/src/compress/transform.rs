@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -75,14 +75,19 @@ where
                     .flat_map_iter(move |partition| {
                         let mut pl = pl.clone();
                         partition
-                            .flat_map(move |(src, succ)| {
-                                let transformed_succ: Vec<_> = succ
-                                    .into_iter()
-                                    .flat_map(move |dst| transformation(src, dst).into_iter())
-                                    .collect();
-                                pl.light_update();
-                                transformed_succ.into_into_lender().into_lender()
-                            })
+                            .flat_map(lender::covar_mut!(
+                                #![with<'g, G: SplitLabeling<Label=usize>>]
+                                for<'lend>
+                                move |(src, succ): (usize, <<G as SplitLabeling>::SplitLender<'g> as NodeLabelsLender<'lend>>::IntoIterator)|
+                                -> lender::FromIter<std::vec::IntoIter<(usize, usize)>> {
+                                    let transformed_succ: Vec<_> = succ
+                                        .into_iter()
+                                        .flat_map(move |dst: usize| transformation(src, dst).into_iter())
+                                        .collect();
+                                    pl.light_update();
+                                    transformed_succ.into_into_lender().into_lender()
+                                }
+                            ))
                             .iter()
                     }),
             )
@@ -102,20 +107,9 @@ where
         },
     );
 
-    let temp_bv_dir = temp_dir.path().join("transform-bv");
-    std::fs::create_dir(&temp_bv_dir)
-        .with_context(|| format!("Could not create {}", temp_bv_dir.display()))?;
-    BvComp::parallel_iter::<BE, _>(
-        target_path,
-        arc_list_graphs.into_iter(),
-        num_nodes,
-        CompFlags::default(),
-        &rayon::ThreadPoolBuilder::default()
-            .build()
-            .expect("Could not create BvComp thread pool"),
-        &temp_bv_dir,
-    )
-    .context("Could not build BVGraph from arcs")?;
+    BvComp::with_basename(target_path)
+        .par_comp_lenders::<BE, _>(arc_list_graphs.into_iter(), num_nodes)
+        .context("Could not build BVGraph from arcs")?;
 
     drop(temp_dir); // Prevent early deletion
 
