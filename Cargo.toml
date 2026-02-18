@@ -13,9 +13,11 @@ members = [
 [workspace.package]
 repository = "https://gitlab.softwareheritage.org/swh/devel/swh-graph"
 license = "GPL-3.0-or-later"
-version = "10.0.0"
+version = "11.0.0"
 
 [workspace.dependencies]
+swh-graph = { version = "11.0.0", path = "./rust/" }
+
 anyhow = { version="1.0.79", features=["backtrace"] }
 dsi-bitstream = "0.7.0"
 epserde = "0.12.0"
@@ -23,7 +25,6 @@ itertools = { version = "0.11.0" }
 lender = "0.6.0"
 mmap-rs = "0.7.0"
 rayon = { version = "1.9.0" }
-swh-graph = { version = "10.0.0", path = "./rust/" }
 webgraph = "0.6.0"
 webgraph-algo = "0.6.0"
 webgraph-cli = "0.4.0"
