@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -115,22 +115,9 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
         },
     );
 
-    let comp_flags = Default::default();
-
-    let temp_bv_dir = temp_dir.path().join("bv");
-    std::fs::create_dir(&temp_bv_dir)
-        .with_context(|| format!("Could not create {}", temp_bv_dir.display()))?;
-    BvComp::parallel_iter::<BE, _>(
-        target_dir,
-        arc_list_graphs.into_iter(),
-        num_nodes,
-        comp_flags,
-        &rayon::ThreadPoolBuilder::default()
-            .build()
-            .expect("Could not create BvComp thread pool"),
-        &temp_bv_dir,
-    )
-    .context("Could not build BVGraph from arcs")?;
+    BvComp::with_basename(target_dir)
+        .par_comp_lenders::<BE, _>(arc_list_graphs.into_iter(), num_nodes)
+        .context("Could not build BVGraph from arcs")?;
 
     drop(temp_dir); // Prevent early deletion
 

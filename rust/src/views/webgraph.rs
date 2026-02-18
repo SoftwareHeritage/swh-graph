@@ -1,9 +1,10 @@
-// Copyright (C) 2025  The Software Heritage developers
+// Copyright (C) 2025-2026  The Software Heritage developers
 // Copyright (C) 2025  Tommaso Fontana
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use lender::Lending; // workaround for https://github.com/WanderLanz/Lender/pull/35
 use webgraph::prelude::*;
 
 use crate::graph::*;
@@ -54,7 +55,7 @@ use crate::graph::*;
 ///         root: 0,
 ///         parent: 0,
 ///         node: 2,
-///         distance: 0
+///         distance: 1
 ///     },
 ///     IterEvent {
 ///         root: 1,
@@ -141,6 +142,10 @@ unsafe impl<G: SwhForwardGraph> SortedLender for LenderSwhForwardGraph<'_, G> wh
 }
 
 impl<G: SwhForwardGraph> lender::Lender for LenderSwhForwardGraph<'_, G> {
+    // SAFETY: the lend is covariant as it contains only a usize and an iterator
+    // over usize values
+    lender::unsafe_assume_covariance!();
+
     fn next(&mut self) -> Option<<Self as lender::Lending<'_>>::Lend> {
         let node_id = self.node_id;
         if node_id >= self.graph.num_nodes() {
@@ -276,6 +281,10 @@ where
 }
 
 impl<G: SwhForwardGraph + SwhBackwardGraph> lender::Lender for LenderSwhSymmetricGraph<'_, G> {
+    // SAFETY: the lend is covariant as it contains only a usize and an iterator
+    // over usize values
+    lender::unsafe_assume_covariance!();
+
     fn next(&mut self) -> Option<<Self as lender::Lending<'_>>::Lend> {
         let node_id = self.node_id;
         if node_id >= self.graph.num_nodes() {
