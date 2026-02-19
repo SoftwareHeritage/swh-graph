@@ -1018,7 +1018,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "counters"
-version = "11.0.0"
+version = "11.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -2466,9 +2466,9 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "lender"
-version = "0.6.0"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b414b900e39c3fae868409fb36842d08ae61e75c6269b8d51b36f3fbeb4b06e"
+checksum = "aeed4888de4544bf3ba2e111326978dbcc37f57bf2c7d6a6a78ed6c01f77ef93"
 dependencies = [
  "aliasable",
  "fallible-iterator",
@@ -4318,7 +4318,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph"
-version = "11.0.0"
+version = "11.0.1"
 dependencies = [
  "anyhow",
  "ar_row",
@@ -4370,7 +4370,7 @@ dependencies = [
 
 [[package]]
 name = "swh-graph-grpc-server"
-version = "11.0.0"
+version = "11.0.1"
 dependencies = [
  "anyhow",
  "async-scoped",
@@ -4403,7 +4403,7 @@ dependencies = [
 
 [[package]]
 name = "swh-subgrapher"
-version = "11.0.0"
+version = "11.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -4417,7 +4417,7 @@ dependencies = [
 
 [[package]]
 name = "swh_graph_pyo3"
-version = "11.0.0"
+version = "11.0.1"
 dependencies = [
  "pyo3",
  "swh-graph",

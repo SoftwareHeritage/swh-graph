@@ -4,7 +4,6 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use lender::Lending; // workaround for https://github.com/WanderLanz/Lender/pull/35
 use webgraph::prelude::*;
 
 use crate::graph::*;
