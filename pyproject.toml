@@ -95,7 +95,6 @@ module = [
     "luigi.*",
     "magic.*",
     "pyzstd.*",
-    "scancode.*",
 ]
 ignore_missing_imports = true
 

@@ -4,4 +4,3 @@ pyarrow < 19.0.0  # https://github.com/apache/arrow/issues/45283
 python-magic
 pyzstd
 tqdm
-scancode-toolkit==32.2.1  # output may vary across versions; so we pin it in order to have reproducible datasets
