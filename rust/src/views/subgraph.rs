@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -166,6 +166,7 @@ make_filtered_labeled_arcs_iterator! {
 
 /// A view over [`SwhGraph`] and related traits, that filters out some nodes and arcs
 /// based on arbitrary closures.
+#[derive(Clone, Debug)]
 pub struct Subgraph<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> bool>
 {
     pub graph: G,
