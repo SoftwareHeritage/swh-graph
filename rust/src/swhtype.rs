@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -279,6 +279,44 @@ impl core::fmt::Display for NodeConstraint {
             write!(f, "{}", type_strings.join(","))?;
         }
         Ok(())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for NodeConstraint {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for NodeConstraint {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        deserializer.deserialize_str(NodeConstraintVisitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct NodeConstraintVisitor;
+
+#[cfg(feature = "serde")]
+impl serde::de::Visitor<'_> for NodeConstraintVisitor {
+    type Value = NodeConstraint;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a node type constraint")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        value.parse().map_err(E::custom)
     }
 }
 

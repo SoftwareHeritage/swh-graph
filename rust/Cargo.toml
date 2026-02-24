@@ -9,6 +9,7 @@ readme = "README.md"
 keywords = ["software-heritage", "graph", "compression", "webgraph"]
 categories = ["compression", "science"]
 rust-version = "1.81"
+documentation = "https://docs.rs/swh-graph"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

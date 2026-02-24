@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2025  The Software Heritage developers
+# Copyright (C) 2019-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -953,54 +953,49 @@ def find_context(ctx, **kwargs):
     "destination-path", type=click.Path(dir_okay=True, writable=True, path_type=Path)
 )
 @click.option(
-    "--verbose", "-v", is_flag=True, default=False, help="Explain what is being done"
+    "--copy-graph",
+    is_flag=True,
+    default=True,
+    help="Whether to copy .graph files (instead of symlink)",
 )
-@click.argument("force-copy", type=click.Path(path_type=Path), nargs=-1)
+@click.option(
+    "--copy-ef",
+    is_flag=True,
+    default=True,
+    help="Whether to copy .ef files (instead of symlink)",
+)
 @click.pass_context
 def link(
     ctx,
     source_path: Path,
     destination_path: Path,
-    force_copy: Tuple[Path],
-    verbose: bool,
+    copy_graph: bool,
+    copy_ef: bool,
 ):
     """
     Symlink (or copy) an existing graph to the desired location.
 
-    By default, all files are symlinked, but files and directories can be
-    specified to be copied instead.
+    By default, all files but ``*.graph`` and ``*.ef`` are symlinked,
+    but files and directories can be specified to be copied instead.
 
     This functionality is intended for internal use, and is there to ease the
     process of sharing an existing graph between multiple users on the same
     machine.
     """
-    import shutil
+    from swh.graph.utils import link
 
-    from tqdm.contrib.concurrent import thread_map
-
-    destination_path.mkdir(parents=True, exist_ok=True)
-
-    for file_or_dir in source_path.rglob("*"):
-        if file_or_dir in force_copy:
-            continue
-        link_target = destination_path / file_or_dir.relative_to(source_path)
-        if file_or_dir.is_dir():
-            link_target.mkdir(parents=True, exist_ok=True)
-            continue
-        link_target.symlink_to(file_or_dir)
-        if verbose:
-            logger.info(f"Creating symlink from {file_or_dir} to {link_target}")
-
-    def _copy(source_item: Path):
-        if verbose:
-            logger.info(f"Copying {source_item} to {destination_path}")
-        if source_item.is_file():
-            shutil.copy(source_item, destination_path)
-        else:
-            shutil.copytree(source_item, destination_path)
-
-    if len(force_copy) > 0:
-        thread_map(_copy, force_copy, desc="Copying files", max_workers=len(force_copy))
+    try:
+        link(
+            source_path=source_path,
+            destination_path=destination_path,
+            copy_graph=copy_graph,
+            copy_ef=copy_ef,
+        )
+    except FileExistsError:
+        raise click.ClickException(
+            f"Destination directory already exists: {destination_path}\n"
+            f"Please choose a different destination or remove the existing directory."
+        )
 
 
 def main():

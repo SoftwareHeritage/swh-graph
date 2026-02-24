@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2025  The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -62,6 +62,11 @@ class GraphDownloader(S3Downloader):
             subprocess.check_call(["unzstd", "-d", "-q", "--rm", local_file_path])
 
     def post_downloads(self) -> None:
+        for file in self.local_path.rglob("**/*.ef"):
+            # silence
+            # https://github.com/vigna/webgraph-rs/commit/b494048f787e3f0a021f6f289d66400bdfb5d5f3
+            file.touch()
+
         if not self.s3_url.startswith(
             tuple(
                 (

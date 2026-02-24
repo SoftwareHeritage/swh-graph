@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use itertools::Itertools;
 use tonic::{Request, Response};
 
-use swh_graph::graph::{SwhForwardGraph, SwhGraphWithProperties, SwhLabeledForwardGraph};
+use swh_graph::graph::{NodeId, SwhForwardGraph, SwhGraphWithProperties, SwhLabeledForwardGraph};
 use swh_graph::properties;
 use swh_graph::views::{Subgraph, Symmetric, Transposed};
 
@@ -220,7 +220,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     Some(found_target) => {
                         let target_depth = target_depth.unwrap(); // was set at the same time as found_target
                         let path = self.path_from_visit(&parents, found_target, target_depth)?;
-                        let path_nodes: Vec<proto::Node> = if node_builder.empty_mask() {
+                        let path_nodes = if node_builder.empty_mask() {
                             Vec::new()
                         } else {
                             path.iter()
@@ -228,45 +228,13 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                                 .rev() // Reverse order to be src->target
                                 .collect()
                         };
-                        let labeled_path: Vec<proto::LabeledNode> =
-                            if labeled_node_builder.empty_mask() && labeled_label_builder.empty_mask() {
-                                Vec::new()
-                            } else {
-                                path.iter()
-                                    .enumerate() // counted from the end
-                                    .map(|(idx, &node_id)| {
-                                        let label = if idx == 0 {
-                                            // last node of the path
-                                            Vec::new()
-                                        } else {
-                                            let (_succ, labels) = subgraph
-                                                .labeled_successors(node_id)
-                                                .into_iter()
-                                                .filter(|(succ, _labels)| succ == &path[idx - 1])
-                                                .next()
-                                                .expect("node on path is missing a successor");
-                                            if labeled_label_builder.empty_mask() {
-                                                Vec::new()
-                                            } else {
-                                                labels.map(|label| {
-                                                    // Cannot panic because we made sure the mask is not empty
-                                                    labeled_label_builder.build_edge_label(label).unwrap()
-                                                }).collect()
-                                            }
-                                        };
-                                        let node = if labeled_node_builder.empty_mask() {
-                                            None
-                                        } else {
-                                            Some(labeled_node_builder.build_node(node_id))
-                                        };
-                                        proto::LabeledNode {
-                                            node,
-                                            label,
-                                        }
-                                    })
-                                    .rev() // Reverse order to be src->target
-                                    .collect()
-                            };
+                        let labeled_path = build_labeled_path(
+                            subgraph,
+                            &labeled_node_builder,
+                            &labeled_label_builder,
+                            &path,
+                            true,
+                        );
 
                         Ok(Response::new(proto::Path {
                             node: path_nodes,
@@ -438,6 +406,31 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
         let symmetric_node_builder =
             NodeBuilder::new(symmetric_graph.clone(), mask.clone(), Some("node"))?;
 
+        let forward_labeled_node_builder =
+            NodeBuilder::new(subgraph.clone(), mask.clone(), Some("labeled_node.node"))?;
+        let forward_labeled_label_builder =
+            LabelBuilder::new(subgraph.clone(), mask.clone(), "labeled_node.label")?;
+        let backward_labeled_node_builder = NodeBuilder::new(
+            transpose_subgraph.clone(),
+            mask.clone(),
+            Some("labeled_node.node"),
+        )?;
+        let backward_labeled_label_builder = LabelBuilder::new(
+            transpose_subgraph.clone(),
+            mask.clone(),
+            "labeled_node.label",
+        )?;
+        let symmetric_labeled_node_builder = NodeBuilder::new(
+            symmetric_subgraph.clone(),
+            mask.clone(),
+            Some("labeled_node.node"),
+        )?;
+        let symmetric_labeled_label_builder = LabelBuilder::new(
+            symmetric_subgraph.clone(),
+            mask.clone(),
+            "labeled_node.label",
+        )?;
+
         // Technically we don't need locks because the closures are called sequentially,
         // but I don't see a way around it without unsafe{}.
         let parents: HashMap<usize, usize> = src_ids.into_iter().map(|n| (n, usize::MAX)).collect();
@@ -554,41 +547,79 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             Some(found_midpoint) => {
                 let max_midpoint_depth = max_midpoint_depth.take().unwrap(); // was set at the same time as found_midpoint
                 let mut path = Vec::with_capacity((max_midpoint_depth * 2 + 1) as usize);
-                path.extend(
-                    self.path_from_visit(
-                        &parents.into_inner().unwrap(),
-                        found_midpoint,
-                        max_midpoint_depth,
-                    )?
+                let half_path_from_src = self.path_from_visit(
+                    &parents.into_inner().unwrap(),
+                    found_midpoint,
+                    max_midpoint_depth,
+                )?;
+                let half_path_from_dst: Vec<_> = self.path_from_visit(
+                    &parents_reverse.into_inner().unwrap(),
+                    found_midpoint,
+                    max_midpoint_depth,
+                )?;
+
+                let midpoint_index = half_path_from_src.len() - 1;
+
+                let mut labeled_path = match direction {
+                    proto::GraphDirection::Forward => build_labeled_path(
+                        subgraph.clone(),
+                        &forward_labeled_node_builder,
+                        &forward_labeled_label_builder,
+                        &half_path_from_src,
+                        true,
+                    ),
+                    proto::GraphDirection::Backward => build_labeled_path(
+                        transpose_subgraph.clone(),
+                        &backward_labeled_node_builder,
+                        &backward_labeled_label_builder,
+                        &half_path_from_src,
+                        true,
+                    ),
+                    proto::GraphDirection::Both => build_labeled_path(
+                        symmetric_subgraph.clone(),
+                        &symmetric_labeled_node_builder,
+                        &symmetric_labeled_label_builder,
+                        &half_path_from_src,
+                        true,
+                    ),
+                };
+                labeled_path.pop(); // Drop midpoint so it's not there twice
+
+                labeled_path.extend(match direction_reverse {
+                    proto::GraphDirection::Forward => build_labeled_path(
+                        subgraph,
+                        &forward_labeled_node_builder,
+                        &forward_labeled_label_builder,
+                        &half_path_from_dst,
+                        false,
+                    ),
+                    proto::GraphDirection::Backward => build_labeled_path(
+                        transpose_subgraph,
+                        &backward_labeled_node_builder,
+                        &backward_labeled_label_builder,
+                        &half_path_from_dst,
+                        false,
+                    ),
+                    proto::GraphDirection::Both => build_labeled_path(
+                        symmetric_subgraph,
+                        &symmetric_labeled_node_builder,
+                        &symmetric_labeled_label_builder,
+                        &half_path_from_dst,
+                        false,
+                    ),
+                });
+
+                let ids_path: Vec<_> = half_path_from_src
                     .into_iter()
                     .rev() // Reverse order to be src->midpoint
-                    .map(|node_id| match direction {
-                        proto::GraphDirection::Forward => forward_node_builder.build_node(node_id),
-                        proto::GraphDirection::Backward => {
-                            backward_node_builder.build_node(node_id)
-                        }
-                        proto::GraphDirection::Both => symmetric_node_builder.build_node(node_id),
-                    }),
-                );
-                let midpoint_index = path.len() - 1;
-                path.extend(
-                    self.path_from_visit(
-                        &parents_reverse.into_inner().unwrap(),
-                        found_midpoint,
-                        max_midpoint_depth,
-                    )?
-                    .into_iter()
-                    .skip(1)
-                    .map(|node_id| match direction {
-                        proto::GraphDirection::Forward => forward_node_builder.build_node(node_id),
-                        proto::GraphDirection::Backward => {
-                            backward_node_builder.build_node(node_id)
-                        }
-                        proto::GraphDirection::Both => symmetric_node_builder.build_node(node_id),
-                    }),
-                );
-                // TODO: build and return labeled_node
-                let labeled_path: Vec<proto::LabeledNode> = Vec::new();
+                    .chain(half_path_from_dst.into_iter().skip(1))
+                    .collect();
+
+                path.extend(ids_path.iter().map(|&node_id| match direction {
+                    proto::GraphDirection::Forward => forward_node_builder.build_node(node_id),
+                    proto::GraphDirection::Backward => backward_node_builder.build_node(node_id),
+                    proto::GraphDirection::Both => symmetric_node_builder.build_node(node_id),
+                }));
 
                 Ok(Response::new(proto::Path {
                     node: path,
@@ -612,5 +643,75 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                 )))
             }
         }
+    }
+}
+
+fn build_labeled_path<
+    G: SwhLabeledForwardGraph
+        + SwhGraphWithProperties<
+            Maps: properties::Maps,
+            Strings: properties::OptStrings,
+            LabelNames: properties::LabelNames,
+            Contents: properties::OptContents,
+            Persons: properties::OptPersons,
+            Timestamps: properties::OptTimestamps,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
+    subgraph: G,
+    labeled_node_builder: &NodeBuilder<G>,
+    labeled_label_builder: &LabelBuilder<G>,
+    ids_path: &[NodeId],
+    reverse: bool,
+) -> Vec<proto::LabeledNode> {
+    if labeled_node_builder.empty_mask() && labeled_label_builder.empty_mask() {
+        return Vec::new();
+    }
+    let res = ids_path
+        .iter()
+        .enumerate() // counted from the end
+        .map(|(idx, &node_id)| {
+            let label = if idx == 0 {
+                // last node of the path
+                Vec::new()
+            } else {
+                let (_succ, labels) = subgraph
+                    .labeled_successors(node_id)
+                    .into_iter()
+                    .find(|(succ, _labels)| succ == &ids_path[idx - 1])
+                    .expect("node on path is missing a successor");
+                if labeled_label_builder.empty_mask() {
+                    Vec::new()
+                } else {
+                    labels
+                        .map(|label| {
+                            // Cannot panic because we made sure the mask is not empty
+                            labeled_label_builder.build_edge_label(label).unwrap()
+                        })
+                        .collect()
+                }
+            };
+            let node = if labeled_node_builder.empty_mask() {
+                None
+            } else {
+                Some(labeled_node_builder.build_node(node_id))
+            };
+            proto::LabeledNode { node, label }
+        });
+    if reverse {
+        let res: Vec<_> = res.rev().collect(); // Reverse order to be src->target
+        assert!(res.last().unwrap().label.is_empty());
+        res
+    } else {
+        let mut res: Vec<_> = res.collect();
+        assert!(res.first().unwrap().label.is_empty());
+        for idx in 0..(res.len() - 1) {
+            let mut next_label = Vec::new();
+            std::mem::swap(&mut res[idx + 1].label, &mut next_label);
+            std::mem::swap(&mut res[idx].label, &mut next_label);
+        }
+        res
     }
 }

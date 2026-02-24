@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2025  The Software Heritage developers
+# Copyright (C) 2019-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -191,3 +191,25 @@ def test_download_graph_resumption(
     assert (
         f"Graph dataset {s3_graph_dataset_name} successfully downloaded to path {tmp_path}."
     ) in result.output
+
+
+def test_link_existing_destination(cli_runner, tmp_path):
+    """Test that link command shows user-friendly error when destination exists."""
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "file.txt").write_text("content")
+
+    dest = tmp_path / "dest"
+    dest.mkdir()
+
+    result = cli_runner.invoke(
+        graph_cli_group,
+        [
+            "link",
+            str(source),
+            str(dest),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "Destination directory already exists" in result.output
+    assert str(dest) in result.output

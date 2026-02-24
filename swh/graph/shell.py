@@ -1,4 +1,4 @@
-# Copyright (C) 2023  The Software Heritage developers
+# Copyright (C) 2023-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -337,7 +337,9 @@ class Rust(Command):
             env["PATH"] = f"{conf['rust_executable_dir']}:{path}"
         else:
             env["PATH"] = conf["rust_executable_dir"]
-        env["RUST_MIN_STACK"] = "8388608"  # 8MiB; avoids stack overflows in LLP
+        env["RUST_MIN_STACK"] = str(
+            32 * 1024 * 1024
+        )  # 32MiB; avoids stack overflows in LLP
 
         super().__init__(bin_name, *args, env=env)
 

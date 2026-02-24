@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -254,7 +254,7 @@ impl<
     /// Returns the id of the committer of a revision, if any
     ///
     /// Returns `None` if the node id does not exist, and `Ok(None)` if the node
-    /// has no author
+    /// has no committer
     #[inline]
     pub fn try_committer_id(
         &self,

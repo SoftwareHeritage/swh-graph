@@ -54,7 +54,7 @@ use crate::graph::*;
 ///         root: 0,
 ///         parent: 0,
 ///         node: 2,
-///         distance: 0
+///         distance: 1
 ///     },
 ///     IterEvent {
 ///         root: 1,
@@ -141,6 +141,10 @@ unsafe impl<G: SwhForwardGraph> SortedLender for LenderSwhForwardGraph<'_, G> wh
 }
 
 impl<G: SwhForwardGraph> lender::Lender for LenderSwhForwardGraph<'_, G> {
+    // SAFETY: the lend is covariant as it contains only a usize and an iterator
+    // over usize values
+    lender::unsafe_assume_covariance!();
+
     fn next(&mut self) -> Option<<Self as lender::Lending<'_>>::Lend> {
         let node_id = self.node_id;
         if node_id >= self.graph.num_nodes() {
@@ -276,6 +280,10 @@ where
 }
 
 impl<G: SwhForwardGraph + SwhBackwardGraph> lender::Lender for LenderSwhSymmetricGraph<'_, G> {
+    // SAFETY: the lend is covariant as it contains only a usize and an iterator
+    // over usize values
+    lender::unsafe_assume_covariance!();
+
     fn next(&mut self) -> Option<<Self as lender::Lending<'_>>::Lend> {
         let node_id = self.node_id;
         if node_id >= self.graph.num_nodes() {
