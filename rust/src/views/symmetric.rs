@@ -24,6 +24,7 @@ use crate::NodeType;
 /// # Panics
 ///
 /// When [`Self::is_transposed`] is called.
+#[derive(Clone, Debug)]
 pub struct Symmetric<G: SwhGraph>(pub G);
 
 impl<G: SwhGraph> SwhGraph for Symmetric<G> {
