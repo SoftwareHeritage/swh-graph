@@ -51,7 +51,8 @@ struct Args {
     #[arg(long, default_value = "bidirectional")]
     labels: Labels,
     graph_path: PathBuf,
-    swhid: Vec<String>,
+    /// Either SWHID or node id
+    nodes: Vec<String>,
 }
 
 pub fn main() -> Result<()> {
@@ -94,9 +95,8 @@ pub fn main() -> Result<()> {
                             })?
                             .load_labels()
                             .context("Could not load labels")?;
-                        for swhid in args.swhid {
-                            let swhid = swhid.parse()?;
-                            let node = graph.properties().node_id(swhid)?;
+                        for swhid_or_node in args.nodes {
+                            let (node, swhid) = parse_node(&graph, &swhid_or_node)?;
                             println!(
                                 "{}",
                                 serde_json::to_string(&Node {
@@ -116,9 +116,8 @@ pub fn main() -> Result<()> {
                         }
                     }
                     Labels::None => {
-                        for swhid in args.swhid {
-                            let swhid = swhid.parse()?;
-                            let node = graph.properties().node_id(swhid)?;
+                        for swhid_or_node in args.nodes {
+                            let (node, swhid) = parse_node(&graph, &swhid_or_node)?;
                             println!(
                                 "{}",
                                 serde_json::to_string(&Node {
@@ -153,9 +152,8 @@ pub fn main() -> Result<()> {
                             })?
                             .load_labels()
                             .context("Could not load labels")?;
-                        for swhid in args.swhid {
-                            let swhid = swhid.parse()?;
-                            let node = graph.properties().node_id(swhid)?;
+                        for swhid_or_node in args.nodes {
+                            let (node, swhid) = parse_node(&graph, &swhid_or_node)?;
                             println!(
                                 "{}",
                                 serde_json::to_string(&Node {
@@ -172,9 +170,8 @@ pub fn main() -> Result<()> {
                         }
                     }
                     Labels::None => {
-                        for swhid in args.swhid {
-                            let swhid = swhid.parse()?;
-                            let node = graph.properties().node_id(swhid)?;
+                        for swhid_or_node in args.nodes {
+                            let (node, swhid) = parse_node(&graph, &swhid_or_node)?;
                             println!(
                                 "{}",
                                 serde_json::to_string(&Node {
@@ -216,9 +213,8 @@ pub fn main() -> Result<()> {
                 args.graph_path.clone(),
             )
             .map_err(|e| anyhow!("Could not read JSON graph: {e}"))?;
-            for swhid in args.swhid {
-                let swhid = swhid.parse()?;
-                let node = graph.properties().node_id(swhid)?;
+            for swhid_or_node in args.nodes {
+                let (node, swhid) = parse_node(&graph, &swhid_or_node)?;
                 println!(
                     "{}",
                     serde_json::to_string(&Node {
@@ -240,6 +236,26 @@ pub fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn parse_node(
+    graph: &impl SwhGraphWithProperties<Maps: properties::Maps>,
+    swhid_or_node: &str,
+) -> Result<(NodeId, SWHID)> {
+    Ok(match swhid_or_node.parse() {
+        Ok(node) => (
+            node,
+            graph
+                .properties()
+                .try_swhid(node)
+                .with_context(|| format!("Unknown node id: {node}"))?,
+        ),
+        Err(_) => {
+            let swhid = swhid_or_node.parse()?;
+            let node = graph.properties().node_id(swhid)?;
+            (node, swhid)
+        }
+    })
 }
 
 #[derive(serde::Serialize)]
