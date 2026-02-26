@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023-2024  The Software Heritage developers
+ * Copyright (C) 2023-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -813,14 +813,8 @@ pub fn main() -> Result<()> {
                 Ok(())
             }
 
-            let person_mph = if allowed_node_types.contains(&NodeType::Revision)
-                || allowed_node_types.contains(&NodeType::Release)
-            {
+            let person_mph = if let Some(person_function) = person_function {
                 use pthash::Phf;
-
-                let Some(person_function) = person_function else {
-                    bail!("--person-function must be provided unless --allowed-node-types is set to contain neither 'rev' nor 'rel'.");
-                };
                 Some(
                     swh_graph::compress::persons::PersonMphf::load(&person_function)
                         .with_context(|| format!("Could not load {}", person_function.display()))?,

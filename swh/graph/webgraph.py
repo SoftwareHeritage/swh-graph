@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2023  The Software Heritage developers
+# Copyright (C) 2019-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -610,6 +610,16 @@ def _persons_stats(conf: Dict[str, Any], env: Dict[str, str]) -> AtomicFileSink:
 def _node_properties(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     with open(f"{conf['out_dir']}/{conf['graph_name']}.nodes.count.txt") as nodes_count:
         (num_nodes,) = nodes_count.readline().splitlines()
+    persons_count_path = f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt"
+    person_function_args: list = []
+    if Path(persons_count_path).exists():
+        with open(persons_count_path) as persons_count:
+            (num_persons,) = persons_count.readline().splitlines()
+        if num_persons != "0":
+            person_function_args = [
+                "--person-function",
+                f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
+            ]
     return Rust(
         "swh-graph-extract",
         "node-properties",
@@ -623,8 +633,7 @@ def _node_properties(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--order",
         f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
-        "--person-function",
-        f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
+        *person_function_args,
         "--num-nodes",
         num_nodes,
         f"{conf['in_dir']}",

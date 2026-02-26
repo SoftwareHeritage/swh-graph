@@ -419,6 +419,11 @@ class _CompressionStepTask(luigi.Task):
                         set(self.object_types)
                     ):
                         continue
+                    elif path.name.endswith(".property.tag_name.bin") and not any(
+                        (self.local_export_path / "orc" / "release").iterdir()
+                    ):
+                        # Empty when the release ORC directory has no files
+                        continue
                     raise Exception(f"expected output file {path} is empty")
             elif path.is_dir():
                 if next(path.iterdir(), None) is None:

@@ -231,6 +231,9 @@ trait ParallelDeduplicatingExternalSorter<Item: Eq + Ord + Send>: Sync + Sized {
         pl: &mut impl ConcurrentProgressLog,
     ) -> Result<(usize, Vec<PathBuf>)> {
         let num_items_estimate = AtomicUsize::new(0);
+        if unmerged_paths.is_empty() {
+            return Ok((0, vec![]));
+        }
         let pre_merged_paths = std::thread::scope(|s| {
             let tmpdir = &tmpdir;
             let num_items_estimate = &num_items_estimate;

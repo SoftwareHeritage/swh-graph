@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -308,40 +308,35 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
             return Ok(());
         }
 
-        let Some(person_mph) = self.person_mph.as_ref() else {
-            panic!(
-                "write_author_ids is missing person MPH but allowed_node_types = {:?}",
-                self.allowed_node_types
-            );
-        };
-
         log::info!("Initializing...");
         let authors = self.init_atomic_vec(u32::MAX.to_be());
 
-        log::info!("Reading...");
-        let f = |type_: &str, r: Revrel| {
-            if let Some(person) = r.author {
-                let swhid = format!("swh:1:{}:{}", type_, r.id);
-                let base64 = base64_simd::STANDARD;
-                let person = base64.encode_to_string(person).into_bytes();
-                let person_id: u32 = person_mph.hash(person).expect("Unknown person");
-                self.set_atomic(&authors, &swhid, person_id.to_be());
-            }
-        };
+        if let Some(person_mph) = self.person_mph.as_ref() {
+            log::info!("Reading...");
+            let f = |type_: &str, r: Revrel| {
+                if let Some(person) = r.author {
+                    let swhid = format!("swh:1:{}:{}", type_, r.id);
+                    let base64 = base64_simd::STANDARD;
+                    let person = base64.encode_to_string(person).into_bytes();
+                    let person_id: u32 = person_mph.hash(person).expect("Unknown person");
+                    self.set_atomic(&authors, &swhid, person_id.to_be());
+                }
+            };
 
-        if read_rev && read_rel {
-            [].into_par_iter()
-                .chain(self.par_for_each_row("revision", |rev: Revrel| f("rev", rev))?)
-                .chain(self.par_for_each_row("release", |rel: Revrel| f("rel", rel))?)
-                .for_each(|()| ());
-        } else if read_rev {
-            self.par_for_each_row("revision", |rev: Revrel| f("rev", rev))?
-                .for_each(|()| ());
-        } else if read_rel {
-            self.par_for_each_row("release", |rel: Revrel| f("rel", rel))?
-                .for_each(|()| ());
-        } else {
-            unreachable!("!read_rev && !read_rel");
+            if read_rev && read_rel {
+                [].into_par_iter()
+                    .chain(self.par_for_each_row("revision", |rev: Revrel| f("rev", rev))?)
+                    .chain(self.par_for_each_row("release", |rel: Revrel| f("rel", rel))?)
+                    .for_each(|()| ());
+            } else if read_rev {
+                self.par_for_each_row("revision", |rev: Revrel| f("rev", rev))?
+                    .for_each(|()| ());
+            } else if read_rel {
+                self.par_for_each_row("release", |rel: Revrel| f("rel", rel))?
+                    .for_each(|()| ());
+            } else {
+                unreachable!("!read_rev && !read_rel");
+            }
         }
 
         log::info!("Writing...");
@@ -360,27 +355,22 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
             return Ok(());
         }
 
-        let Some(person_mph) = self.person_mph.as_ref() else {
-            panic!(
-                "write_committer_ids is missing person MPH but allowed_node_types = {:?}",
-                self.allowed_node_types
-            );
-        };
-
         log::info!("Initializing...");
         let committers = self.init_atomic_vec(u32::MAX.to_be());
 
-        log::info!("Reading...");
-        self.par_for_each_row("revision", |rev: Revision| {
-            if let Some(person) = rev.committer {
-                let swhid = format!("swh:1:rev:{}", rev.id);
-                let base64 = base64_simd::STANDARD;
-                let person = base64.encode_to_string(person).into_bytes();
-                let person_id: u32 = person_mph.hash(person).expect("Unknown person");
-                self.set_atomic(&committers, &swhid, person_id.to_be());
-            }
-        })?
-        .for_each(|()| ());
+        if let Some(person_mph) = self.person_mph.as_ref() {
+            log::info!("Reading...");
+            self.par_for_each_row("revision", |rev: Revision| {
+                if let Some(person) = rev.committer {
+                    let swhid = format!("swh:1:rev:{}", rev.id);
+                    let base64 = base64_simd::STANDARD;
+                    let person = base64.encode_to_string(person).into_bytes();
+                    let person_id: u32 = person_mph.hash(person).expect("Unknown person");
+                    self.set_atomic(&committers, &swhid, person_id.to_be());
+                }
+            })?
+            .for_each(|()| ());
+        }
 
         log::info!("Writing...");
         self.write_atomic(suffixes::COMMITTER_ID, committers)?;

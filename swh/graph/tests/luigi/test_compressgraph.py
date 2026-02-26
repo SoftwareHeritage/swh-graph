@@ -1,10 +1,11 @@
-# Copyright (C) 2022-2023  The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 import json
 from pathlib import Path
+import shutil
 
 from click.testing import CliRunner
 import pytest
@@ -384,3 +385,47 @@ def test_compressgraph_from_previous_graph(tmpdir, previous_graph):
         "previous_compressed_graph",
         "compressed_graph",
     }
+
+
+def test_compressgraph_empty_revision_and_release(tmpdir):
+    tmpdir = Path(tmpdir)
+
+    dataset_copy = tmpdir / "dataset"
+    shutil.copytree(DATASET_DIR, dataset_copy)
+
+    for dir_name in ("revision", "revision_history", "release"):
+        for f in (dataset_copy / "orc" / dir_name).iterdir():
+            f.unlink()
+
+    runner = CliRunner()
+
+    command = [
+        "luigi",
+        "--base-directory",
+        tmpdir / "base_dir",
+        "--dataset-name",
+        "testdataset",
+        "CompressGraph",
+        "--batch-size=1000",
+        "--retry-luigi-delay=1",
+        "--",
+        "--CompressGraph-check-flavor",
+        "none",
+        "--local-scheduler",
+        "--CompressGraph-local-export-path",
+        dataset_copy,
+        "--CompressGraph-local-graph-path",
+        tmpdir / "compressed_graph",
+        "--CompressGraph-rust-executable-dir",
+        "./target/debug/",
+    ]
+
+    result = runner.invoke(graph_cli_group, command)
+    assert result.exit_code == 0, result.stdout
+
+    properties = read_properties(tmpdir / "compressed_graph" / "graph.properties")
+
+    # Snapshot branches still reference rev:9, rel:10, rel:21, so those nodes exist.
+    # rev:3, rev:13, rev:18 and rel:19 are absent (not referenced by any snapshot).
+    assert int(properties["nodes"]) == 20
+    assert int(properties["arcs"]) == 18
