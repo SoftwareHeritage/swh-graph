@@ -6,6 +6,8 @@
 use std::iter::{empty, Empty};
 use std::path::Path;
 
+use value_traits::slices::SliceByValue;
+
 use swh_graph::arc_iterators::{LabeledArcIterator, LabeledSuccessorIterator};
 use swh_graph::graph::*;
 use swh_graph::properties;
@@ -329,30 +331,31 @@ impl<G: SwhGraphWithProperties> SwhGraphWithProperties for StubBackwardArcs<G> {
 /// Empty implementation of [`properties::LabelNames`] that never returns values
 pub struct StubLabelNames;
 
-pub struct EmptyGetIndex<Output>(std::marker::PhantomData<Output>);
-impl<Output> swh_graph::utils::GetIndex for EmptyGetIndex<Output> {
-    type Output = Output;
+pub struct EmptySliceByValue<Output>(std::marker::PhantomData<Output>);
+impl<Value> SliceByValue for EmptySliceByValue<Value> {
+    type Value = Value;
+
     #[inline(always)]
     fn len(&self) -> usize {
         0
     }
     #[inline(always)]
-    fn get(&self, _: usize) -> std::option::Option<<Self as swh_graph::utils::GetIndex>::Output> {
+    fn get_value(&self, _: usize) -> Option<Self::Value> {
         None
     }
-    unsafe fn get_unchecked(&self, _: usize) -> <Self as swh_graph::utils::GetIndex>::Output {
-        panic!("EmptyGetIndex::get_unchecked")
+    unsafe fn get_value_unchecked(&self, _: usize) -> Self::Value {
+        panic!("EmptySliceByValue::get_value_unchecked")
     }
 }
 
 impl properties::LabelNames for StubLabelNames {
     type LabelNames<'a>
-        = EmptyGetIndex<Vec<u8>>
+        = EmptySliceByValue<Vec<u8>>
     where
         Self: 'a;
 
     #[inline(always)]
     fn label_names(&self) -> Self::LabelNames<'_> {
-        EmptyGetIndex(std::marker::PhantomData)
+        EmptySliceByValue(std::marker::PhantomData)
     }
 }

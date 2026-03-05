@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023-2024  The Software Heritage developers
+ * Copyright (C) 2023-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -69,38 +69,4 @@ pub fn parse_allowed_node_types(s: &str) -> Result<Vec<NodeType>> {
     s.parse::<NodeConstraint>()
         .map_err(|s| anyhow!("Could not parse --allowed-node-types {s}"))
         .map(|constr| constr.to_vec())
-}
-
-#[allow(clippy::len_without_is_empty)]
-pub trait GetIndex {
-    type Output;
-
-    /// Returns the total number of items in the collection
-    fn len(&self) -> usize;
-
-    /// Returns an item of the collection
-    fn get(&self, index: usize) -> Option<Self::Output>;
-
-    /// Returns an item of the collection
-    ///
-    /// # Safety
-    ///
-    /// Undefined behavior if the index is past the end of the collection.
-    unsafe fn get_unchecked(&self, index: usize) -> Self::Output;
-}
-
-impl<Item: Clone, T: std::ops::Deref<Target = [Item]>> GetIndex for T {
-    type Output = Item;
-
-    fn len(&self) -> usize {
-        <[Item]>::len(self)
-    }
-
-    fn get(&self, index: usize) -> Option<Self::Output> {
-        <[Item]>::get(self, index).cloned()
-    }
-
-    unsafe fn get_unchecked(&self, index: usize) -> Self::Output {
-        <[Item]>::get_unchecked(self, index).clone()
-    }
 }

@@ -1,10 +1,11 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
 use anyhow::{ensure, Context, Result};
 use mmap_rs::Mmap;
+use value_traits::slices::SliceByValue;
 
 use super::suffixes::*;
 use super::*;
@@ -60,25 +61,25 @@ impl OptTimestamps for OptMappedTimestamps {
     fn author_timestamp(&self, node: NodeId) -> PropertiesResult<'_, Option<i64>, Self> {
         self.author_timestamp
             .as_ref()
-            .map(|author_timestamps| author_timestamps.get(node))
+            .map(|author_timestamps| author_timestamps.get_value(node))
     }
     #[inline(always)]
     fn author_timestamp_offset(&self, node: NodeId) -> PropertiesResult<'_, Option<i16>, Self> {
         self.author_timestamp_offset
             .as_ref()
-            .map(|author_timestamp_offsets| author_timestamp_offsets.get(node))
+            .map(|author_timestamp_offsets| author_timestamp_offsets.get_value(node))
     }
     #[inline(always)]
     fn committer_timestamp(&self, node: NodeId) -> PropertiesResult<'_, Option<i64>, Self> {
         self.committer_timestamp
             .as_ref()
-            .map(|committer_timestamps| committer_timestamps.get(node))
+            .map(|committer_timestamps| committer_timestamps.get_value(node))
     }
     #[inline(always)]
     fn committer_timestamp_offset(&self, node: NodeId) -> PropertiesResult<'_, Option<i16>, Self> {
         self.committer_timestamp_offset
             .as_ref()
-            .map(|committer_timestamp_offsets| committer_timestamp_offsets.get(node))
+            .map(|committer_timestamp_offsets| committer_timestamp_offsets.get_value(node))
     }
 }
 
@@ -95,19 +96,19 @@ impl PropertiesBackend for MappedTimestamps {
 impl OptTimestamps for MappedTimestamps {
     #[inline(always)]
     fn author_timestamp(&self, node: NodeId) -> Option<i64> {
-        (&self.author_timestamp).get(node)
+        self.author_timestamp.get_value(node)
     }
     #[inline(always)]
     fn author_timestamp_offset(&self, node: NodeId) -> Option<i16> {
-        (&self.author_timestamp_offset).get(node)
+        self.author_timestamp_offset.get_value(node)
     }
     #[inline(always)]
     fn committer_timestamp(&self, node: NodeId) -> Option<i64> {
-        (&self.committer_timestamp).get(node)
+        self.committer_timestamp.get_value(node)
     }
     #[inline(always)]
     fn committer_timestamp_offset(&self, node: NodeId) -> Option<i16> {
-        (&self.committer_timestamp_offset).get(node)
+        self.committer_timestamp_offset.get_value(node)
     }
 }
 
@@ -171,19 +172,19 @@ impl PropertiesBackend for VecTimestamps {
 impl OptTimestamps for VecTimestamps {
     #[inline(always)]
     fn author_timestamp(&self, node: NodeId) -> Option<i64> {
-        self.author_timestamp.get(node)
+        self.author_timestamp.get_value(node)
     }
     #[inline(always)]
     fn author_timestamp_offset(&self, node: NodeId) -> Option<i16> {
-        self.author_timestamp_offset.get(node)
+        self.author_timestamp_offset.get_value(node)
     }
     #[inline(always)]
     fn committer_timestamp(&self, node: NodeId) -> Option<i64> {
-        self.committer_timestamp.get(node)
+        self.committer_timestamp.get_value(node)
     }
     #[inline(always)]
     fn committer_timestamp_offset(&self, node: NodeId) -> Option<i16> {
-        self.committer_timestamp_offset.get(node)
+        self.committer_timestamp_offset.get_value(node)
     }
 }
 

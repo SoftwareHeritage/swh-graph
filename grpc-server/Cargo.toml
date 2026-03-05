@@ -14,6 +14,7 @@ rust-version = "1.79"
 anyhow.workspace = true
 itertools.workspace = true
 java-properties = "1.4.1"
+value-traits.workspace = true
 
 # CLI & logging
 cadence = "1.4.0"

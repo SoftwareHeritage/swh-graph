@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -35,7 +35,7 @@ impl MaybeLabelNames for NoLabelNames {}
     note = "Or replace `graph.init_properties()` with `graph.load_all_properties::<DynMphf>().unwrap()` to load all properties"
 )]
 pub trait LabelNames {
-    type LabelNames<'a>: GetIndex<Output = Vec<u8>>
+    type LabelNames<'a>: SliceByValue<Value = Vec<u8>>
     where
         Self: 'a;
 
@@ -188,7 +188,7 @@ impl<
             .expect("label_name_id overflowed usize");
         self.label_names
             .label_names()
-            .get(index)
+            .get_value(index)
             .ok_or(OutOfBoundError {
                 index,
                 len: self.label_names.label_names().len(),

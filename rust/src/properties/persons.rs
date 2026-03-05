@@ -54,13 +54,13 @@ impl OptPersons for OptMappedPersons {
     fn author_id(&self, node: NodeId) -> PropertiesResult<'_, Option<u32>, Self> {
         self.author_id
             .as_ref()
-            .map(|author_ids| author_ids.get(node))
+            .map(|author_ids| author_ids.get_value(node))
     }
     #[inline(always)]
     fn committer_id(&self, node: NodeId) -> PropertiesResult<'_, Option<u32>, Self> {
         self.committer_id
             .as_ref()
-            .map(|committer_ids| committer_ids.get(node))
+            .map(|committer_ids| committer_ids.get_value(node))
     }
 }
 
@@ -77,12 +77,12 @@ impl OptPersons for MappedPersons {
     /// and the node has an author
     #[inline(always)]
     fn author_id(&self, node: NodeId) -> Option<u32> {
-        (&self.author_id).get(node)
+        self.author_id.get_value(node)
     }
     /// See [`Self::author_id`]
     #[inline(always)]
     fn committer_id(&self, node: NodeId) -> Option<u32> {
-        (&self.committer_id).get(node)
+        self.committer_id.get_value(node)
     }
 }
 
@@ -116,11 +116,11 @@ impl PropertiesBackend for VecPersons {
 impl OptPersons for VecPersons {
     #[inline(always)]
     fn author_id(&self, node: NodeId) -> Option<u32> {
-        self.author_id.get(node)
+        self.author_id.get_value(node)
     }
     #[inline(always)]
     fn committer_id(&self, node: NodeId) -> Option<u32> {
-        self.committer_id.get(node)
+        self.committer_id.get_value(node)
     }
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -98,15 +98,15 @@ impl<E: ByteOrder, N: common_traits::AsBytes> NumberMmap<E, N, Mmap> {
 
 macro_rules! impl_number_mmap {
     ($ty:ty, $fn:ident) => {
-        impl<E: ByteOrder> crate::utils::GetIndex for &NumberMmap<E, $ty, Mmap> {
-            type Output = $ty;
+        impl<E: ByteOrder> value_traits::slices::SliceByValue for NumberMmap<E, $ty, Mmap> {
+            type Value = $ty;
 
             fn len(&self) -> usize {
                 NumberMmap::len(self)
             }
 
             /// Returns an item
-            fn get(&self, index: usize) -> Option<$ty> {
+            fn get_value(&self, index: usize) -> Option<$ty> {
                 self.get_slice(index).map(E::$fn)
             }
 
@@ -115,7 +115,7 @@ macro_rules! impl_number_mmap {
             /// # Safety
             ///
             /// Undefined behavior if `index >= len()`
-            unsafe fn get_unchecked(&self, index: usize) -> $ty {
+            unsafe fn get_value_unchecked(&self, index: usize) -> $ty {
                 E::$fn(self.get_slice_unchecked(index))
             }
         }
