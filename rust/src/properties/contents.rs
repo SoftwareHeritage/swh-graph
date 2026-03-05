@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -26,7 +26,7 @@ impl MaybeContents for NoContents {}
 ///
 /// The array must have length >= `num_bits.div_ceil(usize::BITS)`
 unsafe fn get_bit(
-    array: impl GetIndex<Output = u64>,
+    array: impl SliceByValue<Value = u64>,
     num_bits: usize,
     bit_position: usize,
 ) -> Option<bool> {
@@ -37,7 +37,7 @@ unsafe fn get_bit(
         let mask = 1 << (bit_position % (u64::BITS as usize));
 
         // safety: relies on the caller giving the right value for num_bits
-        let cell = unsafe { array.get_unchecked(cell_id) };
+        let cell = unsafe { array.get_value_unchecked(cell_id) };
 
         Some((cell & mask) != 0)
     }
@@ -88,7 +88,7 @@ impl OptContents for OptMappedContents {
     fn content_length(&self, node: NodeId) -> PropertiesResult<'_, Option<u64>, Self> {
         self.content_length
             .as_ref()
-            .map(|content_lengths| content_lengths.get(node))
+            .map(|content_lengths| content_lengths.get_value(node))
     }
 }
 
@@ -108,7 +108,7 @@ impl OptContents for MappedContents {
     }
     #[inline(always)]
     fn content_length(&self, node: NodeId) -> Option<u64> {
-        (&self.content_length).get(node)
+        self.content_length.get_value(node)
     }
 }
 
@@ -157,7 +157,7 @@ impl OptContents for VecContents {
     }
     #[inline(always)]
     fn content_length(&self, node: NodeId) -> Option<u64> {
-        self.content_length.get(node)
+        self.content_length.get_value(node)
     }
 }
 

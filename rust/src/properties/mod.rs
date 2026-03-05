@@ -32,8 +32,8 @@ use mmap_rs::Mmap;
 
 use crate::mph::LoadableSwhidMphf;
 use crate::utils::mmap::NumberMmap;
-use crate::utils::GetIndex;
 use crate::OutOfBoundError;
+use value_traits::slices::SliceByValue;
 
 pub(crate) mod suffixes {
     pub const NODE2SWHID: &str = ".node2swhid.bin";

@@ -4671,6 +4671,7 @@ dependencies = [
  "tonic-reflection",
  "tracing",
  "tracing-subscriber",
+ "value-traits",
 ]
 
 [[package]]

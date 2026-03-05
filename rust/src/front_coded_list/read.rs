@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -9,8 +9,9 @@ use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use mmap_rs::{Mmap, MmapFlags};
+use value_traits::slices::SliceByValue;
 
-use crate::utils::{suffix_path, GetIndex};
+use crate::utils::suffix_path;
 
 #[derive(Debug, Clone)]
 /// Front coded list, it takes a list of strings and encode them in a way that
@@ -153,15 +154,15 @@ impl<D: AsRef<[u8]>, P: AsRef<[u8]>> FrontCodedList<D, P> {
     }
 }
 
-impl<D: AsRef<[u8]>, P: AsRef<[u8]>> GetIndex for &FrontCodedList<D, P> {
-    type Output = Vec<u8>;
+impl<D: AsRef<[u8]>, P: AsRef<[u8]>> SliceByValue for &FrontCodedList<D, P> {
+    type Value = Vec<u8>;
 
     fn len(&self) -> usize {
         self.len
     }
 
     /// Returns the n-th bytestring, or `None` if `index` is larger than the length
-    fn get(&self, index: usize) -> Option<Self::Output> {
+    fn get_value(&self, index: usize) -> Option<Self::Value> {
         if index >= self.len {
             None
         } else {
@@ -176,7 +177,7 @@ impl<D: AsRef<[u8]>, P: AsRef<[u8]>> GetIndex for &FrontCodedList<D, P> {
     /// # Panics
     ///
     /// If `index` is out of bound
-    unsafe fn get_unchecked(&self, index: usize) -> Self::Output {
+    unsafe fn get_value_unchecked(&self, index: usize) -> Self::Value {
         let mut result = Vec::with_capacity(128);
         self.get_inplace(index, &mut result);
         result
