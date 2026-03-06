@@ -1140,6 +1140,7 @@ class EdgeLabels(_CompressionStepTask):
         "-labelled.properties",
     }
     MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
+    USES_ALL_CPU_THREADS = True
 
     priority = 10
     """semi-high priority because it takes a long time to run"""
@@ -1174,6 +1175,7 @@ class EdgeLabelsTranspose(_CompressionStepTask):
         "-transposed-labelled.properties",
     }
     MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
+    USES_ALL_CPU_THREADS = True
 
     priority = 10
     """semi-high priority because it takes a long time to run"""
