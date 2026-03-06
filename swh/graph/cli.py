@@ -530,20 +530,6 @@ def compress(
             conf,
         )
     except webgraph.CompressionSubprocessError as e:
-        try:
-            if e.log_path.is_file():
-                with e.log_path.open("rb") as f:
-                    if e.log_path.stat().st_size > 1000:
-                        f.seek(-1000, 2)  # read only the last 1kB
-                        f.readline()  # skip first line, might be partial
-                        sys.stderr.write("[...]\n")
-                    sys.stderr.write("\n")
-                    sys.stderr.flush()
-                    sys.stderr.buffer.write(f.read())
-                    sys.stderr.flush()
-        except Exception:
-            raise
-            pass
         raise click.ClickException(e.message)
 
 
@@ -698,7 +684,6 @@ def luigi(
     import secrets
     import socket
     import subprocess
-    import sys
     import tempfile
     import time
 
