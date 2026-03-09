@@ -1147,15 +1147,22 @@ class EdgeLabels(_CompressionStepTask):
     def _large_allocations(self) -> int:
         import multiprocessing
 
+        import psutil
+
         # See ExtractNodes._large_allocations for this constant
         orc_buffers_size = 256_000_000
 
         nb_orc_readers = multiprocessing.cpu_count()
 
+        # ParSortPair's internal buffers, which default to webgraph::utils::MemoryUsage,
+        # which itself defaults to half the total memory
+        sort_buffers = psutil.virtual_memory().total / 2
+
         return (
             orc_buffers_size * nb_orc_readers
             + self._mph_size()
             + self._labels_mph_size()
+            + sort_buffers
         )
 
 
@@ -1181,15 +1188,22 @@ class EdgeLabelsTranspose(_CompressionStepTask):
     def _large_allocations(self) -> int:
         import multiprocessing
 
+        import psutil
+
         # See ExtractNodes._large_allocations for this constant
         orc_buffers_size = 256_000_000
 
         nb_orc_readers = multiprocessing.cpu_count()
 
+        # ParSortPair's internal buffers, which default to webgraph::utils::MemoryUsage,
+        # which itself defaults to half the total memory
+        sort_buffers = psutil.virtual_memory().total / 2
+
         return (
             orc_buffers_size * nb_orc_readers
             + self._mph_size()
             + self._labels_mph_size()
+            + sort_buffers
         )
 
 
