@@ -1373,6 +1373,7 @@ def _make_dot_diagram() -> str:
             CompressionStep.BV_EF,
             CompressionStep.LLP,
             CompressionStep.COMPOSE_ORDERS,
+            CompressionStep.INITIAL_ORDER,
         } or "BFS" in str(cls.STEP):
             s.write(f"        {cls.STEP};\n")
             for filename in itertools.chain(
