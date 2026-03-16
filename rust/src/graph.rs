@@ -297,7 +297,7 @@ pub trait SwhLabeledForwardGraph:
            + '_ {
         LabelTypingSuccessorIterator {
             graph: self,
-            is_transposed: false,
+            is_transposed: self.is_transposed(),
             src: node_id,
             successors: self.untyped_labeled_successors(node_id).into_iter(),
         }
@@ -349,7 +349,7 @@ pub trait SwhLabeledBackwardGraph:
            + '_ {
         LabelTypingSuccessorIterator {
             graph: self,
-            is_transposed: true,
+            is_transposed: !self.is_transposed(),
             src: node_id,
             successors: self.untyped_labeled_predecessors(node_id).into_iter(),
         }
