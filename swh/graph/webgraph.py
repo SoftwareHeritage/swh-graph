@@ -234,7 +234,7 @@ def _initial_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Comman
         "--num-nodes",
         num_nodes,
         "--previous-node2swhid",
-        f"{conf['previous_graph_path']}.node2swhid.bin",
+        f"{conf['previous_graph_path']}/{conf['graph_name']}.node2swhid.bin",
         "--target-order",
         f"{conf['out_dir']}/{conf['graph_name']}-base.order",
     )
