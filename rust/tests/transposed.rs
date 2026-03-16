@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -6,6 +6,7 @@
 use std::path::PathBuf;
 
 use swh_graph::graph::*;
+use swh_graph::properties;
 use swh_graph::views::{Subgraph, Transposed};
 use swh_graph::webgraph::graphs::vec_graph::{LabeledVecGraph, VecGraph};
 
@@ -96,7 +97,10 @@ fn test_transpose_labeled_forward_graph() {
         PathBuf::new(),
         LabeledVecGraph::from_arcs(forward_arcs),
         LabeledVecGraph::from_arcs(backward_arcs),
-    );
+    )
+    .init_properties()
+    .load_properties(|props| props.with_maps(properties::VecMaps::new(vec![])))
+    .expect("Could not load maps");
     let transposed = Transposed(graph);
 
     let collect_successors = |node_id| {
@@ -126,7 +130,10 @@ fn test_transpose_labeled_backward_graph() {
         PathBuf::new(),
         LabeledVecGraph::from_arcs(forward_arcs),
         LabeledVecGraph::from_arcs(backward_arcs),
-    );
+    )
+    .init_properties()
+    .load_properties(|props| props.with_maps(properties::VecMaps::new(vec![])))
+    .expect("Could not load maps");
     let transposed = Transposed(graph);
 
     let collect_predecessors = |node_id| {
