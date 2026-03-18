@@ -199,6 +199,22 @@ impl Default for NodeConstraint {
 }
 
 impl NodeConstraint {
+    /// Builds a `NodeConstraint` that only allows the given types
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::collections::HashSet;
+    /// # use swh_graph::{NodeConstraint, NodeType};
+    ///
+    /// let only_revrels = NodeConstraint::from_types([NodeType::Revision, NodeType::Release]);
+    ///
+    /// assert!(!only_revrels.matches(NodeType::Directory));
+    /// assert!(!only_revrels.matches(NodeType::Content));
+    /// assert!(only_revrels.matches(NodeType::Release));
+    /// assert!(only_revrels.matches(NodeType::Revision));
+    /// assert!(!only_revrels.matches(NodeType::Origin));
+    /// ```
     pub fn from_types(node_types: impl IntoIterator<Item = NodeType>) -> Self {
         let mut bits = 0;
         for node_type in node_types.into_iter() {
