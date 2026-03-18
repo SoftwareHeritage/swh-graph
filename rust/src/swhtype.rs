@@ -199,6 +199,30 @@ impl Default for NodeConstraint {
 }
 
 impl NodeConstraint {
+    /// Builds a `NodeConstraint` that only allows the given types
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::collections::HashSet;
+    /// # use swh_graph::{NodeConstraint, NodeType};
+    ///
+    /// let only_revrels = NodeConstraint::from_types([NodeType::Revision, NodeType::Release]);
+    ///
+    /// assert!(!only_revrels.matches(NodeType::Directory));
+    /// assert!(!only_revrels.matches(NodeType::Content));
+    /// assert!(only_revrels.matches(NodeType::Release));
+    /// assert!(only_revrels.matches(NodeType::Revision));
+    /// assert!(!only_revrels.matches(NodeType::Origin));
+    /// ```
+    pub fn from_types(node_types: impl IntoIterator<Item = NodeType>) -> Self {
+        let mut bits = 0;
+        for node_type in node_types.into_iter() {
+            bits |= 1 << node_type.to_u8();
+        }
+        Self(bits)
+    }
+
     /// # Examples
     ///
     /// ```
@@ -249,11 +273,11 @@ impl FromStr for NodeConstraint {
         if s == "*" {
             Ok(NodeConstraint::default())
         } else {
-            let mut node_types = 0;
-            for s in s.split(',') {
-                node_types |= 1 << s.parse::<NodeType>()?.to_u8();
-            }
-            Ok(NodeConstraint(node_types))
+            Ok(Self::from_types(
+                s.split(',')
+                    .map(|s| s.parse::<NodeType>())
+                    .collect::<Result<Vec<_>, _>>()?,
+            ))
         }
     }
 }
