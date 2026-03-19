@@ -231,9 +231,11 @@ def run_e2e_check(
     authors: dict[str, int | None] = {}
 
     try:
+        logger.info("Checking expected SWHIDs are in traversals from origins...")
         with grpc.insecure_channel(f"localhost:{port}") as channel:
             stub = swhgraph_grpc.TraversalServiceStub(channel)
             for origin, swhids in projects.items():
+                logger.info("Listing SWHIDs in %s ...", origin)
                 response = stub.Traverse(
                     swhgraph.TraversalRequest(
                         src=[str(Origin(origin).swhid())],
@@ -255,10 +257,13 @@ def run_e2e_check(
                                     QualifiedSWHID.from_string(elt.swhid),
                                     origin=origin,
                                 )
-                                logger.error(f"Author ID for {full_swhid} is wrong")
+                                logger.error("Wrong author ID for %s", full_swhid)
                                 errors.append(full_swhid)
+        logger.info("Finished all traversals.")
     finally:
+        logger.info("Stopping gRPC server...")
         stop_grpc_server(server)
+        logger.info("Stopped gRPC server.")
 
     check_authors = (
         sensitive_out_dir is not None
@@ -271,6 +276,7 @@ def run_e2e_check(
     # Check if the author IDs previously checked match their full names. This is triggered
     # only when the sensitive files containing said full names are present on disk.
     if check_authors:
+        logger.info("Checking authors...")
         for origin, author in authors.items():
             if author is None:
                 return
@@ -294,6 +300,7 @@ def run_e2e_check(
                     f"got {fullname.decode(errors='replace')}"
                 )
                 errors.append((origin, author))
+        logger.info("Done checking authors.")
     else:
         logger.warning("End-to-end checks for full names skipped")
 
