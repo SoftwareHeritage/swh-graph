@@ -1,4 +1,4 @@
-# Copyright (C) 2025  The Software Heritage developers
+# Copyright (C) 2025-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -234,30 +234,29 @@ def run_e2e_check(
         with grpc.insecure_channel(f"localhost:{port}") as channel:
             stub = swhgraph_grpc.TraversalServiceStub(channel)
             for origin, swhids in projects.items():
-                for swhid in swhids:
-                    response = stub.Traverse(
-                        swhgraph.TraversalRequest(
-                            src=[str(Origin(origin).swhid())],
-                            mask=FieldMask(paths=["swhid", "rev.author"]),
-                        )
+                response = stub.Traverse(
+                    swhgraph.TraversalRequest(
+                        src=[str(Origin(origin).swhid())],
+                        mask=FieldMask(paths=["swhid", "rev.author"]),
                     )
-                    for elt in response:
-                        if elt.swhid in swhids:
-                            swhids.remove(elt.swhid)
-                            if elt.swhid.startswith("swh:1:rev:"):
-                                # Add the author ID of the revision's author as the value
-                                # of `authors[origin]` if there isn't one already, otherwise
-                                # checks they are the same.
-                                if (
-                                    authors.setdefault(origin, elt.rev.author)
-                                    != elt.rev.author
-                                ):
-                                    full_swhid = attr.evolve(
-                                        QualifiedSWHID.from_string(elt.swhid),
-                                        origin=origin,
-                                    )
-                                    logger.error(f"Author ID for {full_swhid} is wrong")
-                                    errors.append(full_swhid)
+                )
+                for elt in response:
+                    if elt.swhid in swhids:
+                        swhids.remove(elt.swhid)
+                        if elt.swhid.startswith("swh:1:rev:"):
+                            # Add the author ID of the revision's author as the value
+                            # of `authors[origin]` if there isn't one already, otherwise
+                            # checks they are the same.
+                            if (
+                                authors.setdefault(origin, elt.rev.author)
+                                != elt.rev.author
+                            ):
+                                full_swhid = attr.evolve(
+                                    QualifiedSWHID.from_string(elt.swhid),
+                                    origin=origin,
+                                )
+                                logger.error(f"Author ID for {full_swhid} is wrong")
+                                errors.append(full_swhid)
     finally:
         stop_grpc_server(server)
 
