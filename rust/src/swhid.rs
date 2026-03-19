@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -54,15 +54,16 @@ impl SWHID {
 
 impl core::fmt::Display for SWHID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut hex_hash = [0; 40];
+        let hex_hash =
+            faster_hex::hex_encode(&self.hash, &mut hex_hash).expect("sha1 digest is not 40 bytes");
         write!(
             f,
-            "swh:{}:{}:",
+            "swh:{}:{}:{}",
             self.namespace_version,
             self.node_type.to_str(),
+            hex_hash,
         )?;
-        for byte in self.hash.iter() {
-            write!(f, "{byte:02x}")?;
-        }
         Ok(())
     }
 }
