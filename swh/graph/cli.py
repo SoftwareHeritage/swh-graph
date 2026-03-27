@@ -189,18 +189,22 @@ def serve(ctx, host, port, graph_path):
 @click.option(
     "--s3-prefix",
     default="s3://softwareheritage/graph/",
-    help="Base directory of Software Heritage's graphs on S3",
+    show_default=True,
+    help="Base Amazon S3 URI where to download Software Heritage graphs from.",
 )
 @click.option(
     "--name",
     default=None,
-    help="Name of the dataset to download. This is an ISO8601 date, optionally with a "
-    "suffix. See https://docs.softwareheritage.org/devel/swh-export/graph/dataset.html",
+    help="Name of dataset to download, as an ISO8601 date, with an optional suffix. "
+    "Example: 2025-10-08. "
+    "Example: 2025-10-08-history-hosting. "
+    "See https://datasets.softwareheritage.org/ for a list of available datasets.",
 )
 @click.option(
     "--parallelism",
     "-j",
     default=5,
+    show_default=True,
     help="Number of threads used to download/decompress files.",
 )
 @click.argument(
