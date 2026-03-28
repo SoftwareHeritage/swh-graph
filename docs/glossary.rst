@@ -33,6 +33,9 @@ symmetric graph
 Subgraphs
 ---------
 
+.. image:: images/graph_layers.svg
+
+
 filesystem layer
     A subset of the full graph, that only contains directory and content nodes.
 
@@ -47,6 +50,8 @@ history-and-hosting layer
 
 Relations between nodes
 -----------------------
+
+.. image:: images/node_relations.svg
 
 ancestor
     A node ``A`` is an ancestor of ``N_0`` in a graph ``G`` if there is a chain of nodes ``N_1``, ..., ``N_n``

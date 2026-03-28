@@ -1,0 +1,55 @@
+digraph {
+    subgraph cluster_histhost {
+        label = "history-and-hosting layer"
+
+        subgraph {
+            rank = same;
+            ori1; ori2;
+        }
+
+        subgraph {
+            rank = same;
+            snp1; snp2;
+        }
+
+        rev1; rev2; rev3; rev4;
+    }
+
+    subgraph cluster_filesystem {
+        label = "filesystem layer"
+
+        dir1; dir2; dir3; dir4;
+
+        subgraph {
+            rank = same;
+            cnt0; cnt1; cnt2; cnt3;
+        }
+    }
+
+    ori1 -> snp1
+    ori1 -> snp2
+    ori2 -> snp2
+
+    rev4 -> rev2
+    rev3 -> rev2
+    rev2 -> rev1
+    snp1 -> rev2
+    snp1 -> rev3
+    snp2 -> rev4
+
+    rev4 -> dir4
+    rev3 -> dir3
+    rev2 -> dir2
+    rev1 -> dir1
+
+    dir4 -> cnt0
+    dir4 -> dir3
+    dir3 -> cnt0
+    dir2 -> cnt0
+    dir1 -> cnt0
+
+    dir4 -> cnt3
+    dir3 -> cnt3
+    dir2 -> cnt2
+    dir1 -> cnt1
+}
