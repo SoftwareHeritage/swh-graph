@@ -1,0 +1,67 @@
+digraph {
+    subgraph cluster_ancestors {
+        label = "ancestors of rev2"
+
+        subgraph {
+            rank = same;
+            ori1; ori2;
+        }
+
+        snp2;
+
+        subgraph cluster_predecessors {
+            label = "predecessors of rev2";
+            rank = same;
+            rev3; rev4; snp1
+        }
+    }
+
+    subgraph cluster_descendants {
+        label = "descendants of rev2"
+        labelloc = "b" // bottom
+        subgraph cluster_successors {
+            label = "successors of rev2"
+            labelloc = "b" // bottom
+            rank = same;
+
+            rev1;
+            dir2;
+        }
+
+        dir1;
+
+        subgraph {
+            rank = same;
+            cnt0; cnt1; cnt2;
+        }
+
+    }
+
+    ori1 -> snp1
+    ori1 -> snp2
+    ori2 -> snp2
+
+    rev4 -> rev2
+    rev3 -> rev2
+    rev2 -> rev1
+    snp1 -> rev2
+    snp1 -> rev3
+    snp2 -> rev4
+
+    rev4 -> dir4
+    rev3 -> dir3
+    rev2 -> dir2
+    rev1 -> dir1
+
+    dir4 -> cnt0
+    dir4 -> dir3
+    dir3 -> cnt0
+    dir2 -> cnt0
+    dir1 -> cnt0
+
+    dir4 -> cnt3
+    dir3 -> cnt3
+    dir2 -> cnt2
+    dir1 -> cnt1
+}
+
