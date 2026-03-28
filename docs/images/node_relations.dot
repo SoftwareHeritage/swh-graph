@@ -18,10 +18,11 @@ digraph {
 
     subgraph cluster_descendants {
         label = "descendants of rev2"
-        labelloc = "b" // bottom
+        labelloc = "b" // bottom, for summetry with ancestors
+
         subgraph cluster_successors {
             label = "successors of rev2"
-            labelloc = "b" // bottom
+            labelloc = "b" // bottom, for symmetry with predecessors
             rank = same;
 
             rev1;
