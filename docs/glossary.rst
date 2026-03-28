@@ -30,6 +30,17 @@ symmetric graph
     Union of a forward and a corresponding backward graph.
     Rarely used in practice, as it breaks the (very useful) property that |swh| graphs are DAGs.
 
+Labels and properties
+---------------------
+
+label
+    Extra information on some arcs. In the forward graph, ``ori->snp`` arcs have labels that each contain
+    a visit date and a visit date; ``snp->rev`` and ``snp->rel`` arcs have labels that each contain a branch name identifier;
+    and ``dir->rev``, ``dir->dir``, and ``dir->cnt`` have labels that each contain a file name identifier and a permission.
+
+property
+    Extra information on some nodes. Origins have a URL, releases and revisions have many (message, name, author identifier, ...), and contents have a length.
+
 Subgraphs
 ---------
 
