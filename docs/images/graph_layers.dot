@@ -4,25 +4,25 @@ digraph {
 
         subgraph {
             rank = same;
-            ori1; ori2;
+            ori1, ori2 [shape=cylinder];
         }
 
         subgraph {
             rank = same;
-            snp1; snp2;
+            snp1, snp2 [shape=Msquare];
         }
 
-        rev1; rev2; rev3; rev4;
+        rev1, rev2, rev3, rev4 [shape=circle];
     }
 
     subgraph cluster_filesystem {
         label = "filesystem layer"
 
-        dir1; dir2; dir3; dir4;
+        dir1, dir2, dir3, dir4 [shape=triangle];
 
         subgraph {
             rank = same;
-            cnt0; cnt1; cnt2; cnt3;
+            cnt0, cnt1, cnt2, cnt3 [shape=square];
         }
     }
 
