@@ -85,3 +85,25 @@ successor
     A node ``S`` is a successor of node ``N`` in a graph ``G`` if ``G`` contains the arc ``N -> S``.
     In a forward graph, snapshots are successors of origins, revisions are successors of their **child** revisions,
     directories are successors of their parent directory, and contents are successors of directories.
+
+"Special" nodes
+---------------
+
+empty content
+    The content which contains zero bytes. Its SWHID is ``e69de29bb2d1d6434b8b29ae775ad8c2e48c5391``.
+
+empty directory
+    The directory which does not have any successor in the forward graph
+    (and does not have any predecessor in the backward graph).
+    Its SWHID is ``swh:1:dir:4b825dc642cb6eb9a060e54bf8d69288fbee4904``
+
+merge
+    A revision with more than one parent revision (ie. more than one successor of type revision, in the forward graph).
+    Also called an "octopus merge" when there are more than two.
+
+root directory of a revision
+    The directory that is the successor of a revision in the forward graph. It is guaranteed to be unique.
+
+root revision
+    A revision with no parent revision (ie. no successor of type revision, in the forward graph).
+    ``rev1`` in the images above.
