@@ -12,7 +12,8 @@ digraph {
         subgraph cluster_predecessors {
             label = "predecessors of rev2";
             rank = same;
-            rev3; rev4; snp1
+            rev3; rev4;
+            snp1;
         }
     }
 
@@ -37,6 +38,12 @@ digraph {
         }
 
     }
+
+    ori1, ori2 [shape=cylinder];
+    snp1, snp2 [shape=Msquare];
+    rev1, rev2, rev3, rev4 [shape=circle];
+    dir1, dir2, dir3, dir4 [shape=triangle];
+    cnt0, cnt1, cnt2, cnt3 [shape=square];
 
     ori1 -> snp1
     ori1 -> snp2
