@@ -61,6 +61,28 @@ class GraphDownloader(S3Downloader):
             # to be decompressed locally
             subprocess.check_call(["unzstd", "-d", "-q", "--rm", local_file_path])
 
+    def _local_path_size(self) -> int:
+        # override _local_path_size to get accurate download progress bar
+        while True:
+            try:
+                size = 0
+                for f in self.local_path.glob("**/*"):
+                    if f.exists() and f.is_file():
+                        relative_path = f.relative_to(self.local_path)
+                        obj_key = self.prefix + str(relative_path)
+                        zst_path = self.local_path / (str(relative_path) + ".zst")
+                        if obj_key + ".zst" in self.file_size and not zst_path.exists():
+                            # file downloaded was compressed with zstd, return its compressed
+                            # size once it has been uncompressed
+                            size += self.file_size[obj_key + ".zst"]
+                        else:
+                            size += f.stat().st_size
+                return size
+            except FileNotFoundError:
+                # files can be removed or renamed by threads while
+                # globbing them
+                pass
+
     def post_downloads(self) -> None:
         for file in self.local_path.rglob("**/*.ef"):
             # silence
