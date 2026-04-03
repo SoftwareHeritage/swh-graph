@@ -102,7 +102,7 @@ class GraphDownloader(S3Downloader):
             for obj in objects:
                 if obj.key.endswith("meta/compression.json"):
                     # Write it last, to act as a stamp
-                    self._download_file(obj.key)
+                    self._download_file(obj.key, obj=obj)
                     break
             else:
                 raise ValueError(
