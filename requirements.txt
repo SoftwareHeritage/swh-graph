@@ -1,6 +1,7 @@
 aiohttp
 click
 grpcio-tools >= 1.69.0
+humanfriendly
 mypy-protobuf
 protobuf >=5.29.3
 psutil

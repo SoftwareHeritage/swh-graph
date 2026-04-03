@@ -207,6 +207,14 @@ def serve(ctx, host, port, graph_path):
     show_default=True,
     help="Number of threads used to download/decompress files.",
 )
+@click.option(
+    "--multipart-chunk-size",
+    default="1GiB",
+    show_default=True,
+    help="If a file to download has its size greater than that value, it will be "
+    "downloaded concurrently by chunks of that size and re-assembled afterwards as "
+    "it improves download time",
+)
 @click.argument(
     "target-dir",
     type=click.Path(
@@ -223,12 +231,15 @@ def download(
     name: Optional[str],
     parallelism: int,
     target_dir: Path,
+    multipart_chunk_size: str,
 ):
     """Downloads a compressed SWH graph to the given target directory.
 
     If some files fail to be fully downloaded, their downloads will be
     resumed when re-executing the same download command.
     """
+    from humanfriendly import parse_size
+
     from swh.graph.download import GraphDownloader
 
     if s3_url and name:
@@ -244,6 +255,7 @@ def download(
         local_path=target_dir,
         s3_url=s3_url,
         parallelism=parallelism,
+        multipart_download_chunk_size=parse_size(multipart_chunk_size),
     )
 
     while not graph_downloader.download():
