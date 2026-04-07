@@ -127,6 +127,10 @@ macro_rules! impl_number_mmap {
 }
 
 impl_number_mmap!(i16, read_i16);
+impl_number_mmap!(u16, read_u16);
+impl_number_mmap!(i32, read_i32);
 impl_number_mmap!(u32, read_u32);
+impl_number_mmap!(f32, read_f32);
 impl_number_mmap!(i64, read_i64);
 impl_number_mmap!(u64, read_u64);
+impl_number_mmap!(f64, read_f64);
