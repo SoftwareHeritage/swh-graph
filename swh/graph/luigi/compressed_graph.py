@@ -1537,7 +1537,11 @@ class CompressGraph(luigi.Task):
 
     def output(self) -> List[luigi.LocalTarget]:
         """Returns the ``meta/*.json`` targets"""
-        return [self._export_meta(), self._compression_meta()]
+        outputs = [self._export_meta(), self._compression_meta()]
+
+        if (target := self._sensitive_compression_meta()) is not None:
+            outputs.append(target)
+        return outputs
 
     def _export_meta(self) -> luigi.LocalTarget:
         """Returns the metadata on the dataset export"""
@@ -1546,6 +1550,14 @@ class CompressGraph(luigi.Task):
     def _compression_meta(self) -> luigi.LocalTarget:
         """Returns the metadata on the compression pipeline"""
         return luigi.LocalTarget(self.local_graph_path / "meta/compression.json")
+
+    def _sensitive_compression_meta(self) -> Optional[luigi.LocalTarget]:
+        """Returns the metadata on the compression pipeline"""
+        if self.local_sensitive_graph_path is None:
+            return None
+        return luigi.LocalTarget(
+            self.local_sensitive_graph_path / "meta/compression.json"
+        )
 
     def run(self):
         """Runs the full compression pipeline, then writes :file:`meta/compression.json`
@@ -1614,6 +1626,10 @@ class CompressGraph(luigi.Task):
         )
         with self._compression_meta().open("w") as fd:
             json.dump(meta, fd, indent=4)
+
+        if (target := self._sensitive_compression_meta()) is not None:
+            with target.open("w") as fd:
+                json.dump(meta, fd, indent=4)
 
         for path in step_stamp_paths:
             path.unlink()
@@ -1788,6 +1804,7 @@ class LocalGraph(luigi.Task):
     """
 
     local_graph_path: Path = luigi.PathParameter()
+    local_sensitive_graph_path: Path = luigi.OptionalPathParameter(default=None)
     compression_task_type = luigi.TaskParameter(
         default=DownloadGraphFromS3,
         significant=False,
@@ -1805,6 +1822,7 @@ class LocalGraph(luigi.Task):
             return [
                 CompressGraph(
                     local_graph_path=self.local_graph_path,
+                    local_sensitive_graph_path=self.local_sensitive_graph_path,
                 )
             ]
         elif issubclass(self.compression_task_type, DownloadGraphFromS3):
@@ -1821,7 +1839,16 @@ class LocalGraph(luigi.Task):
 
     def output(self) -> List[luigi.Target]:
         """Returns stamp and meta paths on the local filesystem."""
-        return [self._meta()]
+        out = [self._meta()]
+        if (target := self._sensitive_meta()) is not None:
+            out.append(target)
+        return out
 
     def _meta(self):
         return luigi.LocalTarget(self.local_graph_path / "meta" / "compression.json")
+
+    def _sensitive_meta(self):
+        if self.local_sensitive_graph_path is not None:
+            return luigi.LocalTarget(
+                self.local_sensitive_graph_path / "meta" / "compression.json"
+            )
