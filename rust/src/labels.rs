@@ -154,7 +154,6 @@ impl VisitType {
             "deposit"
             => VisitType::Push,
 
-
             "bzr" |
             "cvs" |
             "git" |
@@ -185,7 +184,6 @@ impl VisitType {
         }
     }
 
-    /// Returns `None` if any
     pub fn from_bits(bits: u8) -> Self {
         use VisitType::*;
 
