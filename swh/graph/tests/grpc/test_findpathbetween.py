@@ -15,6 +15,7 @@ from swh.graph.grpc.swhgraph_pb2 import (
     GraphDirection,
     LabeledNode,
     Node,
+    VisitType,
 )
 
 TEST_ORIGIN_ID = "swh:1:ori:{}".format(
@@ -149,7 +150,13 @@ def test_labels_forward_root_to_leaf(graph_grpc_stub):
     expected = [
         LabeledNode(
             node=Node(swhid=TEST_ORIGIN_ID),
-            label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
+            label=[
+                EdgeLabel(
+                    visit_timestamp=1367900441,
+                    is_full_visit=True,
+                    visit_type=VisitType.Vcs,
+                )
+            ],
         ),
         LabeledNode(
             node=Node(swhid="swh:1:snp:0000000000000000000000000000000000000020"),
@@ -204,7 +211,13 @@ def test_labels_backward_root_to_leaf(graph_grpc_stub):
         ),
         LabeledNode(
             node=Node(swhid="swh:1:snp:0000000000000000000000000000000000000020"),
-            label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
+            label=[
+                EdgeLabel(
+                    visit_timestamp=1367900441,
+                    is_full_visit=True,
+                    visit_type=VisitType.Vcs,
+                )
+            ],
         ),
         LabeledNode(
             node=Node(swhid=TEST_ORIGIN_ID),
@@ -508,7 +521,13 @@ def test_labels_backward_multiple_sources_all_dir_to_ori(graph_grpc_stub):
         ),
         LabeledNode(
             node=Node(swhid="swh:1:snp:0000000000000000000000000000000000000020"),
-            label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
+            label=[
+                EdgeLabel(
+                    visit_timestamp=1367900441,
+                    is_full_visit=True,
+                    visit_type=VisitType.Vcs,
+                )
+            ],
         ),
         LabeledNode(
             node=Node(swhid=TEST_ORIGIN_ID),

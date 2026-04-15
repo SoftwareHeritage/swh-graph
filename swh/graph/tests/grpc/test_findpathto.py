@@ -20,6 +20,7 @@ from swh.graph.grpc.swhgraph_pb2 import (
     Path,
     RevisionData,
     Successor,
+    VisitType,
 )
 
 TEST_ORIGIN_ID = "swh:1:ori:{}".format(
@@ -110,7 +111,11 @@ def test_mask_node(graph_grpc_stub):
                     Successor(
                         swhid="swh:1:snp:0000000000000000000000000000000000000020",
                         label=[
-                            EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)
+                            EdgeLabel(
+                                visit_timestamp=1367900441,
+                                is_full_visit=True,
+                                visit_type=VisitType.Vcs,
+                            )
                         ],
                     ),
                 ],
@@ -218,7 +223,9 @@ def test_mask_labeled_node(graph_grpc_stub):
                             swhid="swh:1:snp:0000000000000000000000000000000000000020",
                             label=[
                                 EdgeLabel(
-                                    visit_timestamp=1367900441, is_full_visit=True
+                                    visit_timestamp=1367900441,
+                                    is_full_visit=True,
+                                    visit_type=VisitType.Vcs,
                                 )
                             ],
                         ),
@@ -333,7 +340,13 @@ def test_mask_labeled_label(graph_grpc_stub):
     expected = Path(
         labeled_node=[
             LabeledNode(
-                label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)]
+                label=[
+                    EdgeLabel(
+                        visit_timestamp=1367900441,
+                        is_full_visit=True,
+                        visit_type=VisitType.Vcs,
+                    )
+                ]
             ),
             LabeledNode(label=[EdgeLabel(name=b"refs/heads/master")]),
             LabeledNode(),
