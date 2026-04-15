@@ -322,11 +322,11 @@ enum VisitType {
     /* npm, pypi, nixguix, ... */
     Package = 3;
     /* deposit, possibly coar-notify in the future */
-    Push = 5;
+    Push = 4;
     /* git, hg, cvs, ... */
-    Vcs = 6;
+    Vcs = 5;
     /* partial archiving of a repository (git-checkout, hg-checkout, ...) */
-    VcsCheckout = 4;
+    VcsCheckout = 6;
   }
 
 message CountResponse {
