@@ -188,7 +188,7 @@ impl VisitType {
         use VisitType::*;
 
         match bits {
-            0b000 => Unknown, // used by graphs 2024-08-23 to 2025-10-08
+            0b000 => Unknown, // used by graphs 2024-08-23 to 2026-03-02
             0b001 => Archive,
             0b010 => Misc,
             0b011 => Package,
