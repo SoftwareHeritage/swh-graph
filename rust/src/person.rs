@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use epserde::deser::{Deserialize, Flags, MemCase};
 use mmap_rs::Mmap;
 use std::path::{Path, PathBuf};
@@ -24,6 +24,7 @@ type FullnamesOffsets = MemCase<
 pub struct FullnameMap {
     fullnames: Mmap,
     offsets: FullnamesOffsets,
+    graph_path: PathBuf,
 }
 
 impl FullnameMap {
@@ -35,7 +36,11 @@ impl FullnameMap {
             .with_context(|| format!("Could not mmap {}", fullnames_path.display()))?;
         let offsets = unsafe { <EfSeq>::mmap(&offsets_path, Flags::RANDOM_ACCESS) }
             .with_context(|| format!("Could not mmap {}", offsets_path.display()))?;
-        Ok(FullnameMap { fullnames, offsets })
+        Ok(FullnameMap {
+            fullnames,
+            offsets,
+            graph_path,
+        })
     }
 
     /// Maps an author ID to its corresponding full name in the SWH graph
@@ -54,10 +59,19 @@ impl FullnameMap {
     /// ```
     pub fn map_id(&self, id: usize) -> Result<&[u8]> {
         let offsets = self.offsets.uncase();
-        Ok(self
-            .fullnames
+        ensure!(
+            id < offsets.len(),
+            "Invalid id {id}, there are only {} fullnames",
+            offsets.len()
+        );
+        self.fullnames
             .get(offsets.get(id)..offsets.get(id + 1))
-            .unwrap())
+            .with_context(|| {
+                format!(
+                    "Out-of-bound access to {}.persons, index is probably corrupted",
+                    self.graph_path.display()
+                )
+            })
     }
 }
 
