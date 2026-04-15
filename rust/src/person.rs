@@ -1,9 +1,9 @@
-// Copyright (C) 2025  The Software Heritage developers
+// Copyright (C) 2025-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::{Context, Error};
+use anyhow::{Context, Result};
 use epserde::deser::{Deserialize, Flags, MemCase};
 use mmap_rs::Mmap;
 use std::path::{Path, PathBuf};
@@ -28,7 +28,7 @@ pub struct FullnameMap {
 
 impl FullnameMap {
     /// Constructs a new `FullnameMap`.
-    pub fn new(graph_path: PathBuf) -> Result<FullnameMap, Error> {
+    pub fn new(graph_path: PathBuf) -> Result<FullnameMap> {
         let fullnames_path = suffix_path(&graph_path, ".persons");
         let offsets_path = suffix_path(&graph_path, ".persons.ef");
         let fullnames = mmap(&fullnames_path)
@@ -45,14 +45,14 @@ impl FullnameMap {
     /// # Example
     /// ```
     /// use std::path::PathBuf;
-    /// use anyhow::Error;
+    /// use anyhow::Result;
     /// use swh_graph::person::FullnameMap;
     ///
-    /// fn get_fullname(id: usize, graph_path: PathBuf) -> Result<Vec<u8>, Error> {
+    /// fn get_fullname(id: usize, graph_path: PathBuf) -> Result<Vec<u8>> {
     ///     Ok(FullnameMap::new(graph_path)?.map_id(id)?.to_owned())
     /// }
     /// ```
-    pub fn map_id(&self, id: usize) -> Result<&[u8], Error> {
+    pub fn map_id(&self, id: usize) -> Result<&[u8]> {
         let offsets = self.offsets.uncase();
         Ok(self
             .fullnames
@@ -67,7 +67,7 @@ fn suffix_path<P: AsRef<Path>, S: AsRef<std::ffi::OsStr>>(path: P, suffix: S) ->
     path.into()
 }
 
-fn mmap(path: &Path) -> Result<Mmap, Error> {
+fn mmap(path: &Path) -> Result<Mmap> {
     let file_len = path
         .metadata()
         .with_context(|| format!("Could not stat {}", path.display()))?
