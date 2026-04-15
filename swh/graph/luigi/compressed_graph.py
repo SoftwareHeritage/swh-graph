@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2023 The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -447,6 +447,7 @@ class _CompressionStepTask(luigi.Task):
 
     def requires(self) -> Sequence[luigi.Task]:
         """Returns a list of luigi tasks matching :attr:`PREVIOUS_STEPS`."""
+        assert self.rust_executable_dir != "/"
         requirements_d = {}
         for input_file in self.INPUT_FILES.union(self.SENSITIVE_INPUT_FILES):
             if not self._is_expected_output_file(input_file):
@@ -517,6 +518,8 @@ class _CompressionStepTask(luigi.Task):
         import time
 
         from swh.graph.config import check_config_compress
+
+        assert self.rust_executable_dir != "/"
 
         if self.MINIMUM_OBJECT_TYPES.isdisjoint(set(self.object_types)):
             return
@@ -1144,15 +1147,22 @@ class EdgeLabels(_CompressionStepTask):
     def _large_allocations(self) -> int:
         import multiprocessing
 
+        import psutil
+
         # See ExtractNodes._large_allocations for this constant
         orc_buffers_size = 256_000_000
 
         nb_orc_readers = multiprocessing.cpu_count()
 
+        # ParSortPair's internal buffers, which default to webgraph::utils::MemoryUsage,
+        # which itself defaults to half the total memory
+        sort_buffers = psutil.virtual_memory().total / 2
+
         return (
             orc_buffers_size * nb_orc_readers
             + self._mph_size()
             + self._labels_mph_size()
+            + sort_buffers
         )
 
 
@@ -1178,15 +1188,22 @@ class EdgeLabelsTranspose(_CompressionStepTask):
     def _large_allocations(self) -> int:
         import multiprocessing
 
+        import psutil
+
         # See ExtractNodes._large_allocations for this constant
         orc_buffers_size = 256_000_000
 
         nb_orc_readers = multiprocessing.cpu_count()
 
+        # ParSortPair's internal buffers, which default to webgraph::utils::MemoryUsage,
+        # which itself defaults to half the total memory
+        sort_buffers = psutil.virtual_memory().total / 2
+
         return (
             orc_buffers_size * nb_orc_readers
             + self._mph_size()
             + self._labels_mph_size()
+            + sort_buffers
         )
 
 
@@ -1356,6 +1373,7 @@ def _make_dot_diagram() -> str:
             CompressionStep.BV_EF,
             CompressionStep.LLP,
             CompressionStep.COMPOSE_ORDERS,
+            CompressionStep.INITIAL_ORDER,
         } or "BFS" in str(cls.STEP):
             s.write(f"        {cls.STEP};\n")
             for filename in itertools.chain(
@@ -1695,7 +1713,7 @@ class UploadGraphToS3(luigi.Task):
         client = luigi.contrib.s3.S3Client()
 
         relative_path = path.relative_to(self.local_graph_path)
-        if path.suffix == ".bin":
+        if path.suffix == ".bin" and "node2swhid" not in path.name:
             # Large sparse file; store it compressed on S3.
             with tempfile.NamedTemporaryFile(prefix=path.stem, suffix=".bin.zst") as fd:
                 self.__status_messages[path] = f"Compressing {relative_path}"

@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2025  The Software Heritage developers
+# Copyright (C) 2019-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -189,19 +189,31 @@ def serve(ctx, host, port, graph_path):
 @click.option(
     "--s3-prefix",
     default="s3://softwareheritage/graph/",
-    help="Base directory of Software Heritage's graphs on S3",
+    show_default=True,
+    help="Base Amazon S3 URI where to download Software Heritage graphs from.",
 )
 @click.option(
     "--name",
     default=None,
-    help="Name of the dataset to download. This is an ISO8601 date, optionally with a "
-    "suffix. See https://docs.softwareheritage.org/devel/swh-export/graph/dataset.html",
+    help="Name of dataset to download, as an ISO8601 date, with an optional suffix. "
+    "Example: 2025-10-08. "
+    "Example: 2025-10-08-history-hosting. "
+    "See https://datasets.softwareheritage.org/ for a list of available datasets.",
 )
 @click.option(
     "--parallelism",
     "-j",
     default=5,
+    show_default=True,
     help="Number of threads used to download/decompress files.",
+)
+@click.option(
+    "--multipart-chunk-size",
+    default="1GiB",
+    show_default=True,
+    help="If a file to download has its size greater than that value, it will be "
+    "downloaded concurrently by chunks of that size and re-assembled afterwards as "
+    "it improves download time",
 )
 @click.argument(
     "target-dir",
@@ -219,12 +231,15 @@ def download(
     name: Optional[str],
     parallelism: int,
     target_dir: Path,
+    multipart_chunk_size: str,
 ):
     """Downloads a compressed SWH graph to the given target directory.
 
     If some files fail to be fully downloaded, their downloads will be
     resumed when re-executing the same download command.
     """
+    from humanfriendly import parse_size
+
     from swh.graph.download import GraphDownloader
 
     if s3_url and name:
@@ -240,6 +255,7 @@ def download(
         local_path=target_dir,
         s3_url=s3_url,
         parallelism=parallelism,
+        multipart_download_chunk_size=parse_size(multipart_chunk_size),
     )
 
     while not graph_downloader.download():
@@ -530,20 +546,6 @@ def compress(
             conf,
         )
     except webgraph.CompressionSubprocessError as e:
-        try:
-            if e.log_path.is_file():
-                with e.log_path.open("rb") as f:
-                    if e.log_path.stat().st_size > 1000:
-                        f.seek(-1000, 2)  # read only the last 1kB
-                        f.readline()  # skip first line, might be partial
-                        sys.stderr.write("[...]\n")
-                    sys.stderr.write("\n")
-                    sys.stderr.flush()
-                    sys.stderr.buffer.write(f.read())
-                    sys.stderr.flush()
-        except Exception:
-            raise
-            pass
         raise click.ClickException(e.message)
 
 
@@ -698,7 +700,6 @@ def luigi(
     import secrets
     import socket
     import subprocess
-    import sys
     import tempfile
     import time
 
@@ -953,54 +954,49 @@ def find_context(ctx, **kwargs):
     "destination-path", type=click.Path(dir_okay=True, writable=True, path_type=Path)
 )
 @click.option(
-    "--verbose", "-v", is_flag=True, default=False, help="Explain what is being done"
+    "--copy-graph",
+    is_flag=True,
+    default=True,
+    help="Whether to copy .graph files (instead of symlink)",
 )
-@click.argument("force-copy", type=click.Path(path_type=Path), nargs=-1)
+@click.option(
+    "--copy-ef",
+    is_flag=True,
+    default=True,
+    help="Whether to copy .ef files (instead of symlink)",
+)
 @click.pass_context
 def link(
     ctx,
     source_path: Path,
     destination_path: Path,
-    force_copy: Tuple[Path],
-    verbose: bool,
+    copy_graph: bool,
+    copy_ef: bool,
 ):
     """
     Symlink (or copy) an existing graph to the desired location.
 
-    By default, all files are symlinked, but files and directories can be
-    specified to be copied instead.
+    By default, all files but ``*.graph`` and ``*.ef`` are symlinked,
+    but files and directories can be specified to be copied instead.
 
     This functionality is intended for internal use, and is there to ease the
     process of sharing an existing graph between multiple users on the same
     machine.
     """
-    import shutil
+    from swh.graph.utils import link
 
-    from tqdm.contrib.concurrent import thread_map
-
-    destination_path.mkdir(parents=True, exist_ok=True)
-
-    for file_or_dir in source_path.rglob("*"):
-        if file_or_dir in force_copy:
-            continue
-        link_target = destination_path / file_or_dir.relative_to(source_path)
-        if file_or_dir.is_dir():
-            link_target.mkdir(parents=True, exist_ok=True)
-            continue
-        link_target.symlink_to(file_or_dir)
-        if verbose:
-            logger.info(f"Creating symlink from {file_or_dir} to {link_target}")
-
-    def _copy(source_item: Path):
-        if verbose:
-            logger.info(f"Copying {source_item} to {destination_path}")
-        if source_item.is_file():
-            shutil.copy(source_item, destination_path)
-        else:
-            shutil.copytree(source_item, destination_path)
-
-    if len(force_copy) > 0:
-        thread_map(_copy, force_copy, desc="Copying files", max_workers=len(force_copy))
+    try:
+        link(
+            source_path=source_path,
+            destination_path=destination_path,
+            copy_graph=copy_graph,
+            copy_ef=copy_ef,
+        )
+    except FileExistsError:
+        raise click.ClickException(
+            f"Destination directory already exists: {destination_path}\n"
+            f"Please choose a different destination or remove the existing directory."
+        )
 
 
 def main():

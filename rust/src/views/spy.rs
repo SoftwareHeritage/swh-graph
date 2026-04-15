@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -14,6 +14,7 @@ use crate::properties;
 use crate::NodeType;
 
 /// Wraps a graph, and records calls to its methods, useful for tests
+#[derive(Clone, Debug)]
 pub struct GraphSpy<G: SwhGraph> {
     pub graph: G,
     /// Pairs of `(method, arguments)`
@@ -28,6 +29,7 @@ impl<G: SwhGraph> GraphSpy<G> {
         }
     }
 
+    #[inline(always)]
     fn record<Args: std::fmt::Debug>(&self, method: &'static str, arguments: Args) {
         self.history
             .lock()
@@ -37,22 +39,27 @@ impl<G: SwhGraph> GraphSpy<G> {
 }
 
 impl<G: SwhGraph> SwhGraph for GraphSpy<G> {
+    #[inline(always)]
     fn path(&self) -> &Path {
         self.record("path", ());
         self.graph.path()
     }
+    #[inline(always)]
     fn is_transposed(&self) -> bool {
         self.record("is_transposed", ());
         self.graph.is_transposed()
     }
+    #[inline(always)]
     fn num_nodes(&self) -> usize {
         self.record("num_nodes", ());
         self.graph.num_nodes()
     }
+    #[inline(always)]
     fn has_node(&self, node_id: NodeId) -> bool {
         self.record("has_node", (node_id,));
         self.graph.has_node(node_id)
     }
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         self.record("num_arcs", ());
         self.graph.num_arcs()
@@ -65,6 +72,7 @@ impl<G: SwhGraph> SwhGraph for GraphSpy<G> {
         self.record("num_arcs_by_type", ());
         self.graph.num_arcs_by_type()
     }
+    #[inline(always)]
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         self.record("has_arc", (src_node_id, dst_node_id));
         self.graph.has_arc(src_node_id, dst_node_id)
@@ -77,10 +85,12 @@ impl<G: SwhForwardGraph> SwhForwardGraph for GraphSpy<G> {
     where
         Self: 'succ;
 
+    #[inline(always)]
     fn successors(&self, node_id: NodeId) -> Self::Successors<'_> {
         self.record("successors", (node_id,));
         self.graph.successors(node_id)
     }
+    #[inline(always)]
     fn outdegree(&self, node_id: NodeId) -> usize {
         self.record("outdegree", (node_id,));
         self.graph.outdegree(node_id)

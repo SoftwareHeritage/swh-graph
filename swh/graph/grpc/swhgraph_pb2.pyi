@@ -128,6 +128,7 @@ class TraversalRequest(_message.Message):
     RETURN_NODES_FIELD_NUMBER: _builtins.int
     MASK_FIELD_NUMBER: _builtins.int
     MAX_MATCHING_NODES_FIELD_NUMBER: _builtins.int
+    IGNORE_NODE_FIELD_NUMBER: _builtins.int
     direction: Global___GraphDirection.ValueType
     """Direction of the graph to traverse. Defaults to FORWARD."""
     edges: _builtins.str
@@ -166,6 +167,12 @@ class TraversalRequest(_message.Message):
         By default, all fields are returned.
         """
 
+    @_builtins.property
+    def ignore_node(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+        """Set of nodes (SWHIDs) that should be skipped during the traversal
+        and from the 'successor' set, as if they were removed from the graph.
+        """
+
     def __init__(
         self,
         *,
@@ -178,10 +185,11 @@ class TraversalRequest(_message.Message):
         return_nodes: Global___NodeFilter | None = ...,
         mask: _field_mask_pb2.FieldMask | None = ...,
         max_matching_nodes: _builtins.int | None = ...,
+        ignore_node: _abc.Iterable[_builtins.str] | None = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "_max_matching_nodes", b"_max_matching_nodes", "_min_depth", b"_min_depth", "_return_nodes", b"_return_nodes", "edges", b"edges", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "max_matching_nodes", b"max_matching_nodes", "min_depth", b"min_depth", "return_nodes", b"return_nodes"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "_max_matching_nodes", b"_max_matching_nodes", "_min_depth", b"_min_depth", "_return_nodes", b"_return_nodes", "direction", b"direction", "edges", b"edges", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "max_matching_nodes", b"max_matching_nodes", "min_depth", b"min_depth", "return_nodes", b"return_nodes", "src", b"src"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "_max_matching_nodes", b"_max_matching_nodes", "_min_depth", b"_min_depth", "_return_nodes", b"_return_nodes", "direction", b"direction", "edges", b"edges", "ignore_node", b"ignore_node", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "max_matching_nodes", b"max_matching_nodes", "min_depth", b"min_depth", "return_nodes", b"return_nodes", "src", b"src"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     _WhichOneofReturnType__edges: _TypeAlias = _typing.Literal["edges"]  # noqa: Y015
     _WhichOneofArgType__edges: _TypeAlias = _typing.Literal["_edges", b"_edges"]  # noqa: Y015
@@ -230,6 +238,7 @@ class FindPathToRequest(_message.Message):
     MAX_EDGES_FIELD_NUMBER: _builtins.int
     MAX_DEPTH_FIELD_NUMBER: _builtins.int
     MASK_FIELD_NUMBER: _builtins.int
+    IGNORE_NODE_FIELD_NUMBER: _builtins.int
     direction: Global___GraphDirection.ValueType
     """Direction of the graph to traverse. Defaults to FORWARD."""
     edges: _builtins.str
@@ -258,6 +267,12 @@ class FindPathToRequest(_message.Message):
         By default, all fields are returned.
         """
 
+    @_builtins.property
+    def ignore_node(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+        """Set of nodes (SWHIDs) that should be skipped during the traversal
+        and from the 'successor' set, as if they were removed from the graph.
+        """
+
     def __init__(
         self,
         *,
@@ -268,10 +283,11 @@ class FindPathToRequest(_message.Message):
         max_edges: _builtins.int | None = ...,
         max_depth: _builtins.int | None = ...,
         mask: _field_mask_pb2.FieldMask | None = ...,
+        ignore_node: _abc.Iterable[_builtins.str] | None = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "edges", b"edges", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "target", b"target"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "direction", b"direction", "edges", b"edges", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "src", b"src", "target", b"target"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_edges", b"_edges", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "direction", b"direction", "edges", b"edges", "ignore_node", b"ignore_node", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "src", b"src", "target", b"target"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     _WhichOneofReturnType__edges: _TypeAlias = _typing.Literal["edges"]  # noqa: Y015
     _WhichOneofArgType__edges: _TypeAlias = _typing.Literal["_edges", b"_edges"]  # noqa: Y015
@@ -310,6 +326,7 @@ class FindPathBetweenRequest(_message.Message):
     MAX_EDGES_FIELD_NUMBER: _builtins.int
     MAX_DEPTH_FIELD_NUMBER: _builtins.int
     MASK_FIELD_NUMBER: _builtins.int
+    IGNORE_NODE_FIELD_NUMBER: _builtins.int
     direction: Global___GraphDirection.ValueType
     """Direction of the graph to traverse from the source set. Defaults to
     FORWARD.
@@ -355,6 +372,12 @@ class FindPathBetweenRequest(_message.Message):
         By default, all fields are returned.
         """
 
+    @_builtins.property
+    def ignore_node(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+        """Set of nodes (SWHIDs) that should be skipped during the traversal
+        and from the 'successor' set, as if they were removed from the graph.
+        """
+
     def __init__(
         self,
         *,
@@ -367,10 +390,11 @@ class FindPathBetweenRequest(_message.Message):
         max_edges: _builtins.int | None = ...,
         max_depth: _builtins.int | None = ...,
         mask: _field_mask_pb2.FieldMask | None = ...,
+        ignore_node: _abc.Iterable[_builtins.str] | None = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["_direction_reverse", b"_direction_reverse", "_edges", b"_edges", "_edges_reverse", b"_edges_reverse", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "direction_reverse", b"direction_reverse", "edges", b"edges", "edges_reverse", b"edges_reverse", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["_direction_reverse", b"_direction_reverse", "_edges", b"_edges", "_edges_reverse", b"_edges_reverse", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "direction", b"direction", "direction_reverse", b"direction_reverse", "dst", b"dst", "edges", b"edges", "edges_reverse", b"edges_reverse", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "src", b"src"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_direction_reverse", b"_direction_reverse", "_edges", b"_edges", "_edges_reverse", b"_edges_reverse", "_mask", b"_mask", "_max_depth", b"_max_depth", "_max_edges", b"_max_edges", "direction", b"direction", "direction_reverse", b"direction_reverse", "dst", b"dst", "edges", b"edges", "edges_reverse", b"edges_reverse", "ignore_node", b"ignore_node", "mask", b"mask", "max_depth", b"max_depth", "max_edges", b"max_edges", "src", b"src"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     _WhichOneofReturnType__direction_reverse: _TypeAlias = _typing.Literal["direction_reverse"]  # noqa: Y015
     _WhichOneofArgType__direction_reverse: _TypeAlias = _typing.Literal["_direction_reverse", b"_direction_reverse"]  # noqa: Y015

@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2023  The Software Heritage developers
+# Copyright (C) 2019-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -234,7 +234,7 @@ def _initial_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Comman
         "--num-nodes",
         num_nodes,
         "--previous-node2swhid",
-        f"{conf['previous_graph_path']}.node2swhid.bin",
+        f"{conf['previous_graph_path']}/{conf['graph_name']}.node2swhid.bin",
         "--target-order",
         f"{conf['out_dir']}/{conf['graph_name']}-base.order",
     )
@@ -884,6 +884,8 @@ def _clean_tmp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 
 def do_step(step, conf, env=None) -> "List[RunResult]":
+    import sys
+
     if env is None:
         env = os.environ.copy()
         env["TMPDIR"] = conf["tmp_dir"]
@@ -904,8 +906,12 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
         f"-{int(datetime.now().timestamp() * 1000)}"
         f"-{str(step).lower()}.log"
     )
-    step_handler = logging.FileHandler(log_path)
-    step_logger.addHandler(step_handler)
+    step_handlers: List[logging.Handler] = [
+        logging.StreamHandler(sys.stderr),
+        logging.FileHandler(log_path),
+    ]
+    for handler in step_handlers:
+        step_logger.addHandler(handler)
 
     step_start_time = datetime.now()
     step_logger.info("Starting compression step %s at %s", step, step_start_time)
@@ -914,12 +920,11 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
 
     if command is None:
         step_logger.info("Compression step %s skipped", step)
-        step_logger.removeHandler(step_handler)
-        step_handler.close()
+        for handler in step_handlers:
+            step_logger.removeHandler(handler)
+            handler.close()
         return []
 
-    step_start_time = datetime.now()
-    step_logger.info("Starting compression step %s at %s", step, step_start_time)
     step_logger.info("Running: %s", command.__str__())
 
     if isinstance(command, (Command, AtomicFileSink)):
@@ -943,8 +948,9 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
             step_end_time,
             step_duration,
         )
-        step_logger.removeHandler(step_handler)
-        step_handler.close()
+        for handler in step_handlers:
+            step_logger.removeHandler(handler)
+            handler.close()
     else:
         # This allows for calling Python functions directly
         try:

@@ -1,4 +1,4 @@
-# Copyright (C) 2025  The Software Heritage developers
+# Copyright (C) 2025-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -231,35 +231,39 @@ def run_e2e_check(
     authors: dict[str, int | None] = {}
 
     try:
+        logger.info("Checking expected SWHIDs are in traversals from origins...")
         with grpc.insecure_channel(f"localhost:{port}") as channel:
             stub = swhgraph_grpc.TraversalServiceStub(channel)
             for origin, swhids in projects.items():
-                for swhid in swhids:
-                    response = stub.Traverse(
-                        swhgraph.TraversalRequest(
-                            src=[str(Origin(origin).swhid())],
-                            mask=FieldMask(paths=["swhid", "rev.author"]),
-                        )
+                logger.info("Listing SWHIDs in %s ...", origin)
+                response = stub.Traverse(
+                    swhgraph.TraversalRequest(
+                        src=[str(Origin(origin).swhid())],
+                        mask=FieldMask(paths=["swhid", "rev.author"]),
                     )
-                    for elt in response:
-                        if elt.swhid in swhids:
-                            swhids.remove(elt.swhid)
-                            if elt.swhid.startswith("swh:1:rev:"):
-                                # Add the author ID of the revision's author as the value
-                                # of `authors[origin]` if there isn't one already, otherwise
-                                # checks they are the same.
-                                if (
-                                    authors.setdefault(origin, elt.rev.author)
-                                    != elt.rev.author
-                                ):
-                                    full_swhid = attr.evolve(
-                                        QualifiedSWHID.from_string(elt.swhid),
-                                        origin=origin,
-                                    )
-                                    logger.error(f"Author ID for {full_swhid} is wrong")
-                                    errors.append(full_swhid)
+                )
+                for elt in response:
+                    if elt.swhid in swhids:
+                        swhids.remove(elt.swhid)
+                        if elt.swhid.startswith("swh:1:rev:"):
+                            # Add the author ID of the revision's author as the value
+                            # of `authors[origin]` if there isn't one already, otherwise
+                            # checks they are the same.
+                            if (
+                                authors.setdefault(origin, elt.rev.author)
+                                != elt.rev.author
+                            ):
+                                full_swhid = attr.evolve(
+                                    QualifiedSWHID.from_string(elt.swhid),
+                                    origin=origin,
+                                )
+                                logger.error("Wrong author ID for %s", full_swhid)
+                                errors.append(full_swhid)
+        logger.info("Finished all traversals.")
     finally:
+        logger.info("Stopping gRPC server...")
         stop_grpc_server(server)
+        logger.info("Stopped gRPC server.")
 
     check_authors = (
         sensitive_out_dir is not None
@@ -272,6 +276,7 @@ def run_e2e_check(
     # Check if the author IDs previously checked match their full names. This is triggered
     # only when the sensitive files containing said full names are present on disk.
     if check_authors:
+        logger.info("Checking authors...")
         for origin, author in authors.items():
             if author is None:
                 return
@@ -295,6 +300,7 @@ def run_e2e_check(
                     f"got {fullname.decode(errors='replace')}"
                 )
                 errors.append((origin, author))
+        logger.info("Done checking authors.")
     else:
         logger.warning("End-to-end checks for full names skipped")
 

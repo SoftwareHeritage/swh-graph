@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -51,7 +51,7 @@ impl<T: Sync + AsRef<[usize]>> OwnedPermutation<T> {
             .find_any(|&(_old, &new)| new >= perm.as_ref().len())
         {
             bail!(
-                "Found node {} has id {} in permutation, graph size is {}",
+                "Found node {} with id {} in permutation, graph size is {}",
                 old,
                 new,
                 perm.as_ref().len()
@@ -200,14 +200,17 @@ impl<T: Sync + AsRef<[usize]>> std::ops::Index<usize> for OwnedPermutation<T> {
 }
 
 impl<T: Sync + AsRef<[usize]>> Permutation for OwnedPermutation<T> {
+    #[inline(always)]
     fn len(&self) -> usize {
         self.as_ref().len()
     }
 
+    #[inline(always)]
     fn get(&self, old_node: usize) -> Option<usize> {
         self.0.as_ref().get(old_node).copied()
     }
 
+    #[inline(always)]
     unsafe fn get_unchecked(&self, old_node: usize) -> usize {
         *self.0.as_ref().get_unchecked(old_node)
     }
@@ -233,6 +236,7 @@ impl MappedPermutation {
             "mmap has size {}, which is not a multiple of 8",
             perm.size()
         );
+        let num_nodes = perm.len() / 8;
 
         // Check the permutation's image has the same size as the preimage
         if let Some((old, new)) = perm
@@ -243,7 +247,7 @@ impl MappedPermutation {
                     as usize
             })
             .enumerate()
-            .find_any(|&(_old, new)| new >= perm.len())
+            .find_any(|&(_old, new)| new >= num_nodes)
         {
             bail!(
                 "Found node {} has id {} in permutation, graph size is {}",
@@ -255,7 +259,7 @@ impl MappedPermutation {
 
         // Check the permutation is injective
         let mut seen = Vec::with_capacity(perm.len() as _);
-        seen.extend((0..perm.len()).map(|_| AtomicBool::new(false)));
+        seen.extend((0..num_nodes).map(|_| AtomicBool::new(false)));
         if let Some((old, _)) = perm
             .par_iter()
             .chunks(8)
@@ -328,15 +332,18 @@ impl MappedPermutation {
 }
 
 impl Permutation for MappedPermutation {
+    #[inline(always)]
     fn len(&self) -> usize {
         self.0.size() / 8
     }
 
+    #[inline(always)]
     fn get(&self, old_node: usize) -> Option<usize> {
         let range = (old_node * 8)..((old_node + 1) * 8);
         Some(BigEndian::read_u64(self.0.get(range)?) as usize)
     }
 
+    #[inline(always)]
     unsafe fn get_unchecked(&self, old_node: usize) -> usize {
         let range = (old_node * 8)..((old_node + 1) * 8);
         BigEndian::read_u64(self.0.get_unchecked(range)) as usize

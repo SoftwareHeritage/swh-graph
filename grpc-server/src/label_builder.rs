@@ -1,4 +1,4 @@
-// Copyright (C) 2025  The Software Heritage developers
+// Copyright (C) 2025-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -81,7 +81,7 @@ impl<G: SwhGraphWithProperties<LabelNames: LabelNames> + Clone + Send + Sync + '
                 ".is_full_visit" => LABEL_FULL_VISIT,
                 ".visit_type" => LABEL_VISIT_TYPE,
                 field => {
-                    log::warn!("Unknown field {:?}", field);
+                    log::warn!("Unknown field {:?}", format!("{prefix}{field}"));
                     0 // Ignore unknown fields
                 }
             }

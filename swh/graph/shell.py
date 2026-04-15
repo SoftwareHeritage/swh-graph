@@ -1,4 +1,4 @@
-# Copyright (C) 2023 The Software Heritage developers
+# Copyright (C) 2023-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -31,7 +31,7 @@ which is the equivalent of this bash command:
 return the stdout of the last process.
 
 Actual pipelines will usually write to a file instead, using
-:class:`AtomicFileSink`. This calls is similar to ``>`` in bash,
+:class:`AtomicFileSink`. This is similar to ``>`` in bash,
 with a twist: it is only written after all other commands in the pipeline
 succeeded (but unlike ``sponge`` from moreutils, it buffers to disk and
 rename the file at the end).
@@ -40,6 +40,7 @@ rename the file at the end).
 from __future__ import annotations
 
 import dataclasses
+import errno
 import functools
 import logging
 import os
@@ -47,6 +48,7 @@ from pathlib import Path
 import shlex
 import signal
 import subprocess
+import time
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple, TypeVar, Union
 
 try:
@@ -152,8 +154,18 @@ def base_cgroup() -> Optional[Path]:
             )
 
     def cleanup():
-        # Clean up the base cgroup we created
-        base_cgroup_path.rmdir()
+        # Remove any leftover child cgroups (they should be empty by now),
+        # then remove the base cgroup.
+        for child in base_cgroup_path.iterdir():
+            if child.is_dir():
+                try:
+                    _rmdir_cgroup(child)
+                except OSError:
+                    logger.warning("Failed to remove leftover cgroup %s", child)
+        try:
+            _rmdir_cgroup(base_cgroup_path)
+        except OSError:
+            logger.warning("Failed to remove base cgroup %s", base_cgroup_path)
 
     atexit.register(cleanup)
 
@@ -203,6 +215,37 @@ def move_to_cgroup(cgroup: Path, pid: Optional[int] = None) -> bool:
         return True
 
 
+_RMDIR_RETRIES = 50
+_RMDIR_DELAY = 0.1
+
+
+def _rmdir_cgroup(cgroup: Path) -> None:
+    """Remove a cgroup directory, retrying briefly on EBUSY.
+
+    After a child process exits, the kernel may not release the cgroup
+    immediately (e.g. accounting cleanup for sub-processes).
+    """
+    for _ in range(_RMDIR_RETRIES):
+        try:
+            cgroup.rmdir()
+            return
+        except OSError as e:
+            if e.errno != errno.EBUSY:
+                raise
+            time.sleep(_RMDIR_DELAY)
+
+    try:
+        cgroup.rmdir()
+    except OSError as e:
+        logger.warning(
+            "Could not remove cgroup %s after %s seconds: %s",
+            cgroup,
+            _RMDIR_RETRIES * _RMDIR_DELAY,
+            e,
+        )
+        raise
+
+
 class _MetaCommand(type):
     def __getattr__(self, name):
         return functools.partial(Command, name)
@@ -221,12 +264,11 @@ class Command(metaclass=_MetaCommand):
         self.args = args
         self.kwargs = dict(kwargs)
         self.preexec_fn = self.kwargs.pop("preexec_fn", lambda: None)
-        self.cgroup = None
         self.check = check
 
-    def _preexec_fn(self):
-        if self.cgroup is not None:
-            move_to_cgroup(self.cgroup)
+    def _preexec_fn(self, cgroup):
+        if cgroup is not None:
+            move_to_cgroup(cgroup)
         self.preexec_fn()
 
     def _run(self, stdin, stdout, stderr) -> _RunningCommand:
@@ -273,7 +315,7 @@ class Command(metaclass=_MetaCommand):
             stdout=stdout,
             stderr=stderr,
             pass_fds=pass_fds,
-            preexec_fn=self._preexec_fn,
+            preexec_fn=functools.partial(self._preexec_fn, cgroup),
             **self.kwargs,
         )
 
@@ -337,7 +379,9 @@ class Rust(Command):
             env["PATH"] = f"{conf['rust_executable_dir']}:{path}"
         else:
             env["PATH"] = conf["rust_executable_dir"]
-        env["RUST_MIN_STACK"] = "8388608"  # 8MiB; avoids stack overflows in LLP
+        env["RUST_MIN_STACK"] = str(
+            32 * 1024 * 1024
+        )  # 32MiB; avoids stack overflows in LLP
 
         super().__init__(bin_name, *args, env=env)
 
@@ -408,7 +452,7 @@ class _RunningCommand:
 
     def _cleanup(self) -> None:
         if self.cgroup is not None:
-            self.cgroup.rmdir()
+            _rmdir_cgroup(self.cgroup)
 
 
 class Pipe:
@@ -434,7 +478,8 @@ class Pipe:
         elif stdout is subprocess.DEVNULL:
             stdout_read = None
         else:
-            stdout_read = os.fdopen(stdout, "rb") if isinstance(stdout, int) else stdout
+            # Don't wrap raw int fds: the caller owns them and will close them.
+            stdout_read = stdout
 
         write_pipes.append(stdout)
 

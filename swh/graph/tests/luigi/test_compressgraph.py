@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2023  The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -334,7 +334,7 @@ def test_compressgraph_from_previous_graph(tmpdir, previous_graph):
         "--CompressGraph-rust-executable-dir",
         "./target/debug/",
         "--CompressGraph-previous-graph-path",
-        f"{previous_graph_dir}/graph",
+        f"{previous_graph_dir}",
         f"--workers={workers}",
     ]
 

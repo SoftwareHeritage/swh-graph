@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -25,7 +25,7 @@ pub trait IntoFlattenedLabeledArcsIterator<Label> {
     type Flattened: IntoIterator<Item = (NodeId, Label)>;
 
     /// Turns this `Iterator<Item=(succ, Iterator<Item=labels>)>` into an
-    /// `Iterator<ITem=(succ, label)>`.
+    /// `Iterator<Item=(succ, label)>`.
     fn flatten_labels(self) -> Self::Flattened;
 }
 
@@ -40,6 +40,7 @@ impl<Successors: Iterator> LabeledSuccessorIterator<Successors>
 where
     <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator<Item: Borrow<u64>>>,
 {
+    #[inline(always)]
     pub fn new(successors: Successors) -> Self {
         LabeledSuccessorIterator { successors }
     }
@@ -84,12 +85,13 @@ where
 {
     type Flattened = FlattenedSuccessorsIterator<Self>;
 
+    #[inline(always)]
     fn flatten_labels(self) -> Self::Flattened {
         FlattenedSuccessorsIterator::new(self)
     }
 }
 
-pub struct FlattenedSuccessorsIterator<Successors: Iterator>
+pub struct FlattenedSuccessorsIterator<Successors: Iterator + ?Sized>
 where
     <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator>,
 {
@@ -104,6 +106,7 @@ impl<Successors: Iterator> FlattenedSuccessorsIterator<Successors>
 where
     <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator>,
 {
+    #[inline(always)]
     pub fn new(successors: Successors) -> Self {
         Self {
             current_node_and_labels: None,
@@ -112,7 +115,7 @@ where
     }
 }
 
-impl<Successors: Iterator> Iterator for FlattenedSuccessorsIterator<Successors>
+impl<Successors: Iterator + ?Sized> Iterator for FlattenedSuccessorsIterator<Successors>
 where
     <Successors as Iterator>::Item: Pair<Left = usize, Right: IntoIterator>,
 {
@@ -175,7 +178,7 @@ pub struct LabelTypingSuccessorIterator<'a, G, Successors: Iterator>
 where
     <Successors as Iterator>::Item:
         Pair<Left = usize, Right: IntoIterator<Item = UntypedEdgeLabel>>,
-    G: SwhGraphWithProperties,
+    G: SwhGraphWithProperties + ?Sized,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
     pub(crate) graph: &'a G,
@@ -188,7 +191,7 @@ impl<'a, G, Successors: Iterator> Iterator for LabelTypingSuccessorIterator<'a, 
 where
     <Successors as Iterator>::Item:
         Pair<Left = usize, Right: IntoIterator<Item = UntypedEdgeLabel>>,
-    G: SwhGraphWithProperties,
+    G: SwhGraphWithProperties + ?Sized,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
     type Item = (
@@ -202,18 +205,14 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         self.successors.next().map(|pair| {
-            let mut src = self.src;
-            let (mut dst, labels) = pair.into_pair();
-            let succ = dst;
-            if self.is_transposed {
-                (src, dst) = (dst, src)
-            }
+            let (dst, labels) = pair.into_pair();
             (
-                succ,
+                dst,
                 LabelTypingArcIterator {
                     graph: self.graph,
+                    is_transposed: self.is_transposed,
                     labels: labels.into_iter(),
-                    src,
+                    src: self.src,
                     dst,
                 },
             )
@@ -226,11 +225,12 @@ impl<G, Successors: Iterator> IntoFlattenedLabeledArcsIterator<EdgeLabel>
 where
     <Successors as Iterator>::Item:
         Pair<Left = usize, Right: IntoIterator<Item = UntypedEdgeLabel>>,
-    G: SwhGraphWithProperties,
+    G: SwhGraphWithProperties + ?Sized,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
     type Flattened = FlattenedSuccessorsIterator<Self>;
 
+    #[inline(always)]
     fn flatten_labels(self) -> Self::Flattened {
         FlattenedSuccessorsIterator::new(self)
     }
@@ -238,10 +238,11 @@ where
 
 pub struct LabelTypingArcIterator<'a, G, Labels: Iterator<Item = UntypedEdgeLabel>>
 where
-    G: SwhGraphWithProperties,
+    G: SwhGraphWithProperties + ?Sized,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
     graph: &'a G,
+    is_transposed: bool,
     labels: Labels,
     src: NodeId,
     dst: NodeId,
@@ -250,7 +251,7 @@ where
 impl<G, Labels: Iterator<Item = UntypedEdgeLabel>> Iterator
     for LabelTypingArcIterator<'_, G, Labels>
 where
-    G: SwhGraphWithProperties,
+    G: SwhGraphWithProperties + ?Sized,
     <G as SwhGraphWithProperties>::Maps: crate::properties::Maps,
 {
     type Item = EdgeLabel;
@@ -262,7 +263,7 @@ where
                 .for_edge_type(
                     props.node_type(self.src),
                     props.node_type(self.dst),
-                    self.graph.is_transposed(),
+                    self.is_transposed,
                 )
                 .unwrap_or_else(|e| {
                     panic!(

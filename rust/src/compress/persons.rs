@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -79,10 +79,12 @@ pub struct PersonHasher<'a> {
 }
 
 impl<'a> PersonHasher<'a> {
+    #[inline(always)]
     pub fn new(mphf: &'a PersonMphf) -> Self {
         PersonHasher { mphf }
     }
 
+    #[inline(always)]
     pub fn mphf(&self) -> &'a PersonMphf {
         self.mphf
     }

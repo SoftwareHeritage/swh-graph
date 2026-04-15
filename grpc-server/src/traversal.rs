@@ -1,8 +1,9 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use cadence::Counted;
@@ -40,12 +41,12 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
     >(
         &'a self,
         request: Request<proto::TraversalRequest>,
-        graph: G,
+        subgraph: G,
         mut on_node: impl FnMut(usize, Option<u64>) -> Result<(), Error> + Send + 'a,
         mut on_arc: impl FnMut(usize, usize) -> Result<(), Error> + Send + 'a,
     ) -> Result<
         SimpleBfsVisitor<
-            Arc<Subgraph<G, impl Fn(usize) -> bool, impl Fn(usize, usize) -> bool>>,
+            G,
             Error,
             impl FnMut(usize, u64, Option<u64>) -> Result<VisitFlow, Error>,
             impl FnMut(usize, usize, u64) -> Result<VisitFlow, Error>,
@@ -58,13 +59,14 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
         let proto::TraversalRequest {
             src,
             direction: _, // Handled by caller
-            edges,
+            edges: _,     // Handled by make_subgraph
             max_edges,
             min_depth,
             max_depth,
             return_nodes,
             mask: _, // Handled by caller
             max_matching_nodes,
+            ignore_node: _, // Handled by make_subgraph
         } = request.get_ref().clone();
         let min_depth = match min_depth {
             None => 0,
@@ -93,13 +95,11 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
         };
 
         let return_node_checker =
-            NodeFilterChecker::new(graph.clone(), return_nodes.unwrap_or_default())?;
-        let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
+            NodeFilterChecker::new(subgraph.clone(), return_nodes.unwrap_or_default())?;
         let mut num_matching_nodes = 0;
-        let subgraph =
-            Subgraph::with_arc_filter(graph.clone(), move |src, dst| arc_checker.matches(src, dst));
+
         let mut visitor = SimpleBfsVisitor::new(
-            Arc::new(subgraph),
+            subgraph,
             max_depth,
             move |node, depth, num_successors| {
                 if !return_node_checker.matches(node, num_successors) {
@@ -131,6 +131,48 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
         Ok(visitor)
     }
 
+    #[allow(clippy::result_large_err)] // this is called by implementations of Tonic traits, which can't return Result<_, Box<Status>>
+    #[allow(clippy::type_complexity)]
+    fn make_subgraph<
+        G: SwhForwardGraph
+            + SwhGraphWithProperties
+            + SwhGraphWithProperties<Maps: properties::Maps>
+            + Clone
+            + Send
+            + Sync
+            + 'static,
+    >(
+        &self,
+        graph: G,
+        request: &Request<proto::TraversalRequest>,
+    ) -> Result<Subgraph<G, impl Fn(usize) -> bool, impl Fn(usize, usize) -> bool>, tonic::Status>
+    {
+        let proto::TraversalRequest {
+            src: _,       // Handled by make_visitor
+            direction: _, // Handled by caller
+            edges,
+            max_edges: _,          // Handled by make_visitor
+            min_depth: _,          // Handled by make_visitor
+            max_depth: _,          // Handled by make_visitor
+            return_nodes: _,       // Handled by make_visitor
+            mask: _,               // Handled by caller
+            max_matching_nodes: _, // Handled by make_visitor
+            ignore_node,
+        } = request.get_ref().clone();
+        let arc_checker = ArcFilterChecker::new(graph.clone(), edges)?;
+        let ignore_nodes_set = ignore_node
+            .iter()
+            .map(|swhid| self.service.try_get_node_id(swhid))
+            .collect::<Result<HashSet<_>, _>>()?;
+        Ok(Subgraph {
+            graph: graph.clone(),
+            num_nodes_by_type: None,
+            num_arcs_by_type: None,
+            node_filter: move |node| !ignore_nodes_set.contains(&node),
+            arc_filter: move |src, dst| arc_checker.matches(src, dst),
+        })
+    }
+
     pub async fn traverse(
         &self,
         request: Request<proto::TraversalRequest>,
@@ -151,12 +193,7 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
 
         macro_rules! traverse {
             ($graph: expr) => {{
-                let graph = $graph;
-                let arc_checker =
-                    ArcFilterChecker::new(graph.clone(), request.get_ref().edges.clone())?;
-                let subgraph = Arc::new(Subgraph::with_arc_filter(graph, move |src, dst| {
-                    arc_checker.matches(src, dst)
-                }));
+                let subgraph = Arc::new(self.make_subgraph($graph, &request)?);
                 let node_builder =
                     NodeBuilder::new(subgraph.clone(), request.get_ref().mask.clone(), None)?;
                 let on_node = move |node, _num_successors| {
@@ -205,12 +242,14 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
 
         match request.get_ref().direction.try_into() {
             Ok(proto::GraphDirection::Forward) => {
-                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                let subgraph = Arc::new(self.make_subgraph(graph, &request)?);
+                let visitor = self.make_visitor(request, subgraph, on_node, on_arc)?;
                 scoped_spawn_blocking(|| visitor.visit())?;
             }
             Ok(proto::GraphDirection::Backward) => {
                 let graph = Arc::new(Transposed(graph));
-                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                let subgraph = Arc::new(self.make_subgraph(graph, &request)?);
+                let visitor = self.make_visitor(request, subgraph, on_node, on_arc)?;
                 scoped_spawn_blocking(|| visitor.visit())?;
             }
             Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
@@ -240,12 +279,14 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
 
         match request.get_ref().direction.try_into() {
             Ok(proto::GraphDirection::Forward) => {
-                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                let subgraph = Arc::new(self.make_subgraph(graph, &request)?);
+                let visitor = self.make_visitor(request, subgraph, on_node, on_arc)?;
                 scoped_spawn_blocking(|| visitor.visit())?;
             }
             Ok(proto::GraphDirection::Backward) => {
                 let graph = Arc::new(Transposed(graph));
-                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                let subgraph = Arc::new(self.make_subgraph(graph, &request)?);
+                let visitor = self.make_visitor(request, subgraph, on_node, on_arc)?;
                 scoped_spawn_blocking(|| visitor.visit())?;
             }
             Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),

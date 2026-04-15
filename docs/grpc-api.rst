@@ -55,7 +55,7 @@ The following files are required:
 
 The following files are optional:
 
-* file:`graph-transposed.graph` and :file:`graph-transposed.ef` which store arcs of the backward graph,
+* :file:`graph-transposed.graph` and :file:`graph-transposed.ef` which store arcs of the backward graph,
   and can be skipped with ``--direction forward``
 * :file:`graph-labelled.*` which store arc labels of the forward graph,
   and can be skipped with ``--labels none``

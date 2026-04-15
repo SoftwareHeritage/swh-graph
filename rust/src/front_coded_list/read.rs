@@ -32,7 +32,7 @@ pub struct FrontCodedList<D: AsRef<[u8]>, P: AsRef<[u8]>> {
     len: usize,
     /// The encoded bytestrings
     data: D,
-    /// The pointer to in which byte the k-th string start, in big endian
+    /// The pointer to which byte the k-th string starts, in big endian
     pointers: P,
 }
 
