@@ -52,6 +52,7 @@ enum Commands {
         /// This turns all silent hash collisions into a hard error.
         node2swhid: Option<PathBuf>,
     },
+    /// Hash pseudonymized persons (ie. sha256(fullname)), base64-encoded
     Persons {
         #[arg(long)]
         mph_algo: MphAlgorithm,
@@ -59,6 +60,18 @@ enum Commands {
         /// The 2024-08-23 graph used the Labels MPH algo to hash persons; this works around this
         /// bug.
         workaround_2024_08_23: bool,
+        #[arg(long)]
+        mph: PathBuf,
+    },
+    /// Hash persons' fullnames
+    PersonFullnames {
+        #[arg(long)]
+        mph_algo: MphAlgorithm,
+        #[arg(long)]
+        /// Whether the fullnames are given as a base64-encoded string.
+        ///
+        /// This is recommended for batch scripts, as not all fullnames are UTF8.
+        base64: bool,
         #[arg(long)]
         mph: PathBuf,
     },
@@ -105,12 +118,22 @@ pub fn main() -> Result<()> {
         } => match mph_algo {
             MphAlgorithm::Pthash => {
                 if workaround_2024_08_23 {
-                    hash_persons_pthash_2024_08_23(mph)
+                    hash_pseudonymized_persons_pthash_2024_08_23(mph)
                 } else {
-                    hash_persons_pthash(mph)
+                    hash_pseudonymized_persons_pthash(mph)
                 }
             }
-            MphAlgorithm::Cmph => hash_persons_cmph(mph),
+            MphAlgorithm::Cmph => hash_pseudonymized_persons_cmph(mph),
+        },
+        Commands::PersonFullnames {
+            mph_algo,
+            base64,
+            mph,
+        } => match mph_algo {
+            MphAlgorithm::Pthash => hash_person_fullnames_pthash(mph, base64),
+            MphAlgorithm::Cmph => {
+                bail!("'--mph-algo cmph' is not supported for non-pseudonymized graphs")
+            }
         },
     }
 }
@@ -149,7 +172,7 @@ fn hash_swhids<MPHF: LoadableSwhidMphf>(
     Ok(())
 }
 
-fn hash_persons_cmph(mph: PathBuf) -> Result<()> {
+fn hash_pseudonymized_persons_cmph(mph: PathBuf) -> Result<()> {
     log::info!("Loading MPH function...");
     let mph =
         GOVMPH::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
@@ -168,7 +191,7 @@ fn hash_persons_cmph(mph: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn hash_persons_pthash(mph: PathBuf) -> Result<()> {
+fn hash_pseudonymized_persons_pthash(mph: PathBuf) -> Result<()> {
     use pthash::Phf;
     log::info!("Loading MPH function...");
     let mph =
@@ -182,7 +205,7 @@ fn hash_persons_pthash(mph: PathBuf) -> Result<()> {
         println!(
             "{}",
             hasher
-                .hash(&line)
+                .hash_pseudonymized_person(&line)
                 .with_context(|| format!("Unknown value {line}"))?
         );
     }
@@ -191,14 +214,14 @@ fn hash_persons_pthash(mph: PathBuf) -> Result<()> {
 }
 
 #[cfg(feature = "compression")]
-fn hash_persons_pthash_2024_08_23(_: PathBuf) -> Result<()> {
+fn hash_pseudonymized_persons_pthash_2024_08_23(_: PathBuf) -> Result<()> {
     bail!(
         "--workaround-2024-08-23 is not supported. Recompile swh-graph with --features=compression"
     );
 }
 
 #[cfg(not(feature = "compression"))]
-fn hash_persons_pthash_2024_08_23(mph: PathBuf) -> Result<()> {
+fn hash_pseudonymized_persons_pthash_2024_08_23(mph: PathBuf) -> Result<()> {
     use pthash::Phf;
     use swh_graph::compress::label_names::{LabelName, LabelNameMphf};
 
@@ -211,6 +234,37 @@ fn hash_persons_pthash_2024_08_23(mph: PathBuf) -> Result<()> {
     for (i, line) in std::io::stdin().lines().enumerate() {
         let line = line.with_context(|| format!("Could not read input line {i}"))?;
         println!("{}", mph.hash(LabelName(&line)));
+    }
+
+    Ok(())
+}
+
+fn hash_person_fullnames_pthash(mph: PathBuf, base64: bool) -> Result<()> {
+    use pthash::Phf;
+    log::info!("Loading MPH function...");
+    let mph =
+        Phf::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
+    let hasher = swh_graph::compress::persons::PersonHasher::new(&mph);
+
+    log::info!("Hashing input...");
+
+    for (i, line) in std::io::stdin().lines().enumerate() {
+        let mut line = line
+            .with_context(|| format!("Could not read input line {i}"))?
+            .into_bytes();
+        if base64 {
+            line = base64_simd::STANDARD
+                .decode_to_vec(&line)
+                .with_context(|| {
+                    format!("Invalid base64 line: {}", String::from_utf8_lossy(&line))
+                })?;
+        }
+        println!(
+            "{}",
+            hasher
+                .hash_person_fullname(&line)
+                .with_context(|| format!("Unknown value {}", String::from_utf8_lossy(&line)))?
+        );
     }
 
     Ok(())

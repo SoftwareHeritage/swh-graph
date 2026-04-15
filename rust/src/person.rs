@@ -9,6 +9,7 @@ use anyhow::{bail, Context, Result};
 use epserde::deser::{Deserialize, Flags, MemCase};
 use mmap_rs::Mmap;
 use pthash::{DictionaryDictionary, Hashable, Minimal, MurmurHash2_64, PartitionedPhf, Phf};
+use sha2::{Digest, Sha256};
 use sux::{
     bits::{BitFieldVec, BitVec},
     dict::{elias_fano::EfSeq, EliasFano},
@@ -132,12 +133,12 @@ fn mmap(path: &Path) -> Result<Mmap> {
 
 // visibility hack; remove it once the re-export from rust/src/compress/persons.rs is removed
 pub(crate) mod person_struct {
-    pub struct Person<T: AsRef<[u8]>>(pub T);
+    pub struct PseudonymizedPerson<T: AsRef<[u8]>>(pub T);
 }
 
-use person_struct::Person;
+use person_struct::PseudonymizedPerson;
 
-impl<T: AsRef<[u8]>> Hashable for Person<T> {
+impl<T: AsRef<[u8]>> Hashable for PseudonymizedPerson<T> {
     type Bytes<'a>
         = &'a [u8]
     where
@@ -170,11 +171,33 @@ impl<'a> PersonHasher<'a> {
         u32::try_from(self.mphf.num_keys()).expect("num_persons overflowed u32")
     }
 
+    #[cfg(feature = "compression")]
+    #[doc(hidden)]
+    #[deprecated(since = "11.4.0", note = "Use hash_pseudonymized_person instead")]
     pub fn hash<T: AsRef<[u8]>>(&self, person_name: T) -> Result<u32> {
+        self.hash_pseudonymized_person(person_name)
+    }
+
+    /// `pseudonymized_person` should be the same format as used in the public export,
+    /// ie. `base64(sha256(fullname))`.
+    pub fn hash_pseudonymized_person<T: AsRef<[u8]>>(
+        &self,
+        pseudonymized_person: T,
+    ) -> Result<u32> {
         Ok(self
             .mphf
-            .hash(Person(person_name))
+            .hash(PseudonymizedPerson(pseudonymized_person))
             .try_into()
             .expect("person MPH overflowed"))
+    }
+
+    pub fn hash_person_fullname<T: AsRef<[u8]>>(&self, person_fullname: T) -> Result<u32> {
+        let base64 = base64_simd::STANDARD;
+        self.hash_pseudonymized_person(
+            base64
+                .encode_to_string(Sha256::digest(person_fullname))
+                .into_bytes()
+                .into_boxed_slice(),
+        )
     }
 }

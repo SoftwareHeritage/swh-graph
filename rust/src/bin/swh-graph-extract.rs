@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023-2024  The Software Heritage developers
+ * Copyright (C) 2023-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -410,7 +410,7 @@ pub fn main() -> Result<()> {
                 .try_for_each_with(pl.clone(), |pl, (fullname, sha256)| -> Result<()> {
                     let base64 = base64_simd::STANDARD;
                     let person_hash = usize::try_from(
-                        person_mph.hash(
+                        person_mph.hash_pseudonymized_person(
                             base64
                                 .encode_to_string(&sha256)
                                 .into_bytes()

@@ -13,7 +13,7 @@ use pthash::{BuildConfiguration, Phf};
 
 // For backward compatibility
 #[doc(hidden)]
-pub use crate::person::{person_struct::Person, PersonHasher, PersonMphf};
+pub use crate::person::{person_struct::PseudonymizedPerson as Person, PersonHasher, PersonMphf};
 
 fn iter_persons(path: &Path) -> Result<impl Iterator<Item = Person<Box<[u8]>>>> {
     let persons_file =

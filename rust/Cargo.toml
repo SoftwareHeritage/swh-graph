@@ -26,6 +26,7 @@ hex = { version = "0.4.3", optional = true }
 rayon.workspace = true
 crossbeam = "0.8.4"
 sha1 = { version = "0.10.6" }
+sha2 = "0.11.0"
 itertools.workspace = true
 thread_local = "1.1.7"
 tempfile = "3.7.1"
