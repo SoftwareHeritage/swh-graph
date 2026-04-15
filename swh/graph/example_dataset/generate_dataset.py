@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2021-2025  The Software Heritage developers
+# Copyright (C) 2021-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -113,7 +113,7 @@ def main():
             )
 
         process_fullnames(
-            sensitive_output_path / "orc/person/fullnames.orc", tmp_dedup_dir
+            sensitive_output_path / "orc/person/person-all.orc", tmp_dedup_dir
         )
         shutil.rmtree(tmp_sensitive_dir)
 
