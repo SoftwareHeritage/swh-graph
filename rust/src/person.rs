@@ -3,7 +3,7 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{bail, Context, Result};
 use epserde::deser::{Deserialize, Flags, MemCase};
 use mmap_rs::Mmap;
 use std::path::{Path, PathBuf};
@@ -48,6 +48,7 @@ impl FullnameMap {
     /// Returns the full name corresponding to the ID.
     ///
     /// # Example
+    ///
     /// ```
     /// use std::path::PathBuf;
     /// use anyhow::Result;
@@ -58,20 +59,46 @@ impl FullnameMap {
     /// }
     /// ```
     pub fn map_id(&self, id: usize) -> Result<&[u8]> {
+        match self.try_map_id(id) {
+            Ok(Some(fullname)) => Ok(fullname),
+            Ok(None) => bail!(
+                "Invalid id {id}, there are only {} fullnames",
+                self.offsets.uncase().len()
+            ),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Maps an author ID to its corresponding full name in the SWH graph,
+    /// or `None` if it does not exist
+    ///
+    /// Returns the full name corresponding to the ID.
+    ///
+    /// # Example
+    /// ```
+    /// use std::path::PathBuf;
+    /// use anyhow::Result;
+    /// use swh_graph::person::FullnameMap;
+    ///
+    /// fn get_fullname(id: usize, graph_path: PathBuf) -> Result<Option<Vec<u8>>> {
+    ///     Ok(FullnameMap::new(graph_path)?.try_map_id(id)?.map(|fullname| fullname.to_owned()))
+    /// }
+    /// ```
+    pub fn try_map_id(&self, id: usize) -> Result<Option<&[u8]>> {
         let offsets = self.offsets.uncase();
-        ensure!(
-            id < offsets.len(),
-            "Invalid id {id}, there are only {} fullnames",
-            offsets.len()
-        );
-        self.fullnames
-            .get(offsets.get(id)..offsets.get(id + 1))
-            .with_context(|| {
-                format!(
-                    "Out-of-bound access to {}.persons, index is probably corrupted",
-                    self.graph_path.display()
-                )
-            })
+        if id + 1 >= offsets.len() {
+            return Ok(None);
+        }
+        Ok(Some(
+            self.fullnames
+                .get(offsets.get(id)..offsets.get(id + 1))
+                .with_context(|| {
+                    format!(
+                        "Out-of-bound access to {}.persons, index is probably corrupted",
+                        self.graph_path.display()
+                    )
+                })?,
+        ))
     }
 }
 
