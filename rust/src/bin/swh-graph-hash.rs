@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024  The Software Heritage developers
+ * Copyright (C) 2024-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -173,7 +173,7 @@ fn hash_persons_pthash(mph: PathBuf) -> Result<()> {
     log::info!("Loading MPH function...");
     let mph =
         Phf::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
-    let hasher = swh_graph::compress::persons::PersonHasher::new(&mph);
+    let hasher = swh_graph::person::PersonHasher::new(&mph);
 
     log::info!("Hashing input...");
 
@@ -190,6 +190,14 @@ fn hash_persons_pthash(mph: PathBuf) -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "compression")]
+fn hash_persons_pthash_2024_08_23(_: PathBuf) -> Result<()> {
+    bail!(
+        "--workaround-2024-08-23 is not supported. Recompile swh-graph with --features=compression"
+    );
+}
+
+#[cfg(not(feature = "compression"))]
 fn hash_persons_pthash_2024_08_23(mph: PathBuf) -> Result<()> {
     use pthash::Phf;
     use swh_graph::compress::label_names::{LabelName, LabelNameMphf};

@@ -9,26 +9,11 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
-use pthash::{
-    BuildConfiguration, DictionaryDictionary, Hashable, Minimal, MurmurHash2_64, PartitionedPhf,
-    Phf,
-};
+use pthash::{BuildConfiguration, Phf};
 
-pub struct Person<T: AsRef<[u8]>>(pub T);
-
-impl<T: AsRef<[u8]>> Hashable for Person<T> {
-    type Bytes<'a>
-        = &'a [u8]
-    where
-        T: 'a;
-    fn as_bytes(&self) -> Self::Bytes<'_> {
-        self.0.as_ref()
-    }
-}
-
-// pthash requires 128-bits hash when using over 2^30 keys, and the 2024-05-16 production
-// graph has just over 2^32 keys
-pub type PersonMphf = PartitionedPhf<Minimal, MurmurHash2_64, DictionaryDictionary>;
+// For backward compatibility
+#[doc(hidden)]
+pub use crate::person::{person_struct::Person, PersonHasher, PersonMphf};
 
 fn iter_persons(path: &Path) -> Result<impl Iterator<Item = Person<Box<[u8]>>>> {
     let persons_file =
@@ -71,29 +56,4 @@ pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonMphf> {
     f.build_in_internal_memory_from_bytes(iter_persons, &config)
         .context("Failed to build MPH")?;
     Ok(f)
-}
-
-#[derive(Clone, Copy)]
-pub struct PersonHasher<'a> {
-    mphf: &'a PersonMphf,
-}
-
-impl<'a> PersonHasher<'a> {
-    #[inline(always)]
-    pub fn new(mphf: &'a PersonMphf) -> Self {
-        PersonHasher { mphf }
-    }
-
-    #[inline(always)]
-    pub fn mphf(&self) -> &'a PersonMphf {
-        self.mphf
-    }
-
-    pub fn hash<T: AsRef<[u8]>>(&self, person_name: T) -> Result<u32> {
-        Ok(self
-            .mphf
-            .hash(Person(person_name))
-            .try_into()
-            .expect("person MPH overflowed"))
-    }
 }

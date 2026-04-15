@@ -3,10 +3,12 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::path::{Path, PathBuf};
+
 use anyhow::{bail, Context, Result};
 use epserde::deser::{Deserialize, Flags, MemCase};
 use mmap_rs::Mmap;
-use std::path::{Path, PathBuf};
+use pthash::{DictionaryDictionary, Hashable, Minimal, MurmurHash2_64, PartitionedPhf, Phf};
 use sux::{
     bits::{BitFieldVec, BitVec},
     dict::{elias_fano::EfSeq, EliasFano},
@@ -126,4 +128,53 @@ fn mmap(path: &Path) -> Result<Mmap> {
             .with_context(|| format!("Could not mmap {}", path.display()))?
     };
     Ok(data)
+}
+
+// visibility hack; remove it once the re-export from rust/src/compress/persons.rs is removed
+pub(crate) mod person_struct {
+    pub struct Person<T: AsRef<[u8]>>(pub T);
+}
+
+use person_struct::Person;
+
+impl<T: AsRef<[u8]>> Hashable for Person<T> {
+    type Bytes<'a>
+        = &'a [u8]
+    where
+        T: 'a;
+    fn as_bytes(&self) -> Self::Bytes<'_> {
+        self.0.as_ref()
+    }
+}
+
+pub type PersonMphf = PartitionedPhf<Minimal, MurmurHash2_64, DictionaryDictionary>;
+
+#[derive(Clone, Copy)]
+pub struct PersonHasher<'a> {
+    mphf: &'a PersonMphf,
+}
+
+impl<'a> PersonHasher<'a> {
+    #[inline(always)]
+    pub fn new(mphf: &'a PersonMphf) -> Self {
+        PersonHasher { mphf }
+    }
+
+    #[inline(always)]
+    pub fn mphf(&self) -> &'a PersonMphf {
+        self.mphf
+    }
+
+    #[inline(always)]
+    pub fn num_persons(&self) -> u32 {
+        u32::try_from(self.mphf.num_keys()).expect("num_persons overflowed u32")
+    }
+
+    pub fn hash<T: AsRef<[u8]>>(&self, person_name: T) -> Result<u32> {
+        Ok(self
+            .mphf
+            .hash(Person(person_name))
+            .try_into()
+            .expect("person MPH overflowed"))
+    }
 }

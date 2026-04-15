@@ -108,7 +108,6 @@ required-features = ["serde"]
 
 [[bin]]
 name = "swh-graph-hash"
-required-features = ["compression"]
 
 [[bin]]
 name = "swh-graph-person-id-to-name"
