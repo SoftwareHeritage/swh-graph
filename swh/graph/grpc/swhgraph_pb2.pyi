@@ -54,11 +54,11 @@ class _VisitTypeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_VisitType.V
     """single content, patch, ..."""
     Package: _VisitType.ValueType  # 3
     """npm, pypi, nixguix, ..."""
-    Push: _VisitType.ValueType  # 5
+    Push: _VisitType.ValueType  # 4
     """deposit, possibly coar-notify in the future"""
-    Vcs: _VisitType.ValueType  # 6
+    Vcs: _VisitType.ValueType  # 5
     """git, hg, cvs, ..."""
-    VcsCheckout: _VisitType.ValueType  # 4
+    VcsCheckout: _VisitType.ValueType  # 6
     """partial archiving of a repository (git-checkout, hg-checkout, ...)"""
 
 class VisitType(_VisitType, metaclass=_VisitTypeEnumTypeWrapper): ...
@@ -71,11 +71,11 @@ Misc: VisitType.ValueType  # 2
 """single content, patch, ..."""
 Package: VisitType.ValueType  # 3
 """npm, pypi, nixguix, ..."""
-Push: VisitType.ValueType  # 5
+Push: VisitType.ValueType  # 4
 """deposit, possibly coar-notify in the future"""
-Vcs: VisitType.ValueType  # 6
+Vcs: VisitType.ValueType  # 5
 """git, hg, cvs, ..."""
-VcsCheckout: VisitType.ValueType  # 4
+VcsCheckout: VisitType.ValueType  # 6
 """partial archiving of a repository (git-checkout, hg-checkout, ...)"""
 Global___VisitType: _TypeAlias = VisitType  # noqa: Y015
 
