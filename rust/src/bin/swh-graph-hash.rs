@@ -213,14 +213,14 @@ fn hash_pseudonymized_persons_pthash(mph: PathBuf) -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "compression")]
+#[cfg(not(feature = "compression"))]
 fn hash_pseudonymized_persons_pthash_2024_08_23(_: PathBuf) -> Result<()> {
     bail!(
         "--workaround-2024-08-23 is not supported. Recompile swh-graph with --features=compression"
     );
 }
 
-#[cfg(not(feature = "compression"))]
+#[cfg(feature = "compression")]
 fn hash_pseudonymized_persons_pthash_2024_08_23(mph: PathBuf) -> Result<()> {
     use pthash::Phf;
     use swh_graph::compress::label_names::{LabelName, LabelNameMphf};
@@ -244,7 +244,7 @@ fn hash_person_fullnames_pthash(mph: PathBuf, base64: bool) -> Result<()> {
     log::info!("Loading MPH function...");
     let mph =
         Phf::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
-    let hasher = swh_graph::compress::persons::PersonHasher::new(&mph);
+    let hasher = swh_graph::person::PersonHasher::new(&mph);
 
     log::info!("Hashing input...");
 
