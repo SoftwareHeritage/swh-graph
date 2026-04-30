@@ -193,7 +193,7 @@ fn hash_pseudonymized_persons_cmph(mph: PathBuf) -> Result<()> {
 
 fn hash_pseudonymized_persons_pthash(mph: PathBuf) -> Result<()> {
     use pthash::Phf;
-    let base64 = base64_simd::STANDARD;
+
     log::info!("Loading MPH function...");
     let mph =
         Phf::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
@@ -203,13 +203,10 @@ fn hash_pseudonymized_persons_pthash(mph: PathBuf) -> Result<()> {
 
     for (i, line) in std::io::stdin().lines().enumerate() {
         let line = line.with_context(|| format!("Could not read input line {i}"))?;
-        let digest = base64
-            .decode_to_vec(&line)
-            .with_context(|| format!("Could not decode line {i} as base64"))?;
         println!(
             "{}",
             hasher
-                .hash_pseudonymized_person(&digest)
+                .hash_pseudonymized_person(&line)
                 .with_context(|| format!("Could not hash line {i}"))?
         );
     }
