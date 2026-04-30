@@ -179,7 +179,7 @@ impl<'a> PersonHasher<'a> {
     }
 
     /// `pseudonymized_person` should be the same format as used in the public export,
-    /// ie. `sha256(fullname)` with no encoding.
+    /// ie. `base64(sha256(fullname))`.
     pub fn hash_pseudonymized_person<T: AsRef<[u8]>>(
         &self,
         pseudonymized_person: T,
