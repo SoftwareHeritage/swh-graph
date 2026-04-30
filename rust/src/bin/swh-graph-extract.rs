@@ -436,7 +436,7 @@ pub fn main() -> Result<()> {
                     stats
                 })
                 .reduce(Default::default, |mut left_1d, right_1d| {
-                    for (left, right) in left_1d.iter_mut().zip(right_1d.into_iter()) {
+                    for (left, right) in left_1d.iter_mut().zip(right_1d) {
                         *left += right;
                     }
                     left_1d
@@ -499,8 +499,8 @@ pub fn main() -> Result<()> {
                         stats_2d
                     })
                     .reduce(Default::default, |mut left_2d, right_2d| {
-                        for (left_1d, right_1d) in left_2d.iter_mut().zip(right_2d.into_iter()) {
-                            for (left, right) in left_1d.iter_mut().zip(right_1d.into_iter()) {
+                        for (left_1d, right_1d) in left_2d.iter_mut().zip(right_2d) {
+                            for (left, right) in left_1d.iter_mut().zip(right_1d) {
                                 *left += right;
                             }
                         }

@@ -251,8 +251,7 @@ trait ParallelDeduplicatingExternalSorter<Item: Eq + Ord + Send>: Sync + Sized {
                                 .map(|path| {
                                     Self::deserialize(path).context("Could not read sorted list")
                                 })
-                                .collect::<Result<Vec<_>>>()?
-                                .into_iter(),
+                                .collect::<Result<Vec<_>>>()?,
                         );
                         let merged_path = tmpdir.path().join(format!("step2_{i}"));
                         Self::serialize(

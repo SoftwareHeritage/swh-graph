@@ -85,7 +85,7 @@ pub fn main() -> Result<()> {
             errors_filename.display()
         );
 
-        write_items_to_file(unknown_origins.into_iter(), errors_filename)?;
+        write_items_to_file(unknown_origins, errors_filename)?;
     }
 
     Ok(())

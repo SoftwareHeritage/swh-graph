@@ -116,7 +116,7 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
     );
 
     BvComp::with_basename(target_dir)
-        .par_comp_lenders::<BE, _>(arc_list_graphs.into_iter(), num_nodes)
+        .par_comp_lenders::<BE, _>(arc_list_graphs, num_nodes)
         .context("Could not build BVGraph from arcs")?;
 
     drop(temp_dir); // Prevent early deletion
