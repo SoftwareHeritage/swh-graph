@@ -193,6 +193,7 @@ fn hash_pseudonymized_persons_cmph(mph: PathBuf) -> Result<()> {
 
 fn hash_pseudonymized_persons_pthash(mph: PathBuf) -> Result<()> {
     use pthash::Phf;
+
     log::info!("Loading MPH function...");
     let mph =
         Phf::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
@@ -206,7 +207,7 @@ fn hash_pseudonymized_persons_pthash(mph: PathBuf) -> Result<()> {
             "{}",
             hasher
                 .hash_pseudonymized_person(&line)
-                .with_context(|| format!("Unknown value {line}"))?
+                .with_context(|| format!("Could not hash line {i}"))?
         );
     }
 

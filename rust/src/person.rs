@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use epserde::deser::{Deserialize, Flags, MemCase};
 use mmap_rs::Mmap;
 use pthash::{DictionaryDictionary, Hashable, Minimal, MurmurHash2_64, PartitionedPhf, Phf};
@@ -184,6 +184,13 @@ impl<'a> PersonHasher<'a> {
         &self,
         pseudonymized_person: T,
     ) -> Result<u32> {
+        let digest = pseudonymized_person.as_ref();
+        ensure!(
+            digest.len() == 44,
+            "Expected pseudonym to be a 44 bytes (base64-encoded SHA256 digest), got {} bytes: {:?}",
+            digest.len(),
+            digest
+        );
         Ok(self
             .mphf
             .hash(PseudonymizedPerson(pseudonymized_person))

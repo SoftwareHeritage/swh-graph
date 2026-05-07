@@ -15,13 +15,13 @@ use rayon::prelude::*;
 
 // For backward compatibility
 #[doc(hidden)]
-pub use crate::person::{person_struct::PseudonymizedPerson as Person, PersonHasher, PersonMphf};
+pub use crate::person::{person_struct::PseudonymizedPerson, PersonHasher, PersonMphf};
 
-fn iter_persons(path: &Path) -> Result<impl Iterator<Item = Person<Box<[u8]>>>> {
+fn iter_persons(path: &Path) -> Result<impl Iterator<Item = PseudonymizedPerson<Box<[u8]>>>> {
     let persons_file =
         File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
     Ok(BufReader::new(persons_file).lines().map(move |person| {
-        Person(
+        PseudonymizedPerson(
             person
                 .expect("Could not decode persons as UTF-8")
                 .into_bytes()
