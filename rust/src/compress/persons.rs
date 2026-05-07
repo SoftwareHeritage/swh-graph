@@ -9,13 +9,12 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
-use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
-use pthash::{BuildConfiguration, Phf};
+use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
 use rayon::prelude::*;
 
 // For backward compatibility
 #[doc(hidden)]
-pub use crate::person::{person_struct::PseudonymizedPerson, PersonHasher, PersonMphf};
+pub use crate::person::{person_struct::PseudonymizedPerson, PersonHasher, PersonMphf, PersonPhast};
 
 fn iter_persons(path: &Path) -> Result<impl Iterator<Item = PseudonymizedPerson<Box<[u8]>>>> {
     let persons_file =
@@ -31,33 +30,32 @@ fn iter_persons(path: &Path) -> Result<impl Iterator<Item = PseudonymizedPerson<
 }
 
 /// Reads base64-encoded persons from the path and return a MPH function for them.
-pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonMphf> {
-    let mut pass_counter = 0;
-    let iter_persons = || {
-        pass_counter += 1;
-        let mut pl = concurrent_progress_logger!(
-            display_memory = true,
-            item_name = "person",
-            local_speed = true,
-            expected_updates = Some(num_persons),
-        );
-        pl.start(format!("Reading persons (pass #{pass_counter})"));
-        iter_persons(&path)
-            .expect("Could not read persons")
-            .inspect(move |_| pl.light_update())
-    };
-    let temp_dir = tempfile::tempdir().unwrap();
+pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonPhast> {
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "person",
+        local_speed = true,
+        expected_updates = Some(num_persons),
+    );
+    pl.start("Reading persons...");
+    let persons: Vec<_> = iter_persons(&path)
+        .expect("Could not read persons")
+        .inspect(|_| pl.light_update())
+        .collect();
+    pl.done();
+    ensure!(
+        persons.len() == num_persons,
+        "Expected {num_persons} persons, read {}",
+        persons.len()
+    );
 
-    // TODO: tweak those for performance
-    let mut config = BuildConfiguration::new(temp_dir.path().to_owned());
-    config.num_threads = num_cpus::get() as u64;
-
-    log::info!("Building MPH with parameters: {:?}", config);
-
-    let mut f = PersonMphf::new();
-    f.build_in_internal_memory_from_bytes(iter_persons, &config)
-        .context("Failed to build MPH")?;
-    Ok(f)
+    let mphf = ph::phast::Function2::from_vec_mt(persons);
+    let output_range = mphf.output_range();
+    ensure!(
+        output_range == num_persons,
+        "Built MPHF from {num_persons}, but its range is {output_range}"
+    );
+    Ok(PersonPhast(mphf))
 }
 
 /// Writes the ``fullnames`` in the given order

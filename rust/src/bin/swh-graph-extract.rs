@@ -6,7 +6,7 @@
  */
 
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -623,12 +623,14 @@ pub fn main() -> Result<()> {
             dataset_dir,
             target_dir,
         } => {
-            use pthash::Phf;
             use swh_graph::compress::label_names::{LabelNameHasher, LabelNameMphf};
+
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
             let order = MappedPermutation::load_unchecked(&order)
                 .with_context(|| format!("Could not load {}", order.display()))?;
-            let label_name_mphf = LabelNameMphf::load(&label_name_mphf)
+            let label_name_file = File::open(&label_name_mphf)
+                .with_context(|| format!("Could not open{}", label_name_mphf.display()))?;
+            let label_name_mphf = LabelNameMphf::read(&mut BufReader::new(label_name_file))
                 .with_context(|| format!("Could not load {}", label_name_mphf.display()))?;
             let label_name_order = MappedPermutation::load_unchecked(&label_name_order)
                 .with_context(|| format!("Could not load {}", label_name_order.display()))?;

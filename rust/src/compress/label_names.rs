@@ -4,15 +4,12 @@
 // See top-level LICENSE file for more information
 
 use std::fs::File;
+use std::hash::{Hash, Hasher};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use anyhow::{ensure, Context, Result};
-use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
-use pthash::{
-    BuildConfiguration, DictionaryDictionary, Hashable, Minimal, MurmurHash2_128, PartitionedPhf,
-    Phf,
-};
+use dsi_progress_logger::{progress_logger, ProgressLog};
 use rayon::prelude::*;
 
 use crate::labels::LabelNameId;
@@ -20,19 +17,15 @@ use crate::map::{MappedPermutation, OwnedPermutation, Permutation};
 
 pub struct LabelName<T: AsRef<[u8]>>(pub T);
 
-impl<T: AsRef<[u8]>> Hashable for LabelName<T> {
-    type Bytes<'a>
-        = &'a [u8]
-    where
-        T: 'a;
-    fn as_bytes(&self) -> Self::Bytes<'_> {
-        self.0.as_ref()
+impl<T: AsRef<[u8]>> Hash for LabelName<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.as_ref().hash(state)
     }
 }
 
 // pthash requires 128-bits hash when using over 2^30 keys, and the 2024-05-16 production
 // graph has just over 2^32 keys
-pub type LabelNameMphf = PartitionedPhf<Minimal, MurmurHash2_128, DictionaryDictionary>;
+pub type LabelNameMphf = ph::phast::Function2<ph::seeds::Bits8>;
 
 fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>> {
     let base64 = base64_simd::STANDARD;
@@ -53,40 +46,31 @@ fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>
 
 /// Reads base64-encoded labels from the path and return a MPH function for them.
 pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
-    let mut pass_counter = 0;
-    let iter_labels = || {
-        pass_counter += 1;
-        let mut pl = concurrent_progress_logger!(
-            display_memory = true,
-            item_name = "label",
-            local_speed = true,
-            expected_updates = Some(num_labels),
-        );
-        pl.start(format!("Reading labels (pass #{pass_counter})"));
-        iter_labels(&path)
-            .expect("Could not read labels")
-            .inspect(move |_| pl.light_update())
-    };
-    let temp_dir = tempfile::tempdir().unwrap();
-
-    // From zack's benchmarks on the 2023-09-06 graph (4 billion label names)
-    let mut config = BuildConfiguration::new(temp_dir.path().to_owned());
-    config.c = 4.000000;
-    config.alpha = 0.940000;
-    config.num_partitions = (num_labels as u64).div_ceil(40000000);
-    config.num_threads = num_cpus::get() as u64;
-
-    log::info!("Building MPH with parameters: {:?}", config);
-
-    assert_ne!(
-        config.num_partitions, 0,
-        "Cannot build MPHF for empty label list"
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "label",
+        local_speed = true,
+        expected_updates = Some(num_labels),
+    );
+    pl.start("Reading labels...");
+    let labels: Vec<_> = iter_labels(&path)
+        .expect("Could not read labels")
+        .inspect(|_| pl.light_update())
+        .collect();
+    pl.done();
+    ensure!(
+        labels.len() == num_labels,
+        "Expected {num_labels} labels, read {}",
+        labels.len()
     );
 
-    let mut f = LabelNameMphf::new();
-    f.build_in_internal_memory_from_bytes(iter_labels, &config)
-        .context("Failed to build MPH")?;
-    Ok(f)
+    let mphf = LabelNameMphf::from_vec_mt(labels);
+    let output_range = mphf.output_range();
+    ensure!(
+        output_range == num_labels,
+        "Built MPHF from {num_labels}, but its range is {output_range}"
+    );
+    Ok(mphf)
 }
 
 /// Reads base64-encoded labels from the path and a MPH function for these labels
@@ -103,14 +87,12 @@ pub fn build_order(
         "Only 64-bits architectures are supported"
     );
 
-    let mphf = LabelNameMphf::load(&mphf_path)
+    let file = File::open(&mphf_path)
+        .with_context(|| format!("Could not open {}", mphf_path.display()))?;
+    let mphf = LabelNameMphf::read(&mut BufReader::new(file))
         .with_context(|| format!("Could not load MPH from {}", mphf_path.display()))?;
-    ensure!(
-        mphf.num_keys() == num_labels as u64,
-        "mphf.num_keys() == {} does not match expected number of keys ({})",
-        mphf.num_keys(),
-        num_labels
-    );
+    let output_range = mphf.output_range();
+    ensure!(output_range == num_labels, "mphf.output_range() == {output_range} does not match expected number of keys ({num_labels})");
 
     let mut pl = progress_logger!(
         display_memory = true,
@@ -123,7 +105,7 @@ pub fn build_order(
     let mut order: Vec<_> = (0..num_labels).map(|_| usize::MAX).collect();
     for (i, label) in iter_labels(&path)?.enumerate() {
         pl.light_update();
-        let hash = mphf.hash(&label) as usize;
+        let hash = mphf.get(&label);
         ensure!(hash < num_labels, "{} is not minimal", mphf_path.display());
         ensure!(
             order[hash] == usize::MAX,
@@ -151,9 +133,9 @@ pub struct LabelNameHasher<'a> {
 impl<'a> LabelNameHasher<'a> {
     pub fn new(mphf: &'a LabelNameMphf, order: &'a MappedPermutation) -> Result<Self> {
         ensure!(
-            mphf.num_keys() == order.len() as u64,
+            mphf.output_range() == order.len(),
             "Number of MPHF keys ({}) does not match permutation length ({})",
-            mphf.num_keys(),
+            mphf.output_range(),
             order.len()
         );
 
@@ -165,15 +147,15 @@ impl<'a> LabelNameHasher<'a> {
         self.mphf
     }
 
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.mphf.output_range()
+    }
+
     pub fn hash<T: AsRef<[u8]>>(&self, label_name: T) -> Result<LabelNameId> {
         Ok(LabelNameId(
             self.order
-                .get(
-                    self.mphf
-                        .hash(LabelName(label_name))
-                        .try_into()
-                        .expect("label MPH overflowed"),
-                )
+                .get(self.mphf.get(&LabelName(label_name)))
                 .context("out of bound dir entry name hash")?
                 .try_into()
                 .context("label permutation overflowed")?,

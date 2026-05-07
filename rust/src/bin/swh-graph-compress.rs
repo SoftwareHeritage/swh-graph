@@ -756,11 +756,11 @@ pub fn main() -> Result<()> {
             labels,
             output_mphf,
         } => {
-            use pthash::Phf;
-
-            let mut mphf = swh_graph::compress::label_names::build_mphf(labels, num_labels)?;
+            let mphf = swh_graph::compress::label_names::build_mphf(labels, num_labels)?;
             log::info!("Saving MPHF...");
-            mphf.save(&output_mphf)
+            let file = File::create(&output_mphf)
+                .with_context(|| format!("Could not create MPH file {}", output_mphf.display()))?;
+            mphf.write(&mut BufWriter::new(file))
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
         }
         Commands::PthashLabelsOrder {
