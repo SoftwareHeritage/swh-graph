@@ -7,7 +7,7 @@
 
 use std::path::PathBuf;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use mmap_rs::Mmap;
 
@@ -16,7 +16,7 @@ use swh_graph::map::Node2SWHID;
 use swh_graph::map::{MappedPermutation, Permutation};
 #[cfg(feature = "pthash")]
 use swh_graph::mph::SwhidPthash;
-use swh_graph::mph::{LoadableSwhidMphf, SwhidMphf};
+use swh_graph::mph::{LoadableSwhidMphf, SwhidMphf, SwhidPhast};
 use swh_graph::person::{DynPersonMphf, PersonHasher};
 use swh_graph::{OutOfBoundError, SWHID};
 
@@ -35,6 +35,7 @@ struct Args {
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum MphAlgorithm {
+    Phast,
     Pthash,
     Cmph,
 }
@@ -110,6 +111,7 @@ pub fn main() -> Result<()> {
                 })?;
 
             match mph_algo {
+                MphAlgorithm::Phast => hash_swhids::<SwhidPhast>(mph, permutation, node2swhid),
                 MphAlgorithm::Pthash => {
                     #[cfg(not(feature = "pthash"))]
                     bail!(
@@ -127,21 +129,43 @@ pub fn main() -> Result<()> {
             mph,
             workaround_2024_08_23,
         } => match mph_algo {
+            MphAlgorithm::Phast => {
+                ensure!(
+                    !workaround_2024_08_23,
+                    "--workaround-2024-08-23 is only meant for pthash."
+                );
+                hash_pseudonymized_persons(mph)
+            }
             MphAlgorithm::Pthash => {
+                #[cfg(not(feature = "pthash"))]
+                bail!("pthash is not supported. Recompile with --features phtash");
+                #[cfg(feature = "pthash")]
                 if workaround_2024_08_23 {
                     hash_pseudonymized_persons_pthash_2024_08_23(mph)
                 } else {
-                    hash_pseudonymized_persons_pthash(mph)
+                    hash_pseudonymized_persons(mph)
                 }
             }
-            MphAlgorithm::Cmph => hash_pseudonymized_persons_cmph(mph),
+            MphAlgorithm::Cmph => {
+                ensure!(
+                    !workaround_2024_08_23,
+                    "--workaround-2024-08-23 is only meant for pthash."
+                );
+                hash_pseudonymized_persons_cmph(mph)
+            }
         },
         Commands::PersonFullnames {
             mph_algo,
             base64,
             mph,
         } => match mph_algo {
-            MphAlgorithm::Pthash => hash_person_fullnames_pthash(mph, base64),
+            MphAlgorithm::Phast => hash_person_fullnames(mph, base64),
+            MphAlgorithm::Pthash => {
+                #[cfg(not(feature = "pthash"))]
+                bail!("pthash is not supported. Recompile with --features phtash");
+                #[cfg(feature = "pthash")]
+                hash_person_fullnames(mph, base64)
+            }
             MphAlgorithm::Cmph => {
                 bail!("'--mph-algo cmph' is not supported for non-pseudonymized graphs")
             }
@@ -184,6 +208,7 @@ fn hash_swhids<MPHF: LoadableSwhidMphf>(
 }
 
 fn hash_pseudonymized_persons_cmph(mph: PathBuf) -> Result<()> {
+    // FIXME: duplicate of hash_pseudonymized_persons?
     log::info!("Loading MPH function...");
     let mph =
         GOVMPH::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
@@ -202,7 +227,7 @@ fn hash_pseudonymized_persons_cmph(mph: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn hash_pseudonymized_persons_pthash(mph: PathBuf) -> Result<()> {
+fn hash_pseudonymized_persons(mph: PathBuf) -> Result<()> {
     log::info!("Loading MPH function...");
     let mph = DynPersonMphf::load(&mph)
         .with_context(|| format!("Could not load MPH from {}", mph.display()))?;
@@ -223,7 +248,7 @@ fn hash_pseudonymized_persons_pthash(mph: PathBuf) -> Result<()> {
     Ok(())
 }
 
-#[cfg(not(feature = "compression"))]
+#[cfg(all(not(feature = "compression"), feature = "pthash"))]
 fn hash_pseudonymized_persons_pthash_2024_08_23(_: PathBuf) -> Result<()> {
     bail!(
         "--workaround-2024-08-23 is not supported. Recompile swh-graph with --features=compression"
@@ -260,7 +285,7 @@ fn hash_pseudonymized_persons_pthash_2024_08_23(mph: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn hash_person_fullnames_pthash(mph: PathBuf, base64: bool) -> Result<()> {
+fn hash_person_fullnames(mph: PathBuf, base64: bool) -> Result<()> {
     log::info!("Loading MPH function...");
     let mph = DynPersonMphf::load(&mph)
         .with_context(|| format!("Could not load MPH from {}", mph.display()))?;

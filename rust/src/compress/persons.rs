@@ -14,7 +14,9 @@ use rayon::prelude::*;
 
 // For backward compatibility
 #[doc(hidden)]
-pub use crate::person::{person_struct::PseudonymizedPerson, PersonHasher, PersonMphf, PersonPhast};
+pub use crate::person::{
+    person_struct::PseudonymizedPerson, PersonHasher, PersonMphf, PersonPhast,
+};
 
 fn iter_persons(path: &Path) -> Result<impl Iterator<Item = PseudonymizedPerson<Box<[u8]>>>> {
     let persons_file =

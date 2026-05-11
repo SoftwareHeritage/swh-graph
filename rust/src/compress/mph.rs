@@ -1,11 +1,11 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
 use std::path::PathBuf;
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{ensure, Result};
 use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use rayon::prelude::*;
 
@@ -27,7 +27,7 @@ pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidP
         "Expected {num_nodes} nodes, read {}",
         swhids.len()
     );
-    
+
     let mphf = ph::phast::Function2::from_vec_mt(swhids);
     let output_range = mphf.output_range();
     ensure!(

@@ -191,7 +191,7 @@ impl PersonMphf for PersonPthash {
     }
 }
 
-pub struct PersonPhast(pub(crate) ph::phast::Function2<ph::seeds::Bits8>);
+pub struct PersonPhast(pub ph::phast::Function2<ph::seeds::Bits8>);
 
 impl PersonMphf for PersonPhast {
     fn num_keys(&self) -> u32 {

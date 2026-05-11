@@ -5,13 +5,11 @@
 
 //! Abstraction over possible Minimal-perfect hash functions
 
-use std::path::Path;
 use std::fs::File;
-use std::io::{BufReader };
+use std::io::BufReader;
+use std::path::Path;
 
 use anyhow::{bail, Context, Result};
-#[cfg(feature = "pthash")]
-use pthash::{DictionaryDictionary, Minimal, MurmurHash2_128, PartitionedPhf, Phf};
 
 use crate::graph::NodeId;
 use crate::java_compat::mph::gov::GOVMPH;
@@ -159,9 +157,12 @@ impl SwhidMphf for GOVMPH {
     }
 }
 
-
 #[cfg(feature = "pthash")]
 mod swhid_pthash {
+    use super::*;
+
+    use pthash::{DictionaryDictionary, Minimal, MurmurHash2_128, PartitionedPhf, Phf};
+
     pub struct SwhidPthash(pub PartitionedPhf<Minimal, MurmurHash2_128, DictionaryDictionary>);
 
     impl SwhidPthash {
@@ -237,8 +238,8 @@ impl SwhidPhast {
         Self: Sized,
     {
         let path = path.as_ref();
-        let file = File::open(path)
-            .with_context(|| format!("Could not open {}", path.display()))?;
+        let file =
+            File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
         ph::phast::Function2::read(&mut BufReader::new(file))
             .with_context(|| format!("Could not load {}", path.display()))
             .map(SwhidPhast)
@@ -277,7 +278,7 @@ impl SwhidMphf for SwhidPhast {
 
     #[inline(always)]
     fn hash_str_array(&self, swhid: &[u8; 50]) -> Option<NodeId> {
-        Some(self.0.get(&swhid.as_ref()[..]))
+        Some(self.0.get(swhid.as_ref()))
     }
 }
 

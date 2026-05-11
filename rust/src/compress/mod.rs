@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -62,5 +62,7 @@ pub mod transform;
 
 pub mod zst_dir;
 
+#[cfg(feature = "orc")]
 const SWHID_TXT_SIZE: usize = 50;
+#[cfg(feature = "orc")]
 type TextSwhid = [u8; SWHID_TXT_SIZE];
