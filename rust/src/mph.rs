@@ -273,7 +273,7 @@ impl LoadableSwhidMphf for SwhidPhast {
 impl SwhidMphf for SwhidPhast {
     #[inline(always)]
     fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
-        Some(self.0.get(swhid.as_ref()))
+        Some(self.0.get(swhid.as_ref().as_bytes()))
     }
 
     #[inline(always)]

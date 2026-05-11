@@ -703,7 +703,7 @@ class LabelStats(_CompressionStepTask):
 class Mph(_CompressionStepTask):
     STEP = CompressionStep.MPH
     INPUT_FILES = {".nodes/", ".nodes.count.txt"}
-    OUTPUT_FILES = {".pthash"}
+    OUTPUT_FILES = {".phast"}
     USES_ALL_CPU_THREADS = True
 
     def _large_allocations(self) -> int:
@@ -712,7 +712,7 @@ class Mph(_CompressionStepTask):
 
 class InitialOrder(_CompressionStepTask):
     STEP = CompressionStep.INITIAL_ORDER
-    INPUT_FILES = {".pthash"}
+    INPUT_FILES = {".phast"}
     OUTPUT_FILES = {"-base.order"}
     USES_ALL_CPU_THREADS = True
 
@@ -723,7 +723,7 @@ class InitialOrder(_CompressionStepTask):
 class Bv(_CompressionStepTask):
     STEP = CompressionStep.BV
     EXPORT_AS_INPUT = True
-    _INPUT_FILES = {"-base.order", ".pthash"}
+    _INPUT_FILES = {"-base.order", ".phast"}
     OUTPUT_FILES = {"-base.graph"}
 
     @property
@@ -767,7 +767,7 @@ class Bfs(_CompressionStepTask):
         "-base.graph",
         "-base.ef",
         "-bfs.roots.txt",
-        ".pthash",
+        ".phast",
         "-base.order",
     }
     OUTPUT_FILES = {"-bfs.order"}
@@ -883,7 +883,7 @@ class Ef(_CompressionStepTask):
 class ComposeOrders(_CompressionStepTask):
     STEP = CompressionStep.COMPOSE_ORDERS
     _INPUT_FILES = {"-base.order", "-bfs.order", "-llp.order"}
-    OUTPUT_FILES = {".pthash.order"}
+    OUTPUT_FILES = {".phast.order"}
 
     @property
     def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
@@ -936,7 +936,7 @@ class TransposeEf(_CompressionStepTask):
 
 class Maps(_CompressionStepTask):
     STEP = CompressionStep.MAPS
-    INPUT_FILES = {".pthash", ".pthash.order", ".nodes/"}
+    INPUT_FILES = {".phast", ".phast.order", ".nodes/"}
     OUTPUT_FILES = {".node2swhid.bin", ".node2type.bin"}
 
     def _large_allocations(self) -> int:
@@ -971,7 +971,7 @@ class PersonsStats(_CompressionStepTask):
 class MphPersons(_CompressionStepTask):
     STEP = CompressionStep.MPH_PERSONS
     INPUT_FILES = {".persons.csv.zst", ".persons.count.txt"}
-    OUTPUT_FILES = {".persons.pthash"}
+    OUTPUT_FILES = {".persons.phast"}
     MINIMUM_OBJECT_TYPES = {"rel", "rev"}
 
     def _large_allocations(self) -> int:
@@ -982,7 +982,7 @@ class MphPersons(_CompressionStepTask):
 
 class ExtractFullnames(_CompressionStepTask):
     STEP = CompressionStep.EXTRACT_FULLNAMES
-    INPUT_FILES = {".persons.pthash"}
+    INPUT_FILES = {".persons.phast"}
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = set()
     SENSITIVE_OUTPUT_FILES = {".persons", ".persons.lengths"}
@@ -1010,11 +1010,11 @@ class NodeProperties(_CompressionStepTask):
     @property
     def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
         if {"rel", "rev"}.isdisjoint(self.object_types):
-            return {".pthash.order", ".pthash"}
+            return {".phast.order", ".phast"}
         else:
             return self._INPUT_FILES
 
-    _INPUT_FILES = {".pthash.order", ".pthash", ".persons.pthash"}
+    _INPUT_FILES = {".phast.order", ".phast", ".persons.phast"}
 
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
@@ -1093,7 +1093,7 @@ class NodeProperties(_CompressionStepTask):
 class PthashLabels(_CompressionStepTask):
     STEP = CompressionStep.MPH_LABELS
     INPUT_FILES = {".labels.csv.zst", ".labels.count.txt"}
-    OUTPUT_FILES = {".labels.pthash"}
+    OUTPUT_FILES = {".labels.phast"}
     MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     def _large_allocations(self) -> int:
@@ -1102,8 +1102,8 @@ class PthashLabels(_CompressionStepTask):
 
 class LabelsOrder(_CompressionStepTask):
     STEP = CompressionStep.LABELS_ORDER
-    INPUT_FILES = {".labels.csv.zst", ".labels.pthash", ".labels.count.txt"}
-    OUTPUT_FILES = {".labels.pthash.order"}
+    INPUT_FILES = {".labels.csv.zst", ".labels.phast", ".labels.count.txt"}
+    OUTPUT_FILES = {".labels.phast.order"}
     MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     def _large_allocations(self) -> int:
@@ -1127,10 +1127,10 @@ class FclLabels(_CompressionStepTask):
 class EdgeLabels(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS
     INPUT_FILES = {
-        ".labels.pthash",
-        ".labels.pthash.order",
-        ".pthash",
-        ".pthash.order",
+        ".labels.phast",
+        ".labels.phast.order",
+        ".phast",
+        ".phast.order",
     }
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
@@ -1168,10 +1168,10 @@ class EdgeLabels(_CompressionStepTask):
 class EdgeLabelsTranspose(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS_TRANSPOSE
     INPUT_FILES = {
-        ".labels.pthash",
-        ".labels.pthash.order",
-        ".pthash",
-        ".pthash.order",
+        ".labels.phast",
+        ".labels.phast.order",
+        ".phast",
+        ".phast.order",
     }
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {

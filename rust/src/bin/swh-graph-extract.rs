@@ -22,6 +22,7 @@ use swh_graph::map::{MappedPermutation, Permutation};
 use swh_graph::mph::SwhidPhast;
 #[cfg(feature = "pthash")]
 use swh_graph::mph::SwhidPthash;
+use swh_graph::person::{DynPersonMphf, LoadablePersonMphf};
 use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::{NodeType, SWHID};
 
@@ -394,7 +395,7 @@ pub fn main() -> Result<()> {
             fullnames_path,
             lengths_path,
         } => {
-            let person_mph = swh_graph::person::DynPersonMphf::load(&person_function)
+            let person_mph = DynPersonMphf::load(&person_function)
                 .with_context(|| format!("Could not load {}", person_function.display()))?;
             let person_hasher = swh_graph::compress::persons::PersonHasher::new(&person_mph);
 
@@ -795,7 +796,7 @@ pub fn main() -> Result<()> {
                     bail!("--person-function must be provided unless --allowed-node-types is set to contain neither 'rev' nor 'rel'.");
                 };
                 Some(
-                    swh_graph::person::DynPersonMphf::load(&person_function)
+                    DynPersonMphf::load(&person_function)
                         .with_context(|| format!("Could not load {}", person_function.display()))?,
                 )
             } else {

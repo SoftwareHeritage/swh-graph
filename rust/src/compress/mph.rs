@@ -28,7 +28,7 @@ pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidP
         swhids.len()
     );
 
-    let mphf = ph::phast::Function2::from_vec_mt(swhids);
+    let mphf = ph::phast::Function2::from_vec_mt(swhids.clone());
     let output_range = mphf.output_range();
     ensure!(
         output_range == num_nodes,

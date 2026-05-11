@@ -11,8 +11,6 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, ensure, Context, Result};
 use epserde::deser::{Deserialize, Flags, MemCase};
 use mmap_rs::Mmap;
-#[cfg(feature = "pthash")]
-use pthash::{DictionaryDictionary, Hashable, Minimal, MurmurHash2_64, PartitionedPhf, Phf};
 use sha2::{Digest, Sha256};
 use sux::{
     bits::{BitFieldVec, BitVec},
@@ -148,17 +146,6 @@ impl<T: AsRef<[u8]>> Hash for PseudonymizedPerson<T> {
     }
 }
 
-#[cfg(feature = "pthash")]
-impl<T: AsRef<[u8]>> Hashable for PseudonymizedPerson<T> {
-    type Bytes<'a>
-        = &'a [u8]
-    where
-        T: 'a;
-    fn as_bytes(&self) -> Self::Bytes<'_> {
-        self.0.as_ref()
-    }
-}
-
 pub trait PersonMphf {
     fn num_keys(&self) -> u32;
     fn hash_pseudonymized_person(
@@ -167,29 +154,60 @@ pub trait PersonMphf {
     ) -> Result<u32>;
 }
 
-#[cfg(feature = "pthash")]
-pub struct PersonPthash(PartitionedPhf<Minimal, MurmurHash2_64, DictionaryDictionary>);
+pub trait LoadablePersonMphf: PersonMphf {
+    fn load(basepath: impl AsRef<Path>) -> Result<Self>
+    where
+        Self: Sized;
+}
 
 #[cfg(feature = "pthash")]
-impl PersonMphf for PersonPthash {
-    fn num_keys(&self) -> u32 {
-        self.0
-            .num_keys()
-            .try_into()
-            .expect("person MPH is too large")
+mod person_pthash {
+    use super::*;
+    use pthash::{DictionaryDictionary, Hashable, Minimal, MurmurHash2_64, PartitionedPhf, Phf};
+
+    impl<T: AsRef<[u8]>> Hashable for PseudonymizedPerson<T> {
+        type Bytes<'a>
+            = &'a [u8]
+        where
+            T: 'a;
+        fn as_bytes(&self) -> Self::Bytes<'_> {
+            self.0.as_ref()
+        }
     }
 
-    fn hash_pseudonymized_person(
-        &self,
-        pseudonymized_person: PseudonymizedPerson<&[u8]>,
-    ) -> Result<u32> {
-        Ok(self
-            .0
-            .hash(&pseudonymized_person)
-            .try_into()
-            .expect("person MPH overflowed"))
+    pub struct PersonPthash(PartitionedPhf<Minimal, MurmurHash2_64, DictionaryDictionary>);
+
+    impl PersonMphf for PersonPthash {
+        fn num_keys(&self) -> u32 {
+            self.0
+                .num_keys()
+                .try_into()
+                .expect("person MPH is too large")
+        }
+
+        fn hash_pseudonymized_person(
+            &self,
+            pseudonymized_person: PseudonymizedPerson<&[u8]>,
+        ) -> Result<u32> {
+            Ok(self
+                .0
+                .hash(&pseudonymized_person)
+                .try_into()
+                .expect("person MPH overflowed"))
+        }
+    }
+
+    impl LoadablePersonMphf for PersonPthash {
+        fn load(path: impl AsRef<Path>) -> Result<Self> {
+            let path = path.as_ref();
+            Ok(PersonPthash(Phf::load(path).with_context(|| {
+                format!("Could not load pthash person MPHF {}", path.display())
+            })?))
+        }
     }
 }
+#[cfg(feature = "pthash")]
+pub use person_pthash::*;
 
 pub struct PersonPhast(pub ph::phast::Function2<ph::seeds::Bits8>);
 
@@ -209,6 +227,18 @@ impl PersonMphf for PersonPhast {
             .get(&pseudonymized_person)
             .try_into()
             .expect("person MPH overflowed"))
+    }
+}
+
+impl LoadablePersonMphf for PersonPhast {
+    fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let path = path.as_ref();
+        let file =
+            File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
+        Ok(PersonPhast(
+            ph::phast::Function2::read(&mut BufReader::new(file))
+                .with_context(|| format!("Could not load phast person MPHF {}", path.display()))?,
+        ))
     }
 }
 
@@ -264,18 +294,13 @@ impl PersonMphf for DynPersonMphf {
     }
 }
 
-impl DynPersonMphf {
-    pub fn load(basepath: impl AsRef<Path>) -> Result<Self> {
+impl LoadablePersonMphf for DynPersonMphf {
+    fn load(basepath: impl AsRef<Path>) -> Result<Self> {
         let basepath = basepath.as_ref();
 
         let phast_path = suffix_path(basepath, ".phast");
         if phast_path.exists() {
-            let file = File::open(&phast_path)
-                .with_context(|| format!("Could not open {}", phast_path.display()))?;
-            return Ok(DynPersonMphf::Phast(PersonPhast(
-                ph::phast::Function2::read(&mut BufReader::new(file))
-                    .with_context(|| format!("Could not load {}", phast_path.display()))?,
-            )));
+            return PersonPhast::load(phast_path).map(Self::Phast);
         }
 
         let pthash_path = suffix_path(basepath, ".pthash");
@@ -286,10 +311,7 @@ impl DynPersonMphf {
                 pthash_path.display()
             );
             #[cfg(feature = "pthash")]
-            return Ok(Self::Pthash(PersonPthash(
-                Phf::load(&pthash_path)
-                    .with_context(|| format!("Could not load {}", pthash_path.display()))?,
-            )));
+            return PersonPthash::load(pthash_path).map(Self::Pthash);
         }
 
         bail!(
