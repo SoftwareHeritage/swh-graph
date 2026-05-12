@@ -23,9 +23,7 @@ impl<T: AsRef<[u8]>> Hash for LabelName<T> {
     }
 }
 
-// pthash requires 128-bits hash when using over 2^30 keys, and the 2024-05-16 production
-// graph has just over 2^32 keys
-pub type LabelNameMphf = ph::phast::Function2<ph::seeds::Bits8>;
+pub type LabelNameMphf = ph::fmph::GOFunction;
 
 fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>> {
     let base64 = base64_simd::STANDARD;
@@ -64,11 +62,11 @@ pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
         labels.len()
     );
 
-    let mphf = LabelNameMphf::from_vec_mt(labels);
-    let output_range = mphf.output_range();
+    let mphf = LabelNameMphf::new(labels);
+    let len = mphf.len();
     ensure!(
-        output_range == num_labels,
-        "Built MPHF from {num_labels}, but its range is {output_range}"
+        len == num_labels,
+        "Built MPHF from {num_labels}, but its range is {len}"
     );
     Ok(mphf)
 }
@@ -91,8 +89,11 @@ pub fn build_order(
         .with_context(|| format!("Could not open {}", mphf_path.display()))?;
     let mphf = LabelNameMphf::read(&mut BufReader::new(file))
         .with_context(|| format!("Could not load MPH from {}", mphf_path.display()))?;
-    let output_range = mphf.output_range();
-    ensure!(output_range == num_labels, "mphf.output_range() == {output_range} does not match expected number of keys ({num_labels})");
+    let len = mphf.len();
+    ensure!(
+        len == num_labels,
+        "mphf.len() == {len} does not match expected number of keys ({num_labels})"
+    );
 
     let mut pl = progress_logger!(
         display_memory = true,
@@ -105,7 +106,8 @@ pub fn build_order(
     let mut order: Vec<_> = (0..num_labels).map(|_| usize::MAX).collect();
     for (i, label) in iter_labels(&path)?.enumerate() {
         pl.light_update();
-        let hash = mphf.get(&label);
+        let hash = mphf.get(&label).context("Unknown label")?;
+        let hash = usize::try_from(hash).context("label name hash overflows usize")?;
         ensure!(hash < num_labels, "{} is not minimal", mphf_path.display());
         ensure!(
             order[hash] == usize::MAX,
@@ -133,9 +135,9 @@ pub struct LabelNameHasher<'a> {
 impl<'a> LabelNameHasher<'a> {
     pub fn new(mphf: &'a LabelNameMphf, order: &'a MappedPermutation) -> Result<Self> {
         ensure!(
-            mphf.output_range() == order.len(),
+            mphf.len() == order.len(),
             "Number of MPHF keys ({}) does not match permutation length ({})",
-            mphf.output_range(),
+            mphf.len(),
             order.len()
         );
 
@@ -149,14 +151,18 @@ impl<'a> LabelNameHasher<'a> {
 
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
-        self.mphf.output_range()
+        self.mphf.len()
     }
 
     pub fn hash<T: AsRef<[u8]>>(&self, label_name: T) -> Result<LabelNameId> {
+        let hash = self
+            .mphf
+            .get(&LabelName(label_name))
+            .context("Unknown label name")?;
         Ok(LabelNameId(
             self.order
-                .get(self.mphf.get(&LabelName(label_name)))
-                .context("out of bound dir entry name hash")?
+                .get(usize::try_from(hash).context("label name hash overflows usize")?)
+                .context("out of bound label name hash")?
                 .try_into()
                 .context("label permutation overflowed")?,
         ))

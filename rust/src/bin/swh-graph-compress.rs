@@ -170,7 +170,7 @@ enum Commands {
     },
 
     /// Builds a MPH from the given a stream of textual SWHIDs
-    PhastSwhids {
+    FmphgoSwhids {
         #[arg(long)]
         num_nodes: usize,
         swhids: PathBuf,
@@ -178,7 +178,7 @@ enum Commands {
     },
 
     /// Builds a MPH from the given a stream of opaque lines
-    PhastPersons {
+    FmphgoPersons {
         #[arg(long)]
         num_persons: usize,
         persons: PathBuf,
@@ -186,7 +186,7 @@ enum Commands {
     },
 
     /// Builds a MPH from the given a stream of base64-encoded labels
-    PhastLabels {
+    FmphgoLabels {
         #[arg(long)]
         num_labels: usize,
         labels: PathBuf,
@@ -194,7 +194,7 @@ enum Commands {
     },
     /// Builds a permutation mapping label hashes to their position in the sorted stream of
     /// base64-encoded labels
-    PhastLabelsOrder {
+    FmphgoLabelsOrder {
         #[arg(long)]
         num_labels: usize,
         labels: PathBuf,
@@ -205,7 +205,7 @@ enum Commands {
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum MphAlgorithm {
-    Phast,
+    Fmphgo,
     Pthash,
     Cmph,
 }
@@ -215,7 +215,7 @@ fn load_mph(mph_algo: MphAlgorithm, path: &Path) -> Result<swh_graph::mph::DynMp
         MphAlgorithm::Cmph => swh_graph::java_compat::mph::gov::GOVMPH::load(path)
             .context("Cannot load mph")?
             .into(),
-        MphAlgorithm::Phast => swh_graph::mph::SwhidPhast::load(path)
+        MphAlgorithm::Fmphgo => swh_graph::mph::SwhidFmphgo::load(path)
             .context("Cannot load mph")?
             .into(),
         MphAlgorithm::Pthash => {
@@ -279,7 +279,10 @@ pub fn main() -> Result<()> {
                     pl.clone(),
                     |pl, previous_node_id| -> Result<_> {
                         let swhid = previous_node2swhid.get(previous_node_id).expect("node2swhid too small"); // already checked
-                        let new_unpermuted_node_id = mph.hash_swhid(&swhid).with_context(|| format!("Unknown SWHID: {swhid}"))?;
+                        let Some(new_unpermuted_node_id) = mph.hash_swhid(&swhid) else {
+                            log::debug!("{swhid} exists in previous graph, but not in current graph");
+                            return Ok(());
+                        };
 
                         // assign new_unpermuted_node_id to a value only if it was not assigned to one
                         // already.
@@ -719,7 +722,7 @@ pub fn main() -> Result<()> {
             unsafe { rcl.serialize(&mut rcl_file) }.context("Could not write RCL")?;
         }
 
-        Commands::PhastSwhids {
+        Commands::FmphgoSwhids {
             num_nodes,
             swhids,
             output_mphf,
@@ -733,7 +736,7 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
         }
 
-        Commands::PhastPersons {
+        Commands::FmphgoPersons {
             num_persons,
             persons,
             output_mphf,
@@ -747,7 +750,7 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
         }
 
-        Commands::PhastLabels {
+        Commands::FmphgoLabels {
             num_labels,
             labels,
             output_mphf,
@@ -759,7 +762,7 @@ pub fn main() -> Result<()> {
             mphf.write(&mut BufWriter::new(file))
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
         }
-        Commands::PhastLabelsOrder {
+        Commands::FmphgoLabelsOrder {
             num_labels,
             labels,
             mphf,

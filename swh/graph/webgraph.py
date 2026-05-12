@@ -206,11 +206,11 @@ def _mph(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         assert len(num_nodes) == 1
     return Rust(
         "swh-graph-compress",
-        "phast-swhids",
+        "fmphgo-swhids",
         "--num-nodes",
         num_nodes[0],
         f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
-        f"{conf['out_dir']}/{conf['graph_name']}.phast",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo",
         conf=conf,
         env=env,
     )
@@ -228,9 +228,9 @@ def _initial_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Comman
         "swh-graph-compress",
         "initial-order",
         "--mph-algo",
-        "phast",
+        "fmphgo",
         "--function",
-        f"{conf['out_dir']}/{conf['graph_name']}.phast",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo",
         "--num-nodes",
         num_nodes,
         "--previous-node2swhid",
@@ -257,7 +257,7 @@ def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--allowed-node-types",
         conf.get("object_types", "*"),
         "--mph-algo",
-        "phast",
+        "fmphgo",
         "--function",
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--num-nodes",
@@ -307,9 +307,9 @@ def _bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "swh-graph-compress",
         "bfs",
         "--mph-algo",
-        "phast",
+        "fmphgo",
         "--function",
-        f"{conf['out_dir']}/{conf['graph_name']}.phast",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo",
         "--init-roots",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.roots.txt",
         *order,
@@ -392,7 +392,7 @@ def _compose_orders(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--input",
         f"{conf['out_dir']}/{conf['graph_name']}-llp.order",
         "--output",
-        f"{conf['out_dir']}/{conf['graph_name']}.phast.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         conf=conf,
         env=env,
     )
@@ -404,7 +404,7 @@ def _permute_llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     # to generate -base.graph
 
     # Note that in the case where -base.order does not exist, we could apply
-    # .phast.order only instead of applying both -bfs.order and -llp.order
+    # .fmphgo.order only instead of applying both -bfs.order and -llp.order
     # because it may be slightly faster, but we don't for the sake of simplicity.
 
     return Rust(
@@ -467,11 +467,11 @@ def _maps(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--swhids-dir",
         f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
         "--mph-algo",
-        "phast",
+        "fmphgo",
         "--function",
-        f"{conf['out_dir']}/{conf['graph_name']}.phast",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo",
         "--order",
-        f"{conf['out_dir']}/{conf['graph_name']}.phast.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         "--node2swhid",
         f"{conf['out_dir']}/{conf['graph_name']}.node2swhid.bin",
         "--node2type",
@@ -511,17 +511,17 @@ def _mph_persons(
         assert len(num_persons) == 1
     if num_persons[0] == "0":
         return Command.echo("") > AtomicFileSink(
-            Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.phast")
+            Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.fmphgo")
         )
     return Rust(
         "swh-graph-compress",
-        "phast-persons",
+        "fmphgo-persons",
         "--num-persons",
         num_persons[0],
         Command.zstdcat(
             f"{conf['out_dir']}/{conf['graph_name']}.persons.csv.zst",
         ),
-        f"{conf['out_dir']}/{conf['graph_name']}.persons.phast",
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.fmphgo",
         conf=conf,
         env=env,
     )
@@ -618,11 +618,11 @@ def _node_properties(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--allowed-node-types",
         conf.get("object_types", "*"),
         "--mph-algo",
-        "phast",
+        "fmphgo",
         "--function",
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--order",
-        f"{conf['out_dir']}/{conf['graph_name']}.phast.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         "--person-function",
         f"{conf['out_dir']}/{conf['graph_name']}.persons",
         "--num-nodes",
@@ -647,11 +647,11 @@ def _mph_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
         return None
     return Rust(
         "swh-graph-compress",
-        "phast-labels",
+        "fmphgo-labels",
         "--num-labels",
         num_labels[0],
         Command.zstdcat(f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst"),
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.phast",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
         conf=conf,
         env=env,
     )
@@ -670,12 +670,12 @@ def _labels_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command
         return None
     return Rust(
         "swh-graph-compress",
-        "phast-labels-order",
+        "fmphgo-labels-order",
         "--num-labels",
         num_labels[0],
         Command.zstdcat(f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst"),
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.phast",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.phast.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
         conf=conf,
         env=env,
     )
@@ -725,15 +725,15 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
         "--allowed-node-types",
         conf.get("object_types", "*"),
         "--mph-algo",
-        "phast",
+        "fmphgo",
         "--function",
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--order",
-        f"{conf['out_dir']}/{conf['graph_name']}.phast.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         "--label-name-mphf",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.phast",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
         "--label-name-order",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.phast.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
         "--num-nodes",
         num_nodes,
         f"{conf['in_dir']}",
@@ -768,15 +768,15 @@ def _edge_labels_transpose(
         "--allowed-node-types",
         conf.get("object_types", "*"),
         "--mph-algo",
-        "phast",
+        "fmphgo",
         "--function",
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--order",
-        f"{conf['out_dir']}/{conf['graph_name']}.phast.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         "--label-name-mphf",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.phast",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
         "--label-name-order",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.phast.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
         "--num-nodes",
         num_nodes,
         "--transposed",

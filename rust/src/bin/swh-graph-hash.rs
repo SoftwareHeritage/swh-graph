@@ -16,10 +16,10 @@ use swh_graph::map::Node2SWHID;
 use swh_graph::map::{MappedPermutation, Permutation};
 #[cfg(feature = "pthash")]
 use swh_graph::mph::SwhidPthash;
-use swh_graph::mph::{LoadableSwhidMphf, SwhidMphf, SwhidPhast};
+use swh_graph::mph::{LoadableSwhidMphf, SwhidFmphgo, SwhidMphf};
 #[cfg(feature = "pthash")]
 use swh_graph::person::PersonPthash;
-use swh_graph::person::{LoadablePersonMphf, PersonHasher, PersonPhast};
+use swh_graph::person::{LoadablePersonMphf, PersonFmphgo, PersonHasher};
 use swh_graph::{OutOfBoundError, SWHID};
 
 #[derive(Parser, Debug)]
@@ -37,7 +37,7 @@ struct Args {
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum MphAlgorithm {
-    Phast,
+    Fmphgo,
     Pthash,
     Cmph,
 }
@@ -113,7 +113,7 @@ pub fn main() -> Result<()> {
                 })?;
 
             match mph_algo {
-                MphAlgorithm::Phast => hash_swhids::<SwhidPhast>(mph, permutation, node2swhid),
+                MphAlgorithm::Fmphgo => hash_swhids::<SwhidFmphgo>(mph, permutation, node2swhid),
                 MphAlgorithm::Pthash => {
                     #[cfg(not(feature = "pthash"))]
                     bail!(
@@ -131,12 +131,12 @@ pub fn main() -> Result<()> {
             mph,
             workaround_2024_08_23,
         } => match mph_algo {
-            MphAlgorithm::Phast => {
+            MphAlgorithm::Fmphgo => {
                 ensure!(
                     !workaround_2024_08_23,
                     "--workaround-2024-08-23 is only meant for pthash."
                 );
-                hash_pseudonymized_persons::<PersonPhast>(mph)
+                hash_pseudonymized_persons::<PersonFmphgo>(mph)
             }
             MphAlgorithm::Pthash => {
                 #[cfg(not(feature = "pthash"))]
@@ -161,7 +161,7 @@ pub fn main() -> Result<()> {
             base64,
             mph,
         } => match mph_algo {
-            MphAlgorithm::Phast => hash_person_fullnames::<PersonPhast>(mph, base64),
+            MphAlgorithm::Fmphgo => hash_person_fullnames::<PersonFmphgo>(mph, base64),
             MphAlgorithm::Pthash => {
                 #[cfg(not(feature = "pthash"))]
                 bail!("pthash is not supported. Recompile with --features phtash");

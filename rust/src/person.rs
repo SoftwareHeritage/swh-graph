@@ -209,14 +209,11 @@ mod person_pthash {
 #[cfg(feature = "pthash")]
 pub use person_pthash::*;
 
-pub struct PersonPhast(pub ph::phast::Function2<ph::seeds::Bits8>);
+pub struct PersonFmphgo(pub ph::fmph::GOFunction);
 
-impl PersonMphf for PersonPhast {
+impl PersonMphf for PersonFmphgo {
     fn num_keys(&self) -> u32 {
-        self.0
-            .output_range()
-            .try_into()
-            .expect("person MPH is too large")
+        self.0.len().try_into().expect("person MPH is too large")
     }
     fn hash_pseudonymized_person(
         &self,
@@ -225,19 +222,20 @@ impl PersonMphf for PersonPhast {
         Ok(self
             .0
             .get(&pseudonymized_person)
+            .context("Unknown person")?
             .try_into()
             .expect("person MPH overflowed"))
     }
 }
 
-impl LoadablePersonMphf for PersonPhast {
+impl LoadablePersonMphf for PersonFmphgo {
     fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let file =
             File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
-        Ok(PersonPhast(
-            ph::phast::Function2::read(&mut BufReader::new(file))
-                .with_context(|| format!("Could not load phast person MPHF {}", path.display()))?,
+        Ok(PersonFmphgo(
+            ph::fmph::GOFunction::read(&mut BufReader::new(file))
+                .with_context(|| format!("Could not load fmphgo person MPHF {}", path.display()))?,
         ))
     }
 }
@@ -246,7 +244,7 @@ impl LoadablePersonMphf for PersonPhast {
 pub enum DynPersonMphf {
     #[cfg(feature = "pthash")]
     Pthash(PersonPthash),
-    Phast(PersonPhast),
+    Fmphgo(PersonFmphgo),
 }
 
 impl std::fmt::Debug for DynPersonMphf {
@@ -254,7 +252,7 @@ impl std::fmt::Debug for DynPersonMphf {
         match self {
             #[cfg(feature = "pthash")]
             DynPersonMphf::Pthash(_) => write!(f, "DynMphf::Pthash(_)"),
-            DynPersonMphf::Phast(_) => write!(f, "DynMphf::Phast(_)"),
+            DynPersonMphf::Fmphgo(_) => write!(f, "DynMphf::Fmphgo(_)"),
         }
     }
 }
@@ -267,10 +265,10 @@ impl From<PersonPthash> for DynPersonMphf {
     }
 }
 
-impl From<PersonPhast> for DynPersonMphf {
+impl From<PersonFmphgo> for DynPersonMphf {
     #[inline(always)]
-    fn from(value: PersonPhast) -> DynPersonMphf {
-        DynPersonMphf::Phast(value)
+    fn from(value: PersonFmphgo) -> DynPersonMphf {
+        DynPersonMphf::Fmphgo(value)
     }
 }
 
@@ -279,7 +277,7 @@ impl PersonMphf for DynPersonMphf {
         match self {
             #[cfg(feature = "pthash")]
             DynPersonMphf::Pthash(mphf) => mphf.num_keys(),
-            DynPersonMphf::Phast(mphf) => mphf.num_keys(),
+            DynPersonMphf::Fmphgo(mphf) => mphf.num_keys(),
         }
     }
     fn hash_pseudonymized_person(
@@ -289,7 +287,7 @@ impl PersonMphf for DynPersonMphf {
         match self {
             #[cfg(feature = "pthash")]
             DynPersonMphf::Pthash(mphf) => mphf.hash_pseudonymized_person(pseudonymized_person),
-            DynPersonMphf::Phast(mphf) => mphf.hash_pseudonymized_person(pseudonymized_person),
+            DynPersonMphf::Fmphgo(mphf) => mphf.hash_pseudonymized_person(pseudonymized_person),
         }
     }
 }
@@ -298,9 +296,9 @@ impl LoadablePersonMphf for DynPersonMphf {
     fn load(basepath: impl AsRef<Path>) -> Result<Self> {
         let basepath = basepath.as_ref();
 
-        let phast_path = suffix_path(basepath, ".phast");
-        if phast_path.exists() {
-            return PersonPhast::load(phast_path).map(Self::Phast);
+        let fmphgo_path = suffix_path(basepath, ".fmphgo");
+        if fmphgo_path.exists() {
+            return PersonFmphgo::load(fmphgo_path).map(Self::Fmphgo);
         }
 
         let pthash_path = suffix_path(basepath, ".pthash");
@@ -316,7 +314,7 @@ impl LoadablePersonMphf for DynPersonMphf {
 
         bail!(
             "Cannot load MPH function, neither {} nor {} exists.",
-            phast_path.display(),
+            fmphgo_path.display(),
             pthash_path.display(),
         );
     }

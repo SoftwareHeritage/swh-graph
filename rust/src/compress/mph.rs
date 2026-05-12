@@ -10,10 +10,10 @@ use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use rayon::prelude::*;
 
 use crate::compress::zst_dir::*;
-use crate::mph::SwhidPhast;
+use crate::mph::SwhidFmphgo;
 
 /// Reads textual SWHIDs from the path and return a MPH function for them.
-pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidPhast> {
+pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidFmphgo> {
     let mut pl = concurrent_progress_logger!(
         display_memory = true,
         item_name = "SWHID",
@@ -28,11 +28,11 @@ pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidP
         swhids.len()
     );
 
-    let mphf = ph::phast::Function2::from_vec_mt(swhids.clone());
-    let output_range = mphf.output_range();
+    let mphf = ph::fmph::GOFunction::new(swhids);
+    let len = mphf.len();
     ensure!(
-        output_range == num_nodes,
-        "Built MPHF from {num_nodes}, but its range is {output_range}"
+        len == num_nodes,
+        "Built MPHF from {num_nodes}, but its range is {len}"
     );
-    Ok(SwhidPhast(mphf))
+    Ok(SwhidFmphgo(mphf))
 }

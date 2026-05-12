@@ -19,7 +19,7 @@ use rayon::prelude::*;
 
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::map::{MappedPermutation, Permutation};
-use swh_graph::mph::SwhidPhast;
+use swh_graph::mph::SwhidFmphgo;
 #[cfg(feature = "pthash")]
 use swh_graph::mph::SwhidPthash;
 use swh_graph::person::{DynPersonMphf, LoadablePersonMphf};
@@ -213,7 +213,7 @@ enum Commands {
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum MphAlgorithm {
-    Phast,
+    Fmphgo,
     Pthash,
     Cmph,
 }
@@ -589,7 +589,7 @@ pub fn main() -> Result<()> {
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             match mph_algo {
-                MphAlgorithm::Phast => swh_graph::compress::bv::bv::<SwhidPhast>(
+                MphAlgorithm::Fmphgo => swh_graph::compress::bv::bv::<SwhidFmphgo>(
                     partitions_per_thread,
                     function,
                     num_nodes,
@@ -652,7 +652,7 @@ pub fn main() -> Result<()> {
             let label_name_hasher = LabelNameHasher::new(&label_name_mphf, &label_name_order)?;
 
             let label_width = match mph_algo {
-                MphAlgorithm::Phast => swh_graph::compress::bv::edge_labels::<SwhidPhast>(
+                MphAlgorithm::Fmphgo => swh_graph::compress::bv::edge_labels::<SwhidFmphgo>(
                     partitions_per_thread,
                     function,
                     order,
@@ -808,8 +808,8 @@ pub fn main() -> Result<()> {
                 .map(swh_graph::compress::persons::PersonHasher::new);
 
             match mph_algo {
-                MphAlgorithm::Phast => {
-                    let swhid_mph: SwhidPhast =
+                MphAlgorithm::Fmphgo => {
+                    let swhid_mph: SwhidFmphgo =
                         LoadableSwhidMphf::load(function).context("Cannot load mph")?;
                     let property_writer = PropertyWriter {
                         swhid_mph,
@@ -820,7 +820,7 @@ pub fn main() -> Result<()> {
                         allowed_node_types,
                         target,
                     };
-                    f::<SwhidPhast>(property_writer)?;
+                    f::<SwhidFmphgo>(property_writer)?;
                 }
                 MphAlgorithm::Pthash => {
                     #[cfg(not(feature = "pthash"))]

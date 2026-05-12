@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -29,7 +29,7 @@ fn test_build_mphf_and_order() -> Result<()> {
     drop(f);
 
     let mphf = build_mphf(labels_path.clone(), labels.len()).context("Could not build MPHF")?;
-    assert_eq!(mphf.output_range(), labels.len());
+    assert_eq!(mphf.len(), labels.len());
     let file = File::create(&mphf_path).context("Could not create MPHF file")?;
     mphf.write(&mut BufWriter::new(file))
         .context("Could not save MPHF")?;
@@ -38,7 +38,7 @@ fn test_build_mphf_and_order() -> Result<()> {
 
     for (i, label) in labels.iter().enumerate() {
         assert_eq!(
-            order.get(mphf.get(&LabelName(label.as_bytes())) as usize),
+            order.get(mphf.get(&LabelName(label.as_bytes())).unwrap() as usize),
             Some(i)
         );
     }

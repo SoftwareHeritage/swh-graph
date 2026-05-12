@@ -230,9 +230,9 @@ mod swhid_pthash {
 #[cfg(feature = "pthash")]
 pub use swhid_pthash::*;
 
-pub struct SwhidPhast(pub ph::phast::Function2<ph::seeds::Bits8>);
+pub struct SwhidFmphgo(pub ph::fmph::GOFunction);
 
-impl SwhidPhast {
+impl SwhidFmphgo {
     pub fn load(path: impl AsRef<Path>) -> Result<Self>
     where
         Self: Sized,
@@ -240,28 +240,28 @@ impl SwhidPhast {
         let path = path.as_ref();
         let file =
             File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
-        ph::phast::Function2::read(&mut BufReader::new(file))
+        ph::fmph::GOFunction::read(&mut BufReader::new(file))
             .with_context(|| format!("Could not load {}", path.display()))
-            .map(SwhidPhast)
+            .map(SwhidFmphgo)
     }
 }
 
-impl LoadableSwhidMphf for SwhidPhast {
+impl LoadableSwhidMphf for SwhidFmphgo {
     type WithMappedPermutation = PermutedMphf<Self, MappedPermutation>;
 
     fn load(basepath: impl AsRef<Path>) -> Result<Self>
     where
         Self: Sized,
     {
-        let path = suffix_path(basepath, ".phast");
-        SwhidPhast::load(path)
+        let path = suffix_path(basepath, ".fmphgo");
+        SwhidFmphgo::load(path)
     }
 
     fn with_mapped_permutation(
         self,
         basepath: impl AsRef<Path>,
     ) -> Result<Self::WithMappedPermutation> {
-        let suffix = ".phast.order";
+        let suffix = ".fmphgo.order";
         let permutation = MappedPermutation::load_unchecked(&suffix_path(&basepath, suffix))?;
         Ok(PermutedMphf {
             mphf: self,
@@ -270,15 +270,19 @@ impl LoadableSwhidMphf for SwhidPhast {
     }
 }
 
-impl SwhidMphf for SwhidPhast {
+impl SwhidMphf for SwhidFmphgo {
     #[inline(always)]
     fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
-        Some(self.0.get(swhid.as_ref().as_bytes()))
+        self.0
+            .get(swhid.as_ref().as_bytes())
+            .and_then(|hash| usize::try_from(hash).ok())
     }
 
     #[inline(always)]
     fn hash_str_array(&self, swhid: &[u8; 50]) -> Option<NodeId> {
-        Some(self.0.get(swhid.as_ref()))
+        self.0
+            .get(swhid.as_ref())
+            .and_then(|hash| usize::try_from(hash).ok())
     }
 }
 
@@ -287,7 +291,7 @@ impl SwhidMphf for SwhidPhast {
 /// Loads either [`SwhidPthash`] or [`GOVMPH`]
 /// depending on which file is available at the given path.
 pub enum DynMphf {
-    Phast(SwhidPhast),
+    Fmphgo(SwhidFmphgo),
     #[cfg(feature = "pthash")]
     Pthash(SwhidPthash),
     GOV(GOVMPH),
@@ -296,7 +300,7 @@ pub enum DynMphf {
 impl std::fmt::Debug for DynMphf {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DynMphf::Phast(_) => write!(f, "DynMphf::Phast(_)"),
+            DynMphf::Fmphgo(_) => write!(f, "DynMphf::Fmphgo(_)"),
             #[cfg(feature = "pthash")]
             DynMphf::Pthash(_) => write!(f, "DynMphf::Pthash(_)"),
             DynMphf::GOV(_) => write!(f, "DynMphf::GOV(_)"),
@@ -319,10 +323,10 @@ impl From<SwhidPthash> for DynMphf {
     }
 }
 
-impl From<SwhidPhast> for DynMphf {
+impl From<SwhidFmphgo> for DynMphf {
     #[inline(always)]
-    fn from(value: SwhidPhast) -> DynMphf {
-        DynMphf::Phast(value)
+    fn from(value: SwhidFmphgo) -> DynMphf {
+        DynMphf::Fmphgo(value)
     }
 }
 
@@ -339,11 +343,11 @@ impl LoadableSwhidMphf for DynMphf {
                 .with_context(|| format!("Could not load {}", gov_path.display()));
         }
 
-        let phast_path = suffix_path(basepath, ".phast");
-        if phast_path.exists() {
+        let fmphgo_path = suffix_path(basepath, ".fmphgo");
+        if fmphgo_path.exists() {
             return LoadableSwhidMphf::load(basepath)
-                .map(Self::Phast)
-                .with_context(|| format!("Could not load {}", phast_path.display()));
+                .map(Self::Fmphgo)
+                .with_context(|| format!("Could not load {}", fmphgo_path.display()));
         }
 
         let pthash_path = suffix_path(basepath, ".pthash");
@@ -361,7 +365,7 @@ impl LoadableSwhidMphf for DynMphf {
 
         bail!(
             "Cannot load MPH function, neither {}, {}, nor {} exists.",
-            phast_path.display(),
+            fmphgo_path.display(),
             pthash_path.display(),
             gov_path.display()
         );
@@ -372,9 +376,9 @@ impl LoadableSwhidMphf for DynMphf {
         basepath: impl AsRef<Path>,
     ) -> Result<Self::WithMappedPermutation> {
         match self {
-            Self::Phast(mphf) => mphf
+            Self::Fmphgo(mphf) => mphf
                 .with_mapped_permutation(basepath)
-                .map(PermutedDynMphf::Phast),
+                .map(PermutedDynMphf::Fmphgo),
             #[cfg(feature = "pthash")]
             Self::Pthash(mphf) => mphf
                 .with_mapped_permutation(basepath)
@@ -390,7 +394,7 @@ impl SwhidMphf for DynMphf {
     #[inline(always)]
     fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
         match self {
-            Self::Phast(mphf) => mphf.hash_array(swhid),
+            Self::Fmphgo(mphf) => mphf.hash_array(swhid),
             #[cfg(feature = "pthash")]
             Self::Pthash(mphf) => mphf.hash_array(swhid),
             Self::GOV(mphf) => mphf.hash_array(swhid),
@@ -400,7 +404,7 @@ impl SwhidMphf for DynMphf {
     #[inline(always)]
     fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
         match self {
-            Self::Phast(mphf) => mphf.hash_str(swhid),
+            Self::Fmphgo(mphf) => mphf.hash_str(swhid),
             #[cfg(feature = "pthash")]
             Self::Pthash(mphf) => mphf.hash_str(swhid),
             Self::GOV(mphf) => mphf.hash_str(swhid),
@@ -410,7 +414,7 @@ impl SwhidMphf for DynMphf {
     #[inline(always)]
     fn hash_str_array(&self, swhid: &[u8; 50]) -> Option<NodeId> {
         match self {
-            Self::Phast(mphf) => mphf.hash_str_array(swhid),
+            Self::Fmphgo(mphf) => mphf.hash_str_array(swhid),
             #[cfg(feature = "pthash")]
             Self::Pthash(mphf) => mphf.hash_str_array(swhid),
             Self::GOV(mphf) => mphf.hash_str_array(swhid),
@@ -420,7 +424,7 @@ impl SwhidMphf for DynMphf {
     #[inline(always)]
     fn hash_swhid(&self, swhid: &SWHID) -> Option<NodeId> {
         match self {
-            Self::Phast(mphf) => mphf.hash_swhid(swhid),
+            Self::Fmphgo(mphf) => mphf.hash_swhid(swhid),
             #[cfg(feature = "pthash")]
             Self::Pthash(mphf) => mphf.hash_swhid(swhid),
             Self::GOV(mphf) => mphf.hash_swhid(swhid),
@@ -430,7 +434,7 @@ impl SwhidMphf for DynMphf {
 
 /// [`DynMphf`] composed with a permutation
 pub enum PermutedDynMphf {
-    Phast(<SwhidPhast as LoadableSwhidMphf>::WithMappedPermutation),
+    Fmphgo(<SwhidFmphgo as LoadableSwhidMphf>::WithMappedPermutation),
     #[cfg(feature = "pthash")]
     Pthash(<SwhidPthash as LoadableSwhidMphf>::WithMappedPermutation),
     GOV(<GOVMPH as LoadableSwhidMphf>::WithMappedPermutation),
@@ -440,7 +444,7 @@ impl SwhidMphf for PermutedDynMphf {
     #[inline(always)]
     fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
         match self {
-            Self::Phast(mphf) => mphf.hash_array(swhid),
+            Self::Fmphgo(mphf) => mphf.hash_array(swhid),
             #[cfg(feature = "pthash")]
             Self::Pthash(mphf) => mphf.hash_array(swhid),
             Self::GOV(mphf) => mphf.hash_array(swhid),
@@ -450,7 +454,7 @@ impl SwhidMphf for PermutedDynMphf {
     #[inline(always)]
     fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
         match self {
-            Self::Phast(mphf) => mphf.hash_str(swhid),
+            Self::Fmphgo(mphf) => mphf.hash_str(swhid),
             #[cfg(feature = "pthash")]
             Self::Pthash(mphf) => mphf.hash_str(swhid),
             Self::GOV(mphf) => mphf.hash_str(swhid),
@@ -460,7 +464,7 @@ impl SwhidMphf for PermutedDynMphf {
     #[inline(always)]
     fn hash_str_array(&self, swhid: &[u8; 50]) -> Option<NodeId> {
         match self {
-            Self::Phast(mphf) => mphf.hash_str_array(swhid),
+            Self::Fmphgo(mphf) => mphf.hash_str_array(swhid),
             #[cfg(feature = "pthash")]
             Self::Pthash(mphf) => mphf.hash_str_array(swhid),
             Self::GOV(mphf) => mphf.hash_str_array(swhid),
@@ -470,7 +474,7 @@ impl SwhidMphf for PermutedDynMphf {
     #[inline(always)]
     fn hash_swhid(&self, swhid: &SWHID) -> Option<NodeId> {
         match self {
-            Self::Phast(mphf) => mphf.hash_swhid(swhid),
+            Self::Fmphgo(mphf) => mphf.hash_swhid(swhid),
             #[cfg(feature = "pthash")]
             Self::Pthash(mphf) => mphf.hash_swhid(swhid),
             Self::GOV(mphf) => mphf.hash_swhid(swhid),

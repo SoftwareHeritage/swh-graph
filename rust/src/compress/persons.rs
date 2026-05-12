@@ -15,7 +15,7 @@ use rayon::prelude::*;
 // For backward compatibility
 #[doc(hidden)]
 pub use crate::person::{
-    person_struct::PseudonymizedPerson, PersonHasher, PersonMphf, PersonPhast,
+    person_struct::PseudonymizedPerson, PersonFmphgo, PersonHasher, PersonMphf,
 };
 
 fn iter_persons(path: &Path) -> Result<impl Iterator<Item = PseudonymizedPerson<Box<[u8]>>>> {
@@ -32,7 +32,7 @@ fn iter_persons(path: &Path) -> Result<impl Iterator<Item = PseudonymizedPerson<
 }
 
 /// Reads base64-encoded persons from the path and return a MPH function for them.
-pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonPhast> {
+pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonFmphgo> {
     let mut pl = progress_logger!(
         display_memory = true,
         item_name = "person",
@@ -51,13 +51,13 @@ pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonPhast> {
         persons.len()
     );
 
-    let mphf = ph::phast::Function2::from_vec_mt(persons);
-    let output_range = mphf.output_range();
+    let mphf = ph::fmph::GOFunction::new(persons);
+    let len = mphf.len();
     ensure!(
-        output_range == num_persons,
-        "Built MPHF from {num_persons}, but its range is {output_range}"
+        len == num_persons,
+        "Built MPHF from {num_persons}, but its range is {len}"
     );
-    Ok(PersonPhast(mphf))
+    Ok(PersonFmphgo(mphf))
 }
 
 /// Writes the ``fullnames`` in the given order
