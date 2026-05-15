@@ -7,6 +7,7 @@ use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use anyhow::{ensure, Context, Result};
 use dsi_progress_logger::{progress_logger, ProgressLog};
@@ -15,6 +16,7 @@ use rayon::prelude::*;
 use crate::labels::LabelNameId;
 use crate::map::{MappedPermutation, OwnedPermutation, Permutation};
 
+#[derive(Clone)]
 pub struct LabelName<T: AsRef<[u8]>>(pub T);
 
 impl<T: AsRef<[u8]>> Hash for LabelName<T> {
@@ -44,25 +46,26 @@ fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>
 
 /// Reads base64-encoded labels from the path and return a MPH function for them.
 pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
-    let mut pl = progress_logger!(
-        display_memory = true,
-        item_name = "label",
-        local_speed = true,
-        expected_updates = Some(num_labels),
-    );
-    pl.start("Reading labels...");
-    let labels: Vec<_> = iter_labels(&path)
-        .expect("Could not read labels")
-        .inspect(|_| pl.light_update())
-        .collect();
-    pl.done();
-    ensure!(
-        labels.len() == num_labels,
-        "Expected {num_labels} labels, read {}",
-        labels.len()
-    );
+    let pass_counter = AtomicU32::new(1);
+    let iter_labels = || {
+        let pass_counter = pass_counter.fetch_add(1, Ordering::Relaxed);
+        let mut pl = progress_logger!(
+            display_memory = true,
+            item_name = "label",
+            local_speed = true,
+            expected_updates = Some(num_labels),
+        );
+        pl.start(format!("Reading labels (pass #{pass_counter})"));
+        iter_labels(&path)
+            .expect("Could not read labels")
+            .inspect(move |_| pl.light_update())
+    };
+    let get_iter = iter_labels; // no support for parallel iteration
+    let clone_threshold = 1_000_000; // arbitrary
+    let key_set =
+        ph::fmph::keyset::CachedKeySet::dynamic_with_len(get_iter, num_labels, clone_threshold);
 
-    let mphf = LabelNameMphf::new(labels);
+    let mphf = LabelNameMphf::new(key_set);
     let len = mphf.len();
     ensure!(
         len == num_labels,

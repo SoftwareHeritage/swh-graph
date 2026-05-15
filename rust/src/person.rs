@@ -135,6 +135,7 @@ fn mmap(path: &Path) -> Result<Mmap> {
 
 // visibility hack; remove it once the re-export from rust/src/compress/persons.rs is removed
 pub(crate) mod person_struct {
+    #[derive(Clone)]
     pub struct PseudonymizedPerson<T: AsRef<[u8]>>(pub T);
 }
 

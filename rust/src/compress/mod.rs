@@ -62,7 +62,5 @@ pub mod transform;
 
 pub mod zst_dir;
 
-#[cfg(feature = "orc")]
 const SWHID_TXT_SIZE: usize = 50;
-#[cfg(feature = "orc")]
 type TextSwhid = [u8; SWHID_TXT_SIZE];
