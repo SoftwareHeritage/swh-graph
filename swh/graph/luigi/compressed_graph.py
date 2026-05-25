@@ -238,7 +238,7 @@ class _CompressionStepTask(luigi.Task):
 
     local_export_path = luigi.PathParameter(significant=False)
     local_sensitive_export_path = luigi.OptionalPathParameter(default=None)
-    graph_name = luigi.Parameter(default="graph")
+    graph_name = luigi.StrParameter(default="graph")
     local_graph_path = luigi.PathParameter()
     local_sensitive_graph_path = luigi.OptionalPathParameter(default=None)
     previous_graph_path = luigi.OptionalPathParameter(default=None)
@@ -253,7 +253,7 @@ class _CompressionStepTask(luigi.Task):
         """,
     )
 
-    rust_executable_dir = luigi.Parameter(
+    rust_executable_dir = luigi.StrParameter(
         default="",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
@@ -261,7 +261,7 @@ class _CompressionStepTask(luigi.Task):
 
     object_types = ObjectTypesParameter()
 
-    check_flavor = luigi.Parameter(
+    check_flavor = luigi.StrParameter(
         default="full",
         significant=False,
         description="Flavor for end-to-end check during compression",
@@ -816,7 +816,7 @@ class Llp(_CompressionStepTask):
     INPUT_FILES = {"-bfs-simplified.graph", "-bfs-simplified.ef", "-bfs-simplified.dcf"}
     OUTPUT_FILES = {"-llp.order"}
 
-    gammas = luigi.Parameter(significant=False, default=None)
+    gammas = luigi.OptionalStrParameter(significant=False, default=None)
 
     def _large_allocations(self) -> int:
         # TODO: this was written for the Java implementation; update this for Rust
@@ -1456,7 +1456,7 @@ class CompressGraph(luigi.Task):
         """,
     )
 
-    rust_executable_dir = luigi.Parameter(
+    rust_executable_dir = luigi.StrParameter(
         default="",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
@@ -1464,7 +1464,7 @@ class CompressGraph(luigi.Task):
 
     object_types = ObjectTypesParameter(default=list(_TABLES_PER_OBJECT_TYPE))
 
-    check_flavor = luigi.Parameter(
+    check_flavor = luigi.StrParameter(
         default="full",
         significant=False,
         description="Flavor for end-to-end check during compression",

@@ -24,7 +24,7 @@ class SelectTopGithubOrigins(luigi.Task):
 
     local_export_path = luigi.PathParameter()
     num_origins = luigi.IntParameter(default=1)
-    query = luigi.Parameter(
+    query = luigi.StrParameter(
         default="language:python",
         description="Search query to use to filter Github repositories",
     )
@@ -60,7 +60,7 @@ class SubdatasetOriginsFromFile(luigi.Task):
     """Reads a list of origins from a local file, computed externally to Luigi."""
 
     local_export_path = luigi.PathParameter()
-    path = luigi.Parameter(
+    path = luigi.StrParameter(
         default="",
         description="What file to read origins from. "
         "Defaults to local_export_path / origins.txt",
@@ -84,7 +84,7 @@ class ListSwhidsForSubdataset(luigi.Task):
         description="Which algorithm to use to generate the list of origins",
     )
     local_export_path = luigi.PathParameter()
-    grpc_api = luigi.Parameter()
+    grpc_api = luigi.StrParameter()
 
     def requires(self) -> luigi.Task:
         """Returns an instance of ``self.select_task``"""
@@ -150,8 +150,8 @@ class CreateSubdatasetOnAthena(luigi.Task):
         description="s3:// URL to the export to produce",
     )
     s3_athena_output_location = S3PathParameter()
-    athena_db_name = luigi.Parameter()
-    athena_parent_db_name = luigi.Parameter()
+    athena_db_name = luigi.StrParameter()
+    athena_parent_db_name = luigi.StrParameter()
     object_types = luigi.EnumListParameter(
         enum=ObjectType, default=tuple(ObjectType), batch_method=merge_lists
     )
