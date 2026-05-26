@@ -173,6 +173,9 @@ fn test_vec_graph_persons() {
 
     assert_eq!(graph.properties().author_id(2), None);
     assert_eq!(graph.properties().committer_id(2), None);
+
+    // person ids are assumed dense from 0, so num_persons is the largest id + 1
+    assert_eq!(graph.properties().num_persons(), 790);
 }
 
 #[test]

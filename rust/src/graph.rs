@@ -1119,9 +1119,12 @@ fn zip_labels<G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
         .and_then(|labelspec| labelspec.strip_suffix(')'))
         .and_then(|labelspec| labelspec.parse::<usize>().ok());
     let width = match width {
-        None =>
-        bail!("Expected labelspec in {} to be \"org.softwareheritage.graph.labels.SwhLabel(DirEntry,<integer>)\" (where <integer> is a small integer, usually under 30), got {:?}", properties_path.display(), labelspec),
-        Some(width) => width
+        None => bail!(
+            "Expected labelspec in {} to be \"org.softwareheritage.graph.labels.SwhLabel(DirEntry,<integer>)\" (where <integer> is a small integer, usually under 30), got {:?}",
+            properties_path.display(),
+            labelspec
+        ),
+        Some(width) => width,
     };
 
     let labels = crate::labeling::mmap(&base_path, crate::labeling::SwhDeserializer::new(width))
