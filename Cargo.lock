@@ -4410,6 +4410,7 @@ dependencies = [
  "rand 0.9.0",
  "rayon",
  "rdst",
+ "regex",
  "serde",
  "serde_json",
  "sha1",
