@@ -263,6 +263,13 @@ impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> 
         self.graph.num_nodes()
     }
     #[inline(always)]
+    fn actual_num_nodes(&self) -> Result<usize> {
+        self.num_nodes_by_type
+            .as_ref()
+            .map(|num_nodes_by_type| num_nodes_by_type.values().sum())
+            .ok_or_else(|| anyhow!("Subgraph::actual_num_nodes() is only available when constructed with Subgraph::with_node_constraint on a graph with num_nodes_by_type defined"))
+    }
+    #[inline(always)]
     fn has_node(&self, node_id: NodeId) -> bool {
         (self.node_filter)(node_id)
     }
