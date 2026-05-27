@@ -30,6 +30,10 @@ impl<G: SwhGraph> SwhGraph for Transposed<G> {
         self.0.num_nodes()
     }
     #[inline(always)]
+    fn actual_num_nodes(&self) -> Result<usize> {
+        self.0.actual_num_nodes()
+    }
+    #[inline(always)]
     fn num_arcs(&self) -> u64 {
         self.0.num_arcs()
     }
