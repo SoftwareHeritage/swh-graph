@@ -37,6 +37,10 @@ impl<G: SwhGraph> SwhGraph for Transposed<G> {
     fn num_arcs(&self) -> u64 {
         self.0.num_arcs()
     }
+    #[inline(always)]
+    fn num_nodes_by_type(&self) -> Result<HashMap<NodeType, usize>> {
+        self.0.num_nodes_by_type()
+    }
     fn num_arcs_by_type(&self) -> Result<HashMap<(NodeType, NodeType), usize>> {
         Ok(self
             .0
