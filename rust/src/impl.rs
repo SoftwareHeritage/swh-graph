@@ -5,11 +5,17 @@
 
 //! Boring implementations of `SwhGraph*` traits
 
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::Path;
 
+use anyhow::Result;
+use dsi_progress_logger::ProgressLog;
+
 use crate::graph::*;
+use crate::labels::EdgeLabel;
 use crate::properties;
+use crate::NodeType;
 
 impl<T: Deref> SwhGraph for T
 where
@@ -36,9 +42,42 @@ where
         self.deref().num_arcs()
     }
     #[inline(always)]
+    fn num_nodes_by_type(&self) -> Result<HashMap<NodeType, usize>> {
+        self.deref().num_nodes_by_type()
+    }
+    #[inline(always)]
+    fn actual_num_nodes(&self) -> Result<usize> {
+        self.deref().actual_num_nodes()
+    }
+    #[inline(always)]
+    fn num_arcs_by_type(&self) -> Result<HashMap<(NodeType, NodeType), usize>> {
+        self.deref().num_arcs_by_type()
+    }
+    #[inline(always)]
     fn has_arc(&self, src_node_id: NodeId, dst_node_id: NodeId) -> bool {
         self.deref().has_arc(src_node_id, dst_node_id)
     }
+    #[inline(always)]
+    fn iter_nodes<'a>(&'a self, pl: impl ProgressLog + 'a) -> impl Iterator<Item = NodeId> + 'a {
+        self.deref().iter_nodes(pl)
+    }
+
+    /* We can't forward par_iter_nodes() to the underlying graph because the type checker
+       does not know that it is Sync.
+       Requiring `<T as Deref>::Target: Sync` would be inconvenient for users (they would
+       need the bound every time) and a breaking change.
+       Making `SwhGraph` a subtrait of `Sync` would be a breaking change.
+    #[inline(always)]
+    fn par_iter_nodes<'a>(
+        &'a self,
+        pl: impl ConcurrentProgressLog + 'a,
+    ) -> impl ParallelIterator<Item = NodeId> + 'a
+    where
+        Self: Sync,
+    {
+        self.deref().par_iter_nodes(pl)
+    }
+    */
 }
 
 impl<T: Deref> SwhForwardGraph for T
@@ -77,6 +116,15 @@ where
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
         self.deref().untyped_labeled_successors(node_id)
     }
+    #[inline(always)]
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        self.deref().labeled_successors(node_id)
+    }
 }
 
 impl<T: Deref> SwhBackwardGraph for T
@@ -114,6 +162,16 @@ where
     #[inline(always)]
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
         self.deref().untyped_labeled_predecessors(node_id)
+    }
+
+    #[inline(always)]
+    fn labeled_predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        self.deref().labeled_predecessors(node_id)
     }
 }
 impl<T: Deref> SwhGraphWithProperties for T
