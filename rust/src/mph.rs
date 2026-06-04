@@ -10,6 +10,8 @@ use std::io::BufReader;
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
+use ph::fmph::GOFunction;
+use ph::seeds::TwoToPowerBitsStatic;
 
 use crate::graph::NodeId;
 use crate::java_compat::mph::gov::GOVMPH;
@@ -230,7 +232,7 @@ mod swhid_pthash {
 #[cfg(feature = "pthash")]
 pub use swhid_pthash::*;
 
-pub struct SwhidFmphgo(pub ph::fmph::GOFunction);
+pub struct SwhidFmphgo(pub GOFunction<TwoToPowerBitsStatic<4>, TwoToPowerBitsStatic<1>>);
 
 impl SwhidFmphgo {
     pub fn load(path: impl AsRef<Path>) -> Result<Self>

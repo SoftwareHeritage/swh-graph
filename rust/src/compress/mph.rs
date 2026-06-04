@@ -60,7 +60,7 @@ pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidF
     let key_set =
         ph::fmph::keyset::CachedKeySet::dynamic_with_len(get_iter, num_nodes, clone_threshold);
 
-    let conf = GOBuildConf::new(GOConf::default());
+    let conf = GOBuildConf::new(GOConf::default_bigger());
     let mphf = ph::fmph::GOFunction::with_conf(key_set, conf);
     let len = mphf.len();
     ensure!(
