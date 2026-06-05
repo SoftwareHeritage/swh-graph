@@ -418,6 +418,202 @@ impl<
 {
 }
 
+/// Class representing the compressed Software Heritage graph without any arcs loaded,
+/// providing only access to its properties.
+///
+/// Type parameter:
+///
+/// * `P` is either `()` or `properties::SwhGraphProperties`, manipulated using
+///   [`load_properties`](SwhUnidirectionalGraph::load_properties) and
+///   [`load_all_properties`](SwhUnidirectionalGraph::load_all_properties)
+pub struct SwhNullidirectionalGraph<P> {
+    basepath: PathBuf,
+    properties: P,
+    num_nodes: usize,
+    num_arcs: u64,
+}
+
+impl SwhNullidirectionalGraph<()> {
+    pub fn new(basepath: impl AsRef<Path>) -> Result<Self> {
+        let basepath = basepath.as_ref().to_owned();
+
+        let num_nodes_path = basepath.with_extension("nodes.count.txt");
+        let num_nodes = std::fs::read_to_string(&num_nodes_path)
+            .with_context(|| format!("Could not read {}", num_nodes_path.display()))?
+            .trim() // ends with \n
+            .parse()
+            .with_context(|| format!("Could not parse {} as usize", num_nodes_path.display()))?;
+
+        let num_arcs_path = basepath.with_extension("edges.count.txt");
+        let num_arcs = std::fs::read_to_string(&num_arcs_path)
+            .with_context(|| format!("Could not read {}", num_arcs_path.display()))?
+            .trim() // ends with \n
+            .parse()
+            .with_context(|| format!("Could not parse {} as u64", num_arcs_path.display()))?;
+        Ok(Self {
+            basepath,
+            properties: (),
+            num_nodes,
+            num_arcs,
+        })
+    }
+}
+
+impl<P> SwhGraph for SwhNullidirectionalGraph<P> {
+    #[inline(always)]
+    fn path(&self) -> &Path {
+        self.basepath.as_path()
+    }
+
+    fn is_transposed(&self) -> bool {
+        false
+    }
+
+    #[inline(always)]
+    fn num_nodes(&self) -> usize {
+        self.num_nodes
+    }
+
+    #[inline(always)]
+    fn num_arcs(&self) -> u64 {
+        self.num_arcs
+    }
+
+    #[inline(always)]
+    fn has_arc(&self, _: NodeId, _: NodeId) -> bool {
+        false
+    }
+}
+
+impl<
+        M: properties::MaybeMaps,
+        T: properties::MaybeTimestamps,
+        P: properties::MaybePersons,
+        C: properties::MaybeContents,
+        S: properties::MaybeStrings,
+        N: properties::MaybeLabelNames,
+    > SwhNullidirectionalGraph<properties::SwhGraphProperties<M, T, P, C, S, N>>
+{
+    /// Enriches the graph with more properties mmapped from disk
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// use swh_graph::mph::DynMphf;
+    ///
+    /// swh_graph::graph::SwhNullidirectionalGraph::new(PathBuf::from("./graph"))
+    ///     .expect("Could not load graph")
+    ///     .init_properties()
+    ///     .load_properties(|properties| properties.load_maps::<DynMphf>())
+    ///     .expect("Could not load SWHID maps")
+    ///     .load_properties(|properties| properties.load_timestamps())
+    ///     .expect("Could not load timestamps");
+    /// ```
+    pub fn load_properties<
+        M2: properties::MaybeMaps,
+        T2: properties::MaybeTimestamps,
+        P2: properties::MaybePersons,
+        C2: properties::MaybeContents,
+        S2: properties::MaybeStrings,
+        N2: properties::MaybeLabelNames,
+    >(
+        self,
+        loader: impl FnOnce(
+            properties::SwhGraphProperties<M, T, P, C, S, N>,
+        ) -> Result<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>>,
+    ) -> Result<SwhNullidirectionalGraph<properties::SwhGraphProperties<M2, T2, P2, C2, S2, N2>>>
+    {
+        Ok(SwhNullidirectionalGraph {
+            properties: loader(self.properties)?,
+            basepath: self.basepath,
+            num_nodes: self.num_nodes,
+            num_arcs: self.num_arcs,
+        })
+    }
+}
+
+impl SwhNullidirectionalGraph<()> {
+    /// Prerequisite for `load_properties`
+    pub fn init_properties(
+        self,
+    ) -> SwhNullidirectionalGraph<
+        properties::SwhGraphProperties<
+            properties::NoMaps,
+            properties::NoTimestamps,
+            properties::NoPersons,
+            properties::NoContents,
+            properties::NoStrings,
+            properties::NoLabelNames,
+        >,
+    > {
+        SwhNullidirectionalGraph {
+            properties: properties::SwhGraphProperties::new(&self.basepath, self.num_nodes),
+            basepath: self.basepath,
+            num_nodes: self.num_nodes,
+            num_arcs: self.num_arcs,
+        }
+    }
+
+    /// Enriches the graph with all properties, mmapped from disk
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// use swh_graph::mph::DynMphf;
+    ///
+    /// swh_graph::graph::SwhNullidirectionalGraph::new(PathBuf::from("./graph"))
+    ///     .expect("Could not load graph")
+    ///     .load_all_properties::<DynMphf>()
+    ///     .expect("Could not load properties");
+    /// ```
+    pub fn load_all_properties<MPHF: LoadableSwhidMphf>(
+        self,
+    ) -> Result<
+        SwhNullidirectionalGraph<
+            properties::SwhGraphProperties<
+                properties::MappedMaps<MPHF>,
+                properties::MappedTimestamps,
+                properties::MappedPersons,
+                properties::MappedContents,
+                properties::MappedStrings,
+                properties::MappedLabelNames,
+            >,
+        >,
+    > {
+        self.init_properties()
+            .load_properties(|properties| properties.load_all())
+    }
+}
+
+impl<
+        MAPS: properties::MaybeMaps,
+        TIMESTAMPS: properties::MaybeTimestamps,
+        PERSONS: properties::MaybePersons,
+        CONTENTS: properties::MaybeContents,
+        STRINGS: properties::MaybeStrings,
+        LABELNAMES: properties::MaybeLabelNames,
+    > SwhGraphWithProperties
+    for SwhNullidirectionalGraph<
+        properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>,
+    >
+{
+    type Maps = MAPS;
+    type Timestamps = TIMESTAMPS;
+    type Persons = PERSONS;
+    type Contents = CONTENTS;
+    type Strings = STRINGS;
+    type LabelNames = LABELNAMES;
+
+    fn properties(
+        &self,
+    ) -> &properties::SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
+    {
+        &self.properties
+    }
+}
+
 /// Class representing the compressed Software Heritage graph in a single direction.
 ///
 /// Type parameters:
