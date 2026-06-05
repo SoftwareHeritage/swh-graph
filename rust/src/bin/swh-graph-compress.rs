@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023-2024  The Software Heritage developers
+ * Copyright (C) 2023-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -7,11 +7,13 @@
 
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 
+#[cfg(not(feature = "pthash"))]
+use anyhow::bail;
 use anyhow::{anyhow, ensure, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use dsi_bitstream::prelude::BE;
@@ -22,7 +24,6 @@ use sux::traits::BitVecOps;
 use webgraph::prelude::*;
 
 use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
-use swh_graph::mph::SwhidPthash;
 
 #[derive(Parser, Debug)]
 #[command(about = "Commands to run individual steps of the pipeline to compress a graph from an initial not-very-compressed BvGraph", long_about = None)]
@@ -169,7 +170,7 @@ enum Commands {
     },
 
     /// Builds a MPH from the given a stream of textual SWHIDs
-    PthashSwhids {
+    FmphgoSwhids {
         #[arg(long)]
         num_nodes: usize,
         swhids: PathBuf,
@@ -177,7 +178,7 @@ enum Commands {
     },
 
     /// Builds a MPH from the given a stream of opaque lines
-    PthashPersons {
+    FmphgoPersons {
         #[arg(long)]
         num_persons: usize,
         persons: PathBuf,
@@ -185,7 +186,7 @@ enum Commands {
     },
 
     /// Builds a MPH from the given a stream of base64-encoded labels
-    PthashLabels {
+    FmphgoLabels {
         #[arg(long)]
         num_labels: usize,
         labels: PathBuf,
@@ -193,7 +194,7 @@ enum Commands {
     },
     /// Builds a permutation mapping label hashes to their position in the sorted stream of
     /// base64-encoded labels
-    PthashLabelsOrder {
+    FmphgoLabelsOrder {
         #[arg(long)]
         num_labels: usize,
         labels: PathBuf,
@@ -204,8 +205,28 @@ enum Commands {
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum MphAlgorithm {
+    Fmphgo,
     Pthash,
     Cmph,
+}
+
+fn load_mph(mph_algo: MphAlgorithm, path: &Path) -> Result<swh_graph::mph::DynMphf> {
+    Ok(match mph_algo {
+        MphAlgorithm::Cmph => swh_graph::java_compat::mph::gov::GOVMPH::load(path)
+            .context("Cannot load mph")?
+            .into(),
+        MphAlgorithm::Fmphgo => swh_graph::mph::SwhidFmphgo::load(path)
+            .context("Cannot load mph")?
+            .into(),
+        MphAlgorithm::Pthash => {
+            #[cfg(not(feature = "pthash"))]
+            bail!("pthash support is disabled. Recompile with --features pthash");
+            #[cfg(feature = "pthash")]
+            swh_graph::mph::SwhidPthash::load(path)
+                .context("Cannot load mph")?
+                .into()
+        }
+    })
 }
 
 pub fn main() -> Result<()> {
@@ -227,14 +248,7 @@ pub fn main() -> Result<()> {
             let mut permut_file = File::create(&target_order)
                 .with_context(|| format!("Could not open {}", target_order.display()))?;
 
-            let mph: swh_graph::mph::DynMphf = match mph_algo {
-                MphAlgorithm::Cmph => swh_graph::java_compat::mph::gov::GOVMPH::load(function)
-                    .context("Cannot load mph")?
-                    .into(),
-                MphAlgorithm::Pthash => SwhidPthash::load(function)
-                    .context("Cannot load mph")?
-                    .into(),
-            };
+            let mph = load_mph(mph_algo, &function)?;
 
             log::info!("Loading previous node2swhid...");
             let previous_node2swhid = Node2SWHID::load(previous_node2swhid)?;
@@ -265,7 +279,10 @@ pub fn main() -> Result<()> {
                     pl.clone(),
                     |pl, previous_node_id| -> Result<_> {
                         let swhid = previous_node2swhid.get(previous_node_id).expect("node2swhid too small"); // already checked
-                        let new_unpermuted_node_id = mph.hash_swhid(&swhid).with_context(|| format!("Unknown SWHID: {swhid}"))?;
+                        let Some(new_unpermuted_node_id) = mph.hash_swhid(&swhid) else {
+                            log::debug!("{swhid} exists in previous graph, but not in current graph");
+                            return Ok(());
+                        };
 
                         // assign new_unpermuted_node_id to a value only if it was not assigned to one
                         // already.
@@ -376,16 +393,7 @@ pub fn main() -> Result<()> {
 
                     let init_swhids = File::open(&init_swhids)
                         .with_context(|| format!("Could not open {}", init_swhids.display()))?;
-                    let mph: swh_graph::mph::DynMphf = match mph_algo {
-                        MphAlgorithm::Cmph => {
-                            swh_graph::java_compat::mph::gov::GOVMPH::load(function)
-                                .context("Cannot load mph")?
-                                .into()
-                        }
-                        MphAlgorithm::Pthash => SwhidPthash::load(function)
-                            .context("Cannot load mph")?
-                            .into(),
-                    };
+                    let mph = load_mph(mph_algo, &function)?;
 
                     let mut pl = progress_logger!(
                         display_memory = true,
@@ -568,19 +576,9 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Could not load {}", order.display()))?;
 
             log::info!("Permutation loaded, reading MPH");
-            let swhids = match mph_algo {
-                MphAlgorithm::Pthash => {
-                    let mph = SwhidPthash::load(function).context("Cannot load mph")?;
-                    log::info!("MPH loaded, reading and hashing SWHIDs");
-                    ordered_swhids(&swhids_dir, order, mph, num_nodes)?
-                }
-                MphAlgorithm::Cmph => {
-                    let mph = swh_graph::java_compat::mph::gov::GOVMPH::load(function)
-                        .context("Cannot load mph")?;
-                    log::info!("MPH loaded, reading and hashing SWHIDs");
-                    ordered_swhids(&swhids_dir, order, mph, num_nodes)?
-                }
-            };
+            let mph = load_mph(mph_algo, &function)?;
+            log::info!("MPH loaded, reading and hashing SWHIDs");
+            let swhids = ordered_swhids(&swhids_dir, order, mph, num_nodes)?;
 
             let mut node2swhid = Node2SWHID::new(node2swhid, num_nodes)?;
             let mut node2type = Node2Type::new(node2type, num_nodes)?;
@@ -724,46 +722,47 @@ pub fn main() -> Result<()> {
             unsafe { rcl.serialize(&mut rcl_file) }.context("Could not write RCL")?;
         }
 
-        Commands::PthashSwhids {
+        Commands::FmphgoSwhids {
             num_nodes,
             swhids,
             output_mphf,
         } => {
-            use pthash::Phf;
-
-            let mut mphf = swh_graph::compress::mph::build_swhids_mphf(swhids, num_nodes)?;
+            let mphf = swh_graph::compress::mph::build_swhids_mphf(swhids, num_nodes)?;
             log::info!("Saving MPHF...");
+            let file = File::create(&output_mphf)
+                .with_context(|| format!("Could not create MPH file {}", output_mphf.display()))?;
             mphf.0
-                .save(&output_mphf)
+                .write(&mut BufWriter::new(file))
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
         }
 
-        Commands::PthashPersons {
+        Commands::FmphgoPersons {
             num_persons,
             persons,
             output_mphf,
         } => {
-            use pthash::Phf;
-
-            let mut mphf = swh_graph::compress::persons::build_mphf(persons, num_persons)?;
+            let mphf = swh_graph::compress::persons::build_mphf(persons, num_persons)?;
             log::info!("Saving MPHF...");
-            mphf.save(&output_mphf)
+            let file = File::create(&output_mphf)
+                .with_context(|| format!("Could not create MPH file {}", output_mphf.display()))?;
+            mphf.0
+                .write(&mut BufWriter::new(file))
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
         }
 
-        Commands::PthashLabels {
+        Commands::FmphgoLabels {
             num_labels,
             labels,
             output_mphf,
         } => {
-            use pthash::Phf;
-
-            let mut mphf = swh_graph::compress::label_names::build_mphf(labels, num_labels)?;
+            let mphf = swh_graph::compress::label_names::build_mphf(labels, num_labels)?;
             log::info!("Saving MPHF...");
-            mphf.save(&output_mphf)
+            let file = File::create(&output_mphf)
+                .with_context(|| format!("Could not create MPH file {}", output_mphf.display()))?;
+            mphf.write(&mut BufWriter::new(file))
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
         }
-        Commands::PthashLabelsOrder {
+        Commands::FmphgoLabelsOrder {
             num_labels,
             labels,
             mphf,

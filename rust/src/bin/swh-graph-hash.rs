@@ -7,14 +7,19 @@
 
 use std::path::PathBuf;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use mmap_rs::Mmap;
 
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::map::Node2SWHID;
 use swh_graph::map::{MappedPermutation, Permutation};
-use swh_graph::mph::{LoadableSwhidMphf, SwhidMphf, SwhidPthash};
+#[cfg(feature = "pthash")]
+use swh_graph::mph::SwhidPthash;
+use swh_graph::mph::{LoadableSwhidMphf, SwhidFmphgo, SwhidMphf};
+#[cfg(feature = "pthash")]
+use swh_graph::person::PersonPthash;
+use swh_graph::person::{LoadablePersonMphf, PersonFmphgo, PersonHasher};
 use swh_graph::{OutOfBoundError, SWHID};
 
 #[derive(Parser, Debug)]
@@ -32,6 +37,7 @@ struct Args {
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum MphAlgorithm {
+    Fmphgo,
     Pthash,
     Cmph,
 }
@@ -107,7 +113,16 @@ pub fn main() -> Result<()> {
                 })?;
 
             match mph_algo {
-                MphAlgorithm::Pthash => hash_swhids::<SwhidPthash>(mph, permutation, node2swhid),
+                MphAlgorithm::Fmphgo => hash_swhids::<SwhidFmphgo>(mph, permutation, node2swhid),
+                MphAlgorithm::Pthash => {
+                    #[cfg(not(feature = "pthash"))]
+                    bail!(
+                        "Cannot load MPHF {} because pthash support is disabled. Recompile swh-graph with --features pthash.",
+                        mph.display()
+                    );
+                    #[cfg(feature = "pthash")]
+                    hash_swhids::<SwhidPthash>(mph, permutation, node2swhid)
+                }
                 MphAlgorithm::Cmph => hash_swhids::<GOVMPH>(mph, permutation, node2swhid),
             }
         }
@@ -116,21 +131,43 @@ pub fn main() -> Result<()> {
             mph,
             workaround_2024_08_23,
         } => match mph_algo {
+            MphAlgorithm::Fmphgo => {
+                ensure!(
+                    !workaround_2024_08_23,
+                    "--workaround-2024-08-23 is only meant for pthash."
+                );
+                hash_pseudonymized_persons::<PersonFmphgo>(mph)
+            }
             MphAlgorithm::Pthash => {
+                #[cfg(not(feature = "pthash"))]
+                bail!("pthash is not supported. Recompile with --features phtash");
+                #[cfg(feature = "pthash")]
                 if workaround_2024_08_23 {
                     hash_pseudonymized_persons_pthash_2024_08_23(mph)
                 } else {
-                    hash_pseudonymized_persons_pthash(mph)
+                    hash_pseudonymized_persons::<PersonPthash>(mph)
                 }
             }
-            MphAlgorithm::Cmph => hash_pseudonymized_persons_cmph(mph),
+            MphAlgorithm::Cmph => {
+                ensure!(
+                    !workaround_2024_08_23,
+                    "--workaround-2024-08-23 is only meant for pthash."
+                );
+                hash_pseudonymized_persons_cmph(mph)
+            }
         },
         Commands::PersonFullnames {
             mph_algo,
             base64,
             mph,
         } => match mph_algo {
-            MphAlgorithm::Pthash => hash_person_fullnames_pthash(mph, base64),
+            MphAlgorithm::Fmphgo => hash_person_fullnames::<PersonFmphgo>(mph, base64),
+            MphAlgorithm::Pthash => {
+                #[cfg(not(feature = "pthash"))]
+                bail!("pthash is not supported. Recompile with --features phtash");
+                #[cfg(feature = "pthash")]
+                hash_person_fullnames::<PersonPthash>(mph, base64)
+            }
             MphAlgorithm::Cmph => {
                 bail!("'--mph-algo cmph' is not supported for non-pseudonymized graphs")
             }
@@ -173,6 +210,7 @@ fn hash_swhids<MPHF: LoadableSwhidMphf>(
 }
 
 fn hash_pseudonymized_persons_cmph(mph: PathBuf) -> Result<()> {
+    // FIXME: duplicate of hash_pseudonymized_persons?
     log::info!("Loading MPH function...");
     let mph =
         GOVMPH::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
@@ -191,13 +229,11 @@ fn hash_pseudonymized_persons_cmph(mph: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn hash_pseudonymized_persons_pthash(mph: PathBuf) -> Result<()> {
-    use pthash::Phf;
-
+fn hash_pseudonymized_persons<MPHF: LoadablePersonMphf>(mph: PathBuf) -> Result<()> {
     log::info!("Loading MPH function...");
     let mph =
-        Phf::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
-    let hasher = swh_graph::person::PersonHasher::new(&mph);
+        MPHF::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
+    let hasher = PersonHasher::new(&mph);
 
     log::info!("Hashing input...");
 
@@ -221,13 +257,24 @@ fn hash_pseudonymized_persons_pthash_2024_08_23(_: PathBuf) -> Result<()> {
     );
 }
 
-#[cfg(feature = "compression")]
+#[cfg(all(feature = "compression", feature = "pthash"))]
 fn hash_pseudonymized_persons_pthash_2024_08_23(mph: PathBuf) -> Result<()> {
-    use pthash::Phf;
-    use swh_graph::compress::label_names::{LabelName, LabelNameMphf};
+    use pthash::{DictionaryDictionary, Hashable, Minimal, MurmurHash2_128, PartitionedPhf, Phf};
+
+    pub struct LabelName<T: AsRef<[u8]>>(pub T);
+
+    impl<T: AsRef<[u8]>> Hashable for LabelName<T> {
+        type Bytes<'a>
+            = &'a [u8]
+        where
+            T: 'a;
+        fn as_bytes(&self) -> Self::Bytes<'_> {
+            self.0.as_ref()
+        }
+    }
 
     log::info!("Loading MPH function...");
-    let mph = <LabelNameMphf as Phf>::load(&mph)
+    let mph = <PartitionedPhf<Minimal, MurmurHash2_128, DictionaryDictionary> as Phf>::load(&mph)
         .with_context(|| format!("Could not load MPH from {}", mph.display()))?;
 
     log::info!("Hashing input...");
@@ -240,12 +287,11 @@ fn hash_pseudonymized_persons_pthash_2024_08_23(mph: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn hash_person_fullnames_pthash(mph: PathBuf, base64: bool) -> Result<()> {
-    use pthash::Phf;
+fn hash_person_fullnames<MPHF: LoadablePersonMphf>(mph: PathBuf, base64: bool) -> Result<()> {
     log::info!("Loading MPH function...");
     let mph =
-        Phf::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
-    let hasher = swh_graph::person::PersonHasher::new(&mph);
+        MPHF::load(&mph).with_context(|| format!("Could not load MPH from {}", mph.display()))?;
+    let hasher = PersonHasher::new(&mph);
 
     log::info!("Hashing input...");
 

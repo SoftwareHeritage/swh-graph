@@ -3,13 +3,15 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+use std::fs::File;
+use std::hash::{Hash, Hasher};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use anyhow::{bail, ensure, Context, Result};
 use epserde::deser::{Deserialize, Flags, MemCase};
 use mmap_rs::Mmap;
-use pthash::{DictionaryDictionary, Hashable, Minimal, MurmurHash2_64, PartitionedPhf, Phf};
 use regex::Regex;
 use sha2::{Digest, Sha256};
 use sux::{
@@ -135,42 +137,211 @@ fn mmap(path: &Path) -> Result<Mmap> {
 
 // visibility hack; remove it once the re-export from rust/src/compress/persons.rs is removed
 pub(crate) mod person_struct {
+    #[derive(Clone)]
     pub struct PseudonymizedPerson<T: AsRef<[u8]>>(pub T);
 }
 
 use person_struct::PseudonymizedPerson;
 
-impl<T: AsRef<[u8]>> Hashable for PseudonymizedPerson<T> {
-    type Bytes<'a>
-        = &'a [u8]
-    where
-        T: 'a;
-    fn as_bytes(&self) -> Self::Bytes<'_> {
-        self.0.as_ref()
+impl<T: AsRef<[u8]>> Hash for PseudonymizedPerson<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.as_ref().hash(state)
     }
 }
 
-pub type PersonMphf = PartitionedPhf<Minimal, MurmurHash2_64, DictionaryDictionary>;
-
-#[derive(Clone, Copy)]
-pub struct PersonHasher<'a> {
-    mphf: &'a PersonMphf,
+pub trait PersonMphf {
+    fn num_keys(&self) -> u32;
+    fn hash_pseudonymized_person(
+        &self,
+        pseudonymized_person: PseudonymizedPerson<&[u8]>,
+    ) -> Result<u32>;
 }
 
-impl<'a> PersonHasher<'a> {
+pub trait LoadablePersonMphf: PersonMphf {
+    fn load(basepath: impl AsRef<Path>) -> Result<Self>
+    where
+        Self: Sized;
+}
+
+#[cfg(feature = "pthash")]
+mod person_pthash {
+    use super::*;
+    use pthash::{DictionaryDictionary, Hashable, Minimal, MurmurHash2_64, PartitionedPhf, Phf};
+
+    impl<T: AsRef<[u8]>> Hashable for PseudonymizedPerson<T> {
+        type Bytes<'a>
+            = &'a [u8]
+        where
+            T: 'a;
+        fn as_bytes(&self) -> Self::Bytes<'_> {
+            self.0.as_ref()
+        }
+    }
+
+    pub struct PersonPthash(PartitionedPhf<Minimal, MurmurHash2_64, DictionaryDictionary>);
+
+    impl PersonMphf for PersonPthash {
+        fn num_keys(&self) -> u32 {
+            self.0
+                .num_keys()
+                .try_into()
+                .expect("person MPH is too large")
+        }
+
+        fn hash_pseudonymized_person(
+            &self,
+            pseudonymized_person: PseudonymizedPerson<&[u8]>,
+        ) -> Result<u32> {
+            Ok(self
+                .0
+                .hash(&pseudonymized_person)
+                .try_into()
+                .expect("person MPH overflowed"))
+        }
+    }
+
+    impl LoadablePersonMphf for PersonPthash {
+        fn load(path: impl AsRef<Path>) -> Result<Self> {
+            let path = path.as_ref();
+            Ok(PersonPthash(Phf::load(path).with_context(|| {
+                format!("Could not load pthash person MPHF {}", path.display())
+            })?))
+        }
+    }
+}
+#[cfg(feature = "pthash")]
+pub use person_pthash::*;
+
+pub struct PersonFmphgo(pub ph::fmph::GOFunction);
+
+impl PersonMphf for PersonFmphgo {
+    fn num_keys(&self) -> u32 {
+        self.0.len().try_into().expect("person MPH is too large")
+    }
+    fn hash_pseudonymized_person(
+        &self,
+        pseudonymized_person: PseudonymizedPerson<&[u8]>,
+    ) -> Result<u32> {
+        Ok(self
+            .0
+            .get(&pseudonymized_person)
+            .context("Unknown person")?
+            .try_into()
+            .expect("person MPH overflowed"))
+    }
+}
+
+impl LoadablePersonMphf for PersonFmphgo {
+    fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let path = path.as_ref();
+        let file =
+            File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
+        Ok(PersonFmphgo(
+            ph::fmph::GOFunction::read(&mut BufReader::new(file))
+                .with_context(|| format!("Could not load fmphgo person MPHF {}", path.display()))?,
+        ))
+    }
+}
+
+#[allow(clippy::large_enum_variant)]
+pub enum DynPersonMphf {
+    #[cfg(feature = "pthash")]
+    Pthash(PersonPthash),
+    Fmphgo(PersonFmphgo),
+}
+
+impl std::fmt::Debug for DynPersonMphf {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            #[cfg(feature = "pthash")]
+            DynPersonMphf::Pthash(_) => write!(f, "DynMphf::Pthash(_)"),
+            DynPersonMphf::Fmphgo(_) => write!(f, "DynMphf::Fmphgo(_)"),
+        }
+    }
+}
+
+#[cfg(feature = "pthash")]
+impl From<PersonPthash> for DynPersonMphf {
     #[inline(always)]
-    pub fn new(mphf: &'a PersonMphf) -> Self {
+    fn from(value: PersonPthash) -> DynPersonMphf {
+        DynPersonMphf::Pthash(value)
+    }
+}
+
+impl From<PersonFmphgo> for DynPersonMphf {
+    #[inline(always)]
+    fn from(value: PersonFmphgo) -> DynPersonMphf {
+        DynPersonMphf::Fmphgo(value)
+    }
+}
+
+impl PersonMphf for DynPersonMphf {
+    fn num_keys(&self) -> u32 {
+        match self {
+            #[cfg(feature = "pthash")]
+            DynPersonMphf::Pthash(mphf) => mphf.num_keys(),
+            DynPersonMphf::Fmphgo(mphf) => mphf.num_keys(),
+        }
+    }
+    fn hash_pseudonymized_person(
+        &self,
+        pseudonymized_person: PseudonymizedPerson<&[u8]>,
+    ) -> Result<u32> {
+        match self {
+            #[cfg(feature = "pthash")]
+            DynPersonMphf::Pthash(mphf) => mphf.hash_pseudonymized_person(pseudonymized_person),
+            DynPersonMphf::Fmphgo(mphf) => mphf.hash_pseudonymized_person(pseudonymized_person),
+        }
+    }
+}
+
+impl LoadablePersonMphf for DynPersonMphf {
+    fn load(basepath: impl AsRef<Path>) -> Result<Self> {
+        let basepath = basepath.as_ref();
+
+        let fmphgo_path = suffix_path(basepath, ".fmphgo");
+        if fmphgo_path.exists() {
+            return PersonFmphgo::load(fmphgo_path).map(Self::Fmphgo);
+        }
+
+        let pthash_path = suffix_path(basepath, ".pthash");
+        if pthash_path.exists() {
+            #[cfg(not(feature = "pthash"))]
+            bail!(
+                "Cannot load persons MPHF {} because pthash support is disabled. Recompile swh-graph with --features pthash.",
+                pthash_path.display()
+            );
+            #[cfg(feature = "pthash")]
+            return PersonPthash::load(pthash_path).map(Self::Pthash);
+        }
+
+        bail!(
+            "Cannot load MPH function, neither {} nor {} exists.",
+            fmphgo_path.display(),
+            pthash_path.display(),
+        );
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct PersonHasher<'a, MPHF: PersonMphf = DynPersonMphf> {
+    mphf: &'a MPHF,
+}
+
+impl<'a, MPHF: PersonMphf> PersonHasher<'a, MPHF> {
+    #[inline(always)]
+    pub fn new(mphf: &'a MPHF) -> Self {
         PersonHasher { mphf }
     }
 
     #[inline(always)]
-    pub fn mphf(&self) -> &'a PersonMphf {
+    pub fn mphf(&self) -> &'a MPHF {
         self.mphf
     }
 
     #[inline(always)]
     pub fn num_persons(&self) -> u32 {
-        u32::try_from(self.mphf.num_keys()).expect("num_persons overflowed u32")
+        self.mphf.num_keys()
     }
 
     #[cfg(feature = "compression")]
@@ -193,11 +364,8 @@ impl<'a> PersonHasher<'a> {
             digest.len(),
             digest
         );
-        Ok(self
-            .mphf
-            .hash(PseudonymizedPerson(pseudonymized_person))
-            .try_into()
-            .expect("person MPH overflowed"))
+        self.mphf
+            .hash_pseudonymized_person(PseudonymizedPerson(pseudonymized_person.as_ref()))
     }
 
     pub fn hash_person_fullname<T: AsRef<[u8]>>(&self, person_fullname: T) -> Result<u32> {
