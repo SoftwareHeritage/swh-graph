@@ -7,10 +7,12 @@ use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 use anyhow::{bail, ensure, Context, Result};
 use epserde::deser::{Deserialize, Flags, MemCase};
 use mmap_rs::Mmap;
+use regex::Regex;
 use sha2::{Digest, Sha256};
 use sux::{
     bits::{BitFieldVec, BitVec},
@@ -375,4 +377,53 @@ impl<'a, MPHF: PersonMphf> PersonHasher<'a, MPHF> {
                 .into_boxed_slice(),
         )
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ParsedFullname<'a> {
+    pub name: &'a str,
+    pub email: &'a str,
+    pub email_localpart: &'a str,
+    pub email_domain: &'a str,
+}
+
+pub static FULLNAME_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(.+)\s+<((.+)@(.+))>$").expect("invalid fullname regex"));
+
+/// Parse name and email from author/committer fullname.
+///
+/// This parses email-style From headers (called "fullnames" in the context of Git / Software
+/// Heritage), like `"First Author <somewhere@domain.name>"`, into four parts:
+///
+/// 1. name (before `<...>`),
+/// 2. email (within `<...>`),
+/// 3. local part (email part before `@`, often a username),
+/// 4. domain (email part after `@`).
+///
+/// # Errors
+///
+/// Returns an error if `fullname` does not match the expected pattern.
+///
+/// # Example
+///
+/// ```
+/// use swh_graph::person::parse_fullname;
+///
+/// let fullname =
+///     parse_fullname("Alice Example <alice@example.com>").unwrap();
+/// assert_eq!(fullname.name, "Alice Example");
+/// assert_eq!(fullname.email, "alice@example.com");
+/// assert_eq!(fullname.email_localpart, "alice");
+/// assert_eq!(fullname.email_domain, "example.com");
+/// ```
+pub fn parse_fullname(fullname: &str) -> Result<ParsedFullname<'_>> {
+    let captures = FULLNAME_REGEX
+        .captures(fullname)
+        .with_context(|| format!("Malformed fullname: {fullname:?}"))?;
+    Ok(ParsedFullname {
+        name: captures.get(1).unwrap().as_str(),
+        email: captures.get(2).unwrap().as_str(),
+        email_localpart: captures.get(3).unwrap().as_str(),
+        email_domain: captures.get(4).unwrap().as_str(),
+    })
 }
