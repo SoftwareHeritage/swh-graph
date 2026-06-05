@@ -537,12 +537,12 @@ impl<
     ///
     /// ```no_run
     /// # use std::path::PathBuf;
-    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    /// use swh_graph::mph::DynMphf;
     ///
     /// swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     ///     .expect("Could not load graph")
     ///     .init_properties()
-    ///     .load_properties(|properties| properties.load_maps::<GOVMPH>())
+    ///     .load_properties(|properties| properties.load_maps::<DynMphf>())
     ///     .expect("Could not load SWHID maps")
     ///     .load_properties(|properties| properties.load_timestamps())
     ///     .expect("Could not load timestamps");
@@ -597,11 +597,11 @@ impl<G: UnderlyingGraph> SwhUnidirectionalGraph<(), G> {
     ///
     /// ```no_run
     /// # use std::path::PathBuf;
-    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    /// use swh_graph::mph::DynMphf;
     ///
     /// swh_graph::graph::SwhUnidirectionalGraph::new(PathBuf::from("./graph"))
     ///     .expect("Could not load graph")
-    ///     .load_all_properties::<GOVMPH>()
+    ///     .load_all_properties::<DynMphf>()
     ///     .expect("Could not load properties");
     /// ```
     pub fn load_all_properties<MPHF: LoadableSwhidMphf>(
@@ -843,13 +843,13 @@ impl<
     ///
     /// ```no_run
     /// # use std::path::PathBuf;
-    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    /// use swh_graph::mph::DynMphf;
     /// use swh_graph::SwhGraphProperties;
     ///
     /// swh_graph::graph::SwhBidirectionalGraph::new(PathBuf::from("./graph"))
     ///     .expect("Could not load graph")
     ///     .init_properties()
-    ///     .load_properties(SwhGraphProperties::load_maps::<GOVMPH>)
+    ///     .load_properties(SwhGraphProperties::load_maps::<DynMphf>)
     ///     .expect("Could not load SWHID maps")
     ///     .load_properties(SwhGraphProperties::load_timestamps)
     ///     .expect("Could not load timestamps");
@@ -910,11 +910,11 @@ impl<FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBidirectionalGraph<(), FG, BG>
     ///
     /// ```no_run
     /// # use std::path::PathBuf;
-    /// use swh_graph::java_compat::mph::gov::GOVMPH;
+    /// use swh_graph::mph::DynMphf;
     ///
     /// swh_graph::graph::SwhBidirectionalGraph::new(PathBuf::from("./graph"))
     ///     .expect("Could not load graph")
-    ///     .load_all_properties::<GOVMPH>()
+    ///     .load_all_properties::<DynMphf>()
     ///     .expect("Could not load properties");
     /// ```
     pub fn load_all_properties<MPHF: LoadableSwhidMphf>(
