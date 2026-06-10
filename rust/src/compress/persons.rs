@@ -15,6 +15,8 @@ use ph::fmph::GOFunction;
 use ph::fmph::{GOBuildConf, GOConf};
 use rayon::prelude::*;
 
+use crate::utils::AtomicFile;
+
 // For backward compatibility
 #[doc(hidden)]
 pub use crate::person::{
@@ -77,9 +79,9 @@ fn write_ordered_fullnames<S: AsRef<[u8]>>(
     use dsi_bitstream::prelude::*;
 
     log::info!("Writing full names and lengths...");
-    let mut fullnames_file = File::create(fullnames_path)
+    let mut fullnames_file = AtomicFile::create_new(fullnames_path)
         .with_context(|| format!("Could not create {}", fullnames_path.display()))?;
-    let lengths_file = File::create(lengths_path)
+    let lengths_file = AtomicFile::create_new(lengths_path)
         .with_context(|| format!("Could not create {}", lengths_path.display()))?;
 
     let mut lengths_writer = <BufBitWriter<BE, _>>::new(<WordAdapter<u64, _>>::new(
@@ -93,6 +95,20 @@ fn write_ordered_fullnames<S: AsRef<[u8]>>(
             .write_gamma(u64::try_from(fullname.len()).context("Name length overflowed u64")?)
             .context("Could not write gamma")?;
     }
+
+    fullnames_file
+        .commit()
+        .with_context(|| format!("Could not commit {}", fullnames_path.display()))?;
+    let lengths_file = lengths_writer
+        .into_inner()
+        .context("Could not flush lengths")?
+        .into_inner()
+        .into_inner()
+        .map_err(|e| e.into_error())
+        .context("Could not flush lengths")?;
+    lengths_file
+        .commit()
+        .with_context(|| format!("Could not commit {}", lengths_path.display()))?;
 
     Ok(())
 }

@@ -11,7 +11,7 @@ use anyhow::{ensure, Context, Result};
 use clap::{Parser, Subcommand};
 use dsi_bitstream::prelude::BE;
 
-use swh_graph::utils::suffix_path;
+use swh_graph::utils::{suffix_path, AtomicFile};
 
 #[derive(Parser, Debug)]
 #[command(about = "Commands to (re)generate `.ef` and `.offsets` files, allowing random access to BVGraph", long_about = None)]
@@ -167,13 +167,17 @@ pub fn main() -> Result<()> {
             let ef_offsets = ef_builder.build_with_seq();
 
             log::info!("Writing Elias-Fano file for full names offsets...");
-            let mut ef_file = File::create(&ef_path)
+            let mut ef_file = AtomicFile::create_new(&ef_path)
                 .with_context(|| format!("Could not create {}", ef_path.display()))?;
 
             // SAFETY: this might leak some internal memory, but we only ship this .ef alongside
             // the data this process has access to.
             unsafe { ef_offsets.serialize(&mut ef_file) }
                 .context("Could not write full names offsets elias-fano file")?;
+
+            ef_file
+                .commit()
+                .context("Could not commit elias-fano file")?;
         }
     }
 

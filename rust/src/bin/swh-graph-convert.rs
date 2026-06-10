@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -11,6 +11,7 @@ use clap::{Parser, ValueEnum};
 
 use swh_graph::graph::*;
 use swh_graph::mph::DynMphf;
+use swh_graph::utils::AtomicFile;
 
 #[derive(ValueEnum, Clone, Debug)]
 enum InputFormat {
@@ -60,20 +61,29 @@ pub fn main() -> Result<()> {
                 .load_properties(|props| props.load_maps::<DynMphf>())
                 .context("Could not load input graph's maps")?;
             // TODO: make other properties serializable and load them too
-            let file = std::fs::File::create(&args.output)
-                .with_context(|| format!("Could not create {}", args.output.display()))?;
-            let mut serializer = serde_json::Serializer::new(BufWriter::new(file));
+            let mut file = BufWriter::new(
+                AtomicFile::create_new(&args.output)
+                    .with_context(|| format!("Could not create {}", args.output.display()))?,
+            );
+            let mut serializer = serde_json::Serializer::new(&mut file);
             swh_graph::serde::serialize_with_labels_and_maps(&mut serializer, &graph)
                 .with_context(|| format!("Could not serialize to {}", args.output.display()))?;
+            file.into_inner()
+                .map_err(|e| e.into_error())
+                .context("Could not flush")?
+                .commit()
+                .with_context(|| format!("Could not commit {}", args.output.display()))?;
         }
         OutputFormat::GraphBuilder => {
             let graph = graph
                 .load_all_properties::<DynMphf>()
                 .context("Could not load properties")?;
-            let file = std::fs::File::create(&args.output)
+            let mut file = AtomicFile::create_new(&args.output)
                 .with_context(|| format!("Could not create {}", args.output.display()))?;
-            swh_graph::graph_builder::codegen_from_full_graph(&graph, file)
+            swh_graph::graph_builder::codegen_from_full_graph(&graph, &mut file)
                 .with_context(|| format!("Could not write graph to {}", args.output.display()))?;
+            file.commit()
+                .with_context(|| format!("Could not commit {}", args.output.display()))?;
         }
     }
 

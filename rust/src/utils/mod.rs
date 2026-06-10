@@ -11,9 +11,12 @@ use anyhow::{anyhow, Context, Result};
 
 use crate::{NodeConstraint, NodeType};
 
+mod atomic_file;
 pub mod mmap;
 pub mod shuffle;
 pub mod sort;
+
+pub use atomic_file::AtomicFile;
 
 pub fn dir_size(path: &Path) -> Result<usize> {
     Ok(std::fs::read_dir(path)
