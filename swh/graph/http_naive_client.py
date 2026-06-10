@@ -1,4 +1,4 @@
-# Copyright (C) 2021-2022  The Software Heritage developers
+# Copyright (C) 2021-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -346,7 +346,7 @@ class Graph:
                     accessed_edges += 1
                     if accessed_edges > max_edges:
                         break
-                (src_fmt, dst_fmt) = edges_fmt_item.split(":")
+                src_fmt, dst_fmt = edges_fmt_item.split(":")
                 if src_fmt != "*" and not src.startswith(f"swh:1:{src_fmt}:"):
                     continue
                 if dst_fmt == "*":
@@ -411,7 +411,7 @@ class SubgraphIterator(Iterator[Tuple[Tuple[str, ...], str]]):
         if not self.more_work():
             raise StopIteration()
 
-        (path, node) = self.pop()
+        path, node = self.pop()
 
         new_path = path + (node,)
 

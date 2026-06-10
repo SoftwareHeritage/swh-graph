@@ -41,7 +41,7 @@ class StepOption(click.ParamType):
         specs = value.split(",")
         for spec in specs:
             if "-" in spec:  # step range
-                (raw_l, raw_r) = spec.split("-", maxsplit=1)
+                raw_l, raw_r = spec.split("-", maxsplit=1)
                 if raw_l == "":  # no left endpoint
                     raw_l = COMP_SEQ[0].name
                 if raw_r == "":  # no right endpoint

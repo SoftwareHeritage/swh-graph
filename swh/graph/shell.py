@@ -282,7 +282,7 @@ class Command(metaclass=_MetaCommand):
 
         if stderr is subprocess.STDOUT:
             if stdout is subprocess.PIPE:
-                (r, w) = os.pipe()
+                r, w = os.pipe()
                 stdout = w
                 stderr = w
                 stdout_read = r
@@ -297,7 +297,7 @@ class Command(metaclass=_MetaCommand):
         for arg in self.args:
             if isinstance(arg, (Command, Pipe)):
                 # command stdout piped to a non-stdin FD
-                (r, w) = os.pipe()
+                r, w = os.pipe()
                 pass_fds.append(r)
                 final_args.append(f"/dev/fd/{r}")
                 children.append(arg._run(None, w, stderr))
@@ -464,14 +464,14 @@ class Pipe:
         write_pipes: List[Any] = []
         pipes_to_close: List[int] = []
         for _ in range(len(self.children) - 1):
-            (r, w) = os.pipe()
+            r, w = os.pipe()
             read_pipes.append(r)
             write_pipes.append(w)
             pipes_to_close.append(r)
             pipes_to_close.append(w)
 
         if stdout is subprocess.PIPE:
-            (r, w) = os.pipe()
+            r, w = os.pipe()
             stdout = w
             stdout_read = os.fdopen(r, "rb")
             pipes_to_close.append(w)
@@ -678,13 +678,13 @@ class AtomicFileSink(_BaseSink):
         pipes_to_close: List[int] = []
 
         if stderr is subprocess.STDOUT:
-            (r, w) = os.pipe()
+            r, w = os.pipe()
             stdout = os.fdopen(r, "rb")
             stderr_read = stdout
             stderr = w
             pipes_to_close.append(w)
         elif stderr is subprocess.PIPE:
-            (r, w) = os.pipe()
+            r, w = os.pipe()
             stdout = None
             stderr_read = os.fdopen(r, "rb")
             stderr = w
