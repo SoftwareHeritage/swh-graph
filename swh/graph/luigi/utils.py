@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2024  The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -97,6 +97,8 @@ class _ParquetToS3Task(luigi.Task):
         self.__status_messages: Dict[Path, str] = {}
 
         paths = list(self._input_parquet_path().glob("**/*.parquet"))
+
+        assert paths, f"No parquet file found in {self._input_parquet_path()}"
 
         with multiprocessing.Pool(self.parallelism) as p:
             for i, relative_path in tqdm.tqdm(

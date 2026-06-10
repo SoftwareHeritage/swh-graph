@@ -189,19 +189,31 @@ def serve(ctx, host, port, graph_path):
 @click.option(
     "--s3-prefix",
     default="s3://softwareheritage/graph/",
-    help="Base directory of Software Heritage's graphs on S3",
+    show_default=True,
+    help="Base Amazon S3 URI where to download Software Heritage graphs from.",
 )
 @click.option(
     "--name",
     default=None,
-    help="Name of the dataset to download. This is an ISO8601 date, optionally with a "
-    "suffix. See https://docs.softwareheritage.org/devel/swh-export/graph/dataset.html",
+    help="Name of dataset to download, as an ISO8601 date, with an optional suffix. "
+    "Example: 2025-10-08. "
+    "Example: 2025-10-08-history-hosting. "
+    "See https://datasets.softwareheritage.org/ for a list of available datasets.",
 )
 @click.option(
     "--parallelism",
     "-j",
     default=5,
+    show_default=True,
     help="Number of threads used to download/decompress files.",
+)
+@click.option(
+    "--multipart-chunk-size",
+    default="1GiB",
+    show_default=True,
+    help="If a file to download has its size greater than that value, it will be "
+    "downloaded concurrently by chunks of that size and re-assembled afterwards as "
+    "it improves download time",
 )
 @click.argument(
     "target-dir",
@@ -219,12 +231,15 @@ def download(
     name: Optional[str],
     parallelism: int,
     target_dir: Path,
+    multipart_chunk_size: str,
 ):
     """Downloads a compressed SWH graph to the given target directory.
 
     If some files fail to be fully downloaded, their downloads will be
     resumed when re-executing the same download command.
     """
+    from humanfriendly import parse_size
+
     from swh.graph.download import GraphDownloader
 
     if s3_url and name:
@@ -240,6 +255,7 @@ def download(
         local_path=target_dir,
         s3_url=s3_url,
         parallelism=parallelism,
+        multipart_download_chunk_size=parse_size(multipart_chunk_size),
     )
 
     while not graph_downloader.download():
@@ -530,20 +546,6 @@ def compress(
             conf,
         )
     except webgraph.CompressionSubprocessError as e:
-        try:
-            if e.log_path.is_file():
-                with e.log_path.open("rb") as f:
-                    if e.log_path.stat().st_size > 1000:
-                        f.seek(-1000, 2)  # read only the last 1kB
-                        f.readline()  # skip first line, might be partial
-                        sys.stderr.write("[...]\n")
-                    sys.stderr.write("\n")
-                    sys.stderr.flush()
-                    sys.stderr.buffer.write(f.read())
-                    sys.stderr.flush()
-        except Exception:
-            raise
-            pass
         raise click.ClickException(e.message)
 
 
@@ -698,7 +700,6 @@ def luigi(
     import secrets
     import socket
     import subprocess
-    import sys
     import tempfile
     import time
 

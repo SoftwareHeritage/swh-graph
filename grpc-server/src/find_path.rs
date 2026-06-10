@@ -3,6 +3,8 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
+#![allow(clippy::result_large_err)] // many functions are implementations of Tonic traits, which can't return Result<_, Box<Status>>
+
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -44,7 +46,6 @@ pub struct FindPath<'s, S: TraversalServiceTrait> {
 }
 
 impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
-    #[allow(clippy::result_large_err)] // this is called by implementations of Tonic traits, which can't return Result<_, Box<Status>>
     #[allow(clippy::type_complexity)]
     fn make_visitor<
         'a,
@@ -105,7 +106,6 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
         Ok(visitor)
     }
 
-    #[allow(clippy::result_large_err)] // this is called by implementations of Tonic traits, which can't return Result<_, Box<Status>>
     fn path_from_visit(
         &self,
         parents: &HashMap<usize, usize>,

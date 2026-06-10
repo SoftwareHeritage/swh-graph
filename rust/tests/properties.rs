@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -265,6 +265,16 @@ fn test_release_properties() -> Result<()> {
     assert_eq!(props.tag_name(node), Some(b"v1.0".to_vec()));
     assert_eq!(props.author_id(node), Some(0));
     assert_eq!(props.committer_id(node), None);
+
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(miri, ignore)] // miri does not support file-backed mmap
+fn test_num_persons() -> Result<()> {
+    let graph = graph()?;
+
+    assert_eq!(graph.properties().num_persons(), 3);
 
     Ok(())
 }

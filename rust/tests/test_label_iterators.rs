@@ -13,6 +13,7 @@ use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
 use swh_graph::labels::{Branch, LabelNameId, Visit, VisitStatus};
 use swh_graph::swhid;
+use swh_graph::views::Transposed;
 
 /// ```
 /// ori0 -->  snp2 -->  rev4
@@ -302,22 +303,27 @@ fn test_labeled_predecessors_snp_rev() -> Result<()> {
         .label_name_id(b"refs/heads/develop")
         .unwrap();
 
+    let expected = vec![(
+        0,
+        vec![
+            Branch::new(main_label).unwrap().into(),
+            Branch::new(develop_label).unwrap().into(),
+        ],
+    )];
+
     let rev1_preds: Vec<(_, Vec<_>)> = graph
         .labeled_predecessors(1)
         .into_iter()
         .map(|(pred, labels)| (pred, labels.collect()))
         .collect();
+    assert_eq!(rev1_preds, expected);
 
-    assert_eq!(
-        rev1_preds,
-        vec![(
-            0,
-            vec![
-                Branch::new(main_label).unwrap().into(),
-                Branch::new(develop_label).unwrap().into()
-            ]
-        )]
-    );
+    let rev1_preds: Vec<(_, Vec<_>)> = Transposed(graph)
+        .labeled_successors(1)
+        .into_iter()
+        .map(|(pred, labels)| (pred, labels.collect()))
+        .collect();
+    assert_eq!(rev1_preds, expected);
 
     Ok(())
 }
@@ -328,24 +334,28 @@ fn test_labeled_predecessors_dir_cnt() -> Result<()> {
 
     let file_label = graph.properties().label_name_id(b"file.txt").unwrap();
 
+    let expected = vec![(
+        0,
+        vec![
+            swh_graph::labels::DirEntry::new(swh_graph::labels::Permission::Content, file_label)
+                .unwrap()
+                .into(),
+        ],
+    )];
+
     let cnt1_preds: Vec<(_, Vec<_>)> = graph
         .labeled_predecessors(1)
         .into_iter()
         .map(|(pred, labels)| (pred, labels.collect()))
         .collect();
+    assert_eq!(cnt1_preds, expected);
 
-    assert_eq!(
-        cnt1_preds,
-        vec![(
-            0,
-            vec![swh_graph::labels::DirEntry::new(
-                swh_graph::labels::Permission::Content,
-                file_label
-            )
-            .unwrap()
-            .into()]
-        )]
-    );
+    let cnt1_preds: Vec<(_, Vec<_>)> = Transposed(graph)
+        .labeled_successors(1)
+        .into_iter()
+        .map(|(pred, labels)| (pred, labels.collect()))
+        .collect();
+    assert_eq!(cnt1_preds, expected);
 
     Ok(())
 }
@@ -354,18 +364,24 @@ fn test_labeled_predecessors_dir_cnt() -> Result<()> {
 fn test_labeled_predecessors_ori_snp() -> Result<()> {
     let graph = build_ori_snp_graph_preds()?;
 
+    let expected = vec![(
+        0,
+        vec![Visit::new(VisitStatus::Full, 1000001000).unwrap().into()],
+    )];
+
     let snp1_preds: Vec<(_, Vec<_>)> = graph
         .labeled_predecessors(1)
         .into_iter()
         .map(|(pred, labels)| (pred, labels.collect()))
         .collect();
+    assert_eq!(snp1_preds, expected);
 
-    assert_eq!(
-        snp1_preds,
-        vec![(
-            0,
-            vec![Visit::new(VisitStatus::Full, 1000001000).unwrap().into()]
-        )]
-    );
+    let snp1_preds: Vec<(_, Vec<_>)> = Transposed(graph)
+        .labeled_successors(1)
+        .into_iter()
+        .map(|(pred, labels)| (pred, labels.collect()))
+        .collect();
+    assert_eq!(snp1_preds, expected);
+
     Ok(())
 }

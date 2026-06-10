@@ -240,7 +240,7 @@ where
         for ((succ1, labels1), (succ2, labels2)) in graph1
             .labeled_successors(node)
             .into_iter()
-            .zip(graph2.labeled_successors(node).into_iter())
+            .zip(graph2.labeled_successors(node))
         {
             ensure!(succ1 == succ2, "Successors mismatch");
             let labels1: Vec<_> = labels1.collect();

@@ -1,4 +1,4 @@
-# Copyright (C) 2023  The Software Heritage developers
+# Copyright (C) 2023-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -6,11 +6,20 @@
 import os
 import subprocess
 import threading
+from unittest.mock import patch
 
 import pytest
 import pyzstd
 
-from swh.graph.shell import AtomicFileSink, Command, CommandException, Pipe, Sink, wc
+from swh.graph.shell import (
+    AtomicFileSink,
+    Command,
+    CommandException,
+    Pipe,
+    Sink,
+    base_cgroup,
+    wc,
+)
 
 # fmt: off
 
@@ -406,3 +415,64 @@ def test_process_substitution_with_stderr_to_stdout():
             )
             > Sink()
         ).run(stderr=subprocess.STDOUT)
+
+
+def test_preexec_moves_to_cgroup(tmp_path):
+    """The child process should be moved into its cgroup via _preexec_fn."""
+    fake_cgroup = tmp_path / "test_cgroup"
+    fake_cgroup.mkdir()
+    marker = tmp_path / "moved"
+
+    def recording_move(cgroup):
+        marker.write_text(str(cgroup))
+
+    with patch("swh.graph.shell.create_cgroup", return_value=fake_cgroup):
+        with patch("swh.graph.shell.move_to_cgroup", recording_move):
+            (Command.echo("foo") > Sink()).run()
+    assert marker.read_text() == str(fake_cgroup)
+
+
+def test_run_twice(tmp_path):
+    """Calling _run() twice on the same Command should give each run its own cgroup."""
+    cgroup1 = tmp_path / "cgroup1"
+    cgroup1.mkdir()
+    cgroup2 = tmp_path / "cgroup2"
+    cgroup2.mkdir()
+    marker = tmp_path / "moves"
+
+    def recording_move(cgroup):
+        with marker.open("a") as f:
+            f.write(str(cgroup) + "\n")
+
+    with patch("swh.graph.shell.create_cgroup", side_effect=[cgroup1, cgroup2]):
+        with patch("swh.graph.shell.move_to_cgroup", recording_move):
+            cmd = Command.echo("foo")
+            run1 = cmd._run(stdin=None, stdout=subprocess.PIPE, stderr=None)
+            run2 = cmd._run(stdin=None, stdout=subprocess.PIPE, stderr=None)
+            run1.wait()
+            run2.wait()
+    assert run1.cgroup == cgroup1
+    assert run2.cgroup == cgroup2
+    assert marker.read_text().splitlines() == [str(cgroup1), str(cgroup2)]
+
+
+def test_cgroup_stats():
+    if base_cgroup() is None:
+        pytest.skip(
+            "cgroups not available (try running tests with `systemd-run --user "
+            "--working-directory=$(pwd) -t pytest swh/graph/tests/luigi/test_shell.py`)"
+        )
+
+    # Run a command that does measurable CPU work
+    results = Command.bash("-c", "for i in $(seq 1 10000); do :; done").run()
+    assert len(results) == 1
+    result = results[0]
+
+    assert result.cgroup is not None
+    assert result.cgroup_stats  # dict is not empty
+
+    # cpu.stat should show non-zero usage
+    cpu_stat = result.cgroup_stats["cpu.stat"]
+    assert "usage_usec" in cpu_stat
+    usage = int(cpu_stat.split("usage_usec ")[1].split()[0])
+    assert usage > 0

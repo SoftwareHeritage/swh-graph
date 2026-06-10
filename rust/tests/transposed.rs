@@ -10,9 +10,10 @@ use anyhow::Result;
 use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
 use swh_graph::labels::{EdgeLabel, UntypedEdgeLabel, Visit, VisitStatus};
+use swh_graph::properties;
 use swh_graph::swhid;
 use swh_graph::views::{Subgraph, Transposed};
-use swh_graph::webgraph::graphs::vec_graph::VecGraph;
+use swh_graph::webgraph::graphs::vec_graph::{LabeledVecGraph, VecGraph};
 
 #[test]
 fn test_transpose_forward_graph() {
@@ -89,6 +90,75 @@ fn test_transpose_backward_graph() {
     assert_eq!(transposed.indegree(0), 1);
     assert_eq!(transposed.indegree(1), 0);
     assert_eq!(transposed.indegree(2), 2);
+}
+
+#[test]
+fn test_transpose_labeled_forward_graph() {
+    let forward_arcs: Vec<((usize, usize), &[u64])> =
+        vec![((0, 1), &[0, 789]), ((2, 0), &[123]), ((2, 1), &[456])];
+    let backward_arcs: Vec<((usize, usize), &[u64])> =
+        vec![((1, 0), &[0, 789]), ((0, 2), &[123]), ((1, 2), &[456])];
+    let graph = SwhBidirectionalGraph::from_underlying_graphs(
+        PathBuf::new(),
+        LabeledVecGraph::from_arcs(forward_arcs),
+        LabeledVecGraph::from_arcs(backward_arcs),
+    )
+    .init_properties()
+    .load_properties(|props| props.with_maps(properties::VecMaps::new(vec![])))
+    .expect("Could not load maps");
+    let transposed = Transposed(graph);
+
+    let collect_successors = |node_id| {
+        transposed
+            .untyped_labeled_successors(node_id)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>()
+    };
+
+    // Original: 0 -> 1 [0, 789], 2 -> 0 [123], 2 -> 1 [456]
+    // Transposed: 1 -> 0 [0, 789], 0 -> 2 [123], 1 -> 2 [456]
+    assert_eq!(collect_successors(0), vec![(2, vec![123.into()])]);
+    assert_eq!(
+        collect_successors(1),
+        vec![(0, vec![0.into(), 789.into()]), (2, vec![456.into()])]
+    );
+    assert_eq!(collect_successors(2), vec![]);
+}
+
+#[test]
+fn test_transpose_labeled_backward_graph() {
+    let forward_arcs: Vec<((usize, usize), &[u64])> =
+        vec![((0, 1), &[0, 789]), ((2, 0), &[123]), ((2, 1), &[456])];
+    let backward_arcs: Vec<((usize, usize), &[u64])> =
+        vec![((1, 0), &[0, 789]), ((0, 2), &[123]), ((1, 2), &[456])];
+    let graph = SwhBidirectionalGraph::from_underlying_graphs(
+        PathBuf::new(),
+        LabeledVecGraph::from_arcs(forward_arcs),
+        LabeledVecGraph::from_arcs(backward_arcs),
+    )
+    .init_properties()
+    .load_properties(|props| props.with_maps(properties::VecMaps::new(vec![])))
+    .expect("Could not load maps");
+    let transposed = Transposed(graph);
+
+    let collect_predecessors = |node_id| {
+        transposed
+            .untyped_labeled_predecessors(node_id)
+            .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>()
+    };
+
+    // Original predecessors become successors, so we check predecessors
+    // which are the original successors
+    assert_eq!(
+        collect_predecessors(0),
+        vec![(1, vec![0.into(), 789.into()])]
+    );
+    assert_eq!(collect_predecessors(1), vec![]);
+    assert_eq!(
+        collect_predecessors(2),
+        vec![(0, vec![123.into()]), (1, vec![456.into()])]
+    );
 }
 
 #[test]

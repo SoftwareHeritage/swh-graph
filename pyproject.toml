@@ -92,10 +92,10 @@ plugins = ["luigi.mypy"]
 module = [
     "datafusion.*",
     "grpc.aio.*",
+    "humanfriendly.*",
     "luigi.*",
     "magic.*",
     "pyzstd.*",
-    "scancode.*",
 ]
 ignore_missing_imports = true
 

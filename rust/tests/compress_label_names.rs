@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -9,13 +9,11 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 
 use anyhow::{Context, Result};
-use pthash::Phf;
 
 use swh_graph::compress::label_names::*;
 use swh_graph::map::Permutation;
 
 #[test]
-#[cfg_attr(miri, ignore)] // use PTHash which uses the FFI, and Miri does not support that.
 fn test_build_mphf_and_order() -> Result<()> {
     let tmpdir = tempfile::tempdir()?;
     let labels_path = tmpdir.path().join("labels");
@@ -30,15 +28,17 @@ fn test_build_mphf_and_order() -> Result<()> {
     }
     drop(f);
 
-    let mut mphf = build_mphf(labels_path.clone(), labels.len()).context("Could not build MPHF")?;
-    assert_eq!(mphf.num_keys(), labels.len() as u64);
-    mphf.save(&mphf_path).context("Could not save MPHF")?;
+    let mphf = build_mphf(labels_path.clone(), labels.len()).context("Could not build MPHF")?;
+    assert_eq!(mphf.len(), labels.len());
+    let file = File::create(&mphf_path).context("Could not create MPHF file")?;
+    mphf.write(&mut BufWriter::new(file))
+        .context("Could not save MPHF")?;
     let order =
         build_order(labels_path, mphf_path, labels.len()).context("Could not build order")?;
 
     for (i, label) in labels.iter().enumerate() {
         assert_eq!(
-            order.get(mphf.hash(LabelName(label.as_bytes())) as usize),
+            order.get(mphf.get(&LabelName(label.as_bytes())).unwrap() as usize),
             Some(i)
         );
     }

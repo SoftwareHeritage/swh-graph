@@ -20,6 +20,7 @@
    testing
    example-dataset
    provenance-index
+   glossary
 
 .. only:: standalone_package_doc
 

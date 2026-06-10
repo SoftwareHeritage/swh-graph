@@ -624,7 +624,7 @@ EDGE_LABELS
 
 
 This step generates the *edge property files*, as described in
-`Edge Labels <https://docs.rs/swh-graph/latest/swh_graph/_tutorial/index.html#edge-labels>`.
+`Edge Labels <https://docs.rs/swh-graph/latest/swh_graph/_tutorial/index.html#edge-labels>`_.
 These files allow us to get the *edge
 labels* as we iterate on the edges of the graph. The files essentially contain
 compressed sorted triplets of the form (source, destination, label), with

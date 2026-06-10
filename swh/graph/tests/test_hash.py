@@ -1,13 +1,14 @@
-# Copyright (C) 2022-2025  The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import base64
 from typing import Iterable, List
 
 import pytest
 
-from swh.graph.example_dataset import DATASET, DATASET_DIR
+from swh.graph.example_dataset import DATASET, DATASET_DIR, PERSONS
 from swh.graph.shell import Command, CommandException, Rust, Sink
 
 
@@ -48,3 +49,59 @@ def test_hash_unknown_swhid() -> None:
 
     with pytest.raises(CommandException):
         hash_swhids_with_node2swhid(map(str, swhids))
+
+
+def test_hash_pseudonymized_persons() -> None:
+    persons = "\n".join(
+        base64.b64encode(person.anonymize().fullname).decode() for person in PERSONS
+    )
+    # fmt: off
+    hashes = (
+        Command.echo(persons)
+        | Rust(
+            "swh-graph-hash",
+            "persons",
+            "--mph-algo",
+            "pthash",
+            "--mph",
+            DATASET_DIR / "compressed/example.persons.pthash",
+        )
+        > Sink()
+    ).run().stdout.decode().strip().split("\n")
+    # fmt: on
+
+    assert hashes == ["0", "2", "1"]
+
+
+@pytest.mark.parametrize(
+    "base64_encoded",
+    [
+        pytest.param(True, id="base64"),
+        pytest.param(False, id="not-base64"),
+    ],
+)
+def test_hash_person_fullnames(base64_encoded) -> None:
+    if base64_encoded:
+        fullnames = "\n".join(
+            base64.b64encode(person.fullname).decode() for person in PERSONS
+        )
+    else:
+        fullnames = "\n".join(person.fullname.decode() for person in PERSONS)
+
+    # fmt: off
+    hashes = (
+        Command.echo(fullnames)
+        | Rust(
+            "swh-graph-hash",
+            "person-fullnames",
+            "--mph-algo",
+            "pthash",
+            "--mph",
+            DATASET_DIR / "compressed/example.persons.pthash",
+            *(["--base64"] if base64_encoded else [])
+        )
+        > Sink()
+    ).run().stdout.decode().strip().split("\n")
+    # fmt: on
+
+    assert hashes == ["0", "2", "1"]

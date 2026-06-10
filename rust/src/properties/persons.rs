@@ -31,6 +31,8 @@ pub trait OptPersons: MaybePersons + PropertiesBackend {
     fn author_id(&self, node: NodeId) -> PropertiesResult<'_, Option<u32>, Self>;
     /// Returns `None` if out of bounds, `Some(u32::MAX)` if the node has no committer
     fn committer_id(&self, node: NodeId) -> PropertiesResult<'_, Option<u32>, Self>;
+    /// Returns the number of persons having authored/committed objects in the graph
+    fn num_persons(&self) -> PropertiesResult<'_, usize, Self>;
 }
 
 #[diagnostic::on_unimplemented(
@@ -45,6 +47,7 @@ impl<P: OptPersons<DataFilesAvailability = GuaranteedDataFiles>> Persons for P {
 pub struct OptMappedPersons {
     author_id: Result<NumberMmap<BigEndian, u32, Mmap>, UnavailableProperty>,
     committer_id: Result<NumberMmap<BigEndian, u32, Mmap>, UnavailableProperty>,
+    num_persons: Result<usize, UnavailableProperty>,
 }
 impl PropertiesBackend for OptMappedPersons {
     type DataFilesAvailability = OptionalDataFiles;
@@ -62,11 +65,16 @@ impl OptPersons for OptMappedPersons {
             .as_ref()
             .map(|committer_ids| committer_ids.get(node))
     }
+    #[inline(always)]
+    fn num_persons(&self) -> PropertiesResult<'_, usize, Self> {
+        self.num_persons.as_ref().copied()
+    }
 }
 
 pub struct MappedPersons {
     author_id: NumberMmap<BigEndian, u32, Mmap>,
     committer_id: NumberMmap<BigEndian, u32, Mmap>,
+    num_persons: usize,
 }
 impl PropertiesBackend for MappedPersons {
     type DataFilesAvailability = GuaranteedDataFiles;
@@ -84,12 +92,17 @@ impl OptPersons for MappedPersons {
     fn committer_id(&self, node: NodeId) -> Option<u32> {
         (&self.committer_id).get(node)
     }
+    #[inline(always)]
+    fn num_persons(&self) -> usize {
+        self.num_persons
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VecPersons {
     author_id: Vec<u32>,
     committer_id: Vec<u32>,
+    num_persons: usize,
 }
 
 impl VecPersons {
@@ -97,15 +110,20 @@ impl VecPersons {
     pub fn new(data: Vec<(Option<u32>, Option<u32>)>) -> Result<Self> {
         let mut author_id = Vec::with_capacity(data.len());
         let mut committer_id = Vec::with_capacity(data.len());
+        let mut max_person_id = None;
         for (a, c) in data.into_iter() {
             ensure!(a != Some(u32::MAX), "author_id may not be {}", u32::MAX);
             ensure!(c != Some(u32::MAX), "committer_id may not be {}", u32::MAX);
+            max_person_id = max_person_id.max(a).max(c);
             author_id.push(a.unwrap_or(u32::MAX));
             committer_id.push(c.unwrap_or(u32::MAX));
         }
+        // person ids are dense from 0, so the number of persons is the largest id + 1
+        let num_persons = max_person_id.map_or(0, |id| id as usize + 1);
         Ok(VecPersons {
             author_id,
             committer_id,
+            num_persons,
         })
     }
 }
@@ -122,6 +140,10 @@ impl OptPersons for VecPersons {
     fn committer_id(&self, node: NodeId) -> Option<u32> {
         self.committer_id.get(node)
     }
+    #[inline(always)]
+    fn num_persons(&self) -> usize {
+        self.num_persons
+    }
 }
 
 impl<
@@ -137,6 +159,7 @@ impl<
     ///
     /// * [`SwhGraphProperties::author_id`]
     /// * [`SwhGraphProperties::committer_id`]
+    /// * [`SwhGraphProperties::num_persons`]
     pub fn load_persons(
         self,
     ) -> Result<SwhGraphProperties<MAPS, TIMESTAMPS, MappedPersons, CONTENTS, STRINGS, LABELNAMES>>
@@ -144,10 +167,12 @@ impl<
         let OptMappedPersons {
             author_id,
             committer_id,
+            num_persons,
         } = self.get_persons()?;
         let persons = MappedPersons {
             author_id: author_id?,
             committer_id: committer_id?,
+            num_persons: num_persons?,
         };
         self.with_persons(persons)
     }
@@ -168,6 +193,14 @@ impl<
             })?,
             committer_id: load_if_exists(&self.path, COMMITTER_ID, |path| {
                 NumberMmap::new(path, self.num_nodes).context("Could not load committer_id")
+            })?,
+            num_persons: load_if_exists(&self.path, PERSONS_COUNT, |path| {
+                let count = std::fs::read_to_string(path)
+                    .with_context(|| format!("Could not read {}", path.display()))?;
+                count
+                    .trim()
+                    .parse::<usize>()
+                    .with_context(|| format!("Invalid integer in {}: {count}", path.display()))
             })?,
         })
     }
@@ -205,6 +238,12 @@ impl<
         LABELNAMES: MaybeLabelNames,
     > SwhGraphProperties<MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 {
+    /// Returns the number of persons having authored/committed objects in the graph
+    #[inline]
+    pub fn num_persons(&self) -> PropertiesResult<'_, usize, PERSONS> {
+        self.persons.num_persons()
+    }
+
     /// Returns the id of the author of a revision or release, if any
     ///
     /// # Panics
