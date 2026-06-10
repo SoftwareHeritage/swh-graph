@@ -1088,7 +1088,7 @@ class NodeProperties(_CompressionStepTask):
         return self._mph_size() + self._persons_mph_size() + subtask_size
 
 
-class PthashLabels(_CompressionStepTask):
+class MphLabels(_CompressionStepTask):
     STEP = CompressionStep.MPH_LABELS
     INPUT_FILES = {".labels.csv.zst", ".labels.count.txt"}
     OUTPUT_FILES = {".labels.fmphgo"}
