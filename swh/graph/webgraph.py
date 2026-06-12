@@ -913,33 +913,29 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
     for handler in step_handlers:
         step_logger.addHandler(handler)
 
-    step_start_time = datetime.now()
-    step_logger.info("Starting compression step %s at %s", step, step_start_time)
+    try:
+        step_start_time = datetime.now()
+        step_logger.info("Starting compression step %s at %s", step, step_start_time)
 
-    command = COMP_CMD[step](conf, env)
+        command = COMP_CMD[step](conf, env)
 
-    if command is None:
-        step_logger.info("Compression step %s skipped", step)
-        for handler in step_handlers:
-            step_logger.removeHandler(handler)
-            handler.close()
-        return []
+        if command is None:
+            step_logger.info("Compression step %s skipped", step)
+            return []
 
-    step_logger.info("Running: %s", command.__str__())
+        step_logger.info("Running: %s", command.__str__())
 
-    if isinstance(command, (Command, AtomicFileSink)):
-        running_command = command._run(
-            stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-        )
-        with running_command.stdout() as stdout:
-            for line in stdout:
-                step_logger.info(line.rstrip().decode(errors="replace"))
-        try:
-            results = running_command.wait()
-        except CommandException as e:
-            msg = f"Compression step {step} returned non-zero exit code {e.returncode}"
-            step_logger.critical(msg)
-            raise CompressionSubprocessError(msg, log_path)
+        if isinstance(command, (Command, AtomicFileSink)):
+            running_command = command._run(
+                stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            )
+            with running_command.stdout() as stdout:
+                for line in stdout:
+                    step_logger.info(line.rstrip().decode(errors="replace"))
+                results = running_command.wait()
+        else:
+            # This allows for calling Python functions directly
+            results = command(step_logger)
         step_end_time = datetime.now()
         step_duration = step_end_time - step_start_time
         step_logger.info(
@@ -948,17 +944,19 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
             step_end_time,
             step_duration,
         )
+    except Exception as e:
+        if isinstance(e, CommandException):
+            msg = f"Compression step {step} returned non-zero exit code {e.returncode}"
+        else:
+            msg = f"Compression step {step} failed with the following error: {e}"
+        step_logger.critical(msg)
+        raise CompressionSubprocessError(msg, log_path)
+    finally:
+        # Ensure logs are flushed at the end of the step.
+        # Also prevent double logging in case of retry.
         for handler in step_handlers:
             step_logger.removeHandler(handler)
             handler.close()
-    else:
-        # This allows for calling Python functions directly
-        try:
-            results = command(step_logger)
-        except Exception as exc:
-            msg = f"Compression step {step} failed with the following error: {exc}"
-            step_logger.critical(msg)
-            raise CompressionSubprocessError(msg, log_path)
 
     return results
 
