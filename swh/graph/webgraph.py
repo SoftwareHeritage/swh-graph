@@ -671,7 +671,7 @@ def _labels_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command
         "fmphgo-labels-order",
         "--num-labels",
         num_labels[0],
-        Command.zstdcat(f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst"),
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst",
         f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
         f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
         conf=conf,
