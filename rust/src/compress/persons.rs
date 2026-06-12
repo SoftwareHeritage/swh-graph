@@ -20,9 +20,10 @@ pub use crate::person::{
 };
 
 fn iter_persons(path: &Path) -> Result<impl Iterator<Item = PseudonymizedPerson<Box<[u8]>>>> {
-    let persons_file =
-        File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
-    Ok(BufReader::new(persons_file).lines().map(move |person| {
+    let file = File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
+    let decoder = zstd::stream::read::Decoder::new(file)
+        .with_context(|| format!("Could not decompress {} as zstd", path.display()))?;
+    Ok(BufReader::new(decoder).lines().map(move |person| {
         PseudonymizedPerson(
             person
                 .expect("Could not decode persons as UTF-8")
