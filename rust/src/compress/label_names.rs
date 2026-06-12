@@ -11,6 +11,9 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use anyhow::{ensure, Context, Result};
 use dsi_progress_logger::{progress_logger, ProgressLog};
+use ph::fmph::GOFunction;
+use ph::fmph::{GOBuildConf, GOConf};
+use ph::seeds::TwoToPowerBitsStatic;
 use rayon::prelude::*;
 
 use crate::labels::LabelNameId;
@@ -25,7 +28,7 @@ impl<T: AsRef<[u8]>> Hash for LabelName<T> {
     }
 }
 
-pub type LabelNameMphf = ph::fmph::GOFunction;
+pub type LabelNameMphf = GOFunction<TwoToPowerBitsStatic<4>, TwoToPowerBitsStatic<1>>;
 
 fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>> {
     let base64 = base64_simd::STANDARD;
@@ -64,7 +67,8 @@ pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
     let key_set =
         ph::fmph::keyset::CachedKeySet::dynamic_with_len(get_iter, num_labels, clone_threshold);
 
-    let mphf = LabelNameMphf::new(key_set);
+    let conf = GOBuildConf::new(GOConf::default_bigger());
+    let mphf = LabelNameMphf::with_conf(key_set, conf);
     let len = mphf.len();
     ensure!(
         len == num_labels,

@@ -11,6 +11,8 @@ use std::sync::OnceLock;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
+use ph::fmph::GOFunction;
+use ph::fmph::{GOBuildConf, GOConf};
 use rayon::prelude::*;
 
 // For backward compatibility
@@ -54,7 +56,8 @@ pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonFmphgo> {
     let key_set =
         ph::fmph::keyset::CachedKeySet::dynamic_with_len(get_iter, num_persons, clone_threshold);
 
-    let mphf = ph::fmph::GOFunction::new(key_set);
+    let conf = GOBuildConf::new(GOConf::default_bigger());
+    let mphf = GOFunction::with_conf(key_set, conf);
     let len = mphf.len();
     ensure!(
         len == num_persons,

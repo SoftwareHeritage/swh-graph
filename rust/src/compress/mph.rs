@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use anyhow::{ensure, Result};
 use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
+use ph::fmph::GOFunction;
 use ph::fmph::{GOBuildConf, GOConf};
 
 use crate::compress::zst_dir::*;
@@ -61,7 +62,7 @@ pub fn build_swhids_mphf(swhids_dir: PathBuf, num_nodes: usize) -> Result<SwhidF
         ph::fmph::keyset::CachedKeySet::dynamic_with_len(get_iter, num_nodes, clone_threshold);
 
     let conf = GOBuildConf::new(GOConf::default_bigger());
-    let mphf = ph::fmph::GOFunction::with_conf(key_set, conf);
+    let mphf = GOFunction::with_conf(key_set, conf);
     let len = mphf.len();
     ensure!(
         len == num_nodes,
