@@ -29,19 +29,18 @@ pub type LabelNameMphf = ph::fmph::GOFunction;
 
 fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>> {
     let base64 = base64_simd::STANDARD;
-    let labels_file =
-        File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
-    Ok(BufReader::new(labels_file)
-        .lines()
-        .map(move |label_base64| {
-            let label_base64 = label_base64.expect("Could not read line");
-            LabelName(
-                base64
-                    .decode_to_vec(&label_base64)
-                    .unwrap_or_else(|_| panic!("Label {label_base64}, could not be base64-decoded"))
-                    .into_boxed_slice(),
-            )
-        }))
+    let file = File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
+    let decoder = zstd::stream::read::Decoder::new(file)
+        .with_context(|| format!("Could not decompress {} as zstd", path.display()))?;
+    Ok(BufReader::new(decoder).lines().map(move |label_base64| {
+        let label_base64 = label_base64.expect("Could not read line");
+        LabelName(
+            base64
+                .decode_to_vec(&label_base64)
+                .unwrap_or_else(|_| panic!("Label {label_base64}, could not be base64-decoded"))
+                .into_boxed_slice(),
+        )
+    }))
 }
 
 /// Reads base64-encoded labels from the path and return a MPH function for them.
