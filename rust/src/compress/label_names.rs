@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use anyhow::{ensure, Context, Result};
-use dsi_progress_logger::{progress_logger, ProgressLog};
+use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
 use rayon::prelude::*;
 
 use crate::labels::LabelNameId;
@@ -27,25 +27,40 @@ impl<T: AsRef<[u8]>> Hash for LabelName<T> {
 
 pub type LabelNameMphf = ph::fmph::GOFunction;
 
-fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>> {
-    let base64 = base64_simd::STANDARD;
-    let file = File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
-    let decoder = zstd::stream::read::Decoder::new(file)
-        .with_context(|| format!("Could not decompress {} as zstd", path.display()))?;
-    Ok(BufReader::new(decoder).lines().map(move |label_base64| {
-        let label_base64 = label_base64.expect("Could not read line");
-        LabelName(
-            base64
-                .decode_to_vec(&label_base64)
-                .unwrap_or_else(|_| panic!("Label {label_base64}, could not be base64-decoded"))
-                .into_boxed_slice(),
+macro_rules! iter_labels {
+    ($path:expr, $adapt:expr) => {{
+        let path = $path;
+        let base64 = base64_simd::STANDARD;
+        let file =
+            File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
+        let decoder = zstd::stream::read::Decoder::new(file)
+            .with_context(|| format!("Could not decompress {} as zstd", path.display()))?;
+        Ok(
+            ($adapt)(BufReader::new(decoder).lines()).map(move |label_base64| {
+                let label_base64 = label_base64.expect("Could not read line");
+                LabelName(
+                    base64
+                        .decode_to_vec(&label_base64)
+                        .unwrap_or_else(|_| {
+                            panic!("Label {label_base64}, could not be base64-decoded")
+                        })
+                        .into_boxed_slice(),
+                )
+            }),
         )
-    }))
+    }};
+}
+fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>> {
+    iter_labels!(path, |iter| iter)
+}
+fn par_iter_labels(path: &Path) -> Result<impl ParallelIterator<Item = LabelName<Box<[u8]>>>> {
+    iter_labels!(path, rayon::iter::ParallelBridge::par_bridge)
 }
 
 /// Reads base64-encoded labels from the path and return a MPH function for them.
 pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
     let pass_counter = AtomicU32::new(1);
+
     let iter_labels = || {
         let pass_counter = pass_counter.fetch_add(1, Ordering::Relaxed);
         let mut pl = progress_logger!(
@@ -54,12 +69,32 @@ pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
             local_speed = true,
             expected_updates = Some(num_labels),
         );
-        pl.start(format!("Reading labels (pass #{pass_counter})"));
+        pl.start(format!(
+            "Reading labels (pass #{pass_counter} sequentially)"
+        ));
         iter_labels(&path)
             .expect("Could not read labels")
             .inspect(move |_| pl.light_update())
     };
-    let get_iter = iter_labels; // no support for parallel iteration
+    let par_iter_labels = || {
+        let pass_counter = pass_counter.fetch_add(1, Ordering::Relaxed);
+        let mut pl = concurrent_progress_logger!(
+            display_memory = true,
+            item_name = "label",
+            local_speed = true,
+            expected_updates = Some(num_labels),
+        );
+        pl.start(format!("Reading labels (pass #{pass_counter} in parallel)"));
+        par_iter_labels(&path)
+            .expect("Could not read labels")
+            .map_with(pl, |pl, label| {
+                // no inspect_with() in rayon :(
+                pl.light_update();
+                label
+            })
+    };
+
+    let get_iter = (iter_labels, par_iter_labels);
     let clone_threshold = 1_000_000; // arbitrary
     let key_set =
         ph::fmph::keyset::CachedKeySet::dynamic_with_len(get_iter, num_labels, clone_threshold);
