@@ -18,6 +18,7 @@ use webgraph::graphs::vec_graph::LabeledVecGraph;
 use crate::graph::*;
 use crate::labels::{
     Branch, DirEntry, EdgeLabel, LabelNameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
+    VisitType,
 };
 use crate::properties;
 use crate::views::{GraphAccessRecord, GraphSpy, PropertyAccess};
@@ -194,11 +195,18 @@ impl GraphBuilder {
     }
 
     /// Adds a labeled ori->snp arc to the graph
-    pub fn ori_arc(&mut self, src: NodeId, dst: NodeId, status: VisitStatus, timestamp: u64) {
+    pub fn ori_arc(
+        &mut self,
+        src: NodeId,
+        dst: NodeId,
+        status: VisitStatus,
+        timestamp: u64,
+        visit_type: VisitType,
+    ) {
         self.l_arc(
             src,
             dst,
-            Visit::new(status, timestamp).expect("invalid timestamp"),
+            Visit::new(status, timestamp, visit_type).expect("invalid timestamp"),
         );
     }
 
@@ -777,7 +785,13 @@ where
                         );
                     }
                     EdgeLabel::Visit(label) => {
-                        builder.ori_arc(new_src, new_dst, label.status(), label.timestamp());
+                        builder.ori_arc(
+                            new_src,
+                            new_dst,
+                            label.status(),
+                            label.timestamp(),
+                            label.visit_type(),
+                        );
                     }
                 }
             }
