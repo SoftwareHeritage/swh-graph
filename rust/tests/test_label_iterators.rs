@@ -319,7 +319,7 @@ fn build_ori_snp_graph_preds() -> Result<BuiltGraph> {
     builder
         .node(swhid!(swh:1:snp:0000000000000000000000000000000000000001))?
         .done();
-    builder.ori_arc(0, 1, VisitStatus::Full, 1000001000);
+    builder.ori_arc(0, 1, VisitStatus::Full, 1000001000, VisitType::Unknown);
     builder.done()
 }
 
@@ -397,7 +397,11 @@ fn test_labeled_predecessors_ori_snp() -> Result<()> {
 
     let expected = vec![(
         0,
-        vec![Visit::new(VisitStatus::Full, 1000001000).unwrap().into()],
+        vec![
+            Visit::new(VisitStatus::Full, 1000001000, VisitType::Unknown)
+                .unwrap()
+                .into(),
+        ],
     )];
 
     let snp1_preds: Vec<(_, Vec<_>)> = graph
