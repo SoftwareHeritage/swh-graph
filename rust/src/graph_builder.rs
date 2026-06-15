@@ -785,7 +785,13 @@ where
                         );
                     }
                     EdgeLabel::Visit(label) => {
-                        builder.ori_arc(new_src, new_dst, label.status(), label.timestamp());
+                        builder.ori_arc(
+                            new_src,
+                            new_dst,
+                            label.status(),
+                            label.timestamp(),
+                            label.visit_type(),
+                        );
                     }
                 }
             }
