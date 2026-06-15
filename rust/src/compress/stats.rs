@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -54,12 +54,6 @@ pub fn estimate_edge_count(dataset_dir: &PathBuf, allowed_node_types: &[NodeType
     }
     if allowed_node_types.contains(&NodeType::Origin) {
         readers.extend(get_dataset_readers(
-            // Count the source...
-            dataset_dir.clone(),
-            "origin_visit_status",
-        )?);
-        readers.extend(get_dataset_readers(
-            // ... and destination of each arc
             dataset_dir.clone(),
             "origin_visit_status",
         )?);

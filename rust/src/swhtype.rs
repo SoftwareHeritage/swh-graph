@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -40,8 +40,8 @@ pub enum NodeType {
     ///
     /// Software development within a specific project is
     /// essentially a time-indexed series of copies of a single “root” directory
-    /// that contains the entire project source code. Software evolves when a d
-    /// eveloper modifies the content of one or more files in that directory
+    /// that contains the entire project source code. Software evolves when a
+    /// developer modifies the content of one or more files in that directory
     /// and record their changes.
     ///
     /// Each recorded copy of the root directory is known as a “revision”. It
@@ -137,6 +137,7 @@ impl NodeType {
         + (!Self::NUMBER_OF_TYPES.is_power_of_two()) as usize;
 
     /// Convert a type to the str used in the SWHID
+    #[inline(always)]
     pub fn to_str(&self) -> &'static str {
         match self {
             Self::Content => "cnt",
@@ -152,6 +153,7 @@ impl NodeType {
     ///
     /// In all cases using this method is both safer and more concise than
     /// `(node_type as isize).try_into().unwrap()`.
+    #[inline(always)]
     pub fn to_u8(&self) -> u8 {
         match self {
             Self::Content => 0,
@@ -197,6 +199,30 @@ impl Default for NodeConstraint {
 }
 
 impl NodeConstraint {
+    /// Builds a `NodeConstraint` that only allows the given types
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::collections::HashSet;
+    /// # use swh_graph::{NodeConstraint, NodeType};
+    ///
+    /// let only_revrels = NodeConstraint::from_types([NodeType::Revision, NodeType::Release]);
+    ///
+    /// assert!(!only_revrels.matches(NodeType::Directory));
+    /// assert!(!only_revrels.matches(NodeType::Content));
+    /// assert!(only_revrels.matches(NodeType::Release));
+    /// assert!(only_revrels.matches(NodeType::Revision));
+    /// assert!(!only_revrels.matches(NodeType::Origin));
+    /// ```
+    pub fn from_types(node_types: impl IntoIterator<Item = NodeType>) -> Self {
+        let mut bits = 0;
+        for node_type in node_types.into_iter() {
+            bits |= 1 << node_type.to_u8();
+        }
+        Self(bits)
+    }
+
     /// # Examples
     ///
     /// ```
@@ -216,6 +242,7 @@ impl NodeConstraint {
     ///     assert!(all_nodes.matches(node_type));
     /// }
     /// ```
+    #[inline(always)]
     pub fn matches(&self, node_type: NodeType) -> bool {
         self.0 & (1 << node_type.to_u8()) != 0
     }
@@ -246,11 +273,11 @@ impl FromStr for NodeConstraint {
         if s == "*" {
             Ok(NodeConstraint::default())
         } else {
-            let mut node_types = 0;
-            for s in s.split(',') {
-                node_types |= 1 << s.parse::<NodeType>()?.to_u8();
-            }
-            Ok(NodeConstraint(node_types))
+            Ok(Self::from_types(
+                s.split(',')
+                    .map(|s| s.parse::<NodeType>())
+                    .collect::<Result<Vec<_>, _>>()?,
+            ))
         }
     }
 }
@@ -279,6 +306,44 @@ impl core::fmt::Display for NodeConstraint {
             write!(f, "{}", type_strings.join(","))?;
         }
         Ok(())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for NodeConstraint {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for NodeConstraint {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        deserializer.deserialize_str(NodeConstraintVisitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct NodeConstraintVisitor;
+
+#[cfg(feature = "serde")]
+impl serde::de::Visitor<'_> for NodeConstraintVisitor {
+    type Value = NodeConstraint;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a node type constraint")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        value.parse().map_err(E::custom)
     }
 }
 

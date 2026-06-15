@@ -1,4 +1,4 @@
-// Copyright (C) 2024  The Software Heritage developers
+// Copyright (C) 2024-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::Result;
 
 use crate::graph::*;
+use crate::labels::EdgeLabel;
 use crate::properties;
 use crate::{NodeType, SWHID};
 
@@ -76,6 +77,7 @@ pub enum GraphAccessRecord {
 
     // SwhLabeledForwardGraph
     LabeledSuccessors(NodeId),
+    UntypedLabeledSuccessors(NodeId),
 
     // SwhBackwardGraph
     Predecessors(NodeId),
@@ -83,13 +85,16 @@ pub enum GraphAccessRecord {
 
     // SwhLabeledBackwardGraph
     LabeledPredecessors(NodeId),
+    UntypedLabeledPredecessors(NodeId),
 }
 
+#[derive(Debug)]
 struct GraphSpyInner<G: SwhGraph> {
     graph: G,
 }
 
 /// Wraps a graph, and records calls to its methods, useful for tests
+#[derive(Debug)]
 pub struct GraphSpy<
     G: SwhGraph,
     MAPS: properties::MaybeMaps = properties::NoMaps,
@@ -233,7 +238,7 @@ impl<G, MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES> SwhLabeledForw
     for GraphSpy<G, MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 where
     G: SwhLabeledForwardGraph,
-    MAPS: properties::MaybeMaps,
+    MAPS: properties::Maps,
     TIMESTAMPS: properties::MaybeTimestamps,
     PERSONS: properties::MaybePersons,
     CONTENTS: properties::MaybeContents,
@@ -250,8 +255,18 @@ where
         Self: 'succ;
 
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
-        self.record(GraphAccessRecord::LabeledSuccessors(node_id));
+        self.record(GraphAccessRecord::UntypedLabeledSuccessors(node_id));
         self.inner.graph.untyped_labeled_successors(node_id)
+    }
+
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        self.record(GraphAccessRecord::LabeledSuccessors(node_id));
+        self.inner.graph.labeled_successors(node_id)
     }
 }
 
@@ -285,7 +300,7 @@ impl<G, MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES> SwhLabeledBack
     for GraphSpy<G, MAPS, TIMESTAMPS, PERSONS, CONTENTS, STRINGS, LABELNAMES>
 where
     G: SwhLabeledBackwardGraph,
-    MAPS: properties::MaybeMaps,
+    MAPS: properties::Maps,
     TIMESTAMPS: properties::MaybeTimestamps,
     PERSONS: properties::MaybePersons,
     CONTENTS: properties::MaybeContents,
@@ -302,8 +317,17 @@ where
         Self: 'succ;
 
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
-        self.record(GraphAccessRecord::LabeledPredecessors(node_id));
+        self.record(GraphAccessRecord::UntypedLabeledPredecessors(node_id));
         self.inner.graph.untyped_labeled_predecessors(node_id)
+    }
+    fn labeled_predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        self.record(GraphAccessRecord::LabeledPredecessors(node_id));
+        self.inner.graph.labeled_predecessors(node_id)
     }
 }
 

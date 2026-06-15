@@ -1,11 +1,10 @@
-# Copyright (C) 2024 The Software Heritage developers
+# Copyright (C) 2024-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
-from pathlib import Path
 from typing import Dict, List
 
 import luigi
@@ -19,15 +18,13 @@ from swh.export.luigi import (
     merge_lists,
 )
 
-from .compressed_graph import _tables_for_object_types
-
 
 class SelectTopGithubOrigins(luigi.Task):
     """Writes a list of origins selected from popular Github repositories"""
 
     local_export_path = luigi.PathParameter()
     num_origins = luigi.IntParameter(default=1)
-    query = luigi.Parameter(
+    query = luigi.StrParameter(
         default="language:python",
         description="Search query to use to filter Github repositories",
     )
@@ -63,7 +60,7 @@ class SubdatasetOriginsFromFile(luigi.Task):
     """Reads a list of origins from a local file, computed externally to Luigi."""
 
     local_export_path = luigi.PathParameter()
-    path = luigi.Parameter(
+    path = luigi.StrParameter(
         default="",
         description="What file to read origins from. "
         "Defaults to local_export_path / origins.txt",
@@ -87,7 +84,7 @@ class ListSwhidsForSubdataset(luigi.Task):
         description="Which algorithm to use to generate the list of origins",
     )
     local_export_path = luigi.PathParameter()
-    grpc_api = luigi.Parameter()
+    grpc_api = luigi.StrParameter()
 
     def requires(self) -> luigi.Task:
         """Returns an instance of ``self.select_task``"""
@@ -145,18 +142,18 @@ class CreateSubdatasetOnAthena(luigi.Task):
     """Generates an ORC export from an existing ORC export, filtering out SWHIDs
     not in the given list."""
 
-    local_export_path: Path = luigi.PathParameter()
-    s3_parent_export_path: str = S3PathParameter(  # type: ignore[assignment]
+    local_export_path = luigi.PathParameter()
+    s3_parent_export_path = S3PathParameter(
         description="s3:// URL to the existing complete export",
     )
-    s3_export_path: str = S3PathParameter(  # type: ignore[assignment]
+    s3_export_path = S3PathParameter(
         description="s3:// URL to the export to produce",
     )
     s3_athena_output_location = S3PathParameter()
-    athena_db_name = luigi.Parameter()
-    athena_parent_db_name = luigi.Parameter()
+    athena_db_name = luigi.StrParameter()
+    athena_parent_db_name = luigi.StrParameter()
     object_types = luigi.EnumListParameter(
-        enum=ObjectType, default=list(ObjectType), batch_method=merge_lists
+        enum=ObjectType, default=tuple(ObjectType), batch_method=merge_lists
     )
 
     def requires(self) -> Dict[str, luigi.Task]:
@@ -212,7 +209,7 @@ class CreateSubdatasetOnAthena(luigi.Task):
             "flavor": "subdataset",
             "export_start": start_date.isoformat(),
             "export_end": end_date.isoformat(),
-            "object_types": _tables_for_object_types(self.object_types),
+            "object_types": [obj_type.name for obj_type in self.object_types],
             "parent": parent_meta,
             "hostname": socket.getfqdn(),
             "tool": {

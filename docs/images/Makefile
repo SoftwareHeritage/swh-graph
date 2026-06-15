@@ -1,6 +1,7 @@
 GENERATED_IMAGES = \
 	compression_steps.png compression_steps.svg \
-	example-dataset.png example-dataset.svg
+	example-dataset.png example-dataset.svg \
+	graph_layers.svg node_relations.svg
 
 all: $(GENERATED_IMAGES)
 

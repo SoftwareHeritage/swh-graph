@@ -7,12 +7,12 @@ repos:
       - id: check-yaml
 
   - repo: https://github.com/python/black
-    rev: 25.9.0
+    rev: 26.5.1
     hooks:
       - id: black
 
   - repo: https://github.com/PyCQA/isort
-    rev: 6.1.0
+    rev: 8.0.1
     hooks:
       - id: isort
 
@@ -20,10 +20,10 @@ repos:
     rev: 7.3.0
     hooks:
       - id: flake8
-        additional_dependencies: [flake8-bugbear==24.12.12, flake8-pyproject]
+        additional_dependencies: [flake8-bugbear==25.11.29, flake8-pyproject]
 
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
+    rev: v2.4.2
     hooks:
       - id: codespell
         name: Check source code spelling
@@ -36,11 +36,31 @@ repos:
         name: Check commit message spelling
         stages: [commit-msg]
 
+  - repo: https://github.com/nanoufo/copyright-hook
+    rev: v1.1.0
+    hooks:
+      - id: update-copyright
+        args: [--required]
+        files: ^.*\.(py|rs)$
+        exclude: >
+          (?x)^(
+            .*__init__.py|
+            docs/conf.py|
+            rust/src/java_compat/mph/gov.rs|
+            rust/src/java_compat/mph/mod.rs|
+            rust/src/java_compat/mph/spooky.rs|
+            rust/src/java_compat/sf/gov3.rs|
+            rust/src/java_compat/sf/mod.rs|
+            rust/tests/gov.rs|
+            rust/src/_tutorial.rs|
+            rust/src/_crash_course.rs
+          )$
+
   - repo: local
     hooks:
       - id: mypy
         name: mypy
-        entry: mypy
+        entry: env MYPY_NUM_WORKERS=8 mypy
         args: [swh]
         pass_filenames: false
         language: system

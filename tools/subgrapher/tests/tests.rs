@@ -1,4 +1,4 @@
-// Copyright (C) 2025  The Software Heritage developers
+// Copyright (C) 2025-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -101,10 +101,11 @@ mod tests {
             swh_subgrapher::process_origins_and_build_subgraph(&graph, origins.into_iter(), true)
                 .unwrap();
 
-        // Check that we found the expected nodes
         assert_eq!(visited.len(), 7); // should contain both origins and the revision
-        assert_eq!(unknown_origins.len(), 1); // the unknown origin
-        assert_eq!(unknown_origins[0], "https://unknown.com/repo");
+        assert_eq!(
+            unknown_origins.into_iter().collect::<Vec<_>>(),
+            vec!["https://unknown.com/repo"]
+        ); // the unknown origin
 
         // Test with empty input
         let (empty_nodes, empty_unknown) =

@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2025 The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -61,7 +61,34 @@ class GraphDownloader(S3Downloader):
             # to be decompressed locally
             subprocess.check_call(["unzstd", "-d", "-q", "--rm", local_file_path])
 
+    def _local_path_size(self) -> int:
+        # override _local_path_size to get accurate download progress bar
+        while True:
+            try:
+                size = 0
+                for f in self.local_path.glob("**/*"):
+                    if f.exists() and f.is_file():
+                        relative_path = f.relative_to(self.local_path)
+                        obj_key = self.prefix + str(relative_path)
+                        zst_path = self.local_path / (str(relative_path) + ".zst")
+                        if obj_key + ".zst" in self.file_size and not zst_path.exists():
+                            # file downloaded was compressed with zstd, return its compressed
+                            # size once it has been uncompressed
+                            size += self.file_size[obj_key + ".zst"]
+                        else:
+                            size += f.stat().st_size
+                return size
+            except FileNotFoundError:
+                # files can be removed or renamed by threads while
+                # globbing them
+                pass
+
     def post_downloads(self) -> None:
+        for file in self.local_path.rglob("**/*.ef"):
+            # silence
+            # https://github.com/vigna/webgraph-rs/commit/b494048f787e3f0a021f6f289d66400bdfb5d5f3
+            file.touch()
+
         if not self.s3_url.startswith(
             tuple(
                 (
@@ -75,7 +102,7 @@ class GraphDownloader(S3Downloader):
             for obj in objects:
                 if obj.key.endswith("meta/compression.json"):
                     # Write it last, to act as a stamp
-                    self._download_file(obj.key)
+                    self._download_file(obj.key, obj=obj)
                     break
             else:
                 raise ValueError(

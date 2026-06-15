@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2023 The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -114,7 +114,7 @@ import collections
 import itertools
 import math
 from pathlib import Path
-from typing import Any, Dict, List, MutableSequence, Optional, Sequence, Set
+from typing import Any, Dict, List, MutableSequence, Optional, Sequence, Set, Tuple
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
@@ -166,16 +166,16 @@ assert set(itertools.chain.from_iterable(_TABLES_PER_OBJECT_TYPE.values())) == s
 )
 
 
-def _tables_for_object_types(object_types: List[str]) -> List[Table]:
+def _tables_for_object_types(object_types: List[str]) -> Tuple[Table]:
     """Returns the list of ORC tables required to produce a compressed graph with
     the given object types."""
     tables = []
     for object_type in object_types:
         tables.extend(_TABLES_PER_OBJECT_TYPE[object_type])
-    return tables
+    return tuple(tables)
 
 
-class ObjectTypesParameter(luigi.Parameter):
+class ObjectTypesParameter(luigi.Parameter[List[str]]):
     """A parameter type whose value is either ``*`` or a set of comma-separated
     object types (eg. ``ori,snp,rel,rev,dir,cnt``).
     """
@@ -237,15 +237,11 @@ class _CompressionStepTask(luigi.Task):
     """
 
     local_export_path = luigi.PathParameter(significant=False)
-    local_sensitive_export_path: Optional[Path] = luigi.OptionalPathParameter(
-        default=None
-    )
-    graph_name = luigi.Parameter(default="graph")
-    local_graph_path: Path = luigi.PathParameter()
-    local_sensitive_graph_path: Optional[Path] = luigi.OptionalPathParameter(
-        default=None
-    )
-    previous_graph_path: Optional[Path] = luigi.OptionalPathParameter(default=None)
+    local_sensitive_export_path = luigi.OptionalPathParameter(default=None)
+    graph_name = luigi.StrParameter(default="graph")
+    local_graph_path = luigi.PathParameter()
+    local_sensitive_graph_path = luigi.OptionalPathParameter(default=None)
+    previous_graph_path = luigi.OptionalPathParameter(default=None)
 
     # TODO: Only add this parameter to tasks that use it
     batch_size = luigi.IntParameter(
@@ -257,15 +253,15 @@ class _CompressionStepTask(luigi.Task):
         """,
     )
 
-    rust_executable_dir = luigi.Parameter(
+    rust_executable_dir = luigi.StrParameter(
         default="",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
     )
 
-    object_types: list[str] = ObjectTypesParameter()  # type: ignore[assignment]
+    object_types = ObjectTypesParameter()
 
-    check_flavor = luigi.Parameter(
+    check_flavor = luigi.StrParameter(
         default="full",
         significant=False,
         description="Flavor for end-to-end check during compression",
@@ -447,6 +443,7 @@ class _CompressionStepTask(luigi.Task):
 
     def requires(self) -> Sequence[luigi.Task]:
         """Returns a list of luigi tasks matching :attr:`PREVIOUS_STEPS`."""
+        assert self.rust_executable_dir != "/"
         requirements_d = {}
         for input_file in self.INPUT_FILES.union(self.SENSITIVE_INPUT_FILES):
             if not self._is_expected_output_file(input_file):
@@ -455,7 +452,7 @@ class _CompressionStepTask(luigi.Task):
                 continue
             for cls in _CompressionStepTask.__subclasses__():
                 if input_file in cls.OUTPUT_FILES.union(cls.SENSITIVE_OUTPUT_FILES):
-                    kwargs = dict(
+                    kwargs: Dict[str, Any] = dict(
                         local_export_path=self.local_export_path,
                         local_sensitive_export_path=self.local_sensitive_export_path,
                         local_sensitive_graph_path=self.local_sensitive_graph_path,
@@ -480,7 +477,7 @@ class _CompressionStepTask(luigi.Task):
                 LocalExport(
                     local_export_path=self.local_export_path,
                     local_sensitive_export_path=self.local_sensitive_export_path,
-                    formats=[Format.orc],  # type: ignore[attr-defined]
+                    formats=(Format.orc,),  # type: ignore[attr-defined]
                     object_types=_tables_for_object_types(self.object_types),
                 )
             )
@@ -501,6 +498,8 @@ class _CompressionStepTask(luigi.Task):
             + [
                 luigi.LocalTarget(
                     f"{self.local_sensitive_graph_path / self.graph_name}{name}"
+                    if self.local_sensitive_graph_path
+                    else None
                 )
                 for name in self.SENSITIVE_OUTPUT_FILES
                 if self.local_sensitive_graph_path is not None
@@ -517,6 +516,8 @@ class _CompressionStepTask(luigi.Task):
         import time
 
         from swh.graph.config import check_config_compress
+
+        assert self.rust_executable_dir != "/"
 
         if self.MINIMUM_OBJECT_TYPES.isdisjoint(set(self.object_types)):
             return
@@ -574,7 +575,6 @@ class _CompressionStepTask(luigi.Task):
             conf["batch_size"] = self.batch_size
         if self.STEP == CompressionStep.LLP and self.gammas:  # type: ignore[attr-defined]
             conf["llp_gammas"] = self.gammas  # type: ignore[attr-defined]
-        conf["rust_executable_dir"] = self.rust_executable_dir
         if self.rust_executable_dir:
             conf["rust_executable_dir"] = self.rust_executable_dir
         if self.previous_graph_path:
@@ -701,7 +701,7 @@ class LabelStats(_CompressionStepTask):
 class Mph(_CompressionStepTask):
     STEP = CompressionStep.MPH
     INPUT_FILES = {".nodes/", ".nodes.count.txt"}
-    OUTPUT_FILES = {".pthash"}
+    OUTPUT_FILES = {".fmphgo"}
     USES_ALL_CPU_THREADS = True
 
     def _large_allocations(self) -> int:
@@ -710,7 +710,7 @@ class Mph(_CompressionStepTask):
 
 class InitialOrder(_CompressionStepTask):
     STEP = CompressionStep.INITIAL_ORDER
-    INPUT_FILES = {".pthash"}
+    INPUT_FILES = {".fmphgo"}
     OUTPUT_FILES = {"-base.order"}
     USES_ALL_CPU_THREADS = True
 
@@ -721,10 +721,10 @@ class InitialOrder(_CompressionStepTask):
 class Bv(_CompressionStepTask):
     STEP = CompressionStep.BV
     EXPORT_AS_INPUT = True
-    _INPUT_FILES = {"-base.order", ".pthash"}
+    _INPUT_FILES = {"-base.order", ".fmphgo"}
     OUTPUT_FILES = {"-base.graph"}
 
-    @property
+    @property  # type: ignore[misc]
     def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
         files = set(self._INPUT_FILES)
         if not self.previous_graph_path:
@@ -765,12 +765,12 @@ class Bfs(_CompressionStepTask):
         "-base.graph",
         "-base.ef",
         "-bfs.roots.txt",
-        ".pthash",
+        ".fmphgo",
         "-base.order",
     }
     OUTPUT_FILES = {"-bfs.order"}
 
-    @property
+    @property  # type: ignore[misc]
     def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
         files = set(self._INPUT_FILES)
         if not self.previous_graph_path:
@@ -816,7 +816,7 @@ class Llp(_CompressionStepTask):
     INPUT_FILES = {"-bfs-simplified.graph", "-bfs-simplified.ef", "-bfs-simplified.dcf"}
     OUTPUT_FILES = {"-llp.order"}
 
-    gammas = luigi.Parameter(significant=False, default=None)
+    gammas = luigi.OptionalStrParameter(significant=False, default=None)
 
     def _large_allocations(self) -> int:
         # TODO: this was written for the Java implementation; update this for Rust
@@ -881,9 +881,9 @@ class Ef(_CompressionStepTask):
 class ComposeOrders(_CompressionStepTask):
     STEP = CompressionStep.COMPOSE_ORDERS
     _INPUT_FILES = {"-base.order", "-bfs.order", "-llp.order"}
-    OUTPUT_FILES = {".pthash.order"}
+    OUTPUT_FILES = {".fmphgo.order"}
 
-    @property
+    @property  # type: ignore[misc]
     def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
         files = set(self._INPUT_FILES)
         if not self.previous_graph_path:
@@ -934,7 +934,7 @@ class TransposeEf(_CompressionStepTask):
 
 class Maps(_CompressionStepTask):
     STEP = CompressionStep.MAPS
-    INPUT_FILES = {".pthash", ".pthash.order", ".nodes/"}
+    INPUT_FILES = {".fmphgo", ".fmphgo.order", ".nodes/"}
     OUTPUT_FILES = {".node2swhid.bin", ".node2type.bin"}
 
     def _large_allocations(self) -> int:
@@ -969,7 +969,7 @@ class PersonsStats(_CompressionStepTask):
 class MphPersons(_CompressionStepTask):
     STEP = CompressionStep.MPH_PERSONS
     INPUT_FILES = {".persons.csv.zst", ".persons.count.txt"}
-    OUTPUT_FILES = {".persons.pthash"}
+    OUTPUT_FILES = {".persons.fmphgo"}
     MINIMUM_OBJECT_TYPES = {"rel", "rev"}
 
     def _large_allocations(self) -> int:
@@ -980,7 +980,7 @@ class MphPersons(_CompressionStepTask):
 
 class ExtractFullnames(_CompressionStepTask):
     STEP = CompressionStep.EXTRACT_FULLNAMES
-    INPUT_FILES = {".persons.pthash"}
+    INPUT_FILES = {".persons.fmphgo"}
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = set()
     SENSITIVE_OUTPUT_FILES = {".persons", ".persons.lengths"}
@@ -1005,14 +1005,14 @@ class FullnamesEf(_CompressionStepTask):
 class NodeProperties(_CompressionStepTask):
     STEP = CompressionStep.NODE_PROPERTIES
 
-    @property
+    @property  # type: ignore[misc]
     def INPUT_FILES(self) -> Set[str]:  # type: ignore[override]
         if {"rel", "rev"}.isdisjoint(self.object_types):
-            return {".pthash.order", ".pthash"}
+            return {".fmphgo.order", ".fmphgo"}
         else:
             return self._INPUT_FILES
 
-    _INPUT_FILES = {".pthash.order", ".pthash", ".persons.pthash"}
+    _INPUT_FILES = {".fmphgo.order", ".fmphgo", ".persons.fmphgo"}
 
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
@@ -1088,10 +1088,10 @@ class NodeProperties(_CompressionStepTask):
         return self._mph_size() + self._persons_mph_size() + subtask_size
 
 
-class PthashLabels(_CompressionStepTask):
+class MphLabels(_CompressionStepTask):
     STEP = CompressionStep.MPH_LABELS
     INPUT_FILES = {".labels.csv.zst", ".labels.count.txt"}
-    OUTPUT_FILES = {".labels.pthash"}
+    OUTPUT_FILES = {".labels.fmphgo"}
     MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     def _large_allocations(self) -> int:
@@ -1100,8 +1100,8 @@ class PthashLabels(_CompressionStepTask):
 
 class LabelsOrder(_CompressionStepTask):
     STEP = CompressionStep.LABELS_ORDER
-    INPUT_FILES = {".labels.csv.zst", ".labels.pthash", ".labels.count.txt"}
-    OUTPUT_FILES = {".labels.pthash.order"}
+    INPUT_FILES = {".labels.csv.zst", ".labels.fmphgo", ".labels.count.txt"}
+    OUTPUT_FILES = {".labels.fmphgo.order"}
     MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     def _large_allocations(self) -> int:
@@ -1125,10 +1125,10 @@ class FclLabels(_CompressionStepTask):
 class EdgeLabels(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS
     INPUT_FILES = {
-        ".labels.pthash",
-        ".labels.pthash.order",
-        ".pthash",
-        ".pthash.order",
+        ".labels.fmphgo",
+        ".labels.fmphgo.order",
+        ".fmphgo",
+        ".fmphgo.order",
     }
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
@@ -1144,25 +1144,32 @@ class EdgeLabels(_CompressionStepTask):
     def _large_allocations(self) -> int:
         import multiprocessing
 
+        import psutil
+
         # See ExtractNodes._large_allocations for this constant
         orc_buffers_size = 256_000_000
 
         nb_orc_readers = multiprocessing.cpu_count()
 
+        # ParSortPair's internal buffers, which default to webgraph::utils::MemoryUsage,
+        # which itself defaults to half the total memory
+        sort_buffers = psutil.virtual_memory().total / 2
+
         return (
             orc_buffers_size * nb_orc_readers
             + self._mph_size()
             + self._labels_mph_size()
+            + sort_buffers
         )
 
 
 class EdgeLabelsTranspose(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS_TRANSPOSE
     INPUT_FILES = {
-        ".labels.pthash",
-        ".labels.pthash.order",
-        ".pthash",
-        ".pthash.order",
+        ".labels.fmphgo",
+        ".labels.fmphgo.order",
+        ".fmphgo",
+        ".fmphgo.order",
     }
     EXPORT_AS_INPUT = True
     OUTPUT_FILES = {
@@ -1178,15 +1185,22 @@ class EdgeLabelsTranspose(_CompressionStepTask):
     def _large_allocations(self) -> int:
         import multiprocessing
 
+        import psutil
+
         # See ExtractNodes._large_allocations for this constant
         orc_buffers_size = 256_000_000
 
         nb_orc_readers = multiprocessing.cpu_count()
 
+        # ParSortPair's internal buffers, which default to webgraph::utils::MemoryUsage,
+        # which itself defaults to half the total memory
+        sort_buffers = psutil.virtual_memory().total / 2
+
         return (
             orc_buffers_size * nb_orc_readers
             + self._mph_size()
             + self._labels_mph_size()
+            + sort_buffers
         )
 
 
@@ -1356,6 +1370,7 @@ def _make_dot_diagram() -> str:
             CompressionStep.BV_EF,
             CompressionStep.LLP,
             CompressionStep.COMPOSE_ORDERS,
+            CompressionStep.INITIAL_ORDER,
         } or "BFS" in str(cls.STEP):
             s.write(f"        {cls.STEP};\n")
             for filename in itertools.chain(
@@ -1427,15 +1442,11 @@ def _make_dot_diagram() -> str:
 
 class CompressGraph(luigi.Task):
     local_export_path = luigi.PathParameter(significant=False)
-    local_sensitive_export_path: Optional[Path] = luigi.OptionalPathParameter(
-        default=None
-    )
-    graph_name = luigi.Parameter(default="graph")
-    local_graph_path: Path = luigi.PathParameter()
-    local_sensitive_graph_path: Optional[Path] = luigi.OptionalPathParameter(
-        default=None
-    )
-    previous_graph_path: Optional[Path] = luigi.OptionalPathParameter(default=None)
+    local_sensitive_export_path = luigi.OptionalPathParameter(default=None)
+    graph_name = luigi.StrParameter(default="graph")
+    local_graph_path = luigi.PathParameter()
+    local_sensitive_graph_path = luigi.OptionalPathParameter(default=None)
+    previous_graph_path = luigi.OptionalPathParameter(default=None)
     batch_size = luigi.IntParameter(
         default=0,
         significant=False,
@@ -1445,17 +1456,15 @@ class CompressGraph(luigi.Task):
         """,
     )
 
-    rust_executable_dir = luigi.Parameter(
+    rust_executable_dir = luigi.StrParameter(
         default="",
         significant=False,
         description="Path to the Rust executable used to manipulate the graph.",
     )
 
-    object_types: list[str] = ObjectTypesParameter(  # type: ignore[assignment]
-        default=list(_TABLES_PER_OBJECT_TYPE)
-    )
+    object_types = ObjectTypesParameter(default=list(_TABLES_PER_OBJECT_TYPE))
 
-    check_flavor = luigi.Parameter(
+    check_flavor = luigi.StrParameter(
         default="full",
         significant=False,
         description="Flavor for end-to-end check during compression",
@@ -1464,7 +1473,7 @@ class CompressGraph(luigi.Task):
     def requires(self) -> List[luigi.Task]:
         """Returns a :class:`LocalExport` task, and leaves of the compression dependency
         graph"""
-        kwargs = dict(
+        kwargs: Dict[str, Any] = dict(
             local_export_path=self.local_export_path,
             local_sensitive_export_path=self.local_sensitive_export_path,
             local_sensitive_graph_path=self.local_sensitive_graph_path,
@@ -1489,10 +1498,10 @@ class CompressGraph(luigi.Task):
         local_export = LocalExport(
             local_export_path=self.local_export_path,
             local_sensitive_export_path=self.local_sensitive_export_path,
-            formats=[Format.orc],  # type: ignore[attr-defined]
+            formats=(Format.orc,),  # type: ignore[attr-defined]
             object_types=_tables_for_object_types(self.object_types),
         )
-        fullname_tasks = (
+        fullname_tasks: List[luigi.Task] = (
             [ExtractFullnames(**kwargs), FullnamesEf(**kwargs)]
             if issubclass(local_export.export_task_type, ExportGraph)
             and not {"rel", "rev"}.isdisjoint(set(self.object_types))
@@ -1519,7 +1528,11 @@ class CompressGraph(luigi.Task):
 
     def output(self) -> List[luigi.LocalTarget]:
         """Returns the ``meta/*.json`` targets"""
-        return [self._export_meta(), self._compression_meta()]
+        outputs = [self._export_meta(), self._compression_meta()]
+
+        if (target := self._sensitive_compression_meta()) is not None:
+            outputs.append(target)
+        return outputs
 
     def _export_meta(self) -> luigi.LocalTarget:
         """Returns the metadata on the dataset export"""
@@ -1528,6 +1541,14 @@ class CompressGraph(luigi.Task):
     def _compression_meta(self) -> luigi.LocalTarget:
         """Returns the metadata on the compression pipeline"""
         return luigi.LocalTarget(self.local_graph_path / "meta/compression.json")
+
+    def _sensitive_compression_meta(self) -> Optional[luigi.LocalTarget]:
+        """Returns the metadata on the compression pipeline"""
+        if self.local_sensitive_graph_path is None:
+            return None
+        return luigi.LocalTarget(
+            self.local_sensitive_graph_path / "meta/compression.json"
+        )
 
     def run(self):
         """Runs the full compression pipeline, then writes :file:`meta/compression.json`
@@ -1596,6 +1617,10 @@ class CompressGraph(luigi.Task):
         )
         with self._compression_meta().open("w") as fd:
             json.dump(meta, fd, indent=4)
+
+        if (target := self._sensitive_compression_meta()) is not None:
+            with target.open("w") as fd:
+                json.dump(meta, fd, indent=4)
 
         for path in step_stamp_paths:
             path.unlink()
@@ -1695,7 +1720,7 @@ class UploadGraphToS3(luigi.Task):
         client = luigi.contrib.s3.S3Client()
 
         relative_path = path.relative_to(self.local_graph_path)
-        if path.suffix == ".bin":
+        if path.suffix == ".bin" and "node2swhid" not in path.name:
             # Large sparse file; store it compressed on S3.
             with tempfile.NamedTemporaryFile(prefix=path.stem, suffix=".bin.zst") as fd:
                 self.__status_messages[path] = f"Compressing {relative_path}"
@@ -1731,8 +1756,8 @@ class DownloadGraphFromS3(luigi.Task):
                 --s3-graph-path=s3://softwareheritage/graph/swh_2022-11-08/compressed/
     """
 
-    local_graph_path: Path = luigi.PathParameter()
-    s3_graph_path: str = S3PathParameter(significant=False)  # type: ignore[assignment]
+    local_graph_path = luigi.PathParameter()
+    s3_graph_path = S3PathParameter(significant=False)
 
     def requires(self) -> List[luigi.Task]:
         """Returns a :class:`UploadGraphToS3` task that writes local files to S3."""
@@ -1769,7 +1794,8 @@ class LocalGraph(luigi.Task):
     :class:`ExportGraph` or via :class:`DownloadGraphFromS3`.
     """
 
-    local_graph_path: Path = luigi.PathParameter()
+    local_graph_path = luigi.PathParameter()
+    local_sensitive_graph_path = luigi.OptionalPathParameter(default=None)
     compression_task_type = luigi.TaskParameter(
         default=DownloadGraphFromS3,
         significant=False,
@@ -1787,6 +1813,7 @@ class LocalGraph(luigi.Task):
             return [
                 CompressGraph(
                     local_graph_path=self.local_graph_path,
+                    local_sensitive_graph_path=self.local_sensitive_graph_path,
                 )
             ]
         elif issubclass(self.compression_task_type, DownloadGraphFromS3):
@@ -1803,7 +1830,16 @@ class LocalGraph(luigi.Task):
 
     def output(self) -> List[luigi.Target]:
         """Returns stamp and meta paths on the local filesystem."""
-        return [self._meta()]
+        out = [self._meta()]
+        if (target := self._sensitive_meta()) is not None:
+            out.append(target)
+        return out
 
     def _meta(self):
         return luigi.LocalTarget(self.local_graph_path / "meta" / "compression.json")
+
+    def _sensitive_meta(self):
+        if self.local_sensitive_graph_path is not None:
+            return luigi.LocalTarget(
+                self.local_sensitive_graph_path / "meta" / "compression.json"
+            )

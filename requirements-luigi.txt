@@ -1,7 +1,6 @@
-datafusion < 43.0.0  # https://github.com/apache/datafusion/issues/14055
-luigi != 3.5.2  # https://github.com/spotify/luigi/issues/3312
+datafusion != 43.1.0, != 44.0.0   # https://github.com/apache/datafusion/issues/14055
+luigi >= 3.8.1
 pyarrow < 19.0.0  # https://github.com/apache/arrow/issues/45283
 python-magic
 pyzstd
 tqdm
-scancode-toolkit==32.2.1  # output may vary across versions; so we pin it in order to have reproducible datasets

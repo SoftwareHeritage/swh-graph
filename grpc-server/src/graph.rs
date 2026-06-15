@@ -1,4 +1,4 @@
-// Copyright (C) 2025  The Software Heritage developers
+// Copyright (C) 2025-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -96,7 +96,10 @@ impl<G: SwhForwardGraph> SwhForwardGraph for StubLabels<G> {
     }
 }
 
-impl<G: SwhForwardGraph> SwhLabeledForwardGraph for StubLabels<G> {
+impl<G: SwhForwardGraph> SwhLabeledForwardGraph for StubLabels<G>
+where
+    Self: SwhGraphWithProperties<Maps: properties::Maps>,
+{
     type LabeledArcs<'arc>
         = LabeledArcIterator<Empty<u64>>
     where
@@ -137,7 +140,10 @@ impl<G: SwhBackwardGraph> SwhBackwardGraph for StubLabels<G> {
     }
 }
 
-impl<G: SwhBackwardGraph> SwhLabeledBackwardGraph for StubLabels<G> {
+impl<G: SwhBackwardGraph> SwhLabeledBackwardGraph for StubLabels<G>
+where
+    Self: SwhGraphWithProperties<Maps: properties::Maps>,
+{
     type LabeledArcs<'arc>
         = LabeledArcIterator<Empty<u64>>
     where
@@ -243,7 +249,10 @@ fn succ_to_labeled_succ(node_id: NodeId) -> (NodeId, Empty<u64>) {
     (node_id, empty())
 }
 
-impl<G: SwhLabeledForwardGraph> SwhLabeledForwardGraph for StubBackwardArcs<G> {
+impl<G: SwhLabeledForwardGraph> SwhLabeledForwardGraph for StubBackwardArcs<G>
+where
+    Self: SwhGraphWithProperties<Maps: properties::Maps>,
+{
     type LabeledArcs<'arc>
         = <G as SwhLabeledForwardGraph>::LabeledArcs<'arc>
     where
@@ -275,7 +284,10 @@ impl<G: SwhGraph> SwhBackwardGraph for StubBackwardArcs<G> {
     }
 }
 
-impl<G: SwhGraph> SwhLabeledBackwardGraph for StubBackwardArcs<G> {
+impl<G: SwhGraph> SwhLabeledBackwardGraph for StubBackwardArcs<G>
+where
+    Self: SwhGraphWithProperties<Maps: properties::Maps>,
+{
     type LabeledArcs<'arc>
         = LabeledArcIterator<Empty<u64>>
     where

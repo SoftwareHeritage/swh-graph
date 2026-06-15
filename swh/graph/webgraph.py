@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2023  The Software Heritage developers
+# Copyright (C) 2019-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -206,11 +206,11 @@ def _mph(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         assert len(num_nodes) == 1
     return Rust(
         "swh-graph-compress",
-        "pthash-swhids",
+        "fmphgo-swhids",
         "--num-nodes",
         num_nodes[0],
         f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
-        f"{conf['out_dir']}/{conf['graph_name']}.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo",
         conf=conf,
         env=env,
     )
@@ -228,13 +228,13 @@ def _initial_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Comman
         "swh-graph-compress",
         "initial-order",
         "--mph-algo",
-        "pthash",
+        "fmphgo",
         "--function",
-        f"{conf['out_dir']}/{conf['graph_name']}.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo",
         "--num-nodes",
         num_nodes,
         "--previous-node2swhid",
-        f"{conf['previous_graph_path']}.node2swhid.bin",
+        f"{conf['previous_graph_path']}/{conf['graph_name']}.node2swhid.bin",
         "--target-order",
         f"{conf['out_dir']}/{conf['graph_name']}-base.order",
     )
@@ -257,7 +257,7 @@ def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--allowed-node-types",
         conf.get("object_types", "*"),
         "--mph-algo",
-        "pthash",
+        "fmphgo",
         "--function",
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--num-nodes",
@@ -307,9 +307,9 @@ def _bfs(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "swh-graph-compress",
         "bfs",
         "--mph-algo",
-        "pthash",
+        "fmphgo",
         "--function",
-        f"{conf['out_dir']}/{conf['graph_name']}.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo",
         "--init-roots",
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.roots.txt",
         *order,
@@ -392,7 +392,7 @@ def _compose_orders(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--input",
         f"{conf['out_dir']}/{conf['graph_name']}-llp.order",
         "--output",
-        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         conf=conf,
         env=env,
     )
@@ -404,7 +404,7 @@ def _permute_llp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     # to generate -base.graph
 
     # Note that in the case where -base.order does not exist, we could apply
-    # .pthash.order only instead of applying both -bfs.order and -llp.order
+    # .fmphgo.order only instead of applying both -bfs.order and -llp.order
     # because it may be slightly faster, but we don't for the sake of simplicity.
 
     return Rust(
@@ -467,11 +467,11 @@ def _maps(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--swhids-dir",
         f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
         "--mph-algo",
-        "pthash",
+        "fmphgo",
         "--function",
-        f"{conf['out_dir']}/{conf['graph_name']}.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo",
         "--order",
-        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         "--node2swhid",
         f"{conf['out_dir']}/{conf['graph_name']}.node2swhid.bin",
         "--node2type",
@@ -511,17 +511,15 @@ def _mph_persons(
         assert len(num_persons) == 1
     if num_persons[0] == "0":
         return Command.echo("") > AtomicFileSink(
-            Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash")
+            Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.fmphgo")
         )
     return Rust(
         "swh-graph-compress",
-        "pthash-persons",
+        "fmphgo-persons",
         "--num-persons",
         num_persons[0],
-        Command.zstdcat(
-            f"{conf['out_dir']}/{conf['graph_name']}.persons.csv.zst",
-        ),
-        f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.csv.zst",
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.fmphgo",
         conf=conf,
         env=env,
     )
@@ -551,7 +549,7 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
         "swh-graph-extract",
         "extract-fullnames",
         "--person-function",
-        f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.persons",
         f"{conf['sensitive_in_dir']}/orc",
         f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons",
         f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons.lengths",
@@ -618,13 +616,13 @@ def _node_properties(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "--allowed-node-types",
         conf.get("object_types", "*"),
         "--mph-algo",
-        "pthash",
+        "fmphgo",
         "--function",
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--order",
-        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         "--person-function",
-        f"{conf['out_dir']}/{conf['graph_name']}.persons.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.persons",
         "--num-nodes",
         num_nodes,
         f"{conf['in_dir']}",
@@ -647,11 +645,11 @@ def _mph_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
         return None
     return Rust(
         "swh-graph-compress",
-        "pthash-labels",
+        "fmphgo-labels",
         "--num-labels",
         num_labels[0],
-        Command.zstdcat(f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst"),
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
         conf=conf,
         env=env,
     )
@@ -670,12 +668,12 @@ def _labels_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command
         return None
     return Rust(
         "swh-graph-compress",
-        "pthash-labels-order",
+        "fmphgo-labels-order",
         "--num-labels",
         num_labels[0],
-        Command.zstdcat(f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst"),
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
         conf=conf,
         env=env,
     )
@@ -725,15 +723,15 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
         "--allowed-node-types",
         conf.get("object_types", "*"),
         "--mph-algo",
-        "pthash",
+        "fmphgo",
         "--function",
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--order",
-        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         "--label-name-mphf",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
         "--label-name-order",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
         "--num-nodes",
         num_nodes,
         f"{conf['in_dir']}",
@@ -768,15 +766,15 @@ def _edge_labels_transpose(
         "--allowed-node-types",
         conf.get("object_types", "*"),
         "--mph-algo",
-        "pthash",
+        "fmphgo",
         "--function",
         f"{conf['out_dir']}/{conf['graph_name']}",
         "--order",
-        f"{conf['out_dir']}/{conf['graph_name']}.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         "--label-name-mphf",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
         "--label-name-order",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.pthash.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
         "--num-nodes",
         num_nodes,
         "--transposed",
@@ -884,6 +882,8 @@ def _clean_tmp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
 
 def do_step(step, conf, env=None) -> "List[RunResult]":
+    import sys
+
     if env is None:
         env = os.environ.copy()
         env["TMPDIR"] = conf["tmp_dir"]
@@ -904,37 +904,36 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
         f"-{int(datetime.now().timestamp() * 1000)}"
         f"-{str(step).lower()}.log"
     )
-    step_handler = logging.FileHandler(log_path)
-    step_logger.addHandler(step_handler)
+    step_handlers: List[logging.Handler] = [
+        logging.StreamHandler(sys.stderr),
+        logging.FileHandler(log_path),
+    ]
+    for handler in step_handlers:
+        step_logger.addHandler(handler)
 
-    step_start_time = datetime.now()
-    step_logger.info("Starting compression step %s at %s", step, step_start_time)
+    try:
+        step_start_time = datetime.now()
+        step_logger.info("Starting compression step %s at %s", step, step_start_time)
 
-    command = COMP_CMD[step](conf, env)
+        command = COMP_CMD[step](conf, env)
 
-    if command is None:
-        step_logger.info("Compression step %s skipped", step)
-        step_logger.removeHandler(step_handler)
-        step_handler.close()
-        return []
+        if command is None:
+            step_logger.info("Compression step %s skipped", step)
+            return []
 
-    step_start_time = datetime.now()
-    step_logger.info("Starting compression step %s at %s", step, step_start_time)
-    step_logger.info("Running: %s", command.__str__())
+        step_logger.info("Running: %s", command.__str__())
 
-    if isinstance(command, (Command, AtomicFileSink)):
-        running_command = command._run(
-            stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-        )
-        with running_command.stdout() as stdout:
-            for line in stdout:
-                step_logger.info(line.rstrip().decode(errors="replace"))
-        try:
-            results = running_command.wait()
-        except CommandException as e:
-            msg = f"Compression step {step} returned non-zero exit code {e.returncode}"
-            step_logger.critical(msg)
-            raise CompressionSubprocessError(msg, log_path)
+        if isinstance(command, (Command, AtomicFileSink)):
+            running_command = command._run(
+                stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            )
+            with running_command.stdout() as stdout:
+                for line in stdout:
+                    step_logger.info(line.rstrip().decode(errors="replace"))
+                results = running_command.wait()
+        else:
+            # This allows for calling Python functions directly
+            results = command(step_logger)
         step_end_time = datetime.now()
         step_duration = step_end_time - step_start_time
         step_logger.info(
@@ -943,16 +942,19 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
             step_end_time,
             step_duration,
         )
-        step_logger.removeHandler(step_handler)
-        step_handler.close()
-    else:
-        # This allows for calling Python functions directly
-        try:
-            results = command(step_logger)
-        except Exception as exc:
-            msg = f"Compression step {step} failed with the following error: {exc}"
-            step_logger.critical(msg)
-            raise CompressionSubprocessError(msg, log_path)
+    except Exception as e:
+        if isinstance(e, CommandException):
+            msg = f"Compression step {step} returned non-zero exit code {e.returncode}"
+        else:
+            msg = f"Compression step {step} failed with the following error: {e}"
+        step_logger.critical(msg)
+        raise CompressionSubprocessError(msg, log_path)
+    finally:
+        # Ensure logs are flushed at the end of the step.
+        # Also prevent double logging in case of retry.
+        for handler in step_handlers:
+            step_logger.removeHandler(handler)
+            handler.close()
 
     return results
 

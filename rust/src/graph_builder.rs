@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024-2025  The Software Heritage developers
+ * Copyright (C) 2024-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -143,6 +143,7 @@ impl GraphBuilder {
     }
 
     /// Returns `NodeId` that represents this SWHID in the graph, if it exists
+    #[inline(always)]
     pub fn node_id(&self, swhid: SWHID) -> Option<NodeId> {
         self.swhids.iter().position(|x| *x == swhid)
     }
@@ -217,7 +218,7 @@ impl GraphBuilder {
         for node in 0..num_nodes {
             ensure!(
                 seen.get(node),
-                "VecGraph requires every node to have at least one arc, and {} does not have any",
+                "VecGraph requires every node to have at least one arc, and node {} does not have any",
                 node
             );
         }
@@ -358,6 +359,7 @@ pub struct NodeBuilder<'builder> {
 }
 
 impl NodeBuilder<'_> {
+    #[inline(always)]
     pub fn done(&self) -> NodeId {
         self.node_id
     }
@@ -630,7 +632,8 @@ where
             }
 
             // SwhLabeledForwardGraph
-            GraphAccessRecord::LabeledSuccessors(node) => {
+            GraphAccessRecord::UntypedLabeledSuccessors(node)
+            | GraphAccessRecord::LabeledSuccessors(node) => {
                 nodes.insert(*node);
                 for (succ, labels) in spy.graph().labeled_successors(*node) {
                     nodes.insert(succ);
@@ -640,7 +643,8 @@ where
             }
 
             // SwhLabeledBackwardGraph
-            GraphAccessRecord::LabeledPredecessors(node) => {
+            GraphAccessRecord::UntypedLabeledPredecessors(node)
+            | GraphAccessRecord::LabeledPredecessors(node) => {
                 nodes.insert(*node);
                 for (pred, labels) in spy.graph().labeled_predecessors(*node) {
                     nodes.insert(pred);

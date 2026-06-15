@@ -20,7 +20,7 @@ fn parse_node_type(type_name: &str) -> Result<NodeType, tonic::Status> {
 
 #[inline(always)]
 #[allow(clippy::result_large_err)] // it's inlined
-/// Parses comma -separated `src:dst` pairs of node types (see [`parse_node_type`]).
+/// Parses comma-separated `src:dst` pairs of node types (see [`parse_node_type`]).
 ///
 /// Returns `*` if the node type is `*`
 fn parse_arc_type(type_name: &str) -> Result<ArcType, tonic::Status> {

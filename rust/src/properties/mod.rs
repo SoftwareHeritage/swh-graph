@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -51,6 +51,7 @@ pub(crate) mod suffixes {
     pub const TAG_NAME: &str = ".property.tag_name.bin";
     pub const TAG_NAME_OFFSET: &str = ".property.tag_name.offset.bin";
     pub const LABEL_NAME: &str = ".labels.fcl";
+    pub const PERSONS_COUNT: &str = ".persons.count.txt";
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -221,6 +222,7 @@ impl DataFilesAvailability for GuaranteedDataFiles {
 ///     .properties()
 ///     .author_timestamp(42);
 /// ```
+#[derive(Debug)]
 pub struct SwhGraphProperties<
     MAPS: MaybeMaps,
     TIMESTAMPS: MaybeTimestamps,

@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -16,7 +16,6 @@ use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressL
 use itertools::Itertools;
 use lender::{for_, Lender};
 use nonmax::NonMaxU64;
-use pthash::Phf;
 use rayon::prelude::*;
 use tempfile;
 use webgraph::graphs::arc_list_graph::ArcListGraph;
@@ -27,7 +26,7 @@ use webgraph::utils::ParSortPairs;
 
 use super::iter_arcs::iter_arcs;
 use super::iter_labeled_arcs::iter_labeled_arcs;
-use super::label_names::{LabelNameHasher, LabelNameMphf};
+use super::label_names::LabelNameHasher;
 use super::stats::estimate_edge_count;
 use crate::map::{MappedPermutation, Permutation};
 use crate::mph::LoadableSwhidMphf;
@@ -115,22 +114,9 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
         },
     );
 
-    let comp_flags = Default::default();
-
-    let temp_bv_dir = temp_dir.path().join("bv");
-    std::fs::create_dir(&temp_bv_dir)
-        .with_context(|| format!("Could not create {}", temp_bv_dir.display()))?;
-    BvComp::parallel_iter::<BE, _>(
-        target_dir,
-        arc_list_graphs.into_iter(),
-        num_nodes,
-        comp_flags,
-        &rayon::ThreadPoolBuilder::default()
-            .build()
-            .expect("Could not create BvComp thread pool"),
-        &temp_bv_dir,
-    )
-    .context("Could not build BVGraph from arcs")?;
+    BvComp::with_basename(target_dir)
+        .par_comp_lenders::<BE, _>(arc_list_graphs, num_nodes)
+        .context("Could not build BVGraph from arcs")?;
 
     drop(temp_dir); // Prevent early deletion
 
@@ -157,7 +143,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     let num_threads = num_cpus::get();
     let num_partitions = num_threads * partitions_per_thread;
     let nodes_per_partition = num_nodes.div_ceil(num_partitions);
-    let label_width = label_width(label_name_hasher.mphf());
+    let label_width = label_width(&label_name_hasher);
 
     // Avoid empty partitions at the end when there are very few nodes
     let num_partitions = num_nodes.div_ceil(nodes_per_partition);
@@ -318,11 +304,11 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     Ok(label_width)
 }
 
-fn label_width(mphf: &LabelNameMphf) -> usize {
+fn label_width(hasher: &LabelNameHasher<'_>) -> usize {
     use crate::labels::{
         Branch, DirEntry, EdgeLabel, LabelNameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
     };
-    let num_label_names = mphf.num_keys();
+    let num_label_names = u64::try_from(hasher.len()).expect("number of labels overflows u64");
 
     // Visit timestamps cannot be larger than the current timestamp
     let max_visit_timestamp = SystemTime::now()

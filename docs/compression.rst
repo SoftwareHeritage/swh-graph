@@ -43,7 +43,7 @@ itself.
 
 Some steps also involve sorting the entire set of edges and their labels, by
 using large on-disk buffer files, sometimes reaching the size of the input
-dataself itself.
+data itself.
 
 The machine we used to compress the entire graph (dataset version 2024-12-06)
 is a HPE ProLiant DL380 Gen10 Plus with the following hardware specs:
@@ -624,7 +624,7 @@ EDGE_LABELS
 
 
 This step generates the *edge property files*, as described in
-`Edge Labels <https://docs.rs/swh-graph/latest/swh_graph/_tutorial/index.html#edge-labels>`.
+`Edge Labels <https://docs.rs/swh-graph/latest/swh_graph/_tutorial/index.html#edge-labels>`_.
 These files allow us to get the *edge
 labels* as we iterate on the edges of the graph. The files essentially contain
 compressed sorted triplets of the form (source, destination, label), with

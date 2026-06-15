@@ -9,22 +9,26 @@ readme = "README.md"
 keywords = ["software-heritage", "graph", "compression", "webgraph"]
 categories = ["compression", "science"]
 rust-version = "1.81"
+documentation = "https://docs.rs/swh-graph"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 rand = "0.9.0"
+regex = "1"
 anyhow.workspace = true
 mmap-rs.workspace = true
 sux.workspace = true
 webgraph.workspace = true
 webgraph-cli.workspace = true
-pthash = { version = "0.4.0", features = ["rayon"] }
+ph = "0.11.0"
+pthash = { version = "0.4.0", features = ["rayon"], optional = true }
 faster-hex = { version = "0.8.0", features = ["std"], default-features = false }
 hex = { version = "0.4.3", optional = true }
 rayon.workspace = true
 crossbeam = "0.8.4"
 sha1 = { version = "0.10.6" }
+sha2 = "0.11.0"
 itertools.workspace = true
 thread_local = "1.1.7"
 tempfile = "3.7.1"
@@ -73,8 +77,9 @@ rdst = { version  ="0.20.14", features = ["multi-threaded"] }
 futures = "0.3.30"
 
 [features]
-default = ["macros"]
+default = ["macros", "pthash"]
 arrow = ["dep:arrow", "dep:arrow-array"]
+pthash = ["dep:pthash"]
 
 # Reads dataset from ORC files and produces a compressed graph
 compression = []
@@ -107,7 +112,6 @@ required-features = ["serde"]
 
 [[bin]]
 name = "swh-graph-hash"
-required-features = ["compression"]
 
 [[bin]]
 name = "swh-graph-person-id-to-name"

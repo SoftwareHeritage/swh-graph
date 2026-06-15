@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 2023-2024  The Software Heritage developers
+ * Copyright (C) 2023-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
  */
 
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -17,8 +17,12 @@ use itertools::Itertools;
 use mimalloc::MiMalloc;
 use rayon::prelude::*;
 
+use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::map::{MappedPermutation, Permutation};
+use swh_graph::mph::SwhidFmphgo;
+#[cfg(feature = "pthash")]
 use swh_graph::mph::SwhidPthash;
+use swh_graph::person::{DynPersonMphf, LoadablePersonMphf};
 use swh_graph::utils::parse_allowed_node_types;
 use swh_graph::{NodeType, SWHID};
 
@@ -209,6 +213,7 @@ enum Commands {
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum MphAlgorithm {
+    Fmphgo,
     Pthash,
     Cmph,
 }
@@ -390,76 +395,19 @@ pub fn main() -> Result<()> {
             fullnames_path,
             lengths_path,
         } => {
-            use dsi_bitstream::prelude::*;
-            use pthash::Phf;
-            use std::sync::OnceLock;
-
-            let person_mph = swh_graph::compress::persons::PersonMphf::load(&person_function)
+            let person_mph = DynPersonMphf::load(&person_function)
                 .with_context(|| format!("Could not load {}", person_function.display()))?;
-            let num_persons = usize::try_from(person_mph.num_keys())?;
-            let person_mph = swh_graph::compress::persons::PersonHasher::new(&person_mph);
+            let person_hasher = swh_graph::compress::persons::PersonHasher::new(&person_mph);
 
-            let mut pl = concurrent_progress_logger!(display_memory = true, local_speed = true);
-            pl.start("Extracting and sorting full names");
-
-            let fullnames: Vec<OnceLock<Box<[u8]>>> = vec![OnceLock::new(); num_persons];
-
-            log::info!("Building full names...");
-            swh_graph::compress::iter_fullnames(&dataset_dir, "person")
+            let fullnames = swh_graph::compress::iter_fullnames(&dataset_dir, "person")
                 .context("Could not read full names from input dataset")?
-                .try_for_each_with(pl.clone(), |pl, (fullname, sha256)| -> Result<()> {
-                    let base64 = base64_simd::STANDARD;
-                    let person_hash = usize::try_from(
-                        person_mph.hash(
-                            base64
-                                .encode_to_string(&sha256)
-                                .into_bytes()
-                                .into_boxed_slice(),
-                        )?,
-                    )
-                    .context("Person hash overflowed usize")?;
-                    fullnames
-                        .get(person_hash)
-                        .context("Person hash is greater than the number of persons")?
-                        .set(fullname)
-                        .map_err(|fullname| {
-                            let other_fullname = fullnames.get(person_hash).unwrap().get().unwrap();
-                            anyhow!("Hash collision on SHA256 {sha256:?}, between {fullname:?} and {other_fullname:?}")
-                        })?;
-                    pl.update();
-                    Ok(())
-                })?;
-            pl.done();
-            let fullnames: Vec<_> = fullnames
-                .into_par_iter()
-                .flat_map(|fullname| fullname.into_inner())
-                .collect();
-            if fullnames.len() != num_persons {
-                bail!(
-                    "Wrong number of full names, expected {}, got {}",
-                    num_persons,
-                    fullnames.len()
-                );
-            }
-
-            log::info!("Writing full names and lengths...");
-            let mut fullnames_file = File::create(&fullnames_path)
-                .with_context(|| format!("Could not create {}", fullnames_path.display()))?;
-            let lengths_file = File::create(&lengths_path)
-                .with_context(|| format!("Could not create {}", lengths_path.display()))?;
-
-            let mut lengths_writer = <BufBitWriter<BE, _>>::new(<WordAdapter<u64, _>>::new(
-                BufWriter::with_capacity(1 << 20, lengths_file),
-            ));
-
-            for fullname in &fullnames {
-                fullnames_file.write_all(fullname)?;
-                lengths_writer
-                    .write_gamma(
-                        u64::try_from(fullname.len()).context("Name length overflowed u64")?,
-                    )
-                    .context("Could not write gamma")?;
-            }
+                .map(Ok);
+            swh_graph::compress::persons::write_fullnames(
+                person_hasher,
+                fullnames,
+                &fullnames_path,
+                &lengths_path,
+            )?;
         }
         Commands::NodeStats {
             format: DatasetFormat::Orc,
@@ -491,7 +439,7 @@ pub fn main() -> Result<()> {
                     stats
                 })
                 .reduce(Default::default, |mut left_1d, right_1d| {
-                    for (left, right) in left_1d.iter_mut().zip(right_1d.into_iter()) {
+                    for (left, right) in left_1d.iter_mut().zip(right_1d) {
                         *left += right;
                     }
                     left_1d
@@ -554,8 +502,8 @@ pub fn main() -> Result<()> {
                         stats_2d
                     })
                     .reduce(Default::default, |mut left_2d, right_2d| {
-                        for (left_1d, right_1d) in left_2d.iter_mut().zip(right_2d.into_iter()) {
-                            for (left, right) in left_1d.iter_mut().zip(right_1d.into_iter()) {
+                        for (left_1d, right_1d) in left_2d.iter_mut().zip(right_2d) {
+                            for (left, right) in left_1d.iter_mut().zip(right_1d) {
                                 *left += right;
                             }
                         }
@@ -641,7 +589,7 @@ pub fn main() -> Result<()> {
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             match mph_algo {
-                MphAlgorithm::Pthash => swh_graph::compress::bv::bv::<SwhidPthash>(
+                MphAlgorithm::Fmphgo => swh_graph::compress::bv::bv::<SwhidFmphgo>(
                     partitions_per_thread,
                     function,
                     num_nodes,
@@ -650,8 +598,11 @@ pub fn main() -> Result<()> {
                     &allowed_node_types,
                     target_dir,
                 )?,
-                MphAlgorithm::Cmph => {
-                    swh_graph::compress::bv::bv::<swh_graph::java_compat::mph::gov::GOVMPH>(
+                MphAlgorithm::Pthash => {
+                    #[cfg(not(feature = "pthash"))]
+                    bail!("pthash support is disabled. Recompile with --features pthash");
+                    #[cfg(feature = "pthash")]
+                    swh_graph::compress::bv::bv::<swh_graph::mph::SwhidPthash>(
                         partitions_per_thread,
                         function,
                         num_nodes,
@@ -661,6 +612,15 @@ pub fn main() -> Result<()> {
                         target_dir,
                     )?
                 }
+                MphAlgorithm::Cmph => swh_graph::compress::bv::bv::<GOVMPH>(
+                    partitions_per_thread,
+                    function,
+                    num_nodes,
+                    order,
+                    dataset_dir,
+                    &allowed_node_types,
+                    target_dir,
+                )?,
             }
         }
 
@@ -678,19 +638,21 @@ pub fn main() -> Result<()> {
             dataset_dir,
             target_dir,
         } => {
-            use pthash::Phf;
             use swh_graph::compress::label_names::{LabelNameHasher, LabelNameMphf};
+
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
             let order = MappedPermutation::load_unchecked(&order)
                 .with_context(|| format!("Could not load {}", order.display()))?;
-            let label_name_mphf = LabelNameMphf::load(&label_name_mphf)
+            let label_name_file = File::open(&label_name_mphf)
+                .with_context(|| format!("Could not open{}", label_name_mphf.display()))?;
+            let label_name_mphf = LabelNameMphf::read(&mut BufReader::new(label_name_file))
                 .with_context(|| format!("Could not load {}", label_name_mphf.display()))?;
             let label_name_order = MappedPermutation::load_unchecked(&label_name_order)
                 .with_context(|| format!("Could not load {}", label_name_order.display()))?;
             let label_name_hasher = LabelNameHasher::new(&label_name_mphf, &label_name_order)?;
 
             let label_width = match mph_algo {
-                MphAlgorithm::Pthash => swh_graph::compress::bv::edge_labels::<SwhidPthash>(
+                MphAlgorithm::Fmphgo => swh_graph::compress::bv::edge_labels::<SwhidFmphgo>(
                     partitions_per_thread,
                     function,
                     order,
@@ -701,8 +663,11 @@ pub fn main() -> Result<()> {
                     transposed,
                     target_dir.as_ref(),
                 )?,
-                MphAlgorithm::Cmph => {
-                    swh_graph::compress::bv::edge_labels::<swh_graph::java_compat::mph::gov::GOVMPH>(
+                MphAlgorithm::Pthash => {
+                    #[cfg(not(feature = "pthash"))]
+                    bail!("pthash support is disabled. Recompile with --features pthash");
+                    #[cfg(feature = "pthash")]
+                    swh_graph::compress::bv::edge_labels::<SwhidPthash>(
                         partitions_per_thread,
                         function,
                         order,
@@ -714,6 +679,17 @@ pub fn main() -> Result<()> {
                         target_dir.as_ref(),
                     )?
                 }
+                MphAlgorithm::Cmph => swh_graph::compress::bv::edge_labels::<GOVMPH>(
+                    partitions_per_thread,
+                    function,
+                    order,
+                    label_name_hasher,
+                    num_nodes,
+                    dataset_dir,
+                    &allowed_node_types,
+                    transposed,
+                    target_dir.as_ref(),
+                )?,
             };
 
             let mut properties_path = target_dir.to_owned();
@@ -816,13 +792,11 @@ pub fn main() -> Result<()> {
             let person_mph = if allowed_node_types.contains(&NodeType::Revision)
                 || allowed_node_types.contains(&NodeType::Release)
             {
-                use pthash::Phf;
-
                 let Some(person_function) = person_function else {
                     bail!("--person-function must be provided unless --allowed-node-types is set to contain neither 'rev' nor 'rel'.");
                 };
                 Some(
-                    swh_graph::compress::persons::PersonMphf::load(&person_function)
+                    DynPersonMphf::load(&person_function)
                         .with_context(|| format!("Could not load {}", person_function.display()))?,
                 )
             } else {
@@ -834,8 +808,9 @@ pub fn main() -> Result<()> {
                 .map(swh_graph::compress::persons::PersonHasher::new);
 
             match mph_algo {
-                MphAlgorithm::Pthash => {
-                    let swhid_mph = LoadableSwhidMphf::load(function).context("Cannot load mph")?;
+                MphAlgorithm::Fmphgo => {
+                    let swhid_mph: SwhidFmphgo =
+                        LoadableSwhidMphf::load(function).context("Cannot load mph")?;
                     let property_writer = PropertyWriter {
                         swhid_mph,
                         person_mph,
@@ -845,10 +820,30 @@ pub fn main() -> Result<()> {
                         allowed_node_types,
                         target,
                     };
-                    f::<SwhidPthash>(property_writer)?;
+                    f::<SwhidFmphgo>(property_writer)?;
+                }
+                MphAlgorithm::Pthash => {
+                    #[cfg(not(feature = "pthash"))]
+                    bail!("pthash support is disabled. Recompile with --features pthash");
+                    #[cfg(feature = "pthash")]
+                    {
+                        let swhid_mph: SwhidPthash =
+                            LoadableSwhidMphf::load(function).context("Cannot load mph")?;
+                        let property_writer = PropertyWriter {
+                            swhid_mph,
+                            person_mph,
+                            order,
+                            num_nodes,
+                            dataset_dir,
+                            allowed_node_types,
+                            target,
+                        };
+                        f(property_writer)?;
+                    }
                 }
                 MphAlgorithm::Cmph => {
-                    let swhid_mph = LoadableSwhidMphf::load(function).context("Cannot load mph")?;
+                    let swhid_mph: GOVMPH =
+                        LoadableSwhidMphf::load(function).context("Cannot load mph")?;
                     let property_writer = PropertyWriter {
                         swhid_mph,
                         person_mph,
@@ -858,7 +853,7 @@ pub fn main() -> Result<()> {
                         allowed_node_types,
                         target,
                     };
-                    f::<swh_graph::java_compat::mph::gov::GOVMPH>(property_writer)?;
+                    f(property_writer)?;
                 }
             };
         }

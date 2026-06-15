@@ -53,7 +53,7 @@ pub use webgraph;
 #[derive(Error, Debug, PartialEq, Eq, Hash, Clone)]
 #[error("Accessed property index {index} out of {len}")]
 pub struct OutOfBoundError {
-    /// Indexed that was accessed
+    /// Index that was accessed
     pub index: usize,
     /// Length of the underlying collection (maximum index + 1)
     pub len: usize,

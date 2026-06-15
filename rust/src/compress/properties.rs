@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -324,7 +324,9 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
                 let swhid = format!("swh:1:{}:{}", type_, r.id);
                 let base64 = base64_simd::STANDARD;
                 let person = base64.encode_to_string(person).into_bytes();
-                let person_id: u32 = person_mph.hash(person).expect("Unknown person");
+                let person_id: u32 = person_mph
+                    .hash_pseudonymized_person(person)
+                    .expect("Unknown person");
                 self.set_atomic(&authors, &swhid, person_id.to_be());
             }
         };
@@ -376,7 +378,9 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
                 let swhid = format!("swh:1:rev:{}", rev.id);
                 let base64 = base64_simd::STANDARD;
                 let person = base64.encode_to_string(person).into_bytes();
-                let person_id: u32 = person_mph.hash(person).expect("Unknown person");
+                let person_id: u32 = person_mph
+                    .hash_pseudonymized_person(person)
+                    .expect("Unknown person");
                 self.set_atomic(&committers, &swhid, person_id.to_be());
             }
         })?
