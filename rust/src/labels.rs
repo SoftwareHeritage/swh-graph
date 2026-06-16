@@ -140,15 +140,22 @@ impl VisitType {
             "content"
             => VisitType::Misc,
 
+            "bioconductor" |
+            "cpan" |
             "cran" |
+            "crates" |
             "deb" |
             "golang" |
+            "hackage" |
+            "hex" |
             "opam" |
             "nixguix" |
             "npm" |
             "maven" |
+            "pubdev" |
+            "puppet" |
             "pypi" |
-            "pubdev"
+            "rubygems"
             => VisitType::Package,
 
             "deposit"
