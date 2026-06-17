@@ -143,11 +143,19 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
         date: Option<ar_row::Timestamp>,
         status: String,
         snapshot: Option<String>,
-        r#type: String,
+        r#type: Option<String>, // Option because of 3 old objects: https://gitlab.softwareheritage.org/swh/meta/-/work_items/5106
     }
 
     map_labeled_arcs(reader_builder, |ovs: OriginVisitStatus| {
         ovs.snapshot.as_ref().map(|snapshot| {
+            let visit_type = ovs.r#type.unwrap_or_else(||
+                // https://gitlab.softwareheritage.org/swh/meta/-/work_items/5106
+                match ovs.origin.as_ref() {
+                    "https://www.npmjs.com/package/polygon.io" | "https://www.npmjs.com/package/@reactionaries/hookd" => "npm",
+                    "https://github.com/shines001/krping" => "git",
+                    origin => panic!("Unexpected origin with NULL type in origin_visit_status: {origin:?}"),
+                }.to_string()
+            );
             (
                 SWHID::from_origin_url(ovs.origin).to_string(),
                 format!("swh:1:snp:{snapshot}"),
@@ -164,12 +172,9 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
                         .seconds
                         .try_into()
                         .expect("Negative visit date"),
-                    VisitType::from_swh_type(&ovs.r#type).unwrap_or_else(|| {
-                        panic!(
-                            "Unknown visit type: {}. You need to update VisitType::from_swh_type.",
-                            ovs.r#type
-                        )
-                    }),
+                    VisitType::from_swh_type(&visit_type).unwrap_or_else(|| {
+                        panic!("Unknown visit type: {visit_type}. You need to update VisitType::from_swh_type.")
+                    })
                 )
                 .map(EdgeLabel::Visit),
             )
