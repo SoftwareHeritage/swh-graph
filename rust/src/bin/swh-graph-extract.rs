@@ -651,6 +651,8 @@ pub fn main() -> Result<()> {
             dataset_dir,
             target_dir,
         } => {
+            use mmap_rs::MmapFlags;
+
             use swh_graph::compress::label_names::{LabelNameHasher, LabelNameMphf};
 
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
@@ -660,8 +662,12 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Could not open{}", label_name_mphf.display()))?;
             let label_name_mphf = LabelNameMphf::read(&mut BufReader::new(label_name_file))
                 .with_context(|| format!("Could not load {}", label_name_mphf.display()))?;
-            let label_name_order = MappedPermutation::load_unchecked(&label_name_order)
-                .with_context(|| format!("Could not load {}", label_name_order.display()))?;
+            let label_name_order = MappedPermutation::load_unchecked_with_flags(
+                &label_name_order,
+                // omitting MmapFlags::WILLNEED has a 1000× slowdown in production
+                MmapFlags::RANDOM_ACCESS | MmapFlags::WILLNEED,
+            )
+            .with_context(|| format!("Could not load {}", label_name_order.display()))?;
             let label_name_hasher = LabelNameHasher::new(&label_name_mphf, &label_name_order)?;
 
             let label_width = match mph_algo {

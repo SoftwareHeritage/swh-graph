@@ -285,8 +285,15 @@ impl MappedPermutation {
     }
 
     /// Loads a permutation from disk and returns IO errors if any.
+    ///
+    /// This is an alias for [`Self::load_unchecked_with_flags`] with [`MmapFlags::RANDOM_ACCESS`]
     #[inline]
     pub fn load_unchecked(path: &Path) -> Result<Self> {
+        Self::load_unchecked_with_flags(path, MmapFlags::RANDOM_ACCESS)
+    }
+
+    /// Loads a permutation from disk and returns IO errors if any.
+    pub fn load_unchecked_with_flags(path: &Path, flags: MmapFlags) -> Result<Self> {
         assert_eq!(
             usize::BITS,
             u64::BITS,
@@ -306,7 +313,7 @@ impl MappedPermutation {
         let perm = unsafe {
             mmap_rs::MmapOptions::new(file_len as _)
                 .context("Could not initialize permutation mmap")?
-                .with_flags(MmapFlags::TRANSPARENT_HUGE_PAGES | MmapFlags::RANDOM_ACCESS)
+                .with_flags(flags)
                 .with_file(&file, 0)
         }
         .map()
@@ -317,9 +324,17 @@ impl MappedPermutation {
 
     /// Loads a permutation from disk, and returns errors in case of IO errors
     /// or incorrect permutations.
+    ///
+    /// This is an alias for [`Self::load_with_flags`] with [`MmapFlags::RANDOM_ACCESS`]
     #[inline]
     pub fn load(num_nodes: usize, path: &Path) -> Result<Self> {
-        let perm = Self::load_unchecked(path)?;
+        Self::load_with_flags(num_nodes, path, MmapFlags::RANDOM_ACCESS)
+    }
+
+    /// Loads a permutation from disk, and returns errors in case of IO errors
+    /// or incorrect permutations.
+    pub fn load_with_flags(num_nodes: usize, path: &Path, flags: MmapFlags) -> Result<Self> {
+        let perm = Self::load_unchecked_with_flags(path, flags)?;
         assert_eq!(
             perm.len(),
             num_nodes,
