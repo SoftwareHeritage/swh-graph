@@ -11,13 +11,16 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use anyhow::{ensure, Context, Result};
 use dsi_progress_logger::{progress_logger, ProgressLog};
-use ph::fmph::GOFunction;
-use ph::fmph::{GOBuildConf, GOConf};
-use ph::seeds::TwoToPowerBitsStatic;
-use rayon::prelude::*;
+use epserde::deser::{Deserialize, MemCase};
+use sux::bits::bit_field_vec::BitFieldVec;
+use sux::func::{VBuilder, VFunc};
+use sux::utils::lenders::{FromCloneableIntoIterator, FromIntoFallibleLenderFactory};
 
 use crate::labels::LabelNameId;
-use crate::map::{MappedPermutation, OwnedPermutation, Permutation};
+
+#[derive(thiserror::Error, Debug)]
+#[error("{0}")]
+struct VFuncError(#[from] anyhow::Error);
 
 #[derive(Clone)]
 pub struct LabelName<T: AsRef<[u8]>>(pub T);
@@ -28,28 +31,26 @@ impl<T: AsRef<[u8]>> Hash for LabelName<T> {
     }
 }
 
-pub type LabelNameMphf = GOFunction<TwoToPowerBitsStatic<4>, TwoToPowerBitsStatic<1>>;
+pub type LabelNameMphf = VFunc<[u8], usize, BitFieldVec<usize>>;
 
-fn iter_labels(path: &Path) -> Result<impl Iterator<Item = LabelName<Box<[u8]>>>> {
+fn iter_labels(path: &Path) -> Result<impl Iterator<Item = Result<Box<[u8]>, VFuncError>>> {
     let base64 = base64_simd::STANDARD;
     let file = File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
     let decoder = zstd::stream::read::Decoder::new(file)
         .with_context(|| format!("Could not decompress {} as zstd", path.display()))?;
     Ok(BufReader::new(decoder).lines().map(move |label_base64| {
         let label_base64 = label_base64.expect("Could not read line");
-        LabelName(
-            base64
-                .decode_to_vec(&label_base64)
-                .unwrap_or_else(|_| panic!("Label {label_base64}, could not be base64-decoded"))
-                .into_boxed_slice(),
-        )
+        Ok(base64
+            .decode_to_vec(&label_base64)
+            .with_context(|| format!("Label {label_base64}, could not be base64-decoded"))?
+            .into_boxed_slice())
     }))
 }
 
 /// Reads base64-encoded labels from the path and return a MPH function for them.
 pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
     let pass_counter = AtomicU32::new(1);
-    let iter_labels = || {
+    let iter_labels = || -> Result<_, VFuncError> {
         let pass_counter = pass_counter.fetch_add(1, Ordering::Relaxed);
         let mut pl = progress_logger!(
             display_memory = true,
@@ -58,17 +59,29 @@ pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
             expected_updates = Some(num_labels),
         );
         pl.start(format!("Reading labels (pass #{pass_counter})"));
-        iter_labels(&path)
-            .expect("Could not read labels")
-            .inspect(move |_| pl.light_update())
+        Ok(lender::from_fallible_iter_ref(fallible_iterator::convert(
+            iter_labels(&path)
+                .context("Could not read labels")?
+                .inspect(move |_| pl.light_update()),
+        )))
     };
-    let get_iter = iter_labels; // no support for parallel iteration
-    let clone_threshold = 1_000_000; // arbitrary
-    let key_set =
-        ph::fmph::keyset::CachedKeySet::dynamic_with_len(get_iter, num_labels, clone_threshold);
 
-    let conf = GOBuildConf::new(GOConf::default_bigger());
-    let mphf = LabelNameMphf::with_conf(key_set, conf);
+    let mut pl = progress_logger!(
+        display_memory = true,
+        item_name = "label",
+        local_speed = true,
+        expected_updates = Some(num_labels),
+    );
+    pl.start("Building VFunc");
+    let mphf = VBuilder::<_, BitFieldVec<_>>::default()
+        .expected_num_keys(num_labels)
+        .try_build_func(
+            FromIntoFallibleLenderFactory::new(iter_labels)?,
+            FromCloneableIntoIterator::new(0..num_labels),
+            &mut pl,
+        )
+        .context("Could not build VFunc")?;
+
     let len = mphf.len();
     ensure!(
         len == num_labels,
@@ -77,100 +90,33 @@ pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
     Ok(mphf)
 }
 
-/// Reads base64-encoded labels from the path and a MPH function for these labels
-/// (as returned by [`build_mphf`]) and returns a permutation that maps their hashes
-/// to their position in the (sorted) list.
-pub fn build_order(
-    path: PathBuf,
-    mphf_path: PathBuf,
-    num_labels: usize,
-) -> Result<OwnedPermutation<Vec<usize>>> {
-    assert_eq!(
-        usize::BITS,
-        u64::BITS,
-        "Only 64-bits architectures are supported"
-    );
-
-    let file = File::open(&mphf_path)
-        .with_context(|| format!("Could not open {}", mphf_path.display()))?;
-    let mphf = LabelNameMphf::read(&mut BufReader::new(file))
-        .with_context(|| format!("Could not load MPH from {}", mphf_path.display()))?;
-    let len = mphf.len();
-    ensure!(
-        len == num_labels,
-        "mphf.len() == {len} does not match expected number of keys ({num_labels})"
-    );
-
-    let mut pl = progress_logger!(
-        display_memory = true,
-        item_name = "label",
-        local_speed = true,
-        expected_updates = Some(num_labels),
-    );
-    pl.start("Reading labels");
-
-    let mut order: Vec<_> = (0..num_labels).map(|_| usize::MAX).collect();
-    for (i, label) in iter_labels(&path)?.enumerate() {
-        pl.light_update();
-        let hash = mphf.get(&label).context("Unknown label")?;
-        let hash = usize::try_from(hash).context("label name hash overflows usize")?;
-        ensure!(hash < num_labels, "{} is not minimal", mphf_path.display());
-        ensure!(
-            order[hash] == usize::MAX,
-            "hash collision involving {}",
-            String::from_utf8_lossy(&label.0)
-        );
-        order[hash] = i;
-    }
-
-    log::info!("Checking permutation...");
-    order.par_iter().enumerate().try_for_each(|(i, value)| {
-        ensure!(*value != usize::MAX, "no label hash equals {}", i);
-        Ok(())
-    })?;
-
-    Ok(OwnedPermutation::new_unchecked(order))
+pub struct LabelNameHasher {
+    mphf: MemCase<LabelNameMphf>,
 }
 
-#[derive(Clone, Copy)]
-pub struct LabelNameHasher<'a> {
-    mphf: &'a LabelNameMphf,
-    order: &'a MappedPermutation,
-}
-
-impl<'a> LabelNameHasher<'a> {
-    pub fn new(mphf: &'a LabelNameMphf, order: &'a MappedPermutation) -> Result<Self> {
-        ensure!(
-            mphf.len() == order.len(),
-            "Number of MPHF keys ({}) does not match permutation length ({})",
-            mphf.len(),
-            order.len()
-        );
-
-        Ok(LabelNameHasher { mphf, order })
+impl LabelNameHasher {
+    pub fn mmap<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path = path.as_ref();
+        let mphf =
+            unsafe { LabelNameMphf::mmap(path, epserde::deser::mem_case::Flags::RANDOM_ACCESS) }
+                .with_context(|| format!("Could not mmap {}", path.display()))?;
+        Ok(LabelNameHasher { mphf })
     }
 
     #[inline(always)]
-    pub fn mphf(&self) -> &'a LabelNameMphf {
-        self.mphf
+    pub fn mphf(&self) -> &epserde::deser::DeserType<'_, LabelNameMphf> {
+        self.mphf.uncase()
     }
 
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
-        self.mphf.len()
+        self.mphf().len()
     }
 
     pub fn hash<T: AsRef<[u8]>>(&self, label_name: T) -> Result<LabelNameId> {
-        let hash = self
-            .mphf
-            .get(&LabelName(label_name))
-            .context("Unknown label name")?;
+        let hash = self.mphf().get(label_name.as_ref());
         Ok(LabelNameId(
-            self.order
-                .get(usize::try_from(hash).context("label name hash overflows usize")?)
-                .context("out of bound label name hash")?
-                .try_into()
-                .context("label permutation overflowed")?,
+            u64::try_from(hash).context("label name hash overflows u64")?,
         ))
     }
 }

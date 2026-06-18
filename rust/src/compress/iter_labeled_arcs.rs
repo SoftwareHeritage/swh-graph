@@ -27,7 +27,7 @@ use crate::{NodeType, SWHID};
 pub fn iter_labeled_arcs<'a>(
     dataset_dir: &'a PathBuf,
     allowed_node_types: &'a [NodeType],
-    label_name_hasher: LabelNameHasher<'a>,
+    label_name_hasher: &'a LabelNameHasher,
 ) -> Result<impl ParallelIterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
@@ -100,7 +100,7 @@ where
 
 fn iter_labeled_arcs_from_dir_entry<'a, R: ChunkReader + Send + 'a>(
     reader_builder: ArrowReaderBuilder<R>,
-    label_name_hasher: LabelNameHasher<'a>,
+    label_name_hasher: &'a LabelNameHasher,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct DirectoryEntry {
@@ -179,7 +179,7 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
 
 fn iter_labeled_arcs_from_snp_branch<'a, R: ChunkReader + Send + 'a>(
     reader_builder: ArrowReaderBuilder<R>,
-    label_name_hasher: LabelNameHasher<'a>,
+    label_name_hasher: &'a LabelNameHasher,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct SnapshotBranch {

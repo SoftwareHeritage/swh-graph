@@ -9,9 +9,10 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 
 use anyhow::{Context, Result};
+use epserde::ser::Serialize;
 
 use swh_graph::compress::label_names::*;
-use swh_graph::map::Permutation;
+use swh_graph::labels::LabelNameId;
 
 #[test]
 fn test_build_mphf_and_order() -> Result<()> {
@@ -36,15 +37,14 @@ fn test_build_mphf_and_order() -> Result<()> {
     let mphf = build_mphf(labels_path.clone(), labels.len()).context("Could not build MPHF")?;
     assert_eq!(mphf.len(), labels.len());
     let file = File::create(&mphf_path).context("Could not create MPHF file")?;
-    mphf.write(&mut BufWriter::new(file))
-        .context("Could not save MPHF")?;
-    let order =
-        build_order(labels_path, mphf_path, labels.len()).context("Could not build order")?;
+    unsafe { mphf.serialize(&mut BufWriter::new(file)) }.context("Could not save MPHF")?;
+
+    let hasher = LabelNameHasher::mmap(&mphf_path).context("Could not load VFunc")?;
 
     for (i, label) in labels.iter().enumerate() {
         assert_eq!(
-            order.get(mphf.get(&LabelName(label.as_bytes())).unwrap() as usize),
-            Some(i)
+            hasher.hash(label.as_bytes()).unwrap(),
+            LabelNameId(i as u64)
         );
     }
 

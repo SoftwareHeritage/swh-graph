@@ -5,8 +5,7 @@
  * See top-level LICENSE file for more information
  */
 
-use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -180,8 +179,6 @@ enum Commands {
         order: PathBuf,
         #[arg(long)]
         label_name_mphf: PathBuf,
-        #[arg(long)]
-        label_name_order: PathBuf,
         #[arg(long)]
         num_nodes: usize,
         #[arg(long, action)]
@@ -645,37 +642,24 @@ pub fn main() -> Result<()> {
             function,
             order,
             label_name_mphf,
-            label_name_order,
             num_nodes,
             transposed,
             dataset_dir,
             target_dir,
         } => {
-            use mmap_rs::MmapFlags;
-
-            use swh_graph::compress::label_names::{LabelNameHasher, LabelNameMphf};
+            use swh_graph::compress::label_names::LabelNameHasher;
 
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
             let order = MappedPermutation::load_unchecked(&order)
                 .with_context(|| format!("Could not load {}", order.display()))?;
-            let label_name_file = File::open(&label_name_mphf)
-                .with_context(|| format!("Could not open{}", label_name_mphf.display()))?;
-            let label_name_mphf = LabelNameMphf::read(&mut BufReader::new(label_name_file))
-                .with_context(|| format!("Could not load {}", label_name_mphf.display()))?;
-            let label_name_order = MappedPermutation::load_unchecked_with_flags(
-                &label_name_order,
-                // omitting MmapFlags::WILLNEED has a 1000× slowdown in production
-                MmapFlags::RANDOM_ACCESS | MmapFlags::WILLNEED,
-            )
-            .with_context(|| format!("Could not load {}", label_name_order.display()))?;
-            let label_name_hasher = LabelNameHasher::new(&label_name_mphf, &label_name_order)?;
+            let label_name_hasher = LabelNameHasher::mmap(&label_name_mphf)?;
 
             let label_width = match mph_algo {
                 MphAlgorithm::Fmphgo => swh_graph::compress::bv::edge_labels::<SwhidFmphgo>(
                     partitions_per_thread,
                     function,
                     order,
-                    label_name_hasher,
+                    &label_name_hasher,
                     num_nodes,
                     dataset_dir,
                     &allowed_node_types,
@@ -690,7 +674,7 @@ pub fn main() -> Result<()> {
                         partitions_per_thread,
                         function,
                         order,
-                        label_name_hasher,
+                        &label_name_hasher,
                         num_nodes,
                         dataset_dir,
                         &allowed_node_types,
@@ -702,7 +686,7 @@ pub fn main() -> Result<()> {
                     partitions_per_thread,
                     function,
                     order,
-                    label_name_hasher,
+                    &label_name_hasher,
                     num_nodes,
                     dataset_dir,
                     &allowed_node_types,

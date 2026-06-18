@@ -71,7 +71,6 @@ class CompressionStep(Enum):
     FULLNAMES_EF = 207
     NODE_PROPERTIES = 210
     MPH_LABELS = 220
-    LABELS_ORDER = 225
     FCL_LABELS = 230
     EDGE_LABELS = 240
     EDGE_LABELS_TRANSPOSE = 250
@@ -645,35 +644,11 @@ def _mph_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
         return None
     return Rust(
         "swh-graph-compress",
-        "fmphgo-labels",
+        "vfunc-labels",
         "--num-labels",
         num_labels[0],
         f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
-        conf=conf,
-        env=env,
-    )
-
-
-@_compression_step
-def _labels_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
-    if {"dir", "snp", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
-        return None
-    with open(
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
-    ) as labels_count:
-        num_labels = labels_count.readline().splitlines()
-        assert len(num_labels) == 1
-    if num_labels[0] == "0":
-        return None
-    return Rust(
-        "swh-graph-compress",
-        "fmphgo-labels-order",
-        "--num-labels",
-        num_labels[0],
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.vfunc",
         conf=conf,
         env=env,
     )
@@ -729,9 +704,7 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
         "--order",
         f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         "--label-name-mphf",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
-        "--label-name-order",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.vfunc",
         "--num-nodes",
         num_nodes,
         f"{conf['in_dir']}",
@@ -772,9 +745,7 @@ def _edge_labels_transpose(
         "--order",
         f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         "--label-name-mphf",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
-        "--label-name-order",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.vfunc",
         "--num-nodes",
         num_nodes,
         "--transposed",

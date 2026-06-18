@@ -1091,17 +1091,7 @@ class NodeProperties(_CompressionStepTask):
 class MphLabels(_CompressionStepTask):
     STEP = CompressionStep.MPH_LABELS
     INPUT_FILES = {".labels.csv.zst", ".labels.count.txt"}
-    OUTPUT_FILES = {".labels.fmphgo"}
-    MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
-
-    def _large_allocations(self) -> int:
-        return 0
-
-
-class LabelsOrder(_CompressionStepTask):
-    STEP = CompressionStep.LABELS_ORDER
-    INPUT_FILES = {".labels.csv.zst", ".labels.fmphgo", ".labels.count.txt"}
-    OUTPUT_FILES = {".labels.fmphgo.order"}
+    OUTPUT_FILES = {".labels.vfunc"}
     MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     def _large_allocations(self) -> int:
@@ -1125,8 +1115,7 @@ class FclLabels(_CompressionStepTask):
 class EdgeLabels(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS
     INPUT_FILES = {
-        ".labels.fmphgo",
-        ".labels.fmphgo.order",
+        ".labels.vfunc",
         ".fmphgo",
         ".fmphgo.order",
     }
@@ -1166,8 +1155,7 @@ class EdgeLabels(_CompressionStepTask):
 class EdgeLabelsTranspose(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS_TRANSPOSE
     INPUT_FILES = {
-        ".labels.fmphgo",
-        ".labels.fmphgo.order",
+        ".labels.vfunc",
         ".fmphgo",
         ".fmphgo.order",
     }

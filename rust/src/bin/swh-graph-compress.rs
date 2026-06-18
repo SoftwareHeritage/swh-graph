@@ -187,20 +187,11 @@ enum Commands {
     },
 
     /// Builds a MPH from the given a stream of base64-encoded labels
-    FmphgoLabels {
+    VfuncLabels {
         #[arg(long)]
         num_labels: usize,
         labels: PathBuf,
         output_mphf: PathBuf,
-    },
-    /// Builds a permutation mapping label hashes to their position in the sorted stream of
-    /// base64-encoded labels
-    FmphgoLabelsOrder {
-        #[arg(long)]
-        num_labels: usize,
-        labels: PathBuf,
-        mphf: PathBuf,
-        output_order: PathBuf,
     },
 }
 
@@ -786,40 +777,26 @@ pub fn main() -> Result<()> {
                 .context("Could not commit MPH file")?;
         }
 
-        Commands::FmphgoLabels {
+        Commands::VfuncLabels {
             num_labels,
             labels,
             output_mphf,
         } => {
+            use epserde::ser::Serialize;
+
             let mphf = swh_graph::compress::label_names::build_mphf(labels, num_labels)?;
             log::info!("Saving MPHF...");
             let mut file =
                 BufWriter::new(AtomicFile::create_new(&output_mphf).with_context(|| {
                     format!("Could not create MPH file {}", output_mphf.display())
                 })?);
-            mphf.write(&mut file)
+            unsafe { mphf.serialize(&mut file) }
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
             file.into_inner()
                 .map_err(|e| e.into_error())
                 .context("Could not flush statistics")?
                 .commit()
                 .context("Could not commit MPH file")?;
-        }
-        Commands::FmphgoLabelsOrder {
-            num_labels,
-            labels,
-            mphf,
-            output_order,
-        } => {
-            let order = swh_graph::compress::label_names::build_order(labels, mphf, num_labels)?;
-
-            log::info!("Saving order");
-            let mut f = AtomicFile::create_new(&output_order)
-                .with_context(|| format!("Could not create {}", output_order.display()))?;
-            order
-                .dump(&mut f)
-                .with_context(|| format!("Could not write order to {}", output_order.display()))?;
-            f.commit().context("Could not commit order file")?;
         }
     }
 

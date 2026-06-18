@@ -42,6 +42,7 @@ dsi-bitstream.workspace = true
 epserde.workspace = true
 bytemuck = { version = "1.18.0", features = ["extern_crate_alloc"] }
 common_traits = "0.12.0"
+fallible-iterator.workspace = true
 lender.workspace = true
 thiserror = "1.0.51"
 once_cell = "1.19.0"

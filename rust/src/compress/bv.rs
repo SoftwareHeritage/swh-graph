@@ -129,7 +129,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     partitions_per_thread: usize,
     mph_basepath: PathBuf,
     order: MappedPermutation,
-    label_name_hasher: LabelNameHasher,
+    label_name_hasher: &LabelNameHasher,
     num_nodes: usize,
     dataset_dir: PathBuf,
     allowed_node_types: &[crate::NodeType],
@@ -143,7 +143,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     let num_threads = num_cpus::get();
     let num_partitions = num_threads * partitions_per_thread;
     let nodes_per_partition = num_nodes.div_ceil(num_partitions);
-    let label_width = label_width(&label_name_hasher);
+    let label_width = label_width(label_name_hasher);
 
     // Avoid empty partitions at the end when there are very few nodes
     let num_partitions = num_nodes.div_ceil(nodes_per_partition);
@@ -304,7 +304,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     Ok(label_width)
 }
 
-fn label_width(hasher: &LabelNameHasher<'_>) -> usize {
+fn label_width(hasher: &LabelNameHasher) -> usize {
     use crate::labels::{
         Branch, DirEntry, EdgeLabel, LabelNameId, Permission, UntypedEdgeLabel, Visit, VisitStatus,
         VisitType,
