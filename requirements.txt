@@ -5,3 +5,4 @@ humanfriendly
 mypy-protobuf
 protobuf >=5.29.3
 psutil
+tqdm
