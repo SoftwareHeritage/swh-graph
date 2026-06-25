@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Context, Result};
@@ -76,8 +77,12 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
     let sorted_arcs_path = temp_dir.path().join("sorted_arcs");
     std::fs::create_dir(&sorted_arcs_path)
         .with_context(|| format!("Could not create {}", sorted_arcs_path.display()))?;
-    let pair_sorter =
-        ParSortPairs::new(num_nodes)?.num_partitions(NonZeroUsize::new(num_partitions).unwrap());
+    let pair_sorter = ParSortPairs::new(num_nodes)?
+        .num_partitions(NonZeroUsize::new(num_partitions).unwrap())
+        .expected_num_pairs(
+            estimate_edge_count(&dataset_dir, allowed_node_types)
+                .context("Could not estimate edge count")? as usize,
+        );
     let sorted_arcs = pair_sorter
         .try_sort(
             iter_arcs(&dataset_dir, allowed_node_types)
@@ -148,24 +153,17 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     // Avoid empty partitions at the end when there are very few nodes
     let num_partitions = num_nodes.div_ceil(nodes_per_partition);
 
-    let mut pl = concurrent_progress_logger!(
-        display_memory = true,
-        item_name = "arc",
-        local_speed = true,
-        expected_updates = Some(
-            estimate_edge_count(&dataset_dir, allowed_node_types)
-                .context("Could not estimate edge count")? as usize,
-        ),
-    );
-    pl.start("Reading and sorting arcs");
+    let total_labeled_arcs = AtomicUsize::new(0);
 
     // Sort in parallel in a bunch of SortPairs instances
     let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
     let sorted_arcs_path = temp_dir.path().join("sorted_arcs");
     std::fs::create_dir(&sorted_arcs_path)
         .with_context(|| format!("Could not create {}", sorted_arcs_path.display()))?;
-    let pair_sorter =
-        ParSortPairs::new(num_nodes)?.num_partitions(NonZeroUsize::new(num_partitions).unwrap());
+    let pair_sorter = ParSortPairs::new(num_nodes)?
+        .num_partitions(NonZeroUsize::new(num_partitions).unwrap())
+        // allows running other tasks at the same time, at the expense of making merges slower:
+        .memory_usage(MemoryUsage::from_perc(25.0));
     let codec: GroupedGapsCodec<NE, _, _> = GroupedGapsCodec::new(
         LabelSerializer { label_width },
         LabelDeserializer { label_width },
@@ -175,7 +173,8 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
             &codec,
             iter_labeled_arcs(&dataset_dir, allowed_node_types, label_name_hasher)
                 .context("Could not open input files to read arcs")?
-                .map_with(pl.clone(), |thread_pl, (src, dst, label)| -> Result<_> {
+                .map(|(src, dst, label)| -> Result<_> {
+                    total_labeled_arcs.fetch_add(1, Ordering::Relaxed);
                     let mut src = mph.hash_str_array(&src).ok_or_else(|| {
                         anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&src))
                     })?;
@@ -189,13 +188,10 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
                     assert!(dst < num_nodes, "dst node id is greater than {num_nodes}");
                     let src = order.get(src).expect("Could not permute src");
                     let dst = order.get(dst).expect("Could not permute dst");
-                    thread_pl.light_update();
                     Ok(((src, dst), label))
                 }),
         )
         .context("Could not sort pairs")?;
-    let total_labeled_arcs = pl.count();
-    pl.done();
 
     let arc_list_graphs = Vec::from(sorted_arcs.iters).into_iter().enumerate().map(
         |(partition_id, sorted_arcs_partition)| {
@@ -227,6 +223,14 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
             File::create(&offsets_path)
                 .with_context(|| format!("Could not create {}", offsets_path.display()))?,
         )));
+
+    // Somewhat incorrect, we would need Ordering::Release here (and Ordering::Acquire in the
+    // worker threads). But it's only an approximation so we don't care (plus the worker threads
+    // should be shut down now even if the compiler doesn't know it).
+    //
+    // TODO: use total_labeled_arcs.into_inner() after webgraph 0.6.1, as it will remove
+    // the constraint that the closure that borrowed total_labeled_arcs must outlive sorted_arcs.
+    let total_labeled_arcs = total_labeled_arcs.load(Ordering::Relaxed);
 
     let mut pl = progress_logger!(
         display_memory = true,
