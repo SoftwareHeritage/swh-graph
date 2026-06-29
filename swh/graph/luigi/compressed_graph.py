@@ -1252,6 +1252,11 @@ class EndToEndCheck(_CompressionStepTask):
         "-transposed-labelled.properties",
         ".stats",
     }
+    SENSITIVE_INPUT_FILES = {
+        ".persons",
+        ".persons.lengths",
+        ".persons.ef",
+    }
     OUTPUT_FILES = set()
 
     def _large_allocations(self) -> int:

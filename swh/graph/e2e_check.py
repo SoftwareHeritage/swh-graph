@@ -265,17 +265,14 @@ def run_e2e_check(
         stop_grpc_server(server)
         logger.info("Stopped gRPC server.")
 
-    check_authors = (
-        sensitive_out_dir is not None
-        and Path(f"{sensitive_out_dir}/{graph_name}.persons").exists()
-        and Path(f"{sensitive_out_dir}/{graph_name}.persons.ef").exists()
-    )
-
+    check_authors = sensitive_out_dir is not None
     meta_data["authors_checked"] = check_authors
 
     # Check if the author IDs previously checked match their full names. This is triggered
     # only when the sensitive files containing said full names are present on disk.
     if check_authors:
+        assert Path(f"{sensitive_out_dir}/{graph_name}.persons").exists()
+        assert Path(f"{sensitive_out_dir}/{graph_name}.persons.ef").exists()
         logger.info("Checking authors...")
         for origin, author in authors.items():
             if author is None:
@@ -302,7 +299,7 @@ def run_e2e_check(
                 errors.append((origin, author))
         logger.info("Done checking authors.")
     else:
-        logger.warning("End-to-end checks for full names skipped")
+        logger.info("End-to-end checks for full names skipped")
 
     with open(meta_path / "e2e-check.json", "w") as fd:
         json.dump(meta_data, fd, indent=4)
