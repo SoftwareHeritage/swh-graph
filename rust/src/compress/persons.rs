@@ -79,7 +79,7 @@ fn write_ordered_fullnames<S: AsRef<[u8]>>(
     use dsi_bitstream::prelude::*;
 
     log::info!("Writing full names and lengths...");
-    let mut fullnames_file = AtomicFile::create_new(fullnames_path)
+    let fullnames_file = AtomicFile::create_new(fullnames_path)
         .with_context(|| format!("Could not create {}", fullnames_path.display()))?;
     let lengths_file = AtomicFile::create_new(lengths_path)
         .with_context(|| format!("Could not create {}", lengths_path.display()))?;
@@ -88,13 +88,20 @@ fn write_ordered_fullnames<S: AsRef<[u8]>>(
         BufWriter::with_capacity(1 << 20, lengths_file),
     ));
 
+    let mut fullnames_writer = BufWriter::new(fullnames_file);
     for fullname in fullnames {
         let fullname = fullname.as_ref();
-        fullnames_file.write_all(fullname)?;
+        fullnames_writer
+            .write_all(fullname)
+            .context("Could not write fullname")?;
         lengths_writer
             .write_gamma(u64::try_from(fullname.len()).context("Name length overflowed u64")?)
             .context("Could not write gamma")?;
     }
+    let fullnames_file = fullnames_writer
+        .into_inner()
+        .map_err(|e| e.into_error())
+        .context("Could not flush fullnames")?;
 
     fullnames_file
         .commit()
