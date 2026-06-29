@@ -13,7 +13,7 @@ import pytest
 import yaml
 
 from swh.graph.cli import graph_cli_group
-from swh.graph.example_dataset import DATASET_DIR
+from swh.graph.example_dataset import DATASET_DIR, SENSITIVE_DATASET_DIR
 
 
 @pytest.fixture
@@ -58,6 +58,8 @@ def test_pipeline(cli_runner, tmp_path):
             "compress",
             "--input-dataset",
             DATASET_DIR / "orc",
+            "--sensitive-input-dataset",
+            SENSITIVE_DATASET_DIR / "orc",
             "--output-directory",
             tmp_path,
             "--sensitive-output-directory",
