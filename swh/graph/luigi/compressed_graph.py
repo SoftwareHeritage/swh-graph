@@ -444,14 +444,23 @@ class _CompressionStepTask(luigi.Task):
     def requires(self) -> Sequence[luigi.Task]:
         """Returns a list of luigi tasks matching :attr:`PREVIOUS_STEPS`."""
         assert self.rust_executable_dir != "/"
+
+        input_files = set(self.INPUT_FILES)
+        if self.local_sensitive_graph_path is not None:
+            input_files.update(self.SENSITIVE_INPUT_FILES)
+
         requirements_d = {}
-        for input_file in self.INPUT_FILES.union(self.SENSITIVE_INPUT_FILES):
+        for input_file in input_files:
             if not self._is_expected_output_file(input_file):
                 continue
             if self.MINIMUM_OBJECT_TYPES.isdisjoint(set(self.object_types)):
                 continue
             for cls in _CompressionStepTask.__subclasses__():
-                if input_file in cls.OUTPUT_FILES.union(cls.SENSITIVE_OUTPUT_FILES):
+                output_files = set(cls.OUTPUT_FILES)
+                if self.local_sensitive_graph_path is not None:
+                    output_files.update(cls.SENSITIVE_OUTPUT_FILES)
+
+                if input_file in output_files:
                     kwargs: Dict[str, Any] = dict(
                         local_export_path=self.local_export_path,
                         local_sensitive_export_path=self.local_sensitive_export_path,
