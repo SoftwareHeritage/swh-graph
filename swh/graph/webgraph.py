@@ -916,9 +916,12 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
     except Exception as e:
         if isinstance(e, CommandException):
             msg = f"Compression step {step} returned non-zero exit code {e.returncode}"
+            step_logger.error(msg)
         else:
             msg = f"Compression step {step} failed with the following error: {e}"
-        step_logger.critical(msg)
+            # some exception have an empty or useless message, so log their name
+            # along with their traceback:
+            step_logger.exception(msg)
         raise CompressionSubprocessError(msg, log_path)
     finally:
         # Ensure logs are flushed at the end of the step.
