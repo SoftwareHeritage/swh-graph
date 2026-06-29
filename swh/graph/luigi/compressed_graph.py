@@ -585,7 +585,11 @@ class _CompressionStepTask(luigi.Task):
             graph_name=self.graph_name,
             in_dir=self.local_export_path / "orc",
             out_dir=self.local_graph_path,
-            sensitive_in_dir=self.local_sensitive_export_path,
+            sensitive_in_dir=(
+                None
+                if self.local_sensitive_export_path is None
+                else self.local_sensitive_export_path / "orc"
+            ),
             sensitive_out_dir=self.local_sensitive_graph_path,
             check_flavor=self.check_flavor,
         )
@@ -1558,9 +1562,13 @@ class CompressGraph(luigi.Task):
         conf = check_config_compress(
             conf,
             graph_name=self.graph_name,
-            in_dir=self.local_export_path,
+            in_dir=self.local_export_path / "orc",
             out_dir=self.local_graph_path,
-            sensitive_in_dir=self.local_sensitive_export_path,
+            sensitive_in_dir=(
+                None
+                if self.local_sensitive_export_path is None
+                else self.local_sensitive_export_path / "orc"
+            ),
             sensitive_out_dir=self.local_sensitive_graph_path,
             check_flavor=self.check_flavor,
         )
