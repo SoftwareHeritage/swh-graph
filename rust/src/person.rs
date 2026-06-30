@@ -142,7 +142,7 @@ pub(crate) mod person_struct {
     pub struct PseudonymizedPerson<T: AsRef<[u8]>>(pub T);
 }
 
-use person_struct::PseudonymizedPerson;
+pub use person_struct::PseudonymizedPerson;
 
 impl<T: AsRef<[u8]>> Hash for PseudonymizedPerson<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
