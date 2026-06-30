@@ -29,7 +29,7 @@ pub fn load_mph(mph_algo: MphAlgorithm, path: &Path) -> Result<crate::mph::DynMp
             .into(),
         MphAlgorithm::Pthash => {
             #[cfg(not(feature = "pthash"))]
-            bail!("pthash support is disabled. Recompile with --features pthash");
+            anyhow::bail!("pthash support is disabled. Recompile with --features pthash");
             #[cfg(feature = "pthash")]
             crate::mph::SwhidPthash::load(path)
                 .context("Cannot load mph")?
