@@ -6,11 +6,15 @@
  */
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use clap::{Parser, Subcommand};
 use dsi_bitstream::prelude::BE;
+use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
+use rayon::prelude::*;
 
+use swh_graph::cli::{load_mph, MphAlgorithm};
 use swh_graph::utils::{suffix_path, AtomicFile};
 
 #[derive(Parser, Debug)]
@@ -61,6 +65,21 @@ enum Commands {
         fullnames_path: PathBuf,
         lengths_path: PathBuf,
         ef_path: PathBuf,
+    },
+
+    /// Given a MPH and a node2swhid.bin file, builds a .order that, when composed with the MPH,
+    /// yields the same order as in node2swhid.bin.
+    ///
+    /// This can be used to build an alternative MPH+order for an existing graph
+    RebuildOrder {
+        #[arg(long)]
+        mph_algo: MphAlgorithm,
+        #[arg(long)]
+        function: PathBuf,
+        #[arg(long)]
+        node2swhid: PathBuf,
+        #[arg(long)]
+        target_order: PathBuf,
     },
 }
 
@@ -178,6 +197,100 @@ pub fn main() -> Result<()> {
             ef_file
                 .commit()
                 .context("Could not commit elias-fano file")?;
+        }
+
+        Commands::RebuildOrder {
+            mph_algo,
+            function,
+            node2swhid,
+            target_order,
+        } => {
+            use swh_graph::map::{Node2SWHID, OwnedPermutation};
+            use swh_graph::mph::SwhidMphf;
+
+            let mut permut_file = AtomicFile::create_new(&target_order)
+                .with_context(|| format!("Could not open {}", target_order.display()))?;
+
+            let mph = load_mph(mph_algo, &function)?;
+
+            log::info!("Loading node2swhid...");
+            let node2swhid = Node2SWHID::load(node2swhid)?;
+            let num_nodes = node2swhid.len();
+
+            ensure!(
+                mph.num_keys() == num_nodes,
+                "MPH has {} nodes, but node2swhid has {num_nodes}",
+                mph.num_keys()
+            );
+
+            log::info!("Allocating order...");
+            let order: Vec<_> = (0..num_nodes)
+                .into_par_iter()
+                .map(|_| AtomicUsize::new(usize::MAX))
+                .collect();
+
+            let mut pl = concurrent_progress_logger!(
+                display_memory = true,
+                item_name = "node",
+                local_speed = true,
+                expected_updates = Some(num_nodes),
+            );
+            pl.start("Inverting order...");
+            (0..num_nodes)
+                .into_par_iter()
+                .try_for_each_with(
+                    pl.clone(),
+                    |pl, node_id| -> Result<_> {
+                        let swhid = node2swhid.get(node_id).expect("node2swhid too small"); // already checked
+                        let Some(unpermuted_node_id) = mph.hash_swhid(&swhid) else {
+                            log::debug!("{swhid} exists in previous graph, but not in current graph");
+                            return Ok(());
+                        };
+
+                        // assign unpermuted_node_id to a value only if it was not assigned to one
+                        // already.
+                        // We must not assign it to a new value if it already had one, because the previous
+                        // value was already inserted in used_node_ids, which prevents using again, and
+                        // this would leave a hole in the set of node ids.
+                        match order[unpermuted_node_id].compare_exchange(usize::MAX, node_id, Ordering::Relaxed, Ordering::Relaxed) {
+                            Ok(usize::MAX) => (),
+                            Ok(ret) => unreachable!("compare_exchange return Ok({ret}) but current value is {}", usize::MAX),
+                            Err(swapped_value) => {
+                                panic!("Node {unpermuted_node_id} was already set to {swapped_value} but we tried to set it to {node_id}. This means it collides with {}", node2swhid.get(swapped_value).unwrap())
+                            }
+                        }
+
+                        pl.light_update();
+
+                        Ok(())
+                })?;
+            pl.done();
+
+            // In release mode, this is compiled into a no-op
+            let order: Vec<_> = order.into_iter().map(AtomicUsize::into_inner).collect();
+
+            let mut pl = concurrent_progress_logger!(
+                display_memory = true,
+                item_name = "node",
+                local_speed = true,
+                expected_updates = Some(num_nodes),
+            );
+            pl.start("Checking all node ids are assigned...");
+            let unassigned_node_id = order
+                .par_iter()
+                .copied()
+                .enumerate()
+                .find_any(|&(_unpermuted_node_id, node_id)| node_id == usize::MAX);
+            if let Some((unpermuted_node_id, _)) = unassigned_node_id {
+                bail!("Unpermuted node {unpermuted_node_id} does not exist in node2swhid.bin");
+            }
+            log::info!("Checking permutation...");
+            let perm = OwnedPermutation::new(order)?;
+
+            log::info!("Writing permutation...");
+            perm.dump(&mut permut_file)
+                .context("Could not write permutation")?;
+            permut_file.commit().context("Could not commit perm file")?;
         }
     }
 

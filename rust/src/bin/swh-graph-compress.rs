@@ -7,7 +7,7 @@
 
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -15,7 +15,7 @@ use std::sync::Mutex;
 #[cfg(not(feature = "pthash"))]
 use anyhow::bail;
 use anyhow::{anyhow, ensure, Context, Result};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
 use rayon::prelude::*;
@@ -23,6 +23,7 @@ use sux::bits::{AtomicBitVec, BitVec};
 use sux::traits::BitVecOps;
 use webgraph::prelude::*;
 
+use swh_graph::cli::{load_mph, MphAlgorithm};
 use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
 use swh_graph::utils::AtomicFile;
 
@@ -193,32 +194,6 @@ enum Commands {
         labels: PathBuf,
         output_mphf: PathBuf,
     },
-}
-
-#[derive(Copy, Clone, Debug, ValueEnum)]
-enum MphAlgorithm {
-    Fmphgo,
-    Pthash,
-    Cmph,
-}
-
-fn load_mph(mph_algo: MphAlgorithm, path: &Path) -> Result<swh_graph::mph::DynMphf> {
-    Ok(match mph_algo {
-        MphAlgorithm::Cmph => swh_graph::java_compat::mph::gov::GOVMPH::load(path)
-            .context("Cannot load mph")?
-            .into(),
-        MphAlgorithm::Fmphgo => swh_graph::mph::SwhidFmphgo::load(path)
-            .context("Cannot load mph")?
-            .into(),
-        MphAlgorithm::Pthash => {
-            #[cfg(not(feature = "pthash"))]
-            bail!("pthash support is disabled. Recompile with --features pthash");
-            #[cfg(feature = "pthash")]
-            swh_graph::mph::SwhidPthash::load(path)
-                .context("Cannot load mph")?
-                .into()
-        }
-    })
 }
 
 pub fn main() -> Result<()> {

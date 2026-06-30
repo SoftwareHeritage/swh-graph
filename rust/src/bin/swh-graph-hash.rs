@@ -8,9 +8,10 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 use mmap_rs::Mmap;
 
+use swh_graph::cli::MphAlgorithm;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::map::Node2SWHID;
 use swh_graph::map::{MappedPermutation, Permutation};
@@ -33,13 +34,6 @@ use swh_graph::{OutOfBoundError, SWHID};
 struct Args {
     #[command(subcommand)]
     command: Commands,
-}
-
-#[derive(Copy, Clone, Debug, ValueEnum)]
-enum MphAlgorithm {
-    Fmphgo,
-    Pthash,
-    Cmph,
 }
 
 #[derive(Subcommand, Debug)]
