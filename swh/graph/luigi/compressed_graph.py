@@ -1778,7 +1778,7 @@ class DownloadGraphFromS3(luigi.Task):
         return [self._meta()]
 
     def _meta(self):
-        return luigi.LocalTarget(self.local_graph_path / "meta" / "export.json")
+        return luigi.LocalTarget(self.local_graph_path / "meta" / "compression.json")
 
     def run(self) -> None:
         """Copies all files: first the graph itself, then :file:`meta/compression.json`."""
