@@ -52,17 +52,9 @@ pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
     let pass_counter = AtomicU32::new(1);
     let iter_labels = || -> Result<_, VFuncError> {
         let pass_counter = pass_counter.fetch_add(1, Ordering::Relaxed);
-        let mut pl = progress_logger!(
-            display_memory = true,
-            item_name = "label",
-            local_speed = true,
-            expected_updates = Some(num_labels),
-        );
-        pl.start(format!("Reading labels (pass #{pass_counter})"));
+        log::info!("Reading labels (pass #{pass_counter})");
         Ok(lender::from_fallible_iter_ref(fallible_iterator::convert(
-            iter_labels(&path)
-                .context("Could not read labels")?
-                .inspect(move |_| pl.light_update()),
+            iter_labels(&path).context("Could not read labels")?,
         )))
     };
 
