@@ -13,10 +13,10 @@ members = [
 [workspace.package]
 repository = "https://gitlab.softwareheritage.org/swh/devel/swh-graph"
 license = "GPL-3.0-or-later"
-version = "11.4.5"
+version = "12.0.0"
 
 [workspace.dependencies]
-swh-graph = { version = "11.0.0", path = "./rust/" }
+swh-graph = { version = "12.0.0", path = "./rust/" }
 
 anyhow = { version="1.0.79", features=["backtrace"] }
 dsi-bitstream = "0.7.0"
