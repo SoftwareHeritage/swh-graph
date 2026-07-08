@@ -59,9 +59,7 @@ class GraphServerProcess(multiprocessing.context.ForkServerProcess):
             if isinstance(e, ExecutableNotFound):
                 # hack to add a bit more context and help to the user,
                 # especially when this is used from another swh package...
-                # XXX on py>=3.11 we could use e.add_note() instead
-                e.args = (
-                    *e.args,
+                e.add_note(
                     "This probably means you need to build the rust grpc server "
                     'for swh-graph. Check the "Minimal setup for tests" section in '
                     "the rust/README.md file in the swh-graph "
