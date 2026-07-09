@@ -153,7 +153,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     // Avoid empty partitions at the end when there are very few nodes
     let num_partitions = num_nodes.div_ceil(nodes_per_partition);
 
-    let total_labeled_arcs = AtomicUsize::new(0);
+    let labeled_arcs_counters = thread_local::ThreadLocal::new();
 
     // Sort in parallel in a bunch of SortPairs instances
     let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
@@ -173,23 +173,26 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
             &codec,
             iter_labeled_arcs(&dataset_dir, allowed_node_types, label_name_hasher)
                 .context("Could not open input files to read arcs")?
-                .map(|(src, dst, label)| -> Result<_> {
-                    total_labeled_arcs.fetch_add(1, Ordering::Relaxed);
-                    let mut src = mph.hash_str_array(&src).ok_or_else(|| {
-                        anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&src))
-                    })?;
-                    let mut dst = mph.hash_str_array(&dst).ok_or_else(|| {
-                        anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&dst))
-                    })?;
-                    if transposed {
-                        (src, dst) = (dst, src);
-                    }
-                    assert!(src < num_nodes, "src node id is greater than {num_nodes}");
-                    assert!(dst < num_nodes, "dst node id is greater than {num_nodes}");
-                    let src = order.get(src).expect("Could not permute src");
-                    let dst = order.get(dst).expect("Could not permute dst");
-                    Ok(((src, dst), label))
-                }),
+                .map_init(
+                    || labeled_arcs_counters.get_or(AtomicUsize::default),
+                    |labeled_arcs_counter, (src, dst, label)| -> Result<_> {
+                        labeled_arcs_counter.fetch_add(1, Ordering::Relaxed);
+                        let mut src = mph.hash_str_array(&src).ok_or_else(|| {
+                            anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&src))
+                        })?;
+                        let mut dst = mph.hash_str_array(&dst).ok_or_else(|| {
+                            anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&dst))
+                        })?;
+                        if transposed {
+                            (src, dst) = (dst, src);
+                        }
+                        assert!(src < num_nodes, "src node id is greater than {num_nodes}");
+                        assert!(dst < num_nodes, "dst node id is greater than {num_nodes}");
+                        let src = order.get(src).expect("Could not permute src");
+                        let dst = order.get(dst).expect("Could not permute dst");
+                        Ok(((src, dst), label))
+                    },
+                ),
         )
         .context("Could not sort pairs")?;
 
@@ -199,7 +202,10 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     //
     // TODO: use total_labeled_arcs.into_inner() after webgraph 0.6.1, as it will remove
     // the constraint that the closure that borrowed total_labeled_arcs must outlive sorted_arcs.
-    let total_labeled_arcs = total_labeled_arcs.load(Ordering::Relaxed);
+    let total_labeled_arcs = labeled_arcs_counters
+        .iter()
+        .map(|counter| counter.load(Ordering::Relaxed))
+        .sum();
 
     let mut pl = progress_logger!(
         log_target = "swh_graph::compress::bv::edge_labels::merge",
