@@ -207,7 +207,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
         .map(|counter| counter.load(Ordering::Relaxed))
         .sum();
 
-    let mut pl = progress_logger!(
+    let mut pl = concurrent_progress_logger!(
         log_target = "swh_graph::compress::bv::edge_labels::merge",
         display_memory = true,
         item_name = "arc",
@@ -229,7 +229,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     let partitions = Vec::from(sorted_arcs.iters)
         .into_par_iter()
         .enumerate()
-        .map(|(partition_id, sorted_arcs_partition)| {
+        .map_with(pl.clone(), |pl, (partition_id, sorted_arcs_partition)| {
             let open_options = File::options()
                 .create_new(true)
                 .read(true)
@@ -289,6 +289,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
                                     as u64,
                             )
                             .context("length overflowed u64")?;
+                        pl.light_update();
                     }
                 }
 
@@ -334,6 +335,8 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
         })
         .collect::<Result<Vec<_>>>()
         .context("Could not merge labels")?;
+    pl.done();
+    drop(pl);
 
     let mut labels_path = target_dir.to_owned();
     labels_path.as_mut_os_string().push("-labelled.labels");
