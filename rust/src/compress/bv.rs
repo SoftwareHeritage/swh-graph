@@ -227,7 +227,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     std::fs::create_dir(&merged_arcs_path)
         .with_context(|| format!("Could not create {}", merged_arcs_path.display()))?;
     let partitions = Vec::from(sorted_arcs.iters)
-        .into_iter()
+        .into_par_iter()
         .enumerate()
         .map(|(partition_id, sorted_arcs_partition)| {
             let open_options = File::options()
