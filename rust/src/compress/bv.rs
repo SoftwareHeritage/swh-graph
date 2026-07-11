@@ -415,7 +415,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
             let mut pl = progress_logger!(
                 log_target = "swh_graph::compress::bv::edge_labels::write_labels",
                 display_memory = true,
-                item_name = "byte",
+                item_name = "bit",
                 local_speed = true,
                 expected_updates = total_length.try_into().ok(),
             );
