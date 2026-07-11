@@ -4,15 +4,15 @@
 // See top-level LICENSE file for more information
 
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufReader, BufWriter, Seek};
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Context, Result};
-use dsi_bitstream::codes::GammaWrite;
-use dsi_bitstream::prelude::{BitRead, BitWrite, BufBitWriter, WordAdapter, BE, NE};
+use dsi_bitstream::codes::{GammaRead, GammaWrite};
+use dsi_bitstream::prelude::{BitRead, BitWrite, BufBitReader, BufBitWriter, WordAdapter, BE, NE};
 use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
 use itertools::Itertools;
 use lender::{for_, Lender};
@@ -153,7 +153,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     // Avoid empty partitions at the end when there are very few nodes
     let num_partitions = num_nodes.div_ceil(nodes_per_partition);
 
-    let total_labeled_arcs = AtomicUsize::new(0);
+    let labeled_arcs_counters = thread_local::ThreadLocal::new();
 
     // Sort in parallel in a bunch of SortPairs instances
     let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
@@ -173,46 +173,177 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
             &codec,
             iter_labeled_arcs(&dataset_dir, allowed_node_types, label_name_hasher)
                 .context("Could not open input files to read arcs")?
-                .map(|(src, dst, label)| -> Result<_> {
-                    total_labeled_arcs.fetch_add(1, Ordering::Relaxed);
-                    let mut src = mph.hash_str_array(&src).ok_or_else(|| {
-                        anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&src))
-                    })?;
-                    let mut dst = mph.hash_str_array(&dst).ok_or_else(|| {
-                        anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&dst))
-                    })?;
-                    if transposed {
-                        (src, dst) = (dst, src);
-                    }
-                    assert!(src < num_nodes, "src node id is greater than {num_nodes}");
-                    assert!(dst < num_nodes, "dst node id is greater than {num_nodes}");
-                    let src = order.get(src).expect("Could not permute src");
-                    let dst = order.get(dst).expect("Could not permute dst");
-                    Ok(((src, dst), label))
-                }),
+                .map_init(
+                    || labeled_arcs_counters.get_or(AtomicUsize::default),
+                    |labeled_arcs_counter, (src, dst, label)| -> Result<_> {
+                        labeled_arcs_counter.fetch_add(1, Ordering::Relaxed);
+                        let mut src = mph.hash_str_array(&src).ok_or_else(|| {
+                            anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&src))
+                        })?;
+                        let mut dst = mph.hash_str_array(&dst).ok_or_else(|| {
+                            anyhow!("Unknown SWHID {:?}", String::from_utf8_lossy(&dst))
+                        })?;
+                        if transposed {
+                            (src, dst) = (dst, src);
+                        }
+                        assert!(src < num_nodes, "src node id is greater than {num_nodes}");
+                        assert!(dst < num_nodes, "dst node id is greater than {num_nodes}");
+                        let src = order.get(src).expect("Could not permute src");
+                        let dst = order.get(dst).expect("Could not permute dst");
+                        Ok(((src, dst), label))
+                    },
+                ),
         )
         .context("Could not sort pairs")?;
 
-    let arc_list_graphs = Vec::from(sorted_arcs.iters).into_iter().enumerate().map(
-        |(partition_id, sorted_arcs_partition)| {
+    // Somewhat incorrect, we would need Ordering::Release here (and Ordering::Acquire in the
+    // worker threads). But it's only an approximation so we don't care (plus the worker threads
+    // should be shut down now even if the compiler doesn't know it).
+    //
+    // TODO: use total_labeled_arcs.into_inner() after webgraph 0.6.1, as it will remove
+    // the constraint that the closure that borrowed total_labeled_arcs must outlive sorted_arcs.
+    let total_labeled_arcs = labeled_arcs_counters
+        .iter()
+        .map(|counter| counter.load(Ordering::Relaxed))
+        .sum();
+
+    let mut pl = concurrent_progress_logger!(
+        log_target = "swh_graph::compress::bv::edge_labels::merge",
+        display_memory = true,
+        item_name = "arc",
+        local_speed = true,
+        expected_updates = Some(total_labeled_arcs),
+    );
+    pl.start("Merging arc labels");
+
+    // Compress each partition of labels independently
+    struct MergedPartition {
+        num_offsets: u64,
+        length: u64,
+        labels_reader: BufBitReader<BE, WordAdapter<u32, BufReader<File>>>,
+        offsets_reader: BufBitReader<BE, WordAdapter<u32, BufReader<File>>>,
+    }
+    let merged_arcs_path = temp_dir.path().join("merged_arcs");
+    std::fs::create_dir(&merged_arcs_path)
+        .with_context(|| format!("Could not create {}", merged_arcs_path.display()))?;
+    let partitions = Vec::from(sorted_arcs.iters)
+        .into_par_iter()
+        .enumerate()
+        .map_with(pl.clone(), |pl, (partition_id, sorted_arcs_partition)| {
+            let open_options = File::options()
+                .create_new(true)
+                .read(true)
+                .append(true)
+                .clone();
+            let labels_path = merged_arcs_path.join(format!("{partition_id}.labels"));
+            let mut labels_writer =
+                BufBitWriter::<BE, _, _>::new(WordAdapter::<u32, _>::new(BufWriter::new(
+                    open_options
+                        .open(&labels_path)
+                        .with_context(|| format!("Could not create {}", labels_path.display()))?,
+                )));
+
+            let offsets_path = merged_arcs_path.join(format!("{partition_id}.offsets"));
+            let mut offsets_writer =
+                BufBitWriter::<BE, _, _>::new(WordAdapter::<u32, _>::new(BufWriter::new(
+                    open_options
+                        .open(&offsets_path)
+                        .with_context(|| format!("Could not create {}", offsets_path.display()))?,
+                )));
+            let mut total_length = 0u64;
+            let mut num_offsets = 0u64;
+
             // no sorted_arcs_partition.dedup() on labels
-            ArcListGraph::new_labeled(num_nodes, sorted_arcs_partition.into_iter())
+            let graph = ArcListGraph::new_labeled(num_nodes, sorted_arcs_partition.into_iter())
                 .iter_from(sorted_arcs.boundaries[partition_id])
                 .take(
                     sorted_arcs.boundaries[partition_id + 1]
                         .checked_sub(sorted_arcs.boundaries[partition_id])
                         .expect("sorted_arcs.boundaries is not sorted"),
-                )
-        },
-    );
+                );
+
+            for_!( (_src, successors) in graph {
+                let mut length = 0u64;
+                for (_dst, labels) in &successors.group_by(|(dst, _label)| *dst) {
+                    let mut labels: Vec<u64> = labels
+                        .flat_map(|(_dst, label)| label)
+                        .map(|label: NonMaxU64| u64::from(label))
+                        .collect();
+                    labels.par_sort_unstable();
+
+                    // Write length-prefixed list of labels
+                    length = length
+                        .checked_add(
+                            labels_writer
+                                .write_gamma(labels.len() as u64)
+                                .context("Could not write number of labels")?
+                                as u64,
+                        )
+                        .context("length overflowed u64")?;
+                    for label in labels {
+                        length = length
+                            .checked_add(
+                                labels_writer
+                                    .write_bits(label, label_width)
+                                    .context("Could not write label")?
+                                    as u64,
+                            )
+                            .context("length overflowed u64")?;
+                        pl.light_update();
+                    }
+                }
+
+                // Write length of this node's label list
+                offsets_writer
+                    .write_gamma(length)
+                    .context("Could not write length")?;
+                num_offsets += 1;
+                total_length += length;
+            });
+
+            let mut labels_file = labels_writer
+                .into_inner()
+                .context("Could not flush labels bit writer")?
+                .into_inner()
+                .into_inner()
+                .map_err(|e| e.into_error())
+                .context("Could not flush labels byte writer")?;
+            labels_file
+                .rewind()
+                .context("Could not rewind labels file")?;
+            let labels_reader =
+                BufBitReader::<BE, _>::new(WordAdapter::<u32, _>::new(BufReader::new(labels_file)));
+            let mut offsets_file = offsets_writer
+                .into_inner()
+                .context("Could not flush offsets bit writer")?
+                .into_inner()
+                .into_inner()
+                .map_err(|e| e.into_error())
+                .context("Could not flush offsets byte writer")?;
+            offsets_file
+                .rewind()
+                .context("Could not rewind labels offsets file")?;
+            let offsets_reader = BufBitReader::<BE, _>::new(WordAdapter::<u32, _>::new(
+                BufReader::new(offsets_file),
+            ));
+            Ok(MergedPartition {
+                num_offsets,
+                length: total_length,
+                offsets_reader,
+                labels_reader,
+            })
+        })
+        .collect::<Result<Vec<_>>>()
+        .context("Could not merge labels")?;
+    pl.done();
+    drop(pl);
 
     let mut labels_path = target_dir.to_owned();
     labels_path.as_mut_os_string().push("-labelled.labels");
-    let mut labels_writer =
-        BufBitWriter::<BE, _, _>::new(WordAdapter::<u8, _>::new(BufWriter::new(
-            File::create(&labels_path)
-                .with_context(|| format!("Could not create {}", labels_path.display()))?,
-        )));
+    let mut labels_writer = BufBitWriter::<BE, _>::new(WordAdapter::<u8, _>::new(BufWriter::new(
+        File::create(&labels_path)
+            .with_context(|| format!("Could not create {}", labels_path.display()))?,
+    )));
 
     let mut offsets_path = target_dir.to_owned();
     offsets_path
@@ -224,84 +355,97 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
                 .with_context(|| format!("Could not create {}", offsets_path.display()))?,
         )));
 
-    // Somewhat incorrect, we would need Ordering::Release here (and Ordering::Acquire in the
-    // worker threads). But it's only an approximation so we don't care (plus the worker threads
-    // should be shut down now even if the compiler doesn't know it).
-    //
-    // TODO: use total_labeled_arcs.into_inner() after webgraph 0.6.1, as it will remove
-    // the constraint that the closure that borrowed total_labeled_arcs must outlive sorted_arcs.
-    let total_labeled_arcs = total_labeled_arcs.load(Ordering::Relaxed);
-
-    let mut pl = progress_logger!(
-        display_memory = true,
-        item_name = "arc",
-        local_speed = true,
-        expected_updates = Some(total_labeled_arcs),
-    );
-    pl.start("Writing arc labels");
-
     // Write offset (in *bits*) of the adjacency list of the first node
     offsets_writer
         .write_gamma(0)
         .context("Could not write initial offset")?;
 
-    for partition in arc_list_graphs {
-        for_!( (_src, successors) in partition {
-            let mut offset_bits = 0u64;
-            for (_dst, labels) in &successors.group_by(|(dst, _label)| *dst) {
-                let mut labels: Vec<u64> = labels
-                    .flat_map(|(_dst, label)| label)
-                    .map(|label: NonMaxU64| u64::from(label))
-                    .collect();
-                labels.par_sort_unstable();
-                pl.update_with_count(labels.len());
-
-                // Write length-prefixed list of labels
-                offset_bits = offset_bits
-                    .checked_add(
-                        labels_writer
-                            .write_gamma(labels.len() as u64)
-                            .context("Could not write number of labels")?
-                            as u64,
-                    )
-                    .context("offset overflowed u64")?;
-                for label in labels {
-                    offset_bits = offset_bits
-                        .checked_add(
-                            labels_writer
-                                .write_bits(label, label_width)
-                                .context("Could not write label")?
-                                as u64,
-                        )
-                        .context("offset overflowed u64")?;
+    let mut total_num_offsets = 0u64;
+    let mut total_length = 0u64;
+    let mut labels_readers = Vec::new();
+    let mut offsets_readers = Vec::new();
+    for MergedPartition {
+        num_offsets,
+        length,
+        labels_reader,
+        offsets_reader,
+    } in partitions
+    {
+        total_length = total_length
+            .checked_add(length)
+            .context("total_length overflowed u64")?;
+        total_num_offsets = total_num_offsets
+            .checked_add(num_offsets)
+            .context("num_offsets overflowed u64")?;
+        labels_readers.push((length, labels_reader));
+        offsets_readers.push((num_offsets, offsets_reader));
+    }
+    let (r1, r2) = rayon::join(
+        || -> Result<()> {
+            let mut pl = progress_logger!(
+                log_target = "swh_graph::compress::bv::edge_labels::write_offsets",
+                display_memory = true,
+                item_name = "offset",
+                local_speed = true,
+                expected_updates = total_num_offsets.try_into().ok(),
+            );
+            pl.start("Writing offsets");
+            for (num_offsets, mut offsets_reader) in offsets_readers {
+                for _ in 0..num_offsets {
+                    let offset = offsets_reader
+                        .read_gamma()
+                        .context("Could not read length")?;
+                    offsets_writer
+                        .write_gamma(offset)
+                        .context("Could not write offset")?;
                 }
             }
-
-            // Write offset of the end of this edge's label list (and start of the next one)
-            offsets_writer
-                .write_gamma(offset_bits)
-                .context("Could not write offset")?;
-        });
-    }
-
-    drop(
-        labels_writer
-            .into_inner()
-            .context("Could not flush labels writer")?
-            .into_inner()
-            .into_inner()
-            .context("Could not flush labels bufwriter")?,
+            drop(
+                offsets_writer
+                    .into_inner()
+                    .context("Could not flush label offsets bit writer")?
+                    .into_inner()
+                    .into_inner()
+                    .context("Could not flush label offsets bufwriter")?,
+            );
+            pl.done();
+            Ok(())
+        },
+        || -> Result<()> {
+            let mut pl = progress_logger!(
+                log_target = "swh_graph::compress::bv::edge_labels::write_labels",
+                display_memory = true,
+                item_name = "bit",
+                local_speed = true,
+                expected_updates = total_length.try_into().ok(),
+            );
+            pl.start("Writing arc labels");
+            for (mut remaining_bits, mut labels_reader) in labels_readers {
+                while remaining_bits > 0 {
+                    let chunk_bits = remaining_bits.min(4 * 1024 * 1024 * 8); // 4MiB, arbitrary
+                    labels_writer
+                        .copy_from(&mut labels_reader, chunk_bits)
+                        .context("Could not copy chunk of labels")?;
+                    pl.update_with_count(chunk_bits as usize);
+                    remaining_bits = remaining_bits
+                        .checked_sub(chunk_bits)
+                        .expect("inconsistent arithmetic");
+                }
+            }
+            drop(
+                labels_writer
+                    .into_inner()
+                    .context("Could not close labels bit writer")?
+                    .into_inner()
+                    .into_inner()
+                    .context("Could not flush labels bufwriter")?,
+            );
+            pl.done();
+            Ok(())
+        },
     );
-    drop(
-        offsets_writer
-            .into_inner()
-            .context("Could not close label offsets writer")?
-            .into_inner()
-            .into_inner()
-            .context("Could not flush label offsets bufwriter")?,
-    );
-
-    pl.done();
+    r1.context("Could not write offsets")?;
+    r2.context("Could not write labels")?;
 
     drop(temp_dir); // Prevent early deletion
 
