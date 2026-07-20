@@ -4,17 +4,16 @@
 # See top-level LICENSE file for more information
 
 import logging
-import os
 from pathlib import Path
 import shlex
 import sys
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
 
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 import click
 
-from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup
+from swh.core.cli import CONTEXT_SETTINGS, AliasedGroup, setup_config
 from swh.core.cli import swh as swh_cli_group
 
 if TYPE_CHECKING:
@@ -76,9 +75,7 @@ class PathlibPath(click.Path):
         return Path(super().convert(value, param, ctx))
 
 
-DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {
-    "graph": ("dict", {"cls": "local", "grpc_server": {}})
-}
+DEFAULT_CONFIG: Dict[str, Any] = {"graph": {"cls": "local", "grpc_server": {}}}
 
 
 @swh_cli_group.group(name="graph", context_settings=CONTEXT_SETTINGS, cls=AliasedGroup)
@@ -90,6 +87,7 @@ DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {
         exists=True,
         dir_okay=False,
     ),
+    deprecated=True,
     help="YAML configuration file",
 )
 @click.option(
@@ -101,20 +99,16 @@ DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {
 @click.pass_context
 def graph_cli_group(ctx, config_file, profile):
     """Software Heritage graph tools."""
-    from swh.core import config
+    from swh.core.config import merge_configs
 
-    ctx.ensure_object(dict)
-    if not config_file:
-        config_file = os.environ.get("SWH_CONFIG_FILENAME")
-    conf = config.read(config_file, DEFAULT_CONFIG)
-    if "graph" not in conf:
-        raise ValueError(
-            'no "graph" stanza found in configuration file %s' % config_file
-        )
-    ctx.obj["config"] = conf
+    setup_config(ctx, config_file)
+    cfg = merge_configs(DEFAULT_CONFIG, ctx.obj["config"])
 
+    if "graph" not in cfg:
+        raise ValueError('no "graph" stanza found in configuration')
     if profile is not None:
-        conf["profile"] = profile
+        cfg["profile"] = profile
+    ctx.obj["config"] = cfg
 
 
 @graph_cli_group.command(name="rpc-serve")
