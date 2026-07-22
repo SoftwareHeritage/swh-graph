@@ -840,6 +840,7 @@ def _clean_tmp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "-rf",
         *Path(conf["out_dir"]).glob(f"{conf['graph_name']}-base.*"),
         *Path(conf["out_dir"]).glob(f"{conf['graph_name']}-bfs-simplified.*"),
+        *Path(conf["out_dir"]).glob(f"{conf['graph_name']}-*.tmp"),
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
         f"{conf['out_dir']}/{conf['graph_name']}-llp.order",
         f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
