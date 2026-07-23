@@ -9,7 +9,7 @@ from pathlib import Path
 from click.testing import CliRunner
 import pytest
 
-from swh.graph.cli import graph_cli_group
+from swh.core.cli import swh as swh_cli_group
 from swh.graph.example_dataset import (
     CONTENTS,
     DATASET,
@@ -34,6 +34,7 @@ def test_compressgraph(tmpdir, workers):
     runner = CliRunner()
 
     command = [
+        "graph",
         "luigi",
         "--base-directory",
         tmpdir / "base_dir",
@@ -55,7 +56,7 @@ def test_compressgraph(tmpdir, workers):
         f"--workers={workers}",
     ]
 
-    result = runner.invoke(graph_cli_group, command)
+    result = runner.invoke(swh_cli_group, command)
     assert result.exit_code == 0, result.stdout
 
     properties = read_properties(tmpdir / "compressed_graph" / "graph.properties")
@@ -106,6 +107,7 @@ def test_compressgraph_sensitive(tmpdir):
     runner = CliRunner()
 
     command = [
+        "graph",
         "luigi",
         "--base-directory",
         tmpdir / "base_dir",
@@ -132,7 +134,7 @@ def test_compressgraph_sensitive(tmpdir):
         "ExportGraph",
     ]
 
-    result = runner.invoke(graph_cli_group, command)
+    result = runner.invoke(swh_cli_group, command)
     assert result.exit_code == 0, result.stdout
 
     assert (tmpdir / "compressed_graph_sensitive").exists()
@@ -183,6 +185,7 @@ def test_compressgraph_partial(tmpdir, workers, object_types):
     runner = CliRunner()
 
     command = [
+        "graph",
         "luigi",
         "--base-directory",
         tmpdir / "base_dir",
@@ -205,7 +208,7 @@ def test_compressgraph_partial(tmpdir, workers, object_types):
         f"--workers={workers}",
     ]
 
-    result = runner.invoke(graph_cli_group, command)
+    result = runner.invoke(swh_cli_group, command)
     assert result.exit_code == 0, result.stdout
 
     properties = read_properties(tmpdir / "compressed_graph" / "graph.properties")
@@ -315,6 +318,7 @@ def test_compressgraph_from_previous_graph(tmpdir, previous_graph):
     runner = CliRunner()
 
     command = [
+        "graph",
         "luigi",
         "--base-directory",
         tmpdir / "base_dir",
@@ -338,7 +342,7 @@ def test_compressgraph_from_previous_graph(tmpdir, previous_graph):
         f"--workers={workers}",
     ]
 
-    result = runner.invoke(graph_cli_group, command)
+    result = runner.invoke(swh_cli_group, command)
     assert result.exit_code == 0, result.stdout
 
     properties = read_properties(tmpdir / "compressed_graph" / "graph.properties")

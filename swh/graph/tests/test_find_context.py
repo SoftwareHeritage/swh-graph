@@ -1,18 +1,18 @@
-# Copyright (C) 2019-2025  The Software Heritage developers
+# Copyright (C) 2019-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 from click.testing import CliRunner
 
-from swh.graph.cli import graph_cli_group
+from swh.core.cli import swh as swh_cli_group
 
 
 def test_find_context_content(graph_grpc_server):
     swhid = "swh:1:cnt:0000000000000000000000000000000000000001"
     runner = CliRunner()
     result = runner.invoke(
-        graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
+        swh_cli_group, ["graph", "find-context", "-g", graph_grpc_server, "-c", swhid]
     )
     expected_fqswhid = (
         "swh:1:cnt:0000000000000000000000000000000000000001;"
@@ -29,7 +29,7 @@ def test_find_context_content_in_root_directory(graph_grpc_server):
     swhid = "swh:1:cnt:0000000000000000000000000000000000000014"
     runner = CliRunner()
     result = runner.invoke(
-        graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
+        swh_cli_group, ["graph", "find-context", "-g", graph_grpc_server, "-c", swhid]
     )
     expected_fqswhid = (
         "swh:1:cnt:0000000000000000000000000000000000000014;"
@@ -46,7 +46,7 @@ def test_find_context_directory(graph_grpc_server):
     swhid = "swh:1:dir:0000000000000000000000000000000000000012"
     runner = CliRunner()
     result = runner.invoke(
-        graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
+        swh_cli_group, ["graph", "find-context", "-g", graph_grpc_server, "-c", swhid]
     )
     expected_fqswhid = (
         "swh:1:dir:0000000000000000000000000000000000000012;"
@@ -63,7 +63,7 @@ def test_find_context_revision(graph_grpc_server):
     swhid = "swh:1:rev:0000000000000000000000000000000000000009"
     runner = CliRunner()
     result = runner.invoke(
-        graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
+        swh_cli_group, ["graph", "find-context", "-g", graph_grpc_server, "-c", swhid]
     )
     expected_fqswhid = (
         "swh:1:rev:0000000000000000000000000000000000000009;"
@@ -78,7 +78,7 @@ def test_find_context_release(graph_grpc_server):
     swhid = "swh:1:rel:0000000000000000000000000000000000000010"
     runner = CliRunner()
     result = runner.invoke(
-        graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
+        swh_cli_group, ["graph", "find-context", "-g", graph_grpc_server, "-c", swhid]
     )
     expected_fqswhid = (
         "swh:1:rel:0000000000000000000000000000000000000010;"
@@ -93,7 +93,7 @@ def test_find_context_snapshot(graph_grpc_server):
     swhid = "swh:1:snp:0000000000000000000000000000000000000020"
     runner = CliRunner()
     result = runner.invoke(
-        graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
+        swh_cli_group, ["graph", "find-context", "-g", graph_grpc_server, "-c", swhid]
     )
     expected_fqswhid = (
         "swh:1:snp:0000000000000000000000000000000000000020;"
@@ -107,7 +107,7 @@ def test_find_context_unknown(graph_grpc_server):
     swhid = "swh:1:dir:1111111111111111111111111111111111111111"
     runner = CliRunner()
     result = runner.invoke(
-        graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
+        swh_cli_group, ["graph", "find-context", "-g", graph_grpc_server, "-c", swhid]
     )
     expected_fqswhid = (
         "Error from the GRPC API call: "
@@ -122,10 +122,10 @@ def test_find_context_invalid(graph_grpc_server):
     swhid_2 = "asdfasdfasdf"
     runner = CliRunner()
     result_1 = runner.invoke(
-        graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid_1]
+        swh_cli_group, ["graph", "find-context", "-g", graph_grpc_server, "-c", swhid_1]
     )
     result_2 = runner.invoke(
-        graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid_2]
+        swh_cli_group, ["graph", "find-context", "-g", graph_grpc_server, "-c", swhid_2]
     )
     assert result_1.exit_code == 0, result_1
     assert result_2.exit_code == 0, result_2
@@ -137,7 +137,7 @@ def test_find_context_dangling(graph_grpc_server):
     swhid = "swh:1:rel:0000000000000000000000000000000000000019"
     runner = CliRunner()
     result = runner.invoke(
-        graph_cli_group, ["find-context", "-g", graph_grpc_server, "-c", swhid]
+        swh_cli_group, ["graph", "find-context", "-g", graph_grpc_server, "-c", swhid]
     )
     expected_fqswhid = (
         "Error from the GRPC API call: "

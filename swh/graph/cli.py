@@ -4,7 +4,6 @@
 # See top-level LICENSE file for more information
 
 import logging
-import os
 from pathlib import Path
 import shlex
 import sys
@@ -83,38 +82,24 @@ DEFAULT_CONFIG: Dict[str, Tuple[str, Any]] = {
 
 @swh_cli_group.group(name="graph", context_settings=CONTEXT_SETTINGS, cls=AliasedGroup)
 @click.option(
-    "--config-file",
-    "-C",
-    default=None,
-    type=click.Path(
-        exists=True,
-        dir_okay=False,
-    ),
-    help="YAML configuration file",
-)
-@click.option(
     "--profile",
     type=str,
     help="Which Rust profile to use executables from, usually 'release' "
     "(the default) or 'debug'.",
 )
 @click.pass_context
-def graph_cli_group(ctx, config_file, profile):
+def graph_cli_group(ctx, profile):
     """Software Heritage graph tools."""
-    from swh.core import config
 
     ctx.ensure_object(dict)
-    if not config_file:
-        config_file = os.environ.get("SWH_CONFIG_FILENAME")
-    conf = config.read(config_file, DEFAULT_CONFIG)
+    conf = ctx.obj["config"]
     if "graph" not in conf:
-        raise ValueError(
-            'no "graph" stanza found in configuration file %s' % config_file
-        )
-    ctx.obj["config"] = conf
+        raise ValueError('No "graph" config key entry found in configuration file')
 
     if profile is not None:
         conf["profile"] = profile
+
+    ctx.obj["config"] = conf
 
 
 @graph_cli_group.command(name="rpc-serve")

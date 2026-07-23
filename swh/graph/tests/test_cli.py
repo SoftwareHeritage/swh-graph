@@ -12,7 +12,7 @@ from click.testing import CliRunner
 import pytest
 import yaml
 
-from swh.graph.cli import graph_cli_group
+from swh.core.cli import swh as swh_cli_group
 from swh.graph.example_dataset import DATASET_DIR, SENSITIVE_DATASET_DIR
 
 
@@ -51,10 +51,11 @@ def test_pipeline(cli_runner, tmp_path):
     config_path.write_text(yaml.dump(config))
 
     result = cli_runner.invoke(
-        graph_cli_group,
+        swh_cli_group,
         [
             "--config-file",
             config_path,
+            "graph",
             "compress",
             "--input-dataset",
             DATASET_DIR / "orc",
@@ -95,10 +96,11 @@ def test_reindex(cli_runner, mocker, tmp_path, option):
     shutil.copytree(DATASET_DIR / "compressed", tmp_path, dirs_exist_ok=True)
 
     result = cli_runner.invoke(
-        graph_cli_group,
+        swh_cli_group,
         [
             "--config-file",
             config_path,
+            "graph",
             "--profile",
             "debug",
             "reindex",
@@ -119,8 +121,9 @@ def test_luigi(cli_runner, mocker, tmp_path, exit_code):
     subprocess_run.return_value.returncode = exit_code
 
     result = cli_runner.invoke(
-        graph_cli_group,
+        swh_cli_group,
         [
+            "graph",
             "luigi",
             "--base-directory",
             f"{tmp_path}/base_dir",
@@ -139,6 +142,7 @@ def test_luigi(cli_runner, mocker, tmp_path, exit_code):
     luigi_config_path = subprocess_run.mock_calls[0][2]["env"]["LUIGI_CONFIG_PATH"]
     subprocess_run.assert_called_once_with(
         [
+            "graph",
             "luigi",
             "--module",
             "swh.export.luigi",
@@ -155,8 +159,9 @@ def test_luigi(cli_runner, mocker, tmp_path, exit_code):
 
 def test_download_graph_ok(cli_runner, s3_graph_dataset_name, tmp_path, mocked_aws):
     result = cli_runner.invoke(
-        graph_cli_group,
+        swh_cli_group,
         [
+            "graph",
             "download",
             "--name",
             s3_graph_dataset_name,
@@ -180,8 +185,9 @@ def test_download_graph_resumption(
         True,
     ]
     result = cli_runner.invoke(
-        graph_cli_group,
+        swh_cli_group,
         [
+            "graph",
             "download",
             "--name",
             s3_graph_dataset_name,
@@ -205,8 +211,9 @@ def test_link_existing_destination(cli_runner, tmp_path):
     dest.mkdir()
 
     result = cli_runner.invoke(
-        graph_cli_group,
+        swh_cli_group,
         [
+            "graph",
             "link",
             str(source),
             str(dest),
