@@ -8,7 +8,7 @@ from click.testing import CliRunner
 from swh.core.cli import swh as swh_cli_group
 
 
-def test_find_context_content(graph_grpc_server):
+def test_find_context_content(graph_grpc_server, graph_config_path):
     swhid = "swh:1:cnt:0000000000000000000000000000000000000001"
     runner = CliRunner()
     result = runner.invoke(
@@ -25,7 +25,7 @@ def test_find_context_content(graph_grpc_server):
     assert result.output == expected_fqswhid, result.output
 
 
-def test_find_context_content_in_root_directory(graph_grpc_server):
+def test_find_context_content_in_root_directory(graph_grpc_server, graph_config_path):
     swhid = "swh:1:cnt:0000000000000000000000000000000000000014"
     runner = CliRunner()
     result = runner.invoke(
@@ -42,7 +42,7 @@ def test_find_context_content_in_root_directory(graph_grpc_server):
     assert result.output == expected_fqswhid, result.output
 
 
-def test_find_context_directory(graph_grpc_server):
+def test_find_context_directory(graph_grpc_server, graph_config_path):
     swhid = "swh:1:dir:0000000000000000000000000000000000000012"
     runner = CliRunner()
     result = runner.invoke(
@@ -59,7 +59,7 @@ def test_find_context_directory(graph_grpc_server):
     assert result.output == expected_fqswhid, result.output
 
 
-def test_find_context_revision(graph_grpc_server):
+def test_find_context_revision(graph_grpc_server, graph_config_path):
     swhid = "swh:1:rev:0000000000000000000000000000000000000009"
     runner = CliRunner()
     result = runner.invoke(
@@ -74,7 +74,7 @@ def test_find_context_revision(graph_grpc_server):
     assert result.output == expected_fqswhid, result.output
 
 
-def test_find_context_release(graph_grpc_server):
+def test_find_context_release(graph_grpc_server, graph_config_path):
     swhid = "swh:1:rel:0000000000000000000000000000000000000010"
     runner = CliRunner()
     result = runner.invoke(
@@ -89,7 +89,7 @@ def test_find_context_release(graph_grpc_server):
     assert result.output == expected_fqswhid, result.output
 
 
-def test_find_context_snapshot(graph_grpc_server):
+def test_find_context_snapshot(graph_grpc_server, graph_config_path):
     swhid = "swh:1:snp:0000000000000000000000000000000000000020"
     runner = CliRunner()
     result = runner.invoke(
@@ -103,7 +103,7 @@ def test_find_context_snapshot(graph_grpc_server):
     assert result.output == expected_fqswhid, result.output
 
 
-def test_find_context_unknown(graph_grpc_server):
+def test_find_context_unknown(graph_grpc_server, graph_config_path):
     swhid = "swh:1:dir:1111111111111111111111111111111111111111"
     runner = CliRunner()
     result = runner.invoke(
@@ -117,7 +117,7 @@ def test_find_context_unknown(graph_grpc_server):
     assert result.output == expected_fqswhid, result.output
 
 
-def test_find_context_invalid(graph_grpc_server):
+def test_find_context_invalid(graph_grpc_server, graph_config_path):
     swhid_1 = ""
     swhid_2 = "asdfasdfasdf"
     runner = CliRunner()
@@ -133,7 +133,7 @@ def test_find_context_invalid(graph_grpc_server):
     assert f"'{swhid_2}' is not a valid SWHID" in result_2.output
 
 
-def test_find_context_dangling(graph_grpc_server):
+def test_find_context_dangling(graph_grpc_server, graph_config_path):
     swhid = "swh:1:rel:0000000000000000000000000000000000000019"
     runner = CliRunner()
     result = runner.invoke(

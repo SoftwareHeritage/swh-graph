@@ -28,7 +28,7 @@ from ..test_cli import read_properties
 
 
 @pytest.mark.parametrize("workers", [1, 2, 100])
-def test_compressgraph(tmpdir, workers):
+def test_compressgraph(tmpdir, workers, graph_config_path):
     tmpdir = Path(tmpdir)
 
     runner = CliRunner()
@@ -101,7 +101,7 @@ def test_compressgraph(tmpdir, workers):
     assert [item.name for item in tmpdir.iterdir()] == ["compressed_graph"]
 
 
-def test_compressgraph_sensitive(tmpdir):
+def test_compressgraph_sensitive(tmpdir, graph_config_path):
     tmpdir = Path(tmpdir)
 
     runner = CliRunner()
@@ -179,7 +179,7 @@ def test_compressgraph_sensitive(tmpdir):
         (5, "rel"),
     ],
 )
-def test_compressgraph_partial(tmpdir, workers, object_types):
+def test_compressgraph_partial(tmpdir, workers, object_types, graph_config_path):
     tmpdir = Path(tmpdir)
 
     runner = CliRunner()
@@ -262,7 +262,7 @@ def test_compressgraph_partial(tmpdir, workers, object_types):
 
 
 @pytest.mark.parametrize("previous_graph", ["disjoint", "subset", "equal", "superset"])
-def test_compressgraph_from_previous_graph(tmpdir, previous_graph):
+def test_compressgraph_from_previous_graph(tmpdir, previous_graph, graph_config_path):
     workers = 100
     tmpdir = Path(tmpdir)
 

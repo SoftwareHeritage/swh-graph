@@ -1,13 +1,15 @@
-# Copyright (C) 2025  The Software Heritage developers
+# Copyright (C) 2025-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 import os
 from pathlib import Path
+from typing import Any, Dict
 
 import boto3
 import pytest
+import yaml
 
 
 def add_example_dataset_to_s3_bucket(
@@ -81,3 +83,17 @@ def mocked_aws(
         s3_graph_dataset_path_prefix,
         s3_graph_dataset_name,
     )
+
+
+@pytest.fixture
+def swh_graph_config() -> Dict[str, Any]:
+    return {"graph": {"cls": "local", "grpc_server": {}}}
+
+
+@pytest.fixture
+def graph_config_path(tmp_path, monkeypatch, swh_graph_config):
+    conf_path = os.path.join(tmp_path, "config.yml")
+    with open(conf_path, "w") as f:
+        f.write(yaml.dump(swh_graph_config))
+    monkeypatch.setenv("SWH_CONFIG_FILENAME", conf_path)
+    return conf_path

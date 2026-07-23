@@ -112,7 +112,7 @@ def test_reindex(cli_runner, mocker, tmp_path, option):
 
 
 @pytest.mark.parametrize("exit_code", [0, 1])
-def test_luigi(cli_runner, mocker, tmp_path, exit_code):
+def test_luigi(cli_runner, mocker, tmp_path, exit_code, graph_config_path):
     """calls Luigi with the given configuration"""
     # bare bone configuration, to allow testing the compression pipeline
     # with minimum RAM requirements on trivial graphs
@@ -142,7 +142,6 @@ def test_luigi(cli_runner, mocker, tmp_path, exit_code):
     luigi_config_path = subprocess_run.mock_calls[0][2]["env"]["LUIGI_CONFIG_PATH"]
     subprocess_run.assert_called_once_with(
         [
-            "graph",
             "luigi",
             "--module",
             "swh.export.luigi",
@@ -157,7 +156,9 @@ def test_luigi(cli_runner, mocker, tmp_path, exit_code):
     )
 
 
-def test_download_graph_ok(cli_runner, s3_graph_dataset_name, tmp_path, mocked_aws):
+def test_download_graph_ok(
+    cli_runner, s3_graph_dataset_name, tmp_path, mocked_aws, graph_config_path
+):
     result = cli_runner.invoke(
         swh_cli_group,
         [
@@ -178,7 +179,7 @@ def test_download_graph_ok(cli_runner, s3_graph_dataset_name, tmp_path, mocked_a
 
 
 def test_download_graph_resumption(
-    cli_runner, s3_graph_dataset_name, mocker, tmp_path, mocked_aws
+    cli_runner, s3_graph_dataset_name, mocker, tmp_path, mocked_aws, graph_config_path
 ):
     mocker.patch("swh.graph.download.GraphDownloader.download").side_effect = [
         False,
@@ -201,7 +202,7 @@ def test_download_graph_resumption(
     ) in result.output
 
 
-def test_link_existing_destination(cli_runner, tmp_path):
+def test_link_existing_destination(cli_runner, tmp_path, graph_config_path):
     """Test that link command shows user-friendly error when destination exists."""
     source = tmp_path / "source"
     source.mkdir()
