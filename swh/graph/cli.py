@@ -120,7 +120,7 @@ def graph_cli_group(ctx, config_file, profile):
 @graph_cli_group.command(name="rpc-serve")
 @click.option(
     "--host",
-    "-h",
+    "-H",
     default="0.0.0.0",
     metavar="IP",
     show_default=True,
