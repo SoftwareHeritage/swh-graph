@@ -1,8 +1,8 @@
 aiohttp
 click
-grpcio-tools >= 1.69.0
+grpcio-tools >= 1.82.1
 humanfriendly
 mypy-protobuf
-protobuf >=5.29.3
+protobuf >= 7.35.0
 psutil
 tqdm
