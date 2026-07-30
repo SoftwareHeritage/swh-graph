@@ -15,31 +15,10 @@ classifiers = [
 ]
 dynamic = ["version", "dependencies", "optional-dependencies"]
 
-[tool.setuptools.packages.find]
-include = ["swh.*"]
-
-[tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt", "requirements-swh.txt"] }
-
-[tool.setuptools.dynamic.optional-dependencies]
-export = { file = ["requirements-swh-export.txt"] }
-luigi = { file = [
-    "requirements-luigi.txt",
-    "requirements-swh-export.txt",
-    "requirements-swh-luigi.txt",
-] }
-testing = { file = [
-    "requirements-test.txt",
-    "requirements-luigi.txt",
-    "requirements-swh-export.txt",
-    "requirements-swh-luigi.txt",
-] }
 
 [project.entry-points."swh.cli.subcommands"]
 "swh.graph" = "swh.graph.cli"
+
 
 [project.urls]
 "Homepage" = "https://gitlab.softwareheritage.org/swh/devel/swh-graph"
@@ -49,11 +28,32 @@ testing = { file = [
 "Source" = "https://gitlab.softwareheritage.org/swh/devel/swh-graph.git"
 
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-requirements-txt", "hatch-vcs"]
+build-backend = "hatchling.build"
 
-[tool.setuptools_scm]
-fallback_version = "0.0.1"
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt", "requirements-swh.txt"]
+
+[tool.hatch.metadata.hooks.requirements_txt.optional-dependencies]
+export = ["requirements-swh-export.txt"]
+luigi = [
+    "requirements-luigi.txt",
+    "requirements-swh-export.txt",
+    "requirements-swh-luigi.txt",
+]
+testing = [
+    "requirements-test.txt",
+    "requirements-luigi.txt",
+    "requirements-swh-export.txt",
+    "requirements-swh-luigi.txt",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["swh"]
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.1"
 
 [tool.black]
 target-version = ['py311', 'py312', 'py313']
