@@ -39,10 +39,10 @@ dsi-progress-logger = "0.8.0"
 log = "0.4.17"
 
 
-[profile.release] # Used for the examples
-opt-level = 3             # like --release
+[profile.dev]
+debug = "limited"         # Save space
+
+[profile.release]
 lto = "fat"               # Full LTO
-overflow-checks = false   # Disable integer overflow checks.
 debug = "limited"         # Include profiling info.
-debug-assertions = false  # Disables debug assertions.
 codegen-units=1           # slower compile times, but maybe better perf
