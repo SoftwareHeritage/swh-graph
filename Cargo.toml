@@ -39,9 +39,6 @@ dsi-progress-logger = "0.8.0"
 log = "0.4.17"
 
 
-[profile.dev]
-debug = "limited"         # Save space
-
 [profile.release]
 lto = "fat"               # Full LTO
 debug = "limited"         # Include profiling info.
