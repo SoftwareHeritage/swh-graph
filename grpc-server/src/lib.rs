@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -215,8 +215,8 @@ impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
         let stats_path = stats_path.as_path();
         let stats = load_properties(stats_path, ".stats")?;
 
-        // Load export metadata
-        let export_meta_path = self
+        // Load export and graph metadata
+        let metadata_dir = self
             .graph
             .path()
             .parent()
@@ -227,11 +227,14 @@ impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
                 );
                 tonic::Status::internal("Could not find meta/export.json file")
             })?
-            .join("meta")
-            .join("export.json");
+            .join("meta");
+        let export_meta_path = metadata_dir.join("export.json");
         let export_meta_path = export_meta_path.as_path();
-        let export_meta = load_export_meta(export_meta_path);
-        let export_meta = export_meta.as_ref();
+        let export_meta = load_metadata::<ExportMeta>(export_meta_path);
+
+        let graph_meta_path = metadata_dir.join("compression.json");
+        let graph_meta_path = graph_meta_path.as_path();
+        let graph_meta = load_metadata::<GraphMeta>(graph_meta_path);
 
         Ok(Response::new(proto::StatsResponse {
             num_nodes: self.graph.num_nodes() as i64,
@@ -245,8 +248,14 @@ impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
             outdegree_min: get_property(&stats, stats_path, "minoutdegree")?,
             outdegree_max: get_property(&stats, stats_path, "maxoutdegree")?,
             outdegree_avg: get_property(&stats, stats_path, "avgoutdegree")?,
-            export_started_at: export_meta.map(|export_meta| export_meta.export_start.timestamp()),
-            export_ended_at: export_meta.map(|export_meta| export_meta.export_end.timestamp()),
+            export_started_at: export_meta
+                .as_ref()
+                .map(|export_meta| export_meta.export_start.timestamp()),
+            export_ended_at: export_meta
+                .as_ref()
+                .map(|export_meta| export_meta.export_end.timestamp()),
+            export_name: export_meta.and_then(|mut export_meta| export_meta.export_name.take()),
+            graph_name: graph_meta.and_then(|mut graph_meta| graph_meta.graph_name.take()),
             num_nodes_by_type: self
                 .graph
                 .num_nodes_by_type()
@@ -285,26 +294,34 @@ impl<G: SwhOptFullGraph + Send + Sync + Clone + 'static>
 struct ExportMeta {
     export_start: chrono::DateTime<chrono::Utc>,
     export_end: chrono::DateTime<chrono::Utc>,
+    export_name: Option<String>,
 }
-fn load_export_meta(path: &Path) -> Option<ExportMeta> {
+#[derive(serde_derive::Deserialize, Debug)]
+struct GraphMeta {
+    graph_name: Option<String>,
+}
+fn load_metadata<T>(path: &Path) -> Option<T>
+where
+    for<'a> T: serde::Deserialize<'a>,
+{
     let file = std::fs::File::open(path)
         .map_err(|e| {
             log::error!("Could not open {}: {}", path.display(), e);
         })
         .ok()?;
-    let mut export_meta = String::new();
+    let mut text = String::new();
     std::io::BufReader::new(file)
-        .read_to_string(&mut export_meta)
+        .read_to_string(&mut text)
         .map_err(|e| {
             log::error!("Could not read {}: {}", path.display(), e);
         })
         .ok()?;
-    let export_meta = serde_json::from_str(&export_meta)
+    let parsed = serde_json::from_str(&text)
         .map_err(|e| {
             log::error!("Could not parse {}: {}", path.display(), e);
         })
         .ok()?;
-    Some(export_meta)
+    Some(parsed)
 }
 
 #[inline(always)]
