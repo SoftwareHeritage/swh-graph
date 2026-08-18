@@ -13,7 +13,10 @@ import builtins as _builtins
 import sys
 import typing as _typing
 
-from typing import TypeAlias as _TypeAlias, Never as _Never
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias as _TypeAlias
+else:
+    from typing_extensions import TypeAlias as _TypeAlias
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -886,11 +889,8 @@ class CountResponse(_message.Message):
         *,
         count: _builtins.int = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
     _ClearFieldArgType: _TypeAlias = _typing.Literal["count", b"count"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    def WhichOneof(self, oneof_group: _Never) -> None: ...
 
 Global___CountResponse: _TypeAlias = CountResponse  # noqa: Y015
 
@@ -901,11 +901,6 @@ class StatsRequest(_message.Message):
     def __init__(
         self,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _Never  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    def WhichOneof(self, oneof_group: _Never) -> None: ...
 
 Global___StatsRequest: _TypeAlias = StatsRequest  # noqa: Y015
 
@@ -927,11 +922,8 @@ class StatsResponse(_message.Message):
             key: _builtins.str = ...,
             value: _builtins.int = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
         _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
         def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
 
     @_typing.final
     class NumArcsByTypeEntry(_message.Message):
@@ -947,11 +939,8 @@ class StatsResponse(_message.Message):
             key: _builtins.str = ...,
             value: _builtins.int = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
         _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
         def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
 
     NUM_NODES_FIELD_NUMBER: _builtins.int
     NUM_EDGES_FIELD_NUMBER: _builtins.int
@@ -966,6 +955,8 @@ class StatsResponse(_message.Message):
     OUTDEGREE_AVG_FIELD_NUMBER: _builtins.int
     EXPORT_STARTED_AT_FIELD_NUMBER: _builtins.int
     EXPORT_ENDED_AT_FIELD_NUMBER: _builtins.int
+    EXPORT_NAME_FIELD_NUMBER: _builtins.int
+    GRAPH_NAME_FIELD_NUMBER: _builtins.int
     NUM_NODES_BY_TYPE_FIELD_NUMBER: _builtins.int
     NUM_ARCS_BY_TYPE_FIELD_NUMBER: _builtins.int
     num_nodes: _builtins.int
@@ -1002,6 +993,10 @@ class StatsResponse(_message.Message):
     """Time when the export started"""
     export_ended_at: _builtins.int
     """Time when the export ended"""
+    export_name: _builtins.str
+    """Name of the export, usually a date"""
+    graph_name: _builtins.str
+    """Name of the graph, usually a date with an optional suffix if it is a subset"""
     @_builtins.property
     def num_nodes_by_type(self) -> _containers.ScalarMap[_builtins.str, _builtins.int]:
         """maps node types (ie. 'cnt', 'dir', etc.) to the number of nodes of that type"""
@@ -1026,12 +1021,14 @@ class StatsResponse(_message.Message):
         outdegree_avg: _builtins.float = ...,
         export_started_at: _builtins.int | None = ...,
         export_ended_at: _builtins.int | None = ...,
+        export_name: _builtins.str | None = ...,
+        graph_name: _builtins.str | None = ...,
         num_nodes_by_type: _abc.Mapping[_builtins.str, _builtins.int] | None = ...,
         num_arcs_by_type: _abc.Mapping[_builtins.str, _builtins.int] | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["_bits_per_edge", b"_bits_per_edge", "_bits_per_node", b"_bits_per_node", "_compression_ratio", b"_compression_ratio", "_export_ended_at", b"_export_ended_at", "_export_started_at", b"_export_started_at", "bits_per_edge", b"bits_per_edge", "bits_per_node", b"bits_per_node", "compression_ratio", b"compression_ratio", "export_ended_at", b"export_ended_at", "export_started_at", b"export_started_at"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_bits_per_edge", b"_bits_per_edge", "_bits_per_node", b"_bits_per_node", "_compression_ratio", b"_compression_ratio", "_export_ended_at", b"_export_ended_at", "_export_name", b"_export_name", "_export_started_at", b"_export_started_at", "_graph_name", b"_graph_name", "bits_per_edge", b"bits_per_edge", "bits_per_node", b"bits_per_node", "compression_ratio", b"compression_ratio", "export_ended_at", b"export_ended_at", "export_name", b"export_name", "export_started_at", b"export_started_at", "graph_name", b"graph_name"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["_bits_per_edge", b"_bits_per_edge", "_bits_per_node", b"_bits_per_node", "_compression_ratio", b"_compression_ratio", "_export_ended_at", b"_export_ended_at", "_export_started_at", b"_export_started_at", "bits_per_edge", b"bits_per_edge", "bits_per_node", b"bits_per_node", "compression_ratio", b"compression_ratio", "export_ended_at", b"export_ended_at", "export_started_at", b"export_started_at", "indegree_avg", b"indegree_avg", "indegree_max", b"indegree_max", "indegree_min", b"indegree_min", "num_arcs_by_type", b"num_arcs_by_type", "num_edges", b"num_edges", "num_nodes", b"num_nodes", "num_nodes_by_type", b"num_nodes_by_type", "outdegree_avg", b"outdegree_avg", "outdegree_max", b"outdegree_max", "outdegree_min", b"outdegree_min"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_bits_per_edge", b"_bits_per_edge", "_bits_per_node", b"_bits_per_node", "_compression_ratio", b"_compression_ratio", "_export_ended_at", b"_export_ended_at", "_export_name", b"_export_name", "_export_started_at", b"_export_started_at", "_graph_name", b"_graph_name", "bits_per_edge", b"bits_per_edge", "bits_per_node", b"bits_per_node", "compression_ratio", b"compression_ratio", "export_ended_at", b"export_ended_at", "export_name", b"export_name", "export_started_at", b"export_started_at", "graph_name", b"graph_name", "indegree_avg", b"indegree_avg", "indegree_max", b"indegree_max", "indegree_min", b"indegree_min", "num_arcs_by_type", b"num_arcs_by_type", "num_edges", b"num_edges", "num_nodes", b"num_nodes", "num_nodes_by_type", b"num_nodes_by_type", "outdegree_avg", b"outdegree_avg", "outdegree_max", b"outdegree_max", "outdegree_min", b"outdegree_min"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     _WhichOneofReturnType__bits_per_edge: _TypeAlias = _typing.Literal["bits_per_edge"]  # noqa: Y015
     _WhichOneofArgType__bits_per_edge: _TypeAlias = _typing.Literal["_bits_per_edge", b"_bits_per_edge"]  # noqa: Y015
@@ -1041,8 +1038,12 @@ class StatsResponse(_message.Message):
     _WhichOneofArgType__compression_ratio: _TypeAlias = _typing.Literal["_compression_ratio", b"_compression_ratio"]  # noqa: Y015
     _WhichOneofReturnType__export_ended_at: _TypeAlias = _typing.Literal["export_ended_at"]  # noqa: Y015
     _WhichOneofArgType__export_ended_at: _TypeAlias = _typing.Literal["_export_ended_at", b"_export_ended_at"]  # noqa: Y015
+    _WhichOneofReturnType__export_name: _TypeAlias = _typing.Literal["export_name"]  # noqa: Y015
+    _WhichOneofArgType__export_name: _TypeAlias = _typing.Literal["_export_name", b"_export_name"]  # noqa: Y015
     _WhichOneofReturnType__export_started_at: _TypeAlias = _typing.Literal["export_started_at"]  # noqa: Y015
     _WhichOneofArgType__export_started_at: _TypeAlias = _typing.Literal["_export_started_at", b"_export_started_at"]  # noqa: Y015
+    _WhichOneofReturnType__graph_name: _TypeAlias = _typing.Literal["graph_name"]  # noqa: Y015
+    _WhichOneofArgType__graph_name: _TypeAlias = _typing.Literal["_graph_name", b"_graph_name"]  # noqa: Y015
     @_typing.overload
     def WhichOneof(self, oneof_group: _WhichOneofArgType__bits_per_edge) -> _WhichOneofReturnType__bits_per_edge | None: ...
     @_typing.overload
@@ -1052,6 +1053,10 @@ class StatsResponse(_message.Message):
     @_typing.overload
     def WhichOneof(self, oneof_group: _WhichOneofArgType__export_ended_at) -> _WhichOneofReturnType__export_ended_at | None: ...
     @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__export_name) -> _WhichOneofReturnType__export_name | None: ...
+    @_typing.overload
     def WhichOneof(self, oneof_group: _WhichOneofArgType__export_started_at) -> _WhichOneofReturnType__export_started_at | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__graph_name) -> _WhichOneofReturnType__graph_name | None: ...
 
 Global___StatsResponse: _TypeAlias = StatsResponse  # noqa: Y015

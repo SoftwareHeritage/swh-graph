@@ -1475,6 +1475,7 @@ class CompressGraph(luigi.Task):
         significant=False,
         description="Flavor for end-to-end check during compression",
     )
+    dataset_name = luigi.OptionalStrParameter()
 
     def requires(self) -> List[luigi.Task]:
         """Returns a :class:`LocalExport` task, and leaves of the compression dependency
@@ -1619,6 +1620,7 @@ class CompressGraph(luigi.Task):
                 "object_types": ",".join(self.object_types),
                 "hostname": socket.getfqdn(),
                 "conf": conf,
+                "graph_name": self.dataset_name,
                 "tool": {
                     "name": "swh.graph",
                     "version": version("swh.graph"),
