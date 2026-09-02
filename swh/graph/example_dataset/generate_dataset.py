@@ -14,9 +14,11 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import uuid
 
 from swh.export.exporters.edges import GraphEdgesExporter
 from swh.export.exporters.orc import ORCExporter
+from swh.export.exporters.parquet import ParquetExporter
 from swh.export.fullnames import process_fullnames
 from swh.export.journalprocessor import _add_person
 from swh.graph.example_dataset import DATASET
@@ -43,7 +45,11 @@ def main():
     )
     args = parser.parse_args()
 
-    exporters = {"edges": GraphEdgesExporter, "orc": ORCExporter}
+    exporters = {
+        "edges": GraphEdgesExporter,
+        "orc": ORCExporter,
+        "parquet": ParquetExporter,
+    }
     object_types = [
         "origin",
         "origin_visit",
@@ -62,8 +68,8 @@ def main():
     )
 
     if sensitive_output_path is not None:
-        if (sensitive_output_path / "orc/person").exists():
-            shutil.rmtree(sensitive_output_path / "orc/person")
+        if (sensitive_output_path / "parquet/person").exists():
+            shutil.rmtree(sensitive_output_path / "parquet/person")
 
         sensitive_output_path.mkdir(parents=True, exist_ok=True)
 
@@ -76,12 +82,10 @@ def main():
         tmp_dedup_dir = tmp_sensitive_dir / "deduplicated"
         tmp_dedup_dir.mkdir(parents=True, exist_ok=True)
 
-        (sensitive_output_path / "orc/person").mkdir(parents=True, exist_ok=True)
-
-    for name, exporter in exporters.items():
+    for name, exporter_cls in exporters.items():
         if (output_path / name).exists():
             shutil.rmtree(output_path / name)
-        with exporter(config, object_types, output_path / name) as e:
+        with exporter_cls(config, object_types, output_path / name) as e:
             for idx, obj in enumerate(DATASET):
                 e.process_object(obj.object_type, obj.anonymize() or obj)
                 if (
@@ -97,7 +101,7 @@ def main():
 
     if sensitive_output_path is not None:
         for dup_file in tmp_dup_dir.iterdir():
-            subprocess.Popen(
+            subprocess.run(
                 # fmt: off
                 [
                     "sort",
@@ -110,11 +114,22 @@ def main():
                 ],
                 # fmt: on
                 env={**os.environ, "LC_ALL": "C", "LC_COLLATE": "C", "LANG": "C"},
+                check=True,
             )
 
-        process_fullnames(
-            sensitive_output_path / "orc/person/person-all.orc", tmp_dedup_dir
-        )
+        exporter_id = uuid.UUID("e023cc90-643a-424e-b4a5-cbc5b8a61a5f")
+        for name, exporter_cls in exporters.items():
+            if name != "edges":
+                (sensitive_output_path / name / "person").mkdir(
+                    parents=True, exist_ok=True
+                )
+
+                with exporter_cls(
+                    config, object_types, sensitive_output_path / name
+                ) as exporter:
+                    process_fullnames(
+                        exporter.new_person_writer(exporter_id), tmp_dedup_dir
+                    )
         shutil.rmtree(tmp_sensitive_dir)
 
     if args.compress:
@@ -132,7 +147,7 @@ def main():
         )
         compress(
             graph_name="example",
-            in_dir=output_path / "orc",
+            in_dir=output_path / "parquet",
             out_dir=output_path / "compressed",
             sensitive_in_dir=sensitive_output_path,
             sensitive_out_dir=sensitive_out_dir,

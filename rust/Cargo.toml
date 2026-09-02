@@ -53,8 +53,9 @@ value-traits.workspace = true
 arrow = { version = "57.0.0", optional = true }
 arrow-array = { version = "57.0.0", optional = true }
 orc-rust = { version = "0.7.1", optional = true, default-features = false }
-ar_row = { version = "1.0.0", optional = true }
-ar_row_derive = { version = "1.0.0", optional = true }
+parquet = { version = "57.0.0", optional = true }
+ar_row = { version = "2.0.0", optional = true }
+ar_row_derive = { version = "2.0.0", optional = true }
 
 # CLI & logging
 clap.workspace = true
@@ -86,6 +87,7 @@ pthash = ["dep:pthash"]
 compression = []
 
 orc = ["ar_row", "ar_row_derive", "arrow", "orc-rust", "mimalloc"]
+parquet = ["ar_row", "ar_row_derive", "arrow", "dep:parquet", "mimalloc"]
 
 macros = ["const_panic", "const-hex"]
 
