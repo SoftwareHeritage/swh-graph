@@ -44,7 +44,7 @@ In addition to files documented in :ref:`graph-compression` (eg. :file:`graph.gr
                     export.json
                     compression.json
 
-``graph.meta/export.json`` is copied from the ORC dataset exported by
+``graph.meta/export.json`` is copied from the Parquet dataset exported by
 :mod:`swh.export.luigi`.
 
 ``graph.meta/compression.json``  contains information about the compression itself,
@@ -167,7 +167,7 @@ assert set(itertools.chain.from_iterable(_TABLES_PER_OBJECT_TYPE.values())) == s
 
 
 def _tables_for_object_types(object_types: List[str]) -> Tuple[Table]:
-    """Returns the list of ORC tables required to produce a compressed graph with
+    """Returns the list of Parquet tables required to produce a compressed graph with
     the given object types."""
     tables = []
     for object_type in object_types:
@@ -486,7 +486,7 @@ class _CompressionStepTask(luigi.Task):
                 LocalExport(
                     local_export_path=self.local_export_path,
                     local_sensitive_export_path=self.local_sensitive_export_path,
-                    formats=(Format.orc,),  # type: ignore[attr-defined]
+                    formats=(Format.parquet,),  # type: ignore[attr-defined]
                     object_types=_tables_for_object_types(self.object_types),
                 )
             )
@@ -592,12 +592,12 @@ class _CompressionStepTask(luigi.Task):
         conf = check_config_compress(
             conf,
             graph_name=self.graph_name,
-            in_dir=self.local_export_path / "orc",
+            in_dir=self.local_export_path / "parquet",
             out_dir=self.local_graph_path,
             sensitive_in_dir=(
                 None
                 if self.local_sensitive_export_path is None
-                else self.local_sensitive_export_path / "orc"
+                else self.local_sensitive_export_path / "parquet"
             ),
             sensitive_out_dir=self.local_sensitive_graph_path,
             check_flavor=self.check_flavor,
@@ -1149,16 +1149,16 @@ class EdgeLabels(_CompressionStepTask):
         import psutil
 
         # See ExtractNodes._large_allocations for this constant
-        orc_buffers_size = 256_000_000
+        parquet_buffers_size = 256_000_000
 
-        nb_orc_readers = multiprocessing.cpu_count()
+        nb_parquet_readers = multiprocessing.cpu_count()
 
         # ParSortPair's internal buffers, which default to webgraph::utils::MemoryUsage,
         # which itself defaults to half the total memory
         sort_buffers = psutil.virtual_memory().total / 2
 
         return (
-            orc_buffers_size * nb_orc_readers
+            parquet_buffers_size * nb_parquet_readers
             + self._mph_size()
             + self._labels_mph_size()
             + sort_buffers
@@ -1189,16 +1189,16 @@ class EdgeLabelsTranspose(_CompressionStepTask):
         import psutil
 
         # See ExtractNodes._large_allocations for this constant
-        orc_buffers_size = 256_000_000
+        parquet_buffers_size = 256_000_000
 
-        nb_orc_readers = multiprocessing.cpu_count()
+        nb_parquet_readers = multiprocessing.cpu_count()
 
         # ParSortPair's internal buffers, which default to webgraph::utils::MemoryUsage,
         # which itself defaults to half the total memory
         sort_buffers = psutil.virtual_memory().total / 2
 
         return (
-            orc_buffers_size * nb_orc_readers
+            parquet_buffers_size * nb_parquet_readers
             + self._mph_size()
             + self._labels_mph_size()
             + sort_buffers
@@ -1296,7 +1296,7 @@ def _make_dot_diagram() -> str:
     s = io.StringIO()
     s.write('digraph "Compression steps" {\n')
     s.write("    node [shape = none];\n\n")
-    s.write('    orc_dataset [label="ORC Graph\nDataset"];\n')
+    s.write('    parquet_dataset [label="Parquet Graph\nDataset"];\n')
 
     filenames = set()
     for cls in _CompressionStepTask.__subclasses__():
@@ -1425,7 +1425,7 @@ def _make_dot_diagram() -> str:
     # arcs
     for cls in _CompressionStepTask.__subclasses__():
         if cls.EXPORT_AS_INPUT:
-            s.write(f"orc_dataset -> {cls.STEP};\n")
+            s.write(f"parquet_dataset -> {cls.STEP};\n")
         if isinstance(cls.INPUT_FILES, property):
             input_files = cls._INPUT_FILES
         else:
@@ -1504,7 +1504,7 @@ class CompressGraph(luigi.Task):
         local_export = LocalExport(
             local_export_path=self.local_export_path,
             local_sensitive_export_path=self.local_sensitive_export_path,
-            formats=(Format.orc,),  # type: ignore[attr-defined]
+            formats=(Format.parquet,),  # type: ignore[attr-defined]
             object_types=_tables_for_object_types(self.object_types),
         )
         fullname_tasks: List[luigi.Task] = (
@@ -1576,12 +1576,12 @@ class CompressGraph(luigi.Task):
         conf = check_config_compress(
             conf,
             graph_name=self.graph_name,
-            in_dir=self.local_export_path / "orc",
+            in_dir=self.local_export_path / "parquet",
             out_dir=self.local_graph_path,
             sensitive_in_dir=(
                 None
                 if self.local_sensitive_export_path is None
-                else self.local_sensitive_export_path / "orc"
+                else self.local_sensitive_export_path / "parquet"
             ),
             sensitive_out_dir=self.local_sensitive_graph_path,
             check_flavor=self.check_flavor,

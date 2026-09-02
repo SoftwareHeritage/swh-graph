@@ -4,6 +4,7 @@
 // See top-level LICENSE file for more information
 
 use std::io::{BufWriter, Write};
+use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
@@ -14,15 +15,14 @@ use common_traits::{Atomic, IntoAtomic};
 use rayon::prelude::*;
 use sux::traits::AtomicBitVecOps;
 
-use super::orc::get_dataset_readers;
-use super::orc::{iter_arrow, par_iter_arrow};
+use super::ExportTableReader;
 use crate::map::{MappedPermutation, Permutation};
 use crate::mph::SwhidMphf;
 use crate::properties::suffixes;
 use crate::utils::suffix_path;
 use crate::NodeType;
 
-pub struct PropertyWriter<'b, SWHIDMPHF: SwhidMphf> {
+pub struct PropertyWriter<'b, SWHIDMPHF: SwhidMphf, R: ExportTableReader> {
     pub swhid_mph: SWHIDMPHF,
     pub person_mph: Option<super::persons::PersonHasher<'b>>,
     pub order: MappedPermutation,
@@ -30,16 +30,17 @@ pub struct PropertyWriter<'b, SWHIDMPHF: SwhidMphf> {
     pub dataset_dir: PathBuf,
     pub allowed_node_types: Vec<NodeType>,
     pub target: PathBuf,
+    pub _marker: PhantomData<std::sync::Mutex<R>>,
 }
 
-impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
+impl<SWHIDMPHF: SwhidMphf + Sync, R: ExportTableReader> PropertyWriter<'_, SWHIDMPHF, R> {
     fn for_each_row<Row>(&self, subdirectory: &str, f: impl FnMut(Row) -> Result<()>) -> Result<()>
     where
         Row: ArRowDeserialize + ArRowStruct + Send + Sync,
     {
-        get_dataset_readers(self.dataset_dir.clone(), subdirectory)?
+        R::new(self.dataset_dir.clone(), subdirectory)?
             .into_iter()
-            .flat_map(|reader_builder| iter_arrow(reader_builder, |row: Row| [row]))
+            .flat_map(|reader| reader.iter(|row: Row| [row]))
             .try_for_each(f)
     }
 
@@ -51,9 +52,9 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
     where
         Row: ArRowDeserialize + ArRowStruct + Clone + Send + Sync,
     {
-        Ok(get_dataset_readers(self.dataset_dir.clone(), subdirectory)?
+        Ok(R::new(self.dataset_dir.clone(), subdirectory)?
             .into_par_iter()
-            .flat_map(|reader_builder| par_iter_arrow(reader_builder, |row: Row| [row]))
+            .flat_map(|reader| reader.par_iter(|row: Row| [row]))
             .map(f))
     }
 

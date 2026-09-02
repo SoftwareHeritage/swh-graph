@@ -3,42 +3,27 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-#[cfg(feature = "orc")]
 pub mod bv;
-
-#[cfg(feature = "orc")]
 mod iter_arcs;
 
-#[cfg(feature = "orc")]
 pub use iter_arcs::iter_arcs;
 
-#[cfg(feature = "orc")]
 mod iter_labeled_arcs;
 
-#[cfg(feature = "orc")]
 mod iter_labels;
 
-#[cfg(feature = "orc")]
 pub use iter_labels::iter_labels;
 
-#[cfg(feature = "orc")]
 mod iter_origins;
-#[cfg(feature = "orc")]
 pub use iter_origins::iter_origins;
 
-#[cfg(feature = "orc")]
 mod iter_persons;
-#[cfg(feature = "orc")]
 pub use iter_persons::iter_persons;
 
-#[cfg(feature = "orc")]
 mod iter_fullnames;
-#[cfg(feature = "orc")]
 pub use iter_fullnames::iter_fullnames;
 
-#[cfg(feature = "orc")]
 mod iter_swhids;
-#[cfg(feature = "orc")]
 pub use iter_swhids::iter_swhids;
 
 pub mod label_names;
@@ -50,12 +35,16 @@ pub mod mph;
 #[cfg(feature = "orc")]
 pub mod orc;
 
-#[cfg(feature = "orc")]
+#[cfg(feature = "parquet")]
+pub mod parquet;
+
 pub mod properties;
 
 pub mod persons;
 
-#[cfg(feature = "orc")]
+mod export_readers;
+pub use export_readers::*;
+
 pub mod stats;
 
 pub mod transform;
