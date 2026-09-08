@@ -242,6 +242,11 @@ class _CompressionStepTask(luigi.Task):
     local_graph_path = luigi.PathParameter()
     local_sensitive_graph_path = luigi.OptionalPathParameter(default=None)
     previous_graph_path = luigi.OptionalPathParameter(default=None)
+    export_format = luigi.EnumParameter(
+        enum=Format,
+        default=Format.parquet,  # type: ignore[attr-defined]
+        significant=False,
+    )
 
     # TODO: Only add this parameter to tasks that use it
     batch_size = luigi.IntParameter(
@@ -486,7 +491,7 @@ class _CompressionStepTask(luigi.Task):
                 LocalExport(
                     local_export_path=self.local_export_path,
                     local_sensitive_export_path=self.local_sensitive_export_path,
-                    formats=(Format.parquet,),  # type: ignore[attr-defined]
+                    formats=(self.export_format,),
                     object_types=_tables_for_object_types(self.object_types),
                 )
             )
@@ -578,6 +583,7 @@ class _CompressionStepTask(luigi.Task):
         conf: dict[str, Any] = {
             "object_types": ",".join(self.object_types),
             "max_ram": f"{self._large_allocations() // (1024 * 1024)}M",
+            "export_format": self.export_format.name,
             # TODO: make this more configurable
         }
         if self.batch_size:
@@ -592,12 +598,12 @@ class _CompressionStepTask(luigi.Task):
         conf = check_config_compress(
             conf,
             graph_name=self.graph_name,
-            in_dir=self.local_export_path / "parquet",
+            in_dir=self.local_export_path / self.export_format.name,
             out_dir=self.local_graph_path,
             sensitive_in_dir=(
                 None
                 if self.local_sensitive_export_path is None
-                else self.local_sensitive_export_path / "parquet"
+                else self.local_sensitive_export_path / self.export_format.name
             ),
             sensitive_out_dir=self.local_sensitive_graph_path,
             check_flavor=self.check_flavor,
@@ -1461,6 +1467,11 @@ class CompressGraph(luigi.Task):
         Larger is faster, but consumes more resources.
         """,
     )
+    export_format = luigi.EnumParameter(
+        enum=Format,
+        default=Format.parquet,  # type: ignore[attr-defined]
+        significant=False,
+    )
 
     rust_executable_dir = luigi.StrParameter(
         default="",
@@ -1489,6 +1500,7 @@ class CompressGraph(luigi.Task):
             object_types=self.object_types,
             rust_executable_dir=self.rust_executable_dir,
             check_flavor=self.check_flavor,
+            export_format=self.export_format,
         )
         if set(self.object_types).isdisjoint({"dir", "snp", "ori"}):
             # Only nodes of these three types have outgoing arcs with labels
@@ -1576,12 +1588,12 @@ class CompressGraph(luigi.Task):
         conf = check_config_compress(
             conf,
             graph_name=self.graph_name,
-            in_dir=self.local_export_path / "parquet",
+            in_dir=self.local_export_path / self.export_format.name,
             out_dir=self.local_graph_path,
             sensitive_in_dir=(
                 None
                 if self.local_sensitive_export_path is None
-                else self.local_sensitive_export_path / "parquet"
+                else self.local_sensitive_export_path / self.export_format.name
             ),
             sensitive_out_dir=self.local_sensitive_graph_path,
             check_flavor=self.check_flavor,
