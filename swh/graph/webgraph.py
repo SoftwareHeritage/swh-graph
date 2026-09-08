@@ -115,7 +115,7 @@ def _extract_nodes(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     return Rust(
         "swh-graph-extract",
         "--format",
-        "parquet",
+        conf["export_format"],
         "extract-nodes",
         "--allowed-node-types",
         conf.get("object_types", "*"),
@@ -133,7 +133,7 @@ def _extract_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Comma
     return Rust(
         "swh-graph-extract",
         "--format",
-        "parquet",
+        conf["export_format"],
         "extract-labels",
         "--allowed-node-types",
         conf.get("object_types", "*"),
@@ -150,7 +150,7 @@ def _node_stats(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     return Rust(
         "swh-graph-extract",
         "--format",
-        "parquet",
+        conf["export_format"],
         "node-stats",
         "--swhids-dir",
         f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
@@ -168,7 +168,7 @@ def _edge_stats(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     return Rust(
         "swh-graph-extract",
         "--format",
-        "parquet",
+        conf["export_format"],
         "edge-stats",
         "--allowed-node-types",
         conf.get("object_types", "*"),
@@ -253,7 +253,7 @@ def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     return Rust(
         "swh-graph-extract",
         "--format",
-        "parquet",
+        conf["export_format"],
         "bv",
         "--allowed-node-types",
         conf.get("object_types", "*"),
@@ -287,7 +287,7 @@ def _bfs_roots(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     return Rust(
         "swh-graph-extract",
         "--format",
-        "parquet",
+        conf["export_format"],
         "bfs-roots",
         "--allowed-node-types",
         conf.get("object_types", "*"),
@@ -493,7 +493,7 @@ def _extract_persons(conf: Dict[str, Any], env: Dict[str, str]) -> AtomicFileSin
     return Rust(
         "swh-graph-extract",
         "--format",
-        "parquet",
+        conf["export_format"],
         "extract-persons",
         "--allowed-node-types",
         conf.get("object_types", "*"),
@@ -552,7 +552,7 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
     return Rust(
         "swh-graph-extract",
         "--format",
-        "parquet",
+        conf["export_format"],
         "extract-fullnames",
         "--person-function",
         f"{conf['out_dir']}/{conf['graph_name']}.persons",
@@ -616,7 +616,7 @@ def _node_properties(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     return Rust(
         "swh-graph-extract",
         "--format",
-        "parquet",
+        conf["export_format"],
         "node-properties",
         "--allowed-node-types",
         conf.get("object_types", "*"),
@@ -701,7 +701,7 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
     return Rust(
         "swh-graph-extract",
         "--format",
-        "parquet",
+        conf["export_format"],
         "edge-labels",
         "--allowed-node-types",
         conf.get("object_types", "*"),
@@ -744,7 +744,7 @@ def _edge_labels_transpose(
     return Rust(
         "swh-graph-extract",
         "--format",
-        "parquet",
+        conf["export_format"],
         "edge-labels",
         "--allowed-node-types",
         conf.get("object_types", "*"),
