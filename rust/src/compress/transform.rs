@@ -108,6 +108,13 @@ where
     );
 
     BvComp::with_basename(target_path)
+        .with_comp_flags(CompFlags {
+            // Saves 10GB out of 247GB on the final 2026-06-04 graph, 13GB out of 273GB on the
+            // final 2025-05-18 graph,  and 21GB out of 1TB on the graph-bfs-simplified 2025-10-18 graph
+            intervals: dsi_bitstream::dispatch::codes::Codes::Pi(2),
+            residuals: dsi_bitstream::dispatch::codes::Codes::Pi(3),
+            ..Default::default()
+        })
         .par_comp_lenders::<BE, _>(arc_list_graphs, num_nodes)
         .context("Could not build BVGraph from arcs")?;
 

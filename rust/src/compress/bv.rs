@@ -120,6 +120,11 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
     );
 
     BvComp::with_basename(target_dir)
+        .with_comp_flags(CompFlags {
+            // Saves 0.5TB out of 4TB on the pre-BFS 2025-10-18 graph
+            residuals: dsi_bitstream::dispatch::codes::Codes::Pi(4),
+            ..Default::default()
+        })
         .par_comp_lenders::<BE, _>(arc_list_graphs, num_nodes)
         .context("Could not build BVGraph from arcs")?;
 
