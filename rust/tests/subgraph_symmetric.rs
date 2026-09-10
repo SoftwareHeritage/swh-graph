@@ -95,7 +95,6 @@ fn test_symmetric_of_subgraph() -> Result<()> {
         );
         let typed: Vec<(_, Vec<_>)> = symmetric
             .labeled_successors(node)
-            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect();
         assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);
@@ -147,7 +146,6 @@ fn test_subgraph_of_symmetric() {
         );
         let typed: Vec<(_, Vec<_>)> = subgraph
             .labeled_successors(node)
-            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect();
         assert_eq!(

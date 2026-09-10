@@ -389,11 +389,11 @@ impl<
     fn labeled_successors(
         &self,
         node_id: NodeId,
-    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         FilteredLabeledSuccessors {
-            inner: self.graph.labeled_successors(node_id).into_iter(),
+            inner: self.graph.labeled_successors(node_id),
             node: node_id,
             node_filter: &self.node_filter,
             arc_filter: &self.arc_filter,
@@ -435,11 +435,11 @@ impl<
     fn labeled_predecessors(
         &self,
         node_id: NodeId,
-    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         FilteredLabeledSuccessors {
-            inner: self.graph.labeled_predecessors(node_id).into_iter(),
+            inner: self.graph.labeled_predecessors(node_id),
             node: node_id,
             node_filter: &self.node_filter,
             arc_filter: &self.arc_filter,

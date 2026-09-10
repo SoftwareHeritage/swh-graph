@@ -265,7 +265,6 @@ fn test_symmetric_ori_snp_labeled_successors() -> Result<()> {
         );
         let typed: Vec<(_, Vec<_>)> = symmetric
             .labeled_successors(node)
-            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect();
         assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);
@@ -332,7 +331,6 @@ fn test_symmetric_snp_rev_labeled_successors() -> Result<()> {
         );
         let typed: Vec<(_, Vec<_>)> = symmetric
             .labeled_successors(node)
-            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect();
         assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);
@@ -405,7 +403,6 @@ fn test_symmetric_fs_labeled_successors() -> Result<()> {
         );
         let typed: Vec<(_, Vec<_>)> = symmetric
             .labeled_successors(node)
-            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect();
         assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);
@@ -491,7 +488,6 @@ fn test_symmetric_histhost_labeled_successors() -> Result<()> {
         );
         let typed: Vec<(_, Vec<_>)> = symmetric
             .labeled_successors(node)
-            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect();
         assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);

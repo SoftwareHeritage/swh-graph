@@ -239,7 +239,6 @@ where
         |thread_pl, node| -> Result<()> {
         for ((succ1, labels1), (succ2, labels2)) in graph1
             .labeled_successors(node)
-            .into_iter()
             .zip(graph2.labeled_successors(node))
         {
             ensure!(succ1 == succ2, "Successors mismatch");

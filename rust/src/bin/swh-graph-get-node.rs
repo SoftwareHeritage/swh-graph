@@ -107,7 +107,7 @@ pub fn main() -> Result<()> {
                                     )?),
                                     predecessors: Some(collect_labeled_successors(
                                         &graph,
-                                        graph.labeled_predecessors(node).into_iter()
+                                        graph.labeled_predecessors(node)
                                     )?),
                                     swhid,
                                 })
@@ -225,7 +225,7 @@ pub fn main() -> Result<()> {
                         )?),
                         predecessors: Some(collect_labeled_successors(
                             &graph,
-                            graph.labeled_predecessors(node).into_iter()
+                            graph.labeled_predecessors(node)
                         )?),
                         swhid,
                     })

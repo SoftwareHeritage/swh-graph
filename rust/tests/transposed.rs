@@ -278,7 +278,6 @@ fn test_transpose_labeled_successors() -> Result<()> {
         );
         let typed: Vec<_> = transposed
             .labeled_successors(node)
-            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
             .collect();
         assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);
@@ -324,7 +323,6 @@ fn test_transpose_labeled_predecessors() -> Result<()> {
         );
         let typed: Vec<_> = transposed
             .labeled_predecessors(node)
-            .into_iter()
             .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
             .collect();
         assert_eq!(typed, *expected_labeled, "labeled_predecessors({node})",);

@@ -132,7 +132,7 @@ where
     fn labeled_successors(
         &self,
         node_id: NodeId,
-    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         LabelTypingSuccessorIterator {
@@ -191,7 +191,7 @@ where
     fn labeled_predecessors(
         &self,
         node_id: NodeId,
-    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         LabelTypingSuccessorIterator {
@@ -306,7 +306,7 @@ where
     fn labeled_successors(
         &self,
         node_id: NodeId,
-    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         LabelTypingSuccessorIterator {
@@ -356,7 +356,7 @@ where
     fn labeled_predecessors(
         &self,
         node_id: NodeId,
-    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         LabelTypingSuccessorIterator {

@@ -262,7 +262,7 @@ where
     fn labeled_successors(
         &self,
         node_id: NodeId,
-    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         self.record(GraphAccessRecord::LabeledSuccessors(node_id));
@@ -323,7 +323,7 @@ where
     fn labeled_predecessors(
         &self,
         node_id: NodeId,
-    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         self.record(GraphAccessRecord::LabeledPredecessors(node_id));

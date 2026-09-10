@@ -159,11 +159,11 @@ impl<G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph> SwhLabeledForwardGraph
     fn labeled_successors(
         &self,
         node_id: NodeId,
-    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel> {
         MergingSortedPairs::new(
-            self.0.labeled_successors(node_id).into_iter(),
-            self.0.labeled_predecessors(node_id).into_iter(),
+            self.0.labeled_successors(node_id),
+            self.0.labeled_predecessors(node_id),
         )
     }
 }

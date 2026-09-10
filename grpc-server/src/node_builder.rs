@@ -191,7 +191,6 @@ impl<
             } else {
                 self.graph
                     .labeled_successors(node_id)
-                    .into_iter()
                     .map(|(succ, labels)| proto::Successor {
                         swhid: self.if_mask(SUCCESSOR_SWHID, || {
                             Some(self.graph.properties().swhid(succ).to_string())
