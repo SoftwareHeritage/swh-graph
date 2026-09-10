@@ -7,7 +7,7 @@
 
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -15,7 +15,7 @@ use std::sync::Mutex;
 #[cfg(not(feature = "pthash"))]
 use anyhow::bail;
 use anyhow::{anyhow, ensure, Context, Result};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
 use rayon::prelude::*;
@@ -23,7 +23,9 @@ use sux::bits::{AtomicBitVec, BitVec};
 use sux::traits::BitVecOps;
 use webgraph::prelude::*;
 
+use swh_graph::cli::{load_mph, MphAlgorithm};
 use swh_graph::map::{MappedPermutation, OwnedPermutation, Permutation};
+use swh_graph::utils::AtomicFile;
 
 #[derive(Parser, Debug)]
 #[command(about = "Commands to run individual steps of the pipeline to compress a graph from an initial not-very-compressed BvGraph", long_about = None)]
@@ -186,47 +188,12 @@ enum Commands {
     },
 
     /// Builds a MPH from the given a stream of base64-encoded labels
-    FmphgoLabels {
+    VfuncLabels {
         #[arg(long)]
         num_labels: usize,
         labels: PathBuf,
         output_mphf: PathBuf,
     },
-    /// Builds a permutation mapping label hashes to their position in the sorted stream of
-    /// base64-encoded labels
-    FmphgoLabelsOrder {
-        #[arg(long)]
-        num_labels: usize,
-        labels: PathBuf,
-        mphf: PathBuf,
-        output_order: PathBuf,
-    },
-}
-
-#[derive(Copy, Clone, Debug, ValueEnum)]
-enum MphAlgorithm {
-    Fmphgo,
-    Pthash,
-    Cmph,
-}
-
-fn load_mph(mph_algo: MphAlgorithm, path: &Path) -> Result<swh_graph::mph::DynMphf> {
-    Ok(match mph_algo {
-        MphAlgorithm::Cmph => swh_graph::java_compat::mph::gov::GOVMPH::load(path)
-            .context("Cannot load mph")?
-            .into(),
-        MphAlgorithm::Fmphgo => swh_graph::mph::SwhidFmphgo::load(path)
-            .context("Cannot load mph")?
-            .into(),
-        MphAlgorithm::Pthash => {
-            #[cfg(not(feature = "pthash"))]
-            bail!("pthash support is disabled. Recompile with --features pthash");
-            #[cfg(feature = "pthash")]
-            swh_graph::mph::SwhidPthash::load(path)
-                .context("Cannot load mph")?
-                .into()
-        }
-    })
 }
 
 pub fn main() -> Result<()> {
@@ -245,7 +212,7 @@ pub fn main() -> Result<()> {
             use swh_graph::map::Node2SWHID;
             use swh_graph::mph::SwhidMphf;
 
-            let mut permut_file = File::create(&target_order)
+            let mut permut_file = AtomicFile::create_new(&target_order)
                 .with_context(|| format!("Could not open {}", target_order.display()))?;
 
             let mph = load_mph(mph_algo, &function)?;
@@ -354,6 +321,7 @@ pub fn main() -> Result<()> {
             log::info!("Writing permutation...");
             perm.dump(&mut permut_file)
                 .context("Could not write permutation")?;
+            permut_file.commit().context("Could not commit perm file")?;
         }
         Commands::Bfs {
             mph_algo,
@@ -381,7 +349,7 @@ pub fn main() -> Result<()> {
                 })
                 .transpose()?;
 
-            let mut permut_file = File::create(&target_order)
+            let mut permut_file = AtomicFile::create_new(&target_order)
                 .with_context(|| format!("Could not open {}", target_order.display()))?;
 
             let start_nodes = match init_roots {
@@ -439,6 +407,7 @@ pub fn main() -> Result<()> {
             swh_graph::approximate_bfs::almost_bfs_order(&graph, &start_nodes)
                 .dump(&mut permut_file)
                 .context("Could not write permutation")?;
+            permut_file.commit().context("Could not commit perm file")?;
         }
         Commands::Permute {
             partitions_per_thread,
@@ -548,11 +517,15 @@ pub fn main() -> Result<()> {
             input,
             output,
         } => {
-            let mut output_file = File::create(&output)
+            let mut output_file = AtomicFile::create_new(&output)
                 .with_context(|| format!("Could not open {}", output.display()))?;
             let permutation = compose_permutations(&input, num_nodes)?;
 
             permutation.dump(&mut output_file)?;
+
+            output_file
+                .commit()
+                .context("Could not commit order file")?;
         }
 
         Commands::Llp { args: llp_args } => {
@@ -638,10 +611,18 @@ pub fn main() -> Result<()> {
             .map(|(k, v)| (k.to_owned(), v))
             .collect();
 
-            let f = File::create_new(&stats)
-                .with_context(|| format!("Could not create {}", stats.display()))?;
-            java_properties::write(BufWriter::new(f), &statistics)
-                .with_context(|| format!("Could not write statistics to {}", stats.display()))?
+            let mut f = BufWriter::new(
+                AtomicFile::create_new(&stats)
+                    .with_context(|| format!("Could not create {}", stats.display()))?,
+            );
+            java_properties::write(&mut f, &statistics)
+                .with_context(|| format!("Could not write statistics to {}", stats.display()))?;
+
+            f.into_inner()
+                .map_err(|e| e.into_error())
+                .context("Could not flush statistics")?
+                .commit()
+                .with_context(|| format!("Could not commit {}", stats.display()))?;
         }
 
         Commands::Fcl {
@@ -714,12 +695,18 @@ pub fn main() -> Result<()> {
 
             log::info!("Writing RCL...");
             let mut rcl_file = BufWriter::new(
-                File::create(&rcl_path)
+                AtomicFile::create_new(&rcl_path)
                     .with_context(|| format!("Could not create {}", rcl_path.display()))?,
             );
             // SAFETY: this might leak some internal memory, but this process does not access any
             // sensitive information.
             unsafe { rcl.serialize(&mut rcl_file) }.context("Could not write RCL")?;
+            rcl_file
+                .into_inner()
+                .map_err(|e| e.into_error())
+                .context("Could not flush RCL file")?
+                .commit()
+                .context("Could not commit RCL file")?;
         }
 
         Commands::FmphgoSwhids {
@@ -729,11 +716,19 @@ pub fn main() -> Result<()> {
         } => {
             let mphf = swh_graph::compress::mph::build_swhids_mphf(swhids, num_nodes)?;
             log::info!("Saving MPHF...");
-            let file = File::create(&output_mphf)
-                .with_context(|| format!("Could not create MPH file {}", output_mphf.display()))?;
+            let mut file =
+                BufWriter::new(AtomicFile::create_new(&output_mphf).with_context(|| {
+                    format!("Could not create MPH file {}", output_mphf.display())
+                })?);
             mphf.0
-                .write(&mut BufWriter::new(file))
+                .write(&mut file)
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
+
+            file.into_inner()
+                .map_err(|e| e.into_error())
+                .context("Could not flush statistics")?
+                .commit()
+                .context("Could not commit MPH file")?;
         }
 
         Commands::FmphgoPersons {
@@ -743,39 +738,40 @@ pub fn main() -> Result<()> {
         } => {
             let mphf = swh_graph::compress::persons::build_mphf(persons, num_persons)?;
             log::info!("Saving MPHF...");
-            let file = File::create(&output_mphf)
-                .with_context(|| format!("Could not create MPH file {}", output_mphf.display()))?;
+            let mut file =
+                BufWriter::new(AtomicFile::create_new(&output_mphf).with_context(|| {
+                    format!("Could not create MPH file {}", output_mphf.display())
+                })?);
             mphf.0
-                .write(&mut BufWriter::new(file))
+                .write(&mut file)
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
+            file.into_inner()
+                .map_err(|e| e.into_error())
+                .context("Could not flush statistics")?
+                .commit()
+                .context("Could not commit MPH file")?;
         }
 
-        Commands::FmphgoLabels {
+        Commands::VfuncLabels {
             num_labels,
             labels,
             output_mphf,
         } => {
+            use epserde::ser::Serialize;
+
             let mphf = swh_graph::compress::label_names::build_mphf(labels, num_labels)?;
             log::info!("Saving MPHF...");
-            let file = File::create(&output_mphf)
-                .with_context(|| format!("Could not create MPH file {}", output_mphf.display()))?;
-            mphf.write(&mut BufWriter::new(file))
+            let mut file =
+                BufWriter::new(AtomicFile::create_new(&output_mphf).with_context(|| {
+                    format!("Could not create MPH file {}", output_mphf.display())
+                })?);
+            unsafe { mphf.serialize(&mut file) }
                 .with_context(|| format!("Could not write MPH to {}", output_mphf.display()))?;
-        }
-        Commands::FmphgoLabelsOrder {
-            num_labels,
-            labels,
-            mphf,
-            output_order,
-        } => {
-            let order = swh_graph::compress::label_names::build_order(labels, mphf, num_labels)?;
-
-            log::info!("Saving order");
-            let mut f = File::create(&output_order)
-                .with_context(|| format!("Could not create {}", output_order.display()))?;
-            order
-                .dump(&mut f)
-                .with_context(|| format!("Could not write order to {}", output_order.display()))?;
+            file.into_inner()
+                .map_err(|e| e.into_error())
+                .context("Could not flush statistics")?
+                .commit()
+                .context("Could not commit MPH file")?;
         }
     }
 

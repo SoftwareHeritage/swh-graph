@@ -12,6 +12,7 @@ use std::sync::LazyLock;
 use anyhow::{bail, ensure, Context, Result};
 use epserde::deser::{Deserialize, Flags, MemCase};
 use mmap_rs::Mmap;
+use ph::seeds::TwoToPowerBitsStatic;
 use regex::Regex;
 use sha2::{Digest, Sha256};
 use sux::{
@@ -141,7 +142,7 @@ pub(crate) mod person_struct {
     pub struct PseudonymizedPerson<T: AsRef<[u8]>>(pub T);
 }
 
-use person_struct::PseudonymizedPerson;
+pub use person_struct::PseudonymizedPerson;
 
 impl<T: AsRef<[u8]>> Hash for PseudonymizedPerson<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -212,7 +213,7 @@ mod person_pthash {
 #[cfg(feature = "pthash")]
 pub use person_pthash::*;
 
-pub struct PersonFmphgo(pub ph::fmph::GOFunction);
+pub struct PersonFmphgo(pub ph::fmph::GOFunction<TwoToPowerBitsStatic<4>, TwoToPowerBitsStatic<1>>);
 
 impl PersonMphf for PersonFmphgo {
     fn num_keys(&self) -> u32 {

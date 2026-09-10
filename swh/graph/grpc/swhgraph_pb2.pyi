@@ -13,10 +13,7 @@ import builtins as _builtins
 import sys
 import typing as _typing
 
-if sys.version_info >= (3, 10):
-    from typing import TypeAlias as _TypeAlias
-else:
-    from typing_extensions import TypeAlias as _TypeAlias
+from typing import TypeAlias as _TypeAlias, Never as _Never
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -39,6 +36,45 @@ FORWARD: GraphDirection.ValueType  # 0
 BACKWARD: GraphDirection.ValueType  # 1
 """Transposed DAG: cnt -> dir -> rev -> rel -> snp -> ori"""
 Global___GraphDirection: _TypeAlias = GraphDirection  # noqa: Y015
+
+class _VisitType:
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    V: _TypeAlias = ValueType  # noqa: Y015
+
+class _VisitTypeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_VisitType.ValueType], _builtins.type):
+    DESCRIPTOR: _descriptor.EnumDescriptor
+    Unknown: _VisitType.ValueType  # 0
+    """Either a type not categorized below, or graph is too old to support visit types"""
+    Archive: _VisitType.ValueType  # 1
+    """tar, zip, ..."""
+    Misc: _VisitType.ValueType  # 2
+    """single content, patch, ..."""
+    Package: _VisitType.ValueType  # 3
+    """npm, pypi, nixguix, ..."""
+    Push: _VisitType.ValueType  # 4
+    """deposit, possibly coar-notify in the future"""
+    Vcs: _VisitType.ValueType  # 5
+    """git, hg, cvs, ..."""
+    VcsCheckout: _VisitType.ValueType  # 6
+    """partial archiving of a repository (git-checkout, hg-checkout, ...)"""
+
+class VisitType(_VisitType, metaclass=_VisitTypeEnumTypeWrapper): ...
+
+Unknown: VisitType.ValueType  # 0
+"""Either a type not categorized below, or graph is too old to support visit types"""
+Archive: VisitType.ValueType  # 1
+"""tar, zip, ..."""
+Misc: VisitType.ValueType  # 2
+"""single content, patch, ..."""
+Package: VisitType.ValueType  # 3
+"""npm, pypi, nixguix, ..."""
+Push: VisitType.ValueType  # 4
+"""deposit, possibly coar-notify in the future"""
+Vcs: VisitType.ValueType  # 5
+"""git, hg, cvs, ..."""
+VcsCheckout: VisitType.ValueType  # 6
+"""partial archiving of a repository (git-checkout, hg-checkout, ...)"""
+Global___VisitType: _TypeAlias = VisitType  # noqa: Y015
 
 @_typing.final
 class GetNodeRequest(_message.Message):
@@ -784,6 +820,7 @@ class EdgeLabel(_message.Message):
     PERMISSION_FIELD_NUMBER: _builtins.int
     VISIT_TIMESTAMP_FIELD_NUMBER: _builtins.int
     IS_FULL_VISIT_FIELD_NUMBER: _builtins.int
+    VISIT_TYPE_FIELD_NUMBER: _builtins.int
     name: _builtins.bytes
     """Directory entry name for directories, branch name for snapshots"""
     permission: _builtins.int
@@ -798,6 +835,10 @@ class EdgeLabel(_message.Message):
     indicates whether the visit was fully complete; ie. if the snapshot is the
     full state of the origin (instead of a partial state).
     """
+    visit_type: Global___VisitType.ValueType
+    """For origin->snapshot (or snapshot->origin in the transposed graph), this
+    indicates what loader created the snapshot.
+    """
     def __init__(
         self,
         *,
@@ -805,10 +846,11 @@ class EdgeLabel(_message.Message):
         permission: _builtins.int | None = ...,
         visit_timestamp: _builtins.int | None = ...,
         is_full_visit: _builtins.bool | None = ...,
+        visit_type: Global___VisitType.ValueType | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["_is_full_visit", b"_is_full_visit", "_name", b"_name", "_permission", b"_permission", "_visit_timestamp", b"_visit_timestamp", "is_full_visit", b"is_full_visit", "name", b"name", "permission", b"permission", "visit_timestamp", b"visit_timestamp"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_is_full_visit", b"_is_full_visit", "_name", b"_name", "_permission", b"_permission", "_visit_timestamp", b"_visit_timestamp", "_visit_type", b"_visit_type", "is_full_visit", b"is_full_visit", "name", b"name", "permission", b"permission", "visit_timestamp", b"visit_timestamp", "visit_type", b"visit_type"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["_is_full_visit", b"_is_full_visit", "_name", b"_name", "_permission", b"_permission", "_visit_timestamp", b"_visit_timestamp", "is_full_visit", b"is_full_visit", "name", b"name", "permission", b"permission", "visit_timestamp", b"visit_timestamp"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_is_full_visit", b"_is_full_visit", "_name", b"_name", "_permission", b"_permission", "_visit_timestamp", b"_visit_timestamp", "_visit_type", b"_visit_type", "is_full_visit", b"is_full_visit", "name", b"name", "permission", b"permission", "visit_timestamp", b"visit_timestamp", "visit_type", b"visit_type"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     _WhichOneofReturnType__is_full_visit: _TypeAlias = _typing.Literal["is_full_visit"]  # noqa: Y015
     _WhichOneofArgType__is_full_visit: _TypeAlias = _typing.Literal["_is_full_visit", b"_is_full_visit"]  # noqa: Y015
@@ -818,6 +860,8 @@ class EdgeLabel(_message.Message):
     _WhichOneofArgType__permission: _TypeAlias = _typing.Literal["_permission", b"_permission"]  # noqa: Y015
     _WhichOneofReturnType__visit_timestamp: _TypeAlias = _typing.Literal["visit_timestamp"]  # noqa: Y015
     _WhichOneofArgType__visit_timestamp: _TypeAlias = _typing.Literal["_visit_timestamp", b"_visit_timestamp"]  # noqa: Y015
+    _WhichOneofReturnType__visit_type: _TypeAlias = _typing.Literal["visit_type"]  # noqa: Y015
+    _WhichOneofArgType__visit_type: _TypeAlias = _typing.Literal["_visit_type", b"_visit_type"]  # noqa: Y015
     @_typing.overload
     def WhichOneof(self, oneof_group: _WhichOneofArgType__is_full_visit) -> _WhichOneofReturnType__is_full_visit | None: ...
     @_typing.overload
@@ -826,6 +870,8 @@ class EdgeLabel(_message.Message):
     def WhichOneof(self, oneof_group: _WhichOneofArgType__permission) -> _WhichOneofReturnType__permission | None: ...
     @_typing.overload
     def WhichOneof(self, oneof_group: _WhichOneofArgType__visit_timestamp) -> _WhichOneofReturnType__visit_timestamp | None: ...
+    @_typing.overload
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__visit_type) -> _WhichOneofReturnType__visit_type | None: ...
 
 Global___EdgeLabel: _TypeAlias = EdgeLabel  # noqa: Y015
 
@@ -840,8 +886,11 @@ class CountResponse(_message.Message):
         *,
         count: _builtins.int = ...,
     ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
     _ClearFieldArgType: _TypeAlias = _typing.Literal["count", b"count"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
 
 Global___CountResponse: _TypeAlias = CountResponse  # noqa: Y015
 
@@ -852,6 +901,11 @@ class StatsRequest(_message.Message):
     def __init__(
         self,
     ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
 
 Global___StatsRequest: _TypeAlias = StatsRequest  # noqa: Y015
 
@@ -873,8 +927,11 @@ class StatsResponse(_message.Message):
             key: _builtins.str = ...,
             value: _builtins.int = ...,
         ) -> None: ...
+        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
         _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
         def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+        def WhichOneof(self, oneof_group: _Never) -> None: ...
 
     @_typing.final
     class NumArcsByTypeEntry(_message.Message):
@@ -890,8 +947,11 @@ class StatsResponse(_message.Message):
             key: _builtins.str = ...,
             value: _builtins.int = ...,
         ) -> None: ...
+        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
         _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
         def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+        def WhichOneof(self, oneof_group: _Never) -> None: ...
 
     NUM_NODES_FIELD_NUMBER: _builtins.int
     NUM_EDGES_FIELD_NUMBER: _builtins.int

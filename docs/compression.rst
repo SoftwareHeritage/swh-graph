@@ -659,7 +659,8 @@ the label field.
 
 Additionally, edges from origins to snapshots are inserted in the above list,
 with ``visit_timestamp << 2 | is_full_visit << 1 | 1`` in lieu of the label-name
-hash and unset permission (ie. ``111``).
+hash and an abbreviated representation of visit types as permission
+(eg. to distinguish package managers from VCSs).
 The ``is_full_visit`` distinguishes full snapshots of the origin from partial
 snapshots, and the four lower bits are set to 1 and reserved for future use.
 The rationale for this layout is to maximize the number of bits reserved for

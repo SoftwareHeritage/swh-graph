@@ -15,6 +15,7 @@ from swh.graph.grpc.swhgraph_pb2 import (
     GraphDirection,
     LabeledNode,
     Node,
+    VisitType,
 )
 
 TEST_ORIGIN_ID = "swh:1:ori:{}".format(
@@ -120,7 +121,7 @@ def test_edge_errors(graph_grpc_stub, labeled):
 @parametrize
 def test_forward_root_to_leaf(graph_grpc_stub, labeled):
     """Test path between ori 1 and cnt 4 (forward graph)"""
-    (actual, _midpoint) = get_path(
+    actual, _midpoint = get_path(
         graph_grpc_stub,
         [TEST_ORIGIN_ID],
         ["swh:1:cnt:0000000000000000000000000000000000000004"],
@@ -149,7 +150,13 @@ def test_labels_forward_root_to_leaf(graph_grpc_stub):
     expected = [
         LabeledNode(
             node=Node(swhid=TEST_ORIGIN_ID),
-            label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
+            label=[
+                EdgeLabel(
+                    visit_timestamp=1367900441,
+                    is_full_visit=True,
+                    visit_type=VisitType.Vcs,
+                )
+            ],
         ),
         LabeledNode(
             node=Node(swhid="swh:1:snp:0000000000000000000000000000000000000020"),
@@ -204,7 +211,13 @@ def test_labels_backward_root_to_leaf(graph_grpc_stub):
         ),
         LabeledNode(
             node=Node(swhid="swh:1:snp:0000000000000000000000000000000000000020"),
-            label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
+            label=[
+                EdgeLabel(
+                    visit_timestamp=1367900441,
+                    is_full_visit=True,
+                    visit_type=VisitType.Vcs,
+                )
+            ],
         ),
         LabeledNode(
             node=Node(swhid=TEST_ORIGIN_ID),
@@ -217,7 +230,7 @@ def test_labels_backward_root_to_leaf(graph_grpc_stub):
 @parametrize
 def test_forward_rev_to_rev(graph_grpc_stub, labeled):
     """Test path between rev 18 and rev 3 (forward graph)"""
-    (actual, _midpoint) = get_path(
+    actual, _midpoint = get_path(
         graph_grpc_stub,
         ["swh:1:rev:0000000000000000000000000000000000000018"],
         ["swh:1:rev:0000000000000000000000000000000000000003"],
@@ -265,7 +278,7 @@ def test_labels_forward_rev_to_rev(graph_grpc_stub):
 @parametrize
 def test_backward_rev_to_rev(graph_grpc_stub, labeled):
     """Test path between rev 3 and rev 18 (backward graph)"""
-    (actual, _midpoint) = get_path(
+    actual, _midpoint = get_path(
         graph_grpc_stub,
         ["swh:1:rev:0000000000000000000000000000000000000003"],
         ["swh:1:rev:0000000000000000000000000000000000000018"],
@@ -315,7 +328,7 @@ def test_labels_backward_rev_to_rev(graph_grpc_stub):
 @parametrize
 def test_forward_cnt_to_itself(graph_grpc_stub, labeled):
     """Test path between cnt 4 and itself (forward graph)"""
-    (actual, _midpoint) = get_path(
+    actual, _midpoint = get_path(
         graph_grpc_stub,
         ["swh:1:cnt:0000000000000000000000000000000000000004"],
         ["swh:1:cnt:0000000000000000000000000000000000000004"],
@@ -346,7 +359,7 @@ def test_labels_forward_cnt_to_itself(graph_grpc_stub):
 @parametrize
 def test_forward_multiple_sources_dest(graph_grpc_stub, labeled):
     """Start from ori and rel 19 and find cnt 14 or cnt 7 (forward graph)"""
-    (actual, _midpoint) = get_path(
+    actual, _midpoint = get_path(
         graph_grpc_stub,
         ["swh:1:rel:0000000000000000000000000000000000000019", TEST_ORIGIN_ID],
         [
@@ -400,7 +413,7 @@ def test_labels_forward_multiple_sources_dest(graph_grpc_stub):
 @parametrize
 def test_backward_multiple_sources_dest(graph_grpc_stub, labeled):
     "Start from cnt 4 and cnt 11 and find rev 13 or rev 9 (backward graph)" ""
-    (actual, _midpoint) = get_path(
+    actual, _midpoint = get_path(
         graph_grpc_stub,
         [
             "swh:1:cnt:0000000000000000000000000000000000000004",
@@ -457,7 +470,7 @@ def test_labels_backward_multiple_sources_dest(graph_grpc_stub):
 @parametrize
 def test_backward_multiple_sources_all_dir_to_ori(graph_grpc_stub, labeled):
     """Start from all directories and find the origin (backward graph)"""
-    (actual, _midpoint) = get_path(
+    actual, _midpoint = get_path(
         graph_grpc_stub,
         [
             "swh:1:dir:0000000000000000000000000000000000000002",
@@ -508,7 +521,13 @@ def test_labels_backward_multiple_sources_all_dir_to_ori(graph_grpc_stub):
         ),
         LabeledNode(
             node=Node(swhid="swh:1:snp:0000000000000000000000000000000000000020"),
-            label=[EdgeLabel(visit_timestamp=1367900441, is_full_visit=True)],
+            label=[
+                EdgeLabel(
+                    visit_timestamp=1367900441,
+                    is_full_visit=True,
+                    visit_type=VisitType.Vcs,
+                )
+            ],
         ),
         LabeledNode(
             node=Node(swhid=TEST_ORIGIN_ID),
@@ -521,7 +540,7 @@ def test_labels_backward_multiple_sources_all_dir_to_ori(graph_grpc_stub):
 @parametrize
 def test_backward_cnt_to_any_rev(graph_grpc_stub, labeled):
     """Start from cnt 4 and find any rev (backward graph)"""
-    (actual, _midpoint) = get_path(
+    actual, _midpoint = get_path(
         graph_grpc_stub,
         ["swh:1:cnt:0000000000000000000000000000000000000004"],
         [
@@ -605,7 +624,7 @@ def test_forward_impossible_path(graph_grpc_stub, labeled):
 @parametrize
 def test_common_ancestor_backward_backward(graph_grpc_stub, labeled):
     """Common ancestor between cnt 4 and cnt 15 : rev 18"""
-    (actual, midpoint) = get_path(
+    actual, midpoint = get_path(
         graph_grpc_stub,
         ["swh:1:cnt:0000000000000000000000000000000000000004"],
         ["swh:1:cnt:0000000000000000000000000000000000000015"],
@@ -687,7 +706,7 @@ def test_labels_common_ancestor_backward_backward(graph_grpc_stub):
 @parametrize
 def test_common_descendant_forward_forward(graph_grpc_stub, labeled):
     """Common descendant between rev 13 and rev 3 : cnt 1 (with rev:dir,dir:dir,dir:cnt)"""
-    (actual, midpoint) = get_path(
+    actual, midpoint = get_path(
         graph_grpc_stub,
         ["swh:1:rev:0000000000000000000000000000000000000013"],
         ["swh:1:rev:0000000000000000000000000000000000000003"],
@@ -748,7 +767,7 @@ def test_labels_common_descendant_forward_forward(graph_grpc_stub):
 @parametrize
 def test_common_descendant_forward_forward_edges_reverse(graph_grpc_stub, labeled):
     """Common descendant between rev 13 and rev 3 : cnt 1 (with rev:dir,dir:dir,dir:cnt)"""
-    (actual, midpoint) = get_path(
+    actual, midpoint = get_path(
         graph_grpc_stub,
         ["swh:1:rev:0000000000000000000000000000000000000013"],
         ["swh:1:rev:0000000000000000000000000000000000000003"],
@@ -941,7 +960,7 @@ def test_max_edges(graph_grpc_stub, labeled):
 @parametrize
 def test_ignore_node_forward(graph_grpc_stub, labeled):
     """Ignore a directory node, forcing an alternate path"""
-    (actual, _midpoint) = get_path(
+    actual, _midpoint = get_path(
         graph_grpc_stub,
         ["swh:1:rel:0000000000000000000000000000000000000010"],
         ["swh:1:cnt:0000000000000000000000000000000000000001"],
@@ -978,7 +997,7 @@ def test_ignore_node_makes_path_impossible(graph_grpc_stub, labeled):
 @parametrize
 def test_ignore_node_common_ancestor(graph_grpc_stub, labeled):
     """Ignore a node in common ancestor search"""
-    (actual, midpoint) = get_path(
+    actual, midpoint = get_path(
         graph_grpc_stub,
         ["swh:1:cnt:0000000000000000000000000000000000000004"],
         ["swh:1:cnt:0000000000000000000000000000000000000015"],

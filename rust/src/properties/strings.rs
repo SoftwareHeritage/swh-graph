@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -67,7 +67,7 @@ impl OptStrings for OptMappedStrings {
     fn message_offset(&self, node: NodeId) -> PropertiesResult<'_, Option<u64>, Self> {
         self.message_offset
             .as_ref()
-            .map(|message_offsets| message_offsets.get(node))
+            .map(|message_offsets| message_offsets.get_value(node))
     }
     #[inline(always)]
     fn tag_name(&self) -> PropertiesResult<'_, &[u8], Self> {
@@ -77,7 +77,7 @@ impl OptStrings for OptMappedStrings {
     fn tag_name_offset(&self, node: NodeId) -> PropertiesResult<'_, Option<u64>, Self> {
         self.tag_name_offset
             .as_ref()
-            .map(|tag_name_offsets| tag_name_offsets.get(node))
+            .map(|tag_name_offsets| tag_name_offsets.get_value(node))
     }
 }
 
@@ -98,7 +98,7 @@ impl OptStrings for MappedStrings {
     }
     #[inline(always)]
     fn message_offset(&self, node: NodeId) -> Option<u64> {
-        (&self.message_offset).get(node)
+        self.message_offset.get_value(node)
     }
     #[inline(always)]
     fn tag_name(&self) -> &[u8] {
@@ -106,7 +106,7 @@ impl OptStrings for MappedStrings {
     }
     #[inline(always)]
     fn tag_name_offset(&self, node: NodeId) -> Option<u64> {
-        (&self.tag_name_offset).get(node)
+        self.tag_name_offset.get_value(node)
     }
 }
 
@@ -180,7 +180,7 @@ impl OptStrings for VecStrings {
     }
     #[inline(always)]
     fn message_offset(&self, node: NodeId) -> Option<u64> {
-        self.message_offset.get(node)
+        self.message_offset.get_value(node)
     }
     #[inline(always)]
     fn tag_name(&self) -> &[u8] {
@@ -188,7 +188,7 @@ impl OptStrings for VecStrings {
     }
     #[inline(always)]
     fn tag_name_offset(&self, node: NodeId) -> Option<u64> {
-        self.tag_name_offset.get(node)
+        self.tag_name_offset.get_value(node)
     }
 }
 

@@ -9,7 +9,7 @@ use anyhow::Result;
 use swh_graph::arc_iterators::IntoFlattenedLabeledArcsIterator;
 use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
-use swh_graph::labels::{EdgeLabel, Permission, UntypedEdgeLabel, Visit, VisitStatus};
+use swh_graph::labels::{EdgeLabel, Permission, UntypedEdgeLabel, Visit, VisitStatus, VisitType};
 use swh_graph::swhid;
 use swh_graph::views::{Subgraph, Symmetric};
 use swh_graph::webgraph::graphs::vec_graph::{LabeledVecGraph, VecGraph};
@@ -214,8 +214,8 @@ fn build_ori_snp_graph() -> Result<BuiltGraph> {
     builder
         .node(swhid!(swh:1:snp:0000000000000000000000000000000000000001))?
         .done();
-    builder.ori_arc(0, 1, VisitStatus::Full, 1770248300);
-    builder.ori_arc(0, 1, VisitStatus::Partial, 1770248399);
+    builder.ori_arc(0, 1, VisitStatus::Full, 1770248300, VisitType::Unknown);
+    builder.ori_arc(0, 1, VisitStatus::Partial, 1770248399, VisitType::Unknown);
     builder.done()
 }
 
@@ -241,8 +241,8 @@ fn test_symmetric_ori_snp_labeled_successors() -> Result<()> {
     let graph = build_ori_snp_graph()?;
     let symmetric = Symmetric(graph);
 
-    let visit_full = Visit::new(VisitStatus::Full, 1770248300).unwrap();
-    let visit_partial = Visit::new(VisitStatus::Partial, 1770248399).unwrap();
+    let visit_full = Visit::new(VisitStatus::Full, 1770248300, VisitType::Unknown).unwrap();
+    let visit_partial = Visit::new(VisitStatus::Partial, 1770248399, VisitType::Unknown).unwrap();
 
     let expected = [
         (
@@ -442,7 +442,7 @@ fn build_histhost_graph() -> Result<BuiltGraph> {
     builder
         .node(swhid!(swh:1:rel:0000000000000000000000000000000000000003))?
         .done();
-    builder.ori_arc(0, 1, VisitStatus::Full, 1770248300);
+    builder.ori_arc(0, 1, VisitStatus::Full, 1770248300, VisitType::Unknown);
     builder.snp_arc(1, 2, b"refs/heads/main");
     builder.snp_arc(1, 3, b"refs/tags/v1.0");
     builder.done()
@@ -462,7 +462,9 @@ fn test_symmetric_histhost_labeled_successors() -> Result<()> {
         .label_name_id(b"refs/tags/v1.0")
         .unwrap();
 
-    let visit_full: EdgeLabel = Visit::new(VisitStatus::Full, 1770248300).unwrap().into();
+    let visit_full: EdgeLabel = Visit::new(VisitStatus::Full, 1770248300, VisitType::Unknown)
+        .unwrap()
+        .into();
     let branch_main: EdgeLabel = swh_graph::labels::Branch::new(main_label).unwrap().into();
     let branch_tag: EdgeLabel = swh_graph::labels::Branch::new(tag_label).unwrap().into();
 
@@ -522,10 +524,17 @@ fn test_symmetric_flattened_labels() -> Result<()> {
     assert_eq!(
         ori0_labels,
         vec![
-            (1, Visit::new(VisitStatus::Full, 1770248300).unwrap().into()),
             (
                 1,
-                Visit::new(VisitStatus::Partial, 1770248399).unwrap().into()
+                Visit::new(VisitStatus::Full, 1770248300, VisitType::Unknown)
+                    .unwrap()
+                    .into()
+            ),
+            (
+                1,
+                Visit::new(VisitStatus::Partial, 1770248399, VisitType::Unknown)
+                    .unwrap()
+                    .into()
             )
         ]
     );

@@ -13,15 +13,16 @@ members = [
 [workspace.package]
 repository = "https://gitlab.softwareheritage.org/swh/devel/swh-graph"
 license = "GPL-3.0-or-later"
-version = "11.4.5"
+version = "12.1.2"
 
 [workspace.dependencies]
-swh-graph = { version = "11.0.0", path = "./rust/" }
+swh-graph = { version = "12.0.0", path = "./rust/" }
 
 anyhow = { version="1.0.79", features=["backtrace"] }
 dsi-bitstream = "0.7.0"
 epserde = "0.12.0"
 itertools = { version = "0.11.0" }
+fallible-iterator = "0.3.0"
 lender = "0.6.2"
 mmap-rs = "0.7.0"
 rayon = { version = "1.9.0" }
@@ -38,10 +39,7 @@ dsi-progress-logger = "0.8.0"
 log = "0.4.17"
 
 
-[profile.release] # Used for the examples
-opt-level = 3             # like --release
+[profile.release]
 lto = "fat"               # Full LTO
-overflow-checks = false   # Disable integer overflow checks.
-debug = true              # Include debug info.
-debug-assertions = false  # Disables debug assertions.
+debug = "limited"         # Include profiling info.
 codegen-units=1           # slower compile times, but maybe better perf

@@ -11,9 +11,12 @@ use anyhow::{anyhow, Context, Result};
 
 use crate::{NodeConstraint, NodeType};
 
+mod atomic_file;
 pub mod mmap;
 pub mod shuffle;
 pub mod sort;
+
+pub use atomic_file::AtomicFile;
 
 pub fn dir_size(path: &Path) -> Result<usize> {
     Ok(std::fs::read_dir(path)
@@ -69,41 +72,4 @@ pub fn parse_allowed_node_types(s: &str) -> Result<Vec<NodeType>> {
     s.parse::<NodeConstraint>()
         .map_err(|s| anyhow!("Could not parse --allowed-node-types {s}"))
         .map(|constr| constr.to_vec())
-}
-
-#[allow(clippy::len_without_is_empty)]
-pub trait GetIndex {
-    type Output;
-
-    /// Returns the total number of items in the collection
-    fn len(&self) -> usize;
-
-    /// Returns an item of the collection
-    fn get(&self, index: usize) -> Option<Self::Output>;
-
-    /// Returns an item of the collection
-    ///
-    /// # Safety
-    ///
-    /// Undefined behavior if the index is past the end of the collection.
-    unsafe fn get_unchecked(&self, index: usize) -> Self::Output;
-}
-
-impl<Item: Clone, T: std::ops::Deref<Target = [Item]>> GetIndex for T {
-    type Output = Item;
-
-    #[inline(always)]
-    fn len(&self) -> usize {
-        <[Item]>::len(self)
-    }
-
-    #[inline(always)]
-    fn get(&self, index: usize) -> Option<Self::Output> {
-        <[Item]>::get(self, index).cloned()
-    }
-
-    #[inline(always)]
-    unsafe fn get_unchecked(&self, index: usize) -> Self::Output {
-        <[Item]>::get_unchecked(self, index).clone()
-    }
 }

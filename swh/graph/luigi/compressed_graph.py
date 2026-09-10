@@ -444,14 +444,23 @@ class _CompressionStepTask(luigi.Task):
     def requires(self) -> Sequence[luigi.Task]:
         """Returns a list of luigi tasks matching :attr:`PREVIOUS_STEPS`."""
         assert self.rust_executable_dir != "/"
+
+        input_files = set(self.INPUT_FILES)
+        if self.local_sensitive_graph_path is not None:
+            input_files.update(self.SENSITIVE_INPUT_FILES)
+
         requirements_d = {}
-        for input_file in self.INPUT_FILES.union(self.SENSITIVE_INPUT_FILES):
+        for input_file in input_files:
             if not self._is_expected_output_file(input_file):
                 continue
             if self.MINIMUM_OBJECT_TYPES.isdisjoint(set(self.object_types)):
                 continue
             for cls in _CompressionStepTask.__subclasses__():
-                if input_file in cls.OUTPUT_FILES.union(cls.SENSITIVE_OUTPUT_FILES):
+                output_files = set(cls.OUTPUT_FILES)
+                if self.local_sensitive_graph_path is not None:
+                    output_files.update(cls.SENSITIVE_OUTPUT_FILES)
+
+                if input_file in output_files:
                     kwargs: Dict[str, Any] = dict(
                         local_export_path=self.local_export_path,
                         local_sensitive_export_path=self.local_sensitive_export_path,
@@ -489,23 +498,23 @@ class _CompressionStepTask(luigi.Task):
         Returns a list of luigi targets matching :attr:`OUTPUT_FILES` and
         :attr:`SENSITIVE_OUTPUT_FILES`.
         """
-        return (
-            [luigi.LocalTarget(self._stamp())]
-            + [
-                luigi.LocalTarget(f"{self.local_graph_path / self.graph_name}{name}")
-                for name in self.OUTPUT_FILES
-            ]
-            + [
+        outputs = [
+            luigi.LocalTarget(f"{self.local_graph_path / self.graph_name}{name}")
+            for name in self.OUTPUT_FILES
+        ]
+        outputs.append(luigi.LocalTarget(self._stamp()))
+
+        if self.local_sensitive_graph_path is not None:
+            outputs.extend(
                 luigi.LocalTarget(
                     f"{self.local_sensitive_graph_path / self.graph_name}{name}"
                     if self.local_sensitive_graph_path
                     else None
                 )
-                for name in self.SENSITIVE_OUTPUT_FILES
-                if self.local_sensitive_graph_path is not None
-                and self.SENSITIVE_OUTPUT_FILES is not None
-            ]
-        )
+                for name in self.SENSITIVE_OUTPUT_FILES or []
+            )
+
+        return outputs
 
     def run(self) -> None:
         """Runs the step, by shelling out to the relevant Rust program"""
@@ -585,7 +594,11 @@ class _CompressionStepTask(luigi.Task):
             graph_name=self.graph_name,
             in_dir=self.local_export_path / "orc",
             out_dir=self.local_graph_path,
-            sensitive_in_dir=self.local_sensitive_export_path,
+            sensitive_in_dir=(
+                None
+                if self.local_sensitive_export_path is None
+                else self.local_sensitive_export_path / "orc"
+            ),
             sensitive_out_dir=self.local_sensitive_graph_path,
             check_flavor=self.check_flavor,
         )
@@ -1091,17 +1104,7 @@ class NodeProperties(_CompressionStepTask):
 class MphLabels(_CompressionStepTask):
     STEP = CompressionStep.MPH_LABELS
     INPUT_FILES = {".labels.csv.zst", ".labels.count.txt"}
-    OUTPUT_FILES = {".labels.fmphgo"}
-    MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
-
-    def _large_allocations(self) -> int:
-        return 0
-
-
-class LabelsOrder(_CompressionStepTask):
-    STEP = CompressionStep.LABELS_ORDER
-    INPUT_FILES = {".labels.csv.zst", ".labels.fmphgo", ".labels.count.txt"}
-    OUTPUT_FILES = {".labels.fmphgo.order"}
+    OUTPUT_FILES = {".labels.vfunc"}
     MINIMUM_OBJECT_TYPES = {"ori", "snp", "dir"}
 
     def _large_allocations(self) -> int:
@@ -1125,8 +1128,7 @@ class FclLabels(_CompressionStepTask):
 class EdgeLabels(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS
     INPUT_FILES = {
-        ".labels.fmphgo",
-        ".labels.fmphgo.order",
+        ".labels.vfunc",
         ".fmphgo",
         ".fmphgo.order",
     }
@@ -1166,8 +1168,7 @@ class EdgeLabels(_CompressionStepTask):
 class EdgeLabelsTranspose(_CompressionStepTask):
     STEP = CompressionStep.EDGE_LABELS_TRANSPOSE
     INPUT_FILES = {
-        ".labels.fmphgo",
-        ".labels.fmphgo.order",
+        ".labels.vfunc",
         ".fmphgo",
         ".fmphgo.order",
     }
@@ -1250,6 +1251,11 @@ class EndToEndCheck(_CompressionStepTask):
         "-transposed-labelled.ef",
         "-transposed-labelled.properties",
         ".stats",
+    }
+    SENSITIVE_INPUT_FILES = {
+        ".persons",
+        ".persons.lengths",
+        ".persons.ef",
     }
     OUTPUT_FILES = set()
 
@@ -1570,9 +1576,13 @@ class CompressGraph(luigi.Task):
         conf = check_config_compress(
             conf,
             graph_name=self.graph_name,
-            in_dir=self.local_export_path,
+            in_dir=self.local_export_path / "orc",
             out_dir=self.local_graph_path,
-            sensitive_in_dir=self.local_sensitive_export_path,
+            sensitive_in_dir=(
+                None
+                if self.local_sensitive_export_path is None
+                else self.local_sensitive_export_path / "orc"
+            ),
             sensitive_out_dir=self.local_sensitive_graph_path,
             check_flavor=self.check_flavor,
         )
@@ -1773,7 +1783,7 @@ class DownloadGraphFromS3(luigi.Task):
         return [self._meta()]
 
     def _meta(self):
-        return luigi.LocalTarget(self.local_graph_path / "meta" / "export.json")
+        return luigi.LocalTarget(self.local_graph_path / "meta" / "compression.json")
 
     def run(self) -> None:
         """Copies all files: first the graph itself, then :file:`meta/compression.json`."""

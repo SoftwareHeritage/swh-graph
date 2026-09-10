@@ -5,8 +5,7 @@
  * See top-level LICENSE file for more information
  */
 
-use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -23,7 +22,7 @@ use swh_graph::mph::SwhidFmphgo;
 #[cfg(feature = "pthash")]
 use swh_graph::mph::SwhidPthash;
 use swh_graph::person::{DynPersonMphf, LoadablePersonMphf};
-use swh_graph::utils::parse_allowed_node_types;
+use swh_graph::utils::{parse_allowed_node_types, AtomicFile};
 use swh_graph::{NodeType, SWHID};
 
 #[cfg_attr(not(miri), global_allocator)] // Miri does not support Mimalloc
@@ -180,8 +179,6 @@ enum Commands {
         order: PathBuf,
         #[arg(long)]
         label_name_mphf: PathBuf,
-        #[arg(long)]
-        label_name_order: PathBuf,
         #[arg(long)]
         num_nodes: usize,
         #[arg(long, action)]
@@ -417,9 +414,9 @@ pub fn main() -> Result<()> {
         } => {
             use swh_graph::compress::zst_dir::*;
 
-            let mut stats_file = File::create(&target_stats)
+            let mut stats_file = AtomicFile::create_new(&target_stats)
                 .with_context(|| format!("Could not open {}", target_stats.display()))?;
-            let mut count_file = File::create(&target_count)
+            let mut count_file = AtomicFile::create_new(&target_count)
                 .with_context(|| format!("Could not open {}", target_count.display()))?;
 
             let bits_per_line = 20; // A little more than this, actually
@@ -461,6 +458,10 @@ pub fn main() -> Result<()> {
             count_file
                 .write_all(format!("{total}\n").as_bytes())
                 .context("Could not write node count")?;
+            stats_file.commit().context("Could not commit node stats")?;
+            count_file
+                .commit()
+                .context("Could not commit node counts")?;
         }
         Commands::EdgeStats {
             format: DatasetFormat::Orc,
@@ -471,9 +472,9 @@ pub fn main() -> Result<()> {
         } => {
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
-            let mut stats_file = File::create(&target_stats)
+            let mut stats_file = AtomicFile::create_new(&target_stats)
                 .with_context(|| format!("Could not open {}", target_stats.display()))?;
-            let mut count_file = File::create(&target_count)
+            let mut count_file = AtomicFile::create_new(&target_count)
                 .with_context(|| format!("Could not open {}", target_count.display()))?;
 
             let mut pl = progress_logger!(
@@ -529,6 +530,10 @@ pub fn main() -> Result<()> {
             count_file
                 .write_all(format!("{total}\n").as_bytes())
                 .context("Could not write edge count")?;
+            stats_file.commit().context("Could not commit edge stats")?;
+            count_file
+                .commit()
+                .context("Could not commit edge counts")?;
         }
 
         Commands::BfsRoots {
@@ -539,7 +544,7 @@ pub fn main() -> Result<()> {
         } => {
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
-            let target_file = File::create(&target)
+            let target_file = AtomicFile::create_new(&target)
                 .with_context(|| format!("Could not open {}", target.display()))?;
             let mut target_file = BufWriter::new(target_file);
 
@@ -572,7 +577,12 @@ pub fn main() -> Result<()> {
                 }
             }
 
-            target_file.flush().context("Could not flush output file")?;
+            target_file
+                .into_inner()
+                .map_err(|e| e.into_error())
+                .context("Could not flush output file")?
+                .commit()
+                .context("Could not commit output file")?;
         }
 
         Commands::Bv {
@@ -632,31 +642,24 @@ pub fn main() -> Result<()> {
             function,
             order,
             label_name_mphf,
-            label_name_order,
             num_nodes,
             transposed,
             dataset_dir,
             target_dir,
         } => {
-            use swh_graph::compress::label_names::{LabelNameHasher, LabelNameMphf};
+            use swh_graph::compress::label_names::LabelNameHasher;
 
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
             let order = MappedPermutation::load_unchecked(&order)
                 .with_context(|| format!("Could not load {}", order.display()))?;
-            let label_name_file = File::open(&label_name_mphf)
-                .with_context(|| format!("Could not open{}", label_name_mphf.display()))?;
-            let label_name_mphf = LabelNameMphf::read(&mut BufReader::new(label_name_file))
-                .with_context(|| format!("Could not load {}", label_name_mphf.display()))?;
-            let label_name_order = MappedPermutation::load_unchecked(&label_name_order)
-                .with_context(|| format!("Could not load {}", label_name_order.display()))?;
-            let label_name_hasher = LabelNameHasher::new(&label_name_mphf, &label_name_order)?;
+            let label_name_hasher = LabelNameHasher::mmap(&label_name_mphf)?;
 
             let label_width = match mph_algo {
                 MphAlgorithm::Fmphgo => swh_graph::compress::bv::edge_labels::<SwhidFmphgo>(
                     partitions_per_thread,
                     function,
                     order,
-                    label_name_hasher,
+                    &label_name_hasher,
                     num_nodes,
                     dataset_dir,
                     &allowed_node_types,
@@ -671,7 +674,7 @@ pub fn main() -> Result<()> {
                         partitions_per_thread,
                         function,
                         order,
-                        label_name_hasher,
+                        &label_name_hasher,
                         num_nodes,
                         dataset_dir,
                         &allowed_node_types,
@@ -683,7 +686,7 @@ pub fn main() -> Result<()> {
                     partitions_per_thread,
                     function,
                     order,
-                    label_name_hasher,
+                    &label_name_hasher,
                     num_nodes,
                     dataset_dir,
                     &allowed_node_types,
@@ -696,10 +699,12 @@ pub fn main() -> Result<()> {
             properties_path
                 .as_mut_os_string()
                 .push("-labelled.properties");
-            let properties_file = File::create(&properties_path)
-                .with_context(|| format!("Could not create {}", properties_path.display()))?;
+            let mut properties_file = BufWriter::new(
+                AtomicFile::create_new(&properties_path)
+                    .with_context(|| format!("Could not create {}", properties_path.display()))?,
+            );
             java_properties::write(
-                BufWriter::new(properties_file),
+                &mut properties_file,
                 &[
                     (
                         "graphclass".to_string(),
@@ -726,6 +731,12 @@ pub fn main() -> Result<()> {
                 .collect(),
             )
             .with_context(|| format!("Could not write {}", properties_path.display()))?;
+            properties_file
+                .into_inner()
+                .map_err(|e| e.into_error())
+                .context("Could not flush properties file")?
+                .commit()
+                .context("Could not commit properties file")?;
         }
         Commands::NodeProperties {
             format: DatasetFormat::Orc,

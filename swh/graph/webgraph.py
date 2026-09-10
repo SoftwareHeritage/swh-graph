@@ -71,7 +71,6 @@ class CompressionStep(Enum):
     FULLNAMES_EF = 207
     NODE_PROPERTIES = 210
     MPH_LABELS = 220
-    LABELS_ORDER = 225
     FCL_LABELS = 230
     EDGE_LABELS = 240
     EDGE_LABELS_TRANSPOSE = 250
@@ -518,9 +517,7 @@ def _mph_persons(
         "fmphgo-persons",
         "--num-persons",
         num_persons[0],
-        Command.zstdcat(
-            f"{conf['out_dir']}/{conf['graph_name']}.persons.csv.zst",
-        ),
+        f"{conf['out_dir']}/{conf['graph_name']}.persons.csv.zst",
         f"{conf['out_dir']}/{conf['graph_name']}.persons.fmphgo",
         conf=conf,
         env=env,
@@ -535,11 +532,10 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
         return None
     if "sensitive_out_dir" not in conf:
         return None
-    if not (
-        Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
-        and Path(f"{conf['sensitive_in_dir']}/orc/person").exists()
-    ):
-        return None
+
+    assert Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
+    assert Path(f"{conf['sensitive_in_dir']}/person").exists()
+
     with open(
         f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt"
     ) as persons_count:
@@ -552,7 +548,7 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
         "extract-fullnames",
         "--person-function",
         f"{conf['out_dir']}/{conf['graph_name']}.persons",
-        f"{conf['sensitive_in_dir']}/orc",
+        f"{conf['sensitive_in_dir']}",
         f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons",
         f"{conf['sensitive_out_dir']}/{conf['graph_name']}.persons.lengths",
         conf=conf,
@@ -568,11 +564,10 @@ def _fullnames_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command
         return None
     if "sensitive_out_dir" not in conf:
         return None
-    if not (
-        Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
-        and Path(f"{conf['sensitive_in_dir']}/orc/person").exists()
-    ):
-        return None
+
+    assert Path(f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt").exists()
+    assert Path(f"{conf['sensitive_in_dir']}/person").exists()
+
     with open(
         f"{conf['out_dir']}/{conf['graph_name']}.persons.count.txt"
     ) as persons_count:
@@ -647,35 +642,11 @@ def _mph_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
         return None
     return Rust(
         "swh-graph-compress",
-        "fmphgo-labels",
+        "vfunc-labels",
         "--num-labels",
         num_labels[0],
-        Command.zstdcat(f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst"),
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
-        conf=conf,
-        env=env,
-    )
-
-
-@_compression_step
-def _labels_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]:
-    if {"dir", "snp", "*"}.isdisjoint(set(conf.get("object_types", "*").split(","))):
-        return None
-    with open(
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.count.txt"
-    ) as labels_count:
-        num_labels = labels_count.readline().splitlines()
-        assert len(num_labels) == 1
-    if num_labels[0] == "0":
-        return None
-    return Rust(
-        "swh-graph-compress",
-        "fmphgo-labels-order",
-        "--num-labels",
-        num_labels[0],
-        Command.zstdcat(f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst"),
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.csv.zst",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.vfunc",
         conf=conf,
         env=env,
     )
@@ -731,9 +702,7 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
         "--order",
         f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         "--label-name-mphf",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
-        "--label-name-order",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.vfunc",
         "--num-nodes",
         num_nodes,
         f"{conf['in_dir']}",
@@ -774,9 +743,7 @@ def _edge_labels_transpose(
         "--order",
         f"{conf['out_dir']}/{conf['graph_name']}.fmphgo.order",
         "--label-name-mphf",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo",
-        "--label-name-order",
-        f"{conf['out_dir']}/{conf['graph_name']}.labels.fmphgo.order",
+        f"{conf['out_dir']}/{conf['graph_name']}.labels.vfunc",
         "--num-nodes",
         num_nodes,
         "--transposed",
@@ -873,6 +840,7 @@ def _clean_tmp(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         "-rf",
         *Path(conf["out_dir"]).glob(f"{conf['graph_name']}-base.*"),
         *Path(conf["out_dir"]).glob(f"{conf['graph_name']}-bfs-simplified.*"),
+        *Path(conf["out_dir"]).glob(f"{conf['graph_name']}-*.tmp"),
         f"{conf['out_dir']}/{conf['graph_name']}-bfs.order",
         f"{conf['out_dir']}/{conf['graph_name']}-llp.order",
         f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
@@ -913,33 +881,29 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
     for handler in step_handlers:
         step_logger.addHandler(handler)
 
-    step_start_time = datetime.now()
-    step_logger.info("Starting compression step %s at %s", step, step_start_time)
+    try:
+        step_start_time = datetime.now()
+        step_logger.info("Starting compression step %s at %s", step, step_start_time)
 
-    command = COMP_CMD[step](conf, env)
+        command = COMP_CMD[step](conf, env)
 
-    if command is None:
-        step_logger.info("Compression step %s skipped", step)
-        for handler in step_handlers:
-            step_logger.removeHandler(handler)
-            handler.close()
-        return []
+        if command is None:
+            step_logger.info("Compression step %s skipped", step)
+            return []
 
-    step_logger.info("Running: %s", command.__str__())
+        step_logger.info("Running: %s", command.__str__())
 
-    if isinstance(command, (Command, AtomicFileSink)):
-        running_command = command._run(
-            stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-        )
-        with running_command.stdout() as stdout:
-            for line in stdout:
-                step_logger.info(line.rstrip().decode(errors="replace"))
-        try:
-            results = running_command.wait()
-        except CommandException as e:
-            msg = f"Compression step {step} returned non-zero exit code {e.returncode}"
-            step_logger.critical(msg)
-            raise CompressionSubprocessError(msg, log_path)
+        if isinstance(command, (Command, AtomicFileSink)):
+            running_command = command._run(
+                stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            )
+            with running_command.stdout() as stdout:
+                for line in stdout:
+                    step_logger.info(line.rstrip().decode(errors="replace"))
+                results = running_command.wait()
+        else:
+            # This allows for calling Python functions directly
+            results = command(step_logger)
         step_end_time = datetime.now()
         step_duration = step_end_time - step_start_time
         step_logger.info(
@@ -948,17 +912,22 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
             step_end_time,
             step_duration,
         )
+    except Exception as e:
+        if isinstance(e, CommandException):
+            msg = f"Compression step {step} returned non-zero exit code {e.returncode}"
+            step_logger.error(msg)
+        else:
+            msg = f"Compression step {step} failed with the following error: {e}"
+            # some exception have an empty or useless message, so log their name
+            # along with their traceback:
+            step_logger.exception(msg)
+        raise CompressionSubprocessError(msg, log_path)
+    finally:
+        # Ensure logs are flushed at the end of the step.
+        # Also prevent double logging in case of retry.
         for handler in step_handlers:
             step_logger.removeHandler(handler)
             handler.close()
-    else:
-        # This allows for calling Python functions directly
-        try:
-            results = command(step_logger)
-        except Exception as exc:
-            msg = f"Compression step {step} failed with the following error: {exc}"
-            step_logger.critical(msg)
-            raise CompressionSubprocessError(msg, log_path)
 
     return results
 
@@ -982,7 +951,7 @@ def compress(
         in_dir: input directory, where the uncompressed graph can be found
         out_dir: output directory, where the compressed graph will be stored
         sensitive_in_dir: sensitive input directory, where the uncompressed
-            sensitive graph can be found
+            sensitive export can be found
         sensitive_out_dir: sensitive output directory, where the compressed
             sensitive graph will be stored
         check_flavor: which flavor of checks to run

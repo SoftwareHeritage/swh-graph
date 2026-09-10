@@ -5,7 +5,7 @@ import warnings
 
 from swh.graph.grpc import swhgraph_pb2 as swh_dot_graph_dot_grpc_dot_swhgraph__pb2
 
-GRPC_GENERATED_VERSION = '1.69.0'
+GRPC_GENERATED_VERSION = '1.82.1'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -18,14 +18,14 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in swh/graph/grpc/swhgraph_pb2_grpc.py depends on'
+        + ' but the generated code in swh/graph/grpc/swhgraph_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
-class TraversalServiceStub(object):
+class TraversalServiceStub:
     """Graph traversal service 
     """
 
@@ -72,7 +72,7 @@ class TraversalServiceStub(object):
                 _registered_method=True)
 
 
-class TraversalServiceServicer(object):
+class TraversalServiceServicer:
     """Graph traversal service 
     """
 
@@ -200,7 +200,7 @@ def add_TraversalServiceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class TraversalService(object):
+class TraversalService:
     """Graph traversal service 
     """
 

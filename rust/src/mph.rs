@@ -24,6 +24,8 @@ use crate::SWHID;
 /// See [`DynMphf`] which wraps all implementer structs in an enum to dynamically choose
 /// which MPH algorithm to use with less overhead than `dyn SwhidMphf`.
 pub trait SwhidMphf {
+    fn num_keys(&self) -> usize;
+
     /// Hashes a SWHID's binary representation
     #[inline(always)]
     fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
@@ -70,6 +72,11 @@ pub struct PermutedMphf<MPHF: SwhidMphf, P: Permutation> {
 
 impl<MPHF: SwhidMphf, P: Permutation> SwhidMphf for PermutedMphf<MPHF, P> {
     #[inline(always)]
+    fn num_keys(&self) -> usize {
+        self.mphf.num_keys()
+    }
+
+    #[inline(always)]
     fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
         self.mphf
             .hash_array(swhid)
@@ -104,6 +111,11 @@ pub struct VecMphf {
 }
 
 impl SwhidMphf for VecMphf {
+    #[inline(always)]
+    fn num_keys(&self) -> usize {
+        self.swhids.len()
+    }
+
     fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
         swhid
             .as_ref()
@@ -148,6 +160,11 @@ impl LoadableSwhidMphf for GOVMPH {
 }
 
 impl SwhidMphf for GOVMPH {
+    #[inline(always)]
+    fn num_keys(&self) -> usize {
+        self.size() as usize
+    }
+
     #[inline(always)]
     fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
         Some(self.get_byte_array(swhid.as_ref().as_bytes()) as usize)
@@ -218,6 +235,11 @@ mod swhid_pthash {
 
     impl SwhidMphf for SwhidPthash {
         #[inline(always)]
+        fn num_keys(&self) -> usize {
+            self.0.num_keys() as usize
+        }
+
+        #[inline(always)]
         fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
             Some(self.0.hash(HashableSWHID(swhid.as_ref().as_bytes())) as usize)
         }
@@ -273,6 +295,11 @@ impl LoadableSwhidMphf for SwhidFmphgo {
 }
 
 impl SwhidMphf for SwhidFmphgo {
+    #[inline(always)]
+    fn num_keys(&self) -> usize {
+        self.0.len()
+    }
+
     #[inline(always)]
     fn hash_str(&self, swhid: impl AsRef<str>) -> Option<NodeId> {
         self.0
@@ -394,6 +421,16 @@ impl LoadableSwhidMphf for DynMphf {
 
 impl SwhidMphf for DynMphf {
     #[inline(always)]
+    fn num_keys(&self) -> usize {
+        match self {
+            Self::Fmphgo(mphf) => mphf.num_keys(),
+            #[cfg(feature = "pthash")]
+            Self::Pthash(mphf) => mphf.num_keys(),
+            Self::GOV(mphf) => mphf.num_keys(),
+        }
+    }
+
+    #[inline(always)]
     fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
         match self {
             Self::Fmphgo(mphf) => mphf.hash_array(swhid),
@@ -443,6 +480,16 @@ pub enum PermutedDynMphf {
 }
 
 impl SwhidMphf for PermutedDynMphf {
+    #[inline(always)]
+    fn num_keys(&self) -> usize {
+        match self {
+            Self::Fmphgo(mphf) => mphf.num_keys(),
+            #[cfg(feature = "pthash")]
+            Self::Pthash(mphf) => mphf.num_keys(),
+            Self::GOV(mphf) => mphf.num_keys(),
+        }
+    }
+
     #[inline(always)]
     fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
         match self {

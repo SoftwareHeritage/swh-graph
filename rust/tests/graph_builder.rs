@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024  The Software Heritage developers
+ * Copyright (C) 2024-2026  The Software Heritage developers
  * See the AUTHORS file at the top-level directory of this distribution
  * License: GNU General Public License version 3, or any later version
  * See top-level LICENSE file for more information
@@ -12,7 +12,7 @@ use anyhow::{Context, Result};
 use swh_graph::arc_iterators::LabeledArcIterator;
 use swh_graph::graph::*;
 use swh_graph::graph_builder::GraphBuilder;
-use swh_graph::labels::{LabelNameId, Permission, Visit, VisitStatus};
+use swh_graph::labels::{LabelNameId, Permission, Visit, VisitStatus, VisitType};
 use swh_graph::swhid;
 
 #[test]
@@ -427,12 +427,30 @@ fn test_ori_labels() -> Result<()> {
     let d = builder
         .node(swhid!(swh:1:snp:0000000000000000000000000000000000000040))?
         .done();
-    let visit_a_c = Visit::new(VisitStatus::Full, 1719581545).unwrap();
-    let visit_a_d = Visit::new(VisitStatus::Partial, 1719500000).unwrap();
-    let visit_b_c = Visit::new(VisitStatus::Full, 1719581578).unwrap();
-    builder.ori_arc(a, c, visit_a_c.status(), visit_a_c.timestamp());
-    builder.ori_arc(a, d, visit_a_d.status(), visit_a_d.timestamp());
-    builder.ori_arc(b, c, visit_b_c.status(), visit_b_c.timestamp());
+    let visit_a_c = Visit::new(VisitStatus::Full, 1719581545, VisitType::Unknown).unwrap();
+    let visit_a_d = Visit::new(VisitStatus::Partial, 1719500000, VisitType::Unknown).unwrap();
+    let visit_b_c = Visit::new(VisitStatus::Full, 1719581578, VisitType::Unknown).unwrap();
+    builder.ori_arc(
+        a,
+        c,
+        visit_a_c.status(),
+        visit_a_c.timestamp(),
+        VisitType::Unknown,
+    );
+    builder.ori_arc(
+        a,
+        d,
+        visit_a_d.status(),
+        visit_a_d.timestamp(),
+        VisitType::Unknown,
+    );
+    builder.ori_arc(
+        b,
+        c,
+        visit_b_c.status(),
+        visit_b_c.timestamp(),
+        VisitType::Unknown,
+    );
     let graph = builder.done().context("Could not make graph")?;
 
     assert_eq!(a, 0);

@@ -1,10 +1,10 @@
 [project]
 name = "swh.graph"
 authors = [
-	{name="Software Heritage developers", email="swh-devel@inria.fr"},
+    { name = "Software Heritage developers", email = "swh-devel@inria.fr" },
 ]
 description = "Software Heritage graph service"
-readme = {file = "README.rst", content-type = "text/x-rst"}
+readme = { file = "README.rst", content-type = "text/x-rst" }
 requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -15,33 +15,10 @@ classifiers = [
 ]
 dynamic = ["version", "dependencies", "optional-dependencies"]
 
-[tool.setuptools.packages.find]
-include = ["swh.*"]
-
-[tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt", "requirements-swh.txt"]}
-
-[tool.setuptools.dynamic.optional-dependencies]
-export = {file = [
-    "requirements-swh-export.txt",
-    ]}
-luigi = {file = [
-    "requirements-luigi.txt",
-    "requirements-swh-export.txt",
-    "requirements-swh-luigi.txt",
-    ]}
-testing = {file = [
-    "requirements-test.txt",
-    "requirements-luigi.txt",
-    "requirements-swh-export.txt",
-    "requirements-swh-luigi.txt",
-    ]}
 
 [project.entry-points."swh.cli.subcommands"]
 "swh.graph" = "swh.graph.cli"
+
 
 [project.urls]
 "Homepage" = "https://gitlab.softwareheritage.org/swh/devel/swh-graph"
@@ -51,14 +28,35 @@ testing = {file = [
 "Source" = "https://gitlab.softwareheritage.org/swh/devel/swh-graph.git"
 
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-requirements-txt", "hatch-vcs"]
+build-backend = "hatchling.build"
 
-[tool.setuptools_scm]
-fallback_version = "0.0.1"
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt", "requirements-swh.txt"]
+
+[tool.hatch.metadata.hooks.requirements_txt.optional-dependencies]
+export = ["requirements-swh-export.txt"]
+luigi = [
+    "requirements-luigi.txt",
+    "requirements-swh-export.txt",
+    "requirements-swh-luigi.txt",
+]
+testing = [
+    "requirements-test.txt",
+    "requirements-luigi.txt",
+    "requirements-swh-export.txt",
+    "requirements-swh-luigi.txt",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["swh"]
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.1"
 
 [tool.black]
-target-version = ['py39', 'py310', 'py311', 'py312']
+target-version = ['py311', 'py312', 'py313']
 extend-exclude = '''
 /(
     | swh/graph/grpc
@@ -81,9 +79,7 @@ warn_unused_ignores = true
 explicit_package_bases = true
 # ^ Needed for mypy to detect py.typed from swh packages installed
 # in editable mode
-exclude = [
-    "^swh/graph/grpc"
-]
+exclude = ["^swh/graph/grpc"]
 
 plugins = ["luigi.mypy"]
 
@@ -105,7 +101,7 @@ ignore = [
     "E203", # whitespaces before ':' <https://github.com/psf/black/issues/315>
     "E231", # missing whitespace after ','
     "E501", # line too long, use B950 warning from flake8-bugbear instead
-    "W503" # line break before binary operator <https://github.com/psf/black/issues/52>
+    "W503", # line break before binary operator <https://github.com/psf/black/issues/52>
 ]
 max-line-length = 88
 extend-exclude = ["build/", "swh/graph/grpc/"]

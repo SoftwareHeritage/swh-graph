@@ -9,7 +9,7 @@ use anyhow::Result;
 
 use swh_graph::graph::*;
 use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
-use swh_graph::labels::{EdgeLabel, UntypedEdgeLabel, Visit, VisitStatus};
+use swh_graph::labels::{EdgeLabel, UntypedEdgeLabel, Visit, VisitStatus, VisitType};
 use swh_graph::properties;
 use swh_graph::swhid;
 use swh_graph::views::{Subgraph, Transposed};
@@ -246,8 +246,8 @@ fn build_ori_snp_graph() -> Result<BuiltGraph> {
     builder
         .node(swhid!(swh:1:snp:0000000000000000000000000000000000000001))?
         .done();
-    builder.ori_arc(0, 1, VisitStatus::Full, 1770248300);
-    builder.ori_arc(0, 1, VisitStatus::Partial, 1770248399);
+    builder.ori_arc(0, 1, VisitStatus::Full, 1770248300, VisitType::Unknown);
+    builder.ori_arc(0, 1, VisitStatus::Partial, 1770248399, VisitType::Unknown);
     builder.done()
 }
 
@@ -256,8 +256,8 @@ fn test_transpose_labeled_successors() -> Result<()> {
     let graph = build_ori_snp_graph()?;
     let transposed = Transposed(graph);
 
-    let visit_full = Visit::new(VisitStatus::Full, 1770248300).unwrap();
-    let visit_partial = Visit::new(VisitStatus::Partial, 1770248399).unwrap();
+    let visit_full = Visit::new(VisitStatus::Full, 1770248300, VisitType::Unknown).unwrap();
+    let visit_partial = Visit::new(VisitStatus::Partial, 1770248399, VisitType::Unknown).unwrap();
 
     // In the original graph: ori0 -> snp1 with Visit labels
     // In the transposed graph: snp1 -> ori0 with Visit labels
@@ -302,8 +302,8 @@ fn test_transpose_labeled_predecessors() -> Result<()> {
     let graph = build_ori_snp_graph()?;
     let transposed = Transposed(graph);
 
-    let visit_full = Visit::new(VisitStatus::Full, 1770248300).unwrap();
-    let visit_partial = Visit::new(VisitStatus::Partial, 1770248399).unwrap();
+    let visit_full = Visit::new(VisitStatus::Full, 1770248300, VisitType::Unknown).unwrap();
+    let visit_partial = Visit::new(VisitStatus::Partial, 1770248399, VisitType::Unknown).unwrap();
 
     // In the original graph: ori0 -> snp1 with Visit labels
     // In the transposed graph: ori0 <- snp1 with Visit labels

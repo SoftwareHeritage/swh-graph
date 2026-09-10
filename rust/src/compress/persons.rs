@@ -11,7 +11,11 @@ use std::sync::OnceLock;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use dsi_progress_logger::{concurrent_progress_logger, progress_logger, ProgressLog};
+use ph::fmph::GOFunction;
+use ph::fmph::{GOBuildConf, GOConf};
 use rayon::prelude::*;
+
+use crate::utils::AtomicFile;
 
 // For backward compatibility
 #[doc(hidden)]
@@ -20,9 +24,10 @@ pub use crate::person::{
 };
 
 fn iter_persons(path: &Path) -> Result<impl Iterator<Item = PseudonymizedPerson<Box<[u8]>>>> {
-    let persons_file =
-        File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
-    Ok(BufReader::new(persons_file).lines().map(move |person| {
+    let file = File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
+    let decoder = zstd::stream::read::Decoder::new(file)
+        .with_context(|| format!("Could not decompress {} as zstd", path.display()))?;
+    Ok(BufReader::new(decoder).lines().map(move |person| {
         PseudonymizedPerson(
             person
                 .expect("Could not decode persons as UTF-8")
@@ -53,7 +58,8 @@ pub fn build_mphf(path: PathBuf, num_persons: usize) -> Result<PersonFmphgo> {
     let key_set =
         ph::fmph::keyset::CachedKeySet::dynamic_with_len(get_iter, num_persons, clone_threshold);
 
-    let mphf = ph::fmph::GOFunction::new(key_set);
+    let conf = GOBuildConf::new(GOConf::default_bigger());
+    let mphf = GOFunction::with_conf(key_set, conf);
     let len = mphf.len();
     ensure!(
         len == num_persons,
@@ -73,22 +79,43 @@ fn write_ordered_fullnames<S: AsRef<[u8]>>(
     use dsi_bitstream::prelude::*;
 
     log::info!("Writing full names and lengths...");
-    let mut fullnames_file = File::create(fullnames_path)
+    let fullnames_file = AtomicFile::create_new(fullnames_path)
         .with_context(|| format!("Could not create {}", fullnames_path.display()))?;
-    let lengths_file = File::create(lengths_path)
+    let lengths_file = AtomicFile::create_new(lengths_path)
         .with_context(|| format!("Could not create {}", lengths_path.display()))?;
 
     let mut lengths_writer = <BufBitWriter<BE, _>>::new(<WordAdapter<u64, _>>::new(
         BufWriter::with_capacity(1 << 20, lengths_file),
     ));
 
+    let mut fullnames_writer = BufWriter::new(fullnames_file);
     for fullname in fullnames {
         let fullname = fullname.as_ref();
-        fullnames_file.write_all(fullname)?;
+        fullnames_writer
+            .write_all(fullname)
+            .context("Could not write fullname")?;
         lengths_writer
             .write_gamma(u64::try_from(fullname.len()).context("Name length overflowed u64")?)
             .context("Could not write gamma")?;
     }
+    let fullnames_file = fullnames_writer
+        .into_inner()
+        .map_err(|e| e.into_error())
+        .context("Could not flush fullnames")?;
+
+    fullnames_file
+        .commit()
+        .with_context(|| format!("Could not commit {}", fullnames_path.display()))?;
+    let lengths_file = lengths_writer
+        .into_inner()
+        .context("Could not flush lengths")?
+        .into_inner()
+        .into_inner()
+        .map_err(|e| e.into_error())
+        .context("Could not flush lengths")?;
+    lengths_file
+        .commit()
+        .with_context(|| format!("Could not commit {}", lengths_path.display()))?;
 
     Ok(())
 }

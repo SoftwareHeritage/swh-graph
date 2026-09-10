@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2025  The Software Heritage developers
+# Copyright (C) 2019-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -59,9 +59,7 @@ class GraphServerProcess(multiprocessing.context.ForkServerProcess):
             if isinstance(e, ExecutableNotFound):
                 # hack to add a bit more context and help to the user,
                 # especially when this is used from another swh package...
-                # XXX on py>=3.11 we could use e.add_note() instead
-                e.args = (
-                    *e.args,
+                e.add_note(
                     "This probably means you need to build the rust grpc server "
                     'for swh-graph. Check the "Minimal setup for tests" section in '
                     "the rust/README.md file in the swh-graph "
@@ -91,7 +89,7 @@ class StatsdServer:
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._sock.bind(("127.0.0.1", 0))
         self._sock.settimeout(0.1)
-        (self.host, self.port) = self._sock.getsockname()
+        self.host, self.port = self._sock.getsockname()
         self._closing = False
         self._thread = threading.Thread(target=self._listen)
         self._thread.start()
@@ -102,7 +100,7 @@ class StatsdServer:
     def _listen(self):
         while not self._closing:
             try:
-                (datagram, addr) = self._sock.recvfrom(4096)
+                datagram, addr = self._sock.recvfrom(4096)
             except TimeoutError:
                 continue
             self.datagrams.append(datagram)

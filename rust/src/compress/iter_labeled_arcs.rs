@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -20,14 +20,14 @@ use super::orc::{get_dataset_readers, iter_arrow};
 use super::TextSwhid;
 use crate::compress::label_names::LabelNameHasher;
 use crate::labels::{
-    Branch, DirEntry, EdgeLabel, Permission, UntypedEdgeLabel, Visit, VisitStatus,
+    Branch, DirEntry, EdgeLabel, Permission, UntypedEdgeLabel, Visit, VisitStatus, VisitType,
 };
 use crate::{NodeType, SWHID};
 
 pub fn iter_labeled_arcs<'a>(
     dataset_dir: &'a PathBuf,
     allowed_node_types: &'a [NodeType],
-    label_name_hasher: LabelNameHasher<'a>,
+    label_name_hasher: &'a LabelNameHasher,
 ) -> Result<impl ParallelIterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
@@ -100,7 +100,7 @@ where
 
 fn iter_labeled_arcs_from_dir_entry<'a, R: ChunkReader + Send + 'a>(
     reader_builder: ArrowReaderBuilder<R>,
-    label_name_hasher: LabelNameHasher<'a>,
+    label_name_hasher: &'a LabelNameHasher,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct DirectoryEntry {
@@ -143,10 +143,19 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
         date: Option<ar_row::Timestamp>,
         status: String,
         snapshot: Option<String>,
+        r#type: Option<String>, // Option because of 3 old objects: https://gitlab.softwareheritage.org/swh/meta/-/work_items/5106
     }
 
     map_labeled_arcs(reader_builder, |ovs: OriginVisitStatus| {
         ovs.snapshot.as_ref().map(|snapshot| {
+            let visit_type = ovs.r#type.unwrap_or_else(||
+                // https://gitlab.softwareheritage.org/swh/meta/-/work_items/5106
+                match ovs.origin.as_ref() {
+                    "https://www.npmjs.com/package/polygon.io" | "https://www.npmjs.com/package/@reactionaries/hookd" => "npm",
+                    "https://github.com/shines001/krping" => "git",
+                    origin => panic!("Unexpected origin with NULL type in origin_visit_status: {origin:?}"),
+                }.to_string()
+            );
             (
                 SWHID::from_origin_url(ovs.origin).to_string(),
                 format!("swh:1:snp:{snapshot}"),
@@ -163,6 +172,9 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
                         .seconds
                         .try_into()
                         .expect("Negative visit date"),
+                    VisitType::from_swh_type(&visit_type).unwrap_or_else(|| {
+                        panic!("Unknown visit type: {visit_type}. You need to update VisitType::from_swh_type.")
+                    })
                 )
                 .map(EdgeLabel::Visit),
             )
@@ -172,7 +184,7 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
 
 fn iter_labeled_arcs_from_snp_branch<'a, R: ChunkReader + Send + 'a>(
     reader_builder: ArrowReaderBuilder<R>,
-    label_name_hasher: LabelNameHasher<'a>,
+    label_name_hasher: &'a LabelNameHasher,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct SnapshotBranch {

@@ -84,6 +84,7 @@ class ListSwhidsForSubdataset(luigi.Task):
         description="Which algorithm to use to generate the list of origins",
     )
     local_export_path = luigi.PathParameter()
+    local_graph_path = luigi.OptionalPathParameter()
     grpc_api = luigi.StrParameter()
 
     def requires(self) -> luigi.Task:
@@ -97,6 +98,7 @@ class ListSwhidsForSubdataset(luigi.Task):
     def run(self) -> None:
         """Builds the list"""
         import hashlib
+        from pathlib import Path
 
         from google.protobuf.field_mask_pb2 import FieldMask
         import grpc
@@ -114,6 +116,28 @@ class ListSwhidsForSubdataset(luigi.Task):
 
         with grpc.insecure_channel(self.grpc_api) as channel:
             stub = swhgraph_grpc.TraversalServiceStub(channel)
+
+            if self.local_graph_path is not None:
+                expected_num_nodes = int(
+                    Path(f"{self.local_graph_path}.nodes.count.txt").read_text().strip()
+                )
+                expected_num_edges = int(
+                    Path(f"{self.local_graph_path}.edges.count.txt").read_text().strip()
+                )
+
+                stats = stub.Stats()
+                assert stats.num_nodes == expected_num_nodes, (
+                    f"Expected {expected_num_nodes} nodes "
+                    f"(same as {self.local_graph_path}), "
+                    f"but gRPC server at {self.grpc_api} returned {stats.num_nodes}: "
+                    f"{stats}"
+                )
+                assert stats.num_edges == expected_num_edges, (
+                    f"Expected {expected_num_edges} nodes "
+                    f"(same as {self.local_graph_path}), "
+                    f"but gRPC server at {self.grpc_api} returned {stats.num_edges}: "
+                    f"{stats}"
+                )
 
             known_origin_swhids = []
             for origin_swhid in origin_swhids:

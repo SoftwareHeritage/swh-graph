@@ -1,4 +1,4 @@
-// Copyright (C) 2025  The Software Heritage developers
+// Copyright (C) 2025-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -118,6 +118,11 @@ pub struct ContiguousSubgraphMphf<
 impl<G: SwhGraphWithProperties<Maps: properties::Maps>, N: ContractionBackend> SwhidMphf
     for ContiguousSubgraphMphf<G, N>
 {
+    #[inline(always)]
+    fn num_keys(&self) -> usize {
+        self.graph.contraction.num_nodes()
+    }
+
     #[inline(always)]
     fn hash_array(&self, swhid: &[u8; SWHID::BYTES_SIZE]) -> Option<NodeId> {
         use properties::Maps;
