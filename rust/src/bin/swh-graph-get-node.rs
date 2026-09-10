@@ -322,10 +322,9 @@ fn collect_labeled_successors<
     G: SwhGraphWithProperties<Maps: properties::Maps, LabelNames: properties::LabelNames>,
 >(
     graph: G,
-    successors: impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>,
+    successors: impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>,
 ) -> Result<Vec<Succ>> {
     successors
-        .into_iter()
         .map(|(succ, labels)| -> Result<_> {
             Ok(Succ {
                 swhid: graph.properties().swhid(succ),
@@ -341,10 +340,9 @@ fn collect_labeled_successors<
 
 fn collect_successors<G: SwhGraphWithProperties<Maps: properties::Maps>>(
     graph: G,
-    successors: impl IntoIterator<Item = usize>,
+    successors: impl Iterator<Item = usize>,
 ) -> Result<Vec<Succ>> {
     successors
-        .into_iter()
         .map(|succ| -> Result<_> {
             Ok(Succ {
                 swhid: graph.properties().swhid(succ),
