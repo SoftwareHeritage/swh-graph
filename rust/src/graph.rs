@@ -355,7 +355,7 @@ pub trait SwhLabeledBackwardGraph:
     fn labeled_predecessors(
         &self,
         node_id: NodeId,
-    ) -> impl Iterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
+    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         LabelTypingSuccessorIterator {
