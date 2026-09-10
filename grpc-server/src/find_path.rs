@@ -621,6 +621,7 @@ fn build_labeled_path<
             } else {
                 let (_succ, labels) = subgraph
                     .labeled_successors(node_id)
+                    .into_iter()
                     .find(|(succ, _labels)| succ == &ids_path[idx - 1])
                     .expect("node on path is missing a successor");
                 if labeled_label_builder.empty_mask() {
