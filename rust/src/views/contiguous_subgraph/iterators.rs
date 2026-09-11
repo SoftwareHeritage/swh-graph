@@ -238,14 +238,15 @@ impl<
     fn labeled_successors(
         &self,
         node_id: NodeId,
-    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         TranslatedLabeledSuccessors {
             inner: self
                 .inner
                 .underlying_graph
-                .labeled_successors(self.inner.contraction.underlying_node_id(node_id)),
+                .labeled_successors(self.inner.contraction.underlying_node_id(node_id))
+                .into_iter(),
             contraction: &self.inner.contraction,
         }
     }
@@ -291,14 +292,15 @@ impl<
     fn labeled_predecessors(
         &self,
         node_id: NodeId,
-    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         TranslatedLabeledSuccessors {
             inner: self
                 .inner
                 .underlying_graph
-                .labeled_predecessors(self.inner.contraction.underlying_node_id(node_id)),
+                .labeled_predecessors(self.inner.contraction.underlying_node_id(node_id))
+                .into_iter(),
             contraction: &self.inner.contraction,
         }
     }

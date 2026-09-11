@@ -94,7 +94,7 @@ impl<G: SwhLabeledBackwardGraph> SwhLabeledForwardGraph for Transposed<G> {
     fn labeled_successors(
         &self,
         node_id: NodeId,
-    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         self.0.labeled_predecessors(node_id)
@@ -135,7 +135,7 @@ impl<G: SwhLabeledForwardGraph> SwhLabeledBackwardGraph for Transposed<G> {
     fn labeled_predecessors(
         &self,
         node_id: NodeId,
-    ) -> impl Iterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         self.0.labeled_successors(node_id)
