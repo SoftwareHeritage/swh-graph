@@ -298,7 +298,7 @@ pub trait SwhLabeledForwardGraph:
     /// of each arc
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_>;
 
-    /// Return an [`Iterator`] over the successors of a node along with a list of labels
+    /// Return an [`IntoIterator`] over the successors of a node along with a list of labels
     /// of each arc
     fn labeled_successors(
         &self,
@@ -350,7 +350,7 @@ pub trait SwhLabeledBackwardGraph:
     /// of each arc
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_>;
 
-    /// Return an [`Iterator`] over the predecessors of a node along with a list of labels
+    /// Return an [`IntoIterator`] over the predecessors of a node along with a list of labels
     /// of each arc
     fn labeled_predecessors(
         &self,
