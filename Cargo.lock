@@ -193,9 +193,9 @@ dependencies = [
 
 [[package]]
 name = "ar_row"
-version = "2.0.0"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70360236e8e8eb4a690683438c86ccb60dd7416aee145b5c8f9bdfd1274dbf92"
+checksum = "45f9bfb773af1d8e2ffff6e91c4acdf2335cefdc29b7b7899ce1ac87f06cdfa4"
 dependencies = [
  "arrow",
  "cxx-build",
@@ -205,9 +205,9 @@ dependencies = [
 
 [[package]]
 name = "ar_row_derive"
-version = "2.0.0"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "235f1fd7a3d5190a83fbe06f76d7a61dc41d3429173f712444b50eb93f422a86"
+checksum = "4efabd27d8da73e3e6d4d19b95680ecb26e065f2d2516e097453b82ab216a2b1"
 dependencies = [
  "ar_row",
  "proc-macro2",
