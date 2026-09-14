@@ -13,7 +13,10 @@ import builtins as _builtins
 import sys
 import typing as _typing
 
-from typing import TypeAlias as _TypeAlias, Never as _Never
+if sys.version_info >= (3, 11):
+    from typing import TypeAlias as _TypeAlias, Never as _Never
+else:
+    from typing_extensions import TypeAlias as _TypeAlias, Never as _Never
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -27,6 +30,8 @@ class _GraphDirectionEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_GraphD
     """Forward DAG: ori -> snp -> rel -> rev -> dir -> cnt"""
     BACKWARD: _GraphDirection.ValueType  # 1
     """Transposed DAG: cnt -> dir -> rev -> rel -> snp -> ori"""
+    BOTH: _GraphDirection.ValueType  # 2
+    """Union of FORWARD and BACKWARD"""
 
 class GraphDirection(_GraphDirection, metaclass=_GraphDirectionEnumTypeWrapper):
     """Direction of the graph"""
@@ -35,6 +40,8 @@ FORWARD: GraphDirection.ValueType  # 0
 """Forward DAG: ori -> snp -> rel -> rev -> dir -> cnt"""
 BACKWARD: GraphDirection.ValueType  # 1
 """Transposed DAG: cnt -> dir -> rev -> rel -> snp -> ori"""
+BOTH: GraphDirection.ValueType  # 2
+"""Union of FORWARD and BACKWARD"""
 Global___GraphDirection: _TypeAlias = GraphDirection  # noqa: Y015
 
 class _VisitType:

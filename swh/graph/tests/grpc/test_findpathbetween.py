@@ -1019,3 +1019,54 @@ def test_ignore_node_common_ancestor(graph_grpc_stub, labeled):
     ]
     assert expected == actual
     assert actual[midpoint] == "swh:1:rev:0000000000000000000000000000000000000018"
+
+
+@parametrize
+def test_path_bidirectional(graph_grpc_stub, labeled):
+    actual, midpoint = get_path(
+        graph_grpc_stub,
+        ["swh:1:rel:0000000000000000000000000000000000000010"],
+        ["swh:1:cnt:0000000000000000000000000000000000000011"],
+        labeled=labeled,
+        direction=GraphDirection.BOTH,
+        direction_reverse=GraphDirection.BOTH,
+    )
+    assert actual == [
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        # forward:
+        "swh:1:rev:0000000000000000000000000000000000000009",
+        # forward:
+        "swh:1:dir:0000000000000000000000000000000000000008",
+        # backward:
+        "swh:1:dir:0000000000000000000000000000000000000012",
+        # forward:
+        "swh:1:cnt:0000000000000000000000000000000000000011",
+    ]
+
+
+@parametrize
+def test_path_bidirectional_ignore_node(graph_grpc_stub, labeled):
+    actual, midpoint = get_path(
+        graph_grpc_stub,
+        ["swh:1:rel:0000000000000000000000000000000000000010"],
+        ["swh:1:cnt:0000000000000000000000000000000000000011"],
+        labeled=labeled,
+        direction=GraphDirection.BOTH,
+        direction_reverse=GraphDirection.BOTH,
+        ignore_node=["swh:1:rev:0000000000000000000000000000000000000009"],
+    )
+    assert actual == [
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        # backward:
+        "swh:1:snp:0000000000000000000000000000000000000022",
+        # forward:
+        "swh:1:rel:0000000000000000000000000000000000000021",
+        # forward:
+        "swh:1:rev:0000000000000000000000000000000000000018",
+        # forward:
+        "swh:1:rev:0000000000000000000000000000000000000013",
+        # forward:
+        "swh:1:dir:0000000000000000000000000000000000000012",
+        # forward:
+        "swh:1:cnt:0000000000000000000000000000000000000011",
+    ]
