@@ -1070,3 +1070,40 @@ def test_path_bidirectional_ignore_node(graph_grpc_stub, labeled):
         # forward:
         "swh:1:cnt:0000000000000000000000000000000000000011",
     ]
+
+
+@parametrize
+def test_path_bidirectional_filter_edges(graph_grpc_stub, labeled):
+    actual, midpoint = get_path(
+        graph_grpc_stub,
+        ["swh:1:cnt:0000000000000000000000000000000000000001"],
+        ["swh:1:cnt:0000000000000000000000000000000000000011"],
+        labeled=labeled,
+        direction=GraphDirection.BOTH,
+        direction_reverse=GraphDirection.BOTH,
+    )
+    assert actual == [
+        "swh:1:cnt:0000000000000000000000000000000000000001",
+        "swh:1:dir:0000000000000000000000000000000000000008",
+        "swh:1:dir:0000000000000000000000000000000000000012",
+        "swh:1:cnt:0000000000000000000000000000000000000011",
+    ]
+
+    actual, midpoint = get_path(
+        graph_grpc_stub,
+        ["swh:1:cnt:0000000000000000000000000000000000000001"],
+        ["swh:1:cnt:0000000000000000000000000000000000000011"],
+        labeled=labeled,
+        direction=GraphDirection.BOTH,
+        direction_reverse=GraphDirection.BOTH,
+        # excludes the short path which uses dir:dir:
+        edges="cnt:dir,dir:rev,rev:rev,rev:dir,dir:cnt",
+    )
+    assert actual == [
+        "swh:1:cnt:0000000000000000000000000000000000000001",
+        "swh:1:dir:0000000000000000000000000000000000000008",
+        "swh:1:rev:0000000000000000000000000000000000000009",
+        "swh:1:rev:0000000000000000000000000000000000000013",
+        "swh:1:dir:0000000000000000000000000000000000000012",
+        "swh:1:cnt:0000000000000000000000000000000000000011",
+    ]

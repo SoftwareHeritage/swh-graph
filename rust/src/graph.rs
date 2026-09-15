@@ -522,7 +522,7 @@ where
             graph: self,
             is_transposed: self.is_transposed(),
             src: node_id,
-            successors: self.untyped_labeled_successors(node_id).into_iter(),
+            successors: self.untyped_labeled_successors(node_id),
         }
     }
 }
@@ -800,7 +800,7 @@ where
             graph: self,
             is_transposed: false,
             src: node_id,
-            successors: self.untyped_labeled_successors(node_id).into_iter(),
+            successors: self.untyped_labeled_successors(node_id),
         }
     }
 }
@@ -854,7 +854,7 @@ where
             graph: self,
             is_transposed: true,
             src: node_id,
-            successors: self.untyped_labeled_predecessors(node_id).into_iter(),
+            successors: self.untyped_labeled_predecessors(node_id),
         }
     }
 }

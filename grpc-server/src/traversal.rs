@@ -258,7 +258,8 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             }
             Ok(proto::GraphDirection::Both) => {
                 let graph = Arc::new(Symmetric(graph));
-                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                let subgraph = Arc::new(self.make_subgraph(graph, &request)?);
+                let visitor = self.make_visitor(request, subgraph, on_node, on_arc)?;
                 scoped_spawn_blocking(|| visitor.visit())?;
             }
             Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
@@ -300,7 +301,8 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             }
             Ok(proto::GraphDirection::Both) => {
                 let graph = Arc::new(Symmetric(graph));
-                let visitor = self.make_visitor(request, graph, on_node, on_arc)?;
+                let subgraph = Arc::new(self.make_subgraph(graph, &request)?);
+                let visitor = self.make_visitor(request, subgraph, on_node, on_arc)?;
                 scoped_spawn_blocking(|| visitor.visit())?;
             }
             Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
