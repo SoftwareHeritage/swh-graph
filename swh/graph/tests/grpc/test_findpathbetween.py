@@ -598,6 +598,24 @@ def test_labels_backward_cnt_to_any_rev(graph_grpc_stub):
 
 
 @parametrize
+def test_path_backward_filtered(graph_grpc_stub, labeled):
+    actual, midpoint = get_path(
+        graph_grpc_stub,
+        ["swh:1:rel:0000000000000000000000000000000000000010"],
+        ["swh:1:snp:0000000000000000000000000000000000000020"],
+        labeled=labeled,
+        direction=GraphDirection.BACKWARD,
+        direction_reverse=GraphDirection.BACKWARD,
+        edges="snp:rel",
+    )
+    assert actual == [
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        "swh:1:snp:0000000000000000000000000000000000000020",
+    ]
+    assert midpoint == 1
+
+
+@parametrize
 def test_forward_impossible_path(graph_grpc_stub, labeled):
     """Impossible path between rev 9 and cnt 14"""
     with pytest.raises(grpc.RpcError) as rpc_error:

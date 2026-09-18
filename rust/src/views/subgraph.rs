@@ -438,7 +438,7 @@ impl<
     ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
-        FilteredLabeledSuccessors {
+        FilteredLabeledPredecessors {
             inner: self.graph.labeled_predecessors(node_id).into_iter(),
             node: node_id,
             node_filter: &self.node_filter,
