@@ -4,12 +4,13 @@
 // See top-level LICENSE file for more information
 
 use std::iter::{empty, Empty};
+use std::marker::PhantomData;
 use std::path::Path;
 
 use value_traits::slices::SliceByValue;
 
-use swh_graph::arc_iterators::{LabeledArcIterator, LabeledSuccessorIterator};
 use swh_graph::graph::*;
+use swh_graph::labels::{EdgeLabel, UntypedEdgeLabel};
 use swh_graph::properties;
 
 /// Alias for structures representing a graph with all arcs, arc labels, and node properties
@@ -103,26 +104,30 @@ where
     Self: SwhGraphWithProperties<Maps: properties::Maps>,
 {
     type LabeledArcs<'arc>
-        = LabeledArcIterator<Empty<u64>>
+        = Empty<UntypedEdgeLabel>
     where
         Self: 'arc;
     type LabeledSuccessors<'arc>
-        = LabeledSuccessorIterator<
-        std::iter::Map<
-            <<G as SwhForwardGraph>::Successors<'arc> as IntoIterator>::IntoIter,
-            fn(usize) -> (usize, Empty<u64>),
-        >,
+        = StubLabelingSuccessorIterator<
+        <<G as SwhForwardGraph>::Successors<'arc> as IntoIterator>::IntoIter,
+        UntypedEdgeLabel,
     >
     where
         Self: 'arc;
 
     #[inline(always)]
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
-        LabeledSuccessorIterator::new(
-            self.successors(node_id)
-                .into_iter()
-                .map(succ_to_labeled_succ),
-        )
+        StubLabelingSuccessorIterator::new(self.successors(node_id).into_iter())
+    }
+
+    #[inline(always)]
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        StubLabelingSuccessorIterator::<_, EdgeLabel>::new(self.successors(node_id).into_iter())
     }
 }
 
@@ -147,26 +152,30 @@ where
     Self: SwhGraphWithProperties<Maps: properties::Maps>,
 {
     type LabeledArcs<'arc>
-        = LabeledArcIterator<Empty<u64>>
+        = Empty<UntypedEdgeLabel>
     where
         Self: 'arc;
     type LabeledPredecessors<'arc>
-        = LabeledSuccessorIterator<
-        std::iter::Map<
-            <<G as SwhBackwardGraph>::Predecessors<'arc> as IntoIterator>::IntoIter,
-            fn(usize) -> (usize, Empty<u64>),
-        >,
+        = StubLabelingSuccessorIterator<
+        <<G as SwhBackwardGraph>::Predecessors<'arc> as IntoIterator>::IntoIter,
+        UntypedEdgeLabel,
     >
     where
         Self: 'arc;
 
     #[inline(always)]
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
-        LabeledSuccessorIterator::new(
-            self.predecessors(node_id)
-                .into_iter()
-                .map(succ_to_labeled_succ),
-        )
+        StubLabelingSuccessorIterator::new(self.predecessors(node_id).into_iter())
+    }
+
+    #[inline(always)]
+    fn labeled_predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        StubLabelingSuccessorIterator::new(self.predecessors(node_id).into_iter())
     }
 }
 
@@ -246,11 +255,6 @@ impl<G: SwhForwardGraph> SwhForwardGraph for StubBackwardArcs<G> {
     }
 }
 
-#[inline(always)]
-fn succ_to_labeled_succ(node_id: NodeId) -> (NodeId, Empty<u64>) {
-    (node_id, empty())
-}
-
 impl<G: SwhLabeledForwardGraph> SwhLabeledForwardGraph for StubBackwardArcs<G>
 where
     Self: SwhGraphWithProperties<Maps: properties::Maps>,
@@ -267,6 +271,16 @@ where
     #[inline(always)]
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
         self.0.untyped_labeled_successors(node_id)
+    }
+
+    #[inline(always)]
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        self.0.labeled_successors(node_id)
     }
 }
 
@@ -291,17 +305,60 @@ where
     Self: SwhGraphWithProperties<Maps: properties::Maps>,
 {
     type LabeledArcs<'arc>
-        = LabeledArcIterator<Empty<u64>>
+        = Empty<UntypedEdgeLabel>
     where
         Self: 'arc;
     type LabeledPredecessors<'arc>
-        = LabeledSuccessorIterator<Empty<(NodeId, Empty<u64>)>>
+        = StubLabelingSuccessorIterator<Empty<NodeId>, UntypedEdgeLabel>
     where
         Self: 'arc;
 
     #[inline(always)]
     fn untyped_labeled_predecessors(&self, _node_id: NodeId) -> Self::LabeledPredecessors<'_> {
-        LabeledSuccessorIterator::new(empty())
+        StubLabelingSuccessorIterator::new(empty())
+    }
+
+    #[inline(always)]
+    fn labeled_predecessors(
+        &self,
+        _node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        StubLabelingSuccessorIterator::new(empty())
+    }
+}
+
+/// Iterator of `(NodeId, Empty<_>)`
+pub struct StubLabelingSuccessorIterator<I: Iterator<Item = NodeId>, L> {
+    iter: I,
+    label: PhantomData<L>,
+}
+
+impl<I: Iterator<Item = NodeId>, L> StubLabelingSuccessorIterator<I, L> {
+    fn new(iter: I) -> Self {
+        Self {
+            iter,
+            label: PhantomData,
+        }
+    }
+}
+
+impl<I: Iterator<Item = NodeId>, L, L2> IntoFlattenedLabeledArcsIterator<L2>
+    for StubLabelingSuccessorIterator<I, L>
+{
+    type Flattened = Empty<(NodeId, L2)>;
+
+    fn flatten_labels(self) -> Self::Flattened {
+        empty()
+    }
+}
+
+impl<I: Iterator<Item = NodeId>, L> Iterator for StubLabelingSuccessorIterator<I, L> {
+    type Item = (NodeId, Empty<L>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|succ| (succ, empty()))
     }
 }
 

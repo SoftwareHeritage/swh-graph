@@ -6,9 +6,10 @@
 //! Implementation of [`SwhForwardGraph`], [`SwhBackwardGraph`], [`SwhLabeledForwardGraph`],
 //! and [`SwhLabeledBackwardGraph`] for [`ContiguousSubgraph`].
 
-use crate::arc_iterators::FlattenedSuccessorsIterator;
-
 use webgraph::traits::labels::SortedIterator;
+
+use crate::arc_iterators::FlattenedSuccessorsIterator;
+use crate::labels::EdgeLabel;
 
 use super::*;
 
@@ -233,6 +234,22 @@ impl<
             contraction: &self.inner.contraction,
         }
     }
+
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        TranslatedLabeledSuccessors {
+            inner: self
+                .inner
+                .underlying_graph
+                .labeled_successors(self.inner.contraction.underlying_node_id(node_id))
+                .into_iter(),
+            contraction: &self.inner.contraction,
+        }
+    }
 }
 
 impl<
@@ -267,6 +284,22 @@ impl<
                 .inner
                 .underlying_graph
                 .untyped_labeled_predecessors(self.inner.contraction.underlying_node_id(node_id))
+                .into_iter(),
+            contraction: &self.inner.contraction,
+        }
+    }
+
+    fn labeled_predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        TranslatedLabeledSuccessors {
+            inner: self
+                .inner
+                .underlying_graph
+                .labeled_predecessors(self.inner.contraction.underlying_node_id(node_id))
                 .into_iter(),
             contraction: &self.inner.contraction,
         }

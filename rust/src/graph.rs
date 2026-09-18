@@ -300,19 +300,15 @@ pub trait SwhLabeledForwardGraph:
 
     /// Return an [`IntoIterator`] over the successors of a node along with a list of labels
     /// of each arc
+    ///
+    /// No default implementation based on [`Self::untyped_labeled_successors`] is provided,
+    /// as views over a graph should delegate this to the underlying graph instead.
     fn labeled_successors(
         &self,
         node_id: NodeId,
     ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
-           + '_ {
-        LabelTypingSuccessorIterator {
-            graph: self,
-            is_transposed: self.is_transposed(),
-            src: node_id,
-            successors: self.untyped_labeled_successors(node_id).into_iter(),
-        }
-    }
+           + '_;
 }
 
 #[diagnostic::on_unimplemented(
@@ -352,19 +348,15 @@ pub trait SwhLabeledBackwardGraph:
 
     /// Return an [`IntoIterator`] over the predecessors of a node along with a list of labels
     /// of each arc
+    ///
+    /// No default implementation based on [`Self::untyped_labeled_predecessors`] is provided,
+    /// as views over a graph should delegate this to the underlying graph instead.
     fn labeled_predecessors(
         &self,
         node_id: NodeId,
     ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
-           + '_ {
-        LabelTypingSuccessorIterator {
-            graph: self,
-            is_transposed: !self.is_transposed(),
-            src: node_id,
-            successors: self.untyped_labeled_predecessors(node_id).into_iter(),
-        }
-    }
+           + '_;
 }
 
 pub trait SwhGraphWithProperties: SwhGraph {
@@ -517,6 +509,20 @@ where
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
         LabeledSuccessorIterator {
             successors: self.graph.labels(node_id),
+        }
+    }
+
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        LabelTypingSuccessorIterator {
+            graph: self,
+            is_transposed: self.is_transposed(),
+            src: node_id,
+            successors: self.untyped_labeled_successors(node_id),
         }
     }
 }
@@ -784,6 +790,19 @@ where
             successors: self.forward_graph.labels(node_id),
         }
     }
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        LabelTypingSuccessorIterator {
+            graph: self,
+            is_transposed: false,
+            src: node_id,
+            successors: self.untyped_labeled_successors(node_id),
+        }
+    }
 }
 
 impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBackwardGraph
@@ -822,6 +841,20 @@ where
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
         LabeledSuccessorIterator {
             successors: self.backward_graph.labels(node_id),
+        }
+    }
+
+    fn labeled_predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        LabelTypingSuccessorIterator {
+            graph: self,
+            is_transposed: true,
+            src: node_id,
+            successors: self.untyped_labeled_predecessors(node_id),
         }
     }
 }

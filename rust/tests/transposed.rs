@@ -5,8 +5,13 @@
 
 use std::path::PathBuf;
 
+use anyhow::Result;
+
 use swh_graph::graph::*;
+use swh_graph::graph_builder::{BuiltGraph, GraphBuilder};
+use swh_graph::labels::{DirEntry, EdgeLabel, UntypedEdgeLabel, Visit, VisitStatus, VisitType};
 use swh_graph::properties;
+use swh_graph::swhid;
 use swh_graph::views::{Subgraph, Transposed};
 use swh_graph::webgraph::graphs::vec_graph::{LabeledVecGraph, VecGraph};
 
@@ -187,14 +192,25 @@ fn test_transpose_subgraph() {
 }
 
 #[test]
-fn test_transpose_with_filtered_arcs() {
-    let forward_graph = VecGraph::from_arcs(vec![(2, 0), (2, 1), (0, 1)]);
-    let backward_graph = VecGraph::from_arcs(vec![(0, 2), (1, 2), (1, 0)]);
+fn test_transpose_with_filtered_nodes() {
+    let forward_arcs: Vec<((usize, usize), &[u64])> =
+        vec![((0, 1), &[0, 789]), ((2, 0), &[123]), ((2, 1), &[456])];
+    let backward_arcs: Vec<((usize, usize), &[u64])> =
+        vec![((1, 0), &[0, 789]), ((0, 2), &[123]), ((1, 2), &[456])];
     let graph = SwhBidirectionalGraph::from_underlying_graphs(
         PathBuf::new(),
-        forward_graph,
-        backward_graph,
-    );
+        LabeledVecGraph::from_arcs(forward_arcs),
+        LabeledVecGraph::from_arcs(backward_arcs),
+    )
+    .init_properties()
+    .load_properties(|props| {
+        props.with_maps(properties::VecMaps::new(vec![
+            swhid!(swh:1:dir:0000000000000000000000000000000000000000),
+            swhid!(swh:1:dir:0000000000000000000000000000000000000001),
+            swhid!(swh:1:dir:0000000000000000000000000000000000000002),
+        ]))
+    })
+    .expect("Could not load maps");
 
     // Filter to keep only node 0 and node 2
     let filtered = Subgraph::with_node_filter(graph, |node_id| node_id == 0 || node_id == 2);
@@ -204,13 +220,247 @@ fn test_transpose_with_filtered_arcs() {
     assert!(!transposed.has_node(1));
     assert!(transposed.has_node(2));
 
+    check_transposed_subgraph(transposed);
+}
+
+#[test]
+fn test_transpose_with_filtered_arcs() {
+    let forward_arcs: Vec<((usize, usize), &[u64])> =
+        vec![((0, 1), &[0, 789]), ((2, 0), &[123]), ((2, 1), &[456])];
+    let backward_arcs: Vec<((usize, usize), &[u64])> =
+        vec![((1, 0), &[0, 789]), ((0, 2), &[123]), ((1, 2), &[456])];
+    let graph = SwhBidirectionalGraph::from_underlying_graphs(
+        PathBuf::new(),
+        LabeledVecGraph::from_arcs(forward_arcs),
+        LabeledVecGraph::from_arcs(backward_arcs),
+    )
+    .init_properties()
+    .load_properties(|props| {
+        props.with_maps(properties::VecMaps::new(vec![
+            swhid!(swh:1:dir:0000000000000000000000000000000000000000),
+            swhid!(swh:1:dir:0000000000000000000000000000000000000001),
+            swhid!(swh:1:dir:0000000000000000000000000000000000000002),
+        ]))
+    })
+    .expect("Could not load maps");
+
+    // Filter to keep only the arc 2 -> 0
+    let filtered = Subgraph::with_arc_filter(graph, |src, dst| src == 2 && dst == 0);
+    let transposed = Transposed(filtered);
+
+    assert!(transposed.has_node(0));
+    assert!(transposed.has_node(1));
+    assert!(transposed.has_node(2));
+
+    check_transposed_subgraph(transposed);
+}
+
+fn check_transposed_subgraph<G: SwhLabeledForwardGraph + SwhLabeledBackwardGraph>(transposed: G) {
+    let collect_successors = |node_id| {
+        transposed
+            .untyped_labeled_successors(node_id)
+            .into_iter()
+            .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>()
+    };
+
+    let collect_predecessors = |node_id| {
+        transposed
+            .untyped_labeled_predecessors(node_id)
+            .into_iter()
+            .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>()
+    };
+
+    let collect_typed_successors = |node_id| {
+        transposed
+            .labeled_successors(node_id)
+            .into_iter()
+            .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>()
+    };
+
+    let collect_typed_predecessors = |node_id| {
+        transposed
+            .labeled_predecessors(node_id)
+            .into_iter()
+            .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
+            .collect::<Vec<_>>()
+    };
+
     // Original (filtered): 2 -> 0
     // Transposed: 0 -> 2
     assert!(transposed.has_arc(0, 2));
     assert!(!transposed.has_arc(2, 0));
-    assert_eq!(transposed.successors(0).collect::<Vec<_>>(), vec![2]);
+
     assert_eq!(
-        transposed.successors(2).collect::<Vec<_>>(),
+        transposed.successors(0).into_iter().collect::<Vec<_>>(),
+        vec![2]
+    );
+    assert_eq!(
+        transposed.successors(1).into_iter().collect::<Vec<_>>(),
         Vec::<usize>::new()
     );
+    assert_eq!(
+        transposed.successors(2).into_iter().collect::<Vec<_>>(),
+        Vec::<usize>::new()
+    );
+
+    assert_eq!(collect_successors(0), vec![(2, vec![123.into()])]);
+    assert_eq!(collect_successors(1), vec![]);
+    assert_eq!(collect_successors(2), vec![]);
+
+    assert_eq!(
+        collect_typed_successors(0),
+        vec![(2, vec![DirEntry::from(123).into()])]
+    );
+    assert_eq!(collect_typed_successors(1), vec![]);
+    assert_eq!(collect_typed_successors(2), vec![]);
+
+    assert_eq!(
+        transposed.predecessors(0).into_iter().collect::<Vec<_>>(),
+        Vec::<usize>::new()
+    );
+    assert_eq!(
+        transposed.predecessors(1).into_iter().collect::<Vec<_>>(),
+        Vec::<usize>::new()
+    );
+    assert_eq!(
+        transposed.predecessors(2).into_iter().collect::<Vec<_>>(),
+        vec![0]
+    );
+
+    assert_eq!(collect_predecessors(0), vec![]);
+    assert_eq!(collect_predecessors(1), vec![]);
+    assert_eq!(collect_predecessors(2), vec![(0, vec![123.into()])]);
+
+    assert_eq!(collect_typed_predecessors(0), vec![]);
+    assert_eq!(collect_typed_predecessors(1), vec![]);
+    assert_eq!(
+        collect_typed_predecessors(2),
+        vec![(0, vec![DirEntry::from(123).into()])]
+    );
+}
+
+fn untype_labeled_successors(
+    labeled_successors: &[(NodeId, Vec<EdgeLabel>)],
+) -> Vec<(NodeId, Vec<UntypedEdgeLabel>)> {
+    labeled_successors
+        .iter()
+        .map(|(node_id, labels)| {
+            (
+                *node_id,
+                labels
+                    .iter()
+                    .map(|label| UntypedEdgeLabel::from(*label))
+                    .collect(),
+            )
+        })
+        .collect()
+}
+
+/// Build a simple graph: ori0 -> snp1
+fn build_ori_snp_graph() -> Result<BuiltGraph> {
+    let mut builder = GraphBuilder::default();
+    builder
+        .node(swhid!(swh:1:ori:0000000000000000000000000000000000000000))?
+        .done();
+    builder
+        .node(swhid!(swh:1:snp:0000000000000000000000000000000000000001))?
+        .done();
+    builder.ori_arc(0, 1, VisitStatus::Full, 1770248300, VisitType::Unknown);
+    builder.ori_arc(0, 1, VisitStatus::Partial, 1770248399, VisitType::Unknown);
+    builder.done()
+}
+
+#[test]
+fn test_transpose_labeled_successors() -> Result<()> {
+    let graph = build_ori_snp_graph()?;
+    let transposed = Transposed(graph);
+
+    let visit_full = Visit::new(VisitStatus::Full, 1770248300, VisitType::Unknown).unwrap();
+    let visit_partial = Visit::new(VisitStatus::Partial, 1770248399, VisitType::Unknown).unwrap();
+
+    // In the original graph: ori0 -> snp1 with Visit labels
+    // In the transposed graph: snp1 -> ori0 with Visit labels
+    let expected = [
+        (0, vec![], vec![]),
+        (
+            1,
+            vec![0],
+            vec![(0, vec![visit_full.into(), visit_partial.into()])],
+        ),
+    ];
+
+    for &(node, ref expected_untyped, ref expected_labeled) in &expected {
+        assert_eq!(
+            transposed.successors(node).collect::<Vec<_>>(),
+            *expected_untyped,
+            "successors({node})",
+        );
+        let typed: Vec<_> = transposed
+            .labeled_successors(node)
+            .into_iter()
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect();
+        assert_eq!(typed, *expected_labeled, "labeled_successors({node})",);
+
+        let untyped: Vec<_> = transposed
+            .untyped_labeled_successors(node)
+            .map(|(succ, labels)| (succ, labels.collect::<Vec<_>>()))
+            .collect();
+        assert_eq!(
+            untyped,
+            untype_labeled_successors(expected_labeled),
+            "untyped_labeled_successors({node})",
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_transpose_labeled_predecessors() -> Result<()> {
+    let graph = build_ori_snp_graph()?;
+    let transposed = Transposed(graph);
+
+    let visit_full = Visit::new(VisitStatus::Full, 1770248300, VisitType::Unknown).unwrap();
+    let visit_partial = Visit::new(VisitStatus::Partial, 1770248399, VisitType::Unknown).unwrap();
+
+    // In the original graph: ori0 -> snp1 with Visit labels
+    // In the transposed graph: ori0 <- snp1 with Visit labels
+    let expected = [
+        (
+            0,
+            vec![1],
+            vec![(1, vec![visit_full.into(), visit_partial.into()])],
+        ),
+        (1, vec![], vec![]),
+    ];
+
+    for &(node, ref expected_untyped, ref expected_labeled) in &expected {
+        assert_eq!(
+            transposed.predecessors(node).collect::<Vec<_>>(),
+            *expected_untyped,
+            "predecessors({node})",
+        );
+        let typed: Vec<_> = transposed
+            .labeled_predecessors(node)
+            .into_iter()
+            .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
+            .collect();
+        assert_eq!(typed, *expected_labeled, "labeled_predecessors({node})",);
+
+        let untyped: Vec<_> = transposed
+            .untyped_labeled_predecessors(node)
+            .map(|(pred, labels)| (pred, labels.collect::<Vec<_>>()))
+            .collect();
+        assert_eq!(
+            untyped,
+            untype_labeled_successors(expected_labeled),
+            "untyped_labeled_predecessors({node})",
+        );
+    }
+
+    Ok(())
 }
