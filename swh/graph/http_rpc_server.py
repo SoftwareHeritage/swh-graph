@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2023  The Software Heritage developers
+# Copyright (C) 2019-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -107,7 +107,7 @@ class GraphView(aiohttp.web.View):
     def get_direction(self):
         """Validate HTTP query parameter `direction`"""
         s = self.request.query.get("direction", "forward")
-        if s not in ("forward", "backward"):
+        if s not in ("forward", "backward", "both"):
             raise aiohttp.web.HTTPBadRequest(text=f"invalid direction: {s}")
         return s.upper()
 
