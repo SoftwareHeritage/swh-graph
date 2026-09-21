@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2025  The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -120,7 +120,20 @@ def test_empty_neighbors(graph_client, graph_grpc_backend_implementation):
     assert actual == []
 
 
-def test_neighbors(graph_client, graph_grpc_backend_implementation):
+def test_neighbors_forward(graph_client, graph_grpc_backend_implementation):
+    actual = list(
+        graph_client.neighbors(
+            "swh:1:rev:0000000000000000000000000000000000000009", direction="forward"
+        )
+    )
+    expected = [
+        "swh:1:dir:0000000000000000000000000000000000000008",
+        "swh:1:rev:0000000000000000000000000000000000000003",
+    ]
+    assert set(actual) == set(expected)
+
+
+def test_neighbors_backward(graph_client, graph_grpc_backend_implementation):
     actual = list(
         graph_client.neighbors(
             "swh:1:rev:0000000000000000000000000000000000000009", direction="backward"
@@ -131,6 +144,23 @@ def test_neighbors(graph_client, graph_grpc_backend_implementation):
         "swh:1:snp:0000000000000000000000000000000000000020",
         "swh:1:rel:0000000000000000000000000000000000000010",
         "swh:1:rev:0000000000000000000000000000000000000013",
+    ]
+    assert set(actual) == set(expected)
+
+
+def test_neighbors_both_directions(graph_client, graph_grpc_backend_implementation):
+    actual = list(
+        graph_client.neighbors(
+            "swh:1:rev:0000000000000000000000000000000000000009", direction="both"
+        )
+    )
+    expected = [
+        "swh:1:snp:0000000000000000000000000000000000000022",
+        "swh:1:snp:0000000000000000000000000000000000000020",
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        "swh:1:rev:0000000000000000000000000000000000000013",
+        "swh:1:dir:0000000000000000000000000000000000000008",
+        "swh:1:rev:0000000000000000000000000000000000000003",
     ]
     assert set(actual) == set(expected)
 
@@ -497,6 +527,10 @@ def test_count(graph_client, graph_grpc_backend_implementation):
         "swh:1:rev:0000000000000000000000000000000000000009", direction="backward"
     )
     assert actual == 4
+    actual = graph_client.count_neighbors(
+        "swh:1:rev:0000000000000000000000000000000000000009", direction="both"
+    )
+    assert actual == 6
 
 
 @pytest.mark.parametrize("max_matching_nodes", [0, 1, 2, 3, 4, 5, 10, 1 << 31])
