@@ -325,13 +325,16 @@ class Graph:
         max_matching_nodes: int = 0,
     ) -> Set[str]:
         if direction == "forward":
-            edges = self.forward_edges
+            neighbors = self.forward_edges.get(src, [])
         elif direction == "backward":
-            edges = self.backward_edges
+            neighbors = self.backward_edges.get(src, [])
+        elif direction == "both":
+            neighbors = self.forward_edges.get(src, []) + self.backward_edges.get(
+                src, []
+            )
         else:
             raise GraphArgumentException(f"invalid direction: {direction}")
 
-        neighbors = edges.get(src, [])
         filtered_neighbors: Set[str] = set()
 
         if edges_fmt == "*":
