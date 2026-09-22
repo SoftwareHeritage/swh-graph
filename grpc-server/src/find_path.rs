@@ -329,12 +329,12 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             (proto::GraphDirection::Both, proto::GraphDirection::Both) => (),
             (proto::GraphDirection::Both, _) => {
                 return Err(tonic::Status::invalid_argument(
-                    "direction=Both, but direction_reverse!=Both",
+                    "direction = Both, but direction_reverse != Both",
                 ))
             }
             (_, proto::GraphDirection::Both) => {
                 return Err(tonic::Status::invalid_argument(
-                    "direction_reverse=Both, but direction!=Both",
+                    "direction_reverse = Both, but direction != Both",
                 ))
             }
             (_, _) => (),
