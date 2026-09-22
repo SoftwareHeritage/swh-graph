@@ -11,12 +11,11 @@ use anyhow::Result;
 use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
 use ar_row_derive::ArRowDeserialize;
 use nonmax::NonMaxU64;
-use orc_rust::arrow_reader::ArrowReaderBuilder;
-use orc_rust::reader::ChunkReader;
+
 use rayon::prelude::*;
 
 use super::iter_arcs::{iter_arcs_from_rel, iter_arcs_from_rev, iter_arcs_from_rev_history};
-use super::orc::{get_dataset_readers, iter_arrow};
+use super::ExportTableReader;
 use super::TextSwhid;
 use crate::compress::label_names::LabelNameHasher;
 use crate::labels::{
@@ -24,14 +23,14 @@ use crate::labels::{
 };
 use crate::{NodeType, SWHID};
 
-pub fn iter_labeled_arcs<'a>(
+pub fn iter_labeled_arcs<'a, R: ExportTableReader + 'a>(
     dataset_dir: &'a PathBuf,
     allowed_node_types: &'a [NodeType],
     label_name_hasher: &'a LabelNameHasher,
 ) -> Result<impl ParallelIterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
-            get_dataset_readers(dataset_dir, subdirectory)
+            R::new(dataset_dir, subdirectory)
         } else {
             Ok(Vec::new())
         }
@@ -74,15 +73,15 @@ pub fn iter_labeled_arcs<'a>(
         ))
 }
 
-fn map_labeled_arcs<R: ChunkReader + Send, T, F>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn map_labeled_arcs<R: ExportTableReader, T, F>(
+    reader: R,
     f: F,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)>
 where
     F: Fn(T) -> Option<(String, String, Option<EdgeLabel>)> + Send + Sync,
     T: Send + ArRowDeserialize + ArRowStruct,
 {
-    iter_arrow(reader_builder, move |record: T| {
+    reader.iter(move |record: T| {
         f(record).map(|(src_swhid, dst_swhid, label)| {
             (
                 src_swhid.as_bytes().try_into().unwrap(),
@@ -98,8 +97,8 @@ where
     })
 }
 
-fn iter_labeled_arcs_from_dir_entry<'a, R: ChunkReader + Send + 'a>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_labeled_arcs_from_dir_entry<'a, R: ExportTableReader + 'a>(
+    reader: R,
     label_name_hasher: &'a LabelNameHasher,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a {
     #[derive(ArRowDeserialize, Default, Clone)]
@@ -111,7 +110,7 @@ fn iter_labeled_arcs_from_dir_entry<'a, R: ChunkReader + Send + 'a>(
         perms: i32,
     }
 
-    map_labeled_arcs(reader_builder, move |entry: DirectoryEntry| {
+    map_labeled_arcs(reader, move |entry: DirectoryEntry| {
         Some((
             format!("swh:1:dir:{}", entry.directory_id),
             match entry.r#type.as_bytes() {
@@ -134,8 +133,8 @@ fn iter_labeled_arcs_from_dir_entry<'a, R: ChunkReader + Send + 'a>(
     })
 }
 
-fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_labeled_arcs_from_ovs<R: ExportTableReader>(
+    reader: R,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct OriginVisitStatus {
@@ -146,7 +145,7 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
         r#type: Option<String>, // Option because of 3 old objects: https://gitlab.softwareheritage.org/swh/meta/-/work_items/5106
     }
 
-    map_labeled_arcs(reader_builder, |ovs: OriginVisitStatus| {
+    map_labeled_arcs(reader, |ovs: OriginVisitStatus| {
         ovs.snapshot.as_ref().map(|snapshot| {
             let visit_type = ovs.r#type.unwrap_or_else(||
                 // https://gitlab.softwareheritage.org/swh/meta/-/work_items/5106
@@ -182,8 +181,8 @@ fn iter_labeled_arcs_from_ovs<R: ChunkReader + Send>(
     })
 }
 
-fn iter_labeled_arcs_from_snp_branch<'a, R: ChunkReader + Send + 'a>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_labeled_arcs_from_snp_branch<'a, R: ExportTableReader + 'a>(
+    reader: R,
     label_name_hasher: &'a LabelNameHasher,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid, Option<NonMaxU64>)> + 'a {
     #[derive(ArRowDeserialize, Default, Clone)]
@@ -194,7 +193,7 @@ fn iter_labeled_arcs_from_snp_branch<'a, R: ChunkReader + Send + 'a>(
         target_type: String,
     }
 
-    map_labeled_arcs(reader_builder, move |branch: SnapshotBranch| {
+    map_labeled_arcs(reader, move |branch: SnapshotBranch| {
         let dst = match branch.target_type.as_bytes() {
             b"content" => Some(format!("swh:1:cnt:{}", branch.target)),
             b"directory" => Some(format!("swh:1:dir:{}", branch.target)),
