@@ -323,23 +323,6 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             .try_into()
             .map_err(|_| tonic::Status::invalid_argument("Invalid direction_reverse"))?;
 
-        // Having only one of them be Both has the same search space, but does not necessarily
-        // return the shortest path; so it is most likely a user error.
-        match (direction, direction_reverse) {
-            (proto::GraphDirection::Both, proto::GraphDirection::Both) => (),
-            (proto::GraphDirection::Both, _) => {
-                return Err(tonic::Status::invalid_argument(
-                    "direction=Both, but direction_reverse!=Both",
-                ))
-            }
-            (_, proto::GraphDirection::Both) => {
-                return Err(tonic::Status::invalid_argument(
-                    "direction_reverse=Both, but direction!=Both",
-                ))
-            }
-            (_, _) => (),
-        }
-
         let edges_reverse = edges_reverse.or_else(|| {
             // If edges_reverse is not specified:
             // - If `edges` is not specified either, defaults to "*"
@@ -520,7 +503,13 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     proto::GraphDirection::Backward => {
                         find_path_between!(visitor, transpose_graph)
                     }
-                    proto::GraphDirection::Both => panic!("Inconsistent directions"),
+                    proto::GraphDirection::Both => {
+                        // Having only one of them be Both has the same search space, but does not necessarily
+                        // return the shortest path; so it is most likely a user error.
+                        return Err(tonic::Status::invalid_argument(
+                            "direction_reverse=Both, but direction!=Both",
+                        ));
+                    }
                 }
             }
             proto::GraphDirection::Backward => {
@@ -533,7 +522,12 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     proto::GraphDirection::Backward => {
                         find_path_between!(visitor, transpose_graph)
                     }
-                    proto::GraphDirection::Both => panic!("Inconsistent directions"),
+                    proto::GraphDirection::Both => {
+                        // ditto
+                        return Err(tonic::Status::invalid_argument(
+                            "direction=Both, but direction_reverse!=Both",
+                        ));
+                    }
                 }
             }
             proto::GraphDirection::Both => {
