@@ -114,9 +114,9 @@ def _compression_step(f: T) -> T:
 def _extract_nodes(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     return Rust(
         "swh-graph-extract",
-        "extract-nodes",
         "--format",
-        "orc",
+        conf["export_format"],
+        "extract-nodes",
         "--allowed-node-types",
         conf.get("object_types", "*"),
         f"{conf['in_dir']}",
@@ -132,9 +132,9 @@ def _extract_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Comma
         return None
     return Rust(
         "swh-graph-extract",
-        "extract-labels",
         "--format",
-        "orc",
+        conf["export_format"],
+        "extract-labels",
         "--allowed-node-types",
         conf.get("object_types", "*"),
         conf["in_dir"],
@@ -149,9 +149,9 @@ def _extract_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Comma
 def _node_stats(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     return Rust(
         "swh-graph-extract",
-        "node-stats",
         "--format",
-        "orc",
+        conf["export_format"],
+        "node-stats",
         "--swhids-dir",
         f"{conf['out_dir']}/{conf['graph_name']}.nodes/",
         "--target-stats",
@@ -167,9 +167,9 @@ def _node_stats(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 def _edge_stats(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     return Rust(
         "swh-graph-extract",
-        "edge-stats",
         "--format",
-        "orc",
+        conf["export_format"],
+        "edge-stats",
         "--allowed-node-types",
         conf.get("object_types", "*"),
         "--dataset-dir",
@@ -252,6 +252,8 @@ def _bv(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 
     return Rust(
         "swh-graph-extract",
+        "--format",
+        conf["export_format"],
         "bv",
         "--allowed-node-types",
         conf.get("object_types", "*"),
@@ -284,6 +286,8 @@ def _bv_ef(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
 def _bfs_roots(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
     return Rust(
         "swh-graph-extract",
+        "--format",
+        conf["export_format"],
         "bfs-roots",
         "--allowed-node-types",
         conf.get("object_types", "*"),
@@ -488,6 +492,8 @@ def _extract_persons(conf: Dict[str, Any], env: Dict[str, str]) -> AtomicFileSin
         )
     return Rust(
         "swh-graph-extract",
+        "--format",
+        conf["export_format"],
         "extract-persons",
         "--allowed-node-types",
         conf.get("object_types", "*"),
@@ -545,6 +551,8 @@ def _extract_fullnames(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Co
         return None
     return Rust(
         "swh-graph-extract",
+        "--format",
+        conf["export_format"],
         "extract-fullnames",
         "--person-function",
         f"{conf['out_dir']}/{conf['graph_name']}.persons",
@@ -607,9 +615,9 @@ def _node_properties(conf: Dict[str, Any], env: Dict[str, str]) -> Command:
         (num_nodes,) = nodes_count.readline().splitlines()
     return Rust(
         "swh-graph-extract",
-        "node-properties",
         "--format",
-        "orc",
+        conf["export_format"],
+        "node-properties",
         "--allowed-node-types",
         conf.get("object_types", "*"),
         "--mph-algo",
@@ -692,6 +700,8 @@ def _edge_labels(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Command]
         return None
     return Rust(
         "swh-graph-extract",
+        "--format",
+        conf["export_format"],
         "edge-labels",
         "--allowed-node-types",
         conf.get("object_types", "*"),
@@ -733,6 +743,8 @@ def _edge_labels_transpose(
         return None
     return Rust(
         "swh-graph-extract",
+        "--format",
+        conf["export_format"],
         "edge-labels",
         "--allowed-node-types",
         conf.get("object_types", "*"),

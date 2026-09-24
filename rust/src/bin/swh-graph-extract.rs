@@ -6,6 +6,7 @@
  */
 
 use std::io::{BufWriter, Write};
+use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -16,6 +17,7 @@ use itertools::Itertools;
 use mimalloc::MiMalloc;
 use rayon::prelude::*;
 
+use swh_graph::compress::ExportTableReader;
 use swh_graph::java_compat::mph::gov::GOVMPH;
 use swh_graph::map::{MappedPermutation, Permutation};
 use swh_graph::mph::SwhidFmphgo;
@@ -29,19 +31,19 @@ use swh_graph::{NodeType, SWHID};
 static GLOBAL: MiMalloc = MiMalloc;
 
 #[derive(Parser, Debug)]
-#[command(about = "Commands to read ORC files and produce property files and an initial not-very-compressed BVGraph", long_about = None)]
+#[command(about = "Commands to read ORC/Parquet files and produce property files and an initial not-very-compressed BVGraph", long_about = None)]
 struct Args {
+    #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
+    format: DatasetFormat,
     #[command(subcommand)]
     command: Commands,
 }
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Reads the list of nodes and arcs from the ORC directory and produces lists of
+    /// Reads the list of nodes and arcs from the ORC/Parquet directory and produces lists of
     /// unique SWHIDs in the given directory
     ExtractNodes {
-        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
-        format: DatasetFormat,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
         /// Size (in bytes) of each thread's buffer in memory before it sorts and
@@ -54,11 +56,9 @@ enum Commands {
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
-    /// Reads the list of nodes and arcs from the ORC directory and produces lists of
+    /// Reads the list of nodes and arcs from the ORC/Parquet directory and produces lists of
     /// unique labels in the given directory
     ExtractLabels {
-        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
-        format: DatasetFormat,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
         /// Size (in bytes) of each thread's buffer in memory before it sorts and
@@ -70,11 +70,9 @@ enum Commands {
         buffer_size: usize,
         dataset_dir: PathBuf,
     },
-    /// Reads the list of authors and committers from the ORC directory and produces lists
+    /// Reads the list of authors and committers from the ORC/Parquet directory and produces lists
     /// unique names (based64-encoded) in the given directory
     ExtractPersons {
-        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
-        format: DatasetFormat,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
         /// Size (in bytes) of each thread's buffer in memory before it sorts and
@@ -86,13 +84,11 @@ enum Commands {
         buffer_size: usize,
         dataset_dir: PathBuf,
     },
-    /// Extracts the full names of authors and committers from the ORC tables containing them.
+    /// Extracts the full names of authors and committers from the ORC/Parquet tables containing them.
     ///
     /// All the full names are concatenated into a single byte string that is written to disk.
     /// Another file, that contains the length of each full name, is generated.
     ExtractFullnames {
-        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
-        format: DatasetFormat,
         #[arg(long)]
         person_function: PathBuf,
         dataset_dir: PathBuf,
@@ -103,8 +99,6 @@ enum Commands {
     /// Reads the list of nodes from the generated unique SWHIDS and counts the number
     /// of nodes of each type
     NodeStats {
-        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
-        format: DatasetFormat,
         #[arg(long)]
         swhids_dir: PathBuf,
         #[arg(long)]
@@ -112,11 +106,9 @@ enum Commands {
         #[arg(long)]
         target_count: PathBuf,
     },
-    /// Reads the list of arcs from the ORC directory and counts the number of arcs
+    /// Reads the list of arcs from the ORC/Parquet directory and counts the number of arcs
     /// of each type
     EdgeStats {
-        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
-        format: DatasetFormat,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
         #[arg(long)]
@@ -130,18 +122,14 @@ enum Commands {
     /// Reads the list of origins and sorts it in a way that related origins are close
     /// to each other in the output order
     BfsRoots {
-        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
-        format: DatasetFormat,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
         dataset_dir: PathBuf,
         target: PathBuf,
     },
 
-    /// Reads ORC files and produces a not-very-compressed BVGraph
+    /// Reads ORC/Parquet files and produces a not-very-compressed BVGraph
     Bv {
-        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
-        format: DatasetFormat,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long, default_value = "*")]
@@ -163,10 +151,8 @@ enum Commands {
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
-    /// Reads ORC files and produces a BVGraph with edge labels
+    /// Reads ORC/Parquet files and produces a BVGraph with edge labels
     EdgeLabels {
-        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
-        format: DatasetFormat,
         #[arg(long, default_value_t = 1)]
         partitions_per_thread: usize,
         #[arg(long, default_value = "*")]
@@ -186,11 +172,9 @@ enum Commands {
         dataset_dir: PathBuf,
         target_dir: PathBuf,
     },
-    /// Reads the list of nodes from the ORC directory and writes properties of each
+    /// Reads the list of nodes from the ORC/Parquet directory and writes properties of each
     /// node to dedicated files
     NodeProperties {
-        #[arg(value_enum, long, default_value_t = DatasetFormat::Orc)]
-        format: DatasetFormat,
         #[arg(long, default_value = "*")]
         allowed_node_types: String,
         #[arg(value_enum, long, default_value_t = MphAlgorithm::Pthash)]
@@ -218,6 +202,7 @@ enum MphAlgorithm {
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum DatasetFormat {
     Orc,
+    Parquet,
 }
 
 pub fn main() -> Result<()> {
@@ -225,9 +210,17 @@ pub fn main() -> Result<()> {
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    match args.command {
+    match args.format {
+        DatasetFormat::Orc => main2::<swh_graph::compress::orc::OrcTableReader>(args.command),
+        DatasetFormat::Parquet => {
+            main2::<swh_graph::compress::parquet::ParquetTableReader>(args.command)
+        }
+    }
+}
+
+fn main2<R: ExportTableReader>(command: Commands) -> Result<()> {
+    match command {
         Commands::ExtractNodes {
-            format: DatasetFormat::Orc,
             allowed_node_types,
             buffer_size,
             dataset_dir,
@@ -236,12 +229,18 @@ pub fn main() -> Result<()> {
             use std::str::FromStr;
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
-            let expected_node_count =
-                swh_graph::compress::stats::estimate_node_count(&dataset_dir, &allowed_node_types)
-                    .context("Could not estimate node count")? as usize;
-            let expected_edge_count =
-                swh_graph::compress::stats::estimate_edge_count(&dataset_dir, &allowed_node_types)
-                    .context("Could not estimate edge count")? as usize;
+            let expected_node_count = swh_graph::compress::stats::estimate_node_count::<R>(
+                &dataset_dir,
+                &allowed_node_types,
+            )
+            .context("Could not estimate node count")?
+                as usize;
+            let expected_edge_count = swh_graph::compress::stats::estimate_edge_count::<R>(
+                &dataset_dir,
+                &allowed_node_types,
+            )
+            .context("Could not estimate edge count")?
+                as usize;
 
             let mut pl = progress_logger!(
                 display_memory = true,
@@ -273,7 +272,7 @@ pub fn main() -> Result<()> {
             let mut writer = next_shard()?;
 
             // Fetch as UTF-8 encoded arrays
-            let swhids = swh_graph::compress::iter_swhids(&dataset_dir, &allowed_node_types)
+            let swhids = swh_graph::compress::iter_swhids::<R>(&dataset_dir, &allowed_node_types)
                 .context("Could not read nodes from input dataset")?;
             // Parse (TODO: avoid UTF-8 decoding data we generated ourselves, here)
             let swhids = swhids.map(|swhid| {
@@ -296,16 +295,18 @@ pub fn main() -> Result<()> {
             }
         }
         Commands::ExtractLabels {
-            format: DatasetFormat::Orc,
             allowed_node_types,
             buffer_size,
             dataset_dir,
         } => {
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
-            let expected_edge_count =
-                swh_graph::compress::stats::estimate_edge_count(&dataset_dir, &allowed_node_types)
-                    .context("Could not estimate edge count")? as usize;
+            let expected_edge_count = swh_graph::compress::stats::estimate_edge_count::<R>(
+                &dataset_dir,
+                &allowed_node_types,
+            )
+            .context("Could not estimate edge count")?
+                as usize;
 
             let mut pl = progress_logger!(
                 display_memory = true,
@@ -316,7 +317,7 @@ pub fn main() -> Result<()> {
             pl.start("Extracting and sorting labels");
 
             // Fetch labels data
-            let labels = swh_graph::compress::iter_labels(&dataset_dir, &allowed_node_types)
+            let labels = swh_graph::compress::iter_labels::<R>(&dataset_dir, &allowed_node_types)
                 .context("Could not read labels from input dataset")?;
             // Sort and deduplicate
             let labels = swh_graph::utils::sort::par_sort_strings(labels, pl, buffer_size)
@@ -338,14 +339,13 @@ pub fn main() -> Result<()> {
             }
         }
         Commands::ExtractPersons {
-            format: DatasetFormat::Orc,
             allowed_node_types,
             buffer_size,
             dataset_dir,
         } => {
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
-            let expected_node_count = swh_graph::compress::stats::estimate_node_count(
+            let expected_node_count = swh_graph::compress::stats::estimate_node_count::<R>(
                 &dataset_dir,
                 &allowed_node_types
                     .iter()
@@ -364,7 +364,7 @@ pub fn main() -> Result<()> {
             );
             pl.start("Extracting and sorting persons");
 
-            let persons = swh_graph::compress::iter_persons(&dataset_dir, &allowed_node_types)
+            let persons = swh_graph::compress::iter_persons::<R>(&dataset_dir, &allowed_node_types)
                 .context("Could not read persons from input dataset")?;
             // Sort and deduplicate
             let persons = swh_graph::utils::sort::par_sort_strings(persons, pl, buffer_size)
@@ -386,7 +386,6 @@ pub fn main() -> Result<()> {
             }
         }
         Commands::ExtractFullnames {
-            format: DatasetFormat::Orc,
             person_function,
             dataset_dir,
             fullnames_path,
@@ -396,7 +395,7 @@ pub fn main() -> Result<()> {
                 .with_context(|| format!("Could not load {}", person_function.display()))?;
             let person_hasher = swh_graph::compress::persons::PersonHasher::new(&person_mph);
 
-            let fullnames = swh_graph::compress::iter_fullnames(&dataset_dir, "person")
+            let fullnames = swh_graph::compress::iter_fullnames::<R>(&dataset_dir, "person")
                 .context("Could not read full names from input dataset")?
                 .map(Ok);
             swh_graph::compress::persons::write_fullnames(
@@ -407,7 +406,6 @@ pub fn main() -> Result<()> {
             )?;
         }
         Commands::NodeStats {
-            format: DatasetFormat::Orc,
             swhids_dir,
             target_stats,
             target_count,
@@ -464,7 +462,6 @@ pub fn main() -> Result<()> {
                 .context("Could not commit node counts")?;
         }
         Commands::EdgeStats {
-            format: DatasetFormat::Orc,
             allowed_node_types,
             dataset_dir,
             target_stats,
@@ -482,7 +479,7 @@ pub fn main() -> Result<()> {
                 item_name = "arc",
                 local_speed = true,
                 expected_updates = Some(
-                    swh_graph::compress::stats::estimate_edge_count(
+                    swh_graph::compress::stats::estimate_edge_count::<R>(
                         &dataset_dir,
                         &allowed_node_types
                     )
@@ -493,23 +490,25 @@ pub fn main() -> Result<()> {
             pl.start("Computing edge stats");
             let pl = Mutex::new(pl);
 
-            let stats =
-                swh_graph::compress::stats::count_edge_types(&dataset_dir, &allowed_node_types)
-                    .context("Could not read edges from input dataset")?
-                    .map(|stats_2d| {
-                        pl.lock().unwrap().update_with_count(
-                            stats_2d.map(|stats_1d| stats_1d.iter().sum()).iter().sum(),
-                        );
-                        stats_2d
-                    })
-                    .reduce(Default::default, |mut left_2d, right_2d| {
-                        for (left_1d, right_1d) in left_2d.iter_mut().zip(right_2d) {
-                            for (left, right) in left_1d.iter_mut().zip(right_1d) {
-                                *left += right;
-                            }
-                        }
-                        left_2d
-                    });
+            let stats = swh_graph::compress::stats::count_edge_types::<R>(
+                &dataset_dir,
+                &allowed_node_types,
+            )
+            .context("Could not read edges from input dataset")?
+            .map(|stats_2d| {
+                pl.lock()
+                    .unwrap()
+                    .update_with_count(stats_2d.map(|stats_1d| stats_1d.iter().sum()).iter().sum());
+                stats_2d
+            })
+            .reduce(Default::default, |mut left_2d, right_2d| {
+                for (left_1d, right_1d) in left_2d.iter_mut().zip(right_2d) {
+                    for (left, right) in left_1d.iter_mut().zip(right_1d) {
+                        *left += right;
+                    }
+                }
+                left_2d
+            });
 
             let mut stats_lines = Vec::new();
             let mut total = 0;
@@ -537,7 +536,6 @@ pub fn main() -> Result<()> {
         }
 
         Commands::BfsRoots {
-            format: DatasetFormat::Orc,
             allowed_node_types,
             dataset_dir,
             target,
@@ -550,7 +548,7 @@ pub fn main() -> Result<()> {
 
             if allowed_node_types.contains(&NodeType::Origin) {
                 log::info!("Reading origins...");
-                let mut origins: Vec<_> = swh_graph::compress::iter_origins(&dataset_dir)
+                let mut origins: Vec<_> = swh_graph::compress::iter_origins::<R>(&dataset_dir)
                     .context("Could not read origins")?
                     .collect();
 
@@ -586,7 +584,6 @@ pub fn main() -> Result<()> {
         }
 
         Commands::Bv {
-            format: DatasetFormat::Orc,
             partitions_per_thread,
             allowed_node_types,
             mph_algo,
@@ -599,7 +596,7 @@ pub fn main() -> Result<()> {
             let allowed_node_types = parse_allowed_node_types(&allowed_node_types)?;
 
             match mph_algo {
-                MphAlgorithm::Fmphgo => swh_graph::compress::bv::bv::<SwhidFmphgo>(
+                MphAlgorithm::Fmphgo => swh_graph::compress::bv::bv::<SwhidFmphgo, R>(
                     partitions_per_thread,
                     function,
                     num_nodes,
@@ -612,7 +609,7 @@ pub fn main() -> Result<()> {
                     #[cfg(not(feature = "pthash"))]
                     bail!("pthash support is disabled. Recompile with --features pthash");
                     #[cfg(feature = "pthash")]
-                    swh_graph::compress::bv::bv::<swh_graph::mph::SwhidPthash>(
+                    swh_graph::compress::bv::bv::<swh_graph::mph::SwhidPthash, R>(
                         partitions_per_thread,
                         function,
                         num_nodes,
@@ -622,7 +619,7 @@ pub fn main() -> Result<()> {
                         target_dir,
                     )?
                 }
-                MphAlgorithm::Cmph => swh_graph::compress::bv::bv::<GOVMPH>(
+                MphAlgorithm::Cmph => swh_graph::compress::bv::bv::<GOVMPH, R>(
                     partitions_per_thread,
                     function,
                     num_nodes,
@@ -635,7 +632,6 @@ pub fn main() -> Result<()> {
         }
 
         Commands::EdgeLabels {
-            format: DatasetFormat::Orc,
             partitions_per_thread,
             allowed_node_types,
             mph_algo,
@@ -655,7 +651,7 @@ pub fn main() -> Result<()> {
             let label_name_hasher = LabelNameHasher::mmap(&label_name_mphf)?;
 
             let label_width = match mph_algo {
-                MphAlgorithm::Fmphgo => swh_graph::compress::bv::edge_labels::<SwhidFmphgo>(
+                MphAlgorithm::Fmphgo => swh_graph::compress::bv::edge_labels::<SwhidFmphgo, R>(
                     partitions_per_thread,
                     function,
                     order,
@@ -670,7 +666,7 @@ pub fn main() -> Result<()> {
                     #[cfg(not(feature = "pthash"))]
                     bail!("pthash support is disabled. Recompile with --features pthash");
                     #[cfg(feature = "pthash")]
-                    swh_graph::compress::bv::edge_labels::<SwhidPthash>(
+                    swh_graph::compress::bv::edge_labels::<SwhidPthash, R>(
                         partitions_per_thread,
                         function,
                         order,
@@ -682,7 +678,7 @@ pub fn main() -> Result<()> {
                         target_dir.as_ref(),
                     )?
                 }
-                MphAlgorithm::Cmph => swh_graph::compress::bv::edge_labels::<GOVMPH>(
+                MphAlgorithm::Cmph => swh_graph::compress::bv::edge_labels::<GOVMPH, R>(
                     partitions_per_thread,
                     function,
                     order,
@@ -739,7 +735,6 @@ pub fn main() -> Result<()> {
                 .context("Could not commit properties file")?;
         }
         Commands::NodeProperties {
-            format: DatasetFormat::Orc,
             allowed_node_types,
             mph_algo,
             function,
@@ -761,7 +756,9 @@ pub fn main() -> Result<()> {
             assert_eq!(order.len(), num_nodes);
             info!("Permutation loaded, reading MPH");
 
-            fn f<MPHF: SwhidMphf + Sync>(property_writer: PropertyWriter<MPHF>) -> Result<()> {
+            fn f<MPHF: SwhidMphf + Sync, R: ExportTableReader>(
+                property_writer: PropertyWriter<MPHF, R>,
+            ) -> Result<()> {
                 info!("MPH loaded, writing properties");
                 info!("[ 0/ 8] author timestamps");
                 property_writer
@@ -830,8 +827,9 @@ pub fn main() -> Result<()> {
                         dataset_dir,
                         allowed_node_types,
                         target,
+                        _marker: PhantomData::<Mutex<R>>,
                     };
-                    f::<SwhidFmphgo>(property_writer)?;
+                    f::<SwhidFmphgo, R>(property_writer)?;
                 }
                 MphAlgorithm::Pthash => {
                     #[cfg(not(feature = "pthash"))]
@@ -848,8 +846,9 @@ pub fn main() -> Result<()> {
                             dataset_dir,
                             allowed_node_types,
                             target,
+                            _marker: PhantomData::<Mutex<R>>,
                         };
-                        f(property_writer)?;
+                        f::<_, R>(property_writer)?;
                     }
                 }
                 MphAlgorithm::Cmph => {
@@ -863,8 +862,9 @@ pub fn main() -> Result<()> {
                         dataset_dir,
                         allowed_node_types,
                         target,
+                        _marker: PhantomData::<Mutex<R>>,
                     };
-                    f(property_writer)?;
+                    f::<_, R>(property_writer)?;
                 }
             };
         }

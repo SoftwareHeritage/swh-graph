@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -10,22 +10,21 @@ use std::path::PathBuf;
 use anyhow::Result;
 use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
 use ar_row_derive::ArRowDeserialize;
-use orc_rust::arrow_reader::ArrowReaderBuilder;
-use orc_rust::reader::ChunkReader;
+
 use rayon::prelude::*;
 
 use super::iter_arcs::iter_arcs_from_ovs;
-use super::orc::{get_dataset_readers, par_iter_arrow};
+use super::ExportTableReader;
 use super::TextSwhid;
 use crate::NodeType;
 
-pub fn iter_swhids(
+pub fn iter_swhids<R: ExportTableReader>(
     dataset_dir: &PathBuf,
     allowed_node_types: &[NodeType],
 ) -> Result<impl ParallelIterator<Item = TextSwhid>> {
     let maybe_get_dataset_readers = |dataset_dir: &PathBuf, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
-            get_dataset_readers(dataset_dir, subdirectory)
+            R::new(dataset_dir, subdirectory)
         } else {
             Ok(Vec::new())
         }
@@ -96,21 +95,19 @@ pub fn iter_swhids(
         ))
 }
 
-fn map_swhids<R: ChunkReader + Send, T, F>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn map_swhids<R: ExportTableReader, T, F>(
+    reader: R,
     f: F,
 ) -> impl ParallelIterator<Item = TextSwhid>
 where
     F: Fn(T) -> Option<String> + Send + Sync,
     T: ArRowDeserialize + ArRowStruct + Send,
 {
-    par_iter_arrow(reader_builder, move |record: T| {
-        f(record).map(|swhid| swhid.as_bytes().try_into().unwrap())
-    })
+    reader.par_iter(move |record: T| f(record).map(|swhid| swhid.as_bytes().try_into().unwrap()))
 }
 
-fn iter_swhids_from_dir_entry<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_swhids_from_dir_entry<R: ExportTableReader>(
+    reader: R,
 ) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct DirectoryEntry {
@@ -118,7 +115,7 @@ fn iter_swhids_from_dir_entry<R: ChunkReader + Send>(
         target: String,
     }
 
-    map_swhids(reader_builder, |entry: DirectoryEntry| {
+    map_swhids(reader, |entry: DirectoryEntry| {
         Some(match entry.r#type.as_bytes() {
             b"file" => format!("swh:1:cnt:{}", entry.target),
             b"dir" => format!("swh:1:dir:{}", entry.target),
@@ -128,60 +125,56 @@ fn iter_swhids_from_dir_entry<R: ChunkReader + Send>(
     })
 }
 
-fn iter_swhids_from_dir<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_swhids_from_dir<R: ExportTableReader>(
+    reader: R,
 ) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct Directory {
         id: String,
     }
 
-    map_swhids(reader_builder, |dir: Directory| {
+    map_swhids(reader, |dir: Directory| {
         Some(format!("swh:1:dir:{}", dir.id))
     })
 }
 
-fn iter_swhids_from_cnt<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_swhids_from_cnt<R: ExportTableReader>(
+    reader: R,
 ) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct Content {
         sha1_git: String,
     }
 
-    map_swhids(reader_builder, |cnt: Content| {
+    map_swhids(reader, |cnt: Content| {
         Some(format!("swh:1:cnt:{}", cnt.sha1_git))
     })
 }
 
-fn iter_swhids_from_ori<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_swhids_from_ori<R: ExportTableReader>(
+    reader: R,
 ) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct Origin {
         id: String,
     }
 
-    map_swhids(reader_builder, |ori: Origin| {
-        Some(format!("swh:1:ori:{}", ori.id))
-    })
+    map_swhids(reader, |ori: Origin| Some(format!("swh:1:ori:{}", ori.id)))
 }
 
-fn iter_rel_swhids_from_rel<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_rel_swhids_from_rel<R: ExportTableReader>(
+    reader: R,
 ) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct Release {
         id: String,
     }
 
-    map_swhids(reader_builder, |rel: Release| {
-        Some(format!("swh:1:rel:{}", rel.id))
-    })
+    map_swhids(reader, |rel: Release| Some(format!("swh:1:rel:{}", rel.id)))
 }
 
-fn iter_target_swhids_from_rel<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_target_swhids_from_rel<R: ExportTableReader>(
+    reader: R,
 ) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct Release {
@@ -189,7 +182,7 @@ fn iter_target_swhids_from_rel<R: ChunkReader + Send>(
         target_type: String,
     }
 
-    map_swhids(reader_builder, |entry: Release| {
+    map_swhids(reader, |entry: Release| {
         Some(match entry.target_type.as_bytes() {
             b"content" => format!("swh:1:cnt:{}", entry.target),
             b"directory" => format!("swh:1:dir:{}", entry.target),
@@ -200,60 +193,60 @@ fn iter_target_swhids_from_rel<R: ChunkReader + Send>(
     })
 }
 
-fn iter_rev_swhids_from_rev<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_rev_swhids_from_rev<R: ExportTableReader>(
+    reader: R,
 ) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct Revision {
         id: String,
     }
 
-    map_swhids(reader_builder, |dir: Revision| {
+    map_swhids(reader, |dir: Revision| {
         Some(format!("swh:1:rev:{}", dir.id))
     })
 }
 
-fn iter_dir_swhids_from_rev<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_dir_swhids_from_rev<R: ExportTableReader>(
+    reader: R,
 ) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct Revision {
         directory: String,
     }
 
-    map_swhids(reader_builder, |rev: Revision| {
+    map_swhids(reader, |rev: Revision| {
         Some(format!("swh:1:dir:{}", rev.directory))
     })
 }
 
-fn iter_parent_swhids_from_rev<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_parent_swhids_from_rev<R: ExportTableReader>(
+    reader: R,
 ) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct RevisionParent {
         parent_id: String,
     }
 
-    map_swhids(reader_builder, |rev: RevisionParent| {
+    map_swhids(reader, |rev: RevisionParent| {
         Some(format!("swh:1:rev:{}", rev.parent_id))
     })
 }
 
-fn iter_swhids_from_snp<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_swhids_from_snp<R: ExportTableReader>(
+    reader: R,
 ) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct Snapshot {
         id: String,
     }
 
-    map_swhids(reader_builder, |dir: Snapshot| {
+    map_swhids(reader, |dir: Snapshot| {
         Some(format!("swh:1:snp:{}", dir.id))
     })
 }
 
-fn iter_swhids_from_snp_branch<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_swhids_from_snp_branch<R: ExportTableReader>(
+    reader: R,
 ) -> impl ParallelIterator<Item = TextSwhid> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct SnapshotBranch {
@@ -261,7 +254,7 @@ fn iter_swhids_from_snp_branch<R: ChunkReader + Send>(
         target_type: String,
     }
 
-    map_swhids(reader_builder, |branch: SnapshotBranch| {
+    map_swhids(reader, |branch: SnapshotBranch| {
         match branch.target_type.as_bytes() {
             b"content" => Some(format!("swh:1:cnt:{}", branch.target)),
             b"directory" => Some(format!("swh:1:dir:{}", branch.target)),

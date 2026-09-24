@@ -29,11 +29,12 @@ use super::iter_arcs::iter_arcs;
 use super::iter_labeled_arcs::iter_labeled_arcs;
 use super::label_names::LabelNameHasher;
 use super::stats::estimate_edge_count;
+use super::ExportTableReader;
 use crate::map::{MappedPermutation, Permutation};
 use crate::mph::LoadableSwhidMphf;
 
 #[allow(clippy::too_many_arguments)]
-pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
+pub fn bv<MPHF: LoadableSwhidMphf + Sync, R: ExportTableReader>(
     partitions_per_thread: usize,
     mph_basepath: PathBuf,
     num_nodes: usize,
@@ -66,7 +67,7 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
         item_name = "arc",
         local_speed = true,
         expected_updates = Some(
-            estimate_edge_count(&dataset_dir, allowed_node_types)
+            estimate_edge_count::<R>(&dataset_dir, allowed_node_types)
                 .context("Could not estimate edge count")? as usize,
         ),
     );
@@ -80,12 +81,12 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
     let pair_sorter = ParSortPairs::new(num_nodes)?
         .num_partitions(NonZeroUsize::new(num_partitions).unwrap())
         .expected_num_pairs(
-            estimate_edge_count(&dataset_dir, allowed_node_types)
+            estimate_edge_count::<R>(&dataset_dir, allowed_node_types)
                 .context("Could not estimate edge count")? as usize,
         );
     let sorted_arcs = pair_sorter
         .try_sort(
-            iter_arcs(&dataset_dir, allowed_node_types)
+            iter_arcs::<R>(&dataset_dir, allowed_node_types)
                 .context("Could not open input files to read arcs")?
                 .map_with(pl.clone(), |thread_pl, (src, dst)| -> Result<_> {
                     let mut src = mph.hash_str_array(&src).ok_or_else(|| {
@@ -130,7 +131,7 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
 
 /// Writes `-labelled.labels`,  `-labelled.labeloffsets`, and returns the label width
 #[allow(clippy::too_many_arguments)]
-pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
+pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync, R: ExportTableReader>(
     partitions_per_thread: usize,
     mph_basepath: PathBuf,
     order: MappedPermutation,
@@ -171,7 +172,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     let sorted_arcs = pair_sorter
         .try_sort_labeled(
             &codec,
-            iter_labeled_arcs(&dataset_dir, allowed_node_types, label_name_hasher)
+            iter_labeled_arcs::<R>(&dataset_dir, allowed_node_types, label_name_hasher)
                 .context("Could not open input files to read arcs")?
                 .map_init(
                     || labeled_arcs_counters.get_or(AtomicUsize::default),
