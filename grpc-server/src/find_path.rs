@@ -507,7 +507,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                         // Having only one of them be Both has the same search space, but does not necessarily
                         // return the shortest path; so it is most likely a user error.
                         return Err(tonic::Status::invalid_argument(
-                            "direction_reverse=Both, but direction!=Both",
+                            "direction_reverse = Both, but direction != Both",
                         ));
                     }
                 }
@@ -525,7 +525,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     proto::GraphDirection::Both => {
                         // ditto
                         return Err(tonic::Status::invalid_argument(
-                            "direction=Both, but direction_reverse!=Both",
+                            "direction = Both, but direction_reverse != Both",
                         ));
                     }
                 }
