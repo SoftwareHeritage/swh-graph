@@ -13,7 +13,7 @@ use tonic::{Request, Response};
 
 use swh_graph::graph::{NodeId, SwhForwardGraph, SwhGraphWithProperties, SwhLabeledForwardGraph};
 use swh_graph::properties;
-use swh_graph::views::{Subgraph, Transposed};
+use swh_graph::views::{Subgraph, Symmetric, Transposed};
 
 use super::filters::{ArcFilterChecker, NodeFilterChecker};
 use super::label_builder::LabelBuilder;
@@ -265,6 +265,10 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                 let graph = Arc::new(Transposed(graph));
                 find_path_to!(graph)
             }
+            proto::GraphDirection::Both => {
+                let graph = Arc::new(Symmetric(graph));
+                find_path_to!(graph)
+            }
         }
     }
 
@@ -312,6 +316,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                 match direction {
                     proto::GraphDirection::Forward => proto::GraphDirection::Backward,
                     proto::GraphDirection::Backward => proto::GraphDirection::Forward,
+                    proto::GraphDirection::Both => proto::GraphDirection::Both,
                 }
                 .into(),
             )
@@ -374,11 +379,15 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
             arc_filter: move |src, dst| arc_checker.matches(src, dst),
         });
         let transpose_subgraph = Arc::new(Transposed(subgraph.clone()));
+        let symmetric_subgraph = Arc::new(Symmetric(subgraph.clone()));
         let transpose_graph = Arc::new(Transposed(graph.clone()));
+        let symmetric_graph = Arc::new(Symmetric(graph.clone()));
 
         let forward_node_builder = NodeBuilder::new(subgraph.clone(), mask.clone(), Some("node"))?;
         let backward_node_builder =
             NodeBuilder::new(transpose_subgraph.clone(), mask.clone(), Some("node"))?;
+        let symmetric_node_builder =
+            NodeBuilder::new(symmetric_graph.clone(), mask.clone(), Some("node"))?;
 
         let forward_labeled_node_builder =
             NodeBuilder::new(subgraph.clone(), mask.clone(), Some("labeled_node.node"))?;
@@ -391,6 +400,16 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
         )?;
         let backward_labeled_label_builder = LabelBuilder::new(
             transpose_subgraph.clone(),
+            mask.clone(),
+            "labeled_node.label",
+        )?;
+        let symmetric_labeled_node_builder = NodeBuilder::new(
+            symmetric_subgraph.clone(),
+            mask.clone(),
+            Some("labeled_node.node"),
+        )?;
+        let symmetric_labeled_label_builder = LabelBuilder::new(
+            symmetric_subgraph.clone(),
             mask.clone(),
             "labeled_node.label",
         )?;
@@ -484,6 +503,13 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     proto::GraphDirection::Backward => {
                         find_path_between!(visitor, transpose_graph)
                     }
+                    proto::GraphDirection::Both => {
+                        // Having only one of them be Both has the same search space, but does not necessarily
+                        // return the shortest path; so it is most likely a user error.
+                        return Err(tonic::Status::invalid_argument(
+                            "direction_reverse = Both, but direction != Both",
+                        ));
+                    }
                 }
             }
             proto::GraphDirection::Backward => {
@@ -496,7 +522,18 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                     proto::GraphDirection::Backward => {
                         find_path_between!(visitor, transpose_graph)
                     }
+                    proto::GraphDirection::Both => {
+                        // ditto
+                        return Err(tonic::Status::invalid_argument(
+                            "direction = Both, but direction_reverse != Both",
+                        ));
+                    }
                 }
+            }
+            proto::GraphDirection::Both => {
+                let mut visitor =
+                    self.make_visitor(visitor_config, symmetric_subgraph.clone(), on_node, on_arc)?;
+                find_path_between!(visitor, symmetric_graph)
             }
         }
 
@@ -532,6 +569,13 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                         &half_path_from_src,
                         true,
                     ),
+                    proto::GraphDirection::Both => build_labeled_path(
+                        symmetric_subgraph.clone(),
+                        &symmetric_labeled_node_builder,
+                        &symmetric_labeled_label_builder,
+                        &half_path_from_src,
+                        true,
+                    ),
                 };
                 labeled_path.pop(); // Drop midpoint so it's not there twice
 
@@ -550,6 +594,13 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                         &half_path_from_dst,
                         false,
                     ),
+                    proto::GraphDirection::Both => build_labeled_path(
+                        symmetric_subgraph,
+                        &symmetric_labeled_node_builder,
+                        &symmetric_labeled_label_builder,
+                        &half_path_from_dst,
+                        false,
+                    ),
                 });
 
                 let ids_path: Vec<_> = half_path_from_src
@@ -561,6 +612,7 @@ impl<S: super::TraversalServiceTrait> FindPath<'_, S> {
                 path.extend(ids_path.iter().map(|&node_id| match direction {
                     proto::GraphDirection::Forward => forward_node_builder.build_node(node_id),
                     proto::GraphDirection::Backward => backward_node_builder.build_node(node_id),
+                    proto::GraphDirection::Both => symmetric_node_builder.build_node(node_id),
                 }));
 
                 Ok(Response::new(proto::Path {

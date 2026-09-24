@@ -70,6 +70,8 @@ enum GraphDirection {
     FORWARD = 0;
     /* Transposed DAG: cnt -> dir -> rev -> rel -> snp -> ori */
     BACKWARD = 1;
+    /* Union of FORWARD and BACKWARD */
+    BOTH = 2;
 }
 
 /* Describe a node to return */

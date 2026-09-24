@@ -10,6 +10,7 @@ import time
 import grpc
 import pytest
 
+from swh.graph.example_dataset import DATASET
 from swh.graph.grpc.swhgraph_pb2 import GraphDirection, NodeFilter, TraversalRequest
 
 TEST_ORIGIN_ID = "swh:1:ori:{}".format(
@@ -615,3 +616,53 @@ def test_ignore_nodes(graph_grpc_stub):
         "swh:1:rev:0000000000000000000000000000000000000003",
     ]
     assert set(actual) == set(expected)
+
+
+def test_bidirectional(graph_grpc_stub):
+    request = graph_grpc_stub.Traverse(
+        TraversalRequest(
+            src=["swh:1:rev:0000000000000000000000000000000000000009"],
+            direction=GraphDirection.BOTH,
+        )
+    )
+    actual = {node.swhid for node in request}
+    expected = {str(node.swhid()) for node in DATASET if hasattr(node, "swhid")}
+    assert len(expected) == 24
+    assert actual == expected
+
+
+def test_bidirectional_filter_edges(graph_grpc_stub):
+    request = graph_grpc_stub.Traverse(
+        TraversalRequest(
+            src=["swh:1:rev:0000000000000000000000000000000000000009"],
+            direction=GraphDirection.BOTH,
+            edges="rev:rev",
+        )
+    )
+    actual = {node.swhid for node in request}
+    expected = {
+        "swh:1:rev:0000000000000000000000000000000000000009",
+        "swh:1:rev:0000000000000000000000000000000000000003",
+        "swh:1:rev:0000000000000000000000000000000000000013",
+        "swh:1:rev:0000000000000000000000000000000000000018",
+    }
+    assert actual == expected
+
+    request = graph_grpc_stub.Traverse(
+        TraversalRequest(
+            src=["swh:1:rev:0000000000000000000000000000000000000009"],
+            direction=GraphDirection.BOTH,
+            edges="rev:rev,rev:rel",
+        )
+    )
+    actual = {node.swhid for node in request}
+    expected = {
+        "swh:1:rev:0000000000000000000000000000000000000009",
+        "swh:1:rev:0000000000000000000000000000000000000003",
+        "swh:1:rev:0000000000000000000000000000000000000013",
+        "swh:1:rev:0000000000000000000000000000000000000018",
+        "swh:1:rel:0000000000000000000000000000000000000010",
+        "swh:1:rel:0000000000000000000000000000000000000019",
+        "swh:1:rel:0000000000000000000000000000000000000021",
+    }
+    assert actual == expected

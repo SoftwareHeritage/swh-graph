@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2023  The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -151,3 +151,33 @@ def test_with_empty_mask(graph_grpc_stub):
         )
     )
     assert traversal_request.count == 8
+
+
+def test_bidirectional(graph_grpc_stub):
+    traversal_request = graph_grpc_stub.CountNodes(
+        TraversalRequest(
+            src=["swh:1:rev:0000000000000000000000000000000000000009"],
+            direction=GraphDirection.BOTH,
+        )
+    )
+    assert traversal_request.count == 24
+
+
+def test_bidirectional_filter_edges(graph_grpc_stub):
+    traversal_request = graph_grpc_stub.CountNodes(
+        TraversalRequest(
+            src=["swh:1:rev:0000000000000000000000000000000000000009"],
+            direction=GraphDirection.BOTH,
+            edges="rev:rev",
+        )
+    )
+    assert traversal_request.count == 4
+
+    traversal_request = graph_grpc_stub.CountNodes(
+        TraversalRequest(
+            src=["swh:1:rev:0000000000000000000000000000000000000009"],
+            direction=GraphDirection.BOTH,
+            edges="rev:rev,rev:rel",
+        )
+    )
+    assert traversal_request.count == 7
