@@ -153,14 +153,14 @@ def run_e2e_check(
             "swh:1:dir:b711bde9af241d46fdf7fc63924eecef717a16ec",
             "swh:1:cnt:85c632f7eb1d1861911c735077699c29840ff728",
         ],
-        "https://github.com/neovim/neovim": [
-            "swh:1:rev:d82168e41c21a3a107e52c139abc90dbe41f2010",
-            "swh:1:rev:046340303076c3680cf767f01c6748d9dd5c8fa5",
-            "swh:1:rev:7db9992445a69df16eb12d349d49ab8968e9a505",
-            "swh:1:rev:64c2c7c40da4bafb6f74076b7ffbffb262246c7a",
-            "swh:1:rev:788bc12a6f4c5a4627cbc75a2f539bfc622384a2",
-            "swh:1:dir:234c61bf6e96643c59a33586039c82b492ca86af",
-            "swh:1:cnt:8feb7918886d54844bf9234a314f28675b9a76fc",
+        "https://github.com/vim/vim": [
+            "swh:1:rev:16abd997c99b1a40fb0ba54889ce0cf44d7585b4",
+            "swh:1:rev:7c2beb48ef46cf5f1ed7e8512ef5a7c9099e5ae4",
+            "swh:1:rev:416bd916b4cc4502eb734218f406e4edd8dd199c",
+            "swh:1:rev:80adaa8ae8398403ca4e9797219ea9a501fc76a5",
+            "swh:1:rev:bf5f189e449d6517239b79804d7a422a46946838",
+            "swh:1:dir:79a524757e4c2b44bd2e5e343d2a4e8db24aa7e2",
+            "swh:1:cnt:ce3ed73bc7b86b9d545e8e9d74a199b6eba1477d",
         ],
         "https://gitlab.softwareheritage.org/swh/devel/swh-graph": [
             "swh:1:rev:985dcf705e03fde55285ca8aaff2488f43e9a55f",
@@ -185,9 +185,7 @@ def run_e2e_check(
         "https://github.com/home-assistant/core": (
             "ZGVwZW5kYWJvdFtib3RdIDw0OTY5OTMzMytkZXBlbmRhYm90W2JvdF1AdXNlcnMubm9yZXBseS5naXRodWIuY29tPg=="
         ),
-        "https://github.com/neovim/neovim": (
-            "ZGVwZW5kYWJvdFtib3RdIDw0OTY5OTMzMytkZXBlbmRhYm90W2JvdF1AdXNlcnMubm9yZXBseS5naXRodWIuY29tPg=="
-        ),
+        "https://github.com/vim/vim": "QnJhbSBNb29sZW5hYXIgPEJyYW1AdmltLm9yZz4=",
         "https://gitlab.softwareheritage.org/swh/devel/swh-graph": (
             "VmFsZW50aW4gTG9yZW50eiA8dmxvcmVudHpAc29mdHdhcmVoZXJpdGFnZS5vcmc+"
         ),
@@ -209,7 +207,7 @@ def run_e2e_check(
         for origin in [
             "https://github.com/pallets/flask",
             "https://github.com/home-assistant/core",
-            "https://github.com/neovim/neovim",
+            "https://github.com/vim/vim",
             "https://gitlab.softwareheritage.org/swh/devel/swh-graph",
         ]:
             projects.pop(origin)
