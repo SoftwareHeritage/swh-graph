@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -344,6 +344,10 @@ impl<
     #[inline(always)]
     fn path(&self) -> &Path {
         self.inner.underlying_graph.path()
+    }
+    #[inline(always)]
+    fn direction(&self) -> GraphDirection {
+        self.inner.underlying_graph.direction()
     }
     #[inline(always)]
     fn is_transposed(&self) -> bool {

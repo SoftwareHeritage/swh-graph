@@ -150,13 +150,51 @@ impl<L: Clone> UnderlyingGraph for LabeledVecGraph<L> {
     }
 }
 
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
+pub enum GraphDirection {
+    Direct,
+    Transposed,
+    Symmetric,
+}
+
+impl GraphDirection {
+    /// Returns Ok(false) if direct, Ok(true) if transposed, Err(_) if symmetric
+    pub fn is_transposed(&self) -> Result<bool> {
+        match self {
+            GraphDirection::Direct => Ok(false),
+            GraphDirection::Transposed => Ok(true),
+            GraphDirection::Symmetric => {
+                bail!("Cannot call labeled_successors() on a symmetric graph")
+            }
+        }
+    }
+
+    pub fn reverse(&self) -> GraphDirection {
+        match self {
+            GraphDirection::Direct => GraphDirection::Transposed,
+            GraphDirection::Transposed => GraphDirection::Direct,
+            GraphDirection::Symmetric => GraphDirection::Symmetric,
+        }
+    }
+}
+
 pub trait SwhGraph {
     /// Return the base path of the graph
     fn path(&self) -> &Path;
 
+    fn direction(&self) -> GraphDirection;
+
     /// Returns whether the graph is in the `ori->snp->rel,rev->dir->cnt` direction
     /// (with a few `dir->rev` arcs)
-    fn is_transposed(&self) -> bool;
+    fn is_transposed(&self) -> bool {
+        match self.direction() {
+            GraphDirection::Direct => false,
+            GraphDirection::Transposed => true,
+            GraphDirection::Symmetric => {
+                panic!("SwhGraph::is_transposed() called on a symmetric graph")
+            }
+        }
+    }
 
     /// Return the largest node id in the graph plus one.
     ///
@@ -449,13 +487,13 @@ impl<P, G: UnderlyingGraph> SwhGraph for SwhUnidirectionalGraph<P, G> {
         self.basepath.as_path()
     }
 
-    fn is_transposed(&self) -> bool {
+    fn direction(&self) -> GraphDirection {
         // Technically, users can load the 'graph-transposed' directly.
         // However, unless they rename files, this will fail to load properties, because
         // properties' file names wouldn't match the base path.
-        // As 'is_transposed' is only useful when checking node types (of an arc),
+        // As 'direction()' is only useful when checking node types (of an arc),
         // this function is unlikely to be called in that scenario, so this should be fine.
-        false
+        GraphDirection::Direct
     }
 
     #[inline(always)]
@@ -728,13 +766,13 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhGraph for SwhBidirectionalG
         self.basepath.as_path()
     }
 
-    fn is_transposed(&self) -> bool {
+    fn direction(&self) -> GraphDirection {
         // Technically, users can load the 'graph-transposed' directly.
         // However, unless they rename files, this will fail to load properties, because
         // properties' file names wouldn't match the base path.
         // As 'is_transposed' is only useful when checking node types (of an arc),
         // this function is unlikely to be called in that scenario, so this should be fine.
-        false
+        GraphDirection::Direct
     }
 
     #[inline(always)]

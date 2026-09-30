@@ -162,18 +162,21 @@ fn test_transpose_labeled_backward_graph() {
 }
 
 #[test]
-fn test_transpose_is_transposed() {
+fn test_transpose_direction() {
     let graph = SwhUnidirectionalGraph::from_underlying_graph(
         PathBuf::new(),
         VecGraph::from_arcs(vec![(2, 0), (2, 1), (0, 1)]),
     );
+    assert_eq!(graph.direction(), GraphDirection::Direct);
     assert!(!graph.is_transposed());
 
     let transposed = Transposed(graph);
+    assert_eq!(transposed.direction(), GraphDirection::Transposed);
     assert!(transposed.is_transposed());
 
     let double_transposed = Transposed(transposed);
     assert!(!double_transposed.is_transposed());
+    assert_eq!(double_transposed.direction(), GraphDirection::Direct);
 }
 
 #[test]

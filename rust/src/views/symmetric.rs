@@ -31,6 +31,9 @@ impl<G: SwhGraph> SwhGraph for Symmetric<G> {
     fn path(&self) -> &Path {
         self.0.path()
     }
+    fn direction(&self) -> GraphDirection {
+        GraphDirection::Symmetric
+    }
     fn is_transposed(&self) -> bool {
         panic!("Called Symmetric::is_transposed().");
     }

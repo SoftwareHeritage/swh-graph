@@ -23,6 +23,10 @@ impl<G: SwhGraph> SwhGraph for Transposed<G> {
         self.0.path()
     }
     #[inline(always)]
+    fn direction(&self) -> GraphDirection {
+        self.0.direction().reverse()
+    }
+    #[inline(always)]
     fn is_transposed(&self) -> bool {
         !self.0.is_transposed()
     }
