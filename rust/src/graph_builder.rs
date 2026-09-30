@@ -614,10 +614,13 @@ where
                 // so we have to assume it's fine not to preserve the number of nodes.
                 // perhaps in the future we can find a way to add "ghost" nodes in the built graph.
             }
-            GraphAccessRecord::IsTransposed => {
-                if spy.graph().is_transposed() {
+            GraphAccessRecord::Direction | GraphAccessRecord::IsTransposed => {
+                let direction = spy.graph().direction();
+                if direction != GraphDirection::Direct {
                     // TODO
-                    bail!("build_graph_from_spy does not support building transposed graphs yet");
+                    bail!(
+                        "build_graph_from_spy does not support building {direction:?} graphs yet"
+                    );
                 }
             }
 

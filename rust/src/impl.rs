@@ -20,6 +20,10 @@ macro_rules! impl_deref {
                 self.deref().path()
             }
             #[inline(always)]
+            fn direction(&self) -> GraphDirection {
+                self.deref().direction()
+            }
+            #[inline(always)]
             fn is_transposed(&self) -> bool {
                 self.deref().is_transposed()
             }

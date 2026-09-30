@@ -60,6 +60,7 @@ pub enum PropertyAccess {
 pub enum GraphAccessRecord {
     // SwhGraph
     Path,
+    Direction,
     IsTransposed,
     NumNodes,
     HasNode(NodeId),
@@ -177,6 +178,10 @@ where
     fn path(&self) -> &Path {
         self.record(GraphAccessRecord::Path);
         self.inner.graph.path()
+    }
+    fn direction(&self) -> GraphDirection {
+        self.record(GraphAccessRecord::Direction);
+        self.inner.graph.direction()
     }
     fn is_transposed(&self) -> bool {
         self.record(GraphAccessRecord::IsTransposed);

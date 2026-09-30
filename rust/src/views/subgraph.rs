@@ -254,6 +254,10 @@ impl<G: SwhGraph, NodeFilter: Fn(usize) -> bool, ArcFilter: Fn(usize, usize) -> 
         self.graph.path()
     }
     #[inline(always)]
+    fn direction(&self) -> GraphDirection {
+        self.graph.direction()
+    }
+    #[inline(always)]
     fn is_transposed(&self) -> bool {
         self.graph.is_transposed()
     }
