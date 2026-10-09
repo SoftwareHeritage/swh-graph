@@ -48,6 +48,11 @@ pub fn iter_swhids<R: ExportTableReader>(
                 .flat_map(iter_swhids_from_cnt),
         )
         .chain(
+            maybe_get_dataset_readers(dataset_dir, "skipped_content", NodeType::Content)?
+                .into_par_iter()
+                .flat_map(iter_swhids_from_skipped_cnt),
+        )
+        .chain(
             maybe_get_dataset_readers(dataset_dir, "origin", NodeType::Origin)?
                 .into_par_iter()
                 .flat_map(iter_swhids_from_ori),
@@ -148,6 +153,19 @@ fn iter_swhids_from_cnt<R: ExportTableReader>(
 
     map_swhids(reader, |cnt: Content| {
         Some(format!("swh:1:cnt:{}", cnt.sha1_git))
+    })
+}
+
+fn iter_swhids_from_skipped_cnt<R: ExportTableReader>(
+    reader: R,
+) -> impl ParallelIterator<Item = TextSwhid> {
+    #[derive(ArRowDeserialize, Default, Clone)]
+    struct SkippedContent {
+        sha1_git: Option<String>,
+    }
+
+    map_swhids(reader, |cnt: SkippedContent| {
+        cnt.sha1_git.map(|sha1_git| format!("swh:1:cnt:{sha1_git}"))
     })
 }
 
