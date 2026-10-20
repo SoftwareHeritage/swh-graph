@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 import socket
 import time
-from typing import Literal
+from typing import Any, Literal
 
 import attr
 from google.protobuf.field_mask_pb2 import FieldMask
@@ -38,6 +38,8 @@ def run_e2e_check(
     sensitive_out_dir: Path | None,
     check_flavor: Literal["full", "history_hosting", "staging", "example", "none"],
     profile: Literal["release", "debug"] = "release",
+    base_rust_executable_dir: Path | None = None,
+    rust_executable_dir: Path | None = None,
     logger: logging.Logger | None = None,
 ):
     """Empirically check the graph compression correctness.
@@ -62,6 +64,11 @@ def run_e2e_check(
             - "none": for preventing to run the checks altogether
 
         profile: Which Rust executables to use.
+        base_rust_executable_dir: path to the directory that contains the local project's
+            Rust build artifact, ie. :file:`target/`.
+            Used to build the default ``rust_executable_dir`` by concatenating ``profile`` to
+            it, eg. :file:`target/debug/`
+        rust_executable_dir: where to find Rust executables
 
     Raises:
         Exception: GRPC server unexpectedly stopped.
@@ -69,14 +76,19 @@ def run_e2e_check(
     if logger is None:
         logger = e2e_logger
 
+    conf: dict[str, Any] = {"profile": profile}
+    if rust_executable_dir is not None:
+        conf["rust_executable_dir"] = rust_executable_dir
+
     conf = check_config_compress(
-        {"profile": profile},
+        conf,
         graph_name,
         in_dir,
         out_dir,
         sensitive_in_dir,
         sensitive_out_dir,
         check_flavor,
+        base_rust_executable_dir=base_rust_executable_dir,
     )
 
     graph_name = conf["graph_name"]

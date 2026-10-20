@@ -236,6 +236,8 @@ def _initial_order(conf: Dict[str, Any], env: Dict[str, str]) -> Optional[Comman
         f"{conf['previous_graph_path']}/{conf['graph_name']}.node2swhid.bin",
         "--target-order",
         f"{conf['out_dir']}/{conf['graph_name']}-base.order",
+        conf=conf,
+        env=env,
     )
 
 
@@ -842,6 +844,7 @@ def _e2e_check(
         sensitive_out_dir=conf.get("sensitive_out_dir"),
         check_flavor=conf.get("check_flavor", "full"),
         profile=conf.get("profile", "release"),
+        rust_executable_dir=conf.get("rust_executable_dir"),
         logger=logger,
     )
 

@@ -91,11 +91,12 @@ def check_config_compress(
     sensitive_in_dir: Path | None,
     sensitive_out_dir: Path | None,
     check_flavor: str | None,
+    base_rust_executable_dir: Path | None = None,
 ):
     """check compression-specific configuration and initialize its execution
     environment.
     """
-    conf = check_config(config)
+    conf = check_config(config, base_rust_executable_dir=base_rust_executable_dir)
 
     def _retrieve_value(value, name, default_value=None, is_path=False):
         if value is not None:
