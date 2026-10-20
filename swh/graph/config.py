@@ -84,13 +84,13 @@ def _guess_export_format(in_dir: Path) -> str:
 
 
 def check_config_compress(
-    config,
-    graph_name,
-    in_dir,
-    out_dir,
-    sensitive_in_dir,
-    sensitive_out_dir,
-    check_flavor,
+    config: dict,
+    graph_name: str,
+    in_dir: Path | None,
+    out_dir: Path | None,
+    sensitive_in_dir: Path | None,
+    sensitive_out_dir: Path | None,
+    check_flavor: str | None,
 ):
     """check compression-specific configuration and initialize its execution
     environment.

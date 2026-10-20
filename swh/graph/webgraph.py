@@ -946,10 +946,10 @@ def do_step(step, conf, env=None) -> "List[RunResult]":
 
 def compress(
     graph_name: str,
-    in_dir: str,
-    out_dir: str,
-    sensitive_in_dir: Optional[str],
-    sensitive_out_dir: Optional[str],
+    in_dir: Path,
+    out_dir: Path,
+    sensitive_in_dir: Optional[Path],
+    sensitive_out_dir: Optional[Path],
     check_flavor: Optional[str],
     steps: Set[CompressionStep] = set(COMP_SEQ),
     conf: Dict[str, str] = {},

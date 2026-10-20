@@ -32,10 +32,10 @@ e2e_logger = logging.getLogger(__name__)
 
 def run_e2e_check(
     graph_name: str,
-    in_dir: str | None,
-    out_dir: str | None,
-    sensitive_in_dir: str | None,
-    sensitive_out_dir: str | None,
+    in_dir: Path | None,
+    out_dir: Path | None,
+    sensitive_in_dir: Path | None,
+    sensitive_out_dir: Path | None,
     check_flavor: Literal["full", "history_hosting", "staging", "example", "none"],
     profile: Literal["release", "debug"] = "release",
     logger: logging.Logger | None = None,
