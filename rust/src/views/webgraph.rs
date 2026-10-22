@@ -80,7 +80,7 @@ impl<G: SwhForwardGraph> SequentialLabeling for WebgraphAdapter<G> {
     }
 
     #[inline(always)]
-    fn num_arcs_hint(&self) -> Option<u64> {
+    fn get_num_arcs(&self) -> Option<u64> {
         Some(SwhGraph::num_arcs(&self.0))
     }
 
@@ -181,7 +181,7 @@ where
     }
 
     #[inline(always)]
-    fn num_arcs_hint(&self) -> Option<u64> {
+    fn get_num_arcs(&self) -> Option<u64> {
         Some(SwhGraph::num_arcs(&self.0) * 2)
     }
 

@@ -24,8 +24,9 @@ use sux::{
 
 type FullnamesOffsets = MemCase<
     EliasFano<
+        usize,
         SelectAdaptConst<BitVec<Box<[usize]>>, Box<[usize]>>,
-        BitFieldVec<usize, Box<[usize]>>,
+        BitFieldVec<Box<[usize]>>,
     >,
 >;
 

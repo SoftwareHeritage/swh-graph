@@ -4,10 +4,8 @@
 // See top-level LICENSE file for more information
 
 use anyhow::{Context, Result};
-use bitstream::Supply;
 use dsi_bitstream::codes::GammaRead;
-use dsi_bitstream::impls::{BufBitReader, MemWordReader};
-use dsi_bitstream::traits::{BitRead, BitSeek, Endianness, BE};
+use dsi_bitstream::traits::{BitRead, BitSeek, BE};
 use epserde::deser::{Deserialize, Flags};
 use mmap_rs::MmapFlags;
 use std::path::Path;
@@ -44,25 +42,13 @@ impl<BR: BitRead<BE> + BitSeek + GammaRead<BE>> BitDeserializer<BE, BR> for SwhD
         }
         Ok(labels)
     }
-}
 
-pub struct MmapReaderSupplier<E: Endianness> {
-    backend: MmapHelper<u32>,
-    _marker: std::marker::PhantomData<E>,
-}
-
-impl Supply for MmapReaderSupplier<BE> {
-    type Item<'a>
-        = BufBitReader<BE, MemWordReader<u32, &'a [u32]>>
-    where
-        Self: 'a;
-
-    fn request(&self) -> Self::Item<'_> {
-        BufBitReader::<BE, _>::new(MemWordReader::new(self.backend.as_ref()))
+    fn name(&self) -> String {
+        "SwhDeserializer".to_string()
     }
 }
 
-pub type SwhLabelingInner = BitStreamLabeling<BE, MmapReaderSupplier<BE>, SwhDeserializer, EF>;
+pub type SwhLabelingInner = BitStreamLabeling<BE, MmapHelper<u32>, SwhDeserializer, EF>;
 
 pub struct SwhLabeling(pub SwhLabelingInner);
 
@@ -106,19 +92,21 @@ impl RandomAccessLabeling for SwhLabeling {
     }
 }
 
-pub(crate) fn mmap(path: impl AsRef<Path>, bit_deser: SwhDeserializer) -> Result<SwhLabeling> {
+pub(crate) fn mmap(
+    path: impl AsRef<Path>,
+    num_arcs: u64,
+    bit_deser: SwhDeserializer,
+) -> Result<SwhLabeling> {
     let path = path.as_ref();
     let labels_path = path.with_extension("labels");
     let ef_path = path.with_extension("ef");
     let ef = unsafe { EF::mmap(&ef_path, Flags::empty()) }
         .with_context(|| format!("Could not parse {}", ef_path.display()))?;
     Ok(SwhLabeling(BitStreamLabeling::new(
-        MmapReaderSupplier {
-            backend: MmapHelper::<u32>::mmap(&labels_path, MmapFlags::empty())
-                .with_context(|| format!("Could not mmap {}", labels_path.display()))?,
-            _marker: std::marker::PhantomData,
-        },
+        MmapHelper::<u32>::mmap(&labels_path, MmapFlags::empty())
+            .with_context(|| format!("Could not mmap {}", labels_path.display()))?,
         bit_deser,
         ef,
+        num_arcs,
     )))
 }

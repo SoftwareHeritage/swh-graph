@@ -11,7 +11,7 @@ use std::sync::atomic::Ordering;
 use anyhow::{Context, Result};
 use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
 use ar_row_derive::ArRowDeserialize;
-use common_traits::{Atomic, IntoAtomic};
+use atomic_primitive::{Atomic, AtomicPrimitive, PrimitiveAtomicInteger};
 use rayon::prelude::*;
 use sux::traits::AtomicBitVecOps;
 
@@ -71,10 +71,10 @@ impl<SWHIDMPHF: SwhidMphf + Sync, R: ExportTableReader> PropertyWriter<'_, SWHID
         vec
     }
     /// Same as [`Self::init_vec`] but returns a vector of atomic values
-    fn init_atomic_vec<T: IntoAtomic + Copy + Default + Sync>(
+    fn init_atomic_vec<T: AtomicPrimitive + Copy + Default + Sync>(
         &self,
         initial_value: T,
-    ) -> Vec<<T as IntoAtomic>::AtomicType>
+    ) -> Vec<Atomic<T>>
     where
         for<'a> Vec<T>: IntoParallelRefMutIterator<'a, Item = &'a mut T>,
     {
@@ -94,11 +94,11 @@ impl<SWHIDMPHF: SwhidMphf + Sync, R: ExportTableReader> PropertyWriter<'_, SWHID
             .unwrap()
     }
 
-    fn set_atomic<Value: Atomic>(
+    fn set_atomic<Value: PrimitiveAtomicInteger>(
         &self,
         vector: &[Value],
         swhid: &str,
-        value: Value::NonAtomicType,
+        value: Value::Value,
     ) {
         vector
             .get(self.node_id(swhid))
@@ -122,9 +122,13 @@ impl<SWHIDMPHF: SwhidMphf + Sync, R: ExportTableReader> PropertyWriter<'_, SWHID
         Ok(())
     }
 
-    fn write_atomic<Value: Atomic>(&self, suffix: &str, values: Vec<Value>) -> Result<()>
+    fn write_atomic<Value: PrimitiveAtomicInteger>(
+        &self,
+        suffix: &str,
+        values: Vec<Value>,
+    ) -> Result<()>
     where
-        <Value as Atomic>::NonAtomicType: bytemuck::Pod,
+        Value::Value: bytemuck::Pod,
     {
         // In release mode, this is compiled into a no-op
         let values: Vec<_> = values.into_iter().map(Value::into_inner).collect();
@@ -264,7 +268,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync, R: ExportTableReader> PropertyWriter<'_, SWHID
         }
 
         log::info!("Initializing...");
-        let is_skipped = sux::bits::bit_vec::AtomicBitVec::new(self.num_nodes);
+        let is_skipped: sux::bits::bit_vec::AtomicBitVec =
+            sux::bits::bit_vec::AtomicBitVec::new(self.num_nodes);
 
         log::info!("Reading...");
         self.par_for_each_row("skipped_content", |cnt: SkippedContent| {

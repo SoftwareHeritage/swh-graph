@@ -367,6 +367,19 @@ def reindex(ctx, force: bool, ef: bool, graph: str):
         with open(f"{graph}.nodes.count.txt", "rt") as f:
             node_count = f.read().strip()
 
+        for labels_path in (
+            f"{graph}-labelled.labeloffsets",
+            f"{graph}-transposed-labelled.labeloffsets",
+        ):
+            labels_len = os.stat(labels_path).st_size
+            if labels_len % 4 != 0:
+                logger.info(
+                    "Padding %s with zeros so its length is a multiple of 4 bytes",
+                    labels_path,
+                )
+                with open(labels_path, "ab") as f:
+                    f.write(b"\0" * (4 - (labels_len % 4)))
+
         # ditto
         logger.info("Recreating Elias-Fano indexes on arc labels")
         Rust(

@@ -3,18 +3,14 @@
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
 
-use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
-use itertools::Itertools;
 use lender::{IntoIteratorExt, IntoLender, Lender};
 use rayon::prelude::*;
-use webgraph::graphs::arc_list_graph::ArcListGraph;
 use webgraph::prelude::*;
-use webgraph::utils::ParSortPairs;
 
 /// Writes a new graph on disk, obtained by applying the function to all arcs
 /// on the source graph.
@@ -31,23 +27,20 @@ where
     for<'a> <<G as SplitLabeling>::IntoIterator<'a> as IntoIterator>::IntoIter: Send + Sync,
     for<'a, 'b> <<<G as SplitLabeling>::SplitLender<'a> as NodeLabelsLender<'b>>::IntoIterator as IntoIterator>::IntoIter: Send + Sync,
 {
-    // Adapted from https://github.com/vigna/webgraph-rs/blob/08969fb1ac4ea59aafdbae976af8e026a99c9ac5/src/bin/perm.rs
     let num_nodes = graph.num_nodes();
 
-    let temp_dir = tempfile::tempdir().context("Could not create temporary directory")?;
-
     let num_threads = num_cpus::get();
-    let num_partitions = num_threads * partitions_per_thread;
-    let nodes_per_partition = num_nodes.div_ceil(num_partitions);
+    let num_lenders = num_threads * partitions_per_thread;
+    let nodes_per_partition = num_nodes.div_ceil(num_lenders);
 
     // Avoid empty partitions at the end when there are very few nodes
-    let num_partitions = num_nodes.div_ceil(nodes_per_partition);
+    let num_lenders = num_nodes.div_ceil(nodes_per_partition);
 
     log::info!(
         "Transforming {} nodes with {} threads, {} partitions, {} nodes per partition",
         num_nodes,
         num_threads,
-        num_partitions,
+        num_lenders,
         nodes_per_partition,
     );
 
@@ -59,16 +52,15 @@ where
     );
     pl.start("Reading and sorting...");
 
-    // Merge sorted arc lists into a single sorted arc list
-    let pair_sorter =
-        ParSortPairs::new(num_nodes)?.num_partitions(NonZeroUsize::new(num_partitions).unwrap());
     let transformation = &transformation;
-    let sorted_arcs = {
+    let sorted_graph = {
         let pl = pl.clone();
-        pair_sorter
-            .sort(
+        ParSortedGraph::config()
+            .num_lenders(num_lenders)
+            .par_sort_pairs(
+                num_nodes,
                 graph
-                    .split_iter(num_partitions)
+                    .split_iter(num_lenders)
                     .into_iter()
                     .collect::<Vec<_>>()
                     .into_par_iter()
@@ -95,23 +87,9 @@ where
     };
     pl.done();
 
-    let arc_list_graphs = Vec::from(sorted_arcs.iters).into_iter().enumerate().map(
-        |(partition_id, sorted_arcs_partition)| {
-            ArcListGraph::new(num_nodes, sorted_arcs_partition.into_iter().dedup())
-                .iter_from(sorted_arcs.boundaries[partition_id])
-                .take(
-                    sorted_arcs.boundaries[partition_id + 1]
-                        .checked_sub(sorted_arcs.boundaries[partition_id])
-                        .expect("sorted_arcs.boundaries is not sorted"),
-                )
-        },
-    );
-
     BvComp::with_basename(target_path)
-        .par_comp_lenders::<BE, _>(arc_list_graphs, num_nodes)
+        .par_comp::<BE, _>(sorted_graph)
         .context("Could not build BVGraph from arcs")?;
-
-    drop(temp_dir); // Prevent early deletion
 
     Ok(())
 }

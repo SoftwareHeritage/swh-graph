@@ -218,7 +218,7 @@ impl GraphBuilder {
     #[allow(clippy::type_complexity)]
     pub fn done(&self) -> Result<BuiltGraph> {
         let num_nodes = self.swhids.len();
-        let mut seen = sux::prelude::BitVec::new(num_nodes);
+        let mut seen: sux::prelude::BitVec = sux::prelude::BitVec::new(num_nodes);
         for ((src, dst), _) in self.arcs.iter() {
             seen.set(*src, true);
             seen.set(*dst, true);

@@ -1198,13 +1198,17 @@ fn zip_labels<G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
         Some(width) => width,
     };
 
-    let labels = crate::labeling::mmap(&base_path, crate::labeling::SwhDeserializer::new(width))
-        .with_context(|| {
-            format!(
-                "Could not load labeling from {}",
-                base_path.as_ref().display()
-            )
-        })?;
+    let labels = crate::labeling::mmap(
+        &base_path,
+        UnderlyingGraph::num_arcs(&graph),
+        crate::labeling::SwhDeserializer::new(width),
+    )
+    .with_context(|| {
+        format!(
+            "Could not load labeling from {}",
+            base_path.as_ref().display()
+        )
+    })?;
 
     Ok(Zip(graph, labels))
 }

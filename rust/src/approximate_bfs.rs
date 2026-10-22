@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -30,10 +30,10 @@ pub fn almost_bfs_order<G: RandomAccessGraph + Send + Sync>(
 ) -> OwnedPermutation<Vec<NodeId>> {
     let num_nodes = graph.num_nodes();
 
-    let visited = AtomicBitVec::new(num_nodes);
+    let visited: AtomicBitVec = AtomicBitVec::new(num_nodes);
 
     let visit_from_root_node =
-        |thread_order: &mut BitFieldVec<NodeId>, root_node| -> Option<usize> {
+        |thread_order: &mut BitFieldVec<Vec<NodeId>>, root_node| -> Option<usize> {
             if visited.get(root_node, Ordering::Relaxed) {
                 // Skip VecDeque allocation
                 return None;
