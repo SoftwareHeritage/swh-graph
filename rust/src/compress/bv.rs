@@ -72,6 +72,7 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync, R: ExportTableReader>(
 
     let sorted_graph = ParSortedGraph::config()
         .num_lenders(num_lenders)
+        .dedup()
         .par_sort_try_pairs(
             num_nodes,
             iter_arcs::<R>(&dataset_dir, allowed_node_types)
@@ -134,6 +135,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync, R: ExportTableReader>(
 
     let sorted_arcs = ParSortedLabeledGraphConf::default()
         .num_lenders(num_lenders)
+        // no .dedup() here, we need to keep all the labels on each arc.
         .par_sort_try_pairs(
             num_nodes,
             LabelSerDeser { label_width },
