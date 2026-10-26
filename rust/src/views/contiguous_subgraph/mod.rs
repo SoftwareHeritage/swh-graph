@@ -52,7 +52,10 @@ impl<B> ContractionBackend for B where
 pub unsafe trait MonotoneContractionBackend: ContractionBackend {}
 
 // SAFETY: EliasFano is monotone by definition
-unsafe impl<H, L> MonotoneContractionBackend for EliasFano<H, L> where Self: ContractionBackend {}
+unsafe impl<H, L> MonotoneContractionBackend for EliasFano<usize, H, L> where
+    Self: ContractionBackend
+{
+}
 
 unsafe impl<N: MonotoneContractionBackend> MonotoneContractionBackend for &N {}
 
