@@ -50,8 +50,6 @@ def test_compressgraph(tmpdir, workers):
         DATASET_DIR,
         "--CompressGraph-local-graph-path",
         tmpdir / "compressed_graph",
-        "--CompressGraph-rust-executable-dir",
-        "./target/debug/",
         f"--workers={workers}",
     ]
 
@@ -126,8 +124,6 @@ def test_compressgraph_sensitive(tmpdir):
         tmpdir / "compressed_graph",
         "--CompressGraph-local-sensitive-graph-path",
         tmpdir / "compressed_graph_sensitive",
-        "--CompressGraph-rust-executable-dir",
-        "./target/debug/",
         "--LocalExport-export-task-type",
         "ExportGraph",
     ]
@@ -200,8 +196,6 @@ def test_compressgraph_partial(tmpdir, workers, object_types):
         "--CompressGraph-local-graph-path",
         tmpdir / "compressed_graph",
         f"--CompressGraph-object-types={object_types}",
-        "--CompressGraph-rust-executable-dir",
-        "./target/debug/",
         f"--workers={workers}",
     ]
 
@@ -331,8 +325,6 @@ def test_compressgraph_from_previous_graph(tmpdir, previous_graph):
         DATASET_DIR,
         "--CompressGraph-local-graph-path",
         tmpdir / "compressed_graph",
-        "--CompressGraph-rust-executable-dir",
-        "./target/debug/",
         "--CompressGraph-previous-graph-path",
         f"{previous_graph_dir}",
         f"--workers={workers}",

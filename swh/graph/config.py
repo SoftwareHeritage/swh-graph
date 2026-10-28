@@ -54,6 +54,14 @@ def check_config(
             # directory relative to the actual python file.
             path = Path(__file__).resolve()
             base_rust_executable_dir = path.parent.parent.parent / "target"
+
+            if not base_rust_executable_dir.exists():
+                # in non-editable installs, such as when running with
+                # 'tox --installpkg', __file__ is the installed location, so we cannot
+                # find where the source directory is that way.
+                # Fall back to assuming the source is the CWD, so it at least works
+                # in 'tox --installpkg'.
+                base_rust_executable_dir = Path(".") / "target"
         conf["rust_executable_dir"] = str(base_rust_executable_dir / conf["profile"])
     if not conf["rust_executable_dir"].endswith("/"):
         conf["rust_executable_dir"] += "/"

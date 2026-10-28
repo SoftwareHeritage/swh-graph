@@ -41,7 +41,6 @@ def test_pipeline(cli_runner, tmp_path):
         "graph": {
             "compress": {
                 "batch_size": 1000,
-                "rust_executable_dir": "./target/debug/",
                 "check_flavor": "example",
             }
         },
@@ -77,13 +76,7 @@ def test_pipeline(cli_runner, tmp_path):
 
 @pytest.mark.parametrize("option", ["none", "--ef", "--force"])
 def test_reindex(cli_runner, mocker, tmp_path, option):
-    config = {
-        "graph": {
-            "compress": {
-                "rust_executable_dir": "./target/debug/",
-            }
-        }
-    }
+    config = {"graph": {"compress": {}}}
 
     trailing = []
     if option != "none":
