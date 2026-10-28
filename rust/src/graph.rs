@@ -495,6 +495,11 @@ impl<P> SwhGraph for SwhNullidirectionalGraph<P> {
         self.basepath.as_path()
     }
 
+    fn direction(&self) -> GraphDirection {
+        // either direction is correct
+        GraphDirection::Direct
+    }
+
     fn is_transposed(&self) -> bool {
         false
     }
