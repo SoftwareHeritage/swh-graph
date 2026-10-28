@@ -5,7 +5,7 @@
  * See top-level LICENSE file for more information
  */
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{bail, ensure, Context, Result};
@@ -14,14 +14,19 @@ use dsi_bitstream::prelude::BE;
 use dsi_progress_logger::{concurrent_progress_logger, ProgressLog};
 use rayon::prelude::*;
 
+use dsi_progress_logger::prelude::*;
 use swh_graph::cli::{load_mph, MphAlgorithm};
 use swh_graph::utils::{suffix_path, AtomicFile};
+use webgraph::prelude::{
+    EF_EXTENSION, GRAPH_EXTENSION, LABELS_EXTENSION, OFFSETS_EXTENSION, PROPERTIES_EXTENSION,
+};
+use webgraph_cli::GranularityArgs;
 
 #[derive(Parser, Debug)]
 #[command(about = "Commands to (re)generate `.ef` and `.offsets` files, allowing random access to BVGraph", long_about = None)]
 struct Args {
     #[clap(flatten)]
-    webgraph_args: webgraph_cli::GlobalArgs,
+    log_interval_arg: webgraph_cli::LogIntervalArg,
     #[command(subcommand)]
     command: Commands,
 }
@@ -91,17 +96,26 @@ pub fn main() -> Result<()> {
     match args.command {
         Commands::Offsets { graph } => {
             use webgraph_cli::build::offsets::{build_offsets, CliArgs};
-            build_offsets::<BE>(args.webgraph_args, CliArgs { basename: graph })?;
+            build_offsets::<BE>(CliArgs {
+                basename: graph,
+                log_interval: args.log_interval_arg,
+            })?;
         }
 
         Commands::Ef { base_path } => {
-            use webgraph_cli::build::ef::{build_elias_fano, CliArgs};
-            build_elias_fano::<BE>(
-                args.webgraph_args,
-                CliArgs {
-                    basename: base_path,
-                    number_of_nodes: None,
-                },
+            let num_nodes = read_num_nodes(&base_path)?;
+            let mut pl = progress_logger![
+                display_memory = true,
+                item_name = "node",
+                log_interval = args.log_interval_arg.log_interval
+            ];
+
+            webgraph::graphs::bvgraph::store_ef_with_data(
+                num_nodes,
+                base_path.with_extension(GRAPH_EXTENSION),
+                base_path.with_extension(OFFSETS_EXTENSION),
+                base_path.with_extension(EF_EXTENSION),
+                &mut pl,
             )?;
         }
 
@@ -109,8 +123,6 @@ pub fn main() -> Result<()> {
             base_path,
             num_nodes,
         } => {
-            use webgraph_cli::build::ef::{build_elias_fano, CliArgs};
-
             // webgraph shows a very obscure error when it happens (failed `.unwrap()`
             // when reading `nodes=` property on the `.properties` file),
             // so we should catch it here.
@@ -121,23 +133,36 @@ pub fn main() -> Result<()> {
                 offsets_path.display()
             );
 
-            build_elias_fano::<BE>(
-                args.webgraph_args,
-                CliArgs {
-                    basename: base_path,
-                    number_of_nodes: Some(num_nodes),
-                },
+            let mut pl = progress_logger![
+                display_memory = true,
+                item_name = "node",
+                log_interval = args.log_interval_arg.log_interval
+            ];
+
+            webgraph::graphs::bvgraph::store_ef_with_data(
+                num_nodes,
+                base_path.with_extension(LABELS_EXTENSION),
+                offsets_path,
+                suffix_path(&base_path, ".ef"),
+                &mut pl,
             )?;
         }
 
+        // TODO: proper argument passing
         Commands::Dcf { base_path } => {
-            use webgraph_cli::build::dcf::{build_dcf, CliArgs};
-            build_dcf::<BE>(
-                args.webgraph_args,
-                CliArgs {
-                    basename: base_path,
+            use webgraph_cli::build::dcf::{build_dcf_par, CliArgs};
+            build_dcf_par::<BE>(CliArgs {
+                basename: base_path,
+                sequential: false,
+                num_threads: webgraph_cli::NumThreadsArg {
+                    num_threads: rayon::current_num_threads(),
                 },
-            )?;
+                granularity: GranularityArgs {
+                    node_granularity: Some(1000),
+                    arc_granularity: None,
+                },
+                log_interval: args.log_interval_arg,
+            })?;
         }
 
         Commands::FullnamesEf {
@@ -295,4 +320,16 @@ pub fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn read_num_nodes(base_path: &Path) -> Result<usize> {
+    let properties_path = base_path.with_extension(PROPERTIES_EXTENSION);
+    let f = std::fs::File::open(&properties_path)
+        .with_context(|| format!("Could not open {}", properties_path.display()))?;
+    let map = java_properties::read(std::io::BufReader::new(f))
+        .with_context(|| format!("Could not parse {}", properties_path.display()))?;
+    map.get("nodes")
+        .with_context(|| format!("Missing 'nodes' in {}", properties_path.display()))?
+        .parse::<usize>()
+        .with_context(|| format!("Cannot parse 'nodes' in {}", properties_path.display()))
 }

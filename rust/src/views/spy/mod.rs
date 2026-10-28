@@ -60,6 +60,7 @@ pub enum PropertyAccess {
 pub enum GraphAccessRecord {
     // SwhGraph
     Path,
+    Direction,
     IsTransposed,
     NumNodes,
     HasNode(NodeId),
@@ -178,6 +179,10 @@ where
         self.record(GraphAccessRecord::Path);
         self.inner.graph.path()
     }
+    fn direction(&self) -> GraphDirection {
+        self.record(GraphAccessRecord::Direction);
+        self.inner.graph.direction()
+    }
     fn is_transposed(&self) -> bool {
         self.record(GraphAccessRecord::IsTransposed);
         self.inner.graph.is_transposed()
@@ -262,7 +267,7 @@ where
     fn labeled_successors(
         &self,
         node_id: NodeId,
-    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         self.record(GraphAccessRecord::LabeledSuccessors(node_id));
@@ -323,7 +328,7 @@ where
     fn labeled_predecessors(
         &self,
         node_id: NodeId,
-    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
            + '_ {
         self.record(GraphAccessRecord::LabeledPredecessors(node_id));

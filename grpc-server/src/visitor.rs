@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -75,6 +75,7 @@ impl<
 
     /// Add a node to the list of nodes to visit
     pub fn push(&mut self, node: usize) {
+        self.mark_seen(node);
         self.queue.push_back(node)
     }
     /// Remove a node from the list of nodes to visit and return it
@@ -173,7 +174,6 @@ impl<
             VisitFlow::Stop => return Ok(VisitFlow::Stop),
         }
         if !self.was_seen(dst) {
-            self.mark_seen(dst);
             self.push(dst);
         }
         Ok(VisitFlow::Continue)

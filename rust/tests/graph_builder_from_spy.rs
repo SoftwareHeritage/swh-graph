@@ -74,6 +74,7 @@ fn test_build_graph_from_spy() -> Result<()> {
     assert_eq!(
         rebuilt
             .labeled_successors(0)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.into_iter().collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         vec![
@@ -210,6 +211,7 @@ fn test_build_graph_from_spy_omit_unused_nodes() -> Result<()> {
     assert_eq!(
         rebuilt
             .labeled_successors(0)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.into_iter().collect::<Vec<_>>()))
             .collect::<Vec<_>>(),
         vec![(

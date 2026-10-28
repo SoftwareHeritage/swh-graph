@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -8,15 +8,15 @@ use anyhow::{Context, Result};
 use log::info;
 use mmap_rs::{Mmap, MmapFlags, MmapMut};
 use std::path::Path;
-use sux::bits::BitFieldVec;
+use sux::{bits::BitFieldVec, traits::Backend};
 use value_traits::slices::{SliceByValue, SliceByValueMut};
 
 /// Struct to create and load a `.node2type.bin` file and convert node ids to types.
-pub struct Node2Type<B> {
-    data: BitFieldVec<usize, B>,
+pub struct Node2Type<B: Backend> {
+    data: BitFieldVec<B>,
 }
 
-impl<B: AsRef<[usize]>> Node2Type<B> {
+impl<B: Backend<Word = usize> + AsRef<[usize]>> Node2Type<B> {
     #[inline]
     /// Get the type of a node with id `node_id` without bounds checking
     ///
@@ -37,7 +37,7 @@ impl<B: AsRef<[usize]>> Node2Type<B> {
     }
 }
 
-impl<B: AsRef<[usize]> + AsMut<[usize]>> Node2Type<B> {
+impl<B: Backend<Word = usize> + AsRef<[usize]> + AsMut<[usize]>> Node2Type<B> {
     #[inline]
     /// Get the type of a node with id `node_id` without bounds checking
     ///
@@ -59,6 +59,10 @@ impl<B: AsRef<[usize]> + AsMut<[usize]>> Node2Type<B> {
 ///
 /// instead of slices of u8, so it can be used as backend for [`BitFieldVec`].
 pub struct UsizeMmap<B>(B);
+
+impl<B> Backend for UsizeMmap<B> {
+    type Word = usize;
+}
 
 impl<B: AsRef<[u8]>> AsRef<[usize]> for UsizeMmap<B> {
     fn as_ref(&self) -> &[usize] {

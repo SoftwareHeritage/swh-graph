@@ -80,7 +80,7 @@ impl<G: SwhForwardGraph> SequentialLabeling for WebgraphAdapter<G> {
     }
 
     #[inline(always)]
-    fn num_arcs_hint(&self) -> Option<u64> {
+    fn get_num_arcs(&self) -> Option<u64> {
         Some(SwhGraph::num_arcs(&self.0))
     }
 
@@ -181,7 +181,7 @@ where
     }
 
     #[inline(always)]
-    fn num_arcs_hint(&self) -> Option<u64> {
+    fn get_num_arcs(&self) -> Option<u64> {
         Some(SwhGraph::num_arcs(&self.0) * 2)
     }
 
@@ -221,8 +221,8 @@ where
     #[inline(always)]
     fn labels(&self, node_id: NodeId) -> Self::Labels<'_> {
         webgraph::graphs::union_graph::Succ::new(
-            Some(<G as SwhForwardGraph>::successors(&self.0, node_id).into_iter()),
-            Some(<G as SwhBackwardGraph>::predecessors(&self.0, node_id).into_iter()),
+            Some(self.0.successors(node_id).into_iter()),
+            Some(self.0.predecessors(node_id).into_iter()),
         )
     }
 }

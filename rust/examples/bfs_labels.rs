@@ -1,4 +1,4 @@
-// Copyright (C) 2023  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -52,7 +52,7 @@ pub fn main() -> Result<()> {
 
     // Setup a queue and a visited bitmap for the visit
     let num_nodes = graph.num_nodes();
-    let mut visited = BitVec::new(num_nodes);
+    let mut visited = <BitVec>::new(num_nodes);
     let mut queue: VecDeque<usize> = VecDeque::new();
     assert!(node_id < num_nodes);
     queue.push_back(node_id);

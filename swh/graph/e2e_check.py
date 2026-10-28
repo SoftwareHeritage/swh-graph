@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 import socket
 import time
-from typing import Literal
+from typing import Any, Literal
 
 import attr
 from google.protobuf.field_mask_pb2 import FieldMask
@@ -32,12 +32,14 @@ e2e_logger = logging.getLogger(__name__)
 
 def run_e2e_check(
     graph_name: str,
-    in_dir: str | None,
-    out_dir: str | None,
-    sensitive_in_dir: str | None,
-    sensitive_out_dir: str | None,
+    in_dir: Path | None,
+    out_dir: Path | None,
+    sensitive_in_dir: Path | None,
+    sensitive_out_dir: Path | None,
     check_flavor: Literal["full", "history_hosting", "staging", "example", "none"],
     profile: Literal["release", "debug"] = "release",
+    base_rust_executable_dir: Path | None = None,
+    rust_executable_dir: Path | None = None,
     logger: logging.Logger | None = None,
 ):
     """Empirically check the graph compression correctness.
@@ -62,6 +64,11 @@ def run_e2e_check(
             - "none": for preventing to run the checks altogether
 
         profile: Which Rust executables to use.
+        base_rust_executable_dir: path to the directory that contains the local project's
+            Rust build artifact, ie. :file:`target/`.
+            Used to build the default ``rust_executable_dir`` by concatenating ``profile`` to
+            it, eg. :file:`target/debug/`
+        rust_executable_dir: where to find Rust executables
 
     Raises:
         Exception: GRPC server unexpectedly stopped.
@@ -69,14 +76,19 @@ def run_e2e_check(
     if logger is None:
         logger = e2e_logger
 
+    conf: dict[str, Any] = {"profile": profile}
+    if rust_executable_dir is not None:
+        conf["rust_executable_dir"] = rust_executable_dir
+
     conf = check_config_compress(
-        {"profile": profile},
+        conf,
         graph_name,
         in_dir,
         out_dir,
         sensitive_in_dir,
         sensitive_out_dir,
         check_flavor,
+        base_rust_executable_dir=base_rust_executable_dir,
     )
 
     graph_name = conf["graph_name"]
@@ -153,14 +165,14 @@ def run_e2e_check(
             "swh:1:dir:b711bde9af241d46fdf7fc63924eecef717a16ec",
             "swh:1:cnt:85c632f7eb1d1861911c735077699c29840ff728",
         ],
-        "https://github.com/neovim/neovim": [
-            "swh:1:rev:d82168e41c21a3a107e52c139abc90dbe41f2010",
-            "swh:1:rev:046340303076c3680cf767f01c6748d9dd5c8fa5",
-            "swh:1:rev:7db9992445a69df16eb12d349d49ab8968e9a505",
-            "swh:1:rev:64c2c7c40da4bafb6f74076b7ffbffb262246c7a",
-            "swh:1:rev:788bc12a6f4c5a4627cbc75a2f539bfc622384a2",
-            "swh:1:dir:234c61bf6e96643c59a33586039c82b492ca86af",
-            "swh:1:cnt:8feb7918886d54844bf9234a314f28675b9a76fc",
+        "https://github.com/vim/vim": [
+            "swh:1:rev:16abd997c99b1a40fb0ba54889ce0cf44d7585b4",
+            "swh:1:rev:7c2beb48ef46cf5f1ed7e8512ef5a7c9099e5ae4",
+            "swh:1:rev:416bd916b4cc4502eb734218f406e4edd8dd199c",
+            "swh:1:rev:80adaa8ae8398403ca4e9797219ea9a501fc76a5",
+            "swh:1:rev:bf5f189e449d6517239b79804d7a422a46946838",
+            "swh:1:dir:79a524757e4c2b44bd2e5e343d2a4e8db24aa7e2",
+            "swh:1:cnt:ce3ed73bc7b86b9d545e8e9d74a199b6eba1477d",
         ],
         "https://gitlab.softwareheritage.org/swh/devel/swh-graph": [
             "swh:1:rev:985dcf705e03fde55285ca8aaff2488f43e9a55f",
@@ -185,9 +197,7 @@ def run_e2e_check(
         "https://github.com/home-assistant/core": (
             "ZGVwZW5kYWJvdFtib3RdIDw0OTY5OTMzMytkZXBlbmRhYm90W2JvdF1AdXNlcnMubm9yZXBseS5naXRodWIuY29tPg=="
         ),
-        "https://github.com/neovim/neovim": (
-            "ZGVwZW5kYWJvdFtib3RdIDw0OTY5OTMzMytkZXBlbmRhYm90W2JvdF1AdXNlcnMubm9yZXBseS5naXRodWIuY29tPg=="
-        ),
+        "https://github.com/vim/vim": "QnJhbSBNb29sZW5hYXIgPEJyYW1AdmltLm9yZz4=",
         "https://gitlab.softwareheritage.org/swh/devel/swh-graph": (
             "VmFsZW50aW4gTG9yZW50eiA8dmxvcmVudHpAc29mdHdhcmVoZXJpdGFnZS5vcmc+"
         ),
@@ -209,7 +219,7 @@ def run_e2e_check(
         for origin in [
             "https://github.com/pallets/flask",
             "https://github.com/home-assistant/core",
-            "https://github.com/neovim/neovim",
+            "https://github.com/vim/vim",
             "https://gitlab.softwareheritage.org/swh/devel/swh-graph",
         ]:
             projects.pop(origin)

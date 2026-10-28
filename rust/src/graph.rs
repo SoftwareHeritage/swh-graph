@@ -150,13 +150,51 @@ impl<L: Clone> UnderlyingGraph for LabeledVecGraph<L> {
     }
 }
 
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
+pub enum GraphDirection {
+    Direct,
+    Transposed,
+    Symmetric,
+}
+
+impl GraphDirection {
+    /// Returns Ok(false) if direct, Ok(true) if transposed, Err(_) if symmetric
+    pub fn is_transposed(&self) -> Result<bool> {
+        match self {
+            GraphDirection::Direct => Ok(false),
+            GraphDirection::Transposed => Ok(true),
+            GraphDirection::Symmetric => {
+                bail!("Cannot call labeled_successors() on a symmetric graph")
+            }
+        }
+    }
+
+    pub fn reverse(&self) -> GraphDirection {
+        match self {
+            GraphDirection::Direct => GraphDirection::Transposed,
+            GraphDirection::Transposed => GraphDirection::Direct,
+            GraphDirection::Symmetric => GraphDirection::Symmetric,
+        }
+    }
+}
+
 pub trait SwhGraph {
     /// Return the base path of the graph
     fn path(&self) -> &Path;
 
+    fn direction(&self) -> GraphDirection;
+
     /// Returns whether the graph is in the `ori->snp->rel,rev->dir->cnt` direction
     /// (with a few `dir->rev` arcs)
-    fn is_transposed(&self) -> bool;
+    fn is_transposed(&self) -> bool {
+        match self.direction() {
+            GraphDirection::Direct => false,
+            GraphDirection::Transposed => true,
+            GraphDirection::Symmetric => {
+                panic!("SwhGraph::is_transposed() called on a symmetric graph")
+            }
+        }
+    }
 
     /// Return the largest node id in the graph plus one.
     ///
@@ -300,19 +338,15 @@ pub trait SwhLabeledForwardGraph:
 
     /// Return an [`IntoIterator`] over the successors of a node along with a list of labels
     /// of each arc
+    ///
+    /// No default implementation based on [`Self::untyped_labeled_successors`] is provided,
+    /// as views over a graph should delegate this to the underlying graph instead.
     fn labeled_successors(
         &self,
         node_id: NodeId,
-    ) -> impl Iterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
-           + '_ {
-        LabelTypingSuccessorIterator {
-            graph: self,
-            is_transposed: self.is_transposed(),
-            src: node_id,
-            successors: self.untyped_labeled_successors(node_id).into_iter(),
-        }
-    }
+           + '_;
 }
 
 #[diagnostic::on_unimplemented(
@@ -352,19 +386,15 @@ pub trait SwhLabeledBackwardGraph:
 
     /// Return an [`IntoIterator`] over the predecessors of a node along with a list of labels
     /// of each arc
+    ///
+    /// No default implementation based on [`Self::untyped_labeled_predecessors`] is provided,
+    /// as views over a graph should delegate this to the underlying graph instead.
     fn labeled_predecessors(
         &self,
         node_id: NodeId,
-    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = crate::labels::EdgeLabel>)>
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
            + IntoFlattenedLabeledArcsIterator<EdgeLabel>
-           + '_ {
-        LabelTypingSuccessorIterator {
-            graph: self,
-            is_transposed: !self.is_transposed(),
-            src: node_id,
-            successors: self.untyped_labeled_predecessors(node_id).into_iter(),
-        }
-    }
+           + '_;
 }
 
 pub trait SwhGraphWithProperties: SwhGraph {
@@ -457,13 +487,13 @@ impl<P, G: UnderlyingGraph> SwhGraph for SwhUnidirectionalGraph<P, G> {
         self.basepath.as_path()
     }
 
-    fn is_transposed(&self) -> bool {
+    fn direction(&self) -> GraphDirection {
         // Technically, users can load the 'graph-transposed' directly.
         // However, unless they rename files, this will fail to load properties, because
         // properties' file names wouldn't match the base path.
-        // As 'is_transposed' is only useful when checking node types (of an arc),
+        // As 'direction()' is only useful when checking node types (of an arc),
         // this function is unlikely to be called in that scenario, so this should be fine.
-        false
+        GraphDirection::Direct
     }
 
     #[inline(always)]
@@ -517,6 +547,20 @@ where
     fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
         LabeledSuccessorIterator {
             successors: self.graph.labels(node_id),
+        }
+    }
+
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        LabelTypingSuccessorIterator {
+            graph: self,
+            is_transposed: self.is_transposed(),
+            src: node_id,
+            successors: self.untyped_labeled_successors(node_id),
         }
     }
 }
@@ -722,13 +766,13 @@ impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhGraph for SwhBidirectionalG
         self.basepath.as_path()
     }
 
-    fn is_transposed(&self) -> bool {
+    fn direction(&self) -> GraphDirection {
         // Technically, users can load the 'graph-transposed' directly.
         // However, unless they rename files, this will fail to load properties, because
         // properties' file names wouldn't match the base path.
         // As 'is_transposed' is only useful when checking node types (of an arc),
         // this function is unlikely to be called in that scenario, so this should be fine.
-        false
+        GraphDirection::Direct
     }
 
     #[inline(always)]
@@ -784,6 +828,19 @@ where
             successors: self.forward_graph.labels(node_id),
         }
     }
+    fn labeled_successors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        LabelTypingSuccessorIterator {
+            graph: self,
+            is_transposed: false,
+            src: node_id,
+            successors: self.untyped_labeled_successors(node_id),
+        }
+    }
 }
 
 impl<P, FG: UnderlyingGraph, BG: UnderlyingGraph> SwhBackwardGraph
@@ -822,6 +879,20 @@ where
     fn untyped_labeled_predecessors(&self, node_id: NodeId) -> Self::LabeledPredecessors<'_> {
         LabeledSuccessorIterator {
             successors: self.backward_graph.labels(node_id),
+        }
+    }
+
+    fn labeled_predecessors(
+        &self,
+        node_id: NodeId,
+    ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+           + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+           + '_ {
+        LabelTypingSuccessorIterator {
+            graph: self,
+            is_transposed: true,
+            src: node_id,
+            successors: self.untyped_labeled_predecessors(node_id),
         }
     }
 }
@@ -1127,13 +1198,17 @@ fn zip_labels<G: RandomAccessGraph + UnderlyingGraph, P: AsRef<Path>>(
         Some(width) => width,
     };
 
-    let labels = crate::labeling::mmap(&base_path, crate::labeling::SwhDeserializer::new(width))
-        .with_context(|| {
-            format!(
-                "Could not load labeling from {}",
-                base_path.as_ref().display()
-            )
-        })?;
+    let labels = crate::labeling::mmap(
+        &base_path,
+        UnderlyingGraph::num_arcs(&graph),
+        crate::labeling::SwhDeserializer::new(width),
+    )
+    .with_context(|| {
+        format!(
+            "Could not load labeling from {}",
+            base_path.as_ref().display()
+        )
+    })?;
 
     Ok(Zip(graph, labels))
 }

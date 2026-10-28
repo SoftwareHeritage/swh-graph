@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2023  The Software Heritage developers
+# Copyright (C) 2022-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -151,3 +151,44 @@ def test_max_depth(graph_grpc_stub):
     )
     # should count rel:19 -> rev:18
     assert traversal_request.count == 1
+
+
+def test_bidirectional(graph_grpc_stub):
+    traversal_request = graph_grpc_stub.CountEdges(
+        TraversalRequest(
+            src=["swh:1:rev:0000000000000000000000000000000000000009"],
+            direction=GraphDirection.BOTH,
+        )
+    )
+    assert traversal_request.count == 28 * 2  # every edge seen twice
+
+
+def test_bidirectional_filter_edges(graph_grpc_stub):
+    traversal_request = graph_grpc_stub.CountEdges(
+        TraversalRequest(
+            src=["swh:1:rev:0000000000000000000000000000000000000009"],
+            direction=GraphDirection.BOTH,
+            edges="rev:rev",
+        )
+    )
+    assert traversal_request.count == 3 * 2  # every rev:rev seen twice
+
+    traversal_request = graph_grpc_stub.CountEdges(
+        TraversalRequest(
+            src=["swh:1:rev:0000000000000000000000000000000000000009"],
+            direction=GraphDirection.BOTH,
+            edges="rev:rev,rev:rel",
+        )
+    )
+    assert (
+        traversal_request.count == 3 * 2 + 3 * 1
+    )  # every rev:rev twice, every rev:rel once
+
+    traversal_request = graph_grpc_stub.CountEdges(
+        TraversalRequest(
+            src=["swh:1:rev:0000000000000000000000000000000000000009"],
+            direction=GraphDirection.BOTH,
+            edges="rev:rev,rev:rel,rel:rev",
+        )
+    )
+    assert traversal_request.count == 3 * 2 + 3 * 2  # every rev:rev or rev:rel twice

@@ -31,7 +31,7 @@ impl<T: AsRef<[u8]>> Hash for LabelName<T> {
     }
 }
 
-pub type LabelNameMphf = VFunc<[u8], usize, BitFieldVec<usize>>;
+pub type LabelNameMphf = VFunc<[u8], BitFieldVec<Box<[usize]>>>;
 
 fn iter_labels(path: &Path) -> Result<impl Iterator<Item = Result<Box<[u8]>, VFuncError>>> {
     let base64 = base64_simd::STANDARD;
@@ -65,14 +65,13 @@ pub fn build_mphf(path: PathBuf, num_labels: usize) -> Result<LabelNameMphf> {
         expected_updates = Some(num_labels),
     );
     pl.start("Building VFunc");
-    let mphf = VBuilder::<_, BitFieldVec<_>>::default()
-        .expected_num_keys(num_labels)
-        .try_build_func(
-            FromIntoFallibleLenderFactory::new(iter_labels)?,
-            FromCloneableIntoIterator::new(0..num_labels),
-            &mut pl,
-        )
-        .context("Could not build VFunc")?;
+    let mphf = VFunc::<_, BitFieldVec<Box<[_]>>, _>::try_new_with_builder(
+        FromIntoFallibleLenderFactory::new(iter_labels)?,
+        FromCloneableIntoIterator::new(0..num_labels),
+        VBuilder::<BitFieldVec<_>>::default().expected_num_keys(num_labels),
+        &mut pl,
+    )
+    .context("Could not build VFunc")?;
 
     let len = mphf.len();
     ensure!(

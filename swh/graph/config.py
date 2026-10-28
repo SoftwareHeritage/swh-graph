@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2025  The Software Heritage developers
+# Copyright (C) 2019-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -64,19 +64,39 @@ def check_config(
     return conf
 
 
+def _guess_export_format(in_dir: Path) -> str:
+    """Guess the export format of a dataset directory from its file extensions."""
+    formats = set()
+    for subdir in in_dir.glob("*"):
+        if not subdir.is_dir():
+            continue
+        if next(subdir.glob("*.parquet"), None) is not None:
+            formats.add("parquet")
+        if next(subdir.glob("*.orc"), None) is not None:
+            formats.add("orc")
+    if len(formats) == 1:
+        return formats.pop()
+    if len(formats) > 1:
+        raise ValueError(
+            f"Ambiguous export format of dataset in {in_dir}: {sorted(formats)}"
+        )
+    raise ValueError(f"Could not detect export format of dataset in {in_dir}")
+
+
 def check_config_compress(
-    config,
-    graph_name,
-    in_dir,
-    out_dir,
-    sensitive_in_dir,
-    sensitive_out_dir,
-    check_flavor,
+    config: dict,
+    graph_name: str,
+    in_dir: Path | None,
+    out_dir: Path | None,
+    sensitive_in_dir: Path | None,
+    sensitive_out_dir: Path | None,
+    check_flavor: str | None,
+    base_rust_executable_dir: Path | None = None,
 ):
     """check compression-specific configuration and initialize its execution
     environment.
     """
-    conf = check_config(config)
+    conf = check_config(config, base_rust_executable_dir=base_rust_executable_dir)
 
     def _retrieve_value(value, name, default_value=None, is_path=False):
         if value is not None:
@@ -96,6 +116,12 @@ def check_config_compress(
     in_dir = _retrieve_value(in_dir, "in_dir", is_path=True)
     out_dir = _retrieve_value(out_dir, "out_dir", is_path=True)
     check_flavor = _retrieve_value(check_flavor, "check_flavor")
+
+    if "export_format" not in conf:
+        conf["export_format"] = _guess_export_format(in_dir)
+        logger.debug(
+            "export_format not configured, auto-detected %s", conf["export_format"]
+        )
 
     out_dir.mkdir(parents=True, exist_ok=True)
     if sensitive_in_dir is not None:

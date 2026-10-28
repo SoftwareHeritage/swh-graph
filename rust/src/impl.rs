@@ -9,6 +9,7 @@ use std::ops::Deref;
 use std::path::Path;
 
 use crate::graph::*;
+use crate::labels::EdgeLabel;
 use crate::properties;
 
 macro_rules! impl_deref {
@@ -17,6 +18,10 @@ macro_rules! impl_deref {
             #[inline(always)]
             fn path(&self) -> &Path {
                 self.deref().path()
+            }
+            #[inline(always)]
+            fn direction(&self) -> GraphDirection {
+                self.deref().direction()
             }
             #[inline(always)]
             fn is_transposed(&self) -> bool {
@@ -70,6 +75,16 @@ macro_rules! impl_deref {
             fn untyped_labeled_successors(&self, node_id: NodeId) -> Self::LabeledSuccessors<'_> {
                 self.deref().untyped_labeled_successors(node_id)
             }
+
+            #[inline(always)]
+            fn labeled_successors(
+                &self,
+                node_id: NodeId,
+            ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+                   + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+                   + '_ {
+                self.deref().labeled_successors(node_id)
+            }
         }
 
         impl<G: SwhBackwardGraph> SwhBackwardGraph for $type {
@@ -104,6 +119,16 @@ macro_rules! impl_deref {
                 node_id: NodeId,
             ) -> Self::LabeledPredecessors<'_> {
                 self.deref().untyped_labeled_predecessors(node_id)
+            }
+
+            #[inline(always)]
+            fn labeled_predecessors(
+                &self,
+                node_id: NodeId,
+            ) -> impl IntoIterator<Item = (usize, impl Iterator<Item = EdgeLabel>)>
+                   + IntoFlattenedLabeledArcsIterator<EdgeLabel>
+                   + '_ {
+                self.deref().labeled_predecessors(node_id)
             }
         }
         impl<G: SwhGraphWithProperties> SwhGraphWithProperties for $type {

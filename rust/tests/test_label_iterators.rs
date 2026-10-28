@@ -184,6 +184,7 @@ fn test_typed() -> Result<()> {
     assert_eq!(
         graph
             .labeled_successors(0)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect::<Vec<_>>(),
         vec![
@@ -220,6 +221,7 @@ fn test_typed() -> Result<()> {
     assert_eq!(
         graph
             .labeled_successors(2)
+            .into_iter()
             .map(|(succ, labels)| (succ, labels.collect()))
             .collect::<Vec<_>>(),
         vec![
@@ -353,6 +355,7 @@ fn test_labeled_predecessors_snp_rev() -> Result<()> {
 
     let rev1_preds: Vec<(_, Vec<_>)> = Transposed(graph)
         .labeled_successors(1)
+        .into_iter()
         .map(|(pred, labels)| (pred, labels.collect()))
         .collect();
     assert_eq!(rev1_preds, expected);
@@ -384,6 +387,7 @@ fn test_labeled_predecessors_dir_cnt() -> Result<()> {
 
     let cnt1_preds: Vec<(_, Vec<_>)> = Transposed(graph)
         .labeled_successors(1)
+        .into_iter()
         .map(|(pred, labels)| (pred, labels.collect()))
         .collect();
     assert_eq!(cnt1_preds, expected);
@@ -413,6 +417,7 @@ fn test_labeled_predecessors_ori_snp() -> Result<()> {
 
     let snp1_preds: Vec<(_, Vec<_>)> = Transposed(graph)
         .labeled_successors(1)
+        .into_iter()
         .map(|(pred, labels)| (pred, labels.collect()))
         .collect();
     assert_eq!(snp1_preds, expected);

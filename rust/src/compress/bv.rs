@@ -5,7 +5,6 @@
 
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Seek};
-use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -18,22 +17,21 @@ use itertools::Itertools;
 use lender::{for_, Lender};
 use nonmax::NonMaxU64;
 use rayon::prelude::*;
-use tempfile;
 use webgraph::graphs::arc_list_graph::ArcListGraph;
+use webgraph::graphs::par_sorted_graph::ParSortedLabeledGraphConf;
 use webgraph::prelude::*;
 use webgraph::prelude::{BitReader, BitWriter};
-use webgraph::utils::grouped_gaps::GroupedGapsCodec;
-use webgraph::utils::ParSortPairs;
 
 use super::iter_arcs::iter_arcs;
 use super::iter_labeled_arcs::iter_labeled_arcs;
 use super::label_names::LabelNameHasher;
 use super::stats::estimate_edge_count;
+use super::ExportTableReader;
 use crate::map::{MappedPermutation, Permutation};
 use crate::mph::LoadableSwhidMphf;
 
 #[allow(clippy::too_many_arguments)]
-pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
+pub fn bv<MPHF: LoadableSwhidMphf + Sync, R: ExportTableReader>(
     partitions_per_thread: usize,
     mph_basepath: PathBuf,
     num_nodes: usize,
@@ -55,37 +53,29 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
     log::info!("MPH loaded, sorting arcs");
 
     let num_threads = num_cpus::get();
-    let num_partitions = num_threads * partitions_per_thread;
-    let nodes_per_partition = num_nodes.div_ceil(num_partitions);
+    let num_lenders = num_threads * partitions_per_thread;
+    let nodes_per_partition = num_nodes.div_ceil(num_lenders);
 
     // Avoid empty partitions at the end when there are very few nodes
-    let num_partitions = num_nodes.div_ceil(nodes_per_partition);
+    let num_lenders = num_nodes.div_ceil(nodes_per_partition);
 
     let mut pl = concurrent_progress_logger!(
         display_memory = true,
         item_name = "arc",
         local_speed = true,
         expected_updates = Some(
-            estimate_edge_count(&dataset_dir, allowed_node_types)
+            estimate_edge_count::<R>(&dataset_dir, allowed_node_types)
                 .context("Could not estimate edge count")? as usize,
         ),
     );
     pl.start("Reading arcs");
 
-    // Sort in parallel in a bunch of SortPairs instances
-    let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
-    let sorted_arcs_path = temp_dir.path().join("sorted_arcs");
-    std::fs::create_dir(&sorted_arcs_path)
-        .with_context(|| format!("Could not create {}", sorted_arcs_path.display()))?;
-    let pair_sorter = ParSortPairs::new(num_nodes)?
-        .num_partitions(NonZeroUsize::new(num_partitions).unwrap())
-        .expected_num_pairs(
-            estimate_edge_count(&dataset_dir, allowed_node_types)
-                .context("Could not estimate edge count")? as usize,
-        );
-    let sorted_arcs = pair_sorter
-        .try_sort(
-            iter_arcs(&dataset_dir, allowed_node_types)
+    let sorted_graph = ParSortedGraph::config()
+        .num_lenders(num_lenders)
+        .dedup()
+        .par_sort_try_pairs(
+            num_nodes,
+            iter_arcs::<R>(&dataset_dir, allowed_node_types)
                 .context("Could not open input files to read arcs")?
                 .map_with(pl.clone(), |thread_pl, (src, dst)| -> Result<_> {
                     let mut src = mph.hash_str_array(&src).ok_or_else(|| {
@@ -107,35 +97,21 @@ pub fn bv<MPHF: LoadableSwhidMphf + Sync>(
         .context("Could not sort pairs")?;
     pl.done();
 
-    let arc_list_graphs = Vec::from(sorted_arcs.iters).into_iter().enumerate().map(
-        |(partition_id, sorted_arcs_partition)| {
-            ArcListGraph::new(num_nodes, sorted_arcs_partition.into_iter().dedup())
-                .iter_from(sorted_arcs.boundaries[partition_id])
-                .take(
-                    sorted_arcs.boundaries[partition_id + 1]
-                        .checked_sub(sorted_arcs.boundaries[partition_id])
-                        .expect("sorted_arcs.boundaries is not sorted"),
-                )
-        },
-    );
-
     BvComp::with_basename(target_dir)
-        .with_comp_flags(CompFlags {
+        .comp_flags(CompFlags {
             // Saves 0.5TB out of 4TB on the pre-BFS 2025-10-18 graph
             residuals: dsi_bitstream::dispatch::codes::Codes::Pi(4),
             ..Default::default()
         })
-        .par_comp_lenders::<BE, _>(arc_list_graphs, num_nodes)
+        .par_comp::<BE, _>(sorted_graph)
         .context("Could not build BVGraph from arcs")?;
-
-    drop(temp_dir); // Prevent early deletion
 
     Ok(())
 }
 
 /// Writes `-labelled.labels`,  `-labelled.labeloffsets`, and returns the label width
 #[allow(clippy::too_many_arguments)]
-pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
+pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync, R: ExportTableReader>(
     partitions_per_thread: usize,
     mph_basepath: PathBuf,
     order: MappedPermutation,
@@ -150,33 +126,25 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     let mph = MPHF::load(mph_basepath).context("Could not load MPHF")?;
     log::info!("MPH loaded, sorting arcs");
 
+    let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
+
     let num_threads = num_cpus::get();
-    let num_partitions = num_threads * partitions_per_thread;
-    let nodes_per_partition = num_nodes.div_ceil(num_partitions);
+    let num_lenders = num_threads * partitions_per_thread;
+    let nodes_per_partition = num_nodes.div_ceil(num_lenders);
     let label_width = label_width(label_name_hasher);
 
     // Avoid empty partitions at the end when there are very few nodes
-    let num_partitions = num_nodes.div_ceil(nodes_per_partition);
+    let num_lenders = num_nodes.div_ceil(nodes_per_partition);
 
     let labeled_arcs_counters = thread_local::ThreadLocal::new();
 
-    // Sort in parallel in a bunch of SortPairs instances
-    let temp_dir = tempfile::tempdir().context("Could not get temporary_directory")?;
-    let sorted_arcs_path = temp_dir.path().join("sorted_arcs");
-    std::fs::create_dir(&sorted_arcs_path)
-        .with_context(|| format!("Could not create {}", sorted_arcs_path.display()))?;
-    let pair_sorter = ParSortPairs::new(num_nodes)?
-        .num_partitions(NonZeroUsize::new(num_partitions).unwrap())
-        // allows running other tasks at the same time, at the expense of making merges slower:
-        .memory_usage(MemoryUsage::from_perc(25.0));
-    let codec: GroupedGapsCodec<NE, _, _> = GroupedGapsCodec::new(
-        LabelSerializer { label_width },
-        LabelDeserializer { label_width },
-    );
-    let sorted_arcs = pair_sorter
-        .try_sort_labeled(
-            &codec,
-            iter_labeled_arcs(&dataset_dir, allowed_node_types, label_name_hasher)
+    let sorted_arcs = ParSortedLabeledGraphConf::default()
+        .num_lenders(num_lenders)
+        // no .dedup() here, we need to keep all the labels on each arc.
+        .par_sort_try_pairs(
+            num_nodes,
+            LabelSerDeser { label_width },
+            iter_labeled_arcs::<R>(&dataset_dir, allowed_node_types, label_name_hasher)
                 .context("Could not open input files to read arcs")?
                 .map_init(
                     || labeled_arcs_counters.get_or(AtomicUsize::default),
@@ -200,6 +168,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
                 ),
         )
         .context("Could not sort pairs")?;
+    let (boundaries, iters) = sorted_arcs.into_parts();
 
     // Somewhat incorrect, we would need Ordering::Release here (and Ordering::Acquire in the
     // worker threads). But it's only an approximation so we don't care (plus the worker threads
@@ -231,7 +200,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     let merged_arcs_path = temp_dir.path().join("merged_arcs");
     std::fs::create_dir(&merged_arcs_path)
         .with_context(|| format!("Could not create {}", merged_arcs_path.display()))?;
-    let partitions = Vec::from(sorted_arcs.iters)
+    let partitions = Vec::from(iters)
         .into_par_iter()
         .enumerate()
         .map_with(pl.clone(), |pl, (partition_id, sorted_arcs_partition)| {
@@ -242,7 +211,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
                 .clone();
             let labels_path = merged_arcs_path.join(format!("{partition_id}.labels"));
             let mut labels_writer =
-                BufBitWriter::<BE, _, _>::new(WordAdapter::<u32, _>::new(BufWriter::new(
+                BufBitWriter::<BE, _>::new(WordAdapter::<u32, _>::new(BufWriter::new(
                     open_options
                         .open(&labels_path)
                         .with_context(|| format!("Could not create {}", labels_path.display()))?,
@@ -250,7 +219,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
 
             let offsets_path = merged_arcs_path.join(format!("{partition_id}.offsets"));
             let mut offsets_writer =
-                BufBitWriter::<BE, _, _>::new(WordAdapter::<u32, _>::new(BufWriter::new(
+                BufBitWriter::<BE, _>::new(WordAdapter::<u32, _>::new(BufWriter::new(
                     open_options
                         .open(&offsets_path)
                         .with_context(|| format!("Could not create {}", offsets_path.display()))?,
@@ -259,11 +228,11 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
             let mut num_offsets = 0u64;
 
             // no sorted_arcs_partition.dedup() on labels
-            let graph = ArcListGraph::new_labeled(num_nodes, sorted_arcs_partition.into_iter())
-                .iter_from(sorted_arcs.boundaries[partition_id])
+            let graph = ArcListGraph::new_labeled(num_nodes, sorted_arcs_partition)
+                .iter_from(boundaries[partition_id])
                 .take(
-                    sorted_arcs.boundaries[partition_id + 1]
-                        .checked_sub(sorted_arcs.boundaries[partition_id])
+                    boundaries[partition_id + 1]
+                        .checked_sub(boundaries[partition_id])
                         .expect("sorted_arcs.boundaries is not sorted"),
                 );
 
@@ -355,7 +324,7 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
         .as_mut_os_string()
         .push("-labelled.labeloffsets");
     let mut offsets_writer =
-        BufBitWriter::<BE, _, _>::new(WordAdapter::<u8, _>::new(BufWriter::new(
+        BufBitWriter::<BE, _>::new(WordAdapter::<u32, _>::new(BufWriter::new(
             File::create(&offsets_path)
                 .with_context(|| format!("Could not create {}", offsets_path.display()))?,
         )));
@@ -452,8 +421,6 @@ pub fn edge_labels<MPHF: LoadableSwhidMphf + Sync>(
     r1.context("Could not write offsets")?;
     r2.context("Could not write labels")?;
 
-    drop(temp_dir); // Prevent early deletion
-
     Ok(label_width)
 }
 
@@ -509,15 +476,11 @@ fn test_width_for_max_label_value() {
 }
 
 #[derive(Clone, Copy)]
-struct LabelDeserializer {
-    label_width: usize,
-}
-#[derive(Clone, Copy)]
-struct LabelSerializer {
+struct LabelSerDeser {
     label_width: usize,
 }
 
-impl BitDeserializer<NE, BitReader<NE>> for LabelDeserializer {
+impl BitDeserializer<NE, BitReader<NE>> for LabelSerDeser {
     type DeserType = Option<NonMaxU64>;
     fn deserialize(
         &self,
@@ -533,9 +496,13 @@ impl BitDeserializer<NE, BitReader<NE>> for LabelDeserializer {
             Ok(Some(NonMaxU64::try_from(value).unwrap()))
         }
     }
+
+    fn name(&self) -> String {
+        "SwhSerializer".to_string()
+    }
 }
 
-impl BitSerializer<NE, BitWriter<NE>> for LabelSerializer {
+impl BitSerializer<NE, BitWriter<NE>> for LabelSerDeser {
     type SerType = Option<NonMaxU64>;
     fn serialize(
         &self,
@@ -551,5 +518,9 @@ impl BitSerializer<NE, BitWriter<NE>> for LabelSerializer {
             }
             None => bitstream.write_bits(max, self.label_width),
         }
+    }
+
+    fn name(&self) -> String {
+        "SwhSerializer".to_string()
     }
 }

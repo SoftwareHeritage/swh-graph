@@ -1,4 +1,4 @@
-// Copyright (C) 2025  The Software Heritage developers
+// Copyright (C) 2025-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -9,20 +9,18 @@ use std::path::PathBuf;
 use anyhow::Result;
 use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
 use ar_row_derive::ArRowDeserialize;
-use orc_rust::arrow_reader::ArrowReaderBuilder;
-use orc_rust::reader::ChunkReader;
+
 use rayon::prelude::*;
 
-use super::orc::{get_dataset_readers, par_iter_arrow};
+use super::ExportTableReader;
 
 type ExportedFullname = (Box<[u8]>, Box<[u8]>);
 
-pub fn iter_fullnames(
+pub fn iter_fullnames<R: ExportTableReader>(
     dataset_dir: &PathBuf,
     subdirectory: &str,
 ) -> Result<impl ParallelIterator<Item = ExportedFullname>> {
-    let map_get_dataset_readers =
-        |dataset_dir, subdirectory| get_dataset_readers(dataset_dir, subdirectory);
+    let map_get_dataset_readers = |dataset_dir, subdirectory| R::new(dataset_dir, subdirectory);
 
     Ok([].into_par_iter().chain(
         map_get_dataset_readers(dataset_dir, subdirectory)?
@@ -31,19 +29,19 @@ pub fn iter_fullnames(
     ))
 }
 
-fn map_fullnames<T, F, R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn map_fullnames<T, F, R: ExportTableReader>(
+    reader: R,
     f: F,
 ) -> impl ParallelIterator<Item = ExportedFullname>
 where
     F: Fn(T) -> Vec<ExportedFullname> + Send + Sync,
     T: ArRowDeserialize + ArRowStruct + Send,
 {
-    par_iter_arrow(reader_builder, f)
+    reader.par_iter(f)
 }
 
-fn iter_fullnames_from_file<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_fullnames_from_file<R: ExportTableReader>(
+    reader: R,
 ) -> impl ParallelIterator<Item = ExportedFullname> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct Row {
@@ -51,7 +49,5 @@ fn iter_fullnames_from_file<R: ChunkReader + Send>(
         sha256_fullname: Box<[u8]>,
     }
 
-    map_fullnames(reader_builder, |row: Row| {
-        vec![(row.fullname, row.sha256_fullname)]
-    })
+    map_fullnames(reader, |row: Row| vec![(row.fullname, row.sha256_fullname)])
 }

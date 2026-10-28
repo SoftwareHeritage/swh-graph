@@ -1,4 +1,4 @@
-// Copyright (C) 2025  The Software Heritage developers
+// Copyright (C) 2025-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -20,7 +20,7 @@ fn test_webgraph_adapter() {
     let graph = WebgraphAdapter(graph);
 
     assert_eq!(graph.num_nodes(), 3);
-    assert_eq!(graph.num_arcs_hint(), Some(3));
+    assert_eq!(graph.get_num_arcs(), Some(3));
     assert_eq!(graph.num_arcs(), 3);
 
     assert_eq!(graph.successors(0).collect::<Vec<_>>(), vec![1]);
@@ -42,7 +42,7 @@ fn test_webgraph_adapter_subgraph() {
     let graph = WebgraphAdapter(graph);
 
     assert_eq!(graph.num_nodes(), 3);
-    assert_eq!(graph.num_arcs_hint(), Some(3));
+    assert_eq!(graph.get_num_arcs(), Some(3));
     assert_eq!(graph.num_arcs(), 3);
 
     assert_eq!(graph.successors(0).collect::<Vec<_>>(), Vec::<usize>::new());
@@ -64,7 +64,7 @@ fn test_symmetric_webgraph_adapter() {
     let graph = SymmetricWebgraphAdapter(graph);
 
     assert_eq!(graph.num_nodes(), 4);
-    assert_eq!(graph.num_arcs_hint(), Some(8));
+    assert_eq!(graph.get_num_arcs(), Some(8));
     assert_eq!(graph.num_arcs(), 8);
 
     assert_eq!(graph.successors(0).collect::<Vec<_>>(), vec![1, 2]);
@@ -89,7 +89,7 @@ fn test_symmetric_webgraph_adapter_subgraph() {
     let graph = SymmetricWebgraphAdapter(graph);
 
     assert_eq!(graph.num_nodes(), 4);
-    assert_eq!(graph.num_arcs_hint(), Some(8));
+    assert_eq!(graph.get_num_arcs(), Some(8));
     assert_eq!(graph.num_arcs(), 8);
 
     assert_eq!(graph.successors(0).collect::<Vec<_>>(), Vec::<usize>::new());

@@ -4,25 +4,25 @@
 // See top-level LICENSE file for more information
 
 use std::io::{BufWriter, Write};
+use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
 use anyhow::{Context, Result};
 use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
 use ar_row_derive::ArRowDeserialize;
-use common_traits::{Atomic, IntoAtomic};
+use atomic_primitive::{Atomic, AtomicPrimitive, PrimitiveAtomicInteger};
 use rayon::prelude::*;
 use sux::traits::AtomicBitVecOps;
 
-use super::orc::get_dataset_readers;
-use super::orc::{iter_arrow, par_iter_arrow};
+use super::ExportTableReader;
 use crate::map::{MappedPermutation, Permutation};
 use crate::mph::SwhidMphf;
 use crate::properties::suffixes;
 use crate::utils::suffix_path;
 use crate::NodeType;
 
-pub struct PropertyWriter<'b, SWHIDMPHF: SwhidMphf> {
+pub struct PropertyWriter<'b, SWHIDMPHF: SwhidMphf, R: ExportTableReader> {
     pub swhid_mph: SWHIDMPHF,
     pub person_mph: Option<super::persons::PersonHasher<'b>>,
     pub order: MappedPermutation,
@@ -30,16 +30,17 @@ pub struct PropertyWriter<'b, SWHIDMPHF: SwhidMphf> {
     pub dataset_dir: PathBuf,
     pub allowed_node_types: Vec<NodeType>,
     pub target: PathBuf,
+    pub _marker: PhantomData<std::sync::Mutex<R>>,
 }
 
-impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
+impl<SWHIDMPHF: SwhidMphf + Sync, R: ExportTableReader> PropertyWriter<'_, SWHIDMPHF, R> {
     fn for_each_row<Row>(&self, subdirectory: &str, f: impl FnMut(Row) -> Result<()>) -> Result<()>
     where
         Row: ArRowDeserialize + ArRowStruct + Send + Sync,
     {
-        get_dataset_readers(self.dataset_dir.clone(), subdirectory)?
+        R::new(self.dataset_dir.clone(), subdirectory)?
             .into_iter()
-            .flat_map(|reader_builder| iter_arrow(reader_builder, |row: Row| [row]))
+            .flat_map(|reader| reader.iter(|row: Row| [row]))
             .try_for_each(f)
     }
 
@@ -51,9 +52,9 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
     where
         Row: ArRowDeserialize + ArRowStruct + Clone + Send + Sync,
     {
-        Ok(get_dataset_readers(self.dataset_dir.clone(), subdirectory)?
+        Ok(R::new(self.dataset_dir.clone(), subdirectory)?
             .into_par_iter()
-            .flat_map(|reader_builder| par_iter_arrow(reader_builder, |row: Row| [row]))
+            .flat_map(|reader| reader.par_iter(|row: Row| [row]))
             .map(f))
     }
 
@@ -70,10 +71,10 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
         vec
     }
     /// Same as [`Self::init_vec`] but returns a vector of atomic values
-    fn init_atomic_vec<T: IntoAtomic + Copy + Default + Sync>(
+    fn init_atomic_vec<T: AtomicPrimitive + Copy + Default + Sync>(
         &self,
         initial_value: T,
-    ) -> Vec<<T as IntoAtomic>::AtomicType>
+    ) -> Vec<Atomic<T>>
     where
         for<'a> Vec<T>: IntoParallelRefMutIterator<'a, Item = &'a mut T>,
     {
@@ -93,11 +94,11 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
             .unwrap()
     }
 
-    fn set_atomic<Value: Atomic>(
+    fn set_atomic<Value: PrimitiveAtomicInteger>(
         &self,
         vector: &[Value],
         swhid: &str,
-        value: Value::NonAtomicType,
+        value: Value::Value,
     ) {
         vector
             .get(self.node_id(swhid))
@@ -121,9 +122,13 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
         Ok(())
     }
 
-    fn write_atomic<Value: Atomic>(&self, suffix: &str, values: Vec<Value>) -> Result<()>
+    fn write_atomic<Value: PrimitiveAtomicInteger>(
+        &self,
+        suffix: &str,
+        values: Vec<Value>,
+    ) -> Result<()>
     where
-        <Value as Atomic>::NonAtomicType: bytemuck::Pod,
+        Value::Value: bytemuck::Pod,
     {
         // In release mode, this is compiled into a no-op
         let values: Vec<_> = values.into_iter().map(Value::into_inner).collect();
@@ -263,7 +268,8 @@ impl<SWHIDMPHF: SwhidMphf + Sync> PropertyWriter<'_, SWHIDMPHF> {
         }
 
         log::info!("Initializing...");
-        let is_skipped = sux::bits::bit_vec::AtomicBitVec::new(self.num_nodes);
+        let is_skipped: sux::bits::bit_vec::AtomicBitVec =
+            sux::bits::bit_vec::AtomicBitVec::new(self.num_nodes);
 
         log::info!("Reading...");
         self.par_for_each_row("skipped_content", |cnt: SkippedContent| {

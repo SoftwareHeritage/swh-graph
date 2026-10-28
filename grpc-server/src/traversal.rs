@@ -15,7 +15,7 @@ use tonic::{Request, Response};
 
 use swh_graph::graph::{SwhForwardGraph, SwhGraphWithProperties};
 use swh_graph::properties;
-use swh_graph::views::{Subgraph, Transposed};
+use swh_graph::views::{Subgraph, Symmetric, Transposed};
 
 use super::filters::{ArcFilterChecker, NodeFilterChecker};
 use super::node_builder::NodeBuilder;
@@ -216,6 +216,10 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
                 let graph = Arc::new(Transposed(graph));
                 traverse!(graph);
             }
+            Ok(proto::GraphDirection::Both) => {
+                let graph = Arc::new(Symmetric(graph));
+                traverse!(graph);
+            }
             Err(_) => return Err(tonic::Status::invalid_argument("Invalid direction")),
         }
         Ok(Response::new(ReceiverStream::new(rx)))
@@ -248,6 +252,12 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             }
             Ok(proto::GraphDirection::Backward) => {
                 let graph = Arc::new(Transposed(graph));
+                let subgraph = Arc::new(self.make_subgraph(graph, &request)?);
+                let visitor = self.make_visitor(request, subgraph, on_node, on_arc)?;
+                scoped_spawn_blocking(|| visitor.visit())?;
+            }
+            Ok(proto::GraphDirection::Both) => {
+                let graph = Arc::new(Symmetric(graph));
                 let subgraph = Arc::new(self.make_subgraph(graph, &request)?);
                 let visitor = self.make_visitor(request, subgraph, on_node, on_arc)?;
                 scoped_spawn_blocking(|| visitor.visit())?;
@@ -285,6 +295,12 @@ impl<S: TraversalServiceTrait + Sync> SimpleTraversal<'_, S> {
             }
             Ok(proto::GraphDirection::Backward) => {
                 let graph = Arc::new(Transposed(graph));
+                let subgraph = Arc::new(self.make_subgraph(graph, &request)?);
+                let visitor = self.make_visitor(request, subgraph, on_node, on_arc)?;
+                scoped_spawn_blocking(|| visitor.visit())?;
+            }
+            Ok(proto::GraphDirection::Both) => {
+                let graph = Arc::new(Symmetric(graph));
                 let subgraph = Arc::new(self.make_subgraph(graph, &request)?);
                 let visitor = self.make_visitor(request, subgraph, on_node, on_arc)?;
                 scoped_spawn_blocking(|| visitor.visit())?;

@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024  The Software Heritage developers
+// Copyright (C) 2023-2026  The Software Heritage developers
 // See the AUTHORS file at the top-level directory of this distribution
 // License: GNU General Public License version 3, or any later version
 // See top-level LICENSE file for more information
@@ -10,22 +10,21 @@ use std::path::PathBuf;
 use anyhow::Result;
 use ar_row::deserialize::{ArRowDeserialize, ArRowStruct};
 use ar_row_derive::ArRowDeserialize;
-use orc_rust::arrow_reader::ArrowReaderBuilder;
-use orc_rust::reader::ChunkReader;
+
 use rayon::prelude::*;
 
-use super::orc::{get_dataset_readers, iter_arrow};
+use super::ExportTableReader;
 use super::TextSwhid;
 use crate::NodeType;
 use crate::SWHID;
 
-pub fn iter_arcs(
+pub fn iter_arcs<R: ExportTableReader>(
     dataset_dir: &PathBuf,
     allowed_node_types: &[NodeType],
 ) -> Result<impl ParallelIterator<Item = (TextSwhid, TextSwhid)>> {
     let maybe_get_dataset_readers = |dataset_dir, subdirectory, node_type| {
         if allowed_node_types.contains(&node_type) {
-            get_dataset_readers(dataset_dir, subdirectory)
+            R::new(dataset_dir, subdirectory)
         } else {
             Ok(Vec::new())
         }
@@ -65,15 +64,15 @@ pub fn iter_arcs(
         ))
 }
 
-fn map_arcs<R: ChunkReader + Send, T, F>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn map_arcs<R: ExportTableReader, T, F>(
+    reader: R,
     f: F,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid)>
 where
     F: Fn(T) -> Option<(String, String)> + Send + Sync,
     T: ArRowDeserialize + ArRowStruct + Send,
 {
-    iter_arrow(reader_builder, move |record: T| {
+    reader.iter(move |record: T| {
         f(record).map(|(src_swhid, dst_swhid)| {
             (
                 src_swhid.as_bytes().try_into().unwrap(),
@@ -83,8 +82,8 @@ where
     })
 }
 
-fn iter_arcs_from_dir_entry<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_arcs_from_dir_entry<R: ExportTableReader>(
+    reader: R,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct DirectoryEntry {
@@ -93,7 +92,7 @@ fn iter_arcs_from_dir_entry<R: ChunkReader + Send>(
         target: String,
     }
 
-    map_arcs(reader_builder, |entry: DirectoryEntry| {
+    map_arcs(reader, |entry: DirectoryEntry| {
         Some((
             format!("swh:1:dir:{}", entry.directory_id),
             match entry.r#type.as_bytes() {
@@ -106,8 +105,8 @@ fn iter_arcs_from_dir_entry<R: ChunkReader + Send>(
     })
 }
 
-pub(super) fn iter_arcs_from_ovs<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+pub(super) fn iter_arcs_from_ovs<R: ExportTableReader>(
+    reader: R,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct OriginVisitStatus {
@@ -115,7 +114,7 @@ pub(super) fn iter_arcs_from_ovs<R: ChunkReader + Send>(
         snapshot: Option<String>,
     }
 
-    map_arcs(reader_builder, |ovs: OriginVisitStatus| {
+    map_arcs(reader, |ovs: OriginVisitStatus| {
         ovs.snapshot.as_ref().map(|snapshot| {
             (
                 SWHID::from_origin_url(ovs.origin).to_string(),
@@ -125,8 +124,8 @@ pub(super) fn iter_arcs_from_ovs<R: ChunkReader + Send>(
     })
 }
 
-pub(super) fn iter_arcs_from_rel<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+pub(super) fn iter_arcs_from_rel<R: ExportTableReader>(
+    reader: R,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct Release {
@@ -135,7 +134,7 @@ pub(super) fn iter_arcs_from_rel<R: ChunkReader + Send>(
         target_type: String,
     }
 
-    map_arcs(reader_builder, |entry: Release| {
+    map_arcs(reader, |entry: Release| {
         Some((
             format!("swh:1:rel:{}", entry.id),
             match entry.target_type.as_bytes() {
@@ -149,8 +148,8 @@ pub(super) fn iter_arcs_from_rel<R: ChunkReader + Send>(
     })
 }
 
-pub(super) fn iter_arcs_from_rev<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+pub(super) fn iter_arcs_from_rev<R: ExportTableReader>(
+    reader: R,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct Revision {
@@ -158,7 +157,7 @@ pub(super) fn iter_arcs_from_rev<R: ChunkReader + Send>(
         directory: String,
     }
 
-    map_arcs(reader_builder, |rev: Revision| {
+    map_arcs(reader, |rev: Revision| {
         Some((
             format!("swh:1:rev:{}", rev.id),
             format!("swh:1:dir:{}", rev.directory),
@@ -166,8 +165,8 @@ pub(super) fn iter_arcs_from_rev<R: ChunkReader + Send>(
     })
 }
 
-pub(super) fn iter_arcs_from_rev_history<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+pub(super) fn iter_arcs_from_rev_history<R: ExportTableReader>(
+    reader: R,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct RevisionParent {
@@ -175,7 +174,7 @@ pub(super) fn iter_arcs_from_rev_history<R: ChunkReader + Send>(
         parent_id: String,
     }
 
-    map_arcs(reader_builder, |rev: RevisionParent| {
+    map_arcs(reader, |rev: RevisionParent| {
         Some((
             format!("swh:1:rev:{}", rev.id),
             format!("swh:1:rev:{}", rev.parent_id),
@@ -183,8 +182,8 @@ pub(super) fn iter_arcs_from_rev_history<R: ChunkReader + Send>(
     })
 }
 
-fn iter_arcs_from_snp_branch<R: ChunkReader + Send>(
-    reader_builder: ArrowReaderBuilder<R>,
+fn iter_arcs_from_snp_branch<R: ExportTableReader>(
+    reader: R,
 ) -> impl Iterator<Item = (TextSwhid, TextSwhid)> {
     #[derive(ArRowDeserialize, Default, Clone)]
     struct SnapshotBranch {
@@ -193,7 +192,7 @@ fn iter_arcs_from_snp_branch<R: ChunkReader + Send>(
         target_type: String,
     }
 
-    map_arcs(reader_builder, |branch: SnapshotBranch| {
+    map_arcs(reader, |branch: SnapshotBranch| {
         let dst = match branch.target_type.as_bytes() {
             b"content" => Some(format!("swh:1:cnt:{}", branch.target)),
             b"directory" => Some(format!("swh:1:dir:{}", branch.target)),

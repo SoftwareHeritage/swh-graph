@@ -30,8 +30,6 @@ use swh_graph::utils::AtomicFile;
 #[derive(Parser, Debug)]
 #[command(about = "Commands to run individual steps of the pipeline to compress a graph from an initial not-very-compressed BvGraph", long_about = None)]
 struct Args {
-    #[clap(flatten)]
-    webgraph_args: webgraph_cli::GlobalArgs,
     #[command(subcommand)]
     command: Commands,
 }
@@ -232,7 +230,7 @@ pub fn main() -> Result<()> {
                 .collect();
 
             log::info!("Initializing set of used node ids...");
-            let used_node_ids = AtomicBitVec::new(num_nodes);
+            let used_node_ids = <AtomicBitVec>::new(num_nodes);
             let mut pl = concurrent_progress_logger!(
                 display_memory = true,
                 item_name = "node",
@@ -273,7 +271,8 @@ pub fn main() -> Result<()> {
                 })?;
             pl.done();
 
-            let used_node_ids: BitVec = BitVec::from(used_node_ids);
+            let used_node_ids: BitVec = BitVec::try_from(used_node_ids)
+                .context("Could not convert AtomicBitVec to BitVec>")?;
             let mut order: Vec<_> = order.into_iter().map(AtomicUsize::into_inner).collect(); // Compiles to no-op
 
             // At this point, assuming the previous graph was smaller, used_node_ids will be overwhelmingly 1s in range
@@ -528,8 +527,9 @@ pub fn main() -> Result<()> {
                 .context("Could not commit order file")?;
         }
 
-        Commands::Llp { args: llp_args } => {
-            webgraph_cli::run::llp::llp::<BE>(args.webgraph_args, llp_args)?;
+        Commands::Llp { args: mut llp_args } => {
+            llp_args.fmt = webgraph_cli::IntSliceFormat::Java;
+            webgraph_cli::run::llp::llp::<BE>(llp_args)?;
         }
 
         Commands::Maps {
