@@ -84,8 +84,8 @@ default = ["macros", "pthash"]
 arrow = ["dep:arrow", "dep:arrow-array"]
 pthash = ["dep:pthash"]
 
-# Reads dataset from ORC files and produces a compressed graph
-compression = []
+# Reads dataset from ORC or Parquet files and produces a compressed graph
+compression = ["ar_row", "ar_row_derive"]
 
 orc = ["ar_row", "ar_row_derive", "arrow", "orc-rust", "mimalloc"]
 parquet = ["ar_row", "ar_row_derive", "arrow", "dep:parquet", "mimalloc"]
